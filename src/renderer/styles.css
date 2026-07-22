@@ -1,0 +1,87 @@
+:root {
+  --bg: #1e1e2e;
+  --surface: #27273a;
+  --surface-hover: #313147;
+  --text: #cdd6f4;
+  --muted: #9399b2;
+  --accent: #89b4fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid #00000033;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+}
+
+h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+button {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid #00000033;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--surface-hover);
+}
+
+main {
+  padding: 16px 20px 32px;
+}
+
+.group h2 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: none;
+  margin: 20px 0 8px;
+  word-break: break-all;
+}
+
+.session {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  cursor: default;
+}
+
+.session:hover {
+  background: var(--surface-hover);
+}
+
+.session-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
