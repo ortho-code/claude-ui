@@ -7,13 +7,24 @@
   "main": "dist/main/main.js",
   "scripts": {
     "build:main": "tsc -p tsconfig.main.json",
-    "build:renderer": "tsc -p tsconfig.renderer.json && cp src/renderer/index.html src/renderer/styles.css dist/renderer/",
+    "build:renderer": "tsc --noEmit -p tsconfig.renderer.json && esbuild src/renderer/renderer.ts --bundle --format=esm --outfile=dist/renderer/renderer.js --sourcemap && cp src/renderer/index.html src/renderer/styles.css node_modules/@xterm/xterm/css/xterm.css dist/renderer/",
     "build": "npm run build:main && npm run build:renderer",
-    "start": "npm run build && electron . --no-sandbox"
+    "start": "npm run build && electron . --no-sandbox",
+    "rebuild": "electron-rebuild -f -w node-pty"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
     "@types/node": "^26.1.1",
     "electron": "^43.2.0",
+    "esbuild": "^0.28.1",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "node-pty": "^1.1.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
   }
 }
