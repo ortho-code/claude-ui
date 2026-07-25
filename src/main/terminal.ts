@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import * as pty from 'node-pty';
 import * as os from 'node:os';
 import { existsSync } from 'node:fs';
+import { SCOPE_ENV } from './status';
 
 const terminals = new Map<number, pty.IPty>();
 let nextId = 1;
@@ -12,6 +13,8 @@ function cleanEnv(): { [key: string]: string } {
   for (const [key, value] of Object.entries(process.env)) {
     if (value !== undefined) env[key] = value;
   }
+  // Mark this session as launched by claude-ui so the status hook reports it.
+  env[SCOPE_ENV] = '1';
   return env;
 }
 

@@ -3,9 +3,12 @@ import * as path from 'node:path';
 import { listSessions } from './sessions';
 import { registerTerminalIpc } from './terminal';
 import { getPinned, togglePin } from './meta';
+import { installStatusHooks, registerStatusIpc } from './status';
+
+let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1100,
     height: 760,
     title: 'claude-ui',
@@ -17,7 +20,10 @@ function createWindow(): void {
     },
   });
 
-  win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
 ipcMain.handle('sessions:list', () => listSessions());
@@ -25,7 +31,9 @@ ipcMain.handle('meta:getPinned', () => getPinned());
 ipcMain.handle('meta:togglePin', (_event, id: string) => togglePin(id));
 registerTerminalIpc();
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await installStatusHooks();
+  registerStatusIpc(() => mainWindow);
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

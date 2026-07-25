@@ -18,16 +18,25 @@ instead of forcing a worktree per session.
 
 ## Status
 
-Milestones 1 and 2 work: the app lists your `~/.claude` sessions grouped by
-project, and clicking one opens a terminal in that session's folder.
+The core is working: the app lists your `~/.claude` sessions grouped by project,
+clicking one resumes it in an embedded terminal, you can pin sessions, and each
+shows a live status dot.
 
-Roadmap:
+Done:
 
-- M1 (done) — session list from `~/.claude`, grouped by project.
-- M2 (done) — embedded terminal per session, a login shell in the session's
-  folder (`@xterm/xterm` + `node-pty`).
-- M3 — resume a session on click (`claude --resume`, done); pin and group next.
-- M4 — waiting/done cues driven by Claude Code hooks.
+- Session list from `~/.claude`, grouped by project.
+- Embedded terminal per session (`@xterm/xterm` + `node-pty`).
+- Resume a session on click (`claude --resume`).
+- Pin sessions to the top.
+- Per-session status dots (busy / idle / waiting) driven by scoped Claude Code hooks.
+
+Planned:
+
+- Multiple open sessions: tabs first, with split view and pop-out windows as add-ons.
+- Collapsible groups; worktree sessions filed under their main repo with a badge.
+- Search, live auto-refresh, custom session names, an app icon, a single-instance lock,
+  and a taskbar attention nudge.
+- Custom groups (deferred).
 
 ## Requirements
 

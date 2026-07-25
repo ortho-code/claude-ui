@@ -94,6 +94,41 @@ button:hover {
   background: var(--surface-hover);
 }
 
+.status-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--muted);
+}
+
+.status-dot.busy {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.status-dot.idle {
+  background: #a6e3a1;
+  border-color: #a6e3a1;
+}
+
+.status-dot.waiting {
+  background: #f9e2af;
+  border-color: #f9e2af;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
 .session-content {
   flex: 1;
   min-width: 0;

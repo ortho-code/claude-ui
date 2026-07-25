@@ -17,6 +17,10 @@ export interface ClaudeUiApi {
   getPinned(): Promise<string[]>;
   /** Toggle a session's pin; resolves to the updated pinned list. */
   togglePin(id: string): Promise<string[]>;
+  /** Current status per session id (busy | idle | waiting). */
+  getAllStatuses(): Promise<Record<string, string>>;
+  /** Subscribe to live status changes for a session. */
+  onSessionStatus(callback: (id: string, status: string) => void): void;
   /**
    * Open a terminal in `cwd`. With `resumeSessionId`, resume that Claude
    * session; otherwise open a login shell. Resolves to a terminal id.

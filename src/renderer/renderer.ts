@@ -19,14 +19,19 @@ const term = new Terminal({
 const fitAddon = new FitAddon();
 let activeTerminalId: number | null = null;
 let pinned = new Set<string>();
+let statuses = new Map<string, string>();
+const statusDots = new Map<string, HTMLElement>();
 
 async function renderSessions(): Promise<void> {
   container.textContent = 'Loading…';
-  const [sessions, pinnedList] = await Promise.all([
+  const [sessions, pinnedList, statusMap] = await Promise.all([
     window.claudeUi.listSessions(),
     window.claudeUi.getPinned(),
+    window.claudeUi.getAllStatuses(),
   ]);
   pinned = new Set(pinnedList);
+  statuses = new Map(Object.entries(statusMap));
+  statusDots.clear();
 
   if (sessions.length === 0) {
     container.textContent = 'No sessions found in ~/.claude/projects.';
@@ -69,6 +74,10 @@ function renderSession(session: SessionSummary): HTMLElement {
   const item = document.createElement('article');
   item.className = 'session';
 
+  const dot = document.createElement('span');
+  applyStatus(dot, statuses.get(session.id));
+  statusDots.set(session.id, dot);
+
   const content = document.createElement('div');
   content.className = 'session-content';
 
@@ -93,9 +102,14 @@ function renderSession(session: SessionSummary): HTMLElement {
     renderSessions();
   });
 
-  item.append(content, pin);
+  item.append(dot, content, pin);
   item.addEventListener('click', () => openSession(session));
   return item;
+}
+
+function applyStatus(dot: HTMLElement, status: string | undefined): void {
+  dot.className = status ? `status-dot ${status}` : 'status-dot';
+  dot.title = status ?? '';
 }
 
 function relativeTime(iso: string): string {
@@ -144,6 +158,12 @@ async function openSession(session: SessionSummary): Promise<void> {
   sendResize();
   term.focus();
 }
+
+window.claudeUi.onSessionStatus((id, status) => {
+  statuses.set(id, status);
+  const dot = statusDots.get(id);
+  if (dot) applyStatus(dot, status);
+});
 
 refreshButton.addEventListener('click', renderSessions);
 initTerminal();

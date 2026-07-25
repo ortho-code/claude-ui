@@ -46,8 +46,16 @@ values above. Shared types in `src/shared` are type-only, so nothing crosses at 
 Keeping the real CLI in a PTY is the point: its approval prompts, diffs, and permission
 modes stay exactly as they are in a terminal.
 
-## Status cues (planned, M4)
+## Status cues
 
-Rather than parse terminal output to guess when a session is waiting, the app registers
-Claude Code `Notification` and `Stop` hooks. The hooks report which session needs
-attention or has finished, and the list lights up the matching entry.
+Rather than parse terminal output to guess a session's state, the app drives status from
+Claude Code hooks. On startup it writes a small hook script to `~/.config/claude-ui/` and
+merges hook entries into `~/.claude/settings.json` (preserving any existing hooks). The
+events map to statuses: `UserPromptSubmit` → busy, `Stop` → idle, `Notification` → waiting,
+`SessionEnd` → closed.
+
+The hooks are scoped to claude-ui: it sets `CLAUDE_UI=1` on the terminals it spawns, and
+the hook script no-ops unless that variable is set, so sessions run in a plain terminal are
+left untouched. When it does fire, the script writes `~/.config/claude-ui/status/<id>.json`.
+The main process watches that directory and pushes updates to the renderer, which shows a
+dot per session: busy, idle, waiting, or hollow (`closed` and unknown states have no color).
