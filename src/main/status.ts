@@ -80,6 +80,9 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
   mkdirSync(statusDir, { recursive: true });
 
   ipcMain.handle('status:getAll', () => readAllStatuses());
+  ipcMain.on('status:clear', (_event, id: string) => {
+    void fs.rm(path.join(statusDir, `${id}.json`)).catch(() => {});
+  });
 
   watch(statusDir, (_event, filename) => {
     if (!filename || !filename.endsWith('.json')) return;

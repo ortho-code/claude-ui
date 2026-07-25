@@ -21,6 +21,8 @@ export interface ClaudeUiApi {
   getAllStatuses(): Promise<Record<string, string>>;
   /** Subscribe to live status changes for a session. */
   onSessionStatus(callback: (id: string, status: string) => void): void;
+  /** Clear a session's status (removes its status file). */
+  clearStatus(id: string): void;
   /**
    * Open a terminal in `cwd`. With `resumeSessionId`, resume that Claude
    * session; otherwise open a login shell. Resolves to a terminal id.
@@ -31,4 +33,6 @@ export interface ClaudeUiApi {
   sendTerminalInput(id: number, data: string): void;
   resizeTerminal(id: number, cols: number, rows: number): void;
   killTerminal(id: number): void;
+  /** Close a session, letting claude exit cleanly so it flushes first. */
+  closeTerminal(id: number): void;
 }

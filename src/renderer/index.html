@@ -14,10 +14,14 @@
           <h1>Sessions</h1>
           <button id="refresh">Refresh</button>
         </header>
+        <div id="loading"></div>
         <div id="sessions" aria-live="polite"></div>
       </aside>
       <section id="terminal-pane">
-        <div id="terminal"></div>
+        <div id="tabbar"></div>
+        <div id="terminals">
+          <div id="term-placeholder">Select a session on the left to resume it.</div>
+        </div>
       </section>
     </div>
     <script type="module" src="./renderer.js"></script>

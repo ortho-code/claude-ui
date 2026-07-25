@@ -60,4 +60,15 @@ export function registerTerminalIpc(): void {
     terminals.get(id)?.kill();
     terminals.delete(id);
   });
+
+  // Graceful close: give claude its normal exit path (Ctrl-C twice) so it flushes the
+  // transcript, then kill the leftover shell.
+  ipcMain.on('terminal:close', (_event, id: number) => {
+    const proc = terminals.get(id);
+    if (!proc) return;
+    terminals.delete(id);
+    proc.write('\x03');
+    setTimeout(() => proc.write('\x03'), 400);
+    setTimeout(() => proc.kill(), 1800);
+  });
 }

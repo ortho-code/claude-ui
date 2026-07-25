@@ -10,42 +10,91 @@ declare global {
 
 const container = document.getElementById('sessions')!;
 const refreshButton = document.getElementById('refresh') as HTMLButtonElement;
+const loadingEl = document.getElementById('loading')!;
+const tabbar = document.getElementById('tabbar')!;
+const terminalsEl = document.getElementById('terminals')!;
+const placeholder = document.getElementById('term-placeholder')!;
 
-const term = new Terminal({
-  fontFamily: 'monospace',
-  fontSize: 13,
-  theme: { background: '#11111b', foreground: '#cdd6f4' },
-});
-const fitAddon = new FitAddon();
-let activeTerminalId: number | null = null;
+function setLoading(on: boolean): void {
+  loadingEl.classList.toggle('active', on);
+}
+
 let pinned = new Set<string>();
 let statuses = new Map<string, string>();
 const statusDots = new Map<string, HTMLElement>();
+const sessionRows = new Map<string, HTMLElement>();
 
-async function renderSessions(): Promise<void> {
-  container.textContent = 'Loading…';
-  const [sessions, pinnedList, statusMap] = await Promise.all([
-    window.claudeUi.listSessions(),
-    window.claudeUi.getPinned(),
-    window.claudeUi.getAllStatuses(),
-  ]);
-  pinned = new Set(pinnedList);
-  statuses = new Map(Object.entries(statusMap));
-  statusDots.clear();
+function isOpen(id: string): boolean {
+  return tabs.some((t) => t.session.id === id && !t.detached);
+}
 
-  if (sessions.length === 0) {
-    container.textContent = 'No sessions found in ~/.claude/projects.';
-    return;
+function updateSidebarHighlight(): void {
+  for (const [id, row] of sessionRows) {
+    row.classList.toggle('open', isOpen(id));
+    row.classList.toggle('active-session', activeTab?.session.id === id);
   }
+}
 
-  const groups: HTMLElement[] = [];
-  const pinnedSessions = sessions.filter((s) => pinned.has(s.id));
-  if (pinnedSessions.length > 0) groups.push(renderGroup('📌 Pinned', pinnedSessions));
+function setStatus(id: string, status: string | undefined): void {
+  if (status) statuses.set(id, status);
+  else statuses.delete(id);
+  const dot = statusDots.get(id);
+  if (dot) applyStatus(dot, status);
+  if (tabs.some((t) => t.session.id === id && !t.detached)) renderTabBar();
+}
 
-  const rest = sessions.filter((s) => !pinned.has(s.id));
-  for (const [cwd, list] of groupByCwd(rest)) groups.push(renderGroup(cwd, list));
+// You've attended to a session by viewing it, so drop its "needs you" nudge.
+function clearNudge(id: string): void {
+  window.claudeUi.clearStatus(id);
+  setStatus(id, undefined);
+}
 
-  container.replaceChildren(...groups);
+interface Tab {
+  session: SessionSummary;
+  terminalId: number;
+  term: Terminal;
+  fitAddon: FitAddon;
+  el: HTMLElement;
+  detached: boolean;
+}
+
+const tabs: Tab[] = [];
+let activeTab: Tab | null = null;
+
+// --- Sidebar ---
+
+async function renderSessions(showLoading = true): Promise<void> {
+  const scroll = container.scrollTop;
+  if (showLoading) setLoading(true);
+  try {
+    const [sessions, pinnedList, statusMap] = await Promise.all([
+      window.claudeUi.listSessions(),
+      window.claudeUi.getPinned(),
+      window.claudeUi.getAllStatuses(),
+    ]);
+    pinned = new Set(pinnedList);
+    statuses = new Map(Object.entries(statusMap));
+    statusDots.clear();
+    sessionRows.clear();
+
+    if (sessions.length === 0) {
+      container.textContent = 'No sessions found in ~/.claude/projects.';
+      return;
+    }
+
+    const groups: HTMLElement[] = [];
+    const pinnedSessions = sessions.filter((s) => pinned.has(s.id));
+    if (pinnedSessions.length > 0) groups.push(renderGroup('📌 Pinned', pinnedSessions));
+
+    const rest = sessions.filter((s) => !pinned.has(s.id));
+    for (const [cwd, list] of groupByCwd(rest)) groups.push(renderGroup(cwd, list));
+
+    container.replaceChildren(...groups);
+    container.scrollTop = scroll;
+    updateSidebarHighlight();
+  } finally {
+    if (showLoading) setLoading(false);
+  }
 }
 
 function groupByCwd(sessions: SessionSummary[]): [string, SessionSummary[]][] {
@@ -98,12 +147,16 @@ function renderSession(session: SessionSummary): HTMLElement {
   pin.title = isPinned ? 'Unpin' : 'Pin';
   pin.addEventListener('click', async (event) => {
     event.stopPropagation();
+    if (pin.disabled) return;
+    pin.disabled = true;
+    pin.classList.add('loading');
     pinned = new Set(await window.claudeUi.togglePin(session.id));
-    renderSessions();
+    await renderSessions(false);
   });
 
   item.append(dot, content, pin);
   item.addEventListener('click', () => openSession(session));
+  sessionRows.set(session.id, item);
   return item;
 }
 
@@ -123,48 +176,123 @@ function relativeTime(iso: string): string {
   return `${Math.round(hours / 24)} d ago`;
 }
 
-function initTerminal(): void {
-  term.loadAddon(fitAddon);
-  term.open(document.getElementById('terminal')!);
-  fitAddon.fit();
-
-  window.addEventListener('resize', () => {
-    fitAddon.fit();
-    sendResize();
-  });
-
-  term.onData((data) => {
-    if (activeTerminalId !== null) window.claudeUi.sendTerminalInput(activeTerminalId, data);
-  });
-  window.claudeUi.onTerminalData((id, data) => {
-    if (id === activeTerminalId) term.write(data);
-  });
-  window.claudeUi.onTerminalExit((id, exitCode) => {
-    if (id === activeTerminalId) term.writeln(`\r\n[process exited with code ${exitCode}]`);
-  });
-
-  term.writeln('Select a session on the left to resume it.');
-}
-
-function sendResize(): void {
-  if (activeTerminalId !== null) window.claudeUi.resizeTerminal(activeTerminalId, term.cols, term.rows);
-}
+// --- Tabs ---
 
 async function openSession(session: SessionSummary): Promise<void> {
-  if (activeTerminalId !== null) window.claudeUi.killTerminal(activeTerminalId);
-  term.reset();
-  fitAddon.fit();
-  activeTerminalId = await window.claudeUi.startTerminal(session.cwd, session.id);
-  sendResize();
-  term.focus();
+  const existing = tabs.find((t) => t.session.id === session.id);
+  if (existing) {
+    existing.detached = false;
+    activateTab(existing);
+    return;
+  }
+  const terminalId = await window.claudeUi.startTerminal(session.cwd, session.id);
+
+  const el = document.createElement('div');
+  el.className = 'term';
+  terminalsEl.appendChild(el);
+
+  const term = new Terminal({
+    fontFamily: 'monospace',
+    fontSize: 13,
+    theme: { background: '#11111b', foreground: '#cdd6f4' },
+  });
+  const fitAddon = new FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(el);
+  term.onData((data) => window.claudeUi.sendTerminalInput(terminalId, data));
+
+  const tab: Tab = { session, terminalId, term, fitAddon, el, detached: false };
+  tabs.push(tab);
+  activateTab(tab);
 }
 
-window.claudeUi.onSessionStatus((id, status) => {
-  statuses.set(id, status);
-  const dot = statusDots.get(id);
-  if (dot) applyStatus(dot, status);
+function activateTab(tab: Tab): void {
+  if (statuses.get(tab.session.id) === 'waiting') clearNudge(tab.session.id);
+  activeTab = tab;
+  for (const other of tabs) other.el.classList.toggle('active', other === tab);
+  renderTabBar();
+  updatePlaceholder();
+  updateSidebarHighlight();
+  tab.fitAddon.fit();
+  window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
+  tab.term.focus();
+}
+
+function closeTab(tab: Tab): void {
+  // Keep the session alive so reopening restores full context: claude does not flush its
+  // last turn on exit, so terminating here would lose it. The PTY stays until app quit.
+  clearNudge(tab.session.id);
+  tab.detached = true;
+  tab.el.classList.remove('active');
+  if (activeTab === tab) {
+    activeTab = null;
+    const next = tabs.find((t) => !t.detached);
+    if (next) activateTab(next);
+  }
+  renderTabBar();
+  updatePlaceholder();
+  updateSidebarHighlight();
+}
+
+function renderTabBar(): void {
+  tabbar.replaceChildren(
+    ...tabs
+      .filter((tab) => !tab.detached)
+      .map((tab) => {
+        const el = document.createElement('div');
+        el.className = tab === activeTab ? 'tab active' : 'tab';
+
+        const dot = document.createElement('span');
+        applyStatus(dot, statuses.get(tab.session.id));
+
+        const label = document.createElement('span');
+        label.className = 'tab-label';
+        label.textContent = tab.session.firstMessage || tab.session.id.slice(0, 8);
+
+        const close = document.createElement('button');
+        close.className = 'tab-close';
+        close.textContent = '×';
+        close.title = 'Close tab';
+        close.addEventListener('click', (event) => {
+          event.stopPropagation();
+          closeTab(tab);
+        });
+
+        el.append(dot, label, close);
+        el.addEventListener('click', () => activateTab(tab));
+        el.addEventListener('mousedown', (event) => {
+          if (event.button === 1) {
+            event.preventDefault();
+            closeTab(tab);
+          }
+        });
+        return el;
+      }),
+  );
+}
+
+function updatePlaceholder(): void {
+  placeholder.style.display = activeTab ? 'none' : 'flex';
+}
+
+// --- Wiring ---
+
+window.claudeUi.onTerminalData((id, data) => {
+  const tab = tabs.find((t) => t.terminalId === id);
+  if (tab) tab.term.write(data);
+});
+window.claudeUi.onTerminalExit((id, exitCode) => {
+  const tab = tabs.find((t) => t.terminalId === id);
+  if (tab) tab.term.writeln(`\r\n[process exited with code ${exitCode}]`);
+});
+window.claudeUi.onSessionStatus((id, status) => setStatus(id, status));
+
+window.addEventListener('resize', () => {
+  if (!activeTab) return;
+  activeTab.fitAddon.fit();
+  window.claudeUi.resizeTerminal(activeTab.terminalId, activeTab.term.cols, activeTab.term.rows);
 });
 
-refreshButton.addEventListener('click', renderSessions);
-initTerminal();
+refreshButton.addEventListener('click', () => renderSessions());
 renderSessions();
+updatePlaceholder();
