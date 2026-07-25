@@ -26,7 +26,7 @@ Roadmap:
 - M1 (done) — session list from `~/.claude`, grouped by project.
 - M2 (done) — embedded terminal per session, a login shell in the session's
   folder (`@xterm/xterm` + `node-pty`).
-- M3 — resume a session on click (`claude --resume`); pin and group.
+- M3 — resume a session on click (`claude --resume`, done); pin and group next.
 - M4 — waiting/done cues driven by Claude Code hooks.
 
 ## Requirements

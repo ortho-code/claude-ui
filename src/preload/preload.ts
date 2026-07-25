@@ -3,7 +3,7 @@ import type { ClaudeUiApi } from '../shared/types';
 
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
-  startTerminal: (cwd) => ipcRenderer.invoke('terminal:start', cwd),
+  startTerminal: (cwd, resumeSessionId) => ipcRenderer.invoke('terminal:start', cwd, resumeSessionId),
   onTerminalData: (callback) =>
     ipcRenderer.on('terminal:data', (_event, id: number, data: string) => callback(id, data)),
   onTerminalExit: (callback) =>

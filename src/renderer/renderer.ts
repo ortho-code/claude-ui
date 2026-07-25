@@ -66,7 +66,7 @@ function renderSession(session: SessionSummary): HTMLElement {
   meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
 
   item.append(title, meta);
-  item.addEventListener('click', () => openTerminal(session.cwd));
+  item.addEventListener('click', () => openSession(session));
   return item;
 }
 
@@ -101,18 +101,18 @@ function initTerminal(): void {
     if (id === activeTerminalId) term.writeln(`\r\n[process exited with code ${exitCode}]`);
   });
 
-  term.writeln('Select a session on the left to open a terminal in its folder.');
+  term.writeln('Select a session on the left to resume it.');
 }
 
 function sendResize(): void {
   if (activeTerminalId !== null) window.claudeUi.resizeTerminal(activeTerminalId, term.cols, term.rows);
 }
 
-async function openTerminal(cwd: string): Promise<void> {
+async function openSession(session: SessionSummary): Promise<void> {
   if (activeTerminalId !== null) window.claudeUi.killTerminal(activeTerminalId);
   term.reset();
   fitAddon.fit();
-  activeTerminalId = await window.claudeUi.startTerminal(cwd);
+  activeTerminalId = await window.claudeUi.startTerminal(session.cwd, session.id);
   sendResize();
   term.focus();
 }

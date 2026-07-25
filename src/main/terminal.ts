@@ -16,10 +16,15 @@ function cleanEnv(): { [key: string]: string } {
 }
 
 export function registerTerminalIpc(): void {
-  ipcMain.handle('terminal:start', (event, cwd: string): number => {
+  ipcMain.handle('terminal:start', (event, cwd: string, resumeSessionId?: string): number => {
     const id = nextId++;
     const shell = process.env.SHELL ?? '/bin/bash';
-    const proc = pty.spawn(shell, ['-l'], {
+    // Session ids are filename-derived; only pass through safe characters.
+    const safeId = resumeSessionId && /^[A-Za-z0-9_-]+$/.test(resumeSessionId) ? resumeSessionId : null;
+    // Resume through a login shell so PATH resolves claude, then keep the shell
+    // open after claude exits.
+    const args = safeId ? ['-l', '-c', `claude --resume ${safeId}; exec ${shell} -l`] : ['-l'];
+    const proc = pty.spawn(shell, args, {
       name: 'xterm-color',
       cols: 80,
       rows: 24,
