@@ -18,17 +18,29 @@ const term = new Terminal({
 });
 const fitAddon = new FitAddon();
 let activeTerminalId: number | null = null;
+let pinned = new Set<string>();
 
 async function renderSessions(): Promise<void> {
   container.textContent = 'Loading…';
-  const sessions = await window.claudeUi.listSessions();
+  const [sessions, pinnedList] = await Promise.all([
+    window.claudeUi.listSessions(),
+    window.claudeUi.getPinned(),
+  ]);
+  pinned = new Set(pinnedList);
 
   if (sessions.length === 0) {
     container.textContent = 'No sessions found in ~/.claude/projects.';
     return;
   }
 
-  container.replaceChildren(...groupByCwd(sessions).map(renderGroup));
+  const groups: HTMLElement[] = [];
+  const pinnedSessions = sessions.filter((s) => pinned.has(s.id));
+  if (pinnedSessions.length > 0) groups.push(renderGroup('📌 Pinned', pinnedSessions));
+
+  const rest = sessions.filter((s) => !pinned.has(s.id));
+  for (const [cwd, list] of groupByCwd(rest)) groups.push(renderGroup(cwd, list));
+
+  container.replaceChildren(...groups);
 }
 
 function groupByCwd(sessions: SessionSummary[]): [string, SessionSummary[]][] {
@@ -41,12 +53,12 @@ function groupByCwd(sessions: SessionSummary[]): [string, SessionSummary[]][] {
   return [...groups.entries()];
 }
 
-function renderGroup([cwd, sessions]: [string, SessionSummary[]]): HTMLElement {
+function renderGroup(name: string, sessions: SessionSummary[]): HTMLElement {
   const section = document.createElement('section');
   section.className = 'group';
 
   const heading = document.createElement('h2');
-  heading.textContent = cwd;
+  heading.textContent = name;
   section.appendChild(heading);
 
   for (const session of sessions) section.appendChild(renderSession(session));
@@ -57,6 +69,9 @@ function renderSession(session: SessionSummary): HTMLElement {
   const item = document.createElement('article');
   item.className = 'session';
 
+  const content = document.createElement('div');
+  content.className = 'session-content';
+
   const title = document.createElement('p');
   title.className = 'session-title';
   title.textContent = session.firstMessage || '(no prompt yet)';
@@ -65,7 +80,20 @@ function renderSession(session: SessionSummary): HTMLElement {
   meta.className = 'session-meta';
   meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
 
-  item.append(title, meta);
+  content.append(title, meta);
+
+  const pin = document.createElement('button');
+  pin.className = 'pin';
+  const isPinned = pinned.has(session.id);
+  pin.textContent = isPinned ? '📌' : '☆';
+  pin.title = isPinned ? 'Unpin' : 'Pin';
+  pin.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    pinned = new Set(await window.claudeUi.togglePin(session.id));
+    renderSessions();
+  });
+
+  item.append(content, pin);
   item.addEventListener('click', () => openSession(session));
   return item;
 }

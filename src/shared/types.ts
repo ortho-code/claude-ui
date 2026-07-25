@@ -13,6 +13,10 @@ export interface SessionSummary {
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
+  /** Session ids the user has pinned. */
+  getPinned(): Promise<string[]>;
+  /** Toggle a session's pin; resolves to the updated pinned list. */
+  togglePin(id: string): Promise<string[]>;
   /**
    * Open a terminal in `cwd`. With `resumeSessionId`, resume that Claude
    * session; otherwise open a login shell. Resolves to a terminal id.

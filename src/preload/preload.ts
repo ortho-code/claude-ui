@@ -3,6 +3,8 @@ import type { ClaudeUiApi } from '../shared/types';
 
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
+  getPinned: () => ipcRenderer.invoke('meta:getPinned'),
+  togglePin: (id) => ipcRenderer.invoke('meta:togglePin', id),
   startTerminal: (cwd, resumeSessionId) => ipcRenderer.invoke('terminal:start', cwd, resumeSessionId),
   onTerminalData: (callback) =>
     ipcRenderer.on('terminal:data', (_event, id: number, data: string) => callback(id, data)),

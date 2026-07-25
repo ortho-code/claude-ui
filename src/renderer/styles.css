@@ -80,6 +80,9 @@ button:hover {
 }
 
 .session {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: var(--surface);
   border-radius: 8px;
   padding: 10px 14px;
@@ -89,6 +92,27 @@ button:hover {
 
 .session:hover {
   background: var(--surface-hover);
+}
+
+.session-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.pin {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.pin:hover {
+  background: none;
+  color: var(--text);
 }
 
 .session-title {

@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'node:path';
 import { listSessions } from './sessions';
 import { registerTerminalIpc } from './terminal';
+import { getPinned, togglePin } from './meta';
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -20,6 +21,8 @@ function createWindow(): void {
 }
 
 ipcMain.handle('sessions:list', () => listSessions());
+ipcMain.handle('meta:getPinned', () => getPinned());
+ipcMain.handle('meta:togglePin', (_event, id: string) => togglePin(id));
 registerTerminalIpc();
 
 app.whenReady().then(() => {
