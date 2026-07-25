@@ -18,26 +18,29 @@ instead of forcing a worktree per session.
 
 ## Status
 
-Milestone 1 works: the app reads every transcript under `~/.claude/projects`,
-summarizes each session, and lists them grouped by project directory.
+Milestones 1 and 2 work: the app lists your `~/.claude` sessions grouped by
+project, and clicking one opens a terminal in that session's folder.
 
 Roadmap:
 
 - M1 (done) — session list from `~/.claude`, grouped by project.
-- M2 — embedded terminal running `claude` per session (`@xterm/xterm` + `node-pty`).
-- M3 — pin and group, stored in a sidecar file outside `~/.claude`.
+- M2 (done) — embedded terminal per session, a login shell in the session's
+  folder (`@xterm/xterm` + `node-pty`).
+- M3 — resume a session on click (`claude --resume`); pin and group.
 - M4 — waiting/done cues driven by Claude Code hooks.
 
 ## Requirements
 
 - WSL 2 with WSLg. The app and `claude` both run inside the Linux distribution.
 - Node, managed by [mise](https://mise.jdx.dev). Run `mise install` once.
+- A C toolchain for the native terminal module: `sudo apt-get install build-essential`.
 
 ## Install and run
 
 ```bash
 mise install
 npm install
+npm run rebuild   # build node-pty against Electron's ABI
 npm start
 ```
 
