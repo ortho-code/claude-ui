@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'node:path';
 import { listSessions } from './sessions';
+import { registerTerminalIpc } from './terminal';
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -19,6 +20,7 @@ function createWindow(): void {
 }
 
 ipcMain.handle('sessions:list', () => listSessions());
+registerTerminalIpc();
 
 app.whenReady().then(() => {
   createWindow();

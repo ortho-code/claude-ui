@@ -1,3 +1,5 @@
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
 import type { ClaudeUiApi, SessionSummary } from '../shared/types';
 
 declare global {
@@ -9,7 +11,15 @@ declare global {
 const container = document.getElementById('sessions')!;
 const refreshButton = document.getElementById('refresh') as HTMLButtonElement;
 
-async function render(): Promise<void> {
+const term = new Terminal({
+  fontFamily: 'monospace',
+  fontSize: 13,
+  theme: { background: '#11111b', foreground: '#cdd6f4' },
+});
+const fitAddon = new FitAddon();
+let activeTerminalId: number | null = null;
+
+async function renderSessions(): Promise<void> {
   container.textContent = 'Loading…';
   const sessions = await window.claudeUi.listSessions();
 
@@ -56,6 +66,7 @@ function renderSession(session: SessionSummary): HTMLElement {
   meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
 
   item.append(title, meta);
+  item.addEventListener('click', () => openTerminal(session.cwd));
   return item;
 }
 
@@ -70,5 +81,42 @@ function relativeTime(iso: string): string {
   return `${Math.round(hours / 24)} d ago`;
 }
 
-refreshButton.addEventListener('click', render);
-render();
+function initTerminal(): void {
+  term.loadAddon(fitAddon);
+  term.open(document.getElementById('terminal')!);
+  fitAddon.fit();
+
+  window.addEventListener('resize', () => {
+    fitAddon.fit();
+    sendResize();
+  });
+
+  term.onData((data) => {
+    if (activeTerminalId !== null) window.claudeUi.sendTerminalInput(activeTerminalId, data);
+  });
+  window.claudeUi.onTerminalData((id, data) => {
+    if (id === activeTerminalId) term.write(data);
+  });
+  window.claudeUi.onTerminalExit((id, exitCode) => {
+    if (id === activeTerminalId) term.writeln(`\r\n[process exited with code ${exitCode}]`);
+  });
+
+  term.writeln('Select a session on the left to open a terminal in its folder.');
+}
+
+function sendResize(): void {
+  if (activeTerminalId !== null) window.claudeUi.resizeTerminal(activeTerminalId, term.cols, term.rows);
+}
+
+async function openTerminal(cwd: string): Promise<void> {
+  if (activeTerminalId !== null) window.claudeUi.killTerminal(activeTerminalId);
+  term.reset();
+  fitAddon.fit();
+  activeTerminalId = await window.claudeUi.startTerminal(cwd);
+  sendResize();
+  term.focus();
+}
+
+refreshButton.addEventListener('click', renderSessions);
+initTerminal();
+renderSessions();

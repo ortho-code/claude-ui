@@ -13,4 +13,11 @@ export interface SessionSummary {
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
+  /** Spawn a login shell in `cwd`; resolves to a terminal id. */
+  startTerminal(cwd: string): Promise<number>;
+  onTerminalData(callback: (id: number, data: string) => void): void;
+  onTerminalExit(callback: (id: number, exitCode: number) => void): void;
+  sendTerminalInput(id: number, data: string): void;
+  resizeTerminal(id: number, cols: number, rows: number): void;
+  killTerminal(id: number): void;
 }

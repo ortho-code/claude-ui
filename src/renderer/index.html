@@ -4,14 +4,22 @@
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
     <title>claude-ui</title>
+    <link rel="stylesheet" href="./xterm.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header>
-      <h1>Sessions</h1>
-      <button id="refresh">Refresh</button>
-    </header>
-    <main id="sessions" aria-live="polite"></main>
+    <div id="app">
+      <aside id="sidebar">
+        <header>
+          <h1>Sessions</h1>
+          <button id="refresh">Refresh</button>
+        </header>
+        <div id="sessions" aria-live="polite"></div>
+      </aside>
+      <section id="terminal-pane">
+        <div id="terminal"></div>
+      </section>
+    </div>
     <script type="module" src="./renderer.js"></script>
   </body>
 </html>
