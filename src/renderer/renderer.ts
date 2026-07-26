@@ -25,7 +25,7 @@ const statusDots = new Map<string, HTMLElement>();
 const sessionRows = new Map<string, HTMLElement>();
 
 function isOpen(id: string): boolean {
-  return tabs.some((t) => t.session.id === id && !t.detached);
+  return tabs.some((t) => t.session.id === id);
 }
 
 function updateSidebarHighlight(): void {
@@ -40,7 +40,7 @@ function setStatus(id: string, status: string | undefined): void {
   else statuses.delete(id);
   const dot = statusDots.get(id);
   if (dot) applyStatus(dot, status);
-  if (tabs.some((t) => t.session.id === id && !t.detached)) renderTabBar();
+  if (tabs.some((t) => t.session.id === id)) renderTabBar();
 }
 
 // You've attended to a session by viewing it, so drop its "needs you" nudge.
@@ -55,7 +55,6 @@ interface Tab {
   term: Terminal;
   fitAddon: FitAddon;
   el: HTMLElement;
-  detached: boolean;
 }
 
 const tabs: Tab[] = [];
@@ -64,7 +63,7 @@ let restoring = false;
 
 function persistOpenTabs(): void {
   if (restoring) return;
-  window.claudeUi.setOpenSessions(tabs.filter((t) => !t.detached).map((t) => t.session.id));
+  window.claudeUi.setOpenSessions(tabs.map((t) => t.session.id));
 }
 
 async function restoreOpenTabs(): Promise<void> {
@@ -205,9 +204,7 @@ function relativeTime(iso: string): string {
 async function openSession(session: SessionSummary): Promise<void> {
   const existing = tabs.find((t) => t.session.id === session.id);
   if (existing) {
-    existing.detached = false;
     activateTab(existing);
-    persistOpenTabs();
     return;
   }
   const terminalId = await window.claudeUi.startTerminal(session.cwd, session.id);
@@ -224,9 +221,23 @@ async function openSession(session: SessionSummary): Promise<void> {
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
   term.open(el);
-  term.onData((data) => window.claudeUi.sendTerminalInput(terminalId, data));
 
-  const tab: Tab = { session, terminalId, term, fitAddon, el, detached: false };
+  const tab: Tab = { session, terminalId, term, fitAddon, el };
+
+  // Ctrl-C twice in the terminal closes the tab instead of dropping to the leftover shell.
+  let lastCtrlC = 0;
+  term.onData((data) => {
+    if (data === '\x03') {
+      const now = Date.now();
+      if (now - lastCtrlC < 600) {
+        closeTab(tab);
+        return;
+      }
+      lastCtrlC = now;
+    }
+    window.claudeUi.sendTerminalInput(terminalId, data);
+  });
+
   tabs.push(tab);
   activateTab(tab);
   persistOpenTabs();
@@ -245,14 +256,17 @@ function activateTab(tab: Tab): void {
 }
 
 function closeTab(tab: Tab): void {
-  // Keep the session alive so reopening restores full context: claude does not flush its
-  // last turn on exit, so terminating here would lose it. The PTY stays until app quit.
+  // Terminate the session; claude persists per turn, so its context is already on disk.
+  // closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills the shell.
   clearNudge(tab.session.id);
-  tab.detached = true;
-  tab.el.classList.remove('active');
+  window.claudeUi.closeTerminal(tab.terminalId);
+  tab.term.dispose();
+  tab.el.remove();
+  const index = tabs.indexOf(tab);
+  tabs.splice(index, 1);
   if (activeTab === tab) {
     activeTab = null;
-    const next = tabs.find((t) => !t.detached);
+    const next = tabs[index] ?? tabs[index - 1] ?? null;
     if (next) activateTab(next);
   }
   renderTabBar();
@@ -263,9 +277,7 @@ function closeTab(tab: Tab): void {
 
 function renderTabBar(): void {
   tabbar.replaceChildren(
-    ...tabs
-      .filter((tab) => !tab.detached)
-      .map((tab) => {
+    ...tabs.map((tab) => {
         const el = document.createElement('div');
         el.className = tab === activeTab ? 'tab active' : 'tab';
 
