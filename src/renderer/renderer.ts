@@ -60,6 +60,30 @@ interface Tab {
 
 const tabs: Tab[] = [];
 let activeTab: Tab | null = null;
+let restoring = false;
+
+function persistOpenTabs(): void {
+  if (restoring) return;
+  window.claudeUi.setOpenSessions(tabs.filter((t) => !t.detached).map((t) => t.session.id));
+}
+
+async function restoreOpenTabs(): Promise<void> {
+  restoring = true;
+  try {
+    const [sessions, openIds] = await Promise.all([
+      window.claudeUi.listSessions(),
+      window.claudeUi.getOpenSessions(),
+    ]);
+    const byId = new Map(sessions.map((s) => [s.id, s]));
+    for (const id of openIds) {
+      const session = byId.get(id);
+      if (session) await openSession(session);
+    }
+  } finally {
+    restoring = false;
+    persistOpenTabs();
+  }
+}
 
 // --- Sidebar ---
 
@@ -183,6 +207,7 @@ async function openSession(session: SessionSummary): Promise<void> {
   if (existing) {
     existing.detached = false;
     activateTab(existing);
+    persistOpenTabs();
     return;
   }
   const terminalId = await window.claudeUi.startTerminal(session.cwd, session.id);
@@ -204,6 +229,7 @@ async function openSession(session: SessionSummary): Promise<void> {
   const tab: Tab = { session, terminalId, term, fitAddon, el, detached: false };
   tabs.push(tab);
   activateTab(tab);
+  persistOpenTabs();
 }
 
 function activateTab(tab: Tab): void {
@@ -232,6 +258,7 @@ function closeTab(tab: Tab): void {
   renderTabBar();
   updatePlaceholder();
   updateSidebarHighlight();
+  persistOpenTabs();
 }
 
 function renderTabBar(): void {
@@ -296,3 +323,4 @@ window.addEventListener('resize', () => {
 refreshButton.addEventListener('click', () => renderSessions());
 renderSessions();
 updatePlaceholder();
+restoreOpenTabs();

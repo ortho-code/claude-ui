@@ -17,6 +17,9 @@ export interface ClaudeUiApi {
   getPinned(): Promise<string[]>;
   /** Toggle a session's pin; resolves to the updated pinned list. */
   togglePin(id: string): Promise<string[]>;
+  /** Session ids open as tabs, in order, persisted for restore on next launch. */
+  getOpenSessions(): Promise<string[]>;
+  setOpenSessions(ids: string[]): void;
   /** Current status per session id (busy | idle | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
   /** Subscribe to live status changes for a session. */

@@ -5,6 +5,7 @@ import * as path from 'node:path';
 /** UI-only metadata, kept outside ~/.claude so we never touch the session store. */
 interface Meta {
   pinned: string[];
+  openSessions: string[];
 }
 
 function metaPath(): string {
@@ -14,9 +15,12 @@ function metaPath(): string {
 async function readMeta(): Promise<Meta> {
   try {
     const parsed = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Partial<Meta>;
-    return { pinned: Array.isArray(parsed.pinned) ? parsed.pinned : [] };
+    return {
+      pinned: Array.isArray(parsed.pinned) ? parsed.pinned : [],
+      openSessions: Array.isArray(parsed.openSessions) ? parsed.openSessions : [],
+    };
   } catch {
-    return { pinned: [] };
+    return { pinned: [], openSessions: [] };
   }
 }
 
@@ -37,4 +41,14 @@ export async function togglePin(id: string): Promise<string[]> {
   meta.pinned = [...pinned];
   await writeMeta(meta);
   return meta.pinned;
+}
+
+export async function getOpenSessions(): Promise<string[]> {
+  return (await readMeta()).openSessions;
+}
+
+export async function setOpenSessions(ids: string[]): Promise<void> {
+  const meta = await readMeta();
+  meta.openSessions = ids;
+  await writeMeta(meta);
 }

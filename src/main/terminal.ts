@@ -11,7 +11,12 @@ let nextId = 1;
 function cleanEnv(): { [key: string]: string } {
   const env: { [key: string]: string } = {};
   for (const [key, value] of Object.entries(process.env)) {
-    if (value !== undefined) env[key] = value;
+    if (value === undefined) continue;
+    // Strip Claude Code harness variables. When the app is launched from inside a Claude
+    // session these get inherited, and the claude we spawn then thinks it is a nested SDK /
+    // child session and never persists its transcript. Keep our own CLAUDE_UI marker.
+    if (key !== SCOPE_ENV && (key === 'CLAUDECODE' || key.startsWith('CLAUDE_'))) continue;
+    env[key] = value;
   }
   // Mark this session as launched by claude-ui so the status hook reports it.
   env[SCOPE_ENV] = '1';
@@ -71,4 +76,16 @@ export function registerTerminalIpc(): void {
     setTimeout(() => proc.write('\x03'), 400);
     setTimeout(() => proc.kill(), 1800);
   });
+}
+
+/** SIGTERM every live session so claude gets a chance to flush before the app quits. */
+export function terminateAll(): void {
+  for (const proc of terminals.values()) {
+    try {
+      proc.kill('SIGTERM');
+    } catch {
+      // Already gone.
+    }
+  }
+  terminals.clear();
 }
