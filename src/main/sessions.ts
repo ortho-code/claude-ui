@@ -36,6 +36,8 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   const id = path.basename(file, '.jsonl');
   let cwd = '';
   let firstMessage = '';
+  let customTitle: unknown = null;
+  let aiTitle: unknown = null;
   let eventCount = 0;
 
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
@@ -44,8 +46,10 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
       if (!line.trim()) continue;
       eventCount++;
 
-      // Stop parsing content once we have what we need; keep counting via the cheap path below.
-      if (cwd && firstMessage) continue;
+      // Title events recur through the file, so always parse them to keep the latest.
+      // Otherwise stop parsing once we have cwd and the first message; keep counting.
+      const isTitle = line.includes('"custom-title"') || line.includes('"ai-title"');
+      if (!isTitle && cwd && firstMessage) continue;
 
       let event: Record<string, unknown>;
       try {
@@ -55,7 +59,9 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
       }
 
       if (!cwd && typeof event.cwd === 'string') cwd = event.cwd;
-      if (!firstMessage && event.type === 'user') firstMessage = extractUserText(event);
+      if (event.type === 'custom-title') customTitle = event.customTitle;
+      else if (event.type === 'ai-title') aiTitle = event.aiTitle;
+      else if (!firstMessage && event.type === 'user') firstMessage = extractUserText(event);
     }
   } finally {
     rl.close();
@@ -63,14 +69,21 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
 
   if (eventCount === 0) return null;
 
+  const title = asTitle(customTitle) || asTitle(aiTitle);
   const stat = await fs.stat(file);
   return {
     id,
     cwd: cwd || decodeProjectDir(path.basename(path.dirname(file))),
+    title: title.slice(0, 200),
     firstMessage: firstMessage.slice(0, 200),
     lastActivity: stat.mtime.toISOString(),
     eventCount,
   };
+}
+
+/** A title field is usable only when it is a non-empty string. */
+function asTitle(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 /** Pull display text out of a user event, whether content is a string or an array of blocks. */

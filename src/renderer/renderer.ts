@@ -155,7 +155,7 @@ function renderSession(session: SessionSummary): HTMLElement {
 
   const title = document.createElement('p');
   title.className = 'session-title';
-  title.textContent = session.firstMessage || '(no prompt yet)';
+  title.textContent = session.title || session.firstMessage || '(no prompt yet)';
 
   const meta = document.createElement('p');
   meta.className = 'session-meta';
@@ -286,7 +286,7 @@ function renderTabBar(): void {
 
         const label = document.createElement('span');
         label.className = 'tab-label';
-        label.textContent = tab.session.firstMessage || tab.session.id.slice(0, 8);
+        label.textContent = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
 
         const close = document.createElement('button');
         close.className = 'tab-close';

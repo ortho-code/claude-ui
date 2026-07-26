@@ -3,6 +3,8 @@ export interface SessionSummary {
   id: string;
   /** Absolute working directory the session ran in. */
   cwd: string;
+  /** The session's custom or AI-generated title, empty when it has none. */
+  title: string;
   /** First user message, trimmed for display. Empty when none was found. */
   firstMessage: string;
   /** Last activity as an ISO timestamp (file mtime). */
