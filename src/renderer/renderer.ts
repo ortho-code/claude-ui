@@ -526,7 +526,7 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 
   const pin = row.querySelector('.pin') as HTMLButtonElement;
   const isPinned = pinned.has(session.conversationId);
-  pin.textContent = isPinned ? '📌' : '☆';
+  pin.textContent = isPinned ? '★' : '☆';
   pin.title = isPinned ? 'Unpin' : 'Pin';
   pin.disabled = false;
   pin.classList.remove('loading');

@@ -87,6 +87,9 @@ button:hover {
    look like the focus ring) marks that a filter is active. */
 #filter-toggle {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 5px 8px;
 }
 
