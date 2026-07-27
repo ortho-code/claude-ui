@@ -5,6 +5,10 @@ export interface SessionSummary {
   conversationId: string;
   /** Absolute working directory the session ran in. */
   cwd: string;
+  /** Main repo root the session groups under (the cwd itself when not in a git repo). */
+  repoRoot: string;
+  /** Worktree name when the session ran in a linked git worktree; empty otherwise. */
+  worktree: string;
   /** The session's custom or AI-generated title, empty when it has none. */
   title: string;
   /** First user message, trimmed for display. Empty when none was found. */

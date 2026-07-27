@@ -11,6 +11,7 @@ declare global {
 const container = document.getElementById('sessions')!;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const pinnedFilter = document.getElementById('pinned-filter') as HTMLButtonElement;
+const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonElement;
 const filterToggle = document.getElementById('filter-toggle') as HTMLButtonElement;
 const filterPanel = document.getElementById('filter-panel')!;
 const datePresets = document.getElementById('date-presets')!;
@@ -35,6 +36,7 @@ let statuses = new Map<string, string>();
 let allSessions: SessionSummary[] = [];
 let filterText = '';
 let showPinnedOnly = false;
+let showWorktreeOnly = false;
 // Date filter, as an inclusive [from, to] window in epoch ms; null means unbounded on that side.
 let datePreset = 'any';
 let dateFromMs: number | null = null;
@@ -201,6 +203,7 @@ async function refreshFromDisk(): Promise<void> {
 // A session passes when it clears every active filter: text search, pinned-only, and date range.
 function passesFilters(session: SessionSummary): boolean {
   if (showPinnedOnly && !pinned.has(session.conversationId)) return false;
+  if (showWorktreeOnly && !session.worktree) return false;
   if (dateFromMs !== null || dateToMs !== null) {
     const activity = new Date(session.lastActivity).getTime();
     if (dateFromMs !== null && activity < dateFromMs) return false;
@@ -247,11 +250,13 @@ function applyCustomDates(): void {
 
 // Make an active filter obvious: show "N of M" with a clear button and flag the active controls.
 function updateFilterStatus(matches: number, total: number): void {
-  const filtering = filterText.length > 0 || showPinnedOnly || datePreset !== 'any';
+  const filtering = filterText.length > 0 || showPinnedOnly || showWorktreeOnly || datePreset !== 'any';
   filterStatus.hidden = !filtering;
   searchInput.classList.toggle('active', filterText.length > 0);
   pinnedFilter.classList.toggle('active', showPinnedOnly);
   pinnedFilter.setAttribute('aria-pressed', String(showPinnedOnly));
+  worktreeFilter.classList.toggle('active', showWorktreeOnly);
+  worktreeFilter.setAttribute('aria-pressed', String(showWorktreeOnly));
   // The toggle carries the accent when any filter is on, so an active filter is visible even
   // with the panel closed.
   filterToggle.classList.toggle('active', filtering);
@@ -262,6 +267,7 @@ function clearFilter(): void {
   searchInput.value = '';
   filterText = '';
   showPinnedOnly = false;
+  showWorktreeOnly = false;
   dateFrom.value = '';
   dateTo.value = '';
   applyDatePreset('any');
@@ -297,12 +303,12 @@ function renderList(): void {
   }
   container.querySelector(':scope > .empty-message')?.remove();
 
-  // One group per folder; pinned sessions float to the top of their own group (a stable sort
+  // One group per repo; pinned sessions float to the top of their own group (a stable sort
   // keeps the within-group activity order otherwise).
   const desired: DesiredGroup[] = [];
-  for (const [cwd, list] of groupByCwd(sessions)) {
+  for (const [repoRoot, list] of groupByRepo(sessions)) {
     list.sort((a, b) => (pinned.has(b.conversationId) ? 1 : 0) - (pinned.has(a.conversationId) ? 1 : 0));
-    desired.push({ name: cwd, folderCwd: cwd, sessions: list });
+    desired.push({ name: repoRoot, folderCwd: repoRoot, sessions: list });
   }
 
   reconcileGroups(desired);
@@ -365,12 +371,13 @@ function pruneRows(wanted: Set<string>): void {
   }
 }
 
-function groupByCwd(sessions: SessionSummary[]): [string, SessionSummary[]][] {
+// Group by repo root so a repo's worktrees (and subdirectories) file under one heading.
+function groupByRepo(sessions: SessionSummary[]): [string, SessionSummary[]][] {
   const groups = new Map<string, SessionSummary[]>();
   for (const session of sessions) {
-    const list = groups.get(session.cwd) ?? [];
+    const list = groups.get(session.repoRoot) ?? [];
     list.push(session);
-    groups.set(session.cwd, list);
+    groups.set(session.repoRoot, list);
   }
   return [...groups.entries()];
 }
@@ -438,9 +445,12 @@ function createSessionRow(conversationId: string): HTMLElement {
   content.className = 'session-content';
   const title = document.createElement('p');
   title.className = 'session-title';
+  const badge = document.createElement('span');
+  badge.className = 'worktree-badge';
+  badge.hidden = true;
   const meta = document.createElement('p');
   meta.className = 'session-meta';
-  content.append(title, meta);
+  content.append(title, badge, meta);
 
   const pin = document.createElement('button');
   pin.className = 'pin';
@@ -472,6 +482,13 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   const title = row.querySelector('.session-title') as HTMLElement;
   title.textContent = session.title || session.firstMessage || '(no prompt yet)';
   title.title = session.title || session.firstMessage || '';
+
+  const badge = row.querySelector('.worktree-badge') as HTMLElement;
+  badge.hidden = !session.worktree;
+  if (session.worktree) {
+    badge.textContent = `worktree: ${session.worktree}`;
+    badge.title = `Linked git worktree: ${session.worktree}`;
+  }
 
   const meta = row.querySelector('.session-meta') as HTMLElement;
   meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
@@ -529,6 +546,8 @@ async function openNewSession(cwd: string): Promise<void> {
     id,
     conversationId: id,
     cwd,
+    repoRoot: cwd,
+    worktree: '',
     title: `New: ${folder}`,
     firstMessage: '',
     lastActivity: new Date().toISOString(),
@@ -696,6 +715,11 @@ searchInput.addEventListener('input', () => {
 filterClear.addEventListener('click', clearFilter);
 pinnedFilter.addEventListener('click', () => {
   showPinnedOnly = !showPinnedOnly;
+  renderList();
+  container.scrollTop = 0;
+});
+worktreeFilter.addEventListener('click', () => {
+  showWorktreeOnly = !showWorktreeOnly;
   renderList();
   container.scrollTop = 0;
 });

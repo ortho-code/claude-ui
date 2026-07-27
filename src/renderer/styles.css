@@ -103,14 +103,17 @@ button:hover {
   border: 1.5px solid var(--bg);
 }
 
-/* Pinned-only toggle: dimmed when off, accent-outlined when on. */
-#pinned-filter {
+/* Pinned-only and worktree-only toggles: dimmed when off, accent-filled when on. */
+#pinned-filter,
+#worktree-filter {
   flex: 0 0 auto;
   padding: 5px 8px;
+  font-size: 12px;
   opacity: 0.55;
 }
 
-#pinned-filter.active {
+#pinned-filter.active,
+#worktree-filter.active {
   opacity: 1;
   border-color: var(--accent);
   background: var(--active);
@@ -430,6 +433,22 @@ button:hover {
   margin: 0;
   font-size: 12px;
   color: var(--muted);
+}
+
+.worktree-badge {
+  display: inline-block;
+  max-width: 100%;
+  margin: 3px 0 1px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 16px;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .empty-message {

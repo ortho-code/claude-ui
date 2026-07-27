@@ -3,9 +3,57 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { createReadStream } from 'node:fs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import type { SessionSummary } from '../shared/types';
 
+const execFileAsync = promisify(execFile);
 const projectsDir = path.join(os.homedir(), '.claude', 'projects');
+
+interface RepoInfo {
+  /** The main repo root; sessions group under this. */
+  repoRoot: string;
+  /** The linked-worktree name, or '' for the main tree / a non-repo directory. */
+  worktree: string;
+}
+
+// A cwd's repo layout is effectively stable, so cache it and never re-run git for the same path.
+const repoCache = new Map<string, RepoInfo>();
+
+/**
+ * Resolve which repo a directory belongs to, and whether it is a linked git worktree.
+ * `--show-toplevel` is the directory's own working-tree root; `--git-common-dir` is the main
+ * repo's `.git`, so its parent is the main repo root. A worktree's toplevel differs from that.
+ */
+async function resolveRepo(cwd: string): Promise<RepoInfo> {
+  const cached = repoCache.get(cwd);
+  if (cached) return cached;
+
+  let info: RepoInfo = { repoRoot: cwd, worktree: '' };
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['-C', cwd, 'rev-parse', '--path-format=absolute', '--show-toplevel', '--git-common-dir'],
+      { timeout: 3000 },
+    );
+    const [toplevel, commonDir] = stdout.trim().split('\n');
+    const mainRoot = path.basename(commonDir) === '.git' ? path.dirname(commonDir) : toplevel;
+    info = {
+      repoRoot: mainRoot || cwd,
+      worktree: toplevel && toplevel !== mainRoot ? path.basename(toplevel) : '',
+    };
+  } catch {
+    // Not a git repo, git missing, or the directory is gone: fall through to the path fallback.
+  }
+  // When git can't tell us it's a worktree (most importantly, when the worktree directory was
+  // removed), recognize the `claude -w` layout: <repo>/.claude/worktrees/<name>.
+  if (!info.worktree) {
+    const match = cwd.match(/^(.*)\/\.claude\/worktrees\/([^/]+)/);
+    if (match) info = { repoRoot: match[1], worktree: match[2] };
+  }
+  repoCache.set(cwd, info);
+  return info;
+}
 
 /** Read every session transcript under ~/.claude/projects and summarize each. */
 export async function listSessions(): Promise<SessionSummary[]> {
@@ -25,10 +73,22 @@ export async function listSessions(): Promise<SessionSummary[]> {
     }
   }
 
-  const summaries = await Promise.all(files.map(summarizeFile));
-  return summaries
-    .filter((s): s is SessionSummary => s !== null)
-    .sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
+  const summaries = (await Promise.all(files.map(summarizeFile))).filter(
+    (s): s is SessionSummary => s !== null,
+  );
+
+  // Resolve repo grouping once per distinct cwd, then annotate each session.
+  const cwds = [...new Set(summaries.map((s) => s.cwd))];
+  const repos = new Map(await Promise.all(cwds.map(async (cwd) => [cwd, await resolveRepo(cwd)] as const)));
+  for (const summary of summaries) {
+    const info = repos.get(summary.cwd);
+    if (info) {
+      summary.repoRoot = info.repoRoot;
+      summary.worktree = info.worktree;
+    }
+  }
+
+  return summaries.sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
 }
 
 /** Summarize one transcript without loading the whole file into memory. */
@@ -77,10 +137,14 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
 
   const title = asTitle(customTitle) || asTitle(aiTitle);
   const stat = await fs.stat(file);
+  const resolvedCwd = cwd || decodeProjectDir(path.basename(path.dirname(file)));
   return {
     id,
     conversationId,
-    cwd: cwd || decodeProjectDir(path.basename(path.dirname(file))),
+    cwd: resolvedCwd,
+    // Filled in by listSessions once the repo is resolved; default to the cwd's own group.
+    repoRoot: resolvedCwd,
+    worktree: '',
     title: title.slice(0, 200),
     firstMessage: firstMessage.slice(0, 200),
     lastActivity: stat.mtime.toISOString(),
