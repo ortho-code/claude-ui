@@ -382,6 +382,26 @@ function groupByRepo(sessions: SessionSummary[]): [string, SessionSummary[]][] {
   return [...groups.entries()];
 }
 
+// The group's short name: the last path segment of its repo root.
+function groupName(repoRoot: string): string {
+  return repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
+}
+
+// Reveal a session's row in the sidebar (expanding its group if collapsed), so clicking a tab
+// scrolls to where it lives and shows which group it belongs to.
+function revealSessionInSidebar(session: SessionSummary): void {
+  if (collapsedGroups.has(session.repoRoot)) {
+    collapsedGroups.delete(session.repoRoot);
+    renderList();
+  }
+  const row = sessionRows.get(session.conversationId);
+  if (!row) return;
+  // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole
+  // app). Land the row just below the sticky heading.
+  const headingOffset = 44;
+  container.scrollTop += row.getBoundingClientRect().top - container.getBoundingClientRect().top - headingOffset;
+}
+
 // Build a group section once; contents (count, caret, rows) are updated on later renders.
 function createGroup(name: string, folderCwd?: string): GroupEls {
   const section = document.createElement('section');
@@ -390,13 +410,17 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   const heading = document.createElement('h2');
   const caret = document.createElement('span');
   caret.className = 'caret';
+  const icon = document.createElement('span');
+  icon.className = 'group-icon';
+  icon.innerHTML =
+    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2 4h4l1.5 1.5H14V13H2z"/></svg>';
   const label = document.createElement('span');
   label.className = 'label';
-  label.textContent = shortenPath(name);
   label.title = name;
+  label.textContent = groupName(name);
   const count = document.createElement('span');
   count.className = 'group-count';
-  heading.append(caret, label, count);
+  heading.append(caret, icon, label, count);
   if (folderCwd) {
     const add = document.createElement('button');
     add.className = 'group-add';
@@ -504,13 +528,6 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 function applyStatus(dot: HTMLElement, status: string | undefined): void {
   dot.className = status ? `status-dot ${status}` : 'status-dot';
   dot.title = status ?? '';
-}
-
-// Folder paths share a long common prefix, so show the last two segments (the part that
-// distinguishes them); the full path is available on hover.
-function shortenPath(p: string): string {
-  const parts = p.split('/').filter(Boolean);
-  return parts.length <= 2 ? p : `…/${parts.slice(-2).join('/')}`;
 }
 
 function relativeTime(iso: string): string {
@@ -638,8 +655,9 @@ function renderTabBar(): void {
 
         const label = document.createElement('span');
         label.className = 'tab-label';
-        label.textContent = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
-        label.title = tab.session.title || tab.session.firstMessage || tab.session.id;
+        const text = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
+        label.textContent = text;
+        label.title = `${groupName(tab.session.repoRoot)} · ${text}`;
 
         const close = document.createElement('button');
         close.className = 'tab-close';
@@ -651,7 +669,10 @@ function renderTabBar(): void {
         });
 
         el.append(dot, label, close);
-        el.addEventListener('click', () => activateTab(tab));
+        el.addEventListener('click', () => {
+          activateTab(tab);
+          revealSessionInSidebar(tab.session);
+        });
         el.addEventListener('mousedown', (event) => {
           if (event.button === 1) {
             event.preventDefault();

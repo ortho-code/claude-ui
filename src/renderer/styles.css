@@ -282,15 +282,22 @@ button:hover {
   background: transparent;
 }
 
+.group + .group {
+  margin-top: 18px;
+}
+
 .group h2 {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  margin: 0 0 8px;
-  padding: 12px 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  /* Negative horizontal margins (cancelled by matching padding) let the divider run edge-to-edge
+     across the sidebar, so each group reads as a hard section break. */
+  margin: 0 -16px 8px;
+  padding: 12px 16px 6px;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
   user-select: none;
   /* Stay visible while scrolling that folder's sessions, so the current folder is always known.
@@ -307,6 +314,13 @@ button:hover {
   font-size: 10px;
 }
 
+.group h2 .group-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+}
+
 .group h2 .label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -316,24 +330,36 @@ button:hover {
 .group h2 .group-count {
   flex: 0 0 auto;
   margin-left: auto;
+  padding: 1px 7px;
+  font-size: 11px;
   font-weight: 400;
-  opacity: 0.8;
+  color: var(--muted);
+  background: var(--surface);
+  border-radius: 10px;
 }
 
+/* A bordered box so it reads as a "new session" action, not part of the collapse chrome. */
 .group h2 .group-add {
   flex: 0 0 auto;
-  padding: 0 4px;
-  background: none;
-  border: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   color: var(--muted);
   font-size: 15px;
-  line-height: 1;
+  /* Center the glyph via line-height (= content-box height) and text-align, which sits a single
+     character more reliably than flex centering does. */
+  line-height: 18px;
+  text-align: center;
   cursor: pointer;
 }
 
 .group h2 .group-add:hover {
   color: var(--text);
-  background: none;
+  background: var(--surface-hover);
+  border-color: var(--accent);
 }
 
 .group.collapsed .session {
