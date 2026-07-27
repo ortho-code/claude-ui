@@ -200,6 +200,11 @@ async function refreshFromDisk(): Promise<void> {
   renderList();
 }
 
+// Any filter active? Used to auto-expand groups with matches and to show the filter status.
+function isFiltering(): boolean {
+  return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || datePreset !== 'any';
+}
+
 // A session passes when it clears every active filter: text search, pinned-only, and date range.
 function passesFilters(session: SessionSummary): boolean {
   if (showPinnedOnly && !pinned.has(session.conversationId)) return false;
@@ -250,7 +255,7 @@ function applyCustomDates(): void {
 
 // Make an active filter obvious: show "N of M" with a clear button and flag the active controls.
 function updateFilterStatus(matches: number, total: number): void {
-  const filtering = filterText.length > 0 || showPinnedOnly || showWorktreeOnly || datePreset !== 'any';
+  const filtering = isFiltering();
   filterStatus.hidden = !filtering;
   searchInput.classList.toggle('active', filterText.length > 0);
   pinnedFilter.classList.toggle('active', showPinnedOnly);
@@ -348,7 +353,9 @@ function reconcileGroups(desired: DesiredGroup[]): void {
       els = createGroup(group.name, group.folderCwd);
       groupSections.set(group.name, els);
     }
-    const collapsed = collapsedGroups.has(group.name);
+    // While filtering, force groups open so matches inside a collapsed group are visible; the
+    // stored collapse state is left untouched, so it returns when the filter clears.
+    const collapsed = !isFiltering() && collapsedGroups.has(group.name);
     els.section.classList.toggle('collapsed', collapsed);
     els.caret.textContent = collapsed ? '▸' : '▾';
     els.count.textContent = String(group.sessions.length);
