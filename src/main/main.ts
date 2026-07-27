@@ -7,11 +7,24 @@ import { installStatusHooks, registerStatusIpc } from './status';
 
 let mainWindow: BrowserWindow | null = null;
 
+// Only one claude-ui instance at a time; a second launch focuses the existing window.
+// This may change if we add pop-out / multi-window sessions later.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  });
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 760,
     title: 'claude-ui',
+    icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'),
     backgroundColor: '#1e1e2e',
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'preload.js'),
