@@ -10,6 +10,7 @@ declare global {
 
 const container = document.getElementById('sessions')!;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;
+const pinnedFilter = document.getElementById('pinned-filter') as HTMLButtonElement;
 const searchInput = document.getElementById('search') as HTMLInputElement;
 const filterStatus = document.getElementById('filter-status')!;
 const filterCount = document.getElementById('filter-count')!;
@@ -27,6 +28,7 @@ let pinned = new Set<string>();
 let statuses = new Map<string, string>();
 let allSessions: SessionSummary[] = [];
 let filterText = '';
+let showPinnedOnly = false;
 // Structure of the last rendered list, so disk changes that only grow a transcript (new
 // lastActivity/eventCount) don't trigger a rebuild — we re-render only on structural change.
 let lastSignature = '';
@@ -186,24 +188,30 @@ async function refreshFromDisk(): Promise<void> {
   renderList();
 }
 
-function matchesFilter(session: SessionSummary): boolean {
+// A session passes when it matches the text search and, if the pinned-only toggle is on, is
+// pinned.
+function passesFilters(session: SessionSummary): boolean {
+  if (showPinnedOnly && !pinned.has(session.conversationId)) return false;
   if (!filterText) return true;
   return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id}`
     .toLowerCase()
     .includes(filterText);
 }
 
-// Make an active search obvious: show "N of M" with a clear button and flag the search box.
+// Make an active filter obvious: show "N of M" with a clear button and flag the active controls.
 function updateFilterStatus(matches: number, total: number): void {
-  const filtering = filterText.length > 0;
+  const filtering = filterText.length > 0 || showPinnedOnly;
   filterStatus.hidden = !filtering;
-  searchInput.classList.toggle('active', filtering);
+  searchInput.classList.toggle('active', filterText.length > 0);
+  pinnedFilter.classList.toggle('active', showPinnedOnly);
+  pinnedFilter.setAttribute('aria-pressed', String(showPinnedOnly));
   if (filtering) filterCount.textContent = `Showing ${matches} of ${total}`;
 }
 
 function clearFilter(): void {
   searchInput.value = '';
   filterText = '';
+  showPinnedOnly = false;
   renderList();
   container.scrollTop = 0;
 }
@@ -223,7 +231,7 @@ function renderList(): void {
   const pending = tabs.filter((t) => t.needsTitle && !knownIds.has(t.session.id)).map((t) => t.session);
   const all = [...pending, ...tips.values()];
   currentTips = new Map(all.map((s) => [s.conversationId, s]));
-  const sessions = all.filter(matchesFilter);
+  const sessions = all.filter(passesFilters);
   updateFilterStatus(sessions.length, all.length);
 
   if (sessions.length === 0) {
@@ -236,12 +244,13 @@ function renderList(): void {
   }
   container.querySelector(':scope > .empty-message')?.remove();
 
-  // Desired groups in order: pinned first, then one per folder.
-  const desired: { name: string; folderCwd?: string; sessions: SessionSummary[] }[] = [];
-  const pinnedSessions = sessions.filter((s) => pinned.has(s.conversationId));
-  if (pinnedSessions.length > 0) desired.push({ name: '📌 Pinned', sessions: pinnedSessions });
-  const rest = sessions.filter((s) => !pinned.has(s.conversationId));
-  for (const [cwd, list] of groupByCwd(rest)) desired.push({ name: cwd, folderCwd: cwd, sessions: list });
+  // One group per folder; pinned sessions float to the top of their own group (a stable sort
+  // keeps the within-group activity order otherwise).
+  const desired: DesiredGroup[] = [];
+  for (const [cwd, list] of groupByCwd(sessions)) {
+    list.sort((a, b) => (pinned.has(b.conversationId) ? 1 : 0) - (pinned.has(a.conversationId) ? 1 : 0));
+    desired.push({ name: cwd, folderCwd: cwd, sessions: list });
+  }
 
   reconcileGroups(desired);
   pruneRows(new Set(sessions.map((s) => s.conversationId)));
@@ -628,6 +637,11 @@ searchInput.addEventListener('input', () => {
   container.scrollTop = 0;
 });
 filterClear.addEventListener('click', clearFilter);
+pinnedFilter.addEventListener('click', () => {
+  showPinnedOnly = !showPinnedOnly;
+  renderList();
+  container.scrollTop = 0;
+});
 renderSessions();
 updatePlaceholder();
 restoreOpenTabs();

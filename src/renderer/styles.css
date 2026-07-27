@@ -70,6 +70,17 @@ button:hover {
   background: var(--surface-hover);
 }
 
+/* Pinned-only toggle: dimmed when off, accent-outlined when on. */
+#pinned-filter {
+  opacity: 0.55;
+}
+
+#pinned-filter.active {
+  opacity: 1;
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
 .header-actions {
   display: flex;
   gap: 6px;
