@@ -26,6 +26,7 @@ let allSessions: SessionSummary[] = [];
 let filterText = '';
 const statusDots = new Map<string, HTMLElement>();
 const sessionRows = new Map<string, HTMLElement>();
+const collapsedGroups = new Set<string>();
 
 function isOpen(id: string): boolean {
   return tabs.some((t) => t.session.id === id);
@@ -150,10 +151,27 @@ function groupByCwd(sessions: SessionSummary[]): [string, SessionSummary[]][] {
 
 function renderGroup(name: string, sessions: SessionSummary[]): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'group';
+  section.className = collapsedGroups.has(name) ? 'group collapsed' : 'group';
 
   const heading = document.createElement('h2');
-  heading.textContent = name;
+  const caret = document.createElement('span');
+  caret.className = 'caret';
+  caret.textContent = collapsedGroups.has(name) ? '▸' : '▾';
+  const label = document.createElement('span');
+  label.className = 'label';
+  label.textContent = name;
+  const count = document.createElement('span');
+  count.className = 'group-count';
+  count.textContent = String(sessions.length);
+  heading.append(caret, label, count);
+  // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker.
+  heading.addEventListener('click', () => {
+    const collapsed = !collapsedGroups.has(name);
+    if (collapsed) collapsedGroups.add(name);
+    else collapsedGroups.delete(name);
+    section.classList.toggle('collapsed', collapsed);
+    caret.textContent = collapsed ? '▸' : '▾';
+  });
   section.appendChild(heading);
 
   for (const session of sessions) section.appendChild(renderSession(session));
