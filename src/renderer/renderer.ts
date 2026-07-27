@@ -696,11 +696,16 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
 // The sidebar keeps itself current: a transcript created or changed on disk re-renders it.
 window.claudeUi.onSessionsChanged(() => void refreshFromDisk());
 
-window.addEventListener('resize', () => {
+function fitActive(): void {
   if (!activeTab) return;
   activeTab.fitAddon.fit();
   window.claudeUi.resizeTerminal(activeTab.terminalId, activeTab.term.cols, activeTab.term.rows);
-});
+}
+
+window.addEventListener('resize', fitActive);
+// Re-fit when the terminal area itself changes height (e.g. the tab bar wrapping to a new row),
+// not just on window resize, so the terminal always fills its pane instead of being clipped.
+new ResizeObserver(() => fitActive()).observe(terminalsEl);
 
 newButton.addEventListener('click', async () => {
   const dir = await window.claudeUi.pickFolder();

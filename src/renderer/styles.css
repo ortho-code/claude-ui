@@ -30,6 +30,8 @@
 html,
 body {
   height: 100%;
+  /* The window is a fixed frame; panes scroll internally, so the root itself never scrolls. */
+  overflow: hidden;
 }
 
 body {
@@ -41,7 +43,9 @@ body {
 
 #app {
   display: flex;
-  height: 100vh;
+  /* 100% of the (100%-height, overflow-hidden) body, not 100vh, which can overshoot the real
+     content area and push the bottom of the terminal below the fold. */
+  height: 100%;
 }
 
 #sidebar {
@@ -466,15 +470,19 @@ button:hover {
 
 #tabbar {
   display: flex;
+  /* Natural-width tabs that wrap onto new rows when the row fills: all visible, no scrollbar. */
+  flex-wrap: wrap;
   gap: 2px;
   padding: 4px 6px 0;
-  overflow-x: auto;
 }
 
 .tab {
   display: flex;
   align-items: center;
   gap: 6px;
+  /* Natural width (sized to the title), never shrinking; capped so a long title ellipsizes
+     instead of making one huge tab. */
+  flex: 0 0 auto;
   max-width: 200px;
   padding: 5px 8px;
   background: var(--surface);
@@ -488,6 +496,8 @@ button:hover {
 }
 
 .tab-label {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -495,6 +505,7 @@ button:hover {
 }
 
 .tab-close {
+  flex: 0 0 auto;
   padding: 0 2px;
   background: none;
   border: none;
@@ -511,12 +522,12 @@ button:hover {
   position: relative;
   flex: 1;
   min-height: 0;
+  padding: 8px;
 }
 
 .term {
   display: none;
   height: 100%;
-  padding: 8px;
 }
 
 .term.active {
