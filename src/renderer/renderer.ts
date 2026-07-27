@@ -27,16 +27,31 @@ let filterText = '';
 // Structure of the last rendered list, so disk changes that only grow a transcript (new
 // lastActivity/eventCount) don't trigger a rebuild — we re-render only on structural change.
 let lastSignature = '';
+// Status dots by tip session id; rebuilt each render (a status event names a session id).
 const statusDots = new Map<string, HTMLElement>();
+// Row elements by conversationId, reused across renders so a re-render moves nodes instead of
+// recreating them — no flicker, no scroll jump, hover/focus preserved.
 const sessionRows = new Map<string, HTMLElement>();
 const collapsedGroups = new Set<string>();
+
+interface GroupEls {
+  section: HTMLElement;
+  caret: HTMLElement;
+  count: HTMLElement;
+}
+// Group sections by group name, reused across renders (same reason as sessionRows).
+const groupSections = new Map<string, GroupEls>();
+// The session each row currently shows, by conversationId, so a reused row's click/pin handlers
+// act on the live tip even after the conversation branches.
+let currentTips = new Map<string, SessionSummary>();
 
 function isOpen(id: string): boolean {
   return tabs.some((t) => t.session.id === id);
 }
 
 function updateSidebarHighlight(): void {
-  for (const [id, row] of sessionRows) {
+  for (const row of sessionRows.values()) {
+    const id = row.dataset.sid ?? '';
     row.classList.toggle('open', isOpen(id));
     row.classList.toggle('active-session', activeTab?.session.id === id);
   }
@@ -176,11 +191,11 @@ function matchesFilter(session: SessionSummary): boolean {
 }
 
 // Render from the cached session list, applying the current search filter. Keystrokes call
-// this directly so filtering never re-reads disk.
+// this directly so filtering never re-reads disk. Reuses group/row nodes by key so a re-render
+// moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
 function renderList(): void {
   const scroll = container.scrollTop;
   statusDots.clear();
-  sessionRows.clear();
 
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the
   // list immediately, in the right folder group; they reconcile to the real entry once created.
@@ -189,22 +204,84 @@ function renderList(): void {
   const knownIds = new Set(allSessions.map((s) => s.id));
   const pending = tabs.filter((t) => t.needsTitle && !knownIds.has(t.session.id)).map((t) => t.session);
   const all = [...pending, ...tips.values()];
+  currentTips = new Map(all.map((s) => [s.conversationId, s]));
   const sessions = all.filter(matchesFilter);
+
   if (sessions.length === 0) {
-    container.textContent = all.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
+    clearList();
+    const message = document.createElement('div');
+    message.className = 'empty-message';
+    message.textContent = all.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
+    container.append(message);
     return;
   }
+  container.querySelector(':scope > .empty-message')?.remove();
 
-  const groups: HTMLElement[] = [];
+  // Desired groups in order: pinned first, then one per folder.
+  const desired: { name: string; folderCwd?: string; sessions: SessionSummary[] }[] = [];
   const pinnedSessions = sessions.filter((s) => pinned.has(s.conversationId));
-  if (pinnedSessions.length > 0) groups.push(renderGroup('📌 Pinned', pinnedSessions));
-
+  if (pinnedSessions.length > 0) desired.push({ name: '📌 Pinned', sessions: pinnedSessions });
   const rest = sessions.filter((s) => !pinned.has(s.conversationId));
-  for (const [cwd, list] of groupByCwd(rest)) groups.push(renderGroup(cwd, list, cwd));
+  for (const [cwd, list] of groupByCwd(rest)) desired.push({ name: cwd, folderCwd: cwd, sessions: list });
 
-  container.replaceChildren(...groups);
+  reconcileGroups(desired);
+  pruneRows(new Set(sessions.map((s) => s.conversationId)));
+
   container.scrollTop = scroll;
   updateSidebarHighlight();
+}
+
+// Reset to a blank list: drop every cached node so the next non-empty render rebuilds fresh.
+function clearList(): void {
+  container.replaceChildren();
+  sessionRows.clear();
+  groupSections.clear();
+  statusDots.clear();
+}
+
+interface DesiredGroup {
+  name: string;
+  folderCwd?: string;
+  sessions: SessionSummary[];
+}
+
+// Bring the group sections in line with `desired`: drop gone groups, create missing ones, and
+// order both groups and their rows via appendChild (which moves an existing node into place).
+function reconcileGroups(desired: DesiredGroup[]): void {
+  const wanted = new Set(desired.map((g) => g.name));
+  for (const [name, els] of groupSections) {
+    if (!wanted.has(name)) {
+      els.section.remove();
+      groupSections.delete(name);
+    }
+  }
+  for (const group of desired) {
+    let els = groupSections.get(group.name);
+    if (!els) {
+      els = createGroup(group.name, group.folderCwd);
+      groupSections.set(group.name, els);
+    }
+    const collapsed = collapsedGroups.has(group.name);
+    els.section.classList.toggle('collapsed', collapsed);
+    els.caret.textContent = collapsed ? '▸' : '▾';
+    els.count.textContent = String(group.sessions.length);
+    for (const session of group.sessions) {
+      const row = getOrCreateRow(session.conversationId);
+      updateRow(row, session);
+      els.section.appendChild(row);
+    }
+    container.appendChild(els.section);
+  }
+}
+
+// Remove rows whose conversation is no longer shown (deleted, or filtered out by search).
+function pruneRows(wanted: Set<string>): void {
+  for (const [conversationId, row] of sessionRows) {
+    if (!wanted.has(conversationId)) {
+      row.remove();
+      sessionRows.delete(conversationId);
+    }
+  }
 }
 
 function groupByCwd(sessions: SessionSummary[]): [string, SessionSummary[]][] {
@@ -217,21 +294,20 @@ function groupByCwd(sessions: SessionSummary[]): [string, SessionSummary[]][] {
   return [...groups.entries()];
 }
 
-function renderGroup(name: string, sessions: SessionSummary[], folderCwd?: string): HTMLElement {
+// Build a group section once; contents (count, caret, rows) are updated on later renders.
+function createGroup(name: string, folderCwd?: string): GroupEls {
   const section = document.createElement('section');
-  section.className = collapsedGroups.has(name) ? 'group collapsed' : 'group';
+  section.className = 'group';
 
   const heading = document.createElement('h2');
   const caret = document.createElement('span');
   caret.className = 'caret';
-  caret.textContent = collapsedGroups.has(name) ? '▸' : '▾';
   const label = document.createElement('span');
   label.className = 'label';
   label.textContent = shortenPath(name);
   label.title = name;
   const count = document.createElement('span');
   count.className = 'group-count';
-  count.textContent = String(sessions.length);
   heading.append(caret, label, count);
   if (folderCwd) {
     const add = document.createElement('button');
@@ -240,7 +316,7 @@ function renderGroup(name: string, sessions: SessionSummary[], folderCwd?: strin
     add.title = 'New session in this folder';
     add.addEventListener('click', (event) => {
       event.stopPropagation();
-      openNewSession(folderCwd);
+      void openNewSession(folderCwd);
     });
     heading.append(add);
   }
@@ -254,50 +330,73 @@ function renderGroup(name: string, sessions: SessionSummary[], folderCwd?: strin
   });
   section.appendChild(heading);
 
-  for (const session of sessions) section.appendChild(renderSession(session));
-  return section;
+  return { section, caret, count };
 }
 
-function renderSession(session: SessionSummary): HTMLElement {
+function getOrCreateRow(conversationId: string): HTMLElement {
+  const existing = sessionRows.get(conversationId);
+  if (existing) return existing;
+  const row = createSessionRow(conversationId);
+  sessionRows.set(conversationId, row);
+  return row;
+}
+
+// Build a row once. Its click/pin handlers read the live tip from `currentTips` by
+// conversationId, so a reused row stays correct after the conversation branches.
+function createSessionRow(conversationId: string): HTMLElement {
   const item = document.createElement('article');
   item.className = 'session';
+  item.dataset.cid = conversationId;
 
   const dot = document.createElement('span');
-  applyStatus(dot, statuses.get(session.id));
-  statusDots.set(session.id, dot);
-
   const content = document.createElement('div');
   content.className = 'session-content';
-
   const title = document.createElement('p');
   title.className = 'session-title';
-  title.textContent = session.title || session.firstMessage || '(no prompt yet)';
-  title.title = session.title || session.firstMessage || '';
-
   const meta = document.createElement('p');
   meta.className = 'session-meta';
-  meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
-
   content.append(title, meta);
 
   const pin = document.createElement('button');
   pin.className = 'pin';
-  const isPinned = pinned.has(session.conversationId);
-  pin.textContent = isPinned ? '📌' : '☆';
-  pin.title = isPinned ? 'Unpin' : 'Pin';
   pin.addEventListener('click', async (event) => {
     event.stopPropagation();
     if (pin.disabled) return;
     pin.disabled = true;
     pin.classList.add('loading');
-    pinned = new Set(await window.claudeUi.togglePin(session.conversationId));
+    pinned = new Set(await window.claudeUi.togglePin(conversationId));
     renderList();
   });
 
   item.append(dot, content, pin);
-  item.addEventListener('click', () => openSession(session));
-  sessionRows.set(session.id, item);
+  item.addEventListener('click', () => {
+    const session = currentTips.get(conversationId);
+    if (session) void openSession(session);
+  });
   return item;
+}
+
+// Refresh a reused row's content for the tip it now shows.
+function updateRow(row: HTMLElement, session: SessionSummary): void {
+  row.dataset.sid = session.id;
+
+  const dot = row.firstElementChild as HTMLElement;
+  applyStatus(dot, statuses.get(session.id));
+  statusDots.set(session.id, dot);
+
+  const title = row.querySelector('.session-title') as HTMLElement;
+  title.textContent = session.title || session.firstMessage || '(no prompt yet)';
+  title.title = session.title || session.firstMessage || '';
+
+  const meta = row.querySelector('.session-meta') as HTMLElement;
+  meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
+
+  const pin = row.querySelector('.pin') as HTMLButtonElement;
+  const isPinned = pinned.has(session.conversationId);
+  pin.textContent = isPinned ? '📌' : '☆';
+  pin.title = isPinned ? 'Unpin' : 'Pin';
+  pin.disabled = false;
+  pin.classList.remove('loading');
 }
 
 function applyStatus(dot: HTMLElement, status: string | undefined): void {

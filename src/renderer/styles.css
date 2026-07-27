@@ -281,6 +281,11 @@ button:hover {
   color: var(--muted);
 }
 
+.empty-message {
+  font-size: 13px;
+  color: var(--muted);
+}
+
 #terminal-pane {
   flex: 1;
   min-width: 0;
