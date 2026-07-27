@@ -9,7 +9,6 @@ declare global {
 }
 
 const container = document.getElementById('sessions')!;
-const refreshButton = document.getElementById('refresh') as HTMLButtonElement;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const searchInput = document.getElementById('search') as HTMLInputElement;
 const loadingEl = document.getElementById('loading')!;
@@ -25,6 +24,9 @@ let pinned = new Set<string>();
 let statuses = new Map<string, string>();
 let allSessions: SessionSummary[] = [];
 let filterText = '';
+// Structure of the last rendered list, so disk changes that only grow a transcript (new
+// lastActivity/eventCount) don't trigger a rebuild — we re-render only on structural change.
+let lastSignature = '';
 const statusDots = new Map<string, HTMLElement>();
 const sessionRows = new Map<string, HTMLElement>();
 const collapsedGroups = new Set<string>();
@@ -136,11 +138,34 @@ async function renderSessions(showLoading = true): Promise<void> {
     allSessions = sessions;
     pinned = new Set(pinnedList);
     statuses = new Map(Object.entries(statusMap));
+    lastSignature = structuralSignature(sessions);
     reconcileOpenTabs();
     renderList();
   } finally {
     if (showLoading) setLoading(false);
   }
+}
+
+// The list's structure: one line per session that affects what the sidebar shows. Excludes
+// lastActivity/eventCount so a running session writing its transcript isn't a "change".
+function structuralSignature(sessions: SessionSummary[]): string {
+  return sessions
+    .map((s) => `${s.conversationId}\0${s.id}\0${s.cwd}\0${s.title}\0${s.firstMessage}`)
+    .sort()
+    .join('\n');
+}
+
+// A disk change fired: re-read sessions but only re-render when the structure actually changed
+// (a new/removed session, a rename, or a new branch becoming the tip). Statuses and pins arrive
+// on their own channels, so we don't refetch them here.
+async function refreshFromDisk(): Promise<void> {
+  const sessions = await window.claudeUi.listSessions();
+  allSessions = sessions;
+  const signature = structuralSignature(sessions);
+  if (signature === lastSignature) return;
+  lastSignature = signature;
+  reconcileOpenTabs();
+  renderList();
 }
 
 function matchesFilter(session: SessionSummary): boolean {
@@ -462,8 +487,11 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
   setStatus(id, status);
   // A new session's title isn't on disk immediately; re-read on its status events until it is
   // (this also makes the new session appear in the sidebar).
-  if (tabs.some((t) => t.needsTitle && t.session.id === id)) void renderSessions(false);
+  if (tabs.some((t) => t.needsTitle && t.session.id === id)) void refreshFromDisk();
 });
+
+// The sidebar keeps itself current: a transcript created or changed on disk re-renders it.
+window.claudeUi.onSessionsChanged(() => void refreshFromDisk());
 
 window.addEventListener('resize', () => {
   if (!activeTab) return;
@@ -471,7 +499,6 @@ window.addEventListener('resize', () => {
   window.claudeUi.resizeTerminal(activeTab.terminalId, activeTab.term.cols, activeTab.term.rows);
 });
 
-refreshButton.addEventListener('click', () => renderSessions());
 newButton.addEventListener('click', async () => {
   const dir = await window.claudeUi.pickFolder();
   if (dir) openNewSession(dir);

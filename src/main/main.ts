@@ -4,6 +4,7 @@ import { listSessions } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
 import { getPinned, togglePin, getOpenSessions, setOpenSessions, migrateToConversationKeys } from './meta';
 import { installStatusHooks, registerStatusIpc } from './status';
+import { registerSessionsWatcher } from './watcher';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -61,6 +62,7 @@ app.whenReady().then(async () => {
   await migrateToConversationKeys(new Map(sessions.map((s) => [s.id, s.conversationId])));
   await installStatusHooks();
   registerStatusIpc(() => mainWindow);
+  registerSessionsWatcher(() => mainWindow);
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
