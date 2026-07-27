@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import * as path from 'node:path';
 import { listSessions } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
@@ -36,6 +36,9 @@ ipcMain.on('meta:setOpenSessions', (_event, ids: string[]) => {
 registerTerminalIpc();
 
 app.whenReady().then(async () => {
+  // No application menu: we don't want the default File/Edit/View items (reload, dev tools,
+  // view source). The app drives everything from its own UI.
+  Menu.setApplicationMenu(null);
   await installStatusHooks();
   registerStatusIpc(() => mainWindow);
   createWindow();
