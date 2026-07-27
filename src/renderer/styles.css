@@ -64,6 +64,20 @@ button:hover {
   background: var(--surface-hover);
 }
 
+#search {
+  margin: 8px 16px 0;
+  padding: 6px 10px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid #00000033;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+#search::placeholder {
+  color: var(--muted);
+}
+
 #loading {
   height: 2px;
   overflow: hidden;

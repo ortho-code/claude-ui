@@ -10,6 +10,7 @@ declare global {
 
 const container = document.getElementById('sessions')!;
 const refreshButton = document.getElementById('refresh') as HTMLButtonElement;
+const searchInput = document.getElementById('search') as HTMLInputElement;
 const loadingEl = document.getElementById('loading')!;
 const tabbar = document.getElementById('tabbar')!;
 const terminalsEl = document.getElementById('terminals')!;
@@ -21,6 +22,8 @@ function setLoading(on: boolean): void {
 
 let pinned = new Set<string>();
 let statuses = new Map<string, string>();
+let allSessions: SessionSummary[] = [];
+let filterText = '';
 const statusDots = new Map<string, HTMLElement>();
 const sessionRows = new Map<string, HTMLElement>();
 
@@ -87,7 +90,6 @@ async function restoreOpenTabs(): Promise<void> {
 // --- Sidebar ---
 
 async function renderSessions(showLoading = true): Promise<void> {
-  const scroll = container.scrollTop;
   if (showLoading) setLoading(true);
   try {
     const [sessions, pinnedList, statusMap] = await Promise.all([
@@ -95,29 +97,45 @@ async function renderSessions(showLoading = true): Promise<void> {
       window.claudeUi.getPinned(),
       window.claudeUi.getAllStatuses(),
     ]);
+    allSessions = sessions;
     pinned = new Set(pinnedList);
     statuses = new Map(Object.entries(statusMap));
-    statusDots.clear();
-    sessionRows.clear();
-
-    if (sessions.length === 0) {
-      container.textContent = 'No sessions found in ~/.claude/projects.';
-      return;
-    }
-
-    const groups: HTMLElement[] = [];
-    const pinnedSessions = sessions.filter((s) => pinned.has(s.id));
-    if (pinnedSessions.length > 0) groups.push(renderGroup('📌 Pinned', pinnedSessions));
-
-    const rest = sessions.filter((s) => !pinned.has(s.id));
-    for (const [cwd, list] of groupByCwd(rest)) groups.push(renderGroup(cwd, list));
-
-    container.replaceChildren(...groups);
-    container.scrollTop = scroll;
-    updateSidebarHighlight();
+    renderList();
   } finally {
     if (showLoading) setLoading(false);
   }
+}
+
+function matchesFilter(session: SessionSummary): boolean {
+  if (!filterText) return true;
+  return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id}`
+    .toLowerCase()
+    .includes(filterText);
+}
+
+// Render from the cached session list, applying the current search filter. Keystrokes call
+// this directly so filtering never re-reads disk.
+function renderList(): void {
+  const scroll = container.scrollTop;
+  statusDots.clear();
+  sessionRows.clear();
+
+  const sessions = allSessions.filter(matchesFilter);
+  if (sessions.length === 0) {
+    container.textContent = allSessions.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
+    return;
+  }
+
+  const groups: HTMLElement[] = [];
+  const pinnedSessions = sessions.filter((s) => pinned.has(s.id));
+  if (pinnedSessions.length > 0) groups.push(renderGroup('📌 Pinned', pinnedSessions));
+
+  const rest = sessions.filter((s) => !pinned.has(s.id));
+  for (const [cwd, list] of groupByCwd(rest)) groups.push(renderGroup(cwd, list));
+
+  container.replaceChildren(...groups);
+  container.scrollTop = scroll;
+  updateSidebarHighlight();
 }
 
 function groupByCwd(sessions: SessionSummary[]): [string, SessionSummary[]][] {
@@ -174,7 +192,7 @@ function renderSession(session: SessionSummary): HTMLElement {
     pin.disabled = true;
     pin.classList.add('loading');
     pinned = new Set(await window.claudeUi.togglePin(session.id));
-    await renderSessions(false);
+    renderList();
   });
 
   item.append(dot, content, pin);
@@ -333,6 +351,10 @@ window.addEventListener('resize', () => {
 });
 
 refreshButton.addEventListener('click', () => renderSessions());
+searchInput.addEventListener('input', () => {
+  filterText = searchInput.value.trim().toLowerCase();
+  renderList();
+});
 renderSessions();
 updatePlaceholder();
 restoreOpenTabs();
