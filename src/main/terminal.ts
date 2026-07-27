@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import * as pty from 'node-pty';
 import * as os from 'node:os';
 import { existsSync } from 'node:fs';
-import { SCOPE_ENV } from './status';
+import { SCOPE_ENV, TAB_ENV } from './status';
 
 const terminals = new Map<number, pty.IPty>();
 let nextId = 1;
@@ -24,20 +24,23 @@ function cleanEnv(): { [key: string]: string } {
 }
 
 export function registerTerminalIpc(): void {
-  ipcMain.handle('terminal:start', (event, cwd: string, resumeSessionId?: string): number => {
+  ipcMain.handle('terminal:start', (event, cwd: string, resumeSessionId?: string, tabToken?: string): number => {
     const id = nextId++;
     const shell = process.env.SHELL ?? '/bin/bash';
     // Session ids are filename-derived; only pass through safe characters.
     const safeId = resumeSessionId && /^[A-Za-z0-9_-]+$/.test(resumeSessionId) ? resumeSessionId : null;
-    // Resume through a login shell so PATH resolves claude, then keep the shell
-    // open after claude exits.
-    const args = safeId ? ['-l', '-c', `claude --resume ${safeId}; exec ${shell} -l`] : ['-l'];
+    // Resume the given session, or start a fresh one when there's no id. Run through a login
+    // shell so PATH resolves claude, and keep the shell open after claude exits.
+    const command = safeId ? `claude --resume ${safeId}` : 'claude';
+    const args = ['-l', '-c', `${command}; exec ${shell} -l`];
+    const env = cleanEnv();
+    if (tabToken) env[TAB_ENV] = tabToken;
     const proc = pty.spawn(shell, args, {
       name: 'xterm-color',
       cols: 80,
       rows: 24,
       cwd: cwd && existsSync(cwd) ? cwd : os.homedir(),
-      env: cleanEnv(),
+      env,
     });
     terminals.set(id, proc);
 

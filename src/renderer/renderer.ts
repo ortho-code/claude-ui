@@ -10,6 +10,7 @@ declare global {
 
 const container = document.getElementById('sessions')!;
 const refreshButton = document.getElementById('refresh') as HTMLButtonElement;
+const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const searchInput = document.getElementById('search') as HTMLInputElement;
 const loadingEl = document.getElementById('loading')!;
 const tabbar = document.getElementById('tabbar')!;
@@ -39,6 +40,23 @@ function updateSidebarHighlight(): void {
   }
 }
 
+// Keep open tabs' titles in sync with the freshly-read session list: a new session's first
+// message / AI title, a rename, or a regenerated AI title all land here on the next read.
+function reconcileOpenTabs(): void {
+  const byId = new Map(allSessions.map((s) => [s.id, s]));
+  let changed = false;
+  for (const tab of tabs) {
+    const fresh = byId.get(tab.session.id);
+    if (!fresh) continue;
+    if (fresh.title !== tab.session.title || fresh.firstMessage !== tab.session.firstMessage) {
+      tab.session = fresh;
+      changed = true;
+    }
+    if (fresh.title || fresh.firstMessage) tab.needsTitle = false;
+  }
+  if (changed) renderTabBar();
+}
+
 function setStatus(id: string, status: string | undefined): void {
   if (status) statuses.set(id, status);
   else statuses.delete(id);
@@ -59,6 +77,10 @@ interface Tab {
   term: Terminal;
   fitAddon: FitAddon;
   el: HTMLElement;
+  // Unique per terminal; the status hook echoes it so we can learn a new session's real id.
+  token: string;
+  // A new session has no title on disk yet; keep re-reading on status events until it does.
+  needsTitle: boolean;
 }
 
 const tabs: Tab[] = [];
@@ -101,6 +123,7 @@ async function renderSessions(showLoading = true): Promise<void> {
     allSessions = sessions;
     pinned = new Set(pinnedList);
     statuses = new Map(Object.entries(statusMap));
+    reconcileOpenTabs();
     renderList();
   } finally {
     if (showLoading) setLoading(false);
@@ -121,9 +144,14 @@ function renderList(): void {
   statusDots.clear();
   sessionRows.clear();
 
-  const sessions = allSessions.filter(matchesFilter);
+  // Include new sessions not yet written to disk (from their open tabs) so they appear in the
+  // list immediately, in the right folder group; they reconcile to the real entry once created.
+  const diskIds = new Set(allSessions.map((s) => s.id));
+  const pending = tabs.filter((t) => t.needsTitle && !diskIds.has(t.session.id)).map((t) => t.session);
+  const all = [...pending, ...allSessions];
+  const sessions = all.filter(matchesFilter);
   if (sessions.length === 0) {
-    container.textContent = allSessions.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
+    container.textContent = all.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
     return;
   }
 
@@ -132,7 +160,7 @@ function renderList(): void {
   if (pinnedSessions.length > 0) groups.push(renderGroup('📌 Pinned', pinnedSessions));
 
   const rest = sessions.filter((s) => !pinned.has(s.id));
-  for (const [cwd, list] of groupByCwd(rest)) groups.push(renderGroup(cwd, list));
+  for (const [cwd, list] of groupByCwd(rest)) groups.push(renderGroup(cwd, list, cwd));
 
   container.replaceChildren(...groups);
   container.scrollTop = scroll;
@@ -149,7 +177,7 @@ function groupByCwd(sessions: SessionSummary[]): [string, SessionSummary[]][] {
   return [...groups.entries()];
 }
 
-function renderGroup(name: string, sessions: SessionSummary[]): HTMLElement {
+function renderGroup(name: string, sessions: SessionSummary[], folderCwd?: string): HTMLElement {
   const section = document.createElement('section');
   section.className = collapsedGroups.has(name) ? 'group collapsed' : 'group';
 
@@ -159,11 +187,23 @@ function renderGroup(name: string, sessions: SessionSummary[]): HTMLElement {
   caret.textContent = collapsedGroups.has(name) ? '▸' : '▾';
   const label = document.createElement('span');
   label.className = 'label';
-  label.textContent = name;
+  label.textContent = shortenPath(name);
+  label.title = name;
   const count = document.createElement('span');
   count.className = 'group-count';
   count.textContent = String(sessions.length);
   heading.append(caret, label, count);
+  if (folderCwd) {
+    const add = document.createElement('button');
+    add.className = 'group-add';
+    add.textContent = '+';
+    add.title = 'New session in this folder';
+    add.addEventListener('click', (event) => {
+      event.stopPropagation();
+      openNewSession(folderCwd);
+    });
+    heading.append(add);
+  }
   // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker.
   heading.addEventListener('click', () => {
     const collapsed = !collapsedGroups.has(name);
@@ -192,6 +232,7 @@ function renderSession(session: SessionSummary): HTMLElement {
   const title = document.createElement('p');
   title.className = 'session-title';
   title.textContent = session.title || session.firstMessage || '(no prompt yet)';
+  title.title = session.title || session.firstMessage || '';
 
   const meta = document.createElement('p');
   meta.className = 'session-meta';
@@ -224,6 +265,13 @@ function applyStatus(dot: HTMLElement, status: string | undefined): void {
   dot.title = status ?? '';
 }
 
+// Folder paths share a long common prefix, so show the last two segments (the part that
+// distinguishes them); the full path is available on hover.
+function shortenPath(p: string): string {
+  const parts = p.split('/').filter(Boolean);
+  return parts.length <= 2 ? p : `…/${parts.slice(-2).join('/')}`;
+}
+
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
   const seconds = Math.round((Date.now() - then) / 1000);
@@ -243,7 +291,30 @@ async function openSession(session: SessionSummary): Promise<void> {
     activateTab(existing);
     return;
   }
-  const terminalId = await window.claudeUi.startTerminal(session.cwd, session.id);
+  await createTab(session, session.id);
+}
+
+let newSessionCounter = 0;
+
+// Start a brand-new claude session in `cwd`. It has no real id until claude creates it, so
+// the tab uses a placeholder; the real session appears in the sidebar on the next refresh.
+async function openNewSession(cwd: string): Promise<void> {
+  const folder = cwd.split('/').filter(Boolean).pop() ?? cwd;
+  const session: SessionSummary = {
+    id: `new-${Date.now()}-${newSessionCounter++}`,
+    cwd,
+    title: `New: ${folder}`,
+    firstMessage: '',
+    lastActivity: new Date().toISOString(),
+    eventCount: 0,
+  };
+  await createTab(session, undefined);
+  renderList();
+}
+
+async function createTab(session: SessionSummary, resumeId: string | undefined): Promise<void> {
+  const token = crypto.randomUUID();
+  const terminalId = await window.claudeUi.startTerminal(session.cwd, resumeId, token);
 
   const el = document.createElement('div');
   el.className = 'term';
@@ -258,7 +329,7 @@ async function openSession(session: SessionSummary): Promise<void> {
   term.loadAddon(fitAddon);
   term.open(el);
 
-  const tab: Tab = { session, terminalId, term, fitAddon, el };
+  const tab: Tab = { session, terminalId, term, fitAddon, el, token, needsTitle: resumeId === undefined };
 
   // Ctrl-C twice in the terminal closes the tab instead of dropping to the leftover shell.
   let lastCtrlC = 0;
@@ -323,6 +394,7 @@ function renderTabBar(): void {
         const label = document.createElement('span');
         label.className = 'tab-label';
         label.textContent = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
+        label.title = tab.session.title || tab.session.firstMessage || tab.session.id;
 
         const close = document.createElement('button');
         close.className = 'tab-close';
@@ -360,7 +432,21 @@ window.claudeUi.onTerminalExit((id, exitCode) => {
   const tab = tabs.find((t) => t.terminalId === id);
   if (tab) tab.term.writeln(`\r\n[process exited with code ${exitCode}]`);
 });
-window.claudeUi.onSessionStatus((id, status) => setStatus(id, status));
+window.claudeUi.onSessionStatus((id, status, tab) => {
+  // A new-session tab learns its real session id the first time claude reports for it, so it
+  // then matches the sidebar entry (clicking it focuses the tab instead of opening a duplicate).
+  if (tab) {
+    const owner = tabs.find((t) => t.token === tab);
+    if (owner && owner.session.id !== id) {
+      owner.session = { ...owner.session, id };
+      persistOpenTabs();
+    }
+  }
+  setStatus(id, status);
+  // A new session's title isn't on disk immediately; re-read on its status events until it is
+  // (this also makes the new session appear in the sidebar).
+  if (tabs.some((t) => t.needsTitle && t.session.id === id)) void renderSessions(false);
+});
 
 window.addEventListener('resize', () => {
   if (!activeTab) return;
@@ -369,6 +455,10 @@ window.addEventListener('resize', () => {
 });
 
 refreshButton.addEventListener('click', () => renderSessions());
+newButton.addEventListener('click', async () => {
+  const dir = await window.claudeUi.pickFolder();
+  if (dir) openNewSession(dir);
+});
 searchInput.addEventListener('input', () => {
   filterText = searchInput.value.trim().toLowerCase();
   renderList();

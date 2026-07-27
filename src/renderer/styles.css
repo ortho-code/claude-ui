@@ -64,6 +64,11 @@ button:hover {
   background: var(--surface-hover);
 }
 
+.header-actions {
+  display: flex;
+  gap: 6px;
+}
+
 #search {
   margin: 8px 16px 0;
   padding: 6px 10px;
@@ -155,6 +160,22 @@ button:hover {
   margin-left: auto;
   font-weight: 400;
   opacity: 0.8;
+}
+
+.group h2 .group-add {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.group h2 .group-add:hover {
+  color: var(--text);
+  background: none;
 }
 
 .group.collapsed .session {

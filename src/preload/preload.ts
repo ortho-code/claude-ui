@@ -7,11 +7,15 @@ const api: ClaudeUiApi = {
   togglePin: (id) => ipcRenderer.invoke('meta:togglePin', id),
   getOpenSessions: () => ipcRenderer.invoke('meta:getOpenSessions'),
   setOpenSessions: (ids) => ipcRenderer.send('meta:setOpenSessions', ids),
+  pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   getAllStatuses: () => ipcRenderer.invoke('status:getAll'),
   onSessionStatus: (callback) =>
-    ipcRenderer.on('session:status', (_event, id: string, status: string) => callback(id, status)),
+    ipcRenderer.on('session:status', (_event, id: string, status: string, tab: string) =>
+      callback(id, status, tab),
+    ),
   clearStatus: (id) => ipcRenderer.send('status:clear', id),
-  startTerminal: (cwd, resumeSessionId) => ipcRenderer.invoke('terminal:start', cwd, resumeSessionId),
+  startTerminal: (cwd, resumeSessionId, tabToken) =>
+    ipcRenderer.invoke('terminal:start', cwd, resumeSessionId, tabToken),
   onTerminalData: (callback) =>
     ipcRenderer.on('terminal:data', (_event, id: number, data: string) => callback(id, data)),
   onTerminalExit: (callback) =>

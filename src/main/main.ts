@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron';
 import * as path from 'node:path';
 import { listSessions } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
@@ -42,6 +42,10 @@ function createWindow(): void {
 ipcMain.handle('sessions:list', () => listSessions());
 ipcMain.handle('meta:getPinned', () => getPinned());
 ipcMain.handle('meta:togglePin', (_event, id: string) => togglePin(id));
+ipcMain.handle('dialog:pickFolder', async (): Promise<string | null> => {
+  const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
+  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+});
 ipcMain.handle('meta:getOpenSessions', () => getOpenSessions());
 ipcMain.on('meta:setOpenSessions', (_event, ids: string[]) => {
   void setOpenSessions(ids);

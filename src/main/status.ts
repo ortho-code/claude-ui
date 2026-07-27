@@ -11,6 +11,9 @@ const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
 /** Env var claude-ui sets on its terminals; the hook only reports when it is present. */
 export const SCOPE_ENV = 'CLAUDE_UI';
 
+/** Per-terminal token so the app can match a reported session id back to the tab that spawned it. */
+export const TAB_ENV = 'CLAUDE_UI_TAB';
+
 /** Which Claude Code hook event maps to which status. */
 const HOOK_EVENTS: [string, string][] = [
   ['UserPromptSubmit', 'busy'],
@@ -34,8 +37,9 @@ dir="$HOME/.config/claude-ui/status"
 mkdir -p "$dir"
 input="$(cat)"
 sid="$(printf '%s' "$input" | grep -oE '"session_id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\\1/')"
+tab="\${CLAUDE_UI_TAB:-}"
 if [ -n "$sid" ]; then
-  printf '{"status":"%s","ts":%s}\\n' "$status" "$(date +%s)" > "$dir/$sid.json"
+  printf '{"status":"%s","ts":%s,"tab":"%s"}\\n' "$status" "$(date +%s)" "$tab" > "$dir/$sid.json"
 fi
 exit 0
 `;
@@ -87,18 +91,27 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
   watch(statusDir, (_event, filename) => {
     if (!filename || !filename.endsWith('.json')) return;
     const id = filename.replace(/\.json$/, '');
-    void readStatus(id).then((status) => {
-      if (status === null) return;
+    void readStatus(id).then((entry) => {
+      if (entry === null) return;
       const win = getWindow();
-      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, status);
+      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, entry.status, entry.tab);
     });
   });
 }
 
-async function readStatus(id: string): Promise<string | null> {
+interface StatusEntry {
+  status: string;
+  tab: string;
+}
+
+async function readStatus(id: string): Promise<StatusEntry | null> {
   try {
-    const parsed = JSON.parse(await fs.readFile(path.join(statusDir, `${id}.json`), 'utf8')) as { status?: unknown };
-    return typeof parsed.status === 'string' ? parsed.status : null;
+    const parsed = JSON.parse(await fs.readFile(path.join(statusDir, `${id}.json`), 'utf8')) as {
+      status?: unknown;
+      tab?: unknown;
+    };
+    if (typeof parsed.status !== 'string') return null;
+    return { status: parsed.status, tab: typeof parsed.tab === 'string' ? parsed.tab : '' };
   } catch {
     return null;
   }
@@ -115,8 +128,8 @@ async function readAllStatuses(): Promise<Record<string, string>> {
   for (const file of files) {
     if (!file.endsWith('.json')) continue;
     const id = file.replace(/\.json$/, '');
-    const status = await readStatus(id);
-    if (status) result[id] = status;
+    const entry = await readStatus(id);
+    if (entry) result[id] = entry.status;
   }
   return result;
 }
