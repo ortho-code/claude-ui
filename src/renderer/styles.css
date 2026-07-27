@@ -120,6 +120,22 @@ body {
   border-right: 1px solid #00000033;
 }
 
+#sidebar-resizer {
+  flex: 0 0 5px;
+  cursor: col-resize;
+  background: transparent;
+}
+
+#sidebar-resizer:hover,
+#sidebar-resizer.dragging {
+  background: var(--accent);
+}
+
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
 #sidebar header {
   display: flex;
   align-items: center;

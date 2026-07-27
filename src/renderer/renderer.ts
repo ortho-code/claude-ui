@@ -864,7 +864,35 @@ function fitActive(): void {
 window.addEventListener('resize', fitActive);
 // Re-fit when the terminal area itself changes height (e.g. the tab bar wrapping to a new row),
 // not just on window resize, so the terminal always fills its pane instead of being clipped.
+// The ResizeObserver also covers sidebar resizing, since that changes the terminal pane's width.
 new ResizeObserver(() => fitActive()).observe(terminalsEl);
+
+// Drag the divider between the sidebar and the terminal to resize the session list; the width
+// is remembered across launches.
+const sidebar = document.getElementById('sidebar')!;
+const sidebarResizer = document.getElementById('sidebar-resizer')!;
+const SIDEBAR_MIN = 220;
+const SIDEBAR_MAX = 640;
+const savedWidth = Number(localStorage.getItem('sidebarWidth'));
+if (savedWidth >= SIDEBAR_MIN && savedWidth <= SIDEBAR_MAX) sidebar.style.flexBasis = `${savedWidth}px`;
+sidebarResizer.addEventListener('mousedown', (event) => {
+  event.preventDefault();
+  document.body.classList.add('resizing');
+  sidebarResizer.classList.add('dragging');
+  const onMove = (move: MouseEvent): void => {
+    const width = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, move.clientX - sidebar.getBoundingClientRect().left));
+    sidebar.style.flexBasis = `${width}px`;
+  };
+  const onUp = (): void => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.classList.remove('resizing');
+    sidebarResizer.classList.remove('dragging');
+    localStorage.setItem('sidebarWidth', String(parseInt(sidebar.style.flexBasis, 10)));
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+});
 
 newButton.addEventListener('click', async () => {
   const dir = await window.claudeUi.pickFolder();
