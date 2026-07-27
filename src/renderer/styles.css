@@ -83,6 +83,34 @@ button:hover {
   color: var(--muted);
 }
 
+#search.active {
+  border-color: var(--accent);
+}
+
+#filter-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 16px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+#filter-clear {
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#filter-clear:hover {
+  background: var(--accent);
+  color: var(--surface);
+}
+
 #loading {
   height: 2px;
   overflow: hidden;

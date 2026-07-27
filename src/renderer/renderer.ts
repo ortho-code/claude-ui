@@ -11,6 +11,9 @@ declare global {
 const container = document.getElementById('sessions')!;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const searchInput = document.getElementById('search') as HTMLInputElement;
+const filterStatus = document.getElementById('filter-status')!;
+const filterCount = document.getElementById('filter-count')!;
+const filterClear = document.getElementById('filter-clear') as HTMLButtonElement;
 const loadingEl = document.getElementById('loading')!;
 const tabbar = document.getElementById('tabbar')!;
 const terminalsEl = document.getElementById('terminals')!;
@@ -190,6 +193,21 @@ function matchesFilter(session: SessionSummary): boolean {
     .includes(filterText);
 }
 
+// Make an active search obvious: show "N of M" with a clear button and flag the search box.
+function updateFilterStatus(matches: number, total: number): void {
+  const filtering = filterText.length > 0;
+  filterStatus.hidden = !filtering;
+  searchInput.classList.toggle('active', filtering);
+  if (filtering) filterCount.textContent = `Showing ${matches} of ${total}`;
+}
+
+function clearFilter(): void {
+  searchInput.value = '';
+  filterText = '';
+  renderList();
+  container.scrollTop = 0;
+}
+
 // Render from the cached session list, applying the current search filter. Keystrokes call
 // this directly so filtering never re-reads disk. Reuses group/row nodes by key so a re-render
 // moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
@@ -206,6 +224,7 @@ function renderList(): void {
   const all = [...pending, ...tips.values()];
   currentTips = new Map(all.map((s) => [s.conversationId, s]));
   const sessions = all.filter(matchesFilter);
+  updateFilterStatus(sessions.length, all.length);
 
   if (sessions.length === 0) {
     clearList();
@@ -605,7 +624,10 @@ newButton.addEventListener('click', async () => {
 searchInput.addEventListener('input', () => {
   filterText = searchInput.value.trim().toLowerCase();
   renderList();
+  // A filter change reshapes the list, so start at the top rather than a stale scroll offset.
+  container.scrollTop = 0;
 });
+filterClear.addEventListener('click', clearFilter);
 renderSessions();
 updatePlaceholder();
 restoreOpenTabs();
