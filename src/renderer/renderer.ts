@@ -87,21 +87,34 @@ const tabs: Tab[] = [];
 let activeTab: Tab | null = null;
 let restoring = false;
 
+// Collapse sessions to one entry per conversation: the active tip (latest activity).
+function tipsByConversation(sessions: SessionSummary[]): Map<string, SessionSummary> {
+  const tips = new Map<string, SessionSummary>();
+  for (const s of sessions) {
+    const prev = tips.get(s.conversationId);
+    if (!prev || s.lastActivity > prev.lastActivity) tips.set(s.conversationId, s);
+  }
+  return tips;
+}
+
 function persistOpenTabs(): void {
   if (restoring) return;
-  window.claudeUi.setOpenSessions(tabs.map((t) => t.session.id));
+  // Persist conversation keys so a tab reopens on the current tip even if the conversation
+  // branched out of band. Fall back to the tab's own key before it has reconciled to disk.
+  const idToConv = new Map(allSessions.map((s) => [s.id, s.conversationId]));
+  window.claudeUi.setOpenSessions(tabs.map((t) => idToConv.get(t.session.id) ?? t.session.conversationId));
 }
 
 async function restoreOpenTabs(): Promise<void> {
   restoring = true;
   try {
-    const [sessions, openIds] = await Promise.all([
+    const [sessions, openKeys] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getOpenSessions(),
     ]);
-    const byId = new Map(sessions.map((s) => [s.id, s]));
-    for (const id of openIds) {
-      const session = byId.get(id);
+    const tips = tipsByConversation(sessions);
+    for (const key of openKeys) {
+      const session = tips.get(key);
       if (session) await openSession(session);
     }
   } finally {
@@ -147,11 +160,7 @@ function renderList(): void {
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the
   // list immediately, in the right folder group; they reconcile to the real entry once created.
   // Collapse conversation branches to the active tip (latest activity).
-  const tips = new Map<string, SessionSummary>();
-  for (const s of allSessions) {
-    const prev = tips.get(s.conversationId);
-    if (!prev || s.lastActivity > prev.lastActivity) tips.set(s.conversationId, s);
-  }
+  const tips = tipsByConversation(allSessions);
   const knownIds = new Set(allSessions.map((s) => s.id));
   const pending = tabs.filter((t) => t.needsTitle && !knownIds.has(t.session.id)).map((t) => t.session);
   const all = [...pending, ...tips.values()];
@@ -162,10 +171,10 @@ function renderList(): void {
   }
 
   const groups: HTMLElement[] = [];
-  const pinnedSessions = sessions.filter((s) => pinned.has(s.id));
+  const pinnedSessions = sessions.filter((s) => pinned.has(s.conversationId));
   if (pinnedSessions.length > 0) groups.push(renderGroup('📌 Pinned', pinnedSessions));
 
-  const rest = sessions.filter((s) => !pinned.has(s.id));
+  const rest = sessions.filter((s) => !pinned.has(s.conversationId));
   for (const [cwd, list] of groupByCwd(rest)) groups.push(renderGroup(cwd, list, cwd));
 
   container.replaceChildren(...groups);
@@ -248,7 +257,7 @@ function renderSession(session: SessionSummary): HTMLElement {
 
   const pin = document.createElement('button');
   pin.className = 'pin';
-  const isPinned = pinned.has(session.id);
+  const isPinned = pinned.has(session.conversationId);
   pin.textContent = isPinned ? '📌' : '☆';
   pin.title = isPinned ? 'Unpin' : 'Pin';
   pin.addEventListener('click', async (event) => {
@@ -256,7 +265,7 @@ function renderSession(session: SessionSummary): HTMLElement {
     if (pin.disabled) return;
     pin.disabled = true;
     pin.classList.add('loading');
-    pinned = new Set(await window.claudeUi.togglePin(session.id));
+    pinned = new Set(await window.claudeUi.togglePin(session.conversationId));
     renderList();
   });
 

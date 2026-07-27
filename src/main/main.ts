@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron';
 import * as path from 'node:path';
 import { listSessions } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
-import { getPinned, togglePin, getOpenSessions, setOpenSessions } from './meta';
+import { getPinned, togglePin, getOpenSessions, setOpenSessions, migrateToConversationKeys } from './meta';
 import { installStatusHooks, registerStatusIpc } from './status';
 
 let mainWindow: BrowserWindow | null = null;
@@ -56,6 +56,9 @@ app.whenReady().then(async () => {
   // No application menu: we don't want the default File/Edit/View items (reload, dev tools,
   // view source). The app drives everything from its own UI.
   Menu.setApplicationMenu(null);
+  // One-time: rewrite pins/open-tabs stored as raw session ids to conversation keys.
+  const sessions = await listSessions();
+  await migrateToConversationKeys(new Map(sessions.map((s) => [s.id, s.conversationId])));
   await installStatusHooks();
   registerStatusIpc(() => mainWindow);
   createWindow();
