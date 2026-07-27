@@ -12,6 +12,12 @@
   box-sizing: border-box;
 }
 
+/* Replace the browser default focus ring with a thin accent highlight that hugs the element. */
+:focus {
+  outline: 1.5px solid var(--accent);
+  outline-offset: 0;
+}
+
 html,
 body {
   height: 100%;
@@ -83,6 +89,12 @@ button:hover {
   color: var(--muted);
 }
 
+/* The search box shows the accent on its own border, so it skips the global outline. */
+#search:focus {
+  outline: none;
+}
+
+#search:focus,
 #search.active {
   border-color: var(--accent);
 }
