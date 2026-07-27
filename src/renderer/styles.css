@@ -162,7 +162,12 @@ button:hover {
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 12px 16px 24px;
+  /* No top padding: it would sit above the sticky headings and let a row show through there.
+     The headings' own top padding provides the spacing instead. */
+  padding: 0 16px 24px;
+  /* Collapse/expand anchors the clicked heading by hand; the browser's own scroll anchoring
+     would fight that and shift the list, so turn it off here. */
+  overflow-anchor: none;
 }
 
 #sessions::-webkit-scrollbar {
@@ -189,9 +194,16 @@ button:hover {
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
-  margin: 16px 0 8px;
+  margin: 0 0 8px;
+  padding: 12px 0 6px;
   cursor: pointer;
   user-select: none;
+  /* Stay visible while scrolling that folder's sessions, so the current folder is always known.
+     The opaque background masks rows scrolling underneath. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
 }
 
 .group h2 .caret {

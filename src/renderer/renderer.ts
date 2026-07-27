@@ -348,13 +348,17 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
     });
     heading.append(add);
   }
-  // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker.
+  // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker. Keep the
+  // clicked heading anchored: a sticky heading otherwise snaps between stuck and natural
+  // position as its rows appear/disappear, which reads as a jump.
   heading.addEventListener('click', () => {
+    const before = heading.getBoundingClientRect().top;
     const collapsed = !collapsedGroups.has(name);
     if (collapsed) collapsedGroups.add(name);
     else collapsedGroups.delete(name);
     section.classList.toggle('collapsed', collapsed);
     caret.textContent = collapsed ? '▸' : '▾';
+    container.scrollTop += heading.getBoundingClientRect().top - before;
   });
   section.appendChild(heading);
 
