@@ -21,6 +21,69 @@
   display: none !important;
 }
 
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 200;
+  max-width: 80vw;
+  padding: 10px 16px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  font-size: 13px;
+}
+
+#confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+#confirm-dialog {
+  width: min(360px, 80vw);
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+#confirm-message {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#confirm-detail {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+#confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+#confirm-ok.danger {
+  background: #c92a2a;
+  border-color: #c92a2a;
+  color: #fff;
+}
+
+#confirm-ok.danger:hover {
+  filter: brightness(0.92);
+}
+
 /* Replace the browser default focus ring with a thin accent highlight that hugs the element. */
 :focus {
   outline: 1.5px solid var(--accent);
@@ -110,9 +173,10 @@ button:hover {
   border: 1.5px solid var(--bg);
 }
 
-/* Pinned-only and worktree-only toggles: dimmed when off, accent-filled when on. */
+/* Filter toggles: dimmed when off, accent-filled when on. */
 #pinned-filter,
-#worktree-filter {
+#worktree-filter,
+#archived-filter {
   flex: 0 0 auto;
   padding: 5px 8px;
   font-size: 12px;
@@ -120,7 +184,8 @@ button:hover {
 }
 
 #pinned-filter.active,
-#worktree-filter.active {
+#worktree-filter.active,
+#archived-filter.active {
   opacity: 1;
   border-color: var(--accent);
   background: var(--active);
@@ -446,6 +511,23 @@ button:hover {
 
 .pin:hover {
   background: none;
+  color: var(--text);
+}
+
+.archive-btn,
+.delete-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.archive-btn:hover,
+.delete-btn:hover {
   color: var(--text);
 }
 

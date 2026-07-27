@@ -22,6 +22,7 @@
           <div id="filters">
             <button id="pinned-filter" title="Show only pinned sessions" aria-pressed="false">★</button>
             <button id="worktree-filter" type="button" title="Show only worktree sessions" aria-pressed="false">worktree</button>
+            <button id="archived-filter" type="button" title="Show archived sessions" aria-pressed="false">archived</button>
             <div id="date-presets">
               <button type="button" data-range="any" class="active">Any time</button>
               <button type="button" data-range="today">Today</button>
@@ -49,6 +50,17 @@
         </div>
       </section>
     </div>
+    <div id="confirm-overlay" hidden>
+      <div id="confirm-dialog" role="dialog" aria-modal="true">
+        <p id="confirm-message"></p>
+        <p id="confirm-detail"></p>
+        <div id="confirm-actions">
+          <button id="confirm-cancel" type="button">Cancel</button>
+          <button id="confirm-ok" type="button" class="danger">Delete</button>
+        </div>
+      </div>
+    </div>
+    <div id="toast" hidden></div>
     <script type="module" src="./renderer.js"></script>
   </body>
 </html>

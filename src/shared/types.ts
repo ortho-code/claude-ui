@@ -27,6 +27,15 @@ export interface ClaudeUiApi {
   getPinned(): Promise<string[]>;
   /** Toggle a session's pin; resolves to the updated pinned list. */
   togglePin(id: string): Promise<string[]>;
+  /** Archived conversation keys mapped to when they were archived (epoch ms; 0 = unknown). */
+  getArchived(): Promise<Record<string, number>>;
+  /** Toggle a conversation's archived state; resolves to the updated archived map. */
+  toggleArchive(id: string): Promise<Record<string, number>>;
+  /**
+   * Delete a conversation: move its transcript files to the trash and drop it from metadata.
+   * The renderer confirms first via its own modal.
+   */
+  deleteConversation(payload: { conversationId: string; ids: string[] }): Promise<void>;
   /** Session ids open as tabs, in order, persisted for restore on next launch. */
   getOpenSessions(): Promise<string[]>;
   setOpenSessions(ids: string[]): void;

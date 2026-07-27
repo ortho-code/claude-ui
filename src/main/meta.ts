@@ -10,6 +10,8 @@ import * as path from 'node:path';
 interface Meta {
   pinned: string[];
   openSessions: string[];
+  /** Archived conversation keys mapped to when they were archived (epoch ms; 0 = unknown). */
+  archived: Record<string, number>;
   /** Schema version; 2 = keyed by conversation, migrated from raw session ids. */
   version: number;
 }
@@ -20,14 +22,23 @@ function metaPath(): string {
 
 async function readMeta(): Promise<Meta> {
   try {
-    const parsed = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Partial<Meta>;
+    const parsed = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Record<string, unknown>;
+    // `archived` was once a plain id list; migrate that to the id->timestamp map (0 = unknown).
+    const rawArchived = parsed.archived;
+    let archived: Record<string, number> = {};
+    if (Array.isArray(rawArchived)) {
+      for (const id of rawArchived) if (typeof id === 'string') archived[id] = 0;
+    } else if (rawArchived && typeof rawArchived === 'object') {
+      archived = rawArchived as Record<string, number>;
+    }
     return {
-      pinned: Array.isArray(parsed.pinned) ? parsed.pinned : [],
-      openSessions: Array.isArray(parsed.openSessions) ? parsed.openSessions : [],
+      pinned: Array.isArray(parsed.pinned) ? (parsed.pinned as string[]) : [],
+      openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
+      archived,
       version: typeof parsed.version === 'number' ? parsed.version : 1,
     };
   } catch {
-    return { pinned: [], openSessions: [], version: 2 };
+    return { pinned: [], openSessions: [], archived: {}, version: 2 };
   }
 }
 
@@ -63,6 +74,27 @@ export async function togglePin(id: string): Promise<string[]> {
   meta.pinned = [...pinned];
   await writeMeta(meta);
   return meta.pinned;
+}
+
+export async function getArchived(): Promise<Record<string, number>> {
+  return (await readMeta()).archived;
+}
+
+export async function toggleArchive(id: string): Promise<Record<string, number>> {
+  const meta = await readMeta();
+  if (id in meta.archived) delete meta.archived[id];
+  else meta.archived[id] = Date.now();
+  await writeMeta(meta);
+  return meta.archived;
+}
+
+/** Drop a conversation from all metadata (used when it is deleted). */
+export async function purgeConversation(id: string): Promise<void> {
+  const meta = await readMeta();
+  meta.pinned = meta.pinned.filter((k) => k !== id);
+  meta.openSessions = meta.openSessions.filter((k) => k !== id);
+  delete meta.archived[id];
+  await writeMeta(meta);
 }
 
 export async function getOpenSessions(): Promise<string[]> {

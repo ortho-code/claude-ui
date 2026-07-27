@@ -12,6 +12,7 @@ const container = document.getElementById('sessions')!;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const pinnedFilter = document.getElementById('pinned-filter') as HTMLButtonElement;
 const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonElement;
+const archivedFilter = document.getElementById('archived-filter') as HTMLButtonElement;
 const filterToggle = document.getElementById('filter-toggle') as HTMLButtonElement;
 const filterPanel = document.getElementById('filter-panel')!;
 const datePresets = document.getElementById('date-presets')!;
@@ -26,17 +27,38 @@ const loadingEl = document.getElementById('loading')!;
 const tabbar = document.getElementById('tabbar')!;
 const terminalsEl = document.getElementById('terminals')!;
 const placeholder = document.getElementById('term-placeholder')!;
+const confirmOverlay = document.getElementById('confirm-overlay')!;
+const confirmMessage = document.getElementById('confirm-message')!;
+const confirmDetail = document.getElementById('confirm-detail')!;
+const confirmOk = document.getElementById('confirm-ok') as HTMLButtonElement;
+const confirmCancel = document.getElementById('confirm-cancel') as HTMLButtonElement;
+const toast = document.getElementById('toast')!;
+
+let toastTimer: number | undefined;
+function showToast(message: string): void {
+  toast.textContent = message;
+  toast.hidden = false;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    toast.hidden = true;
+  }, 5000);
+}
 
 function setLoading(on: boolean): void {
   loadingEl.classList.toggle('active', on);
 }
 
 let pinned = new Set<string>();
+let archived = new Map<string, number>();
+// Conversations whose delete is in flight: hidden from the list until that delete resolves, so a
+// concurrent delete's disk re-read can't briefly resurrect them.
+const pendingDeletes = new Set<string>();
 let statuses = new Map<string, string>();
 let allSessions: SessionSummary[] = [];
 let filterText = '';
 let showPinnedOnly = false;
 let showWorktreeOnly = false;
+let showArchivedOnly = false;
 // Date filter, as an inclusive [from, to] window in epoch ms; null means unbounded on that side.
 let datePreset = 'any';
 let dateFromMs: number | null = null;
@@ -162,13 +184,15 @@ async function restoreOpenTabs(): Promise<void> {
 async function renderSessions(showLoading = true): Promise<void> {
   if (showLoading) setLoading(true);
   try {
-    const [sessions, pinnedList, statusMap] = await Promise.all([
+    const [sessions, pinnedList, archivedList, statusMap] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getPinned(),
+      window.claudeUi.getArchived(),
       window.claudeUi.getAllStatuses(),
     ]);
     allSessions = sessions;
     pinned = new Set(pinnedList);
+    archived = new Map(Object.entries(archivedList));
     statuses = new Map(Object.entries(statusMap));
     lastSignature = structuralSignature(sessions);
     reconcileOpenTabs();
@@ -202,11 +226,15 @@ async function refreshFromDisk(): Promise<void> {
 
 // Any filter active? Used to auto-expand groups with matches and to show the filter status.
 function isFiltering(): boolean {
-  return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || datePreset !== 'any';
+  return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showArchivedOnly || datePreset !== 'any';
 }
 
 // A session passes when it clears every active filter: text search, pinned-only, and date range.
 function passesFilters(session: SessionSummary): boolean {
+  if (pendingDeletes.has(session.conversationId)) return false;
+  // Archived sessions are hidden from the normal list and are the only ones shown in the
+  // archived view; the toggle flips which set is visible.
+  if (showArchivedOnly !== archived.has(session.conversationId)) return false;
   if (showPinnedOnly && !pinned.has(session.conversationId)) return false;
   if (showWorktreeOnly && !session.worktree) return false;
   if (dateFromMs !== null || dateToMs !== null) {
@@ -262,6 +290,8 @@ function updateFilterStatus(matches: number, total: number): void {
   pinnedFilter.setAttribute('aria-pressed', String(showPinnedOnly));
   worktreeFilter.classList.toggle('active', showWorktreeOnly);
   worktreeFilter.setAttribute('aria-pressed', String(showWorktreeOnly));
+  archivedFilter.classList.toggle('active', showArchivedOnly);
+  archivedFilter.setAttribute('aria-pressed', String(showArchivedOnly));
   // The toggle carries the accent when any filter is on, so an active filter is visible even
   // with the panel closed.
   filterToggle.classList.toggle('active', filtering);
@@ -273,6 +303,7 @@ function clearFilter(): void {
   filterText = '';
   showPinnedOnly = false;
   showWorktreeOnly = false;
+  showArchivedOnly = false;
   dateFrom.value = '';
   dateTo.value = '';
   applyDatePreset('any');
@@ -394,6 +425,39 @@ function groupName(repoRoot: string): string {
   return repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
 }
 
+// In-app confirm modal (a native dialog flickers under WSLg). Resolves true on Delete, false on
+// Cancel / Esc / backdrop click.
+function confirmDelete(title: string): Promise<boolean> {
+  confirmMessage.textContent = `Delete "${title}"?`;
+  confirmDetail.textContent = 'Its transcript files move to the trash, so you can restore them from there if needed.';
+  confirmOverlay.hidden = false;
+  // Focus Cancel, not Delete: safer default for a destructive action, and it keeps the accent
+  // focus ring off the red button.
+  confirmCancel.focus();
+  return new Promise((resolve) => {
+    const close = (result: boolean): void => {
+      confirmOverlay.hidden = true;
+      confirmOk.removeEventListener('click', onOk);
+      confirmCancel.removeEventListener('click', onCancel);
+      confirmOverlay.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+    const onOk = (): void => close(true);
+    const onCancel = (): void => close(false);
+    const onBackdrop = (event: MouseEvent): void => {
+      if (event.target === confirmOverlay) close(false);
+    };
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') close(false);
+    };
+    confirmOk.addEventListener('click', onOk);
+    confirmCancel.addEventListener('click', onCancel);
+    confirmOverlay.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
 // Reveal a session's row in the sidebar (expanding its group if collapsed), so clicking a tab
 // scrolls to where it lives and shows which group it belongs to.
 function revealSessionInSidebar(session: SessionSummary): void {
@@ -464,6 +528,12 @@ function getOrCreateRow(conversationId: string): HTMLElement {
   return row;
 }
 
+// A box with a slot (put away) vs a box with an up-arrow (take back out).
+const ARCHIVE_ICON =
+  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="2" y="3" width="12" height="3" /><path d="M3 6v7h10V6" /><line x1="6.5" y1="9" x2="9.5" y2="9" stroke-linecap="round" /></svg>';
+const UNARCHIVE_ICON =
+  '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>';
+
 // Build a row once. Its click/pin handlers read the live tip from `currentTips` by
 // conversationId, so a reused row stays correct after the conversation branches.
 function createSessionRow(conversationId: string): HTMLElement {
@@ -494,8 +564,57 @@ function createSessionRow(conversationId: string): HTMLElement {
     renderList();
   });
 
-  item.append(dot, content, pin);
+  const archiveBtn = document.createElement('button');
+  archiveBtn.className = 'archive-btn';
+  archiveBtn.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    archived = new Map(Object.entries(await window.claudeUi.toggleArchive(conversationId)));
+    // Archiving puts the session away, so close any open tab for it (unarchive leaves tabs alone).
+    if (archived.has(conversationId)) {
+      for (const tab of [...tabs]) if (tab.session.conversationId === conversationId) closeTab(tab);
+    }
+    renderList();
+  });
+
+  // Delete lives only in the archived view (shown/hidden in updateRow); trash-based + confirmed.
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'delete-btn';
+  deleteBtn.title = 'Delete session';
+  deleteBtn.hidden = true;
+  deleteBtn.innerHTML =
+    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" /></svg>';
+  deleteBtn.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    const session = currentTips.get(conversationId);
+    const title = session?.title || session?.firstMessage || conversationId.slice(0, 8);
+    if (!(await confirmDelete(title))) return;
+    const ids = allSessions.filter((s) => s.conversationId === conversationId).map((s) => s.id);
+    // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta
+    // purge run in the background. It stays hidden via pendingDeletes until its files are gone
+    // from disk (see renderSessions), so a concurrent delete's re-read can't resurrect it.
+    pendingDeletes.add(conversationId);
+    renderList();
+    try {
+      // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat
+      // it as failed so the row can't stay hidden forever within a session.
+      await Promise.race([
+        window.claudeUi.deleteConversation({ conversationId, ids }),
+        new Promise((_resolve, reject) => setTimeout(() => reject(new Error('delete timed out')), 30_000)),
+      ]);
+    } catch {
+      showToast(`Couldn't delete "${title}". It's still here.`);
+    } finally {
+      // Stop hiding once this delete resolves: on success the re-read finds it gone; on failure
+      // the file is still on disk, so the row reappears.
+      pendingDeletes.delete(conversationId);
+      await renderSessions(false);
+    }
+  });
+
+  item.append(dot, content, pin, archiveBtn, deleteBtn);
   item.addEventListener('click', () => {
+    // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
+    if (showArchivedOnly) return;
     const session = currentTips.get(conversationId);
     if (session) void openSession(session);
   });
@@ -522,14 +641,26 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   }
 
   const meta = row.querySelector('.session-meta') as HTMLElement;
-  meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
+  if (showArchivedOnly) {
+    const ts = archived.get(session.conversationId);
+    meta.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
+  } else {
+    meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
+  }
 
+  // The archived view is a management view: no pinning, and delete replaces it there.
   const pin = row.querySelector('.pin') as HTMLButtonElement;
   const isPinned = pinned.has(session.conversationId);
   pin.textContent = isPinned ? '★' : '☆';
   pin.title = isPinned ? 'Unpin' : 'Pin';
   pin.disabled = false;
   pin.classList.remove('loading');
+  pin.hidden = showArchivedOnly;
+
+  const archiveBtn = row.querySelector('.archive-btn') as HTMLButtonElement;
+  archiveBtn.title = showArchivedOnly ? 'Unarchive' : 'Archive';
+  archiveBtn.innerHTML = showArchivedOnly ? UNARCHIVE_ICON : ARCHIVE_ICON;
+  (row.querySelector('.delete-btn') as HTMLButtonElement).hidden = !showArchivedOnly;
 }
 
 function applyStatus(dot: HTMLElement, status: string | undefined): void {
@@ -753,6 +884,11 @@ pinnedFilter.addEventListener('click', () => {
 });
 worktreeFilter.addEventListener('click', () => {
   showWorktreeOnly = !showWorktreeOnly;
+  renderList();
+  container.scrollTop = 0;
+});
+archivedFilter.addEventListener('click', () => {
+  showArchivedOnly = !showArchivedOnly;
   renderList();
   container.scrollTop = 0;
 });

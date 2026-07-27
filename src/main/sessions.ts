@@ -1,3 +1,4 @@
+import { shell } from 'electron';
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -89,6 +90,36 @@ export async function listSessions(): Promise<SessionSummary[]> {
   }
 
   return summaries.sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
+}
+
+/**
+ * Move the given sessions' transcript files and subagent dirs to the OS trash (recoverable),
+ * across whichever project directories hold them. This is the only place the app mutates the
+ * Claude session store.
+ */
+export async function trashSessions(ids: string[]): Promise<void> {
+  let projectDirs: string[];
+  try {
+    const entries = await fs.readdir(projectsDir, { withFileTypes: true });
+    projectDirs = entries.filter((e) => e.isDirectory()).map((e) => path.join(projectsDir, e.name));
+  } catch {
+    return;
+  }
+  for (const dir of projectDirs) {
+    for (const id of ids) {
+      await trashIfExists(path.join(dir, `${id}.jsonl`));
+      await trashIfExists(path.join(dir, id));
+    }
+  }
+}
+
+async function trashIfExists(target: string): Promise<void> {
+  try {
+    await fs.access(target);
+  } catch {
+    return; // Not here; nothing to trash.
+  }
+  await shell.trashItem(target);
 }
 
 /** Summarize one transcript without loading the whole file into memory. */

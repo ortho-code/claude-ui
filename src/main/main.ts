@@ -1,9 +1,18 @@
 import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron';
 import * as path from 'node:path';
-import { listSessions } from './sessions';
+import { listSessions, trashSessions } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
-import { getPinned, togglePin, getOpenSessions, setOpenSessions, migrateToConversationKeys } from './meta';
-import { installStatusHooks, registerStatusIpc } from './status';
+import {
+  getPinned,
+  togglePin,
+  getArchived,
+  toggleArchive,
+  getOpenSessions,
+  setOpenSessions,
+  migrateToConversationKeys,
+  purgeConversation,
+} from './meta';
+import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
 
 let mainWindow: BrowserWindow | null = null;
@@ -43,6 +52,15 @@ function createWindow(): void {
 ipcMain.handle('sessions:list', () => listSessions());
 ipcMain.handle('meta:getPinned', () => getPinned());
 ipcMain.handle('meta:togglePin', (_event, id: string) => togglePin(id));
+ipcMain.handle('meta:getArchived', () => getArchived());
+ipcMain.handle('meta:toggleArchive', (_event, id: string) => toggleArchive(id));
+ipcMain.handle('sessions:delete', async (_event, payload: { conversationId: string; ids: string[] }) => {
+  // The renderer confirms via its own modal (a native dialog flickers under WSLg), so here we
+  // just do the deletion: move files to trash, then drop the conversation from metadata.
+  await trashSessions(payload.ids);
+  await purgeConversation(payload.conversationId);
+  await clearStatuses(payload.ids);
+});
 ipcMain.handle('dialog:pickFolder', async (): Promise<string | null> => {
   const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
   return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];

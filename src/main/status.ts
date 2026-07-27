@@ -117,6 +117,11 @@ async function readStatus(id: string): Promise<StatusEntry | null> {
   }
 }
 
+/** Remove the status files for the given session ids (used when a conversation is deleted). */
+export async function clearStatuses(ids: string[]): Promise<void> {
+  await Promise.all(ids.map((id) => fs.rm(path.join(statusDir, `${id}.json`)).catch(() => {})));
+}
+
 async function readAllStatuses(): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   let files: string[];
