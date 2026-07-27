@@ -146,9 +146,15 @@ function renderList(): void {
 
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the
   // list immediately, in the right folder group; they reconcile to the real entry once created.
-  const diskIds = new Set(allSessions.map((s) => s.id));
-  const pending = tabs.filter((t) => t.needsTitle && !diskIds.has(t.session.id)).map((t) => t.session);
-  const all = [...pending, ...allSessions];
+  // Collapse conversation branches to the active tip (latest activity).
+  const tips = new Map<string, SessionSummary>();
+  for (const s of allSessions) {
+    const prev = tips.get(s.conversationId);
+    if (!prev || s.lastActivity > prev.lastActivity) tips.set(s.conversationId, s);
+  }
+  const knownIds = new Set(allSessions.map((s) => s.id));
+  const pending = tabs.filter((t) => t.needsTitle && !knownIds.has(t.session.id)).map((t) => t.session);
+  const all = [...pending, ...tips.values()];
   const sessions = all.filter(matchesFilter);
   if (sessions.length === 0) {
     container.textContent = all.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
@@ -300,8 +306,10 @@ let newSessionCounter = 0;
 // the tab uses a placeholder; the real session appears in the sidebar on the next refresh.
 async function openNewSession(cwd: string): Promise<void> {
   const folder = cwd.split('/').filter(Boolean).pop() ?? cwd;
+  const id = `new-${Date.now()}-${newSessionCounter++}`;
   const session: SessionSummary = {
-    id: `new-${Date.now()}-${newSessionCounter++}`,
+    id,
+    conversationId: id,
     cwd,
     title: `New: ${folder}`,
     firstMessage: '',

@@ -1,6 +1,8 @@
 export interface SessionSummary {
   /** Session id, taken from the .jsonl filename. */
   id: string;
+  /** First user/assistant message uuid; identifies the conversation (branches share it). */
+  conversationId: string;
   /** Absolute working directory the session ran in. */
   cwd: string;
   /** The session's custom or AI-generated title, empty when it has none. */
