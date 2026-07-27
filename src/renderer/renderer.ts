@@ -11,6 +11,12 @@ declare global {
 const container = document.getElementById('sessions')!;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const pinnedFilter = document.getElementById('pinned-filter') as HTMLButtonElement;
+const filterToggle = document.getElementById('filter-toggle') as HTMLButtonElement;
+const filterPanel = document.getElementById('filter-panel')!;
+const datePresets = document.getElementById('date-presets')!;
+const dateCustom = document.getElementById('date-custom')!;
+const dateFrom = document.getElementById('date-from') as HTMLInputElement;
+const dateTo = document.getElementById('date-to') as HTMLInputElement;
 const searchInput = document.getElementById('search') as HTMLInputElement;
 const filterStatus = document.getElementById('filter-status')!;
 const filterCount = document.getElementById('filter-count')!;
@@ -29,6 +35,10 @@ let statuses = new Map<string, string>();
 let allSessions: SessionSummary[] = [];
 let filterText = '';
 let showPinnedOnly = false;
+// Date filter, as an inclusive [from, to] window in epoch ms; null means unbounded on that side.
+let datePreset = 'any';
+let dateFromMs: number | null = null;
+let dateToMs: number | null = null;
 // Structure of the last rendered list, so disk changes that only grow a transcript (new
 // lastActivity/eventCount) don't trigger a rebuild — we re-render only on structural change.
 let lastSignature = '';
@@ -188,23 +198,63 @@ async function refreshFromDisk(): Promise<void> {
   renderList();
 }
 
-// A session passes when it matches the text search and, if the pinned-only toggle is on, is
-// pinned.
+// A session passes when it clears every active filter: text search, pinned-only, and date range.
 function passesFilters(session: SessionSummary): boolean {
   if (showPinnedOnly && !pinned.has(session.conversationId)) return false;
+  if (dateFromMs !== null || dateToMs !== null) {
+    const activity = new Date(session.lastActivity).getTime();
+    if (dateFromMs !== null && activity < dateFromMs) return false;
+    if (dateToMs !== null && activity > dateToMs) return false;
+  }
   if (!filterText) return true;
   return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id}`
     .toLowerCase()
     .includes(filterText);
 }
 
+// Translate the date dropdown into the [from, to] window. Presets are rolling from now; custom
+// reads the two date inputs (parsed as local day bounds).
+function applyDatePreset(preset: string): void {
+  datePreset = preset;
+  dateCustom.hidden = preset !== 'custom';
+  for (const chip of datePresets.querySelectorAll('button')) {
+    chip.classList.toggle('active', (chip as HTMLElement).dataset.range === preset);
+  }
+  const day = 86_400_000;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  if (preset === 'today') {
+    dateFromMs = todayStart.getTime();
+    dateToMs = null;
+  } else if (preset === '7d') {
+    dateFromMs = Date.now() - 7 * day;
+    dateToMs = null;
+  } else if (preset === '30d') {
+    dateFromMs = Date.now() - 30 * day;
+    dateToMs = null;
+  } else if (preset === 'custom') {
+    applyCustomDates();
+  } else {
+    dateFromMs = null;
+    dateToMs = null;
+  }
+}
+
+function applyCustomDates(): void {
+  dateFromMs = dateFrom.value ? new Date(`${dateFrom.value}T00:00:00`).getTime() : null;
+  dateToMs = dateTo.value ? new Date(`${dateTo.value}T23:59:59.999`).getTime() : null;
+}
+
 // Make an active filter obvious: show "N of M" with a clear button and flag the active controls.
 function updateFilterStatus(matches: number, total: number): void {
-  const filtering = filterText.length > 0 || showPinnedOnly;
+  const filtering = filterText.length > 0 || showPinnedOnly || datePreset !== 'any';
   filterStatus.hidden = !filtering;
   searchInput.classList.toggle('active', filterText.length > 0);
   pinnedFilter.classList.toggle('active', showPinnedOnly);
   pinnedFilter.setAttribute('aria-pressed', String(showPinnedOnly));
+  // The toggle carries the accent when any filter is on, so an active filter is visible even
+  // with the panel closed.
+  filterToggle.classList.toggle('active', filtering);
   if (filtering) filterCount.textContent = `Showing ${matches} of ${total}`;
 }
 
@@ -212,6 +262,9 @@ function clearFilter(): void {
   searchInput.value = '';
   filterText = '';
   showPinnedOnly = false;
+  dateFrom.value = '';
+  dateTo.value = '';
+  applyDatePreset('any');
   renderList();
   container.scrollTop = 0;
 }
@@ -646,6 +699,28 @@ pinnedFilter.addEventListener('click', () => {
   renderList();
   container.scrollTop = 0;
 });
+filterToggle.addEventListener('click', () => {
+  const opening = filterPanel.hidden;
+  filterPanel.hidden = !opening;
+  filterToggle.setAttribute('aria-expanded', String(opening));
+  // Opening hands focus to the search box; closing drops focus so the ring doesn't linger.
+  if (opening) searchInput.focus();
+  else filterToggle.blur();
+});
+datePresets.addEventListener('click', (event) => {
+  const preset = (event.target as HTMLElement).dataset.range;
+  if (!preset) return;
+  applyDatePreset(preset);
+  renderList();
+  container.scrollTop = 0;
+});
+const onCustomDateChange = (): void => {
+  applyCustomDates();
+  renderList();
+  container.scrollTop = 0;
+};
+dateFrom.addEventListener('change', onCustomDateChange);
+dateTo.addEventListener('change', onCustomDateChange);
 renderSessions();
 updatePlaceholder();
 restoreOpenTabs();

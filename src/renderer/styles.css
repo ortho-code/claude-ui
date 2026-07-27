@@ -6,10 +6,19 @@
   --text: #cdd6f4;
   --muted: #9399b2;
   --accent: #89b4fa;
+  /* Visible control outline (near-black was invisible on the dark background). */
+  --border: #ffffff2b;
+  /* Accent-tinted "active/selected" surface, clearly distinct from base and from hover. */
+  --active: #3b4360;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* The hidden attribute must win over any element's own display, so toggling .hidden works. */
+[hidden] {
+  display: none !important;
 }
 
 /* Replace the browser default focus ring with a thin accent highlight that hugs the element. */
@@ -60,7 +69,7 @@ h1 {
 button {
   background: var(--surface);
   color: var(--text);
-  border: 1px solid #00000033;
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 12px;
   cursor: pointer;
@@ -70,15 +79,41 @@ button:hover {
   background: var(--surface-hover);
 }
 
+/* Filter panel toggle in the header. A corner badge dot (not an accent border, which would
+   look like the focus ring) marks that a filter is active. */
+#filter-toggle {
+  position: relative;
+  padding: 5px 8px;
+}
+
+/* Pressed look while its panel is open, tying the toggle to the panel below it. */
+#filter-toggle[aria-expanded='true'] {
+  background: var(--active);
+}
+
+#filter-toggle.active::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--bg);
+}
+
 /* Pinned-only toggle: dimmed when off, accent-outlined when on. */
 #pinned-filter {
+  flex: 0 0 auto;
+  padding: 5px 8px;
   opacity: 0.55;
 }
 
 #pinned-filter.active {
   opacity: 1;
   border-color: var(--accent);
-  background: var(--surface-hover);
+  background: var(--active);
 }
 
 .header-actions {
@@ -86,12 +121,20 @@ button:hover {
   gap: 6px;
 }
 
-#search {
+/* A bordered panel groups the filter controls into one unit that belongs to the 🔍 toggle. */
+#filter-panel {
   margin: 8px 16px 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+#search {
+  width: 100%;
   padding: 6px 10px;
   background: var(--surface);
   color: var(--text);
-  border: 1px solid #00000033;
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
 }
@@ -110,11 +153,56 @@ button:hover {
   border-color: var(--accent);
 }
 
+#filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+#date-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#date-presets button {
+  padding: 3px 8px;
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+#date-presets button.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+#date-custom {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 0;
+}
+
+#date-custom input[type='date'] {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  color-scheme: dark;
+}
+
 #filter-status {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 6px 16px 0;
+  margin: 8px 0 0;
   font-size: 12px;
   color: var(--muted);
 }
@@ -265,7 +353,7 @@ button:hover {
 }
 
 .session.active-session {
-  background: var(--surface-hover);
+  background: var(--active);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
@@ -376,7 +464,7 @@ button:hover {
 }
 
 .tab.active {
-  background: var(--surface-hover);
+  background: var(--active);
   box-shadow: inset 0 3px 0 var(--accent);
 }
 
