@@ -503,6 +503,19 @@ const ARCHIVE_ICON =
 const UNARCHIVE_ICON =
   '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>';
 
+interface RowEls {
+  dot: HTMLElement;
+  title: HTMLElement;
+  badge: HTMLElement;
+  meta: HTMLElement;
+  pin: HTMLButtonElement;
+  archiveBtn: HTMLButtonElement;
+  deleteBtn: HTMLButtonElement;
+}
+// Each row's child elements, cached so updateRow reads them directly instead of re-querying the
+// DOM every render (same idea as the session summary cache, applied to rendering).
+const rowEls = new WeakMap<HTMLElement, RowEls>();
+
 // Build a row once. Its click/pin handlers read the live tip from `currentTips` by
 // conversationId, so a reused row stays correct after the conversation branches.
 function createSessionRow(conversationId: string): HTMLElement {
@@ -581,6 +594,7 @@ function createSessionRow(conversationId: string): HTMLElement {
   });
 
   item.append(dot, content, pin, archiveBtn, deleteBtn);
+  rowEls.set(item, { dot, title, badge, meta, pin, archiveBtn, deleteBtn });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
@@ -593,43 +607,38 @@ function createSessionRow(conversationId: string): HTMLElement {
 // Refresh a reused row's content for the tip it now shows.
 function updateRow(row: HTMLElement, session: SessionSummary): void {
   row.dataset.sid = session.id;
+  const els = rowEls.get(row)!;
 
-  const dot = row.firstElementChild as HTMLElement;
-  applyStatus(dot, statuses.get(session.id));
-  statusDots.set(session.id, dot);
+  applyStatus(els.dot, statuses.get(session.id));
+  statusDots.set(session.id, els.dot);
 
-  const title = row.querySelector('.session-title') as HTMLElement;
-  title.textContent = session.title || session.firstMessage || '(no prompt yet)';
-  title.title = session.title || session.firstMessage || '';
+  els.title.textContent = session.title || session.firstMessage || '(no prompt yet)';
+  els.title.title = session.title || session.firstMessage || '';
 
-  const badge = row.querySelector('.worktree-badge') as HTMLElement;
-  badge.hidden = !session.worktree;
+  els.badge.hidden = !session.worktree;
   if (session.worktree) {
-    badge.textContent = `worktree: ${session.worktree}`;
-    badge.title = `Linked git worktree: ${session.worktree}`;
+    els.badge.textContent = `worktree: ${session.worktree}`;
+    els.badge.title = `Linked git worktree: ${session.worktree}`;
   }
 
-  const meta = row.querySelector('.session-meta') as HTMLElement;
   if (showArchivedOnly) {
     const ts = archived.get(session.conversationId);
-    meta.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
+    els.meta.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
   } else {
-    meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
+    els.meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
   }
 
   // The archived view is a management view: no pinning, and delete replaces it there.
-  const pin = row.querySelector('.pin') as HTMLButtonElement;
   const isPinned = pinned.has(session.conversationId);
-  pin.textContent = isPinned ? '★' : '☆';
-  pin.title = isPinned ? 'Unpin' : 'Pin';
-  pin.disabled = false;
-  pin.classList.remove('loading');
-  pin.hidden = showArchivedOnly;
+  els.pin.textContent = isPinned ? '★' : '☆';
+  els.pin.title = isPinned ? 'Unpin' : 'Pin';
+  els.pin.disabled = false;
+  els.pin.classList.remove('loading');
+  els.pin.hidden = showArchivedOnly;
 
-  const archiveBtn = row.querySelector('.archive-btn') as HTMLButtonElement;
-  archiveBtn.title = showArchivedOnly ? 'Unarchive' : 'Archive';
-  archiveBtn.innerHTML = showArchivedOnly ? UNARCHIVE_ICON : ARCHIVE_ICON;
-  (row.querySelector('.delete-btn') as HTMLButtonElement).hidden = !showArchivedOnly;
+  els.archiveBtn.title = showArchivedOnly ? 'Unarchive' : 'Archive';
+  els.archiveBtn.innerHTML = showArchivedOnly ? UNARCHIVE_ICON : ARCHIVE_ICON;
+  els.deleteBtn.hidden = !showArchivedOnly;
 }
 
 function applyStatus(dot: HTMLElement, status: string | undefined): void {
