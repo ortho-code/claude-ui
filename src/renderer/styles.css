@@ -677,6 +677,24 @@ button:hover {
   height: 100%;
 }
 
+/* Thin, subtle terminal scrollbar (xterm 5 shows a chunky default), matching the session list. */
+.xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: #ffffff22;
+  border-radius: 4px;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #ffffff44;
+}
+
+.xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .term.active {
   display: block;
 }
