@@ -10,6 +10,8 @@
     "build:renderer": "tsc --noEmit -p tsconfig.renderer.json && esbuild src/renderer/renderer.ts --bundle --format=esm --outfile=dist/renderer/renderer.js --sourcemap && cp src/renderer/index.html src/renderer/styles.css node_modules/@xterm/xterm/css/xterm.css dist/renderer/",
     "build": "npm run build:main && npm run build:renderer",
     "start": "npm run build && electron . --no-sandbox",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "rebuild": "electron-rebuild -f -w node-pty"
   },
   "devDependencies": {
@@ -17,7 +19,8 @@
     "@types/node": "^26.1.1",
     "electron": "^43.2.0",
     "esbuild": "^0.28.1",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

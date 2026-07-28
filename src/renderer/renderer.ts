@@ -1,6 +1,15 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import type { ClaudeUiApi, SessionSummary } from '../shared/types';
+import {
+  tipsByConversation,
+  structuralSignature,
+  groupByRepo,
+  groupName,
+  relativeTime,
+  sessionPasses,
+  datePresetRange,
+} from './logic';
 
 declare global {
   interface Window {
@@ -144,15 +153,6 @@ let activeTab: Tab | null = null;
 let restoring = false;
 
 // Collapse sessions to one entry per conversation: the active tip (latest activity).
-function tipsByConversation(sessions: SessionSummary[]): Map<string, SessionSummary> {
-  const tips = new Map<string, SessionSummary>();
-  for (const s of sessions) {
-    const prev = tips.get(s.conversationId);
-    if (!prev || s.lastActivity > prev.lastActivity) tips.set(s.conversationId, s);
-  }
-  return tips;
-}
-
 function persistOpenTabs(): void {
   if (restoring) return;
   // Persist conversation keys so a tab reopens on the current tip even if the conversation
@@ -202,15 +202,6 @@ async function renderSessions(showLoading = true): Promise<void> {
   }
 }
 
-// The list's structure: one line per session that affects what the sidebar shows. Excludes
-// lastActivity/eventCount so a running session writing its transcript isn't a "change".
-function structuralSignature(sessions: SessionSummary[]): string {
-  return sessions
-    .map((s) => `${s.conversationId}\0${s.id}\0${s.cwd}\0${s.title}\0${s.firstMessage}`)
-    .sort()
-    .join('\n');
-}
-
 // A disk change fired: re-read sessions but only re-render when the structure actually changed
 // (a new/removed session, a rename, or a new branch becoming the tip). Statuses and pins arrive
 // on their own channels, so we don't refetch them here.
@@ -229,23 +220,19 @@ function isFiltering(): boolean {
   return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showArchivedOnly || datePreset !== 'any';
 }
 
-// A session passes when it clears every active filter: text search, pinned-only, and date range.
+// Adapt the current filter state to the pure predicate.
 function passesFilters(session: SessionSummary): boolean {
-  if (pendingDeletes.has(session.conversationId)) return false;
-  // Archived sessions are hidden from the normal list and are the only ones shown in the
-  // archived view; the toggle flips which set is visible.
-  if (showArchivedOnly !== archived.has(session.conversationId)) return false;
-  if (showPinnedOnly && !pinned.has(session.conversationId)) return false;
-  if (showWorktreeOnly && !session.worktree) return false;
-  if (dateFromMs !== null || dateToMs !== null) {
-    const activity = new Date(session.lastActivity).getTime();
-    if (dateFromMs !== null && activity < dateFromMs) return false;
-    if (dateToMs !== null && activity > dateToMs) return false;
-  }
-  if (!filterText) return true;
-  return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id}`
-    .toLowerCase()
-    .includes(filterText);
+  return sessionPasses(session, {
+    text: filterText,
+    pinnedOnly: showPinnedOnly,
+    worktreeOnly: showWorktreeOnly,
+    archivedOnly: showArchivedOnly,
+    dateFrom: dateFromMs,
+    dateTo: dateToMs,
+    pinned,
+    archived,
+    pendingDeletes,
+  });
 }
 
 // Translate the date dropdown into the [from, to] window. Presets are rolling from now; custom
@@ -256,23 +243,12 @@ function applyDatePreset(preset: string): void {
   for (const chip of datePresets.querySelectorAll('button')) {
     chip.classList.toggle('active', (chip as HTMLElement).dataset.range === preset);
   }
-  const day = 86_400_000;
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  if (preset === 'today') {
-    dateFromMs = todayStart.getTime();
-    dateToMs = null;
-  } else if (preset === '7d') {
-    dateFromMs = Date.now() - 7 * day;
-    dateToMs = null;
-  } else if (preset === '30d') {
-    dateFromMs = Date.now() - 30 * day;
-    dateToMs = null;
-  } else if (preset === 'custom') {
+  if (preset === 'custom') {
     applyCustomDates();
   } else {
-    dateFromMs = null;
-    dateToMs = null;
+    const range = datePresetRange(preset, Date.now());
+    dateFromMs = range.from;
+    dateToMs = range.to;
   }
 }
 
@@ -407,22 +383,6 @@ function pruneRows(wanted: Set<string>): void {
       sessionRows.delete(conversationId);
     }
   }
-}
-
-// Group by repo root so a repo's worktrees (and subdirectories) file under one heading.
-function groupByRepo(sessions: SessionSummary[]): [string, SessionSummary[]][] {
-  const groups = new Map<string, SessionSummary[]>();
-  for (const session of sessions) {
-    const list = groups.get(session.repoRoot) ?? [];
-    list.push(session);
-    groups.set(session.repoRoot, list);
-  }
-  return [...groups.entries()];
-}
-
-// The group's short name: the last path segment of its repo root.
-function groupName(repoRoot: string): string {
-  return repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
 }
 
 // In-app confirm modal (a native dialog flickers under WSLg). Resolves true on Delete, false on
@@ -666,17 +626,6 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 function applyStatus(dot: HTMLElement, status: string | undefined): void {
   dot.className = status ? `status-dot ${status}` : 'status-dot';
   dot.title = status ?? '';
-}
-
-function relativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  const seconds = Math.round((Date.now() - then) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  return `${Math.round(hours / 24)} d ago`;
 }
 
 // --- Tabs ---
