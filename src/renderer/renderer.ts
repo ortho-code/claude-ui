@@ -685,6 +685,20 @@ async function createTab(session: SessionSummary, resumeId: string | undefined):
   term.loadAddon(fitAddon);
   term.open(el);
 
+  // Ctrl+Enter and Shift+Enter insert a newline (send \n, which claude reads as a newline) rather
+  // than submitting — matching the terminal (Ctrl+Enter) and Claude Desktop (Shift+Enter) habits.
+  // Plain Enter still submits; Ctrl+J and Alt+Enter already produce \n on their own.
+  term.attachCustomKeyEventHandler((event) => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.shiftKey)) {
+      // Send the newline once (on keydown), and swallow BOTH keydown and keypress so xterm never
+      // turns the accompanying keypress into a submit \r. Shift+Enter emits that keypress (Ctrl+
+      // Enter does not), which is why only Shift+Enter was flaky.
+      if (event.type === 'keydown') window.claudeUi.sendTerminalInput(terminalId, '\n');
+      return false;
+    }
+    return true;
+  });
+
   const tab: Tab = {
     session,
     terminalId,
