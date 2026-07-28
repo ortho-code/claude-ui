@@ -1,6 +1,7 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { CanvasAddon } from '@xterm/addon-canvas';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 import type { ClaudeUiApi, SessionSummary } from '../shared/types';
 import {
   tipsByConversation,
@@ -693,6 +694,9 @@ async function createTab(session: SessionSummary, resumeId: string | undefined):
   } catch {
     // DOM renderer stays in place.
   }
+
+  // Make http(s) URLs clickable; open them in the OS browser via the main process.
+  term.loadAddon(new WebLinksAddon((_event, uri) => window.claudeUi.openExternal(uri)));
 
   // Ctrl+Enter and Shift+Enter insert a newline (send \n, which claude reads as a newline) rather
   // than submitting — matching the terminal (Ctrl+Enter) and Claude Desktop (Shift+Enter) habits.

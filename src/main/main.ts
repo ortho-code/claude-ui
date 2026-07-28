@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, dialog, shell } from 'electron';
 import * as path from 'node:path';
 import { listSessions, trashSessions } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
@@ -52,6 +52,10 @@ function createWindow(): void {
 ipcMain.handle('sessions:list', () => listSessions());
 ipcMain.handle('meta:getPinned', () => getPinned());
 ipcMain.handle('meta:togglePin', (_event, id: string) => togglePin(id));
+ipcMain.on('shell:openExternal', (_event, url: string) => {
+  // Only ever hand the OS http(s) links from terminal output — never file://, etc.
+  if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+});
 ipcMain.handle('meta:getArchived', () => getArchived());
 ipcMain.handle('meta:toggleArchive', (_event, id: string) => toggleArchive(id));
 ipcMain.handle('sessions:delete', async (_event, payload: { conversationId: string; ids: string[] }) => {

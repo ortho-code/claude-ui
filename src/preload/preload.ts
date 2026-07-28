@@ -12,6 +12,7 @@ const api: ClaudeUiApi = {
   getOpenSessions: () => ipcRenderer.invoke('meta:getOpenSessions'),
   setOpenSessions: (ids) => ipcRenderer.send('meta:setOpenSessions', ids),
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
+  openExternal: (url) => ipcRenderer.send('shell:openExternal', url),
   getAllStatuses: () => ipcRenderer.invoke('status:getAll'),
   onSessionStatus: (callback) =>
     ipcRenderer.on('session:status', (_event, id: string, status: string, tab: string) =>

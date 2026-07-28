@@ -41,6 +41,8 @@ export interface ClaudeUiApi {
   setOpenSessions(ids: string[]): void;
   /** Open a folder picker; resolves to the chosen path or null if cancelled. */
   pickFolder(): Promise<string | null>;
+  /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */
+  openExternal(url: string): void;
   /** Current status per session id (busy | idle | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
   /** Subscribe to live status changes. `tab` is the spawning terminal's token (may be empty). */
