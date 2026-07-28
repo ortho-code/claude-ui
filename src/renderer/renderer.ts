@@ -1,5 +1,6 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { CanvasAddon } from '@xterm/addon-canvas';
 import type { ClaudeUiApi, SessionSummary } from '../shared/types';
 import {
   tipsByConversation,
@@ -684,6 +685,14 @@ async function createTab(session: SessionSummary, resumeId: string | undefined):
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
   term.open(el);
+
+  // Canvas renderer for smoother scrolling/paste than the default DOM renderer; fall back to DOM
+  // if it can't initialize (e.g. a WSLg GPU quirk) so the terminal always works.
+  try {
+    term.loadAddon(new CanvasAddon());
+  } catch {
+    // DOM renderer stays in place.
+  }
 
   // Ctrl+Enter and Shift+Enter insert a newline (send \n, which claude reads as a newline) rather
   // than submitting — matching the terminal (Ctrl+Enter) and Claude Desktop (Shift+Enter) habits.
