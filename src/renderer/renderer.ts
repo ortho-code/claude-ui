@@ -42,16 +42,21 @@ const confirmDetail = document.getElementById('confirm-detail')!;
 const confirmOk = document.getElementById('confirm-ok') as HTMLButtonElement;
 const confirmCancel = document.getElementById('confirm-cancel') as HTMLButtonElement;
 const toast = document.getElementById('toast')!;
+const toastMessage = document.getElementById('toast-message')!;
+const toastClose = document.getElementById('toast-close') as HTMLButtonElement;
 
 let toastTimer: number | undefined;
+function hideToast(): void {
+  toast.hidden = true;
+  if (toastTimer) clearTimeout(toastTimer);
+}
 function showToast(message: string): void {
-  toast.textContent = message;
+  toastMessage.textContent = message;
   toast.hidden = false;
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => {
-    toast.hidden = true;
-  }, 5000);
+  toastTimer = window.setTimeout(hideToast, 3000);
 }
+toastClose.addEventListener('click', hideToast);
 
 function setLoading(on: boolean): void {
   loadingEl.classList.toggle('active', on);
@@ -146,6 +151,8 @@ interface Tab {
   token: string;
   // A new session has no title on disk yet; keep re-reading on status events until it does.
   needsTitle: boolean;
+  // When claude was launched, to tell a real exit from a failed-to-start one.
+  startedAt: number;
 }
 
 const tabs: Tab[] = [];
@@ -678,11 +685,27 @@ async function createTab(session: SessionSummary, resumeId: string | undefined):
   term.loadAddon(fitAddon);
   term.open(el);
 
-  const tab: Tab = { session, terminalId, term, fitAddon, el, token, needsTitle: resumeId === undefined };
+  const tab: Tab = {
+    session,
+    terminalId,
+    term,
+    fitAddon,
+    el,
+    token,
+    needsTitle: resumeId === undefined,
+    startedAt: Date.now(),
+  };
 
   // Ctrl-C twice in the terminal closes the tab instead of dropping to the leftover shell.
   let lastCtrlC = 0;
   term.onData((data) => {
+    // Swallow Ctrl+Z: claude binds it to self-suspend, which strands the tab (no shell prompt to
+    // `fg` back from). You background a session by switching tabs, so suspend has no use here.
+    // claude advertises the key, so a silent no-op is confusing — say why.
+    if (data === '\x1a') {
+      showToast('Ctrl+Z is off here — switch tabs to keep a session running in the background.');
+      return;
+    }
     if (data === '\x03') {
       const now = Date.now();
       if (now - lastCtrlC < 600) {
@@ -711,14 +734,14 @@ function activateTab(tab: Tab): void {
   tab.term.focus();
 }
 
-function closeTab(tab: Tab): void {
-  // Terminate the session; claude persists per turn, so its context is already on disk.
-  // closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills the shell.
+// Drop a tab from the UI. Idempotent (a user close and the terminal's own exit can both fire).
+// It does not touch the terminal process; callers terminate it when they need to.
+function removeTab(tab: Tab): void {
+  const index = tabs.indexOf(tab);
+  if (index === -1) return;
   clearNudge(tab.session.id);
-  window.claudeUi.closeTerminal(tab.terminalId);
   tab.term.dispose();
   tab.el.remove();
-  const index = tabs.indexOf(tab);
   tabs.splice(index, 1);
   if (activeTab === tab) {
     activeTab = null;
@@ -729,6 +752,13 @@ function closeTab(tab: Tab): void {
   updatePlaceholder();
   updateSidebarHighlight();
   persistOpenTabs();
+}
+
+// User-initiated close: terminate the session (claude persists per turn, so its context is on
+// disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
+function closeTab(tab: Tab): void {
+  window.claudeUi.closeTerminal(tab.terminalId);
+  removeTab(tab);
 }
 
 function renderTabBar(): void {
@@ -783,7 +813,15 @@ window.claudeUi.onTerminalData((id, data) => {
 });
 window.claudeUi.onTerminalExit((id, exitCode) => {
   const tab = tabs.find((t) => t.terminalId === id);
-  if (tab) tab.term.writeln(`\r\n[process exited with code ${exitCode}]`);
+  if (!tab) return; // Already closed by the user.
+  // A near-instant exit almost always means claude failed to start (bad env, not found, rc
+  // error). Keep the tab so the error stays visible instead of flashing away. Otherwise claude
+  // exited normally, so close the tab — no leftover shell.
+  if (Date.now() - tab.startedAt < 1500) {
+    tab.term.writeln(`\r\n[claude exited immediately (code ${exitCode}) — the session did not start]`);
+    return;
+  }
+  removeTab(tab);
 });
 window.claudeUi.onSessionStatus((id, status, tab) => {
   // A new-session tab learns its real session id the first time claude reports for it, so it

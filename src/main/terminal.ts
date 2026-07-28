@@ -29,14 +29,16 @@ export function registerTerminalIpc(): void {
     const shell = process.env.SHELL ?? '/bin/bash';
     // Session ids are filename-derived; only pass through safe characters.
     const safeId = resumeSessionId && /^[A-Za-z0-9_-]+$/.test(resumeSessionId) ? resumeSessionId : null;
-    // Resume the given session, or start a fresh one when there's no id. Keep the shell open
-    // after claude exits. The shell is interactive (-i) as well as login (-l): a non-interactive
-    // shell skips ~/.bashrc (the usual `case $- in *i*) ;; *) return;; esac` guard), so any
-    // rc-based per-directory setup — mise/asdf/direnv activation, PATH, env vars — never runs,
-    // and claude launches without the tools its MCP servers need. An interactive shell in the
-    // pty runs that setup for the session's directory, matching a real terminal.
+    // Resume the given session, or start a fresh one when there's no id. When claude exits, the
+    // shell exits too (no trailing `exec bash`), so the pty closes and the renderer can close the
+    // tab instead of leaving a bare shell behind. The shell is interactive (-i) as well as login
+    // (-l): a non-interactive shell skips ~/.bashrc (the usual `case $- in *i*) ;; *) return;;
+    // esac` guard), so any rc-based per-directory setup — mise/asdf/direnv activation, PATH, env
+    // vars — never runs, and claude launches without the tools its MCP servers need. An
+    // interactive shell in the pty runs that setup for the session's directory, like a real
+    // terminal.
     const command = safeId ? `claude --resume ${safeId}` : 'claude';
-    const args = ['-l', '-i', '-c', `${command}; exec ${shell} -l`];
+    const args = ['-l', '-i', '-c', command];
     const env = cleanEnv();
     if (tabToken) env[TAB_ENV] = tabToken;
     const proc = pty.spawn(shell, args, {
