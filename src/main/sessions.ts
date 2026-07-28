@@ -56,6 +56,39 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
   return info;
 }
 
+// Per-file summary cache keyed by mtime+size, so a disk change only re-reads the files that
+// actually changed instead of all of them every time. In-memory only — a restart rebuilds it.
+const summaryCache = new Map<string, { key: string; summary: SessionSummary | null }>();
+
+// Summarize a file, reusing the cached result while its mtime+size are unchanged. Caches ONLY a
+// completed summarize; a read error keeps the previous entry rather than poisoning the cache, and
+// presence is driven by readdir (a gone file is skipped, never served stale).
+async function summarizeCached(file: string): Promise<SessionSummary | null> {
+  let stat;
+  try {
+    stat = await fs.stat(file);
+  } catch {
+    return null;
+  }
+  const key = `${stat.mtimeMs}:${stat.size}`;
+  const cached = summaryCache.get(file);
+  if (cached && cached.key === key) return cached.summary;
+
+  let summary: SessionSummary | null;
+  try {
+    summary = await summarizeFile(file);
+  } catch {
+    return cached?.summary ?? null;
+  }
+  if (summary) {
+    const repo = await resolveRepo(summary.cwd);
+    summary.repoRoot = repo.repoRoot;
+    summary.worktree = repo.worktree;
+  }
+  summaryCache.set(file, { key, summary });
+  return summary;
+}
+
 /** Read every session transcript under ~/.claude/projects and summarize each. */
 export async function listSessions(): Promise<SessionSummary[]> {
   let projectDirs: string[];
@@ -74,20 +107,13 @@ export async function listSessions(): Promise<SessionSummary[]> {
     }
   }
 
-  const summaries = (await Promise.all(files.map(summarizeFile))).filter(
+  const summaries = (await Promise.all(files.map(summarizeCached))).filter(
     (s): s is SessionSummary => s !== null,
   );
 
-  // Resolve repo grouping once per distinct cwd, then annotate each session.
-  const cwds = [...new Set(summaries.map((s) => s.cwd))];
-  const repos = new Map(await Promise.all(cwds.map(async (cwd) => [cwd, await resolveRepo(cwd)] as const)));
-  for (const summary of summaries) {
-    const info = repos.get(summary.cwd);
-    if (info) {
-      summary.repoRoot = info.repoRoot;
-      summary.worktree = info.worktree;
-    }
-  }
+  // Drop cache entries for files that no longer exist (bounded memory; readdir is authoritative).
+  const present = new Set(files);
+  for (const cachedPath of summaryCache.keys()) if (!present.has(cachedPath)) summaryCache.delete(cachedPath);
 
   return summaries.sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
 }

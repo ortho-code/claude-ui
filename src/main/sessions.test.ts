@@ -93,4 +93,21 @@ describe('listSessions', () => {
     expect(a?.repoRoot).toBe('/tmp/projA');
     expect(a?.worktree).toBe('');
   });
+
+  it('re-reads a file after it changes (mtime+size cache invalidation)', async () => {
+    const file = path.join(projectsDir, '-tmp-proj', 'e.jsonl');
+    const write = (title: string) =>
+      fs.writeFile(
+        file,
+        jsonl(
+          { type: 'user', uuid: 'ue', cwd: '/tmp/projE', message: { content: 'e' } },
+          { type: 'custom-title', customTitle: title },
+        ),
+      );
+    await write('First');
+    expect((await listSessions()).find((s) => s.id === 'e')?.title).toBe('First');
+    // Rewrite with different content (size changes) — the cached summary must not be reused.
+    await write('Second');
+    expect((await listSessions()).find((s) => s.id === 'e')?.title).toBe('Second');
+  });
 });
