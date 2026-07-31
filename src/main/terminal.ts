@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import * as pty from 'node-pty';
 import * as os from 'node:os';
 import { existsSync } from 'node:fs';
-import { SCOPE_ENV, TAB_ENV } from './status';
+import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
 
 const terminals = new Map<number, pty.IPty>();
 let nextId = 1;
@@ -37,7 +37,11 @@ export function registerTerminalIpc(): void {
     // vars — never runs, and claude launches without the tools its MCP servers need. An
     // interactive shell in the pty runs that setup for the session's directory, like a real
     // terminal.
-    const command = safeId ? `claude --resume ${safeId}` : 'claude';
+    // Load claude-ui's status hooks from its own settings file (merges with the user's ~/.claude
+    // hooks) so we never write into the user's settings.json. Guard on existence in case the app is
+    // mid-startup and installStatusHooks() hasn't written it yet.
+    const base = existsSync(statusSettingsFile) ? `claude --settings '${statusSettingsFile}'` : 'claude';
+    const command = safeId ? `${base} --resume ${safeId}` : base;
     const args = ['-l', '-i', '-c', command];
     const env = cleanEnv();
     if (tabToken) env[TAB_ENV] = tabToken;
