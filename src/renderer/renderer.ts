@@ -70,6 +70,9 @@ let archived = new Map<string, number>();
 // concurrent delete's disk re-read can't briefly resurrect them.
 const pendingDeletes = new Set<string>();
 let statuses = new Map<string, string>();
+// Session ids whose dot the user has marked "read": shown dimmed (no pulse) instead of the live
+// colour. In-memory only, so a restart re-lights everything. Any incoming status event clears it.
+const acked = new Set<string>();
 let allSessions: SessionSummary[] = [];
 let filterText = '';
 let showPinnedOnly = false;
@@ -132,9 +135,26 @@ function reconcileOpenTabs(): void {
 function setStatus(id: string, status: string | undefined): void {
   if (status) statuses.set(id, status);
   else statuses.delete(id);
+  // A new status event is fresh activity: drop any "read" mark so the dot re-lights (and, for a
+  // new waiting, re-pulses) even if the user had acked the previous state.
+  acked.delete(id);
+  renderStatusDot(id);
+}
+
+// Repaint a session's dot wherever it shows (sidebar row + open tab) from the current status/ack.
+function renderStatusDot(id: string): void {
   const dot = statusDots.get(id);
-  if (dot) applyStatus(dot, status);
+  if (dot) applyStatus(dot, statuses.get(id), acked.has(id));
   if (tabs.some((t) => t.session.id === id)) renderTabBar();
+}
+
+// Toggle the "read" mark on a session's dot: mutes a live status (dimmed, no pulse) without
+// closing the tab or replying. A no-op on a hollow dot (nothing to acknowledge).
+function toggleAck(id: string): void {
+  if (!statuses.get(id)) return;
+  if (acked.has(id)) acked.delete(id);
+  else acked.add(id);
+  renderStatusDot(id);
 }
 
 // You've attended to a session by viewing it, so drop its "needs you" nudge.
@@ -524,6 +544,12 @@ function createSessionRow(conversationId: string): HTMLElement {
   item.dataset.cid = conversationId;
 
   const dot = document.createElement('span');
+  // Click the dot to toggle "read": mute a done/waiting session without opening or replying to it.
+  dot.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const session = currentTips.get(conversationId);
+    if (session) toggleAck(session.id);
+  });
   const content = document.createElement('div');
   content.className = 'session-content';
   const title = document.createElement('p');
@@ -609,7 +635,7 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   row.dataset.sid = session.id;
   const els = rowEls.get(row)!;
 
-  applyStatus(els.dot, statuses.get(session.id));
+  applyStatus(els.dot, statuses.get(session.id), acked.has(session.id));
   statusDots.set(session.id, els.dot);
 
   els.title.textContent = session.title || session.firstMessage || '(no prompt yet)';
@@ -641,9 +667,9 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   els.deleteBtn.hidden = !showArchivedOnly;
 }
 
-function applyStatus(dot: HTMLElement, status: string | undefined): void {
-  dot.className = status ? `status-dot ${status}` : 'status-dot';
-  dot.title = status ?? '';
+function applyStatus(dot: HTMLElement, status: string | undefined, isAcked = false): void {
+  dot.className = status ? `status-dot ${status}${isAcked ? ' acked' : ''}` : 'status-dot';
+  dot.title = status ? (isAcked ? `${status} (read)` : status) : '';
 }
 
 // --- Tabs ---
@@ -759,7 +785,8 @@ async function createTab(session: SessionSummary, resumeId: string | undefined):
 }
 
 function activateTab(tab: Tab): void {
-  if (statuses.get(tab.session.id) === 'waiting') clearNudge(tab.session.id);
+  // Viewing a tab no longer clears its nudge: a waiting dot persists until you actually reply
+  // (submitting fires UserPromptSubmit -> busy) or you mark it read by clicking the dot.
   activeTab = tab;
   for (const other of tabs) other.el.classList.toggle('active', other === tab);
   renderTabBar();
@@ -804,7 +831,12 @@ function renderTabBar(): void {
         el.className = tab === activeTab ? 'tab active' : 'tab';
 
         const dot = document.createElement('span');
-        applyStatus(dot, statuses.get(tab.session.id));
+        applyStatus(dot, statuses.get(tab.session.id), acked.has(tab.session.id));
+        // Toggle "read" from the tab too; stopPropagation so it doesn't also switch tabs.
+        dot.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleAck(tab.session.id);
+        });
 
         const label = document.createElement('span');
         label.className = 'tab-label';

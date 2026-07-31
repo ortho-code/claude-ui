@@ -499,11 +499,29 @@ button:hover {
   border-radius: 50%;
   background: transparent;
   border: 1px solid var(--muted);
+  /* Clickable to toggle "read"; keep the 9px dot but widen the hit target with a transparent halo. */
+  cursor: pointer;
+  position: relative;
 }
 
+.status-dot::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+}
+
+/* Busy = a spinning ring (bright accent arc over a faint track): reads as "working", clearly not
+   the waiting pulse. Rotation vs fade + ring vs filled keeps the two states unmistakable. A 2px
+   ring with a ~90deg bright arc (top+right) makes the spin obvious. Size stays the inherited 9px
+   (all dots are border-box), so busy has the same footprint as the filled dots and nothing jumps. */
 .status-dot.busy {
-  background: var(--accent);
-  border-color: var(--accent);
+  border-width: 2px;
+  background: transparent;
+  border-color: #89b4fa40;
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  animation: spin 1.5s linear infinite;
 }
 
 .status-dot.idle {
@@ -515,6 +533,18 @@ button:hover {
   background: #f9e2af;
   border-color: #f9e2af;
   animation: pulse 1.2s ease-in-out infinite;
+}
+
+/* "Read": dim whatever colour the dot is and stop the pulse — acknowledged, still open. */
+.status-dot.acked {
+  opacity: 0.4;
+  animation: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
