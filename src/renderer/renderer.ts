@@ -149,9 +149,12 @@ function renderStatusDot(id: string): void {
 }
 
 // Toggle the "read" mark on a session's dot: mutes a live status (dimmed, no pulse) without
-// closing the tab or replying. A no-op on a hollow dot (nothing to acknowledge).
+// closing the tab or replying. Only the attention states are ackable — idle (done) and waiting
+// (needs you). Busy (working) and closed/hollow have nothing to acknowledge, so acking them is a
+// no-op.
 function toggleAck(id: string): void {
-  if (!statuses.get(id)) return;
+  const status = statuses.get(id);
+  if (status !== 'idle' && status !== 'waiting') return;
   if (acked.has(id)) acked.delete(id);
   else acked.add(id);
   renderStatusDot(id);
