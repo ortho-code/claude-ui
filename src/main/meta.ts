@@ -12,6 +12,8 @@ interface Meta {
   openSessions: string[];
   /** Archived conversation keys mapped to when they were archived (epoch ms; 0 = unknown). */
   archived: Record<string, number>;
+  /** The project the sidebar switcher is scoped to (repoRoot), or null for "All". */
+  activeFolder: string | null;
   /** Schema version; 2 = keyed by conversation, migrated from raw session ids. */
   version: number;
 }
@@ -35,10 +37,11 @@ async function readMeta(): Promise<Meta> {
       pinned: Array.isArray(parsed.pinned) ? (parsed.pinned as string[]) : [],
       openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
       archived,
+      activeFolder: typeof parsed.activeFolder === 'string' ? parsed.activeFolder : null,
       version: typeof parsed.version === 'number' ? parsed.version : 1,
     };
   } catch {
-    return { pinned: [], openSessions: [], archived: {}, version: 2 };
+    return { pinned: [], openSessions: [], archived: {}, activeFolder: null, version: 2 };
   }
 }
 
@@ -104,5 +107,15 @@ export async function getOpenSessions(): Promise<string[]> {
 export async function setOpenSessions(ids: string[]): Promise<void> {
   const meta = await readMeta();
   meta.openSessions = ids;
+  await writeMeta(meta);
+}
+
+export async function getActiveFolder(): Promise<string | null> {
+  return (await readMeta()).activeFolder;
+}
+
+export async function setActiveFolder(folder: string | null): Promise<void> {
+  const meta = await readMeta();
+  meta.activeFolder = folder;
   await writeMeta(meta);
 }

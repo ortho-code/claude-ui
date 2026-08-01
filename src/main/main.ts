@@ -9,6 +9,8 @@ import {
   toggleArchive,
   getOpenSessions,
   setOpenSessions,
+  getActiveFolder,
+  setActiveFolder,
   migrateToConversationKeys,
   purgeConversation,
 } from './meta';
@@ -72,6 +74,10 @@ ipcMain.handle('dialog:pickFolder', async (): Promise<string | null> => {
 ipcMain.handle('meta:getOpenSessions', () => getOpenSessions());
 ipcMain.on('meta:setOpenSessions', (_event, ids: string[]) => {
   void setOpenSessions(ids);
+});
+ipcMain.handle('meta:getActiveFolder', () => getActiveFolder());
+ipcMain.on('meta:setActiveFolder', (_event, folder: string | null) => {
+  void setActiveFolder(folder);
 });
 registerTerminalIpc();
 

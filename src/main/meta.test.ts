@@ -14,6 +14,8 @@ import {
   purgeConversation,
   getOpenSessions,
   setOpenSessions,
+  getActiveFolder,
+  setActiveFolder,
   migrateToConversationKeys,
 } from './meta';
 
@@ -78,5 +80,20 @@ describe('migrateToConversationKeys', () => {
     await writeMetaFile({ pinned: ['already-a-conv-key'], openSessions: [], version: 1 });
     await migrateToConversationKeys(new Map([['sess1', 'conv1']]));
     expect(await getPinned()).toEqual(['already-a-conv-key']);
+  });
+});
+
+describe('active folder', () => {
+  it('defaults to null and round-trips a project and back to All', async () => {
+    expect(await getActiveFolder()).toBeNull();
+    await setActiveFolder('/home/me/dev/scienta');
+    expect(await getActiveFolder()).toBe('/home/me/dev/scienta');
+    await setActiveFolder(null);
+    expect(await getActiveFolder()).toBeNull();
+  });
+
+  it('ignores a non-string persisted value', async () => {
+    await writeMetaFile({ activeFolder: 42 });
+    expect(await getActiveFolder()).toBeNull();
   });
 });

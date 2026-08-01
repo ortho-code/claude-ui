@@ -39,6 +39,8 @@ export interface ClaudeUiApi {
   /** Session ids open as tabs, in order, persisted for restore on next launch. */
   getOpenSessions(): Promise<string[]>;
   setOpenSessions(ids: string[]): void;
+  getActiveFolder(): Promise<string | null>;
+  setActiveFolder(folder: string | null): void;
   /** Open a folder picker; resolves to the chosen path or null if cancelled. */
   pickFolder(): Promise<string | null>;
   /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */

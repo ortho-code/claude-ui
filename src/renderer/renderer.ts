@@ -149,6 +149,7 @@ function setStatus(id: string, status: string | undefined): void {
   // new waiting, re-pulses) even if the user had acked the previous state.
   acked.delete(id);
   renderStatusDot(id);
+  refreshSwitcher(); // keep the folder roll-up badges live
 }
 
 // Repaint a session's dot wherever it shows (sidebar row + open tab) from the current status/ack.
@@ -168,6 +169,7 @@ function toggleAck(id: string): void {
   if (acked.has(id)) acked.delete(id);
   else acked.add(id);
   renderStatusDot(id);
+  refreshSwitcher(); // an acked/un-acked session changes its folder's roll-up badge
 }
 
 // You've attended to a session by viewing it, so drop its "needs you" nudge.
@@ -370,6 +372,7 @@ function switcherItem(name: string, repoRoot: string | null, count: number, badg
 
 function selectFolder(repoRoot: string | null): void {
   activeFolder = repoRoot;
+  window.claudeUi.setActiveFolder(repoRoot);
   closeSwitcher();
   renderList();
   container.scrollTop = 0;
@@ -396,6 +399,27 @@ switcherCurrent.addEventListener('click', () => {
   else closeSwitcher();
 });
 
+// The sessions the sidebar can show: one tip per conversation, plus new-but-unsaved tabs (so a
+// fresh session appears in its folder immediately, before it is written to disk).
+function visibleSessions(): SessionSummary[] {
+  const tips = tipsByConversation(allSessions);
+  const knownIds = new Set(allSessions.map((s) => s.id));
+  const pending = tabs.filter((t) => t.needsTitle && !knownIds.has(t.session.id)).map((t) => t.session);
+  return [...pending, ...tips.values()];
+}
+
+// The switcher's project pool: every project's tips minus archived/pending-delete, independent of
+// the search text and active folder so you can always navigate to any project.
+function switcherPool(all: SessionSummary[]): SessionSummary[] {
+  return all.filter((s) => !archived.has(s.conversationId) && !pendingDeletes.has(s.conversationId));
+}
+
+// Repaint just the switcher (header + popover badges) — used when a status/ack change should update
+// the roll-up badges without re-rendering the whole list.
+function refreshSwitcher(): void {
+  renderSwitcher(switcherPool(visibleSessions()));
+}
+
 // Render from the cached session list, applying the current search filter. Keystrokes call
 // this directly so filtering never re-reads disk. Reuses group/row nodes by key so a re-render
 // moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
@@ -405,17 +429,16 @@ function renderList(): void {
 
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the
   // list immediately, in the right folder group; they reconcile to the real entry once created.
-  // Collapse conversation branches to the active tip (latest activity).
-  const tips = tipsByConversation(allSessions);
-  const knownIds = new Set(allSessions.map((s) => s.id));
-  const pending = tabs.filter((t) => t.needsTitle && !knownIds.has(t.session.id)).map((t) => t.session);
-  const all = [...pending, ...tips.values()];
+  const all = visibleSessions();
   currentTips = new Map(all.map((s) => [s.conversationId, s]));
-  // The switcher lists every project (non-archived, non-pending), independent of search/folder, so
-  // you can always navigate. If the active folder no longer has any sessions, fall back to All.
-  const switcherPool = all.filter((s) => !archived.has(s.conversationId) && !pendingDeletes.has(s.conversationId));
-  if (activeFolder && !switcherPool.some((s) => s.repoRoot === activeFolder)) activeFolder = null;
-  renderSwitcher(switcherPool);
+  // The switcher lists every project, independent of search/folder, so you can always navigate. If
+  // the active folder no longer has any sessions, fall back to All (and persist that).
+  const pool = switcherPool(all);
+  if (activeFolder && !pool.some((s) => s.repoRoot === activeFolder)) {
+    activeFolder = null;
+    window.claudeUi.setActiveFolder(null);
+  }
+  renderSwitcher(pool);
 
   const filtered = all.filter(passesFilters);
   // Folder scope applies in the normal view; the archived view shows all archived (ignores it).
@@ -1097,6 +1120,10 @@ const onCustomDateChange = (): void => {
 };
 dateFrom.addEventListener('change', onCustomDateChange);
 dateTo.addEventListener('change', onCustomDateChange);
-renderSessions();
+// Restore the last-active project before the first render, so the sidebar opens where you left it.
+void window.claudeUi.getActiveFolder().then((folder) => {
+  activeFolder = folder;
+  void renderSessions();
+});
 updatePlaceholder();
 restoreOpenTabs();
