@@ -40,6 +40,14 @@
             <button id="filter-clear" type="button">Clear</button>
           </div>
         </div>
+        <div id="folder-switcher">
+          <button id="switcher-current" type="button" aria-haspopup="true" aria-expanded="false" title="Switch project">
+            <span id="switcher-name">All</span>
+            <span id="switcher-count"></span>
+            <span class="switcher-chev" aria-hidden="true">&#9662;</span>
+          </button>
+          <div id="switcher-popover" role="menu" hidden></div>
+        </div>
         <div id="loading"></div>
         <div id="sessions" aria-live="polite"></div>
       </aside>

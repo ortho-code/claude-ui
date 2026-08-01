@@ -93,3 +93,75 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
     .toLowerCase()
     .includes(c.text.toLowerCase());
 }
+
+// A folder's rolled-up nudge for the switcher: the strongest UNATTENDED status among its sessions,
+// so a folder you're not looking at still shows it needs you. Priority waiting > idle > busy; null
+// when nothing needs surfacing. An acked (read) session is muted and contributes nothing.
+export type NudgeStatus = 'waiting' | 'idle' | 'busy' | null;
+
+export interface SwitcherFolder {
+  repoRoot: string;
+  name: string;
+  count: number;
+  badge: NudgeStatus;
+}
+
+export interface SwitcherModel {
+  all: { count: number; badge: NudgeStatus };
+  folders: SwitcherFolder[];
+}
+
+function rollUpNudge(
+  sessions: SessionSummary[],
+  statuses: ReadonlyMap<string, string>,
+  acked: ReadonlySet<string>,
+): NudgeStatus {
+  let waiting = false;
+  let idle = false;
+  let busy = false;
+  for (const s of sessions) {
+    if (acked.has(s.id)) continue; // read/muted — contributes nothing
+    switch (statuses.get(s.id)) {
+      case 'waiting':
+        waiting = true;
+        break;
+      case 'idle':
+        idle = true;
+        break;
+      case 'busy':
+        busy = true;
+        break;
+    }
+  }
+  return waiting ? 'waiting' : idle ? 'idle' : busy ? 'busy' : null;
+}
+
+// Build the group-switcher model from the VISIBLE tips (one per conversation, already filtered to
+// what the sidebar shows). Folders order by recency: the input is recency-sorted, so a folder takes
+// the position of its most-recent session (first appearance). Per folder: session count + the
+// rolled-up nudge badge; plus an "All" aggregate over everything passed.
+export function foldersForSwitcher(
+  sessions: SessionSummary[],
+  statuses: ReadonlyMap<string, string>,
+  acked: ReadonlySet<string>,
+): SwitcherModel {
+  const order: string[] = [];
+  const byRoot = new Map<string, SessionSummary[]>();
+  for (const s of sessions) {
+    let list = byRoot.get(s.repoRoot);
+    if (!list) {
+      list = [];
+      byRoot.set(s.repoRoot, list);
+      order.push(s.repoRoot);
+    }
+    list.push(s);
+  }
+  const folders = order.map((repoRoot) => {
+    const list = byRoot.get(repoRoot)!;
+    return { repoRoot, name: groupName(repoRoot), count: list.length, badge: rollUpNudge(list, statuses, acked) };
+  });
+  return {
+    all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked) },
+    folders,
+  };
+}

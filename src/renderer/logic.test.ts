@@ -8,6 +8,7 @@ import {
   relativeTime,
   datePresetRange,
   sessionPasses,
+  foldersForSwitcher,
   type FilterCriteria,
 } from './logic';
 
@@ -118,5 +119,71 @@ describe('sessionPasses', () => {
     const activity = Date.parse('2026-07-28T10:00:00.000Z');
     expect(sessionPasses(session(), { ...base, dateFrom: activity + 1 })).toBe(false);
     expect(sessionPasses(session(), { ...base, dateFrom: activity - 1 })).toBe(true);
+  });
+});
+
+describe('foldersForSwitcher', () => {
+  // Sessions arrive recency-sorted (newest first), as listSessions returns them.
+  const s = (id: string, repoRoot: string) => session({ id, conversationId: id, repoRoot });
+
+  it('groups by repoRoot with per-folder counts and an All aggregate', () => {
+    const model = foldersForSwitcher(
+      [s('a1', '/x/alpha'), s('b1', '/x/beta'), s('a2', '/x/alpha')],
+      new Map(),
+      new Set(),
+    );
+    expect(model.all.count).toBe(3);
+    expect(model.folders.map((f) => [f.name, f.count])).toEqual([
+      ['alpha', 2],
+      ['beta', 1],
+    ]);
+  });
+
+  it('orders folders by recency (most-recent session first)', () => {
+    const model = foldersForSwitcher([s('b1', '/x/beta'), s('a1', '/x/alpha')], new Map(), new Set());
+    expect(model.folders.map((f) => f.name)).toEqual(['beta', 'alpha']);
+  });
+
+  it('rolls up the strongest nudge per folder: waiting > idle > busy', () => {
+    const statuses = new Map([
+      ['a1', 'busy'],
+      ['a2', 'waiting'],
+      ['b1', 'busy'],
+      ['b2', 'idle'],
+    ]);
+    const model = foldersForSwitcher(
+      [s('a1', '/x/alpha'), s('a2', '/x/alpha'), s('b1', '/x/beta'), s('b2', '/x/beta')],
+      statuses,
+      new Set(),
+    );
+    const byName = new Map(model.folders.map((f) => [f.name, f.badge]));
+    expect(byName.get('alpha')).toBe('waiting'); // waiting beats busy
+    expect(byName.get('beta')).toBe('idle'); // idle beats busy
+    expect(model.all.badge).toBe('waiting'); // strongest across everything
+  });
+
+  it('mutes acked sessions so the badge falls through to the next status', () => {
+    const statuses = new Map([
+      ['a1', 'waiting'],
+      ['a2', 'idle'],
+    ]);
+    const model = foldersForSwitcher([s('a1', '/x/alpha'), s('a2', '/x/alpha')], statuses, new Set(['a1']));
+    expect(model.folders[0].badge).toBe('idle'); // waiting is acked, so idle wins
+  });
+
+  it('badge is null when a folder has no live status (or all acked)', () => {
+    const statuses = new Map([['a1', 'waiting']]);
+    expect(foldersForSwitcher([s('a1', '/x/alpha')], new Map(), new Set())[
+      'folders'
+    ][0].badge).toBeNull();
+    expect(
+      foldersForSwitcher([s('a1', '/x/alpha')], statuses, new Set(['a1'])).folders[0].badge,
+    ).toBeNull();
+  });
+
+  it('handles an empty session list', () => {
+    const model = foldersForSwitcher([], new Map(), new Set());
+    expect(model.folders).toEqual([]);
+    expect(model.all).toEqual({ count: 0, badge: null });
   });
 });

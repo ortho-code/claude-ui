@@ -11,6 +11,8 @@ import {
   relativeTime,
   sessionPasses,
   datePresetRange,
+  foldersForSwitcher,
+  type NudgeStatus,
 } from './logic';
 
 declare global {
@@ -31,6 +33,11 @@ const dateCustom = document.getElementById('date-custom')!;
 const dateFrom = document.getElementById('date-from') as HTMLInputElement;
 const dateTo = document.getElementById('date-to') as HTMLInputElement;
 const searchInput = document.getElementById('search') as HTMLInputElement;
+const switcherEl = document.getElementById('folder-switcher')!;
+const switcherCurrent = document.getElementById('switcher-current') as HTMLButtonElement;
+const switcherName = document.getElementById('switcher-name')!;
+const switcherCount = document.getElementById('switcher-count')!;
+const switcherPopover = document.getElementById('switcher-popover')!;
 const filterStatus = document.getElementById('filter-status')!;
 const filterCount = document.getElementById('filter-count')!;
 const filterClear = document.getElementById('filter-clear') as HTMLButtonElement;
@@ -78,6 +85,9 @@ let filterText = '';
 let showPinnedOnly = false;
 let showWorktreeOnly = false;
 let showArchivedOnly = false;
+// The project the switcher is scoped to; null = "All" (the grouped overview). In-memory for now;
+// Phase 3 persists it.
+let activeFolder: string | null = null;
 // Date filter, as an inclusive [from, to] window in epoch ms; null means unbounded on that side.
 let datePreset = 'any';
 let dateFromMs: number | null = null;
@@ -319,6 +329,73 @@ function clearFilter(): void {
   container.scrollTop = 0;
 }
 
+// --- Folder switcher ---
+
+// Update the switcher header + popover from the visible project pool. The pool is every project's
+// tips (see renderList); the switcher is independent of search/folder so you can always navigate.
+function renderSwitcher(pool: SessionSummary[]): void {
+  const model = foldersForSwitcher(pool, statuses, acked);
+  const active = activeFolder ? model.folders.find((f) => f.repoRoot === activeFolder) : null;
+  switcherName.textContent = active ? active.name : 'All';
+  switcherCount.textContent = String(active ? active.count : model.all.count);
+
+  switcherPopover.replaceChildren(
+    switcherItem('All', null, model.all.count, null, activeFolder === null),
+    ...model.folders.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeFolder)),
+  );
+}
+
+function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean): HTMLElement {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = active ? 'switcher-item active' : 'switcher-item';
+  btn.setAttribute('role', 'menuitem');
+  btn.title = repoRoot ?? 'All projects'; // full path on hover (the row shows only the last segment)
+
+  const label = document.createElement('span');
+  label.className = 'switcher-item-name';
+  label.textContent = name;
+
+  const dot = document.createElement('span');
+  dot.className = badge ? `folder-badge ${badge}` : 'folder-badge';
+
+  const cnt = document.createElement('span');
+  cnt.className = 'switcher-item-count';
+  cnt.textContent = String(count);
+
+  btn.append(label, dot, cnt);
+  btn.addEventListener('click', () => selectFolder(repoRoot));
+  return btn;
+}
+
+function selectFolder(repoRoot: string | null): void {
+  activeFolder = repoRoot;
+  closeSwitcher();
+  renderList();
+  container.scrollTop = 0;
+}
+
+function openSwitcher(): void {
+  switcherPopover.hidden = false;
+  switcherCurrent.setAttribute('aria-expanded', 'true');
+  document.addEventListener('click', onSwitcherOutside, true);
+}
+
+function closeSwitcher(): void {
+  switcherPopover.hidden = true;
+  switcherCurrent.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('click', onSwitcherOutside, true);
+}
+
+function onSwitcherOutside(event: MouseEvent): void {
+  if (!switcherEl.contains(event.target as Node)) closeSwitcher();
+}
+
+switcherCurrent.addEventListener('click', () => {
+  if (switcherPopover.hidden) openSwitcher();
+  else closeSwitcher();
+});
+
 // Render from the cached session list, applying the current search filter. Keystrokes call
 // this directly so filtering never re-reads disk. Reuses group/row nodes by key so a re-render
 // moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
@@ -334,10 +411,18 @@ function renderList(): void {
   const pending = tabs.filter((t) => t.needsTitle && !knownIds.has(t.session.id)).map((t) => t.session);
   const all = [...pending, ...tips.values()];
   currentTips = new Map(all.map((s) => [s.conversationId, s]));
-  const sessions = all.filter(passesFilters);
-  updateFilterStatus(sessions.length, all.length);
+  // The switcher lists every project (non-archived, non-pending), independent of search/folder, so
+  // you can always navigate. If the active folder no longer has any sessions, fall back to All.
+  const switcherPool = all.filter((s) => !archived.has(s.conversationId) && !pendingDeletes.has(s.conversationId));
+  if (activeFolder && !switcherPool.some((s) => s.repoRoot === activeFolder)) activeFolder = null;
+  renderSwitcher(switcherPool);
 
-  if (sessions.length === 0) {
+  const filtered = all.filter(passesFilters);
+  // Folder scope applies in the normal view; the archived view shows all archived (ignores it).
+  const scoped = activeFolder && !showArchivedOnly ? filtered.filter((s) => s.repoRoot === activeFolder) : filtered;
+  updateFilterStatus(scoped.length, all.length);
+
+  if (scoped.length === 0) {
     clearList();
     const message = document.createElement('div');
     message.className = 'empty-message';
@@ -347,16 +432,24 @@ function renderList(): void {
   }
   container.querySelector(':scope > .empty-message')?.remove();
 
-  // One group per repo; pinned sessions float to the top of their own group (a stable sort
-  // keeps the within-group activity order otherwise).
+  // Pinned sessions float to the top of their section (a stable sort keeps activity order otherwise).
+  const pinFirst = (a: SessionSummary, b: SessionSummary): number =>
+    (pinned.has(b.conversationId) ? 1 : 0) - (pinned.has(a.conversationId) ? 1 : 0);
+
+  // Inside a specific project the list is FLAT (the switcher already names the folder); "All" keeps
+  // the grouped-by-repo overview.
   const desired: DesiredGroup[] = [];
-  for (const [repoRoot, list] of groupByRepo(sessions)) {
-    list.sort((a, b) => (pinned.has(b.conversationId) ? 1 : 0) - (pinned.has(a.conversationId) ? 1 : 0));
-    desired.push({ name: repoRoot, folderCwd: repoRoot, sessions: list });
+  if (activeFolder && !showArchivedOnly) {
+    desired.push({ name: activeFolder, sessions: [...scoped].sort(pinFirst), flat: true });
+  } else {
+    for (const [repoRoot, list] of groupByRepo(scoped)) {
+      list.sort(pinFirst);
+      desired.push({ name: repoRoot, folderCwd: repoRoot, sessions: list });
+    }
   }
 
   reconcileGroups(desired);
-  pruneRows(new Set(sessions.map((s) => s.conversationId)));
+  pruneRows(new Set(scoped.map((s) => s.conversationId)));
 
   container.scrollTop = scroll;
   updateSidebarHighlight();
@@ -374,6 +467,8 @@ interface DesiredGroup {
   name: string;
   folderCwd?: string;
   sessions: SessionSummary[];
+  /** Flat mode: a single project's list with no heading and no collapse (switcher names it). */
+  flat?: boolean;
 }
 
 // Bring the group sections in line with `desired`: drop gone groups, create missing ones, and
@@ -393,8 +488,10 @@ function reconcileGroups(desired: DesiredGroup[]): void {
       groupSections.set(group.name, els);
     }
     // While filtering, force groups open so matches inside a collapsed group are visible; the
-    // stored collapse state is left untouched, so it returns when the filter clears.
-    const collapsed = !isFiltering() && collapsedGroups.has(group.name);
+    // stored collapse state is left untouched, so it returns when the filter clears. A flat group
+    // (single-project view) has no heading and never collapses.
+    els.section.classList.toggle('flat', !!group.flat);
+    const collapsed = !group.flat && !isFiltering() && collapsedGroups.has(group.name);
     els.section.classList.toggle('collapsed', collapsed);
     els.caret.textContent = collapsed ? '▸' : '▾';
     els.count.textContent = String(group.sessions.length);
