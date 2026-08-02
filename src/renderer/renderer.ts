@@ -37,7 +37,11 @@ const switcherEl = document.getElementById('folder-switcher')!;
 const switcherCurrent = document.getElementById('switcher-current') as HTMLButtonElement;
 const switcherName = document.getElementById('switcher-name')!;
 const switcherCount = document.getElementById('switcher-count')!;
+const switcherBadge = document.getElementById('switcher-badge')!;
 const switcherPopover = document.getElementById('switcher-popover')!;
+
+const FOLDER_ICON =
+  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2 4h4l1.5 1.5H14V13H2z"/></svg>';
 const filterStatus = document.getElementById('filter-status')!;
 const filterCount = document.getElementById('filter-count')!;
 const filterClear = document.getElementById('filter-clear') as HTMLButtonElement;
@@ -341,6 +345,13 @@ function renderSwitcher(pool: SessionSummary[]): void {
   switcherName.textContent = active ? active.name : 'All';
   switcherCount.textContent = String(active ? active.count : model.all.count);
 
+  // Header nudge: the overall roll-up across ALL projects (incl. the active one and busy), so any
+  // attention is visible at a glance even when scoped to a project or scrolled down a long list.
+  const headerBadge = model.all.badge;
+  switcherBadge.className = headerBadge ? `folder-badge ${headerBadge}` : 'folder-badge';
+  switcherBadge.hidden = !headerBadge;
+  switcherBadge.title = headerBadge ? `A project is ${headerBadge}` : '';
+
   switcherPopover.replaceChildren(
     switcherItem('All', null, model.all.count, null, activeFolder === null),
     ...model.folders.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeFolder)),
@@ -372,6 +383,8 @@ function switcherItem(name: string, repoRoot: string | null, count: number, badg
 
 function selectFolder(repoRoot: string | null): void {
   activeFolder = repoRoot;
+  // Open a project expanded even if its folder was collapsed in the All view.
+  if (repoRoot) collapsedGroups.delete(repoRoot);
   window.claudeUi.setActiveFolder(repoRoot);
   closeSwitcher();
   renderList();
@@ -455,20 +468,16 @@ function renderList(): void {
   }
   container.querySelector(':scope > .empty-message')?.remove();
 
-  // Pinned sessions float to the top of their section (a stable sort keeps activity order otherwise).
+  // Pinned sessions float to the top of their group (a stable sort keeps activity order otherwise).
   const pinFirst = (a: SessionSummary, b: SessionSummary): number =>
     (pinned.has(b.conversationId) ? 1 : 0) - (pinned.has(a.conversationId) ? 1 : 0);
 
-  // Inside a specific project the list is FLAT (the switcher already names the folder); "All" keeps
-  // the grouped-by-repo overview.
+  // One group per repo. A specific project scopes `scoped` to that folder, so this yields its single
+  // group (heading + "+" and all); "All" shows every project.
   const desired: DesiredGroup[] = [];
-  if (activeFolder && !showArchivedOnly) {
-    desired.push({ name: activeFolder, sessions: [...scoped].sort(pinFirst), flat: true });
-  } else {
-    for (const [repoRoot, list] of groupByRepo(scoped)) {
-      list.sort(pinFirst);
-      desired.push({ name: repoRoot, folderCwd: repoRoot, sessions: list });
-    }
+  for (const [repoRoot, list] of groupByRepo(scoped)) {
+    list.sort(pinFirst);
+    desired.push({ name: repoRoot, folderCwd: repoRoot, sessions: list });
   }
 
   reconcileGroups(desired);
@@ -490,8 +499,6 @@ interface DesiredGroup {
   name: string;
   folderCwd?: string;
   sessions: SessionSummary[];
-  /** Flat mode: a single project's list with no heading and no collapse (switcher names it). */
-  flat?: boolean;
 }
 
 // Bring the group sections in line with `desired`: drop gone groups, create missing ones, and
@@ -511,10 +518,8 @@ function reconcileGroups(desired: DesiredGroup[]): void {
       groupSections.set(group.name, els);
     }
     // While filtering, force groups open so matches inside a collapsed group are visible; the
-    // stored collapse state is left untouched, so it returns when the filter clears. A flat group
-    // (single-project view) has no heading and never collapses.
-    els.section.classList.toggle('flat', !!group.flat);
-    const collapsed = !group.flat && !isFiltering() && collapsedGroups.has(group.name);
+    // stored collapse state is left untouched, so it returns when the filter clears.
+    const collapsed = !isFiltering() && collapsedGroups.has(group.name);
     els.section.classList.toggle('collapsed', collapsed);
     els.caret.textContent = collapsed ? '▸' : '▾';
     els.count.textContent = String(group.sessions.length);
@@ -595,8 +600,7 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   caret.className = 'caret';
   const icon = document.createElement('span');
   icon.className = 'group-icon';
-  icon.innerHTML =
-    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2 4h4l1.5 1.5H14V13H2z"/></svg>';
+  icon.innerHTML = FOLDER_ICON;
   const label = document.createElement('span');
   label.className = 'label';
   label.title = name;
