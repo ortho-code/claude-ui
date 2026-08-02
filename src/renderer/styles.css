@@ -269,12 +269,6 @@ button:hover {
   white-space: nowrap;
 }
 
-#switcher-count {
-  font-size: 12px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
 /* Badge + chevron pinned to the right of the fixed-width title, so the chevron never moves and the
    nudge badge always has its spot (it just appears/disappears to the chevron's left). */
 .switcher-right {

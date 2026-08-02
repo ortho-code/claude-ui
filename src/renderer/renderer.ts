@@ -36,7 +36,6 @@ const searchInput = document.getElementById('search') as HTMLInputElement;
 const switcherEl = document.getElementById('folder-switcher')!;
 const switcherCurrent = document.getElementById('switcher-current') as HTMLButtonElement;
 const switcherName = document.getElementById('switcher-name')!;
-const switcherCount = document.getElementById('switcher-count')!;
 const switcherBadge = document.getElementById('switcher-badge')!;
 const switcherPopover = document.getElementById('switcher-popover')!;
 
@@ -346,7 +345,6 @@ function renderSwitcher(pool: SessionSummary[]): void {
   const model = foldersForSwitcher(pool, statuses, acked);
   const active = activeFolder ? model.folders.find((f) => f.repoRoot === activeFolder) : null;
   switcherName.textContent = active ? active.name : 'All';
-  switcherCount.textContent = String(active ? active.count : model.all.count);
 
   // Header nudge: the overall roll-up across ALL projects (incl. the active one and busy), so any
   // attention is visible at a glance even when scoped to a project or scrolled down a long list.
