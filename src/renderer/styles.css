@@ -803,6 +803,34 @@ button:hover {
   padding: 4px 6px 0;
 }
 
+/* In the All view the tab bar groups by project: each project on its own line, prefixed by a muted
+   label (flex-basis 100% forces every group onto a fresh row). */
+.tab-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  flex-basis: 100%;
+}
+
+/* Clickable: jumps the session list to this project's folder. */
+.tab-group-label {
+  display: flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab-group-label:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
 .tab {
   display: flex;
   align-items: center;

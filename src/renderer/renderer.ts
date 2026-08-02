@@ -194,10 +194,13 @@ interface Tab {
   needsTitle: boolean;
   // When claude was launched, to tell a real exit from a failed-to-start one.
   startedAt: number;
+  // Bumped on each activation, so a workspace switch can restore a project's most-recent tab.
+  activatedSeq: number;
 }
 
 const tabs: Tab[] = [];
 let activeTab: Tab | null = null;
+let activationSeq = 0;
 let restoring = false;
 
 // Collapse sessions to one entry per conversation: the active tip (latest activity).
@@ -389,6 +392,8 @@ function selectFolder(repoRoot: string | null): void {
   closeSwitcher();
   renderList();
   container.scrollTop = 0;
+  // Full workspace switch: also move the tab bar + active terminal to this project.
+  switchWorkspaceTerminal(repoRoot);
 }
 
 function openSwitcher(): void {
@@ -588,6 +593,18 @@ function revealSessionInSidebar(session: SessionSummary): void {
   // app). Land the row just below the sticky heading.
   const headingOffset = 44;
   container.scrollTop += row.getBoundingClientRect().top - container.getBoundingClientRect().top - headingOffset;
+}
+
+// Scroll the (All-view) session list to a project's folder heading — used by the project name in the
+// tab bar, so it links to where that project's sessions live.
+function revealFolderInSidebar(repoRoot: string): void {
+  if (collapsedGroups.has(repoRoot)) {
+    collapsedGroups.delete(repoRoot);
+    renderList();
+  }
+  const els = groupSections.get(repoRoot);
+  if (!els) return;
+  container.scrollTop += els.section.getBoundingClientRect().top - container.getBoundingClientRect().top;
 }
 
 // Build a group section once; contents (count, caret, rows) are updated on later renders.
@@ -828,6 +845,11 @@ async function openNewSession(cwd: string): Promise<void> {
     lastActivity: new Date().toISOString(),
     eventCount: 0,
   };
+  // Land where the new session's tab will be visible: stay in its own project, else drop to All.
+  if (activeFolder !== null && session.repoRoot !== activeFolder) {
+    activeFolder = null;
+    window.claudeUi.setActiveFolder(null);
+  }
   await createTab(session, undefined);
   renderList();
 }
@@ -883,6 +905,7 @@ async function createTab(session: SessionSummary, resumeId: string | undefined):
     token,
     needsTitle: resumeId === undefined,
     startedAt: Date.now(),
+    activatedSeq: 0,
   };
 
   // Ctrl-C twice in the terminal closes the tab instead of dropping to the leftover shell.
@@ -914,6 +937,7 @@ async function createTab(session: SessionSummary, resumeId: string | undefined):
 function activateTab(tab: Tab): void {
   // Viewing a tab no longer clears its nudge: a waiting dot persists until you actually reply
   // (submitting fires UserPromptSubmit -> busy) or you mark it read by clicking the dot.
+  tab.activatedSeq = ++activationSeq;
   activeTab = tab;
   for (const other of tabs) other.el.classList.toggle('active', other === tab);
   renderTabBar();
@@ -922,6 +946,27 @@ function activateTab(tab: Tab): void {
   tab.fitAddon.fit();
   window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
   tab.term.focus();
+}
+
+// Full workspace switch: bring the active terminal in line with the current scope (a project, or
+// All). Keeps the current tab if it's in scope; otherwise activates the scope's most-recent tab, or
+// clears the terminal if the scope has no open tabs. Always re-renders the (filtered) tab bar.
+function switchWorkspaceTerminal(repoRoot: string | null): void {
+  const scoped = repoRoot ? tabs.filter((t) => t.session.repoRoot === repoRoot) : tabs;
+  if (!(activeTab && scoped.includes(activeTab))) {
+    const target = scoped.length
+      ? scoped.reduce((best, t) => (t.activatedSeq > best.activatedSeq ? t : best))
+      : null;
+    if (target) {
+      activateTab(target);
+      return;
+    }
+    activeTab = null;
+    for (const t of tabs) t.el.classList.remove('active');
+  }
+  renderTabBar();
+  updatePlaceholder();
+  updateSidebarHighlight();
 }
 
 // Drop a tab from the UI. Idempotent (a user close and the terminal's own exit can both fire).
@@ -933,14 +978,9 @@ function removeTab(tab: Tab): void {
   tab.term.dispose();
   tab.el.remove();
   tabs.splice(index, 1);
-  if (activeTab === tab) {
-    activeTab = null;
-    const next = tabs[index] ?? tabs[index - 1] ?? null;
-    if (next) activateTab(next);
-  }
-  renderTabBar();
-  updatePlaceholder();
-  updateSidebarHighlight();
+  if (activeTab === tab) activeTab = null;
+  // Re-establish the active tab within the current workspace scope (or clear); this re-renders too.
+  switchWorkspaceTerminal(activeFolder);
   persistOpenTabs();
 }
 
@@ -952,48 +992,78 @@ function closeTab(tab: Tab): void {
 }
 
 function renderTabBar(): void {
-  tabbar.replaceChildren(
-    ...tabs.map((tab) => {
-        const el = document.createElement('div');
-        el.className = tab === activeTab ? 'tab active' : 'tab';
+  // A project view shows only that project's tabs; All shows every tab, grouped by project with a
+  // muted label + divider before each group (grouped only in the render; tab order is unchanged).
+  const shown = activeFolder ? tabs.filter((t) => t.session.repoRoot === activeFolder) : tabs;
+  if (activeFolder) {
+    tabbar.replaceChildren(...shown.map(tabElement));
+    return;
+  }
+  const byRoot = new Map<string, Tab[]>();
+  const rootOrder: string[] = [];
+  for (const tab of shown) {
+    let group = byRoot.get(tab.session.repoRoot);
+    if (!group) {
+      group = [];
+      byRoot.set(tab.session.repoRoot, group);
+      rootOrder.push(tab.session.repoRoot);
+    }
+    group.push(tab);
+  }
+  const children: HTMLElement[] = [];
+  for (const root of rootOrder) {
+    const group = document.createElement('div');
+    group.className = 'tab-group';
+    const label = document.createElement('span');
+    label.className = 'tab-group-label';
+    label.textContent = groupName(root);
+    label.title = root;
+    label.addEventListener('click', () => revealFolderInSidebar(root));
+    group.append(label, ...byRoot.get(root)!.map(tabElement));
+    children.push(group);
+  }
+  tabbar.replaceChildren(...children);
+}
 
-        const dot = document.createElement('span');
-        applyStatus(dot, statuses.get(tab.session.id), acked.has(tab.session.id));
-        // Toggle "read" from the tab too; stopPropagation so it doesn't also switch tabs.
-        dot.addEventListener('click', (event) => {
-          event.stopPropagation();
-          toggleAck(tab.session.id);
-        });
+function tabElement(tab: Tab): HTMLElement {
+  const el = document.createElement('div');
+  el.className = tab === activeTab ? 'tab active' : 'tab';
 
-        const label = document.createElement('span');
-        label.className = 'tab-label';
-        const text = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
-        label.textContent = text;
-        label.title = `${groupName(tab.session.repoRoot)} · ${text}`;
+  const dot = document.createElement('span');
+  applyStatus(dot, statuses.get(tab.session.id), acked.has(tab.session.id));
+  // Toggle "read" from the tab too; stopPropagation so it doesn't also switch tabs.
+  dot.addEventListener('click', (event) => {
+    event.stopPropagation();
+    toggleAck(tab.session.id);
+  });
 
-        const close = document.createElement('button');
-        close.className = 'tab-close';
-        close.textContent = '×';
-        close.title = 'Close tab';
-        close.addEventListener('click', (event) => {
-          event.stopPropagation();
-          closeTab(tab);
-        });
+  const label = document.createElement('span');
+  label.className = 'tab-label';
+  const text = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
+  label.textContent = text;
+  label.title = `${groupName(tab.session.repoRoot)} · ${text}`;
 
-        el.append(dot, label, close);
-        el.addEventListener('click', () => {
-          activateTab(tab);
-          revealSessionInSidebar(tab.session);
-        });
-        el.addEventListener('mousedown', (event) => {
-          if (event.button === 1) {
-            event.preventDefault();
-            closeTab(tab);
-          }
-        });
-        return el;
-      }),
-  );
+  const close = document.createElement('button');
+  close.className = 'tab-close';
+  close.textContent = '×';
+  close.title = 'Close tab';
+  close.addEventListener('click', (event) => {
+    event.stopPropagation();
+    closeTab(tab);
+  });
+
+  el.append(dot, label, close);
+  el.addEventListener('click', () => {
+    activateTab(tab);
+    revealSessionInSidebar(tab.session);
+  });
+  el.addEventListener('mousedown', (event) => {
+    if (event.button === 1) {
+      event.preventDefault();
+      closeTab(tab);
+    }
+  });
+  return el;
 }
 
 function updatePlaceholder(): void {
@@ -1124,10 +1194,11 @@ const onCustomDateChange = (): void => {
 };
 dateFrom.addEventListener('change', onCustomDateChange);
 dateTo.addEventListener('change', onCustomDateChange);
-// Restore the last-active project before the first render, so the sidebar opens where you left it.
-void window.claudeUi.getActiveFolder().then((folder) => {
-  activeFolder = folder;
-  void renderSessions();
-});
+// Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
+void (async () => {
+  activeFolder = await window.claudeUi.getActiveFolder();
+  await renderSessions();
+  await restoreOpenTabs();
+  switchWorkspaceTerminal(activeFolder);
+})();
 updatePlaceholder();
-restoreOpenTabs();
