@@ -14,6 +14,7 @@ import {
   foldersForSwitcher,
   type NudgeStatus,
 } from './logic';
+import { installTooltips, setTooltip } from './tooltip';
 
 declare global {
   interface Window {
@@ -351,7 +352,7 @@ function renderSwitcher(pool: SessionSummary[]): void {
   const headerBadge = model.all.badge;
   switcherBadge.className = headerBadge ? `folder-badge ${headerBadge}` : 'folder-badge';
   switcherBadge.hidden = !headerBadge;
-  switcherBadge.title = headerBadge ? `A project is ${headerBadge}` : '';
+  setTooltip(switcherBadge, headerBadge ? `A project is ${headerBadge}` : null);
 
   switcherPopover.replaceChildren(
     switcherItem('All', null, model.all.count, null, activeFolder === null),
@@ -364,7 +365,7 @@ function switcherItem(name: string, repoRoot: string | null, count: number, badg
   btn.type = 'button';
   btn.className = active ? 'switcher-item active' : 'switcher-item';
   btn.setAttribute('role', 'menuitem');
-  btn.title = repoRoot ?? 'All projects'; // full path on hover (the row shows only the last segment)
+  setTooltip(btn, repoRoot ?? 'All projects'); // full path on hover (the row shows only the last segment)
 
   const label = document.createElement('span');
   label.className = 'switcher-item-name';
@@ -618,7 +619,7 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   icon.innerHTML = FOLDER_ICON;
   const label = document.createElement('span');
   label.className = 'label';
-  label.title = name;
+  setTooltip(label, name);
   label.textContent = groupName(name);
   const count = document.createElement('span');
   count.className = 'group-count';
@@ -627,7 +628,7 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
     const add = document.createElement('button');
     add.className = 'group-add';
     add.textContent = '+';
-    add.title = 'New session in this folder';
+    setTooltip(add, 'New session in this folder');
     add.addEventListener('click', (event) => {
       event.stopPropagation();
       void openNewSession(folderCwd);
@@ -729,7 +730,7 @@ function createSessionRow(conversationId: string): HTMLElement {
   // Delete lives only in the archived view (shown/hidden in updateRow); trash-based + confirmed.
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'delete-btn';
-  deleteBtn.title = 'Delete session';
+  setTooltip(deleteBtn, 'Delete session');
   deleteBtn.hidden = true;
   deleteBtn.innerHTML =
     '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" /></svg>';
@@ -781,12 +782,12 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   statusDots.set(session.id, els.dot);
 
   els.title.textContent = session.title || session.firstMessage || '(no prompt yet)';
-  els.title.title = session.title || session.firstMessage || '';
+  setTooltip(els.title, session.title || session.firstMessage || null);
 
   els.badge.hidden = !session.worktree;
   if (session.worktree) {
     els.badge.textContent = `worktree: ${session.worktree}`;
-    els.badge.title = `Linked git worktree: ${session.worktree}`;
+    setTooltip(els.badge, `Linked git worktree: ${session.worktree}`);
   }
 
   if (showArchivedOnly) {
@@ -799,19 +800,19 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   // The archived view is a management view: no pinning, and delete replaces it there.
   const isPinned = pinned.has(session.conversationId);
   els.pin.textContent = isPinned ? '★' : '☆';
-  els.pin.title = isPinned ? 'Unpin' : 'Pin';
+  setTooltip(els.pin, isPinned ? 'Unpin' : 'Pin');
   els.pin.disabled = false;
   els.pin.classList.remove('loading');
   els.pin.hidden = showArchivedOnly;
 
-  els.archiveBtn.title = showArchivedOnly ? 'Unarchive' : 'Archive';
+  setTooltip(els.archiveBtn, showArchivedOnly ? 'Unarchive' : 'Archive');
   els.archiveBtn.innerHTML = showArchivedOnly ? UNARCHIVE_ICON : ARCHIVE_ICON;
   els.deleteBtn.hidden = !showArchivedOnly;
 }
 
 function applyStatus(dot: HTMLElement, status: string | undefined, isAcked = false): void {
   dot.className = status ? `status-dot ${status}${isAcked ? ' acked' : ''}` : 'status-dot';
-  dot.title = status ? (isAcked ? `${status} (read)` : status) : '';
+  setTooltip(dot, status ? (isAcked ? `${status} (read)` : status) : null);
 }
 
 // --- Tabs ---
@@ -1015,7 +1016,7 @@ function renderTabBar(): void {
     const label = document.createElement('span');
     label.className = 'tab-group-label';
     label.textContent = groupName(root);
-    label.title = root;
+    setTooltip(label, root);
     label.addEventListener('click', () => revealFolderInSidebar(root));
     group.append(label, ...byRoot.get(root)!.map(tabElement));
     children.push(group);
@@ -1039,12 +1040,12 @@ function tabElement(tab: Tab): HTMLElement {
   label.className = 'tab-label';
   const text = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
   label.textContent = text;
-  label.title = `${groupName(tab.session.repoRoot)} · ${text}`;
+  setTooltip(label, `${groupName(tab.session.repoRoot)} · ${text}`);
 
   const close = document.createElement('button');
   close.className = 'tab-close';
   close.textContent = '×';
-  close.title = 'Close tab';
+  setTooltip(close, 'Close tab');
   close.addEventListener('click', (event) => {
     event.stopPropagation();
     closeTab(tab);
@@ -1192,6 +1193,7 @@ const onCustomDateChange = (): void => {
 };
 dateFrom.addEventListener('change', onCustomDateChange);
 dateTo.addEventListener('change', onCustomDateChange);
+installTooltips();
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
   activeFolder = await window.claudeUi.getActiveFolder();
