@@ -5,6 +5,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
     <title>claude-ui</title>
     <link rel="stylesheet" href="./xterm.css" />
+    <link rel="stylesheet" href="./air-datepicker.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -40,9 +41,10 @@
               <button type="button" data-range="custom">Custom</button>
             </div>
           </div>
+          <button type="button" id="date-range-label" hidden>Pick a start and end date</button>
           <div id="date-custom" hidden>
-            <input type="date" id="date-from" aria-label="From date" />
-            <input type="date" id="date-to" aria-label="To date" />
+            <div id="date-range"></div>
+            <div id="date-range-caption"></div>
           </div>
           <div id="filter-status" hidden>
             <span id="filter-count"></span>

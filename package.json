@@ -7,7 +7,7 @@
   "main": "dist/main/main.js",
   "scripts": {
     "build:main": "tsc -p tsconfig.main.json",
-    "build:renderer": "tsc --noEmit -p tsconfig.renderer.json && esbuild src/renderer/renderer.ts --bundle --format=esm --outfile=dist/renderer/renderer.js --sourcemap && cp src/renderer/index.html src/renderer/styles.css node_modules/@xterm/xterm/css/xterm.css dist/renderer/",
+    "build:renderer": "tsc --noEmit -p tsconfig.renderer.json && esbuild src/renderer/renderer.ts --bundle --format=esm --outfile=dist/renderer/renderer.js --sourcemap && cp src/renderer/index.html src/renderer/styles.css node_modules/@xterm/xterm/css/xterm.css node_modules/air-datepicker/air-datepicker.css dist/renderer/",
     "build": "npm run build:main && npm run build:renderer",
     "start": "npm run build && electron . --no-sandbox",
     "test": "vitest run",
@@ -27,6 +27,7 @@
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^5.5.0",
+    "air-datepicker": "^3.6.0",
     "node-pty": "^1.1.0"
   },
   "allowScripts": {

@@ -15,6 +15,8 @@ import {
   type NudgeStatus,
 } from './logic';
 import { installTooltips, setTooltip } from './tooltip';
+import AirDatepicker from 'air-datepicker';
+import localeEn from 'air-datepicker/locale/en';
 
 declare global {
   interface Window {
@@ -31,8 +33,22 @@ const filterToggle = document.getElementById('filter-toggle') as HTMLButtonEleme
 const filterPanel = document.getElementById('filter-panel')!;
 const datePresets = document.getElementById('date-presets')!;
 const dateCustom = document.getElementById('date-custom')!;
-const dateFrom = document.getElementById('date-from') as HTMLInputElement;
-const dateTo = document.getElementById('date-to') as HTMLInputElement;
+const dateRangeLabel = document.getElementById('date-range-label')!; // persistent line under presets
+const dateRangeCaption = document.getElementById('date-range-caption')!; // same text, inside calendar
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+// Inline range calendar. Custom-rendered month/year views (click the header to zoom out to a months
+// grid, then a years grid, arrows paging through) and no native <select>, so it behaves under WSLg.
+// Capped at today: sessions are never in the future.
+let suppressPickerSelect = false;
+const datePicker = new AirDatepicker(document.getElementById('date-range')!, {
+  inline: true,
+  range: true,
+  locale: localeEn,
+  maxDate: new Date(),
+  onSelect: () => {
+    if (!suppressPickerSelect) onCustomDateChange();
+  },
+});
 const searchInput = document.getElementById('search') as HTMLInputElement;
 const switcherEl = document.getElementById('folder-switcher')!;
 const switcherCurrent = document.getElementById('switcher-current') as HTMLButtonElement;
@@ -242,6 +258,7 @@ async function renderSessions(showLoading = true): Promise<void> {
       window.claudeUi.getAllStatuses(),
     ]);
     allSessions = sessions;
+    applyDatePickerMinDate();
     pinned = new Set(pinnedList);
     archived = new Map(Object.entries(archivedList));
     statuses = new Map(Object.entries(statusMap));
@@ -262,6 +279,7 @@ async function refreshFromDisk(): Promise<void> {
   const signature = structuralSignature(sessions);
   if (signature === lastSignature) return;
   lastSignature = signature;
+  applyDatePickerMinDate();
   reconcileOpenTabs();
   renderList();
 }
@@ -286,17 +304,28 @@ function passesFilters(session: SessionSummary): boolean {
   });
 }
 
-// Translate the date dropdown into the [from, to] window. Presets are rolling from now; custom
-// reads the two date inputs (parsed as local day bounds).
+// The custom-range calendar is an inline popover; its open state is independent of the active preset,
+// so a picked range stays applied while the calendar is dismissed.
+let datePopoverOpen = false;
+function setDatePopover(open: boolean): void {
+  datePopoverOpen = open;
+  dateCustom.hidden = !open;
+}
+
+// Translate the date presets into the [from, to] window. Presets are rolling from now; custom reads
+// the calendar selection.
 function applyDatePreset(preset: string): void {
   datePreset = preset;
-  dateCustom.hidden = preset !== 'custom';
+  // The persistent range line shows only while Custom is the active preset (open or closed calendar).
+  dateRangeLabel.hidden = preset !== 'custom';
   for (const chip of datePresets.querySelectorAll('button')) {
     chip.classList.toggle('active', (chip as HTMLElement).dataset.range === preset);
   }
   if (preset === 'custom') {
+    // Custom just selects the mode; the range bar is the one control that opens the calendar.
     applyCustomDates();
   } else {
+    setDatePopover(false);
     const range = datePresetRange(preset, Date.now());
     dateFromMs = range.from;
     dateToMs = range.to;
@@ -304,8 +333,31 @@ function applyDatePreset(preset: string): void {
 }
 
 function applyCustomDates(): void {
-  dateFromMs = dateFrom.value ? new Date(`${dateFrom.value}T00:00:00`).getTime() : null;
-  dateToMs = dateTo.value ? new Date(`${dateTo.value}T23:59:59.999`).getTime() : null;
+  const [from, to] = datePicker.selectedDates.slice().sort((a, b) => a.getTime() - b.getTime());
+  dateFromMs = from ? new Date(from).setHours(0, 0, 0, 0) : null;
+  dateToMs = to ? new Date(to).setHours(23, 59, 59, 999) : null;
+  updateDateRangeLabel(from, to);
+}
+
+// Show the picked range in day-month-year, in both the persistent line and the in-calendar caption.
+function updateDateRangeLabel(from?: Date, to?: Date): void {
+  const dmy = (d: Date): string => `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
+  let text: string;
+  if (from && to) text = `${dmy(from)} – ${dmy(to)}`;
+  else if (from) text = `${dmy(from)} – …`;
+  else text = 'Pick a start and end date';
+  dateRangeLabel.textContent = text;
+  dateRangeCaption.textContent = text;
+}
+
+// Bound the picker to real data: min = the oldest session's date (max stays today, set at
+// construction). Runs whenever the session set changes; silent so it doesn't fire onSelect.
+function applyDatePickerMinDate(): void {
+  const earliest = allSessions.reduce<number | null>((min, s) => {
+    const t = Date.parse(s.lastActivity);
+    return min === null || t < min ? t : min;
+  }, null);
+  datePicker.update({ minDate: earliest !== null ? new Date(earliest) : false }, { silent: true });
 }
 
 // Make an active filter obvious: show "N of M" with a clear button and flag the active controls.
@@ -331,8 +383,9 @@ function clearFilter(): void {
   showPinnedOnly = false;
   showWorktreeOnly = false;
   showArchivedOnly = false;
-  dateFrom.value = '';
-  dateTo.value = '';
+  suppressPickerSelect = true;
+  datePicker.clear();
+  suppressPickerSelect = false;
   applyDatePreset('any');
   renderList();
   container.scrollTop = 0;
@@ -1186,13 +1239,28 @@ datePresets.addEventListener('click', (event) => {
   renderList();
   container.scrollTop = 0;
 });
-const onCustomDateChange = (): void => {
+// Dismiss the calendar on an outside press or Escape; the picked range stays applied. Uses mousedown,
+// not click, so it fires before air-datepicker re-renders on a view switch (a click handler would see
+// the just-clicked nav element already detached and wrongly treat it as an outside click). The presets
+// row, the range line, and the calendar itself keep it open (each has its own toggle handler).
+document.addEventListener('mousedown', (event) => {
+  if (!datePopoverOpen) return;
+  const target = event.target as Node;
+  if (dateCustom.contains(target) || datePresets.contains(target) || dateRangeLabel.contains(target)) {
+    return;
+  }
+  setDatePopover(false);
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && datePopoverOpen) setDatePopover(false);
+});
+// The persistent range line reopens (toggles) the calendar.
+dateRangeLabel.addEventListener('click', () => setDatePopover(!datePopoverOpen));
+function onCustomDateChange(): void {
   applyCustomDates();
   renderList();
   container.scrollTop = 0;
-};
-dateFrom.addEventListener('change', onCustomDateChange);
-dateTo.addEventListener('change', onCustomDateChange);
+}
 installTooltips();
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
