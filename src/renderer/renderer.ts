@@ -9,6 +9,7 @@ import {
   groupByRepo,
   groupName,
   relativeTime,
+  modelLabel,
   sessionPasses,
   datePresetRange,
   foldersForSwitcher,
@@ -709,7 +710,31 @@ function renderList(): void {
 
   container.scrollTop = scroll;
   updateSidebarHighlight();
+  reflowAllMeta();
 }
+
+// Meta shows on one row when it fits and wraps into its two groups (dropping the middle separator via
+// CSS) when it doesn't. Overflow is width-dependent, so measure each visible row here and re-run
+// whenever the sidebar is resized.
+function reflowAllMeta(): void {
+  for (const row of sessionRows.values()) {
+    if (!row.isConnected) continue;
+    const els = rowEls.get(row);
+    if (!els || els.meta.classList.contains('solo')) continue;
+    els.meta.classList.remove('stacked');
+    if (els.meta.scrollWidth > els.meta.clientWidth) els.meta.classList.add('stacked');
+  }
+}
+
+let reflowScheduled = false;
+new ResizeObserver(() => {
+  if (reflowScheduled) return;
+  reflowScheduled = true;
+  requestAnimationFrame(() => {
+    reflowScheduled = false;
+    reflowAllMeta();
+  });
+}).observe(container);
 
 // Reset to a blank list: drop every cached node so the next non-empty render rebuilds fresh.
 function clearList(): void {
@@ -891,6 +916,8 @@ interface RowEls {
   title: HTMLElement;
   badge: HTMLElement;
   meta: HTMLElement;
+  metaWhen: HTMLElement;
+  metaStats: HTMLElement;
   pin: HTMLButtonElement;
   archiveBtn: HTMLButtonElement;
   deleteBtn: HTMLButtonElement;
@@ -922,6 +949,16 @@ function createSessionRow(conversationId: string): HTMLElement {
   badge.hidden = true;
   const meta = document.createElement('p');
   meta.className = 'session-meta';
+  // Two logical groups (when · model / events · id) plus a separator that CSS hides when the meta
+  // wraps to two lines (see reflowMeta). One line when it fits, two grouped lines when it doesn't.
+  const metaWhen = document.createElement('span');
+  metaWhen.className = 'meta-when';
+  const metaSep = document.createElement('span');
+  metaSep.className = 'meta-sep';
+  metaSep.textContent = ' · ';
+  const metaStats = document.createElement('span');
+  metaStats.className = 'meta-stats';
+  meta.append(metaWhen, metaSep, metaStats);
   content.append(title, badge, meta);
 
   const pin = document.createElement('button');
@@ -983,7 +1020,7 @@ function createSessionRow(conversationId: string): HTMLElement {
   });
 
   item.append(dot, content, pin, archiveBtn, deleteBtn);
-  rowEls.set(item, { dot, title, badge, meta, pin, archiveBtn, deleteBtn });
+  rowEls.set(item, { dot, title, badge, meta, metaWhen, metaStats, pin, archiveBtn, deleteBtn });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
@@ -1012,9 +1049,16 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 
   if (showArchivedOnly) {
     const ts = archived.get(session.conversationId);
-    els.meta.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
+    els.metaWhen.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
+    els.metaStats.textContent = '';
+    els.meta.classList.add('solo'); // one group only: no separator, never stacks
+    els.meta.classList.remove('stacked');
   } else {
-    els.meta.textContent = `${relativeTime(session.lastActivity)} · ${session.eventCount} events · ${session.id.slice(0, 8)}`;
+    const model = modelLabel(session.model);
+    const when = relativeTime(session.lastActivity);
+    els.metaWhen.textContent = model ? `${when} · ${model}` : when;
+    els.metaStats.textContent = `${session.eventCount} events · ${session.id.slice(0, 8)}`;
+    els.meta.classList.remove('solo');
   }
 
   // The archived view is a management view: no pinning, and delete replaces it there.
@@ -1061,6 +1105,7 @@ async function openNewSession(cwd: string): Promise<void> {
     worktree: '',
     title: `New: ${folder}`,
     firstMessage: '',
+    model: '',
     lastActivity: new Date().toISOString(),
     eventCount: 0,
   };

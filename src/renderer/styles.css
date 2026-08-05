@@ -912,6 +912,34 @@ button:hover {
   margin: 0;
   font-size: 12px;
   color: var(--muted);
+  /* One line while it fits; reflowAllMeta adds .stacked (measured against the width) to wrap it into
+     the two groups. overflow:hidden so the measured single-line width never visibly spills. */
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.session-meta .meta-when,
+.session-meta .meta-stats {
+  white-space: nowrap;
+}
+
+/* Wrapped: the two groups stack and the middle separator disappears. */
+.session-meta.stacked {
+  white-space: normal;
+}
+
+.session-meta.stacked .meta-when,
+.session-meta.stacked .meta-stats {
+  display: block;
+}
+
+.session-meta.stacked .meta-sep {
+  display: none;
+}
+
+/* Single-group meta (archived view): no separator. */
+.session-meta.solo .meta-sep {
+  display: none;
 }
 
 .worktree-badge {

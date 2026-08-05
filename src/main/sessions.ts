@@ -156,6 +156,7 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   let conversationId = '';
   let customTitle: unknown = null;
   let aiTitle: unknown = null;
+  let model = '';
   let eventCount = 0;
 
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
@@ -163,6 +164,11 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
     for await (const line of rl) {
       if (!line.trim()) continue;
       eventCount++;
+
+      // Keep the latest model an assistant message reported. A cheap regex (not a full parse) so it
+      // doesn't defeat the early-continue below; assistant lines carry `"model":"claude-…"`.
+      const modelMatch = line.match(/"model":"(claude-[^"]+)"/);
+      if (modelMatch) model = modelMatch[1];
 
       // Title events recur through the file, so always parse them to keep the latest.
       // Otherwise stop parsing once we have cwd and the first message; keep counting.
@@ -204,6 +210,7 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
     worktree: '',
     title: title.slice(0, 200),
     firstMessage: firstMessage.slice(0, 200),
+    model,
     lastActivity: stat.mtime.toISOString(),
     eventCount,
   };

@@ -9,6 +9,7 @@ import {
   datePresetRange,
   sessionPasses,
   foldersForSwitcher,
+  modelLabel,
   type FilterCriteria,
 } from './logic';
 
@@ -21,6 +22,7 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     worktree: '',
     title: 'Title',
     firstMessage: 'first',
+    model: '',
     lastActivity: '2026-07-28T10:00:00.000Z',
     eventCount: 1,
     ...over,
@@ -185,5 +187,23 @@ describe('foldersForSwitcher', () => {
     const model = foldersForSwitcher([], new Map(), new Set());
     expect(model.folders).toEqual([]);
     expect(model.all).toEqual({ count: 0, badge: null });
+  });
+});
+
+describe('modelLabel', () => {
+  it('maps a model id to family + version, dropping the date', () => {
+    expect(modelLabel('claude-opus-4-8')).toBe('Opus 4.8');
+    expect(modelLabel('claude-opus-5')).toBe('Opus 5');
+    expect(modelLabel('claude-fable-5')).toBe('Fable 5');
+    expect(modelLabel('claude-sonnet-4-5-20250929')).toBe('Sonnet 4.5');
+    expect(modelLabel('claude-3-5-haiku-20241022')).toBe('Haiku 3.5'); // version-first id order
+    expect(modelLabel('claude-opus-4-20250514')).toBe('Opus 4');
+  });
+  it('handles an unseen family generically (no hardcoded list)', () => {
+    expect(modelLabel('claude-metis-6')).toBe('Metis 6');
+  });
+  it('falls back to the raw id with no family word, and empty in -> empty out', () => {
+    expect(modelLabel('claude-2099')).toBe('claude-2099');
+    expect(modelLabel('')).toBe('');
   });
 });

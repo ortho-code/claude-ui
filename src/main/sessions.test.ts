@@ -61,6 +61,16 @@ beforeAll(async () => {
       message: { content: 'wt work' },
     }),
   );
+
+  // Model: keep the LATEST an assistant message reported (a mid-session switch sonnet -> opus).
+  await fs.writeFile(
+    path.join(dir, 'g.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'ug', cwd: '/tmp/projG', message: { content: 'go' } },
+      { type: 'assistant', uuid: 'ag1', message: { model: 'claude-sonnet-4-5-20250929', content: 'a' } },
+      { type: 'assistant', uuid: 'ag2', message: { model: 'claude-opus-4-20250514', content: 'b' } },
+    ),
+  );
 });
 
 describe('listSessions', () => {
@@ -73,6 +83,11 @@ describe('listSessions', () => {
     expect(byId.get('a')?.firstMessage).toBe('first message A');
 
     expect(byId.get('b')?.title).toBe('AI Title B');
+  });
+
+  it('keeps the latest model reported across the transcript', async () => {
+    const sessions = await listSessions();
+    expect(sessions.find((s) => s.id === 'g')?.model).toBe('claude-opus-4-20250514');
   });
 
   it('drops empty stubs (no user/assistant message)', async () => {

@@ -13,6 +13,8 @@ export interface SessionSummary {
   title: string;
   /** First user message, trimmed for display. Empty when none was found. */
   firstMessage: string;
+  /** Latest model id an assistant message reported (e.g. claude-opus-4-…); empty when unknown. */
+  model: string;
   /** Last activity as an ISO timestamp (file mtime). */
   lastActivity: string;
   /** Number of transcript lines (events) in the session. */

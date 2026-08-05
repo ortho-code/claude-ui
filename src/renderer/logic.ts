@@ -37,6 +37,21 @@ export function groupName(repoRoot: string): string {
   return repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
 }
 
+// Short, human label for a model id, parsed generically (no hardcoded model list): the alphabetic
+// segment is the family, the numeric segments (minus the trailing YYYYMMDD date, either id order)
+// are the version. So new models need no code change. Examples: claude-opus-4-8 -> "Opus 4.8",
+// claude-fable-5 -> "Fable 5", claude-3-5-haiku-20241022 -> "Haiku 3.5". Falls back to the raw id
+// only when there's no family word at all; empty in -> empty out.
+export function modelLabel(model: string): string {
+  if (!model) return '';
+  const segs = model.toLowerCase().split('-').filter((s) => s && s !== 'claude');
+  const family = segs.filter((s) => /^[a-z]+$/.test(s)).join(' ');
+  if (!family) return model;
+  const version = segs.filter((s) => /^\d+$/.test(s) && s.length !== 8).join('.');
+  const name = family.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+  return version ? `${name} ${version}` : name;
+}
+
 // A short "x min ago" relative time. `now` is injectable for tests.
 export function relativeTime(iso: string, now: number = Date.now()): string {
   const seconds = Math.round((now - new Date(iso).getTime()) / 1000);
