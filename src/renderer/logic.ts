@@ -52,6 +52,19 @@ export function modelLabel(model: string): string {
   return version ? `${name} ${version}` : name;
 }
 
+// Move `moved` to `targetIndex` within the subsequence of items sharing its group key, leaving items
+// of other groups in their slots. Pure; used to reorder a tab within its own project.
+export function reorderWithinGroup<T>(items: T[], keyOf: (t: T) => string, moved: T, targetIndex: number): T[] {
+  const key = keyOf(moved);
+  const group = items.filter((t) => keyOf(t) === key);
+  const from = group.indexOf(moved);
+  if (from === -1) return items.slice();
+  group.splice(from, 1);
+  group.splice(Math.max(0, Math.min(targetIndex, group.length)), 0, moved);
+  let i = 0;
+  return items.map((t) => (keyOf(t) === key ? group[i++] : t));
+}
+
 // A short "x min ago" relative time. `now` is injectable for tests.
 export function relativeTime(iso: string, now: number = Date.now()): string {
   const seconds = Math.round((now - new Date(iso).getTime()) / 1000);

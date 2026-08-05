@@ -1204,3 +1204,19 @@ button:hover {
   font-weight: 600;
   color: var(--muted);
 }
+
+/* SortableJS placeholder marking a dragged tab's drop slot (ghostClass). The floating clone it drags
+   keeps the normal .tab look. */
+.tab-ghost {
+  opacity: 0.5;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* While a tab reorder is in progress, don't light up the tab the cursor passes over. */
+#tabbar.dragging .tab:hover {
+  background: var(--surface);
+}
+
+#tabbar.dragging .tab.active:hover {
+  background: var(--active);
+}

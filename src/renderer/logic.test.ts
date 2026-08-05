@@ -10,6 +10,7 @@ import {
   sessionPasses,
   foldersForSwitcher,
   modelLabel,
+  reorderWithinGroup,
   type FilterCriteria,
 } from './logic';
 
@@ -205,5 +206,27 @@ describe('modelLabel', () => {
   it('falls back to the raw id with no family word, and empty in -> empty out', () => {
     expect(modelLabel('claude-2099')).toBe('claude-2099');
     expect(modelLabel('')).toBe('');
+  });
+});
+
+describe('reorderWithinGroup', () => {
+  const key = (t: { id: string; g: string }) => t.g;
+  const ids = (list: { id: string }[]) => list.map((t) => t.id);
+
+  it('reorders within a single group', () => {
+    const a = { id: 'a', g: 'x' }, b = { id: 'b', g: 'x' }, c = { id: 'c', g: 'x' };
+    expect(ids(reorderWithinGroup([a, b, c], key, a, 2))).toEqual(['b', 'c', 'a']);
+  });
+
+  it('leaves other groups in their slots', () => {
+    const a = { id: 'a', g: 'x' }, b = { id: 'b', g: 'y' }, c = { id: 'c', g: 'x' };
+    // Move c to the front of group x; y keeps its slot (index 1).
+    expect(ids(reorderWithinGroup([a, b, c], key, c, 0))).toEqual(['c', 'b', 'a']);
+  });
+
+  it('clamps the index and no-ops an item that is not present', () => {
+    const a = { id: 'a', g: 'x' }, b = { id: 'b', g: 'x' };
+    expect(ids(reorderWithinGroup([a, b], key, a, 9))).toEqual(['b', 'a']);
+    expect(ids(reorderWithinGroup([a, b], key, { id: 'z', g: 'x' }, 0))).toEqual(['a', 'b']);
   });
 });

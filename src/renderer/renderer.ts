@@ -8,6 +8,7 @@ import {
   structuralSignature,
   groupByRepo,
   groupName,
+  reorderWithinGroup,
   relativeTime,
   modelLabel,
   sessionPasses,
@@ -19,6 +20,7 @@ import {
 import { installTooltips, setTooltip } from './tooltip';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
+import Sortable from 'sortablejs';
 
 declare global {
   interface Window {
@@ -1265,6 +1267,7 @@ function renderTabBar(): void {
   const shown = activeFolder ? tabs.filter((t) => t.session.repoRoot === activeFolder) : tabs;
   if (activeFolder) {
     tabbar.replaceChildren(...shown.map(tabElement));
+    initTabSortables();
     return;
   }
   const byRoot = new Map<string, Tab[]>();
@@ -1291,6 +1294,7 @@ function renderTabBar(): void {
     children.push(group);
   }
   tabbar.replaceChildren(...children);
+  initTabSortables();
 }
 
 function tabElement(tab: Tab): HTMLElement {
@@ -1320,6 +1324,7 @@ function tabElement(tab: Tab): HTMLElement {
     closeTab(tab);
   });
 
+  el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
   el.append(dot, label, close);
   el.addEventListener('click', () => {
     activateTab(tab);
@@ -1333,6 +1338,49 @@ function tabElement(tab: Tab): HTMLElement {
   });
   return el;
 }
+
+// Drag-to-reorder tabs via SortableJS. One Sortable per project container (the whole tab bar in a
+// project view, each .tab-group in All), so a drag stays within its project by construction.
+// forceFallback uses pointer-based dragging instead of native HTML5 DnD (flaky under WSLg). Re-created
+// on every renderTabBar since it rebuilds the DOM; old instances destroyed first to avoid leaks.
+let tabSortables: Sortable[] = [];
+let tabDragActive = false;
+
+function initTabSortables(): void {
+  for (const s of tabSortables) s.destroy();
+  const containers = activeFolder ? [tabbar] : [...tabbar.querySelectorAll<HTMLElement>('.tab-group')];
+  tabSortables = containers.map((container) =>
+    Sortable.create(container, {
+      draggable: '.tab', // never the group label
+      forceFallback: true,
+      animation: 0,
+      ghostClass: 'tab-ghost',
+      onStart: () => {
+        tabDragActive = true;
+        tabbar.classList.add('dragging'); // suppress per-tab hover while reordering
+      },
+      onEnd: (evt) => {
+        tabDragActive = false;
+        tabbar.classList.remove('dragging');
+        const el = evt.item as HTMLElement;
+        const moved = tabs.find((t) => t.session.id === el.dataset.sid);
+        // Index among the destination's tabs (ignores the group label), mapped onto the tabs array.
+        const newIndex = [...(evt.to as HTMLElement).querySelectorAll<HTMLElement>('.tab')].indexOf(el);
+        if (!moved || newIndex < 0) return;
+        tabs.splice(0, tabs.length, ...reorderWithinGroup(tabs, (t) => t.session.repoRoot, moved, newIndex));
+        persistOpenTabs();
+      },
+    }),
+  );
+}
+
+// Alt-tabbing away mid-drag never delivers a pointerup, so SortableJS can leave a drag stuck. On blur,
+// synthesise the release so it ends cleanly (dropping the tab where it currently is).
+window.addEventListener('blur', () => {
+  if (!tabDragActive) return;
+  document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+});
 
 function updatePlaceholder(): void {
   placeholder.style.display = activeTab ? 'none' : 'flex';
