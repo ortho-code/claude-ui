@@ -1084,3 +1084,95 @@ button:hover {
   overflow-wrap: anywhere;
   pointer-events: none;
 }
+
+/* Sidebar footer: a collapsible cross-project attention strip pinned below the session list.
+   Collapsed = a toggle carrying the same rolled-up nudge as the switcher header; expand (upward)
+   to a list of the projects with a nudge, click one to jump. Muted "all clear" when nothing. */
+#sidebar-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+}
+
+#footer-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+#footer-toggle:hover {
+  background: var(--surface-hover);
+}
+
+#footer-toggle.clear {
+  color: var(--muted);
+  cursor: default;
+}
+
+#footer-toggle.clear:hover {
+  background: none;
+}
+
+#footer-label {
+  flex: 1;
+}
+
+.footer-chev {
+  color: var(--muted);
+  font-size: 11px;
+  transition: transform 0.12s ease;
+}
+
+/* Collapsed points up ("opens upward"); expanded flips down. */
+#footer-toggle[aria-expanded='false'] .footer-chev {
+  transform: rotate(180deg);
+}
+
+#footer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px 6px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.footer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.footer-item:hover {
+  background: var(--surface-hover);
+}
+
+.footer-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Project heading within the footer attention list. */
+.footer-group {
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}

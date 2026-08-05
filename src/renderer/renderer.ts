@@ -13,6 +13,7 @@ import {
   datePresetRange,
   foldersForSwitcher,
   type NudgeStatus,
+  type SwitcherModel,
 } from './logic';
 import { installTooltips, setTooltip } from './tooltip';
 import AirDatepicker from 'air-datepicker';
@@ -55,6 +56,10 @@ const switcherCurrent = document.getElementById('switcher-current') as HTMLButto
 const switcherName = document.getElementById('switcher-name')!;
 const switcherBadge = document.getElementById('switcher-badge')!;
 const switcherPopover = document.getElementById('switcher-popover')!;
+const footerToggle = document.getElementById('footer-toggle')!;
+const footerBadge = document.getElementById('footer-badge')!;
+const footerLabel = document.getElementById('footer-label')!;
+const footerList = document.getElementById('footer-list')!;
 
 const FOLDER_ICON =
   '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2 4h4l1.5 1.5H14V13H2z"/></svg>';
@@ -482,7 +487,98 @@ function renderSwitcher(pool: SessionSummary[]): void {
     switcherItem('All', null, model.all.count, null, activeFolder === null),
     ...model.folders.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeFolder)),
   );
+
+  renderFooter(model, pool);
 }
+
+const NUDGE_ORDER: Record<'waiting' | 'idle' | 'busy', number> = { waiting: 0, idle: 1, busy: 2 };
+let footerExpanded = false;
+
+// A session's contribution to the roll-up: its live status, but an acked idle/waiting counts as
+// nothing (muted), same rule as the switcher badges.
+function sessionNudge(id: string): NudgeStatus {
+  const st = statuses.get(id);
+  if (st === 'waiting' || st === 'idle') return acked.has(id) ? null : st;
+  if (st === 'busy') return 'busy';
+  return null;
+}
+
+// Jump to a specific session from the footer: scope to its project if needed, then open/focus its tab.
+function jumpToSession(session: SessionSummary): void {
+  if (activeFolder !== null && activeFolder !== session.repoRoot) selectFolder(session.repoRoot);
+  void openSession(session);
+}
+
+// Cross-project attention strip in the sidebar footer. The toggle badge is the same overall roll-up
+// as the switcher header; expanded, it lists the nudged SESSIONS grouped under their project (each a
+// row: state dot + session title), click one to jump to it. Muted "all clear" when nothing pending.
+function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
+  const overall = model.all.badge;
+  footerBadge.className = overall ? `folder-badge ${overall}` : 'folder-badge';
+  footerBadge.hidden = !overall;
+
+  // Nudged sessions grouped by project; projects and sessions ordered attention-first.
+  const groups = new Map<string, { name: string; items: { session: SessionSummary; badge: NudgeStatus }[] }>();
+  for (const session of pool) {
+    const badge = sessionNudge(session.id);
+    if (!badge) continue;
+    let group = groups.get(session.repoRoot);
+    if (!group) {
+      group = { name: groupName(session.repoRoot), items: [] };
+      groups.set(session.repoRoot, group);
+    }
+    group.items.push({ session, badge });
+  }
+  for (const group of groups.values()) {
+    group.items.sort((a, b) => NUDGE_ORDER[a.badge!] - NUDGE_ORDER[b.badge!]);
+  }
+  const ordered = [...groups.values()].sort((a, b) => NUDGE_ORDER[a.items[0].badge!] - NUDGE_ORDER[b.items[0].badge!]);
+  const total = ordered.reduce((n, g) => n + g.items.length, 0);
+
+  if (total === 0) {
+    footerExpanded = false;
+    footerToggle.classList.add('clear');
+    footerToggle.setAttribute('aria-expanded', 'false');
+    footerLabel.textContent = 'All clear';
+    footerList.hidden = true;
+    footerList.replaceChildren();
+    return;
+  }
+
+  footerToggle.classList.remove('clear');
+  footerToggle.setAttribute('aria-expanded', String(footerExpanded));
+  footerLabel.textContent = `${total} ${total === 1 ? 'session' : 'sessions'}`;
+  footerList.hidden = !footerExpanded;
+  footerList.replaceChildren(
+    ...ordered.flatMap((group) => {
+      const heading = document.createElement('div');
+      heading.className = 'footer-group';
+      heading.textContent = group.name;
+      const rows = group.items.map(({ session, badge }) => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'footer-item';
+        const dot = document.createElement('span');
+        dot.className = `folder-badge ${badge}`;
+        const name = document.createElement('span');
+        name.className = 'footer-item-name';
+        name.textContent = session.title || session.firstMessage || session.id.slice(0, 8);
+        row.append(dot, name);
+        setTooltip(row, session.title || session.firstMessage || null);
+        row.addEventListener('click', () => jumpToSession(session));
+        return row;
+      });
+      return [heading, ...rows];
+    }),
+  );
+}
+
+footerToggle.addEventListener('click', () => {
+  if (footerToggle.classList.contains('clear')) return; // nothing to expand
+  footerExpanded = !footerExpanded;
+  footerList.hidden = !footerExpanded;
+  footerToggle.setAttribute('aria-expanded', String(footerExpanded));
+});
 
 function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean): HTMLElement {
   const btn = document.createElement('button');
