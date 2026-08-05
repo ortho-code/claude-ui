@@ -1084,7 +1084,11 @@ async function createTab(session: SessionSummary, resumeId: string | undefined):
   const term = new Terminal({
     fontFamily: 'monospace',
     fontSize: 13,
-    theme: { background: '#11111b', foreground: '#cdd6f4' },
+    // Neutral (hue-less) default foreground: claude's selected-item accent is a periwinkle, so a
+    // neutral grey fg makes it pop by HUE (the old lavender-white #cdd6f4 shared its hue and merged).
+    // The fix was the hue, not the brightness, so it can be a light near-white for comfortable
+    // reading. The select-menu contrast bug (28a); proper per-user terminal colours are item 28.
+    theme: { background: '#11111b', foreground: '#d8d8d8' },
   });
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);

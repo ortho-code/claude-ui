@@ -20,6 +20,9 @@ function cleanEnv(): { [key: string]: string } {
   }
   // Mark this session as launched by claude-ui so the status hook reports it.
   env[SCOPE_ENV] = '1';
+  // Advertise 24-bit colour so claude emits its full TUI styling (e.g. the select-menu highlight)
+  // instead of a degraded fallback; the frontend xterm renders truecolor fine.
+  env.COLORTERM = 'truecolor';
   return env;
 }
 
@@ -46,7 +49,9 @@ export function registerTerminalIpc(): void {
     const env = cleanEnv();
     if (tabToken) env[TAB_ENV] = tabToken;
     const proc = pty.spawn(shell, args, {
-      name: 'xterm-color',
+      // xterm.js speaks 256-colour/truecolor; the old 'xterm-color' (8-colour) terminfo made claude
+      // pick a degraded palette for its TUI.
+      name: 'xterm-256color',
       cols: 80,
       rows: 24,
       cwd: cwd && existsSync(cwd) ? cwd : os.homedir(),
