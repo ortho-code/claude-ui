@@ -87,6 +87,75 @@ function showToast(message: string): void {
 }
 toastClose.addEventListener('click', hideToast);
 
+// Stacking attention toasts: a background tab (one you're not viewing) went waiting/idle. Separate
+// from the one-off #toast message bar above.
+const notifications = document.getElementById('notifications')!;
+const NOTIF_TTL = 5000;
+const NOTIF_MAX = 4;
+
+function showAttentionToast(tab: Tab, status: 'waiting' | 'idle'): void {
+  const el = document.createElement('div');
+  el.className = `notif ${status}`;
+  const dot = document.createElement('span');
+  dot.className = `folder-badge ${status}`;
+  // The dot/edge colour already says waiting vs finished; the text names the tab and its project.
+  const text = document.createElement('span');
+  text.className = 'notif-text';
+  const title = document.createElement('span');
+  title.className = 'notif-title';
+  title.textContent = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
+  const proj = document.createElement('span');
+  proj.className = 'notif-proj';
+  proj.textContent = groupName(tab.session.repoRoot);
+  text.append(title, proj);
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'notif-close';
+  close.textContent = '×';
+  close.setAttribute('aria-label', 'Dismiss');
+  el.append(dot, text, close);
+
+  let timer: number | undefined;
+  const dismiss = (): void => {
+    window.clearTimeout(timer);
+    el.remove();
+  };
+  const arm = (): void => {
+    timer = window.setTimeout(dismiss, NOTIF_TTL);
+  };
+  el.addEventListener('mouseenter', () => window.clearTimeout(timer));
+  el.addEventListener('mouseleave', arm);
+  el.addEventListener('click', () => {
+    dismiss();
+    jumpToTab(tab);
+  });
+  close.addEventListener('click', (event) => {
+    event.stopPropagation();
+    dismiss();
+  });
+
+  notifications.prepend(el); // newest on top
+  while (notifications.childElementCount > NOTIF_MAX) notifications.lastElementChild?.remove();
+  arm();
+}
+
+// A real transition into waiting/idle on a tab you're not looking at -> toast it. Never for busy, a
+// cleared status, a no-op repeat, or the tab you're already on.
+function maybeAttentionToast(id: string, status: string | undefined, prev: string | undefined): void {
+  if ((status !== 'waiting' && status !== 'idle') || status === prev) return;
+  const tab = tabs.find((t) => t.session.id === id);
+  if (!tab || tab === activeTab) return;
+  showAttentionToast(tab, status);
+}
+
+// Jump to a tab from a toast: scope to its project if we're viewing a different one, then activate it.
+function jumpToTab(tab: Tab): void {
+  if (activeFolder !== null && activeFolder !== tab.session.repoRoot) {
+    selectFolder(tab.session.repoRoot);
+  }
+  activateTab(tab);
+}
+
 function setLoading(on: boolean): void {
   loadingEl.classList.toggle('active', on);
 }
@@ -163,6 +232,7 @@ function reconcileOpenTabs(): void {
 }
 
 function setStatus(id: string, status: string | undefined): void {
+  const prev = statuses.get(id);
   if (status) statuses.set(id, status);
   else statuses.delete(id);
   // A new status event is fresh activity: drop any "read" mark so the dot re-lights (and, for a
@@ -170,6 +240,7 @@ function setStatus(id: string, status: string | undefined): void {
   acked.delete(id);
   renderStatusDot(id);
   refreshSwitcher(); // keep the folder roll-up badges live
+  maybeAttentionToast(id, status, prev);
 }
 
 // Repaint a session's dot wherever it shows (sidebar row + open tab) from the current status/ack.
