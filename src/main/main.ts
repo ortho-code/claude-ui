@@ -15,6 +15,7 @@ import {
   setProjectName,
   migrateToConversationKeys,
   purgeConversation,
+  auditMarker,
 } from './meta';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
@@ -92,6 +93,7 @@ app.whenReady().then(async () => {
   // One-time: rewrite pins/open-tabs stored as raw session ids to conversation keys.
   const sessions = await listSessions();
   await migrateToConversationKeys(new Map(sessions.map((s) => [s.id, s.conversationId])));
+  void auditMarker('STARTUP'); // temporary debug aid: mark the restart boundary + trim old segments
   await installStatusHooks();
   registerStatusIpc(() => mainWindow);
   registerSessionsWatcher(() => mainWindow);
@@ -111,6 +113,7 @@ app.on('before-quit', (event) => {
   if (quitting) return;
   quitting = true;
   event.preventDefault();
+  void auditMarker('QUITTING'); // temporary debug aid: mark where a run ended
   // Tell the renderer we're shutting down before killing terminals, so the tab-close it triggers
   // for each dying pty doesn't persist an empty open-tabs list over the real one.
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:quitting');

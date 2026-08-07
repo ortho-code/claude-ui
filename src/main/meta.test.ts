@@ -112,6 +112,24 @@ describe('corruption safety', () => {
   });
 });
 
+describe('write serialization', () => {
+  it('serializes concurrent writes so the last logical change wins (no stale overwrite)', async () => {
+    // Fired together, these race in readMeta/writeMeta; without serialization a stale write can win.
+    await Promise.all([
+      setOpenSessions(['a']),
+      setOpenSessions(['a', 'b']),
+      setOpenSessions(['a', 'b', 'c']),
+    ]);
+    expect(await getOpenSessions()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('does not lose one field when different ops race (read-modify-write stays atomic)', async () => {
+    await Promise.all([togglePin('p1'), setOpenSessions(['o1'])]);
+    expect(await getPinned()).toEqual(['p1']);
+    expect(await getOpenSessions()).toEqual(['o1']);
+  });
+});
+
 describe('active folder', () => {
   it('defaults to null and round-trips a project and back to All', async () => {
     expect(await getActiveFolder()).toBeNull();

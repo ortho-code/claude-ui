@@ -102,86 +102,157 @@ async function writeMeta(meta: Meta): Promise<void> {
   await fs.rename(tmp, file);
 }
 
+// Serialize every meta operation. Each op is a read-modify-write; run concurrently they interleave
+// (readMeta then writeMeta, all async) and a stale write can land last and win — which silently drops
+// tab-list changes when several fire close together (restore opening tabs + user open/close). The
+// queue makes each op run to completion before the next starts, so the last logical change wins.
+let opQueue: Promise<unknown> = Promise.resolve();
+function serialize<T>(op: () => Promise<T>): Promise<T> {
+  // Chain after the previous op whether it resolved or rejected, so one failure can't stall the queue.
+  const run = opQueue.then(op, op);
+  opQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+// TEMPORARY debug aid (remove once tab persistence is trusted — see .plan): append one line per
+// write to meta-audit.log, so a dropped tab-list change can be traced to the op and moment that
+// wrote it. Best-effort — logging must never break a real write.
+let auditSeq = 0;
+function auditPath(): string {
+  return path.join(app.getPath('userData'), 'meta-audit.log');
+}
+async function auditWrite(op: string, meta: Meta): Promise<void> {
+  try {
+    const line = `${new Date().toISOString()} #${(auditSeq += 1)} ${op} open=${JSON.stringify(meta.openSessions)} pinned=${JSON.stringify(meta.pinned)}\n`;
+    await fs.appendFile(auditPath(), line);
+  } catch {
+    // ignore
+  }
+}
+
+// Append a lifecycle marker (STARTUP/QUITTING) with the on-disk open-tabs at that moment, so restart
+// boundaries are visible in the log. On STARTUP, trim the log to the last few restarts so it can't
+// grow unbounded. Serialized with the writes so a marker and the trim can't race an append.
+export function auditMarker(label: string): Promise<void> {
+  return serialize(async () => {
+    try {
+      const meta = await readMeta();
+      const line = `${new Date().toISOString()} ===== ${label} ===== open=${JSON.stringify(meta.openSessions)}\n`;
+      await fs.appendFile(auditPath(), line);
+      if (label === 'STARTUP') await trimAudit();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+// Keep only the last `keepRestarts` STARTUP segments; drop everything before that.
+async function trimAudit(keepRestarts = 5): Promise<void> {
+  const text = await fs.readFile(auditPath(), 'utf8').catch(() => '');
+  if (!text) return;
+  const lines = text.split('\n');
+  const starts = lines.flatMap((line, i) => (line.includes('===== STARTUP =====') ? [i] : []));
+  if (starts.length <= keepRestarts) return;
+  await fs.writeFile(auditPath(), lines.slice(starts[starts.length - keepRestarts]).join('\n'));
+}
+
+// Read-modify-write the meta as one atomic step in the queue. `mutate` returns the value to resolve.
+function update<T>(op: string, mutate: (meta: Meta) => T): Promise<T> {
+  return serialize(async () => {
+    const meta = await readMeta();
+    const result = mutate(meta);
+    await writeMeta(meta);
+    await auditWrite(op, meta);
+    return result;
+  });
+}
+
 /**
  * One-time upgrade of pins/open-tabs from raw session ids to conversation keys. Any entry that
  * matches a known session id is rewritten to that session's conversation key; entries that are
  * already conversation keys (or name a session no longer on disk) are left as-is.
  */
-export async function migrateToConversationKeys(idToConversation: Map<string, string>): Promise<void> {
-  const meta = await readMeta();
-  if (meta.version >= 2) return;
-  const remap = (keys: string[]): string[] => [...new Set(keys.map((k) => idToConversation.get(k) ?? k))];
-  meta.pinned = remap(meta.pinned);
-  meta.openSessions = remap(meta.openSessions);
-  meta.version = 2;
-  await writeMeta(meta);
+export function migrateToConversationKeys(idToConversation: Map<string, string>): Promise<void> {
+  return serialize(async () => {
+    const meta = await readMeta();
+    if (meta.version >= 2) return;
+    const remap = (keys: string[]): string[] => [...new Set(keys.map((k) => idToConversation.get(k) ?? k))];
+    meta.pinned = remap(meta.pinned);
+    meta.openSessions = remap(meta.openSessions);
+    meta.version = 2;
+    await writeMeta(meta);
+    await auditWrite('migrate', meta);
+  });
 }
 
-export async function getPinned(): Promise<string[]> {
-  return (await readMeta()).pinned;
+export function getPinned(): Promise<string[]> {
+  return serialize(async () => (await readMeta()).pinned);
 }
 
-export async function togglePin(id: string): Promise<string[]> {
-  const meta = await readMeta();
-  const pinned = new Set(meta.pinned);
-  if (pinned.has(id)) pinned.delete(id);
-  else pinned.add(id);
-  meta.pinned = [...pinned];
-  await writeMeta(meta);
-  return meta.pinned;
+export function togglePin(id: string): Promise<string[]> {
+  return update('togglePin', (meta) => {
+    const pinned = new Set(meta.pinned);
+    if (pinned.has(id)) pinned.delete(id);
+    else pinned.add(id);
+    meta.pinned = [...pinned];
+    return meta.pinned;
+  });
 }
 
-export async function getArchived(): Promise<Record<string, number>> {
-  return (await readMeta()).archived;
+export function getArchived(): Promise<Record<string, number>> {
+  return serialize(async () => (await readMeta()).archived);
 }
 
-export async function toggleArchive(id: string): Promise<Record<string, number>> {
-  const meta = await readMeta();
-  if (id in meta.archived) delete meta.archived[id];
-  else meta.archived[id] = Date.now();
-  await writeMeta(meta);
-  return meta.archived;
+export function toggleArchive(id: string): Promise<Record<string, number>> {
+  return update('toggleArchive', (meta) => {
+    if (id in meta.archived) delete meta.archived[id];
+    else meta.archived[id] = Date.now();
+    return meta.archived;
+  });
 }
 
 /** Drop a conversation from all metadata (used when it is deleted). */
-export async function purgeConversation(id: string): Promise<void> {
-  const meta = await readMeta();
-  meta.pinned = meta.pinned.filter((k) => k !== id);
-  meta.openSessions = meta.openSessions.filter((k) => k !== id);
-  delete meta.archived[id];
-  await writeMeta(meta);
+export function purgeConversation(id: string): Promise<void> {
+  return update('purgeConversation', (meta) => {
+    meta.pinned = meta.pinned.filter((k) => k !== id);
+    meta.openSessions = meta.openSessions.filter((k) => k !== id);
+    delete meta.archived[id];
+  });
 }
 
-export async function getOpenSessions(): Promise<string[]> {
-  return (await readMeta()).openSessions;
+export function getOpenSessions(): Promise<string[]> {
+  return serialize(async () => (await readMeta()).openSessions);
 }
 
-export async function setOpenSessions(ids: string[]): Promise<void> {
-  const meta = await readMeta();
-  meta.openSessions = ids;
-  await writeMeta(meta);
+export function setOpenSessions(ids: string[]): Promise<void> {
+  return update('setOpenSessions', (meta) => {
+    meta.openSessions = ids;
+  });
 }
 
-export async function getActiveFolder(): Promise<string | null> {
-  return (await readMeta()).activeFolder;
+export function getActiveFolder(): Promise<string | null> {
+  return serialize(async () => (await readMeta()).activeFolder);
 }
 
-export async function setActiveFolder(folder: string | null): Promise<void> {
-  const meta = await readMeta();
-  meta.activeFolder = folder;
-  await writeMeta(meta);
+export function setActiveFolder(folder: string | null): Promise<void> {
+  return update('setActiveFolder', (meta) => {
+    meta.activeFolder = folder;
+  });
 }
 
-export async function getProjectNames(): Promise<Record<string, string>> {
-  return (await readMeta()).projectNames;
+export function getProjectNames(): Promise<Record<string, string>> {
+  return serialize(async () => (await readMeta()).projectNames);
 }
 
 // Set a project's display-name override (blank clears it, reverting to the folder name).
-export async function setProjectName(repoRoot: string, name: string): Promise<Record<string, string>> {
-  const meta = await readMeta();
-  const trimmed = name.trim();
-  if (trimmed) meta.projectNames[repoRoot] = trimmed;
-  else delete meta.projectNames[repoRoot];
-  await writeMeta(meta);
-  return meta.projectNames;
+export function setProjectName(repoRoot: string, name: string): Promise<Record<string, string>> {
+  return update('setProjectName', (meta) => {
+    const trimmed = name.trim();
+    if (trimmed) meta.projectNames[repoRoot] = trimmed;
+    else delete meta.projectNames[repoRoot];
+    return meta.projectNames;
+  });
 }
