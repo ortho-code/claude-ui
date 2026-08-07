@@ -879,7 +879,8 @@ button:hover {
 }
 
 .archive-btn,
-.delete-btn {
+.delete-btn,
+.session-kebab {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -891,8 +892,14 @@ button:hover {
 }
 
 .archive-btn:hover,
-.delete-btn:hover {
+.delete-btn:hover,
+.session-kebab:hover {
   color: var(--text);
+}
+
+.session-kebab {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .pin:disabled {
@@ -1266,7 +1273,7 @@ button:hover {
 }
 
 /* The kebab's dropdown (positioned in JS, fixed). */
-.heading-menu {
+.kebab-menu {
   position: fixed;
   z-index: 400;
   min-width: 130px;
@@ -1277,7 +1284,7 @@ button:hover {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
 }
 
-.heading-menu button {
+.kebab-menu button {
   display: block;
   width: 100%;
   text-align: left;
@@ -1290,7 +1297,7 @@ button:hover {
   cursor: pointer;
 }
 
-.heading-menu button:hover {
+.kebab-menu button:hover {
   background: var(--surface-hover);
 }
 

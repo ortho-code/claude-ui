@@ -24,8 +24,8 @@ const api: ClaudeUiApi = {
       callback(id, status, tab),
     ),
   clearStatus: (id) => ipcRenderer.send('status:clear', id),
-  startTerminal: (cwd, resumeSessionId, tabToken) =>
-    ipcRenderer.invoke('terminal:start', cwd, resumeSessionId, tabToken),
+  startTerminal: (cwd, resumeSessionId, tabToken, fork, name) =>
+    ipcRenderer.invoke('terminal:start', cwd, resumeSessionId, tabToken, fork, name),
   onTerminalData: (callback) =>
     ipcRenderer.on('terminal:data', (_event, id: number, data: string) => callback(id, data)),
   onTerminalExit: (callback) =>

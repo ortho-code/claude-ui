@@ -27,7 +27,7 @@ function cleanEnv(): { [key: string]: string } {
 }
 
 export function registerTerminalIpc(): void {
-  ipcMain.handle('terminal:start', (event, cwd: string, resumeSessionId?: string, tabToken?: string): number => {
+  ipcMain.handle('terminal:start', (event, cwd: string, resumeSessionId?: string, tabToken?: string, fork?: boolean, name?: string): number => {
     const id = nextId++;
     const shell = process.env.SHELL ?? '/bin/bash';
     // Session ids are filename-derived; only pass through safe characters.
@@ -44,7 +44,14 @@ export function registerTerminalIpc(): void {
     // hooks) so we never write into the user's settings.json. Guard on existence in case the app is
     // mid-startup and installStatusHooks() hasn't written it yet.
     const base = existsSync(statusSettingsFile) ? `claude --settings '${statusSettingsFile}'` : 'claude';
-    const command = safeId ? `${base} --resume ${safeId}` : base;
+    // `--name` sets the session's display name (claude writes it as a custom-title, so the sidebar
+    // picks it up). Single-quote it, escaping any embedded quotes, since the whole command is a
+    // string handed to `bash -c`.
+    const nameArg = name ? ` --name '${name.replace(/'/g, "'\\''")}'` : '';
+    // `--fork-session` copies the resumed transcript into a new session id (a fork); it needs an id
+    // to resume from, so it only applies when we have one.
+    const resume = safeId ? ` --resume ${safeId}${fork ? ' --fork-session' : ''}` : '';
+    const command = `${base}${resume}${nameArg}`;
     const args = ['-l', '-i', '-c', command];
     const env = cleanEnv();
     if (tabToken) env[TAB_ENV] = tabToken;

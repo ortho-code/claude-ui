@@ -82,6 +82,7 @@ const confirmDetail = document.getElementById('confirm-detail')!;
 const confirmOk = document.getElementById('confirm-ok') as HTMLButtonElement;
 const confirmCancel = document.getElementById('confirm-cancel') as HTMLButtonElement;
 const renameOverlay = document.getElementById('rename-overlay')!;
+const renameTitle = document.getElementById('rename-title')!;
 const renamePath = document.getElementById('rename-path')!;
 const renameInput = document.getElementById('rename-input') as HTMLInputElement;
 const renameOk = document.getElementById('rename-ok') as HTMLButtonElement;
@@ -860,9 +861,14 @@ function confirmDelete(title: string): Promise<boolean> {
 
 // Small dialog to rename a project. Resolves the entered name, or null if cancelled. Prefilled with
 // the current display name; the full path is shown so it's clear which folder is being named.
-function promptRename(repoRoot: string): Promise<string | null> {
-  renamePath.textContent = repoRoot;
-  renameInput.value = projName(repoRoot);
+// A small modal text prompt (Promise-resolving): OK/Enter resolves the value, Cancel/Esc/backdrop
+// resolves null. Shared by project rename and fork naming; okLabel names the confirm button.
+function promptText(title: string, context: string, initialValue: string, okLabel = 'Save'): Promise<string | null> {
+  renameTitle.textContent = title;
+  renamePath.textContent = context;
+  renamePath.hidden = !context; // no empty context line (e.g. the fork dialog puts it in the title)
+  renameOk.textContent = okLabel;
+  renameInput.value = initialValue;
   renameOverlay.hidden = false;
   renameInput.focus();
   renameInput.select();
@@ -892,7 +898,7 @@ function promptRename(repoRoot: string): Promise<string | null> {
 }
 
 async function renameProject(repoRoot: string): Promise<void> {
-  const name = await promptRename(repoRoot);
+  const name = await promptText('Rename project', repoRoot, projName(repoRoot));
   if (name === null) return;
   // Typing the folder name back clears the override rather than storing a redundant one.
   const canonical = name.trim() === groupName(repoRoot) ? '' : name;
@@ -901,35 +907,38 @@ async function renameProject(repoRoot: string): Promise<void> {
   renderTabBar();
 }
 
-// Per-project kebab menu on a group heading. One item for now (Rename); Hide joins it later.
-let headingMenu: HTMLElement | null = null;
-function closeHeadingMenu(): void {
-  headingMenu?.remove();
-  headingMenu = null;
-  document.removeEventListener('click', onHeadingMenuOutside, true);
+// A small floating kebab menu, generic over its items so the group-heading and session-row kebabs
+// share the open/close/outside-click machinery.
+let openMenuEl: HTMLElement | null = null;
+function closeMenu(): void {
+  openMenuEl?.remove();
+  openMenuEl = null;
+  document.removeEventListener('click', onMenuOutside, true);
 }
-function onHeadingMenuOutside(event: MouseEvent): void {
-  if (headingMenu && !headingMenu.contains(event.target as Node)) closeHeadingMenu();
+function onMenuOutside(event: MouseEvent): void {
+  if (openMenuEl && !openMenuEl.contains(event.target as Node)) closeMenu();
 }
-function openHeadingMenu(repoRoot: string, anchor: HTMLElement): void {
-  closeHeadingMenu();
+function openMenu(anchor: HTMLElement, items: { label: string; onSelect: () => void }[]): void {
+  closeMenu();
   const menu = document.createElement('div');
-  menu.className = 'heading-menu';
-  const rename = document.createElement('button');
-  rename.type = 'button';
-  rename.textContent = 'Rename…';
-  rename.addEventListener('click', () => {
-    closeHeadingMenu();
-    void renameProject(repoRoot);
-  });
-  menu.append(rename);
+  menu.className = 'kebab-menu';
+  for (const item of items) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = item.label;
+    button.addEventListener('click', () => {
+      closeMenu();
+      item.onSelect();
+    });
+    menu.append(button);
+  }
   document.body.append(menu);
   const r = anchor.getBoundingClientRect();
   menu.style.top = `${r.bottom + 4}px`;
   menu.style.left = `${Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8))}px`;
-  headingMenu = menu;
+  openMenuEl = menu;
   // Defer so the click that opened it doesn't immediately close it.
-  setTimeout(() => document.addEventListener('click', onHeadingMenuOutside, true));
+  setTimeout(() => document.addEventListener('click', onMenuOutside, true));
 }
 
 // Reveal a session's row in the sidebar (expanding its group if collapsed), so clicking a tab
@@ -995,7 +1004,7 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   setTooltip(kebab, 'Project options');
   kebab.addEventListener('click', (event) => {
     event.stopPropagation();
-    openHeadingMenu(name, kebab);
+    openMenu(kebab, [{ label: 'Rename…', onSelect: () => void renameProject(name) }]);
   });
   heading.append(kebab);
   // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker. Keep the
@@ -1040,6 +1049,7 @@ interface RowEls {
   pin: HTMLButtonElement;
   archiveBtn: HTMLButtonElement;
   deleteBtn: HTMLButtonElement;
+  kebab: HTMLButtonElement;
 }
 // Each row's child elements, cached so updateRow reads them directly instead of re-querying the
 // DOM every render (same idea as the session summary cache, applied to rendering).
@@ -1151,8 +1161,25 @@ function createSessionRow(key: string): HTMLElement {
     }
   });
 
-  item.append(dot, content, pin, archiveBtn, deleteBtn);
-  rowEls.set(item, { dot, title, badge, forkBadge, meta, metaWhen, metaStats, pin, archiveBtn, deleteBtn });
+  // Per-session actions menu: fork this session, and (for a fork) jump back to its origin.
+  const kebab = document.createElement('button');
+  kebab.className = 'session-kebab';
+  kebab.textContent = '⋮';
+  setTooltip(kebab, 'Session options');
+  kebab.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const session = currentTips.get(key);
+    if (!session) return;
+    const items = [{ label: 'Fork this session', onSelect: () => { void forkSession(session); } }];
+    const parentId = session.parentId;
+    if (session.isFork && parentId) {
+      items.push({ label: 'Go to original', onSelect: () => jumpToOrigin(parentId) });
+    }
+    openMenu(kebab, items);
+  });
+
+  item.append(dot, content, pin, archiveBtn, deleteBtn, kebab);
+  rowEls.set(item, { dot, title, badge, forkBadge, meta, metaWhen, metaStats, pin, archiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
@@ -1211,6 +1238,8 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   setTooltip(els.archiveBtn, showArchivedOnly ? 'Unarchive' : 'Archive');
   els.archiveBtn.innerHTML = showArchivedOnly ? UNARCHIVE_ICON : ARCHIVE_ICON;
   els.deleteBtn.hidden = !showArchivedOnly;
+  // The kebab (fork actions) is a normal-view affordance; the archived view is manage-only.
+  els.kebab.hidden = showArchivedOnly;
 }
 
 function applyStatus(dot: HTMLElement, status: string | undefined, isAcked = false): void {
@@ -1260,9 +1289,47 @@ async function openNewSession(cwd: string): Promise<void> {
   renderList();
 }
 
-async function createTab(session: SessionSummary, resumeId: string | undefined): Promise<void> {
+// Fork an existing session: `claude --resume <id> --fork-session` copies its transcript into a new
+// session in the same cwd. Like openNewSession, the tab starts on a placeholder and adopts the real
+// fork id via its token; the fork then appears in the sidebar (badged) on the next disk refresh.
+async function forkSession(parent: SessionSummary): Promise<void> {
+  const parentTitle = parent.title || parent.firstMessage || 'session';
+  // Forks copy the parent's title, so offer a fresh name up front (via claude's --name). Cancel
+  // aborts the fork; keeping/clearing the field just inherits the parent title.
+  const name = await promptText('Create fork', `Fork from "${parentTitle}"`, parentTitle, 'Fork');
+  if (name === null) return;
+  const trimmed = name.trim();
+  const id = `new-${Date.now()}-${newSessionCounter++}`;
+  const session: SessionSummary = {
+    id,
+    conversationId: id,
+    cwd: parent.cwd,
+    repoRoot: parent.repoRoot,
+    worktree: parent.worktree,
+    title: trimmed || parentTitle,
+    firstMessage: '',
+    model: '',
+    lastActivity: new Date().toISOString(),
+    eventCount: 0,
+    // Mark the placeholder as a fork right away (we know it is one, and its parent), so the row shows
+    // the fork badge immediately instead of waiting for claude to write the transcript. It reconciles
+    // to the real fork row once that file lands and lineage is derived on the next refresh.
+    isFork: true,
+    parentId: parent.id,
+    forkCount: 0,
+  };
+  // Land where the fork's tab will be visible: stay in its project, else drop to All.
+  if (activeFolder !== null && session.repoRoot !== activeFolder) {
+    activeFolder = null;
+    window.claudeUi.setActiveFolder(null);
+  }
+  await createTab(session, parent.id, true, trimmed || undefined);
+  renderList();
+}
+
+async function createTab(session: SessionSummary, resumeId: string | undefined, fork = false, name?: string): Promise<void> {
   const token = crypto.randomUUID();
-  const terminalId = await window.claudeUi.startTerminal(session.cwd, resumeId, token);
+  const terminalId = await window.claudeUi.startTerminal(session.cwd, resumeId, token, fork, name);
 
   const el = document.createElement('div');
   el.className = 'term';
@@ -1313,7 +1380,9 @@ async function createTab(session: SessionSummary, resumeId: string | undefined):
     fitAddon,
     el,
     token,
-    needsTitle: resumeId === undefined,
+    // A fork mints a NEW session id despite resuming one, so it also needs to adopt its real id via
+    // the token (like a fresh session) — a plain resume already carries its final id.
+    needsTitle: resumeId === undefined || fork,
     startedAt: Date.now(),
     activatedSeq: 0,
   };

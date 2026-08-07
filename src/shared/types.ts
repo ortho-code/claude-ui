@@ -68,7 +68,11 @@ export interface ClaudeUiApi {
    * `tabToken` is echoed back by the status hook so the app can learn a new session's real id.
    * Resolves to a terminal id.
    */
-  startTerminal(cwd: string, resumeSessionId?: string, tabToken?: string): Promise<number>;
+  /**
+   * `fork` runs `--fork-session` (copies the resumed session into a new fork; needs resumeSessionId).
+   * `name` runs `--name` to set the session's display name (claude records it as a custom-title).
+   */
+  startTerminal(cwd: string, resumeSessionId?: string, tabToken?: string, fork?: boolean, name?: string): Promise<number>;
   onTerminalData(callback: (id: number, data: string) => void): void;
   onTerminalExit(callback: (id: number, exitCode: number) => void): void;
   sendTerminalInput(id: number, data: string): void;
