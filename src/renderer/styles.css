@@ -283,6 +283,7 @@ button:hover {
 /* Filter toggles: dimmed when off, accent-filled when on. */
 #pinned-filter,
 #worktree-filter,
+#fork-filter,
 #archived-filter {
   flex: 0 0 auto;
   padding: 5px 8px;
@@ -292,6 +293,7 @@ button:hover {
 
 #pinned-filter.active,
 #worktree-filter.active,
+#fork-filter.active,
 #archived-filter.active {
   opacity: 1;
   border-color: var(--accent);
@@ -1041,6 +1043,13 @@ button:hover {
 /* Hover cue on inactive tabs (the active one keeps its accent styling). */
 .tab:not(.active):hover {
   background: var(--surface-hover);
+}
+
+/* Fork marker on a tab: forks share their parent's title, so this distinguishes them. */
+.tab-fork {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--accent);
 }
 
 .tab-label {

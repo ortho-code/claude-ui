@@ -109,6 +109,7 @@ export interface FilterCriteria {
   text: string;
   pinnedOnly: boolean;
   worktreeOnly: boolean;
+  forksOnly: boolean;
   archivedOnly: boolean;
   dateFrom: number | null;
   dateTo: number | null;
@@ -126,6 +127,7 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   if (c.archivedOnly !== c.archived.has(key)) return false;
   if (c.pinnedOnly && !c.pinned.has(key)) return false;
   if (c.worktreeOnly && !session.worktree) return false;
+  if (c.forksOnly && !session.isFork) return false;
   if (c.dateFrom !== null || c.dateTo !== null) {
     const activity = new Date(session.lastActivity).getTime();
     if (c.dateFrom !== null && activity < c.dateFrom) return false;

@@ -34,6 +34,7 @@ const container = document.getElementById('sessions')!;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const pinnedFilter = document.getElementById('pinned-filter') as HTMLButtonElement;
 const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonElement;
+const forkFilter = document.getElementById('fork-filter') as HTMLButtonElement;
 const archivedFilter = document.getElementById('archived-filter') as HTMLButtonElement;
 const filterToggle = document.getElementById('filter-toggle') as HTMLButtonElement;
 const filterPanel = document.getElementById('filter-panel')!;
@@ -190,6 +191,7 @@ let allSessions: SessionSummary[] = [];
 let filterText = '';
 let showPinnedOnly = false;
 let showWorktreeOnly = false;
+let showForksOnly = false;
 let showArchivedOnly = false;
 // The project the switcher is scoped to; null = "All" (the grouped overview). In-memory for now;
 // Phase 3 persists it.
@@ -382,7 +384,7 @@ async function refreshFromDisk(): Promise<void> {
 
 // Any filter active? Used to auto-expand groups with matches and to show the filter status.
 function isFiltering(): boolean {
-  return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showArchivedOnly || datePreset !== 'any';
+  return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showForksOnly || showArchivedOnly || datePreset !== 'any';
 }
 
 // Adapt the current filter state to the pure predicate.
@@ -391,6 +393,7 @@ function passesFilters(session: SessionSummary): boolean {
     text: filterText,
     pinnedOnly: showPinnedOnly,
     worktreeOnly: showWorktreeOnly,
+    forksOnly: showForksOnly,
     archivedOnly: showArchivedOnly,
     dateFrom: dateFromMs,
     dateTo: dateToMs,
@@ -465,6 +468,8 @@ function updateFilterStatus(matches: number, total: number): void {
   pinnedFilter.setAttribute('aria-pressed', String(showPinnedOnly));
   worktreeFilter.classList.toggle('active', showWorktreeOnly);
   worktreeFilter.setAttribute('aria-pressed', String(showWorktreeOnly));
+  forkFilter.classList.toggle('active', showForksOnly);
+  forkFilter.setAttribute('aria-pressed', String(showForksOnly));
   archivedFilter.classList.toggle('active', showArchivedOnly);
   archivedFilter.setAttribute('aria-pressed', String(showArchivedOnly));
   // The toggle carries the accent when any filter is on, so an active filter is visible even
@@ -478,6 +483,7 @@ function clearFilter(): void {
   filterText = '';
   showPinnedOnly = false;
   showWorktreeOnly = false;
+  showForksOnly = false;
   showArchivedOnly = false;
   suppressPickerSelect = true;
   datePicker.clear();
@@ -1443,6 +1449,15 @@ function tabElement(tab: Tab): HTMLElement {
     toggleAck(tab.session.id);
   });
 
+  // Forks share their parent's title, so mark the tab too (matching the sidebar row's badge).
+  const forkMark = document.createElement('span');
+  forkMark.className = 'tab-fork';
+  forkMark.textContent = '⑂';
+  if (tab.session.isFork) {
+    const parent = tab.session.parentId ? allSessions.find((s) => s.id === tab.session.parentId) : undefined;
+    setTooltip(forkMark, `Forked from ${parent?.title || parent?.firstMessage || 'the original session'}`);
+  }
+
   const label = document.createElement('span');
   label.className = 'tab-label';
   const text = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
@@ -1459,7 +1474,7 @@ function tabElement(tab: Tab): HTMLElement {
   });
 
   el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
-  el.append(dot, label, close);
+  el.append(dot, ...(tab.session.isFork ? [forkMark] : []), label, close);
   el.addEventListener('click', () => {
     activateTab(tab);
     revealSessionInSidebar(tab.session);
@@ -1620,6 +1635,11 @@ pinnedFilter.addEventListener('click', () => {
 });
 worktreeFilter.addEventListener('click', () => {
   showWorktreeOnly = !showWorktreeOnly;
+  renderList();
+  container.scrollTop = 0;
+});
+forkFilter.addEventListener('click', () => {
+  showForksOnly = !showForksOnly;
   renderList();
   container.scrollTop = 0;
 });

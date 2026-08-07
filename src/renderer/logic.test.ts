@@ -100,6 +100,7 @@ describe('sessionPasses', () => {
     text: '',
     pinnedOnly: false,
     worktreeOnly: false,
+    forksOnly: false,
     archivedOnly: false,
     dateFrom: null,
     dateTo: null,
@@ -121,6 +122,8 @@ describe('sessionPasses', () => {
     expect(sessionPasses(session({ conversationId: 'c' }), { ...base, pinnedOnly: true, pinned: new Set(['c']) })).toBe(true);
     expect(sessionPasses(session({ worktree: '' }), { ...base, worktreeOnly: true })).toBe(false);
     expect(sessionPasses(session({ worktree: 'wt' }), { ...base, worktreeOnly: true })).toBe(true);
+    expect(sessionPasses(session({ isFork: false }), { ...base, forksOnly: true })).toBe(false);
+    expect(sessionPasses(session({ isFork: true }), { ...base, forksOnly: true })).toBe(true);
     expect(sessionPasses(session({ title: 'Fix the bug' }), { ...base, text: 'BUG' })).toBe(true);
     expect(sessionPasses(session({ title: 'Fix the bug' }), { ...base, text: 'perf' })).toBe(false);
     const activity = Date.parse('2026-07-28T10:00:00.000Z');
