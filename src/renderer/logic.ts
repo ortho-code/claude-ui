@@ -3,11 +3,19 @@
 import type { SessionSummary } from '../shared/types';
 
 // Collapse sessions to one entry per conversation: the active tip (latest activity).
+// The stable key for a displayed session entity: a fork stands on its own (its session id), while
+// everything else collapses by conversation (compaction/desktop branches share it). Used for row
+// identity, tips, and pin/archive/delete keying, so a fork is independent of its family.
+export function entityKey(s: SessionSummary): string {
+  return s.isFork ? s.id : s.conversationId;
+}
+
 export function tipsByConversation(sessions: SessionSummary[]): Map<string, SessionSummary> {
   const tips = new Map<string, SessionSummary>();
   for (const s of sessions) {
-    const prev = tips.get(s.conversationId);
-    if (!prev || s.lastActivity > prev.lastActivity) tips.set(s.conversationId, s);
+    const key = entityKey(s);
+    const prev = tips.get(key);
+    if (!prev || s.lastActivity > prev.lastActivity) tips.set(key, s);
   }
   return tips;
 }
@@ -113,9 +121,10 @@ export interface FilterCriteria {
 // Whether a session survives every active filter. Archived sessions are hidden from the normal
 // list and are the only ones shown in the archived view; the toggle flips which set is visible.
 export function sessionPasses(session: SessionSummary, c: FilterCriteria): boolean {
-  if (c.pendingDeletes.has(session.conversationId)) return false;
-  if (c.archivedOnly !== c.archived.has(session.conversationId)) return false;
-  if (c.pinnedOnly && !c.pinned.has(session.conversationId)) return false;
+  const key = entityKey(session);
+  if (c.pendingDeletes.has(key)) return false;
+  if (c.archivedOnly !== c.archived.has(key)) return false;
+  if (c.pinnedOnly && !c.pinned.has(key)) return false;
   if (c.worktreeOnly && !session.worktree) return false;
   if (c.dateFrom !== null || c.dateTo !== null) {
     const activity = new Date(session.lastActivity).getTime();

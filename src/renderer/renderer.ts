@@ -9,6 +9,7 @@ import {
   groupByRepo,
   groupName,
   displayName,
+  entityKey,
   reorderWithinGroup,
   relativeTime,
   modelLabel,
@@ -202,8 +203,8 @@ let dateToMs: number | null = null;
 let lastSignature = '';
 // Status dots by tip session id; rebuilt each render (a status event names a session id).
 const statusDots = new Map<string, HTMLElement>();
-// Row elements by conversationId, reused across renders so a re-render moves nodes instead of
-// recreating them — no flicker, no scroll jump, hover/focus preserved.
+// Row elements by entity key (a fork's own id, else conversationId), reused across renders so a
+// re-render moves nodes instead of recreating them — no flicker, no scroll jump, hover/focus kept.
 const sessionRows = new Map<string, HTMLElement>();
 const collapsedGroups = new Set<string>();
 
@@ -215,8 +216,8 @@ interface GroupEls {
 }
 // Group sections by group name, reused across renders (same reason as sessionRows).
 const groupSections = new Map<string, GroupEls>();
-// The session each row currently shows, by conversationId, so a reused row's click/pin handlers
-// act on the live tip even after the conversation branches.
+// The session each row currently shows, by entity key, so a reused row's click/pin handlers act on
+// the live tip even after the conversation branches.
 let currentTips = new Map<string, SessionSummary>();
 
 function isOpen(id: string): boolean {
@@ -310,10 +311,11 @@ let restoring = false;
 // Collapse sessions to one entry per conversation: the active tip (latest activity).
 function persistOpenTabs(): void {
   if (restoring) return;
-  // Persist conversation keys so a tab reopens on the current tip even if the conversation
-  // branched out of band. Fall back to the tab's own key before it has reconciled to disk.
-  const idToConv = new Map(allSessions.map((s) => [s.id, s.conversationId]));
-  window.claudeUi.setOpenSessions(tabs.map((t) => idToConv.get(t.session.id) ?? t.session.conversationId));
+  // Persist entity keys so a tab reopens on the current tip even if the conversation branched out of
+  // band; a fork keys by its own id so it reopens as the fork, not its parent. Fall back to the
+  // tab's own conversationId before it has reconciled to disk.
+  const idToKey = new Map(allSessions.map((s) => [s.id, entityKey(s)]));
+  window.claudeUi.setOpenSessions(tabs.map((t) => idToKey.get(t.session.id) ?? t.session.conversationId));
 }
 
 async function restoreOpenTabs(): Promise<void> {
@@ -523,6 +525,14 @@ function jumpToSession(session: SessionSummary): void {
   void openSession(session);
 }
 
+// Open a fork's origin (its parent session) from the fork badge. The parent id is the exact session
+// the fork was branched from; open that session directly if it's still on disk.
+function jumpToOrigin(parentId: string): void {
+  const parent = allSessions.find((s) => s.id === parentId);
+  if (parent) jumpToSession(parent);
+  else showToast("The original session isn't here anymore.");
+}
+
 // Cross-project attention strip in the sidebar footer. The toggle badge is the same overall roll-up
 // as the switcher header; expanded, it lists the nudged SESSIONS grouped under their project (each a
 // row: state dot + session title), click one to jump to it. Muted "all clear" when nothing pending.
@@ -662,7 +672,7 @@ function visibleSessions(): SessionSummary[] {
 // The switcher's project pool: every project's tips minus archived/pending-delete, independent of
 // the search text and active folder so you can always navigate to any project.
 function switcherPool(all: SessionSummary[]): SessionSummary[] {
-  return all.filter((s) => !archived.has(s.conversationId) && !pendingDeletes.has(s.conversationId));
+  return all.filter((s) => !archived.has(entityKey(s)) && !pendingDeletes.has(entityKey(s)));
 }
 
 // Repaint just the switcher (header + popover badges) — used when a status/ack change should update
@@ -681,7 +691,7 @@ function renderList(): void {
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the
   // list immediately, in the right folder group; they reconcile to the real entry once created.
   const all = visibleSessions();
-  currentTips = new Map(all.map((s) => [s.conversationId, s]));
+  currentTips = new Map(all.map((s) => [entityKey(s), s]));
   // The switcher lists every project, independent of search/folder, so you can always navigate. If
   // the active folder no longer has any sessions, fall back to All (and persist that).
   const pool = switcherPool(all);
@@ -708,7 +718,7 @@ function renderList(): void {
 
   // Pinned sessions float to the top of their group (a stable sort keeps activity order otherwise).
   const pinFirst = (a: SessionSummary, b: SessionSummary): number =>
-    (pinned.has(b.conversationId) ? 1 : 0) - (pinned.has(a.conversationId) ? 1 : 0);
+    (pinned.has(entityKey(b)) ? 1 : 0) - (pinned.has(entityKey(a)) ? 1 : 0);
 
   // One group per repo. A specific project scopes `scoped` to that folder, so this yields its single
   // group (heading + "+" and all); "All" shows every project.
@@ -719,7 +729,7 @@ function renderList(): void {
   }
 
   reconcileGroups(desired);
-  pruneRows(new Set(scoped.map((s) => s.conversationId)));
+  pruneRows(new Set(scoped.map((s) => entityKey(s))));
 
   container.scrollTop = scroll;
   updateSidebarHighlight();
@@ -787,7 +797,7 @@ function reconcileGroups(desired: DesiredGroup[]): void {
     els.count.textContent = String(group.sessions.length);
     els.label.textContent = projName(group.name); // keep the heading name current (e.g. after a rename)
     for (const session of group.sessions) {
-      const row = getOrCreateRow(session.conversationId);
+      const row = getOrCreateRow(entityKey(session));
       updateRow(row, session);
       els.section.appendChild(row);
     }
@@ -795,12 +805,12 @@ function reconcileGroups(desired: DesiredGroup[]): void {
   }
 }
 
-// Remove rows whose conversation is no longer shown (deleted, or filtered out by search).
+// Remove rows whose entity is no longer shown (deleted, or filtered out by search).
 function pruneRows(wanted: Set<string>): void {
-  for (const [conversationId, row] of sessionRows) {
-    if (!wanted.has(conversationId)) {
+  for (const [key, row] of sessionRows) {
+    if (!wanted.has(key)) {
       row.remove();
-      sessionRows.delete(conversationId);
+      sessionRows.delete(key);
     }
   }
 }
@@ -919,7 +929,7 @@ function revealSessionInSidebar(session: SessionSummary): void {
     collapsedGroups.delete(session.repoRoot);
     renderList();
   }
-  const row = sessionRows.get(session.conversationId);
+  const row = sessionRows.get(entityKey(session));
   if (!row) return;
   // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole
   // app). Land the row just below the sticky heading.
@@ -995,11 +1005,11 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   return { section, caret, count, label };
 }
 
-function getOrCreateRow(conversationId: string): HTMLElement {
-  const existing = sessionRows.get(conversationId);
+function getOrCreateRow(key: string): HTMLElement {
+  const existing = sessionRows.get(key);
   if (existing) return existing;
-  const row = createSessionRow(conversationId);
-  sessionRows.set(conversationId, row);
+  const row = createSessionRow(key);
+  sessionRows.set(key, row);
   return row;
 }
 
@@ -1013,6 +1023,7 @@ interface RowEls {
   dot: HTMLElement;
   title: HTMLElement;
   badge: HTMLElement;
+  forkBadge: HTMLElement;
   meta: HTMLElement;
   metaWhen: HTMLElement;
   metaStats: HTMLElement;
@@ -1024,18 +1035,18 @@ interface RowEls {
 // DOM every render (same idea as the session summary cache, applied to rendering).
 const rowEls = new WeakMap<HTMLElement, RowEls>();
 
-// Build a row once. Its click/pin handlers read the live tip from `currentTips` by
-// conversationId, so a reused row stays correct after the conversation branches.
-function createSessionRow(conversationId: string): HTMLElement {
+// Build a row once. Its click/pin handlers read the live tip from `currentTips` by the entity key
+// (a fork's own id, else the conversationId), so a reused row stays correct after it branches.
+function createSessionRow(key: string): HTMLElement {
   const item = document.createElement('article');
   item.className = 'session';
-  item.dataset.cid = conversationId;
+  item.dataset.cid = key;
 
   const dot = document.createElement('span');
   // Click the dot to toggle "read": mute a done/waiting session without opening or replying to it.
   dot.addEventListener('click', (event) => {
     event.stopPropagation();
-    const session = currentTips.get(conversationId);
+    const session = currentTips.get(key);
     if (session) toggleAck(session.id);
   });
   const content = document.createElement('div');
@@ -1045,6 +1056,17 @@ function createSessionRow(conversationId: string): HTMLElement {
   const badge = document.createElement('span');
   badge.className = 'worktree-badge';
   badge.hidden = true;
+  // A fork stands on its own row (same title as its parent); this badge marks it and jumps to the
+  // origin on click. Shown only when session.isFork (set in updateRow).
+  const forkBadge = document.createElement('span');
+  forkBadge.className = 'fork-badge';
+  forkBadge.textContent = '⑂ fork';
+  forkBadge.hidden = true;
+  forkBadge.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const session = currentTips.get(key);
+    if (session?.parentId) jumpToOrigin(session.parentId);
+  });
   const meta = document.createElement('p');
   meta.className = 'session-meta';
   // Two logical groups (when · model / events · id) plus a separator that CSS hides when the meta
@@ -1057,7 +1079,7 @@ function createSessionRow(conversationId: string): HTMLElement {
   const metaStats = document.createElement('span');
   metaStats.className = 'meta-stats';
   meta.append(metaWhen, metaSep, metaStats);
-  content.append(title, badge, meta);
+  content.append(title, badge, forkBadge, meta);
 
   const pin = document.createElement('button');
   pin.className = 'pin';
@@ -1066,7 +1088,7 @@ function createSessionRow(conversationId: string): HTMLElement {
     if (pin.disabled) return;
     pin.disabled = true;
     pin.classList.add('loading');
-    pinned = new Set(await window.claudeUi.togglePin(conversationId));
+    pinned = new Set(await window.claudeUi.togglePin(key));
     renderList();
   });
 
@@ -1074,10 +1096,10 @@ function createSessionRow(conversationId: string): HTMLElement {
   archiveBtn.className = 'archive-btn';
   archiveBtn.addEventListener('click', async (event) => {
     event.stopPropagation();
-    archived = new Map(Object.entries(await window.claudeUi.toggleArchive(conversationId)));
+    archived = new Map(Object.entries(await window.claudeUi.toggleArchive(key)));
     // Archiving puts the session away, so close any open tab for it (unarchive leaves tabs alone).
-    if (archived.has(conversationId)) {
-      for (const tab of [...tabs]) if (tab.session.conversationId === conversationId) closeTab(tab);
+    if (archived.has(key)) {
+      for (const tab of [...tabs]) if (entityKey(tab.session) === key) closeTab(tab);
     }
     renderList();
   });
@@ -1091,20 +1113,22 @@ function createSessionRow(conversationId: string): HTMLElement {
     '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" /></svg>';
   deleteBtn.addEventListener('click', async (event) => {
     event.stopPropagation();
-    const session = currentTips.get(conversationId);
-    const title = session?.title || session?.firstMessage || conversationId.slice(0, 8);
+    const session = currentTips.get(key);
+    const title = session?.title || session?.firstMessage || key.slice(0, 8);
     if (!(await confirmDelete(title))) return;
-    const ids = allSessions.filter((s) => s.conversationId === conversationId).map((s) => s.id);
+    // Delete only this entity's files: for a fork that's its own file; for a base conversation its
+    // compaction/desktop branches (same entityKey) but NOT its forks, which are separate entities.
+    const ids = allSessions.filter((s) => entityKey(s) === key).map((s) => s.id);
     // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta
     // purge run in the background. It stays hidden via pendingDeletes until its files are gone
     // from disk (see renderSessions), so a concurrent delete's re-read can't resurrect it.
-    pendingDeletes.add(conversationId);
+    pendingDeletes.add(key);
     renderList();
     try {
       // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat
       // it as failed so the row can't stay hidden forever within a session.
       await Promise.race([
-        window.claudeUi.deleteConversation({ conversationId, ids }),
+        window.claudeUi.deleteConversation({ conversationId: key, ids }),
         new Promise((_resolve, reject) => setTimeout(() => reject(new Error('delete timed out')), 30_000)),
       ]);
     } catch {
@@ -1112,17 +1136,17 @@ function createSessionRow(conversationId: string): HTMLElement {
     } finally {
       // Stop hiding once this delete resolves: on success the re-read finds it gone; on failure
       // the file is still on disk, so the row reappears.
-      pendingDeletes.delete(conversationId);
+      pendingDeletes.delete(key);
       await renderSessions(false);
     }
   });
 
   item.append(dot, content, pin, archiveBtn, deleteBtn);
-  rowEls.set(item, { dot, title, badge, meta, metaWhen, metaStats, pin, archiveBtn, deleteBtn });
+  rowEls.set(item, { dot, title, badge, forkBadge, meta, metaWhen, metaStats, pin, archiveBtn, deleteBtn });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
-    const session = currentTips.get(conversationId);
+    const session = currentTips.get(key);
     if (session) void openSession(session);
   });
   return item;
@@ -1145,8 +1169,15 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
     setTooltip(els.badge, `Linked git worktree: ${session.worktree}`);
   }
 
+  els.forkBadge.hidden = !session.isFork;
+  if (session.isFork) {
+    const parent = session.parentId ? allSessions.find((s) => s.id === session.parentId) : undefined;
+    const parentTitle = parent?.title || parent?.firstMessage || 'the original session';
+    setTooltip(els.forkBadge, `Forked from ${parentTitle} — click to open it`);
+  }
+
   if (showArchivedOnly) {
-    const ts = archived.get(session.conversationId);
+    const ts = archived.get(entityKey(session));
     els.metaWhen.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
     els.metaStats.textContent = '';
     els.meta.classList.add('solo'); // one group only: no separator, never stacks
@@ -1160,7 +1191,7 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   }
 
   // The archived view is a management view: no pinning, and delete replaces it there.
-  const isPinned = pinned.has(session.conversationId);
+  const isPinned = pinned.has(entityKey(session));
   els.pin.textContent = isPinned ? '★' : '☆';
   setTooltip(els.pin, isPinned ? 'Unpin' : 'Pin');
   els.pin.disabled = false;
@@ -1206,6 +1237,9 @@ async function openNewSession(cwd: string): Promise<void> {
     model: '',
     lastActivity: new Date().toISOString(),
     eventCount: 0,
+    isFork: false,
+    parentId: null,
+    forkCount: 0,
   };
   // Land where the new session's tab will be visible: stay in its own project, else drop to All.
   if (activeFolder !== null && session.repoRoot !== activeFolder) {

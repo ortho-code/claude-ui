@@ -942,7 +942,8 @@ button:hover {
   display: none;
 }
 
-.worktree-badge {
+.worktree-badge,
+.fork-badge {
   display: inline-block;
   max-width: 100%;
   margin: 3px 0 1px;
@@ -956,6 +957,17 @@ button:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
+}
+
+/* The fork badge shares the worktree badge's look; it's clickable (jumps to the origin), so it also
+   gets a pointer cursor and a subtle fill on hover to signal that. */
+.fork-badge {
+  cursor: pointer;
+}
+
+.fork-badge:hover {
+  background: var(--accent);
+  color: var(--bg);
 }
 
 .empty-message {

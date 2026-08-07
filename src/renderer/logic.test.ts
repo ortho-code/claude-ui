@@ -27,6 +27,9 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     model: '',
     lastActivity: '2026-07-28T10:00:00.000Z',
     eventCount: 1,
+    isFork: false,
+    parentId: null,
+    forkCount: 0,
     ...over,
   };
 }
@@ -239,5 +242,17 @@ describe('displayName', () => {
     expect(displayName('/x/beta', names)).toBe('beta');
     expect(displayName('/x/beta')).toBe('beta'); // no map at all
     expect(displayName('/x/alpha', new Map([['/x/alpha', '']]))).toBe('alpha'); // blank falls back
+  });
+});
+
+describe('tipsByConversation with forks', () => {
+  it('collapses non-forks by conversation but keeps each fork as its own tip', () => {
+    const base = session({ id: 'base', conversationId: 'C', isFork: false, lastActivity: '2026-01-01' });
+    const branch = session({ id: 'branch', conversationId: 'C', isFork: false, lastActivity: '2026-01-03' });
+    const fork = session({ id: 'fork', conversationId: 'C', isFork: true, parentId: 'base', lastActivity: '2026-01-02' });
+    const tips = tipsByConversation([base, branch, fork]);
+    expect(tips.size).toBe(2); // conversation C (latest non-fork) + the fork on its own
+    expect(tips.get('C')?.id).toBe('branch');
+    expect(tips.get('fork')?.id).toBe('fork');
   });
 });

@@ -19,6 +19,12 @@ export interface SessionSummary {
   lastActivity: string;
   /** Number of transcript lines (events) in the session. */
   eventCount: number;
+  /** This session is a fork of another (its transcript extends an ancestor in the same family). */
+  isFork: boolean;
+  /** The session id this one forked from, when isFork; null otherwise. */
+  parentId: string | null;
+  /** How many other sessions forked directly from this one (0 for most). */
+  forkCount: number;
 }
 
 export interface ClaudeUiApi {
