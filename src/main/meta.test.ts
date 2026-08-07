@@ -83,6 +83,35 @@ describe('migrateToConversationKeys', () => {
   });
 });
 
+describe('corruption safety', () => {
+  it('recovers from the backup when the main file is corrupted, and preserves the corrupt copy', async () => {
+    await togglePin('conv1'); // first write: creates meta.json
+    await setActiveFolder('/x'); // second write: backs up the good meta.json to meta.json.bak
+    // Simulate a write truncated by a crash.
+    await fs.writeFile(path.join(dir, 'meta.json'), '{ "pinned": ["conv1"');
+    // The read falls back to the backup instead of silently resetting.
+    expect(await getPinned()).toEqual(['conv1']);
+    // The unparseable content is preserved for recovery, not discarded.
+    const files = await fs.readdir(dir);
+    expect(files.some((f) => f.startsWith('meta.json.corrupt-'))).toBe(true);
+  });
+
+  it('recovers from the backup when the main file is missing', async () => {
+    await togglePin('conv1');
+    await setActiveFolder('/x'); // creates meta.json.bak holding pinned: [conv1]
+    await fs.rm(path.join(dir, 'meta.json'));
+    expect(await getPinned()).toEqual(['conv1']);
+  });
+
+  it('keeps the previous good copy in .bak and never leaves a temp file behind', async () => {
+    await togglePin('conv1');
+    await togglePin('conv2'); // backs up the {pinned:[conv1]} state before writing conv2
+    const bak = JSON.parse(await fs.readFile(path.join(dir, 'meta.json.bak'), 'utf8'));
+    expect(bak.pinned).toEqual(['conv1']);
+    expect((await fs.readdir(dir)).some((f) => f.endsWith('.tmp'))).toBe(false);
+  });
+});
+
 describe('active folder', () => {
   it('defaults to null and round-trips a project and back to All', async () => {
     expect(await getActiveFolder()).toBeNull();

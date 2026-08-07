@@ -24,36 +24,82 @@ function metaPath(): string {
   return path.join(app.getPath('userData'), 'meta.json');
 }
 
-async function readMeta(): Promise<Meta> {
+function defaults(): Meta {
+  return { pinned: [], openSessions: [], archived: {}, activeFolder: null, projectNames: {}, version: 2 };
+}
+
+// Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
+function normalize(parsed: Record<string, unknown>): Meta {
+  // `archived` was once a plain id list; migrate that to the id->timestamp map (0 = unknown).
+  const rawArchived = parsed.archived;
+  let archived: Record<string, number> = {};
+  if (Array.isArray(rawArchived)) {
+    for (const id of rawArchived) if (typeof id === 'string') archived[id] = 0;
+  } else if (rawArchived && typeof rawArchived === 'object') {
+    archived = rawArchived as Record<string, number>;
+  }
+  return {
+    pinned: Array.isArray(parsed.pinned) ? (parsed.pinned as string[]) : [],
+    openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
+    archived,
+    activeFolder: typeof parsed.activeFolder === 'string' ? parsed.activeFolder : null,
+    projectNames:
+      parsed.projectNames && typeof parsed.projectNames === 'object'
+        ? (parsed.projectNames as Record<string, string>)
+        : {},
+    version: typeof parsed.version === 'number' ? parsed.version : 1,
+  };
+}
+
+// The last known-good copy, kept by writeMeta before each overwrite so a corrupt main file can be
+// recovered instead of silently reset. Returns null when there's no usable backup.
+async function readBackup(): Promise<Meta | null> {
   try {
-    const parsed = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Record<string, unknown>;
-    // `archived` was once a plain id list; migrate that to the id->timestamp map (0 = unknown).
-    const rawArchived = parsed.archived;
-    let archived: Record<string, number> = {};
-    if (Array.isArray(rawArchived)) {
-      for (const id of rawArchived) if (typeof id === 'string') archived[id] = 0;
-    } else if (rawArchived && typeof rawArchived === 'object') {
-      archived = rawArchived as Record<string, number>;
-    }
-    return {
-      pinned: Array.isArray(parsed.pinned) ? (parsed.pinned as string[]) : [],
-      openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
-      archived,
-      activeFolder: typeof parsed.activeFolder === 'string' ? parsed.activeFolder : null,
-      projectNames:
-        parsed.projectNames && typeof parsed.projectNames === 'object'
-          ? (parsed.projectNames as Record<string, string>)
-          : {},
-      version: typeof parsed.version === 'number' ? parsed.version : 1,
-    };
+    return normalize(JSON.parse(await fs.readFile(metaPath() + '.bak', 'utf8')) as Record<string, unknown>);
   } catch {
-    return { pinned: [], openSessions: [], archived: {}, activeFolder: null, projectNames: {}, version: 2 };
+    return null;
+  }
+}
+
+async function readMeta(): Promise<Meta> {
+  let raw: string;
+  try {
+    raw = await fs.readFile(metaPath(), 'utf8');
+  } catch {
+    // No file yet (first run) or it was moved aside: prefer the last good backup, else defaults.
+    return (await readBackup()) ?? defaults();
+  }
+  try {
+    return normalize(JSON.parse(raw) as Record<string, unknown>);
+  } catch {
+    // The file exists but won't parse (e.g. a write truncated by a crash). Preserve it for recovery
+    // rather than silently resetting, then fall back to the last good backup before defaults.
+    try {
+      await fs.writeFile(`${metaPath()}.corrupt-${Date.now()}.json`, raw);
+    } catch {
+      // Best-effort: if we can't preserve it, still recover below.
+    }
+    return (await readBackup()) ?? defaults();
   }
 }
 
 async function writeMeta(meta: Meta): Promise<void> {
-  await fs.mkdir(path.dirname(metaPath()), { recursive: true });
-  await fs.writeFile(metaPath(), JSON.stringify(meta, null, 2));
+  const file = metaPath();
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  // Keep the current file as the backup only if it's valid, so a corrupt main file can't clobber a
+  // good backup. This is the recovery point readMeta falls back to.
+  try {
+    const current = await fs.readFile(file, 'utf8');
+    JSON.parse(current); // back up only parseable content
+    await fs.writeFile(`${file}.bak`, current);
+  } catch {
+    // No existing file (first write) or it's already corrupt: leave any prior .bak untouched.
+  }
+  // Atomic replace: write a temp file then rename over the target, so a crash mid-write leaves the
+  // live meta.json intact (rename is atomic on the same filesystem).
+  const tmp = `${file}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(meta, null, 2));
+  await fs.rename(tmp, file);
 }
 
 /**
