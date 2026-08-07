@@ -111,6 +111,9 @@ app.on('before-quit', (event) => {
   if (quitting) return;
   quitting = true;
   event.preventDefault();
+  // Tell the renderer we're shutting down before killing terminals, so the tab-close it triggers
+  // for each dying pty doesn't persist an empty open-tabs list over the real one.
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:quitting');
   terminateAll();
   setTimeout(() => app.quit(), 1500);
 });

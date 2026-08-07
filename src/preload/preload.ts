@@ -4,6 +4,7 @@ import type { ClaudeUiApi } from '../shared/types';
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
   onSessionsChanged: (callback) => ipcRenderer.on('sessions:changed', () => callback()),
+  onQuitting: (callback) => ipcRenderer.on('app:quitting', () => callback()),
   getPinned: () => ipcRenderer.invoke('meta:getPinned'),
   togglePin: (id) => ipcRenderer.invoke('meta:togglePin', id),
   getArchived: () => ipcRenderer.invoke('meta:getArchived'),

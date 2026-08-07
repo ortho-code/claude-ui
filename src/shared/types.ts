@@ -31,6 +31,8 @@ export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
   /** Fires when a session transcript on disk is created or changes (debounced). */
   onSessionsChanged(callback: () => void): void;
+  /** Fires once when the app is shutting down, before its terminals are torn down. */
+  onQuitting(callback: () => void): void;
   /** Session ids the user has pinned. */
   getPinned(): Promise<string[]>;
   /** Toggle a session's pin; resolves to the updated pinned list. */

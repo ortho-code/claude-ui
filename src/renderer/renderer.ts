@@ -307,10 +307,14 @@ const tabs: Tab[] = [];
 let activeTab: Tab | null = null;
 let activationSeq = 0;
 let restoring = false;
+// Set once the app is quitting. Shutdown kills every terminal, and each pty exit closes its tab; we
+// must not let those closes persist an empty open-tabs list over the real one (it would wipe the
+// tabs to restore next launch). Set via onQuitting, below.
+let shuttingDown = false;
 
 // Collapse sessions to one entry per conversation: the active tip (latest activity).
 function persistOpenTabs(): void {
-  if (restoring) return;
+  if (restoring || shuttingDown) return;
   // Persist entity keys so a tab reopens on the current tip even if the conversation branched out of
   // band; a fork keys by its own id so it reopens as the fork, not its parent. Fall back to the
   // tab's own conversationId before it has reconciled to disk.
@@ -1552,6 +1556,12 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
 
 // The sidebar keeps itself current: a transcript created or changed on disk re-renders it.
 window.claudeUi.onSessionsChanged(() => void refreshFromDisk());
+
+// Stop persisting open tabs once shutdown starts, so the terminal-exit closes it triggers don't
+// overwrite the saved tab list with an empty one (see the shuttingDown note above).
+window.claudeUi.onQuitting(() => {
+  shuttingDown = true;
+});
 
 function fitActive(): void {
   if (!activeTab) return;
