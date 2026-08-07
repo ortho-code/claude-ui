@@ -5,6 +5,7 @@ import {
   structuralSignature,
   groupByRepo,
   groupName,
+  displayName,
   relativeTime,
   datePresetRange,
   sessionPasses,
@@ -228,5 +229,15 @@ describe('reorderWithinGroup', () => {
     const a = { id: 'a', g: 'x' }, b = { id: 'b', g: 'x' };
     expect(ids(reorderWithinGroup([a, b], key, a, 9))).toEqual(['b', 'a']);
     expect(ids(reorderWithinGroup([a, b], key, { id: 'z', g: 'x' }, 0))).toEqual(['a', 'b']);
+  });
+});
+
+describe('displayName', () => {
+  it('uses the rename override when present, else the folder name', () => {
+    const names = new Map([['/x/alpha', 'My Project']]);
+    expect(displayName('/x/alpha', names)).toBe('My Project');
+    expect(displayName('/x/beta', names)).toBe('beta');
+    expect(displayName('/x/beta')).toBe('beta'); // no map at all
+    expect(displayName('/x/alpha', new Map([['/x/alpha', '']]))).toBe('alpha'); // blank falls back
   });
 });

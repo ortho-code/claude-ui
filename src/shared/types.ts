@@ -43,6 +43,8 @@ export interface ClaudeUiApi {
   setOpenSessions(ids: string[]): void;
   getActiveFolder(): Promise<string | null>;
   setActiveFolder(folder: string | null): void;
+  getProjectNames(): Promise<Record<string, string>>;
+  setProjectName(repoRoot: string, name: string): Promise<Record<string, string>>;
   /** Open a folder picker; resolves to the chosen path or null if cancelled. */
   pickFolder(): Promise<string | null>;
   /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */

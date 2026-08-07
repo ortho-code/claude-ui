@@ -8,6 +8,7 @@ import {
   structuralSignature,
   groupByRepo,
   groupName,
+  displayName,
   reorderWithinGroup,
   relativeTime,
   modelLabel,
@@ -78,6 +79,11 @@ const confirmMessage = document.getElementById('confirm-message')!;
 const confirmDetail = document.getElementById('confirm-detail')!;
 const confirmOk = document.getElementById('confirm-ok') as HTMLButtonElement;
 const confirmCancel = document.getElementById('confirm-cancel') as HTMLButtonElement;
+const renameOverlay = document.getElementById('rename-overlay')!;
+const renamePath = document.getElementById('rename-path')!;
+const renameInput = document.getElementById('rename-input') as HTMLInputElement;
+const renameOk = document.getElementById('rename-ok') as HTMLButtonElement;
+const renameCancel = document.getElementById('rename-cancel') as HTMLButtonElement;
 const toast = document.getElementById('toast')!;
 const toastMessage = document.getElementById('toast-message')!;
 const toastClose = document.getElementById('toast-close') as HTMLButtonElement;
@@ -114,7 +120,7 @@ function showAttentionToast(tab: Tab, status: 'waiting' | 'idle'): void {
   title.textContent = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
   const proj = document.createElement('span');
   proj.className = 'notif-proj';
-  proj.textContent = groupName(tab.session.repoRoot);
+  proj.textContent = projName(tab.session.repoRoot);
   text.append(title, proj);
   const close = document.createElement('button');
   close.type = 'button';
@@ -170,6 +176,8 @@ function setLoading(on: boolean): void {
 
 let pinned = new Set<string>();
 let archived = new Map<string, number>();
+let projectNames = new Map<string, string>(); // repoRoot -> user rename override
+const projName = (repoRoot: string): string => displayName(repoRoot, projectNames);
 // Conversations whose delete is in flight: hidden from the list until that delete resolves, so a
 // concurrent delete's disk re-read can't briefly resurrect them.
 const pendingDeletes = new Set<string>();
@@ -203,6 +211,7 @@ interface GroupEls {
   section: HTMLElement;
   caret: HTMLElement;
   count: HTMLElement;
+  label: HTMLElement;
 }
 // Group sections by group name, reused across renders (same reason as sessionRows).
 const groupSections = new Map<string, GroupEls>();
@@ -330,16 +339,18 @@ async function restoreOpenTabs(): Promise<void> {
 async function renderSessions(showLoading = true): Promise<void> {
   if (showLoading) setLoading(true);
   try {
-    const [sessions, pinnedList, archivedList, statusMap] = await Promise.all([
+    const [sessions, pinnedList, archivedList, statusMap, namesMap] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getPinned(),
       window.claudeUi.getArchived(),
       window.claudeUi.getAllStatuses(),
+      window.claudeUi.getProjectNames(),
     ]);
     allSessions = sessions;
     applyDatePickerMinDate();
     pinned = new Set(pinnedList);
     archived = new Map(Object.entries(archivedList));
+    projectNames = new Map(Object.entries(namesMap));
     statuses = new Map(Object.entries(statusMap));
     lastSignature = structuralSignature(sessions);
     reconcileOpenTabs();
@@ -475,7 +486,7 @@ function clearFilter(): void {
 // Update the switcher header + popover from the visible project pool. The pool is every project's
 // tips (see renderList); the switcher is independent of search/folder so you can always navigate.
 function renderSwitcher(pool: SessionSummary[]): void {
-  const model = foldersForSwitcher(pool, statuses, acked);
+  const model = foldersForSwitcher(pool, statuses, acked, projectNames);
   const active = activeFolder ? model.folders.find((f) => f.repoRoot === activeFolder) : null;
   switcherName.textContent = active ? active.name : 'All';
 
@@ -527,7 +538,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
     if (!badge) continue;
     let group = groups.get(session.repoRoot);
     if (!group) {
-      group = { name: groupName(session.repoRoot), items: [] };
+      group = { name: projName(session.repoRoot), items: [] };
       groups.set(session.repoRoot, group);
     }
     group.items.push({ session, badge });
@@ -774,6 +785,7 @@ function reconcileGroups(desired: DesiredGroup[]): void {
     els.section.classList.toggle('collapsed', collapsed);
     els.caret.textContent = collapsed ? '▸' : '▾';
     els.count.textContent = String(group.sessions.length);
+    els.label.textContent = projName(group.name); // keep the heading name current (e.g. after a rename)
     for (const session of group.sessions) {
       const row = getOrCreateRow(session.conversationId);
       updateRow(row, session);
@@ -826,6 +838,80 @@ function confirmDelete(title: string): Promise<boolean> {
   });
 }
 
+// Small dialog to rename a project. Resolves the entered name, or null if cancelled. Prefilled with
+// the current display name; the full path is shown so it's clear which folder is being named.
+function promptRename(repoRoot: string): Promise<string | null> {
+  renamePath.textContent = repoRoot;
+  renameInput.value = projName(repoRoot);
+  renameOverlay.hidden = false;
+  renameInput.focus();
+  renameInput.select();
+  return new Promise((resolve) => {
+    const close = (result: string | null): void => {
+      renameOverlay.hidden = true;
+      renameOk.removeEventListener('click', onOk);
+      renameCancel.removeEventListener('click', onCancel);
+      renameOverlay.removeEventListener('click', onBackdrop);
+      renameInput.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+    const onOk = (): void => close(renameInput.value);
+    const onCancel = (): void => close(null);
+    const onBackdrop = (event: MouseEvent): void => {
+      if (event.target === renameOverlay) close(null);
+    };
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Enter') close(renameInput.value);
+      else if (event.key === 'Escape') close(null);
+    };
+    renameOk.addEventListener('click', onOk);
+    renameCancel.addEventListener('click', onCancel);
+    renameOverlay.addEventListener('click', onBackdrop);
+    renameInput.addEventListener('keydown', onKey);
+  });
+}
+
+async function renameProject(repoRoot: string): Promise<void> {
+  const name = await promptRename(repoRoot);
+  if (name === null) return;
+  // Typing the folder name back clears the override rather than storing a redundant one.
+  const canonical = name.trim() === groupName(repoRoot) ? '' : name;
+  projectNames = new Map(Object.entries(await window.claudeUi.setProjectName(repoRoot, canonical)));
+  renderList();
+  renderTabBar();
+}
+
+// Per-project kebab menu on a group heading. One item for now (Rename); Hide joins it later.
+let headingMenu: HTMLElement | null = null;
+function closeHeadingMenu(): void {
+  headingMenu?.remove();
+  headingMenu = null;
+  document.removeEventListener('click', onHeadingMenuOutside, true);
+}
+function onHeadingMenuOutside(event: MouseEvent): void {
+  if (headingMenu && !headingMenu.contains(event.target as Node)) closeHeadingMenu();
+}
+function openHeadingMenu(repoRoot: string, anchor: HTMLElement): void {
+  closeHeadingMenu();
+  const menu = document.createElement('div');
+  menu.className = 'heading-menu';
+  const rename = document.createElement('button');
+  rename.type = 'button';
+  rename.textContent = 'Rename…';
+  rename.addEventListener('click', () => {
+    closeHeadingMenu();
+    void renameProject(repoRoot);
+  });
+  menu.append(rename);
+  document.body.append(menu);
+  const r = anchor.getBoundingClientRect();
+  menu.style.top = `${r.bottom + 4}px`;
+  menu.style.left = `${Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8))}px`;
+  headingMenu = menu;
+  // Defer so the click that opened it doesn't immediately close it.
+  setTimeout(() => document.addEventListener('click', onHeadingMenuOutside, true));
+}
+
 // Reveal a session's row in the sidebar (expanding its group if collapsed), so clicking a tab
 // scrolls to where it lives and shows which group it belongs to.
 function revealSessionInSidebar(session: SessionSummary): void {
@@ -866,8 +952,8 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   icon.innerHTML = FOLDER_ICON;
   const label = document.createElement('span');
   label.className = 'label';
-  setTooltip(label, name);
-  label.textContent = groupName(name);
+  setTooltip(label, name); // full path on hover
+  label.textContent = projName(name);
   const count = document.createElement('span');
   count.className = 'group-count';
   heading.append(caret, icon, label, count);
@@ -882,6 +968,16 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
     });
     heading.append(add);
   }
+  // Project options (rename now, hide later); stopPropagation so it doesn't toggle collapse.
+  const kebab = document.createElement('button');
+  kebab.className = 'group-kebab';
+  kebab.textContent = '⋮';
+  setTooltip(kebab, 'Project options');
+  kebab.addEventListener('click', (event) => {
+    event.stopPropagation();
+    openHeadingMenu(name, kebab);
+  });
+  heading.append(kebab);
   // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker. Keep the
   // clicked heading anchored: a sticky heading otherwise snaps between stuck and natural
   // position as its rows appear/disappear, which reads as a jump.
@@ -896,7 +992,7 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   });
   section.appendChild(heading);
 
-  return { section, caret, count };
+  return { section, caret, count, label };
 }
 
 function getOrCreateRow(conversationId: string): HTMLElement {
@@ -1287,7 +1383,7 @@ function renderTabBar(): void {
     group.className = 'tab-group';
     const label = document.createElement('span');
     label.className = 'tab-group-label';
-    label.textContent = groupName(root);
+    label.textContent = projName(root);
     setTooltip(label, root);
     label.addEventListener('click', () => revealFolderInSidebar(root));
     group.append(label, ...byRoot.get(root)!.map(tabElement));
@@ -1313,7 +1409,7 @@ function tabElement(tab: Tab): HTMLElement {
   label.className = 'tab-label';
   const text = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
   label.textContent = text;
-  setTooltip(label, `${groupName(tab.session.repoRoot)} · ${text}`);
+  setTooltip(label, `${projName(tab.session.repoRoot)} · ${text}`);
 
   const close = document.createElement('button');
   close.className = 'tab-close';

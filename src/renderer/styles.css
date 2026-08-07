@@ -1220,3 +1220,109 @@ button:hover {
 #tabbar.dragging .tab.active:hover {
   background: var(--active);
 }
+
+/* Per-project kebab on a group heading (rename now, hide later). */
+.group h2 .group-kebab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0 0 3px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.group h2 .group-kebab:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* The kebab's dropdown (positioned in JS, fixed). */
+.heading-menu {
+  position: fixed;
+  z-index: 400;
+  min-width: 130px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.heading-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 9px;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.heading-menu button:hover {
+  background: var(--surface-hover);
+}
+
+/* Rename-project dialog (mirrors the confirm dialog). */
+#rename-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+#rename-dialog {
+  width: min(400px, 80vw);
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+#rename-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#rename-path {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+#rename-input {
+  width: 100%;
+  padding: 7px 9px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+#rename-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+#rename-ok {
+  border-color: var(--accent);
+}

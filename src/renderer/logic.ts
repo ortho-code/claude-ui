@@ -37,6 +37,12 @@ export function groupName(repoRoot: string): string {
   return repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
 }
 
+// A project's display name: the user's rename override if set, else the folder name. Used everywhere a
+// project is labelled (group headings, tab groups, switcher); the full path stays available on hover.
+export function displayName(repoRoot: string, names?: ReadonlyMap<string, string>): string {
+  return names?.get(repoRoot) || groupName(repoRoot);
+}
+
 // Short, human label for a model id, parsed generically (no hardcoded model list): the alphabetic
 // segment is the family, the numeric segments (minus the trailing YYYYMMDD date, either id order)
 // are the version. So new models need no code change. Examples: claude-opus-4-8 -> "Opus 4.8",
@@ -172,6 +178,7 @@ export function foldersForSwitcher(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
+  names?: ReadonlyMap<string, string>,
 ): SwitcherModel {
   const order: string[] = [];
   const byRoot = new Map<string, SessionSummary[]>();
@@ -186,7 +193,7 @@ export function foldersForSwitcher(
   }
   const folders = order.map((repoRoot) => {
     const list = byRoot.get(repoRoot)!;
-    return { repoRoot, name: groupName(repoRoot), count: list.length, badge: rollUpNudge(list, statuses, acked) };
+    return { repoRoot, name: displayName(repoRoot, names), count: list.length, badge: rollUpNudge(list, statuses, acked) };
   });
   return {
     all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked) },

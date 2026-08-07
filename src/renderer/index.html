@@ -80,6 +80,17 @@
         </div>
       </div>
     </div>
+    <div id="rename-overlay" hidden>
+      <div id="rename-dialog" role="dialog" aria-modal="true">
+        <p id="rename-title">Rename project</p>
+        <p id="rename-path"></p>
+        <input id="rename-input" type="text" aria-label="Project name" />
+        <div id="rename-actions">
+          <button id="rename-cancel" type="button">Cancel</button>
+          <button id="rename-ok" type="button">Save</button>
+        </div>
+      </div>
+    </div>
     <div id="toast" hidden>
       <span id="toast-message"></span>
       <button id="toast-close" type="button" data-tooltip="Dismiss" aria-label="Dismiss">×</button>

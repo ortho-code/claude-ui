@@ -14,6 +14,8 @@ interface Meta {
   archived: Record<string, number>;
   /** The project the sidebar switcher is scoped to (repoRoot), or null for "All". */
   activeFolder: string | null;
+  /** Per-project display-name overrides, keyed by repoRoot; absent = use the folder name. */
+  projectNames: Record<string, string>;
   /** Schema version; 2 = keyed by conversation, migrated from raw session ids. */
   version: number;
 }
@@ -38,10 +40,14 @@ async function readMeta(): Promise<Meta> {
       openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
       archived,
       activeFolder: typeof parsed.activeFolder === 'string' ? parsed.activeFolder : null,
+      projectNames:
+        parsed.projectNames && typeof parsed.projectNames === 'object'
+          ? (parsed.projectNames as Record<string, string>)
+          : {},
       version: typeof parsed.version === 'number' ? parsed.version : 1,
     };
   } catch {
-    return { pinned: [], openSessions: [], archived: {}, activeFolder: null, version: 2 };
+    return { pinned: [], openSessions: [], archived: {}, activeFolder: null, projectNames: {}, version: 2 };
   }
 }
 
@@ -118,4 +124,18 @@ export async function setActiveFolder(folder: string | null): Promise<void> {
   const meta = await readMeta();
   meta.activeFolder = folder;
   await writeMeta(meta);
+}
+
+export async function getProjectNames(): Promise<Record<string, string>> {
+  return (await readMeta()).projectNames;
+}
+
+// Set a project's display-name override (blank clears it, reverting to the folder name).
+export async function setProjectName(repoRoot: string, name: string): Promise<Record<string, string>> {
+  const meta = await readMeta();
+  const trimmed = name.trim();
+  if (trimmed) meta.projectNames[repoRoot] = trimmed;
+  else delete meta.projectNames[repoRoot];
+  await writeMeta(meta);
+  return meta.projectNames;
 }

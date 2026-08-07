@@ -11,6 +11,8 @@ import {
   setOpenSessions,
   getActiveFolder,
   setActiveFolder,
+  getProjectNames,
+  setProjectName,
   migrateToConversationKeys,
   purgeConversation,
 } from './meta';
@@ -79,6 +81,8 @@ ipcMain.handle('meta:getActiveFolder', () => getActiveFolder());
 ipcMain.on('meta:setActiveFolder', (_event, folder: string | null) => {
   void setActiveFolder(folder);
 });
+ipcMain.handle('meta:getProjectNames', () => getProjectNames());
+ipcMain.handle('meta:setProjectName', (_event, repoRoot: string, name: string) => setProjectName(repoRoot, name));
 registerTerminalIpc();
 
 app.whenReady().then(async () => {
