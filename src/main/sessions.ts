@@ -16,6 +16,8 @@ interface RepoInfo {
   repoRoot: string;
   /** The linked-worktree name, or '' for the main tree / a non-repo directory. */
   worktree: string;
+  /** Whether the directory is inside a git repo (so it can host worktree sessions). */
+  isRepo: boolean;
 }
 
 // A cwd's repo layout is effectively stable, so cache it and never re-run git for the same path.
@@ -30,7 +32,7 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
   const cached = repoCache.get(cwd);
   if (cached) return cached;
 
-  let info: RepoInfo = { repoRoot: cwd, worktree: '' };
+  let info: RepoInfo = { repoRoot: cwd, worktree: '', isRepo: false };
   try {
     const { stdout } = await execFileAsync(
       'git',
@@ -42,15 +44,17 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
     info = {
       repoRoot: mainRoot || cwd,
       worktree: toplevel && toplevel !== mainRoot ? path.basename(toplevel) : '',
+      isRepo: true,
     };
   } catch {
     // Not a git repo, git missing, or the directory is gone: fall through to the path fallback.
   }
   // When git can't tell us it's a worktree (most importantly, when the worktree directory was
-  // removed), recognize the `claude -w` layout: <repo>/.claude/worktrees/<name>.
+  // removed), recognize the `claude -w` layout: <repo>/.claude/worktrees/<name>. That path only
+  // exists inside a repo, so it's a repo even though git couldn't answer.
   if (!info.worktree) {
     const match = cwd.match(/^(.*)\/\.claude\/worktrees\/([^/]+)/);
-    if (match) info = { repoRoot: match[1], worktree: match[2] };
+    if (match) info = { repoRoot: match[1], worktree: match[2], isRepo: true };
   }
   repoCache.set(cwd, info);
   return info;
@@ -84,6 +88,7 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
     const repo = await resolveRepo(summary.cwd);
     summary.repoRoot = repo.repoRoot;
     summary.worktree = repo.worktree;
+    summary.isRepo = repo.isRepo;
   }
   summaryCache.set(file, { key, summary });
   return summary;
@@ -332,6 +337,15 @@ export async function listSessions(): Promise<SessionSummary[]> {
   return summaries.sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
 }
 
+// Whether a worktree of this name already exists for the repo (claude puts them at
+// <repo>/.claude/worktrees/<name>), so the app can refuse to "create" a duplicate.
+export async function worktreeExists(repoRoot: string, name: string): Promise<boolean> {
+  return fs.stat(path.join(repoRoot, '.claude', 'worktrees', name)).then(
+    () => true,
+    () => false,
+  );
+}
+
 /**
  * Move the given sessions' transcript files and subagent dirs to the OS trash (recoverable),
  * across whichever project directories hold them. This is the only place the app mutates the
@@ -422,6 +436,7 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
     // Filled in by listSessions once the repo is resolved; default to the cwd's own group.
     repoRoot: resolvedCwd,
     worktree: '',
+    isRepo: false,
     title: title.slice(0, 200),
     firstMessage: firstMessage.slice(0, 200),
     model,

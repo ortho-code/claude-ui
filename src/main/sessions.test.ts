@@ -118,6 +118,7 @@ describe('listSessions', () => {
     const d = sessions.find((s) => s.id === 'd');
     expect(d?.worktree).toBe('wt1');
     expect(d?.repoRoot).toBe(testHome);
+    expect(d?.isRepo).toBe(true);
   });
 
   it('uses the cwd as the group root when it is not a git repo', async () => {
@@ -125,6 +126,7 @@ describe('listSessions', () => {
     const a = sessions.find((s) => s.id === 'a');
     expect(a?.repoRoot).toBe('/tmp/projA');
     expect(a?.worktree).toBe('');
+    expect(a?.isRepo).toBe(false);
   });
 
   it('re-reads a file after it changes (mtime+size cache invalidation)', async () => {

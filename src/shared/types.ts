@@ -7,6 +7,8 @@ export interface SessionSummary {
   cwd: string;
   /** Main repo root the session groups under (the cwd itself when not in a git repo). */
   repoRoot: string;
+  /** Whether repoRoot is a git repo (so the project can host worktree sessions). */
+  isRepo: boolean;
   /** Worktree name when the session ran in a linked git worktree; empty otherwise. */
   worktree: string;
   /** The session's custom or AI-generated title, empty when it has none. */
@@ -29,6 +31,8 @@ export interface SessionSummary {
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
+  /** Whether a worktree of this name already exists for the repo (blocks creating a duplicate). */
+  worktreeExists(repoRoot: string, name: string): Promise<boolean>;
   /** Fires when a session transcript on disk is created or changes (debounced). */
   onSessionsChanged(callback: () => void): void;
   /** Fires once when the app is shutting down, before its terminals are torn down. */
@@ -71,8 +75,17 @@ export interface ClaudeUiApi {
   /**
    * `fork` runs `--fork-session` (copies the resumed session into a new fork; needs resumeSessionId).
    * `name` runs `--name` to set the session's display name (claude records it as a custom-title).
+   * `worktree` runs `-w` to start in a new git worktree: a non-empty string names it, `''` lets
+   * claude auto-name, `undefined` means no worktree.
    */
-  startTerminal(cwd: string, resumeSessionId?: string, tabToken?: string, fork?: boolean, name?: string): Promise<number>;
+  startTerminal(
+    cwd: string,
+    resumeSessionId?: string,
+    tabToken?: string,
+    fork?: boolean,
+    name?: string,
+    worktree?: string,
+  ): Promise<number>;
   onTerminalData(callback: (id: number, data: string) => void): void;
   onTerminalExit(callback: (id: number, exitCode: number) => void): void;
   sendTerminalInput(id: number, data: string): void;

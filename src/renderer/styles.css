@@ -263,9 +263,19 @@ button:hover {
   padding: 5px 8px;
 }
 
-/* Pressed look while its panel is open, tying the toggle to the panel below it. */
-#filter-toggle[aria-expanded='true'] {
+/* Accent outline on hover for the header buttons (search toggle + New), consistent with the rest;
+   the toggle also keeps it while its panel is open. */
+#filter-toggle:hover,
+#new-session:hover {
+  border-color: var(--accent);
+}
+
+/* Pressed look while its panel is open, tying the toggle to the panel below it. + New gets the same
+   while its folder picker is open. */
+#filter-toggle[aria-expanded='true'],
+#new-session.active {
   background: var(--active);
+  border-color: var(--accent);
 }
 
 #filter-toggle.active::after {
@@ -289,6 +299,15 @@ button:hover {
   padding: 5px 8px;
   font-size: 12px;
   opacity: 0.55;
+}
+
+/* Accent outline on hover too, so hover and active look consistent with the other buttons. */
+#pinned-filter:hover,
+#worktree-filter:hover,
+#fork-filter:hover,
+#archived-filter:hover {
+  opacity: 1;
+  border-color: var(--accent);
 }
 
 #pinned-filter.active,
@@ -492,9 +511,15 @@ button:hover {
   border-radius: 12px;
 }
 
+#date-presets button:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 #date-presets button.active {
   border-color: var(--accent);
   color: var(--text);
+  background: var(--active);
 }
 
 /* Custom date-range filter (air-datepicker, inline). Floats as a popover over the session list
@@ -702,7 +727,8 @@ button:hover {
 }
 
 /* The whole folder row toggles collapse, so give it a hover cue like the other clickable rows. */
-.group h2:hover {
+.group h2:hover,
+.group h2:has(.menu-open) {
   background: var(--surface-hover);
 }
 
@@ -742,8 +768,8 @@ button:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   /* The "+" glyph sits slightly low; a hair of bottom padding lifts the flex-centred glyph without
      moving the box. */
   padding: 0 0 2px;
@@ -759,7 +785,80 @@ button:hover {
 .group h2 .group-add:hover {
   color: var(--text);
   background: var(--surface-hover);
+}
+
+/* Split button: the "+" and a dropdown caret joined into one control. The caret is hidden for
+   non-repo folders (no worktree option), so the "+" keeps its full rounding then. */
+.split-button {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.split-button .group-add-caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 22px;
+  padding: 0 0 1px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.split-button .group-add-caret:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+/* Hovering either half accents the whole control's border (it's one split button); the per-half
+   background above still shows which half you're about to click. */
+.split-button:hover .group-add,
+.split-button:hover .group-add-caret {
   border-color: var(--accent);
+}
+
+/* A menu trigger shows an active/open state while its dropdown is up — the --active fill plus the
+   accent outline, and the outline stays even when the pointer moves onto the dropdown (it's not
+   hover-driven). Box-sizing is border-box, so adding a border to the borderless kebabs doesn't
+   shift layout. */
+.group-add-caret.menu-open,
+.group-kebab.menu-open,
+.session-kebab.menu-open {
+  background: var(--active);
+  color: var(--text);
+}
+.group-kebab.menu-open,
+.session-kebab.menu-open {
+  border-color: var(--accent);
+}
+.split-button:has(.group-add-caret.menu-open) .group-add,
+.split-button:has(.group-add-caret.menu-open) .group-add-caret {
+  border-color: var(--accent);
+}
+/* Keep the active fill on the open caret even while hovering it — the .split-button :hover rule
+   above is more specific than `.group-add-caret.menu-open`, so match its specificity here (and win
+   by order) so the background doesn't flip to the hover colour and back as the pointer moves off. */
+.split-button .group-add-caret.menu-open {
+  background: var(--active);
+}
+
+/* Square the +'s right corners only while the caret sits beside it. */
+.split-button:has(.group-add-caret:not([hidden])) .group-add {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Drop the lingering focus ring left after a MOUSE click on any button (it read as a stray outline,
+   e.g. on + New after cancelling its picker). Keyboard focus still shows a ring via :focus-visible,
+   and inputs are unaffected — this targets buttons only. */
+button:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .group.collapsed .session {
@@ -779,7 +878,10 @@ button:hover {
   cursor: pointer;
 }
 
-.session:hover {
+/* Highlight on hover, and keep it while a menu opened from this row is still up (the menu belongs to
+   the row, even though the pointer has moved onto the dropdown). */
+.session:hover,
+.session:has(.menu-open) {
   background: var(--surface-hover);
 }
 
@@ -900,6 +1002,13 @@ button:hover {
 .session-kebab {
   font-size: 16px;
   line-height: 1;
+  /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+
+.session-kebab:hover {
+  border-color: var(--accent);
 }
 
 .pin:disabled {
@@ -979,6 +1088,16 @@ button:hover {
   color: var(--bg);
 }
 
+/* Space consecutive badges (worktree + fork) so they don't touch. */
+.worktree-badge:not([hidden]) + .fork-badge {
+  margin-left: 6px;
+}
+
+/* The worktree glyph (⎇) renders heavier than the fork glyph (⑂); size it down so they match. */
+.wt-icon {
+  font-size: 0.8em;
+}
+
 .empty-message {
   font-size: 13px;
   color: var(--muted);
@@ -1052,11 +1171,17 @@ button:hover {
   background: var(--surface-hover);
 }
 
-/* Fork marker on a tab: forks share their parent's title, so this distinguishes them. */
-.tab-fork {
+/* Fork / worktree markers on a tab, matching the sidebar badges. */
+.tab-fork,
+.tab-worktree {
   flex: 0 0 auto;
   font-size: 12px;
   color: var(--accent);
+}
+
+/* ⎇ is heavier than ⑂; shrink it so the two marks read the same size. */
+.tab-worktree {
+  font-size: 10px;
 }
 
 .tab-label {
@@ -1255,21 +1380,32 @@ button:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  padding: 0 0 3px;
+  /* Match the session-row kebab exactly: padding-sized (no fixed box), same padding/font, so the ⋮
+     has the same room. The split button below is grown to this height to stay inline. */
+  padding: 2px 4px;
   font-size: 16px;
   line-height: 1;
   color: var(--muted);
   background: none;
-  border: none;
+  /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
+  border: 1px solid transparent;
   border-radius: 5px;
+  margin-left: 4px; /* breathing room from the split button */
   cursor: pointer;
 }
 
 .group h2 .group-kebab:hover {
   background: var(--surface-hover);
   color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Keep the open/active state while the menu is up. Scoped under `.group h2` to outweigh the base
+   rule above (otherwise its border/background win and the active state doesn't show). */
+.group h2 .group-kebab.menu-open {
+  background: var(--active);
+  color: var(--text);
+  border-color: var(--accent);
 }
 
 /* The kebab's dropdown (positioned in JS, fixed). */
@@ -1342,6 +1478,13 @@ button:hover {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
+}
+
+/* Inline validation error under the input (e.g. a duplicate worktree name). */
+#rename-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #f38ba8;
 }
 
 #rename-actions {

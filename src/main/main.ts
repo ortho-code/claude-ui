@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, Menu, dialog, shell } from 'electron';
 import * as path from 'node:path';
-import { listSessions, trashSessions } from './sessions';
+import { listSessions, trashSessions, worktreeExists } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
 import {
   getPinned,
@@ -55,6 +55,7 @@ function createWindow(): void {
 }
 
 ipcMain.handle('sessions:list', () => listSessions());
+ipcMain.handle('sessions:worktreeExists', (_event, repoRoot: string, name: string) => worktreeExists(repoRoot, name));
 ipcMain.handle('meta:getPinned', () => getPinned());
 ipcMain.handle('meta:togglePin', (_event, id: string) => togglePin(id));
 ipcMain.on('shell:openExternal', (_event, url: string) => {

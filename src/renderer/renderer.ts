@@ -84,6 +84,7 @@ const confirmCancel = document.getElementById('confirm-cancel') as HTMLButtonEle
 const renameOverlay = document.getElementById('rename-overlay')!;
 const renameTitle = document.getElementById('rename-title')!;
 const renamePath = document.getElementById('rename-path')!;
+const renameError = document.getElementById('rename-error')!;
 const renameInput = document.getElementById('rename-input') as HTMLInputElement;
 const renameOk = document.getElementById('rename-ok') as HTMLButtonElement;
 const renameCancel = document.getElementById('rename-cancel') as HTMLButtonElement;
@@ -216,6 +217,8 @@ interface GroupEls {
   caret: HTMLElement;
   count: HTMLElement;
   label: HTMLElement;
+  /** The new-session split-button's dropdown caret (present only for a folder group). */
+  addCaret?: HTMLElement;
 }
 // Group sections by group name, reused across renders (same reason as sessionRows).
 const groupSections = new Map<string, GroupEls>();
@@ -736,7 +739,8 @@ function renderList(): void {
   const desired: DesiredGroup[] = [];
   for (const [repoRoot, list] of groupByRepo(scoped)) {
     list.sort(pinFirst);
-    desired.push({ name: repoRoot, folderCwd: repoRoot, sessions: list });
+    // A repo group can host worktree sessions; a plain-folder group can't (gates the split-button).
+    desired.push({ name: repoRoot, folderCwd: repoRoot, sessions: list, isRepo: list.some((s) => s.isRepo) });
   }
 
   reconcileGroups(desired);
@@ -782,6 +786,8 @@ interface DesiredGroup {
   name: string;
   folderCwd?: string;
   sessions: SessionSummary[];
+  /** Whether the group's folder is a git repo (so it can offer worktree sessions). */
+  isRepo?: boolean;
 }
 
 // Bring the group sections in line with `desired`: drop gone groups, create missing ones, and
@@ -807,6 +813,7 @@ function reconcileGroups(desired: DesiredGroup[]): void {
     els.caret.textContent = collapsed ? '▸' : '▾';
     els.count.textContent = String(group.sessions.length);
     els.label.textContent = projName(group.name); // keep the heading name current (e.g. after a rename)
+    if (els.addCaret) els.addCaret.hidden = !group.isRepo; // worktree option only for git-repo groups
     for (const session of group.sessions) {
       const row = getOrCreateRow(entityKey(session));
       updateRow(row, session);
@@ -859,14 +866,21 @@ function confirmDelete(title: string): Promise<boolean> {
   });
 }
 
-// Small dialog to rename a project. Resolves the entered name, or null if cancelled. Prefilled with
-// the current display name; the full path is shown so it's clear which folder is being named.
 // A small modal text prompt (Promise-resolving): OK/Enter resolves the value, Cancel/Esc/backdrop
-// resolves null. Shared by project rename and fork naming; okLabel names the confirm button.
-function promptText(title: string, context: string, initialValue: string, okLabel = 'Save'): Promise<string | null> {
+// resolves null. Shared by project rename, fork naming, and worktree naming; okLabel names the
+// confirm button. An optional async `validate` runs on submit: return an error string to show it
+// inline and keep the dialog open (so the user can fix the value), or null to accept.
+function promptText(
+  title: string,
+  context: string,
+  initialValue: string,
+  okLabel = 'Save',
+  validate?: (value: string) => Promise<string | null> | string | null,
+): Promise<string | null> {
   renameTitle.textContent = title;
   renamePath.textContent = context;
   renamePath.hidden = !context; // no empty context line (e.g. the fork dialog puts it in the title)
+  renameError.hidden = true;
   renameOk.textContent = okLabel;
   renameInput.value = initialValue;
   renameOverlay.hidden = false;
@@ -881,13 +895,26 @@ function promptText(title: string, context: string, initialValue: string, okLabe
       renameInput.removeEventListener('keydown', onKey);
       resolve(result);
     };
-    const onOk = (): void => close(renameInput.value);
+    // Validate before accepting; on an error, show it inline and leave the dialog open.
+    const submit = async (): Promise<void> => {
+      const value = renameInput.value;
+      if (validate) {
+        const error = await validate(value);
+        if (error) {
+          renameError.textContent = error;
+          renameError.hidden = false;
+          return;
+        }
+      }
+      close(value);
+    };
+    const onOk = (): void => void submit();
     const onCancel = (): void => close(null);
     const onBackdrop = (event: MouseEvent): void => {
       if (event.target === renameOverlay) close(null);
     };
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Enter') close(renameInput.value);
+      if (event.key === 'Enter') void submit();
       else if (event.key === 'Escape') close(null);
     };
     renameOk.addEventListener('click', onOk);
@@ -910,15 +937,26 @@ async function renameProject(repoRoot: string): Promise<void> {
 // A small floating kebab menu, generic over its items so the group-heading and session-row kebabs
 // share the open/close/outside-click machinery.
 let openMenuEl: HTMLElement | null = null;
+let openMenuAnchor: HTMLElement | null = null;
 function closeMenu(): void {
   openMenuEl?.remove();
   openMenuEl = null;
+  openMenuAnchor?.classList.remove('menu-open');
+  openMenuAnchor = null;
   document.removeEventListener('click', onMenuOutside, true);
 }
 function onMenuOutside(event: MouseEvent): void {
-  if (openMenuEl && !openMenuEl.contains(event.target as Node)) closeMenu();
+  const target = event.target as Node;
+  // A click on the trigger itself is left to its own handler (which toggles the menu shut); closing
+  // here too would close-then-reopen and the menu would never toggle off.
+  if (openMenuEl && !openMenuEl.contains(target) && !openMenuAnchor?.contains(target)) closeMenu();
 }
 function openMenu(anchor: HTMLElement, items: { label: string; onSelect: () => void }[]): void {
+  // Clicking the same trigger again toggles the menu shut.
+  if (openMenuAnchor === anchor) {
+    closeMenu();
+    return;
+  }
   closeMenu();
   const menu = document.createElement('div');
   menu.className = 'kebab-menu';
@@ -937,6 +975,8 @@ function openMenu(anchor: HTMLElement, items: { label: string; onSelect: () => v
   menu.style.top = `${r.bottom + 4}px`;
   menu.style.left = `${Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8))}px`;
   openMenuEl = menu;
+  openMenuAnchor = anchor;
+  anchor.classList.add('menu-open'); // trigger shows an open/active state while its menu is up
   // Defer so the click that opened it doesn't immediately close it.
   setTimeout(() => document.addEventListener('click', onMenuOutside, true));
 }
@@ -986,7 +1026,12 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   const count = document.createElement('span');
   count.className = 'group-count';
   heading.append(caret, icon, label, count);
+  let addCaret: HTMLElement | undefined;
   if (folderCwd) {
+    // Split button: the "+" is one-click "New session"; the caret opens a dropdown with worktree
+    // options. reconcileGroups shows the caret only for git-repo groups.
+    const split = document.createElement('div');
+    split.className = 'split-button';
     const add = document.createElement('button');
     add.className = 'group-add';
     add.textContent = '+';
@@ -995,7 +1040,21 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
       event.stopPropagation();
       void openNewSession(folderCwd);
     });
-    heading.append(add);
+    const caret = document.createElement('button');
+    caret.className = 'group-add-caret';
+    caret.textContent = '▾';
+    caret.hidden = true;
+    setTooltip(caret, 'New session options');
+    caret.addEventListener('click', (event) => {
+      event.stopPropagation();
+      openMenu(caret, [
+        { label: 'New session', onSelect: () => void openNewSession(folderCwd) },
+        { label: 'New worktree session…', onSelect: () => void openWorktreeSession(folderCwd) },
+      ]);
+    });
+    split.append(add, caret);
+    heading.append(split);
+    addCaret = caret;
   }
   // Project options (rename now, hide later); stopPropagation so it doesn't toggle collapse.
   const kebab = document.createElement('button');
@@ -1021,7 +1080,7 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   });
   section.appendChild(heading);
 
-  return { section, caret, count, label };
+  return { section, caret, count, label, addCaret };
 }
 
 function getOrCreateRow(key: string): HTMLElement {
@@ -1202,7 +1261,11 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 
   els.badge.hidden = !session.worktree;
   if (session.worktree) {
-    els.badge.textContent = `worktree: ${session.worktree}`;
+    // The glyph sits in its own span so .wt-icon can size the heavier ⎇ down to match the fork badge.
+    const wtIcon = document.createElement('span');
+    wtIcon.className = 'wt-icon';
+    wtIcon.textContent = '⎇';
+    els.badge.replaceChildren(wtIcon, document.createTextNode(' worktree'));
     setTooltip(els.badge, `Linked git worktree: ${session.worktree}`);
   }
 
@@ -1270,6 +1333,7 @@ async function openNewSession(cwd: string): Promise<void> {
     conversationId: id,
     cwd,
     repoRoot: cwd,
+    isRepo: false,
     worktree: '',
     title: `New: ${folder}`,
     firstMessage: '',
@@ -1289,6 +1353,60 @@ async function openNewSession(cwd: string): Promise<void> {
   renderList();
 }
 
+// Start a new session in a fresh git worktree of `repoRoot`: `claude -w [name]`. Prompts for an
+// optional name (blank -> claude auto-names). Like openNewSession, the tab starts on a placeholder
+// and adopts the real id via its token; the worktree session appears (badged) on the next refresh.
+async function openWorktreeSession(repoRoot: string): Promise<void> {
+  const folder = repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
+  // claude's `-w` name must be a slug (letters/digits/dots/underscores/dashes); turn the free-text
+  // label into one. A blank slug means auto-name, which can't collide.
+  const slugify = (value: string): string => value.trim().replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  const label = await promptText(
+    'New worktree session',
+    `Worktree of "${projName(repoRoot)}"`,
+    '',
+    'Create',
+    // Validate in the dialog so a duplicate name is caught without closing it — claude -w would
+    // otherwise silently switch to the existing worktree instead of creating one.
+    async (value) => {
+      const s = slugify(value);
+      return s && (await window.claudeUi.worktreeExists(repoRoot, s))
+        ? `A worktree named "${s}" already exists in this project.`
+        : null;
+    },
+  );
+  if (label === null) return;
+  const friendly = label.trim();
+  // Pass the label as `--name` so the session still displays what was typed.
+  const slug = slugify(friendly);
+  const id = `new-${Date.now()}-${newSessionCounter++}`;
+  const session: SessionSummary = {
+    id,
+    conversationId: id,
+    cwd: repoRoot,
+    repoRoot,
+    isRepo: true,
+    // Show the worktree badge right away (optimistic); it reconciles to the real name on refresh.
+    worktree: slug || 'new worktree',
+    // The name you typed becomes the title (it's also what --name sets); the badge already says it's
+    // a worktree, so no prefix. Blank name falls back to a plain new-session label.
+    title: friendly || `New: ${folder}`,
+    firstMessage: '',
+    model: '',
+    lastActivity: new Date().toISOString(),
+    eventCount: 0,
+    isFork: false,
+    parentId: null,
+    forkCount: 0,
+  };
+  if (activeFolder !== null && session.repoRoot !== activeFolder) {
+    activeFolder = null;
+    window.claudeUi.setActiveFolder(null);
+  }
+  await createTab(session, undefined, false, friendly || undefined, slug);
+  renderList();
+}
+
 // Fork an existing session: `claude --resume <id> --fork-session` copies its transcript into a new
 // session in the same cwd. Like openNewSession, the tab starts on a placeholder and adopts the real
 // fork id via its token; the fork then appears in the sidebar (badged) on the next disk refresh.
@@ -1305,6 +1423,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
     conversationId: id,
     cwd: parent.cwd,
     repoRoot: parent.repoRoot,
+    isRepo: parent.isRepo,
     worktree: parent.worktree,
     title: trimmed || parentTitle,
     firstMessage: '',
@@ -1327,9 +1446,9 @@ async function forkSession(parent: SessionSummary): Promise<void> {
   renderList();
 }
 
-async function createTab(session: SessionSummary, resumeId: string | undefined, fork = false, name?: string): Promise<void> {
+async function createTab(session: SessionSummary, resumeId: string | undefined, fork = false, name?: string, worktree?: string): Promise<void> {
   const token = crypto.randomUUID();
-  const terminalId = await window.claudeUi.startTerminal(session.cwd, resumeId, token, fork, name);
+  const terminalId = await window.claudeUi.startTerminal(session.cwd, resumeId, token, fork, name, worktree);
 
   const el = document.createElement('div');
   el.className = 'term';
@@ -1527,6 +1646,12 @@ function tabElement(tab: Tab): HTMLElement {
     setTooltip(forkMark, `Forked from ${parent?.title || parent?.firstMessage || 'the original session'}`);
   }
 
+  // A worktree session's tab gets the same ⎇ marker as its sidebar badge.
+  const worktreeMark = document.createElement('span');
+  worktreeMark.className = 'tab-worktree';
+  worktreeMark.textContent = '⎇';
+  if (tab.session.worktree) setTooltip(worktreeMark, `Linked git worktree: ${tab.session.worktree}`);
+
   const label = document.createElement('span');
   label.className = 'tab-label';
   const text = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
@@ -1543,7 +1668,8 @@ function tabElement(tab: Tab): HTMLElement {
   });
 
   el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
-  el.append(dot, ...(tab.session.isFork ? [forkMark] : []), label, close);
+  const marks = [...(tab.session.isFork ? [forkMark] : []), ...(tab.session.worktree ? [worktreeMark] : [])];
+  el.append(dot, ...marks, label, close);
   el.addEventListener('click', () => {
     activateTab(tab);
     revealSessionInSidebar(tab.session);
@@ -1687,8 +1813,15 @@ sidebarResizer.addEventListener('mousedown', (event) => {
 });
 
 newButton.addEventListener('click', async () => {
-  const dir = await window.claudeUi.pickFolder();
-  if (dir) openNewSession(dir);
+  // Show an active state while the folder picker is open (it has no persistent menu of its own),
+  // matching how the other header buttons look while their panel/menu is up.
+  newButton.classList.add('active');
+  try {
+    const dir = await window.claudeUi.pickFolder();
+    if (dir) openNewSession(dir);
+  } finally {
+    newButton.classList.remove('active');
+  }
 });
 searchInput.addEventListener('input', () => {
   filterText = searchInput.value.trim().toLowerCase();

@@ -3,6 +3,7 @@ import type { ClaudeUiApi } from '../shared/types';
 
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
+  worktreeExists: (repoRoot, name) => ipcRenderer.invoke('sessions:worktreeExists', repoRoot, name),
   onSessionsChanged: (callback) => ipcRenderer.on('sessions:changed', () => callback()),
   onQuitting: (callback) => ipcRenderer.on('app:quitting', () => callback()),
   getPinned: () => ipcRenderer.invoke('meta:getPinned'),
@@ -24,8 +25,8 @@ const api: ClaudeUiApi = {
       callback(id, status, tab),
     ),
   clearStatus: (id) => ipcRenderer.send('status:clear', id),
-  startTerminal: (cwd, resumeSessionId, tabToken, fork, name) =>
-    ipcRenderer.invoke('terminal:start', cwd, resumeSessionId, tabToken, fork, name),
+  startTerminal: (cwd, resumeSessionId, tabToken, fork, name, worktree) =>
+    ipcRenderer.invoke('terminal:start', cwd, resumeSessionId, tabToken, fork, name, worktree),
   onTerminalData: (callback) =>
     ipcRenderer.on('terminal:data', (_event, id: number, data: string) => callback(id, data)),
   onTerminalExit: (callback) =>

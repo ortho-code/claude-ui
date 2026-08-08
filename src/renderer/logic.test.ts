@@ -21,6 +21,7 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     conversationId: 'conv',
     cwd: '/repo',
     repoRoot: '/repo',
+    isRepo: false,
     worktree: '',
     title: 'Title',
     firstMessage: 'first',
