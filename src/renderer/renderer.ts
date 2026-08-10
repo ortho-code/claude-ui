@@ -35,6 +35,7 @@ const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const pinnedFilter = document.getElementById('pinned-filter') as HTMLButtonElement;
 const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonElement;
 const forkFilter = document.getElementById('fork-filter') as HTMLButtonElement;
+const forkedFilter = document.getElementById('forked-filter') as HTMLButtonElement;
 const archivedFilter = document.getElementById('archived-filter') as HTMLButtonElement;
 const filterToggle = document.getElementById('filter-toggle') as HTMLButtonElement;
 const filterPanel = document.getElementById('filter-panel')!;
@@ -194,6 +195,7 @@ let filterText = '';
 let showPinnedOnly = false;
 let showWorktreeOnly = false;
 let showForksOnly = false;
+let showHasForksOnly = false;
 let showArchivedOnly = false;
 // The project the switcher is scoped to; null = "All" (the grouped overview). In-memory for now;
 // Phase 3 persists it.
@@ -388,7 +390,7 @@ async function refreshFromDisk(): Promise<void> {
 
 // Any filter active? Used to auto-expand groups with matches and to show the filter status.
 function isFiltering(): boolean {
-  return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showForksOnly || showArchivedOnly || datePreset !== 'any';
+  return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showForksOnly || showHasForksOnly || showArchivedOnly || datePreset !== 'any';
 }
 
 // Adapt the current filter state to the pure predicate.
@@ -398,6 +400,7 @@ function passesFilters(session: SessionSummary): boolean {
     pinnedOnly: showPinnedOnly,
     worktreeOnly: showWorktreeOnly,
     forksOnly: showForksOnly,
+    hasForksOnly: showHasForksOnly,
     archivedOnly: showArchivedOnly,
     dateFrom: dateFromMs,
     dateTo: dateToMs,
@@ -474,6 +477,8 @@ function updateFilterStatus(matches: number, total: number): void {
   worktreeFilter.setAttribute('aria-pressed', String(showWorktreeOnly));
   forkFilter.classList.toggle('active', showForksOnly);
   forkFilter.setAttribute('aria-pressed', String(showForksOnly));
+  forkedFilter.classList.toggle('active', showHasForksOnly);
+  forkedFilter.setAttribute('aria-pressed', String(showHasForksOnly));
   archivedFilter.classList.toggle('active', showArchivedOnly);
   archivedFilter.setAttribute('aria-pressed', String(showArchivedOnly));
   // The toggle carries the accent when any filter is on, so an active filter is visible even
@@ -488,6 +493,7 @@ function clearFilter(): void {
   showPinnedOnly = false;
   showWorktreeOnly = false;
   showForksOnly = false;
+  showHasForksOnly = false;
   showArchivedOnly = false;
   suppressPickerSelect = true;
   datePicker.clear();
@@ -1951,6 +1957,11 @@ worktreeFilter.addEventListener('click', () => {
 });
 forkFilter.addEventListener('click', () => {
   showForksOnly = !showForksOnly;
+  renderList();
+  container.scrollTop = 0;
+});
+forkedFilter.addEventListener('click', () => {
+  showHasForksOnly = !showHasForksOnly;
   renderList();
   container.scrollTop = 0;
 });

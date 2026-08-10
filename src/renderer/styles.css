@@ -291,10 +291,9 @@ button:hover {
 }
 
 /* Filter toggles: dimmed when off, accent-filled when on. */
-#pinned-filter,
-#worktree-filter,
-#fork-filter,
-#archived-filter {
+/* The filter pills are every direct-child button of #filters (date-preset buttons are nested a level
+   deeper, so they're excluded). Styling by pattern means a new pill needs no CSS change. */
+#filters > button {
   flex: 0 0 auto;
   padding: 5px 8px;
   font-size: 12px;
@@ -302,18 +301,12 @@ button:hover {
 }
 
 /* Accent outline on hover too, so hover and active look consistent with the other buttons. */
-#pinned-filter:hover,
-#worktree-filter:hover,
-#fork-filter:hover,
-#archived-filter:hover {
+#filters > button:hover {
   opacity: 1;
   border-color: var(--accent);
 }
 
-#pinned-filter.active,
-#worktree-filter.active,
-#fork-filter.active,
-#archived-filter.active {
+#filters > button.active {
   opacity: 1;
   border-color: var(--accent);
   background: var(--active);
