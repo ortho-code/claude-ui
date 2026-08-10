@@ -59,3 +59,11 @@ the hook script no-ops unless that variable is set, so sessions run in a plain t
 left untouched. When it does fire, the script writes `~/.config/claude-ui/status/<id>.json`.
 The main process watches that directory and pushes updates to the renderer, which shows a
 dot per session: busy, idle, waiting, or hollow (`closed` and unknown states have no color).
+
+## UI conventions
+
+Any control that opens a menu or popover keeps its active look (the same fill or outline it
+shows on hover) for as long as the menu is open, including when the pointer moves off it. The
+shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, so give every
+such trigger a `.menu-open` style that matches its `:hover`. The kebabs, the split-button caret,
+and the `⑂ N` fork-count badge all follow this.

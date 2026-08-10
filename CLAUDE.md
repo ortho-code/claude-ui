@@ -35,3 +35,4 @@ for what is done and what is next; keep it current as milestones land.
   This file may point at them and at code.
 - Local-only content stays out of git: plans in `.plan/`, personal notes in
   `CLAUDE.local.md` (both gitignored globally).
+- UI conventions (menu/popover active state, etc.) live in `docs/architecture.md` § UI conventions.
