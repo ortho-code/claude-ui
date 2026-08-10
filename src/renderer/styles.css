@@ -1083,13 +1083,20 @@ button:focus:not(:focus-visible) {
   cursor: pointer;
 }
 
-.fork-badge:hover {
+/* Filled on hover, and held filled while its popover is open (.menu-open) so it doesn't drop back
+   when the mouse leaves the badge. */
+.fork-badge:hover,
+.fork-badge.menu-open {
   background: var(--accent);
   color: var(--bg);
 }
 
-/* Space consecutive badges (worktree + fork) so they don't touch. */
-.worktree-badge:not([hidden]) + .fork-badge {
+/* Space consecutive badges so they don't touch, across the combos a row can show: worktree + fork,
+   fork + fork-count, and worktree + fork-count when the (hidden) fork badge sits between them. A
+   hidden badge stays in the sibling chain for `+` matching, so the third selector bridges it. */
+.worktree-badge:not([hidden]) + .fork-badge:not([hidden]),
+.fork-badge:not([hidden]) + .fork-badge:not([hidden]),
+.worktree-badge:not([hidden]) + .fork-badge[hidden] + .fork-badge:not([hidden]) {
   margin-left: 6px;
 }
 
@@ -1433,8 +1440,24 @@ button:focus:not(:focus-visible) {
   cursor: pointer;
 }
 
-.kebab-menu button:hover {
+/* A submenu-parent (.menu-open) holds the hover look while its child list is up, so moving the
+   mouse into the submenu doesn't drop it back. */
+.kebab-menu button:hover,
+.kebab-menu button.menu-open {
   background: var(--surface-hover);
+}
+
+/* A submenu-parent row keeps its label left and pushes the ▸ marker to the right edge. */
+.kebab-menu button.has-submenu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.submenu-chev {
+  color: var(--muted);
+  font-size: 10px;
 }
 
 /* Rename-project dialog (mirrors the confirm dialog). */

@@ -547,6 +547,29 @@ function jumpToOrigin(parentId: string): void {
   else showToast("The original session isn't here anymore.");
 }
 
+// A parent's direct forks, most recent first. Shared by the count badge and the kebab submenu.
+function forksOf(parent: SessionSummary): SessionSummary[] {
+  return allSessions
+    .filter((s) => s.isFork && s.parentId === parent.id)
+    .sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
+}
+
+// Menu items for a fork list; forks start title-identical to the parent, so each shows title + when.
+function forkMenuItems(forks: SessionSummary[]): MenuItem[] {
+  return forks.map((fork) => ({
+    label: `${fork.title || fork.firstMessage || fork.id.slice(0, 8)} · ${relativeTime(fork.lastActivity)}`,
+    onSelect: () => jumpToSession(fork),
+  }));
+}
+
+// List a parent's forks in the shared popover; click one to jump to it.
+function openForksMenu(anchor: HTMLElement, parent: SessionSummary): void {
+  const forks = forksOf(parent);
+  // The count can briefly outlive its forks (a delete between refreshes); nothing to list then.
+  if (forks.length === 0) return;
+  openMenu(anchor, forkMenuItems(forks));
+}
+
 // Cross-project attention strip in the sidebar footer. The toggle badge is the same overall roll-up
 // as the switcher header; expanded, it lists the nudged SESSIONS grouped under their project (each a
 // row: state dot + session title), click one to jump to it. Muted "all clear" when nothing pending.
@@ -935,10 +958,25 @@ async function renameProject(repoRoot: string): Promise<void> {
 }
 
 // A small floating kebab menu, generic over its items so the group-heading and session-row kebabs
-// share the open/close/outside-click machinery.
+// share the open/close/outside-click machinery. An item may carry a `submenu`: it then opens a child
+// list on hover (one level deep) instead of running an action.
+interface MenuItem {
+  label: string;
+  onSelect?: () => void;
+  submenu?: MenuItem[];
+}
 let openMenuEl: HTMLElement | null = null;
 let openMenuAnchor: HTMLElement | null = null;
+let openSubmenuEl: HTMLElement | null = null;
+let openSubmenuOwner: HTMLElement | null = null;
+function closeSubmenu(): void {
+  openSubmenuEl?.remove();
+  openSubmenuEl = null;
+  openSubmenuOwner?.classList.remove('menu-open'); // parent row drops its held state
+  openSubmenuOwner = null;
+}
 function closeMenu(): void {
+  closeSubmenu();
   openMenuEl?.remove();
   openMenuEl = null;
   openMenuAnchor?.classList.remove('menu-open');
@@ -948,10 +986,68 @@ function closeMenu(): void {
 function onMenuOutside(event: MouseEvent): void {
   const target = event.target as Node;
   // A click on the trigger itself is left to its own handler (which toggles the menu shut); closing
-  // here too would close-then-reopen and the menu would never toggle off.
-  if (openMenuEl && !openMenuEl.contains(target) && !openMenuAnchor?.contains(target)) closeMenu();
+  // here too would close-then-reopen and the menu would never toggle off. A click inside the open
+  // submenu counts as inside too, so it isn't dismissed before its own handler runs.
+  if (
+    openMenuEl &&
+    !openMenuEl.contains(target) &&
+    !openSubmenuEl?.contains(target) &&
+    !openMenuAnchor?.contains(target)
+  )
+    closeMenu();
 }
-function openMenu(anchor: HTMLElement, items: { label: string; onSelect: () => void }[]): void {
+
+// Render `items` as buttons into `menu`. A leaf runs its onSelect and closes everything; a
+// submenu-parent opens its child list on hover (and on click, for non-hover input). `isRoot` marks
+// the top menu: only its leaves close an open submenu on hover — a submenu's own leaves must not,
+// or hovering toward them would close the very submenu being reached for.
+function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
+  for (const item of items) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = item.label;
+    if (item.submenu) {
+      button.className = 'has-submenu';
+      const chev = document.createElement('span');
+      chev.className = 'submenu-chev';
+      chev.textContent = '▸';
+      button.append(chev);
+      const open = () => openSubmenu(button, item.submenu!);
+      button.addEventListener('mouseenter', open);
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        open();
+      });
+    } else {
+      // Moving onto a sibling root leaf closes any open submenu; submenu leaves keep it open.
+      if (isRoot) button.addEventListener('mouseenter', closeSubmenu);
+      button.addEventListener('click', () => {
+        closeMenu();
+        item.onSelect?.();
+      });
+    }
+    menu.append(button);
+  }
+}
+
+// Open a child list beside its parent item; prefer the right, flip left when it would overflow.
+function openSubmenu(item: HTMLElement, items: MenuItem[]): void {
+  if (openSubmenuOwner === item) return; // already open for this item; don't rebuild/flicker
+  closeSubmenu();
+  const menu = document.createElement('div');
+  menu.className = 'kebab-menu submenu';
+  fillMenu(menu, items, false);
+  document.body.append(menu);
+  const r = item.getBoundingClientRect();
+  const left = r.right + menu.offsetWidth + 8 > window.innerWidth ? r.left - menu.offsetWidth - 4 : r.right + 4;
+  menu.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - menu.offsetHeight - 8))}px`;
+  menu.style.left = `${Math.max(8, left)}px`;
+  openSubmenuEl = menu;
+  openSubmenuOwner = item;
+  item.classList.add('menu-open'); // hold the parent row's active look while its submenu is up
+}
+
+function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   // Clicking the same trigger again toggles the menu shut.
   if (openMenuAnchor === anchor) {
     closeMenu();
@@ -960,16 +1056,7 @@ function openMenu(anchor: HTMLElement, items: { label: string; onSelect: () => v
   closeMenu();
   const menu = document.createElement('div');
   menu.className = 'kebab-menu';
-  for (const item of items) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = item.label;
-    button.addEventListener('click', () => {
-      closeMenu();
-      item.onSelect();
-    });
-    menu.append(button);
-  }
+  fillMenu(menu, items, true);
   document.body.append(menu);
   const r = anchor.getBoundingClientRect();
   menu.style.top = `${r.bottom + 4}px`;
@@ -1102,6 +1189,7 @@ interface RowEls {
   title: HTMLElement;
   badge: HTMLElement;
   forkBadge: HTMLElement;
+  forksBadge: HTMLElement;
   meta: HTMLElement;
   metaWhen: HTMLElement;
   metaStats: HTMLElement;
@@ -1146,6 +1234,16 @@ function createSessionRow(key: string): HTMLElement {
     const session = currentTips.get(key);
     if (session?.parentId) jumpToOrigin(session.parentId);
   });
+  // The mirror: when this session HAS forks, a count badge opens a list of them to jump into. Shown
+  // only when session.forkCount > 0 (set in updateRow). A fork-of-a-fork shows both badges.
+  const forksBadge = document.createElement('span');
+  forksBadge.className = 'fork-badge forks-count';
+  forksBadge.hidden = true;
+  forksBadge.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const session = currentTips.get(key);
+    if (session) openForksMenu(forksBadge, session);
+  });
   const meta = document.createElement('p');
   meta.className = 'session-meta';
   // Two logical groups (when · model / events · id) plus a separator that CSS hides when the meta
@@ -1158,7 +1256,7 @@ function createSessionRow(key: string): HTMLElement {
   const metaStats = document.createElement('span');
   metaStats.className = 'meta-stats';
   meta.append(metaWhen, metaSep, metaStats);
-  content.append(title, badge, forkBadge, meta);
+  content.append(title, badge, forkBadge, forksBadge, meta);
 
   const pin = document.createElement('button');
   pin.className = 'pin';
@@ -1229,16 +1327,20 @@ function createSessionRow(key: string): HTMLElement {
     event.stopPropagation();
     const session = currentTips.get(key);
     if (!session) return;
-    const items = [{ label: 'Fork this session', onSelect: () => { void forkSession(session); } }];
+    const items: MenuItem[] = [{ label: 'Fork this session', onSelect: () => { void forkSession(session); } }];
     const parentId = session.parentId;
     if (session.isFork && parentId) {
       items.push({ label: 'Go to original', onSelect: () => jumpToOrigin(parentId) });
+    }
+    const forks = forksOf(session);
+    if (forks.length > 0) {
+      items.push({ label: `Forks (${forks.length})`, submenu: forkMenuItems(forks) });
     }
     openMenu(kebab, items);
   });
 
   item.append(dot, content, pin, archiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, forkBadge, meta, metaWhen, metaStats, pin, archiveBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, forkBadge, forksBadge, meta, metaWhen, metaStats, pin, archiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
@@ -1274,6 +1376,13 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
     const parent = session.parentId ? allSessions.find((s) => s.id === session.parentId) : undefined;
     const parentTitle = parent?.title || parent?.firstMessage || 'the original session';
     setTooltip(els.forkBadge, `Forked from ${parentTitle} — click to open it`);
+  }
+
+  els.forksBadge.hidden = session.forkCount === 0;
+  if (session.forkCount > 0) {
+    els.forksBadge.textContent = `⑂ ${session.forkCount}`;
+    const label = session.forkCount === 1 ? '1 fork' : `${session.forkCount} forks`;
+    setTooltip(els.forksBadge, `${label} — click to list them`);
   }
 
   if (showArchivedOnly) {
