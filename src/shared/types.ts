@@ -27,6 +27,13 @@ export interface SessionSummary {
   parentId: string | null;
   /** How many other sessions forked directly from this one (0 for most). */
   forkCount: number;
+  /** A real compaction boundary (a system/compact_boundary event) exists in this transcript.
+   *  Main-process bookkeeping for lineage; the renderer doesn't use it. */
+  hasCompact: boolean;
+  /** First user/assistant uuid after each compaction boundary. A fork of a compacted session adopts
+   *  one of these as its own conversationId, which is how such a fork is linked back to its parent.
+   *  Main-process bookkeeping; the renderer doesn't use it. */
+  postCompactHeads: string[];
 }
 
 export interface ClaudeUiApi {

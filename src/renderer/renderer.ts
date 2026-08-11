@@ -1458,6 +1458,8 @@ async function openNewSession(cwd: string): Promise<void> {
     isFork: false,
     parentId: null,
     forkCount: 0,
+    hasCompact: false,
+    postCompactHeads: [],
   };
   // Land where the new session's tab will be visible: stay in its own project, else drop to All.
   if (activeFolder !== null && session.repoRoot !== activeFolder) {
@@ -1513,6 +1515,8 @@ async function openWorktreeSession(repoRoot: string): Promise<void> {
     isFork: false,
     parentId: null,
     forkCount: 0,
+    hasCompact: false,
+    postCompactHeads: [],
   };
   if (activeFolder !== null && session.repoRoot !== activeFolder) {
     activeFolder = null;
@@ -1551,6 +1555,8 @@ async function forkSession(parent: SessionSummary): Promise<void> {
     isFork: true,
     parentId: parent.id,
     forkCount: 0,
+    hasCompact: false,
+    postCompactHeads: [],
   };
   // Land where the fork's tab will be visible: stay in its project, else drop to All.
   if (activeFolder !== null && session.repoRoot !== activeFolder) {

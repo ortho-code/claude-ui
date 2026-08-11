@@ -31,6 +31,8 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     isFork: false,
     parentId: null,
     forkCount: 0,
+    hasCompact: false,
+    postCompactHeads: [],
     ...over,
   };
 }

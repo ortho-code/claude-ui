@@ -98,15 +98,14 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
 interface ForkMeta {
   /** Ordered user/assistant message uuids — a fork's sequence shares its parent's as a prefix. */
   uuidSeq: string[];
-  /** Has a compaction event; such a branch is a compaction artifact, not a user fork. */
-  hasCompact: boolean;
   /** File creation time (ms); a fork's file is created after its parent's, so this orders a family. */
   createdMs: number;
 }
 const forkMetaCache = new Map<string, { key: string; meta: ForkMeta }>();
 
-// Full read of a transcript's message-uuid sequence (+ compaction flag), cached by mtime+size. Only
-// called for conversations with >1 file (fork candidates), since it reads the whole file.
+// Full read of a transcript's message-uuid sequence, cached by mtime+size. Only called for
+// conversations with >1 file (fork candidates), since it reads the whole file. Compaction detection
+// lives in summarizeFile (structured, and it runs for every file), so it isn't repeated here.
 async function readForkMeta(file: string): Promise<ForkMeta> {
   const stat = await fs.stat(file);
   const key = `${stat.mtimeMs}:${stat.size}`;
@@ -114,12 +113,10 @@ async function readForkMeta(file: string): Promise<ForkMeta> {
   if (cached && cached.key === key) return cached.meta;
 
   const uuidSeq: string[] = [];
-  let hasCompact = false;
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
   try {
     for await (const line of rl) {
       if (!line.trim()) continue;
-      if (!hasCompact && line.includes('compactMetadata')) hasCompact = true;
       if (!line.includes('"uuid"')) continue;
       try {
         const e = JSON.parse(line) as Record<string, unknown>;
@@ -132,7 +129,7 @@ async function readForkMeta(file: string): Promise<ForkMeta> {
     rl.close();
   }
   // birthtime is 0 on filesystems that don't record it; ctime (inode change) is the best fallback.
-  const meta: ForkMeta = { uuidSeq, hasCompact, createdMs: stat.birthtimeMs || stat.ctimeMs };
+  const meta: ForkMeta = { uuidSeq, createdMs: stat.birthtimeMs || stat.ctimeMs };
   forkMetaCache.set(file, { key, meta });
   return meta;
 }
@@ -215,7 +212,7 @@ interface ForkLineageEntry {
   setKey: string;
   members: Record<string, ForkLineage>;
 }
-const FORK_LINEAGE_VERSION = 1;
+const FORK_LINEAGE_VERSION = 2;
 let forkLineageCache: Map<string, ForkLineageEntry> | null = null;
 
 function forkLineagePath(): string {
@@ -295,7 +292,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
       const members = await Promise.all(
         group.map(async (s) => {
           const meta = await readForkMeta(fileById.get(s.id)!);
-          return { id: s.id, uuidSeq: meta.uuidSeq, hasCompact: meta.hasCompact, createdMs: meta.createdMs, lastActivity: s.lastActivity };
+          return { id: s.id, uuidSeq: meta.uuidSeq, hasCompact: s.hasCompact, createdMs: meta.createdMs, lastActivity: s.lastActivity };
         }),
       );
       const lineage = deriveForkLineage(members);
@@ -386,6 +383,10 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   let aiTitle: unknown = null;
   let model = '';
   let eventCount = 0;
+  let hasCompact = false;
+  const postCompactHeads: string[] = [];
+  // Set right after a compaction boundary so the next user/assistant message is captured as a head.
+  let awaitingCompactHead = false;
 
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
   try {
@@ -398,10 +399,14 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
       const modelMatch = line.match(/"model":"(claude-[^"]+)"/);
       if (modelMatch) model = modelMatch[1];
 
-      // Title events recur through the file, so always parse them to keep the latest.
+      // Title events recur through the file, so always parse them to keep the latest. A real
+      // compaction is a structured system/compact_boundary event, not the bare word "compactMetadata"
+      // (which also appears in message text) — so pre-filter cheaply on that string, then confirm by
+      // type below. While awaiting the first message after a boundary, keep parsing to capture it.
       // Otherwise stop parsing once we have cwd and the first message; keep counting.
       const isTitle = line.includes('"custom-title"') || line.includes('"ai-title"');
-      if (!isTitle && cwd && firstMessage && conversationId) continue;
+      const maybeBoundary = line.includes('compact_boundary');
+      if (!isTitle && !maybeBoundary && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
 
       let event: Record<string, unknown>;
       try {
@@ -418,6 +423,15 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
       if (event.type === 'custom-title') customTitle = event.customTitle;
       else if (event.type === 'ai-title') aiTitle = event.aiTitle;
       else if (!firstMessage && event.type === 'user') firstMessage = extractUserText(event);
+
+      // Real compaction boundary; the following user/assistant message is the post-compaction head.
+      if (event.type === 'system' && event.subtype === 'compact_boundary') {
+        hasCompact = true;
+        awaitingCompactHead = true;
+      } else if (awaitingCompactHead && (event.type === 'user' || event.type === 'assistant') && typeof event.uuid === 'string') {
+        postCompactHeads.push(event.uuid);
+        awaitingCompactHead = false;
+      }
     }
   } finally {
     rl.close();
@@ -446,6 +460,8 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
     isFork: false,
     parentId: null,
     forkCount: 0,
+    hasCompact,
+    postCompactHeads,
   };
 }
 

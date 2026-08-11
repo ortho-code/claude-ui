@@ -79,6 +79,27 @@ beforeAll(async () => {
   ];
   await fs.writeFile(path.join(dir, 'p1.jsonl'), jsonl(...forkBase));
   await fs.writeFile(path.join(dir, 'p2.jsonl'), jsonl(...forkBase, { type: 'assistant', uuid: 'af2', message: { content: 'r2 (fork)' } }));
+
+  // Real compaction: a structured system/compact_boundary event -> hasCompact, and the next
+  // user/assistant uuid is captured as the post-compaction head.
+  await fs.writeFile(
+    path.join(dir, 'k.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'uk', cwd: '/tmp/projK', message: { content: 'start' } },
+      { type: 'system', subtype: 'compact_boundary', uuid: 'kb', compactMetadata: { trigger: 'manual' } },
+      { type: 'assistant', uuid: 'khead', message: { content: 'after compaction' } },
+    ),
+  );
+
+  // False positive guard: the words appear only in message TEXT, with no real boundary event ->
+  // hasCompact must stay false (the old substring check wrongly flagged this).
+  await fs.writeFile(
+    path.join(dir, 'm.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'um', cwd: '/tmp/projM', message: { content: 'why does compactMetadata match' } },
+      { type: 'assistant', uuid: 'am', message: { content: 'we changed the compact_boundary detection' } },
+    ),
+  );
 });
 
 describe('listSessions', () => {
@@ -111,6 +132,20 @@ describe('listSessions', () => {
     expect(p1?.forkCount).toBe(1);
     expect(p2?.isFork).toBe(true);
     expect(p2?.parentId).toBe('p1');
+  });
+
+  it('detects a real compaction boundary and captures its post-compaction head', async () => {
+    const sessions = await listSessions();
+    const k = sessions.find((s) => s.id === 'k');
+    expect(k?.hasCompact).toBe(true);
+    expect(k?.postCompactHeads).toEqual(['khead']);
+  });
+
+  it('does not flag compaction when the words appear only in message text', async () => {
+    const sessions = await listSessions();
+    const m = sessions.find((s) => s.id === 'm');
+    expect(m?.hasCompact).toBe(false);
+    expect(m?.postCompactHeads).toEqual([]);
   });
 
   it('attributes a removed worktree to its repo via the .claude/worktrees path', async () => {
@@ -205,7 +240,7 @@ describe('fork lineage cache', () => {
   it('persists the derived lineage to disk', async () => {
     await listSessions();
     const cache = JSON.parse(await fs.readFile(path.join(testHome, 'fork-lineage.json'), 'utf8'));
-    expect(cache.version).toBe(1);
+    expect(cache.version).toBe(2);
     // p1/p2 share first-message uuid 'uf', so that is their conversation key.
     expect(cache.conversations.uf.members.p2.isFork).toBe(true);
     expect(cache.conversations.uf.members.p1.forkCount).toBe(1);
