@@ -114,6 +114,25 @@ beforeAll(async () => {
     ),
   );
 
+  // Mid-life worktree entry (EnterWorktree hook): the transcript stays in the original project dir;
+  // the last worktree-state event decides where the session lives.
+  await fs.writeFile(
+    path.join(dir, 'w1.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'uw1', cwd: '/tmp/projW', message: { content: 'work' } },
+      { type: 'worktree-state', worktreeSession: { originalCwd: '/tmp/projW', preEnterOriginalCwd: '/tmp/projW', worktreePath: `${testHome}/.claude/worktrees/wtg`, worktreeName: 'wtg', hookBased: true } },
+    ),
+  );
+  // ...and one that entered then EXITED (worktreeSession null): back to the original cwd.
+  await fs.writeFile(
+    path.join(dir, 'w2.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'uw2', cwd: '/tmp/projW2', message: { content: 'work' } },
+      { type: 'worktree-state', worktreeSession: { originalCwd: '/tmp/projW2', preEnterOriginalCwd: '/tmp/projW2', worktreePath: `${testHome}/.claude/worktrees/wtg2`, worktreeName: 'wtg2', hookBased: true } },
+      { type: 'worktree-state', worktreeSession: null },
+    ),
+  );
+
   // lastActivity comes from the last MESSAGE, so a later system event (a background/Remote Control
   // touch) must not push it forward.
   await fs.writeFile(
@@ -196,6 +215,21 @@ describe('listSessions', () => {
     expect(d?.worktree).toBe('wt1');
     expect(d?.repoRoot).toBe(testHome);
     expect(d?.isRepo).toBe(true);
+  });
+
+  it('moves a session into the worktree it entered mid-life (last worktree-state wins)', async () => {
+    const w1 = (await listSessions()).find((s) => s.id === 'w1');
+    expect(w1?.cwd).toBe(`${testHome}/.claude/worktrees/wtg`);
+    expect(w1?.worktree).toBe('wtg');
+    expect(w1?.repoRoot).toBe(testHome);
+    expect(w1?.isRepo).toBe(true);
+  });
+
+  it('drops a session back to its original cwd after it exited the worktree', async () => {
+    const w2 = (await listSessions()).find((s) => s.id === 'w2');
+    expect(w2?.cwd).toBe('/tmp/projW2');
+    expect(w2?.worktree).toBe('');
+    expect(w2?.repoRoot).toBe('/tmp/projW2');
   });
 
   it('uses the cwd as the group root when it is not a git repo', async () => {

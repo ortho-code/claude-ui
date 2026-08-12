@@ -227,6 +227,12 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   const postCompactHeads: string[] = [];
   // Set right after a compaction boundary so the next user/assistant message is captured as a head.
   let awaitingCompactHead = false;
+  // A session can ENTER a worktree mid-life (the EnterWorktree hook): the transcript stays in its
+  // original project dir and only a worktree-state event records the move, so the first-latched cwd
+  // goes stale. The LAST worktree-state wins: entered (a worktreeSession object) puts the session at
+  // worktreePath; exited (worktreeSession null) drops it back to the recorded original cwd.
+  let worktreeStateCwd: string | null = null;
+  let worktreeOriginalCwd = '';
   // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system
   // append (a Remote Control notice) or a resume bumps mtime without being real activity. Captured with
   // a cheap regex below.
@@ -257,7 +263,8 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
       // Otherwise stop parsing once we have cwd and the first message; keep counting.
       const isTitle = line.includes('"custom-title"') || line.includes('"ai-title"');
       const maybeBoundary = line.includes('compact_boundary');
-      if (!isTitle && !maybeBoundary && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
+      const maybeWorktree = line.includes('worktree-state');
+      if (!isTitle && !maybeBoundary && !maybeWorktree && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
 
       let event: Record<string, unknown>;
       try {
@@ -274,6 +281,17 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
       if (event.type === 'custom-title') customTitle = event.customTitle;
       else if (event.type === 'ai-title') aiTitle = event.aiTitle;
       else if (!firstMessage && event.type === 'user') firstMessage = extractUserText(event);
+
+      if (event.type === 'worktree-state') {
+        const ws = event.worktreeSession as { worktreePath?: unknown; originalCwd?: unknown } | null;
+        if (ws && typeof ws.worktreePath === 'string') {
+          worktreeStateCwd = ws.worktreePath;
+          if (typeof ws.originalCwd === 'string') worktreeOriginalCwd = ws.originalCwd;
+        } else {
+          // Exited (worktreeSession null carries no path); fall back to the enter event's original cwd.
+          worktreeStateCwd = worktreeOriginalCwd || null;
+        }
+      }
 
       // Real compaction boundary; the following user/assistant message is the post-compaction head.
       if (event.type === 'system' && event.subtype === 'compact_boundary') {
@@ -292,7 +310,9 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
 
   const title = asTitle(customTitle) || asTitle(aiTitle);
   const stat = await fs.stat(file);
-  const resolvedCwd = cwd || decodeProjectDir(path.basename(path.dirname(file)));
+  // The worktree-state override beats the first-latched cwd; resolveRepo then maps a worktree path
+  // to its repo + badge through the same path it uses for `claude -w` sessions.
+  const resolvedCwd = worktreeStateCwd || cwd || decodeProjectDir(path.basename(path.dirname(file)));
   const lastActivity = lastMsgTs || stat.mtime.toISOString();
   return {
     id,
