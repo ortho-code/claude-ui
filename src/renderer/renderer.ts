@@ -34,8 +34,7 @@ const container = document.getElementById('sessions')!;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const pinnedFilter = document.getElementById('pinned-filter') as HTMLButtonElement;
 const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonElement;
-const forkFilter = document.getElementById('fork-filter') as HTMLButtonElement;
-const forkedFilter = document.getElementById('forked-filter') as HTMLButtonElement;
+const siblingFilter = document.getElementById('sibling-filter') as HTMLButtonElement;
 const archivedFilter = document.getElementById('archived-filter') as HTMLButtonElement;
 const filterToggle = document.getElementById('filter-toggle') as HTMLButtonElement;
 const filterPanel = document.getElementById('filter-panel')!;
@@ -194,8 +193,7 @@ let allSessions: SessionSummary[] = [];
 let filterText = '';
 let showPinnedOnly = false;
 let showWorktreeOnly = false;
-let showForksOnly = false;
-let showHasForksOnly = false;
+let showSiblingsOnly = false;
 let showArchivedOnly = false;
 // The project the switcher is scoped to; null = "All" (the grouped overview). In-memory for now;
 // Phase 3 persists it.
@@ -209,7 +207,7 @@ let dateToMs: number | null = null;
 let lastSignature = '';
 // Status dots by tip session id; rebuilt each render (a status event names a session id).
 const statusDots = new Map<string, HTMLElement>();
-// Row elements by entity key (a fork's own id, else conversationId), reused across renders so a
+// Row elements by entity key (a sibling's own id, else conversationId), reused across renders so a
 // re-render moves nodes instead of recreating them — no flicker, no scroll jump, hover/focus kept.
 const sessionRows = new Map<string, HTMLElement>();
 const collapsedGroups = new Set<string>();
@@ -390,7 +388,7 @@ async function refreshFromDisk(): Promise<void> {
 
 // Any filter active? Used to auto-expand groups with matches and to show the filter status.
 function isFiltering(): boolean {
-  return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showForksOnly || showHasForksOnly || showArchivedOnly || datePreset !== 'any';
+  return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showSiblingsOnly || showArchivedOnly || datePreset !== 'any';
 }
 
 // Adapt the current filter state to the pure predicate.
@@ -399,8 +397,7 @@ function passesFilters(session: SessionSummary): boolean {
     text: filterText,
     pinnedOnly: showPinnedOnly,
     worktreeOnly: showWorktreeOnly,
-    forksOnly: showForksOnly,
-    hasForksOnly: showHasForksOnly,
+    siblingOnly: showSiblingsOnly,
     archivedOnly: showArchivedOnly,
     dateFrom: dateFromMs,
     dateTo: dateToMs,
@@ -475,10 +472,8 @@ function updateFilterStatus(matches: number, total: number): void {
   pinnedFilter.setAttribute('aria-pressed', String(showPinnedOnly));
   worktreeFilter.classList.toggle('active', showWorktreeOnly);
   worktreeFilter.setAttribute('aria-pressed', String(showWorktreeOnly));
-  forkFilter.classList.toggle('active', showForksOnly);
-  forkFilter.setAttribute('aria-pressed', String(showForksOnly));
-  forkedFilter.classList.toggle('active', showHasForksOnly);
-  forkedFilter.setAttribute('aria-pressed', String(showHasForksOnly));
+  siblingFilter.classList.toggle('active', showSiblingsOnly);
+  siblingFilter.setAttribute('aria-pressed', String(showSiblingsOnly));
   archivedFilter.classList.toggle('active', showArchivedOnly);
   archivedFilter.setAttribute('aria-pressed', String(showArchivedOnly));
   // The toggle carries the accent when any filter is on, so an active filter is visible even
@@ -492,8 +487,7 @@ function clearFilter(): void {
   filterText = '';
   showPinnedOnly = false;
   showWorktreeOnly = false;
-  showForksOnly = false;
-  showHasForksOnly = false;
+  showSiblingsOnly = false;
   showArchivedOnly = false;
   suppressPickerSelect = true;
   datePicker.clear();
@@ -545,35 +539,28 @@ function jumpToSession(session: SessionSummary): void {
   void openSession(session);
 }
 
-// Open a fork's origin (its parent session) from the fork badge. The parent id is the exact session
-// the fork was branched from; open that session directly if it's still on disk.
-function jumpToOrigin(parentId: string): void {
-  const parent = allSessions.find((s) => s.id === parentId);
-  if (parent) jumpToSession(parent);
-  else showToast("The original session isn't here anymore.");
-}
-
-// A parent's direct forks, most recent first. Shared by the count badge and the kebab submenu.
-function forksOf(parent: SessionSummary): SessionSummary[] {
+// A session's siblings (the other members of its family), most recent first. Shared by the count
+// badge and the kebab submenu.
+function siblingsOf(session: SessionSummary): SessionSummary[] {
   return allSessions
-    .filter((s) => s.isFork && s.parentId === parent.id)
+    .filter((s) => session.siblingIds.includes(s.id))
     .sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
 }
 
-// Menu items for a fork list; forks start title-identical to the parent, so each shows title + when.
-function forkMenuItems(forks: SessionSummary[]): MenuItem[] {
-  return forks.map((fork) => ({
-    label: `${fork.title || fork.firstMessage || fork.id.slice(0, 8)} · ${relativeTime(fork.lastActivity)}`,
-    onSelect: () => jumpToSession(fork),
+// Menu items for a sibling list; siblings often share a title, so each shows title + when.
+function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
+  return siblings.map((sibling) => ({
+    label: `${sibling.title || sibling.firstMessage || sibling.id.slice(0, 8)} · ${relativeTime(sibling.lastActivity)}`,
+    onSelect: () => jumpToSession(sibling),
   }));
 }
 
-// List a parent's forks in the shared popover; click one to jump to it.
-function openForksMenu(anchor: HTMLElement, parent: SessionSummary): void {
-  const forks = forksOf(parent);
-  // The count can briefly outlive its forks (a delete between refreshes); nothing to list then.
-  if (forks.length === 0) return;
-  openMenu(anchor, forkMenuItems(forks));
+// List a session's siblings in the shared popover; click one to jump to it.
+function openSiblingsMenu(anchor: HTMLElement, session: SessionSummary): void {
+  const siblings = siblingsOf(session);
+  // The mark can briefly outlive its siblings (a delete between refreshes); nothing to list then.
+  if (siblings.length === 0) return;
+  openMenu(anchor, siblingMenuItems(siblings));
 }
 
 // Cross-project attention strip in the sidebar footer. The toggle badge is the same overall roll-up
@@ -1194,8 +1181,7 @@ interface RowEls {
   dot: HTMLElement;
   title: HTMLElement;
   badge: HTMLElement;
-  forkBadge: HTMLElement;
-  forksBadge: HTMLElement;
+  siblingsBadge: HTMLElement;
   meta: HTMLElement;
   metaWhen: HTMLElement;
   metaStats: HTMLElement;
@@ -1209,7 +1195,7 @@ interface RowEls {
 const rowEls = new WeakMap<HTMLElement, RowEls>();
 
 // Build a row once. Its click/pin handlers read the live tip from `currentTips` by the entity key
-// (a fork's own id, else the conversationId), so a reused row stays correct after it branches.
+// (a sibling's own id, else the conversationId), so a reused row stays correct after it branches.
 function createSessionRow(key: string): HTMLElement {
   const item = document.createElement('article');
   item.className = 'session';
@@ -1229,26 +1215,15 @@ function createSessionRow(key: string): HTMLElement {
   const badge = document.createElement('span');
   badge.className = 'worktree-badge';
   badge.hidden = true;
-  // A fork stands on its own row (same title as its parent); this badge marks it and jumps to the
-  // origin on click. Shown only when session.isFork (set in updateRow).
-  const forkBadge = document.createElement('span');
-  forkBadge.className = 'fork-badge';
-  forkBadge.textContent = '⑂ fork';
-  forkBadge.hidden = true;
-  forkBadge.addEventListener('click', (event) => {
+  // A family member's mark: `⑂ N` counts its siblings and opens a list of them to jump into. Shown
+  // only when session.isSibling (set in updateRow).
+  const siblingsBadge = document.createElement('span');
+  siblingsBadge.className = 'fork-badge forks-count';
+  siblingsBadge.hidden = true;
+  siblingsBadge.addEventListener('click', (event) => {
     event.stopPropagation();
     const session = currentTips.get(key);
-    if (session?.parentId) jumpToOrigin(session.parentId);
-  });
-  // The mirror: when this session HAS forks, a count badge opens a list of them to jump into. Shown
-  // only when session.forkCount > 0 (set in updateRow). A fork-of-a-fork shows both badges.
-  const forksBadge = document.createElement('span');
-  forksBadge.className = 'fork-badge forks-count';
-  forksBadge.hidden = true;
-  forksBadge.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const session = currentTips.get(key);
-    if (session) openForksMenu(forksBadge, session);
+    if (session) openSiblingsMenu(siblingsBadge, session);
   });
   const meta = document.createElement('p');
   meta.className = 'session-meta';
@@ -1262,7 +1237,7 @@ function createSessionRow(key: string): HTMLElement {
   const metaStats = document.createElement('span');
   metaStats.className = 'meta-stats';
   meta.append(metaWhen, metaSep, metaStats);
-  content.append(title, badge, forkBadge, forksBadge, meta);
+  content.append(title, badge, siblingsBadge, meta);
 
   const pin = document.createElement('button');
   pin.className = 'pin';
@@ -1299,8 +1274,8 @@ function createSessionRow(key: string): HTMLElement {
     const session = currentTips.get(key);
     const title = session?.title || session?.firstMessage || key.slice(0, 8);
     if (!(await confirmDelete(title))) return;
-    // Delete only this entity's files: for a fork that's its own file; for a base conversation its
-    // compaction/desktop branches (same entityKey) but NOT its forks, which are separate entities.
+    // Delete only this entity's files: a sibling is its own file; a lone conversation may span
+    // same-conversationId files (same entityKey). Siblings are separate entities and stay untouched.
     const ids = allSessions.filter((s) => entityKey(s) === key).map((s) => s.id);
     // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta
     // purge run in the background. It stays hidden via pendingDeletes until its files are gone
@@ -1324,7 +1299,7 @@ function createSessionRow(key: string): HTMLElement {
     }
   });
 
-  // Per-session actions menu: fork this session, and (for a fork) jump back to its origin.
+  // Per-session actions menu: fork this session, and (for a family member) list its siblings.
   const kebab = document.createElement('button');
   kebab.className = 'session-kebab';
   kebab.textContent = '⋮';
@@ -1334,19 +1309,15 @@ function createSessionRow(key: string): HTMLElement {
     const session = currentTips.get(key);
     if (!session) return;
     const items: MenuItem[] = [{ label: 'Fork this session', onSelect: () => { void forkSession(session); } }];
-    const parentId = session.parentId;
-    if (session.isFork && parentId) {
-      items.push({ label: 'Go to original', onSelect: () => jumpToOrigin(parentId) });
-    }
-    const forks = forksOf(session);
-    if (forks.length > 0) {
-      items.push({ label: `Forks (${forks.length})`, submenu: forkMenuItems(forks) });
+    const siblings = siblingsOf(session);
+    if (siblings.length > 0) {
+      items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
     }
     openMenu(kebab, items);
   });
 
   item.append(dot, content, pin, archiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, forkBadge, forksBadge, meta, metaWhen, metaStats, pin, archiveBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, siblingsBadge, meta, metaWhen, metaStats, pin, archiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
@@ -1377,18 +1348,12 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
     setTooltip(els.badge, `Linked git worktree: ${session.worktree}`);
   }
 
-  els.forkBadge.hidden = !session.isFork;
-  if (session.isFork) {
-    const parent = session.parentId ? allSessions.find((s) => s.id === session.parentId) : undefined;
-    const parentTitle = parent?.title || parent?.firstMessage || 'the original session';
-    setTooltip(els.forkBadge, `Forked from ${parentTitle} — click to open it`);
-  }
-
-  els.forksBadge.hidden = session.forkCount === 0;
-  if (session.forkCount > 0) {
-    els.forksBadge.textContent = `⑂ ${session.forkCount}`;
-    const label = session.forkCount === 1 ? '1 fork' : `${session.forkCount} forks`;
-    setTooltip(els.forksBadge, `${label} — click to list them`);
+  els.siblingsBadge.hidden = !session.isSibling;
+  if (session.isSibling) {
+    const count = session.siblingIds.length;
+    els.siblingsBadge.textContent = `⑂ ${count}`;
+    const label = count === 1 ? '1 sibling' : `${count} siblings`;
+    setTooltip(els.siblingsBadge, `${label} in this session's family — click to list them`);
   }
 
   if (showArchivedOnly) {
@@ -1455,10 +1420,8 @@ async function openNewSession(cwd: string): Promise<void> {
     model: '',
     lastActivity: new Date().toISOString(),
     eventCount: 0,
-    isFork: false,
-    parentId: null,
-    forkCount: 0,
-    hasCompact: false,
+    isSibling: false,
+    siblingIds: [],
     postCompactHeads: [],
   };
   // Land where the new session's tab will be visible: stay in its own project, else drop to All.
@@ -1512,10 +1475,8 @@ async function openWorktreeSession(repoRoot: string): Promise<void> {
     model: '',
     lastActivity: new Date().toISOString(),
     eventCount: 0,
-    isFork: false,
-    parentId: null,
-    forkCount: 0,
-    hasCompact: false,
+    isSibling: false,
+    siblingIds: [],
     postCompactHeads: [],
   };
   if (activeFolder !== null && session.repoRoot !== activeFolder) {
@@ -1528,7 +1489,7 @@ async function openWorktreeSession(repoRoot: string): Promise<void> {
 
 // Fork an existing session: `claude --resume <id> --fork-session` copies its transcript into a new
 // session in the same cwd. Like openNewSession, the tab starts on a placeholder and adopts the real
-// fork id via its token; the fork then appears in the sidebar (badged) on the next disk refresh.
+// fork id via its token; the fork then appears in the sidebar (as a sibling) on the next disk refresh.
 async function forkSession(parent: SessionSummary): Promise<void> {
   const parentTitle = parent.title || parent.firstMessage || 'session';
   // Forks copy the parent's title, so offer a fresh name up front (via claude's --name). Cancel
@@ -1549,13 +1510,11 @@ async function forkSession(parent: SessionSummary): Promise<void> {
     model: '',
     lastActivity: new Date().toISOString(),
     eventCount: 0,
-    // Mark the placeholder as a fork right away (we know it is one, and its parent), so the row shows
-    // the fork badge immediately instead of waiting for claude to write the transcript. It reconciles
-    // to the real fork row once that file lands and lineage is derived on the next refresh.
-    isFork: true,
-    parentId: parent.id,
-    forkCount: 0,
-    hasCompact: false,
+    // Mark the placeholder as a family member right away (we know its parent is a sibling), so the
+    // row shows the sibling mark immediately instead of waiting for claude to write the transcript.
+    // It reconciles to the real row once that file lands and grouping runs on the next refresh.
+    isSibling: true,
+    siblingIds: [parent.id],
     postCompactHeads: [],
   };
   // Land where the fork's tab will be visible: stay in its project, else drop to All.
@@ -1758,13 +1717,14 @@ function tabElement(tab: Tab): HTMLElement {
     toggleAck(tab.session.id);
   });
 
-  // Forks share their parent's title, so mark the tab too (matching the sidebar row's badge).
-  const forkMark = document.createElement('span');
-  forkMark.className = 'tab-fork';
-  forkMark.textContent = '⑂';
-  if (tab.session.isFork) {
-    const parent = tab.session.parentId ? allSessions.find((s) => s.id === tab.session.parentId) : undefined;
-    setTooltip(forkMark, `Forked from ${parent?.title || parent?.firstMessage || 'the original session'}`);
+  // Siblings often share a title, so mark the tab too — keyed on isSibling, the same signal as the
+  // sidebar row's badge, so tab and row always agree.
+  const siblingMark = document.createElement('span');
+  siblingMark.className = 'tab-fork';
+  siblingMark.textContent = '⑂';
+  if (tab.session.isSibling) {
+    const count = tab.session.siblingIds.length;
+    setTooltip(siblingMark, `Has ${count} ${count === 1 ? 'sibling' : 'siblings'} in its session family`);
   }
 
   // A worktree session's tab gets the same ⎇ marker as its sidebar badge.
@@ -1789,7 +1749,7 @@ function tabElement(tab: Tab): HTMLElement {
   });
 
   el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
-  const marks = [...(tab.session.isFork ? [forkMark] : []), ...(tab.session.worktree ? [worktreeMark] : [])];
+  const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(tab.session.worktree ? [worktreeMark] : [])];
   el.append(dot, ...marks, label, close);
   el.addEventListener('click', () => {
     activateTab(tab);
@@ -1961,13 +1921,8 @@ worktreeFilter.addEventListener('click', () => {
   renderList();
   container.scrollTop = 0;
 });
-forkFilter.addEventListener('click', () => {
-  showForksOnly = !showForksOnly;
-  renderList();
-  container.scrollTop = 0;
-});
-forkedFilter.addEventListener('click', () => {
-  showHasForksOnly = !showHasForksOnly;
+siblingFilter.addEventListener('click', () => {
+  showSiblingsOnly = !showSiblingsOnly;
   renderList();
   container.scrollTop = 0;
 });

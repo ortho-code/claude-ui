@@ -17,21 +17,19 @@ export interface SessionSummary {
   firstMessage: string;
   /** Latest model id an assistant message reported (e.g. claude-opus-4-…); empty when unknown. */
   model: string;
-  /** Last activity as an ISO timestamp (file mtime). */
+  /** Last activity: the timestamp of the last user/assistant message (falls back to file mtime only
+   *  when the transcript has no message timestamp). Ignores background/system appends. */
   lastActivity: string;
   /** Number of transcript lines (events) in the session. */
   eventCount: number;
-  /** This session is a fork of another (its transcript extends an ancestor in the same family). */
-  isFork: boolean;
-  /** The session id this one forked from, when isFork; null otherwise. */
-  parentId: string | null;
-  /** How many other sessions forked directly from this one (0 for most). */
-  forkCount: number;
-  /** A real compaction boundary (a system/compact_boundary event) exists in this transcript.
-   *  Main-process bookkeeping for lineage; the renderer doesn't use it. */
-  hasCompact: boolean;
+  /** This session belongs to a multi-file family (sessions sharing a conversation, e.g. via
+   *  --fork-session). Members are SIBLINGS — no parent/child direction is derived, because fork
+   *  direction is not reliably recoverable from transcript data. Each sibling renders as its own row. */
+  isSibling: boolean;
+  /** The other members of this session's family (empty when not a sibling). */
+  siblingIds: string[];
   /** First user/assistant uuid after each compaction boundary. A fork of a compacted session adopts
-   *  one of these as its own conversationId, which is how such a fork is linked back to its parent.
+   *  one of these as its own conversationId, which is how such a fork is linked into the family.
    *  Main-process bookkeeping; the renderer doesn't use it. */
   postCompactHeads: string[];
 }

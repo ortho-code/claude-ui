@@ -11,13 +11,13 @@ const { testHome } = vi.hoisted(() => {
   return { testHome: fs.mkdtempSync(path.join(os.tmpdir(), 'claude-ui-sess-')) as string };
 });
 
-vi.mock('electron', () => ({ shell: { trashItem: vi.fn() }, app: { getPath: () => testHome } }));
+vi.mock('electron', () => ({ shell: { trashItem: vi.fn() } }));
 vi.mock('node:os', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:os')>();
   return { ...actual, homedir: () => testHome };
 });
 
-import { listSessions, deriveForkLineage } from './sessions';
+import { listSessions } from './sessions';
 
 const projectsDir = path.join(testHome, '.claude', 'projects');
 
@@ -72,7 +72,7 @@ beforeAll(async () => {
     ),
   );
 
-  // Fork: p2 shares p1's first-message uuid and extends its transcript, so p2 is a fork of p1.
+  // Family: p2 shares p1's first-message uuid (e.g. via --fork-session), so they are siblings.
   const forkBase = [
     { type: 'user', uuid: 'uf', cwd: '/tmp/projF', message: { content: 'orig' } },
     { type: 'assistant', uuid: 'af1', message: { content: 'r1' } },
@@ -80,8 +80,8 @@ beforeAll(async () => {
   await fs.writeFile(path.join(dir, 'p1.jsonl'), jsonl(...forkBase));
   await fs.writeFile(path.join(dir, 'p2.jsonl'), jsonl(...forkBase, { type: 'assistant', uuid: 'af2', message: { content: 'r2 (fork)' } }));
 
-  // Real compaction: a structured system/compact_boundary event -> hasCompact, and the next
-  // user/assistant uuid is captured as the post-compaction head.
+  // Real compaction: after a structured system/compact_boundary event, the next user/assistant uuid
+  // is captured as the post-compaction head.
   await fs.writeFile(
     path.join(dir, 'k.jsonl'),
     jsonl(
@@ -91,13 +91,37 @@ beforeAll(async () => {
     ),
   );
 
+  // Case A: a fork of a COMPACTED session adopts a post-compaction head as its conversationId. q's
+  // first message uuid equals k's post-compaction head 'khead', so k and q are one family. The fork
+  // copies the parent's boundary event too, so q also claims 'khead' as its OWN head (the real
+  // c74279cd shape) — that self-claim must not break the k<->q link.
+  await fs.writeFile(
+    path.join(dir, 'q.jsonl'),
+    jsonl(
+      { type: 'system', subtype: 'compact_boundary', uuid: 'qb', compactMetadata: { trigger: 'manual' } },
+      { type: 'user', uuid: 'khead', cwd: '/tmp/projK', message: { content: 'fork of compacted' } },
+      { type: 'assistant', uuid: 'aq', message: { content: 'carries on' } },
+    ),
+  );
+
   // False positive guard: the words appear only in message TEXT, with no real boundary event ->
-  // hasCompact must stay false (the old substring check wrongly flagged this).
+  // no post-compaction head is captured (the old substring check wrongly flagged this).
   await fs.writeFile(
     path.join(dir, 'm.jsonl'),
     jsonl(
       { type: 'user', uuid: 'um', cwd: '/tmp/projM', message: { content: 'why does compactMetadata match' } },
       { type: 'assistant', uuid: 'am', message: { content: 'we changed the compact_boundary detection' } },
+    ),
+  );
+
+  // lastActivity comes from the last MESSAGE, so a later system event (a background/Remote Control
+  // touch) must not push it forward.
+  await fs.writeFile(
+    path.join(dir, 't.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'ut', cwd: '/tmp/projT', message: { content: 'hi' }, timestamp: '2026-01-01T00:00:00.000Z' },
+      { type: 'assistant', uuid: 'at', message: { content: 'yo' }, timestamp: '2026-01-02T00:00:00.000Z' },
+      { type: 'system', subtype: 'informational', content: 'Remote Control disconnected', timestamp: '2026-06-01T00:00:00.000Z' },
     ),
   );
 });
@@ -124,28 +148,46 @@ describe('listSessions', () => {
     expect(sessions.some((s) => s.id === 'c')).toBe(false);
   });
 
-  it('detects a fork across files sharing a first-message uuid', async () => {
+  it('marks files sharing a first-message uuid as siblings', async () => {
     const sessions = await listSessions();
     const p1 = sessions.find((s) => s.id === 'p1');
     const p2 = sessions.find((s) => s.id === 'p2');
-    expect(p1?.isFork).toBe(false);
-    expect(p1?.forkCount).toBe(1);
-    expect(p2?.isFork).toBe(true);
-    expect(p2?.parentId).toBe('p1');
+    expect(p1?.isSibling).toBe(true);
+    expect(p1?.siblingIds).toEqual(['p2']);
+    expect(p2?.isSibling).toBe(true);
+    expect(p2?.siblingIds).toEqual(['p1']);
   });
 
-  it('detects a real compaction boundary and captures its post-compaction head', async () => {
+  it('leaves a lone session unmarked', async () => {
+    const a = (await listSessions()).find((s) => s.id === 'a');
+    expect(a?.isSibling).toBe(false);
+    expect(a?.siblingIds).toEqual([]);
+  });
+
+  it('captures the post-compaction head after a real compaction boundary', async () => {
+    const sessions = await listSessions();
+    expect(sessions.find((s) => s.id === 'k')?.postCompactHeads).toEqual(['khead']);
+  });
+
+  it('links a fork of a compacted session to it as a sibling (case A)', async () => {
+    // q's conversationId equals k's post-compaction head, so they group despite different keys.
     const sessions = await listSessions();
     const k = sessions.find((s) => s.id === 'k');
-    expect(k?.hasCompact).toBe(true);
-    expect(k?.postCompactHeads).toEqual(['khead']);
+    const q = sessions.find((s) => s.id === 'q');
+    expect(k?.isSibling).toBe(true);
+    expect(k?.siblingIds).toEqual(['q']);
+    expect(q?.isSibling).toBe(true);
+    expect(q?.siblingIds).toEqual(['k']);
   });
 
   it('does not flag compaction when the words appear only in message text', async () => {
     const sessions = await listSessions();
-    const m = sessions.find((s) => s.id === 'm');
-    expect(m?.hasCompact).toBe(false);
-    expect(m?.postCompactHeads).toEqual([]);
+    expect(sessions.find((s) => s.id === 'm')?.postCompactHeads).toEqual([]);
+  });
+
+  it('takes lastActivity from the last message, ignoring later system events', async () => {
+    const t = (await listSessions()).find((s) => s.id === 't');
+    expect(t?.lastActivity).toBe('2026-01-02T00:00:00.000Z'); // last MESSAGE, not the later system event
   });
 
   it('attributes a removed worktree to its repo via the .claude/worktrees path', async () => {
@@ -182,84 +224,26 @@ describe('listSessions', () => {
   });
 });
 
-describe('deriveForkLineage', () => {
-  const m = (id: string, uuidSeq: string[], createdMs: number, hasCompact = false, lastActivity = 't') => ({
-    id, uuidSeq, hasCompact, createdMs, lastActivity,
-  });
-
-  it('attributes two forks of one parent to that parent, not to each other', () => {
-    // base kept going after each fork; b forked early, c forked late. Both share more with base
-    // than with each other, so both attach to base (no chain).
-    const r = deriveForkLineage([
-      m('base', ['a', 'b', 'c', 'd', 'e'], 1),
-      m('b', ['a', 'b', 'p', 'q'], 2),
-      m('c', ['a', 'b', 'c', 'd', 'e', 'z'], 3),
-    ]);
-    expect(r.get('base')).toEqual({ isFork: false, parentId: null });
-    expect(r.get('b')?.parentId).toBe('base');
-    expect(r.get('c')?.parentId).toBe('base');
-  });
-
-  it('attributes to the parent even when the parent has a message the fork lacks (a duplicate)', () => {
-    // base has a stray uuid 'dup' (e.g. a resubmitted message) that the fork never copied; set
-    // overlap still makes base the clear parent, where positional prefix would misfire.
-    const r = deriveForkLineage([
-      m('base', ['a', 'b', 'c', 'dup'], 1),
-      m('fork', ['a', 'b', 'c', 'x', 'y'], 2),
-    ]);
-    expect(r.get('fork')).toEqual({ isFork: true, parentId: 'base' });
-  });
-
-  it('resolves a real fork-of-fork chain to the immediate parent', () => {
-    // f1 contains base; f2 contains f1 — so f2 overlaps f1 more than base and chains to it.
-    const r = deriveForkLineage([
-      m('base', ['a', 'b'], 1),
-      m('f1', ['a', 'b', 'c'], 2),
-      m('f2', ['a', 'b', 'c', 'd'], 3),
-    ]);
-    expect(r.get('base')).toEqual({ isFork: false, parentId: null });
-    expect(r.get('f1')?.parentId).toBe('base');
-    expect(r.get('f2')?.parentId).toBe('f1');
-  });
-
-  it('orients parent by creation time when the message sets are equal (a just-created copy)', () => {
-    const r = deriveForkLineage([m('base', ['a', 'b'], 1), m('fork', ['a', 'b'], 2)]);
-    expect(r.get('fork')).toEqual({ isFork: true, parentId: 'base' });
-    expect(r.get('base')).toEqual({ isFork: false, parentId: null });
-  });
-
-  it('never treats a compaction branch as a fork', () => {
-    const r = deriveForkLineage([m('base', ['a', 'b'], 1), m('compact', ['a', 'b', 'c'], 2, true)]);
-    expect(r.get('compact')).toEqual({ isFork: false, parentId: null });
-    expect(r.get('base')).toEqual({ isFork: false, parentId: null });
-  });
-});
-
-// These run after the listSessions suite, so they build on its p1/p2 fork family fixture.
-describe('fork lineage cache', () => {
-  it('persists the derived lineage to disk', async () => {
-    await listSessions();
-    const cache = JSON.parse(await fs.readFile(path.join(testHome, 'fork-lineage.json'), 'utf8'));
-    expect(cache.version).toBe(2);
-    // p1/p2 share first-message uuid 'uf', so that is their conversation key.
-    expect(cache.conversations.uf.members.p2.isFork).toBe(true);
-    expect(cache.conversations.uf.members.p1.forkCount).toBe(1);
-  });
-
-  it('recomputes when a new branch joins the family (the file set changed)', async () => {
-    // p3 forks p1 too: same copied prefix, its own extra message. Added after the family was cached,
-    // so the set-keyed entry must invalidate and pick it up.
+// Runs after the listSessions suite, so it builds on its p1/p2 family fixture.
+describe('sibling grouping across refreshes', () => {
+  it('extends the family when a new branch joins, and unmarks it when one leaves', async () => {
+    // p3 joins the p1/p2 family: same first-message uuid, its own extra message.
+    const p3File = path.join(projectsDir, '-tmp-proj', 'p3.jsonl');
     await fs.writeFile(
-      path.join(projectsDir, '-tmp-proj', 'p3.jsonl'),
+      p3File,
       jsonl(
         { type: 'user', uuid: 'uf', cwd: '/tmp/projF', message: { content: 'orig' } },
         { type: 'assistant', uuid: 'af1', message: { content: 'r1' } },
         { type: 'assistant', uuid: 'af3', message: { content: 'r3 (another fork)' } },
       ),
     );
-    const sessions = await listSessions();
-    expect(sessions.find((s) => s.id === 'p3')?.isFork).toBe(true);
-    expect(sessions.find((s) => s.id === 'p3')?.parentId).toBe('p1');
-    expect(sessions.find((s) => s.id === 'p1')?.forkCount).toBe(2);
+    let p1 = (await listSessions()).find((s) => s.id === 'p1');
+    expect(p1?.siblingIds?.slice().sort()).toEqual(['p2', 'p3']);
+
+    // p3 leaves again: cached summaries must lose the stale mark, not keep it.
+    await fs.rm(p3File);
+    p1 = (await listSessions()).find((s) => s.id === 'p1');
+    expect(p1?.isSibling).toBe(true);
+    expect(p1?.siblingIds).toEqual(['p2']);
   });
 });

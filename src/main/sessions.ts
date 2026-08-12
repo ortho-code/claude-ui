@@ -1,4 +1,4 @@
-import { app, shell } from 'electron';
+import { shell } from 'electron';
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -95,156 +95,6 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
 }
 
 /** Read every session transcript under ~/.claude/projects and summarize each. */
-interface ForkMeta {
-  /** Ordered user/assistant message uuids — a fork's sequence shares its parent's as a prefix. */
-  uuidSeq: string[];
-  /** File creation time (ms); a fork's file is created after its parent's, so this orders a family. */
-  createdMs: number;
-}
-const forkMetaCache = new Map<string, { key: string; meta: ForkMeta }>();
-
-// Full read of a transcript's message-uuid sequence, cached by mtime+size. Only called for
-// conversations with >1 file (fork candidates), since it reads the whole file. Compaction detection
-// lives in summarizeFile (structured, and it runs for every file), so it isn't repeated here.
-async function readForkMeta(file: string): Promise<ForkMeta> {
-  const stat = await fs.stat(file);
-  const key = `${stat.mtimeMs}:${stat.size}`;
-  const cached = forkMetaCache.get(file);
-  if (cached && cached.key === key) return cached.meta;
-
-  const uuidSeq: string[] = [];
-  const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
-  try {
-    for await (const line of rl) {
-      if (!line.trim()) continue;
-      if (!line.includes('"uuid"')) continue;
-      try {
-        const e = JSON.parse(line) as Record<string, unknown>;
-        if ((e.type === 'user' || e.type === 'assistant') && typeof e.uuid === 'string') uuidSeq.push(e.uuid);
-      } catch {
-        // skip malformed line
-      }
-    }
-  } finally {
-    rl.close();
-  }
-  // birthtime is 0 on filesystems that don't record it; ctime (inode change) is the best fallback.
-  const meta: ForkMeta = { uuidSeq, createdMs: stat.birthtimeMs || stat.ctimeMs };
-  forkMetaCache.set(file, { key, meta });
-  return meta;
-}
-
-interface ForkMember {
-  id: string;
-  /** This session's message uuids. Order doesn't matter here — lineage uses the SET (see below). */
-  uuidSeq: string[];
-  hasCompact: boolean;
-  /** File creation time (ms); orders a family so a fork's parent is one created before it. */
-  createdMs: number;
-  /** Tie-break only, when two members were created in the same millisecond. */
-  lastActivity: string;
-}
-
-// Derive fork lineage within one conversation family (sessions sharing a first-message uuid).
-//
-// `claude --fork-session` COPIES the parent's messages (keeping their uuids), so a fork's message
-// SET is a superset of the parent's-at-fork-time. Both sides can then keep going, so neither is a
-// prefix of the other — and a positional prefix comparison is worse than that: one duplicated or
-// inserted message shifts every later index, so two branches of the same conversation can look like
-// they diverge far earlier than they do. So we compare by SHARED MESSAGE SET, which is immune to
-// shifts, duplicates, and reordering.
-//
-// Each branch's parent is the EARLIER-created member it shares the most messages with (creation time
-// orients direction: a fork's file is created after the parent it was copied from). The earliest
-// non-compaction member is the base. This is tree-aware: a fork of a fork contains its immediate
-// parent's messages plus more, so it overlaps that parent more than the root and resolves to it.
-// Two forks of one parent each overlap the parent more than each other, so both attach to the parent
-// rather than chaining. Compaction branches are never forks (they collapse into the base elsewhere).
-export function deriveForkLineage(members: ForkMember[]): Map<string, { isFork: boolean; parentId: string | null }> {
-  const out = new Map<string, { isFork: boolean; parentId: string | null }>();
-  for (const m of members) out.set(m.id, { isFork: false, parentId: null });
-
-  // Only real (non-compaction) branches form the fork tree; order them oldest-first.
-  const real = members
-    .filter((m) => !m.hasCompact)
-    .sort((a, b) => a.createdMs - b.createdMs || a.lastActivity.localeCompare(b.lastActivity));
-  const sets = new Map(real.map((m) => [m.id, new Set(m.uuidSeq)]));
-
-  const overlap = (a: Set<string>, b: Set<string>): number => {
-    let n = 0;
-    for (const u of a) if (b.has(u)) n += 1;
-    return n;
-  };
-
-  for (let i = 0; i < real.length; i += 1) {
-    const x = real[i];
-    const xs = sets.get(x.id)!;
-    let parent: ForkMember | null = null;
-    let best = 0;
-    // Candidate parents are the members created before x; the closest ancestor shares the most
-    // messages. Ties keep the earlier-created candidate (real is sorted oldest-first).
-    for (let j = 0; j < i; j += 1) {
-      const shared = overlap(sets.get(real[j].id)!, xs);
-      if (shared > best) {
-        best = shared;
-        parent = real[j];
-      }
-    }
-    if (parent) out.set(x.id, { isFork: true, parentId: parent.id });
-  }
-  return out;
-}
-
-// Deriving fork lineage means reading whole transcripts, but the result is IMMUTABLE as a session
-// grows: appending messages to a branch never changes which earlier session it overlaps most — only
-// adding or removing a file in the family can change the tree. So we cache the derived result per
-// conversation, keyed by the family's set of file ids, and recompute only when that set changes (a
-// fork appears or is removed), NOT on every write while a fork is active. The cache is persisted to
-// disk so a restart reuses it instead of re-reading transcripts cold. Bump the version whenever
-// deriveForkLineage's logic changes, so stale results are discarded.
-interface ForkLineage {
-  isFork: boolean;
-  parentId: string | null;
-  forkCount: number;
-}
-interface ForkLineageEntry {
-  /** The family's sorted file ids; a change here (not mere growth) invalidates the entry. */
-  setKey: string;
-  members: Record<string, ForkLineage>;
-}
-const FORK_LINEAGE_VERSION = 2;
-let forkLineageCache: Map<string, ForkLineageEntry> | null = null;
-
-function forkLineagePath(): string {
-  return path.join(app.getPath('userData'), 'fork-lineage.json');
-}
-
-async function loadForkLineage(): Promise<Map<string, ForkLineageEntry>> {
-  if (forkLineageCache) return forkLineageCache;
-  try {
-    const parsed = JSON.parse(await fs.readFile(forkLineagePath(), 'utf8')) as {
-      version?: number;
-      conversations?: Record<string, ForkLineageEntry>;
-    };
-    forkLineageCache =
-      parsed.version === FORK_LINEAGE_VERSION && parsed.conversations
-        ? new Map(Object.entries(parsed.conversations))
-        : new Map();
-  } catch {
-    forkLineageCache = new Map(); // absent or unreadable: start empty
-  }
-  return forkLineageCache;
-}
-
-async function saveForkLineage(cache: Map<string, ForkLineageEntry>): Promise<void> {
-  const file = forkLineagePath();
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  const data = { version: FORK_LINEAGE_VERSION, conversations: Object.fromEntries(cache) };
-  const tmp = `${file}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(data));
-  await fs.rename(tmp, file); // atomic replace, same as meta.ts
-}
-
 export async function listSessions(): Promise<SessionSummary[]> {
   let projectDirs: string[];
   try {
@@ -266,70 +116,61 @@ export async function listSessions(): Promise<SessionSummary[]> {
     (s): s is SessionSummary => s !== null,
   );
 
-  // Fork lineage: only conversations with more than one file can contain forks. The derived tree is
-  // cached by the family's file-id set (immutable as sessions grow), so the heavy transcript read
-  // runs only when that set changes — see the ForkLineage cache above.
+  // Sibling grouping: sessions sharing a conversationId are one family. No direction is derived —
+  // fork direction is not reliably recoverable from transcript data (see the plan) — so a multi-file
+  // family is marked as SIBLINGS. Summaries are cached objects, so reset before re-deriving: a family
+  // that shrank must lose its stale marks.
+  for (const s of summaries) {
+    s.isSibling = false;
+    s.siblingIds = [];
+  }
   const byConversation = new Map<string, SessionSummary[]>();
   for (const s of summaries) {
     const group = byConversation.get(s.conversationId);
     if (group) group.push(s);
     else byConversation.set(s.conversationId, [s]);
   }
-  const fileById = new Map(files.map((f) => [path.basename(f, '.jsonl'), f]));
-  const lineageCache = await loadForkLineage();
-  const multiFile = new Set<string>();
-  let lineageDirty = false;
-  for (const [conversationId, group] of byConversation) {
-    if (group.length < 2) continue;
-    multiFile.add(conversationId);
-    const setKey = group
-      .map((s) => s.id)
-      .sort()
-      .join(',');
-    let entry = lineageCache.get(conversationId);
-    if (!entry || entry.setKey !== setKey) {
-      // Set changed (a fork/branch appeared or was removed): recompute from fresh transcript reads.
-      const members = await Promise.all(
-        group.map(async (s) => {
-          const meta = await readForkMeta(fileById.get(s.id)!);
-          return { id: s.id, uuidSeq: meta.uuidSeq, hasCompact: s.hasCompact, createdMs: meta.createdMs, lastActivity: s.lastActivity };
-        }),
-      );
-      const lineage = deriveForkLineage(members);
-      const childCount = new Map<string, number>();
-      for (const { parentId } of lineage.values()) {
-        if (parentId) childCount.set(parentId, (childCount.get(parentId) ?? 0) + 1);
-      }
-      const membersOut: Record<string, ForkLineage> = {};
-      for (const [id, l] of lineage) {
-        membersOut[id] = { isFork: l.isFork, parentId: l.parentId, forkCount: childCount.get(id) ?? 0 };
-      }
-      entry = { setKey, members: membersOut };
-      lineageCache.set(conversationId, entry);
-      lineageDirty = true;
-    }
-    for (const s of group) {
-      const l = entry.members[s.id];
-      if (!l) continue;
-      s.isFork = l.isFork;
-      s.parentId = l.parentId;
-      s.forkCount = l.forkCount;
+
+  // Case A: a fork of a COMPACTED session adopts a post-compaction head as its conversationId, so it
+  // lands in a different group than its family. Union every group whose conversationId appears among
+  // a session's postCompactHeads with that session's group; union-find so chained links merge
+  // transitively. Per (head, claimer) pair, because several sessions can claim the same head — the
+  // fork copies the parent's boundary, so it claims its own conversationId as a head (a no-op union).
+  const parent = new Map<string, string>();
+  for (const conversationId of byConversation.keys()) parent.set(conversationId, conversationId);
+  const find = (k: string): string => {
+    let root = k;
+    while (parent.get(root)! !== root) root = parent.get(root)!;
+    parent.set(k, root);
+    return root;
+  };
+  for (const s of summaries) {
+    for (const head of s.postCompactHeads) {
+      if (!byConversation.has(head)) continue;
+      const a = find(head);
+      const b = find(s.conversationId);
+      if (a !== b) parent.set(a, b);
     }
   }
 
-  // Drop cache entries for files/conversations that no longer exist (bounded memory; readdir is
-  // authoritative). A family that shrank below two files is no longer multi-file, so its lineage
-  // entry is dropped too.
-  const present = new Set(files);
-  for (const cachedPath of summaryCache.keys()) if (!present.has(cachedPath)) summaryCache.delete(cachedPath);
-  for (const cachedPath of forkMetaCache.keys()) if (!present.has(cachedPath)) forkMetaCache.delete(cachedPath);
-  for (const conversationId of lineageCache.keys()) {
-    if (!multiFile.has(conversationId)) {
-      lineageCache.delete(conversationId);
-      lineageDirty = true;
+  const families = new Map<string, SessionSummary[]>();
+  for (const [conversationId, group] of byConversation) {
+    const root = find(conversationId);
+    const family = families.get(root);
+    if (family) family.push(...group);
+    else families.set(root, [...group]);
+  }
+  for (const family of families.values()) {
+    if (family.length < 2) continue;
+    for (const s of family) {
+      s.isSibling = true;
+      s.siblingIds = family.filter((other) => other.id !== s.id).map((other) => other.id);
     }
   }
-  if (lineageDirty) await saveForkLineage(lineageCache);
+
+  // Drop cache entries for files that no longer exist (bounded memory; readdir is authoritative).
+  const present = new Set(files);
+  for (const cachedPath of summaryCache.keys()) if (!present.has(cachedPath)) summaryCache.delete(cachedPath);
 
   return summaries.sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
 }
@@ -383,10 +224,13 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   let aiTitle: unknown = null;
   let model = '';
   let eventCount = 0;
-  let hasCompact = false;
   const postCompactHeads: string[] = [];
   // Set right after a compaction boundary so the next user/assistant message is captured as a head.
   let awaitingCompactHead = false;
+  // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system
+  // append (a Remote Control notice) or a resume bumps mtime without being real activity. Captured with
+  // a cheap regex below.
+  let lastMsgTs = '';
 
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
   try {
@@ -398,6 +242,13 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
       // doesn't defeat the early-continue below; assistant lines carry `"model":"claude-…"`.
       const modelMatch = line.match(/"model":"(claude-[^"]+)"/);
       if (modelMatch) model = modelMatch[1];
+
+      // Last message's timestamp (lastActivity): a cheap regex before the early-continue, so it sees
+      // every message line without a full parse. Overwrites, so the final value is the newest message.
+      if (line.includes('"type":"user"') || line.includes('"type":"assistant"')) {
+        const tsMatch = line.match(/"timestamp":"([^"]+)"/);
+        if (tsMatch) lastMsgTs = tsMatch[1];
+      }
 
       // Title events recur through the file, so always parse them to keep the latest. A real
       // compaction is a structured system/compact_boundary event, not the bare word "compactMetadata"
@@ -426,7 +277,6 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
 
       // Real compaction boundary; the following user/assistant message is the post-compaction head.
       if (event.type === 'system' && event.subtype === 'compact_boundary') {
-        hasCompact = true;
         awaitingCompactHead = true;
       } else if (awaitingCompactHead && (event.type === 'user' || event.type === 'assistant') && typeof event.uuid === 'string') {
         postCompactHeads.push(event.uuid);
@@ -443,6 +293,7 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   const title = asTitle(customTitle) || asTitle(aiTitle);
   const stat = await fs.stat(file);
   const resolvedCwd = cwd || decodeProjectDir(path.basename(path.dirname(file)));
+  const lastActivity = lastMsgTs || stat.mtime.toISOString();
   return {
     id,
     conversationId,
@@ -454,13 +305,11 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
     title: title.slice(0, 200),
     firstMessage: firstMessage.slice(0, 200),
     model,
-    lastActivity: stat.mtime.toISOString(),
+    lastActivity,
     eventCount,
-    // Fork lineage is derived across the whole family in listSessions; default to "not a fork".
-    isFork: false,
-    parentId: null,
-    forkCount: 0,
-    hasCompact,
+    // Sibling grouping is derived across the whole session list in listSessions; default to "alone".
+    isSibling: false,
+    siblingIds: [],
     postCompactHeads,
   };
 }

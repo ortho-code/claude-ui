@@ -28,10 +28,8 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     model: '',
     lastActivity: '2026-07-28T10:00:00.000Z',
     eventCount: 1,
-    isFork: false,
-    parentId: null,
-    forkCount: 0,
-    hasCompact: false,
+    isSibling: false,
+    siblingIds: [],
     postCompactHeads: [],
     ...over,
   };
@@ -103,8 +101,7 @@ describe('sessionPasses', () => {
     text: '',
     pinnedOnly: false,
     worktreeOnly: false,
-    forksOnly: false,
-    hasForksOnly: false,
+    siblingOnly: false,
     archivedOnly: false,
     dateFrom: null,
     dateTo: null,
@@ -126,10 +123,8 @@ describe('sessionPasses', () => {
     expect(sessionPasses(session({ conversationId: 'c' }), { ...base, pinnedOnly: true, pinned: new Set(['c']) })).toBe(true);
     expect(sessionPasses(session({ worktree: '' }), { ...base, worktreeOnly: true })).toBe(false);
     expect(sessionPasses(session({ worktree: 'wt' }), { ...base, worktreeOnly: true })).toBe(true);
-    expect(sessionPasses(session({ isFork: false }), { ...base, forksOnly: true })).toBe(false);
-    expect(sessionPasses(session({ isFork: true }), { ...base, forksOnly: true })).toBe(true);
-    expect(sessionPasses(session({ forkCount: 0 }), { ...base, hasForksOnly: true })).toBe(false);
-    expect(sessionPasses(session({ forkCount: 2 }), { ...base, hasForksOnly: true })).toBe(true);
+    expect(sessionPasses(session({ isSibling: false }), { ...base, siblingOnly: true })).toBe(false);
+    expect(sessionPasses(session({ isSibling: true, siblingIds: ['p'] }), { ...base, siblingOnly: true })).toBe(true);
     expect(sessionPasses(session({ title: 'Fix the bug' }), { ...base, text: 'BUG' })).toBe(true);
     expect(sessionPasses(session({ title: 'Fix the bug' }), { ...base, text: 'perf' })).toBe(false);
     const activity = Date.parse('2026-07-28T10:00:00.000Z');
@@ -254,14 +249,15 @@ describe('displayName', () => {
   });
 });
 
-describe('tipsByConversation with forks', () => {
-  it('collapses non-forks by conversation but keeps each fork as its own tip', () => {
-    const base = session({ id: 'base', conversationId: 'C', isFork: false, lastActivity: '2026-01-01' });
-    const branch = session({ id: 'branch', conversationId: 'C', isFork: false, lastActivity: '2026-01-03' });
-    const fork = session({ id: 'fork', conversationId: 'C', isFork: true, parentId: 'base', lastActivity: '2026-01-02' });
-    const tips = tipsByConversation([base, branch, fork]);
-    expect(tips.size).toBe(2); // conversation C (latest non-fork) + the fork on its own
-    expect(tips.get('C')?.id).toBe('branch');
-    expect(tips.get('fork')?.id).toBe('fork');
+describe('tipsByConversation with siblings', () => {
+  it('keeps each sibling as its own tip, collapsing only lone sessions by conversation', () => {
+    const lone = session({ id: 'lone', conversationId: 'L', lastActivity: '2026-01-01' });
+    const s1 = session({ id: 's1', conversationId: 'C', isSibling: true, siblingIds: ['s2'], lastActivity: '2026-01-03' });
+    const s2 = session({ id: 's2', conversationId: 'C', isSibling: true, siblingIds: ['s1'], lastActivity: '2026-01-02' });
+    const tips = tipsByConversation([lone, s1, s2]);
+    expect(tips.size).toBe(3); // the lone conversation + each sibling on its own
+    expect(tips.get('L')?.id).toBe('lone');
+    expect(tips.get('s1')?.id).toBe('s1');
+    expect(tips.get('s2')?.id).toBe('s2');
   });
 });

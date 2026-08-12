@@ -3,11 +3,11 @@
 import type { SessionSummary } from '../shared/types';
 
 // Collapse sessions to one entry per conversation: the active tip (latest activity).
-// The stable key for a displayed session entity: a fork stands on its own (its session id), while
-// everything else collapses by conversation (compaction/desktop branches share it). Used for row
-// identity, tips, and pin/archive/delete keying, so a fork is independent of its family.
+// The stable key for a displayed session entity: a family member (sibling) stands on its own (its
+// session id) so no member is ever hidden behind another, while a lone session keys by conversation.
+// Used for row identity, tips, and pin/archive/delete keying.
 export function entityKey(s: SessionSummary): string {
-  return s.isFork ? s.id : s.conversationId;
+  return s.isSibling ? s.id : s.conversationId;
 }
 
 export function tipsByConversation(sessions: SessionSummary[]): Map<string, SessionSummary> {
@@ -109,9 +109,8 @@ export interface FilterCriteria {
   text: string;
   pinnedOnly: boolean;
   worktreeOnly: boolean;
-  forksOnly: boolean;
-  /** Show only originals: sessions that HAVE forks (forkCount > 0). */
-  hasForksOnly: boolean;
+  /** Show only members of a multi-session family (siblings). */
+  siblingOnly: boolean;
   archivedOnly: boolean;
   dateFrom: number | null;
   dateTo: number | null;
@@ -129,8 +128,7 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   if (c.archivedOnly !== c.archived.has(key)) return false;
   if (c.pinnedOnly && !c.pinned.has(key)) return false;
   if (c.worktreeOnly && !session.worktree) return false;
-  if (c.forksOnly && !session.isFork) return false;
-  if (c.hasForksOnly && session.forkCount === 0) return false;
+  if (c.siblingOnly && !session.isSibling) return false;
   if (c.dateFrom !== null || c.dateTo !== null) {
     const activity = new Date(session.lastActivity).getTime();
     if (c.dateFrom !== null && activity < c.dateFrom) return false;
