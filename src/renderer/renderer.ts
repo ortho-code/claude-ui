@@ -531,6 +531,16 @@ function sessionNudge(id: string): NudgeStatus {
   return null;
 }
 
+// Copy to the clipboard with a small confirmation toast; the OS gives no visible cue otherwise.
+async function copyText(text: string, confirmation: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(confirmation);
+  } catch {
+    showToast("Couldn't copy to the clipboard.");
+  }
+}
+
 // Jump to a specific session from the footer: scope to its project if needed, then open/focus its tab.
 function jumpToSession(session: SessionSummary): void {
   if (activeFolder !== null && activeFolder !== session.repoRoot) selectFolder(session.repoRoot);
@@ -1141,7 +1151,10 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   setTooltip(kebab, 'Project options');
   kebab.addEventListener('click', (event) => {
     event.stopPropagation();
-    openMenu(kebab, [{ label: 'Rename…', onSelect: () => void renameProject(name) }]);
+    openMenu(kebab, [
+      { label: 'Rename…', onSelect: () => void renameProject(name) },
+      { label: 'Copy path', onSelect: () => void copyText(name, 'Path copied.') },
+    ]);
   });
   heading.append(kebab);
   // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker. Keep the
@@ -1309,6 +1322,7 @@ function createSessionRow(key: string): HTMLElement {
     if (siblings.length > 0) {
       items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
     }
+    items.push({ label: 'Copy session id', onSelect: () => void copyText(session.id, 'Session id copied.') });
     openMenu(kebab, items);
   });
 
