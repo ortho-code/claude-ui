@@ -280,7 +280,7 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
       }
       if (event.type === 'custom-title') customTitle = event.customTitle;
       else if (event.type === 'ai-title') aiTitle = event.aiTitle;
-      else if (!firstMessage && event.type === 'user') firstMessage = commandLabel(extractUserText(event));
+      else if (!firstMessage && event.type === 'user') firstMessage = commandLabel(displayableUserText(extractUserText(event)));
 
       if (event.type === 'worktree-state') {
         const ws = event.worktreeSession as { worktreePath?: unknown; originalCwd?: unknown } | null;
@@ -337,6 +337,15 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
 /** A title field is usable only when it is a non-empty string. */
 function asTitle(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+/**
+ * A message that is pure local-command plumbing — the `<local-command-caveat>` preamble a session
+ * gets when it starts with local commands, or captured `<local-command-stdout>` output — is not a
+ * usable first message; blank it so the latch waits for the first real prompt instead.
+ */
+function displayableUserText(text: string): string {
+  return /^<local-command-(caveat|stdout)>/.test(text.trim()) ? '' : text;
 }
 
 /**
