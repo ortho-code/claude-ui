@@ -133,6 +133,28 @@ beforeAll(async () => {
     ),
   );
 
+  // Slash-command starts: the first message is wrapped in command tags; the row should show the
+  // command line the user effectively typed, not the tag soup. Real shapes: with args, and with an
+  // empty args tag.
+  await fs.writeFile(
+    path.join(dir, 'sc1.jsonl'),
+    jsonl({
+      type: 'user',
+      uuid: 'usc1',
+      cwd: '/tmp/projSC',
+      message: { content: '<command-message>research</command-message>\n<command-name>/research</command-name>\n<command-args>SC-51053 and the big plan</command-args>' },
+    }),
+  );
+  await fs.writeFile(
+    path.join(dir, 'sc2.jsonl'),
+    jsonl({
+      type: 'user',
+      uuid: 'usc2',
+      cwd: '/tmp/projSC',
+      message: { content: '<command-message>compact</command-message>\n<command-name>/compact</command-name>\n<command-args></command-args>' },
+    }),
+  );
+
   // lastActivity comes from the last MESSAGE, so a later system event (a background/Remote Control
   // touch) must not push it forward.
   await fs.writeFile(
@@ -202,6 +224,12 @@ describe('listSessions', () => {
   it('does not flag compaction when the words appear only in message text', async () => {
     const sessions = await listSessions();
     expect(sessions.find((s) => s.id === 'm')?.postCompactHeads).toEqual([]);
+  });
+
+  it('renders a slash-command first message as the typed command line', async () => {
+    const sessions = await listSessions();
+    expect(sessions.find((s) => s.id === 'sc1')?.firstMessage).toBe('/research SC-51053 and the big plan');
+    expect(sessions.find((s) => s.id === 'sc2')?.firstMessage).toBe('/compact'); // empty args tag
   });
 
   it('takes lastActivity from the last message, ignoring later system events', async () => {

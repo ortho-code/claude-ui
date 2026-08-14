@@ -280,7 +280,7 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
       }
       if (event.type === 'custom-title') customTitle = event.customTitle;
       else if (event.type === 'ai-title') aiTitle = event.aiTitle;
-      else if (!firstMessage && event.type === 'user') firstMessage = extractUserText(event);
+      else if (!firstMessage && event.type === 'user') firstMessage = commandLabel(extractUserText(event));
 
       if (event.type === 'worktree-state') {
         const ws = event.worktreeSession as { worktreePath?: unknown; originalCwd?: unknown } | null;
@@ -337,6 +337,19 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
 /** A title field is usable only when it is a non-empty string. */
 function asTitle(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+/**
+ * A session started by a slash command wraps its first message in tags —
+ * `<command-message>word</command-message>\n<command-name>/cmd</command-name>` plus an optional
+ * (possibly empty) `<command-args>…</command-args>` — which reads as junk in the row. Render it as
+ * the command line the user effectively typed: "/cmd args". Anything else passes through untouched.
+ */
+function commandLabel(text: string): string {
+  const name = text.match(/<command-name>([^<]*)<\/command-name>/)?.[1].trim();
+  if (!name) return text;
+  const args = text.match(/<command-args>([^<]*)<\/command-args>/)?.[1].trim();
+  return args ? `${name} ${args}` : name;
 }
 
 /** Pull display text out of a user event, whether content is a string or an array of blocks. */
