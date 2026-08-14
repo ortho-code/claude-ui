@@ -18,25 +18,39 @@ instead of forcing a worktree per session.
 
 ## Status
 
-The core is working: the app lists your `~/.claude` sessions grouped by project,
-clicking one resumes it in an embedded terminal, you can pin sessions, and each
-shows a live status dot.
+In daily use: the app lists your `~/.claude` sessions grouped by project, runs several
+of them at once in tabs with live status cues, and covers the session lifecycle —
+start, fork, worktree, pin, archive, delete.
 
 Done:
 
-- Session list from `~/.claude`, grouped by project.
-- Embedded terminal per session (`@xterm/xterm` + `node-pty`).
-- Resume a session on click (`claude --resume`).
-- Pin sessions to the top.
-- Per-session status dots (busy / idle / waiting) driven by scoped Claude Code hooks.
+- Session list from `~/.claude`, grouped into collapsible project groups, refreshed live
+  as transcripts change on disk.
+- Tabs: several sessions open at once, drag to reorder, restored on the next launch.
+- Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click
+  (`claude --resume`), start new sessions, name a session when forking or creating
+  a worktree.
+- Fork a session (`--fork-session`) and start sessions in a fresh git worktree
+  (`claude -w`). Sessions sharing a conversation show as siblings (`⑂` badge with a
+  jump list); worktree sessions file under their main repo with a badge, including
+  sessions that entered a worktree mid-life.
+- Pin, archive, and delete (to the OS trash); search plus filters (pinned, worktree,
+  siblings, archived, date range).
+- Per-session status dots (busy / idle / waiting) driven by Claude Code hooks scoped
+  to app-launched sessions; dots can be marked read, a footer strip surfaces sessions
+  needing attention across projects, and a project switcher scopes the sidebar.
+- Project rename, app icon, single-instance lock.
 
-Planned:
+Next:
 
-- Multiple open sessions: tabs first, with split view and pop-out windows as add-ons.
-- Collapsible groups; worktree sessions filed under their main repo with a badge.
-- Search, live auto-refresh, custom session names, an app icon, a single-instance lock,
-  and a taskbar attention nudge.
-- Custom groups (deferred).
+- Status nudges that survive an app restart; a performance pass (scroll, open, paste);
+  custom groups.
+- Playwright end-to-end tests, then split view.
+- Config viewer, minimize-to-tray, and later a diff / file side panel.
+- Session notes, and a readable transcript viewer (after a compaction, the CLI cannot
+  show a resumed session's earlier history — the transcript file still has it).
+- A taskbar attention nudge requires a native Windows build; parked while the app
+  runs under WSLg.
 
 ## Requirements
 
