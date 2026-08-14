@@ -13,8 +13,8 @@ import {
   setActiveFolder,
   getProjectNames,
   setProjectName,
-  migrateToConversationKeys,
-  purgeConversation,
+  migrateToSessionKeys,
+  purgeSession,
   auditMarker,
 } from './meta';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
@@ -64,12 +64,12 @@ ipcMain.on('shell:openExternal', (_event, url: string) => {
 });
 ipcMain.handle('meta:getArchived', () => getArchived());
 ipcMain.handle('meta:toggleArchive', (_event, id: string) => toggleArchive(id));
-ipcMain.handle('sessions:delete', async (_event, payload: { conversationId: string; ids: string[] }) => {
+ipcMain.handle('sessions:delete', async (_event, id: string) => {
   // The renderer confirms via its own modal (a native dialog flickers under WSLg), so here we
-  // just do the deletion: move files to trash, then drop the conversation from metadata.
-  await trashSessions(payload.ids);
-  await purgeConversation(payload.conversationId);
-  await clearStatuses(payload.ids);
+  // just do the deletion: move the files to trash, then drop the session from metadata.
+  await trashSessions([id]);
+  await purgeSession(id);
+  await clearStatuses([id]);
 });
 ipcMain.handle('dialog:pickFolder', async (): Promise<string | null> => {
   const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
@@ -91,9 +91,12 @@ app.whenReady().then(async () => {
   // No application menu: we don't want the default File/Edit/View items (reload, dev tools,
   // view source). The app drives everything from its own UI.
   Menu.setApplicationMenu(null);
-  // One-time: rewrite pins/open-tabs stored as raw session ids to conversation keys.
+  // One-time: rewrite pins/open-tabs/archived stored under conversation keys to stable session ids.
+  // First-wins over the recency-sorted list, so a family's conversationId maps to its latest member.
   const sessions = await listSessions();
-  await migrateToConversationKeys(new Map(sessions.map((s) => [s.id, s.conversationId])));
+  const conversationToId = new Map<string, string>();
+  for (const s of sessions) if (!conversationToId.has(s.conversationId)) conversationToId.set(s.conversationId, s.id);
+  await migrateToSessionKeys(conversationToId);
   void auditMarker('STARTUP'); // temporary debug aid: mark the restart boundary + trim old segments
   await installStatusHooks();
   registerStatusIpc(() => mainWindow);

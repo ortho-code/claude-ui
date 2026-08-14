@@ -11,12 +11,12 @@ import {
   togglePin,
   getArchived,
   toggleArchive,
-  purgeConversation,
+  purgeSession,
   getOpenSessions,
   setOpenSessions,
   getActiveFolder,
   setActiveFolder,
-  migrateToConversationKeys,
+  migrateToSessionKeys,
 } from './meta';
 
 let dir: string;
@@ -53,33 +53,39 @@ describe('archive', () => {
   });
 });
 
-describe('purgeConversation', () => {
-  it('drops the conversation from pins, open tabs and archive', async () => {
+describe('purgeSession', () => {
+  it('drops the session from pins, open tabs and archive', async () => {
     await togglePin('conv1');
     await toggleArchive('conv1');
     await setOpenSessions(['conv1', 'conv2']);
-    await purgeConversation('conv1');
+    await purgeSession('conv1');
     expect(await getPinned()).toEqual([]);
     expect(await getArchived()).toEqual({});
     expect(await getOpenSessions()).toEqual(['conv2']);
   });
 });
 
-describe('migrateToConversationKeys', () => {
-  it('remaps raw session ids to conversation keys once, then is idempotent', async () => {
-    await writeMetaFile({ pinned: ['sess1'], openSessions: ['sess1', 'sess2'], version: 1 });
-    await migrateToConversationKeys(new Map([['sess1', 'conv1'], ['sess2', 'conv2']]));
-    expect(await getPinned()).toEqual(['conv1']);
-    expect(await getOpenSessions()).toEqual(['conv1', 'conv2']);
-    // Already at version 2: a second run must not remap again.
-    await migrateToConversationKeys(new Map([['conv1', 'other']]));
-    expect(await getPinned()).toEqual(['conv1']);
+describe('migrateToSessionKeys', () => {
+  it('remaps conversation keys to session ids across pins, tabs and archive, then is idempotent', async () => {
+    await writeMetaFile({
+      pinned: ['conv1'],
+      openSessions: ['conv1', 'conv2'],
+      archived: { conv2: 123 },
+      version: 2,
+    });
+    await migrateToSessionKeys(new Map([['conv1', 'sess1'], ['conv2', 'sess2']]));
+    expect(await getPinned()).toEqual(['sess1']);
+    expect(await getOpenSessions()).toEqual(['sess1', 'sess2']);
+    expect(await getArchived()).toEqual({ sess2: 123 });
+    // Already at version 3: a second run must not remap again.
+    await migrateToSessionKeys(new Map([['sess1', 'other']]));
+    expect(await getPinned()).toEqual(['sess1']);
   });
 
-  it('leaves entries that match no known session id untouched', async () => {
-    await writeMetaFile({ pinned: ['already-a-conv-key'], openSessions: [], version: 1 });
-    await migrateToConversationKeys(new Map([['sess1', 'conv1']]));
-    expect(await getPinned()).toEqual(['already-a-conv-key']);
+  it('passes through id keys and keys naming no known session (covers a v1 file too)', async () => {
+    await writeMetaFile({ pinned: ['sess-already-id', 'gone-from-disk'], openSessions: [], version: 1 });
+    await migrateToSessionKeys(new Map([['conv1', 'sess1']]));
+    expect(await getPinned()).toEqual(['sess-already-id', 'gone-from-disk']);
   });
 });
 

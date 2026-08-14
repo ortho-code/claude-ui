@@ -2,14 +2,16 @@
 // to its state and the DOM.
 import type { SessionSummary } from '../shared/types';
 
-// Collapse sessions to one entry per conversation: the active tip (latest activity).
-// The stable key for a displayed session entity: a family member (sibling) stands on its own (its
-// session id) so no member is ever hidden behind another, while a lone session keys by conversation.
-// Used for row identity, tips, and pin/archive/delete keying.
+// The stable key for a displayed session entity: the session's own id, always. It is immutable, so
+// pins/archives/tabs can never go stale — a conversation-derived key stopped matching its session
+// the moment the session gained a sibling. conversationId remains the SIGNAL that groups a family
+// (isSibling/siblingIds, derived in the main process) but no longer names anything.
 export function entityKey(s: SessionSummary): string {
-  return s.isSibling ? s.id : s.conversationId;
+  return s.id;
 }
 
+// One entry per entity key. Keys are unique per session file today, so this is a plain index; the
+// latest-activity preference only matters if the same id ever appears twice in a listing.
 export function tipsByConversation(sessions: SessionSummary[]): Map<string, SessionSummary> {
   const tips = new Map<string, SessionSummary>();
   for (const s of sessions) {

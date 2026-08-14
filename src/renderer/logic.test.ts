@@ -36,12 +36,13 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
 }
 
 describe('tipsByConversation', () => {
-  it('keeps the latest branch per conversation', () => {
-    const older = session({ id: 'a', conversationId: 'c', lastActivity: '2026-07-01T00:00:00.000Z' });
-    const newer = session({ id: 'b', conversationId: 'c', lastActivity: '2026-07-28T00:00:00.000Z' });
-    const tips = tipsByConversation([older, newer]);
-    expect(tips.size).toBe(1);
-    expect(tips.get('c')?.id).toBe('b');
+  it('indexes every session by its own id (ids are the stable entity key)', () => {
+    const a = session({ id: 'a', conversationId: 'c', lastActivity: '2026-07-01T00:00:00.000Z' });
+    const b = session({ id: 'b', conversationId: 'c', lastActivity: '2026-07-28T00:00:00.000Z' });
+    const tips = tipsByConversation([a, b]);
+    expect(tips.size).toBe(2);
+    expect(tips.get('a')?.id).toBe('a');
+    expect(tips.get('b')?.id).toBe('b');
   });
 });
 
@@ -111,16 +112,16 @@ describe('sessionPasses', () => {
   };
 
   it('hides pending deletes and archived (unless in the archived view)', () => {
-    expect(sessionPasses(session({ conversationId: 'c' }), { ...base, pendingDeletes: new Set(['c']) })).toBe(false);
-    expect(sessionPasses(session({ conversationId: 'c' }), { ...base, archived: new Set(['c']) })).toBe(false);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, pendingDeletes: new Set(['s1']) })).toBe(false);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, archived: new Set(['s1']) })).toBe(false);
     expect(
-      sessionPasses(session({ conversationId: 'c' }), { ...base, archivedOnly: true, archived: new Set(['c']) }),
+      sessionPasses(session({ id: 's1' }), { ...base, archivedOnly: true, archived: new Set(['s1']) }),
     ).toBe(true);
   });
 
   it('applies pinned-only, worktree-only, text and date filters', () => {
-    expect(sessionPasses(session({ conversationId: 'c' }), { ...base, pinnedOnly: true })).toBe(false);
-    expect(sessionPasses(session({ conversationId: 'c' }), { ...base, pinnedOnly: true, pinned: new Set(['c']) })).toBe(true);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, pinnedOnly: true })).toBe(false);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, pinnedOnly: true, pinned: new Set(['s1']) })).toBe(true);
     expect(sessionPasses(session({ worktree: '' }), { ...base, worktreeOnly: true })).toBe(false);
     expect(sessionPasses(session({ worktree: 'wt' }), { ...base, worktreeOnly: true })).toBe(true);
     expect(sessionPasses(session({ isSibling: false }), { ...base, siblingOnly: true })).toBe(false);
@@ -250,13 +251,13 @@ describe('displayName', () => {
 });
 
 describe('tipsByConversation with siblings', () => {
-  it('keeps each sibling as its own tip, collapsing only lone sessions by conversation', () => {
+  it('keeps every session as its own tip, siblings and lone alike', () => {
     const lone = session({ id: 'lone', conversationId: 'L', lastActivity: '2026-01-01' });
     const s1 = session({ id: 's1', conversationId: 'C', isSibling: true, siblingIds: ['s2'], lastActivity: '2026-01-03' });
     const s2 = session({ id: 's2', conversationId: 'C', isSibling: true, siblingIds: ['s1'], lastActivity: '2026-01-02' });
     const tips = tipsByConversation([lone, s1, s2]);
-    expect(tips.size).toBe(3); // the lone conversation + each sibling on its own
-    expect(tips.get('L')?.id).toBe('lone');
+    expect(tips.size).toBe(3);
+    expect(tips.get('lone')?.id).toBe('lone');
     expect(tips.get('s1')?.id).toBe('s1');
     expect(tips.get('s2')?.id).toBe('s2');
   });

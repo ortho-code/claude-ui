@@ -207,8 +207,8 @@ let dateToMs: number | null = null;
 let lastSignature = '';
 // Status dots by tip session id; rebuilt each render (a status event names a session id).
 const statusDots = new Map<string, HTMLElement>();
-// Row elements by entity key (a sibling's own id, else conversationId), reused across renders so a
-// re-render moves nodes instead of recreating them — no flicker, no scroll jump, hover/focus kept.
+// Row elements by entity key (the session id), reused across renders so a re-render moves nodes
+// instead of recreating them — no flicker, no scroll jump, hover/focus kept.
 const sessionRows = new Map<string, HTMLElement>();
 const collapsedGroups = new Set<string>();
 
@@ -222,8 +222,8 @@ interface GroupEls {
 }
 // Group sections by group name, reused across renders (same reason as sessionRows).
 const groupSections = new Map<string, GroupEls>();
-// The session each row currently shows, by entity key, so a reused row's click/pin handlers act on
-// the live tip even after the conversation branches.
+// The session each row currently shows, by entity key (session id), so a reused row's click/pin
+// handlers act on the live session data of the latest render.
 let currentTips = new Map<string, SessionSummary>();
 
 function isOpen(id: string): boolean {
@@ -318,14 +318,12 @@ let restoring = false;
 // tabs to restore next launch). Set via onQuitting, below.
 let shuttingDown = false;
 
-// Collapse sessions to one entry per conversation: the active tip (latest activity).
 function persistOpenTabs(): void {
   if (restoring || shuttingDown) return;
-  // Persist entity keys so a tab reopens on the current tip even if the conversation branched out of
-  // band; a fork keys by its own id so it reopens as the fork, not its parent. Fall back to the
-  // tab's own conversationId before it has reconciled to disk.
+  // Persist entity keys (session ids — immutable, so a restart always finds them again). Fall back
+  // to the tab's placeholder id before it has reconciled to disk.
   const idToKey = new Map(allSessions.map((s) => [s.id, entityKey(s)]));
-  window.claudeUi.setOpenSessions(tabs.map((t) => idToKey.get(t.session.id) ?? t.session.conversationId));
+  window.claudeUi.setOpenSessions(tabs.map((t) => idToKey.get(t.session.id) ?? t.session.id));
 }
 
 async function restoreOpenTabs(): Promise<void> {
@@ -690,7 +688,7 @@ switcherCurrent.addEventListener('click', () => {
   else closeSwitcher();
 });
 
-// The sessions the sidebar can show: one tip per conversation, plus new-but-unsaved tabs (so a
+// The sessions the sidebar can show: every session on disk, plus new-but-unsaved tabs (so a
 // fresh session appears in its folder immediately, before it is written to disk).
 function visibleSessions(): SessionSummary[] {
   const tips = tipsByConversation(allSessions);
@@ -1194,8 +1192,8 @@ interface RowEls {
 // DOM every render (same idea as the session summary cache, applied to rendering).
 const rowEls = new WeakMap<HTMLElement, RowEls>();
 
-// Build a row once. Its click/pin handlers read the live tip from `currentTips` by the entity key
-// (a sibling's own id, else the conversationId), so a reused row stays correct after it branches.
+// Build a row once. Its click/pin handlers read the live session from `currentTips` by the entity
+// key (the session id), so a reused row stays correct across re-renders.
 function createSessionRow(key: string): HTMLElement {
   const item = document.createElement('article');
   item.className = 'session';
@@ -1274,19 +1272,17 @@ function createSessionRow(key: string): HTMLElement {
     const session = currentTips.get(key);
     const title = session?.title || session?.firstMessage || key.slice(0, 8);
     if (!(await confirmDelete(title))) return;
-    // Delete only this entity's files: a sibling is its own file; a lone conversation may span
-    // same-conversationId files (same entityKey). Siblings are separate entities and stay untouched.
-    const ids = allSessions.filter((s) => entityKey(s) === key).map((s) => s.id);
     // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta
     // purge run in the background. It stays hidden via pendingDeletes until its files are gone
     // from disk (see renderSessions), so a concurrent delete's re-read can't resurrect it.
+    // Only this entity's file goes (entity key = session id); siblings are separate entities.
     pendingDeletes.add(key);
     renderList();
     try {
       // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat
       // it as failed so the row can't stay hidden forever within a session.
       await Promise.race([
-        window.claudeUi.deleteConversation({ conversationId: key, ids }),
+        window.claudeUi.deleteSession(key),
         new Promise((_resolve, reject) => setTimeout(() => reject(new Error('delete timed out')), 30_000)),
       ]);
     } catch {

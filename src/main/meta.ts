@@ -4,19 +4,20 @@ import * as path from 'node:path';
 
 /**
  * UI-only metadata, kept outside ~/.claude so we never touch the session store.
- * `pinned` and `openSessions` hold conversation keys (first-message uuids), not raw session
- * ids, so an entry survives a conversation branching (compaction or an explicit fork).
+ * `pinned` and `openSessions` hold session ids (the .jsonl file ids). Session ids are immutable,
+ * unlike the conversation keys of v2, which stopped matching their session the moment it gained a
+ * sibling (the row then keys by its own id) — silently losing tabs and pins.
  */
 interface Meta {
   pinned: string[];
   openSessions: string[];
-  /** Archived conversation keys mapped to when they were archived (epoch ms; 0 = unknown). */
+  /** Archived session ids mapped to when they were archived (epoch ms; 0 = unknown). */
   archived: Record<string, number>;
   /** The project the sidebar switcher is scoped to (repoRoot), or null for "All". */
   activeFolder: string | null;
   /** Per-project display-name overrides, keyed by repoRoot; absent = use the folder name. */
   projectNames: Record<string, string>;
-  /** Schema version; 2 = keyed by conversation, migrated from raw session ids. */
+  /** Schema version; 3 = keyed by session id; 2 was conversation-keyed; 1 raw ids. */
   version: number;
 }
 
@@ -25,7 +26,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], archived: {}, activeFolder: null, projectNames: {}, version: 2 };
+  return { pinned: [], openSessions: [], archived: {}, activeFolder: null, projectNames: {}, version: 3 };
 }
 
 // Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
@@ -171,18 +172,20 @@ function update<T>(op: string, mutate: (meta: Meta) => T): Promise<T> {
 }
 
 /**
- * One-time upgrade of pins/open-tabs from raw session ids to conversation keys. Any entry that
- * matches a known session id is rewritten to that session's conversation key; entries that are
- * already conversation keys (or name a session no longer on disk) are left as-is.
+ * One-time upgrade of pins/open-tabs/archived to SESSION ids, from conversation keys (v2) or raw
+ * ids (v1). Any key that matches a session's conversationId is rewritten to that session's id (for
+ * a multi-file family: its latest member — the row the old model showed); id keys and keys naming
+ * a session no longer on disk pass through unchanged, which also makes a v1 file migrate correctly.
  */
-export function migrateToConversationKeys(idToConversation: Map<string, string>): Promise<void> {
+export function migrateToSessionKeys(conversationToId: Map<string, string>): Promise<void> {
   return serialize(async () => {
     const meta = await readMeta();
-    if (meta.version >= 2) return;
-    const remap = (keys: string[]): string[] => [...new Set(keys.map((k) => idToConversation.get(k) ?? k))];
-    meta.pinned = remap(meta.pinned);
-    meta.openSessions = remap(meta.openSessions);
-    meta.version = 2;
+    if (meta.version >= 3) return;
+    const remapKey = (k: string): string => conversationToId.get(k) ?? k;
+    meta.pinned = [...new Set(meta.pinned.map(remapKey))];
+    meta.openSessions = [...new Set(meta.openSessions.map(remapKey))];
+    meta.archived = Object.fromEntries(Object.entries(meta.archived).map(([k, ts]) => [remapKey(k), ts]));
+    meta.version = 3;
     await writeMeta(meta);
     await auditWrite('migrate', meta);
   });
@@ -214,9 +217,9 @@ export function toggleArchive(id: string): Promise<Record<string, number>> {
   });
 }
 
-/** Drop a conversation from all metadata (used when it is deleted). */
-export function purgeConversation(id: string): Promise<void> {
-  return update('purgeConversation', (meta) => {
+/** Drop a session from all metadata (used when it is deleted). */
+export function purgeSession(id: string): Promise<void> {
+  return update('purgeSession', (meta) => {
     meta.pinned = meta.pinned.filter((k) => k !== id);
     meta.openSessions = meta.openSessions.filter((k) => k !== id);
     delete meta.archived[id];
