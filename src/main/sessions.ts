@@ -94,18 +94,20 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
   return summary;
 }
 
-/** Read every session transcript under ~/.claude/projects and summarize each. */
-export async function listSessions(): Promise<SessionSummary[]> {
-  let projectDirs: string[];
+/** The per-project directories under ~/.claude/projects ([] when the root is missing). */
+async function projectDirs(): Promise<string[]> {
   try {
     const entries = await fs.readdir(projectsDir, { withFileTypes: true });
-    projectDirs = entries.filter((e) => e.isDirectory()).map((e) => path.join(projectsDir, e.name));
+    return entries.filter((e) => e.isDirectory()).map((e) => path.join(projectsDir, e.name));
   } catch {
     return [];
   }
+}
 
+/** Read every session transcript under ~/.claude/projects and summarize each. */
+export async function listSessions(): Promise<SessionSummary[]> {
   const files: string[] = [];
-  for (const dir of projectDirs) {
+  for (const dir of await projectDirs()) {
     const entries = await fs.readdir(dir);
     for (const name of entries) {
       if (name.endsWith('.jsonl')) files.push(path.join(dir, name));
@@ -190,14 +192,7 @@ export async function worktreeExists(repoRoot: string, name: string): Promise<bo
  * Claude session store.
  */
 export async function trashSessions(ids: string[]): Promise<void> {
-  let projectDirs: string[];
-  try {
-    const entries = await fs.readdir(projectsDir, { withFileTypes: true });
-    projectDirs = entries.filter((e) => e.isDirectory()).map((e) => path.join(projectsDir, e.name));
-  } catch {
-    return;
-  }
-  for (const dir of projectDirs) {
+  for (const dir of await projectDirs()) {
     for (const id of ids) {
       await trashIfExists(path.join(dir, `${id}.jsonl`));
       await trashIfExists(path.join(dir, id));

@@ -12,14 +12,14 @@ export function entityKey(s: SessionSummary): string {
 
 // One entry per entity key. Keys are unique per session file today, so this is a plain index; the
 // latest-activity preference only matters if the same id ever appears twice in a listing.
-export function tipsByConversation(sessions: SessionSummary[]): Map<string, SessionSummary> {
-  const tips = new Map<string, SessionSummary>();
+export function sessionsByKey(sessions: SessionSummary[]): Map<string, SessionSummary> {
+  const byKey = new Map<string, SessionSummary>();
   for (const s of sessions) {
     const key = entityKey(s);
-    const prev = tips.get(key);
-    if (!prev || s.lastActivity > prev.lastActivity) tips.set(key, s);
+    const prev = byKey.get(key);
+    if (!prev || s.lastActivity > prev.lastActivity) byKey.set(key, s);
   }
-  return tips;
+  return byKey;
 }
 
 // The list's structure: one line per session for the fields that affect what the sidebar shows.

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { SessionSummary } from '../shared/types';
 import {
-  tipsByConversation,
+  sessionsByKey,
   structuralSignature,
   groupByRepo,
   groupName,
@@ -35,11 +35,11 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
   };
 }
 
-describe('tipsByConversation', () => {
+describe('sessionsByKey', () => {
   it('indexes every session by its own id (ids are the stable entity key)', () => {
     const a = session({ id: 'a', conversationId: 'c', lastActivity: '2026-07-01T00:00:00.000Z' });
     const b = session({ id: 'b', conversationId: 'c', lastActivity: '2026-07-28T00:00:00.000Z' });
-    const tips = tipsByConversation([a, b]);
+    const tips = sessionsByKey([a, b]);
     expect(tips.size).toBe(2);
     expect(tips.get('a')?.id).toBe('a');
     expect(tips.get('b')?.id).toBe('b');
@@ -250,12 +250,12 @@ describe('displayName', () => {
   });
 });
 
-describe('tipsByConversation with siblings', () => {
+describe('sessionsByKey with siblings', () => {
   it('keeps every session as its own tip, siblings and lone alike', () => {
     const lone = session({ id: 'lone', conversationId: 'L', lastActivity: '2026-01-01' });
     const s1 = session({ id: 's1', conversationId: 'C', isSibling: true, siblingIds: ['s2'], lastActivity: '2026-01-03' });
     const s2 = session({ id: 's2', conversationId: 'C', isSibling: true, siblingIds: ['s1'], lastActivity: '2026-01-02' });
-    const tips = tipsByConversation([lone, s1, s2]);
+    const tips = sessionsByKey([lone, s1, s2]);
     expect(tips.size).toBe(3);
     expect(tips.get('lone')?.id).toBe('lone');
     expect(tips.get('s1')?.id).toBe('s1');

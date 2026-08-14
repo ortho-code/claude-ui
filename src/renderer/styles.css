@@ -10,6 +10,9 @@
   --border: #ffffff2b;
   /* Accent-tinted "active/selected" surface, clearly distinct from base and from hover. */
   --active: #3b4360;
+  /* Status colours, shared by the session dots, folder badges and attention toasts. */
+  --waiting: #f9e2af;
+  --idle: #a6e3a1;
 }
 
 * {
@@ -40,11 +43,13 @@
   font-size: 13px;
 }
 
+/* Same treatment as .notif-close — the two toast dismissors should read identically. */
 #toast-close {
   flex: 0 0 auto;
-  padding: 0 4px;
+  padding: 2px 5px;
   background: none;
   border: none;
+  border-radius: 5px;
   color: var(--muted);
   font-size: 16px;
   line-height: 1;
@@ -52,6 +57,7 @@
 }
 
 #toast-close:hover {
+  background: var(--surface-hover);
   color: var(--text);
 }
 
@@ -87,11 +93,11 @@
 }
 
 .notif.waiting {
-  border-left-color: #f9e2af;
+  border-left-color: var(--waiting);
 }
 
 .notif.idle {
-  border-left-color: #a6e3a1;
+  border-left-color: var(--idle);
 }
 
 .notif-text {
@@ -249,8 +255,11 @@ button {
   cursor: pointer;
 }
 
+/* Hover = surface fill + accent outline, app-wide. Borderless buttons (row actions, menu items,
+   closes) have no border to show, so they fall through to their own hover fills. */
 button:hover {
   background: var(--surface-hover);
+  border-color: var(--accent);
 }
 
 /* Filter panel toggle in the header. A corner badge dot (not an accent border, which would
@@ -261,13 +270,6 @@ button:hover {
   align-items: center;
   justify-content: center;
   padding: 5px 8px;
-}
-
-/* Accent outline on hover for the header buttons (search toggle + New), consistent with the rest;
-   the toggle also keeps it while its panel is open. */
-#filter-toggle:hover,
-#new-session:hover {
-  border-color: var(--accent);
 }
 
 /* Pressed look while its panel is open, tying the toggle to the panel below it. + New gets the same
@@ -300,10 +302,9 @@ button:hover {
   opacity: 0.55;
 }
 
-/* Accent outline on hover too, so hover and active look consistent with the other buttons. */
+/* The accent hover outline comes from the base button rule; the pills only undim. */
 #filters > button:hover {
   opacity: 1;
-  border-color: var(--accent);
 }
 
 #filters > button.active {
@@ -351,6 +352,11 @@ button:hover {
   background: var(--surface-hover);
 }
 
+/* Held open state while its popover is up, per the menu-trigger convention (not hover-dependent). */
+#switcher-current[aria-expanded='true'] {
+  background: var(--active);
+}
+
 #switcher-name {
   min-width: 0;
   overflow: hidden;
@@ -379,7 +385,7 @@ button:hover {
   min-width: 240px;
   max-width: 300px;
   z-index: 30;
-  margin-top: 4px;
+  margin-top: 5px;
   max-height: 320px;
   overflow-y: auto;
   background: var(--surface);
@@ -387,6 +393,24 @@ button:hover {
   border-radius: 8px;
   padding: 4px;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* Attached to its trigger like the menus (same notch treatment). The trigger is the full-width
+   title, so a fixed position near its left text reads as "at the trigger". The popover itself
+   scrolls (overflow-y), which would CLIP a notch sticking out of its top edge — so the notch lives
+   on the non-scrolling wrapper, drawn only while the popover is open, layered above its border. */
+#folder-switcher:has(#switcher-popover:not([hidden]))::after {
+  content: '';
+  position: absolute;
+  top: calc(100% + 0.5px);
+  left: 20px;
+  z-index: 31; /* the popover is z-index 30; the notch must paint over its top border */
+  width: 8px;
+  height: 8px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  transform: rotate(45deg);
 }
 
 .switcher-item {
@@ -435,11 +459,11 @@ button:hover {
 }
 
 .folder-badge.waiting {
-  background: #f9e2af;
+  background: var(--waiting);
 }
 
 .folder-badge.idle {
-  background: #a6e3a1;
+  background: var(--idle);
 }
 
 .folder-badge.busy {
@@ -505,7 +529,6 @@ button:hover {
 }
 
 #date-presets button:hover {
-  border-color: var(--accent);
   color: var(--text);
 }
 
@@ -530,6 +553,21 @@ button:hover {
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* Attached to the filter panel it belongs to (same notch treatment as the menus); the chip that
+   opens it wraps with the presets, so the notch points at the panel area rather than tracking it. */
+#date-custom::before {
+  content: '';
+  position: absolute;
+  top: -4.5px;
+  left: 20px;
+  width: 8px;
+  height: 8px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  transform: rotate(45deg);
 }
 
 /* Persistent line under the presets: shows the picked range while Custom is active (even with the
@@ -671,20 +709,26 @@ button:hover {
   overflow-anchor: none;
 }
 
-#sessions::-webkit-scrollbar {
+/* Thin, subtle scrollbars, shared by the session list and the terminal viewport (xterm 5 shows a
+   chunky default otherwise). */
+#sessions::-webkit-scrollbar,
+.xterm-viewport::-webkit-scrollbar {
   width: 8px;
 }
 
-#sessions::-webkit-scrollbar-thumb {
+#sessions::-webkit-scrollbar-thumb,
+.xterm-viewport::-webkit-scrollbar-thumb {
   background: #ffffff22;
   border-radius: 4px;
 }
 
-#sessions::-webkit-scrollbar-thumb:hover {
+#sessions::-webkit-scrollbar-thumb:hover,
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
   background: #ffffff44;
 }
 
-#sessions::-webkit-scrollbar-track {
+#sessions::-webkit-scrollbar-track,
+.xterm-viewport::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -920,13 +964,13 @@ button:focus:not(:focus-visible) {
 }
 
 .status-dot.idle {
-  background: #a6e3a1;
-  border-color: #a6e3a1;
+  background: var(--idle);
+  border-color: var(--idle);
 }
 
 .status-dot.waiting {
-  background: #f9e2af;
-  border-color: #f9e2af;
+  background: var(--waiting);
+  border-color: var(--waiting);
   animation: pulse 1.2s ease-in-out infinite;
 }
 
@@ -1000,8 +1044,15 @@ button:focus:not(:focus-visible) {
   border-radius: 5px;
 }
 
+/* Same hover fill as the group kebab (the accent border comes from the base button rule). */
 .session-kebab:hover {
-  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+/* Keep the open state's fill even while hovering the open kebab — same specificity as the :hover
+   rule above, later in the file, so the held --active look doesn't flip to the hover colour. */
+.session-kebab.menu-open {
+  background: var(--active);
 }
 
 .pin:disabled {
@@ -1054,7 +1105,7 @@ button:focus:not(:focus-visible) {
 }
 
 .worktree-badge,
-.fork-badge {
+.sibling-badge {
   display: inline-block;
   max-width: 100%;
   margin: 3px 0 1px;
@@ -1070,30 +1121,26 @@ button:focus:not(:focus-visible) {
   vertical-align: middle;
 }
 
-/* The fork badge shares the worktree badge's look; it's clickable (jumps to the origin), so it also
-   gets a pointer cursor and a subtle fill on hover to signal that. */
-.fork-badge {
+/* The sibling badge shares the worktree badge's look; it's clickable (opens the sibling list), so
+   it also gets a pointer cursor and a fill on hover to signal that. */
+.sibling-badge {
   cursor: pointer;
 }
 
 /* Filled on hover, and held filled while its popover is open (.menu-open) so it doesn't drop back
    when the mouse leaves the badge. */
-.fork-badge:hover,
-.fork-badge.menu-open {
+.sibling-badge:hover,
+.sibling-badge.menu-open {
   background: var(--accent);
   color: var(--bg);
 }
 
-/* Space consecutive badges so they don't touch, across the combos a row can show: worktree + fork,
-   fork + fork-count, and worktree + fork-count when the (hidden) fork badge sits between them. A
-   hidden badge stays in the sibling chain for `+` matching, so the third selector bridges it. */
-.worktree-badge:not([hidden]) + .fork-badge:not([hidden]),
-.fork-badge:not([hidden]) + .fork-badge:not([hidden]),
-.worktree-badge:not([hidden]) + .fork-badge[hidden] + .fork-badge:not([hidden]) {
+/* Space the two badges when a row shows both (worktree + sibling). */
+.worktree-badge:not([hidden]) + .sibling-badge:not([hidden]) {
   margin-left: 6px;
 }
 
-/* The worktree glyph (⎇) renders heavier than the fork glyph (⑂); size it down so they match. */
+/* The worktree glyph (⎇) renders heavier than the sibling glyph (⑂); size it down so they match. */
 .wt-icon {
   font-size: 0.8em;
 }
@@ -1171,8 +1218,8 @@ button:focus:not(:focus-visible) {
   background: var(--surface-hover);
 }
 
-/* Fork / worktree markers on a tab, matching the sidebar badges. */
-.tab-fork,
+/* Sibling / worktree markers on a tab, matching the sidebar badges. */
+.tab-sibling,
 .tab-worktree {
   flex: 0 0 auto;
   font-size: 12px;
@@ -1217,24 +1264,6 @@ button:focus:not(:focus-visible) {
 .term {
   display: none;
   height: 100%;
-}
-
-/* Thin, subtle terminal scrollbar (xterm 5 shows a chunky default), matching the session list. */
-.xterm-viewport::-webkit-scrollbar {
-  width: 8px;
-}
-
-.xterm-viewport::-webkit-scrollbar-thumb {
-  background: #ffffff22;
-  border-radius: 4px;
-}
-
-.xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: #ffffff44;
-}
-
-.xterm-viewport::-webkit-scrollbar-track {
-  background: transparent;
 }
 
 .term.active {
@@ -1292,6 +1321,9 @@ button:focus:not(:focus-visible) {
   background: var(--surface-hover);
 }
 
+/* No held open state here, deliberately (user, 2026-08-13): the footer list is a PERSISTENT panel,
+   often open for a whole session, so a pressed look is lasting noise — unlike the switcher popover
+   (open briefly to pick) or the filter toggle (a compact button, where it reads fine). */
 #footer-toggle.clear {
   color: var(--muted);
   cursor: default;
@@ -1397,7 +1429,6 @@ button:focus:not(:focus-visible) {
 .group h2 .group-kebab:hover {
   background: var(--surface-hover);
   color: var(--text);
-  border-color: var(--accent);
 }
 
 /* Keep the open/active state while the menu is up. Scoped under `.group h2` to outweigh the base

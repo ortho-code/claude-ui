@@ -4,7 +4,7 @@ import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import type { ClaudeUiApi, SessionSummary } from '../shared/types';
 import {
-  tipsByConversation,
+  sessionsByKey,
   structuralSignature,
   groupByRepo,
   groupName,
@@ -121,7 +121,7 @@ function showAttentionToast(tab: Tab, status: 'waiting' | 'idle'): void {
   text.className = 'notif-text';
   const title = document.createElement('span');
   title.className = 'notif-title';
-  title.textContent = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
+  title.textContent = sessionLabel(tab.session);
   const proj = document.createElement('span');
   proj.className = 'notif-proj';
   proj.textContent = projName(tab.session.repoRoot);
@@ -224,7 +224,7 @@ interface GroupEls {
 const groupSections = new Map<string, GroupEls>();
 // The session each row currently shows, by entity key (session id), so a reused row's click/pin
 // handlers act on the live session data of the latest render.
-let currentTips = new Map<string, SessionSummary>();
+let currentByKey = new Map<string, SessionSummary>();
 
 function isOpen(id: string): boolean {
   return tabs.some((t) => t.session.id === id);
@@ -333,7 +333,7 @@ async function restoreOpenTabs(): Promise<void> {
       window.claudeUi.listSessions(),
       window.claudeUi.getOpenSessions(),
     ]);
-    const tips = tipsByConversation(sessions);
+    const tips = sessionsByKey(sessions);
     for (const key of openKeys) {
       const session = tips.get(key);
       if (session) await openSession(session);
@@ -531,6 +531,13 @@ function sessionNudge(id: string): NudgeStatus {
   return null;
 }
 
+// The one place a session's display label is composed: title, else first message, else a fallback
+// (the short id by default). Every surface shows the same name this way, and any sanitization of
+// the underlying fields (command tags, caveat plumbing) lands everywhere at once.
+function sessionLabel(session: SessionSummary, fallback = session.id.slice(0, 8)): string {
+  return session.title || session.firstMessage || fallback;
+}
+
 // Copy to the clipboard with a small confirmation toast; the OS gives no visible cue otherwise.
 async function copyText(text: string, confirmation: string): Promise<void> {
   try {
@@ -558,9 +565,21 @@ function siblingsOf(session: SessionSummary): SessionSummary[] {
 // Menu items for a sibling list; siblings often share a title, so each shows title + when.
 function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   return siblings.map((sibling) => ({
-    label: `${sibling.title || sibling.firstMessage || sibling.id.slice(0, 8)} · ${relativeTime(sibling.lastActivity)}`,
+    label: `${sessionLabel(sibling)} · ${relativeTime(sibling.lastActivity)}`,
     onSelect: () => jumpToSession(sibling),
   }));
+}
+
+// The per-session action list — one builder, shared by the row kebab (and any future surface that
+// offers session actions, e.g. a tab context menu).
+function sessionMenuItems(session: SessionSummary): MenuItem[] {
+  const items: MenuItem[] = [{ label: 'Fork this session', onSelect: () => { void forkSession(session); } }];
+  const siblings = siblingsOf(session);
+  if (siblings.length > 0) {
+    items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
+  }
+  items.push({ label: 'Copy session id', onSelect: () => void copyText(session.id, 'Session id copied.') });
+  return items;
 }
 
 // List a session's siblings in the shared popover; click one to jump to it.
@@ -624,9 +643,9 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
         dot.className = `folder-badge ${badge}`;
         const name = document.createElement('span');
         name.className = 'footer-item-name';
-        name.textContent = session.title || session.firstMessage || session.id.slice(0, 8);
+        name.textContent = sessionLabel(session);
         row.append(dot, name);
-        setTooltip(row, session.title || session.firstMessage || null);
+        setTooltip(row, sessionLabel(session, '') || null);
         row.addEventListener('click', () => jumpToSession(session));
         return row;
       });
@@ -701,7 +720,7 @@ switcherCurrent.addEventListener('click', () => {
 // The sessions the sidebar can show: every session on disk, plus new-but-unsaved tabs (so a
 // fresh session appears in its folder immediately, before it is written to disk).
 function visibleSessions(): SessionSummary[] {
-  const tips = tipsByConversation(allSessions);
+  const tips = sessionsByKey(allSessions);
   const knownIds = new Set(allSessions.map((s) => s.id));
   const pending = tabs.filter((t) => t.needsTitle && !knownIds.has(t.session.id)).map((t) => t.session);
   return [...pending, ...tips.values()];
@@ -729,7 +748,7 @@ function renderList(): void {
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the
   // list immediately, in the right folder group; they reconcile to the real entry once created.
   const all = visibleSessions();
-  currentTips = new Map(all.map((s) => [entityKey(s), s]));
+  currentByKey = new Map(all.map((s) => [entityKey(s), s]));
   // The switcher lists every project, independent of search/folder, so you can always navigate. If
   // the active folder no longer has any sessions, fall back to All (and persist that).
   const pool = switcherPool(all);
@@ -1215,18 +1234,18 @@ interface RowEls {
 // DOM every render (same idea as the session summary cache, applied to rendering).
 const rowEls = new WeakMap<HTMLElement, RowEls>();
 
-// Build a row once. Its click/pin handlers read the live session from `currentTips` by the entity
+// Build a row once. Its click/pin handlers read the live session from `currentByKey` by the entity
 // key (the session id), so a reused row stays correct across re-renders.
 function createSessionRow(key: string): HTMLElement {
   const item = document.createElement('article');
   item.className = 'session';
-  item.dataset.cid = key;
+  item.dataset.key = key;
 
   const dot = document.createElement('span');
   // Click the dot to toggle "read": mute a done/waiting session without opening or replying to it.
   dot.addEventListener('click', (event) => {
     event.stopPropagation();
-    const session = currentTips.get(key);
+    const session = currentByKey.get(key);
     if (session) toggleAck(session.id);
   });
   const content = document.createElement('div');
@@ -1239,11 +1258,11 @@ function createSessionRow(key: string): HTMLElement {
   // A family member's mark: `⑂ N` counts its siblings and opens a list of them to jump into. Shown
   // only when session.isSibling (set in updateRow).
   const siblingsBadge = document.createElement('span');
-  siblingsBadge.className = 'fork-badge forks-count';
+  siblingsBadge.className = 'sibling-badge';
   siblingsBadge.hidden = true;
   siblingsBadge.addEventListener('click', (event) => {
     event.stopPropagation();
-    const session = currentTips.get(key);
+    const session = currentByKey.get(key);
     if (session) openSiblingsMenu(siblingsBadge, session);
   });
   const meta = document.createElement('p');
@@ -1292,8 +1311,8 @@ function createSessionRow(key: string): HTMLElement {
     '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" /></svg>';
   deleteBtn.addEventListener('click', async (event) => {
     event.stopPropagation();
-    const session = currentTips.get(key);
-    const title = session?.title || session?.firstMessage || key.slice(0, 8);
+    const session = currentByKey.get(key);
+    const title = session ? sessionLabel(session) : key.slice(0, 8);
     if (!(await confirmDelete(title))) return;
     // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta
     // purge run in the background. It stays hidden via pendingDeletes until its files are gone
@@ -1325,15 +1344,8 @@ function createSessionRow(key: string): HTMLElement {
   setTooltip(kebab, 'Session options');
   kebab.addEventListener('click', (event) => {
     event.stopPropagation();
-    const session = currentTips.get(key);
-    if (!session) return;
-    const items: MenuItem[] = [{ label: 'Fork this session', onSelect: () => { void forkSession(session); } }];
-    const siblings = siblingsOf(session);
-    if (siblings.length > 0) {
-      items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
-    }
-    items.push({ label: 'Copy session id', onSelect: () => void copyText(session.id, 'Session id copied.') });
-    openMenu(kebab, items);
+    const session = currentByKey.get(key);
+    if (session) openMenu(kebab, sessionMenuItems(session));
   });
 
   item.append(dot, content, pin, archiveBtn, deleteBtn, kebab);
@@ -1341,7 +1353,7 @@ function createSessionRow(key: string): HTMLElement {
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
-    const session = currentTips.get(key);
+    const session = currentByKey.get(key);
     if (session) void openSession(session);
   });
   return item;
@@ -1355,12 +1367,12 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   applyStatus(els.dot, statuses.get(session.id), acked.has(session.id));
   statusDots.set(session.id, els.dot);
 
-  els.title.textContent = session.title || session.firstMessage || '(no prompt yet)';
-  setTooltip(els.title, session.title || session.firstMessage || null);
+  els.title.textContent = sessionLabel(session, '(no prompt yet)');
+  setTooltip(els.title, sessionLabel(session, '') || null);
 
   els.badge.hidden = !session.worktree;
   if (session.worktree) {
-    // The glyph sits in its own span so .wt-icon can size the heavier ⎇ down to match the fork badge.
+    // The glyph sits in its own span so .wt-icon can size the heavier ⎇ down to match the sibling badge.
     const wtIcon = document.createElement('span');
     wtIcon.className = 'wt-icon';
     wtIcon.textContent = '⎇';
@@ -1423,19 +1435,16 @@ async function openSession(session: SessionSummary): Promise<void> {
 
 let newSessionCounter = 0;
 
-// Start a brand-new claude session in `cwd`. It has no real id until claude creates it, so
-// the tab uses a placeholder; the real session appears in the sidebar on the next refresh.
-async function openNewSession(cwd: string): Promise<void> {
-  const folder = cwd.split('/').filter(Boolean).pop() ?? cwd;
+// Placeholder for a session whose transcript hasn't been written yet (a new/fork/worktree tab): a
+// minted id plus the SessionSummary defaults; callers override what they already know. One factory,
+// so a SessionSummary field change lands here once instead of in three literals.
+function placeholderSession(over: Partial<SessionSummary> & Pick<SessionSummary, 'cwd' | 'repoRoot' | 'title'>): SessionSummary {
   const id = `new-${Date.now()}-${newSessionCounter++}`;
-  const session: SessionSummary = {
+  return {
     id,
     conversationId: id,
-    cwd,
-    repoRoot: cwd,
     isRepo: false,
     worktree: '',
-    title: `New: ${folder}`,
     firstMessage: '',
     model: '',
     lastActivity: new Date().toISOString(),
@@ -1443,12 +1452,24 @@ async function openNewSession(cwd: string): Promise<void> {
     isSibling: false,
     siblingIds: [],
     postCompactHeads: [],
+    ...over,
   };
-  // Land where the new session's tab will be visible: stay in its own project, else drop to All.
-  if (activeFolder !== null && session.repoRoot !== activeFolder) {
+}
+
+// Land where a new tab will be visible: stay in its own project, else drop the scope to All.
+function ensureFolderVisible(repoRoot: string): void {
+  if (activeFolder !== null && repoRoot !== activeFolder) {
     activeFolder = null;
     window.claudeUi.setActiveFolder(null);
   }
+}
+
+// Start a brand-new claude session in `cwd`. It has no real id until claude creates it, so
+// the tab uses a placeholder; the real session appears in the sidebar on the next refresh.
+async function openNewSession(cwd: string): Promise<void> {
+  const folder = cwd.split('/').filter(Boolean).pop() ?? cwd;
+  const session = placeholderSession({ cwd, repoRoot: cwd, title: `New: ${folder}` });
+  ensureFolderVisible(session.repoRoot);
   await createTab(session, undefined);
   renderList();
 }
@@ -1479,10 +1500,7 @@ async function openWorktreeSession(repoRoot: string): Promise<void> {
   const friendly = label.trim();
   // Pass the label as `--name` so the session still displays what was typed.
   const slug = slugify(friendly);
-  const id = `new-${Date.now()}-${newSessionCounter++}`;
-  const session: SessionSummary = {
-    id,
-    conversationId: id,
+  const session = placeholderSession({
     cwd: repoRoot,
     repoRoot,
     isRepo: true,
@@ -1491,18 +1509,8 @@ async function openWorktreeSession(repoRoot: string): Promise<void> {
     // The name you typed becomes the title (it's also what --name sets); the badge already says it's
     // a worktree, so no prefix. Blank name falls back to a plain new-session label.
     title: friendly || `New: ${folder}`,
-    firstMessage: '',
-    model: '',
-    lastActivity: new Date().toISOString(),
-    eventCount: 0,
-    isSibling: false,
-    siblingIds: [],
-    postCompactHeads: [],
-  };
-  if (activeFolder !== null && session.repoRoot !== activeFolder) {
-    activeFolder = null;
-    window.claudeUi.setActiveFolder(null);
-  }
+  });
+  ensureFolderVisible(session.repoRoot);
   await createTab(session, undefined, false, friendly || undefined, slug);
   renderList();
 }
@@ -1511,37 +1519,25 @@ async function openWorktreeSession(repoRoot: string): Promise<void> {
 // session in the same cwd. Like openNewSession, the tab starts on a placeholder and adopts the real
 // fork id via its token; the fork then appears in the sidebar (as a sibling) on the next disk refresh.
 async function forkSession(parent: SessionSummary): Promise<void> {
-  const parentTitle = parent.title || parent.firstMessage || 'session';
+  const parentTitle = sessionLabel(parent, 'session');
   // Forks copy the parent's title, so offer a fresh name up front (via claude's --name). Cancel
   // aborts the fork; keeping/clearing the field just inherits the parent title.
   const name = await promptText('Create fork', `Fork from "${parentTitle}"`, parentTitle, 'Fork');
   if (name === null) return;
   const trimmed = name.trim();
-  const id = `new-${Date.now()}-${newSessionCounter++}`;
-  const session: SessionSummary = {
-    id,
-    conversationId: id,
+  const session = placeholderSession({
     cwd: parent.cwd,
     repoRoot: parent.repoRoot,
     isRepo: parent.isRepo,
     worktree: parent.worktree,
     title: trimmed || parentTitle,
-    firstMessage: '',
-    model: '',
-    lastActivity: new Date().toISOString(),
-    eventCount: 0,
     // Mark the placeholder as a family member right away (we know its parent is a sibling), so the
     // row shows the sibling mark immediately instead of waiting for claude to write the transcript.
     // It reconciles to the real row once that file lands and grouping runs on the next refresh.
     isSibling: true,
     siblingIds: [parent.id],
-    postCompactHeads: [],
-  };
-  // Land where the fork's tab will be visible: stay in its project, else drop to All.
-  if (activeFolder !== null && session.repoRoot !== activeFolder) {
-    activeFolder = null;
-    window.claudeUi.setActiveFolder(null);
-  }
+  });
+  ensureFolderVisible(session.repoRoot);
   await createTab(session, parent.id, true, trimmed || undefined);
   renderList();
 }
@@ -1740,7 +1736,7 @@ function tabElement(tab: Tab): HTMLElement {
   // Siblings often share a title, so mark the tab too — keyed on isSibling, the same signal as the
   // sidebar row's badge, so tab and row always agree.
   const siblingMark = document.createElement('span');
-  siblingMark.className = 'tab-fork';
+  siblingMark.className = 'tab-sibling';
   siblingMark.textContent = '⑂';
   if (tab.session.isSibling) {
     const count = tab.session.siblingIds.length;
@@ -1755,7 +1751,7 @@ function tabElement(tab: Tab): HTMLElement {
 
   const label = document.createElement('span');
   label.className = 'tab-label';
-  const text = tab.session.title || tab.session.firstMessage || tab.session.id.slice(0, 8);
+  const text = sessionLabel(tab.session);
   label.textContent = text;
   setTooltip(label, `${projName(tab.session.repoRoot)} · ${text}`);
 
@@ -1931,26 +1927,18 @@ searchInput.addEventListener('input', () => {
   container.scrollTop = 0;
 });
 filterClear.addEventListener('click', clearFilter);
-pinnedFilter.addEventListener('click', () => {
-  showPinnedOnly = !showPinnedOnly;
-  renderList();
-  container.scrollTop = 0;
-});
-worktreeFilter.addEventListener('click', () => {
-  showWorktreeOnly = !showWorktreeOnly;
-  renderList();
-  container.scrollTop = 0;
-});
-siblingFilter.addEventListener('click', () => {
-  showSiblingsOnly = !showSiblingsOnly;
-  renderList();
-  container.scrollTop = 0;
-});
-archivedFilter.addEventListener('click', () => {
-  showArchivedOnly = !showArchivedOnly;
-  renderList();
-  container.scrollTop = 0;
-});
+// Every filter pill does the same thing: flip its flag, re-render, scroll back to the results' top.
+function wireFilterToggle(button: HTMLButtonElement, flip: () => void): void {
+  button.addEventListener('click', () => {
+    flip();
+    renderList();
+    container.scrollTop = 0;
+  });
+}
+wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
+wireFilterToggle(worktreeFilter, () => (showWorktreeOnly = !showWorktreeOnly));
+wireFilterToggle(siblingFilter, () => (showSiblingsOnly = !showSiblingsOnly));
+wireFilterToggle(archivedFilter, () => (showArchivedOnly = !showArchivedOnly));
 filterToggle.addEventListener('click', () => {
   const opening = filterPanel.hidden;
   filterPanel.hidden = !opening;
