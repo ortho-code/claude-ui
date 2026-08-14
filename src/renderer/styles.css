@@ -1420,6 +1420,41 @@ button:focus:not(:focus-visible) {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
 }
 
+/* Every menu/popover reads as ATTACHED to its trigger: a small notch (a rotated square sharing the
+   menu's surface, bordered only on its exposed sides) points at the anchor, bridging the 5px gap.
+   openMenu/openSubmenu set --notch-x/--notch-y so it tracks the trigger's center. */
+.kebab-menu::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+
+.kebab-menu.attach-top::before {
+  top: -4.5px;
+  left: var(--notch-x);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+/* Submenu to the right of its parent item: the notch sits on the menu's left edge. */
+.kebab-menu.attach-right::before {
+  left: -4.5px;
+  top: var(--notch-y);
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+/* Flipped submenu (left of its parent item): the notch sits on the menu's right edge. */
+.kebab-menu.attach-left::before {
+  right: -4.5px;
+  top: var(--notch-y);
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
 .kebab-menu button {
   display: block;
   width: 100%;

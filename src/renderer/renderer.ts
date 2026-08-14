@@ -1040,9 +1040,15 @@ function openSubmenu(item: HTMLElement, items: MenuItem[]): void {
   fillMenu(menu, items, false);
   document.body.append(menu);
   const r = item.getBoundingClientRect();
-  const left = r.right + menu.offsetWidth + 8 > window.innerWidth ? r.left - menu.offsetWidth - 4 : r.right + 4;
-  menu.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - menu.offsetHeight - 8))}px`;
+  const flipped = r.right + menu.offsetWidth + 8 > window.innerWidth;
+  menu.classList.add(flipped ? 'attach-left' : 'attach-right');
+  const left = flipped ? r.left - menu.offsetWidth - 5 : r.right + 5;
+  const top = Math.max(8, Math.min(r.top, window.innerHeight - menu.offsetHeight - 8));
+  menu.style.top = `${top}px`;
   menu.style.left = `${Math.max(8, left)}px`;
+  // The notch points at the parent item's vertical center, clamped clear of the rounded corners.
+  const notchY = Math.max(10, Math.min(r.top + r.height / 2 - top - 4, menu.offsetHeight - 18));
+  menu.style.setProperty('--notch-y', `${notchY}px`);
   openSubmenuEl = menu;
   openSubmenuOwner = item;
   item.classList.add('menu-open'); // hold the parent row's active look while its submenu is up
@@ -1056,12 +1062,16 @@ function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   }
   closeMenu();
   const menu = document.createElement('div');
-  menu.className = 'kebab-menu';
+  menu.className = 'kebab-menu attach-top';
   fillMenu(menu, items, true);
   document.body.append(menu);
   const r = anchor.getBoundingClientRect();
-  menu.style.top = `${r.bottom + 4}px`;
-  menu.style.left = `${Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8))}px`;
+  menu.style.top = `${r.bottom + 5}px`;
+  const left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8));
+  menu.style.left = `${left}px`;
+  // The notch points at the anchor's horizontal center, clamped clear of the rounded corners.
+  const notchX = Math.max(10, Math.min(r.left + r.width / 2 - left - 4, menu.offsetWidth - 18));
+  menu.style.setProperty('--notch-x', `${notchX}px`);
   openMenuEl = menu;
   openMenuAnchor = anchor;
   anchor.classList.add('menu-open'); // trigger shows an open/active state while its menu is up

@@ -66,4 +66,10 @@ Any control that opens a menu or popover keeps its active look (the same fill or
 shows on hover) for as long as the menu is open, including when the pointer moves off it. The
 shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, so give every
 such trigger a `.menu-open` style that matches its `:hover`. The kebabs, the split-button caret,
-and the `⑂ N` fork-count badge all follow this.
+and the `⑂ N` sibling-count badge all follow this.
+
+Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an
+`attach-top`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a
+small notch on the menu's edge pointing at the trigger's center. Anything new that floats near an
+anchor should go through those helpers so it gets the notch (and the active-state stamping) for
+free rather than reinventing positioning.
