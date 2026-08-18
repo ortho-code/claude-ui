@@ -219,9 +219,19 @@ const sessionRows = new Map<string, HTMLElement>();
 const collapsedProjects = new Set<string>();
 // Collapsed custom groups, by group id (projects collapse by repo root, groups by their own id).
 const collapsedGroups = new Set<string>();
-// Every group and who is in one, loaded once at startup and refreshed after any change. Read-only
-// here: nothing in the UI creates or moves a group yet.
+// Every group and who is in one, loaded once at startup and refreshed after any change.
 let groupState: GroupState = { groups: [], groupOf: {} };
+// Group membership for sessions that do not exist on disk yet, keyed by their PLACEHOLDER id. A new
+// session started from a group's "+" (or a fork of a grouped session) has no real id until claude
+// reports for it, but it must show inside its group straight away rather than appearing loose and
+// jumping in later. Kept in memory only — placeholder ids are transient and never belong in meta.
+const pendingGroupOf = new Map<string, string>();
+
+// The membership the UI should draw: what's on disk, plus the not-yet-created sessions.
+function effectiveGroupState(): GroupState {
+  if (pendingGroupOf.size === 0) return groupState;
+  return { groups: groupState.groups, groupOf: { ...groupState.groupOf, ...Object.fromEntries(pendingGroupOf) } };
+}
 
 interface ProjectSectionEls {
   section: HTMLElement;
@@ -327,6 +337,9 @@ interface Tab {
   token: string;
   // A new session has no title on disk yet; keep re-reading on status events until it does.
   needsTitle: boolean;
+  // The group this session should join the moment it has a real id. A brand-new session runs on a
+  // placeholder id, so it cannot be filed until claude reports for it (see onSessionStatus).
+  joinGroupId?: string;
   // When claude was launched, to tell a real exit from a failed-to-start one.
   startedAt: number;
   // Bumped on each activation, so a workspace switch can restore a project's most-recent tab.
@@ -859,7 +872,7 @@ function renderList(): void {
   // One section per repo, each holding its groups and then the sessions in no group. Every ordering
   // rule (groups first, pins floated inside their own section) lives in the pure builder. While
   // filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  reconcileProjectSections(buildProjectTree(scoped, groupState, pinned, isFiltering()));
+  reconcileProjectSections(buildProjectTree(scoped, effectiveGroupState(), pinned, isFiltering()));
   pruneRows(new Set(scoped.map((s) => entityKey(s))));
 
   container.scrollTop = scroll;
@@ -1338,6 +1351,16 @@ function createGroupSection(id: string): GroupSectionEls {
   label.className = 'label';
   const count = document.createElement('span');
   count.className = 'group-count';
+  // Start a session already in this group — the group's answer to the project heading's "+".
+  const add = document.createElement('button');
+  add.className = 'group-add';
+  add.textContent = '+';
+  setTooltip(add, 'New session in this group');
+  add.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const group = groupState.groups.find((g) => g.id === id);
+    if (group?.repoRoot) void openNewSession(group.repoRoot, id);
+  });
   // Group options, same shape as the project heading's kebab; stopPropagation so it doesn't collapse.
   const kebab = document.createElement('button');
   kebab.className = 'group-kebab';
@@ -1350,7 +1373,7 @@ function createGroupSection(id: string): GroupSectionEls {
       { label: 'Delete group', onSelect: () => void deleteGroupById(id) },
     ]);
   });
-  heading.append(caret, icon, label, count, kebab);
+  heading.append(caret, icon, label, count, add, kebab);
   heading.addEventListener('click', () => {
     const collapsed = !collapsedGroups.has(id);
     if (collapsed) collapsedGroups.add(id);
@@ -1635,11 +1658,13 @@ function ensureProjectVisible(repoRoot: string): void {
 
 // Start a brand-new claude session in `cwd`. It has no real id until claude creates it, so
 // the tab uses a placeholder; the real session appears in the sidebar on the next refresh.
-async function openNewSession(cwd: string): Promise<void> {
+async function openNewSession(cwd: string, joinGroupId?: string): Promise<void> {
   const folder = cwd.split('/').filter(Boolean).pop() ?? cwd;
   const session = placeholderSession({ cwd, repoRoot: cwd, title: `New: ${folder}` });
+  // Show it in its group from the first paint; the real membership is written once it has an id.
+  if (joinGroupId) pendingGroupOf.set(session.id, joinGroupId);
   ensureProjectVisible(session.repoRoot);
-  await createTab(session, undefined);
+  await createTab(session, undefined, false, undefined, undefined, joinGroupId);
   renderList();
 }
 
@@ -1707,11 +1732,15 @@ async function forkSession(parent: SessionSummary): Promise<void> {
     siblingIds: [parent.id],
   });
   ensureProjectVisible(session.repoRoot);
-  await createTab(session, parent.id, true, trimmed || undefined);
+  // A fork continues its parent's work, so it belongs wherever the parent was filed — and it shows
+  // there immediately, like a new session started from the group's "+".
+  const parentGroup = groupState.groupOf[entityKey(parent)];
+  if (parentGroup) pendingGroupOf.set(session.id, parentGroup);
+  await createTab(session, parent.id, true, trimmed || undefined, undefined, parentGroup);
   renderList();
 }
 
-async function createTab(session: SessionSummary, resumeId: string | undefined, fork = false, name?: string, worktree?: string): Promise<void> {
+async function createTab(session: SessionSummary, resumeId: string | undefined, fork = false, name?: string, worktree?: string, joinGroupId?: string): Promise<void> {
   const token = crypto.randomUUID();
   const terminalId = await window.claudeUi.startTerminal(session.cwd, resumeId, token, fork, name, worktree);
 
@@ -1767,6 +1796,7 @@ async function createTab(session: SessionSummary, resumeId: string | undefined, 
     // A fork mints a NEW session id despite resuming one, so it also needs to adopt its real id via
     // the token (like a fresh session) — a plain resume already carries its final id.
     needsTitle: resumeId === undefined || fork,
+    joinGroupId,
     startedAt: Date.now(),
     activatedSeq: 0,
   };
@@ -1837,6 +1867,7 @@ function switchWorkspaceTerminal(repoRoot: string | null): void {
 function removeTab(tab: Tab): void {
   const index = tabs.indexOf(tab);
   if (index === -1) return;
+  pendingGroupOf.delete(tab.session.id); // a session that never started leaves no optimistic entry
   clearNudge(tab.session.id);
   tab.term.dispose();
   tab.el.remove();
@@ -1856,8 +1887,8 @@ function closeTab(tab: Tab): void {
 
 // The key a tab is grouped and dragged within: its project, plus its group when it has one. A drag
 // stays inside its own cluster because each cluster is its own Sortable container.
-function tabClusterKey(tab: Tab): string {
-  return `${tab.session.repoRoot}\0${groupState.groupOf[tab.session.id] ?? ''}`;
+function tabClusterKey(tab: Tab, groupOf: Record<string, string> = effectiveGroupState().groupOf): string {
+  return `${tab.session.repoRoot}\0${groupOf[tab.session.id] ?? ''}`;
 }
 
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups
@@ -1865,14 +1896,16 @@ function tabClusterKey(tab: Tab): string {
 // project label (everything shown belongs to it) but keeps the group rows.
 function renderTabBar(): void {
   const shown = activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
+  const groupOf = effectiveGroupState().groupOf; // computed once; every tab is keyed against it
   const byCluster = new Map<string, Tab[]>();
   const projectOrder: string[] = [];
   for (const tab of shown) {
     const root = tab.session.repoRoot;
     if (!projectOrder.includes(root)) projectOrder.push(root);
-    const list = byCluster.get(tabClusterKey(tab)) ?? [];
+    const key = tabClusterKey(tab, groupOf);
+    const list = byCluster.get(key) ?? [];
     list.push(tab);
-    byCluster.set(tabClusterKey(tab), list);
+    byCluster.set(key, list);
   }
 
   const children: HTMLElement[] = [];
@@ -2048,8 +2081,21 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
   if (tab) {
     const owner = tabs.find((t) => t.token === tab);
     if (owner && owner.session.id !== id) {
+      const placeholderId = owner.session.id;
       owner.session = { ...owner.session, id };
       persistOpenTabs();
+      // Now that the session has a real id it can be filed for real. The optimistic entry under the
+      // placeholder id is dropped in the same breath, so the row never leaves its group in between.
+      if (owner.joinGroupId) {
+        const groupId = owner.joinGroupId;
+        owner.joinGroupId = undefined;
+        pendingGroupOf.set(id, groupId); // hold the spot until the write comes back
+        void window.claudeUi.moveSessionToGroup(id, groupId).then((next) => {
+          pendingGroupOf.delete(id);
+          applyGroupState(next);
+        });
+      }
+      pendingGroupOf.delete(placeholderId);
     }
   }
   setStatus(id, status);
