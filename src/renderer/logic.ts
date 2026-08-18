@@ -1,6 +1,6 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested. renderer.ts wires these
 // to its state and the DOM.
-import type { SessionSummary } from '../shared/types';
+import type { GroupState, SessionGroup, SessionSummary } from '../shared/types';
 
 // The stable key for a displayed session entity: the session's own id, always. It is immutable, so
 // pins/archives/tabs can never go stale — a conversation-derived key stopped matching its session
@@ -213,4 +213,73 @@ export function projectsForSwitcher(
     all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked) },
     projects,
   };
+}
+
+// --- The session list's shape --------------------------------------------------------------------
+// One project section per repo, each holding its groups (in registry order) and then the sessions
+// that are in no group. Pure: renderer.ts turns this into DOM, and every ordering rule lives here so
+// it can be tested without a browser.
+
+export interface GroupedSessions {
+  group: SessionGroup;
+  sessions: SessionSummary[];
+}
+
+export interface ProjectTree {
+  repoRoot: string;
+  /** The project's groups in registry order, each with its members. Empty ones are kept. */
+  groups: GroupedSessions[];
+  /** Sessions in no group. They render directly under the project heading, at full width. */
+  loose: SessionSummary[];
+  /** Sessions shown under this project, grouped and loose together (the heading's count). */
+  count: number;
+  /** Whether any session here is in a git repo (gates the worktree option on the "+"). */
+  isRepo: boolean;
+}
+
+// Pinned sessions rise to the front, everything else keeps the order it came in (callers pass a
+// recency-sorted list). A stable partition, so this floats a pin inside whichever section it lands
+// in rather than lifting it out of its group.
+function pinnedFirst(sessions: SessionSummary[], pinned: ReadonlySet<string>): SessionSummary[] {
+  return [
+    ...sessions.filter((s) => pinned.has(entityKey(s))),
+    ...sessions.filter((s) => !pinned.has(entityKey(s))),
+  ];
+}
+
+/**
+ * Arrange the visible sessions into project sections. Projects keep the order they appear in
+ * `sessions` (recency, since the caller sorts that way); inside a project the groups come first in
+ * registry order, then the ungrouped remainder.
+ *
+ * `hideEmptyGroups` is for filtering: a group whose sessions were all filtered out is noise in a
+ * search, but an empty group must stay visible normally — that is how a freshly created one is seen.
+ */
+export function buildProjectTree(
+  sessions: SessionSummary[],
+  state: GroupState,
+  pinned: ReadonlySet<string>,
+  hideEmptyGroups = false,
+): ProjectTree[] {
+  const groupsByProject = new Map<string, SessionGroup[]>();
+  for (const group of state.groups) {
+    // repoRoot null is reserved for a future cross-project group; nothing renders it yet.
+    if (group.repoRoot === null) continue;
+    const list = groupsByProject.get(group.repoRoot) ?? [];
+    list.push(group);
+    groupsByProject.set(group.repoRoot, list);
+  }
+
+  return groupByRepo(sessions).map(([repoRoot, list]) => {
+    const ordered = pinnedFirst(list, pinned);
+    const projectGroups = groupsByProject.get(repoRoot) ?? [];
+    const ids = new Set(projectGroups.map((g) => g.id));
+    const groups = projectGroups
+      .map((group) => ({ group, sessions: ordered.filter((s) => state.groupOf[entityKey(s)] === group.id) }))
+      .filter((g) => !hideEmptyGroups || g.sessions.length > 0);
+    // A session whose group belongs to ANOTHER project (it moved cwd, say) is loose here rather than
+    // invisible: a row must always show up under the project it actually belongs to.
+    const loose = ordered.filter((s) => !ids.has(state.groupOf[entityKey(s)] ?? ''));
+    return { repoRoot, groups, loose, count: ordered.length, isRepo: ordered.some((s) => s.isRepo) };
+  });
 }

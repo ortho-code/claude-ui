@@ -12,6 +12,7 @@ import {
   projectsForSwitcher,
   modelLabel,
   reorderWithinGroup,
+  buildProjectTree,
   type FilterCriteria,
 } from './logic';
 
@@ -260,5 +261,70 @@ describe('sessionsByKey with siblings', () => {
     expect(tips.get('lone')?.id).toBe('lone');
     expect(tips.get('s1')?.id).toBe('s1');
     expect(tips.get('s2')?.id).toBe('s2');
+  });
+});
+
+describe('buildProjectTree', () => {
+  // Sessions arrive recency-sorted (newest first), as listSessions returns them.
+  const s = (id: string, repoRoot = '/repo') => session({ id, conversationId: id, repoRoot });
+  const group = (id: string, name: string, repoRoot: string | null = '/repo') => ({ id, name, repoRoot });
+  const none = new Set<string>();
+
+  it('puts groups first in registry order, then the sessions in no group', () => {
+    const tree = buildProjectTree(
+      [s('a'), s('b'), s('c')],
+      { groups: [group('g1', 'First'), group('g2', 'Second')], groupOf: { a: 'g2', b: 'g1' } },
+      none,
+    );
+    expect(tree).toHaveLength(1);
+    expect(tree[0].groups.map((g) => [g.group.name, g.sessions.map((x) => x.id)])).toEqual([
+      ['First', ['b']],
+      ['Second', ['a']],
+    ]);
+    expect(tree[0].loose.map((x) => x.id)).toEqual(['c']);
+    expect(tree[0].count).toBe(3); // grouped and loose together
+  });
+
+  it('keeps an empty group so a freshly created one is visible', () => {
+    const tree = buildProjectTree([s('a')], { groups: [group('g1', 'Empty')], groupOf: {} }, none);
+    expect(tree[0].groups.map((g) => g.group.name)).toEqual(['Empty']);
+    expect(tree[0].groups[0].sessions).toEqual([]);
+  });
+
+  it('hides emptied groups while filtering, where they would just be noise', () => {
+    const state = { groups: [group('g1', 'Empty'), group('g2', 'Has one')], groupOf: { a: 'g2' } };
+    const tree = buildProjectTree([s('a')], state, none, true);
+    expect(tree[0].groups.map((g) => g.group.name)).toEqual(['Has one']);
+  });
+
+  it('floats a pin to the top of its own section, never out of its group', () => {
+    const state = { groups: [group('g1', 'G')], groupOf: { a: 'g1', b: 'g1' } };
+    const tree = buildProjectTree([s('a'), s('b'), s('c'), s('d')], state, new Set(['b', 'd']));
+    expect(tree[0].groups[0].sessions.map((x) => x.id)).toEqual(['b', 'a']); // pinned b rises inside G
+    expect(tree[0].loose.map((x) => x.id)).toEqual(['d', 'c']);
+  });
+
+  it('shows a session whose group belongs to another project as loose in its own', () => {
+    const state = { groups: [group('g1', 'Elsewhere', '/other')], groupOf: { a: 'g1' } };
+    const tree = buildProjectTree([s('a', '/repo')], state, none);
+    expect(tree[0].repoRoot).toBe('/repo');
+    expect(tree[0].groups).toEqual([]);
+    expect(tree[0].loose.map((x) => x.id)).toEqual(['a']); // visible, not swallowed
+  });
+
+  it('ignores a cross-project group until that feature exists', () => {
+    const state = { groups: [group('g1', 'Everything', null)], groupOf: { a: 'g1' } };
+    const tree = buildProjectTree([s('a')], state, none);
+    expect(tree[0].groups).toEqual([]);
+    expect(tree[0].loose.map((x) => x.id)).toEqual(['a']);
+  });
+
+  it('orders projects by first appearance and reports whether one is a git repo', () => {
+    const repo = session({ id: 'r', conversationId: 'r', repoRoot: '/beta', isRepo: true });
+    const tree = buildProjectTree([s('a', '/alpha'), repo], { groups: [], groupOf: {} }, none);
+    expect(tree.map((p) => [p.repoRoot, p.isRepo])).toEqual([
+      ['/alpha', false],
+      ['/beta', true],
+    ]);
   });
 });
