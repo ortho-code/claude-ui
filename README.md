@@ -34,6 +34,9 @@ Done:
   (`claude -w`). Sessions sharing a conversation show as siblings (`⑂` badge with a
   jump list); worktree sessions file under their main repo with a badge, including
   sessions that entered a worktree mid-life.
+- Custom groups: sub-sections inside a project, made from a session's kebab. Move a session
+  between them, rename or delete a group (its sessions stay), and start a session or a fork
+  straight into one. Open tabs cluster by group in the tab bar.
 - Pin, archive, and delete (to the OS trash); search plus filters (pinned, worktree,
   siblings, archived, date range).
 - Per-session status dots (busy / idle / waiting) driven by Claude Code hooks scoped
@@ -43,8 +46,7 @@ Done:
 
 Next:
 
-- Status nudges that survive an app restart; a performance pass (scroll, open, paste);
-  custom groups.
+- Status nudges that survive an app restart; a performance pass (scroll, open, paste).
 - Playwright end-to-end tests, then split view.
 - Config viewer, minimize-to-tray, and later a diff / file side panel.
 - Session notes, and a readable transcript viewer (after a compaction, the CLI cannot

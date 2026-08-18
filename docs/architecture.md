@@ -39,7 +39,7 @@ Two TypeScript projects, because the two sides need different module systems:
 TypeScript 7 removed the old `moduleResolution: "node"`, so both projects use the newer
 values above. Shared types in `src/shared` are type-only, so nothing crosses at runtime.
 
-## Embedded terminal (planned, M2)
+## Embedded terminal
 
 `@xterm/xterm` in the renderer, backed by `node-pty` in the main process running the real
 `claude` binary. `node-pty` is a native module and must be rebuilt against Electron's ABI.
@@ -60,7 +60,35 @@ left untouched. When it does fire, the script writes `~/.config/claude-ui/status
 The main process watches that directory and pushes updates to the renderer, which shows a
 dot per session: busy, idle, waiting, or hollow (`closed` and unknown states have no color).
 
+## App-side metadata and session groups
+
+Everything the app knows that Claude Code doesn't — pins, archived sessions, open tabs, per-project
+display names, and custom groups — lives in a `meta.json` under the app's own user-data directory.
+The session store is never written to: `~/.claude` is read-only as far as this app is concerned.
+
+Writes are serialized through one queue and land via a temp file renamed over the target, with the
+previous good copy kept as a backup, so a crash mid-write can't leave the file half-written. Reads
+are tolerant by design: unknown or malformed entries are dropped rather than trusted, and older field
+names are still understood, so an older `meta.json` upgrades in place without a migration step.
+
+A **group** is a user-made sub-section inside one project. Membership is one group per session, so it
+is stored as a session-id-to-group-id map — a session cannot be in two groups by construction. Groups
+carry their own display order, and deleting one only unfiles its members; the sessions are untouched.
+
+Two rules shape how the sidebar draws this. The nested shape (projects, their groups in order, then
+the sessions in no group, with pins floated inside whichever section they land in) is computed by a
+pure function in the renderer's `logic.ts`, so the ordering rules are unit-tested without a DOM. And
+a session created inside a group has no real id until Claude Code reports for it, so the app files it
+optimistically under its placeholder id and replaces that with the real membership on adoption —
+otherwise a new row would appear outside its group and jump in a moment later.
+
 ## UI conventions
+
+Vocabulary, in code and in the UI: a **folder** is a literal directory path; a **project** is the
+grouping a session belongs to, keyed by its repo root, which merges a repo's worktrees and
+subdirectories into one entry; a **group** is a user-made sub-section inside a project. The three are
+not interchangeable — one project spans several folders, which is why the switcher, the session list
+and the tab bar all say "project".
 
 Any control that opens a menu or popover keeps its active look (the same fill or outline it
 shows on hover) for as long as the menu is open, including when the pointer moves off it. The
