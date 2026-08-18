@@ -17,6 +17,11 @@ import {
   getActiveProject,
   setActiveProject,
   migrateToSessionKeys,
+  getGroupState,
+  createGroup,
+  renameGroup,
+  deleteGroup,
+  moveSessionToGroup,
 } from './meta';
 
 let dir: string;
@@ -157,5 +162,77 @@ describe('active project', () => {
     expect(await getActiveProject()).toBe('/home/me/dev/scienta');
     await setActiveProject('/home/me/dev/other'); // any write persists the new key
     expect(await getActiveProject()).toBe('/home/me/dev/other');
+  });
+});
+
+describe('session groups', () => {
+  it('prepends a new group so it lands at the top of its project', async () => {
+    expect(await getGroupState()).toEqual({ groups: [], groupOf: {} });
+    await createGroup('Perf pass', '/repo');
+    const { groups } = await createGroup('Custom groups', '/repo');
+    expect(groups.map((g) => g.name)).toEqual(['Custom groups', 'Perf pass']);
+    expect(groups.every((g) => g.repoRoot === '/repo')).toBe(true);
+  });
+
+  it('creates and moves a session in one step (the row menu\'s "New group…")', async () => {
+    const { groups, groupOf } = await createGroup('Perf pass', '/repo', 's1');
+    expect(groupOf).toEqual({ s1: groups[0].id });
+  });
+
+  it('ignores a blank name on create and on rename', async () => {
+    expect((await createGroup('   ', '/repo')).groups).toEqual([]);
+    const { groups } = await createGroup('Perf pass', '/repo');
+    const renamed = await renameGroup(groups[0].id, '  ');
+    expect(renamed.groups[0].name).toBe('Perf pass');
+    expect((await renameGroup(groups[0].id, ' Perf ')).groups[0].name).toBe('Perf');
+  });
+
+  it('moves a session between groups rather than adding it to both', async () => {
+    const a = (await createGroup('A', '/repo')).groups[0];
+    const b = (await createGroup('B', '/repo')).groups[0];
+    await moveSessionToGroup('s1', a.id);
+    const { groupOf } = await moveSessionToGroup('s1', b.id);
+    expect(groupOf).toEqual({ s1: b.id });
+  });
+
+  it('takes a session out of every group with a null target, and ignores an unknown group', async () => {
+    const a = (await createGroup('A', '/repo')).groups[0];
+    await moveSessionToGroup('s1', a.id);
+    expect((await moveSessionToGroup('s1', null)).groupOf).toEqual({});
+    expect((await moveSessionToGroup('s1', 'no-such-group')).groupOf).toEqual({});
+  });
+
+  it('deletes a group, ungrouping its members and leaving other groups alone', async () => {
+    const doomed = (await createGroup('Doomed', '/repo')).groups[0];
+    const keeper = (await createGroup('Keeper', '/repo')).groups[0];
+    await moveSessionToGroup('s1', doomed.id);
+    await moveSessionToGroup('s2', keeper.id);
+    const { groups, groupOf } = await deleteGroup(doomed.id);
+    expect(groups.map((g) => g.name)).toEqual(['Keeper']);
+    expect(groupOf).toEqual({ s2: keeper.id }); // s1 is ungrouped, not deleted
+  });
+
+  it('drops a deleted session\'s membership', async () => {
+    const a = (await createGroup('A', '/repo')).groups[0];
+    await moveSessionToGroup('s1', a.id);
+    await purgeSession('s1');
+    expect((await getGroupState()).groupOf).toEqual({});
+  });
+
+  it('defaults the fields for a meta.json written before groups existed', async () => {
+    await writeMetaFile({ pinned: ['p1'], version: 3 });
+    expect(await getGroupState()).toEqual({ groups: [], groupOf: {} });
+    expect(await getPinned()).toEqual(['p1']);
+  });
+
+  it('drops malformed groups and memberships pointing at a group that is gone', async () => {
+    await writeMetaFile({
+      groups: [{ id: 'g1', name: 'Real', repoRoot: '/repo' }, { id: 'g2', name: 42 }],
+      groupOf: { s1: 'g1', s2: 'g2', s3: 'vanished', s4: 7 },
+      version: 3,
+    });
+    const { groups, groupOf } = await getGroupState();
+    expect(groups.map((g) => g.id)).toEqual(['g1']);
+    expect(groupOf).toEqual({ s1: 'g1' });
   });
 });

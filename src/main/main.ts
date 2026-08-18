@@ -13,6 +13,11 @@ import {
   setActiveProject,
   getProjectNames,
   setProjectName,
+  getGroupState,
+  createGroup,
+  renameGroup,
+  deleteGroup,
+  moveSessionToGroup,
   migrateToSessionKeys,
   purgeSession,
   auditMarker,
@@ -85,6 +90,15 @@ ipcMain.on('meta:setActiveProject', (_event, folder: string | null) => {
 });
 ipcMain.handle('meta:getProjectNames', () => getProjectNames());
 ipcMain.handle('meta:setProjectName', (_event, repoRoot: string, name: string) => setProjectName(repoRoot, name));
+ipcMain.handle('meta:getGroupState', () => getGroupState());
+ipcMain.handle('meta:createGroup', (_event, name: string, repoRoot: string | null, sessionId?: string) =>
+  createGroup(name, repoRoot, sessionId),
+);
+ipcMain.handle('meta:renameGroup', (_event, id: string, name: string) => renameGroup(id, name));
+ipcMain.handle('meta:deleteGroup', (_event, id: string) => deleteGroup(id));
+ipcMain.handle('meta:moveSessionToGroup', (_event, sessionId: string, groupId: string | null) =>
+  moveSessionToGroup(sessionId, groupId),
+);
 registerTerminalIpc();
 
 app.whenReady().then(async () => {

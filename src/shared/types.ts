@@ -34,6 +34,25 @@ export interface SessionSummary {
   postCompactHeads: string[];
 }
 
+/**
+ * A user-defined group of sessions, shown as a sub-section under its project's heading. Groups are
+ * app-side only: nothing about them is written to ~/.claude.
+ */
+export interface SessionGroup {
+  id: string;
+  name: string;
+  /** The project (repoRoot) the group lives in. Null is reserved for a future cross-project group. */
+  repoRoot: string | null;
+}
+
+/** Every group and who is in one. Read and returned whole, so the two halves can never disagree. */
+export interface GroupState {
+  /** The registry, in display order: a new group is prepended, so it lands at the top of its project. */
+  groups: SessionGroup[];
+  /** Session id -> group id. A session is in at most one group, so this map IS the membership. */
+  groupOf: Record<string, string>;
+}
+
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
   /** Whether a worktree of this name already exists for the repo (blocks creating a duplicate). */
@@ -62,6 +81,18 @@ export interface ClaudeUiApi {
   setActiveProject(folder: string | null): void;
   getProjectNames(): Promise<Record<string, string>>;
   setProjectName(repoRoot: string, name: string): Promise<Record<string, string>>;
+  /** Every group plus the session -> group membership. */
+  getGroupState(): Promise<GroupState>;
+  /**
+   * Create a group in a project, optionally moving a session into it in the same step (the row
+   * menu's "New group…" does both). A blank name creates nothing.
+   */
+  createGroup(name: string, repoRoot: string | null, sessionId?: string): Promise<GroupState>;
+  renameGroup(id: string, name: string): Promise<GroupState>;
+  /** Delete a group; its members become ungrouped and the sessions themselves are untouched. */
+  deleteGroup(id: string): Promise<GroupState>;
+  /** Move a session into a group, or out of any group with a null groupId. */
+  moveSessionToGroup(sessionId: string, groupId: string | null): Promise<GroupState>;
   /** Open a folder picker; resolves to the chosen path or null if cancelled. */
   pickFolder(): Promise<string | null>;
   /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */

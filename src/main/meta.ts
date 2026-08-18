@@ -1,6 +1,8 @@
 import { app } from 'electron';
 import { promises as fs } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
+import type { GroupState, SessionGroup } from '../shared/types';
 
 /**
  * UI-only metadata, kept outside ~/.claude so we never touch the session store.
@@ -17,6 +19,10 @@ interface Meta {
   activeProject: string | null;
   /** Per-project display-name overrides, keyed by repoRoot; absent = use the folder name. */
   projectNames: Record<string, string>;
+  /** User-defined session groups, in display order (a new one is prepended). */
+  groups: SessionGroup[];
+  /** Session id -> group id; a session is in at most one group. */
+  groupOf: Record<string, string>;
   /** Schema version; 3 = keyed by session id; 2 was conversation-keyed; 1 raw ids. */
   version: number;
 }
@@ -26,7 +32,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], archived: {}, activeProject: null, projectNames: {}, version: 3 };
+  return { pinned: [], openSessions: [], archived: {}, activeProject: null, projectNames: {}, groups: [], groupOf: {}, version: 3 };
 }
 
 // Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
@@ -42,6 +48,20 @@ function normalize(parsed: Record<string, unknown>): Meta {
   } else if (rawArchived && typeof rawArchived === 'object') {
     archived = rawArchived as Record<string, number>;
   }
+  // Drop malformed group entries, then any membership naming a group that no longer exists, so a
+  // hand-edited or half-written file can't leave a session pointing at nothing.
+  const groups = Array.isArray(parsed.groups)
+    ? (parsed.groups as SessionGroup[]).filter(
+        (g) => g && typeof g.id === 'string' && typeof g.name === 'string' && (typeof g.repoRoot === 'string' || g.repoRoot === null),
+      )
+    : [];
+  const ids = new Set(groups.map((g) => g.id));
+  const groupOf: Record<string, string> = {};
+  if (parsed.groupOf && typeof parsed.groupOf === 'object') {
+    for (const [sessionId, groupId] of Object.entries(parsed.groupOf as Record<string, unknown>)) {
+      if (typeof groupId === 'string' && ids.has(groupId)) groupOf[sessionId] = groupId;
+    }
+  }
   return {
     pinned: Array.isArray(parsed.pinned) ? (parsed.pinned as string[]) : [],
     openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
@@ -51,6 +71,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
       parsed.projectNames && typeof parsed.projectNames === 'object'
         ? (parsed.projectNames as Record<string, string>)
         : {},
+    groups,
+    groupOf,
     version: typeof parsed.version === 'number' ? parsed.version : 1,
   };
 }
@@ -226,6 +248,7 @@ export function purgeSession(id: string): Promise<void> {
     meta.pinned = meta.pinned.filter((k) => k !== id);
     meta.openSessions = meta.openSessions.filter((k) => k !== id);
     delete meta.archived[id];
+    delete meta.groupOf[id];
   });
 }
 
@@ -260,5 +283,67 @@ export function setProjectName(repoRoot: string, name: string): Promise<Record<s
     if (trimmed) meta.projectNames[repoRoot] = trimmed;
     else delete meta.projectNames[repoRoot];
     return meta.projectNames;
+  });
+}
+
+// --- Session groups -------------------------------------------------------------------------
+// A group is a user-made sub-section inside one project. Membership is one group per session, so
+// `groupOf` alone is the whole truth: a session cannot be in two groups by construction. Every
+// mutation returns the WHOLE state, since the registry and the membership only make sense together.
+
+function groupState(meta: Meta): GroupState {
+  return { groups: meta.groups, groupOf: meta.groupOf };
+}
+
+export function getGroupState(): Promise<GroupState> {
+  return serialize(async () => groupState(await readMeta()));
+}
+
+/**
+ * Create a group in a project, optionally moving a session into it in the same step (the row menu's
+ * "New group…" creates and moves at once). Prepends, so a new group lands at the top of its project.
+ * A blank name creates nothing — the caller's dialog can be dismissed empty.
+ */
+export function createGroup(name: string, repoRoot: string | null, sessionId?: string): Promise<GroupState> {
+  return update('createGroup', (meta) => {
+    const trimmed = name.trim();
+    if (!trimmed) return groupState(meta);
+    const group: SessionGroup = { id: randomUUID(), name: trimmed, repoRoot };
+    meta.groups.unshift(group);
+    if (sessionId) meta.groupOf[sessionId] = group.id;
+    return groupState(meta);
+  });
+}
+
+// Blank names are ignored rather than applied, so a group can never become nameless.
+export function renameGroup(id: string, name: string): Promise<GroupState> {
+  return update('renameGroup', (meta) => {
+    const group = meta.groups.find((g) => g.id === id);
+    const trimmed = name.trim();
+    if (group && trimmed) group.name = trimmed;
+    return groupState(meta);
+  });
+}
+
+// Delete a group: it leaves the registry and its members go back to sitting under their project.
+// The sessions themselves are never touched — this is display metadata only.
+export function deleteGroup(id: string): Promise<GroupState> {
+  return update('deleteGroup', (meta) => {
+    meta.groups = meta.groups.filter((g) => g.id !== id);
+    for (const [sessionId, groupId] of Object.entries(meta.groupOf)) {
+      if (groupId === id) delete meta.groupOf[sessionId];
+    }
+    return groupState(meta);
+  });
+}
+
+// Move a session into a group, or out of every group when groupId is null. It is a MOVE: any
+// previous membership is replaced. An unknown group id is ignored rather than stored, so the
+// membership can never name a group that isn't there.
+export function moveSessionToGroup(sessionId: string, groupId: string | null): Promise<GroupState> {
+  return update('moveSessionToGroup', (meta) => {
+    if (groupId === null) delete meta.groupOf[sessionId];
+    else if (meta.groups.some((g) => g.id === groupId)) meta.groupOf[sessionId] = groupId;
+    return groupState(meta);
   });
 }
