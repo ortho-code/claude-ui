@@ -1598,6 +1598,47 @@ button:focus:not(:focus-visible) {
   font-size: 10px;
 }
 
+/* A pick-one row (e.g. which group a session is in): the tick keeps its own column so the labels of
+   checked and unchecked items still line up. */
+.kebab-menu button.has-tick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-tick {
+  flex: 0 0 12px;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border);
+}
+
+/* Group options, matching the project heading's kebab but at the group heading's smaller scale. */
+.group h3 .group-kebab {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  padding: 0 3px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.group h3 .group-kebab:hover,
+.group h3 .group-kebab.menu-open {
+  background: var(--active);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 /* Rename-project dialog (mirrors the confirm dialog). */
 #rename-overlay {
   position: fixed;

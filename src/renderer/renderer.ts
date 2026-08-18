@@ -2,7 +2,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import type { ClaudeUiApi, GroupState, SessionSummary } from '../shared/types';
+import type { ClaudeUiApi, GroupState, SessionGroup, SessionSummary } from '../shared/types';
 import {
   sessionsByKey,
   structuralSignature,
@@ -594,6 +594,63 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   }));
 }
 
+// --- Group actions ------------------------------------------------------------------------------
+// Every mutation goes through the main process and hands back the whole state, so the renderer never
+// second-guesses what changed — it swaps its copy and re-renders.
+
+function applyGroupState(next: GroupState): void {
+  groupState = next;
+  renderList();
+}
+
+// The groups belonging to one project, in registry order.
+function projectGroups(repoRoot: string): SessionGroup[] {
+  return groupState.groups.filter((g) => g.repoRoot === repoRoot);
+}
+
+async function moveSessionToGroup(session: SessionSummary, groupId: string | null): Promise<void> {
+  applyGroupState(await window.claudeUi.moveSessionToGroup(entityKey(session), groupId));
+}
+
+// "New group…" from a row names the group and moves the session into it in one step, so the group is
+// never briefly empty and the user never has to find it again to fill it.
+async function newGroupForSession(session: SessionSummary): Promise<void> {
+  const name = await promptText('New group', projName(session.repoRoot), '', 'Create');
+  if (name === null || !name.trim()) return;
+  applyGroupState(await window.claudeUi.createGroup(name, session.repoRoot, entityKey(session)));
+}
+
+async function renameGroupById(id: string): Promise<void> {
+  const group = groupState.groups.find((g) => g.id === id);
+  if (!group) return;
+  const name = await promptText('Rename group', projName(group.repoRoot ?? ''), group.name);
+  if (name === null || !name.trim()) return;
+  applyGroupState(await window.claudeUi.renameGroup(id, name));
+}
+
+// No confirmation: nothing is destroyed. The group goes and its members simply sit under the project
+// again — unlike deleting a session, which trashes a transcript.
+async function deleteGroupById(id: string): Promise<void> {
+  const group = groupState.groups.find((g) => g.id === id);
+  applyGroupState(await window.claudeUi.deleteGroup(id));
+  if (group) showToast(`Group "${group.name}" deleted. Its sessions are back under the project.`);
+}
+
+// The "Move to group" list: the project's groups with the current one ticked, then the two ways out
+// — back to the project, or into a group that doesn't exist yet.
+function moveToGroupItems(session: SessionSummary): MenuItem[] {
+  const current = groupState.groupOf[entityKey(session)];
+  const items: MenuItem[] = projectGroups(session.repoRoot).map((group) => ({
+    label: group.name,
+    checked: group.id === current,
+    onSelect: () => void moveSessionToGroup(session, group.id),
+  }));
+  if (items.length > 0) items.push({ label: '', separator: true });
+  items.push({ label: 'None', checked: !current, onSelect: () => void moveSessionToGroup(session, null) });
+  items.push({ label: 'New group…', onSelect: () => void newGroupForSession(session) });
+  return items;
+}
+
 // The per-session action list — one builder, shared by the row kebab (and any future surface that
 // offers session actions, e.g. a tab context menu).
 function sessionMenuItems(session: SessionSummary): MenuItem[] {
@@ -602,6 +659,7 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
   if (siblings.length > 0) {
     items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
   }
+  items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
   items.push({ label: 'Copy session id', onSelect: () => void copyText(session.id, 'Session id copied.') });
   return items;
 }
@@ -1023,6 +1081,10 @@ interface MenuItem {
   label: string;
   onSelect?: () => void;
   submenu?: MenuItem[];
+  /** Present on items in a pick-one list: shows a tick column, so the current choice is visible. */
+  checked?: boolean;
+  /** A rule instead of an item, splitting a list into groups of related actions. */
+  separator?: boolean;
 }
 let openMenuEl: HTMLElement | null = null;
 let openMenuAnchor: HTMLElement | null = null;
@@ -1062,9 +1124,23 @@ function onMenuOutside(event: MouseEvent): void {
 // or hovering toward them would close the very submenu being reached for.
 function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
   for (const item of items) {
+    if (item.separator) {
+      const rule = document.createElement('div');
+      rule.className = 'menu-separator';
+      menu.append(rule);
+      continue;
+    }
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = item.label;
+    if (item.checked !== undefined) {
+      // A fixed-width column, empty when unchecked, so every label in the list still lines up.
+      const tick = document.createElement('span');
+      tick.className = 'menu-tick';
+      tick.textContent = item.checked ? '✓' : '';
+      button.classList.add('has-tick');
+      button.prepend(tick);
+    }
     if (item.submenu) {
       button.className = 'has-submenu';
       const chev = document.createElement('span');
@@ -1261,7 +1337,19 @@ function createGroupSection(id: string): GroupSectionEls {
   label.className = 'label';
   const count = document.createElement('span');
   count.className = 'group-count';
-  heading.append(caret, icon, label, count);
+  // Group options, same shape as the project heading's kebab; stopPropagation so it doesn't collapse.
+  const kebab = document.createElement('button');
+  kebab.className = 'group-kebab';
+  kebab.textContent = '⋮';
+  setTooltip(kebab, 'Group options');
+  kebab.addEventListener('click', (event) => {
+    event.stopPropagation();
+    openMenu(kebab, [
+      { label: 'Rename…', onSelect: () => void renameGroupById(id) },
+      { label: 'Delete group', onSelect: () => void deleteGroupById(id) },
+    ]);
+  });
+  heading.append(caret, icon, label, count, kebab);
   heading.addEventListener('click', () => {
     const collapsed = !collapsedGroups.has(id);
     if (collapsed) collapsedGroups.add(id);
