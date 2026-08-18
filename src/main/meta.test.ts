@@ -14,8 +14,8 @@ import {
   purgeSession,
   getOpenSessions,
   setOpenSessions,
-  getActiveFolder,
-  setActiveFolder,
+  getActiveProject,
+  setActiveProject,
   migrateToSessionKeys,
 } from './meta';
 
@@ -92,7 +92,7 @@ describe('migrateToSessionKeys', () => {
 describe('corruption safety', () => {
   it('recovers from the backup when the main file is corrupted, and preserves the corrupt copy', async () => {
     await togglePin('conv1'); // first write: creates meta.json
-    await setActiveFolder('/x'); // second write: backs up the good meta.json to meta.json.bak
+    await setActiveProject('/x'); // second write: backs up the good meta.json to meta.json.bak
     // Simulate a write truncated by a crash.
     await fs.writeFile(path.join(dir, 'meta.json'), '{ "pinned": ["conv1"');
     // The read falls back to the backup instead of silently resetting.
@@ -104,7 +104,7 @@ describe('corruption safety', () => {
 
   it('recovers from the backup when the main file is missing', async () => {
     await togglePin('conv1');
-    await setActiveFolder('/x'); // creates meta.json.bak holding pinned: [conv1]
+    await setActiveProject('/x'); // creates meta.json.bak holding pinned: [conv1]
     await fs.rm(path.join(dir, 'meta.json'));
     expect(await getPinned()).toEqual(['conv1']);
   });
@@ -136,17 +136,26 @@ describe('write serialization', () => {
   });
 });
 
-describe('active folder', () => {
+describe('active project', () => {
   it('defaults to null and round-trips a project and back to All', async () => {
-    expect(await getActiveFolder()).toBeNull();
-    await setActiveFolder('/home/me/dev/scienta');
-    expect(await getActiveFolder()).toBe('/home/me/dev/scienta');
-    await setActiveFolder(null);
-    expect(await getActiveFolder()).toBeNull();
+    expect(await getActiveProject()).toBeNull();
+    await setActiveProject('/home/me/dev/scienta');
+    expect(await getActiveProject()).toBe('/home/me/dev/scienta');
+    await setActiveProject(null);
+    expect(await getActiveProject()).toBeNull();
   });
 
   it('ignores a non-string persisted value', async () => {
-    await writeMetaFile({ activeFolder: 42 });
-    expect(await getActiveFolder()).toBeNull();
+    await writeMetaFile({ activeProject: 42 });
+    expect(await getActiveProject()).toBeNull();
+  });
+
+  // The key was `activeFolder` before the project/folder split; an existing meta.json must keep its
+  // scope rather than silently reverting to All.
+  it('reads the legacy activeFolder key and rewrites it under the new name', async () => {
+    await writeMetaFile({ activeFolder: '/home/me/dev/scienta' });
+    expect(await getActiveProject()).toBe('/home/me/dev/scienta');
+    await setActiveProject('/home/me/dev/other'); // any write persists the new key
+    expect(await getActiveProject()).toBe('/home/me/dev/other');
   });
 });

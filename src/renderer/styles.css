@@ -10,7 +10,7 @@
   --border: #ffffff2b;
   /* Accent-tinted "active/selected" surface, clearly distinct from base and from hover. */
   --active: #3b4360;
-  /* Status colours, shared by the session dots, folder badges and attention toasts. */
+  /* Status colours, shared by the session dots, project badges and attention toasts. */
   --waiting: #f9e2af;
   --idle: #a6e3a1;
 }
@@ -318,10 +318,10 @@ button:hover {
   gap: 6px;
 }
 
-/* Folder switcher: current project in the header, a dropdown of all projects below it. No black
+/* Project switcher: current project in the header, a dropdown of all projects below it. No black
    dividers (they read as muddy doubled lines next to the search panel's own border); separation
    comes from the surrounding elements' borders and backgrounds. */
-#folder-switcher {
+#project-switcher {
   position: relative;
   flex: 1;
   min-width: 0;
@@ -399,7 +399,7 @@ button:hover {
    title, so a fixed position near its left text reads as "at the trigger". The popover itself
    scrolls (overflow-y), which would CLIP a notch sticking out of its top edge — so the notch lives
    on the non-scrolling wrapper, drawn only while the popover is open, layered above its border. */
-#folder-switcher:has(#switcher-popover:not([hidden]))::after {
+#project-switcher:has(#switcher-popover:not([hidden]))::after {
   content: '';
   position: absolute;
   top: calc(100% + 0.5px);
@@ -450,7 +450,7 @@ button:hover {
 
 /* A project's rolled-up nudge in the switcher. Static (the per-session pulse lives in the list);
    busy reuses the spinner ring so it reads as "working" there too. */
-.folder-badge {
+.project-badge {
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -458,15 +458,15 @@ button:hover {
   background: transparent;
 }
 
-.folder-badge.waiting {
+.project-badge.waiting {
   background: var(--waiting);
 }
 
-.folder-badge.idle {
+.project-badge.idle {
   background: var(--idle);
 }
 
-.folder-badge.busy {
+.project-badge.busy {
   box-sizing: border-box;
   border: 1.5px solid var(--accent);
   border-top-color: transparent;
@@ -732,14 +732,14 @@ button:hover {
   background: transparent;
 }
 
-.group + .group {
-  /* No extra inter-group margin: the heading's own 8px top padding is the whole gap above it,
-     matching the 8px below its divider (the heading's margin-bottom), so a folder's top and bottom
+.project + .project {
+  /* No extra inter-project margin: the heading's own 8px top padding is the whole gap above it,
+     matching the 8px below its divider (the heading's margin-bottom), so a project's top and bottom
      spacing are even. */
   margin-top: 0;
 }
 
-.group h2 {
+.project h2 {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -747,7 +747,7 @@ button:hover {
   font-weight: 700;
   color: var(--text);
   /* Negative horizontal margins (cancelled by matching padding) let the divider run edge-to-edge
-     across the sidebar, so each group reads as a hard section break. No margin-bottom: the gap below
+     across the sidebar, so each project reads as a hard section break. No margin-bottom: the gap below
      the divider comes from the first session's margin-top, so every gap in the list is a single 8px.
      Symmetric vertical padding keeps the heading content (incl. the + button) centred. */
   margin: 0 -16px;
@@ -755,7 +755,7 @@ button:hover {
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   user-select: none;
-  /* Stay visible while scrolling that folder's sessions, so the current folder is always known.
+  /* Stay visible while scrolling that project's sessions, so the current project is always known.
      The opaque background masks rows scrolling underneath. */
   position: sticky;
   top: 0;
@@ -763,32 +763,32 @@ button:hover {
   background: var(--bg);
 }
 
-/* The whole folder row toggles collapse, so give it a hover cue like the other clickable rows. */
-.group h2:hover,
-.group h2:has(.menu-open) {
+/* The whole project row toggles collapse, so give it a hover cue like the other clickable rows. */
+.project h2:hover,
+.project h2:has(.menu-open) {
   background: var(--surface-hover);
 }
 
-.group h2 .caret {
+.project h2 .caret {
   flex: 0 0 auto;
   width: 10px;
   font-size: 10px;
 }
 
-.group h2 .group-icon {
+.project h2 .project-icon {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   color: var(--accent);
 }
 
-.group h2 .label {
+.project h2 .label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.group h2 .group-count {
+.project h2 .project-count {
   flex: 0 0 auto;
   margin-left: auto;
   padding: 1px 7px;
@@ -800,7 +800,7 @@ button:hover {
 }
 
 /* A bordered box so it reads as a "new session" action, not part of the collapse chrome. */
-.group h2 .group-add {
+.project h2 .project-add {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -819,7 +819,7 @@ button:hover {
   cursor: pointer;
 }
 
-.group h2 .group-add:hover {
+.project h2 .project-add:hover {
   color: var(--text);
   background: var(--surface-hover);
 }
@@ -831,7 +831,7 @@ button:hover {
   flex: 0 0 auto;
 }
 
-.split-button .group-add-caret {
+.split-button .project-add-caret {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -848,15 +848,15 @@ button:hover {
   cursor: pointer;
 }
 
-.split-button .group-add-caret:hover {
+.split-button .project-add-caret:hover {
   color: var(--text);
   background: var(--surface-hover);
 }
 
 /* Hovering either half accents the whole control's border (it's one split button); the per-half
    background above still shows which half you're about to click. */
-.split-button:hover .group-add,
-.split-button:hover .group-add-caret {
+.split-button:hover .project-add,
+.split-button:hover .project-add-caret {
   border-color: var(--accent);
 }
 
@@ -864,29 +864,29 @@ button:hover {
    accent outline, and the outline stays even when the pointer moves onto the dropdown (it's not
    hover-driven). Box-sizing is border-box, so adding a border to the borderless kebabs doesn't
    shift layout. */
-.group-add-caret.menu-open,
-.group-kebab.menu-open,
+.project-add-caret.menu-open,
+.project-kebab.menu-open,
 .session-kebab.menu-open {
   background: var(--active);
   color: var(--text);
 }
-.group-kebab.menu-open,
+.project-kebab.menu-open,
 .session-kebab.menu-open {
   border-color: var(--accent);
 }
-.split-button:has(.group-add-caret.menu-open) .group-add,
-.split-button:has(.group-add-caret.menu-open) .group-add-caret {
+.split-button:has(.project-add-caret.menu-open) .project-add,
+.split-button:has(.project-add-caret.menu-open) .project-add-caret {
   border-color: var(--accent);
 }
 /* Keep the active fill on the open caret even while hovering it — the .split-button :hover rule
-   above is more specific than `.group-add-caret.menu-open`, so match its specificity here (and win
+   above is more specific than `.project-add-caret.menu-open`, so match its specificity here (and win
    by order) so the background doesn't flip to the hover colour and back as the pointer moves off. */
-.split-button .group-add-caret.menu-open {
+.split-button .project-add-caret.menu-open {
   background: var(--active);
 }
 
 /* Square the +'s right corners only while the caret sits beside it. */
-.split-button:has(.group-add-caret:not([hidden])) .group-add {
+.split-button:has(.project-add-caret:not([hidden])) .project-add {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -898,7 +898,7 @@ button:focus:not(:focus-visible) {
   outline: none;
 }
 
-.group.collapsed .session {
+.project.collapsed .session {
   display: none;
 }
 
@@ -1044,7 +1044,7 @@ button:focus:not(:focus-visible) {
   border-radius: 5px;
 }
 
-/* Same hover fill as the group kebab (the accent border comes from the base button rule). */
+/* Same hover fill as the project kebab (the accent border comes from the base button rule). */
 .session-kebab:hover {
   background: var(--surface-hover);
 }
@@ -1167,8 +1167,8 @@ button:focus:not(:focus-visible) {
 }
 
 /* In the All view the tab bar groups by project: each project on its own line, prefixed by a muted
-   label (flex-basis 100% forces every group onto a fresh row). */
-.tab-group {
+   label (flex-basis 100% forces every project onto a fresh row). */
+.tab-project {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1176,8 +1176,8 @@ button:focus:not(:focus-visible) {
   flex-basis: 100%;
 }
 
-/* Clickable: jumps the session list to this project's folder. */
-.tab-group-label {
+/* Clickable: jumps the session list to this project. */
+.tab-project-label {
   display: flex;
   align-items: center;
   padding: 2px 8px;
@@ -1189,7 +1189,7 @@ button:focus:not(:focus-visible) {
   cursor: pointer;
 }
 
-.tab-group-label:hover {
+.tab-project-label:hover {
   color: var(--text);
   background: var(--surface-hover);
 }
@@ -1383,7 +1383,7 @@ button:focus:not(:focus-visible) {
 }
 
 /* Project heading within the footer attention list. */
-.footer-group {
+.footer-project {
   padding: 6px 8px 2px;
   font-size: 11px;
   font-weight: 600;
@@ -1406,8 +1406,8 @@ button:focus:not(:focus-visible) {
   background: var(--active);
 }
 
-/* Per-project kebab on a group heading (rename now, hide later). */
-.group h2 .group-kebab {
+/* Per-project kebab on a project heading (rename now, hide later). */
+.project h2 .project-kebab {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -1426,14 +1426,14 @@ button:focus:not(:focus-visible) {
   cursor: pointer;
 }
 
-.group h2 .group-kebab:hover {
+.project h2 .project-kebab:hover {
   background: var(--surface-hover);
   color: var(--text);
 }
 
-/* Keep the open/active state while the menu is up. Scoped under `.group h2` to outweigh the base
+/* Keep the open/active state while the menu is up. Scoped under `.project h2` to outweigh the base
    rule above (otherwise its border/background win and the active state doesn't show). */
-.group h2 .group-kebab.menu-open {
+.project h2 .project-kebab.menu-open {
   background: var(--active);
   color: var(--text);
   border-color: var(--accent);

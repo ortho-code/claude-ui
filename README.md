@@ -24,7 +24,7 @@ start, fork, worktree, pin, archive, delete.
 
 Done:
 
-- Session list from `~/.claude`, grouped into collapsible project groups, refreshed live
+- Session list from `~/.claude`, grouped into collapsible projects, refreshed live
   as transcripts change on disk.
 - Tabs: several sessions open at once, drag to reorder, restored on the next launch.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click

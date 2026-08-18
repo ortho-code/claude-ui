@@ -7,7 +7,7 @@ import {
   sessionsByKey,
   structuralSignature,
   groupByRepo,
-  groupName,
+  folderName,
   displayName,
   entityKey,
   reorderWithinGroup,
@@ -15,7 +15,7 @@ import {
   modelLabel,
   sessionPasses,
   datePresetRange,
-  foldersForSwitcher,
+  projectsForSwitcher,
   type NudgeStatus,
   type SwitcherModel,
 } from './logic';
@@ -57,7 +57,7 @@ const datePicker = new AirDatepicker(document.getElementById('date-range')!, {
   },
 });
 const searchInput = document.getElementById('search') as HTMLInputElement;
-const switcherEl = document.getElementById('folder-switcher')!;
+const switcherEl = document.getElementById('project-switcher')!;
 const switcherCurrent = document.getElementById('switcher-current') as HTMLButtonElement;
 const switcherName = document.getElementById('switcher-name')!;
 const switcherBadge = document.getElementById('switcher-badge')!;
@@ -115,7 +115,7 @@ function showAttentionToast(tab: Tab, status: 'waiting' | 'idle'): void {
   const el = document.createElement('div');
   el.className = `notif ${status}`;
   const dot = document.createElement('span');
-  dot.className = `folder-badge ${status}`;
+  dot.className = `project-badge ${status}`;
   // The dot/edge colour already says waiting vs finished; the text names the tab and its project.
   const text = document.createElement('span');
   text.className = 'notif-text';
@@ -168,8 +168,8 @@ function maybeAttentionToast(id: string, status: string | undefined, prev: strin
 
 // Jump to a tab from a toast: scope to its project if we're viewing a different one, then activate it.
 function jumpToTab(tab: Tab): void {
-  if (activeFolder !== null && activeFolder !== tab.session.repoRoot) {
-    selectFolder(tab.session.repoRoot);
+  if (activeProject !== null && activeProject !== tab.session.repoRoot) {
+    selectProject(tab.session.repoRoot);
   }
   activateTab(tab);
 }
@@ -197,7 +197,7 @@ let showSiblingsOnly = false;
 let showArchivedOnly = false;
 // The project the switcher is scoped to; null = "All" (the grouped overview). In-memory for now;
 // Phase 3 persists it.
-let activeFolder: string | null = null;
+let activeProject: string | null = null;
 // Date filter, as an inclusive [from, to] window in epoch ms; null means unbounded on that side.
 let datePreset = 'any';
 let dateFromMs: number | null = null;
@@ -210,18 +210,18 @@ const statusDots = new Map<string, HTMLElement>();
 // Row elements by entity key (the session id), reused across renders so a re-render moves nodes
 // instead of recreating them — no flicker, no scroll jump, hover/focus kept.
 const sessionRows = new Map<string, HTMLElement>();
-const collapsedGroups = new Set<string>();
+const collapsedProjects = new Set<string>();
 
-interface GroupEls {
+interface ProjectSectionEls {
   section: HTMLElement;
   caret: HTMLElement;
   count: HTMLElement;
   label: HTMLElement;
-  /** The new-session split-button's dropdown caret (present only for a folder group). */
+  /** The new-session split-button's dropdown caret (present only for a project with a folder). */
   addCaret?: HTMLElement;
 }
-// Group sections by group name, reused across renders (same reason as sessionRows).
-const groupSections = new Map<string, GroupEls>();
+// Project sections by repo root, reused across renders (same reason as sessionRows).
+const projectSections = new Map<string, ProjectSectionEls>();
 // The session each row currently shows, by entity key (session id), so a reused row's click/pin
 // handlers act on the live session data of the latest render.
 let currentByKey = new Map<string, SessionSummary>();
@@ -263,7 +263,7 @@ function setStatus(id: string, status: string | undefined): void {
   // new waiting, re-pulses) even if the user had acked the previous state.
   acked.delete(id);
   renderStatusDot(id);
-  refreshSwitcher(); // keep the folder roll-up badges live
+  refreshSwitcher(); // keep the project roll-up badges live
   maybeAttentionToast(id, status, prev);
 }
 
@@ -284,7 +284,7 @@ function toggleAck(id: string): void {
   if (acked.has(id)) acked.delete(id);
   else acked.add(id);
   renderStatusDot(id);
-  refreshSwitcher(); // an acked/un-acked session changes its folder's roll-up badge
+  refreshSwitcher(); // an acked/un-acked session changes its project's roll-up badge
 }
 
 // You've attended to a session by viewing it, so drop its "needs you" nudge.
@@ -384,7 +384,7 @@ async function refreshFromDisk(): Promise<void> {
   renderList();
 }
 
-// Any filter active? Used to auto-expand groups with matches and to show the filter status.
+// Any filter active? Used to auto-expand projects with matches and to show the filter status.
 function isFiltering(): boolean {
   return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showSiblingsOnly || showArchivedOnly || datePreset !== 'any';
 }
@@ -495,25 +495,25 @@ function clearFilter(): void {
   container.scrollTop = 0;
 }
 
-// --- Folder switcher ---
+// --- Project switcher ---
 
 // Update the switcher header + popover from the visible project pool. The pool is every project's
-// tips (see renderList); the switcher is independent of search/folder so you can always navigate.
+// tips (see renderList); the switcher is independent of search/project so you can always navigate.
 function renderSwitcher(pool: SessionSummary[]): void {
-  const model = foldersForSwitcher(pool, statuses, acked, projectNames);
-  const active = activeFolder ? model.folders.find((f) => f.repoRoot === activeFolder) : null;
+  const model = projectsForSwitcher(pool, statuses, acked, projectNames);
+  const active = activeProject ? model.projects.find((f) => f.repoRoot === activeProject) : null;
   switcherName.textContent = active ? active.name : 'All';
 
   // Header nudge: the overall roll-up across ALL projects (incl. the active one and busy), so any
   // attention is visible at a glance even when scoped to a project or scrolled down a long list.
   const headerBadge = model.all.badge;
-  switcherBadge.className = headerBadge ? `folder-badge ${headerBadge}` : 'folder-badge';
+  switcherBadge.className = headerBadge ? `project-badge ${headerBadge}` : 'project-badge';
   switcherBadge.hidden = !headerBadge;
   setTooltip(switcherBadge, headerBadge ? `A project is ${headerBadge}` : null);
 
   switcherPopover.replaceChildren(
-    switcherItem('All', null, model.all.count, null, activeFolder === null),
-    ...model.folders.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeFolder)),
+    switcherItem('All', null, model.all.count, null, activeProject === null),
+    ...model.projects.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeProject)),
   );
 
   renderFooter(model, pool);
@@ -550,7 +550,7 @@ async function copyText(text: string, confirmation: string): Promise<void> {
 
 // Jump to a specific session from the footer: scope to its project if needed, then open/focus its tab.
 function jumpToSession(session: SessionSummary): void {
-  if (activeFolder !== null && activeFolder !== session.repoRoot) selectFolder(session.repoRoot);
+  if (activeProject !== null && activeProject !== session.repoRoot) selectProject(session.repoRoot);
   void openSession(session);
 }
 
@@ -595,25 +595,25 @@ function openSiblingsMenu(anchor: HTMLElement, session: SessionSummary): void {
 // row: state dot + session title), click one to jump to it. Muted "all clear" when nothing pending.
 function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   const overall = model.all.badge;
-  footerBadge.className = overall ? `folder-badge ${overall}` : 'folder-badge';
+  footerBadge.className = overall ? `project-badge ${overall}` : 'project-badge';
   footerBadge.hidden = !overall;
 
   // Nudged sessions grouped by project; projects and sessions ordered attention-first.
-  const groups = new Map<string, { name: string; items: { session: SessionSummary; badge: NudgeStatus }[] }>();
+  const projects = new Map<string, { name: string; items: { session: SessionSummary; badge: NudgeStatus }[] }>();
   for (const session of pool) {
     const badge = sessionNudge(session.id);
     if (!badge) continue;
-    let group = groups.get(session.repoRoot);
-    if (!group) {
-      group = { name: projName(session.repoRoot), items: [] };
-      groups.set(session.repoRoot, group);
+    let project = projects.get(session.repoRoot);
+    if (!project) {
+      project = { name: projName(session.repoRoot), items: [] };
+      projects.set(session.repoRoot, project);
     }
-    group.items.push({ session, badge });
+    project.items.push({ session, badge });
   }
-  for (const group of groups.values()) {
-    group.items.sort((a, b) => NUDGE_ORDER[a.badge!] - NUDGE_ORDER[b.badge!]);
+  for (const project of projects.values()) {
+    project.items.sort((a, b) => NUDGE_ORDER[a.badge!] - NUDGE_ORDER[b.badge!]);
   }
-  const ordered = [...groups.values()].sort((a, b) => NUDGE_ORDER[a.items[0].badge!] - NUDGE_ORDER[b.items[0].badge!]);
+  const ordered = [...projects.values()].sort((a, b) => NUDGE_ORDER[a.items[0].badge!] - NUDGE_ORDER[b.items[0].badge!]);
   const total = ordered.reduce((n, g) => n + g.items.length, 0);
 
   if (total === 0) {
@@ -631,16 +631,16 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   footerLabel.textContent = `${total} ${total === 1 ? 'session' : 'sessions'}`;
   footerList.hidden = !footerExpanded;
   footerList.replaceChildren(
-    ...ordered.flatMap((group) => {
+    ...ordered.flatMap((project) => {
       const heading = document.createElement('div');
-      heading.className = 'footer-group';
-      heading.textContent = group.name;
-      const rows = group.items.map(({ session, badge }) => {
+      heading.className = 'footer-project';
+      heading.textContent = project.name;
+      const rows = project.items.map(({ session, badge }) => {
         const row = document.createElement('button');
         row.type = 'button';
         row.className = 'footer-item';
         const dot = document.createElement('span');
-        dot.className = `folder-badge ${badge}`;
+        dot.className = `project-badge ${badge}`;
         const name = document.createElement('span');
         name.className = 'footer-item-name';
         name.textContent = sessionLabel(session);
@@ -673,22 +673,22 @@ function switcherItem(name: string, repoRoot: string | null, count: number, badg
   label.textContent = name;
 
   const dot = document.createElement('span');
-  dot.className = badge ? `folder-badge ${badge}` : 'folder-badge';
+  dot.className = badge ? `project-badge ${badge}` : 'project-badge';
 
   const cnt = document.createElement('span');
   cnt.className = 'switcher-item-count';
   cnt.textContent = String(count);
 
   btn.append(label, dot, cnt);
-  btn.addEventListener('click', () => selectFolder(repoRoot));
+  btn.addEventListener('click', () => selectProject(repoRoot));
   return btn;
 }
 
-function selectFolder(repoRoot: string | null): void {
-  activeFolder = repoRoot;
-  // Open a project expanded even if its folder was collapsed in the All view.
-  if (repoRoot) collapsedGroups.delete(repoRoot);
-  window.claudeUi.setActiveFolder(repoRoot);
+function selectProject(repoRoot: string | null): void {
+  activeProject = repoRoot;
+  // Open a project expanded even if it was collapsed in the All view.
+  if (repoRoot) collapsedProjects.delete(repoRoot);
+  window.claudeUi.setActiveProject(repoRoot);
   closeSwitcher();
   renderList();
   container.scrollTop = 0;
@@ -718,7 +718,7 @@ switcherCurrent.addEventListener('click', () => {
 });
 
 // The sessions the sidebar can show: every session on disk, plus new-but-unsaved tabs (so a
-// fresh session appears in its folder immediately, before it is written to disk).
+// fresh session appears in its project immediately, before it is written to disk).
 function visibleSessions(): SessionSummary[] {
   const tips = sessionsByKey(allSessions);
   const knownIds = new Set(allSessions.map((s) => s.id));
@@ -727,7 +727,7 @@ function visibleSessions(): SessionSummary[] {
 }
 
 // The switcher's project pool: every project's tips minus archived/pending-delete, independent of
-// the search text and active folder so you can always navigate to any project.
+// the search text and active project so you can always navigate to any project.
 function switcherPool(all: SessionSummary[]): SessionSummary[] {
   return all.filter((s) => !archived.has(entityKey(s)) && !pendingDeletes.has(entityKey(s)));
 }
@@ -739,28 +739,28 @@ function refreshSwitcher(): void {
 }
 
 // Render from the cached session list, applying the current search filter. Keystrokes call
-// this directly so filtering never re-reads disk. Reuses group/row nodes by key so a re-render
+// this directly so filtering never re-reads disk. Reuses project/row nodes by key so a re-render
 // moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
 function renderList(): void {
   const scroll = container.scrollTop;
   statusDots.clear();
 
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the
-  // list immediately, in the right folder group; they reconcile to the real entry once created.
+  // list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions();
   currentByKey = new Map(all.map((s) => [entityKey(s), s]));
-  // The switcher lists every project, independent of search/folder, so you can always navigate. If
-  // the active folder no longer has any sessions, fall back to All (and persist that).
+  // The switcher lists every project, independent of search/project, so you can always navigate. If
+  // the active project no longer has any sessions, fall back to All (and persist that).
   const pool = switcherPool(all);
-  if (activeFolder && !pool.some((s) => s.repoRoot === activeFolder)) {
-    activeFolder = null;
-    window.claudeUi.setActiveFolder(null);
+  if (activeProject && !pool.some((s) => s.repoRoot === activeProject)) {
+    activeProject = null;
+    window.claudeUi.setActiveProject(null);
   }
   renderSwitcher(pool);
 
   const filtered = all.filter(passesFilters);
-  // Folder scope applies in the normal view; the archived view shows all archived (ignores it).
-  const scoped = activeFolder && !showArchivedOnly ? filtered.filter((s) => s.repoRoot === activeFolder) : filtered;
+  // Project scope applies in the normal view; the archived view shows all archived (ignores it).
+  const scoped = activeProject && !showArchivedOnly ? filtered.filter((s) => s.repoRoot === activeProject) : filtered;
   updateFilterStatus(scoped.length, all.length);
 
   if (scoped.length === 0) {
@@ -773,20 +773,20 @@ function renderList(): void {
   }
   container.querySelector(':scope > .empty-message')?.remove();
 
-  // Pinned sessions float to the top of their group (a stable sort keeps activity order otherwise).
+  // Pinned sessions float to the top of their project (a stable sort keeps activity order otherwise).
   const pinFirst = (a: SessionSummary, b: SessionSummary): number =>
     (pinned.has(entityKey(b)) ? 1 : 0) - (pinned.has(entityKey(a)) ? 1 : 0);
 
-  // One group per repo. A specific project scopes `scoped` to that folder, so this yields its single
-  // group (heading + "+" and all); "All" shows every project.
-  const desired: DesiredGroup[] = [];
+  // One section per repo. A specific project scopes `scoped` to that project, so this yields its
+  // single section (heading + "+" and all); "All" shows every project.
+  const desired: DesiredProject[] = [];
   for (const [repoRoot, list] of groupByRepo(scoped)) {
     list.sort(pinFirst);
-    // A repo group can host worktree sessions; a plain-folder group can't (gates the split-button).
+    // A repo can host worktree sessions; a plain folder can't (gates the split-button).
     desired.push({ name: repoRoot, folderCwd: repoRoot, sessions: list, isRepo: list.some((s) => s.isRepo) });
   }
 
-  reconcileGroups(desired);
+  reconcileProjectSections(desired);
   pruneRows(new Set(scoped.map((s) => entityKey(s))));
 
   container.scrollTop = scroll;
@@ -821,43 +821,43 @@ new ResizeObserver(() => {
 function clearList(): void {
   container.replaceChildren();
   sessionRows.clear();
-  groupSections.clear();
+  projectSections.clear();
   statusDots.clear();
 }
 
-interface DesiredGroup {
+interface DesiredProject {
   name: string;
   folderCwd?: string;
   sessions: SessionSummary[];
-  /** Whether the group's folder is a git repo (so it can offer worktree sessions). */
+  /** Whether the project's folder is a git repo (so it can offer worktree sessions). */
   isRepo?: boolean;
 }
 
-// Bring the group sections in line with `desired`: drop gone groups, create missing ones, and
-// order both groups and their rows via appendChild (which moves an existing node into place).
-function reconcileGroups(desired: DesiredGroup[]): void {
-  const wanted = new Set(desired.map((g) => g.name));
-  for (const [name, els] of groupSections) {
+// Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order
+// both the sections and their rows via appendChild (which moves an existing node into place).
+function reconcileProjectSections(desired: DesiredProject[]): void {
+  const wanted = new Set(desired.map((p) => p.name));
+  for (const [name, els] of projectSections) {
     if (!wanted.has(name)) {
       els.section.remove();
-      groupSections.delete(name);
+      projectSections.delete(name);
     }
   }
-  for (const group of desired) {
-    let els = groupSections.get(group.name);
+  for (const project of desired) {
+    let els = projectSections.get(project.name);
     if (!els) {
-      els = createGroup(group.name, group.folderCwd);
-      groupSections.set(group.name, els);
+      els = createProjectSection(project.name, project.folderCwd);
+      projectSections.set(project.name, els);
     }
-    // While filtering, force groups open so matches inside a collapsed group are visible; the
+    // While filtering, force projects open so matches inside a collapsed one are visible; the
     // stored collapse state is left untouched, so it returns when the filter clears.
-    const collapsed = !isFiltering() && collapsedGroups.has(group.name);
+    const collapsed = !isFiltering() && collapsedProjects.has(project.name);
     els.section.classList.toggle('collapsed', collapsed);
     els.caret.textContent = collapsed ? '▸' : '▾';
-    els.count.textContent = String(group.sessions.length);
-    els.label.textContent = projName(group.name); // keep the heading name current (e.g. after a rename)
-    if (els.addCaret) els.addCaret.hidden = !group.isRepo; // worktree option only for git-repo groups
-    for (const session of group.sessions) {
+    els.count.textContent = String(project.sessions.length);
+    els.label.textContent = projName(project.name); // keep the heading name current (e.g. after a rename)
+    if (els.addCaret) els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
+    for (const session of project.sessions) {
       const row = getOrCreateRow(entityKey(session));
       updateRow(row, session);
       els.section.appendChild(row);
@@ -971,13 +971,13 @@ async function renameProject(repoRoot: string): Promise<void> {
   const name = await promptText('Rename project', repoRoot, projName(repoRoot));
   if (name === null) return;
   // Typing the folder name back clears the override rather than storing a redundant one.
-  const canonical = name.trim() === groupName(repoRoot) ? '' : name;
+  const canonical = name.trim() === folderName(repoRoot) ? '' : name;
   projectNames = new Map(Object.entries(await window.claudeUi.setProjectName(repoRoot, canonical)));
   renderList();
   renderTabBar();
 }
 
-// A small floating kebab menu, generic over its items so the group-heading and session-row kebabs
+// A small floating kebab menu, generic over its items so the project-heading and session-row kebabs
 // share the open/close/outside-click machinery. An item may carry a `submenu`: it then opens a child
 // list on hover (one level deep) instead of running an action.
 interface MenuItem {
@@ -1098,11 +1098,11 @@ function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   setTimeout(() => document.addEventListener('click', onMenuOutside, true));
 }
 
-// Reveal a session's row in the sidebar (expanding its group if collapsed), so clicking a tab
-// scrolls to where it lives and shows which group it belongs to.
+// Reveal a session's row in the sidebar (expanding its project if collapsed), so clicking a tab
+// scrolls to where it lives and shows which project it belongs to.
 function revealSessionInSidebar(session: SessionSummary): void {
-  if (collapsedGroups.has(session.repoRoot)) {
-    collapsedGroups.delete(session.repoRoot);
+  if (collapsedProjects.has(session.repoRoot)) {
+    collapsedProjects.delete(session.repoRoot);
     renderList();
   }
   const row = sessionRows.get(entityKey(session));
@@ -1113,52 +1113,52 @@ function revealSessionInSidebar(session: SessionSummary): void {
   container.scrollTop += row.getBoundingClientRect().top - container.getBoundingClientRect().top - headingOffset;
 }
 
-// Scroll the (All-view) session list to a project's folder heading — used by the project name in the
+// Scroll the (All-view) session list to a project's heading — used by the project name in the
 // tab bar, so it links to where that project's sessions live.
-function revealFolderInSidebar(repoRoot: string): void {
-  if (collapsedGroups.has(repoRoot)) {
-    collapsedGroups.delete(repoRoot);
+function revealProjectInSidebar(repoRoot: string): void {
+  if (collapsedProjects.has(repoRoot)) {
+    collapsedProjects.delete(repoRoot);
     renderList();
   }
-  const els = groupSections.get(repoRoot);
+  const els = projectSections.get(repoRoot);
   if (!els) return;
   container.scrollTop += els.section.getBoundingClientRect().top - container.getBoundingClientRect().top;
 }
 
-// Build a group section once; contents (count, caret, rows) are updated on later renders.
-function createGroup(name: string, folderCwd?: string): GroupEls {
+// Build a project section once; contents (count, caret, rows) are updated on later renders.
+function createProjectSection(name: string, folderCwd?: string): ProjectSectionEls {
   const section = document.createElement('section');
-  section.className = 'group';
+  section.className = 'project';
 
   const heading = document.createElement('h2');
   const caret = document.createElement('span');
   caret.className = 'caret';
   const icon = document.createElement('span');
-  icon.className = 'group-icon';
+  icon.className = 'project-icon';
   icon.innerHTML = FOLDER_ICON;
   const label = document.createElement('span');
   label.className = 'label';
   setTooltip(label, name); // full path on hover
   label.textContent = projName(name);
   const count = document.createElement('span');
-  count.className = 'group-count';
+  count.className = 'project-count';
   heading.append(caret, icon, label, count);
   let addCaret: HTMLElement | undefined;
   if (folderCwd) {
     // Split button: the "+" is one-click "New session"; the caret opens a dropdown with worktree
-    // options. reconcileGroups shows the caret only for git-repo groups.
+    // options. reconcileProjectSections shows the caret only for git repos.
     const split = document.createElement('div');
     split.className = 'split-button';
     const add = document.createElement('button');
-    add.className = 'group-add';
+    add.className = 'project-add';
     add.textContent = '+';
-    setTooltip(add, 'New session in this folder');
+    setTooltip(add, 'New session in this project');
     add.addEventListener('click', (event) => {
       event.stopPropagation();
       void openNewSession(folderCwd);
     });
     const caret = document.createElement('button');
-    caret.className = 'group-add-caret';
+    caret.className = 'project-add-caret';
     caret.textContent = '▾';
     caret.hidden = true;
     setTooltip(caret, 'New session options');
@@ -1175,7 +1175,7 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   }
   // Project options (rename now, hide later); stopPropagation so it doesn't toggle collapse.
   const kebab = document.createElement('button');
-  kebab.className = 'group-kebab';
+  kebab.className = 'project-kebab';
   kebab.textContent = '⋮';
   setTooltip(kebab, 'Project options');
   kebab.addEventListener('click', (event) => {
@@ -1191,9 +1191,9 @@ function createGroup(name: string, folderCwd?: string): GroupEls {
   // position as its rows appear/disappear, which reads as a jump.
   heading.addEventListener('click', () => {
     const before = heading.getBoundingClientRect().top;
-    const collapsed = !collapsedGroups.has(name);
-    if (collapsed) collapsedGroups.add(name);
-    else collapsedGroups.delete(name);
+    const collapsed = !collapsedProjects.has(name);
+    if (collapsed) collapsedProjects.add(name);
+    else collapsedProjects.delete(name);
     section.classList.toggle('collapsed', collapsed);
     caret.textContent = collapsed ? '▸' : '▾';
     container.scrollTop += heading.getBoundingClientRect().top - before;
@@ -1457,10 +1457,10 @@ function placeholderSession(over: Partial<SessionSummary> & Pick<SessionSummary,
 }
 
 // Land where a new tab will be visible: stay in its own project, else drop the scope to All.
-function ensureFolderVisible(repoRoot: string): void {
-  if (activeFolder !== null && repoRoot !== activeFolder) {
-    activeFolder = null;
-    window.claudeUi.setActiveFolder(null);
+function ensureProjectVisible(repoRoot: string): void {
+  if (activeProject !== null && repoRoot !== activeProject) {
+    activeProject = null;
+    window.claudeUi.setActiveProject(null);
   }
 }
 
@@ -1469,7 +1469,7 @@ function ensureFolderVisible(repoRoot: string): void {
 async function openNewSession(cwd: string): Promise<void> {
   const folder = cwd.split('/').filter(Boolean).pop() ?? cwd;
   const session = placeholderSession({ cwd, repoRoot: cwd, title: `New: ${folder}` });
-  ensureFolderVisible(session.repoRoot);
+  ensureProjectVisible(session.repoRoot);
   await createTab(session, undefined);
   renderList();
 }
@@ -1510,7 +1510,7 @@ async function openWorktreeSession(repoRoot: string): Promise<void> {
     // a worktree, so no prefix. Blank name falls back to a plain new-session label.
     title: friendly || `New: ${folder}`,
   });
-  ensureFolderVisible(session.repoRoot);
+  ensureProjectVisible(session.repoRoot);
   await createTab(session, undefined, false, friendly || undefined, slug);
   renderList();
 }
@@ -1537,7 +1537,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
     isSibling: true,
     siblingIds: [parent.id],
   });
-  ensureFolderVisible(session.repoRoot);
+  ensureProjectVisible(session.repoRoot);
   await createTab(session, parent.id, true, trimmed || undefined);
   renderList();
 }
@@ -1674,7 +1674,7 @@ function removeTab(tab: Tab): void {
   tabs.splice(index, 1);
   if (activeTab === tab) activeTab = null;
   // Re-establish the active tab within the current workspace scope (or clear); this re-renders too.
-  switchWorkspaceTerminal(activeFolder);
+  switchWorkspaceTerminal(activeProject);
   persistOpenTabs();
 }
 
@@ -1687,9 +1687,9 @@ function closeTab(tab: Tab): void {
 
 function renderTabBar(): void {
   // A project view shows only that project's tabs; All shows every tab, grouped by project with a
-  // muted label + divider before each group (grouped only in the render; tab order is unchanged).
-  const shown = activeFolder ? tabs.filter((t) => t.session.repoRoot === activeFolder) : tabs;
-  if (activeFolder) {
+  // muted label + divider before each project (grouped only in the render; tab order is unchanged).
+  const shown = activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
+  if (activeProject) {
     tabbar.replaceChildren(...shown.map(tabElement));
     initTabSortables();
     return;
@@ -1697,25 +1697,25 @@ function renderTabBar(): void {
   const byRoot = new Map<string, Tab[]>();
   const rootOrder: string[] = [];
   for (const tab of shown) {
-    let group = byRoot.get(tab.session.repoRoot);
-    if (!group) {
-      group = [];
-      byRoot.set(tab.session.repoRoot, group);
+    let projectTabs = byRoot.get(tab.session.repoRoot);
+    if (!projectTabs) {
+      projectTabs = [];
+      byRoot.set(tab.session.repoRoot, projectTabs);
       rootOrder.push(tab.session.repoRoot);
     }
-    group.push(tab);
+    projectTabs.push(tab);
   }
   const children: HTMLElement[] = [];
   for (const root of rootOrder) {
-    const group = document.createElement('div');
-    group.className = 'tab-group';
+    const project = document.createElement('div');
+    project.className = 'tab-project';
     const label = document.createElement('span');
-    label.className = 'tab-group-label';
+    label.className = 'tab-project-label';
     label.textContent = projName(root);
     setTooltip(label, root);
-    label.addEventListener('click', () => revealFolderInSidebar(root));
-    group.append(label, ...byRoot.get(root)!.map(tabElement));
-    children.push(group);
+    label.addEventListener('click', () => revealProjectInSidebar(root));
+    project.append(label, ...byRoot.get(root)!.map(tabElement));
+    children.push(project);
   }
   tabbar.replaceChildren(...children);
   initTabSortables();
@@ -1781,7 +1781,7 @@ function tabElement(tab: Tab): HTMLElement {
 }
 
 // Drag-to-reorder tabs via SortableJS. One Sortable per project container (the whole tab bar in a
-// project view, each .tab-group in All), so a drag stays within its project by construction.
+// project view, each .tab-project in All), so a drag stays within its project by construction.
 // forceFallback uses pointer-based dragging instead of native HTML5 DnD (flaky under WSLg). Re-created
 // on every renderTabBar since it rebuilds the DOM; old instances destroyed first to avoid leaks.
 let tabSortables: Sortable[] = [];
@@ -1789,10 +1789,10 @@ let tabDragActive = false;
 
 function initTabSortables(): void {
   for (const s of tabSortables) s.destroy();
-  const containers = activeFolder ? [tabbar] : [...tabbar.querySelectorAll<HTMLElement>('.tab-group')];
+  const containers = activeProject ? [tabbar] : [...tabbar.querySelectorAll<HTMLElement>('.tab-project')];
   tabSortables = containers.map((container) =>
     Sortable.create(container, {
-      draggable: '.tab', // never the group label
+      draggable: '.tab', // never the project label
       forceFallback: true,
       animation: 0,
       ghostClass: 'tab-ghost',
@@ -1805,7 +1805,7 @@ function initTabSortables(): void {
         tabbar.classList.remove('dragging');
         const el = evt.item as HTMLElement;
         const moved = tabs.find((t) => t.session.id === el.dataset.sid);
-        // Index among the destination's tabs (ignores the group label), mapped onto the tabs array.
+        // Index among the destination's tabs (ignores the project label), mapped onto the tabs array.
         const newIndex = [...(evt.to as HTMLElement).querySelectorAll<HTMLElement>('.tab')].indexOf(el);
         if (!moved || newIndex < 0) return;
         tabs.splice(0, tabs.length, ...reorderWithinGroup(tabs, (t) => t.session.repoRoot, moved, newIndex));
@@ -1979,9 +1979,9 @@ function onCustomDateChange(): void {
 installTooltips();
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
-  activeFolder = await window.claudeUi.getActiveFolder();
+  activeProject = await window.claudeUi.getActiveProject();
   await renderSessions();
   await restoreOpenTabs();
-  switchWorkspaceTerminal(activeFolder);
+  switchWorkspaceTerminal(activeProject);
 })();
 updatePlaceholder();

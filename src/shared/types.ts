@@ -58,8 +58,8 @@ export interface ClaudeUiApi {
   /** Session ids open as tabs, in order, persisted for restore on next launch. */
   getOpenSessions(): Promise<string[]>;
   setOpenSessions(ids: string[]): void;
-  getActiveFolder(): Promise<string | null>;
-  setActiveFolder(folder: string | null): void;
+  getActiveProject(): Promise<string | null>;
+  setActiveProject(folder: string | null): void;
   getProjectNames(): Promise<Record<string, string>>;
   setProjectName(repoRoot: string, name: string): Promise<Record<string, string>>;
   /** Open a folder picker; resolves to the chosen path or null if cancelled. */

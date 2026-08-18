@@ -9,8 +9,8 @@ import {
   toggleArchive,
   getOpenSessions,
   setOpenSessions,
-  getActiveFolder,
-  setActiveFolder,
+  getActiveProject,
+  setActiveProject,
   getProjectNames,
   setProjectName,
   migrateToSessionKeys,
@@ -79,9 +79,9 @@ ipcMain.handle('meta:getOpenSessions', () => getOpenSessions());
 ipcMain.on('meta:setOpenSessions', (_event, ids: string[]) => {
   void setOpenSessions(ids);
 });
-ipcMain.handle('meta:getActiveFolder', () => getActiveFolder());
-ipcMain.on('meta:setActiveFolder', (_event, folder: string | null) => {
-  void setActiveFolder(folder);
+ipcMain.handle('meta:getActiveProject', () => getActiveProject());
+ipcMain.on('meta:setActiveProject', (_event, folder: string | null) => {
+  void setActiveProject(folder);
 });
 ipcMain.handle('meta:getProjectNames', () => getProjectNames());
 ipcMain.handle('meta:setProjectName', (_event, repoRoot: string, name: string) => setProjectName(repoRoot, name));

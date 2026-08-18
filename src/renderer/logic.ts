@@ -42,15 +42,15 @@ export function groupByRepo(sessions: SessionSummary[]): [string, SessionSummary
   return [...groups.entries()];
 }
 
-// The group's short name: the last path segment of its repo root.
-export function groupName(repoRoot: string): string {
+// A project's own name on disk: the last path segment of its repo root.
+export function folderName(repoRoot: string): string {
   return repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
 }
 
 // A project's display name: the user's rename override if set, else the folder name. Used everywhere a
-// project is labelled (group headings, tab groups, switcher); the full path stays available on hover.
+// project is labelled (project headings, tab bar, switcher); the full path stays available on hover.
 export function displayName(repoRoot: string, names?: ReadonlyMap<string, string>): string {
-  return names?.get(repoRoot) || groupName(repoRoot);
+  return names?.get(repoRoot) || folderName(repoRoot);
 }
 
 // Short, human label for a model id, parsed generically (no hardcoded model list): the alphabetic
@@ -142,12 +142,12 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
     .includes(c.text.toLowerCase());
 }
 
-// A folder's rolled-up nudge for the switcher: the strongest UNATTENDED status among its sessions,
-// so a folder you're not looking at still shows it needs you. Priority waiting > idle > busy; null
+// A project's rolled-up nudge for the switcher: the strongest UNATTENDED status among its sessions,
+// so a project you're not looking at still shows it needs you. Priority waiting > idle > busy; null
 // when nothing needs surfacing. An acked (read) session is muted and contributes nothing.
 export type NudgeStatus = 'waiting' | 'idle' | 'busy' | null;
 
-export interface SwitcherFolder {
+export interface SwitcherProject {
   repoRoot: string;
   name: string;
   count: number;
@@ -156,7 +156,7 @@ export interface SwitcherFolder {
 
 export interface SwitcherModel {
   all: { count: number; badge: NudgeStatus };
-  folders: SwitcherFolder[];
+  projects: SwitcherProject[];
 }
 
 function rollUpNudge(
@@ -184,11 +184,11 @@ function rollUpNudge(
   return waiting ? 'waiting' : idle ? 'idle' : busy ? 'busy' : null;
 }
 
-// Build the group-switcher model from the VISIBLE tips (one per conversation, already filtered to
-// what the sidebar shows). Folders order by recency: the input is recency-sorted, so a folder takes
-// the position of its most-recent session (first appearance). Per folder: session count + the
+// Build the project-switcher model from the VISIBLE tips (one per conversation, already filtered to
+// what the sidebar shows). Projects order by recency: the input is recency-sorted, so a project takes
+// the position of its most-recent session (first appearance). Per project: session count + the
 // rolled-up nudge badge; plus an "All" aggregate over everything passed.
-export function foldersForSwitcher(
+export function projectsForSwitcher(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
@@ -205,12 +205,12 @@ export function foldersForSwitcher(
     }
     list.push(s);
   }
-  const folders = order.map((repoRoot) => {
+  const projects = order.map((repoRoot) => {
     const list = byRoot.get(repoRoot)!;
     return { repoRoot, name: displayName(repoRoot, names), count: list.length, badge: rollUpNudge(list, statuses, acked) };
   });
   return {
     all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked) },
-    folders,
+    projects,
   };
 }

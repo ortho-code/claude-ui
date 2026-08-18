@@ -4,12 +4,12 @@ import {
   sessionsByKey,
   structuralSignature,
   groupByRepo,
-  groupName,
+  folderName,
   displayName,
   relativeTime,
   datePresetRange,
   sessionPasses,
-  foldersForSwitcher,
+  projectsForSwitcher,
   modelLabel,
   reorderWithinGroup,
   type FilterCriteria,
@@ -61,17 +61,17 @@ describe('structuralSignature', () => {
   });
 });
 
-describe('groupByRepo / groupName', () => {
+describe('groupByRepo / folderName', () => {
   it('groups sessions by their repo root', () => {
-    const groups = groupByRepo([session({ repoRoot: '/x' }), session({ repoRoot: '/y' }), session({ repoRoot: '/x' })]);
-    const map = new Map(groups);
+    const projects = groupByRepo([session({ repoRoot: '/x' }), session({ repoRoot: '/y' }), session({ repoRoot: '/x' })]);
+    const map = new Map(projects);
     expect(map.get('/x')?.length).toBe(2);
     expect(map.get('/y')?.length).toBe(1);
   });
 
-  it('names a group by the last path segment', () => {
-    expect(groupName('/home/jille/development/scienta')).toBe('scienta');
-    expect(groupName('scienta')).toBe('scienta');
+  it('names a project by the last path segment', () => {
+    expect(folderName('/home/jille/development/scienta')).toBe('scienta');
+    expect(folderName('scienta')).toBe('scienta');
   });
 });
 
@@ -134,26 +134,26 @@ describe('sessionPasses', () => {
   });
 });
 
-describe('foldersForSwitcher', () => {
+describe('projectsForSwitcher', () => {
   // Sessions arrive recency-sorted (newest first), as listSessions returns them.
   const s = (id: string, repoRoot: string) => session({ id, conversationId: id, repoRoot });
 
   it('groups by repoRoot with per-folder counts and an All aggregate', () => {
-    const model = foldersForSwitcher(
+    const model = projectsForSwitcher(
       [s('a1', '/x/alpha'), s('b1', '/x/beta'), s('a2', '/x/alpha')],
       new Map(),
       new Set(),
     );
     expect(model.all.count).toBe(3);
-    expect(model.folders.map((f) => [f.name, f.count])).toEqual([
+    expect(model.projects.map((f) => [f.name, f.count])).toEqual([
       ['alpha', 2],
       ['beta', 1],
     ]);
   });
 
-  it('orders folders by recency (most-recent session first)', () => {
-    const model = foldersForSwitcher([s('b1', '/x/beta'), s('a1', '/x/alpha')], new Map(), new Set());
-    expect(model.folders.map((f) => f.name)).toEqual(['beta', 'alpha']);
+  it('orders projects by recency (most-recent session first)', () => {
+    const model = projectsForSwitcher([s('b1', '/x/beta'), s('a1', '/x/alpha')], new Map(), new Set());
+    expect(model.projects.map((f) => f.name)).toEqual(['beta', 'alpha']);
   });
 
   it('rolls up the strongest nudge per folder: waiting > idle > busy', () => {
@@ -163,12 +163,12 @@ describe('foldersForSwitcher', () => {
       ['b1', 'busy'],
       ['b2', 'idle'],
     ]);
-    const model = foldersForSwitcher(
+    const model = projectsForSwitcher(
       [s('a1', '/x/alpha'), s('a2', '/x/alpha'), s('b1', '/x/beta'), s('b2', '/x/beta')],
       statuses,
       new Set(),
     );
-    const byName = new Map(model.folders.map((f) => [f.name, f.badge]));
+    const byName = new Map(model.projects.map((f) => [f.name, f.badge]));
     expect(byName.get('alpha')).toBe('waiting'); // waiting beats busy
     expect(byName.get('beta')).toBe('idle'); // idle beats busy
     expect(model.all.badge).toBe('waiting'); // strongest across everything
@@ -179,23 +179,23 @@ describe('foldersForSwitcher', () => {
       ['a1', 'waiting'],
       ['a2', 'idle'],
     ]);
-    const model = foldersForSwitcher([s('a1', '/x/alpha'), s('a2', '/x/alpha')], statuses, new Set(['a1']));
-    expect(model.folders[0].badge).toBe('idle'); // waiting is acked, so idle wins
+    const model = projectsForSwitcher([s('a1', '/x/alpha'), s('a2', '/x/alpha')], statuses, new Set(['a1']));
+    expect(model.projects[0].badge).toBe('idle'); // waiting is acked, so idle wins
   });
 
   it('badge is null when a folder has no live status (or all acked)', () => {
     const statuses = new Map([['a1', 'waiting']]);
-    expect(foldersForSwitcher([s('a1', '/x/alpha')], new Map(), new Set())[
-      'folders'
+    expect(projectsForSwitcher([s('a1', '/x/alpha')], new Map(), new Set())[
+      'projects'
     ][0].badge).toBeNull();
     expect(
-      foldersForSwitcher([s('a1', '/x/alpha')], statuses, new Set(['a1'])).folders[0].badge,
+      projectsForSwitcher([s('a1', '/x/alpha')], statuses, new Set(['a1'])).projects[0].badge,
     ).toBeNull();
   });
 
   it('handles an empty session list', () => {
-    const model = foldersForSwitcher([], new Map(), new Set());
-    expect(model.folders).toEqual([]);
+    const model = projectsForSwitcher([], new Map(), new Set());
+    expect(model.projects).toEqual([]);
     expect(model.all).toEqual({ count: 0, badge: null });
   });
 });

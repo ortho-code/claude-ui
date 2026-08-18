@@ -14,7 +14,7 @@ interface Meta {
   /** Archived session ids mapped to when they were archived (epoch ms; 0 = unknown). */
   archived: Record<string, number>;
   /** The project the sidebar switcher is scoped to (repoRoot), or null for "All". */
-  activeFolder: string | null;
+  activeProject: string | null;
   /** Per-project display-name overrides, keyed by repoRoot; absent = use the folder name. */
   projectNames: Record<string, string>;
   /** Schema version; 3 = keyed by session id; 2 was conversation-keyed; 1 raw ids. */
@@ -26,11 +26,14 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], archived: {}, activeFolder: null, projectNames: {}, version: 3 };
+  return { pinned: [], openSessions: [], archived: {}, activeProject: null, projectNames: {}, version: 3 };
 }
 
 // Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
 function normalize(parsed: Record<string, unknown>): Meta {
+  // `activeProject` was written as `activeFolder` before the project/folder terminology split; read
+  // the old key so an existing meta.json keeps its scope. The next write stores the new name.
+  const rawActive = parsed.activeProject ?? parsed.activeFolder;
   // `archived` was once a plain id list; migrate that to the id->timestamp map (0 = unknown).
   const rawArchived = parsed.archived;
   let archived: Record<string, number> = {};
@@ -43,7 +46,7 @@ function normalize(parsed: Record<string, unknown>): Meta {
     pinned: Array.isArray(parsed.pinned) ? (parsed.pinned as string[]) : [],
     openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
     archived,
-    activeFolder: typeof parsed.activeFolder === 'string' ? parsed.activeFolder : null,
+    activeProject: typeof rawActive === 'string' ? rawActive : null,
     projectNames:
       parsed.projectNames && typeof parsed.projectNames === 'object'
         ? (parsed.projectNames as Record<string, string>)
@@ -236,13 +239,13 @@ export function setOpenSessions(ids: string[]): Promise<void> {
   });
 }
 
-export function getActiveFolder(): Promise<string | null> {
-  return serialize(async () => (await readMeta()).activeFolder);
+export function getActiveProject(): Promise<string | null> {
+  return serialize(async () => (await readMeta()).activeProject);
 }
 
-export function setActiveFolder(folder: string | null): Promise<void> {
-  return update('setActiveFolder', (meta) => {
-    meta.activeFolder = folder;
+export function setActiveProject(repoRoot: string | null): Promise<void> {
+  return update('setActiveProject', (meta) => {
+    meta.activeProject = repoRoot;
   });
 }
 
