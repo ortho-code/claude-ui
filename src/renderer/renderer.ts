@@ -669,6 +669,16 @@ function moveToGroupItems(session: SessionSummary): MenuItem[] {
   return items;
 }
 
+// Archive/unarchive one session. Archiving puts it away, so any open tab for it closes too
+// (unarchive leaves tabs alone). Shared by the kebab item and the archived view's row button.
+async function toggleArchiveFor(key: string): Promise<void> {
+  archived = new Map(Object.entries(await window.claudeUi.toggleArchive(key)));
+  if (archived.has(key)) {
+    for (const tab of [...tabs]) if (entityKey(tab.session) === key) closeTab(tab);
+  }
+  renderList();
+}
+
 // The per-session action list — one builder, shared by the row kebab (and any future surface that
 // offers session actions, e.g. a tab context menu).
 function sessionMenuItems(session: SessionSummary): MenuItem[] {
@@ -679,6 +689,10 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
   }
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
   items.push({ label: 'Copy session id', onSelect: () => void copyText(session.id, 'Session id copied.') });
+  // The one state change in this list, so it sits below a rule, away from the navigate/copy items.
+  // Only the normal view offers it: the archived view keeps unarchive on the row and hides the kebab.
+  items.push({ label: '', separator: true });
+  items.push({ label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
   return items;
 }
 
@@ -1407,9 +1421,8 @@ function getOrCreateRow(key: string): HTMLElement {
   return row;
 }
 
-// A box with a slot (put away) vs a box with an up-arrow (take back out).
-const ARCHIVE_ICON =
-  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><rect x="2" y="3" width="12" height="3" /><path d="M3 6v7h10V6" /><line x1="6.5" y1="9" x2="9.5" y2="9" stroke-linecap="round" /></svg>';
+// Take it back out of the box. Archiving has no row icon — it is a kebab item (text) in the normal
+// view; only unarchiving, the archived view's primary action, stays a button on the row.
 const UNARCHIVE_ICON =
   '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>';
 
@@ -1422,7 +1435,7 @@ interface RowEls {
   metaWhen: HTMLElement;
   metaStats: HTMLElement;
   pin: HTMLButtonElement;
-  archiveBtn: HTMLButtonElement;
+  unarchiveBtn: HTMLButtonElement;
   deleteBtn: HTMLButtonElement;
   kebab: HTMLButtonElement;
 }
@@ -1486,16 +1499,16 @@ function createSessionRow(key: string): HTMLElement {
     renderList();
   });
 
-  const archiveBtn = document.createElement('button');
-  archiveBtn.className = 'archive-btn';
-  archiveBtn.addEventListener('click', async (event) => {
+  // Unarchive lives on the row because it is what the archived view is for; archiving a live session
+  // is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
+  const unarchiveBtn = document.createElement('button');
+  unarchiveBtn.className = 'unarchive-btn';
+  unarchiveBtn.hidden = true;
+  unarchiveBtn.innerHTML = UNARCHIVE_ICON;
+  setTooltip(unarchiveBtn, 'Unarchive');
+  unarchiveBtn.addEventListener('click', (event) => {
     event.stopPropagation();
-    archived = new Map(Object.entries(await window.claudeUi.toggleArchive(key)));
-    // Archiving puts the session away, so close any open tab for it (unarchive leaves tabs alone).
-    if (archived.has(key)) {
-      for (const tab of [...tabs]) if (entityKey(tab.session) === key) closeTab(tab);
-    }
-    renderList();
+    void toggleArchiveFor(key);
   });
 
   // Delete lives only in the archived view (shown/hidden in updateRow); trash-based + confirmed.
@@ -1544,8 +1557,8 @@ function createSessionRow(key: string): HTMLElement {
     if (session) openMenu(kebab, sessionMenuItems(session));
   });
 
-  item.append(dot, content, pin, archiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, siblingsBadge, meta, metaWhen, metaStats, pin, archiveBtn, deleteBtn, kebab });
+  item.append(dot, content, pin, unarchiveBtn, deleteBtn, kebab);
+  rowEls.set(item, { dot, title, badge, siblingsBadge, meta, metaWhen, metaStats, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
@@ -1606,10 +1619,10 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   els.pin.classList.remove('loading');
   els.pin.hidden = showArchivedOnly;
 
-  setTooltip(els.archiveBtn, showArchivedOnly ? 'Unarchive' : 'Archive');
-  els.archiveBtn.innerHTML = showArchivedOnly ? UNARCHIVE_ICON : ARCHIVE_ICON;
+  // Unarchive and delete are the archived view's two actions and appear nowhere else.
+  els.unarchiveBtn.hidden = !showArchivedOnly;
   els.deleteBtn.hidden = !showArchivedOnly;
-  // The kebab (fork actions) is a normal-view affordance; the archived view is manage-only.
+  // The kebab (fork, groups, archive) is a normal-view affordance; the archived view is manage-only.
   els.kebab.hidden = showArchivedOnly;
 }
 

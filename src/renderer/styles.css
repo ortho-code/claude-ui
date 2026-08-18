@@ -1096,7 +1096,7 @@ button:focus:not(:focus-visible) {
   color: var(--text);
 }
 
-.archive-btn,
+.unarchive-btn,
 .delete-btn,
 .session-kebab {
   flex: 0 0 auto;
@@ -1109,7 +1109,7 @@ button:focus:not(:focus-visible) {
   cursor: pointer;
 }
 
-.archive-btn:hover,
+.unarchive-btn:hover,
 .delete-btn:hover,
 .session-kebab:hover {
   color: var(--text);
