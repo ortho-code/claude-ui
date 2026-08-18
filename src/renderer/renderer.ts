@@ -2,15 +2,16 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import type { ClaudeUiApi, SessionSummary } from '../shared/types';
+import type { ClaudeUiApi, GroupState, SessionSummary } from '../shared/types';
 import {
   sessionsByKey,
   structuralSignature,
-  groupByRepo,
+  buildProjectTree,
   folderName,
   displayName,
   entityKey,
   reorderWithinGroup,
+  type ProjectTree,
   relativeTime,
   modelLabel,
   sessionPasses,
@@ -66,6 +67,11 @@ const footerToggle = document.getElementById('footer-toggle')!;
 const footerBadge = document.getElementById('footer-badge')!;
 const footerLabel = document.getElementById('footer-label')!;
 const footerList = document.getElementById('footer-list')!;
+
+// A group's mark: layers, meaning "several things stacked as one". Muted, never accent — the accent
+// belongs to the project's folder icon one line above it.
+const LAYERS_ICON =
+  '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M8 2.2 2 5.4l6 3.2 6-3.2-6-3.2Z" /><path d="M2.4 9.2 8 12.2l5.6-3" /></svg>';
 
 const FOLDER_ICON =
   '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2 4h4l1.5 1.5H14V13H2z"/></svg>';
@@ -211,6 +217,11 @@ const statusDots = new Map<string, HTMLElement>();
 // instead of recreating them — no flicker, no scroll jump, hover/focus kept.
 const sessionRows = new Map<string, HTMLElement>();
 const collapsedProjects = new Set<string>();
+// Collapsed custom groups, by group id (projects collapse by repo root, groups by their own id).
+const collapsedGroups = new Set<string>();
+// Every group and who is in one, loaded once at startup and refreshed after any change. Read-only
+// here: nothing in the UI creates or moves a group yet.
+let groupState: GroupState = { groups: [], groupOf: {} };
 
 interface ProjectSectionEls {
   section: HTMLElement;
@@ -222,6 +233,19 @@ interface ProjectSectionEls {
 }
 // Project sections by repo root, reused across renders (same reason as sessionRows).
 const projectSections = new Map<string, ProjectSectionEls>();
+
+interface GroupSectionEls {
+  section: HTMLElement;
+  caret: HTMLElement;
+  label: HTMLElement;
+  count: HTMLElement;
+  /** Holds the member rows; the indent and its rail live on this element. */
+  members: HTMLElement;
+  /** Shown instead of rows when the group has no members yet. */
+  empty: HTMLElement;
+}
+// Group sections by group id, reused across renders like the project sections above.
+const groupSections = new Map<string, GroupSectionEls>();
 // The session each row currently shows, by entity key (session id), so a reused row's click/pin
 // handlers act on the live session data of the latest render.
 let currentByKey = new Map<string, SessionSummary>();
@@ -773,20 +797,10 @@ function renderList(): void {
   }
   container.querySelector(':scope > .empty-message')?.remove();
 
-  // Pinned sessions float to the top of their project (a stable sort keeps activity order otherwise).
-  const pinFirst = (a: SessionSummary, b: SessionSummary): number =>
-    (pinned.has(entityKey(b)) ? 1 : 0) - (pinned.has(entityKey(a)) ? 1 : 0);
-
-  // One section per repo. A specific project scopes `scoped` to that project, so this yields its
-  // single section (heading + "+" and all); "All" shows every project.
-  const desired: DesiredProject[] = [];
-  for (const [repoRoot, list] of groupByRepo(scoped)) {
-    list.sort(pinFirst);
-    // A repo can host worktree sessions; a plain folder can't (gates the split-button).
-    desired.push({ name: repoRoot, folderCwd: repoRoot, sessions: list, isRepo: list.some((s) => s.isRepo) });
-  }
-
-  reconcileProjectSections(desired);
+  // One section per repo, each holding its groups and then the sessions in no group. Every ordering
+  // rule (groups first, pins floated inside their own section) lives in the pure builder. While
+  // filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
+  reconcileProjectSections(buildProjectTree(scoped, groupState, pinned, isFiltering()));
   pruneRows(new Set(scoped.map((s) => entityKey(s))));
 
   container.scrollTop = scroll;
@@ -822,44 +836,69 @@ function clearList(): void {
   container.replaceChildren();
   sessionRows.clear();
   projectSections.clear();
+  groupSections.clear();
   statusDots.clear();
 }
 
-interface DesiredProject {
-  name: string;
-  folderCwd?: string;
-  sessions: SessionSummary[];
-  /** Whether the project's folder is a git repo (so it can offer worktree sessions). */
-  isRepo?: boolean;
-}
-
 // Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order
-// both the sections and their rows via appendChild (which moves an existing node into place).
-function reconcileProjectSections(desired: DesiredProject[]): void {
-  const wanted = new Set(desired.map((p) => p.name));
-  for (const [name, els] of projectSections) {
-    if (!wanted.has(name)) {
+// both the sections and their rows via appendChild (which moves an existing node into place). Inside
+// a project the group sections come first, then the rows belonging to no group.
+function reconcileProjectSections(desired: ProjectTree[]): void {
+  const wanted = new Set(desired.map((p) => p.repoRoot));
+  for (const [repoRoot, els] of projectSections) {
+    if (!wanted.has(repoRoot)) {
       els.section.remove();
-      projectSections.delete(name);
+      projectSections.delete(repoRoot);
+    }
+  }
+  const wantedGroups = new Set(desired.flatMap((p) => p.groups.map((g) => g.group.id)));
+  for (const [id, els] of groupSections) {
+    if (!wantedGroups.has(id)) {
+      els.section.remove();
+      groupSections.delete(id);
     }
   }
   for (const project of desired) {
-    let els = projectSections.get(project.name);
+    let els = projectSections.get(project.repoRoot);
     if (!els) {
-      els = createProjectSection(project.name, project.folderCwd);
-      projectSections.set(project.name, els);
+      els = createProjectSection(project.repoRoot, project.repoRoot);
+      projectSections.set(project.repoRoot, els);
     }
     // While filtering, force projects open so matches inside a collapsed one are visible; the
     // stored collapse state is left untouched, so it returns when the filter clears.
-    const collapsed = !isFiltering() && collapsedProjects.has(project.name);
+    const collapsed = !isFiltering() && collapsedProjects.has(project.repoRoot);
     els.section.classList.toggle('collapsed', collapsed);
     els.caret.textContent = collapsed ? '▸' : '▾';
-    els.count.textContent = String(project.sessions.length);
-    els.label.textContent = projName(project.name); // keep the heading name current (e.g. after a rename)
+    els.count.textContent = String(project.count);
+    els.label.textContent = projName(project.repoRoot); // keep the heading current (e.g. after a rename)
     if (els.addCaret) els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
-    for (const session of project.sessions) {
+    for (const { group, sessions } of project.groups) {
+      const groupEls = groupSections.get(group.id) ?? createGroupSection(group.id);
+      groupSections.set(group.id, groupEls);
+      const groupCollapsed = !isFiltering() && collapsedGroups.has(group.id);
+      groupEls.section.classList.toggle('collapsed', groupCollapsed);
+      groupEls.caret.textContent = groupCollapsed ? '▸' : '▾';
+      groupEls.label.textContent = group.name;
+      groupEls.count.textContent = String(sessions.length);
+      groupEls.empty.hidden = sessions.length > 0;
+      for (const session of sessions) {
+        const row = getOrCreateRow(entityKey(session));
+        updateRow(row, session);
+        row.classList.remove('after-groups'); // rows are reused: it may have been a loose row before
+        groupEls.members.appendChild(row);
+      }
+      els.section.appendChild(groupEls.section);
+    }
+    // Ungrouped sessions sit directly under the project heading, at full width — there is no
+    // "Ungrouped" heading, so the indent alone says whether a row is in a group.
+    let first = true;
+    for (const session of project.loose) {
       const row = getOrCreateRow(entityKey(session));
       updateRow(row, session);
+      // Extra breathing room between the last group and the loose rows, but not when there are no
+      // groups at all (then this is just the project's first row).
+      row.classList.toggle('after-groups', first && project.groups.length > 0);
+      first = false;
       els.section.appendChild(row);
     }
     container.appendChild(els.section);
@@ -1101,6 +1140,9 @@ function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
 // Reveal a session's row in the sidebar (expanding its project if collapsed), so clicking a tab
 // scrolls to where it lives and shows which project it belongs to.
 function revealSessionInSidebar(session: SessionSummary): void {
+  // Its group can be collapsed too, and then the row is hidden even with the project open.
+  const groupId = groupState.groupOf[entityKey(session)];
+  if (groupId && collapsedGroups.delete(groupId)) renderList();
   if (collapsedProjects.has(session.repoRoot)) {
     collapsedProjects.delete(session.repoRoot);
     renderList();
@@ -1201,6 +1243,44 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   section.appendChild(heading);
 
   return { section, caret, count, label, addCaret };
+}
+
+// Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky)
+// over an indented well that holds its rows. Contents are updated on later renders.
+function createGroupSection(id: string): GroupSectionEls {
+  const section = document.createElement('section');
+  section.className = 'group';
+
+  const heading = document.createElement('h3');
+  const caret = document.createElement('span');
+  caret.className = 'caret';
+  const icon = document.createElement('span');
+  icon.className = 'group-icon';
+  icon.innerHTML = LAYERS_ICON;
+  const label = document.createElement('span');
+  label.className = 'label';
+  const count = document.createElement('span');
+  count.className = 'group-count';
+  heading.append(caret, icon, label, count);
+  heading.addEventListener('click', () => {
+    const collapsed = !collapsedGroups.has(id);
+    if (collapsed) collapsedGroups.add(id);
+    else collapsedGroups.delete(id);
+    section.classList.toggle('collapsed', collapsed);
+    caret.textContent = collapsed ? '▸' : '▾';
+  });
+
+  // The rows live in their own element so the indent and its rail wrap the whole group, which is
+  // what shows where a group ends without needing to read the next heading.
+  const members = document.createElement('div');
+  members.className = 'group-members';
+  const empty = document.createElement('div');
+  empty.className = 'group-empty';
+  empty.textContent = 'Empty — move a session here from its ⋮ menu.';
+  members.append(empty);
+
+  section.append(heading, members);
+  return { section, caret, label, count, members, empty };
 }
 
 function getOrCreateRow(key: string): HTMLElement {
@@ -1979,6 +2059,7 @@ function onCustomDateChange(): void {
 installTooltips();
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
+  groupState = await window.claudeUi.getGroupState();
   activeProject = await window.claudeUi.getActiveProject();
   await renderSessions();
   await restoreOpenTabs();

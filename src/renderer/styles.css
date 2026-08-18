@@ -898,8 +898,87 @@ button:focus:not(:focus-visible) {
   outline: none;
 }
 
-.project.collapsed .session {
+.project.collapsed .session,
+.project.collapsed .group {
   display: none;
+}
+
+/* A custom group: a sub-section inside a project. Everything about it is the quiet end of a cue the
+   project heading takes loudly — 12px against 16px, a muted layers glyph against the accent folder,
+   a surface fill against an edge-to-edge divider, and it scrolls away instead of sticking. Its own
+   signal is the indent below it. */
+.group h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 0;
+  padding: 4px 8px;
+  background: var(--surface);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.group h3:hover {
+  background: var(--surface-hover);
+}
+
+.group h3 .caret {
+  flex: 0 0 auto;
+  width: 8px;
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.group h3 .group-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+}
+
+.group h3 .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* No pill here: the project's count keeps that treatment, so the group's stays plain text. */
+.group h3 .group-count {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* The indent says a row is IN the group; the rail draws where the group ends, so several groups
+   stay scannable. Deliberately muted, not accent — a row already uses an inset accent bar for open
+   and for active, and a third accent line here would muddy both. */
+.group-members {
+  margin-left: 3px;
+  padding-left: 14px;
+  border-left: 2px solid #9399b240;
+}
+
+.group.collapsed .group-members {
+  display: none;
+}
+
+/* An empty group persists until deleted, so it explains itself rather than looking broken. */
+.group-empty {
+  padding: 8px 0 2px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* Break between a project's last group and its ungrouped rows; without it the first loose row reads
+   as another member of the group above. */
+.session.after-groups {
+  margin-top: 16px;
 }
 
 .session {
