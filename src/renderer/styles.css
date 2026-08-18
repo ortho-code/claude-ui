@@ -302,6 +302,18 @@ button:hover {
   opacity: 0.55;
 }
 
+/* The pinned pill is icon-only: the row's star SVG (injected in renderer.ts), sized down to the
+   pills' 12px text so it doesn't make its pill taller than the worded ones beside it. */
+#pinned-filter {
+  display: inline-flex;
+  align-items: center;
+}
+
+#pinned-filter svg {
+  width: 13px;
+  height: 13px;
+}
+
 /* The accent hover outline comes from the base button rule; the pills only undim. */
 #filters > button:hover {
   opacity: 1;
@@ -1080,13 +1092,15 @@ button:focus:not(:focus-visible) {
   min-width: 0;
 }
 
+/* An SVG star, not a font glyph (see PIN_ICON in renderer.ts), so it lines up with the other row
+   icons and keeps its weight whatever font the system resolves. */
 .pin {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
   background: none;
   border: none;
   padding: 2px 4px;
-  font-size: 14px;
-  line-height: 1;
   color: var(--muted);
   cursor: pointer;
 }

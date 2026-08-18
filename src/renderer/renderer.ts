@@ -1421,6 +1421,17 @@ function getOrCreateRow(key: string): HTMLElement {
   return row;
 }
 
+// The pin, as SVG rather than the ★/☆ glyphs: those resolve through system font fallback (DejaVu
+// Sans under WSLg), whose outline star is a hairline that reads far fainter than its --muted colour
+// should. Same star either way — filled for pinned, outlined for not — so the two states differ by
+// ink, not by colour, and both render at a weight we control instead of the font's.
+const STAR_PATH =
+  'M8 2.1 L9.41 6.06 L13.61 6.18 L10.28 8.74 L11.47 12.77 L8 10.4 L4.53 12.77 L5.72 8.74 L2.39 6.18 L6.59 6.06 Z';
+const PIN_ICON =
+  `<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="${STAR_PATH}" /></svg>`;
+const PINNED_ICON =
+  `<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="${STAR_PATH}" /></svg>`;
+
 // Take it back out of the box. Archiving has no row icon — it is a kebab item (text) in the normal
 // view; only unarchiving, the archived view's primary action, stays a button on the row.
 const UNARCHIVE_ICON =
@@ -1613,7 +1624,7 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 
   // The archived view is a management view: no pinning, and delete replaces it there.
   const isPinned = pinned.has(entityKey(session));
-  els.pin.textContent = isPinned ? '★' : '☆';
+  els.pin.innerHTML = isPinned ? PINNED_ICON : PIN_ICON;
   setTooltip(els.pin, isPinned ? 'Unpin' : 'Pin');
   els.pin.disabled = false;
   els.pin.classList.remove('loading');
@@ -2195,6 +2206,9 @@ function wireFilterToggle(button: HTMLButtonElement, flip: () => void): void {
     container.scrollTop = 0;
   });
 }
+// The pill means "pinned", so it shows the pinned star — the same SVG the rows draw, from one
+// definition, rather than a ★ glyph that would render at a different weight beside it.
+pinnedFilter.innerHTML = PINNED_ICON;
 wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
 wireFilterToggle(worktreeFilter, () => (showWorktreeOnly = !showWorktreeOnly));
 wireFilterToggle(siblingFilter, () => (showSiblingsOnly = !showSiblingsOnly));
