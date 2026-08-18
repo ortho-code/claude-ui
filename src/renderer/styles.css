@@ -1268,6 +1268,41 @@ button:focus:not(:focus-visible) {
   cursor: pointer;
 }
 
+/* A group's row of tabs, indented behind the same muted rail the sidebar uses so a group looks the
+   same in both halves of the window. Nothing here is filled: a filled shape beside the filled tabs
+   would read as another tab. */
+.tab-group-row {
+  padding-left: 3px;
+}
+
+.tab-rail {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 2px;
+  margin-right: 9px;
+  background: #9399b240;
+  border-radius: 1px;
+}
+
+/* Regular weight, full-strength text: the deeper level is marked by colour and the rail, not by
+   piling more weight onto an 11px line (the project label above stays muted and semibold). */
+.tab-group-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-right: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.tab-group-label .group-icon {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+}
+
 .tab-project-label:hover {
   color: var(--text);
   background: var(--surface-hover);

@@ -70,8 +70,8 @@ const footerList = document.getElementById('footer-list')!;
 
 // A group's mark: layers, meaning "several things stacked as one". Muted, never accent — the accent
 // belongs to the project's folder icon one line above it.
-const LAYERS_ICON =
-  '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M8 2.2 2 5.4l6 3.2 6-3.2-6-3.2Z" /><path d="M2.4 9.2 8 12.2l5.6-3" /></svg>';
+const layersIcon = (size: number): string =>
+  `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M8 2.2 2 5.4l6 3.2 6-3.2-6-3.2Z" /><path d="M2.4 9.2 8 12.2l5.6-3" /></svg>`;
 
 const FOLDER_ICON =
   '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2 4h4l1.5 1.5H14V13H2z"/></svg>';
@@ -601,6 +601,7 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
 function applyGroupState(next: GroupState): void {
   groupState = next;
   renderList();
+  renderTabBar(); // the bar clusters by group too, so it has to follow the same change
 }
 
 // The groups belonging to one project, in registry order.
@@ -1332,7 +1333,7 @@ function createGroupSection(id: string): GroupSectionEls {
   caret.className = 'caret';
   const icon = document.createElement('span');
   icon.className = 'group-icon';
-  icon.innerHTML = LAYERS_ICON;
+  icon.innerHTML = layersIcon(12);
   const label = document.createElement('span');
   label.className = 'label';
   const count = document.createElement('span');
@@ -1853,37 +1854,64 @@ function closeTab(tab: Tab): void {
   removeTab(tab);
 }
 
+// The key a tab is grouped and dragged within: its project, plus its group when it has one. A drag
+// stays inside its own cluster because each cluster is its own Sortable container.
+function tabClusterKey(tab: Tab): string {
+  return `${tab.session.repoRoot}\0${groupState.groupOf[tab.session.id] ?? ''}`;
+}
+
+// One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups
+// gets an indented row beneath it behind the same rail the sidebar uses. A project view drops the
+// project label (everything shown belongs to it) but keeps the group rows.
 function renderTabBar(): void {
-  // A project view shows only that project's tabs; All shows every tab, grouped by project with a
-  // muted label + divider before each project (grouped only in the render; tab order is unchanged).
   const shown = activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
-  if (activeProject) {
-    tabbar.replaceChildren(...shown.map(tabElement));
-    initTabSortables();
-    return;
-  }
-  const byRoot = new Map<string, Tab[]>();
-  const rootOrder: string[] = [];
+  const byCluster = new Map<string, Tab[]>();
+  const projectOrder: string[] = [];
   for (const tab of shown) {
-    let projectTabs = byRoot.get(tab.session.repoRoot);
-    if (!projectTabs) {
-      projectTabs = [];
-      byRoot.set(tab.session.repoRoot, projectTabs);
-      rootOrder.push(tab.session.repoRoot);
-    }
-    projectTabs.push(tab);
+    const root = tab.session.repoRoot;
+    if (!projectOrder.includes(root)) projectOrder.push(root);
+    const list = byCluster.get(tabClusterKey(tab)) ?? [];
+    list.push(tab);
+    byCluster.set(tabClusterKey(tab), list);
   }
+
   const children: HTMLElement[] = [];
-  for (const root of rootOrder) {
-    const project = document.createElement('div');
-    project.className = 'tab-project';
-    const label = document.createElement('span');
-    label.className = 'tab-project-label';
-    label.textContent = projName(root);
-    setTooltip(label, root);
-    label.addEventListener('click', () => revealProjectInSidebar(root));
-    project.append(label, ...byRoot.get(root)!.map(tabElement));
-    children.push(project);
+  for (const root of projectOrder) {
+    // The project's own row: its label (in All) and every tab of its that is in no group.
+    const loose = byCluster.get(`${root}\0`) ?? [];
+    if (!activeProject || loose.length > 0) {
+      const row = document.createElement('div');
+      row.className = 'tab-project';
+      row.dataset.cluster = `${root}\0`;
+      if (!activeProject) {
+        const label = document.createElement('span');
+        label.className = 'tab-project-label';
+        label.textContent = projName(root);
+        setTooltip(label, root);
+        label.addEventListener('click', () => revealProjectInSidebar(root));
+        row.append(label);
+      }
+      row.append(...loose.map(tabElement));
+      children.push(row);
+    }
+    // Then one row per group that has tabs open, in registry order — the sidebar's order.
+    for (const group of projectGroups(root)) {
+      const groupTabs = byCluster.get(`${root}\0${group.id}`) ?? [];
+      if (groupTabs.length === 0) continue;
+      const row = document.createElement('div');
+      row.className = 'tab-project tab-group-row';
+      row.dataset.cluster = `${root}\0${group.id}`;
+      const rail = document.createElement('span');
+      rail.className = 'tab-rail';
+      const label = document.createElement('span');
+      label.className = 'tab-group-label';
+      const icon = document.createElement('span');
+      icon.className = 'group-icon';
+      icon.innerHTML = layersIcon(11);
+      label.append(icon, document.createTextNode(group.name));
+      row.append(rail, label, ...groupTabs.map(tabElement));
+      children.push(row);
+    }
   }
   tabbar.replaceChildren(...children);
   initTabSortables();
@@ -1949,7 +1977,8 @@ function tabElement(tab: Tab): HTMLElement {
 }
 
 // Drag-to-reorder tabs via SortableJS. One Sortable per project container (the whole tab bar in a
-// project view, each .tab-project in All), so a drag stays within its project by construction.
+// cluster row: a project's ungrouped tabs, or one of its groups), so a drag stays inside its own
+// cluster by construction — a tab can't be dragged into another group or project.
 // forceFallback uses pointer-based dragging instead of native HTML5 DnD (flaky under WSLg). Re-created
 // on every renderTabBar since it rebuilds the DOM; old instances destroyed first to avoid leaks.
 let tabSortables: Sortable[] = [];
@@ -1957,7 +1986,7 @@ let tabDragActive = false;
 
 function initTabSortables(): void {
   for (const s of tabSortables) s.destroy();
-  const containers = activeProject ? [tabbar] : [...tabbar.querySelectorAll<HTMLElement>('.tab-project')];
+  const containers = [...tabbar.querySelectorAll<HTMLElement>('.tab-project')];
   tabSortables = containers.map((container) =>
     Sortable.create(container, {
       draggable: '.tab', // never the project label
@@ -1976,7 +2005,7 @@ function initTabSortables(): void {
         // Index among the destination's tabs (ignores the project label), mapped onto the tabs array.
         const newIndex = [...(evt.to as HTMLElement).querySelectorAll<HTMLElement>('.tab')].indexOf(el);
         if (!moved || newIndex < 0) return;
-        tabs.splice(0, tabs.length, ...reorderWithinGroup(tabs, (t) => t.session.repoRoot, moved, newIndex));
+        tabs.splice(0, tabs.length, ...reorderWithinGroup(tabs, tabClusterKey, moved, newIndex));
         persistOpenTabs();
       },
     }),
