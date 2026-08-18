@@ -589,6 +589,10 @@ async function copyText(text: string, confirmation: string): Promise<void> {
 function jumpToSession(session: SessionSummary): void {
   if (activeProject !== null && activeProject !== session.repoRoot) selectProject(session.repoRoot);
   void openSession(session);
+  // Scope alone isn't enough to SEE it: the row can sit inside a collapsed group or project. Reveal
+  // the same way clicking a tab does — jumping to a sibling filed in another group is exactly the
+  // case where scoping to the project still leaves the row hidden.
+  revealSessionInSidebar(session);
 }
 
 // A session's siblings (the other members of its family), most recent first. Shared by the count
