@@ -1006,7 +1006,9 @@ function pruneRows(wanted: Set<string>): void {
 }
 
 // In-app confirm modal (a native dialog flickers under WSLg). Resolves true on Delete, false on
-// Cancel / Esc / backdrop click.
+// Cancel / Esc. Deliberately NOT dismissable by clicking the backdrop: selecting text inside the
+// dialog and releasing the mouse outside it dispatches the click on the common ancestor of the
+// mousedown and mouseup — the overlay — so an outside-click dismiss threw the dialog away mid-drag.
 function confirmDelete(title: string): Promise<boolean> {
   confirmMessage.textContent = `Delete "${title}"?`;
   confirmDetail.textContent = 'Its transcript files move to the trash, so you can restore them from there if needed.';
@@ -1019,27 +1021,22 @@ function confirmDelete(title: string): Promise<boolean> {
       confirmOverlay.hidden = true;
       confirmOk.removeEventListener('click', onOk);
       confirmCancel.removeEventListener('click', onCancel);
-      confirmOverlay.removeEventListener('click', onBackdrop);
       document.removeEventListener('keydown', onKey);
       resolve(result);
     };
     const onOk = (): void => close(true);
     const onCancel = (): void => close(false);
-    const onBackdrop = (event: MouseEvent): void => {
-      if (event.target === confirmOverlay) close(false);
-    };
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') close(false);
     };
     confirmOk.addEventListener('click', onOk);
     confirmCancel.addEventListener('click', onCancel);
-    confirmOverlay.addEventListener('click', onBackdrop);
     document.addEventListener('keydown', onKey);
   });
 }
 
-// A small modal text prompt (Promise-resolving): OK/Enter resolves the value, Cancel/Esc/backdrop
-// resolves null. Shared by project rename, fork naming, and worktree naming; okLabel names the
+// A small modal text prompt (Promise-resolving): OK/Enter resolves the value, Cancel/Esc resolves
+// null. No backdrop dismiss, for the same drag-select reason as the confirm modal above. Shared by project rename, fork naming, and worktree naming; okLabel names the
 // confirm button. An optional async `validate` runs on submit: return an error string to show it
 // inline and keep the dialog open (so the user can fix the value), or null to accept.
 function promptText(
@@ -1063,8 +1060,8 @@ function promptText(
       renameOverlay.hidden = true;
       renameOk.removeEventListener('click', onOk);
       renameCancel.removeEventListener('click', onCancel);
-      renameOverlay.removeEventListener('click', onBackdrop);
-      renameInput.removeEventListener('keydown', onKey);
+      renameInput.removeEventListener('keydown', onInputKey);
+      document.removeEventListener('keydown', onKey);
       resolve(result);
     };
     // Validate before accepting; on an error, show it inline and leave the dialog open.
@@ -1082,17 +1079,19 @@ function promptText(
     };
     const onOk = (): void => void submit();
     const onCancel = (): void => close(null);
-    const onBackdrop = (event: MouseEvent): void => {
-      if (event.target === renameOverlay) close(null);
+    // Enter belongs to the field (it submits what you typed), but Esc has to close the dialog from
+    // anywhere: clicking the dialog's own text blurs the input, and with no backdrop dismiss that
+    // would otherwise leave Cancel as the only way out. Same document-level Esc as confirmDelete.
+    const onInputKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Enter') void submit();
     };
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Enter') void submit();
-      else if (event.key === 'Escape') close(null);
+      if (event.key === 'Escape') close(null);
     };
     renameOk.addEventListener('click', onOk);
     renameCancel.addEventListener('click', onCancel);
-    renameOverlay.addEventListener('click', onBackdrop);
-    renameInput.addEventListener('keydown', onKey);
+    renameInput.addEventListener('keydown', onInputKey);
+    document.addEventListener('keydown', onKey);
   });
 }
 
