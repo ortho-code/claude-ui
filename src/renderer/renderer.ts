@@ -1420,6 +1420,16 @@ function getOrCreateRow(key: string): HTMLElement {
   return row;
 }
 
+// The family/worktree marks. Both used to be font glyphs, and not even from the same font: ⑂
+// (U+2442) is absent from DejaVu Sans and resolved from FreeMono, a MONOSPACE face, while ⎇ (U+2387)
+// came from DejaVu — which is why they never matched weight and needed hand-tuned font-size
+// corrections. Conventional icons instead: a fork (one session split into a family) and a branch off
+// a trunk (a linked worktree). Asymmetric vs symmetric, so they stay apart at badge size.
+const SIBLING_ICON =
+  '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14V9M3.5 4.5L8 9L12.5 4.5" /></svg>';
+const WORKTREE_ICON =
+  '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13V4M5 8.5Q10.5 8.5 10.5 4" /></svg>';
+
 // The pin, as SVG rather than the ★/☆ glyphs: those resolve through system font fallback (DejaVu
 // Sans under WSLg), whose outline star is a hairline that reads far fainter than its --muted colour
 // should. Same star either way — filled for pinned, outlined for not — so the two states differ by
@@ -1474,8 +1484,8 @@ function createSessionRow(key: string): HTMLElement {
   const badge = document.createElement('span');
   badge.className = 'worktree-badge';
   badge.hidden = true;
-  // A family member's mark: `⑂ N` counts its siblings and opens a list of them to jump into. Shown
-  // only when session.isSibling (set in updateRow).
+  // A family member's mark: the fork icon plus a count of its siblings, which opens a list of them
+  // to jump into. Shown only when session.isSibling (set in updateRow).
   const siblingsBadge = document.createElement('span');
   siblingsBadge.className = 'sibling-badge';
   siblingsBadge.hidden = true;
@@ -1591,10 +1601,11 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 
   els.badge.hidden = !session.worktree;
   if (session.worktree) {
-    // The glyph sits in its own span so .wt-icon can size the heavier ⎇ down to match the sibling badge.
+    // The icon sits in its own span so the pill stays an inline-block (its ellipsis/max-width still
+    // apply to the text node) while .badge-icon handles the SVG's vertical alignment.
     const wtIcon = document.createElement('span');
-    wtIcon.className = 'wt-icon';
-    wtIcon.textContent = '⎇';
+    wtIcon.className = 'badge-icon';
+    wtIcon.innerHTML = WORKTREE_ICON;
     els.badge.replaceChildren(wtIcon, document.createTextNode(' worktree'));
     setTooltip(els.badge, `Linked git worktree: ${session.worktree}`);
   }
@@ -1602,7 +1613,10 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   els.siblingsBadge.hidden = !session.isSibling;
   if (session.isSibling) {
     const count = session.siblingIds.length;
-    els.siblingsBadge.textContent = `⑂ ${count}`;
+    const sibIcon = document.createElement('span');
+    sibIcon.className = 'badge-icon';
+    sibIcon.innerHTML = SIBLING_ICON;
+    els.siblingsBadge.replaceChildren(sibIcon, document.createTextNode(` ${count}`));
     const label = count === 1 ? '1 sibling' : `${count} siblings`;
     setTooltip(els.siblingsBadge, `${label} in this session's family — click to list them`);
   }
@@ -1993,16 +2007,16 @@ function tabElement(tab: Tab): HTMLElement {
   // sidebar row's badge, so tab and row always agree.
   const siblingMark = document.createElement('span');
   siblingMark.className = 'tab-sibling';
-  siblingMark.textContent = '⑂';
+  siblingMark.innerHTML = SIBLING_ICON;
   if (tab.session.isSibling) {
     const count = tab.session.siblingIds.length;
     setTooltip(siblingMark, `Has ${count} ${count === 1 ? 'sibling' : 'siblings'} in its session family`);
   }
 
-  // A worktree session's tab gets the same ⎇ marker as its sidebar badge.
+  // A worktree session's tab gets the same branch marker as its sidebar badge.
   const worktreeMark = document.createElement('span');
   worktreeMark.className = 'tab-worktree';
-  worktreeMark.textContent = '⎇';
+  worktreeMark.innerHTML = WORKTREE_ICON;
   if (tab.session.worktree) setTooltip(worktreeMark, `Linked git worktree: ${tab.session.worktree}`);
 
   const label = document.createElement('span');
@@ -2208,6 +2222,8 @@ function wireFilterToggle(button: HTMLButtonElement, flip: () => void): void {
 // The pill means "pinned", so it shows the pinned star — the same SVG the rows draw, from one
 // definition, rather than a ★ glyph that would render at a different weight beside it.
 pinnedFilter.innerHTML = PINNED_ICON;
+// Same for the siblings pill: the fork icon ahead of its word, from the one definition the rows use.
+siblingFilter.prepend(Object.assign(document.createElement('span'), { className: 'badge-icon', innerHTML: SIBLING_ICON }));
 wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
 wireFilterToggle(worktreeFilter, () => (showWorktreeOnly = !showWorktreeOnly));
 wireFilterToggle(siblingFilter, () => (showSiblingsOnly = !showSiblingsOnly));

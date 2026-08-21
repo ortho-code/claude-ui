@@ -304,9 +304,11 @@ button:hover {
 
 /* The pinned pill is icon-only: the row's star SVG (injected in renderer.ts), sized down to the
    pills' 12px text so it doesn't make its pill taller than the worded ones beside it. */
-#pinned-filter {
+#pinned-filter,
+#sibling-filter {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
 }
 
 #pinned-filter svg {
@@ -1233,9 +1235,19 @@ button:focus:not(:focus-visible) {
   margin-left: 6px;
 }
 
-/* The worktree glyph (⎇) renders heavier than the sibling glyph (⑂); size it down so they match. */
-.wt-icon {
-  font-size: 0.8em;
+/* The badge/pill icons (fork, branch) as inline SVG. The pill stays an inline-block so its
+   max-width + ellipsis keep applying to the text beside the icon; this only aligns the icon to the
+   text baseline and sizes it to the 10px pill. No per-glyph size correction any more — the shapes are
+   ours, so they already match. */
+.badge-icon {
+  display: inline-block;
+  vertical-align: -0.15em;
+}
+
+.badge-icon svg {
+  display: block;
+  width: 10px;
+  height: 10px;
 }
 
 .empty-message {
@@ -1350,13 +1362,17 @@ button:focus:not(:focus-visible) {
 .tab-sibling,
 .tab-worktree {
   flex: 0 0 auto;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
   color: var(--accent);
 }
 
-/* ⎇ is heavier than ⑂; shrink it so the two marks read the same size. */
-.tab-worktree {
-  font-size: 10px;
+/* Both tab marks are the same SVG family now, so they need no per-mark size correction. */
+.tab-sibling svg,
+.tab-worktree svg {
+  display: block;
+  width: 11px;
+  height: 11px;
 }
 
 .tab-label {
