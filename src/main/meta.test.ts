@@ -22,6 +22,7 @@ import {
   renameGroup,
   deleteGroup,
   moveSessionToGroup,
+  moveGroup,
 } from './meta';
 
 let dir: string;
@@ -234,5 +235,55 @@ describe('session groups', () => {
     const { groups, groupOf } = await getGroupState();
     expect(groups.map((g) => g.id)).toEqual(['g1']);
     expect(groupOf).toEqual({ s1: 'g1' });
+  });
+});
+
+describe('moveGroup', () => {
+  // Three in /a with one of /b wedged between them, so a move that leaked outside its own project
+  // would be visible in the result rather than passing by luck.
+  async function seed(): Promise<string[]> {
+    await createGroup('a3', '/a');
+    await createGroup('b1', '/b');
+    await createGroup('a2', '/a');
+    await createGroup('a1', '/a');
+    const { groups } = await getGroupState();
+    expect(groups.map((g) => g.name)).toEqual(['a1', 'a2', 'b1', 'a3']);
+    return groups.filter((g) => g.repoRoot === '/a').map((g) => g.id);
+  }
+
+  it('moves within its own project and leaves other projects in place', async () => {
+    const [, , a3] = await seed();
+    const { groups } = await moveGroup(a3, 'top');
+    // a3 leads /a's groups; b1 has not budged from the slot it held.
+    expect(groups.filter((g) => g.repoRoot === '/a').map((g) => g.name)).toEqual(['a3', 'a1', 'a2']);
+    expect(groups.map((g) => g.name)).toEqual(['a3', 'a1', 'b1', 'a2']);
+  });
+
+  it('steps one place at a time, skipping over another project\'s group', async () => {
+    const [a1] = await seed();
+    const down = await moveGroup(a1, 'down');
+    expect(down.groups.filter((g) => g.repoRoot === '/a').map((g) => g.name)).toEqual(['a2', 'a1', 'a3']);
+    const up = await moveGroup(a1, 'up');
+    expect(up.groups.filter((g) => g.repoRoot === '/a').map((g) => g.name)).toEqual(['a1', 'a2', 'a3']);
+  });
+
+  it('sends a group to the end of its own project, not the end of the registry', async () => {
+    const [a1] = await seed();
+    const { groups } = await moveGroup(a1, 'bottom');
+    expect(groups.filter((g) => g.repoRoot === '/a').map((g) => g.name)).toEqual(['a2', 'a3', 'a1']);
+    expect(groups.map((g) => g.name)).toEqual(['a2', 'a3', 'b1', 'a1']);
+  });
+
+  it('ignores a move that would fall off either end, and an unknown id', async () => {
+    const [a1, , a3] = await seed();
+    expect((await moveGroup(a1, 'up')).groups.map((g) => g.name)).toEqual(['a1', 'a2', 'b1', 'a3']);
+    expect((await moveGroup(a3, 'down')).groups.map((g) => g.name)).toEqual(['a1', 'a2', 'b1', 'a3']);
+    expect((await moveGroup('nope', 'top')).groups.map((g) => g.name)).toEqual(['a1', 'a2', 'b1', 'a3']);
+  });
+
+  it('survives a reload, so the order is really persisted', async () => {
+    const [, , a3] = await seed();
+    await moveGroup(a3, 'top');
+    expect((await getGroupState()).groups.map((g) => g.name)).toEqual(['a3', 'a1', 'b1', 'a2']);
   });
 });

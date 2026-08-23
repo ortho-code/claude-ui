@@ -45,6 +45,9 @@ export interface SessionGroup {
 }
 
 /** Every group and who is in one. Read and returned whole, so the two halves can never disagree. */
+/** Where an ordering move sends a group: the ends, or one step either way. */
+export type GroupMove = 'top' | 'up' | 'down' | 'bottom';
+
 export interface GroupState {
   /** The registry, in display order: a new group is prepended, so it lands at the top of its project. */
   groups: SessionGroup[];
@@ -92,6 +95,8 @@ export interface ClaudeUiApi {
   deleteGroup(id: string): Promise<GroupState>;
   /** Move a session into a group, or out of any group with a null groupId. */
   moveSessionToGroup(sessionId: string, groupId: string | null): Promise<GroupState>;
+  /** Reorder a group within its own project. Other projects' groups keep their positions. */
+  moveGroup(id: string, move: GroupMove): Promise<GroupState>;
   /** Open a folder picker; resolves to the chosen path or null if cancelled. */
   pickFolder(): Promise<string | null>;
   /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */

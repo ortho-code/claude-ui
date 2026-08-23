@@ -22,6 +22,7 @@ const api: ClaudeUiApi = {
   renameGroup: (id, name) => ipcRenderer.invoke('meta:renameGroup', id, name),
   deleteGroup: (id) => ipcRenderer.invoke('meta:deleteGroup', id),
   moveSessionToGroup: (sessionId, groupId) => ipcRenderer.invoke('meta:moveSessionToGroup', sessionId, groupId),
+  moveGroup: (id, move) => ipcRenderer.invoke('meta:moveGroup', id, move),
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   openExternal: (url) => ipcRenderer.send('shell:openExternal', url),
   getAllStatuses: () => ipcRenderer.invoke('status:getAll'),

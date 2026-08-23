@@ -18,12 +18,14 @@ import {
   renameGroup,
   deleteGroup,
   moveSessionToGroup,
+  moveGroup,
   migrateToSessionKeys,
   purgeSession,
   auditMarker,
 } from './meta';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
+import type { GroupMove } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -96,6 +98,7 @@ ipcMain.handle('meta:createGroup', (_event, name: string, repoRoot: string | nul
 );
 ipcMain.handle('meta:renameGroup', (_event, id: string, name: string) => renameGroup(id, name));
 ipcMain.handle('meta:deleteGroup', (_event, id: string) => deleteGroup(id));
+ipcMain.handle('meta:moveGroup', (_event, id: string, move: GroupMove) => moveGroup(id, move));
 ipcMain.handle('meta:moveSessionToGroup', (_event, sessionId: string, groupId: string | null) =>
   moveSessionToGroup(sessionId, groupId),
 );

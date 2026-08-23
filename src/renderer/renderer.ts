@@ -2,7 +2,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import type { ClaudeUiApi, GroupState, SessionGroup, SessionSummary } from '../shared/types';
+import type { ClaudeUiApi, GroupMove, GroupState, SessionGroup, SessionSummary } from '../shared/types';
 import {
   sessionsByKey,
   structuralSignature,
@@ -636,6 +636,30 @@ async function newGroupForSession(session: SessionSummary): Promise<void> {
   const name = await promptText('New group', projName(session.repoRoot), '', 'Create');
   if (name === null || !name.trim()) return;
   applyGroupState(await window.claudeUi.createGroup(name, session.repoRoot, entityKey(session)));
+}
+
+// The four ordering moves for a group, minus any that would be a no-op here: the first group has no
+// "up", the last no "down", and a lone group in a project has nowhere to go at all. So the menu never
+// offers a move that does nothing.
+function groupMoveItems(id: string): MenuItem[] {
+  const group = groupState.groups.find((g) => g.id === id);
+  if (!group?.repoRoot) return [];
+  const siblings = projectGroups(group.repoRoot);
+  const at = siblings.findIndex((g) => g.id === id);
+  const last = siblings.length - 1;
+  if (at < 0 || last <= 0) return [];
+  const item = (label: string, move: GroupMove): MenuItem => ({
+    label,
+    onSelect: () => void moveGroupById(id, move),
+  });
+  const items: MenuItem[] = [];
+  if (at > 0) items.push(item('Move to top', 'top'), item('Move up', 'up'));
+  if (at < last) items.push(item('Move down', 'down'), item('Move to bottom', 'bottom'));
+  return items;
+}
+
+async function moveGroupById(id: string, move: GroupMove): Promise<void> {
+  applyGroupState(await window.claudeUi.moveGroup(id, move));
 }
 
 async function renameGroupById(id: string): Promise<void> {
@@ -1367,7 +1391,10 @@ function createGroupSection(id: string): GroupSectionEls {
   setTooltip(kebab, 'Group options');
   kebab.addEventListener('click', (event) => {
     event.stopPropagation();
+    const moves = groupMoveItems(id);
     openMenu(kebab, [
+      ...moves,
+      ...(moves.length > 0 ? [{ label: '', separator: true }] : []),
       { label: 'Rename…', onSelect: () => void renameGroupById(id) },
       { label: 'Delete group', onSelect: () => void deleteGroupById(id) },
     ]);

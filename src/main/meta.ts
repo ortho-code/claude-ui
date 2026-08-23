@@ -2,7 +2,7 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { GroupState, SessionGroup } from '../shared/types';
+import type { GroupMove, GroupState, SessionGroup } from '../shared/types';
 
 /**
  * UI-only metadata, kept outside ~/.claude so we never touch the session store.
@@ -333,6 +333,31 @@ export function deleteGroup(id: string): Promise<GroupState> {
     for (const [sessionId, groupId] of Object.entries(meta.groupOf)) {
       if (groupId === id) delete meta.groupOf[sessionId];
     }
+    return groupState(meta);
+  });
+}
+
+// Reorder a group within ITS OWN project. The registry is one flat array shared by every project, so
+// the project's entries are lifted out by the slots they occupy, reordered, and written back into
+// those same slots — which leaves every other project's position in the array untouched. A move that
+// would fall off either end is ignored rather than clamped silently onto a no-op write.
+export function moveGroup(id: string, move: GroupMove): Promise<GroupState> {
+  return update('moveGroup', (meta) => {
+    const group = meta.groups.find((g) => g.id === id);
+    if (!group) return groupState(meta);
+    const slots: number[] = [];
+    meta.groups.forEach((g, i) => {
+      if (g.repoRoot === group.repoRoot) slots.push(i);
+    });
+    const from = slots.findIndex((i) => meta.groups[i].id === id);
+    const last = slots.length - 1;
+    const to = move === 'top' ? 0 : move === 'bottom' ? last : move === 'up' ? from - 1 : from + 1;
+    if (to < 0 || to > last || to === from) return groupState(meta);
+    const segment = slots.map((i) => meta.groups[i]);
+    segment.splice(to, 0, ...segment.splice(from, 1));
+    slots.forEach((slot, n) => {
+      meta.groups[slot] = segment[n];
+    });
     return groupState(meta);
   });
 }
