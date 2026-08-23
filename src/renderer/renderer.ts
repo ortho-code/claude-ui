@@ -900,31 +900,8 @@ function renderList(): void {
 
   container.scrollTop = scroll;
   updateSidebarHighlight();
-  reflowAllMeta();
 }
 
-// Meta shows on one row when it fits and wraps into its two groups (dropping the middle separator via
-// CSS) when it doesn't. Overflow is width-dependent, so measure each visible row here and re-run
-// whenever the sidebar is resized.
-function reflowAllMeta(): void {
-  for (const row of sessionRows.values()) {
-    if (!row.isConnected) continue;
-    const els = rowEls.get(row);
-    if (!els || els.meta.classList.contains('solo')) continue;
-    els.meta.classList.remove('stacked');
-    if (els.meta.scrollWidth > els.meta.clientWidth) els.meta.classList.add('stacked');
-  }
-}
-
-let reflowScheduled = false;
-new ResizeObserver(() => {
-  if (reflowScheduled) return;
-  reflowScheduled = true;
-  requestAnimationFrame(() => {
-    reflowScheduled = false;
-    reflowAllMeta();
-  });
-}).observe(container);
 
 // Reset to a blank list: drop every cached node so the next non-empty render rebuilds fresh.
 function clearList(): void {
@@ -1460,8 +1437,6 @@ interface RowEls {
   badge: HTMLElement;
   siblingsBadge: HTMLElement;
   meta: HTMLElement;
-  metaWhen: HTMLElement;
-  metaStats: HTMLElement;
   pin: HTMLButtonElement;
   unarchiveBtn: HTMLButtonElement;
   deleteBtn: HTMLButtonElement;
@@ -1502,20 +1477,10 @@ function createSessionRow(key: string): HTMLElement {
     const session = currentByKey.get(key);
     if (session) openSiblingsMenu(siblingsBadge, session);
   });
+  // One short run of text (time, plus the model when there is one), so no inner spans and nothing
+  // to measure: it cannot outgrow a single line the way "when · model · events · id" could.
   const meta = document.createElement('p');
-  // Always solo: the time is the only group left (model is a badge, the id lives in the kebab), so
-  // there is no separator to draw and reflowAllMeta skips it — a row can no longer stack to 2 lines.
-  meta.className = 'session-meta solo';
-  // Two logical groups (when · model / events · id) plus a separator that CSS hides when the meta
-  // wraps to two lines (see reflowMeta). One line when it fits, two grouped lines when it doesn't.
-  const metaWhen = document.createElement('span');
-  metaWhen.className = 'meta-when';
-  const metaSep = document.createElement('span');
-  metaSep.className = 'meta-sep';
-  metaSep.textContent = ' · ';
-  const metaStats = document.createElement('span');
-  metaStats.className = 'meta-stats';
-  meta.append(metaWhen, metaSep, metaStats);
+  meta.className = 'session-meta';
   // The badges used to take a line of their own between title and meta. They ride the meta's line
   // now: the meta takes the remaining width (and still stacks by itself if it must), the marks keep
   // their intrinsic size at the right.
@@ -1594,7 +1559,7 @@ function createSessionRow(key: string): HTMLElement {
   });
 
   item.append(dot, content, pin, unarchiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, siblingsBadge, meta, metaWhen, metaStats, pin, unarchiveBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, siblingsBadge, meta, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
@@ -1643,13 +1608,11 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 
   if (showArchivedOnly) {
     const ts = archived.get(entityKey(session));
-    els.metaWhen.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
+    els.meta.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
   } else {
-    // Time and model, as before; only the id left (it lives in the kebab now), so this stays one
-    // group and never splits into two lines.
     const model = modelLabel(session.model);
     const when = relativeTime(session.lastActivity);
-    els.metaWhen.textContent = model ? `${when} · ${model}` : when;
+    els.meta.textContent = model ? `${when} · ${model}` : when;
   }
 
   // The archived view is a management view: no pinning, and delete replaces it there.
