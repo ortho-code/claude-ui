@@ -1635,8 +1635,9 @@ function createSessionRow(key: string): HTMLElement {
   pin.addEventListener('click', async (event) => {
     event.stopPropagation();
     if (pin.disabled) return;
+    // Disabling it is the pending cue: .pin:disabled dims. (There was a 'loading' class here with no
+    // CSS behind it, so it painted nothing.)
     pin.disabled = true;
-    pin.classList.add('loading');
     pinned = new Set(await window.claudeUi.togglePin(key));
     renderList();
   });
@@ -1761,7 +1762,6 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   els.pin.innerHTML = isPinned ? PINNED_ICON : PIN_ICON;
   setTooltip(els.pin, isPinned ? 'Unpin' : 'Pin');
   els.pin.disabled = false;
-  els.pin.classList.remove('loading');
   els.pin.hidden = showArchivedOnly;
 
   // Unarchive and delete are the archived view's two actions and appear nowhere else.
