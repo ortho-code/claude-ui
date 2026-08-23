@@ -1425,10 +1425,13 @@ function getOrCreateRow(key: string): HTMLElement {
 // came from DejaVu — which is why they never matched weight and needed hand-tuned font-size
 // corrections. Conventional icons instead: a fork (one session split into a family) and a branch off
 // a trunk (a linked worktree). Asymmetric vs symmetric, so they stay apart at badge size.
+// Both are drawn so their INK is centred on 8,8 and 10 units tall, not merely their viewBox: the
+// first cut centred the boxes while the fork hung 1.25 low and the branch filled 7.5 units against
+// the fork's 11, which read as one mark misaligned and the other too small.
 const SIBLING_ICON =
-  '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14V9M3.5 4.5L8 9L12.5 4.5" /></svg>';
+  '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12V8M4 4L8 8L12 4" /></svg>';
 const WORKTREE_ICON =
-  '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13V4M5 8.5Q10.5 8.5 10.5 4" /></svg>';
+  '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12V4M4.5 8Q11.5 8 11.5 4" /></svg>';
 
 // The pin, as SVG rather than the ★/☆ glyphs: those resolve through system font fallback (DejaVu
 // Sans under WSLg), whose outline star is a hairline that reads far fainter than its --muted colour
@@ -1506,7 +1509,13 @@ function createSessionRow(key: string): HTMLElement {
   const metaStats = document.createElement('span');
   metaStats.className = 'meta-stats';
   meta.append(metaWhen, metaSep, metaStats);
-  content.append(title, badge, siblingsBadge, meta);
+  // The badges used to take a line of their own between title and meta. They ride the meta's line
+  // now: the meta takes the remaining width (and still stacks by itself if it must), the marks keep
+  // their intrinsic size at the right.
+  const subline = document.createElement('div');
+  subline.className = 'session-subline';
+  subline.append(meta, badge, siblingsBadge);
+  content.append(title, subline);
 
   const pin = document.createElement('button');
   pin.className = 'pin';
@@ -1601,13 +1610,14 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 
   els.badge.hidden = !session.worktree;
   if (session.worktree) {
-    // The icon sits in its own span so the pill stays an inline-block (its ellipsis/max-width still
-    // apply to the text node) while .badge-icon handles the SVG's vertical alignment.
+    // Icon only — the word "worktree" cost a badge-width of room and the branch icon plus its
+    // tooltip already say it. Being wordless, the pill carries its own aria-label.
     const wtIcon = document.createElement('span');
     wtIcon.className = 'badge-icon';
     wtIcon.innerHTML = WORKTREE_ICON;
-    els.badge.replaceChildren(wtIcon, document.createTextNode(' worktree'));
+    els.badge.replaceChildren(wtIcon);
     setTooltip(els.badge, `Linked git worktree: ${session.worktree}`);
+    els.badge.setAttribute('aria-label', `Linked git worktree: ${session.worktree}`);
   }
 
   els.siblingsBadge.hidden = !session.isSibling;
@@ -1616,7 +1626,10 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
     const sibIcon = document.createElement('span');
     sibIcon.className = 'badge-icon';
     sibIcon.innerHTML = SIBLING_ICON;
-    els.siblingsBadge.replaceChildren(sibIcon, document.createTextNode(` ${count}`));
+    const sibCount = document.createElement('span');
+    sibCount.className = 'badge-count';
+    sibCount.textContent = String(count);
+    els.siblingsBadge.replaceChildren(sibIcon, sibCount);
     const label = count === 1 ? '1 sibling' : `${count} siblings`;
     setTooltip(els.siblingsBadge, `${label} in this session's family — click to list them`);
   }
@@ -1631,7 +1644,9 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
     const model = modelLabel(session.model);
     const when = relativeTime(session.lastActivity);
     els.metaWhen.textContent = model ? `${when} · ${model}` : when;
-    els.metaStats.textContent = `${session.eventCount} events · ${session.id.slice(0, 8)}`;
+    // No event count: it says little next to the time, and dropping it keeps more meta lines on one
+    // line (reflowAllMeta stacks whatever does not fit), which is what actually shortens a row.
+    els.metaStats.textContent = session.id.slice(0, 8);
     els.meta.classList.remove('solo');
   }
 

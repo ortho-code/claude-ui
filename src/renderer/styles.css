@@ -1001,7 +1001,7 @@ button:focus:not(:focus-visible) {
   gap: 8px;
   background: var(--surface);
   border-radius: 8px;
-  padding: 10px 14px;
+  padding: 7px 14px;
   /* margin-top (not -bottom) so the gap sits above each row: heading->first row, row->row, and
      last-row->next-heading all become one uniform 8px, with no doubled gap next to a heading. */
   margin-top: 8px;
@@ -1156,13 +1156,28 @@ button:focus:not(:focus-visible) {
 }
 
 .session-title {
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   font-size: 14px;
   overflow: hidden;
   /* Wrap up to two lines, then ellipsize, so most titles are fully readable without hovering. */
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+/* Meta and the worktree/sibling marks share one line, which is a whole line saved per badged row.
+   The meta flexes into whatever the marks leave (min-width:0 so it can shrink and ellipsize/stack);
+   the marks never shrink. */
+.session-subline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.session-subline .session-meta {
+  flex: 1;
+  min-width: 0;
 }
 
 .session-meta {
@@ -1201,17 +1216,23 @@ button:focus:not(:focus-visible) {
 
 .worktree-badge,
 .sibling-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   max-width: 100%;
-  margin: 3px 0 1px;
+  /* Explicit height (border-box), because a flex pill with no text child has no line box for
+     line-height to act on: the wordless worktree pill collapsed to its icon at 12px while the
+     sibling pill, which holds a count, stood at 18px. line-height:1 for the same reason in reverse —
+     it makes a digit's box its own font size, so flex centres it on exactly the icon's centre
+     instead of half a pixel below. */
+  height: 18px;
   padding: 0 6px;
   font-size: 10px;
-  line-height: 16px;
+  line-height: 1;
   color: var(--accent);
   border: 1px solid var(--accent);
   border-radius: 8px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
 }
@@ -1230,24 +1251,30 @@ button:focus:not(:focus-visible) {
   color: var(--bg);
 }
 
-/* Space the two badges when a row shows both (worktree + sibling). */
-.worktree-badge:not([hidden]) + .sibling-badge:not([hidden]) {
-  margin-left: 6px;
-}
-
 /* The badge/pill icons (fork, branch) as inline SVG. The pill stays an inline-block so its
    max-width + ellipsis keep applying to the text beside the icon; this only aligns the icon to the
    text baseline and sizes it to the 10px pill. No per-glyph size correction any more — the shapes are
    ours, so they already match. */
 .badge-icon {
-  display: inline-block;
-  vertical-align: -0.15em;
+  display: flex;
 }
 
+/* The count beside a badge icon. A digit's em box carries the font's full ascent and descent, so
+   centring that box leaves the digit's INK riding ~0.7px high next to an icon whose ink is centred in
+   its own viewBox — visible at 10px. text-box-trim cuts the box down to cap-height/baseline, i.e. to
+   the ink itself, so flex centres what you actually see. Font-independent, unlike a hard-coded nudge
+   (the trap .wt-icon's old 0.8em fell into). Chromium-only, which is all this app runs on. */
+.badge-count {
+  text-box: trim-both cap alphabetic;
+}
+
+/* 12px, not 10: these icons carry ink across 10 of their 16 viewBox units (62.5%), so 12px renders
+   7.5px of ink — matching the 7.25px ink of the 10px digit beside it. At 10px the icon's 6.25px of
+   ink read as a smaller mark next to a bigger number, which looked like a centring fault. */
 .badge-icon svg {
   display: block;
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 
 .empty-message {
