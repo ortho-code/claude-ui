@@ -45,8 +45,8 @@ export interface SessionGroup {
 }
 
 /** Every group and who is in one. Read and returned whole, so the two halves can never disagree. */
-/** Where an ordering move sends a group: the ends, or one step either way. */
-export type GroupMove = 'top' | 'up' | 'down' | 'bottom';
+/** Where an ordering move sends a group or project: the ends, or one step either way. */
+export type OrderMove = 'top' | 'up' | 'down' | 'bottom';
 
 export interface GroupState {
   /** The registry, in display order: a new group is prepended, so it lands at the top of its project. */
@@ -96,7 +96,17 @@ export interface ClaudeUiApi {
   /** Move a session into a group, or out of any group with a null groupId. */
   moveSessionToGroup(sessionId: string, groupId: string | null): Promise<GroupState>;
   /** Reorder a group within its own project. Other projects' groups keep their positions. */
-  moveGroup(id: string, move: GroupMove): Promise<GroupState>;
+  moveGroup(id: string, move: OrderMove): Promise<GroupState>;
+  /** The projects' display order, oldest known first. Empty until the first seed. */
+  getProjectOrder(): Promise<string[]>;
+  /**
+   * Give every one of `roots` a slot, and hand back the resulting order. Unknown roots go to the
+   * front (a new project should be noticed); the very first call seeds the order from `roots` as
+   * given, so nothing jumps on the run that introduces this.
+   */
+  seedProjectOrder(roots: string[]): Promise<string[]>;
+  /** Reorder one project among the others. */
+  moveProject(repoRoot: string, move: OrderMove): Promise<string[]>;
   /** Open a folder picker; resolves to the chosen path or null if cancelled. */
   pickFolder(): Promise<string | null>;
   /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */

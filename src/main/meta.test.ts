@@ -23,6 +23,9 @@ import {
   deleteGroup,
   moveSessionToGroup,
   moveGroup,
+  getProjectOrder,
+  seedProjectOrder,
+  moveProject,
 } from './meta';
 
 let dir: string;
@@ -285,5 +288,46 @@ describe('moveGroup', () => {
     const [, , a3] = await seed();
     await moveGroup(a3, 'top');
     expect((await getGroupState()).groups.map((g) => g.name)).toEqual(['a3', 'a1', 'b1', 'a2']);
+  });
+});
+
+describe('projectOrder', () => {
+  it('seeds from the order given, so the first run changes nothing on screen', async () => {
+    expect(await getProjectOrder()).toEqual([]);
+    expect(await seedProjectOrder(['/c', '/a', '/b'])).toEqual(['/c', '/a', '/b']);
+    expect(await getProjectOrder()).toEqual(['/c', '/a', '/b']);
+  });
+
+  it('puts a project first seen later at the front, keeping the rest put', async () => {
+    await seedProjectOrder(['/a', '/b']);
+    expect(await seedProjectOrder(['/a', '/b', '/new'])).toEqual(['/new', '/a', '/b']);
+  });
+
+  it('keeps the slot of a project that is absent for a while', async () => {
+    await seedProjectOrder(['/a', '/b', '/c']);
+    // /b contributes no sessions this time (all archived, say) and must not lose its place.
+    expect(await seedProjectOrder(['/a', '/c'])).toEqual(['/a', '/b', '/c']);
+    expect(await seedProjectOrder(['/a', '/b', '/c'])).toEqual(['/a', '/b', '/c']);
+  });
+
+  it('moves a project to either end and one step at a time', async () => {
+    await seedProjectOrder(['/a', '/b', '/c']);
+    expect(await moveProject('/c', 'top')).toEqual(['/c', '/a', '/b']);
+    expect(await moveProject('/c', 'down')).toEqual(['/a', '/c', '/b']);
+    expect(await moveProject('/c', 'up')).toEqual(['/c', '/a', '/b']);
+    expect(await moveProject('/c', 'bottom')).toEqual(['/a', '/b', '/c']);
+  });
+
+  it('ignores a move off either end and an unseen project', async () => {
+    await seedProjectOrder(['/a', '/b']);
+    expect(await moveProject('/a', 'up')).toEqual(['/a', '/b']);
+    expect(await moveProject('/b', 'down')).toEqual(['/a', '/b']);
+    expect(await moveProject('/nope', 'top')).toEqual(['/a', '/b']);
+  });
+
+  it('survives a reload', async () => {
+    await seedProjectOrder(['/a', '/b']);
+    await moveProject('/b', 'top');
+    expect(await getProjectOrder()).toEqual(['/b', '/a']);
   });
 });

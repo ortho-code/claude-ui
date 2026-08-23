@@ -14,6 +14,7 @@ import {
   reorderWithinGroup,
   buildProjectTree,
   type FilterCriteria,
+  orderProjects,
 } from './logic';
 
 function session(over: Partial<SessionSummary> = {}): SessionSummary {
@@ -325,5 +326,30 @@ describe('buildProjectTree', () => {
       ['/alpha', false],
       ['/beta', true],
     ]);
+  });
+});
+
+describe('orderProjects', () => {
+  const entries = (...roots: string[]): [string, number][] => roots.map((r, i) => [r, i]);
+
+  it('follows the explicit order, whatever order the entries arrive in', () => {
+    const out = orderProjects(entries('/b', '/a', '/c'), ['/a', '/b', '/c']);
+    expect(out.map(([root]) => root)).toEqual(['/a', '/b', '/c']);
+  });
+
+  it('leaves an unseeded project at the end, in its incoming position', () => {
+    // /new has no slot yet: it sorts last rather than guessing a place it would then jump out of.
+    const out = orderProjects(entries('/new', '/b', '/a'), ['/a', '/b']);
+    expect(out.map(([root]) => root)).toEqual(['/a', '/b', '/new']);
+  });
+
+  it('keeps unseeded projects in their incoming order relative to each other', () => {
+    const out = orderProjects(entries('/x', '/a', '/y'), ['/a']);
+    expect(out.map(([root]) => root)).toEqual(['/a', '/x', '/y']);
+  });
+
+  it('ignores slots for projects that are not present', () => {
+    const out = orderProjects(entries('/c', '/a'), ['/a', '/gone', '/c']);
+    expect(out.map(([root]) => root)).toEqual(['/a', '/c']);
   });
 });

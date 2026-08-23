@@ -2,7 +2,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import type { ClaudeUiApi, GroupMove, GroupState, SessionGroup, SessionSummary } from '../shared/types';
+import type { ClaudeUiApi, OrderMove, GroupState, SessionGroup, SessionSummary } from '../shared/types';
 import {
   sessionsByKey,
   structuralSignature,
@@ -187,6 +187,9 @@ function setLoading(on: boolean): void {
 let pinned = new Set<string>();
 let archived = new Map<string, number>();
 let projectNames = new Map<string, string>(); // repoRoot -> user rename override
+// The explicit project order. Seeded from the recency order the list already had, so switching this
+// on changed nothing on screen; from then on it only moves when the user moves it.
+let projectOrder: string[] = [];
 const projName = (repoRoot: string): string => displayName(repoRoot, projectNames);
 // Conversations whose delete is in flight: hidden from the list until that delete resolves, so a
 // concurrent delete's disk re-read can't briefly resurrect them.
@@ -394,6 +397,10 @@ async function renderSessions(showLoading = true): Promise<void> {
       window.claudeUi.getProjectNames(),
     ]);
     allSessions = sessions;
+    // Seed from the RAW list (archived included — the transcript still exists), so a project whose
+    // sessions are all archived still holds a slot. Writes only when a root is genuinely new, so the
+    // common case costs one read. Recency order is what seeds the very first run.
+    projectOrder = await window.claudeUi.seedProjectOrder([...new Set(sessions.map((s) => s.repoRoot))]);
     applyDatePickerMinDate();
     pinned = new Set(pinnedList);
     archived = new Map(Object.entries(archivedList));
@@ -537,7 +544,7 @@ function clearFilter(): void {
 // Update the switcher header + popover from the visible project pool. The pool is every project's
 // tips (see renderList); the switcher is independent of search/project so you can always navigate.
 function renderSwitcher(pool: SessionSummary[]): void {
-  const model = projectsForSwitcher(pool, statuses, acked, projectNames);
+  const model = projectsForSwitcher(pool, statuses, acked, projectNames, projectOrder);
   const active = activeProject ? model.projects.find((f) => f.repoRoot === activeProject) : null;
   switcherName.textContent = active ? active.name : 'All';
 
@@ -642,13 +649,16 @@ async function newGroupForSession(session: SessionSummary): Promise<void> {
 // "up", the last no "down", and a lone group in a project has nowhere to go at all. So the menu never
 // offers a move that does nothing.
 function groupMoveItems(id: string): MenuItem[] {
+  // Same reason as projects: filtering drops groups whose sessions all fell out, so a neighbour can
+  // be missing from the screen and the move would appear to do nothing.
+  if (isFiltering()) return [];
   const group = groupState.groups.find((g) => g.id === id);
   if (!group?.repoRoot) return [];
   const siblings = projectGroups(group.repoRoot);
   const at = siblings.findIndex((g) => g.id === id);
   const last = siblings.length - 1;
   if (at < 0 || last <= 0) return [];
-  const item = (label: string, move: GroupMove): MenuItem => ({
+  const item = (label: string, move: OrderMove): MenuItem => ({
     label,
     onSelect: () => void moveGroupById(id, move),
   });
@@ -658,7 +668,7 @@ function groupMoveItems(id: string): MenuItem[] {
   return items;
 }
 
-async function moveGroupById(id: string, move: GroupMove): Promise<void> {
+async function moveGroupById(id: string, move: OrderMove): Promise<void> {
   applyGroupState(await window.claudeUi.moveGroup(id, move));
 }
 
@@ -919,7 +929,7 @@ function renderList(): void {
   // One section per repo, each holding its groups and then the sessions in no group. Every ordering
   // rule (groups first, pins floated inside their own section) lives in the pure builder. While
   // filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  reconcileProjectSections(buildProjectTree(scoped, effectiveGroupState(), pinned, isFiltering()));
+  reconcileProjectSections(buildProjectTree(scoped, effectiveGroupState(), pinned, isFiltering(), projectOrder));
   pruneRows(new Set(scoped.map((s) => entityKey(s))));
 
   container.scrollTop = scroll;
@@ -1099,6 +1109,33 @@ function promptText(
     renameInput.addEventListener('keydown', onInputKey);
     document.addEventListener('keydown', onKey);
   });
+}
+
+// The ordering moves for a project, minus any that would do nothing — same rule as a group's. The
+// order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen
+// (a filter or an all-archived project can hide neighbours without changing where this one sits).
+function projectMoveItems(repoRoot: string): MenuItem[] {
+  // All view only: a project view renders a single heading, so there is nothing to order against.
+  if (activeProject !== null) return [];
+  // Not while filtering either: a hidden neighbour makes the move land where you can't see it, so
+  // "Move up" past a filtered-out project looks like a button that did nothing.
+  if (isFiltering()) return [];
+  const at = projectOrder.indexOf(repoRoot);
+  const last = projectOrder.length - 1;
+  if (at < 0 || last <= 0) return [];
+  const item = (label: string, move: OrderMove): MenuItem => ({
+    label,
+    onSelect: () => void moveProjectBy(repoRoot, move),
+  });
+  const items: MenuItem[] = [];
+  if (at > 0) items.push(item('Move to top', 'top'), item('Move up', 'up'));
+  if (at < last) items.push(item('Move down', 'down'), item('Move to bottom', 'bottom'));
+  return items;
+}
+
+async function moveProjectBy(repoRoot: string, move: OrderMove): Promise<void> {
+  projectOrder = await window.claudeUi.moveProject(repoRoot, move);
+  renderList();
 }
 
 async function renameProject(repoRoot: string): Promise<void> {
@@ -1335,7 +1372,10 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   setTooltip(kebab, 'Project options');
   kebab.addEventListener('click', (event) => {
     event.stopPropagation();
+    const moves = projectMoveItems(name);
     openMenu(kebab, [
+      ...moves,
+      ...(moves.length > 0 ? [{ label: '', separator: true }] : []),
       { label: 'Rename…', onSelect: () => void renameProject(name) },
       { label: 'Copy path', onSelect: () => void copyText(name, 'Path copied.') },
     ]);

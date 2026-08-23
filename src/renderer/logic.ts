@@ -42,6 +42,22 @@ export function groupByRepo(sessions: SessionSummary[]): [string, SessionSummary
   return [...groups.entries()];
 }
 
+// Put grouped projects into the user's explicit order. A root with no slot yet keeps its incoming
+// (recency) position at the END rather than the front: it is about to be seeded, and guessing a
+// placement here would make it jump once the real order arrives.
+export function orderProjects<T>(entries: [string, T][], order: readonly string[]): [string, T][] {
+  const slot = new Map(order.map((root, i) => [root, i]));
+  return entries
+    .map((entry, i) => ({ entry, i, at: slot.get(entry[0]) }))
+    .sort((a, b) => {
+      if (a.at === undefined && b.at === undefined) return a.i - b.i;
+      if (a.at === undefined) return 1;
+      if (b.at === undefined) return -1;
+      return a.at - b.at;
+    })
+    .map((x) => x.entry);
+}
+
 // A project's own name on disk: the last path segment of its repo root.
 export function folderName(repoRoot: string): string {
   return repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
@@ -193,22 +209,16 @@ export function projectsForSwitcher(
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
   names?: ReadonlyMap<string, string>,
+  projectOrder: readonly string[] = [],
 ): SwitcherModel {
-  const order: string[] = [];
-  const byRoot = new Map<string, SessionSummary[]>();
-  for (const s of sessions) {
-    let list = byRoot.get(s.repoRoot);
-    if (!list) {
-      list = [];
-      byRoot.set(s.repoRoot, list);
-      order.push(s.repoRoot);
-    }
-    list.push(s);
-  }
-  const projects = order.map((repoRoot) => {
-    const list = byRoot.get(repoRoot)!;
-    return { repoRoot, name: displayName(repoRoot, names), count: list.length, badge: rollUpNudge(list, statuses, acked) };
-  });
+  // Same order as the sidebar sections: the switcher is the compact view of the same list, so the
+  // two must never disagree about where a project sits.
+  const projects = orderProjects(groupByRepo(sessions), projectOrder).map(([repoRoot, list]) => ({
+    repoRoot,
+    name: displayName(repoRoot, names),
+    count: list.length,
+    badge: rollUpNudge(list, statuses, acked),
+  }));
   return {
     all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked) },
     projects,
@@ -260,6 +270,7 @@ export function buildProjectTree(
   state: GroupState,
   pinned: ReadonlySet<string>,
   hideEmptyGroups = false,
+  projectOrder: readonly string[] = [],
 ): ProjectTree[] {
   const groupsByProject = new Map<string, SessionGroup[]>();
   for (const group of state.groups) {
@@ -270,7 +281,7 @@ export function buildProjectTree(
     groupsByProject.set(group.repoRoot, list);
   }
 
-  return groupByRepo(sessions).map(([repoRoot, list]) => {
+  return orderProjects(groupByRepo(sessions), projectOrder).map(([repoRoot, list]) => {
     const ordered = pinnedFirst(list, pinned);
     const projectGroups = groupsByProject.get(repoRoot) ?? [];
     const ids = new Set(projectGroups.map((g) => g.id));

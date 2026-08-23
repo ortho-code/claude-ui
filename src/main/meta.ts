@@ -2,7 +2,7 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { GroupMove, GroupState, SessionGroup } from '../shared/types';
+import type { OrderMove, GroupState, SessionGroup } from '../shared/types';
 
 /**
  * UI-only metadata, kept outside ~/.claude so we never touch the session store.
@@ -19,6 +19,8 @@ interface Meta {
   activeProject: string | null;
   /** Per-project display-name overrides, keyed by repoRoot; absent = use the folder name. */
   projectNames: Record<string, string>;
+  /** repoRoots in display order. Empty means "never seeded"; the first seed fills it from recency. */
+  projectOrder: string[];
   /** User-defined session groups, in display order (a new one is prepended). */
   groups: SessionGroup[];
   /** Session id -> group id; a session is in at most one group. */
@@ -32,7 +34,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], archived: {}, activeProject: null, projectNames: {}, groups: [], groupOf: {}, version: 3 };
+  return { pinned: [], openSessions: [], archived: {}, activeProject: null, projectNames: {}, projectOrder: [], groups: [], groupOf: {}, version: 3 };
 }
 
 // Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
@@ -71,6 +73,11 @@ function normalize(parsed: Record<string, unknown>): Meta {
       parsed.projectNames && typeof parsed.projectNames === 'object'
         ? (parsed.projectNames as Record<string, string>)
         : {},
+    // No version bump for this one: `version` tracks how ids are KEYED, and adding a field is not a
+    // reinterpretation of anything already stored — a meta.json without it simply starts unseeded.
+    projectOrder: Array.isArray(parsed.projectOrder)
+      ? (parsed.projectOrder as unknown[]).filter((r): r is string => typeof r === 'string')
+      : [],
     groups,
     groupOf,
     version: typeof parsed.version === 'number' ? parsed.version : 1,
@@ -295,6 +302,56 @@ function groupState(meta: Meta): GroupState {
   return { groups: meta.groups, groupOf: meta.groupOf };
 }
 
+export function getProjectOrder(): Promise<string[]> {
+  return serialize(async () => (await readMeta()).projectOrder);
+}
+
+/**
+ * Give every root a slot and return the order. Two cases, deliberately different: an EMPTY order is
+ * seeded from `roots` exactly as given (the caller passes them in the order they already appear, so
+ * the run that introduces this feature changes nothing on screen); an existing order gets unknown
+ * roots at the FRONT, so a project that shows up later is somewhere you'll see it.
+ *
+ * Absent roots are NOT pruned. A project whose sessions are all archived drops out of the list while
+ * still existing, and forgetting its slot would make it leap to the top when a session comes back —
+ * the opposite of the stable order this exists to provide.
+ */
+export function seedProjectOrder(roots: string[]): Promise<string[]> {
+  return serialize(async () => {
+    const meta = await readMeta();
+    if (meta.projectOrder.length === 0) {
+      if (roots.length === 0) return meta.projectOrder;
+      meta.projectOrder = [...roots];
+      await writeMeta(meta);
+      await auditWrite('seedProjectOrder', meta);
+      return meta.projectOrder;
+    }
+    const known = new Set(meta.projectOrder);
+    const fresh = roots.filter((r) => !known.has(r));
+    if (fresh.length === 0) return meta.projectOrder; // nothing new: no write at all
+    meta.projectOrder = [...fresh, ...meta.projectOrder];
+    await writeMeta(meta);
+    await auditWrite('seedProjectOrder', meta);
+    return meta.projectOrder;
+  });
+}
+
+// Reorder one project among the others. Unknown roots are ignored: the order is seeded from what's
+// actually on disk, so a root nobody has seen has no slot to move.
+export function moveProject(repoRoot: string, move: OrderMove): Promise<string[]> {
+  return serialize(async () => {
+    const meta = await readMeta();
+    const from = meta.projectOrder.indexOf(repoRoot);
+    if (from < 0) return meta.projectOrder;
+    const to = moveTarget(from, meta.projectOrder.length - 1, move);
+    if (to === null) return meta.projectOrder;
+    meta.projectOrder.splice(to, 0, ...meta.projectOrder.splice(from, 1));
+    await writeMeta(meta);
+    await auditWrite('moveProject', meta);
+    return meta.projectOrder;
+  });
+}
+
 export function getGroupState(): Promise<GroupState> {
   return serialize(async () => groupState(await readMeta()));
 }
@@ -337,11 +394,19 @@ export function deleteGroup(id: string): Promise<GroupState> {
   });
 }
 
+// Where an ordering move lands, given the current index and the last one. Returns null when the move
+// would fall off an end or change nothing, so callers can skip the write entirely rather than
+// silently clamping onto a no-op. Shared by groups and projects so both obey identical rules.
+function moveTarget(from: number, last: number, move: OrderMove): number | null {
+  const to = move === 'top' ? 0 : move === 'bottom' ? last : move === 'up' ? from - 1 : from + 1;
+  if (to < 0 || to > last || to === from) return null;
+  return to;
+}
+
 // Reorder a group within ITS OWN project. The registry is one flat array shared by every project, so
 // the project's entries are lifted out by the slots they occupy, reordered, and written back into
-// those same slots — which leaves every other project's position in the array untouched. A move that
-// would fall off either end is ignored rather than clamped silently onto a no-op write.
-export function moveGroup(id: string, move: GroupMove): Promise<GroupState> {
+// those same slots — which leaves every other project's position in the array untouched.
+export function moveGroup(id: string, move: OrderMove): Promise<GroupState> {
   return update('moveGroup', (meta) => {
     const group = meta.groups.find((g) => g.id === id);
     if (!group) return groupState(meta);
@@ -350,9 +415,8 @@ export function moveGroup(id: string, move: GroupMove): Promise<GroupState> {
       if (g.repoRoot === group.repoRoot) slots.push(i);
     });
     const from = slots.findIndex((i) => meta.groups[i].id === id);
-    const last = slots.length - 1;
-    const to = move === 'top' ? 0 : move === 'bottom' ? last : move === 'up' ? from - 1 : from + 1;
-    if (to < 0 || to > last || to === from) return groupState(meta);
+    const to = moveTarget(from, slots.length - 1, move);
+    if (to === null) return groupState(meta);
     const segment = slots.map((i) => meta.groups[i]);
     segment.splice(to, 0, ...segment.splice(from, 1));
     slots.forEach((slot, n) => {
