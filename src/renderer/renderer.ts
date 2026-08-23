@@ -209,7 +209,7 @@ let datePreset = 'any';
 let dateFromMs: number | null = null;
 let dateToMs: number | null = null;
 // Structure of the last rendered list, so disk changes that only grow a transcript (new
-// lastActivity/eventCount) don't trigger a rebuild — we re-render only on structural change.
+// lastActivity) doesn't trigger a rebuild — we re-render only on structural change.
 let lastSignature = '';
 // Status dots by tip session id; rebuilt each render (a status event names a session id).
 const statusDots = new Map<string, HTMLElement>();
@@ -1698,7 +1698,6 @@ function placeholderSession(over: Partial<SessionSummary> & Pick<SessionSummary,
     firstMessage: '',
     model: '',
     lastActivity: new Date().toISOString(),
-    eventCount: 0,
     isSibling: false,
     siblingIds: [],
     postCompactHeads: [],

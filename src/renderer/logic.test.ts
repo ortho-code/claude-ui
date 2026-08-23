@@ -28,7 +28,6 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     firstMessage: 'first',
     model: '',
     lastActivity: '2026-07-28T10:00:00.000Z',
-    eventCount: 1,
     isSibling: false,
     siblingIds: [],
     postCompactHeads: [],
@@ -48,10 +47,10 @@ describe('sessionsByKey', () => {
 });
 
 describe('structuralSignature', () => {
-  it('is stable regardless of order and ignores activity/eventCount', () => {
+  it('is stable regardless of order and ignores activity', () => {
     const a = session({ id: 'a', conversationId: 'ca' });
     const b = session({ id: 'b', conversationId: 'cb' });
-    const sigActivityChanged = session({ id: 'a', conversationId: 'ca', lastActivity: 'x', eventCount: 99 });
+    const sigActivityChanged = session({ id: 'a', conversationId: 'ca', lastActivity: 'x' });
     expect(structuralSignature([a, b])).toBe(structuralSignature([b, a]));
     expect(structuralSignature([a])).toBe(structuralSignature([sigActivityChanged]));
   });

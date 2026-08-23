@@ -23,7 +23,7 @@ export function sessionsByKey(sessions: SessionSummary[]): Map<string, SessionSu
 }
 
 // The list's structure: one line per session for the fields that affect what the sidebar shows.
-// Excludes lastActivity/eventCount so a running session writing its transcript isn't a "change".
+// Excludes lastActivity so a running session writing its transcript isn't a "change".
 export function structuralSignature(sessions: SessionSummary[]): string {
   return sessions
     .map((s) => `${s.conversationId}\0${s.id}\0${s.cwd}\0${s.title}\0${s.firstMessage}`)

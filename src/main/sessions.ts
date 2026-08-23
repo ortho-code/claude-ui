@@ -218,7 +218,6 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   let customTitle: unknown = null;
   let aiTitle: unknown = null;
   let model = '';
-  let eventCount = 0;
   const postCompactHeads: string[] = [];
   // Set right after a compaction boundary so the next user/assistant message is captured as a head.
   let awaitingCompactHead = false;
@@ -237,7 +236,6 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   try {
     for await (const line of rl) {
       if (!line.trim()) continue;
-      eventCount++;
 
       // Keep the latest model an assistant message reported. A cheap regex (not a full parse) so it
       // doesn't defeat the early-continue below; assistant lines carry `"model":"claude-…"`.
@@ -321,7 +319,6 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
     firstMessage: firstMessage.slice(0, 200),
     model,
     lastActivity,
-    eventCount,
     // Sibling grouping is derived across the whole session list in listSessions; default to "alone".
     isSibling: false,
     siblingIds: [],

@@ -21,7 +21,6 @@ export interface SessionSummary {
    *  when the transcript has no message timestamp). Ignores background/system appends. */
   lastActivity: string;
   /** Number of transcript lines (events) in the session. */
-  eventCount: number;
   /** This session belongs to a multi-file family (sessions sharing a conversation, e.g. via
    *  --fork-session). Members are SIBLINGS — no parent/child direction is derived, because fork
    *  direction is not reliably recoverable from transcript data. Each sibling renders as its own row. */
