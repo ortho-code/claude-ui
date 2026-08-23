@@ -38,6 +38,7 @@ const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonE
 const siblingFilter = document.getElementById('sibling-filter') as HTMLButtonElement;
 const archivedFilter = document.getElementById('archived-filter') as HTMLButtonElement;
 const filterToggle = document.getElementById('filter-toggle') as HTMLButtonElement;
+const collapseToggle = document.getElementById('collapse-toggle') as HTMLButtonElement;
 const filterPanel = document.getElementById('filter-panel')!;
 const datePresets = document.getElementById('date-presets')!;
 const dateCustom = document.getElementById('date-custom')!;
@@ -219,6 +220,9 @@ const statusDots = new Map<string, HTMLElement>();
 // Row elements by entity key (the session id), reused across renders so a re-render moves nodes
 // instead of recreating them — no flicker, no scroll jump, hover/focus kept.
 const sessionRows = new Map<string, HTMLElement>();
+// Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen
+// rather than on everything that has ever existed.
+let renderedSections: { projects: string[]; groups: string[] } = { projects: [], groups: [] };
 const collapsedProjects = new Set<string>();
 // Collapsed custom groups, by group id (projects collapse by repo root, groups by their own id).
 const collapsedGroups = new Set<string>();
@@ -922,6 +926,10 @@ function renderList(): void {
     message.className = 'empty-message';
     message.textContent = all.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
     container.append(message);
+    // Nothing on screen to fold away: this early return would otherwise leave the toggle live with
+    // the previous render's sections.
+    renderedSections = { projects: [], groups: [] };
+    updateCollapseToggle();
     return;
   }
   container.querySelector(':scope > .empty-message')?.remove();
@@ -929,12 +937,69 @@ function renderList(): void {
   // One section per repo, each holding its groups and then the sessions in no group. Every ordering
   // rule (groups first, pins floated inside their own section) lives in the pure builder. While
   // filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  reconcileProjectSections(buildProjectTree(scoped, effectiveGroupState(), pinned, isFiltering(), projectOrder));
+  const tree = buildProjectTree(scoped, effectiveGroupState(), pinned, isFiltering(), projectOrder);
+  renderedSections = {
+    projects: tree.map((p) => p.repoRoot),
+    groups: tree.flatMap((p) => p.groups.map((g) => g.group.id)),
+  };
+  reconcileProjectSections(tree);
   pruneRows(new Set(scoped.map((s) => entityKey(s))));
 
   container.scrollTop = scroll;
   updateSidebarHighlight();
+  updateCollapseToggle();
 }
+
+// Chevrons stacked in the direction things will move: up to fold everything away, down to open it
+// again. Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
+const COLLAPSE_ALL_ICON =
+  '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.25L8 3.75L12 7.25" /><path d="M4 12.25L8 8.75L12 12.25" /></svg>';
+const EXPAND_ALL_ICON =
+  '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3.75L8 7.25L12 3.75" /><path d="M4 8.75L8 12.25L12 8.75" /></svg>';
+
+// What the button folds depends on the view. In All it folds the project sections (keyed on projects
+// alone: with every project shut its groups are out of sight anyway, which is why a group toggling on
+// its own needs no refresh call). In a single-project view folding the one project you asked to look
+// at is pointless, so it folds THAT project's groups instead.
+function collapseScope(): { ids: string[]; collapsed: Set<string> } {
+  return activeProject === null
+    ? { ids: renderedSections.projects, collapsed: collapsedProjects }
+    : { ids: renderedSections.groups, collapsed: collapsedGroups };
+}
+
+// Everything in scope folded away already? Then the button offers the way back instead.
+function allSectionsCollapsed(): boolean {
+  const { ids, collapsed } = collapseScope();
+  return ids.length > 0 && ids.every((id) => collapsed.has(id));
+}
+
+function updateCollapseToggle(): void {
+  // Filtering forces every section open (so matches inside a collapsed one are visible), which leaves
+  // this nothing to act on.
+  collapseToggle.disabled = isFiltering() || collapseScope().ids.length === 0;
+  const label = allSectionsCollapsed() ? 'Expand all' : 'Collapse all';
+  collapseToggle.innerHTML = allSectionsCollapsed() ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON;
+  setTooltip(collapseToggle, label);
+  collapseToggle.setAttribute('aria-label', label);
+}
+
+// Collapsing takes the groups with it, so expanding a project afterwards shows its group headings
+// rather than dumping every row back at once — two levels of overview instead of one.
+collapseToggle.addEventListener('click', () => {
+  const { ids, collapsed } = collapseScope();
+  const expanding = allSectionsCollapsed();
+  for (const id of ids) {
+    if (expanding) collapsed.delete(id);
+    else collapsed.add(id);
+  }
+  // In the All view a project's groups fold along with it, so expanding one afterwards shows its group
+  // headings rather than dumping every row back. In a project view the groups ARE the scope already.
+  if (activeProject === null) {
+    if (expanding) collapsedGroups.clear();
+    else for (const id of renderedSections.groups) collapsedGroups.add(id);
+  }
+  renderList();
+});
 
 
 // Reset to a blank list: drop every cached node so the next non-empty render rebuilds fresh.
@@ -972,8 +1037,11 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
     }
     // While filtering, force projects open so matches inside a collapsed one are visible; the
     // stored collapse state is left untouched, so it returns when the filter clears.
-    const collapsed = !isFiltering() && collapsedProjects.has(project.repoRoot);
+    const collapsed = !isFiltering() && activeProject === null && collapsedProjects.has(project.repoRoot);
     els.section.classList.toggle('collapsed', collapsed);
+    // A project view can't collapse its one project, so it shows no caret and no clickable styling.
+    els.section.classList.toggle('no-collapse', activeProject !== null);
+    els.caret.hidden = activeProject !== null;
     els.caret.textContent = collapsed ? '▸' : '▾';
     els.count.textContent = String(project.count);
     els.label.textContent = projName(project.repoRoot); // keep the heading current (e.g. after a rename)
@@ -1385,6 +1453,9 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   // clicked heading anchored: a sticky heading otherwise snaps between stuck and natural
   // position as its rows appear/disappear, which reads as a jump.
   heading.addEventListener('click', () => {
+    // Not collapsible in a single-project view: hiding the one project you're looking at leaves an
+    // empty sidebar. The heading is a title there, and updateProjectSection drops its caret to say so.
+    if (activeProject !== null) return;
     const before = heading.getBoundingClientRect().top;
     const collapsed = !collapsedProjects.has(name);
     if (collapsed) collapsedProjects.add(name);
@@ -1392,6 +1463,9 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     section.classList.toggle('collapsed', collapsed);
     caret.textContent = collapsed ? '▸' : '▾';
     container.scrollTop += heading.getBoundingClientRect().top - before;
+    // This toggle deliberately skips renderList (no flicker, no scroll jump), so the header button
+    // has to be refreshed by hand — otherwise it still reads "Expand all" after one project reopens.
+    updateCollapseToggle();
   });
   section.appendChild(heading);
 

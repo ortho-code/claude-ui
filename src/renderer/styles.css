@@ -272,6 +272,21 @@ button:hover {
   padding: 5px 8px;
 }
 
+/* Collapse/expand every section at once. Same box as the filter toggle beside it. */
+#collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 8px;
+}
+
+/* Dimmed rather than hidden while filtering: filtering forces every section open, so the action has
+   nothing to do — but a control vanishing as you type reads worse than one plainly unavailable. */
+#collapse-toggle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Pressed look while its panel is open, tying the toggle to the panel below it. + New gets the same
    while its folder picker is open. */
 #filter-toggle[aria-expanded='true'],
@@ -777,10 +792,20 @@ button:hover {
   background: var(--bg);
 }
 
-/* The whole project row toggles collapse, so give it a hover cue like the other clickable rows. */
+/* The whole project row toggles collapse, so give it a hover cue like the other clickable rows —
+   except where it can't collapse (a single-project view), where a hover cue and a pointer would both
+   claim a click that does nothing. The open-menu cue stays in both views: the kebab still works. */
 .project h2:hover,
 .project h2:has(.menu-open) {
   background: var(--surface-hover);
+}
+
+.project.no-collapse h2 {
+  cursor: default;
+}
+
+.project.no-collapse h2:not(:has(.menu-open)):hover {
+  background: var(--bg);
 }
 
 .project h2 .caret {
