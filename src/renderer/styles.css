@@ -1188,6 +1188,9 @@ button:focus:not(:focus-visible) {
      the two groups. overflow:hidden so the measured single-line width never visibly spills. */
   white-space: nowrap;
   overflow: hidden;
+  /* It can't stack any more (always .solo), so ellipsize rather than clip mid-glyph in the unlikely
+     case the marks leave it too little room. */
+  text-overflow: ellipsis;
 }
 
 .session-meta .meta-when,
@@ -1259,14 +1262,15 @@ button:focus:not(:focus-visible) {
   display: flex;
 }
 
-/* The count beside a badge icon. A digit's em box carries the font's full ascent and descent, so
+/* Text inside a badge pill (a sibling count, the model label). A digit's em box carries the font's full ascent and descent, so
    centring that box leaves the digit's INK riding ~0.7px high next to an icon whose ink is centred in
    its own viewBox — visible at 10px. text-box-trim cuts the box down to cap-height/baseline, i.e. to
    the ink itself, so flex centres what you actually see. Font-independent, unlike a hard-coded nudge
    (the trap .wt-icon's old 0.8em fell into). Chromium-only, which is all this app runs on. */
-.badge-count {
+.badge-text {
   text-box: trim-both cap alphabetic;
 }
+
 
 /* 12px, not 10: these icons carry ink across 10 of their 16 viewBox units (62.5%), so 12px renders
    7.5px of ink — matching the 7.25px ink of the 10px digit beside it. At 10px the icon's 6.25px of

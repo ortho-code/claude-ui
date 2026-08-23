@@ -688,7 +688,12 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
     items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
   }
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
-  items.push({ label: 'Copy session id', onSelect: () => void copyText(session.id, 'Session id copied.') });
+  // The short id shows here rather than on the row: this is where you come looking for it, and the
+  // item both displays it and copies the full one.
+  items.push({
+    label: `Copy session id (${session.id.slice(0, 8)})`,
+    onSelect: () => void copyText(session.id, 'Session id copied.'),
+  });
   // The one state change in this list, so it sits below a rule, away from the navigate/copy items.
   // Only the normal view offers it: the archived view keeps unarchive on the row and hides the kebab.
   items.push({ label: '', separator: true });
@@ -1498,7 +1503,9 @@ function createSessionRow(key: string): HTMLElement {
     if (session) openSiblingsMenu(siblingsBadge, session);
   });
   const meta = document.createElement('p');
-  meta.className = 'session-meta';
+  // Always solo: the time is the only group left (model is a badge, the id lives in the kebab), so
+  // there is no separator to draw and reflowAllMeta skips it — a row can no longer stack to 2 lines.
+  meta.className = 'session-meta solo';
   // Two logical groups (when · model / events · id) plus a separator that CSS hides when the meta
   // wraps to two lines (see reflowMeta). One line when it fits, two grouped lines when it doesn't.
   const metaWhen = document.createElement('span');
@@ -1627,7 +1634,7 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
     sibIcon.className = 'badge-icon';
     sibIcon.innerHTML = SIBLING_ICON;
     const sibCount = document.createElement('span');
-    sibCount.className = 'badge-count';
+    sibCount.className = 'badge-text';
     sibCount.textContent = String(count);
     els.siblingsBadge.replaceChildren(sibIcon, sibCount);
     const label = count === 1 ? '1 sibling' : `${count} siblings`;
@@ -1637,17 +1644,12 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   if (showArchivedOnly) {
     const ts = archived.get(entityKey(session));
     els.metaWhen.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
-    els.metaStats.textContent = '';
-    els.meta.classList.add('solo'); // one group only: no separator, never stacks
-    els.meta.classList.remove('stacked');
   } else {
+    // Time and model, as before; only the id left (it lives in the kebab now), so this stays one
+    // group and never splits into two lines.
     const model = modelLabel(session.model);
     const when = relativeTime(session.lastActivity);
     els.metaWhen.textContent = model ? `${when} · ${model}` : when;
-    // No event count: it says little next to the time, and dropping it keeps more meta lines on one
-    // line (reflowAllMeta stacks whatever does not fit), which is what actually shortens a row.
-    els.metaStats.textContent = session.id.slice(0, 8);
-    els.meta.classList.remove('solo');
   }
 
   // The archived view is a management view: no pinning, and delete replaces it there.
