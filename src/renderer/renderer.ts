@@ -568,7 +568,9 @@ function renderSwitcher(pool: SessionSummary[]): void {
 }
 
 const NUDGE_ORDER: Record<'waiting' | 'idle' | 'busy', number> = { waiting: 0, idle: 1, busy: 2 };
-let footerExpanded = false;
+// Seeded from meta at startup (default open — the strip exists to be read), and written back on
+// every toggle so the choice survives a restart.
+let footerExpanded = true;
 
 // A session's contribution to the roll-up: its live status, but an acked idle/waiting counts as
 // nothing (muted), same rule as the switcher badges.
@@ -774,7 +776,8 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   const total = ordered.reduce((n, g) => n + g.items.length, 0);
 
   if (total === 0) {
-    footerExpanded = false;
+    // Collapsed for this render only — deliberately NOT touching footerExpanded, or an all-clear
+    // moment would quietly reset a preference the user set.
     footerToggle.classList.add('clear');
     footerToggle.setAttribute('aria-expanded', 'false');
     footerLabel.textContent = 'All clear';
@@ -816,6 +819,7 @@ footerToggle.addEventListener('click', () => {
   footerExpanded = !footerExpanded;
   footerList.hidden = !footerExpanded;
   footerToggle.setAttribute('aria-expanded', String(footerExpanded));
+  window.claudeUi.setFooterExpanded(footerExpanded);
 });
 
 function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean): HTMLElement {
@@ -2390,6 +2394,9 @@ installTooltips();
 void (async () => {
   groupState = await window.claudeUi.getGroupState();
   activeProject = await window.claudeUi.getActiveProject();
+  // Read once at boot, not per render: a render-time read could race a toggle whose write is still
+  // in flight and snap the strip back.
+  footerExpanded = await window.claudeUi.getFooterExpanded();
   await renderSessions();
   await restoreOpenTabs();
   switchWorkspaceTerminal(activeProject);

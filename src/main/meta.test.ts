@@ -26,6 +26,8 @@ import {
   getProjectOrder,
   seedProjectOrder,
   moveProject,
+  getFooterExpanded,
+  setFooterExpanded,
 } from './meta';
 
 let dir: string;
@@ -329,5 +331,28 @@ describe('projectOrder', () => {
     await seedProjectOrder(['/a', '/b']);
     await moveProject('/b', 'top');
     expect(await getProjectOrder()).toEqual(['/b', '/a']);
+  });
+});
+
+describe('footerExpanded', () => {
+  it('starts expanded, because the strip is meant to be read', async () => {
+    expect(await getFooterExpanded()).toBe(true);
+  });
+
+  it('remembers being closed, and being opened again', async () => {
+    await setFooterExpanded(false);
+    expect(await getFooterExpanded()).toBe(false);
+    await setFooterExpanded(true);
+    expect(await getFooterExpanded()).toBe(true);
+  });
+
+  it('takes the new default when an older meta.json never mentioned it', async () => {
+    await writeMetaFile({ pinned: ['s1'], version: 3 });
+    expect(await getFooterExpanded()).toBe(true);
+  });
+
+  it('keeps a stored false across a reload rather than reverting to the default', async () => {
+    await writeMetaFile({ footerExpanded: false, version: 3 });
+    expect(await getFooterExpanded()).toBe(false);
   });
 });

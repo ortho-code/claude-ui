@@ -81,6 +81,9 @@ export interface ClaudeUiApi {
   setOpenSessions(ids: string[]): void;
   getActiveProject(): Promise<string | null>;
   setActiveProject(folder: string | null): void;
+  /** Whether the attention strip starts expanded (true for a meta that never said otherwise). */
+  getFooterExpanded(): Promise<boolean>;
+  setFooterExpanded(expanded: boolean): void;
   getProjectNames(): Promise<Record<string, string>>;
   setProjectName(repoRoot: string, name: string): Promise<Record<string, string>>;
   /** Every group plus the session -> group membership. */

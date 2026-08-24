@@ -12,6 +12,8 @@ import {
   getActiveProject,
   setActiveProject,
   getProjectNames,
+  getFooterExpanded,
+  setFooterExpanded,
   setProjectName,
   getGroupState,
   createGroup,
@@ -92,6 +94,10 @@ ipcMain.on('meta:setOpenSessions', (_event, ids: string[]) => {
 ipcMain.handle('meta:getActiveProject', () => getActiveProject());
 ipcMain.on('meta:setActiveProject', (_event, folder: string | null) => {
   void setActiveProject(folder);
+});
+ipcMain.handle('meta:getFooterExpanded', () => getFooterExpanded());
+ipcMain.on('meta:setFooterExpanded', (_event, expanded: boolean) => {
+  void setFooterExpanded(expanded);
 });
 ipcMain.handle('meta:getProjectNames', () => getProjectNames());
 ipcMain.handle('meta:setProjectName', (_event, repoRoot: string, name: string) => setProjectName(repoRoot, name));

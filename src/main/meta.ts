@@ -21,6 +21,8 @@ interface Meta {
   projectNames: Record<string, string>;
   /** repoRoots in display order. Empty means "never seeded"; the first seed fills it from recency. */
   projectOrder: string[];
+  /** Whether the sidebar's attention strip starts expanded. Open by default — it's meant to be read. */
+  footerExpanded: boolean;
   /** User-defined session groups, in display order (a new one is prepended). */
   groups: SessionGroup[];
   /** Session id -> group id; a session is in at most one group. */
@@ -34,7 +36,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], archived: {}, activeProject: null, projectNames: {}, projectOrder: [], groups: [], groupOf: {}, version: 3 };
+  return { pinned: [], openSessions: [], archived: {}, activeProject: null, projectNames: {}, projectOrder: [], footerExpanded: true, groups: [], groupOf: {}, version: 3 };
 }
 
 // Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
@@ -78,6 +80,9 @@ function normalize(parsed: Record<string, unknown>): Meta {
     projectOrder: Array.isArray(parsed.projectOrder)
       ? (parsed.projectOrder as unknown[]).filter((r): r is string => typeof r === 'string')
       : [],
+    // Absent (an older meta.json) means the preference was never expressed, so take the new default
+    // rather than the old hard-coded "closed".
+    footerExpanded: typeof parsed.footerExpanded === 'boolean' ? parsed.footerExpanded : true,
     groups,
     groupOf,
     version: typeof parsed.version === 'number' ? parsed.version : 1,
@@ -276,6 +281,16 @@ export function getActiveProject(): Promise<string | null> {
 export function setActiveProject(repoRoot: string | null): Promise<void> {
   return update('setActiveProject', (meta) => {
     meta.activeProject = repoRoot;
+  });
+}
+
+export function getFooterExpanded(): Promise<boolean> {
+  return serialize(async () => (await readMeta()).footerExpanded);
+}
+
+export function setFooterExpanded(expanded: boolean): Promise<void> {
+  return update('setFooterExpanded', (meta) => {
+    meta.footerExpanded = expanded;
   });
 }
 
