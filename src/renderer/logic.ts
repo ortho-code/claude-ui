@@ -136,6 +136,8 @@ export interface FilterCriteria {
   /** Set or Map keyed by conversationId; only membership is used. */
   archived: { has(key: string): boolean };
   pendingDeletes: ReadonlySet<string>;
+  /** Session id -> note, so typed text matches a note as well as a title. */
+  notes?: ReadonlyMap<string, string>;
 }
 
 // Whether a session survives every active filter. Archived sessions are hidden from the normal
@@ -153,7 +155,8 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
     if (c.dateTo !== null && activity > c.dateTo) return false;
   }
   if (!c.text) return true;
-  return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id}`
+  const note = c.notes?.get(key) ?? '';
+  return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id} ${note}`
     .toLowerCase()
     .includes(c.text.toLowerCase());
 }

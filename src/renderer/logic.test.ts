@@ -112,6 +112,19 @@ describe('sessionPasses', () => {
     pendingDeletes: new Set(),
   };
 
+  it('matches note text, so a note is findable by searching for it', () => {
+    const s = session({ id: 's1', title: 'Untitled', firstMessage: '', cwd: '/repo' });
+    const notes = new Map([['s1', 'waiting on the review from kars']]);
+    expect(sessionPasses(s, { ...base, text: 'kars', notes })).toBe(true);
+    // Without the note it would not match — the row's own fields have no "kars" in them.
+    expect(sessionPasses(s, { ...base, text: 'kars' })).toBe(false);
+  });
+
+  it('matches a note only on the session it belongs to', () => {
+    const notes = new Map([['other', 'kars']]);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, text: 'kars', notes })).toBe(false);
+  });
+
   it('hides pending deletes and archived (unless in the archived view)', () => {
     expect(sessionPasses(session({ id: 's1' }), { ...base, pendingDeletes: new Set(['s1']) })).toBe(false);
     expect(sessionPasses(session({ id: 's1' }), { ...base, archived: new Set(['s1']) })).toBe(false);

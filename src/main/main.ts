@@ -12,6 +12,8 @@ import {
   getActiveProject,
   setActiveProject,
   getProjectNames,
+  getNotes,
+  setNote,
   getFooterExpanded,
   setFooterExpanded,
   setProjectName,
@@ -95,6 +97,8 @@ ipcMain.handle('meta:getActiveProject', () => getActiveProject());
 ipcMain.on('meta:setActiveProject', (_event, folder: string | null) => {
   void setActiveProject(folder);
 });
+ipcMain.handle('meta:getNotes', () => getNotes());
+ipcMain.handle('meta:setNote', (_event, id: string, note: string) => setNote(id, note));
 ipcMain.handle('meta:getFooterExpanded', () => getFooterExpanded());
 ipcMain.on('meta:setFooterExpanded', (_event, expanded: boolean) => {
   void setFooterExpanded(expanded);

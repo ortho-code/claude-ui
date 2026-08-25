@@ -93,6 +93,7 @@ const renameTitle = document.getElementById('rename-title')!;
 const renamePath = document.getElementById('rename-path')!;
 const renameError = document.getElementById('rename-error')!;
 const renameInput = document.getElementById('rename-input') as HTMLInputElement;
+const renameTextarea = document.getElementById('rename-textarea') as HTMLTextAreaElement;
 const renameOk = document.getElementById('rename-ok') as HTMLButtonElement;
 const renameCancel = document.getElementById('rename-cancel') as HTMLButtonElement;
 const toast = document.getElementById('toast')!;
@@ -191,6 +192,8 @@ let projectNames = new Map<string, string>(); // repoRoot -> user rename overrid
 // The explicit project order. Seeded from the recency order the list already had, so switching this
 // on changed nothing on screen; from then on it only moves when the user moves it.
 let projectOrder: string[] = [];
+// Session id -> note. Only sessions that HAVE one appear here (a blank note deletes its entry).
+let notes = new Map<string, string>();
 const projName = (repoRoot: string): string => displayName(repoRoot, projectNames);
 // Conversations whose delete is in flight: hidden from the list until that delete resolves, so a
 // concurrent delete's disk re-read can't briefly resurrect them.
@@ -393,12 +396,13 @@ async function restoreOpenTabs(): Promise<void> {
 async function renderSessions(showLoading = true): Promise<void> {
   if (showLoading) setLoading(true);
   try {
-    const [sessions, pinnedList, archivedList, statusMap, namesMap] = await Promise.all([
+    const [sessions, pinnedList, archivedList, statusMap, namesMap, noteMap] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getPinned(),
       window.claudeUi.getArchived(),
       window.claudeUi.getAllStatuses(),
       window.claudeUi.getProjectNames(),
+      window.claudeUi.getNotes(),
     ]);
     allSessions = sessions;
     // Seed from the RAW list (archived included — the transcript still exists), so a project whose
@@ -409,6 +413,7 @@ async function renderSessions(showLoading = true): Promise<void> {
     pinned = new Set(pinnedList);
     archived = new Map(Object.entries(archivedList));
     projectNames = new Map(Object.entries(namesMap));
+    notes = new Map(Object.entries(noteMap));
     statuses = new Map(Object.entries(statusMap));
     lastSignature = structuralSignature(sessions);
     reconcileOpenTabs();
@@ -449,6 +454,7 @@ function passesFilters(session: SessionSummary): boolean {
     dateTo: dateToMs,
     pinned,
     archived,
+    notes,
     pendingDeletes,
   });
 }
@@ -727,6 +733,7 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
   if (siblings.length > 0) {
     items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
   }
+  items.push({ label: notes.has(entityKey(session)) ? 'Edit note…' : 'Add note…', onSelect: () => void editNote(session) });
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
   // The short id shows here rather than on the row: this is where you come looking for it, and the
   // item both displays it and copies the full one.
@@ -739,6 +746,16 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
   items.push({ label: '', separator: true });
   items.push({ label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
   return items;
+}
+
+// Open the note editor for a session. Saving a blank note clears it (meta drops the entry), so the
+// same dialog both writes and removes one — there is no separate delete.
+async function editNote(session: SessionSummary): Promise<void> {
+  const key = entityKey(session);
+  const text = await promptText('Note', sessionLabel(session), notes.get(key) ?? '', 'Save', undefined, true);
+  if (text === null) return; // cancelled: leave whatever was there
+  notes = new Map(Object.entries(await window.claudeUi.setNote(key, text)));
+  renderList();
 }
 
 // List a session's siblings in the shared popover; click one to jump to it.
@@ -1133,28 +1150,39 @@ function promptText(
   initialValue: string,
   okLabel = 'Save',
   validate?: (value: string) => Promise<string | null> | string | null,
+  // Multiline swaps the single-line input for a textarea (session notes). Same dialog, same skin —
+  // only the field and what Enter means differ.
+  multiline = false,
 ): Promise<string | null> {
   renameTitle.textContent = title;
   renamePath.textContent = context;
   renamePath.hidden = !context; // no empty context line (e.g. the fork dialog puts it in the title)
   renameError.hidden = true;
   renameOk.textContent = okLabel;
-  renameInput.value = initialValue;
+  const field: HTMLInputElement | HTMLTextAreaElement = multiline ? renameTextarea : renameInput;
+  // A union of input|textarea loses addEventListener's keyed overloads (the handler would widen to
+  // Event), so listeners go through the element as an HTMLElement while `field` keeps .value typed.
+  const fieldEl: HTMLElement = field;
+  renameInput.hidden = multiline;
+  renameTextarea.hidden = !multiline;
+  field.value = initialValue;
   renameOverlay.hidden = false;
-  renameInput.focus();
-  renameInput.select();
+  field.focus();
+  // Select-all suits a short name you're replacing; a note you're editing wants the caret at the end.
+  if (multiline) field.setSelectionRange(initialValue.length, initialValue.length);
+  else field.select();
   return new Promise((resolve) => {
     const close = (result: string | null): void => {
       renameOverlay.hidden = true;
       renameOk.removeEventListener('click', onOk);
       renameCancel.removeEventListener('click', onCancel);
-      renameInput.removeEventListener('keydown', onInputKey);
+      fieldEl.removeEventListener('keydown', onInputKey);
       document.removeEventListener('keydown', onKey);
       resolve(result);
     };
     // Validate before accepting; on an error, show it inline and leave the dialog open.
     const submit = async (): Promise<void> => {
-      const value = renameInput.value;
+      const value = field.value;
       if (validate) {
         const error = await validate(value);
         if (error) {
@@ -1171,14 +1199,21 @@ function promptText(
     // anywhere: clicking the dialog's own text blurs the input, and with no backdrop dismiss that
     // would otherwise leave Cancel as the only way out. Same document-level Esc as confirmDelete.
     const onInputKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Enter') void submit();
+      if (event.key !== 'Enter') return;
+      // In a note, Enter is a newline; Ctrl/Cmd+Enter saves (same habit as the terminal). A one-line
+      // field submits on plain Enter as before.
+      if (!multiline) void submit();
+      else if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        void submit();
+      }
     };
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') close(null);
     };
     renameOk.addEventListener('click', onOk);
     renameCancel.addEventListener('click', onCancel);
-    renameInput.addEventListener('keydown', onInputKey);
+    fieldEl.addEventListener('keydown', onInputKey);
     document.addEventListener('keydown', onKey);
   });
 }
@@ -1555,6 +1590,9 @@ function getOrCreateRow(key: string): HTMLElement {
 // Both are drawn so their INK is centred on 8,8 and 10 units tall, not merely their viewBox: the
 // first cut centred the boxes while the fork hung 1.25 low and the branch filled 7.5 units against
 // the fork's 11, which read as one mark misaligned and the other too small.
+// A note's mark: a page with a line of writing on it.
+const NOTE_ICON =
+  '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.5M6.25 8.75h3.5" /></svg>';
 const SIBLING_ICON =
   '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12V8M4 4L8 8L12 4" /></svg>';
 const WORKTREE_ICON =
@@ -1581,7 +1619,10 @@ interface RowEls {
   title: HTMLElement;
   badge: HTMLElement;
   siblingsBadge: HTMLElement;
+  noteBadge: HTMLElement;
+  noteSep: HTMLElement;
   meta: HTMLElement;
+  metaText: HTMLElement;
   pin: HTMLButtonElement;
   unarchiveBtn: HTMLButtonElement;
   deleteBtn: HTMLButtonElement;
@@ -1622,13 +1663,37 @@ function createSessionRow(key: string): HTMLElement {
     const session = currentByKey.get(key);
     if (session) openSiblingsMenu(siblingsBadge, session);
   });
-  // One short run of text (time, plus the model when there is one), so no inner spans and nothing
-  // to measure: it cannot outgrow a single line the way "when · model · events · id" could.
+  // Time and model, plus the note mark riding along at the end of that text. The mark lives HERE
+  // rather than beside the title because a sibling box next to a text block has to have its
+  // alignment guessed; inside the text row it just centres. The meta is short and single-line, so
+  // nothing can clip the mark off the way a two-line title clamp would.
   const meta = document.createElement('p');
   meta.className = 'session-meta';
+  const metaText = document.createElement('span');
+  metaText.className = 'meta-text';
   // The badges used to take a line of their own between title and meta. They ride the meta's line
   // now: the meta takes the remaining width (and still stacks by itself if it must), the marks keep
   // their intrinsic size at the right.
+  // A note's mark, clickable straight into the editor — if you can see there's a note, the natural
+  // move is to read it, and the tooltip only previews the first line.
+  const noteBadge = document.createElement('span');
+  noteBadge.className = 'note-badge';
+  noteBadge.hidden = true;
+  noteBadge.innerHTML = NOTE_ICON;
+  noteBadge.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const session = currentByKey.get(key);
+    if (session) void editNote(session);
+  });
+
+  // A separator before the mark, matching the " · " already between time and model. Hidden with the
+  // mark, so a row without a note doesn't end in a dangling dot.
+  const noteSep = document.createElement('span');
+  noteSep.className = 'meta-sep';
+  noteSep.textContent = '·';
+  noteSep.hidden = true;
+  meta.append(metaText, noteSep, noteBadge);
+
   const subline = document.createElement('div');
   subline.className = 'session-subline';
   subline.append(meta, badge, siblingsBadge);
@@ -1705,7 +1770,7 @@ function createSessionRow(key: string): HTMLElement {
   });
 
   item.append(dot, content, pin, unarchiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, siblingsBadge, meta, pin, unarchiveBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, siblingsBadge, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
@@ -1738,6 +1803,13 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
     els.badge.setAttribute('aria-label', `Linked git worktree: ${session.worktree}`);
   }
 
+  const note = notes.get(entityKey(session));
+  els.noteBadge.hidden = !note;
+  els.noteSep.hidden = !note;
+  // Tooltips are one line, so preview the start rather than dumping a long note into it.
+  // The tooltip wraps and keeps line breaks now, so it can show a real chunk of the note.
+  if (note) setTooltip(els.noteBadge, note.length > 400 ? `${note.slice(0, 400)}…` : note);
+
   els.siblingsBadge.hidden = !session.isSibling;
   if (session.isSibling) {
     const count = session.siblingIds.length;
@@ -1754,11 +1826,11 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 
   if (showArchivedOnly) {
     const ts = archived.get(entityKey(session));
-    els.meta.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
+    els.metaText.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
   } else {
     const model = modelLabel(session.model);
     const when = relativeTime(session.lastActivity);
-    els.meta.textContent = model ? `${when} · ${model}` : when;
+    els.metaText.textContent = model ? `${when} · ${model}` : when;
   }
 
   // The archived view is a management view: no pinning, and delete replaces it there.

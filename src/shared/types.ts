@@ -82,6 +82,10 @@ export interface ClaudeUiApi {
   getActiveProject(): Promise<string | null>;
   setActiveProject(folder: string | null): void;
   /** Whether the attention strip starts expanded (true for a meta that never said otherwise). */
+  /** Session id -> note text. Only sessions WITH a note appear. */
+  getNotes(): Promise<Record<string, string>>;
+  /** Write or clear a session's note (blank clears); resolves to the updated map. */
+  setNote(id: string, note: string): Promise<Record<string, string>>;
   getFooterExpanded(): Promise<boolean>;
   setFooterExpanded(expanded: boolean): void;
   getProjectNames(): Promise<Record<string, string>>;

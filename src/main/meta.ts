@@ -23,6 +23,8 @@ interface Meta {
   projectOrder: string[];
   /** Whether the sidebar's attention strip starts expanded. Open by default — it's meant to be read. */
   footerExpanded: boolean;
+  /** Free-text note per session id. An empty note is deleted, so presence here means there IS one. */
+  notes: Record<string, string>;
   /** User-defined session groups, in display order (a new one is prepended). */
   groups: SessionGroup[];
   /** Session id -> group id; a session is in at most one group. */
@@ -36,7 +38,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], archived: {}, activeProject: null, projectNames: {}, projectOrder: [], footerExpanded: true, groups: [], groupOf: {}, version: 3 };
+  return { pinned: [], openSessions: [], archived: {}, activeProject: null, projectNames: {}, projectOrder: [], footerExpanded: true, notes: {}, groups: [], groupOf: {}, version: 3 };
 }
 
 // Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
@@ -83,6 +85,13 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // Absent (an older meta.json) means the preference was never expressed, so take the new default
     // rather than the old hard-coded "closed".
     footerExpanded: typeof parsed.footerExpanded === 'boolean' ? parsed.footerExpanded : true,
+    // Same reasoning as projectOrder: no version bump for a new defaulted field. Non-string values
+    // are dropped so a hand-edited file can't put an object where a note should be.
+    notes: Object.fromEntries(
+      Object.entries((parsed.notes ?? {}) as Record<string, unknown>).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      ),
+    ),
     groups,
     groupOf,
     version: typeof parsed.version === 'number' ? parsed.version : 1,
@@ -261,6 +270,7 @@ export function purgeSession(id: string): Promise<void> {
     meta.openSessions = meta.openSessions.filter((k) => k !== id);
     delete meta.archived[id];
     delete meta.groupOf[id];
+    delete meta.notes[id];
   });
 }
 
@@ -281,6 +291,25 @@ export function getActiveProject(): Promise<string | null> {
 export function setActiveProject(repoRoot: string | null): Promise<void> {
   return update('setActiveProject', (meta) => {
     meta.activeProject = repoRoot;
+  });
+}
+
+export function getNotes(): Promise<Record<string, string>> {
+  return serialize(async () => (await readMeta()).notes);
+}
+
+/**
+ * Write a session's note, or clear it. Blank (or whitespace-only) DELETES the entry rather than
+ * storing an empty string, so "has a note" stays a simple presence check and the row's mark can't
+ * linger over nothing. Archiving keeps a note (it's still the same session); a fork inherits none,
+ * since it gets a new id and notes are keyed by id.
+ */
+export function setNote(id: string, note: string): Promise<Record<string, string>> {
+  return update('setNote', (meta) => {
+    const trimmed = note.trim();
+    if (trimmed) meta.notes[id] = trimmed;
+    else delete meta.notes[id];
+    return meta.notes;
   });
 }
 

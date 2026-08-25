@@ -1205,14 +1205,51 @@ button:focus:not(:focus-visible) {
   min-width: 0;
 }
 
+/* Time and model, with the note mark riding at the end. A flex row so the mark is CENTRED against
+   the text by layout rather than by a guessed offset — the reason it looked off beside the title. */
 .session-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 0;
+  min-width: 0;
   font-size: 12px;
   color: var(--muted);
-  /* Always one line; ellipsize rather than clip mid-glyph if the marks leave it little room. */
+}
+
+/* The text carries the ellipsis now that the paragraph is a flex container. text-box trims its box
+   to cap-height/baseline so flex centres the mark against the text's INK: centring the em box aligns
+   to a box that includes descender space, which leaves the mark reading a touch low. Same fix as
+   .badge-text in the pills. */
+.meta-text {
+  text-box: trim-both cap alphabetic;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Muted, not accent: the worktree/sibling pills use accent for what the SESSION is, while a note is
+   something you attached. Clickable, hence the pointer and the hover lift. No vertical nudge — it is
+   a flex child of the meta row, so centring is the layout's job, not a magic number's. */
+/* The dot before the note mark. Trimmed like the text beside it so all three sit on one optical
+   line, and it loses the flex gap on its right so "· icon" reads as one unit. */
+.meta-sep {
+  flex: 0 0 auto;
+  text-box: trim-both cap alphabetic;
+  margin-right: -1px;
+}
+
+.note-badge {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.note-badge:hover {
+  color: var(--text);
 }
 
 .worktree-badge,
@@ -1465,6 +1502,9 @@ button:focus:not(:focus-visible) {
   font-size: 12px;
   line-height: 1.4;
   overflow-wrap: anywhere;
+  /* Keep a note's line breaks: the default collapses \n into a space. pre-wrap still wraps long
+     lines, so single-line tooltips are unaffected. */
+  white-space: pre-wrap;
   pointer-events: none;
 }
 
@@ -1793,6 +1833,21 @@ button:focus:not(:focus-visible) {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
+}
+
+/* The multiline variant of the same dialog field (session notes): same skin, room to write, and a
+   fixed height so the dialog doesn't resize as you type. */
+#rename-textarea {
+  width: 100%;
+  padding: 7px 9px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
 }
 
 /* Inline validation error under the input (e.g. a duplicate worktree name). */

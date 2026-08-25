@@ -28,6 +28,8 @@ import {
   moveProject,
   getFooterExpanded,
   setFooterExpanded,
+  getNotes,
+  setNote,
 } from './meta';
 
 let dir: string;
@@ -354,5 +356,39 @@ describe('footerExpanded', () => {
   it('keeps a stored false across a reload rather than reverting to the default', async () => {
     await writeMetaFile({ footerExpanded: false, version: 3 });
     expect(await getFooterExpanded()).toBe(false);
+  });
+});
+
+describe('notes', () => {
+  it('stores a note per session and trims it', async () => {
+    expect(await getNotes()).toEqual({});
+    expect(await setNote('s1', '  waiting on review  ')).toEqual({ s1: 'waiting on review' });
+    expect(await getNotes()).toEqual({ s1: 'waiting on review' });
+  });
+
+  it('clears the entry on a blank note rather than storing an empty string', async () => {
+    await setNote('s1', 'something');
+    expect(await setNote('s1', '   ')).toEqual({});
+    // Presence is the "has a note" check, so an empty string left behind would show a mark over nothing.
+    expect('s1' in (await getNotes())).toBe(false);
+  });
+
+  it('keeps other sessions\' notes when one is cleared', async () => {
+    await setNote('s1', 'one');
+    await setNote('s2', 'two');
+    expect(await setNote('s1', '')).toEqual({ s2: 'two' });
+  });
+
+  it('drops a note when its session is deleted, like its pin and group', async () => {
+    await setNote('s1', 'gone soon');
+    await togglePin('s1');
+    await purgeSession('s1');
+    expect(await getNotes()).toEqual({});
+    expect(await getPinned()).toEqual([]);
+  });
+
+  it('ignores non-string notes in a hand-edited file', async () => {
+    await writeMetaFile({ notes: { s1: 'fine', s2: { nope: true }, s3: 42 }, version: 3 });
+    expect(await getNotes()).toEqual({ s1: 'fine' });
   });
 });
