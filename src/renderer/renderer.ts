@@ -1001,9 +1001,9 @@ function renderList(): void {
 // Chevrons stacked in the direction things will move: up to fold everything away, down to open it
 // again. Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
 const COLLAPSE_ALL_ICON =
-  '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.25L8 3.75L12 7.25" /><path d="M4 12.25L8 8.75L12 12.25" /></svg>';
+  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.49" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.25L8 3.75L12 7.25" /><path d="M4 12.25L8 8.75L12 12.25" /></svg>';
 const EXPAND_ALL_ICON =
-  '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3.75L8 7.25L12 3.75" /><path d="M4 8.75L8 12.25L12 8.75" /></svg>';
+  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.49" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3.75L8 7.25L12 3.75" /><path d="M4 8.75L8 12.25L12 8.75" /></svg>';
 
 // What the button folds depends on the view. In All it folds the project sections (keyed on projects
 // alone: with every project shut its groups are out of sight anyway, which is why a group toggling on
@@ -1549,7 +1549,7 @@ function createGroupSection(id: string): GroupSectionEls {
   caret.className = 'caret';
   const icon = document.createElement('span');
   icon.className = 'group-icon';
-  icon.innerHTML = layersIcon(12);
+  icon.innerHTML = layersIcon(13);
   const label = document.createElement('span');
   label.className = 'label';
   const count = document.createElement('span');
@@ -1557,7 +1557,7 @@ function createGroupSection(id: string): GroupSectionEls {
   // Start a session already in this group — the group's answer to the project heading's "+".
   const add = document.createElement('button');
   add.className = 'group-add';
-  add.textContent = '+';
+  add.innerHTML = plusIcon(14);
   setTooltip(add, 'New session in this group');
   add.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -1632,14 +1632,19 @@ const WORKTREE_ICON =
 const STAR_PATH =
   'M8 2.1 L9.41 6.06 L13.61 6.18 L10.28 8.74 L11.47 12.77 L8 10.4 L4.53 12.77 L5.72 8.74 L2.39 6.18 L6.59 6.06 Z';
 const PIN_ICON =
-  `<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="${STAR_PATH}" /></svg>`;
+  `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.49" stroke-linejoin="round"><path d="${STAR_PATH}" /></svg>`;
 const PINNED_ICON =
-  `<svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="${STAR_PATH}" /></svg>`;
+  `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" stroke="currentColor" stroke-width="1.49" stroke-linejoin="round"><path d="${STAR_PATH}" /></svg>`;
+
+// The archived filter's mark: a lidded box. Ink spans the full 16-unit box horizontally and 3..13
+// vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
+const ARCHIVE_ICON =
+  '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" /></svg>';
 
 // Take it back out of the box. Archiving has no row icon — it is a kebab item (text) in the normal
 // view; only unarchiving, the archived view's primary action, stays a button on the row.
 const UNARCHIVE_ICON =
-  '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>';
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.23" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>';
 
 interface RowEls {
   dot: HTMLElement;
