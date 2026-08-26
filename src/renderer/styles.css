@@ -1021,7 +1021,9 @@ button:focus:not(:focus-visible) {
   align-items: center;
   gap: 6px;
   margin: 14px 0 0;
-  padding: 4px 8px;
+  /* The same padding as a session row (.session), so the heading's controls line up vertically with
+     the rows' and the bar doesn't read as tighter than the rows under it. */
+  padding: 7px 14px;
   background: var(--surface);
   border-radius: var(--radius-surface); /* a filled bar like .session, so the same corner */
   font-size: var(--text-body);
@@ -1262,7 +1264,8 @@ button:focus:not(:focus-visible) {
 .session-kebab {
   /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
+  margin-left: -4px; /* row gap 8 - 4 = the 4px trailing-pair gap — see .group-kebab */
 }
 
 /* Same hover fill as the project kebab (the accent border comes from the base button rule). */
@@ -1730,8 +1733,8 @@ button:focus:not(:focus-visible) {
   background: none;
   /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
   border: 1px solid transparent;
-  border-radius: 5px;
-  margin-left: 4px; /* breathing room from the split button */
+  border-radius: var(--radius-control);
+  margin-left: -2px; /* 6px heading gap - 2 = the 4px trailing-pair gap — see .group-kebab */
   cursor: pointer;
 }
 
