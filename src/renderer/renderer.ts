@@ -1060,6 +1060,7 @@ function renderList(): void {
   updateSidebarHighlight();
   updateCollapseToggle();
   syncStickyOffset();
+  updatePlaceholder(); // its wording depends on whether there are sessions at all
 }
 
 // Chevrons stacked in the direction things will move: up to fold everything away, down to open it
@@ -2426,8 +2427,13 @@ function tabClusterKey(tab: Tab, groupOf: Record<string, string> = effectiveGrou
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups
 // gets an indented row beneath it behind the same rail the sidebar uses. A project view drops the
 // project label (everything shown belongs to it) but keeps the group rows.
+/** The tabs actually on screen: a project view shows only its own. */
+function visibleTabs(): Tab[] {
+  return activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
+}
+
 function renderTabBar(): void {
-  const shown = activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
+  const shown = visibleTabs();
   const groupOf = effectiveGroupState().groupOf; // computed once; every tab is keyed against it
   const byCluster = new Map<string, Tab[]>();
   const projectOrder: string[] = [];
@@ -2604,7 +2610,22 @@ window.addEventListener('blur', () => {
 });
 
 function updatePlaceholder(): void {
-  placeholder.style.display = activeTab ? 'none' : 'flex';
+  // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so
+  // without this a restored session would look like a session that had nothing in it.
+  const cold = activeTab !== null && activeTab.terminalId === null;
+  placeholder.style.display = activeTab && !cold ? 'none' : 'flex';
+  // Four different situations reach this pane, and each has a different next move — one sentence
+  // covering all of them tells someone with no sessions to pick one, and someone with no tabs to
+  // pick a tab that isn't there.
+  placeholder.textContent = cold
+    ? `“${sessionLabel(activeTab!.session)}” isn’t running. Click its tab to resume it.`
+    : allSessions.length === 0
+      ? 'No sessions yet — start one with + New.'
+      : // visibleTabs, not tabs: a project view shows only its own, so "pick a tab above" was being
+        // offered next to an empty bar whenever the open tabs all belonged to other projects.
+        visibleTabs().length === 0
+        ? 'Pick a session in the sidebar to open it.'
+        : 'Pick a tab above, or a session in the sidebar, to resume it.';
 }
 
 // --- Wiring ---
