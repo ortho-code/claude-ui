@@ -1033,6 +1033,7 @@ function renderList(): void {
   container.scrollTop = scroll;
   updateSidebarHighlight();
   updateCollapseToggle();
+  syncStickyOffset();
 }
 
 // Chevrons stacked in the direction things will move: up to fold everything away, down to open it

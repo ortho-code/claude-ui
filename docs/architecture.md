@@ -180,7 +180,15 @@ group's pill fills with `--bg` because its heading bar is already `--surface`.
 words cost the panel an extra line at a 320px sidebar; the meaning has to survive that, so both
 attributes are mandatory rather than optional there.
 
-### Two traps worth knowing
+### Three traps worth knowing
+
+**A sticky element pins its MARGIN box, not its border box.** The group headings pin below the
+project heading; while the `h3` still carried its own `margin-top`, it parked exactly that far too
+low and left a band of scrolling rows visible between the two. The space above a group lives on the
+`.group` section instead, so the heading has no margin to offset it. The offset itself is the project
+heading's *measured* height, published as `--project-heading-height` — the same number the jump uses,
+so the two cannot drift apart, and neither goes stale when the type scale moves.
+
 
 **`text-box: trim-both cap alphabetic` ends the box at the baseline**, so descenders paint outside it.
 Combined with the `overflow: hidden` that any ellipsis needs, it silently clips every `g`, `p` and `y`

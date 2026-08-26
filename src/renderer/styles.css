@@ -852,10 +852,11 @@ button:hover {
   cursor: pointer;
   user-select: none;
   /* Stay visible while scrolling that project's sessions, so the current project is always known.
-     The opaque background masks rows scrolling underneath. */
+     The opaque background masks rows scrolling underneath. Above the group headings (1), which are
+     in turn above the rows — the three layers the list needs. */
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
   background: var(--bg);
 }
 
@@ -1011,10 +1012,15 @@ button:focus:not(:focus-visible) {
   display: none;
 }
 
+/* The space above a group, which used to sit on the heading's own margin-top — see the note in
+   .group h3 about why a sticky element cannot carry one. */
+.group {
+  margin-top: 14px;
+}
+
 /* A custom group: a sub-section inside a project. Everything about it is the quiet end of a cue the
    project heading takes loudly — 13px against 16px, a muted layers icon against the accent folder,
-   a surface fill against an edge-to-edge divider, and it scrolls away instead of sticking. Its own
-   signal is the indent below it.
+   and a surface fill against an edge-to-edge divider. Its own signal is the indent below it.
    It sits at the SAME size as the session titles it heads (13px), separated by weight and the fill
    alone: at 12px it read smaller than its own contents, so it looked like a label on the rows rather
    than a heading over them. */
@@ -1022,10 +1028,24 @@ button:focus:not(:focus-visible) {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 14px 0 0;
+  /* No margin of its own: a sticky element pins its MARGIN box, so a margin-top here would park the
+     heading that far below the project heading and leave a band of scrolling rows showing between
+     the two. The space above a group lives on the .group section instead. */
+  margin: 0;
   /* The same padding as a session row (.session), so the heading's controls line up vertically with
      the rows' and the bar doesn't read as tighter than the rows under it. */
   padding: 7px 14px;
+  /* Pins UNDER the project heading, so the group you are scrolling through stays named. The offset
+     is the project heading's measured height (renderer.ts sets the property; the fallback only
+     covers the first paint) — hard-coding it would go stale the moment the type scale moves, which
+     is how revealSessionInSidebar's old 44 went wrong. Sticky is scoped to the .group section, so a
+     heading unpins when its own group scrolls away rather than stacking with the next one. */
+  position: sticky;
+  top: var(--project-heading-height, 39px);
+  /* Above the rows, below the project heading. It has to be a real layer, not 0: a session's status
+     dot is position:relative (for its hit-target halo) and so paints in the positioned layer, in DOM
+     order — which put it over a sticky heading at 0, showing a row's dot through the pinned bar. */
+  z-index: 1;
   background: var(--surface);
   border-radius: var(--radius-surface); /* a filled bar like .session, so the same corner */
   font-size: var(--text-body);
