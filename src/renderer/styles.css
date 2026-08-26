@@ -1674,8 +1674,6 @@ button:focus:not(:focus-visible) {
   display: flex;
   align-items: center;
   color: var(--muted);
-  font-size: 11px;
-  transition: transform 0.12s ease;
 }
 
 /* Collapsed points up ("opens upward"); expanded flips down. */
