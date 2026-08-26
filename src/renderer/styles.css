@@ -963,9 +963,12 @@ button:focus:not(:focus-visible) {
 }
 
 /* A custom group: a sub-section inside a project. Everything about it is the quiet end of a cue the
-   project heading takes loudly — 12px against 16px, a muted layers glyph against the accent folder,
+   project heading takes loudly — 13px against 16px, a muted layers icon against the accent folder,
    a surface fill against an edge-to-edge divider, and it scrolls away instead of sticking. Its own
-   signal is the indent below it. */
+   signal is the indent below it.
+   It sits at the SAME size as the session titles it heads (13px), separated by weight and the fill
+   alone: at 12px it read smaller than its own contents, so it looked like a label on the rows rather
+   than a heading over them. */
 .group h3 {
   display: flex;
   align-items: center;
@@ -973,8 +976,8 @@ button:focus:not(:focus-visible) {
   margin: 14px 0 0;
   padding: 4px 8px;
   background: var(--surface);
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: var(--radius-surface); /* a filled bar like .session, so the same corner */
+  font-size: var(--text-body);
   font-weight: 650;
   color: var(--text);
   cursor: pointer;
@@ -1202,7 +1205,10 @@ button:focus:not(:focus-visible) {
 
 .session-title {
   margin: 0 0 2px;
-  font-size: 14px;
+  /* Level with the group heading above it (13px), one step above the 12px meta line below. At 14px
+     it out-sized the heading of its own group; the extra characters per line before the clamp are a
+     bonus at a 320px sidebar. */
+  font-size: var(--text-body);
   overflow: hidden;
   /* Wrap up to two lines, then ellipsize, so most titles are fully readable without hovering. */
   display: -webkit-box;
