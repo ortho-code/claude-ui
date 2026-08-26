@@ -36,6 +36,11 @@ import type { OrderMove } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
+// The app stays on X11 (Xwayland) under WSLg. Do NOT add --ozone-platform=wayland: it paints this
+// window solid white, with or without app.disableHardwareAcceleration(). Both were tried and
+// reverted. See docs/architecture.md, including the note on an all-arrow cursor, which looks like an
+// X11 limitation but is WSLg's pointer state stuck.
+
 // Only one claude-ui instance at a time; a second launch focuses the existing window.
 // This may change if we add pop-out / multi-window sessions later.
 if (!app.requestSingleInstanceLock()) {

@@ -8,6 +8,17 @@ Windows-to-WSL path translation. WSLg shows the window.
 
 Electron needs `--no-sandbox` under WSL; the `start` script passes it.
 
+It runs on **X11 (Xwayland)**, the Electron default here. Do not switch it to Wayland: with
+`--ozone-platform=wayland` the window paints solid white, with or without
+`app.disableHardwareAcceleration()`, while a bare Electron window with the same flags paints fine —
+so it is something about this window, and it has not been chased down. `--ozone-platform-hint=auto`
+picks X11 anyway.
+
+If **every cursor stays an arrow** — no hand over a button, no I-beam over an input — that is WSLg's
+pointer state stuck, not the app and not Xwayland. Nothing in CSS or in Chromium's flags will move it
+(verified: every control computes `cursor: pointer` correctly). Closing all WSLg windows and
+reopening clears it; so does starting and quitting any Wayland client, which cycles Weston's pointer.
+
 ## Processes
 
 The standard Electron split, with the renderer locked down:
@@ -93,11 +104,93 @@ and the tab bar all say "project".
 Any control that opens a menu or popover keeps its active look (the same fill or outline it
 shows on hover) for as long as the menu is open, including when the pointer moves off it. The
 shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, so give every
-such trigger a `.menu-open` style that matches its `:hover`. The kebabs, the split-button caret,
-and the `⑂ N` sibling-count badge all follow this.
+such trigger a `.menu-open` style that matches its `:hover`. The kebabs, both split-button carets
+(project and group heading), and the sibling-count badge all follow this.
 
 Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an
 `attach-top`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a
 small notch on the menu's edge pointing at the trigger's center. Anything new that floats near an
 anchor should go through those helpers so it gets the notch (and the active-state stamping) for
 free rather than reinventing positioning.
+
+### Sizes and shapes
+
+Sizes come from a small set of decisions, not per-component choices. Reach for the existing tier
+before inventing a value; if something genuinely needs its own, say why in a comment next to it.
+
+**Icons** are inline SVG on a 16-unit viewBox, never font glyphs — a glyph resolves through system
+font fallback, which is how `⑂` once rendered from a monospace face beside its neighbours. Ink is
+centred on (8,8) so flex centring needs no nudge, and stroke width is expressed as the *rendered* px
+weight (1.3px everywhere) converted to viewBox units per size, so a 9px mark and a 15px one look
+equally heavy.
+
+**Clickable icons** are 14px, in one of three boxes: **standard** 24×20 (`padding: 2px 4px`) for
+sidebar, row and toast controls; **compact** 22×16 (`0 3px`) where density matters, i.e. the tab bar;
+**large** 32×26 (`5px 8px`) for the header actions. Each carries a 1px transparent border so the
+hover/active outline can't resize the box. Documented exceptions: the note mark (inline inside a 12px
+text line) and the 9px status dot.
+
+**Composite controls carry a resting border**, single icon controls don't. The split buttons on the
+project and group headings are two halves acting as one button, so they need to look like one object
+before you touch them; outlining them only on hover makes the pair read as two loose icons that
+suddenly acquire a box. A single icon needs no such help, and bordering each would put two more boxes
+on every row and heading.
+
+**Trailing controls sit 4px apart** on every row that has them — the session row's pin and kebab, the
+group heading's `+` and kebab, the project heading's split button and kebab — so the second-from-right
+control lines up down the list, not just the last one. Tight rather than roomy because every pixel
+there is width the session title loses; the controls' own padding keeps their ink well clear. Each row
+reaches 4 from a different base gap (a session row's is 8, a heading's is 6), so the offsets on the
+kebabs differ — check the total, don't copy the value.
+
+**Hover** is identical for every icon control — `--active` fill, accent border, `--text` glyph — from
+one shared rule. It uses `--active` rather than `--surface-hover` because a hovered session row is
+already `--surface-hover`, so a button filling to the same colour inside it would show no change.
+Note that `button:hover` sets the accent border app-wide, so a control whose resting rule is more
+specific silently opts out of it; that is why the rule lists its selectors explicitly.
+
+**Rows** come in two shapes: a **list row** (`.session`) is a card in the list body — `7px 14px`,
+surface radius, two lines and its own controls; a **menu row** (switcher entry, kebab-menu item,
+attention-strip session) is `6px 9px`, control radius, one shared rule for all three.
+
+**Radius and type are tokens** in `:root`. Radius is per kind of thing rather than per component:
+`--radius-control` (anything you click), `--radius-surface` (rows, cards, panels, popovers, dialogs),
+`--radius-pill` (fully round, so it never needs re-tuning when its height changes); circles keep 50%.
+Type is six steps — `--text-heading` 16, `--text-title` 14, `--text-body` 13, `--text-meta` 12,
+`--text-small` 11, `--text-badge` 10 — with no half-steps, since 0.5px is a smaller difference than
+one weight of the same size.
+
+**Inactive** is `--muted` colour, never `opacity`: dimming fades a control's border and background
+too, which reads as disabled rather than unselected. `opacity` is reserved for genuinely disabled
+controls.
+
+**Form controls inherit their typography explicitly.** The UA stylesheet gives every `button`,
+`input` and `textarea` `font: 400 13.333px Arial`, which is neither the interface font nor a size on
+the scale — so menus, dialog buttons, the search box and the filter pills all rendered in Arial until
+one rule set `font-family: inherit` and defaulted the size to `--text-body`. Anything new that is a
+form control gets that for free; anything that needs a different step overrides with a token.
+
+**A count wears a pill**, on both the project and the group heading. It is not decoration: a bare
+number sits hard against whatever follows it, while a kebab's ink is 2.6px of dots floating in a 24px
+box, so the same gap in pixels reads as two very different distances. The pill's own padding puts the
+digits about where a neighbouring icon's ink falls, which is what makes the spacing look even. The
+group's pill fills with `--bg` because its heading bar is already `--surface`.
+
+**Icon-only controls carry a tooltip and an `aria-label`.** The filter pills are icon-only because
+words cost the panel an extra line at a 320px sidebar; the meaning has to survive that, so both
+attributes are mandatory rather than optional there.
+
+### Two traps worth knowing
+
+**`text-box: trim-both cap alphabetic` ends the box at the baseline**, so descenders paint outside it.
+Combined with the `overflow: hidden` that any ellipsis needs, it silently clips every `g`, `p` and `y`
+— which is exactly what happened to the session meta line. The fix is symmetric vertical padding: it
+gives the clip box room while keeping cap-top-to-baseline centred, so a mark beside the text stays
+aligned to its ink. Measure the font's descent rather than guessing the value.
+
+**Specificity quietly opts controls out of shared hover rules.** `button:hover` is 0,1,1, so a resting
+rule like `.project h2 .project-kebab` (0,2,2) or `#toast-close` (1,0,0) beats it and never takes the
+accent border, while `.session-kebab` (0,1,0) does. This produced three separate "why does only this
+one look different" bugs. When a shared appearance matters, list the selectors explicitly with their
+own `:hover` so each beats its own resting rule, and check with forced pseudo-states rather than by
+reading the cascade.

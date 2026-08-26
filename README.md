@@ -31,26 +31,31 @@ Done:
   (`claude --resume`), start new sessions, name a session when forking or creating
   a worktree.
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree
-  (`claude -w`). Sessions sharing a conversation show as siblings (`⑂` badge with a
+  (`claude -w`). Sessions sharing a conversation show as siblings (a fork badge with a
   jump list); worktree sessions file under their main repo with a badge, including
   sessions that entered a worktree mid-life.
 - Custom groups: sub-sections inside a project, made from a session's kebab. Move a session
-  between them, rename or delete a group (its sessions stay), and start a session or a fork
-  straight into one. Open tabs cluster by group in the tab bar.
+  between them, rename or delete a group (its sessions stay), and start a session, a fork or
+  a worktree session straight into one. Open tabs cluster by group in the tab bar.
+- Ordering and overview: reorder projects and groups from their kebabs, fold every section
+  away and back from one header button, and attach a note to any session.
 - Pin, archive, and delete (to the OS trash); search plus filters (pinned, worktree,
   siblings, archived, date range).
 - Per-session status dots (busy / idle / waiting) driven by Claude Code hooks scoped
   to app-launched sessions; dots can be marked read, a footer strip surfaces sessions
   needing attention across projects, and a project switcher scopes the sidebar.
 - Project rename, app icon, single-instance lock.
+- A consistent control system: every mark is an SVG icon (no font glyphs), clickable icons
+  share one size and one hover treatment, and radius and type come from tokens.
 
 Next:
 
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).
 - Playwright end-to-end tests, then split view.
 - Config viewer, minimize-to-tray, and later a diff / file side panel.
-- Session notes, and a readable transcript viewer (after a compaction, the CLI cannot
-  show a resumed session's earlier history — the transcript file still has it).
+- A readable transcript viewer (after a compaction, the CLI cannot show a resumed
+  session's earlier history — the transcript file still has it).
+- Reaching a group without scrolling: a jump list on the project heading.
 - A taskbar attention nudge requires a native Windows build; parked while the app
   runs under WSLg.
 
