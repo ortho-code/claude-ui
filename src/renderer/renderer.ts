@@ -1535,10 +1535,17 @@ function revealSessionInSidebar(session: SessionSummary): void {
   const row = sessionRows.get(entityKey(session));
   if (!row) return;
   // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole
-  // app). Land the row just below the sticky heading.
-  const headingOffset = 44;
-  container.scrollTop += row.getBoundingClientRect().top - container.getBoundingClientRect().top - headingOffset;
+  // app). Land the row clear of EVERYTHING pinned above it: the project heading always, plus its
+  // group's heading when the row sits in a group — that one is sticky too, and a fixed offset for
+  // the project heading alone left the row half-hidden behind it.
+  const groupHeading = groupId ? groupSections.get(groupId)?.heading : undefined;
+  const pinned = stickyOffset + (groupHeading?.getBoundingClientRect().height ?? 0);
+  container.scrollTop +=
+    row.getBoundingClientRect().top - container.getBoundingClientRect().top - pinned - REVEAL_GAP;
 }
+
+/** A little air between a revealed row and the headings pinned above it, so it doesn't sit flush. */
+const REVEAL_GAP = 6;
 
 // Scroll the (All-view) session list to a project's heading — used by the project name in the
 // tab bar, so it links to where that project's sessions live.
