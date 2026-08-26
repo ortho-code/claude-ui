@@ -261,6 +261,19 @@ h1 {
   margin: 0;
 }
 
+/* Form controls do NOT inherit typography: the UA stylesheet hands every button, input and textarea
+   `font: 400 13.333px Arial`, so dialog buttons, the search box, the rename field, the filter pills
+   and every kebab-menu item were rendering in Arial beside a system-ui interface — at a size that
+   isn't on the scale either. Inherit the family and default the size to body; anything needing a
+   different step overrides it with a token, which every class rule here already outranks. */
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: var(--text-body);
+}
+
 button {
   background: var(--surface);
   color: var(--text);
