@@ -13,6 +13,7 @@ import {
   modelLabel,
   reorderWithinGroup,
   buildProjectTree,
+  groupJumpTargets,
   type FilterCriteria,
   orderProjects,
 } from './logic';
@@ -376,5 +377,52 @@ describe('orderProjects', () => {
   it('ignores slots for projects that are not present', () => {
     const out = orderProjects(entries('/c', '/a'), ['/a', '/gone', '/c']);
     expect(out.map(([root]) => root)).toEqual(['/a', '/c']);
+  });
+});
+
+describe('groupJumpTargets', () => {
+  const s = (id: string) => session({ id, conversationId: id, repoRoot: '/repo' });
+  const group = (id: string, name: string) => ({ id, name, repoRoot: '/repo' });
+  const none = new Set<string>();
+  const tree = (groupOf: Record<string, string>, groups = [group('g1', 'First'), group('g2', 'Second')]) =>
+    buildProjectTree([s('a'), s('b'), s('c')], { groups, groupOf }, none)[0];
+
+  it('lists the groups in list order, then the ungrouped remainder', () => {
+    const out = groupJumpTargets(tree({ a: 'g2', b: 'g1' }), new Map(), none);
+    expect(out.map((t) => [t.name, t.count])).toEqual([
+      ['First', 1],
+      ['Second', 1],
+      ['Ungrouped', 1],
+    ]);
+    expect(out.at(-1)!.groupId).toBeNull();
+  });
+
+  it('omits the ungrouped entry when every session is in a group', () => {
+    const out = groupJumpTargets(tree({ a: 'g1', b: 'g1', c: 'g2' }), new Map(), none);
+    expect(out.map((t) => t.name)).toEqual(['First', 'Second']);
+  });
+
+  it('keeps an empty group, which still has a heading to jump to', () => {
+    const out = groupJumpTargets(tree({ a: 'g1', b: 'g1', c: 'g1' }), new Map(), none);
+    expect(out.map((t) => [t.name, t.count])).toEqual([
+      ['First', 3],
+      ['Second', 0],
+    ]);
+  });
+
+  it('rolls up the strongest unattended status in each target', () => {
+    const statuses = new Map([
+      ['a', 'busy'],
+      ['b', 'waiting'],
+      ['c', 'idle'],
+    ]);
+    const out = groupJumpTargets(tree({ a: 'g1', b: 'g1' }), statuses, none);
+    expect(out.map((t) => t.badge)).toEqual(['waiting', null, 'idle']);
+  });
+
+  it('ignores an acked session, so a muted group shows no dot', () => {
+    const statuses = new Map([['a', 'waiting']]);
+    const out = groupJumpTargets(tree({ a: 'g1' }), statuses, new Set(['a']));
+    expect(out[0].badge).toBeNull();
   });
 });

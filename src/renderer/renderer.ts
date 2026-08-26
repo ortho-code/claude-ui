@@ -12,6 +12,8 @@ import {
   entityKey,
   reorderWithinGroup,
   type ProjectTree,
+  groupJumpTargets,
+  type GroupJumpTarget,
   relativeTime,
   modelLabel,
   sessionPasses,
@@ -272,17 +274,25 @@ function effectiveGroupState(): GroupState {
 
 interface ProjectSectionEls {
   section: HTMLElement;
+  heading: HTMLElement;
   caret: HTMLElement;
   count: HTMLElement;
   label: HTMLElement;
+  /** Opens the jump-to-a-group menu; hidden below 2 targets, disabled while filtering. */
+  groupsBtn: HTMLButtonElement;
   /** The new-session split-button's dropdown caret (present only for a project with a folder). */
   addCaret?: HTMLElement;
 }
+// What each project's group menu offers, refreshed on every render so the menu can't name a group
+// that has since been deleted or renamed.
+const jumpTargets = new Map<string, GroupJumpTarget[]>();
 // Project sections by repo root, reused across renders (same reason as sessionRows).
 const projectSections = new Map<string, ProjectSectionEls>();
 
 interface GroupSectionEls {
   section: HTMLElement;
+  /** The h3 itself — what a jump scrolls to and flashes. */
+  heading: HTMLElement;
   caret: HTMLElement;
   label: HTMLElement;
   count: HTMLElement;
@@ -1120,6 +1130,15 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
     els.caret.innerHTML = caretIcon(collapsed, 10);
     els.count.textContent = String(project.count);
     els.label.textContent = projName(project.repoRoot); // keep the heading current (e.g. after a rename)
+    // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at
+    // a 320px sidebar — so the button is absent rather than dimmed. Filtering forces every section
+    // open and reshuffles what is on screen, which leaves the jump nothing to act on: disabled
+    // there, like collapse-all, since a control vanishing as you type reads worse than one plainly
+    // unavailable.
+    const targets = groupJumpTargets(project, statuses, acked);
+    jumpTargets.set(project.repoRoot, targets);
+    els.groupsBtn.hidden = targets.length < 2;
+    els.groupsBtn.disabled = isFiltering();
     if (els.addCaret) els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
     for (const { group, sessions } of project.groups) {
       const groupEls = groupSections.get(group.id) ?? createGroupSection(group.id);
@@ -1321,6 +1340,12 @@ interface MenuItem {
   checked?: boolean;
   /** A rule instead of an item, splitting a list into groups of related actions. */
   separator?: boolean;
+  /** A count for the thing the item names, right-aligned in its own column. */
+  count?: number;
+  /** A rolled-up status dot ahead of the label, in the column a tick would use. */
+  badge?: NudgeStatus;
+  /** Dims the label — used for "Ungrouped", which is a place rather than a named thing. */
+  muted?: boolean;
 }
 let openMenuEl: HTMLElement | null = null;
 let openMenuAnchor: HTMLElement | null = null;
@@ -1369,6 +1394,22 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = item.label;
+    // A row that names something countable (a group, say): a status dot leads, the label takes the
+    // room it needs and ellipsizes, and the count sits in its own column at the right.
+    if (item.count !== undefined) {
+      button.classList.add('has-count');
+      const label = document.createElement('span');
+      label.className = 'menu-item-label';
+      label.textContent = item.label;
+      if (item.muted) label.classList.add('muted');
+      const dot = document.createElement('span');
+      dot.className = `project-badge${item.badge ? ` ${item.badge}` : ''}`;
+      const count = document.createElement('span');
+      count.className = 'menu-item-count';
+      count.textContent = String(item.count);
+      button.textContent = '';
+      button.append(dot, label, count);
+    }
     if (item.checked !== undefined) {
       // A fixed-width column, empty when unchecked, so every label in the list still lines up.
       const tick = document.createElement('span');
@@ -1479,6 +1520,52 @@ function revealProjectInSidebar(repoRoot: string): void {
   container.scrollTop += els.section.getBoundingClientRect().top - container.getBoundingClientRect().top;
 }
 
+// The group headings pin below the project heading, so their sticky offset is its height. Measured
+// rather than assumed: it moves with the type scale, and both this and the jump offset read the same
+// element so they cannot drift apart. Skipped when unchanged, so a render doesn't thrash layout.
+let stickyOffset = 0;
+function syncStickyOffset(): void {
+  const first = projectSections.values().next().value;
+  if (!first) return;
+  const height = Math.round(first.heading.getBoundingClientRect().height);
+  if (!height || height === stickyOffset) return;
+  stickyOffset = height;
+  document.documentElement.style.setProperty('--project-heading-height', `${height}px`);
+}
+
+// Jump to one of a project's groups (or to where its ungrouped sessions start). Expands the target
+// if it is folded — otherwise the jump lands on a heading with nothing under it — and lands it just
+// below the project heading, whose height is MEASURED rather than assumed: it changes with the type
+// scale, and a stale constant would tuck the target under the sticky heading.
+function jumpToGroup(repoRoot: string, groupId: string | null): void {
+  const els = projectSections.get(repoRoot);
+  if (!els) return;
+  if (collapsedProjects.delete(repoRoot)) renderList();
+  if (groupId !== null && collapsedGroups.delete(groupId)) renderList();
+
+  // A group jumps to its heading; the ungrouped remainder has none, so it jumps to its first row —
+  // which is the one carrying .after-groups, the class that marks where the loose rows begin.
+  const target: HTMLElement | null | undefined =
+    groupId !== null
+      ? groupSections.get(groupId)?.heading
+      : els.section.querySelector<HTMLElement>(':scope > .session.after-groups') ??
+        els.section.querySelector<HTMLElement>(':scope > .session');
+  if (!target) return;
+
+  const offset = els.heading.getBoundingClientRect().height;
+  container.scrollTop += target.getBoundingClientRect().top - container.getBoundingClientRect().top - offset;
+  flash(target);
+}
+
+// A brief accent wash on whatever you just jumped to. Short jumps move the list barely at all, so
+// without it there is no way to tell the click did anything.
+function flash(el: HTMLElement): void {
+  el.classList.remove('flash'); // restart it if you jump to the same place twice
+  void el.offsetWidth; // force a reflow so removing and re-adding actually replays the animation
+  el.classList.add('flash');
+  window.setTimeout(() => el.classList.remove('flash'), 900);
+}
+
 // Build a project section once; contents (count, caret, rows) are updated on later renders.
 function createProjectSection(name: string, folderCwd?: string): ProjectSectionEls {
   const section = document.createElement('section');
@@ -1496,7 +1583,33 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   label.textContent = projName(name);
   const count = document.createElement('span');
   count.className = 'project-count';
-  heading.append(caret, icon, label, count);
+  // Jump straight to one of this project's groups instead of scrolling for it. The heading is
+  // position:sticky, so this trigger is on screen the whole time you scroll the project — which is
+  // what makes a menu enough here, rather than a panel that would cost a line of height per project.
+  // reconcileProjectSections hides it below 2 targets and disables it while filtering.
+  const groupsBtn = document.createElement('button');
+  groupsBtn.className = 'project-groups';
+  groupsBtn.innerHTML = layersIcon(14);
+  groupsBtn.hidden = true;
+  setTooltip(groupsBtn, 'Jump to a group');
+  groupsBtn.addEventListener('click', (event) => {
+    event.stopPropagation(); // don't collapse the project
+    const targets = jumpTargets.get(name) ?? [];
+    const items: MenuItem[] = [];
+    for (const t of targets) {
+      // A rule before the ungrouped entry: it is a different KIND of target, not another group.
+      if (t.groupId === null && items.length > 0) items.push({ label: '', separator: true });
+      items.push({
+        label: t.name,
+        count: t.count,
+        badge: t.badge,
+        muted: t.groupId === null,
+        onSelect: () => jumpToGroup(name, t.groupId),
+      });
+    }
+    openMenu(groupsBtn, items);
+  });
+  heading.append(caret, icon, label, count, groupsBtn);
   let addCaret: HTMLElement | undefined;
   if (folderCwd) {
     // Split button: the "+" is one-click "New session"; the caret opens a dropdown with worktree
@@ -1563,7 +1676,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   });
   section.appendChild(heading);
 
-  return { section, caret, count, label, addCaret };
+  return { section, heading, caret, count, label, groupsBtn, addCaret };
 }
 
 // Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky)
@@ -1645,7 +1758,7 @@ function createGroupSection(id: string): GroupSectionEls {
   members.append(empty);
 
   section.append(heading, members);
-  return { section, caret, label, count, addCaret, members, empty };
+  return { section, heading, caret, label, count, addCaret, members, empty };
 }
 
 function getOrCreateRow(key: string): HTMLElement {

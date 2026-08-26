@@ -970,11 +970,13 @@ button:hover {
 .project-add-caret.menu-open,
 .group-add-caret.menu-open,
 .project-kebab.menu-open,
+.project-groups.menu-open,
 .session-kebab.menu-open {
   background: var(--active);
   color: var(--text);
 }
 .project-kebab.menu-open,
+.project-groups.menu-open,
 .session-kebab.menu-open {
   border-color: var(--accent);
 }
@@ -1077,6 +1079,25 @@ button:focus:not(:focus-visible) {
   color: var(--muted);
   background: var(--bg);
   border-radius: var(--radius-pill);
+}
+
+/* Where a jump landed. A short jump moves the list barely at all, so without this there is no way to
+   tell the click did anything. It fades rather than blinks, and an inset ring means it reads the same
+   on a group heading (surface fill) as on a session row. The only animation in the app: the one
+   place where something happens that the eye would otherwise miss. */
+@keyframes jump-flash {
+  from {
+    background: var(--active);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  to {
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px transparent;
+  }
+}
+
+.flash {
+  animation: jump-flash 0.9s ease-out;
 }
 
 /* The indent says a row is IN the group; the rail draws where the group ends, so several groups
@@ -1253,6 +1274,7 @@ button:focus:not(:focus-visible) {
 .delete-btn:hover,
 .session-kebab:hover,
 .project h2 .project-kebab:hover,
+.project h2 .project-groups:enabled:hover,
 .group h3 .group-add:hover,
 .group h3 .group-kebab:hover,
 .group h3 .group-add-caret:hover,
@@ -1741,6 +1763,26 @@ button:focus:not(:focus-visible) {
 }
 
 /* Per-project kebab on a project heading (rename now, hide later). */
+/* The jump-to-a-group trigger. Borderless like the kebab beside it — a single icon control, not a
+   composite — and it sits between the count and the "+" so the two ACTIONS stay together at the
+   right end. Absent below 2 targets, so a project with one group keeps a clean heading. */
+.project h2 .project-groups {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.project h2 .project-groups:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .project h2 .project-kebab {
   flex: 0 0 auto;
   display: flex;
@@ -1773,6 +1815,9 @@ button:focus:not(:focus-visible) {
   position: fixed;
   z-index: 400;
   min-width: 130px;
+  /* Same cap as the switcher popover: a menu is sized by its longest label, and a group can be named
+     anything, so without this one long name makes a menu wider than the sidebar it belongs to. */
+  max-width: 300px;
   padding: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1854,6 +1899,31 @@ button:focus:not(:focus-visible) {
   align-items: center;
   justify-content: center;
   color: var(--accent);
+}
+
+/* A menu row that names something countable: dot, label, count. The dot keeps a fixed column so the
+   labels line up whether or not a group has a live nudge, and the count is pushed right. */
+.kebab-menu button.has-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-item-label.muted {
+  color: var(--muted);
+}
+
+.menu-item-count {
+  margin-left: auto;
+  padding-left: 10px;
+  color: var(--muted);
+  font-size: var(--text-small);
 }
 
 .menu-separator {

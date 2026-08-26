@@ -302,3 +302,45 @@ export function buildProjectTree(
     return { repoRoot, groups, loose, count: ordered.length, isRepo: ordered.some((s) => s.isRepo) };
   });
 }
+
+// --- Jumping to a group ---------------------------------------------------------------------------
+
+export interface GroupJumpTarget {
+  /** null is the ungrouped remainder, which has no heading of its own to jump to. */
+  groupId: string | null;
+  name: string;
+  count: number;
+  badge: NudgeStatus;
+}
+
+/**
+ * The places you can jump to inside one project: its groups in list order, then "Ungrouped" when
+ * loose sessions exist. Each carries what the menu shows — a name, a count, and the same rolled-up
+ * nudge the switcher puts on a project, so the menu answers "which group needs me" as well as
+ * "where is it".
+ *
+ * Empty groups are kept: an empty group still has a heading in the list, so it is still somewhere
+ * you can go. The 2+ rule that decides whether the trigger appears at all is the caller's, so this
+ * stays a plain description of the project.
+ */
+export function groupJumpTargets(
+  project: ProjectTree,
+  statuses: ReadonlyMap<string, string>,
+  acked: ReadonlySet<string>,
+): GroupJumpTarget[] {
+  const targets: GroupJumpTarget[] = project.groups.map(({ group, sessions }) => ({
+    groupId: group.id,
+    name: group.name,
+    count: sessions.length,
+    badge: rollUpNudge(sessions, statuses, acked),
+  }));
+  if (project.loose.length > 0) {
+    targets.push({
+      groupId: null,
+      name: 'Ungrouped',
+      count: project.loose.length,
+      badge: rollUpNudge(project.loose, statuses, acked),
+    });
+  }
+  return targets;
+}
