@@ -26,7 +26,9 @@ Done:
 
 - Session list from `~/.claude`, grouped into collapsible projects, refreshed live
   as transcripts change on disk.
-- Tabs: several sessions open at once, drag to reorder, restored on the next launch.
+- Tabs: several sessions open at once, drag to reorder, and restored on the next launch
+  without starting them — a tab resumes its session when you click it, and can be stopped
+  again from the session's menu while keeping its place.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click
   (`claude --resume`), start new sessions, name a session when forking or creating
   a worktree.
@@ -39,8 +41,8 @@ Done:
   a worktree session straight into one. Open tabs cluster by group in the tab bar.
 - Ordering and overview: reorder projects and groups from their kebabs, fold every section
   away and back from one header button, and attach a note to any session.
-- Pin, archive, and delete (to the OS trash); search plus filters (pinned, worktree,
-  siblings, archived, date range).
+- Pin, archive, and delete (to the OS trash); search plus filters (pinned, open, running,
+  worktree, siblings, archived, date range).
 - Per-session status dots (busy / idle / waiting) driven by Claude Code hooks scoped
   to app-launched sessions; dots can be marked read, a footer strip surfaces sessions
   needing attention across projects, and a project switcher scopes the sidebar.

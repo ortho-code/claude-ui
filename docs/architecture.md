@@ -57,13 +57,52 @@ values above. Shared types in `src/shared` are type-only, so nothing crosses at 
 Keeping the real CLI in a PTY is the point: its approval prompts, diffs, and permission
 modes stay exactly as they are in a terminal.
 
+### Tab lifecycle: a tab can exist without a process
+
+A tab owns at most one terminal, and `terminalId` is **nullable** — null means the tab is
+**cold**: it has its row in the bar, its title and its place in the layout, but no `claude`
+behind it. Cold is a first-class state, not an error one.
+
+A tab goes cold in two ways: it is **restored** that way at launch (the app starts nothing on
+startup — 20 restored tabs used to mean 20 processes at ~437 MB each), or the user **stops**
+the session from the row's kebab. It leaves cold by being activated, which starts it
+immediately; there is no separate "start" affordance, because selecting a tab has always meant
+"work in this session".
+
+Two exits must stay distinguishable. A **user stop** sets a `stopping` flag before the kill, and
+the exit handler checks it first: that tab is cooled and kept. **Any other exit** closes the
+tab, which is deliberate — it stops a finished session leaving an empty tab behind. A third
+case sits in between: an exit within 1500ms of launch is treated as a failed start, and the tab
+is kept with the error visible in its terminal.
+
+The cold state is visible in three places, all reading the same `terminalId === null`: the tab
+is unfilled rather than dimmed, the session row's left bar and the selected tab's top edge are
+`--muted` instead of accent, and the terminal pane explains that clicking the tab resumes it.
+Those two marks answer the same question, so they answer it the same way — accent means a live
+session, nowhere else.
+
+Where you were is remembered twice, in meta: `activeSession` (which tab to open on at launch)
+and `activeSessionByProject` (which to return to when you switch back to a project). The
+in-memory `activatedSeq` still decides while a project has something running; the stored map only
+matters when nothing does, which after a restart is always. Nothing is meant to be live after a
+restart, so the remembered tab is *selected* at launch but not started — a deliberately open
+question, since a tab marked active with no process behind it is arguable.
+
 ## Status cues
 
 Rather than parse terminal output to guess a session's state, the app drives status from
-Claude Code hooks. On startup it writes a small hook script to `~/.config/claude-ui/` and
-merges hook entries into `~/.claude/settings.json` (preserving any existing hooks). The
-events map to statuses: `UserPromptSubmit` → busy, `Stop` → idle, `Notification` → waiting,
-`SessionEnd` → closed.
+Claude Code hooks. On startup it writes a hook script and its own settings file to
+`~/.config/claude-ui/`, and passes that file to `claude --settings`, whose hooks merge with
+the user's own — so claude-ui never writes into `~/.claude/settings.json` (an earlier version
+did, and still strips those entries when it finds them).
+
+Four events map to statuses: `UserPromptSubmit` → busy, `Stop` → idle, `Notification` →
+waiting, `SessionEnd` → closed. A fifth, `SessionStart`, reports **identity rather than
+state**: it tells the app which session a tab is running, at the moment claude starts, so a
+new tab stops holding a placeholder id until its first prompt. It never touches the dot —
+it also fires on `clear` and `compact`, mid-session, where that would wipe a live status —
+and it never overwrites an existing status file, which is what the launch state is seeded
+from. Any future hook that carries information rather than a state should follow that shape.
 
 The hooks are scoped to claude-ui: it sets `CLAUDE_UI=1` on the terminals it spawns, and
 the hook script no-ops unless that variable is set, so sessions run in a plain terminal are
@@ -100,6 +139,17 @@ grouping a session belongs to, keyed by its repo root, which merges a repo's wor
 subdirectories into one entry; a **group** is a user-made sub-section inside a project. The three are
 not interchangeable — one project spans several folders, which is why the switcher, the session list
 and the tab bar all say "project".
+
+**The project scope holds everywhere.** Selecting a project in the switcher is a statement about
+what you are looking at, so every surface honours it — the list, the tab bar, the placeholder's
+wording, and the archived view, which used to be exempt and no longer is. Switch to All to search
+or browse across projects; that is what All is for.
+
+**The empty terminal pane names the next action**, and it has four to choose from: no sessions at
+all, sessions but no tabs in this project, tabs but none selected, and a selected tab that isn't
+running. One sentence cannot cover them — it ends up telling someone with no tabs to pick a tab.
+Note it counts the tabs actually on screen (`visibleTabs()`, the same helper the bar renders from),
+not every open tab.
 
 Any control that opens a menu or popover keeps its active look (the same fill or outline it
 shows on hover) for as long as the menu is open, including when the pointer moves off it. The
