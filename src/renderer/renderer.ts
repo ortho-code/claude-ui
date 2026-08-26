@@ -2538,6 +2538,20 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
         });
       }
       pendingGroupOf.delete(placeholderId);
+      // Adoption changes the tab's IDENTITY, so the tab that could not be matched a moment ago can be
+      // matched now — and nothing else re-runs that match. The refresh below is gated on the SESSION
+      // LIST's structure, which a rename before the first prompt has already consumed: the transcript
+      // was written (and its signature stored) while the tab still held its placeholder id, so the
+      // gate short-circuits and the tab keeps the "New: <folder>" name for good. Reconciling here is
+      // cheap and needs no fresh read — refreshFromDisk assigns allSessions BEFORE that gate, so the
+      // renamed session is already in hand.
+      reconcileOpenTabs();
+      // And the SIDEBAR has to be redrawn for the same reason. A not-yet-saved tab is shown from its
+      // own placeholder (visibleSessions adds it while its id is unknown to disk), so between the
+      // rename and this moment the list carries BOTH: the real renamed session and the placeholder.
+      // Adoption is what retires the placeholder, and nothing else here redraws the list —
+      // reconcileOpenTabs paints only the tab bar, setStatus only the dots and the switcher.
+      renderList();
     }
   }
   setStatus(id, status);
