@@ -13,6 +13,26 @@
   /* Status colours, shared by the session dots, project badges and attention toasts. */
   --waiting: #f9e2af;
   --idle: #a6e3a1;
+
+  /* Corner radii, one per KIND of thing rather than one per component — the stylesheet had eight
+     values (1, 4, 5, 6, 7, 8, 10, 12) that no rule explained. Controls are anything you click;
+     surfaces are the things that hold them (rows, cards, panels, popovers, dialogs); pills are fully
+     round, so their radius never needs re-tuning when their height changes. Circles (dots) keep 50%
+     and the 1px tab rail keeps its hairline — neither is a corner. */
+  --radius-control: 5px;
+  --radius-surface: 8px;
+  --radius-pill: 999px;
+
+  /* Type scale. Six steps and no half-steps: the sheet had 11.5 and 12.5 sitting beside 11, 12 and
+     13, which is smaller than the difference between two weights of the same size. 10 stays because
+     the badge pills' ink is tuned around it; 14 stays because dialog titles need a step above body
+     text without jumping to the 16px heading size. */
+  --text-heading: 16px;
+  --text-title: 14px;
+  --text-body: 13px;
+  --text-meta: 12px;
+  --text-small: 11px;
+  --text-badge: 10px;
 }
 
 * {
@@ -38,9 +58,9 @@
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-surface);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 
 /* Same treatment as .notif-close — the two toast dismissors should read identically. */
@@ -86,9 +106,9 @@
   color: var(--text);
   border: 1px solid var(--border);
   border-left: 3px solid var(--muted);
-  border-radius: 8px;
+  border-radius: var(--radius-surface);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
-  font-size: 12.5px;
+  font-size: var(--text-meta);
   cursor: pointer;
 }
 
@@ -116,7 +136,7 @@
 
 .notif-proj {
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: var(--text-small);
 }
 
 .notif-close {
@@ -151,19 +171,19 @@
   padding: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-surface);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 #confirm-message {
   margin: 0 0 8px;
-  font-size: 14px;
+  font-size: var(--text-title);
   font-weight: 600;
 }
 
 #confirm-detail {
   margin: 0 0 16px;
-  font-size: 12px;
+  font-size: var(--text-meta);
   color: var(--muted);
 }
 
@@ -242,7 +262,7 @@ body.resizing {
 }
 
 h1 {
-  font-size: 16px;
+  font-size: var(--text-heading);
   margin: 0;
 }
 
@@ -250,7 +270,7 @@ button {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   padding: 6px 12px;
   cursor: pointer;
 }
@@ -369,8 +389,8 @@ button:hover {
   padding: 4px 8px;
   background: transparent;
   border: none;
-  border-radius: 6px;
-  font-size: 16px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-heading);
   font-weight: 700;
   color: var(--text);
   text-align: left;
@@ -419,7 +439,7 @@ button:hover {
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-surface);
   padding: 4px;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
 }
@@ -472,7 +492,7 @@ button:hover {
 }
 
 .switcher-item-count {
-  font-size: 11px;
+  font-size: var(--text-small);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -508,7 +528,7 @@ button:hover {
   margin: 8px 16px 10px;
   padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-surface);
 }
 
 #search {
@@ -551,10 +571,10 @@ button:hover {
 
 #date-presets button {
   padding: 3px 8px;
-  font-size: 12px;
+  font-size: var(--text-meta);
   color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-pill);
 }
 
 #date-presets button:hover {
@@ -580,7 +600,7 @@ button:hover {
   max-width: calc(100% - 16px);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-surface);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
 }
 
@@ -609,9 +629,9 @@ button:hover {
   background: none;
   /* Accent border marks it active, matching the active preset chip (it only shows while Custom is on). */
   border: 1px solid var(--accent);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: var(--text-meta);
   font-weight: 500;
   text-align: center;
   cursor: pointer;
@@ -631,7 +651,7 @@ button:hover {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: var(--text-meta);
   color: var(--muted);
   text-align: center;
 }
@@ -663,7 +683,7 @@ button:hover {
   --adp-cell-background-color-in-range: rgba(137, 180, 250, 0.22); /* var(--accent) at low alpha */
   --adp-cell-background-color-in-range-hover: rgba(137, 180, 250, 0.32);
   --adp-cell-border-color-in-range: transparent;
-  --adp-font-size: 12px;
+  --adp-font-size: var(--text-meta);
 }
 
 /* The lib hardcodes white text on selected cells; too faint on our light accent, so use dark text. */
@@ -683,7 +703,7 @@ button:hover {
   align-items: center;
   justify-content: space-between;
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: var(--text-meta);
   color: var(--muted);
 }
 
@@ -692,8 +712,8 @@ button:hover {
   background: transparent;
   color: var(--accent);
   border: 1px solid var(--accent);
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-meta);
   cursor: pointer;
 }
 
@@ -772,7 +792,7 @@ button:hover {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 16px;
+  font-size: var(--text-heading);
   font-weight: 700;
   color: var(--text);
   /* Negative horizontal margins (cancelled by matching padding) let the divider run edge-to-edge
@@ -831,11 +851,11 @@ button:hover {
   flex: 0 0 auto;
   margin-left: auto;
   padding: 1px 7px;
-  font-size: 11px;
+  font-size: var(--text-small);
   font-weight: 400;
   color: var(--muted);
   background: var(--surface);
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
 }
 
 /* A bordered box so it reads as a "new session" action, not part of the collapse chrome. */
@@ -851,7 +871,7 @@ button:hover {
   padding: 0 0 2px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   color: var(--muted);
   font-size: 15px;
   line-height: 1;
@@ -880,7 +900,7 @@ button:hover {
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: none;
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
   color: var(--muted);
   font-size: 9px;
   line-height: 1;
@@ -1010,7 +1030,7 @@ button:focus:not(:focus-visible) {
 /* An empty group persists until deleted, so it explains itself rather than looking broken. */
 .group-empty {
   padding: 8px 0 2px;
-  font-size: 11.5px;
+  font-size: var(--text-small);
   color: var(--muted);
 }
 
@@ -1025,7 +1045,7 @@ button:focus:not(:focus-visible) {
   align-items: center;
   gap: 8px;
   background: var(--surface);
-  border-radius: 8px;
+  border-radius: var(--radius-surface);
   padding: 7px 14px;
   /* margin-top (not -bottom) so the gap sits above each row: heading->first row, row->row, and
      last-row->next-heading all become one uniform 8px, with no doubled gap next to a heading. */
@@ -1213,7 +1233,7 @@ button:focus:not(:focus-visible) {
   gap: 4px;
   margin: 0;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--text-meta);
   color: var(--muted);
 }
 
@@ -1265,11 +1285,11 @@ button:focus:not(:focus-visible) {
      instead of half a pixel below. */
   height: 18px;
   padding: 0 6px;
-  font-size: 10px;
+  font-size: var(--text-badge);
   line-height: 1;
   color: var(--accent);
   border: 1px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
   white-space: nowrap;
   vertical-align: middle;
@@ -1317,7 +1337,7 @@ button:focus:not(:focus-visible) {
 }
 
 .empty-message {
-  font-size: 13px;
+  font-size: var(--text-body);
   color: var(--muted);
 }
 
@@ -1352,8 +1372,8 @@ button:focus:not(:focus-visible) {
   display: flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 5px;
-  font-size: 11px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-small);
   font-weight: 600;
   color: var(--muted);
   white-space: nowrap;
@@ -1383,7 +1403,7 @@ button:focus:not(:focus-visible) {
   align-items: center;
   gap: 5px;
   padding-right: 4px;
-  font-size: 11px;
+  font-size: var(--text-small);
   font-weight: 400;
   color: var(--text);
   white-space: nowrap;
@@ -1410,7 +1430,7 @@ button:focus:not(:focus-visible) {
   max-width: 200px;
   padding: 5px 8px;
   background: var(--surface);
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-surface) var(--radius-surface) 0 0;
   cursor: pointer;
 }
 
@@ -1447,7 +1467,7 @@ button:focus:not(:focus-visible) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--text-meta);
 }
 
 .tab-close {
@@ -1497,9 +1517,9 @@ button:focus:not(:focus-visible) {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-surface);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-  font-size: 12px;
+  font-size: var(--text-meta);
   line-height: 1.4;
   overflow-wrap: anywhere;
   /* Keep a note's line breaks: the default collapses \n into a space. pre-wrap still wraps long
@@ -1525,7 +1545,7 @@ button:focus:not(:focus-visible) {
   background: none;
   border: none;
   color: var(--text);
-  font-size: 12.5px;
+  font-size: var(--text-meta);
   text-align: left;
   cursor: pointer;
 }
@@ -1598,7 +1618,7 @@ button:focus:not(:focus-visible) {
 /* Project heading within the footer attention list. */
 .footer-project {
   padding: 6px 8px 2px;
-  font-size: 11px;
+  font-size: var(--text-small);
   font-weight: 600;
   color: var(--muted);
 }
@@ -1660,7 +1680,7 @@ button:focus:not(:focus-visible) {
   padding: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-surface);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
 }
 
@@ -1778,7 +1798,7 @@ button:focus:not(:focus-visible) {
   padding: 0 3px;
   background: none;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   color: var(--muted);
   font-size: 12px;
   line-height: 1;
@@ -1808,19 +1828,19 @@ button:focus:not(:focus-visible) {
   padding: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-surface);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 #rename-title {
   margin: 0 0 6px;
-  font-size: 14px;
+  font-size: var(--text-title);
   font-weight: 600;
 }
 
 #rename-path {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: var(--text-meta);
   color: var(--muted);
   overflow-wrap: anywhere;
 }
@@ -1831,8 +1851,8 @@ button:focus:not(:focus-visible) {
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-body);
 }
 
 /* The multiline variant of the same dialog field (session notes): same skin, room to write, and a
@@ -1843,8 +1863,8 @@ button:focus:not(:focus-visible) {
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-body);
   resize: vertical;
   min-height: 120px;
   font-family: inherit;
@@ -1853,7 +1873,7 @@ button:focus:not(:focus-visible) {
 /* Inline validation error under the input (e.g. a duplicate worktree name). */
 #rename-error {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: var(--text-meta);
   color: #f38ba8;
 }
 
