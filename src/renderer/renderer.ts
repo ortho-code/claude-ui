@@ -2298,7 +2298,17 @@ function tabElement(tab: Tab): HTMLElement {
 
   el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
   const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(tab.session.worktree ? [worktreeMark] : [])];
-  el.append(dot, ...marks, label, close);
+  // The marks ride in their own tight cluster rather than sitting at the tab's full gap, so the
+  // leading glyphs read as one group. Only added when there ARE marks — an empty wrapper would still
+  // consume a gap and shift the label.
+  if (marks.length > 0) {
+    const markGroup = document.createElement('span');
+    markGroup.className = 'tab-marks';
+    markGroup.append(...marks);
+    el.append(dot, markGroup, label, close);
+  } else {
+    el.append(dot, label, close);
+  }
   el.addEventListener('click', () => {
     activateTab(tab);
     revealSessionInSidebar(tab.session);

@@ -1522,7 +1522,9 @@ button:focus:not(:focus-visible) {
 .tab {
   display: flex;
   align-items: center;
-  gap: 6px;
+  /* Tight enough to cluster the leading dot + marks; .tab-label adds its own left margin so the
+     title still sits clear of them. */
+  gap: 4px;
   /* Natural width (sized to the title), never shrinking; capped so a long title ellipsizes
      instead of making one huge tab. */
   flex: 0 0 auto;
@@ -1544,6 +1546,15 @@ button:focus:not(:focus-visible) {
 }
 
 /* Sibling / worktree markers on a tab, matching the sidebar badges. */
+/* The leading glyphs (status dot + marks) sit close together as one cluster; the label keeps its
+   breathing room via its own margin, so tightening the icons doesn't crowd the text. */
+.tab-marks {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .tab-sibling,
 .tab-worktree {
   flex: 0 0 auto;
@@ -1563,6 +1574,9 @@ button:focus:not(:focus-visible) {
 .tab-label {
   flex: 1;
   min-width: 0;
+  /* Restores the spacing the smaller .tab gap took away, but only here — so the icons cluster while
+     the title keeps its distance from them. */
+  margin-left: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
