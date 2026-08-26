@@ -66,13 +66,16 @@
 /* Same treatment as .notif-close — the two toast dismissors should read identically. */
 #toast-close {
   flex: 0 0 auto;
-  padding: 2px 5px;
+  /* Flex-centred around an SVG, so the box is sized by the icon rather than by a text line box —
+     which is why no font-size or line-height is left here doing layout work. Same for every mark in
+     the chrome now that none of them are glyphs. */
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
   background: none;
   border: none;
   border-radius: 5px;
   color: var(--muted);
-  font-size: 16px;
-  line-height: 1;
   cursor: pointer;
 }
 
@@ -141,13 +144,13 @@
 
 .notif-close {
   flex: 0 0 auto;
-  padding: 2px 5px;
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
   background: none;
   border: none;
   border-radius: 5px;
   color: var(--muted);
-  font-size: 15px;
-  line-height: 1;
   cursor: pointer;
 }
 
@@ -423,8 +426,9 @@ button:hover {
 }
 
 .switcher-chev {
+  display: flex;
+  align-items: center;
   color: var(--muted);
-  font-size: 11px;
 }
 
 #switcher-popover {
@@ -830,8 +834,9 @@ button:hover {
 
 .project h2 .caret {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
   width: 10px;
-  font-size: 10px;
 }
 
 .project h2 .project-icon {
@@ -866,15 +871,13 @@ button:hover {
   justify-content: center;
   width: 22px;
   height: 22px;
-  /* The "+" glyph sits slightly low; a hair of bottom padding lifts the flex-centred glyph without
-     moving the box. */
-  padding: 0 0 2px;
+  /* Explicitly zero, not absent: the box is a fixed 22px in border-box, so the UA's default button
+     padding (1px 6px) would leave the icon 8px of content width and squash it. */
+  padding: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   color: var(--muted);
-  font-size: 15px;
-  line-height: 1;
   cursor: pointer;
 }
 
@@ -896,14 +899,12 @@ button:hover {
   justify-content: center;
   width: 16px;
   height: 22px;
-  padding: 0 0 1px;
+  padding: 0; /* same reason as the "+" above, and tighter here: 16px leaves only 3px */
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: none;
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
   color: var(--muted);
-  font-size: 9px;
-  line-height: 1;
   cursor: pointer;
 }
 
@@ -990,8 +991,9 @@ button:focus:not(:focus-visible) {
 
 .group h3 .caret {
   flex: 0 0 auto;
-  width: 8px;
-  font-size: 9px;
+  display: flex;
+  align-items: center;
+  width: 10px;
   color: var(--muted);
 }
 
@@ -1180,8 +1182,6 @@ button:focus:not(:focus-visible) {
 }
 
 .session-kebab {
-  font-size: 16px;
-  line-height: 1;
   /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
   border: 1px solid transparent;
   border-radius: 5px;
@@ -1577,6 +1577,8 @@ button:focus:not(:focus-visible) {
 }
 
 .footer-chev {
+  display: flex;
+  align-items: center;
   color: var(--muted);
   font-size: 11px;
   transition: transform 0.12s ease;
@@ -1654,8 +1656,6 @@ button:focus:not(:focus-visible) {
   /* Match the session-row kebab exactly: padding-sized (no fixed box), same padding/font, so the ⋮
      has the same room. The split button below is grown to this height to stay inline. */
   padding: 2px 4px;
-  font-size: 16px;
-  line-height: 1;
   color: var(--muted);
   background: none;
   /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
@@ -1754,8 +1754,9 @@ button:focus:not(:focus-visible) {
 }
 
 .submenu-chev {
+  display: flex;
+  align-items: center;
   color: var(--muted);
-  font-size: 10px;
 }
 
 /* A pick-one row (e.g. which group a session is in): the tick keeps its own column so the labels of
@@ -1768,8 +1769,12 @@ button:focus:not(:focus-visible) {
 
 .menu-tick {
   flex: 0 0 12px;
+  /* Centred in its reserved column so the tick doesn't sit hard against the label; the column keeps
+     its width when empty, which is what lines the labels up. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--accent);
-  font-size: 11px;
 }
 
 .menu-separator {
@@ -1787,8 +1792,6 @@ button:focus:not(:focus-visible) {
   border: 1px solid transparent;
   border-radius: 4px;
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1;
   cursor: pointer;
 }
 
@@ -1806,8 +1809,6 @@ button:focus:not(:focus-visible) {
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1;
   cursor: pointer;
 }
 

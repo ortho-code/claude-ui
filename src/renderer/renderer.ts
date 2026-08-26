@@ -76,6 +76,33 @@ const layersIcon = (size: number): string =>
 
 const FOLDER_ICON =
   '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2 4h4l1.5 1.5H14V13H2z"/></svg>';
+
+// The chrome marks — carets, +, ⋮, ✓, × — as SVG rather than the text glyphs they used to be. Every
+// one of those resolved through system font fallback, which is how ⑂ ended up rendering from a
+// MONOSPACE face beside its neighbours (see the family/worktree marks below). These render the same
+// whatever the system has installed, take their colour from `currentColor` like the other icons, and
+// have their ink centred on (8,8) in the viewBox so flex centring lands them square with no nudge.
+// `ink` is the stroke the user actually SEES, in px — the viewBox is a fixed 16 units, so a constant
+// stroke-width would draw a 9px caret at two-thirds the weight of a 14px one and the set would look
+// mismatched at exactly the sizes this chrome uses. Converting px to units per size keeps every mark
+// the same visual weight, and 1.3px is the weight the existing folder/layers icons already render at.
+const strokeIcon = (size: number, path: string, ink = 1.3): string =>
+  `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${((ink * 16) / size).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+// Chevrons, not filled triangles: the collapse-all button already says fold/unfold with a chevron,
+// and a solid triangle would be the only filled shape in an outline icon set.
+const chevronDown = (size: number): string => strokeIcon(size, '<path d="M4 6L8 10L12 6" />');
+const chevronRight = (size: number): string => strokeIcon(size, '<path d="M6 4L10 8L6 12" />');
+const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
+const tickIcon = (size: number): string => strokeIcon(size, '<path d="M3.5 8.4L6.6 11.5L12.5 4.9" />', 1.5);
+const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4" />');
+// Dots, so it stays a kebab rather than becoming a dashed line. The radius is in px for the same
+// reason the stroke is: three 2.6px dots whatever the button's size.
+const kebabIcon = (size: number): string => {
+  const r = ((1.3 * 16) / size).toFixed(2);
+  return `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="currentColor"><circle cx="8" cy="3.4" r="${r}" /><circle cx="8" cy="8" r="${r}" /><circle cx="8" cy="12.6" r="${r}" /></svg>`;
+};
+// One helper for every collapsible section's caret, so project and group carets can't drift apart.
+const caretIcon = (collapsed: boolean, size: number): string => (collapsed ? chevronRight(size) : chevronDown(size));
 const filterStatus = document.getElementById('filter-status')!;
 const filterCount = document.getElementById('filter-count')!;
 const filterClear = document.getElementById('filter-clear') as HTMLButtonElement;
@@ -137,7 +164,7 @@ function showAttentionToast(tab: Tab, status: 'waiting' | 'idle'): void {
   const close = document.createElement('button');
   close.type = 'button';
   close.className = 'notif-close';
-  close.textContent = '×';
+  close.innerHTML = closeIcon(14);
   close.setAttribute('aria-label', 'Dismiss');
   el.append(dot, text, close);
 
@@ -1063,7 +1090,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
     // A project view can't collapse its one project, so it shows no caret and no clickable styling.
     els.section.classList.toggle('no-collapse', activeProject !== null);
     els.caret.hidden = activeProject !== null;
-    els.caret.textContent = collapsed ? '▸' : '▾';
+    els.caret.innerHTML = caretIcon(collapsed, 10);
     els.count.textContent = String(project.count);
     els.label.textContent = projName(project.repoRoot); // keep the heading current (e.g. after a rename)
     if (els.addCaret) els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
@@ -1072,7 +1099,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
       groupSections.set(group.id, groupEls);
       const groupCollapsed = !isFiltering() && collapsedGroups.has(group.id);
       groupEls.section.classList.toggle('collapsed', groupCollapsed);
-      groupEls.caret.textContent = groupCollapsed ? '▸' : '▾';
+      groupEls.caret.innerHTML = caretIcon(groupCollapsed, 10);
       groupEls.label.textContent = group.name;
       groupEls.count.textContent = String(sessions.length);
       groupEls.empty.hidden = sessions.length > 0;
@@ -1318,7 +1345,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       // A fixed-width column, empty when unchecked, so every label in the list still lines up.
       const tick = document.createElement('span');
       tick.className = 'menu-tick';
-      tick.textContent = item.checked ? '✓' : '';
+      tick.innerHTML = item.checked ? tickIcon(11) : '';
       button.classList.add('has-tick');
       button.prepend(tick);
     }
@@ -1326,7 +1353,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       button.className = 'has-submenu';
       const chev = document.createElement('span');
       chev.className = 'submenu-chev';
-      chev.textContent = '▸';
+      chev.innerHTML = chevronRight(10);
       button.append(chev);
       const open = () => openSubmenu(button, item.submenu!);
       button.addEventListener('mouseenter', open);
@@ -1450,7 +1477,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     split.className = 'split-button';
     const add = document.createElement('button');
     add.className = 'project-add';
-    add.textContent = '+';
+    add.innerHTML = plusIcon(12);
     setTooltip(add, 'New session in this project');
     add.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -1458,7 +1485,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     });
     const caret = document.createElement('button');
     caret.className = 'project-add-caret';
-    caret.textContent = '▾';
+    caret.innerHTML = chevronDown(9);
     caret.hidden = true;
     setTooltip(caret, 'New session options');
     caret.addEventListener('click', (event) => {
@@ -1475,7 +1502,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   // Project options (rename now, hide later); stopPropagation so it doesn't toggle collapse.
   const kebab = document.createElement('button');
   kebab.className = 'project-kebab';
-  kebab.textContent = '⋮';
+  kebab.innerHTML = kebabIcon(14);
   setTooltip(kebab, 'Project options');
   kebab.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -1500,7 +1527,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     if (collapsed) collapsedProjects.add(name);
     else collapsedProjects.delete(name);
     section.classList.toggle('collapsed', collapsed);
-    caret.textContent = collapsed ? '▸' : '▾';
+    caret.innerHTML = caretIcon(collapsed, 10);
     container.scrollTop += heading.getBoundingClientRect().top - before;
     // This toggle deliberately skips renderList (no flicker, no scroll jump), so the header button
     // has to be refreshed by hand — otherwise it still reads "Expand all" after one project reopens.
@@ -1540,7 +1567,7 @@ function createGroupSection(id: string): GroupSectionEls {
   // Group options, same shape as the project heading's kebab; stopPropagation so it doesn't collapse.
   const kebab = document.createElement('button');
   kebab.className = 'group-kebab';
-  kebab.textContent = '⋮';
+  kebab.innerHTML = kebabIcon(14);
   setTooltip(kebab, 'Group options');
   kebab.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -1558,7 +1585,7 @@ function createGroupSection(id: string): GroupSectionEls {
     if (collapsed) collapsedGroups.add(id);
     else collapsedGroups.delete(id);
     section.classList.toggle('collapsed', collapsed);
-    caret.textContent = collapsed ? '▸' : '▾';
+    caret.innerHTML = caretIcon(collapsed, 10);
   });
 
   // The rows live in their own element so the indent and its rail wrap the whole group, which is
@@ -1761,7 +1788,7 @@ function createSessionRow(key: string): HTMLElement {
   // Per-session actions menu: fork this session, and (for a family member) list its siblings.
   const kebab = document.createElement('button');
   kebab.className = 'session-kebab';
-  kebab.textContent = '⋮';
+  kebab.innerHTML = kebabIcon(14);
   setTooltip(kebab, 'Session options');
   kebab.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -2223,7 +2250,7 @@ function tabElement(tab: Tab): HTMLElement {
 
   const close = document.createElement('button');
   close.className = 'tab-close';
-  close.textContent = '×';
+  close.innerHTML = closeIcon(14);
   setTooltip(close, 'Close tab');
   close.addEventListener('click', (event) => {
     event.stopPropagation();
