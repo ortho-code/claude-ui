@@ -40,8 +40,16 @@ describe('installStatusHooks', () => {
   it('writes the status hooks into the tool-owned settings file, not the user settings', async () => {
     await installStatusHooks();
     const tool = JSON.parse(await fs.readFile(statusSettingsFile, 'utf8'));
-    expect(Object.keys(tool.hooks).sort()).toEqual(['Notification', 'SessionEnd', 'Stop', 'UserPromptSubmit']);
+    expect(Object.keys(tool.hooks).sort()).toEqual([
+      'Notification',
+      'SessionEnd',
+      'SessionStart',
+      'Stop',
+      'UserPromptSubmit',
+    ]);
     expect(tool.hooks.UserPromptSubmit[0].hooks[0].command).toBe(`${ourCmd} busy`);
+    // SessionStart reports identity, not a state — see HOOK_EVENTS.
+    expect(tool.hooks.SessionStart[0].hooks[0].command).toBe(`${ourCmd} start`);
   });
 
   it('strips only the previously-injected status hooks from ~/.claude/settings.json', async () => {

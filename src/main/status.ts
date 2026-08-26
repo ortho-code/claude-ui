@@ -24,6 +24,13 @@ const HOOK_EVENTS: [string, string][] = [
   ['Notification', 'waiting'],
   // Ends reset the dot to empty: 'closed' has no color rule, so it renders hollow.
   ['SessionEnd', 'closed'],
+  // Not a status: 'start' reports only WHICH session a tab is running, at the moment claude starts.
+  // Without it a new tab holds a placeholder id until its first prompt (the earliest of the events
+  // above), so anything done before that — /rename, most obviously — leaves the tab named
+  // "New: <folder>" and its placeholder row sitting beside the real session in the sidebar. The
+  // renderer treats 'start' as identity only and does not touch the dot: this also fires on `clear`
+  // and `compact`, which happen MID-session, where setting a status would knock out a live one.
+  ['SessionStart', 'start'],
 ];
 
 /**
@@ -41,9 +48,15 @@ mkdir -p "$dir"
 input="$(cat)"
 sid="$(printf '%s' "$input" | grep -oE '"session_id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\\1/')"
 tab="\${CLAUDE_UI_TAB:-}"
-if [ -n "$sid" ]; then
-  printf '{"status":"%s","ts":%s,"tab":"%s"}\\n' "$status" "$(date +%s)" "$tab" > "$dir/$sid.json"
+[ -n "$sid" ] || exit 0
+# 'start' carries identity, not status, so it must never overwrite a real one: these files are what
+# readAllStatuses seeds from at launch, and SessionStart also fires on clear/compact, where a session
+# already has a status worth keeping. A brand-new session has no file yet, which is the case it is
+# here for.
+if [ "$status" = "start" ] && [ -e "$dir/$sid.json" ]; then
+  exit 0
 fi
+printf '{"status":"%s","ts":%s,"tab":"%s"}\\n' "$status" "$(date +%s)" "$tab" > "$dir/$sid.json"
 exit 0
 `;
 

@@ -2554,6 +2554,10 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
       renderList();
     }
   }
+  // 'start' is the SessionStart hook reporting which session a tab is running, not a state it is in.
+  // It fires on `clear` and `compact` too — mid-session — so passing it to setStatus would clear a
+  // live dot. Identity is all it carries, and that has been applied above.
+  if (status === 'start') return;
   setStatus(id, status);
   // A new session's title isn't on disk immediately; re-read on its status events until it is
   // (this also makes the new session appear in the sidebar).
