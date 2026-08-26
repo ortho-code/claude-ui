@@ -316,7 +316,11 @@ function isOpen(id: string): boolean {
 function updateSidebarHighlight(): void {
   for (const row of sessionRows.values()) {
     const id = row.dataset.sid ?? '';
-    row.classList.toggle('open', isOpen(id));
+    const tab = tabs.find((t) => t.session.id === id);
+    row.classList.toggle('open', tab !== undefined);
+    // "Has a tab" and "is running" stopped being the same thing once tabs restore cold, so the row
+    // says which: an accent bar for a live session, a muted one for a tab waiting to be resumed.
+    row.classList.toggle('cold', tab !== undefined && tab.terminalId === null);
     row.classList.toggle('active-session', activeTab?.session.id === id);
   }
 }
