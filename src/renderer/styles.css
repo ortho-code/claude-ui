@@ -1057,12 +1057,20 @@ button:focus:not(:focus-visible) {
 }
 
 /* No pill here: the project's count keeps that treatment, so the group's stays plain text. */
+/* The same pill the project heading's count wears, so the two headings say "count" the same way —
+   and it fixes what looked like a spacing fault: as bare text the count's ink sat 6px from the split
+   button's border while the kebab's dots sit ~15px from it, because a kebab's ink is 2.6px of dots
+   floating in a 24px box. The pill's own padding puts the digits ~13px away, which is what the eye
+   was asking for. --bg, not --surface: the heading bar is already --surface. */
 .group h3 .group-count {
   flex: 0 0 auto;
   margin-left: auto;
-  font-size: 11px;
+  padding: 1px 7px;
+  font-size: var(--text-small);
   font-weight: 400;
   color: var(--muted);
+  background: var(--bg);
+  border-radius: var(--radius-pill);
 }
 
 /* The indent says a row is IN the group; the rail draws where the group ends, so several groups
