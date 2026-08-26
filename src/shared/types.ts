@@ -79,6 +79,11 @@ export interface ClaudeUiApi {
   /** Session ids open as tabs, in order, persisted for restore on next launch. */
   getOpenSessions(): Promise<string[]>;
   setOpenSessions(ids: string[]): void;
+  /** Which open session to reopen on; null means open on no tab. */
+  getActiveSession(): Promise<string | null>;
+  /** repoRoot -> the session last looked at there, so switching projects returns you where you were. */
+  getActiveSessionByProject(): Promise<Record<string, string>>;
+  setActiveSession(id: string | null, repoRoot?: string): void;
   getActiveProject(): Promise<string | null>;
   setActiveProject(folder: string | null): void;
   /** Whether the attention strip starts expanded (true for a meta that never said otherwise). */

@@ -13,6 +13,19 @@ import type { OrderMove, GroupState, SessionGroup } from '../shared/types';
 interface Meta {
   pinned: string[];
   openSessions: string[];
+  /**
+   * Which open session was last looked at, so a restart lands you where you left off. Without it the
+   * app opened on whichever tab happened to be LAST in openSessions — harmless while every tab was
+   * started at launch, but tabs are restored COLD now, and landing on an arbitrary cold one is worse
+   * than landing on none.
+   */
+  activeSession: string | null;
+  /**
+   * repoRoot -> the session last looked at in THAT project, so switching back to a project returns
+   * you where you were. The in-memory `activatedSeq` already does this within one run, but it resets
+   * to 0 on restore, which makes "most recent" meaningless exactly when you need it most.
+   */
+  activeSessionByProject: Record<string, string>;
   /** Archived session ids mapped to when they were archived (epoch ms; 0 = unknown). */
   archived: Record<string, number>;
   /** The project the sidebar switcher is scoped to (repoRoot), or null for "All". */
@@ -38,7 +51,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], archived: {}, activeProject: null, projectNames: {}, projectOrder: [], footerExpanded: true, notes: {}, groups: [], groupOf: {}, version: 3 };
+  return { pinned: [], openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], footerExpanded: true, notes: {}, groups: [], groupOf: {}, version: 3 };
 }
 
 // Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
@@ -71,6 +84,14 @@ function normalize(parsed: Record<string, unknown>): Meta {
   return {
     pinned: Array.isArray(parsed.pinned) ? (parsed.pinned as string[]) : [],
     openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
+    // Same reasoning as projectOrder below: a new defaulted field is not a reinterpretation of what
+    // is stored, so no version bump. Absent means "no memory yet" — open on nothing.
+    activeSession: typeof parsed.activeSession === 'string' ? parsed.activeSession : null,
+    activeSessionByProject: Object.fromEntries(
+      Object.entries((parsed.activeSessionByProject ?? {}) as Record<string, unknown>).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      ),
+    ),
     archived,
     activeProject: typeof rawActive === 'string' ? rawActive : null,
     projectNames:
@@ -230,6 +251,10 @@ export function migrateToSessionKeys(conversationToId: Map<string, string>): Pro
     const remapKey = (k: string): string => conversationToId.get(k) ?? k;
     meta.pinned = [...new Set(meta.pinned.map(remapKey))];
     meta.openSessions = [...new Set(meta.openSessions.map(remapKey))];
+    if (meta.activeSession) meta.activeSession = remapKey(meta.activeSession);
+    meta.activeSessionByProject = Object.fromEntries(
+      Object.entries(meta.activeSessionByProject).map(([root, key]) => [root, remapKey(key)]),
+    );
     meta.archived = Object.fromEntries(Object.entries(meta.archived).map(([k, ts]) => [remapKey(k), ts]));
     meta.version = 3;
     await writeMeta(meta);
@@ -268,6 +293,10 @@ export function purgeSession(id: string): Promise<void> {
   return update('purgeSession', (meta) => {
     meta.pinned = meta.pinned.filter((k) => k !== id);
     meta.openSessions = meta.openSessions.filter((k) => k !== id);
+    if (meta.activeSession === id) meta.activeSession = null;
+    meta.activeSessionByProject = Object.fromEntries(
+      Object.entries(meta.activeSessionByProject).filter(([, key]) => key !== id),
+    );
     delete meta.archived[id];
     delete meta.groupOf[id];
     delete meta.notes[id];
@@ -281,6 +310,27 @@ export function getOpenSessions(): Promise<string[]> {
 export function setOpenSessions(ids: string[]): Promise<void> {
   return update('setOpenSessions', (meta) => {
     meta.openSessions = ids;
+    // A tab that is no longer open cannot be the one to reopen on — globally or for its project.
+    if (meta.activeSession && !ids.includes(meta.activeSession)) meta.activeSession = null;
+    meta.activeSessionByProject = Object.fromEntries(
+      Object.entries(meta.activeSessionByProject).filter(([, id]) => ids.includes(id)),
+    );
+  });
+}
+
+export function getActiveSession(): Promise<string | null> {
+  return serialize(async () => (await readMeta()).activeSession);
+}
+
+export function getActiveSessionByProject(): Promise<Record<string, string>> {
+  return serialize(async () => (await readMeta()).activeSessionByProject);
+}
+
+/** Remember a session as the one to return to — overall, and within its own project. */
+export function setActiveSession(id: string | null, repoRoot?: string): Promise<void> {
+  return update('setActiveSession', (meta) => {
+    meta.activeSession = id;
+    if (id && repoRoot) meta.activeSessionByProject[repoRoot] = id;
   });
 }
 

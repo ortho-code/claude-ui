@@ -9,6 +9,9 @@ import {
   toggleArchive,
   getOpenSessions,
   setOpenSessions,
+  getActiveSession,
+  getActiveSessionByProject,
+  setActiveSession,
   getActiveProject,
   setActiveProject,
   getProjectNames,
@@ -95,6 +98,11 @@ ipcMain.handle('dialog:pickFolder', async (): Promise<string | null> => {
   return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
 });
 ipcMain.handle('meta:getOpenSessions', () => getOpenSessions());
+ipcMain.handle('meta:getActiveSession', () => getActiveSession());
+ipcMain.handle('meta:getActiveSessionByProject', () => getActiveSessionByProject());
+ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: string) => {
+  void setActiveSession(id, repoRoot);
+});
 ipcMain.on('meta:setOpenSessions', (_event, ids: string[]) => {
   void setOpenSessions(ids);
 });

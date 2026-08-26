@@ -388,7 +388,14 @@ function clearNudge(id: string): void {
 
 interface Tab {
   session: SessionSummary;
-  terminalId: number;
+  /**
+   * The running process, or null when the tab is COLD — built and listed, with no claude behind it.
+   * Restored tabs start cold and spawn on activation; a null id is why nothing routes to them and
+   * why their input is dropped rather than sent nowhere.
+   */
+  terminalId: number | null;
+  /** Guards against a second start while the first is still awaiting its terminal id. */
+  starting?: boolean;
   term: Terminal;
   fitAddon: FitAddon;
   el: HTMLElement;
@@ -408,6 +415,11 @@ interface Tab {
 const tabs: Tab[] = [];
 let activeTab: Tab | null = null;
 let activationSeq = 0;
+// Where you were, per project and overall. Seeded from meta at restore and kept current as you
+// switch, so returning to a project lands where you left it even across a restart — `activatedSeq`
+// alone cannot do that, since it resets to 0 when tabs are rebuilt.
+let activeByProject: Record<string, string> = {};
+let lastActiveKey: string | null = null;
 let restoring = false;
 // Set once the app is quitting. Shutdown kills every terminal, and each pty exit closes its tab; we
 // must not let those closes persist an empty open-tabs list over the real one (it would wipe the
@@ -425,15 +437,29 @@ function persistOpenTabs(): void {
 async function restoreOpenTabs(): Promise<void> {
   restoring = true;
   try {
-    const [sessions, openKeys] = await Promise.all([
+    const [sessions, openKeys, activeKey, byProject] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getOpenSessions(),
+      window.claudeUi.getActiveSession(),
+      window.claudeUi.getActiveSessionByProject(),
     ]);
+    activeByProject = { ...byProject };
+    lastActiveKey = activeKey;
     const tips = sessionsByKey(sessions);
+    // Restore the tabs COLD — no claude process each. Starting them all was costing 20 processes at
+    // ~437 MB on this machine, spawned whether or not any was used, plus 20 CLI cold starts on every
+    // launch. A tab starts when you select it.
+    let toActivate: Tab | null = null;
     for (const key of openKeys) {
       const session = tips.get(key);
-      if (session) await openSession(session);
+      if (!session) continue;
+      const tab = buildTab(session, false);
+      if (key === activeKey) toActivate = tab;
     }
+    // Land where you left off — SELECTED but not started, since nothing is meant to be live after a
+    // restart. Without a remembered tab we open on none rather than guessing.
+    if (toActivate) activateTab(toActivate, false);
+    else updatePlaceholder();
   } finally {
     restoring = false;
     persistOpenTabs();
@@ -2172,9 +2198,15 @@ async function forkSession(parent: SessionSummary): Promise<void> {
   renderList();
 }
 
-async function createTab(session: SessionSummary, resumeId: string | undefined, fork = false, name?: string, worktree?: string, joinGroupId?: string): Promise<void> {
+/**
+ * Build a tab WITHOUT a process: real DOM, a real Terminal, no claude. `terminalId` stays null until
+ * startTab fills it in, which is what lets tabs be restored cold — 20 restored tabs used to mean 20
+ * `claude --resume` processes at ~437 MB each, spawned whether or not you looked at any of them.
+ * The xterm instance stays eager on purpose: an empty one costs almost nothing next to a process, and
+ * keeping it non-null confines this to the handful of places that use terminalId.
+ */
+function buildTab(session: SessionSummary, needsTitle: boolean, joinGroupId?: string): Tab {
   const token = crypto.randomUUID();
-  const terminalId = await window.claudeUi.startTerminal(session.cwd, resumeId, token, fork, name, worktree);
 
   const el = document.createElement('div');
   el.className = 'term';
@@ -2212,7 +2244,11 @@ async function createTab(session: SessionSummary, resumeId: string | undefined, 
       // Send the newline once (on keydown), and swallow BOTH keydown and keypress so xterm never
       // turns the accompanying keypress into a submit \r. Shift+Enter emits that keypress (Ctrl+
       // Enter does not), which is why only Shift+Enter was flaky.
-      if (event.type === 'keydown') window.claudeUi.sendTerminalInput(terminalId, '\n');
+      // tab.terminalId, not a captured value: it is null while these handlers are wired and only
+      // filled in when the tab is actually started.
+      if (event.type === 'keydown' && tab.terminalId !== null) {
+        window.claudeUi.sendTerminalInput(tab.terminalId, '\n');
+      }
       return false;
     }
     return true;
@@ -2220,16 +2256,14 @@ async function createTab(session: SessionSummary, resumeId: string | undefined, 
 
   const tab: Tab = {
     session,
-    terminalId,
+    terminalId: null,
     term,
     fitAddon,
     el,
     token,
-    // A fork mints a NEW session id despite resuming one, so it also needs to adopt its real id via
-    // the token (like a fresh session) — a plain resume already carries its final id.
-    needsTitle: resumeId === undefined || fork,
+    needsTitle,
     joinGroupId,
-    startedAt: Date.now(),
+    startedAt: 0,
     activatedSeq: 0,
   };
 
@@ -2251,26 +2285,85 @@ async function createTab(session: SessionSummary, resumeId: string | undefined, 
       }
       lastCtrlC = now;
     }
-    window.claudeUi.sendTerminalInput(terminalId, data);
+    if (tab.terminalId !== null) window.claudeUi.sendTerminalInput(tab.terminalId, data);
   });
 
   tabs.push(tab);
-  activateTab(tab);
-  persistOpenTabs();
+  return tab;
 }
 
-function activateTab(tab: Tab): void {
+/**
+ * Give a built tab a process. Separate from buildTab so a tab can exist cold: restored tabs start
+ * this way and only spawn when you activate one. Returns early if it is already running, so
+ * activating a live tab is free.
+ */
+async function startTab(
+  tab: Tab,
+  resumeId: string | undefined,
+  fork = false,
+  name?: string,
+  worktree?: string,
+): Promise<void> {
+  if (tab.terminalId !== null || tab.starting) return;
+  tab.starting = true;
+  try {
+    tab.startedAt = Date.now();
+    tab.terminalId = await window.claudeUi.startTerminal(tab.session.cwd, resumeId, tab.token, fork, name, worktree);
+    // The pty is created at a default size; hand it the real one now that it exists.
+    tab.fitAddon.fit();
+    window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
+    // Now it has a terminal to show: reveal it, drop the placeholder, and repaint the bar (a cold
+    // tab reads differently from a running one).
+    if (activeTab === tab) {
+      tab.el.classList.add('active');
+      tab.term.focus();
+    }
+    renderTabBar();
+    updatePlaceholder();
+    updateSidebarHighlight(); // its row's bar goes from muted to accent now that it is live
+  } finally {
+    tab.starting = false;
+  }
+}
+
+async function createTab(session: SessionSummary, resumeId: string | undefined, fork = false, name?: string, worktree?: string, joinGroupId?: string): Promise<void> {
+  // A fork mints a NEW session id despite resuming one, so it also needs to adopt its real id via
+  // the token (like a fresh session) — a plain resume already carries its final id.
+  const tab = buildTab(session, resumeId === undefined || fork, joinGroupId);
+  activateTab(tab);
+  persistOpenTabs();
+  await startTab(tab, resumeId, fork, name, worktree);
+}
+
+/**
+ * `start` is false only for the selection a RESTORE makes: it shows you the tab you left off in
+ * without spawning anything, because nothing is meant to be live after a restart. Every deliberate
+ * selection starts the tab.
+ */
+function activateTab(tab: Tab, start = true): void {
   // Viewing a tab no longer clears its nudge: a waiting dot persists until you actually reply
   // (submitting fires UserPromptSubmit -> busy) or you mark it read by clicking the dot.
   tab.activatedSeq = ++activationSeq;
   activeTab = tab;
-  for (const other of tabs) other.el.classList.toggle('active', other === tab);
+  // A cold tab's (empty) terminal stays hidden, so the placeholder can explain itself instead of
+  // showing a blank black pane.
+  for (const other of tabs) other.el.classList.toggle('active', other === tab && other.terminalId !== null);
   renderTabBar();
   updatePlaceholder();
   updateSidebarHighlight();
   tab.fitAddon.fit();
-  window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
+  // A cold tab starts the moment you select it — selecting IS starting, with no separate affordance,
+  // because that is how activating a tab has always behaved and laziness should show up only as a
+  // wait. Fire-and-forget: activateTab is called from click handlers and stays synchronous.
+  if (tab.terminalId === null) {
+    if (start) void startTab(tab, tab.session.id);
+  } else window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
   tab.term.focus();
+  // Remembered twice: overall (where to reopen at launch) and for this project (where to return to
+  // when you switch back to it).
+  lastActiveKey = entityKey(tab.session);
+  activeByProject[tab.session.repoRoot] = lastActiveKey;
+  window.claudeUi.setActiveSession(lastActiveKey, tab.session.repoRoot);
 }
 
 // Full workspace switch: bring the active terminal in line with the current scope (a project, or
@@ -2279,11 +2372,18 @@ function activateTab(tab: Tab): void {
 function switchWorkspaceTerminal(repoRoot: string | null): void {
   const scoped = repoRoot ? tabs.filter((t) => t.session.repoRoot === repoRoot) : tabs;
   if (!(activeTab && scoped.includes(activeTab))) {
-    const target = scoped.length
-      ? scoped.reduce((best, t) => (t.activatedSeq > best.activatedSeq ? t : best))
-      : null;
+    // Prefer a tab that is already RUNNING here; failing that, SELECT the one you were last in for
+    // this project, cold. Selecting a cold tab is harmless — it is STARTING one that a workspace
+    // switch must never do, or browsing projects in the switcher would spawn a session per project
+    // you glanced at. Hence activateTab(..., false) either way: it only suppresses the start, which
+    // a running tab does not need anyway.
+    const running = scoped.filter((t) => t.terminalId !== null);
+    const rememberedKey = repoRoot ? activeByProject[repoRoot] : lastActiveKey;
+    const target = running.length
+      ? running.reduce((best, t) => (t.activatedSeq > best.activatedSeq ? t : best))
+      : (scoped.find((t) => entityKey(t.session) === rememberedKey) ?? null);
     if (target) {
-      activateTab(target);
+      activateTab(target, false);
       return;
     }
     activeTab = null;
@@ -2313,7 +2413,7 @@ function removeTab(tab: Tab): void {
 // User-initiated close: terminate the session (claude persists per turn, so its context is on
 // disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
 function closeTab(tab: Tab): void {
-  window.claudeUi.closeTerminal(tab.terminalId);
+  if (tab.terminalId !== null) window.claudeUi.closeTerminal(tab.terminalId); // nothing to kill when cold
   removeTab(tab);
 }
 
@@ -2384,7 +2484,15 @@ function renderTabBar(): void {
 
 function tabElement(tab: Tab): HTMLElement {
   const el = document.createElement('div');
-  el.className = tab === activeTab ? 'tab active' : 'tab';
+  // 'cold' = restored but never started. Dimmed rather than marked: it is a session waiting to be
+  // resumed, not a broken one, and clicking it is exactly what starts it.
+  el.className = [
+    'tab',
+    tab === activeTab ? 'active' : '',
+    tab.terminalId === null ? 'cold' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const dot = document.createElement('span');
   applyStatus(dot, statuses.get(tab.session.id), acked.has(tab.session.id));
@@ -2576,6 +2684,7 @@ window.claudeUi.onQuitting(() => {
 function fitActive(): void {
   if (!activeTab) return;
   activeTab.fitAddon.fit();
+  if (activeTab.terminalId === null) return; // cold: nothing to resize until it starts
   window.claudeUi.resizeTerminal(activeTab.terminalId, activeTab.term.cols, activeTab.term.rows);
 }
 

@@ -1583,6 +1583,36 @@ button:focus:not(:focus-visible) {
 }
 
 /* Hover cue on inactive tabs (the active one keeps its accent styling). */
+/* Restored but not started. It loses the FILL rather than just dimming its text: every other tab is
+   a filled chip, so an unfilled one reads as "not loaded yet" at a glance, where a slightly greyer
+   label did not. Not badged and not marked — this is a session waiting to be resumed, and clicking
+   it is the whole fix. Hover fills it like any other tab, so it never reads as disabled. */
+.tab.cold {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.tab.cold .tab-label {
+  color: var(--muted);
+}
+
+.tab.cold:hover {
+  background: var(--surface);
+}
+
+.tab.cold:hover .tab-label {
+  color: var(--text);
+}
+
+/* Selected but still cold — the launch state. Keeps the accent edge that marks the active tab, so
+   you can see WHERE you are, without the fill that would say it is running. */
+.tab.cold.active {
+  background: none;
+  box-shadow:
+    inset 0 3px 0 var(--accent),
+    inset 0 0 0 1px var(--border);
+}
+
 .tab:not(.active):hover {
   background: var(--surface-hover);
 }
