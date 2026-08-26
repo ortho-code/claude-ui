@@ -286,6 +286,8 @@ interface GroupSectionEls {
   caret: HTMLElement;
   label: HTMLElement;
   count: HTMLElement;
+  /** The new-session split-button's dropdown caret; hidden unless the project is a git repo. */
+  addCaret: HTMLElement;
   /** Holds the member rows; the indent and its rail live on this element. */
   members: HTMLElement;
   /** Shown instead of rows when the group has no members yet. */
@@ -1102,6 +1104,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
       groupEls.caret.innerHTML = caretIcon(groupCollapsed, 10);
       groupEls.label.textContent = group.name;
       groupEls.count.textContent = String(sessions.length);
+      groupEls.addCaret.hidden = !project.isRepo; // worktree option only for git repos
       groupEls.empty.hidden = sessions.length > 0;
       for (const session of sessions) {
         const row = getOrCreateRow(entityKey(session));
@@ -1554,7 +1557,11 @@ function createGroupSection(id: string): GroupSectionEls {
   label.className = 'label';
   const count = document.createElement('span');
   count.className = 'group-count';
-  // Start a session already in this group — the group's answer to the project heading's "+".
+  // Start a session already in this group — the group's answer to the project heading's split
+  // button, and the same two parts: "+" starts one straight away, the caret offers the worktree
+  // variant. reconcileProjectSections shows the caret only when the project is a git repo.
+  const split = document.createElement('div');
+  split.className = 'split-button';
   const add = document.createElement('button');
   add.className = 'group-add';
   add.innerHTML = plusIcon(14);
@@ -1564,6 +1571,21 @@ function createGroupSection(id: string): GroupSectionEls {
     const group = groupState.groups.find((g) => g.id === id);
     if (group?.repoRoot) void openNewSession(group.repoRoot, id);
   });
+  const addCaret = document.createElement('button');
+  addCaret.className = 'group-add-caret';
+  addCaret.innerHTML = chevronDown(9);
+  addCaret.hidden = true;
+  setTooltip(addCaret, 'New session options');
+  addCaret.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const repoRoot = groupState.groups.find((g) => g.id === id)?.repoRoot;
+    if (!repoRoot) return;
+    openMenu(addCaret, [
+      { label: 'New session', onSelect: () => void openNewSession(repoRoot, id) },
+      { label: 'New worktree session…', onSelect: () => void openWorktreeSession(repoRoot, id) },
+    ]);
+  });
+  split.append(add, addCaret);
   // Group options, same shape as the project heading's kebab; stopPropagation so it doesn't collapse.
   const kebab = document.createElement('button');
   kebab.className = 'group-kebab';
@@ -1579,7 +1601,7 @@ function createGroupSection(id: string): GroupSectionEls {
       { label: 'Delete group', onSelect: () => void deleteGroupById(id) },
     ]);
   });
-  heading.append(caret, icon, label, count, add, kebab);
+  heading.append(caret, icon, label, count, split, kebab);
   heading.addEventListener('click', () => {
     const collapsed = !collapsedGroups.has(id);
     if (collapsed) collapsedGroups.add(id);
@@ -1598,7 +1620,7 @@ function createGroupSection(id: string): GroupSectionEls {
   members.append(empty);
 
   section.append(heading, members);
-  return { section, caret, label, count, members, empty };
+  return { section, caret, label, count, addCaret, members, empty };
 }
 
 function getOrCreateRow(key: string): HTMLElement {
@@ -1940,7 +1962,7 @@ async function openNewSession(cwd: string, joinGroupId?: string): Promise<void> 
 // Start a new session in a fresh git worktree of `repoRoot`: `claude -w [name]`. Prompts for an
 // optional name (blank -> claude auto-names). Like openNewSession, the tab starts on a placeholder
 // and adopts the real id via its token; the worktree session appears (badged) on the next refresh.
-async function openWorktreeSession(repoRoot: string): Promise<void> {
+async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Promise<void> {
   const folder = repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
   // claude's `-w` name must be a slug (letters/digits/dots/underscores/dashes); turn the free-text
   // label into one. A blank slug means auto-name, which can't collide.
@@ -1973,8 +1995,10 @@ async function openWorktreeSession(repoRoot: string): Promise<void> {
     // a worktree, so no prefix. Blank name falls back to a plain new-session label.
     title: friendly || `New: ${folder}`,
   });
+  // Same as openNewSession: show it in its group from the first paint, before the real id exists.
+  if (joinGroupId) pendingGroupOf.set(session.id, joinGroupId);
   ensureProjectVisible(session.repoRoot);
-  await createTab(session, undefined, false, friendly || undefined, slug);
+  await createTab(session, undefined, false, friendly || undefined, slug, joinGroupId);
   renderList();
 }
 

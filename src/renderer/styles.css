@@ -939,6 +939,7 @@ button:hover {
    hover-driven). Box-sizing is border-box, so adding a border to the borderless kebabs doesn't
    shift layout. */
 .project-add-caret.menu-open,
+.group-add-caret.menu-open,
 .project-kebab.menu-open,
 .session-kebab.menu-open {
   background: var(--active);
@@ -949,7 +950,9 @@ button:hover {
   border-color: var(--accent);
 }
 .split-button:has(.project-add-caret.menu-open) .project-add,
-.split-button:has(.project-add-caret.menu-open) .project-add-caret {
+.split-button:has(.project-add-caret.menu-open) .project-add-caret,
+.split-button:has(.group-add-caret.menu-open) .group-add,
+.split-button:has(.group-add-caret.menu-open) .group-add-caret {
   border-color: var(--accent);
 }
 /* Keep the active fill on the open caret even while hovering it — the .split-button :hover rule
@@ -1794,6 +1797,12 @@ button:focus:not(:focus-visible) {
 
 /* The group's "+" and ⋮, matching the project heading's pair at the group heading's smaller scale
    (the heading's own 6px gap does the spacing, as it does on the project heading). */
+/* COMPOSITE controls carry a resting border; single icon controls don't. Two halves that act as one
+   button have to look like one object before you touch them — outlining them only on hover made the
+   pair read as two loose icons that suddenly acquired a box. Single icons need no such help, and a
+   border on each would put two more boxes on every row and heading. The project heading's split
+   button has always worked this way; this is the group's catching up. Fill stays transparent (the
+   heading bar is already --surface), so the border alone does the work until hover. */
 .group h3 .group-add {
   flex: 0 0 auto;
   display: flex;
@@ -1801,8 +1810,8 @@ button:focus:not(:focus-visible) {
   /* Standard control box, same as .session-kebab — see the recipe there. */
   padding: 2px 4px;
   background: none;
-  border: 1px solid transparent;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
   color: var(--muted);
   cursor: pointer;
 }
@@ -1839,7 +1848,6 @@ button:focus:not(:focus-visible) {
 .group h3 .split-button:hover .group-add,
 .group h3 .split-button:hover .group-add-caret {
   border-color: var(--accent);
-  color: var(--text);
 }
 
 .group h3 .group-kebab {
