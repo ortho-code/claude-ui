@@ -619,8 +619,13 @@ button:hover {
   border-radius: var(--radius-pill);
 }
 
+/* Same hover as the filter pills above it. border-color has to be repeated here: this rule's resting
+   `#date-presets button` is specificity 1,0,1 and so outranks `button:hover` at 0,1,1, which is the
+   same trap that silently left the project kebab and the toast close without an outline. */
 #date-presets button:hover {
   color: var(--text);
+  background: var(--surface-hover);
+  border-color: var(--accent);
 }
 
 #date-presets button.active {
