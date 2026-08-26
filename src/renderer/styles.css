@@ -1354,17 +1354,22 @@ button:focus:not(:focus-visible) {
   margin-right: -1px;
 }
 
+/* INLINE tier of the icon control: the note mark rides inside the 12px meta line, so it can't take
+   the standard 24x20 box without pushing every noted row taller. It keeps its own smaller box but
+   the same hover language as its neighbours (see the shared hover rule), so it reads as clickable
+   rather than as decoration — it was the only clickable thing in the app with no box at all. */
 .note-badge {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  padding: 1px 3px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
   color: var(--muted);
   cursor: pointer;
 }
 
-.note-badge:hover {
-  color: var(--text);
-}
 
 .worktree-badge,
 .sibling-badge {
