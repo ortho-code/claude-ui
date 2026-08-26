@@ -125,6 +125,18 @@ describe('sessionPasses', () => {
     expect(sessionPasses(session({ id: 's1' }), { ...base, text: 'kars', notes })).toBe(false);
   });
 
+  it("matches a group's name, which is how typing it reaches that group", () => {
+    const s = session({ id: 's1', title: 'Untitled', firstMessage: '', cwd: '/repo' });
+    const groupNames = new Map([['s1', 'Terminal work']]);
+    expect(sessionPasses(s, { ...base, text: 'terminal', groupNames })).toBe(true);
+    expect(sessionPasses(s, { ...base, text: 'terminal' })).toBe(false);
+  });
+
+  it("matches a group name only on that group's own members", () => {
+    const groupNames = new Map([['other', 'Terminal work']]);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, text: 'terminal', groupNames })).toBe(false);
+  });
+
   it('hides pending deletes and archived (unless in the archived view)', () => {
     expect(sessionPasses(session({ id: 's1' }), { ...base, pendingDeletes: new Set(['s1']) })).toBe(false);
     expect(sessionPasses(session({ id: 's1' }), { ...base, archived: new Set(['s1']) })).toBe(false);

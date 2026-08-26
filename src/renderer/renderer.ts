@@ -481,9 +481,23 @@ function isFiltering(): boolean {
   return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showSiblingsOnly || showArchivedOnly || datePreset !== 'any';
 }
 
+// Session key -> its group's NAME, so typing a group name reaches its sessions. Built ONCE per
+// filter pass and handed in: passesFilters runs per session, so building it there would be one pass
+// over the membership map per row.
+function groupNameByKey(): Map<string, string> {
+  const byId = new Map(groupState.groups.map((g) => [g.id, g.name]));
+  const out = new Map<string, string>();
+  for (const [key, id] of Object.entries(effectiveGroupState().groupOf)) {
+    const name = byId.get(id);
+    if (name) out.set(key, name);
+  }
+  return out;
+}
+
 // Adapt the current filter state to the pure predicate.
-function passesFilters(session: SessionSummary): boolean {
+function passesFilters(session: SessionSummary, groupNames?: ReadonlyMap<string, string>): boolean {
   return sessionPasses(session, {
+    groupNames,
     text: filterText,
     pinnedOnly: showPinnedOnly,
     worktreeOnly: showWorktreeOnly,
@@ -975,7 +989,8 @@ function renderList(): void {
   }
   renderSwitcher(pool);
 
-  const filtered = all.filter(passesFilters);
+  const groupNames = filterText ? groupNameByKey() : undefined;
+  const filtered = all.filter((s) => passesFilters(s, groupNames));
   // Project scope applies in the normal view; the archived view shows all archived (ignores it).
   const scoped = activeProject && !showArchivedOnly ? filtered.filter((s) => s.repoRoot === activeProject) : filtered;
   updateFilterStatus(scoped.length, all.length);

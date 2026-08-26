@@ -138,6 +138,8 @@ export interface FilterCriteria {
   pendingDeletes: ReadonlySet<string>;
   /** Session id -> note, so typed text matches a note as well as a title. */
   notes?: ReadonlyMap<string, string>;
+  /** Session key -> its group's name, so typing a group name surfaces everything in it. */
+  groupNames?: ReadonlyMap<string, string>;
 }
 
 // Whether a session survives every active filter. Archived sessions are hidden from the normal
@@ -156,7 +158,10 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   }
   if (!c.text) return true;
   const note = c.notes?.get(key) ?? '';
-  return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id} ${note}`
+  // The group name matches every session in that group, which is what makes typing one a way to
+  // reach it — the group headings themselves are not searchable, only the rows under them.
+  const group = c.groupNames?.get(key) ?? '';
+  return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id} ${note} ${group}`
     .toLowerCase()
     .includes(c.text.toLowerCase());
 }
