@@ -319,10 +319,20 @@ function reconcileOpenTabs(): void {
   for (const tab of tabs) {
     const fresh = byId.get(tab.session.id);
     if (!fresh) continue;
-    if (fresh.title !== tab.session.title || fresh.firstMessage !== tab.session.firstMessage) {
-      tab.session = fresh;
-      changed = true;
-    }
+    // Always adopt the fresh summary (cheap, and keeps a tab's data from going stale), but only
+    // rebuild the bar when something the TAB shows actually differs. Comparing only title/firstMessage
+    // used to leave the mid-session cases behind: entering a worktree or gaining a sibling changes
+    // worktree/isSibling (and repoRoot, which groups the tabs), so the mark never appeared until the
+    // next unrelated title change.
+    const shownDiffers =
+      fresh.title !== tab.session.title ||
+      fresh.firstMessage !== tab.session.firstMessage ||
+      fresh.worktree !== tab.session.worktree ||
+      fresh.repoRoot !== tab.session.repoRoot ||
+      fresh.isSibling !== tab.session.isSibling ||
+      fresh.siblingIds.length !== tab.session.siblingIds.length;
+    tab.session = fresh;
+    if (shownDiffers) changed = true;
     if (fresh.title || fresh.firstMessage) tab.needsTitle = false;
   }
   if (changed) renderTabBar();
