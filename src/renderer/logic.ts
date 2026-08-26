@@ -126,6 +126,10 @@ export interface FilterCriteria {
   /** Case-insensitive text; empty means no text filter. */
   text: string;
   pinnedOnly: boolean;
+  /** Show only sessions with a tab — running or cold. */
+  openOnly: boolean;
+  /** Show only sessions with a LIVE process. Narrower than openOnly, and what the stop action needs. */
+  runningOnly: boolean;
   worktreeOnly: boolean;
   /** Show only members of a multi-session family (siblings). */
   siblingOnly: boolean;
@@ -133,6 +137,10 @@ export interface FilterCriteria {
   dateFrom: number | null;
   dateTo: number | null;
   pinned: ReadonlySet<string>;
+  /** Keys of the sessions with a tab; only consulted when openOnly is set. */
+  open?: ReadonlySet<string>;
+  /** Keys of the sessions currently running; only consulted when runningOnly is set. */
+  running?: ReadonlySet<string>;
   /** Set or Map keyed by conversationId; only membership is used. */
   archived: { has(key: string): boolean };
   pendingDeletes: ReadonlySet<string>;
@@ -149,6 +157,8 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   if (c.pendingDeletes.has(key)) return false;
   if (c.archivedOnly !== c.archived.has(key)) return false;
   if (c.pinnedOnly && !c.pinned.has(key)) return false;
+  if (c.openOnly && !c.open?.has(key)) return false;
+  if (c.runningOnly && !c.running?.has(key)) return false;
   if (c.worktreeOnly && !session.worktree) return false;
   if (c.siblingOnly && !session.isSibling) return false;
   if (c.dateFrom !== null || c.dateTo !== null) {

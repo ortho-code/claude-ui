@@ -103,6 +103,8 @@ describe('sessionPasses', () => {
   const base: FilterCriteria = {
     text: '',
     pinnedOnly: false,
+    openOnly: false,
+    runningOnly: false,
     worktreeOnly: false,
     siblingOnly: false,
     archivedOnly: false,
@@ -136,6 +138,23 @@ describe('sessionPasses', () => {
   it("matches a group name only on that group's own members", () => {
     const groupNames = new Map([['other', 'Terminal work']]);
     expect(sessionPasses(session({ id: 's1' }), { ...base, text: 'terminal', groupNames })).toBe(false);
+  });
+
+  it('shows only running sessions when asked, which is what the stop action needs', () => {
+    const running = new Set(['s1']);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, runningOnly: true, running })).toBe(true);
+    // A session with a tab but no process is not running, so it is filtered out too.
+    expect(sessionPasses(session({ id: 's2' }), { ...base, runningOnly: true, running })).toBe(false);
+  });
+
+  it('separates having a tab from running, which are different questions', () => {
+    const open = new Set(['s1', 's2']);
+    const running = new Set(['s1']);
+    // s2 has a tab but no process: open shows it, running does not.
+    expect(sessionPasses(session({ id: 's2' }), { ...base, openOnly: true, open })).toBe(true);
+    expect(sessionPasses(session({ id: 's2' }), { ...base, runningOnly: true, running })).toBe(false);
+    // s3 has neither.
+    expect(sessionPasses(session({ id: 's3' }), { ...base, openOnly: true, open })).toBe(false);
   });
 
   it('hides pending deletes and archived (unless in the archived view)', () => {

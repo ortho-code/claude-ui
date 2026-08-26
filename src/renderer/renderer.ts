@@ -36,6 +36,8 @@ declare global {
 const container = document.getElementById('sessions')!;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const pinnedFilter = document.getElementById('pinned-filter') as HTMLButtonElement;
+const openFilter = document.getElementById('open-filter') as HTMLButtonElement;
+const runningFilter = document.getElementById('running-filter') as HTMLButtonElement;
 const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonElement;
 const siblingFilter = document.getElementById('sibling-filter') as HTMLButtonElement;
 const archivedFilter = document.getElementById('archived-filter') as HTMLButtonElement;
@@ -234,6 +236,8 @@ const acked = new Set<string>();
 let allSessions: SessionSummary[] = [];
 let filterText = '';
 let showPinnedOnly = false;
+let showOpenOnly = false;
+let showRunningOnly = false;
 let showWorktreeOnly = false;
 let showSiblingsOnly = false;
 let showArchivedOnly = false;
@@ -520,7 +524,16 @@ async function refreshFromDisk(): Promise<void> {
 
 // Any filter active? Used to auto-expand projects with matches and to show the filter status.
 function isFiltering(): boolean {
-  return filterText.length > 0 || showPinnedOnly || showWorktreeOnly || showSiblingsOnly || showArchivedOnly || datePreset !== 'any';
+  return (
+    filterText.length > 0 ||
+    showPinnedOnly ||
+    showOpenOnly ||
+    showRunningOnly ||
+    showWorktreeOnly ||
+    showSiblingsOnly ||
+    showArchivedOnly ||
+    datePreset !== 'any'
+  );
 }
 
 // Session key -> its group's NAME, so typing a group name reaches its sessions. Built ONCE per
@@ -542,6 +555,14 @@ function passesFilters(session: SessionSummary, groupNames?: ReadonlyMap<string,
     groupNames,
     text: filterText,
     pinnedOnly: showPinnedOnly,
+    openOnly: showOpenOnly,
+    open: showOpenOnly ? new Set(tabs.map((t) => entityKey(t.session))) : undefined,
+    runningOnly: showRunningOnly,
+    // Built per call rather than hoisted: cheap next to the tab count, and it must reflect the tabs as
+    // they are right now, since starting or stopping one changes what this filter shows.
+    running: showRunningOnly
+      ? new Set(tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)))
+      : undefined,
     worktreeOnly: showWorktreeOnly,
     siblingOnly: showSiblingsOnly,
     archivedOnly: showArchivedOnly,
@@ -617,6 +638,10 @@ function updateFilterStatus(matches: number, total: number): void {
   searchInput.classList.toggle('active', filterText.length > 0);
   pinnedFilter.classList.toggle('active', showPinnedOnly);
   pinnedFilter.setAttribute('aria-pressed', String(showPinnedOnly));
+  openFilter.classList.toggle('active', showOpenOnly);
+  openFilter.setAttribute('aria-pressed', String(showOpenOnly));
+  runningFilter.classList.toggle('active', showRunningOnly);
+  runningFilter.setAttribute('aria-pressed', String(showRunningOnly));
   worktreeFilter.classList.toggle('active', showWorktreeOnly);
   worktreeFilter.setAttribute('aria-pressed', String(showWorktreeOnly));
   siblingFilter.classList.toggle('active', showSiblingsOnly);
@@ -633,6 +658,8 @@ function clearFilter(): void {
   searchInput.value = '';
   filterText = '';
   showPinnedOnly = false;
+  showOpenOnly = false;
+  showRunningOnly = false;
   showWorktreeOnly = false;
   showSiblingsOnly = false;
   showArchivedOnly = false;
@@ -1842,6 +1869,16 @@ const PIN_ICON =
 const PINNED_ICON =
   `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" stroke="currentColor" stroke-width="1.49" stroke-linejoin="round"><path d="${STAR_PATH}" /></svg>`;
 
+// The open filter's mark: a window with a title bar — "this one has a tab". Deliberately a SHAPE
+// where running is a DOT, so the pair reads as two different questions rather than two intensities.
+const OPEN_ICON =
+  '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.6" y="3.4" width="10.8" height="9.2" rx="1.4" /><path d="M2.6 6.4h10.8" /></svg>';
+
+// The running filter's mark: a filled dot inside a ring — the same "live" language the status dots
+// speak, rather than a play triangle, which would read as "start these".
+const RUNNING_ICON =
+  '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" /></svg>';
+
 // The archived filter's mark: a lidded box. Ink spans the full 16-unit box horizontally and 3..13
 // vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
 const ARCHIVE_ICON =
@@ -2823,10 +2860,14 @@ function wireFilterToggle(button: HTMLButtonElement, flip: () => void): void {
 // different weight beside them. Icon-only: the words cost the panel an extra line at a 320px sidebar,
 // and every pill carries a tooltip and an aria-label (see index.html) for what it means.
 pinnedFilter.innerHTML = PINNED_ICON;
+openFilter.innerHTML = OPEN_ICON;
+runningFilter.innerHTML = RUNNING_ICON;
 siblingFilter.innerHTML = SIBLING_ICON;
 worktreeFilter.innerHTML = WORKTREE_ICON;
 archivedFilter.innerHTML = ARCHIVE_ICON;
 wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
+wireFilterToggle(openFilter, () => (showOpenOnly = !showOpenOnly));
+wireFilterToggle(runningFilter, () => (showRunningOnly = !showRunningOnly));
 wireFilterToggle(worktreeFilter, () => (showWorktreeOnly = !showWorktreeOnly));
 wireFilterToggle(siblingFilter, () => (showSiblingsOnly = !showSiblingsOnly));
 wireFilterToggle(archivedFilter, () => (showArchivedOnly = !showArchivedOnly));
