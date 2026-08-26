@@ -1065,8 +1065,11 @@ function renderList(): void {
 
   const groupNames = filterText ? groupNameByKey() : undefined;
   const filtered = all.filter((s) => passesFilters(s, groupNames));
-  // Project scope applies in the normal view; the archived view shows all archived (ignores it).
-  const scoped = activeProject && !showArchivedOnly ? filtered.filter((s) => s.repoRoot === activeProject) : filtered;
+  // Project scope applies everywhere, the archived view included. It used to be exempt, from when
+  // archived was a rarely-visited global bin — but the scope is an explicit statement of what you
+  // are looking at, and one view quietly overriding it reads as a leak. Switch to All to find an
+  // archived session whose project you have forgotten.
+  const scoped = activeProject ? filtered.filter((s) => s.repoRoot === activeProject) : filtered;
   updateFilterStatus(scoped.length, all.length);
 
   if (scoped.length === 0) {
