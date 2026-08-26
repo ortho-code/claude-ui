@@ -338,34 +338,38 @@ button:hover {
 /* Filter toggles: dimmed when off, accent-filled when on. */
 /* The filter pills are every direct-child button of #filters (date-preset buttons are nested a level
    deeper, so they're excluded). Styling by pattern means a new pill needs no CSS change. */
+/* Off = --muted, the same "inactive" cue the rest of the app uses, rather than opacity: a dimmed
+   button fades its border and background too, so an off pill read as disabled instead of unselected. */
 #filters > button {
   flex: 0 0 auto;
   padding: 5px 8px;
-  font-size: 12px;
-  opacity: 0.55;
+  font-size: var(--text-meta);
+  color: var(--muted);
 }
 
-/* The pinned pill is icon-only: the row's star SVG (injected in renderer.ts), sized down to the
-   pills' 12px text so it doesn't make its pill taller than the worded ones beside it. */
-#pinned-filter,
-#sibling-filter {
+/* Every pill except the date presets is icon-only: the same marks the rows use (star, branch, fork,
+   archive box), injected in renderer.ts. Words cost the panel a whole extra line at a 320px sidebar,
+   and each pill keeps its tooltip and aria-label, so the meaning is still one hover away. Icons are
+   13px, matching the pills' 12px text so they don't make the row taller. */
+#filters > button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
 }
 
-#pinned-filter svg {
+#filters > button svg {
   width: 13px;
   height: 13px;
 }
 
-/* The accent hover outline comes from the base button rule; the pills only undim. */
+/* The accent hover outline and fill come from the base button rule; the pill only brightens. */
 #filters > button:hover {
-  opacity: 1;
+  color: var(--text);
 }
 
 #filters > button.active {
-  opacity: 1;
+  color: var(--text);
   border-color: var(--accent);
   background: var(--active);
 }
@@ -555,8 +559,28 @@ button:hover {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-body);
+}
+
+/* type=search draws a UA clear button: a fixed grey-gradient bitmap that ignores `color`, so it read
+   as a smudge on a dark field. Replace it with the app's own × — the same path closeIcon() draws —
+   as a MASK, which takes `background` and so follows --muted/--text like every other mark. */
+#search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--muted);
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.73" stroke-linecap="round"><path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4"/></svg>')
+    center / contain no-repeat;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.73" stroke-linecap="round"><path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4"/></svg>')
+    center / contain no-repeat;
+  cursor: pointer;
+}
+
+#search::-webkit-search-cancel-button:hover {
+  background: var(--text);
 }
 
 #search::placeholder {

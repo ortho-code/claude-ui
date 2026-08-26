@@ -2471,11 +2471,13 @@ function wireFilterToggle(button: HTMLButtonElement, flip: () => void): void {
     container.scrollTop = 0;
   });
 }
-// The pill means "pinned", so it shows the pinned star — the same SVG the rows draw, from one
-// definition, rather than a ★ glyph that would render at a different weight beside it.
+// Each pill shows the same mark the rows use, from the one definition — a glyph would render at a
+// different weight beside them. Icon-only: the words cost the panel an extra line at a 320px sidebar,
+// and every pill carries a tooltip and an aria-label (see index.html) for what it means.
 pinnedFilter.innerHTML = PINNED_ICON;
-// Same for the siblings pill: the fork icon ahead of its word, from the one definition the rows use.
-siblingFilter.prepend(Object.assign(document.createElement('span'), { className: 'badge-icon', innerHTML: SIBLING_ICON }));
+siblingFilter.innerHTML = SIBLING_ICON;
+worktreeFilter.innerHTML = WORKTREE_ICON;
+archivedFilter.innerHTML = ARCHIVE_ICON;
 wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
 wireFilterToggle(worktreeFilter, () => (showWorktreeOnly = !showWorktreeOnly));
 wireFilterToggle(siblingFilter, () => (showSiblingsOnly = !showSiblingsOnly));
