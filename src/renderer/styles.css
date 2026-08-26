@@ -1316,6 +1316,12 @@ button:focus:not(:focus-visible) {
    .badge-text in the pills. */
 .meta-text {
   text-box: trim-both cap alphabetic;
+  /* The trim ends the box at the BASELINE, so descenders (g, p, y) paint outside it — and this
+     element needs overflow:hidden for its ellipsis, which clipped them. Symmetric padding gives the
+     clip box room without undoing the trim's purpose: cap-top to baseline still sits centred in the
+     padded box, so the mark beside it stays aligned to the text's ink. 3px is this font's descent
+     at 12px; measured, not guessed. */
+  padding: 3px 0;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
