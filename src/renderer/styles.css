@@ -458,18 +458,27 @@ button:hover {
   transform: rotate(45deg);
 }
 
-.switcher-item {
+/* MENU ROW — the one shape for a clickable row inside a popover, menu or strip: the project
+   switcher's entries, every kebab-menu item, and the attention strip's sessions. They had three
+   paddings (7px 9px, 6px 9px, 5px 8px), two radii and three font sizes between them for what is the
+   same component. Anything specific to one of them stays in its own rule below.
+   Distinct from a LIST ROW (.session), which is a card in the list body: roomier padding and the
+   surface radius, because it carries two lines and its own controls. */
+.switcher-item,
+.kebab-menu button,
+.footer-item {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 9px;
-  background: transparent;
+  padding: 6px 9px;
+  background: none;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   text-align: left;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-body);
+  cursor: pointer;
 }
 
 .switcher-item:hover {
@@ -1612,20 +1621,7 @@ button:focus:not(:focus-visible) {
   overflow-y: auto;
 }
 
-.footer-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 5px 8px;
-  background: none;
-  border: none;
-  border-radius: 6px;
-  color: var(--text);
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
+/* Shape comes from the MENU ROW rule above. */
 
 .footer-item:hover {
   background: var(--surface-hover);
@@ -1736,18 +1732,7 @@ button:focus:not(:focus-visible) {
   border-right: 1px solid var(--border);
 }
 
-.kebab-menu button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 6px 9px;
-  background: none;
-  border: none;
-  border-radius: 5px;
-  color: var(--text);
-  font-size: 12.5px;
-  cursor: pointer;
-}
+/* Shape comes from the MENU ROW rule above; nothing here is specific enough to need its own. */
 
 /* A submenu-parent (.menu-open) holds the hover look while its child list is up, so moving the
    mouse into the submenu doesn't drop it back. */
