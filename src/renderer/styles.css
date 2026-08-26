@@ -1033,7 +1033,11 @@ button:focus:not(:focus-visible) {
   user-select: none;
 }
 
-.group h3:hover {
+/* :has(.menu-open) alongside :hover, matching .project h2 and .session: a heading whose kebab menu
+   is open stays lit while the pointer is down in the menu. The group heading was the one collapsible
+   container missing it, so its fill dropped away the moment the menu appeared. */
+.group h3:hover,
+.group h3:has(.menu-open) {
   background: var(--surface-hover);
 }
 
