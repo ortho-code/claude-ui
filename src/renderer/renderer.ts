@@ -400,6 +400,8 @@ interface Tab {
   terminalId: number | null;
   /** Guards against a second start while the first is still awaiting its terminal id. */
   starting?: boolean;
+  /** Set while a user-initiated stop is in flight, so its exit cools the tab instead of closing it. */
+  stopping?: boolean;
   term: Terminal;
   fitAddon: FitAddon;
   el: HTMLElement;
@@ -834,9 +836,14 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
     label: `Copy session id (${session.id.slice(0, 8)})`,
     onSelect: () => void copyText(session.id, 'Session id copied.'),
   });
-  // The one state change in this list, so it sits below a rule, away from the navigate/copy items.
-  // Only the normal view offers it: the archived view keeps unarchive on the row and hides the kebab.
+  // The state changes sit below a rule, away from the navigate/copy items. Only the normal view
+  // offers them: the archived view keeps unarchive on the row and hides the kebab.
   items.push({ label: '', separator: true });
+  // Stop is offered only while something is actually running — on a cold or unopened session there
+  // is nothing to stop, and an always-present item that usually does nothing is worse than an absent
+  // one. "Stop", not "close": closing already means the tab goes away.
+  const running = tabs.find((t) => t.session.id === session.id && t.terminalId !== null);
+  if (running) items.push({ label: 'Stop session', onSelect: () => stopSession(running) });
   items.push({ label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
   return items;
 }
@@ -2424,6 +2431,33 @@ function removeTab(tab: Tab): void {
 
 // User-initiated close: terminate the session (claude persists per turn, so its context is on
 // disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
+/**
+ * End the session but keep its tab, cold and resumable. The opposite of closeTab, and the deliberate
+ * counterpart to claude exiting on its own — which still CLOSES the tab, so a finished session does
+ * not leave an empty one behind. `stopping` is what tells those two apart when the exit arrives.
+ */
+function stopSession(tab: Tab): void {
+  if (tab.terminalId === null) return;
+  tab.stopping = true;
+  window.claudeUi.closeTerminal(tab.terminalId); // Ctrl-C twice, then kill
+}
+
+/** Turn a tab that has just lost its process into a cold one. */
+function coolTab(tab: Tab): void {
+  tab.terminalId = null;
+  tab.stopping = false;
+  // Wipe the dead session's output: left in place it reads as a live terminal, and a resume would
+  // paint the new session over the old one's tail.
+  tab.term.reset();
+  tab.el.classList.remove('active');
+  // Stopping what you were looking at drops you to the empty screen rather than leaving a selected
+  // tab with nothing behind it.
+  if (activeTab === tab) activeTab = null;
+  renderTabBar();
+  updatePlaceholder();
+  updateSidebarHighlight();
+}
+
 function closeTab(tab: Tab): void {
   if (tab.terminalId !== null) window.claudeUi.closeTerminal(tab.terminalId); // nothing to kill when cold
   removeTab(tab);
@@ -2648,6 +2682,12 @@ window.claudeUi.onTerminalData((id, data) => {
 window.claudeUi.onTerminalExit((id, exitCode) => {
   const tab = tabs.find((t) => t.terminalId === id);
   if (!tab) return; // Already closed by the user.
+  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed.
+  // Every other exit keeps today's behaviour below.
+  if (tab.stopping) {
+    coolTab(tab);
+    return;
+  }
   // A near-instant exit almost always means claude failed to start (bad env, not found, rc
   // error). Keep the tab so the error stays visible instead of flashing away. Otherwise claude
   // exited normally, so close the tab — no leftover shell.
