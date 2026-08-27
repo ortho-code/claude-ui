@@ -2146,6 +2146,11 @@ let newSessionCounter = 0;
 // Placeholder for a session whose transcript hasn't been written yet (a new/fork/worktree tab): a
 // minted id plus the SessionSummary defaults; callers override what they already know. One factory,
 // so a SessionSummary field change lands here once instead of in three literals.
+/** True for an id minted by placeholderSession: no transcript exists under it, so it can't be resumed. */
+function isPlaceholderId(id: string): boolean {
+  return id.startsWith('new-');
+}
+
 function placeholderSession(over: Partial<SessionSummary> & Pick<SessionSummary, 'cwd' | 'repoRoot' | 'title'>): SessionSummary {
   const id = `new-${Date.now()}-${newSessionCounter++}`;
   return {
@@ -2389,15 +2394,20 @@ async function createTab(session: SessionSummary, resumeId: string | undefined, 
   // A fork mints a NEW session id despite resuming one, so it also needs to adopt its real id via
   // the token (like a fresh session) — a plain resume already carries its final id.
   const tab = buildTab(session, resumeId === undefined || fork, joinGroupId);
-  activateTab(tab);
+  // Select it WITHOUT starting: this call knows the real arguments (fork, --name, -w) and starts the
+  // tab itself below. Letting activateTab start it instead launched every new session as
+  // `claude --resume new-<ts>-<n>` — it can only guess `tab.session.id`, which for a new, forked or
+  // worktree tab is the placeholder — and its `starting` flag then made the real start a no-op.
+  activateTab(tab, false);
   persistOpenTabs();
   await startTab(tab, resumeId, fork, name, worktree);
 }
 
 /**
- * `start` is false only for the selection a RESTORE makes: it shows you the tab you left off in
- * without spawning anything, because nothing is meant to be live after a restart. Every deliberate
- * selection starts the tab.
+ * `start` is false for the two callers that must not spawn here: a RESTORE, which shows you the tab
+ * you left off in without starting it (nothing is meant to be live after a restart), and createTab,
+ * which starts the tab itself because only it knows the real arguments. Every other selection — a
+ * click in the tab bar or the sidebar — starts the tab, and can only resume it.
  */
 function activateTab(tab: Tab, start = true): void {
   // Viewing a tab no longer clears its nudge: a waiting dot persists until you actually reply
@@ -2415,7 +2425,9 @@ function activateTab(tab: Tab, start = true): void {
   // because that is how activating a tab has always behaved and laziness should show up only as a
   // wait. Fire-and-forget: activateTab is called from click handlers and stays synchronous.
   if (tab.terminalId === null) {
-    if (start) void startTab(tab, tab.session.id);
+    // A tab still on its placeholder id has no transcript to resume (it can reach here by being
+    // stopped before claude reported its real id), so start it fresh rather than resuming nothing.
+    if (start) void startTab(tab, isPlaceholderId(tab.session.id) ? undefined : tab.session.id);
   } else window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
   tab.term.focus();
   // Remembered twice: overall (where to reopen at launch) and for this project (where to return to

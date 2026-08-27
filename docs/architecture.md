@@ -69,6 +69,13 @@ the session from the row's kebab. It leaves cold by being activated, which start
 immediately; there is no separate "start" affordance, because selecting a tab has always meant
 "work in this session".
 
+Activating a tab can only ever **resume** it, because the only id it has to work with is the
+tab's own. A path that needs different arguments — a new session, a fork's `--fork-session`,
+a worktree's `-w` — must therefore select the tab *without* starting it and start it itself.
+Getting that backwards launched every new session as `claude --resume new-<timestamp>`, and
+the sidebar's own resume path hid it completely: there the guessed id and the real one are
+the same value.
+
 Two exits must stay distinguishable. A **user stop** sets a `stopping` flag before the kill, and
 the exit handler checks it first: that tab is cooled and kept. **Any other exit** closes the
 tab, which is deliberate — it stops a finished session leaving an empty tab behind. A third
