@@ -2373,15 +2373,19 @@ async function startTab(
   try {
     tab.startedAt = Date.now();
     tab.terminalId = await window.claudeUi.startTerminal(tab.session.cwd, resumeId, tab.token, fork, name, worktree);
-    // The pty is created at a default size; hand it the real one now that it exists.
-    tab.fitAddon.fit();
-    window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
-    // Now it has a terminal to show: reveal it, drop the placeholder, and repaint the bar (a cold
-    // tab reads differently from a running one).
+    // Reveal it BEFORE fitting: `.term` is display:none until `.active`, and FitAddon sizes from the
+    // element's own box, so fitting a hidden pane leaves the terminal at xterm's 80x24 default and
+    // claude draws its whole TUI at that width. Cold tabs are what exposed this — the pane used to be
+    // revealed by activateTab before any of this ran, and now it only reveals a tab that HAS a
+    // process. A tab you switched away from during the await stays hidden and mis-fitted, which
+    // activateTab's own fit corrects when you come back to it.
     if (activeTab === tab) {
       tab.el.classList.add('active');
       tab.term.focus();
     }
+    // The pty is created at a default size; hand it the real one now that the pane has a real one.
+    tab.fitAddon.fit();
+    window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
     renderTabBar();
     updatePlaceholder();
     updateSidebarHighlight(); // its row's bar goes from muted to accent now that it is live

@@ -237,7 +237,7 @@ group's pill fills with `--bg` because its heading bar is already `--surface`.
 words cost the panel an extra line at a 320px sidebar; the meaning has to survive that, so both
 attributes are mandatory rather than optional there.
 
-### Three traps worth knowing
+### Traps worth knowing
 
 **A sticky element pins its MARGIN box, not its border box.** The group headings pin below the
 project heading; while the `h3` still carried its own `margin-top`, it parked exactly that far too
@@ -252,6 +252,12 @@ Combined with the `overflow: hidden` that any ellipsis needs, it silently clips 
 — which is exactly what happened to the session meta line. The fix is symmetric vertical padding: it
 gives the clip box room while keeping cap-top-to-baseline centred, so a mark beside the text stays
 aligned to its ink. Measure the font's descent rather than guessing the value.
+
+**A hidden pane measures as the default size, not as nothing.** `FitAddon` sizes from the element's
+own box, and a `.term` is `display: none` until it is the active tab. Fitting one before revealing it
+therefore yields xterm's 80×24 default rather than an error — and that default is what the PTY is
+told, so `claude` draws its entire TUI to 80 columns for the life of the session. Reveal, then fit,
+then resize. Every conditionally-visible pane carries this hazard, split view included.
 
 **Specificity quietly opts controls out of shared hover rules.** `button:hover` is 0,1,1, so a resting
 rule like `.project h2 .project-kebab` (0,2,2) or `#toast-close` (1,0,0) beats it and never takes the
