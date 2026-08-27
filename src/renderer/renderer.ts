@@ -2685,6 +2685,14 @@ function initTabSortables(): void {
   tabSortables = containers.map((container) =>
     Sortable.create(container, {
       draggable: '.tab', // never the project label
+      // The close button is not a drag handle. Without this, a mousedown on it starts a potential
+      // drag, and `forceFallback` then calls preventDefault to take over pointer handling — after
+      // which Chromium on macOS never synthesises the click, so closing a tab silently did nothing
+      // there. It survived on Linux, which is why this only appeared once the app reached a Mac.
+      // preventOnFilter: false is the half that matters: the default (true) still preventDefaults on
+      // the filtered element, which is the very thing that swallows the click.
+      filter: '.tab-close',
+      preventOnFilter: false,
       forceFallback: true,
       animation: 0,
       ghostClass: 'tab-ghost',
