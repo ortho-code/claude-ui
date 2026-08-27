@@ -6,6 +6,7 @@ const api: ClaudeUiApi = {
   worktreeExists: (repoRoot, name) => ipcRenderer.invoke('sessions:worktreeExists', repoRoot, name),
   onSessionsChanged: (callback) => ipcRenderer.on('sessions:changed', () => callback()),
   onQuitting: (callback) => ipcRenderer.on('app:quitting', () => callback()),
+  onClaudeMissing: (callback) => ipcRenderer.on('app:claude-missing', () => callback()),
   getPinned: () => ipcRenderer.invoke('meta:getPinned'),
   togglePin: (id) => ipcRenderer.invoke('meta:togglePin', id),
   getArchived: () => ipcRenderer.invoke('meta:getArchived'),

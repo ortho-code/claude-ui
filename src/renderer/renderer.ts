@@ -136,11 +136,16 @@ function hideToast(): void {
   toast.hidden = true;
   if (toastTimer) clearTimeout(toastTimer);
 }
-function showToast(message: string): void {
+/**
+ * `sticky` keeps the message up until it is dismissed, for a condition that will not resolve on its
+ * own — a missing `claude` CLI is the case it exists for, where three seconds would be gone before
+ * the sentence was read.
+ */
+function showToast(message: string, sticky = false): void {
   toastMessage.textContent = message;
   toast.hidden = false;
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(hideToast, 3000);
+  toastTimer = sticky ? undefined : window.setTimeout(hideToast, 3000);
 }
 toastClose.addEventListener('click', hideToast);
 
@@ -2807,6 +2812,12 @@ window.claudeUi.onSessionsChanged(() => void refreshFromDisk());
 // overwrite the saved tab list with an empty one (see the shuttingDown note above).
 window.claudeUi.onQuitting(() => {
   shuttingDown = true;
+});
+
+// Without the CLI every tab would open on "command not found", which reads as this app being broken
+// rather than as a missing prerequisite. Say which one, and stay on screen until dismissed.
+window.claudeUi.onClaudeMissing(() => {
+  showToast('The claude CLI was not found on your PATH. Install it and restart claude-ui.', true);
 });
 
 function fitActive(): void {

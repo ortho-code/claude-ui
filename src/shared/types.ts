@@ -63,6 +63,8 @@ export interface ClaudeUiApi {
   onSessionsChanged(callback: () => void): void;
   /** Fires once when the app is shutting down, before its terminals are torn down. */
   onQuitting(callback: () => void): void;
+  /** Fires once at startup when the `claude` CLI cannot be found on PATH. */
+  onClaudeMissing(callback: () => void): void;
   /** Session ids the user has pinned. */
   getPinned(): Promise<string[]>;
   /** Toggle a session's pin; resolves to the updated pinned list. */
