@@ -96,9 +96,9 @@ function installAppMenu(): void {
  * reason terminal.ts spawns one: on this kind of setup `claude` arrives on PATH via mise/asdf/direnv
  * activation in the shell rc, which a non-interactive shell skips entirely.
  *
- * This has never been false on the development machine, which is exactly why it needs asking now:
- * the first colleague to install the app without the CLI would otherwise get "command not found"
- * inside a terminal tab and reasonably conclude the app is broken.
+ * This has never been false on the development machine, which is exactly why it needs asking: an
+ * install without the CLI would otherwise open every tab on "command not found", which reads as this
+ * app being broken rather than as a missing prerequisite.
  */
 function claudeIsInstalled(): Promise<boolean> {
   const shell = process.env.SHELL ?? '/bin/bash';

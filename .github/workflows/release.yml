@@ -58,8 +58,8 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      # A DRAFT: the artifacts are handed to colleagues directly, so the release is a private staging
-      # area to collect them, not an announcement. Publishing it is a manual decision.
+      # A DRAFT: a staging area that collects the artifacts, not an announcement. Publishing it is a
+      # manual decision.
       - run: gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes artifacts/*
         env:
           GH_TOKEN: ${{ github.token }}

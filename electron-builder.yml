@@ -20,16 +20,16 @@ files:
   - assets/**
   - package.json
 
-# Predictable, space-free filenames, since these get handed to colleagues directly. The default uses
-# productName, which would put a space in every artifact name.
+# Predictable, space-free filenames. The default uses productName, which would put a space in every
+# artifact name.
 artifactName: ${name}-${version}-${arch}.${ext}
 
 linux:
   # A .deb will not build without a maintainer, and this ends up in package metadata anyone who
   # installs it can read. It is deliberately the GitHub noreply address — the same identity git is
   # configured with, so the package and the commit history agree, and no personal address ships
-  # inside an artifact. The trade is that mail to it bounces; fine while the audience is colleagues
-  # who have other ways to reach us, worth revisiting if this is ever published more widely.
+  # inside an artifact. The trade is that mail to it bounces, which is worth revisiting if this is
+  # ever published more widely.
   maintainer: OrthoCode <5603434+alleknalle@users.noreply.github.com>
   # NO syncDesktopName. It writes `StartupWMClass` into the .desktop entry so desktop environments can
   # associate a running window with it — electron-builder warns when it is missing, and that warning
@@ -87,8 +87,8 @@ mac:
   # Ad-hoc signing, opted into EXPLICITLY. Left unset, electron-builder looks for a certificate in
   # the keychain and simply skips signing when it finds none — and an unsigned app will not launch on
   # Apple Silicon at all. "-" is not a real identity: it proves nothing about who built the app, it
-  # only makes it runnable. Gatekeeper still warns on first launch, so colleagues need the
-  # right-click-Open (or xattr) step in the install instructions.
+  # only makes it runnable. Gatekeeper still warns on first launch; the README documents the step
+  # that clears it.
   identity: "-"
   # Required BECAUSE of ad-hoc signing — see the file for why the app will not start without it.
   entitlements: build/entitlements.mac.plist
