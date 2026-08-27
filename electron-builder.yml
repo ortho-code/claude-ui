@@ -38,7 +38,11 @@ linux:
     - deb
     - AppImage
   category: Development
-  icon: assets/icon.png
+  # A DIRECTORY of sizes, not the single 1024px file. electron-builder installs only the hicolor sizes
+  # it is given, so one 1024px source produced one 1024x1024 entry and every desktop environment
+  # looking for 16 through 256 fell back to the distro's icon. macOS was fine throughout, because
+  # there the whole .icns is derived from that one file — which is why this read as a Linux bug.
+  icon: assets/icons
   # Keeps the CLI name lowercase and space-free despite productName.
   executableName: claude-ui
   # The sandbox switch CANNOT be set from inside the app — it arrives too late for the renderer,
