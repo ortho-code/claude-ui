@@ -1,7 +1,6 @@
 name: Release
 
-# Tag-driven, because a release should be a deliberate act rather than a side effect of pushing.
-# `ci.yml` still covers every push and pull request; this only runs for a version tag.
+# Tag-driven, because a release should be a deliberate act rather than a side effect of pushing. `ci.yml` still covers every push and pull request; this only runs for a version tag.
 on:
   push:
     tags:
@@ -10,18 +9,14 @@ on:
 jobs:
   build:
     strategy:
-      # Keep going if one platform fails: a working Linux artifact is still worth having while a mac
-      # problem is diagnosed, and vice versa.
+      # Keep going if one platform fails: a working Linux artifact is still worth having while a mac problem is diagnosed, and vice versa.
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             args: --linux
           - os: macos-latest
-            # Apple Silicon only: no one who needs this build has an Intel Mac. Adding --x64 would
-            # cross-compile node-pty on an arm64 runner, which is both the likeliest thing to fail
-            # and a doubling of the macOS minutes, which bill at 10x on a private repo. Add it back
-            # the day someone turns up with an Intel Mac — an arm64 build will not run on one.
+            # Apple Silicon only: no one who needs this build has an Intel Mac. Adding --x64 would cross-compile node-pty on an arm64 runner, which is both the likeliest thing to fail and a doubling of the macOS minutes, which bill at 10x on a private repo. Add it back the day someone turns up with an Intel Mac — an arm64 build will not run on one.
             args: --mac --arm64
     runs-on: ${{ matrix.os }}
     steps:
@@ -34,8 +29,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
-      # --publish never: this job only produces files. The release job below decides what happens to
-      # them, so a failed upload can never leave a half-published release behind.
+      # --publish never: this job only produces files. The release job below decides what happens to them, so a failed upload can never leave a half-published release behind.
       - run: npx electron-builder ${{ matrix.args }} --publish never
       - uses: actions/upload-artifact@v7
         with:
@@ -58,11 +52,8 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      # A DRAFT: a staging area that collects the artifacts, not an announcement. Publishing it is a
-      # manual decision.
-      # The release notes ARE the changelog entry, not a generated commit list: the changelog is
-      # written for the people installing this, and a commit list is not. Extracts the section for
-      # this tag — everything from its own heading up to the next one.
+      # Published, not a draft: a draft is invisible to read-only collaborators, who would see an empty Releases page. The repo is private, so published still means visible only to them.
+      # The release notes ARE the changelog entry, not a generated commit list: the changelog is written for the people installing this, and a commit list is not. Extracts the section for this tag — everything from its own heading up to the next one.
       - run: |
           version="${GITHUB_REF_NAME#v}"
           awk -v v="$version" '
@@ -70,13 +61,12 @@ jobs:
             found && /^## / { exit }
             found { print }
           ' CHANGELOG.md > notes.md
-          # An empty section means the tag was pushed without writing its entry. Fail rather than
-          # publish a release that says nothing about itself.
+          # An empty section means the tag was pushed without writing its entry. Fail rather than publish a release that says nothing about itself.
           if [ ! -s notes.md ]; then
             echo "CHANGELOG.md has no section for $version" >&2
             exit 1
           fi
           cat notes.md
-          gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes-file notes.md artifacts/*
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md artifacts/*
         env:
           GH_TOKEN: ${{ github.token }}
