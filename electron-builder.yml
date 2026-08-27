@@ -70,6 +70,11 @@ linux:
   executableArgs:
     - --no-sandbox
 
+deb:
+  # Refreshes the icon cache and re-creates the desktop entry after the files are in place, so a WSL
+  # user does not have to install twice to get the right icon. See the script for why.
+  afterInstall: build/deb-after-install.sh
+
 mac:
   target: dmg
   category: public.app-category.developer-tools
