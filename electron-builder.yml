@@ -30,7 +30,7 @@ linux:
   # configured with, so the package and the commit history agree, and no personal address ships
   # inside an artifact. The trade is that mail to it bounces; fine while the audience is colleagues
   # who have other ways to reach us, worth revisiting if this is ever published more widely.
-  maintainer: alleknalle <5603434+alleknalle@users.noreply.github.com>
+  maintainer: OrthoCode <5603434+alleknalle@users.noreply.github.com>
   # NO syncDesktopName. It writes `StartupWMClass` into the .desktop entry so desktop environments can
   # associate a running window with it — electron-builder warns when it is missing, and that warning
   # is why it was briefly added. Under WSLg the association is actively harmful: once a window matches
