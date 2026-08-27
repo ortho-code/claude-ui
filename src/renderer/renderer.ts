@@ -19,6 +19,7 @@ import {
   sessionPasses,
   datePresetRange,
   projectsForSwitcher,
+  hasVisibleOutput,
   type NudgeStatus,
   type SwitcherModel,
 } from './logic';
@@ -409,6 +410,15 @@ interface Tab {
   terminalId: number | null;
   /** Guards against a second start while the first is still awaiting its terminal id. */
   starting?: boolean;
+  /**
+   * Spawned, but nothing has come out of the pty yet — the window where the pane would otherwise be
+   * black. MEASURED at 2.3-3.4s for a claude start, which is far too long to show nothing. Cleared by
+   * the first byte of output, deliberately rather than by anything claude-specific: claude never
+   * switches to the alternate screen buffer (the sequence is absent from the binary), so there is no
+   * "the TUI is up" marker to wait for, and a signal that depends on how claude renders would break
+   * the moment it changed.
+   */
+  booting?: boolean;
   /** Set while a user-initiated stop is in flight, so its exit cools the tab instead of closing it. */
   stopping?: boolean;
   term: Terminal;
@@ -2380,6 +2390,12 @@ async function startTab(
   tab.starting = true;
   try {
     tab.startedAt = Date.now();
+    // Every way a session begins — new, fork, worktree, resuming a cold tab — funnels through here,
+    // so the starting state belongs here rather than at any one call site.
+    tab.booting = true;
+    // Before the await, not after: otherwise a cold tab keeps saying "click its tab to resume it"
+    // across the spawn round-trip, which is the one thing you have just done.
+    if (tab === activeTab) updatePlaceholder();
     tab.terminalId = await window.claudeUi.startTerminal(tab.session.cwd, resumeId, tab.token, fork, name, worktree);
     // Reveal it BEFORE fitting: `.term` is display:none until `.active`, and FitAddon sizes from the
     // element's own box, so fitting a hidden pane leaves the terminal at xterm's 80x24 default and
@@ -2510,6 +2526,8 @@ function stopSession(tab: Tab): void {
 function coolTab(tab: Tab): void {
   tab.terminalId = null;
   tab.stopping = false;
+  // A stopped tab is not a slow one: the loader must not outlive the process.
+  tab.booting = false;
   // Wipe the dead session's output: left in place it reads as a live terminal, and a resume would
   // paint the new session over the old one's tail.
   tab.term.reset();
@@ -2730,7 +2748,14 @@ function updatePlaceholder(): void {
   // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so
   // without this a restored session would look like a session that had nothing in it.
   const cold = activeTab !== null && activeTab.terminalId === null;
-  placeholder.style.display = activeTab && !cold ? 'none' : 'flex';
+  // A booting tab HAS a terminal, but it is still empty: keep the pane covered rather than showing
+  // the black rectangle that the wait would otherwise be.
+  const booting = activeTab?.booting === true;
+  placeholder.style.display = activeTab && !cold && !booting ? 'none' : 'flex';
+  if (booting) {
+    placeholder.textContent = `Starting “${sessionLabel(activeTab!.session)}”…`;
+    return;
+  }
   // Four different situations reach this pane, and each has a different next move — one sentence
   // covering all of them tells someone with no sessions to pick one, and someone with no tabs to
   // pick a tab that isn't there.
@@ -2749,7 +2774,14 @@ function updatePlaceholder(): void {
 
 window.claudeUi.onTerminalData((id, data) => {
   const tab = tabs.find((t) => t.terminalId === id);
-  if (tab) tab.term.write(data);
+  if (!tab) return;
+  tab.term.write(data);
+  // First VISIBLE output: the pane has something to show, so stop covering it.
+  if (tab.booting && hasVisibleOutput(data)) {
+    tab.booting = false;
+    if (tab === activeTab) updatePlaceholder();
+    renderTabBar();
+  }
 });
 window.claudeUi.onTerminalExit((id, exitCode) => {
   const tab = tabs.find((t) => t.terminalId === id);
@@ -2765,6 +2797,10 @@ window.claudeUi.onTerminalExit((id, exitCode) => {
   // exited normally, so close the tab — no leftover shell.
   if (Date.now() - tab.startedAt < 1500) {
     tab.term.writeln(`\r\n[claude exited immediately (code ${exitCode}) — the session did not start]`);
+    // Uncover the pane: this line IS the explanation of the failure, and it is exactly what the
+    // loader would otherwise hide.
+    tab.booting = false;
+    if (tab === activeTab) updatePlaceholder();
     return;
   }
   removeTab(tab);

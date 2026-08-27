@@ -354,3 +354,23 @@ export function groupJumpTargets(
   }
   return targets;
 }
+
+/**
+ * Does this chunk put anything on screen?
+ *
+ * The first BYTES out of the pty are not the first thing you can see: measured, claude sends three
+ * chunks of pure terminal setup — save/restore cursor, scroll region, bracketed paste, focus
+ * reporting — before any content. Clearing the loader on those flashed it away and left the pane
+ * empty again, which on a resume is seconds of nothing while the transcript renders.
+ *
+ * Strips CSI and OSC sequences, then the remaining control characters, and asks whether anything is
+ * left. Erring towards "not visible" is the safe direction: the loader stays a moment longer rather
+ * than uncovering an empty pane.
+ */
+// The final alternative is "ESC + any single character that is not [ or ]", which covers the two-char
+// escapes claude actually sends — ESC 7 and ESC 8, save and restore cursor. A narrower class missed
+// those, the digits survived the strip, and "7" read as content.
+const ANSI_SEQUENCE = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)?|[^[\]])/g;
+export function hasVisibleOutput(data: string): boolean {
+  return data.replace(ANSI_SEQUENCE, '').replace(/[\x00-\x1f\x7f]/g, '').trim().length > 0;
+}

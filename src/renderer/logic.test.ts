@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { SessionSummary } from '../shared/types';
 import {
+  hasVisibleOutput,
   sessionsByKey,
   structuralSignature,
   groupByRepo,
@@ -443,5 +444,30 @@ describe('groupJumpTargets', () => {
     const statuses = new Map([['a', 'waiting']]);
     const out = groupJumpTargets(tree({ a: 'g1' }), statuses, new Set(['a']));
     expect(out[0].badge).toBeNull();
+  });
+});
+
+// The exact chunks a starting claude sends, captured from a real pty. The loader hides the terminal
+// until something is actually drawn, so a false "visible" here is a pane that flashes and goes empty
+// again — which is what happened when this only tested for the first BYTE.
+describe('hasVisibleOutput', () => {
+  it('ignores the terminal setup claude sends before drawing anything', () => {
+    // ESC 7 and ESC 8 are the trap: two-char escapes whose second byte is a DIGIT, so a stripper
+    // that only handles CSI and letter-escapes leaves "7" behind and calls it content.
+    expect(hasVisibleOutput('\x1b7\x1b[r\x1b8\x1b[?25h')).toBe(false);
+    expect(hasVisibleOutput('\x1b[?25l')).toBe(false);
+    expect(hasVisibleOutput('\x1b[?2004h\x1b[?1004h\x1b[?2031h')).toBe(false);
+    expect(hasVisibleOutput('\x1b[>0q\x1b[c')).toBe(false);
+  });
+
+  it('ignores an OSC window-title sequence and bare whitespace', () => {
+    expect(hasVisibleOutput('\x1b]0;claude\x07')).toBe(false);
+    expect(hasVisibleOutput('\r\r\n\r\r\n')).toBe(false);
+    expect(hasVisibleOutput('')).toBe(false);
+  });
+
+  it('reports the first chunk that actually draws', () => {
+    expect(hasVisibleOutput('\r\n\x1b[38;2;255;193;7m────\x1b[39m\r\n\x1b[2GAccessing')).toBe(true);
+    expect(hasVisibleOutput('hello')).toBe(true);
   });
 });
