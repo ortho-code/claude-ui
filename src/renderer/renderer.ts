@@ -1835,7 +1835,10 @@ function createGroupSection(id: string): GroupSectionEls {
   members.className = 'group-members';
   const empty = document.createElement('div');
   empty.className = 'group-empty';
-  empty.textContent = 'Empty — move a session here from its ⋮ menu.';
+  // Names the control the way its own tooltip does ("Session options") rather than drawing a ⋮ in
+  // text: the glyphs this used to lean on are all SVG now, and a lone one here rendered in whatever
+  // the UI font offered.
+  empty.textContent = "Empty — move a session here from any session's options.";
   members.append(empty);
 
   section.append(heading, members);
