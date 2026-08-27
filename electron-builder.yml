@@ -1,6 +1,11 @@
 # Packaging config. Kept out of package.json so that file stays readable.
 # Build with `npm run dist:linux` (or `dist:mac`, which only works ON macOS).
-appId: com.github.alleknalle.claude-ui
+# macOS treats this as the app's identity: change it and the OS considers the result a DIFFERENT
+# app — Gatekeeper asks again, and dragging the new one into Applications leaves the old one behind
+# rather than replacing it. Changed once, deliberately, when the repo moved to the ortho-code org and
+# exactly one person had ever installed a mac build. User data is unaffected either way, because the
+# data directory is pinned by name in src/main/paths.ts rather than derived from this.
+appId: com.github.ortho-code.claude-ui
 productName: Claude UI
 
 directories:
