@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Desktop UI for managing Claude Code sessions: session list from ~/.claude, pin/group, embedded terminal, waiting-for-input nudges.",
   "license": "MIT",
-  "author": "Jille",
+  "author": "alleknalle",
   "main": "dist/main/main.js",
   "scripts": {
     "build:main": "tsc -p tsconfig.main.json",
