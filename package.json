@@ -6,6 +6,7 @@
   "license": "MIT",
   "author": "Jille",
   "main": "dist/main/main.js",
+  "desktopName": "claude-ui.desktop",
   "scripts": {
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "tsc --noEmit -p tsconfig.renderer.json && esbuild src/renderer/renderer.ts --bundle --format=esm --outfile=dist/renderer/renderer.js --sourcemap && cp src/renderer/index.html src/renderer/styles.css node_modules/@xterm/xterm/css/xterm.css node_modules/air-datepicker/air-datepicker.css dist/renderer/",
@@ -13,13 +14,16 @@
     "start": "npm run build && electron . --no-sandbox",
     "test": "vitest run",
     "test:watch": "vitest",
-    "rebuild": "electron-rebuild -f -w node-pty"
+    "rebuild": "electron-rebuild -f -w node-pty",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:mac": "npm run build && electron-builder --mac"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",
     "@types/node": "^26.1.1",
     "@types/sortablejs": "^1.15.9",
     "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.28.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"

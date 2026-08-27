@@ -1,0 +1,54 @@
+# Packaging config. Kept out of package.json so that file stays readable.
+# Build with `npm run dist:linux` (or `dist:mac`, which only works ON macOS).
+appId: com.github.alleknalle.claude-ui
+productName: Claude UI
+
+directories:
+  # NOT the default `dist`: that is where tsc and esbuild already write, and pointing the packager
+  # at it would have it destroy its own build inputs mid-build.
+  output: release
+
+# `npm run build` has to have run first — these are its outputs, not sources. assets/ is here because
+# main.ts loads the window icon from it at runtime.
+files:
+  - dist/**
+  - assets/**
+  - package.json
+
+# Predictable, space-free filenames, since these get handed to colleagues directly. The default uses
+# productName, which would put a space in every artifact name.
+artifactName: ${name}-${version}-${arch}.${ext}
+
+linux:
+  # A .deb will not build without a maintainer, and this ends up in package metadata anyone who
+  # installs it can read. It is deliberately the GitHub noreply address — the same identity git is
+  # configured with, so the package and the commit history agree, and no personal address ships
+  # inside an artifact. The trade is that mail to it bounces; fine while the audience is colleagues
+  # who have other ways to reach us, worth revisiting if this is ever published more widely.
+  maintainer: alleknalle <5603434+alleknalle@users.noreply.github.com>
+  # Makes the window's WM_CLASS match the .desktop entry, so the desktop environment associates the
+  # running window with it and the taskbar shows this app's icon rather than a generic one. The name
+  # itself is `desktopName` in package.json — Electron reads that one, not electron-builder.
+  syncDesktopName: true
+  synopsis: Run and track several Claude Code sessions from one window
+  target:
+    # deb is the one that answers "install it again and it updates": dpkg upgrades a higher version
+    # in place and leaves userData alone. AppImage is a fallback for non-Debian distros and has no
+    # install concept at all — updating one means replacing the file by hand.
+    - deb
+    - AppImage
+  category: Development
+  icon: assets/icon.png
+  # Keeps the CLI name lowercase and space-free despite productName.
+  executableName: claude-ui
+  # The sandbox switch CANNOT be set from inside the app — it arrives too late for the renderer,
+  # which then dies with a misleading /dev/shm FATAL and leaves a blank window (see main.ts). Only
+  # the launcher can supply it, so it goes here, where electron-builder writes it into the generated
+  # launcher and the .desktop entry. Linux-only, so macOS keeps its sandbox.
+  executableArgs:
+    - --no-sandbox
+
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+  icon: assets/icon.png
