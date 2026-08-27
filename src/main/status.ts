@@ -2,14 +2,11 @@ import { ipcMain, BrowserWindow } from 'electron';
 import { promises as fs, watch, mkdirSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { statusDir, hookScriptPath, statusSettingsFile, shellQuote } from './paths';
 
-const configDir = path.join(os.homedir(), '.config', 'claude-ui');
-const statusDir = path.join(configDir, 'status');
-const hookScriptPath = path.join(configDir, 'status-hook.sh');
 const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
-/** claude-ui-owned settings file, passed to claude via `--settings` (terminal.ts); holds our hooks
- * only. Keeps the status hooks out of the user's ~/.claude/settings.json (which may be tracked). */
-export const statusSettingsFile = path.join(configDir, 'claude-settings.json');
+
+export { statusSettingsFile };
 
 /** Env var claude-ui sets on its terminals; the hook only reports when it is present. */
 export const SCOPE_ENV = 'CLAUDE_UI';
@@ -43,7 +40,7 @@ const HOOK_SCRIPT = `#!/usr/bin/env bash
 # only for sessions launched by claude-ui (CLAUDE_UI is set on its terminals).
 [ -n "\${CLAUDE_UI:-}" ] || exit 0
 status="\${1:-}"
-dir="$HOME/.config/claude-ui/status"
+dir=${shellQuote(statusDir)}
 mkdir -p "$dir"
 input="$(cat)"
 sid="$(printf '%s' "$input" | grep -oE '"session_id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\\1/')"
@@ -72,7 +69,9 @@ export async function installStatusHooks(): Promise<void> {
 
   const hooks: Record<string, unknown[]> = {};
   for (const [event, status] of HOOK_EVENTS) {
-    hooks[event] = [{ hooks: [{ type: 'command', command: `${hookScriptPath} ${status}` }] }];
+    // Quote the script path: on macOS it sits under "Application Support", and an unquoted space
+    // would make claude run "…/Application" with "Support/claude-ui/status-hook.sh" as an argument.
+    hooks[event] = [{ hooks: [{ type: 'command', command: `${shellQuote(hookScriptPath)} ${status}` }] }];
   }
   await fs.writeFile(statusSettingsFile, `${JSON.stringify({ hooks }, null, 2)}\n`);
 
@@ -99,7 +98,9 @@ async function removeInjectedHooks(): Promise<void> {
     const entries = settings.hooks[event];
     if (!Array.isArray(entries)) continue;
     const kept = entries.filter(
-      (entry) => !entry.hooks?.some((h) => typeof h.command === 'string' && h.command.startsWith(hookScriptPath)),
+      // `includes`, not `startsWith`: the command is quoted now, and the entries being cleaned up
+      // here were written by versions that did not quote it.
+      (entry) => !entry.hooks?.some((h) => typeof h.command === 'string' && h.command.includes(hookScriptPath)),
     );
     if (kept.length === entries.length) continue;
     changed = true;

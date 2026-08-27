@@ -11,7 +11,23 @@ const { testHome } = vi.hoisted(() => {
   return { testHome: fs.mkdtempSync(path.join(os.tmpdir(), 'claude-ui-status-')) as string };
 });
 
-vi.mock('electron', () => ({ ipcMain: { handle: vi.fn(), on: vi.fn() }, BrowserWindow: class {} }));
+// paths.ts pins userData to <appData>/claude-ui on import, so the fake app has to honour setPath for
+// the status paths to land where this test looks for them. appData -> <testHome>/.config keeps that
+// the same directory the app uses on Linux.
+vi.mock('electron', () => {
+  const nodePath = require('node:path');
+  const pinned: Record<string, string> = {};
+  return {
+    app: {
+      getPath: (name: string) => pinned[name] ?? nodePath.join(testHome, name === 'appData' ? '.config' : name),
+      setPath: (name: string, value: string) => {
+        pinned[name] = value;
+      },
+    },
+    ipcMain: { handle: vi.fn(), on: vi.fn() },
+    BrowserWindow: class {},
+  };
+});
 vi.mock('node:os', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:os')>();
   return { ...actual, homedir: () => testHome };
@@ -47,11 +63,15 @@ describe('installStatusHooks', () => {
       'Stop',
       'UserPromptSubmit',
     ]);
-    expect(tool.hooks.UserPromptSubmit[0].hooks[0].command).toBe(`${ourCmd} busy`);
+    // The script path is single-quoted: on macOS it lives under "Application Support" and an
+    // unquoted space would split it into two arguments.
+    expect(tool.hooks.UserPromptSubmit[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
     // SessionStart reports identity, not a state — see HOOK_EVENTS.
-    expect(tool.hooks.SessionStart[0].hooks[0].command).toBe(`${ourCmd} start`);
+    expect(tool.hooks.SessionStart[0].hooks[0].command).toBe(`'${ourCmd}' start`);
   });
 
+  // The commands here are deliberately UNQUOTED: the entries being cleaned up were written by
+  // versions that did not quote the script path, which is why the matcher uses `includes`.
   it('strips only the previously-injected status hooks from ~/.claude/settings.json', async () => {
     await writeSettings({
       model: 'sonnet',
