@@ -19,6 +19,15 @@ const HOOK_EVENTS: [string, string][] = [
   ['UserPromptSubmit', 'busy'],
   ['Stop', 'idle'],
   ['Notification', 'waiting'],
+  // Also busy, and the reason is the gap it closes. A permission prompt arrives as `Notification`,
+  // so the dot goes waiting; approving it is not a `UserPromptSubmit`, so before this NOTHING fired
+  // between the approval and the end of the turn, and the dot sat on waiting while the session
+  // worked. Measured on a live session: 34 seconds of work showing "needs you". A tool having RUN is
+  // the signal that work resumed, which is exactly what was missing.
+  // It fires once per tool call, so it is a busier stream than the rest of this table — cheap
+  // (one small file write, already debounced by the watcher) and it only ever re-asserts a state the
+  // session is already in.
+  ['PostToolUse', 'busy'],
   // Ends reset the dot to empty: 'closed' has no color rule, so it renders hollow.
   ['SessionEnd', 'closed'],
   // Not a status: 'start' reports only WHICH session a tab is running, at the moment claude starts.

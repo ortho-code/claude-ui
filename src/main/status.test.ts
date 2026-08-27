@@ -58,11 +58,15 @@ describe('installStatusHooks', () => {
     const tool = JSON.parse(await fs.readFile(statusSettingsFile, 'utf8'));
     expect(Object.keys(tool.hooks).sort()).toEqual([
       'Notification',
+      'PostToolUse',
       'SessionEnd',
       'SessionStart',
       'Stop',
       'UserPromptSubmit',
     ]);
+    // PostToolUse is what ends the waiting a permission prompt starts: approving one fires nothing
+    // else, so without it the dot stays on waiting for the rest of the turn.
+    expect(tool.hooks.PostToolUse[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
     // The script path is single-quoted: on macOS it lives under "Application Support" and an
     // unquoted space would split it into two arguments.
     expect(tool.hooks.UserPromptSubmit[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
