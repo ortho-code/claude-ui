@@ -1,13 +1,20 @@
 name: CI
 
 on:
+  # `main` only, not every branch. A bare `push:` matches TAGS too, so pushing v0.1.0 ran this
+  # workflow alongside release.yml, which builds and tests the same commit itself. And a push to a
+  # branch that has a pull request open would run this twice over — once for the push, once for the
+  # PR. Restricting pushes to main leaves branches covered by their PR, and each commit tested once.
   push:
-    # Branches only. A bare `push:` also matches TAGS, so pushing v0.1.0 ran this workflow alongside
-    # release.yml — which builds and tests the same commit itself before packaging it. `'**'` matches
-    # every branch, including ones with slashes, and no tags.
     branches:
-      - '**'
+      - main
   pull_request:
+
+# Supersede rather than queue: pushing twice in a minute makes the first run's answer irrelevant, and
+# a cancelled run costs nothing further. Keyed by ref so different branches never cancel each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-test:
