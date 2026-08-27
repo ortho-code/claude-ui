@@ -125,4 +125,4 @@ in `release/`. Tagging a version builds both on CI and collects them in a draft 
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
