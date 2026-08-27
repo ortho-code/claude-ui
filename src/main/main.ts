@@ -1,8 +1,10 @@
 // First, and for its side effect: paths.ts pins the userData directory, and must run before any
 // module computes a path from it. See the comment there.
 import './paths';
-import { app, BrowserWindow, ipcMain, Menu, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, dialog, shell, nativeImage } from 'electron';
+import type { NativeImage } from 'electron';
 import { execFile } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { listSessions, trashSessions, worktreeExists } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
@@ -107,12 +109,34 @@ function claudeIsInstalled(): Promise<boolean> {
   });
 }
 
+/**
+ * The window icon, read as BYTES rather than handed over as a path.
+ *
+ * `BrowserWindow`'s `icon` option is consumed by native code, which does not go through Electron's
+ * asar-aware fs layer. Once packaged, `…/resources/app.asar/assets/icon.png` is therefore a path
+ * that does not exist on disk: the icon silently fails to load, X11 gets no `_NET_WM_ICON`, and the
+ * window shows the desktop's generic fallback instead. It only appears when packaged, because in
+ * development `assets/` is a real directory. Node's `fs` does read inside the asar, so loading the
+ * bytes here behaves identically both ways with nothing to unpack.
+ *
+ * Resized down from the 1024px source that macOS needs: this one is drawn at taskbar size, and
+ * Electron's own filtering beats leaving a window manager to crush 1024px into 32.
+ */
+function windowIcon(): NativeImage | undefined {
+  try {
+    const png = readFileSync(path.join(__dirname, '..', '..', 'assets', 'icon.png'));
+    return nativeImage.createFromBuffer(png).resize({ width: 256, height: 256, quality: 'best' });
+  } catch {
+    return undefined; // A default icon is a far better outcome than no window.
+  }
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 760,
     title: appTitle,
-    icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'),
+    icon: windowIcon(),
     backgroundColor: '#1e1e2e',
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'preload.js'),
