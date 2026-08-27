@@ -447,13 +447,11 @@ describe('groupJumpTargets', () => {
   });
 });
 
-// The exact chunks a starting claude sends, captured from a real pty. The loader hides the terminal
-// until something is actually drawn, so a false "visible" here is a pane that flashes and goes empty
-// again — which is what happened when this only tested for the first BYTE.
+// The exact chunks a starting claude sends, captured from a real pty.
+// The loader hides the terminal until something is actually drawn, so a false "visible" here is a pane that flashes and goes empty again — which is what happened when this only tested for the first BYTE.
 describe('hasVisibleOutput', () => {
   it('ignores the terminal setup claude sends before drawing anything', () => {
-    // ESC 7 and ESC 8 are the trap: two-char escapes whose second byte is a DIGIT, so a stripper
-    // that only handles CSI and letter-escapes leaves "7" behind and calls it content.
+    // ESC 7 and ESC 8 are the trap: two-char escapes whose second byte is a DIGIT, so a stripper that only handles CSI and letter-escapes leaves "7" behind and calls it content.
     expect(hasVisibleOutput('\x1b7\x1b[r\x1b8\x1b[?25h')).toBe(false);
     expect(hasVisibleOutput('\x1b[?25l')).toBe(false);
     expect(hasVisibleOutput('\x1b[?2004h\x1b[?1004h\x1b[?2031h')).toBe(false);

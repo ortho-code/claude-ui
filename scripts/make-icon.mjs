@@ -1,23 +1,17 @@
-// Generates the app icons with no external tools: a rounded accent tile with a terminal chevron.
-// Run: node scripts/make-icon.mjs
+// Generates the app icons with no external tools: a rounded accent tile with a terminal chevron. Run: node scripts/make-icon.mjs
 //
 // Writes TWO things, because the platforms need different shapes:
-//   assets/icon.png   — 1024x1024, for macOS and for the BrowserWindow icon. electron-builder
-//                       rasterises to 1024 before building the .icns, so a smaller source goes soft,
-//                       and it derives every icns size from this one file.
-//   assets/icons/     — one PNG per size, which is what Linux needs. electron-builder installs only
-//                       the hicolor sizes it is GIVEN: a single 1024px source produced exactly
-//                       /usr/share/icons/hicolor/1024x1024/apps/claude-ui.png, and desktop
-//                       environments looking for 16 through 256 found nothing and fell back to the
-//                       distro's own icon. macOS was unaffected, which is why this looked
-//                       Linux-specific. `linux.icon` points at this directory.
+//   assets/icon.png — 1024x1024, for macOS and for the BrowserWindow icon.
+//     electron-builder rasterises to 1024 before building the .icns, so a smaller source goes soft, and it derives every icns size from this one file.
+//   assets/icons/ — one PNG per size, which is what Linux needs.
+//     electron-builder installs only the hicolor sizes it is GIVEN: a single 1024px source produced exactly /usr/share/icons/hicolor/1024x1024/apps/claude-ui.png, and desktop environments looking for 16 through 256 found nothing and fell back to the distro's own icon.
+//     macOS was unaffected, which is why this looked Linux-specific.
+//     `linux.icon` points at this directory.
 //
-// Every coordinate is written in the original 256-unit design space and scaled by K, so each size
-// renders the design at its own resolution rather than resampling another size.
+// Every coordinate is written in the original 256-unit design space and scaled by K, so each size renders the design at its own resolution rather than resampling another size.
 //
-// Drawing is supersampled SS times and box-filtered down. The shapes come from a binary
-// inside/outside test, which alone leaves visibly jagged tile corners and chevron diagonals;
-// averaging sub-samples gives them a clean edge.
+// Drawing is supersampled SS times and box-filtered down.
+// The shapes come from a binary inside/outside test, which alone leaves visibly jagged tile corners and chevron diagonals; averaging sub-samples gives them a clean edge.
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -73,8 +67,7 @@ function render(size) {
   line(172, 128, 98, 180, 15, FG);
   line(150, 192, 196, 192, 15, FG);
 
-  // Box-filter SSxSS blocks down to one pixel. RGB is averaged weighted by alpha (premultiplied) so
-  // the transparent pixels outside the tile, whose RGB is 0, do not darken its edge into a black rim.
+  // Box-filter SSxSS blocks down to one pixel. RGB is averaged weighted by alpha (premultiplied) so the transparent pixels outside the tile, whose RGB is 0, do not darken its edge into a black rim.
   const out = Buffer.alloc(size * size * 4);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {

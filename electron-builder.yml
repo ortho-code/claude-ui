@@ -1,98 +1,80 @@
-# Packaging config. Kept out of package.json so that file stays readable.
+# Packaging config.
+# Kept out of package.json so that file stays readable.
 # Build with `npm run dist:linux` (or `dist:mac`, which only works ON macOS).
-# macOS treats this as the app's identity: change it and the OS considers the result a DIFFERENT
-# app — Gatekeeper asks again, and dragging the new one into Applications leaves the old one behind
-# rather than replacing it. Changed once, deliberately, when the repo moved to the ortho-code org and
-# exactly one person had ever installed a mac build. User data is unaffected either way, because the
-# data directory is pinned by name in src/main/paths.ts rather than derived from this.
+# macOS treats this as the app's identity: change it and the OS considers the result a DIFFERENT app — Gatekeeper asks again, and dragging the new one into Applications leaves the old one behind rather than replacing it.
+# Changed once, deliberately, when the repo moved to the ortho-code org and exactly one person had ever installed a mac build.
+# User data is unaffected either way, because the data directory is pinned by name in src/main/paths.ts rather than derived from this.
 appId: com.github.ortho-code.claude-ui
 productName: Claude UI
 
 directories:
-  # NOT the default `dist`: that is where tsc and esbuild already write, and pointing the packager
-  # at it would have it destroy its own build inputs mid-build.
+  # NOT the default `dist`: that is where tsc and esbuild already write, and pointing the packager at it would have it destroy its own build inputs mid-build.
   output: release
 
-# `npm run build` has to have run first — these are its outputs, not sources. assets/ is here because
-# main.ts loads the window icon from it at runtime.
+# `npm run build` has to have run first — these are its outputs, not sources. assets/ is here because main.ts loads the window icon from it at runtime.
 files:
   - dist/**
   - assets/**
   - package.json
 
-# Predictable, space-free filenames. The default uses productName, which would put a space in every
-# artifact name.
+# Predictable, space-free filenames. The default uses productName, which would put a space in every artifact name.
 artifactName: ${name}-${version}-${arch}.${ext}
 
 linux:
-  # A .deb will not build without a maintainer, and this ends up in package metadata anyone who
-  # installs it can read. It is deliberately the GitHub noreply address — the same identity git is
-  # configured with, so the package and the commit history agree, and no personal address ships
-  # inside an artifact. The trade is that mail to it bounces, which is worth revisiting if this is
-  # ever published more widely.
+  # A .deb will not build without a maintainer, and this ends up in package metadata anyone who installs it can read.
+  # It is deliberately the GitHub noreply address — the same identity git is configured with, so the package and the commit history agree, and no personal address ships inside an artifact.
+  # The trade is that mail to it bounces, which is worth revisiting if this is ever published more widely.
   maintainer: OrthoCode <5603434+alleknalle@users.noreply.github.com>
-  # NO syncDesktopName. It writes `StartupWMClass` into the .desktop entry so desktop environments can
-  # associate a running window with it — electron-builder warns when it is missing, and that warning
-  # is why it was briefly added. Under WSLg the association is actively harmful: once a window matches
-  # an entry, Windows draws the taskbar button with the DISTRO's Tux icon instead of the app's.
+  # NO syncDesktopName.
+  # It writes `StartupWMClass` into the .desktop entry so desktop environments can associate a running window with it — electron-builder warns when it is missing, and that warning is why it was briefly added.
+  # Under WSLg the association is actively harmful: once a window matches an entry, Windows draws the taskbar button with the DISTRO's Tux icon instead of the app's.
   # Verified by removing the installed entry entirely, at which point the icon came straight back.
-  # Without the association Windows treats the window as generic and uses its own icon, which is
-  # correct. The Start-menu shortcut and its icon come from `Icon=` and do not need this at all.
+  # Without the association Windows treats the window as generic and uses its own icon, which is correct.
+  # The Start-menu shortcut and its icon come from `Icon=` and do not need this at all.
   synopsis: Run and track several Claude Code sessions from one window
   desktop:
     entry:
-      # Explicitly NO StartupWMClass. See the note above: an entry a running window matches is what
-      # makes Windows draw the taskbar button with the distro's icon. electron-builder writes this key
-      # by default, so it has to be removed rather than merely not asked for.
+      # Explicitly NO StartupWMClass.
+      # See the note above: an entry a running window matches is what makes Windows draw the taskbar button with the distro's icon.
+      # electron-builder writes this key by default, so it has to be removed rather than merely not asked for.
       StartupWMClass: null
   target:
-    # deb is the one that answers "install it again and it updates": dpkg upgrades a higher version
-    # in place and leaves userData alone. AppImage is a fallback for non-Debian distros and has no
-    # install concept at all — updating one means replacing the file by hand.
+    # deb is the one that answers "install it again and it updates": dpkg upgrades a higher version in place and leaves userData alone.
+    # AppImage is a fallback for non-Debian distros and has no install concept at all — updating one means replacing the file by hand.
     - deb
     - AppImage
   category: Development
-  # A DIRECTORY of sizes, not the single 1024px file. electron-builder installs only the hicolor sizes
-  # it is given, so one 1024px source produced one 1024x1024 entry and every desktop environment
-  # looking for 16 through 256 fell back to the distro's icon. macOS was fine throughout, because
-  # there the whole .icns is derived from that one file — which is why this read as a Linux bug.
+  # A DIRECTORY of sizes, not the single 1024px file.
+  # electron-builder installs only the hicolor sizes it is given, so one 1024px source produced one 1024x1024 entry and every desktop environment looking for 16 through 256 fell back to the distro's icon.
+  # macOS was fine throughout, because there the whole .icns is derived from that one file — which is why this read as a Linux bug.
   icon: assets/icons
-  # Also names the .desktop entry, and that name MUST NOT equal the window's WM_CLASS, which Electron
-  # derives from productName as `claude-ui`. When the two match, Windows binds a running WSLg window
-  # to the shortcut WSLg generates from the entry and draws the taskbar button from the distro's
-  # identity — a Tux icon — even though the entry, its converted .ico, the Start menu and the hover
-  # preview all show the app's icon correctly. Verified three ways: removing the entry restored the
-  # button, restoring it broke it again, and renaming it so the names differ restored it while
-  # keeping the Start-menu entry working.
-  # The trade, accepted: a native Linux desktop may not group running windows under this entry. That
-  # costs a dash grouping nicety; the alternative cost a visibly wrong icon on the machine this is
-  # developed on.
+  # Also names the .desktop entry, and that name MUST NOT equal the window's WM_CLASS, which Electron derives from productName as `claude-ui`.
+  # When the two match, Windows binds a running WSLg window to the shortcut WSLg generates from the entry and draws the taskbar button from the distro's identity — a Tux icon — even though the entry, its converted .ico, the Start menu and the hover preview all show the app's icon correctly.
+  # Verified three ways: removing the entry restored the button, restoring it broke it again, and renaming it so the names differ restored it while keeping the Start-menu entry working.
+  # The trade, accepted: a native Linux desktop may not group running windows under this entry.
+  # That costs a dash grouping nicety; the alternative cost a visibly wrong icon on the machine this is developed on.
   executableName: claude-ui-app
-  # The sandbox switch CANNOT be set from inside the app — it arrives too late for the renderer,
-  # which then dies with a misleading /dev/shm FATAL and leaves a blank window (see main.ts). Only
-  # the launcher can supply it, so it goes here, where electron-builder writes it into the generated
-  # launcher and the .desktop entry. Linux-only, so macOS keeps its sandbox.
+  # The sandbox switch CANNOT be set from inside the app — it arrives too late for the renderer, which then dies with a misleading /dev/shm FATAL and leaves a blank window (see main.ts).
+  # Only the launcher can supply it, so it goes here, where electron-builder writes it into the generated launcher and the .desktop entry.
+  # Linux-only, so macOS keeps its sandbox.
   executableArgs:
     - --no-sandbox
 
 deb:
-  # Refreshes the icon cache and re-creates the desktop entry after the files are in place, so a WSL
-  # user does not have to install twice to get the right icon. See the script for why.
+  # Refreshes the icon cache and re-creates the desktop entry after the files are in place, so a WSL user does not have to install twice to get the right icon. See the script for why.
   afterInstall: build/deb-after-install.sh
 
 mac:
   target: dmg
   category: public.app-category.developer-tools
   icon: assets/icon.png
-  # Ad-hoc signing, opted into EXPLICITLY. Left unset, electron-builder looks for a certificate in
-  # the keychain and simply skips signing when it finds none — and an unsigned app will not launch on
-  # Apple Silicon at all. "-" is not a real identity: it proves nothing about who built the app, it
-  # only makes it runnable. Gatekeeper still warns on first launch; the README documents the step
-  # that clears it.
+  # Ad-hoc signing, opted into EXPLICITLY.
+  # Left unset, electron-builder looks for a certificate in the keychain and simply skips signing when it finds none — and an unsigned app will not launch on Apple Silicon at all.
+  # "-" is not a real identity: it proves nothing about who built the app, it only makes it runnable.
+  # Gatekeeper still warns on first launch; the README documents the step that clears it.
   identity: "-"
   # Required BECAUSE of ad-hoc signing — see the file for why the app will not start without it.
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  # Notarisation needs an Apple developer account, which this deliberately does not have. Explicit so
-  # a missing APPLE_* environment variable never looks like the reason a build behaved oddly.
+  # Notarisation needs an Apple developer account, which this deliberately does not have. Explicit so a missing APPLE_* environment variable never looks like the reason a build behaved oddly.
   notarize: false

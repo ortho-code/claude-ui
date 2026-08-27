@@ -12,16 +12,15 @@ function cleanEnv(): { [key: string]: string } {
   const env: { [key: string]: string } = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined) continue;
-    // Strip Claude Code harness variables. When the app is launched from inside a Claude
-    // session these get inherited, and the claude we spawn then thinks it is a nested SDK /
-    // child session and never persists its transcript. Keep our own CLAUDE_UI marker.
+    // Strip Claude Code harness variables.
+    // When the app is launched from inside a Claude session these get inherited, and the claude we spawn then thinks it is a nested SDK / child session and never persists its transcript.
+    // Keep our own CLAUDE_UI marker.
     if (key !== SCOPE_ENV && (key === 'CLAUDECODE' || key.startsWith('CLAUDE_'))) continue;
     env[key] = value;
   }
   // Mark this session as launched by claude-ui so the status hook reports it.
   env[SCOPE_ENV] = '1';
-  // Advertise 24-bit colour so claude emits its full TUI styling (e.g. the select-menu highlight)
-  // instead of a degraded fallback; the frontend xterm renders truecolor fine.
+  // Advertise 24-bit colour so claude emits its full TUI styling (e.g. the select-menu highlight) instead of a degraded fallback; the frontend xterm renders truecolor fine.
   env.COLORTERM = 'truecolor';
   return env;
 }
@@ -32,36 +31,28 @@ export function registerTerminalIpc(): void {
     const shell = process.env.SHELL ?? '/bin/bash';
     // Session ids are filename-derived; only pass through safe characters.
     const safeId = resumeSessionId && /^[A-Za-z0-9_-]+$/.test(resumeSessionId) ? resumeSessionId : null;
-    // Resume the given session, or start a fresh one when there's no id. When claude exits, the
-    // shell exits too (no trailing `exec bash`), so the pty closes and the renderer can close the
-    // tab instead of leaving a bare shell behind. The shell is interactive (-i) as well as login
-    // (-l): a non-interactive shell skips ~/.bashrc (the usual `case $- in *i*) ;; *) return;;
-    // esac` guard), so any rc-based per-directory setup — mise/asdf/direnv activation, PATH, env
-    // vars — never runs, and claude launches without the tools its MCP servers need. An
-    // interactive shell in the pty runs that setup for the session's directory, like a real
-    // terminal.
-    // Load claude-ui's status hooks from its own settings file (merges with the user's ~/.claude
-    // hooks) so we never write into the user's settings.json. Guard on existence in case the app is
-    // mid-startup and installStatusHooks() hasn't written it yet.
+    // Resume the given session, or start a fresh one when there's no id.
+    // When claude exits, the shell exits too (no trailing `exec bash`), so the pty closes and the renderer can close the tab instead of leaving a bare shell behind.
+    // The shell is interactive (-i) as well as login
+    // (-l): a non-interactive shell skips ~/.bashrc (the usual `case $- in *i*) ;; *) return;; esac` guard), so any rc-based per-directory setup — mise/asdf/direnv activation, PATH, env vars — never runs, and claude launches without the tools its MCP servers need.
+    // An interactive shell in the pty runs that setup for the session's directory, like a real terminal.
+    // Load claude-ui's status hooks from its own settings file (merges with the user's ~/.claude hooks) so we never write into the user's settings.json.
+    // Guard on existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
     const base = existsSync(statusSettingsFile) ? `claude --settings '${statusSettingsFile}'` : 'claude';
-    // `--name` sets the session's display name (claude writes it as a custom-title, so the sidebar
-    // picks it up). Single-quote it, escaping any embedded quotes, since the whole command is a
-    // string handed to `bash -c`.
+    // `--name` sets the session's display name (claude writes it as a custom-title, so the sidebar picks it up).
+    // Single-quote it, escaping any embedded quotes, since the whole command is a string handed to `bash -c`.
     const nameArg = name ? ` --name '${name.replace(/'/g, "'\\''")}'` : '';
-    // `-w` starts the session in a new git worktree: a non-empty string names it, `''` lets claude
-    // auto-name, `undefined` means no worktree. Single-quote the name like --name.
+    // `-w` starts the session in a new git worktree: a non-empty string names it, `''` lets claude auto-name, `undefined` means no worktree. Single-quote the name like --name.
     const worktreeArg =
       worktree === undefined ? '' : worktree ? ` -w '${worktree.replace(/'/g, "'\\''")}'` : ' -w';
-    // `--fork-session` copies the resumed transcript into a new session id (a fork); it needs an id
-    // to resume from, so it only applies when we have one.
+    // `--fork-session` copies the resumed transcript into a new session id (a fork); it needs an id to resume from, so it only applies when we have one.
     const resume = safeId ? ` --resume ${safeId}${fork ? ' --fork-session' : ''}` : '';
     const command = `${base}${resume}${nameArg}${worktreeArg}`;
     const args = ['-l', '-i', '-c', command];
     const env = cleanEnv();
     if (tabToken) env[TAB_ENV] = tabToken;
     const proc = pty.spawn(shell, args, {
-      // xterm.js speaks 256-colour/truecolor; the old 'xterm-color' (8-colour) terminfo made claude
-      // pick a degraded palette for its TUI.
+      // xterm.js speaks 256-colour/truecolor; the old 'xterm-color' (8-colour) terminfo made claude pick a degraded palette for its TUI.
       name: 'xterm-256color',
       cols: 80,
       rows: 24,
@@ -95,8 +86,7 @@ export function registerTerminalIpc(): void {
     terminals.delete(id);
   });
 
-  // Graceful close: give claude its normal exit path (Ctrl-C twice) so it flushes the
-  // transcript, then kill the leftover shell.
+  // Graceful close: give claude its normal exit path (Ctrl-C twice) so it flushes the transcript, then kill the leftover shell.
   ipcMain.on('terminal:close', (_event, id: number) => {
     const proc = terminals.get(id);
     if (!proc) return;

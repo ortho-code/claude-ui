@@ -50,8 +50,8 @@ const dateCustom = document.getElementById('date-custom')!;
 const dateRangeLabel = document.getElementById('date-range-label')!; // persistent line under presets
 const dateRangeCaption = document.getElementById('date-range-caption')!; // same text, inside calendar
 const pad2 = (n: number): string => String(n).padStart(2, '0');
-// Inline range calendar. Custom-rendered month/year views (click the header to zoom out to a months
-// grid, then a years grid, arrows paging through) and no native <select>, so it behaves under WSLg.
+// Inline range calendar.
+// Custom-rendered month/year views (click the header to zoom out to a months grid, then a years grid, arrows paging through) and no native <select>, so it behaves under WSLg.
 // Capped at today: sessions are never in the future.
 let suppressPickerSelect = false;
 const datePicker = new AirDatepicker(document.getElementById('date-range')!, {
@@ -74,34 +74,27 @@ const footerBadge = document.getElementById('footer-badge')!;
 const footerLabel = document.getElementById('footer-label')!;
 const footerList = document.getElementById('footer-list')!;
 
-// A group's mark: layers, meaning "several things stacked as one". Muted, never accent — the accent
-// belongs to the project's folder icon one line above it.
+// A group's mark: layers, meaning "several things stacked as one". Muted, never accent — the accent belongs to the project's folder icon one line above it.
 const layersIcon = (size: number): string =>
   `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M8 2.2 2 5.4l6 3.2 6-3.2-6-3.2Z" /><path d="M2.4 9.2 8 12.2l5.6-3" /></svg>`;
 
 const FOLDER_ICON =
   '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2 4h4l1.5 1.5H14V13H2z"/></svg>';
 
-// The chrome marks — carets, +, ⋮, ✓, × — as SVG rather than the text glyphs they used to be. Every
-// one of those resolved through system font fallback, which is how ⑂ ended up rendering from a
-// MONOSPACE face beside its neighbours (see the family/worktree marks below). These render the same
-// whatever the system has installed, take their colour from `currentColor` like the other icons, and
-// have their ink centred on (8,8) in the viewBox so flex centring lands them square with no nudge.
-// `ink` is the stroke the user actually SEES, in px — the viewBox is a fixed 16 units, so a constant
-// stroke-width would draw a 9px caret at two-thirds the weight of a 14px one and the set would look
-// mismatched at exactly the sizes this chrome uses. Converting px to units per size keeps every mark
-// the same visual weight, and 1.3px is the weight the existing folder/layers icons already render at.
+// The chrome marks — carets, +, ⋮, ✓, × — as SVG rather than the text glyphs they used to be.
+// Every one of those resolved through system font fallback, which is how ⑂ ended up rendering from a MONOSPACE face beside its neighbours (see the family/worktree marks below).
+// These render the same whatever the system has installed, take their colour from `currentColor` like the other icons, and have their ink centred on (8,8) in the viewBox so flex centring lands them square with no nudge.
+// `ink` is the stroke the user actually SEES, in px — the viewBox is a fixed 16 units, so a constant stroke-width would draw a 9px caret at two-thirds the weight of a 14px one and the set would look mismatched at exactly the sizes this chrome uses.
+// Converting px to units per size keeps every mark the same visual weight, and 1.3px is the weight the existing folder/layers icons already render at.
 const strokeIcon = (size: number, path: string, ink = 1.3): string =>
   `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${((ink * 16) / size).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
-// Chevrons, not filled triangles: the collapse-all button already says fold/unfold with a chevron,
-// and a solid triangle would be the only filled shape in an outline icon set.
+// Chevrons, not filled triangles: the collapse-all button already says fold/unfold with a chevron, and a solid triangle would be the only filled shape in an outline icon set.
 const chevronDown = (size: number): string => strokeIcon(size, '<path d="M4 6L8 10L12 6" />');
 const chevronRight = (size: number): string => strokeIcon(size, '<path d="M6 4L10 8L6 12" />');
 const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
 const tickIcon = (size: number): string => strokeIcon(size, '<path d="M3.5 8.4L6.6 11.5L12.5 4.9" />', 1.5);
 const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4" />');
-// Dots, so it stays a kebab rather than becoming a dashed line. The radius is in px for the same
-// reason the stroke is: three 2.6px dots whatever the button's size.
+// Dots, so it stays a kebab rather than becoming a dashed line. The radius is in px for the same reason the stroke is: three 2.6px dots whatever the button's size.
 const kebabIcon = (size: number): string => {
   const r = ((1.3 * 16) / size).toFixed(2);
   return `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="currentColor"><circle cx="8" cy="3.4" r="${r}" /><circle cx="8" cy="8" r="${r}" /><circle cx="8" cy="12.6" r="${r}" /></svg>`;
@@ -138,9 +131,7 @@ function hideToast(): void {
   if (toastTimer) clearTimeout(toastTimer);
 }
 /**
- * `sticky` keeps the message up until it is dismissed, for a condition that will not resolve on its
- * own — a missing `claude` CLI is the case it exists for, where three seconds would be gone before
- * the sentence was read.
+ * `sticky` keeps the message up until it is dismissed, for a condition that will not resolve on its own — a missing `claude` CLI is the case it exists for, where three seconds would be gone before the sentence was read.
  */
 function showToast(message: string, sticky = false): void {
   toastMessage.textContent = message;
@@ -150,8 +141,7 @@ function showToast(message: string, sticky = false): void {
 }
 toastClose.addEventListener('click', hideToast);
 
-// Stacking attention toasts: a background tab (one you're not viewing) went waiting/idle. Separate
-// from the one-off #toast message bar above.
+// Stacking attention toasts: a background tab (one you're not viewing) went waiting/idle. Separate from the one-off #toast message bar above.
 const notifications = document.getElementById('notifications')!;
 const NOTIF_TTL = 5000;
 const NOTIF_MAX = 4;
@@ -202,8 +192,7 @@ function showAttentionToast(tab: Tab, status: 'waiting' | 'idle'): void {
   arm();
 }
 
-// A real transition into waiting/idle on a tab you're not looking at -> toast it. Never for busy, a
-// cleared status, a no-op repeat, or the tab you're already on.
+// A real transition into waiting/idle on a tab you're not looking at -> toast it. Never for busy, a cleared status, a no-op repeat, or the tab you're already on.
 function maybeAttentionToast(id: string, status: string | undefined, prev: string | undefined): void {
   if ((status !== 'waiting' && status !== 'idle') || status === prev) return;
   const tab = tabs.find((t) => t.session.id === id);
@@ -226,18 +215,15 @@ function setLoading(on: boolean): void {
 let pinned = new Set<string>();
 let archived = new Map<string, number>();
 let projectNames = new Map<string, string>(); // repoRoot -> user rename override
-// The explicit project order. Seeded from the recency order the list already had, so switching this
-// on changed nothing on screen; from then on it only moves when the user moves it.
+// The explicit project order. Seeded from the recency order the list already had, so switching this on changed nothing on screen; from then on it only moves when the user moves it.
 let projectOrder: string[] = [];
 // Session id -> note. Only sessions that HAVE one appear here (a blank note deletes its entry).
 let notes = new Map<string, string>();
 const projName = (repoRoot: string): string => displayName(repoRoot, projectNames);
-// Conversations whose delete is in flight: hidden from the list until that delete resolves, so a
-// concurrent delete's disk re-read can't briefly resurrect them.
+// Conversations whose delete is in flight: hidden from the list until that delete resolves, so a concurrent delete's disk re-read can't briefly resurrect them.
 const pendingDeletes = new Set<string>();
 let statuses = new Map<string, string>();
-// Session ids whose dot the user has marked "read": shown dimmed (no pulse) instead of the live
-// colour. In-memory only, so a restart re-lights everything. Any incoming status event clears it.
+// Session ids whose dot the user has marked "read": shown dimmed (no pulse) instead of the live colour. In-memory only, so a restart re-lights everything. Any incoming status event clears it.
 const acked = new Set<string>();
 let allSessions: SessionSummary[] = [];
 let filterText = '';
@@ -254,26 +240,22 @@ let activeProject: string | null = null;
 let datePreset = 'any';
 let dateFromMs: number | null = null;
 let dateToMs: number | null = null;
-// Structure of the last rendered list, so disk changes that only grow a transcript (new
-// lastActivity) doesn't trigger a rebuild — we re-render only on structural change.
+// Structure of the last rendered list, so disk changes that only grow a transcript (new lastActivity) doesn't trigger a rebuild — we re-render only on structural change.
 let lastSignature = '';
 // Status dots by tip session id; rebuilt each render (a status event names a session id).
 const statusDots = new Map<string, HTMLElement>();
-// Row elements by entity key (the session id), reused across renders so a re-render moves nodes
-// instead of recreating them — no flicker, no scroll jump, hover/focus kept.
+// Row elements by entity key (the session id), reused across renders so a re-render moves nodes instead of recreating them — no flicker, no scroll jump, hover/focus kept.
 const sessionRows = new Map<string, HTMLElement>();
-// Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen
-// rather than on everything that has ever existed.
+// Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen rather than on everything that has ever existed.
 let renderedSections: { projects: string[]; groups: string[] } = { projects: [], groups: [] };
 const collapsedProjects = new Set<string>();
 // Collapsed custom groups, by group id (projects collapse by repo root, groups by their own id).
 const collapsedGroups = new Set<string>();
 // Every group and who is in one, loaded once at startup and refreshed after any change.
 let groupState: GroupState = { groups: [], groupOf: {} };
-// Group membership for sessions that do not exist on disk yet, keyed by their PLACEHOLDER id. A new
-// session started from a group's "+" (or a fork of a grouped session) has no real id until claude
-// reports for it, but it must show inside its group straight away rather than appearing loose and
-// jumping in later. Kept in memory only — placeholder ids are transient and never belong in meta.
+// Group membership for sessions that do not exist on disk yet, keyed by their PLACEHOLDER id.
+// A new session started from a group's "+" (or a fork of a grouped session) has no real id until claude reports for it, but it must show inside its group straight away rather than appearing loose and jumping in later.
+// Kept in memory only — placeholder ids are transient and never belong in meta.
 const pendingGroupOf = new Map<string, string>();
 
 // The membership the UI should draw: what's on disk, plus the not-yet-created sessions.
@@ -293,8 +275,7 @@ interface ProjectSectionEls {
   /** The new-session split-button's dropdown caret (present only for a project with a folder). */
   addCaret?: HTMLElement;
 }
-// What each project's group menu offers, refreshed on every render so the menu can't name a group
-// that has since been deleted or renamed.
+// What each project's group menu offers, refreshed on every render so the menu can't name a group that has since been deleted or renamed.
 const jumpTargets = new Map<string, GroupJumpTarget[]>();
 // Project sections by repo root, reused across renders (same reason as sessionRows).
 const projectSections = new Map<string, ProjectSectionEls>();
@@ -315,8 +296,7 @@ interface GroupSectionEls {
 }
 // Group sections by group id, reused across renders like the project sections above.
 const groupSections = new Map<string, GroupSectionEls>();
-// The session each row currently shows, by entity key (session id), so a reused row's click/pin
-// handlers act on the live session data of the latest render.
+// The session each row currently shows, by entity key (session id), so a reused row's click/pin handlers act on the live session data of the latest render.
 let currentByKey = new Map<string, SessionSummary>();
 
 function isOpen(id: string): boolean {
@@ -328,26 +308,21 @@ function updateSidebarHighlight(): void {
     const id = row.dataset.sid ?? '';
     const tab = tabs.find((t) => t.session.id === id);
     row.classList.toggle('open', tab !== undefined);
-    // "Has a tab" and "is running" stopped being the same thing once tabs restore cold, so the row
-    // says which: an accent bar for a live session, a muted one for a tab waiting to be resumed.
+    // "Has a tab" and "is running" stopped being the same thing once tabs restore cold, so the row says which: an accent bar for a live session, a muted one for a tab waiting to be resumed.
     row.classList.toggle('cold', tab !== undefined && tab.terminalId === null);
     row.classList.toggle('active-session', activeTab?.session.id === id);
   }
 }
 
-// Keep open tabs' titles in sync with the freshly-read session list: a new session's first
-// message / AI title, a rename, or a regenerated AI title all land here on the next read.
+// Keep open tabs' titles in sync with the freshly-read session list: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
 function reconcileOpenTabs(): void {
   const byId = new Map(allSessions.map((s) => [s.id, s]));
   let changed = false;
   for (const tab of tabs) {
     const fresh = byId.get(tab.session.id);
     if (!fresh) continue;
-    // Always adopt the fresh summary (cheap, and keeps a tab's data from going stale), but only
-    // rebuild the bar when something the TAB shows actually differs. Comparing only title/firstMessage
-    // used to leave the mid-session cases behind: entering a worktree or gaining a sibling changes
-    // worktree/isSibling (and repoRoot, which groups the tabs), so the mark never appeared until the
-    // next unrelated title change.
+    // Always adopt the fresh summary (cheap, and keeps a tab's data from going stale), but only rebuild the bar when something the TAB shows actually differs.
+    // Comparing only title/firstMessage used to leave the mid-session cases behind: entering a worktree or gaining a sibling changes worktree/isSibling (and repoRoot, which groups the tabs), so the mark never appeared until the next unrelated title change.
     const shownDiffers =
       fresh.title !== tab.session.title ||
       fresh.firstMessage !== tab.session.firstMessage ||
@@ -366,8 +341,7 @@ function setStatus(id: string, status: string | undefined): void {
   const prev = statuses.get(id);
   if (status) statuses.set(id, status);
   else statuses.delete(id);
-  // A new status event is fresh activity: drop any "read" mark so the dot re-lights (and, for a
-  // new waiting, re-pulses) even if the user had acked the previous state.
+  // A new status event is fresh activity: drop any "read" mark so the dot re-lights (and, for a new waiting, re-pulses) even if the user had acked the previous state.
   acked.delete(id);
   renderStatusDot(id);
   refreshSwitcher(); // keep the project roll-up badges live
@@ -381,10 +355,9 @@ function renderStatusDot(id: string): void {
   if (tabs.some((t) => t.session.id === id)) renderTabBar();
 }
 
-// Toggle the "read" mark on a session's dot: mutes a live status (dimmed, no pulse) without
-// closing the tab or replying. Only the attention states are ackable — idle (done) and waiting
-// (needs you). Busy (working) and closed/hollow have nothing to acknowledge, so acking them is a
-// no-op.
+// Toggle the "read" mark on a session's dot: mutes a live status (dimmed, no pulse) without closing the tab or replying.
+// Only the attention states are ackable — idle (done) and waiting (needs you).
+// Busy (working) and closed/hollow have nothing to acknowledge, so acking them is a no-op.
 function toggleAck(id: string): void {
   const status = statuses.get(id);
   if (status !== 'idle' && status !== 'waiting') return;
@@ -404,19 +377,15 @@ interface Tab {
   session: SessionSummary;
   /**
    * The running process, or null when the tab is COLD — built and listed, with no claude behind it.
-   * Restored tabs start cold and spawn on activation; a null id is why nothing routes to them and
-   * why their input is dropped rather than sent nowhere.
+   * Restored tabs start cold and spawn on activation; a null id is why nothing routes to them and why their input is dropped rather than sent nowhere.
    */
   terminalId: number | null;
   /** Guards against a second start while the first is still awaiting its terminal id. */
   starting?: boolean;
   /**
-   * Spawned, but nothing has come out of the pty yet — the window where the pane would otherwise be
-   * black. MEASURED at 2.3-3.4s for a claude start, which is far too long to show nothing. Cleared by
-   * the first byte of output, deliberately rather than by anything claude-specific: claude never
-   * switches to the alternate screen buffer (the sequence is absent from the binary), so there is no
-   * "the TUI is up" marker to wait for, and a signal that depends on how claude renders would break
-   * the moment it changed.
+   * Spawned, but nothing has come out of the pty yet — the window where the pane would otherwise be black.
+   * MEASURED at 2.3-3.4s for a claude start, which is far too long to show nothing.
+   * Cleared by the first byte of output, deliberately rather than by anything claude-specific: claude never switches to the alternate screen buffer (the sequence is absent from the binary), so there is no "the TUI is up" marker to wait for, and a signal that depends on how claude renders would break the moment it changed.
    */
   booting?: boolean;
   /** Set while a user-initiated stop is in flight, so its exit cools the tab instead of closing it. */
@@ -428,8 +397,7 @@ interface Tab {
   token: string;
   // A new session has no title on disk yet; keep re-reading on status events until it does.
   needsTitle: boolean;
-  // The group this session should join the moment it has a real id. A brand-new session runs on a
-  // placeholder id, so it cannot be filed until claude reports for it (see onSessionStatus).
+  // The group this session should join the moment it has a real id. A brand-new session runs on a placeholder id, so it cannot be filed until claude reports for it (see onSessionStatus).
   joinGroupId?: string;
   // When claude was launched, to tell a real exit from a failed-to-start one.
   startedAt: number;
@@ -440,21 +408,19 @@ interface Tab {
 const tabs: Tab[] = [];
 let activeTab: Tab | null = null;
 let activationSeq = 0;
-// Where you were, per project and overall. Seeded from meta at restore and kept current as you
-// switch, so returning to a project lands where you left it even across a restart — `activatedSeq`
-// alone cannot do that, since it resets to 0 when tabs are rebuilt.
+// Where you were, per project and overall.
+// Seeded from meta at restore and kept current as you switch, so returning to a project lands where you left it even across a restart — `activatedSeq` alone cannot do that, since it resets to 0 when tabs are rebuilt.
 let activeByProject: Record<string, string> = {};
 let lastActiveKey: string | null = null;
 let restoring = false;
-// Set once the app is quitting. Shutdown kills every terminal, and each pty exit closes its tab; we
-// must not let those closes persist an empty open-tabs list over the real one (it would wipe the
-// tabs to restore next launch). Set via onQuitting, below.
+// Set once the app is quitting.
+// Shutdown kills every terminal, and each pty exit closes its tab; we must not let those closes persist an empty open-tabs list over the real one (it would wipe the tabs to restore next launch).
+// Set via onQuitting, below.
 let shuttingDown = false;
 
 function persistOpenTabs(): void {
   if (restoring || shuttingDown) return;
-  // Persist entity keys (session ids — immutable, so a restart always finds them again). Fall back
-  // to the tab's placeholder id before it has reconciled to disk.
+  // Persist entity keys (session ids — immutable, so a restart always finds them again). Fall back to the tab's placeholder id before it has reconciled to disk.
   const idToKey = new Map(allSessions.map((s) => [s.id, entityKey(s)]));
   window.claudeUi.setOpenSessions(tabs.map((t) => idToKey.get(t.session.id) ?? t.session.id));
 }
@@ -471,9 +437,9 @@ async function restoreOpenTabs(): Promise<void> {
     activeByProject = { ...byProject };
     lastActiveKey = activeKey;
     const tips = sessionsByKey(sessions);
-    // Restore the tabs COLD — no claude process each. Starting them all was costing 20 processes at
-    // ~437 MB on this machine, spawned whether or not any was used, plus 20 CLI cold starts on every
-    // launch. A tab starts when you select it.
+    // Restore the tabs COLD — no claude process each.
+    // Starting them all was costing 20 processes at ~437 MB on this machine, spawned whether or not any was used, plus 20 CLI cold starts on every launch.
+    // A tab starts when you select it.
     let toActivate: Tab | null = null;
     for (const key of openKeys) {
       const session = tips.get(key);
@@ -481,8 +447,7 @@ async function restoreOpenTabs(): Promise<void> {
       const tab = buildTab(session, false);
       if (key === activeKey) toActivate = tab;
     }
-    // Land where you left off — SELECTED but not started, since nothing is meant to be live after a
-    // restart. Without a remembered tab we open on none rather than guessing.
+    // Land where you left off — SELECTED but not started, since nothing is meant to be live after a restart. Without a remembered tab we open on none rather than guessing.
     if (toActivate) activateTab(toActivate, false);
     else updatePlaceholder();
   } finally {
@@ -505,9 +470,9 @@ async function renderSessions(showLoading = true): Promise<void> {
       window.claudeUi.getNotes(),
     ]);
     allSessions = sessions;
-    // Seed from the RAW list (archived included — the transcript still exists), so a project whose
-    // sessions are all archived still holds a slot. Writes only when a root is genuinely new, so the
-    // common case costs one read. Recency order is what seeds the very first run.
+    // Seed from the RAW list (archived included — the transcript still exists), so a project whose sessions are all archived still holds a slot.
+    // Writes only when a root is genuinely new, so the common case costs one read.
+    // Recency order is what seeds the very first run.
     projectOrder = await window.claudeUi.seedProjectOrder([...new Set(sessions.map((s) => s.repoRoot))]);
     applyDatePickerMinDate();
     pinned = new Set(pinnedList);
@@ -523,9 +488,8 @@ async function renderSessions(showLoading = true): Promise<void> {
   }
 }
 
-// A disk change fired: re-read sessions but only re-render when the structure actually changed
-// (a new/removed session, a rename, or a new branch becoming the tip). Statuses and pins arrive
-// on their own channels, so we don't refetch them here.
+// A disk change fired: re-read sessions but only re-render when the structure actually changed (a new/removed session, a rename, or a new branch becoming the tip).
+// Statuses and pins arrive on their own channels, so we don't refetch them here.
 async function refreshFromDisk(): Promise<void> {
   const sessions = await window.claudeUi.listSessions();
   allSessions = sessions;
@@ -551,9 +515,8 @@ function isFiltering(): boolean {
   );
 }
 
-// Session key -> its group's NAME, so typing a group name reaches its sessions. Built ONCE per
-// filter pass and handed in: passesFilters runs per session, so building it there would be one pass
-// over the membership map per row.
+// Session key -> its group's NAME, so typing a group name reaches its sessions.
+// Built ONCE per filter pass and handed in: passesFilters runs per session, so building it there would be one pass over the membership map per row.
 function groupNameByKey(): Map<string, string> {
   const byId = new Map(groupState.groups.map((g) => [g.id, g.name]));
   const out = new Map<string, string>();
@@ -573,8 +536,7 @@ function passesFilters(session: SessionSummary, groupNames?: ReadonlyMap<string,
     openOnly: showOpenOnly,
     open: showOpenOnly ? new Set(tabs.map((t) => entityKey(t.session))) : undefined,
     runningOnly: showRunningOnly,
-    // Built per call rather than hoisted: cheap next to the tab count, and it must reflect the tabs as
-    // they are right now, since starting or stopping one changes what this filter shows.
+    // Built per call rather than hoisted: cheap next to the tab count, and it must reflect the tabs as they are right now, since starting or stopping one changes what this filter shows.
     running: showRunningOnly
       ? new Set(tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)))
       : undefined,
@@ -590,16 +552,14 @@ function passesFilters(session: SessionSummary, groupNames?: ReadonlyMap<string,
   });
 }
 
-// The custom-range calendar is an inline popover; its open state is independent of the active preset,
-// so a picked range stays applied while the calendar is dismissed.
+// The custom-range calendar is an inline popover; its open state is independent of the active preset, so a picked range stays applied while the calendar is dismissed.
 let datePopoverOpen = false;
 function setDatePopover(open: boolean): void {
   datePopoverOpen = open;
   dateCustom.hidden = !open;
 }
 
-// Translate the date presets into the [from, to] window. Presets are rolling from now; custom reads
-// the calendar selection.
+// Translate the date presets into the [from, to] window. Presets are rolling from now; custom reads the calendar selection.
 function applyDatePreset(preset: string): void {
   datePreset = preset;
   // The persistent range line shows only while Custom is the active preset (open or closed calendar).
@@ -636,8 +596,7 @@ function updateDateRangeLabel(from?: Date, to?: Date): void {
   dateRangeCaption.textContent = text;
 }
 
-// Bound the picker to real data: min = the oldest session's date (max stays today, set at
-// construction). Runs whenever the session set changes; silent so it doesn't fire onSelect.
+// Bound the picker to real data: min = the oldest session's date (max stays today, set at construction). Runs whenever the session set changes; silent so it doesn't fire onSelect.
 function applyDatePickerMinDate(): void {
   const earliest = allSessions.reduce<number | null>((min, s) => {
     const t = Date.parse(s.lastActivity);
@@ -663,8 +622,7 @@ function updateFilterStatus(matches: number, total: number): void {
   siblingFilter.setAttribute('aria-pressed', String(showSiblingsOnly));
   archivedFilter.classList.toggle('active', showArchivedOnly);
   archivedFilter.setAttribute('aria-pressed', String(showArchivedOnly));
-  // The toggle carries the accent when any filter is on, so an active filter is visible even
-  // with the panel closed.
+  // The toggle carries the accent when any filter is on, so an active filter is visible even with the panel closed.
   filterToggle.classList.toggle('active', filtering);
   if (filtering) filterCount.textContent = `Showing ${matches} of ${total}`;
 }
@@ -688,15 +646,13 @@ function clearFilter(): void {
 
 // --- Project switcher ---
 
-// Update the switcher header + popover from the visible project pool. The pool is every project's
-// tips (see renderList); the switcher is independent of search/project so you can always navigate.
+// Update the switcher header + popover from the visible project pool. The pool is every project's tips (see renderList); the switcher is independent of search/project so you can always navigate.
 function renderSwitcher(pool: SessionSummary[]): void {
   const model = projectsForSwitcher(pool, statuses, acked, projectNames, projectOrder);
   const active = activeProject ? model.projects.find((f) => f.repoRoot === activeProject) : null;
   switcherName.textContent = active ? active.name : 'All';
 
-  // Header nudge: the overall roll-up across ALL projects (incl. the active one and busy), so any
-  // attention is visible at a glance even when scoped to a project or scrolled down a long list.
+  // Header nudge: the overall roll-up across ALL projects (incl. the active one and busy), so any attention is visible at a glance even when scoped to a project or scrolled down a long list.
   const headerBadge = model.all.badge;
   switcherBadge.className = headerBadge ? `project-badge ${headerBadge}` : 'project-badge';
   switcherBadge.hidden = !headerBadge;
@@ -711,12 +667,10 @@ function renderSwitcher(pool: SessionSummary[]): void {
 }
 
 const NUDGE_ORDER: Record<'waiting' | 'idle' | 'busy', number> = { waiting: 0, idle: 1, busy: 2 };
-// Seeded from meta at startup (default open — the strip exists to be read), and written back on
-// every toggle so the choice survives a restart.
+// Seeded from meta at startup (default open — the strip exists to be read), and written back on every toggle so the choice survives a restart.
 let footerExpanded = true;
 
-// A session's contribution to the roll-up: its live status, but an acked idle/waiting counts as
-// nothing (muted), same rule as the switcher badges.
+// A session's contribution to the roll-up: its live status, but an acked idle/waiting counts as nothing (muted), same rule as the switcher badges.
 function sessionNudge(id: string): NudgeStatus {
   const st = statuses.get(id);
   if (st === 'waiting' || st === 'idle') return acked.has(id) ? null : st;
@@ -724,9 +678,8 @@ function sessionNudge(id: string): NudgeStatus {
   return null;
 }
 
-// The one place a session's display label is composed: title, else first message, else a fallback
-// (the short id by default). Every surface shows the same name this way, and any sanitization of
-// the underlying fields (command tags, caveat plumbing) lands everywhere at once.
+// The one place a session's display label is composed: title, else first message, else a fallback (the short id by default).
+// Every surface shows the same name this way, and any sanitization of the underlying fields (command tags, caveat plumbing) lands everywhere at once.
 function sessionLabel(session: SessionSummary, fallback = session.id.slice(0, 8)): string {
   return session.title || session.firstMessage || fallback;
 }
@@ -745,14 +698,12 @@ async function copyText(text: string, confirmation: string): Promise<void> {
 function jumpToSession(session: SessionSummary): void {
   if (activeProject !== null && activeProject !== session.repoRoot) selectProject(session.repoRoot);
   void openSession(session);
-  // Scope alone isn't enough to SEE it: the row can sit inside a collapsed group or project. Reveal
-  // the same way clicking a tab does — jumping to a sibling filed in another group is exactly the
-  // case where scoping to the project still leaves the row hidden.
+  // Scope alone isn't enough to SEE it: the row can sit inside a collapsed group or project.
+  // Reveal the same way clicking a tab does — jumping to a sibling filed in another group is exactly the case where scoping to the project still leaves the row hidden.
   revealSessionInSidebar(session);
 }
 
-// A session's siblings (the other members of its family), most recent first. Shared by the count
-// badge and the kebab submenu.
+// A session's siblings (the other members of its family), most recent first. Shared by the count badge and the kebab submenu.
 function siblingsOf(session: SessionSummary): SessionSummary[] {
   return allSessions
     .filter((s) => session.siblingIds.includes(s.id))
@@ -767,9 +718,7 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   }));
 }
 
-// --- Group actions ------------------------------------------------------------------------------
-// Every mutation goes through the main process and hands back the whole state, so the renderer never
-// second-guesses what changed — it swaps its copy and re-renders.
+// --- Group actions ------------------------------------------------------------------------------ Every mutation goes through the main process and hands back the whole state, so the renderer never second-guesses what changed — it swaps its copy and re-renders.
 
 function applyGroupState(next: GroupState): void {
   groupState = next;
@@ -786,20 +735,17 @@ async function moveSessionToGroup(session: SessionSummary, groupId: string | nul
   applyGroupState(await window.claudeUi.moveSessionToGroup(entityKey(session), groupId));
 }
 
-// "New group…" from a row names the group and moves the session into it in one step, so the group is
-// never briefly empty and the user never has to find it again to fill it.
+// "New group…" from a row names the group and moves the session into it in one step, so the group is never briefly empty and the user never has to find it again to fill it.
 async function newGroupForSession(session: SessionSummary): Promise<void> {
   const name = await promptText('New group', projName(session.repoRoot), '', 'Create');
   if (name === null || !name.trim()) return;
   applyGroupState(await window.claudeUi.createGroup(name, session.repoRoot, entityKey(session)));
 }
 
-// The four ordering moves for a group, minus any that would be a no-op here: the first group has no
-// "up", the last no "down", and a lone group in a project has nowhere to go at all. So the menu never
-// offers a move that does nothing.
+// The four ordering moves for a group, minus any that would be a no-op here: the first group has no "up", the last no "down", and a lone group in a project has nowhere to go at all.
+// So the menu never offers a move that does nothing.
 function groupMoveItems(id: string): MenuItem[] {
-  // Same reason as projects: filtering drops groups whose sessions all fell out, so a neighbour can
-  // be missing from the screen and the move would appear to do nothing.
+  // Same reason as projects: filtering drops groups whose sessions all fell out, so a neighbour can be missing from the screen and the move would appear to do nothing.
   if (isFiltering()) return [];
   const group = groupState.groups.find((g) => g.id === id);
   if (!group?.repoRoot) return [];
@@ -829,16 +775,14 @@ async function renameGroupById(id: string): Promise<void> {
   applyGroupState(await window.claudeUi.renameGroup(id, name));
 }
 
-// No confirmation: nothing is destroyed. The group goes and its members simply sit under the project
-// again — unlike deleting a session, which trashes a transcript.
+// No confirmation: nothing is destroyed. The group goes and its members simply sit under the project again — unlike deleting a session, which trashes a transcript.
 async function deleteGroupById(id: string): Promise<void> {
   const group = groupState.groups.find((g) => g.id === id);
   applyGroupState(await window.claudeUi.deleteGroup(id));
   if (group) showToast(`Group "${group.name}" deleted. Its sessions are back under the project.`);
 }
 
-// The "Move to group" list: the project's groups with the current one ticked, then the two ways out
-// — back to the project, or into a group that doesn't exist yet.
+// The "Move to group" list: the project's groups with the current one ticked, then the two ways out — back to the project, or into a group that doesn't exist yet.
 function moveToGroupItems(session: SessionSummary): MenuItem[] {
   const current = groupState.groupOf[entityKey(session)];
   const items: MenuItem[] = projectGroups(session.repoRoot).map((group) => ({
@@ -852,8 +796,7 @@ function moveToGroupItems(session: SessionSummary): MenuItem[] {
   return items;
 }
 
-// Archive/unarchive one session. Archiving puts it away, so any open tab for it closes too
-// (unarchive leaves tabs alone). Shared by the kebab item and the archived view's row button.
+// Archive/unarchive one session. Archiving puts it away, so any open tab for it closes too (unarchive leaves tabs alone). Shared by the kebab item and the archived view's row button.
 async function toggleArchiveFor(key: string): Promise<void> {
   archived = new Map(Object.entries(await window.claudeUi.toggleArchive(key)));
   if (archived.has(key)) {
@@ -862,8 +805,7 @@ async function toggleArchiveFor(key: string): Promise<void> {
   renderList();
 }
 
-// The per-session action list — one builder, shared by the row kebab (and any future surface that
-// offers session actions, e.g. a tab context menu).
+// The per-session action list — one builder, shared by the row kebab (and any future surface that offers session actions, e.g. a tab context menu).
 function sessionMenuItems(session: SessionSummary): MenuItem[] {
   const items: MenuItem[] = [{ label: 'Fork this session', onSelect: () => { void forkSession(session); } }];
   const siblings = siblingsOf(session);
@@ -872,26 +814,22 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
   }
   items.push({ label: notes.has(entityKey(session)) ? 'Edit note…' : 'Add note…', onSelect: () => void editNote(session) });
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
-  // The short id shows here rather than on the row: this is where you come looking for it, and the
-  // item both displays it and copies the full one.
+  // The short id shows here rather than on the row: this is where you come looking for it, and the item both displays it and copies the full one.
   items.push({
     label: `Copy session id (${session.id.slice(0, 8)})`,
     onSelect: () => void copyText(session.id, 'Session id copied.'),
   });
-  // The state changes sit below a rule, away from the navigate/copy items. Only the normal view
-  // offers them: the archived view keeps unarchive on the row and hides the kebab.
+  // The state changes sit below a rule, away from the navigate/copy items. Only the normal view offers them: the archived view keeps unarchive on the row and hides the kebab.
   items.push({ label: '', separator: true });
-  // Stop is offered only while something is actually running — on a cold or unopened session there
-  // is nothing to stop, and an always-present item that usually does nothing is worse than an absent
-  // one. "Stop", not "close": closing already means the tab goes away.
+  // Stop is offered only while something is actually running — on a cold or unopened session there is nothing to stop, and an always-present item that usually does nothing is worse than an absent one.
+  // "Stop", not "close": closing already means the tab goes away.
   const running = tabs.find((t) => t.session.id === session.id && t.terminalId !== null);
   if (running) items.push({ label: 'Stop session', onSelect: () => stopSession(running) });
   items.push({ label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
   return items;
 }
 
-// Open the note editor for a session. Saving a blank note clears it (meta drops the entry), so the
-// same dialog both writes and removes one — there is no separate delete.
+// Open the note editor for a session. Saving a blank note clears it (meta drops the entry), so the same dialog both writes and removes one — there is no separate delete.
 async function editNote(session: SessionSummary): Promise<void> {
   const key = entityKey(session);
   const text = await promptText('Note', sessionLabel(session), notes.get(key) ?? '', 'Save', undefined, true);
@@ -908,9 +846,9 @@ function openSiblingsMenu(anchor: HTMLElement, session: SessionSummary): void {
   openMenu(anchor, siblingMenuItems(siblings));
 }
 
-// Cross-project attention strip in the sidebar footer. The toggle badge is the same overall roll-up
-// as the switcher header; expanded, it lists the nudged SESSIONS grouped under their project (each a
-// row: state dot + session title), click one to jump to it. Muted "all clear" when nothing pending.
+// Cross-project attention strip in the sidebar footer.
+// The toggle badge is the same overall roll-up as the switcher header; expanded, it lists the nudged SESSIONS grouped under their project (each a row: state dot + session title), click one to jump to it.
+// Muted "all clear" when nothing pending.
 function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   const overall = model.all.badge;
   footerBadge.className = overall ? `project-badge ${overall}` : 'project-badge';
@@ -935,8 +873,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   const total = ordered.reduce((n, g) => n + g.items.length, 0);
 
   if (total === 0) {
-    // Collapsed for this render only — deliberately NOT touching footerExpanded, or an all-clear
-    // moment would quietly reset a preference the user set.
+    // Collapsed for this render only — deliberately NOT touching footerExpanded, or an all-clear moment would quietly reset a preference the user set.
     footerToggle.classList.add('clear');
     footerToggle.setAttribute('aria-expanded', 'false');
     footerLabel.textContent = 'All clear';
@@ -1037,8 +974,7 @@ switcherCurrent.addEventListener('click', () => {
   else closeSwitcher();
 });
 
-// The sessions the sidebar can show: every session on disk, plus new-but-unsaved tabs (so a
-// fresh session appears in its project immediately, before it is written to disk).
+// The sessions the sidebar can show: every session on disk, plus new-but-unsaved tabs (so a fresh session appears in its project immediately, before it is written to disk).
 function visibleSessions(): SessionSummary[] {
   const tips = sessionsByKey(allSessions);
   const knownIds = new Set(allSessions.map((s) => s.id));
@@ -1046,31 +982,27 @@ function visibleSessions(): SessionSummary[] {
   return [...pending, ...tips.values()];
 }
 
-// The switcher's project pool: every project's tips minus archived/pending-delete, independent of
-// the search text and active project so you can always navigate to any project.
+// The switcher's project pool: every project's tips minus archived/pending-delete, independent of the search text and active project so you can always navigate to any project.
 function switcherPool(all: SessionSummary[]): SessionSummary[] {
   return all.filter((s) => !archived.has(entityKey(s)) && !pendingDeletes.has(entityKey(s)));
 }
 
-// Repaint just the switcher (header + popover badges) — used when a status/ack change should update
-// the roll-up badges without re-rendering the whole list.
+// Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
 function refreshSwitcher(): void {
   renderSwitcher(switcherPool(visibleSessions()));
 }
 
-// Render from the cached session list, applying the current search filter. Keystrokes call
-// this directly so filtering never re-reads disk. Reuses project/row nodes by key so a re-render
-// moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
+// Render from the cached session list, applying the current search filter.
+// Keystrokes call this directly so filtering never re-reads disk.
+// Reuses project/row nodes by key so a re-render moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
 function renderList(): void {
   const scroll = container.scrollTop;
   statusDots.clear();
 
-  // Include new sessions not yet written to disk (from their open tabs) so they appear in the
-  // list immediately, in the right project; they reconcile to the real entry once created.
+  // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions();
   currentByKey = new Map(all.map((s) => [entityKey(s), s]));
-  // The switcher lists every project, independent of search/project, so you can always navigate. If
-  // the active project no longer has any sessions, fall back to All (and persist that).
+  // The switcher lists every project, independent of search/project, so you can always navigate. If the active project no longer has any sessions, fall back to All (and persist that).
   const pool = switcherPool(all);
   if (activeProject && !pool.some((s) => s.repoRoot === activeProject)) {
     activeProject = null;
@@ -1080,10 +1012,9 @@ function renderList(): void {
 
   const groupNames = filterText ? groupNameByKey() : undefined;
   const filtered = all.filter((s) => passesFilters(s, groupNames));
-  // Project scope applies everywhere, the archived view included. It used to be exempt, from when
-  // archived was a rarely-visited global bin — but the scope is an explicit statement of what you
-  // are looking at, and one view quietly overriding it reads as a leak. Switch to All to find an
-  // archived session whose project you have forgotten.
+  // Project scope applies everywhere, the archived view included.
+  // It used to be exempt, from when archived was a rarely-visited global bin — but the scope is an explicit statement of what you are looking at, and one view quietly overriding it reads as a leak.
+  // Switch to All to find an archived session whose project you have forgotten.
   const scoped = activeProject ? filtered.filter((s) => s.repoRoot === activeProject) : filtered;
   updateFilterStatus(scoped.length, all.length);
 
@@ -1093,17 +1024,16 @@ function renderList(): void {
     message.className = 'empty-message';
     message.textContent = all.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
     container.append(message);
-    // Nothing on screen to fold away: this early return would otherwise leave the toggle live with
-    // the previous render's sections.
+    // Nothing on screen to fold away: this early return would otherwise leave the toggle live with the previous render's sections.
     renderedSections = { projects: [], groups: [] };
     updateCollapseToggle();
     return;
   }
   container.querySelector(':scope > .empty-message')?.remove();
 
-  // One section per repo, each holding its groups and then the sessions in no group. Every ordering
-  // rule (groups first, pins floated inside their own section) lives in the pure builder. While
-  // filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
+  // One section per repo, each holding its groups and then the sessions in no group.
+  // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
+  // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
   const tree = buildProjectTree(scoped, effectiveGroupState(), pinned, isFiltering(), projectOrder);
   renderedSections = {
     projects: tree.map((p) => p.repoRoot),
@@ -1119,17 +1049,15 @@ function renderList(): void {
   updatePlaceholder(); // its wording depends on whether there are sessions at all
 }
 
-// Chevrons stacked in the direction things will move: up to fold everything away, down to open it
-// again. Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
+// Chevrons stacked in the direction things will move: up to fold everything away, down to open it again. Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
 const COLLAPSE_ALL_ICON =
   '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.49" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.25L8 3.75L12 7.25" /><path d="M4 12.25L8 8.75L12 12.25" /></svg>';
 const EXPAND_ALL_ICON =
   '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.49" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3.75L8 7.25L12 3.75" /><path d="M4 8.75L8 12.25L12 8.75" /></svg>';
 
-// What the button folds depends on the view. In All it folds the project sections (keyed on projects
-// alone: with every project shut its groups are out of sight anyway, which is why a group toggling on
-// its own needs no refresh call). In a single-project view folding the one project you asked to look
-// at is pointless, so it folds THAT project's groups instead.
+// What the button folds depends on the view.
+// In All it folds the project sections (keyed on projects alone: with every project shut its groups are out of sight anyway, which is why a group toggling on its own needs no refresh call).
+// In a single-project view folding the one project you asked to look at is pointless, so it folds THAT project's groups instead.
 function collapseScope(): { ids: string[]; collapsed: Set<string> } {
   return activeProject === null
     ? { ids: renderedSections.projects, collapsed: collapsedProjects }
@@ -1143,8 +1071,7 @@ function allSectionsCollapsed(): boolean {
 }
 
 function updateCollapseToggle(): void {
-  // Filtering forces every section open (so matches inside a collapsed one are visible), which leaves
-  // this nothing to act on.
+  // Filtering forces every section open (so matches inside a collapsed one are visible), which leaves this nothing to act on.
   collapseToggle.disabled = isFiltering() || collapseScope().ids.length === 0;
   const label = allSectionsCollapsed() ? 'Expand all' : 'Collapse all';
   collapseToggle.innerHTML = allSectionsCollapsed() ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON;
@@ -1152,8 +1079,7 @@ function updateCollapseToggle(): void {
   collapseToggle.setAttribute('aria-label', label);
 }
 
-// Collapsing takes the groups with it, so expanding a project afterwards shows its group headings
-// rather than dumping every row back at once — two levels of overview instead of one.
+// Collapsing takes the groups with it, so expanding a project afterwards shows its group headings rather than dumping every row back at once — two levels of overview instead of one.
 collapseToggle.addEventListener('click', () => {
   const { ids, collapsed } = collapseScope();
   const expanding = allSectionsCollapsed();
@@ -1161,8 +1087,7 @@ collapseToggle.addEventListener('click', () => {
     if (expanding) collapsed.delete(id);
     else collapsed.add(id);
   }
-  // In the All view a project's groups fold along with it, so expanding one afterwards shows its group
-  // headings rather than dumping every row back. In a project view the groups ARE the scope already.
+  // In the All view a project's groups fold along with it, so expanding one afterwards shows its group headings rather than dumping every row back. In a project view the groups ARE the scope already.
   if (activeProject === null) {
     if (expanding) collapsedGroups.clear();
     else for (const id of renderedSections.groups) collapsedGroups.add(id);
@@ -1180,9 +1105,8 @@ function clearList(): void {
   statusDots.clear();
 }
 
-// Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order
-// both the sections and their rows via appendChild (which moves an existing node into place). Inside
-// a project the group sections come first, then the rows belonging to no group.
+// Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order both the sections and their rows via appendChild (which moves an existing node into place).
+// Inside a project the group sections come first, then the rows belonging to no group.
 function reconcileProjectSections(desired: ProjectTree[]): void {
   const wanted = new Set(desired.map((p) => p.repoRoot));
   for (const [repoRoot, els] of projectSections) {
@@ -1204,8 +1128,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
       els = createProjectSection(project.repoRoot, project.repoRoot);
       projectSections.set(project.repoRoot, els);
     }
-    // While filtering, force projects open so matches inside a collapsed one are visible; the
-    // stored collapse state is left untouched, so it returns when the filter clears.
+    // While filtering, force projects open so matches inside a collapsed one are visible; the stored collapse state is left untouched, so it returns when the filter clears.
     const collapsed = !isFiltering() && activeProject === null && collapsedProjects.has(project.repoRoot);
     els.section.classList.toggle('collapsed', collapsed);
     // A project view can't collapse its one project, so it shows no caret and no clickable styling.
@@ -1214,11 +1137,8 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
     els.caret.innerHTML = caretIcon(collapsed, 10);
     els.count.textContent = String(project.count);
     els.label.textContent = projName(project.repoRoot); // keep the heading current (e.g. after a rename)
-    // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at
-    // a 320px sidebar — so the button is absent rather than dimmed. Filtering forces every section
-    // open and reshuffles what is on screen, which leaves the jump nothing to act on: disabled
-    // there, like collapse-all, since a control vanishing as you type reads worse than one plainly
-    // unavailable.
+    // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
+    // Filtering forces every section open and reshuffles what is on screen, which leaves the jump nothing to act on: disabled there, like collapse-all, since a control vanishing as you type reads worse than one plainly unavailable.
     const targets = groupJumpTargets(project, statuses, acked);
     jumpTargets.set(project.repoRoot, targets);
     els.groupsBtn.hidden = targets.length < 2;
@@ -1242,14 +1162,12 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
       }
       els.section.appendChild(groupEls.section);
     }
-    // Ungrouped sessions sit directly under the project heading, at full width — there is no
-    // "Ungrouped" heading, so the indent alone says whether a row is in a group.
+    // Ungrouped sessions sit directly under the project heading, at full width — there is no "Ungrouped" heading, so the indent alone says whether a row is in a group.
     let first = true;
     for (const session of project.loose) {
       const row = getOrCreateRow(entityKey(session));
       updateRow(row, session);
-      // Extra breathing room between the last group and the loose rows, but not when there are no
-      // groups at all (then this is just the project's first row).
+      // Extra breathing room between the last group and the loose rows, but not when there are no groups at all (then this is just the project's first row).
       row.classList.toggle('after-groups', first && project.groups.length > 0);
       first = false;
       els.section.appendChild(row);
@@ -1268,16 +1186,14 @@ function pruneRows(wanted: Set<string>): void {
   }
 }
 
-// In-app confirm modal (a native dialog flickers under WSLg). Resolves true on Delete, false on
-// Cancel / Esc. Deliberately NOT dismissable by clicking the backdrop: selecting text inside the
-// dialog and releasing the mouse outside it dispatches the click on the common ancestor of the
-// mousedown and mouseup — the overlay — so an outside-click dismiss threw the dialog away mid-drag.
+// In-app confirm modal (a native dialog flickers under WSLg).
+// Resolves true on Delete, false on Cancel / Esc.
+// Deliberately NOT dismissable by clicking the backdrop: selecting text inside the dialog and releasing the mouse outside it dispatches the click on the common ancestor of the mousedown and mouseup — the overlay — so an outside-click dismiss threw the dialog away mid-drag.
 function confirmDelete(title: string): Promise<boolean> {
   confirmMessage.textContent = `Delete "${title}"?`;
   confirmDetail.textContent = 'Its transcript files move to the trash, so you can restore them from there if needed.';
   confirmOverlay.hidden = false;
-  // Focus Cancel, not Delete: safer default for a destructive action, and it keeps the accent
-  // focus ring off the red button.
+  // Focus Cancel, not Delete: safer default for a destructive action, and it keeps the accent focus ring off the red button.
   confirmCancel.focus();
   return new Promise((resolve) => {
     const close = (result: boolean): void => {
@@ -1298,18 +1214,17 @@ function confirmDelete(title: string): Promise<boolean> {
   });
 }
 
-// A small modal text prompt (Promise-resolving): OK/Enter resolves the value, Cancel/Esc resolves
-// null. No backdrop dismiss, for the same drag-select reason as the confirm modal above. Shared by project rename, fork naming, and worktree naming; okLabel names the
-// confirm button. An optional async `validate` runs on submit: return an error string to show it
-// inline and keep the dialog open (so the user can fix the value), or null to accept.
+// A small modal text prompt (Promise-resolving): OK/Enter resolves the value, Cancel/Esc resolves null.
+// No backdrop dismiss, for the same drag-select reason as the confirm modal above.
+// Shared by project rename, fork naming, and worktree naming; okLabel names the confirm button.
+// An optional async `validate` runs on submit: return an error string to show it inline and keep the dialog open (so the user can fix the value), or null to accept.
 function promptText(
   title: string,
   context: string,
   initialValue: string,
   okLabel = 'Save',
   validate?: (value: string) => Promise<string | null> | string | null,
-  // Multiline swaps the single-line input for a textarea (session notes). Same dialog, same skin —
-  // only the field and what Enter means differ.
+  // Multiline swaps the single-line input for a textarea (session notes). Same dialog, same skin — only the field and what Enter means differ.
   multiline = false,
 ): Promise<string | null> {
   renameTitle.textContent = title;
@@ -1353,13 +1268,11 @@ function promptText(
     };
     const onOk = (): void => void submit();
     const onCancel = (): void => close(null);
-    // Enter belongs to the field (it submits what you typed), but Esc has to close the dialog from
-    // anywhere: clicking the dialog's own text blurs the input, and with no backdrop dismiss that
-    // would otherwise leave Cancel as the only way out. Same document-level Esc as confirmDelete.
+    // Enter belongs to the field (it submits what you typed), but Esc has to close the dialog from anywhere: clicking the dialog's own text blurs the input, and with no backdrop dismiss that would otherwise leave Cancel as the only way out.
+    // Same document-level Esc as confirmDelete.
     const onInputKey = (event: KeyboardEvent): void => {
       if (event.key !== 'Enter') return;
-      // In a note, Enter is a newline; Ctrl/Cmd+Enter saves (same habit as the terminal). A one-line
-      // field submits on plain Enter as before.
+      // In a note, Enter is a newline; Ctrl/Cmd+Enter saves (same habit as the terminal). A one-line field submits on plain Enter as before.
       if (!multiline) void submit();
       else if (event.ctrlKey || event.metaKey) {
         event.preventDefault();
@@ -1376,14 +1289,12 @@ function promptText(
   });
 }
 
-// The ordering moves for a project, minus any that would do nothing — same rule as a group's. The
-// order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen
-// (a filter or an all-archived project can hide neighbours without changing where this one sits).
+// The ordering moves for a project, minus any that would do nothing — same rule as a group's.
+// The order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen (a filter or an all-archived project can hide neighbours without changing where this one sits).
 function projectMoveItems(repoRoot: string): MenuItem[] {
   // All view only: a project view renders a single heading, so there is nothing to order against.
   if (activeProject !== null) return [];
-  // Not while filtering either: a hidden neighbour makes the move land where you can't see it, so
-  // "Move up" past a filtered-out project looks like a button that did nothing.
+  // Not while filtering either: a hidden neighbour makes the move land where you can't see it, so "Move up" past a filtered-out project looks like a button that did nothing.
   if (isFiltering()) return [];
   const at = projectOrder.indexOf(repoRoot);
   const last = projectOrder.length - 1;
@@ -1413,9 +1324,8 @@ async function renameProject(repoRoot: string): Promise<void> {
   renderTabBar();
 }
 
-// A small floating kebab menu, generic over its items so the project-heading and session-row kebabs
-// share the open/close/outside-click machinery. An item may carry a `submenu`: it then opens a child
-// list on hover (one level deep) instead of running an action.
+// A small floating kebab menu, generic over its items so the project-heading and session-row kebabs share the open/close/outside-click machinery.
+// An item may carry a `submenu`: it then opens a child list on hover (one level deep) instead of running an action.
 interface MenuItem {
   label: string;
   onSelect?: () => void;
@@ -1451,9 +1361,8 @@ function closeMenu(): void {
 }
 function onMenuOutside(event: MouseEvent): void {
   const target = event.target as Node;
-  // A click on the trigger itself is left to its own handler (which toggles the menu shut); closing
-  // here too would close-then-reopen and the menu would never toggle off. A click inside the open
-  // submenu counts as inside too, so it isn't dismissed before its own handler runs.
+  // A click on the trigger itself is left to its own handler (which toggles the menu shut); closing here too would close-then-reopen and the menu would never toggle off.
+  // A click inside the open submenu counts as inside too, so it isn't dismissed before its own handler runs.
   if (
     openMenuEl &&
     !openMenuEl.contains(target) &&
@@ -1463,10 +1372,9 @@ function onMenuOutside(event: MouseEvent): void {
     closeMenu();
 }
 
-// Render `items` as buttons into `menu`. A leaf runs its onSelect and closes everything; a
-// submenu-parent opens its child list on hover (and on click, for non-hover input). `isRoot` marks
-// the top menu: only its leaves close an open submenu on hover — a submenu's own leaves must not,
-// or hovering toward them would close the very submenu being reached for.
+// Render `items` as buttons into `menu`.
+// A leaf runs its onSelect and closes everything; a submenu-parent opens its child list on hover (and on click, for non-hover input).
+// `isRoot` marks the top menu: only its leaves close an open submenu on hover — a submenu's own leaves must not, or hovering toward them would close the very submenu being reached for.
 function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
   for (const item of items) {
     if (item.separator) {
@@ -1478,8 +1386,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = item.label;
-    // A row that names something countable (a group, say): a status dot leads, the label takes the
-    // room it needs and ellipsizes, and the count sits in its own column at the right.
+    // A row that names something countable (a group, say): a status dot leads, the label takes the room it needs and ellipsizes, and the count sits in its own column at the right.
     if (item.count !== undefined) {
       button.classList.add('has-count');
       const label = document.createElement('span');
@@ -1574,8 +1481,7 @@ function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   setTimeout(() => document.addEventListener('click', onMenuOutside, true));
 }
 
-// Reveal a session's row in the sidebar (expanding its project if collapsed), so clicking a tab
-// scrolls to where it lives and shows which project it belongs to.
+// Reveal a session's row in the sidebar (expanding its project if collapsed), so clicking a tab scrolls to where it lives and shows which project it belongs to.
 function revealSessionInSidebar(session: SessionSummary): void {
   // Its group can be collapsed too, and then the row is hidden even with the project open.
   const groupId = groupState.groupOf[entityKey(session)];
@@ -1586,10 +1492,8 @@ function revealSessionInSidebar(session: SessionSummary): void {
   }
   const row = sessionRows.get(entityKey(session));
   if (!row) return;
-  // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole
-  // app). Land the row clear of EVERYTHING pinned above it: the project heading always, plus its
-  // group's heading when the row sits in a group — that one is sticky too, and a fixed offset for
-  // the project heading alone left the row half-hidden behind it.
+  // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole app).
+  // Land the row clear of EVERYTHING pinned above it: the project heading always, plus its group's heading when the row sits in a group — that one is sticky too, and a fixed offset for the project heading alone left the row half-hidden behind it.
   const groupHeading = groupId ? groupSections.get(groupId)?.heading : undefined;
   const pinned = stickyOffset + (groupHeading?.getBoundingClientRect().height ?? 0);
   container.scrollTop +=
@@ -1599,8 +1503,7 @@ function revealSessionInSidebar(session: SessionSummary): void {
 /** A little air between a revealed row and the headings pinned above it, so it doesn't sit flush. */
 const REVEAL_GAP = 6;
 
-// Scroll the (All-view) session list to a project's heading — used by the project name in the
-// tab bar, so it links to where that project's sessions live.
+// Scroll the (All-view) session list to a project's heading — used by the project name in the tab bar, so it links to where that project's sessions live.
 function revealProjectInSidebar(repoRoot: string): void {
   if (collapsedProjects.has(repoRoot)) {
     collapsedProjects.delete(repoRoot);
@@ -1611,9 +1514,9 @@ function revealProjectInSidebar(repoRoot: string): void {
   container.scrollTop += els.section.getBoundingClientRect().top - container.getBoundingClientRect().top;
 }
 
-// The group headings pin below the project heading, so their sticky offset is its height. Measured
-// rather than assumed: it moves with the type scale, and both this and the jump offset read the same
-// element so they cannot drift apart. Skipped when unchanged, so a render doesn't thrash layout.
+// The group headings pin below the project heading, so their sticky offset is its height.
+// Measured rather than assumed: it moves with the type scale, and both this and the jump offset read the same element so they cannot drift apart.
+// Skipped when unchanged, so a render doesn't thrash layout.
 let stickyOffset = 0;
 function syncStickyOffset(): void {
   const first = projectSections.values().next().value;
@@ -1624,18 +1527,15 @@ function syncStickyOffset(): void {
   document.documentElement.style.setProperty('--project-heading-height', `${height}px`);
 }
 
-// Jump to one of a project's groups (or to where its ungrouped sessions start). Expands the target
-// if it is folded — otherwise the jump lands on a heading with nothing under it — and lands it just
-// below the project heading, whose height is MEASURED rather than assumed: it changes with the type
-// scale, and a stale constant would tuck the target under the sticky heading.
+// Jump to one of a project's groups (or to where its ungrouped sessions start).
+// Expands the target if it is folded — otherwise the jump lands on a heading with nothing under it — and lands it just below the project heading, whose height is MEASURED rather than assumed: it changes with the type scale, and a stale constant would tuck the target under the sticky heading.
 function jumpToGroup(repoRoot: string, groupId: string | null): void {
   const els = projectSections.get(repoRoot);
   if (!els) return;
   if (collapsedProjects.delete(repoRoot)) renderList();
   if (groupId !== null && collapsedGroups.delete(groupId)) renderList();
 
-  // A group jumps to its heading; the ungrouped remainder has none, so it jumps to its first row —
-  // which is the one carrying .after-groups, the class that marks where the loose rows begin.
+  // A group jumps to its heading; the ungrouped remainder has none, so it jumps to its first row — which is the one carrying .after-groups, the class that marks where the loose rows begin.
   const target: HTMLElement | null | undefined =
     groupId !== null
       ? groupSections.get(groupId)?.heading
@@ -1648,8 +1548,7 @@ function jumpToGroup(repoRoot: string, groupId: string | null): void {
   flash(target);
 }
 
-// A brief accent wash on whatever you just jumped to. Short jumps move the list barely at all, so
-// without it there is no way to tell the click did anything.
+// A brief accent wash on whatever you just jumped to. Short jumps move the list barely at all, so without it there is no way to tell the click did anything.
 function flash(el: HTMLElement): void {
   el.classList.remove('flash'); // restart it if you jump to the same place twice
   void el.offsetWidth; // force a reflow so removing and re-adding actually replays the animation
@@ -1674,9 +1573,8 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   label.textContent = projName(name);
   const count = document.createElement('span');
   count.className = 'project-count';
-  // Jump straight to one of this project's groups instead of scrolling for it. The heading is
-  // position:sticky, so this trigger is on screen the whole time you scroll the project — which is
-  // what makes a menu enough here, rather than a panel that would cost a line of height per project.
+  // Jump straight to one of this project's groups instead of scrolling for it.
+  // The heading is position:sticky, so this trigger is on screen the whole time you scroll the project — which is what makes a menu enough here, rather than a panel that would cost a line of height per project.
   // reconcileProjectSections hides it below 2 targets and disables it while filtering.
   const groupsBtn = document.createElement('button');
   groupsBtn.className = 'project-groups';
@@ -1703,8 +1601,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   heading.append(caret, icon, label, count, groupsBtn);
   let addCaret: HTMLElement | undefined;
   if (folderCwd) {
-    // Split button: the "+" is one-click "New session"; the caret opens a dropdown with worktree
-    // options. reconcileProjectSections shows the caret only for git repos.
+    // Split button: the "+" is one-click "New session"; the caret opens a dropdown with worktree options. reconcileProjectSections shows the caret only for git repos.
     const split = document.createElement('div');
     split.className = 'split-button';
     const add = document.createElement('button');
@@ -1747,12 +1644,10 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     ]);
   });
   heading.append(kebab);
-  // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker. Keep the
-  // clicked heading anchored: a sticky heading otherwise snaps between stuck and natural
-  // position as its rows appear/disappear, which reads as a jump.
+  // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker.
+  // Keep the clicked heading anchored: a sticky heading otherwise snaps between stuck and natural position as its rows appear/disappear, which reads as a jump.
   heading.addEventListener('click', () => {
-    // Not collapsible in a single-project view: hiding the one project you're looking at leaves an
-    // empty sidebar. The heading is a title there, and updateProjectSection drops its caret to say so.
+    // Not collapsible in a single-project view: hiding the one project you're looking at leaves an empty sidebar. The heading is a title there, and updateProjectSection drops its caret to say so.
     if (activeProject !== null) return;
     const before = heading.getBoundingClientRect().top;
     const collapsed = !collapsedProjects.has(name);
@@ -1761,8 +1656,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     section.classList.toggle('collapsed', collapsed);
     caret.innerHTML = caretIcon(collapsed, 10);
     container.scrollTop += heading.getBoundingClientRect().top - before;
-    // This toggle deliberately skips renderList (no flicker, no scroll jump), so the header button
-    // has to be refreshed by hand — otherwise it still reads "Expand all" after one project reopens.
+    // This toggle deliberately skips renderList (no flicker, no scroll jump), so the header button has to be refreshed by hand — otherwise it still reads "Expand all" after one project reopens.
     updateCollapseToggle();
   });
   section.appendChild(heading);
@@ -1770,8 +1664,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   return { section, heading, caret, count, label, groupsBtn, addCaret };
 }
 
-// Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky)
-// over an indented well that holds its rows. Contents are updated on later renders.
+// Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky) over an indented well that holds its rows. Contents are updated on later renders.
 function createGroupSection(id: string): GroupSectionEls {
   const section = document.createElement('section');
   section.className = 'group';
@@ -1786,9 +1679,8 @@ function createGroupSection(id: string): GroupSectionEls {
   label.className = 'label';
   const count = document.createElement('span');
   count.className = 'group-count';
-  // Start a session already in this group — the group's answer to the project heading's split
-  // button, and the same two parts: "+" starts one straight away, the caret offers the worktree
-  // variant. reconcileProjectSections shows the caret only when the project is a git repo.
+  // Start a session already in this group — the group's answer to the project heading's split button, and the same two parts: "+" starts one straight away, the caret offers the worktree variant.
+  // reconcileProjectSections shows the caret only when the project is a git repo.
   const split = document.createElement('div');
   split.className = 'split-button';
   const add = document.createElement('button');
@@ -1839,15 +1731,12 @@ function createGroupSection(id: string): GroupSectionEls {
     caret.innerHTML = caretIcon(collapsed, 10);
   });
 
-  // The rows live in their own element so the indent and its rail wrap the whole group, which is
-  // what shows where a group ends without needing to read the next heading.
+  // The rows live in their own element so the indent and its rail wrap the whole group, which is what shows where a group ends without needing to read the next heading.
   const members = document.createElement('div');
   members.className = 'group-members';
   const empty = document.createElement('div');
   empty.className = 'group-empty';
-  // Names the control the way its own tooltip does ("Session options") rather than drawing a ⋮ in
-  // text: the glyphs this used to lean on are all SVG now, and a lone one here rendered in whatever
-  // the UI font offered.
+  // Names the control the way its own tooltip does ("Session options") rather than drawing a ⋮ in text: the glyphs this used to lean on are all SVG now, and a lone one here rendered in whatever the UI font offered.
   empty.textContent = "Empty — move a session here from any session's options.";
   members.append(empty);
 
@@ -1863,14 +1752,11 @@ function getOrCreateRow(key: string): HTMLElement {
   return row;
 }
 
-// The family/worktree marks. Both used to be font glyphs, and not even from the same font: ⑂
-// (U+2442) is absent from DejaVu Sans and resolved from FreeMono, a MONOSPACE face, while ⎇ (U+2387)
-// came from DejaVu — which is why they never matched weight and needed hand-tuned font-size
-// corrections. Conventional icons instead: a fork (one session split into a family) and a branch off
-// a trunk (a linked worktree). Asymmetric vs symmetric, so they stay apart at badge size.
-// Both are drawn so their INK is centred on 8,8 and 10 units tall, not merely their viewBox: the
-// first cut centred the boxes while the fork hung 1.25 low and the branch filled 7.5 units against
-// the fork's 11, which read as one mark misaligned and the other too small.
+// The family/worktree marks.
+// Both used to be font glyphs, and not even from the same font: ⑂ (U+2442) is absent from DejaVu Sans and resolved from FreeMono, a MONOSPACE face, while ⎇ (U+2387) came from DejaVu — which is why they never matched weight and needed hand-tuned font-size corrections.
+// Conventional icons instead: a fork (one session split into a family) and a branch off a trunk (a linked worktree).
+// Asymmetric vs symmetric, so they stay apart at badge size.
+// Both are drawn so their INK is centred on 8,8 and 10 units tall, not merely their viewBox: the first cut centred the boxes while the fork hung 1.25 low and the branch filled 7.5 units against the fork's 11, which read as one mark misaligned and the other too small.
 // A note's mark: a page with a line of writing on it.
 const NOTE_ICON =
   '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.5M6.25 8.75h3.5" /></svg>';
@@ -1879,10 +1765,8 @@ const SIBLING_ICON =
 const WORKTREE_ICON =
   '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12V4M4.5 8Q11.5 8 11.5 4" /></svg>';
 
-// The pin, as SVG rather than the ★/☆ glyphs: those resolve through system font fallback (DejaVu
-// Sans under WSLg), whose outline star is a hairline that reads far fainter than its --muted colour
-// should. Same star either way — filled for pinned, outlined for not — so the two states differ by
-// ink, not by colour, and both render at a weight we control instead of the font's.
+// The pin, as SVG rather than the ★/☆ glyphs: those resolve through system font fallback (DejaVu Sans under WSLg), whose outline star is a hairline that reads far fainter than its --muted colour should.
+// Same star either way — filled for pinned, outlined for not — so the two states differ by ink, not by colour, and both render at a weight we control instead of the font's.
 const STAR_PATH =
   'M8 2.1 L9.41 6.06 L13.61 6.18 L10.28 8.74 L11.47 12.77 L8 10.4 L4.53 12.77 L5.72 8.74 L2.39 6.18 L6.59 6.06 Z';
 const PIN_ICON =
@@ -1890,23 +1774,19 @@ const PIN_ICON =
 const PINNED_ICON =
   `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" stroke="currentColor" stroke-width="1.49" stroke-linejoin="round"><path d="${STAR_PATH}" /></svg>`;
 
-// The open filter's mark: a window with a title bar — "this one has a tab". Deliberately a SHAPE
-// where running is a DOT, so the pair reads as two different questions rather than two intensities.
+// The open filter's mark: a window with a title bar — "this one has a tab". Deliberately a SHAPE where running is a DOT, so the pair reads as two different questions rather than two intensities.
 const OPEN_ICON =
   '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.6" y="3.4" width="10.8" height="9.2" rx="1.4" /><path d="M2.6 6.4h10.8" /></svg>';
 
-// The running filter's mark: a filled dot inside a ring — the same "live" language the status dots
-// speak, rather than a play triangle, which would read as "start these".
+// The running filter's mark: a filled dot inside a ring — the same "live" language the status dots speak, rather than a play triangle, which would read as "start these".
 const RUNNING_ICON =
   '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" /></svg>';
 
-// The archived filter's mark: a lidded box. Ink spans the full 16-unit box horizontally and 3..13
-// vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
+// The archived filter's mark: a lidded box. Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
 const ARCHIVE_ICON =
   '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" /></svg>';
 
-// Take it back out of the box. Archiving has no row icon — it is a kebab item (text) in the normal
-// view; only unarchiving, the archived view's primary action, stays a button on the row.
+// Take it back out of the box. Archiving has no row icon — it is a kebab item (text) in the normal view; only unarchiving, the archived view's primary action, stays a button on the row.
 const UNARCHIVE_ICON =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.23" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>';
 
@@ -1924,12 +1804,10 @@ interface RowEls {
   deleteBtn: HTMLButtonElement;
   kebab: HTMLButtonElement;
 }
-// Each row's child elements, cached so updateRow reads them directly instead of re-querying the
-// DOM every render (same idea as the session summary cache, applied to rendering).
+// Each row's child elements, cached so updateRow reads them directly instead of re-querying the DOM every render (same idea as the session summary cache, applied to rendering).
 const rowEls = new WeakMap<HTMLElement, RowEls>();
 
-// Build a row once. Its click/pin handlers read the live session from `currentByKey` by the entity
-// key (the session id), so a reused row stays correct across re-renders.
+// Build a row once. Its click/pin handlers read the live session from `currentByKey` by the entity key (the session id), so a reused row stays correct across re-renders.
 function createSessionRow(key: string): HTMLElement {
   const item = document.createElement('article');
   item.className = 'session';
@@ -1949,8 +1827,7 @@ function createSessionRow(key: string): HTMLElement {
   const badge = document.createElement('span');
   badge.className = 'worktree-badge';
   badge.hidden = true;
-  // A family member's mark: the fork icon plus a count of its siblings, which opens a list of them
-  // to jump into. Shown only when session.isSibling (set in updateRow).
+  // A family member's mark: the fork icon plus a count of its siblings, which opens a list of them to jump into. Shown only when session.isSibling (set in updateRow).
   const siblingsBadge = document.createElement('span');
   siblingsBadge.className = 'sibling-badge';
   siblingsBadge.hidden = true;
@@ -1959,19 +1836,16 @@ function createSessionRow(key: string): HTMLElement {
     const session = currentByKey.get(key);
     if (session) openSiblingsMenu(siblingsBadge, session);
   });
-  // Time and model, plus the note mark riding along at the end of that text. The mark lives HERE
-  // rather than beside the title because a sibling box next to a text block has to have its
-  // alignment guessed; inside the text row it just centres. The meta is short and single-line, so
-  // nothing can clip the mark off the way a two-line title clamp would.
+  // Time and model, plus the note mark riding along at the end of that text.
+  // The mark lives HERE rather than beside the title because a sibling box next to a text block has to have its alignment guessed; inside the text row it just centres.
+  // The meta is short and single-line, so nothing can clip the mark off the way a two-line title clamp would.
   const meta = document.createElement('p');
   meta.className = 'session-meta';
   const metaText = document.createElement('span');
   metaText.className = 'meta-text';
-  // The badges used to take a line of their own between title and meta. They ride the meta's line
-  // now: the meta takes the remaining width (and still stacks by itself if it must), the marks keep
-  // their intrinsic size at the right.
-  // A note's mark, clickable straight into the editor — if you can see there's a note, the natural
-  // move is to read it, and the tooltip only previews the first line.
+  // The badges used to take a line of their own between title and meta.
+  // They ride the meta's line now: the meta takes the remaining width (and still stacks by itself if it must), the marks keep their intrinsic size at the right.
+  // A note's mark, clickable straight into the editor — if you can see there's a note, the natural move is to read it, and the tooltip only previews the first line.
   const noteBadge = document.createElement('span');
   noteBadge.className = 'note-badge';
   noteBadge.hidden = true;
@@ -1982,8 +1856,7 @@ function createSessionRow(key: string): HTMLElement {
     if (session) void editNote(session);
   });
 
-  // A separator before the mark, matching the " · " already between time and model. Hidden with the
-  // mark, so a row without a note doesn't end in a dangling dot.
+  // A separator before the mark, matching the " · " already between time and model. Hidden with the mark, so a row without a note doesn't end in a dangling dot.
   const noteSep = document.createElement('span');
   noteSep.className = 'meta-sep';
   noteSep.textContent = '·';
@@ -2000,15 +1873,13 @@ function createSessionRow(key: string): HTMLElement {
   pin.addEventListener('click', async (event) => {
     event.stopPropagation();
     if (pin.disabled) return;
-    // Disabling it is the pending cue: .pin:disabled dims. (There was a 'loading' class here with no
-    // CSS behind it, so it painted nothing.)
+    // Disabling it is the pending cue: .pin:disabled dims. (There was a 'loading' class here with no CSS behind it, so it painted nothing.)
     pin.disabled = true;
     pinned = new Set(await window.claudeUi.togglePin(key));
     renderList();
   });
 
-  // Unarchive lives on the row because it is what the archived view is for; archiving a live session
-  // is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
+  // Unarchive lives on the row because it is what the archived view is for; archiving a live session is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
   const unarchiveBtn = document.createElement('button');
   unarchiveBtn.className = 'unarchive-btn';
   unarchiveBtn.hidden = true;
@@ -2031,15 +1902,13 @@ function createSessionRow(key: string): HTMLElement {
     const session = currentByKey.get(key);
     const title = session ? sessionLabel(session) : key.slice(0, 8);
     if (!(await confirmDelete(title))) return;
-    // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta
-    // purge run in the background. It stays hidden via pendingDeletes until its files are gone
-    // from disk (see renderSessions), so a concurrent delete's re-read can't resurrect it.
+    // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta purge run in the background.
+    // It stays hidden via pendingDeletes until its files are gone from disk (see renderSessions), so a concurrent delete's re-read can't resurrect it.
     // Only this entity's file goes (entity key = session id); siblings are separate entities.
     pendingDeletes.add(key);
     renderList();
     try {
-      // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat
-      // it as failed so the row can't stay hidden forever within a session.
+      // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat it as failed so the row can't stay hidden forever within a session.
       await Promise.race([
         window.claudeUi.deleteSession(key),
         new Promise((_resolve, reject) => setTimeout(() => reject(new Error('delete timed out')), 30_000)),
@@ -2047,8 +1916,7 @@ function createSessionRow(key: string): HTMLElement {
     } catch {
       showToast(`Couldn't delete "${title}". It's still here.`);
     } finally {
-      // Stop hiding once this delete resolves: on success the re-read finds it gone; on failure
-      // the file is still on disk, so the row reappears.
+      // Stop hiding once this delete resolves: on success the re-read finds it gone; on failure the file is still on disk, so the row reappears.
       pendingDeletes.delete(key);
       await renderSessions(false);
     }
@@ -2089,8 +1957,7 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 
   els.badge.hidden = !session.worktree;
   if (session.worktree) {
-    // Icon only — the word "worktree" cost a badge-width of room and the branch icon plus its
-    // tooltip already say it. Being wordless, the pill carries its own aria-label.
+    // Icon only — the word "worktree" cost a badge-width of room and the branch icon plus its tooltip already say it. Being wordless, the pill carries its own aria-label.
     const wtIcon = document.createElement('span');
     wtIcon.className = 'badge-icon';
     wtIcon.innerHTML = WORKTREE_ICON;
@@ -2102,8 +1969,7 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   const note = notes.get(entityKey(session));
   els.noteBadge.hidden = !note;
   els.noteSep.hidden = !note;
-  // Tooltips are one line, so preview the start rather than dumping a long note into it.
-  // The tooltip wraps and keeps line breaks now, so it can show a real chunk of the note.
+  // Tooltips are one line, so preview the start rather than dumping a long note into it. The tooltip wraps and keeps line breaks now, so it can show a real chunk of the note.
   if (note) setTooltip(els.noteBadge, note.length > 400 ? `${note.slice(0, 400)}…` : note);
 
   els.siblingsBadge.hidden = !session.isSibling;
@@ -2161,9 +2027,8 @@ async function openSession(session: SessionSummary): Promise<void> {
 
 let newSessionCounter = 0;
 
-// Placeholder for a session whose transcript hasn't been written yet (a new/fork/worktree tab): a
-// minted id plus the SessionSummary defaults; callers override what they already know. One factory,
-// so a SessionSummary field change lands here once instead of in three literals.
+// Placeholder for a session whose transcript hasn't been written yet (a new/fork/worktree tab): a minted id plus the SessionSummary defaults; callers override what they already know.
+// One factory, so a SessionSummary field change lands here once instead of in three literals.
 /** True for an id minted by placeholderSession: no transcript exists under it, so it can't be resumed. */
 function isPlaceholderId(id: string): boolean {
   return id.startsWith('new-');
@@ -2194,8 +2059,7 @@ function ensureProjectVisible(repoRoot: string): void {
   }
 }
 
-// Start a brand-new claude session in `cwd`. It has no real id until claude creates it, so
-// the tab uses a placeholder; the real session appears in the sidebar on the next refresh.
+// Start a brand-new claude session in `cwd`. It has no real id until claude creates it, so the tab uses a placeholder; the real session appears in the sidebar on the next refresh.
 async function openNewSession(cwd: string, joinGroupId?: string): Promise<void> {
   const folder = cwd.split('/').filter(Boolean).pop() ?? cwd;
   const session = placeholderSession({ cwd, repoRoot: cwd, title: `New: ${folder}` });
@@ -2206,21 +2070,19 @@ async function openNewSession(cwd: string, joinGroupId?: string): Promise<void> 
   renderList();
 }
 
-// Start a new session in a fresh git worktree of `repoRoot`: `claude -w [name]`. Prompts for an
-// optional name (blank -> claude auto-names). Like openNewSession, the tab starts on a placeholder
-// and adopts the real id via its token; the worktree session appears (badged) on the next refresh.
+// Start a new session in a fresh git worktree of `repoRoot`: `claude -w [name]`.
+// Prompts for an optional name (blank -> claude auto-names).
+// Like openNewSession, the tab starts on a placeholder and adopts the real id via its token; the worktree session appears (badged) on the next refresh.
 async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Promise<void> {
   const folder = repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
-  // claude's `-w` name must be a slug (letters/digits/dots/underscores/dashes); turn the free-text
-  // label into one. A blank slug means auto-name, which can't collide.
+  // claude's `-w` name must be a slug (letters/digits/dots/underscores/dashes); turn the free-text label into one. A blank slug means auto-name, which can't collide.
   const slugify = (value: string): string => value.trim().replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
   const label = await promptText(
     'New worktree session',
     `Worktree of "${projName(repoRoot)}"`,
     '',
     'Create',
-    // Validate in the dialog so a duplicate name is caught without closing it — claude -w would
-    // otherwise silently switch to the existing worktree instead of creating one.
+    // Validate in the dialog so a duplicate name is caught without closing it — claude -w would otherwise silently switch to the existing worktree instead of creating one.
     async (value) => {
       const s = slugify(value);
       return s && (await window.claudeUi.worktreeExists(repoRoot, s))
@@ -2238,8 +2100,7 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
     isRepo: true,
     // Show the worktree badge right away (optimistic); it reconciles to the real name on refresh.
     worktree: slug || 'new worktree',
-    // The name you typed becomes the title (it's also what --name sets); the badge already says it's
-    // a worktree, so no prefix. Blank name falls back to a plain new-session label.
+    // The name you typed becomes the title (it's also what --name sets); the badge already says it's a worktree, so no prefix. Blank name falls back to a plain new-session label.
     title: friendly || `New: ${folder}`,
   });
   // Same as openNewSession: show it in its group from the first paint, before the real id exists.
@@ -2249,13 +2110,11 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
   renderList();
 }
 
-// Fork an existing session: `claude --resume <id> --fork-session` copies its transcript into a new
-// session in the same cwd. Like openNewSession, the tab starts on a placeholder and adopts the real
-// fork id via its token; the fork then appears in the sidebar (as a sibling) on the next disk refresh.
+// Fork an existing session: `claude --resume <id> --fork-session` copies its transcript into a new session in the same cwd.
+// Like openNewSession, the tab starts on a placeholder and adopts the real fork id via its token; the fork then appears in the sidebar (as a sibling) on the next disk refresh.
 async function forkSession(parent: SessionSummary): Promise<void> {
   const parentTitle = sessionLabel(parent, 'session');
-  // Forks copy the parent's title, so offer a fresh name up front (via claude's --name). Cancel
-  // aborts the fork; keeping/clearing the field just inherits the parent title.
+  // Forks copy the parent's title, so offer a fresh name up front (via claude's --name). Cancel aborts the fork; keeping/clearing the field just inherits the parent title.
   const name = await promptText('Create fork', `Fork from "${parentTitle}"`, parentTitle, 'Fork');
   if (name === null) return;
   const trimmed = name.trim();
@@ -2265,15 +2124,13 @@ async function forkSession(parent: SessionSummary): Promise<void> {
     isRepo: parent.isRepo,
     worktree: parent.worktree,
     title: trimmed || parentTitle,
-    // Mark the placeholder as a family member right away (we know its parent is a sibling), so the
-    // row shows the sibling mark immediately instead of waiting for claude to write the transcript.
+    // Mark the placeholder as a family member right away (we know its parent is a sibling), so the row shows the sibling mark immediately instead of waiting for claude to write the transcript.
     // It reconciles to the real row once that file lands and grouping runs on the next refresh.
     isSibling: true,
     siblingIds: [parent.id],
   });
   ensureProjectVisible(session.repoRoot);
-  // A fork continues its parent's work, so it belongs wherever the parent was filed — and it shows
-  // there immediately, like a new session started from the group's "+".
+  // A fork continues its parent's work, so it belongs wherever the parent was filed — and it shows there immediately, like a new session started from the group's "+".
   const parentGroup = groupState.groupOf[entityKey(parent)];
   if (parentGroup) pendingGroupOf.set(session.id, parentGroup);
   await createTab(session, parent.id, true, trimmed || undefined, undefined, parentGroup);
@@ -2281,11 +2138,9 @@ async function forkSession(parent: SessionSummary): Promise<void> {
 }
 
 /**
- * Build a tab WITHOUT a process: real DOM, a real Terminal, no claude. `terminalId` stays null until
- * startTab fills it in, which is what lets tabs be restored cold — 20 restored tabs used to mean 20
- * `claude --resume` processes at ~437 MB each, spawned whether or not you looked at any of them.
- * The xterm instance stays eager on purpose: an empty one costs almost nothing next to a process, and
- * keeping it non-null confines this to the handful of places that use terminalId.
+ * Build a tab WITHOUT a process: real DOM, a real Terminal, no claude.
+ * `terminalId` stays null until startTab fills it in, which is what lets tabs be restored cold — 20 restored tabs used to mean 20 `claude --resume` processes at ~437 MB each, spawned whether or not you looked at any of them.
+ * The xterm instance stays eager on purpose: an empty one costs almost nothing next to a process, and keeping it non-null confines this to the handful of places that use terminalId.
  */
 function buildTab(session: SessionSummary, needsTitle: boolean, joinGroupId?: string): Tab {
   const token = crypto.randomUUID();
@@ -2297,18 +2152,16 @@ function buildTab(session: SessionSummary, needsTitle: boolean, joinGroupId?: st
   const term = new Terminal({
     fontFamily: 'monospace',
     fontSize: 13,
-    // Neutral (hue-less) default foreground: claude's selected-item accent is a periwinkle, so a
-    // neutral grey fg makes it pop by HUE (the old lavender-white #cdd6f4 shared its hue and merged).
-    // The fix was the hue, not the brightness, so it can be a light near-white for comfortable
-    // reading. The select-menu contrast bug (28a); proper per-user terminal colours are item 28.
+    // Neutral (hue-less) default foreground: claude's selected-item accent is a periwinkle, so a neutral grey fg makes it pop by HUE (the old lavender-white #cdd6f4 shared its hue and merged).
+    // The fix was the hue, not the brightness, so it can be a light near-white for comfortable reading.
+    // The select-menu contrast bug (28a); proper per-user terminal colours are item 28.
     theme: { background: '#11111b', foreground: '#d8d8d8' },
   });
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
   term.open(el);
 
-  // Canvas renderer for smoother scrolling/paste than the default DOM renderer; fall back to DOM
-  // if it can't initialize (e.g. a WSLg GPU quirk) so the terminal always works.
+  // Canvas renderer for smoother scrolling/paste than the default DOM renderer; fall back to DOM if it can't initialize (e.g. a WSLg GPU quirk) so the terminal always works.
   try {
     term.loadAddon(new CanvasAddon());
   } catch {
@@ -2318,16 +2171,13 @@ function buildTab(session: SessionSummary, needsTitle: boolean, joinGroupId?: st
   // Make http(s) URLs clickable; open them in the OS browser via the main process.
   term.loadAddon(new WebLinksAddon((_event, uri) => window.claudeUi.openExternal(uri)));
 
-  // Ctrl+Enter and Shift+Enter insert a newline (send \n, which claude reads as a newline) rather
-  // than submitting — matching the terminal (Ctrl+Enter) and Claude Desktop (Shift+Enter) habits.
+  // Ctrl+Enter and Shift+Enter insert a newline (send \n, which claude reads as a newline) rather than submitting — matching the terminal (Ctrl+Enter) and Claude Desktop (Shift+Enter) habits.
   // Plain Enter still submits; Ctrl+J and Alt+Enter already produce \n on their own.
   term.attachCustomKeyEventHandler((event) => {
     if (event.key === 'Enter' && (event.ctrlKey || event.shiftKey)) {
-      // Send the newline once (on keydown), and swallow BOTH keydown and keypress so xterm never
-      // turns the accompanying keypress into a submit \r. Shift+Enter emits that keypress (Ctrl+
-      // Enter does not), which is why only Shift+Enter was flaky.
-      // tab.terminalId, not a captured value: it is null while these handlers are wired and only
-      // filled in when the tab is actually started.
+      // Send the newline once (on keydown), and swallow BOTH keydown and keypress so xterm never turns the accompanying keypress into a submit \r.
+      // Shift+Enter emits that keypress (Ctrl+ Enter does not), which is why only Shift+Enter was flaky.
+      // tab.terminalId, not a captured value: it is null while these handlers are wired and only filled in when the tab is actually started.
       if (event.type === 'keydown' && tab.terminalId !== null) {
         window.claudeUi.sendTerminalInput(tab.terminalId, '\n');
       }
@@ -2352,9 +2202,8 @@ function buildTab(session: SessionSummary, needsTitle: boolean, joinGroupId?: st
   // Ctrl-C twice in the terminal closes the tab instead of dropping to the leftover shell.
   let lastCtrlC = 0;
   term.onData((data) => {
-    // Swallow Ctrl+Z: claude binds it to self-suspend, which strands the tab (no shell prompt to
-    // `fg` back from). You background a session by switching tabs, so suspend has no use here.
-    // claude advertises the key, so a silent no-op is confusing — say why.
+    // Swallow Ctrl+Z: claude binds it to self-suspend, which strands the tab (no shell prompt to `fg` back from).
+    // You background a session by switching tabs, so suspend has no use here. claude advertises the key, so a silent no-op is confusing — say why.
     if (data === '\x1a') {
       showToast('Ctrl+Z is off here — switch tabs to keep a session running in the background.');
       return;
@@ -2375,9 +2224,9 @@ function buildTab(session: SessionSummary, needsTitle: boolean, joinGroupId?: st
 }
 
 /**
- * Give a built tab a process. Separate from buildTab so a tab can exist cold: restored tabs start
- * this way and only spawn when you activate one. Returns early if it is already running, so
- * activating a live tab is free.
+ * Give a built tab a process.
+ * Separate from buildTab so a tab can exist cold: restored tabs start this way and only spawn when you activate one.
+ * Returns early if it is already running, so activating a live tab is free.
  */
 async function startTab(
   tab: Tab,
@@ -2390,19 +2239,14 @@ async function startTab(
   tab.starting = true;
   try {
     tab.startedAt = Date.now();
-    // Every way a session begins — new, fork, worktree, resuming a cold tab — funnels through here,
-    // so the starting state belongs here rather than at any one call site.
+    // Every way a session begins — new, fork, worktree, resuming a cold tab — funnels through here, so the starting state belongs here rather than at any one call site.
     tab.booting = true;
-    // Before the await, not after: otherwise a cold tab keeps saying "click its tab to resume it"
-    // across the spawn round-trip, which is the one thing you have just done.
+    // Before the await, not after: otherwise a cold tab keeps saying "click its tab to resume it" across the spawn round-trip, which is the one thing you have just done.
     if (tab === activeTab) updatePlaceholder();
     tab.terminalId = await window.claudeUi.startTerminal(tab.session.cwd, resumeId, tab.token, fork, name, worktree);
-    // Reveal it BEFORE fitting: `.term` is display:none until `.active`, and FitAddon sizes from the
-    // element's own box, so fitting a hidden pane leaves the terminal at xterm's 80x24 default and
-    // claude draws its whole TUI at that width. Cold tabs are what exposed this — the pane used to be
-    // revealed by activateTab before any of this ran, and now it only reveals a tab that HAS a
-    // process. A tab you switched away from during the await stays hidden and mis-fitted, which
-    // activateTab's own fit corrects when you come back to it.
+    // Reveal it BEFORE fitting: `.term` is display:none until `.active`, and FitAddon sizes from the element's own box, so fitting a hidden pane leaves the terminal at xterm's 80x24 default and claude draws its whole TUI at that width.
+    // Cold tabs are what exposed this — the pane used to be revealed by activateTab before any of this ran, and now it only reveals a tab that HAS a process.
+    // A tab you switched away from during the await stays hidden and mis-fitted, which activateTab's own fit corrects when you come back to it.
     if (activeTab === tab) {
       tab.el.classList.add('active');
       tab.term.focus();
@@ -2419,63 +2263,51 @@ async function startTab(
 }
 
 async function createTab(session: SessionSummary, resumeId: string | undefined, fork = false, name?: string, worktree?: string, joinGroupId?: string): Promise<void> {
-  // A fork mints a NEW session id despite resuming one, so it also needs to adopt its real id via
-  // the token (like a fresh session) — a plain resume already carries its final id.
+  // A fork mints a NEW session id despite resuming one, so it also needs to adopt its real id via the token (like a fresh session) — a plain resume already carries its final id.
   const tab = buildTab(session, resumeId === undefined || fork, joinGroupId);
-  // Select it WITHOUT starting: this call knows the real arguments (fork, --name, -w) and starts the
-  // tab itself below. Letting activateTab start it instead launched every new session as
-  // `claude --resume new-<ts>-<n>` — it can only guess `tab.session.id`, which for a new, forked or
-  // worktree tab is the placeholder — and its `starting` flag then made the real start a no-op.
+  // Select it WITHOUT starting: this call knows the real arguments (fork, --name, -w) and starts the tab itself below.
+  // Letting activateTab start it instead launched every new session as `claude --resume new-<ts>-<n>` — it can only guess `tab.session.id`, which for a new, forked or worktree tab is the placeholder — and its `starting` flag then made the real start a no-op.
   activateTab(tab, false);
   persistOpenTabs();
   await startTab(tab, resumeId, fork, name, worktree);
 }
 
 /**
- * `start` is false for the two callers that must not spawn here: a RESTORE, which shows you the tab
- * you left off in without starting it (nothing is meant to be live after a restart), and createTab,
- * which starts the tab itself because only it knows the real arguments. Every other selection — a
- * click in the tab bar or the sidebar — starts the tab, and can only resume it.
+ * `start` is false for the two callers that must not spawn here: a RESTORE, which shows you the tab you left off in without starting it (nothing is meant to be live after a restart), and createTab, which starts the tab itself because only it knows the real arguments.
+ * Every other selection — a click in the tab bar or the sidebar — starts the tab, and can only resume it.
  */
 function activateTab(tab: Tab, start = true): void {
-  // Viewing a tab no longer clears its nudge: a waiting dot persists until you actually reply
-  // (submitting fires UserPromptSubmit -> busy) or you mark it read by clicking the dot.
+  // Viewing a tab no longer clears its nudge: a waiting dot persists until you actually reply (submitting fires UserPromptSubmit -> busy) or you mark it read by clicking the dot.
   tab.activatedSeq = ++activationSeq;
   activeTab = tab;
-  // A cold tab's (empty) terminal stays hidden, so the placeholder can explain itself instead of
-  // showing a blank black pane.
+  // A cold tab's (empty) terminal stays hidden, so the placeholder can explain itself instead of showing a blank black pane.
   for (const other of tabs) other.el.classList.toggle('active', other === tab && other.terminalId !== null);
   renderTabBar();
   updatePlaceholder();
   updateSidebarHighlight();
   tab.fitAddon.fit();
-  // A cold tab starts the moment you select it — selecting IS starting, with no separate affordance,
-  // because that is how activating a tab has always behaved and laziness should show up only as a
-  // wait. Fire-and-forget: activateTab is called from click handlers and stays synchronous.
+  // A cold tab starts the moment you select it — selecting IS starting, with no separate affordance, because that is how activating a tab has always behaved and laziness should show up only as a wait.
+  // Fire-and-forget: activateTab is called from click handlers and stays synchronous.
   if (tab.terminalId === null) {
-    // A tab still on its placeholder id has no transcript to resume (it can reach here by being
-    // stopped before claude reported its real id), so start it fresh rather than resuming nothing.
+    // A tab still on its placeholder id has no transcript to resume (it can reach here by being stopped before claude reported its real id), so start it fresh rather than resuming nothing.
     if (start) void startTab(tab, isPlaceholderId(tab.session.id) ? undefined : tab.session.id);
   } else window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
   tab.term.focus();
-  // Remembered twice: overall (where to reopen at launch) and for this project (where to return to
-  // when you switch back to it).
+  // Remembered twice: overall (where to reopen at launch) and for this project (where to return to when you switch back to it).
   lastActiveKey = entityKey(tab.session);
   activeByProject[tab.session.repoRoot] = lastActiveKey;
   window.claudeUi.setActiveSession(lastActiveKey, tab.session.repoRoot);
 }
 
-// Full workspace switch: bring the active terminal in line with the current scope (a project, or
-// All). Keeps the current tab if it's in scope; otherwise activates the scope's most-recent tab, or
-// clears the terminal if the scope has no open tabs. Always re-renders the (filtered) tab bar.
+// Full workspace switch: bring the active terminal in line with the current scope (a project, or All).
+// Keeps the current tab if it's in scope; otherwise activates the scope's most-recent tab, or clears the terminal if the scope has no open tabs.
+// Always re-renders the (filtered) tab bar.
 function switchWorkspaceTerminal(repoRoot: string | null): void {
   const scoped = repoRoot ? tabs.filter((t) => t.session.repoRoot === repoRoot) : tabs;
   if (!(activeTab && scoped.includes(activeTab))) {
-    // Prefer a tab that is already RUNNING here; failing that, SELECT the one you were last in for
-    // this project, cold. Selecting a cold tab is harmless — it is STARTING one that a workspace
-    // switch must never do, or browsing projects in the switcher would spawn a session per project
-    // you glanced at. Hence activateTab(..., false) either way: it only suppresses the start, which
-    // a running tab does not need anyway.
+    // Prefer a tab that is already RUNNING here; failing that, SELECT the one you were last in for this project, cold.
+    // Selecting a cold tab is harmless — it is STARTING one that a workspace switch must never do, or browsing projects in the switcher would spawn a session per project you glanced at.
+    // Hence activateTab(..., false) either way: it only suppresses the start, which a running tab does not need anyway.
     const running = scoped.filter((t) => t.terminalId !== null);
     const rememberedKey = repoRoot ? activeByProject[repoRoot] : lastActiveKey;
     const target = running.length
@@ -2493,8 +2325,7 @@ function switchWorkspaceTerminal(repoRoot: string | null): void {
   updateSidebarHighlight();
 }
 
-// Drop a tab from the UI. Idempotent (a user close and the terminal's own exit can both fire).
-// It does not touch the terminal process; callers terminate it when they need to.
+// Drop a tab from the UI. Idempotent (a user close and the terminal's own exit can both fire). It does not touch the terminal process; callers terminate it when they need to.
 function removeTab(tab: Tab): void {
   const index = tabs.indexOf(tab);
   if (index === -1) return;
@@ -2509,12 +2340,11 @@ function removeTab(tab: Tab): void {
   persistOpenTabs();
 }
 
-// User-initiated close: terminate the session (claude persists per turn, so its context is on
-// disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
+// User-initiated close: terminate the session (claude persists per turn, so its context is on disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
 /**
- * End the session but keep its tab, cold and resumable. The opposite of closeTab, and the deliberate
- * counterpart to claude exiting on its own — which still CLOSES the tab, so a finished session does
- * not leave an empty one behind. `stopping` is what tells those two apart when the exit arrives.
+ * End the session but keep its tab, cold and resumable.
+ * The opposite of closeTab, and the deliberate counterpart to claude exiting on its own — which still CLOSES the tab, so a finished session does not leave an empty one behind.
+ * `stopping` is what tells those two apart when the exit arrives.
  */
 function stopSession(tab: Tab): void {
   if (tab.terminalId === null) return;
@@ -2528,12 +2358,10 @@ function coolTab(tab: Tab): void {
   tab.stopping = false;
   // A stopped tab is not a slow one: the loader must not outlive the process.
   tab.booting = false;
-  // Wipe the dead session's output: left in place it reads as a live terminal, and a resume would
-  // paint the new session over the old one's tail.
+  // Wipe the dead session's output: left in place it reads as a live terminal, and a resume would paint the new session over the old one's tail.
   tab.term.reset();
   tab.el.classList.remove('active');
-  // Stopping what you were looking at drops you to the empty screen rather than leaving a selected
-  // tab with nothing behind it.
+  // Stopping what you were looking at drops you to the empty screen rather than leaving a selected tab with nothing behind it.
   if (activeTab === tab) activeTab = null;
   renderTabBar();
   updatePlaceholder();
@@ -2545,15 +2373,13 @@ function closeTab(tab: Tab): void {
   removeTab(tab);
 }
 
-// The key a tab is grouped and dragged within: its project, plus its group when it has one. A drag
-// stays inside its own cluster because each cluster is its own Sortable container.
+// The key a tab is grouped and dragged within: its project, plus its group when it has one. A drag stays inside its own cluster because each cluster is its own Sortable container.
 function tabClusterKey(tab: Tab, groupOf: Record<string, string> = effectiveGroupState().groupOf): string {
   return `${tab.session.repoRoot}\0${groupOf[tab.session.id] ?? ''}`;
 }
 
-// One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups
-// gets an indented row beneath it behind the same rail the sidebar uses. A project view drops the
-// project label (everything shown belongs to it) but keeps the group rows.
+// One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups gets an indented row beneath it behind the same rail the sidebar uses.
+// A project view drops the project label (everything shown belongs to it) but keeps the group rows.
 /** The tabs actually on screen: a project view shows only its own. */
 function visibleTabs(): Tab[] {
   return activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
@@ -2617,8 +2443,7 @@ function renderTabBar(): void {
 
 function tabElement(tab: Tab): HTMLElement {
   const el = document.createElement('div');
-  // 'cold' = restored but never started. Dimmed rather than marked: it is a session waiting to be
-  // resumed, not a broken one, and clicking it is exactly what starts it.
+  // 'cold' = restored but never started. Dimmed rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
   el.className = [
     'tab',
     tab === activeTab ? 'active' : '',
@@ -2635,8 +2460,7 @@ function tabElement(tab: Tab): HTMLElement {
     toggleAck(tab.session.id);
   });
 
-  // Siblings often share a title, so mark the tab too — keyed on isSibling, the same signal as the
-  // sidebar row's badge, so tab and row always agree.
+  // Siblings often share a title, so mark the tab too — keyed on isSibling, the same signal as the sidebar row's badge, so tab and row always agree.
   const siblingMark = document.createElement('span');
   siblingMark.className = 'tab-sibling';
   siblingMark.innerHTML = SIBLING_ICON;
@@ -2668,9 +2492,8 @@ function tabElement(tab: Tab): HTMLElement {
 
   el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
   const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(tab.session.worktree ? [worktreeMark] : [])];
-  // The marks ride in their own tight cluster rather than sitting at the tab's full gap, so the
-  // leading glyphs read as one group. Only added when there ARE marks — an empty wrapper would still
-  // consume a gap and shift the label.
+  // The marks ride in their own tight cluster rather than sitting at the tab's full gap, so the leading glyphs read as one group.
+  // Only added when there ARE marks — an empty wrapper would still consume a gap and shift the label.
   if (marks.length > 0) {
     const markGroup = document.createElement('span');
     markGroup.className = 'tab-marks';
@@ -2692,11 +2515,10 @@ function tabElement(tab: Tab): HTMLElement {
   return el;
 }
 
-// Drag-to-reorder tabs via SortableJS. One Sortable per project container (the whole tab bar in a
-// cluster row: a project's ungrouped tabs, or one of its groups), so a drag stays inside its own
-// cluster by construction — a tab can't be dragged into another group or project.
-// forceFallback uses pointer-based dragging instead of native HTML5 DnD (flaky under WSLg). Re-created
-// on every renderTabBar since it rebuilds the DOM; old instances destroyed first to avoid leaks.
+// Drag-to-reorder tabs via SortableJS.
+// One Sortable per project container (the whole tab bar in a cluster row: a project's ungrouped tabs, or one of its groups), so a drag stays inside its own cluster by construction — a tab can't be dragged into another group or project.
+// forceFallback uses pointer-based dragging instead of native HTML5 DnD (flaky under WSLg).
+// Re-created on every renderTabBar since it rebuilds the DOM; old instances destroyed first to avoid leaks.
 let tabSortables: Sortable[] = [];
 let tabDragActive = false;
 
@@ -2706,12 +2528,10 @@ function initTabSortables(): void {
   tabSortables = containers.map((container) =>
     Sortable.create(container, {
       draggable: '.tab', // never the project label
-      // The close button is not a drag handle. Without this, a mousedown on it starts a potential
-      // drag, and `forceFallback` then calls preventDefault to take over pointer handling — after
-      // which Chromium on macOS never synthesises the click, so closing a tab silently did nothing
-      // there. It survived on Linux, which is why this only appeared once the app reached a Mac.
-      // preventOnFilter: false is the half that matters: the default (true) still preventDefaults on
-      // the filtered element, which is the very thing that swallows the click.
+      // The close button is not a drag handle.
+      // Without this, a mousedown on it starts a potential drag, and `forceFallback` then calls preventDefault to take over pointer handling — after which Chromium on macOS never synthesises the click, so closing a tab silently did nothing there.
+      // It survived on Linux, which is why this only appeared once the app reached a Mac.
+      // preventOnFilter: false is the half that matters: the default (true) still preventDefaults on the filtered element, which is the very thing that swallows the click.
       filter: '.tab-close',
       preventOnFilter: false,
       forceFallback: true,
@@ -2736,8 +2556,7 @@ function initTabSortables(): void {
   );
 }
 
-// Alt-tabbing away mid-drag never delivers a pointerup, so SortableJS can leave a drag stuck. On blur,
-// synthesise the release so it ends cleanly (dropping the tab where it currently is).
+// Alt-tabbing away mid-drag never delivers a pointerup, so SortableJS can leave a drag stuck. On blur, synthesise the release so it ends cleanly (dropping the tab where it currently is).
 window.addEventListener('blur', () => {
   if (!tabDragActive) return;
   document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
@@ -2745,20 +2564,16 @@ window.addEventListener('blur', () => {
 });
 
 function updatePlaceholder(): void {
-  // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so
-  // without this a restored session would look like a session that had nothing in it.
+  // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so without this a restored session would look like a session that had nothing in it.
   const cold = activeTab !== null && activeTab.terminalId === null;
-  // A booting tab HAS a terminal, but it is still empty: keep the pane covered rather than showing
-  // the black rectangle that the wait would otherwise be.
+  // A booting tab HAS a terminal, but it is still empty: keep the pane covered rather than showing the black rectangle that the wait would otherwise be.
   const booting = activeTab?.booting === true;
   placeholder.style.display = activeTab && !cold && !booting ? 'none' : 'flex';
   if (booting) {
     placeholder.textContent = `Starting “${sessionLabel(activeTab!.session)}”…`;
     return;
   }
-  // Four different situations reach this pane, and each has a different next move — one sentence
-  // covering all of them tells someone with no sessions to pick one, and someone with no tabs to
-  // pick a tab that isn't there.
+  // Four different situations reach this pane, and each has a different next move — one sentence covering all of them tells someone with no sessions to pick one, and someone with no tabs to pick a tab that isn't there.
   placeholder.textContent = cold
     ? `“${sessionLabel(activeTab!.session)}” isn’t running. Click its tab to resume it.`
     : allSessions.length === 0
@@ -2786,19 +2601,17 @@ window.claudeUi.onTerminalData((id, data) => {
 window.claudeUi.onTerminalExit((id, exitCode) => {
   const tab = tabs.find((t) => t.terminalId === id);
   if (!tab) return; // Already closed by the user.
-  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed.
-  // Every other exit keeps today's behaviour below.
+  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed. Every other exit keeps today's behaviour below.
   if (tab.stopping) {
     coolTab(tab);
     return;
   }
-  // A near-instant exit almost always means claude failed to start (bad env, not found, rc
-  // error). Keep the tab so the error stays visible instead of flashing away. Otherwise claude
-  // exited normally, so close the tab — no leftover shell.
+  // A near-instant exit almost always means claude failed to start (bad env, not found, rc error).
+  // Keep the tab so the error stays visible instead of flashing away.
+  // Otherwise claude exited normally, so close the tab — no leftover shell.
   if (Date.now() - tab.startedAt < 1500) {
     tab.term.writeln(`\r\n[claude exited immediately (code ${exitCode}) — the session did not start]`);
-    // Uncover the pane: this line IS the explanation of the failure, and it is exactly what the
-    // loader would otherwise hide.
+    // Uncover the pane: this line IS the explanation of the failure, and it is exactly what the loader would otherwise hide.
     tab.booting = false;
     if (tab === activeTab) updatePlaceholder();
     return;
@@ -2806,16 +2619,14 @@ window.claudeUi.onTerminalExit((id, exitCode) => {
   removeTab(tab);
 });
 window.claudeUi.onSessionStatus((id, status, tab) => {
-  // A new-session tab learns its real session id the first time claude reports for it, so it
-  // then matches the sidebar entry (clicking it focuses the tab instead of opening a duplicate).
+  // A new-session tab learns its real session id the first time claude reports for it, so it then matches the sidebar entry (clicking it focuses the tab instead of opening a duplicate).
   if (tab) {
     const owner = tabs.find((t) => t.token === tab);
     if (owner && owner.session.id !== id) {
       const placeholderId = owner.session.id;
       owner.session = { ...owner.session, id };
       persistOpenTabs();
-      // Now that the session has a real id it can be filed for real. The optimistic entry under the
-      // placeholder id is dropped in the same breath, so the row never leaves its group in between.
+      // Now that the session has a real id it can be filed for real. The optimistic entry under the placeholder id is dropped in the same breath, so the row never leaves its group in between.
       if (owner.joinGroupId) {
         const groupId = owner.joinGroupId;
         owner.joinGroupId = undefined;
@@ -2826,43 +2637,34 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
         });
       }
       pendingGroupOf.delete(placeholderId);
-      // Adoption changes the tab's IDENTITY, so the tab that could not be matched a moment ago can be
-      // matched now — and nothing else re-runs that match. The refresh below is gated on the SESSION
-      // LIST's structure, which a rename before the first prompt has already consumed: the transcript
-      // was written (and its signature stored) while the tab still held its placeholder id, so the
-      // gate short-circuits and the tab keeps the "New: <folder>" name for good. Reconciling here is
-      // cheap and needs no fresh read — refreshFromDisk assigns allSessions BEFORE that gate, so the
-      // renamed session is already in hand.
+      // Adoption changes the tab's IDENTITY, so the tab that could not be matched a moment ago can be matched now — and nothing else re-runs that match.
+      // The refresh below is gated on the SESSION LIST's structure, which a rename before the first prompt has already consumed: the transcript was written (and its signature stored) while the tab still held its placeholder id, so the gate short-circuits and the tab keeps the "New: <folder>" name for good.
+      // Reconciling here is cheap and needs no fresh read — refreshFromDisk assigns allSessions BEFORE that gate, so the renamed session is already in hand.
       reconcileOpenTabs();
-      // And the SIDEBAR has to be redrawn for the same reason. A not-yet-saved tab is shown from its
-      // own placeholder (visibleSessions adds it while its id is unknown to disk), so between the
-      // rename and this moment the list carries BOTH: the real renamed session and the placeholder.
-      // Adoption is what retires the placeholder, and nothing else here redraws the list —
-      // reconcileOpenTabs paints only the tab bar, setStatus only the dots and the switcher.
+      // And the SIDEBAR has to be redrawn for the same reason.
+      // A not-yet-saved tab is shown from its own placeholder (visibleSessions adds it while its id is unknown to disk), so between the rename and this moment the list carries BOTH: the real renamed session and the placeholder.
+      // Adoption is what retires the placeholder, and nothing else here redraws the list — reconcileOpenTabs paints only the tab bar, setStatus only the dots and the switcher.
       renderList();
     }
   }
   // 'start' is the SessionStart hook reporting which session a tab is running, not a state it is in.
-  // It fires on `clear` and `compact` too — mid-session — so passing it to setStatus would clear a
-  // live dot. Identity is all it carries, and that has been applied above.
+  // It fires on `clear` and `compact` too — mid-session — so passing it to setStatus would clear a live dot.
+  // Identity is all it carries, and that has been applied above.
   if (status === 'start') return;
   setStatus(id, status);
-  // A new session's title isn't on disk immediately; re-read on its status events until it is
-  // (this also makes the new session appear in the sidebar).
+  // A new session's title isn't on disk immediately; re-read on its status events until it is (this also makes the new session appear in the sidebar).
   if (tabs.some((t) => t.needsTitle && t.session.id === id)) void refreshFromDisk();
 });
 
 // The sidebar keeps itself current: a transcript created or changed on disk re-renders it.
 window.claudeUi.onSessionsChanged(() => void refreshFromDisk());
 
-// Stop persisting open tabs once shutdown starts, so the terminal-exit closes it triggers don't
-// overwrite the saved tab list with an empty one (see the shuttingDown note above).
+// Stop persisting open tabs once shutdown starts, so the terminal-exit closes it triggers don't overwrite the saved tab list with an empty one (see the shuttingDown note above).
 window.claudeUi.onQuitting(() => {
   shuttingDown = true;
 });
 
-// Without the CLI every tab would open on "command not found", which reads as this app being broken
-// rather than as a missing prerequisite. Say which one, and stay on screen until dismissed.
+// Without the CLI every tab would open on "command not found", which reads as this app being broken rather than as a missing prerequisite. Say which one, and stay on screen until dismissed.
 window.claudeUi.onClaudeMissing(() => {
   showToast('The claude CLI was not found on your PATH. Install it and restart claude-ui.', true);
 });
@@ -2875,13 +2677,11 @@ function fitActive(): void {
 }
 
 window.addEventListener('resize', fitActive);
-// Re-fit when the terminal area itself changes height (e.g. the tab bar wrapping to a new row),
-// not just on window resize, so the terminal always fills its pane instead of being clipped.
+// Re-fit when the terminal area itself changes height (e.g. the tab bar wrapping to a new row), not just on window resize, so the terminal always fills its pane instead of being clipped.
 // The ResizeObserver also covers sidebar resizing, since that changes the terminal pane's width.
 new ResizeObserver(() => fitActive()).observe(terminalsEl);
 
-// Drag the divider between the sidebar and the terminal to resize the session list; the width
-// is remembered across launches.
+// Drag the divider between the sidebar and the terminal to resize the session list; the width is remembered across launches.
 const sidebar = document.getElementById('sidebar')!;
 const sidebarResizer = document.getElementById('sidebar-resizer')!;
 const SIDEBAR_MIN = 220;
@@ -2908,8 +2708,7 @@ sidebarResizer.addEventListener('mousedown', (event) => {
 });
 
 newButton.addEventListener('click', async () => {
-  // Show an active state while the folder picker is open (it has no persistent menu of its own),
-  // matching how the other header buttons look while their panel/menu is up.
+  // Show an active state while the folder picker is open (it has no persistent menu of its own), matching how the other header buttons look while their panel/menu is up.
   newButton.classList.add('active');
   try {
     const dir = await window.claudeUi.pickFolder();
@@ -2933,9 +2732,8 @@ function wireFilterToggle(button: HTMLButtonElement, flip: () => void): void {
     container.scrollTop = 0;
   });
 }
-// Each pill shows the same mark the rows use, from the one definition — a glyph would render at a
-// different weight beside them. Icon-only: the words cost the panel an extra line at a 320px sidebar,
-// and every pill carries a tooltip and an aria-label (see index.html) for what it means.
+// Each pill shows the same mark the rows use, from the one definition — a glyph would render at a different weight beside them.
+// Icon-only: the words cost the panel an extra line at a 320px sidebar, and every pill carries a tooltip and an aria-label (see index.html) for what it means.
 pinnedFilter.innerHTML = PINNED_ICON;
 openFilter.innerHTML = OPEN_ICON;
 runningFilter.innerHTML = RUNNING_ICON;
@@ -2963,10 +2761,9 @@ datePresets.addEventListener('click', (event) => {
   renderList();
   container.scrollTop = 0;
 });
-// Dismiss the calendar on an outside press or Escape; the picked range stays applied. Uses mousedown,
-// not click, so it fires before air-datepicker re-renders on a view switch (a click handler would see
-// the just-clicked nav element already detached and wrongly treat it as an outside click). The presets
-// row, the range line, and the calendar itself keep it open (each has its own toggle handler).
+// Dismiss the calendar on an outside press or Escape; the picked range stays applied.
+// Uses mousedown, not click, so it fires before air-datepicker re-renders on a view switch (a click handler would see the just-clicked nav element already detached and wrongly treat it as an outside click).
+// The presets row, the range line, and the calendar itself keep it open (each has its own toggle handler).
 document.addEventListener('mousedown', (event) => {
   if (!datePopoverOpen) return;
   const target = event.target as Node;
@@ -2990,8 +2787,7 @@ installTooltips();
 void (async () => {
   groupState = await window.claudeUi.getGroupState();
   activeProject = await window.claudeUi.getActiveProject();
-  // Read once at boot, not per render: a render-time read could race a toggle whose write is still
-  // in flight and snap the strip back.
+  // Read once at boot, not per render: a render-time read could race a toggle whose write is still in flight and snap the strip back.
   footerExpanded = await window.claudeUi.getFooterExpanded();
   await renderSessions();
   await restoreOpenTabs();

@@ -25,8 +25,8 @@ const repoCache = new Map<string, RepoInfo>();
 
 /**
  * Resolve which repo a directory belongs to, and whether it is a linked git worktree.
- * `--show-toplevel` is the directory's own working-tree root; `--git-common-dir` is the main
- * repo's `.git`, so its parent is the main repo root. A worktree's toplevel differs from that.
+ * `--show-toplevel` is the directory's own working-tree root; `--git-common-dir` is the main repo's `.git`, so its parent is the main repo root.
+ * A worktree's toplevel differs from that.
  */
 async function resolveRepo(cwd: string): Promise<RepoInfo> {
   const cached = repoCache.get(cwd);
@@ -49,9 +49,8 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
   } catch {
     // Not a git repo, git missing, or the directory is gone: fall through to the path fallback.
   }
-  // When git can't tell us it's a worktree (most importantly, when the worktree directory was
-  // removed), recognize the `claude -w` layout: <repo>/.claude/worktrees/<name>. That path only
-  // exists inside a repo, so it's a repo even though git couldn't answer.
+  // When git can't tell us it's a worktree (most importantly, when the worktree directory was removed), recognize the `claude -w` layout: <repo>/.claude/worktrees/<name>.
+  // That path only exists inside a repo, so it's a repo even though git couldn't answer.
   if (!info.worktree) {
     const match = cwd.match(/^(.*)\/\.claude\/worktrees\/([^/]+)/);
     if (match) info = { repoRoot: match[1], worktree: match[2], isRepo: true };
@@ -60,13 +59,11 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
   return info;
 }
 
-// Per-file summary cache keyed by mtime+size, so a disk change only re-reads the files that
-// actually changed instead of all of them every time. In-memory only — a restart rebuilds it.
+// Per-file summary cache keyed by mtime+size, so a disk change only re-reads the files that actually changed instead of all of them every time. In-memory only — a restart rebuilds it.
 const summaryCache = new Map<string, { key: string; summary: SessionSummary | null }>();
 
-// Summarize a file, reusing the cached result while its mtime+size are unchanged. Caches ONLY a
-// completed summarize; a read error keeps the previous entry rather than poisoning the cache, and
-// presence is driven by readdir (a gone file is skipped, never served stale).
+// Summarize a file, reusing the cached result while its mtime+size are unchanged.
+// Caches ONLY a completed summarize; a read error keeps the previous entry rather than poisoning the cache, and presence is driven by readdir (a gone file is skipped, never served stale).
 async function summarizeCached(file: string): Promise<SessionSummary | null> {
   let stat;
   try {
@@ -118,10 +115,9 @@ export async function listSessions(): Promise<SessionSummary[]> {
     (s): s is SessionSummary => s !== null,
   );
 
-  // Sibling grouping: sessions sharing a conversationId are one family. No direction is derived —
-  // fork direction is not reliably recoverable from transcript data (see the plan) — so a multi-file
-  // family is marked as SIBLINGS. Summaries are cached objects, so reset before re-deriving: a family
-  // that shrank must lose its stale marks.
+  // Sibling grouping: sessions sharing a conversationId are one family.
+  // No direction is derived — fork direction is not reliably recoverable from transcript data (see the plan) — so a multi-file family is marked as SIBLINGS.
+  // Summaries are cached objects, so reset before re-deriving: a family that shrank must lose its stale marks.
   for (const s of summaries) {
     s.isSibling = false;
     s.siblingIds = [];
@@ -133,11 +129,9 @@ export async function listSessions(): Promise<SessionSummary[]> {
     else byConversation.set(s.conversationId, [s]);
   }
 
-  // Case A: a fork of a COMPACTED session adopts a post-compaction head as its conversationId, so it
-  // lands in a different group than its family. Union every group whose conversationId appears among
-  // a session's postCompactHeads with that session's group; union-find so chained links merge
-  // transitively. Per (head, claimer) pair, because several sessions can claim the same head — the
-  // fork copies the parent's boundary, so it claims its own conversationId as a head (a no-op union).
+  // Case A: a fork of a COMPACTED session adopts a post-compaction head as its conversationId, so it lands in a different group than its family.
+  // Union every group whose conversationId appears among a session's postCompactHeads with that session's group; union-find so chained links merge transitively.
+  // Per (head, claimer) pair, because several sessions can claim the same head — the fork copies the parent's boundary, so it claims its own conversationId as a head (a no-op union).
   const parent = new Map<string, string>();
   for (const conversationId of byConversation.keys()) parent.set(conversationId, conversationId);
   const find = (k: string): string => {
@@ -177,8 +171,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
   return summaries.sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
 }
 
-// Whether a worktree of this name already exists for the repo (claude puts them at
-// <repo>/.claude/worktrees/<name>), so the app can refuse to "create" a duplicate.
+// Whether a worktree of this name already exists for the repo (claude puts them at <repo>/.claude/worktrees/<name>), so the app can refuse to "create" a duplicate.
 export async function worktreeExists(repoRoot: string, name: string): Promise<boolean> {
   return fs.stat(path.join(repoRoot, '.claude', 'worktrees', name)).then(
     () => true,
@@ -187,9 +180,8 @@ export async function worktreeExists(repoRoot: string, name: string): Promise<bo
 }
 
 /**
- * Move the given sessions' transcript files and subagent dirs to the OS trash (recoverable),
- * across whichever project directories hold them. This is the only place the app mutates the
- * Claude session store.
+ * Move the given sessions' transcript files and subagent dirs to the OS trash (recoverable), across whichever project directories hold them.
+ * This is the only place the app mutates the Claude session store.
  */
 export async function trashSessions(ids: string[]): Promise<void> {
   for (const dir of await projectDirs()) {
@@ -221,15 +213,12 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   const postCompactHeads: string[] = [];
   // Set right after a compaction boundary so the next user/assistant message is captured as a head.
   let awaitingCompactHead = false;
-  // A session can ENTER a worktree mid-life (the EnterWorktree hook): the transcript stays in its
-  // original project dir and only a worktree-state event records the move, so the first-latched cwd
-  // goes stale. The LAST worktree-state wins: entered (a worktreeSession object) puts the session at
-  // worktreePath; exited (worktreeSession null) drops it back to the recorded original cwd.
+  // A session can ENTER a worktree mid-life (the EnterWorktree hook): the transcript stays in its original project dir and only a worktree-state event records the move, so the first-latched cwd goes stale.
+  // The LAST worktree-state wins: entered (a worktreeSession object) puts the session at worktreePath; exited (worktreeSession null) drops it back to the recorded original cwd.
   let worktreeStateCwd: string | null = null;
   let worktreeOriginalCwd = '';
-  // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system
-  // append (a Remote Control notice) or a resume bumps mtime without being real activity. Captured with
-  // a cheap regex below.
+  // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system append (a Remote Control notice) or a resume bumps mtime without being real activity.
+  // Captured with a cheap regex below.
   let lastMsgTs = '';
 
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
@@ -237,22 +226,19 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
     for await (const line of rl) {
       if (!line.trim()) continue;
 
-      // Keep the latest model an assistant message reported. A cheap regex (not a full parse) so it
-      // doesn't defeat the early-continue below; assistant lines carry `"model":"claude-…"`.
+      // Keep the latest model an assistant message reported. A cheap regex (not a full parse) so it doesn't defeat the early-continue below; assistant lines carry `"model":"claude-…"`.
       const modelMatch = line.match(/"model":"(claude-[^"]+)"/);
       if (modelMatch) model = modelMatch[1];
 
-      // Last message's timestamp (lastActivity): a cheap regex before the early-continue, so it sees
-      // every message line without a full parse. Overwrites, so the final value is the newest message.
+      // Last message's timestamp (lastActivity): a cheap regex before the early-continue, so it sees every message line without a full parse. Overwrites, so the final value is the newest message.
       if (line.includes('"type":"user"') || line.includes('"type":"assistant"')) {
         const tsMatch = line.match(/"timestamp":"([^"]+)"/);
         if (tsMatch) lastMsgTs = tsMatch[1];
       }
 
-      // Title events recur through the file, so always parse them to keep the latest. A real
-      // compaction is a structured system/compact_boundary event, not the bare word "compactMetadata"
-      // (which also appears in message text) — so pre-filter cheaply on that string, then confirm by
-      // type below. While awaiting the first message after a boundary, keep parsing to capture it.
+      // Title events recur through the file, so always parse them to keep the latest.
+      // A real compaction is a structured system/compact_boundary event, not the bare word "compactMetadata" (which also appears in message text) — so pre-filter cheaply on that string, then confirm by type below.
+      // While awaiting the first message after a boundary, keep parsing to capture it.
       // Otherwise stop parsing once we have cwd and the first message; keep counting.
       const isTitle = line.includes('"custom-title"') || line.includes('"ai-title"');
       const maybeBoundary = line.includes('compact_boundary');
@@ -303,8 +289,7 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
 
   const title = asTitle(customTitle) || asTitle(aiTitle);
   const stat = await fs.stat(file);
-  // The worktree-state override beats the first-latched cwd; resolveRepo then maps a worktree path
-  // to its repo + badge through the same path it uses for `claude -w` sessions.
+  // The worktree-state override beats the first-latched cwd; resolveRepo then maps a worktree path to its repo + badge through the same path it uses for `claude -w` sessions.
   const resolvedCwd = worktreeStateCwd || cwd || decodeProjectDir(path.basename(path.dirname(file)));
   const lastActivity = lastMsgTs || stat.mtime.toISOString();
   return {
@@ -332,19 +317,16 @@ function asTitle(value: unknown): string {
 }
 
 /**
- * A message that is pure local-command plumbing — the `<local-command-caveat>` preamble a session
- * gets when it starts with local commands, or captured `<local-command-stdout>` output — is not a
- * usable first message; blank it so the latch waits for the first real prompt instead.
+ * A message that is pure local-command plumbing — the `<local-command-caveat>` preamble a session gets when it starts with local commands, or captured `<local-command-stdout>` output — is not a usable first message; blank it so the latch waits for the first real prompt instead.
  */
 function displayableUserText(text: string): string {
   return /^<local-command-(caveat|stdout)>/.test(text.trim()) ? '' : text;
 }
 
 /**
- * A session started by a slash command wraps its first message in tags —
- * `<command-message>word</command-message>\n<command-name>/cmd</command-name>` plus an optional
- * (possibly empty) `<command-args>…</command-args>` — which reads as junk in the row. Render it as
- * the command line the user effectively typed: "/cmd args". Anything else passes through untouched.
+ * A session started by a slash command wraps its first message in tags — `<command-message>word</command-message>\n<command-name>/cmd</command-name>` plus an optional (possibly empty) `<command-args>…</command-args>` — which reads as junk in the row.
+ * Render it as the command line the user effectively typed: "/cmd args".
+ * Anything else passes through untouched.
  */
 function commandLabel(text: string): string {
   const name = text.match(/<command-name>([^<]*)<\/command-name>/)?.[1].trim();

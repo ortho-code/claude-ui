@@ -6,7 +6,10 @@ What changed in each release, for people running a build rather than the source.
 
 ## 0.2.0 — 2026-08-28
 
-**Upgrading on macOS, this version only:** delete the old Claude UI from Applications before installing this one. The app's internal identifier changed, so macOS treats this as a new app rather than a replacement, and you would otherwise end up with two. Your sessions, pins and groups are not affected. Linux upgrades normally, with the same `apt install` command as before.
+**Upgrading on macOS, this version only:** delete the old Claude UI from Applications before installing this one.
+The app's internal identifier changed, so macOS treats this as a new app rather than a replacement, and you would otherwise end up with two.
+Your sessions, pins and groups are not affected.
+Linux upgrades normally, with the same `apt install` command as before.
 
 - Closing a tab works on macOS. The close button was being swallowed by the drag-to-reorder handling, which only misbehaved there.
 - Starting or resuming a session shows that it is starting, instead of a black pane for the couple of seconds claude takes to appear.
@@ -16,7 +19,9 @@ What changed in each release, for people running a build rather than the source.
 
 ## 0.1.0 — 2026-08-27
 
-First packaged release. Until now the app had to be run from source; there are now installable builds for macOS (Apple Silicon) and Linux. See the README for how to install one, including the extra step macOS needs on first launch.
+First packaged release.
+Until now the app had to be run from source; there are now installable builds for macOS (Apple Silicon) and Linux.
+See the README for how to install one, including the extra step macOS needs on first launch.
 
 What the app does, for anyone seeing it for the first time:
 

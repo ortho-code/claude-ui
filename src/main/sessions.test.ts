@@ -2,8 +2,7 @@ import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-// A temp HOME whose ~/.claude/projects we fill with fixtures. Created in vi.hoisted so it exists
-// before the node:os mock factory (which closes over it) and before sessions.ts loads.
+// A temp HOME whose ~/.claude/projects we fill with fixtures. Created in vi.hoisted so it exists before the node:os mock factory (which closes over it) and before sessions.ts loads.
 const { testHome } = vi.hoisted(() => {
   const os = require('node:os');
   const fs = require('node:fs');
@@ -80,8 +79,7 @@ beforeAll(async () => {
   await fs.writeFile(path.join(dir, 'p1.jsonl'), jsonl(...forkBase));
   await fs.writeFile(path.join(dir, 'p2.jsonl'), jsonl(...forkBase, { type: 'assistant', uuid: 'af2', message: { content: 'r2 (fork)' } }));
 
-  // Real compaction: after a structured system/compact_boundary event, the next user/assistant uuid
-  // is captured as the post-compaction head.
+  // Real compaction: after a structured system/compact_boundary event, the next user/assistant uuid is captured as the post-compaction head.
   await fs.writeFile(
     path.join(dir, 'k.jsonl'),
     jsonl(
@@ -91,10 +89,8 @@ beforeAll(async () => {
     ),
   );
 
-  // Case A: a fork of a COMPACTED session adopts a post-compaction head as its conversationId. q's
-  // first message uuid equals k's post-compaction head 'khead', so k and q are one family. The fork
-  // copies the parent's boundary event too, so q also claims 'khead' as its OWN head (the real
-  // c74279cd shape) — that self-claim must not break the k<->q link.
+  // Case A: a fork of a COMPACTED session adopts a post-compaction head as its conversationId. q's first message uuid equals k's post-compaction head 'khead', so k and q are one family.
+  // The fork copies the parent's boundary event too, so q also claims 'khead' as its OWN head (the real c74279cd shape) — that self-claim must not break the k<->q link.
   await fs.writeFile(
     path.join(dir, 'q.jsonl'),
     jsonl(
@@ -104,8 +100,7 @@ beforeAll(async () => {
     ),
   );
 
-  // False positive guard: the words appear only in message TEXT, with no real boundary event ->
-  // no post-compaction head is captured (the old substring check wrongly flagged this).
+  // False positive guard: the words appear only in message TEXT, with no real boundary event -> no post-compaction head is captured (the old substring check wrongly flagged this).
   await fs.writeFile(
     path.join(dir, 'm.jsonl'),
     jsonl(
@@ -114,8 +109,7 @@ beforeAll(async () => {
     ),
   );
 
-  // Mid-life worktree entry (EnterWorktree hook): the transcript stays in the original project dir;
-  // the last worktree-state event decides where the session lives.
+  // Mid-life worktree entry (EnterWorktree hook): the transcript stays in the original project dir; the last worktree-state event decides where the session lives.
   await fs.writeFile(
     path.join(dir, 'w1.jsonl'),
     jsonl(
@@ -133,9 +127,8 @@ beforeAll(async () => {
     ),
   );
 
-  // Slash-command starts: the first message is wrapped in command tags; the row should show the
-  // command line the user effectively typed, not the tag soup. Real shapes: with args, and with an
-  // empty args tag.
+  // Slash-command starts: the first message is wrapped in command tags; the row should show the command line the user effectively typed, not the tag soup.
+  // Real shapes: with args, and with an empty args tag.
   await fs.writeFile(
     path.join(dir, 'sc1.jsonl'),
     jsonl({
@@ -155,9 +148,8 @@ beforeAll(async () => {
     }),
   );
 
-  // A session that starts with local commands: a caveat preamble and captured stdout are plumbing,
-  // not a first message — the row should show the first real prompt (here the /model command). The
-  // caveat event still anchors the conversationId (identity must not move).
+  // A session that starts with local commands: a caveat preamble and captured stdout are plumbing, not a first message — the row should show the first real prompt (here the /model command).
+  // The caveat event still anchors the conversationId (identity must not move).
   await fs.writeFile(
     path.join(dir, 'sc3.jsonl'),
     jsonl(
@@ -167,8 +159,7 @@ beforeAll(async () => {
     ),
   );
 
-  // lastActivity comes from the last MESSAGE, so a later system event (a background/Remote Control
-  // touch) must not push it forward.
+  // lastActivity comes from the last MESSAGE, so a later system event (a background/Remote Control touch) must not push it forward.
   await fs.writeFile(
     path.join(dir, 't.jsonl'),
     jsonl(

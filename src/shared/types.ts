@@ -22,20 +22,17 @@ export interface SessionSummary {
   lastActivity: string;
   /** Number of transcript lines (events) in the session. */
   /** This session belongs to a multi-file family (sessions sharing a conversation, e.g. via
-   *  --fork-session). Members are SIBLINGS — no parent/child direction is derived, because fork
-   *  direction is not reliably recoverable from transcript data. Each sibling renders as its own row. */
+   *  --fork-session). Members are SIBLINGS — no parent/child direction is derived, because fork direction is not reliably recoverable from transcript data. Each sibling renders as its own row. */
   isSibling: boolean;
   /** The other members of this session's family (empty when not a sibling). */
   siblingIds: string[];
   /** First user/assistant uuid after each compaction boundary. A fork of a compacted session adopts
-   *  one of these as its own conversationId, which is how such a fork is linked into the family.
-   *  Main-process bookkeeping; the renderer doesn't use it. */
+   *  one of these as its own conversationId, which is how such a fork is linked into the family. Main-process bookkeeping; the renderer doesn't use it. */
   postCompactHeads: string[];
 }
 
 /**
- * A user-defined group of sessions, shown as a sub-section under its project's heading. Groups are
- * app-side only: nothing about them is written to ~/.claude.
+ * A user-defined group of sessions, shown as a sub-section under its project's heading. Groups are app-side only: nothing about them is written to ~/.claude.
  */
 export interface SessionGroup {
   id: string;
@@ -74,8 +71,7 @@ export interface ClaudeUiApi {
   /** Toggle a session's archived state; resolves to the updated archived map. */
   toggleArchive(id: string): Promise<Record<string, number>>;
   /**
-   * Delete a session: move its transcript file to the trash and drop it from metadata.
-   * The renderer confirms first via its own modal.
+   * Delete a session: move its transcript file to the trash and drop it from metadata. The renderer confirms first via its own modal.
    */
   deleteSession(id: string): Promise<void>;
   /** Session ids open as tabs, in order, persisted for restore on next launch. */
@@ -100,8 +96,7 @@ export interface ClaudeUiApi {
   /** Every group plus the session -> group membership. */
   getGroupState(): Promise<GroupState>;
   /**
-   * Create a group in a project, optionally moving a session into it in the same step (the row
-   * menu's "New group…" does both). A blank name creates nothing.
+   * Create a group in a project, optionally moving a session into it in the same step (the row menu's "New group…" does both). A blank name creates nothing.
    */
   createGroup(name: string, repoRoot: string | null, sessionId?: string): Promise<GroupState>;
   renameGroup(id: string, name: string): Promise<GroupState>;
@@ -114,9 +109,8 @@ export interface ClaudeUiApi {
   /** The projects' display order, oldest known first. Empty until the first seed. */
   getProjectOrder(): Promise<string[]>;
   /**
-   * Give every one of `roots` a slot, and hand back the resulting order. Unknown roots go to the
-   * front (a new project should be noticed); the very first call seeds the order from `roots` as
-   * given, so nothing jumps on the run that introduces this.
+   * Give every one of `roots` a slot, and hand back the resulting order.
+   * Unknown roots go to the front (a new project should be noticed); the very first call seeds the order from `roots` as given, so nothing jumps on the run that introduces this.
    */
   seedProjectOrder(roots: string[]): Promise<string[]>;
   /** Reorder one project among the others. */
@@ -139,8 +133,7 @@ export interface ClaudeUiApi {
   /**
    * `fork` runs `--fork-session` (copies the resumed session into a new fork; needs resumeSessionId).
    * `name` runs `--name` to set the session's display name (claude records it as a custom-title).
-   * `worktree` runs `-w` to start in a new git worktree: a non-empty string names it, `''` lets
-   * claude auto-name, `undefined` means no worktree.
+   * `worktree` runs `-w` to start in a new git worktree: a non-empty string names it, `''` lets claude auto-name, `undefined` means no worktree.
    */
   startTerminal(
     cwd: string,

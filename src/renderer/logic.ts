@@ -1,17 +1,14 @@
-// Pure sidebar logic, kept free of DOM/globals so it can be unit-tested. renderer.ts wires these
-// to its state and the DOM.
+// Pure sidebar logic, kept free of DOM/globals so it can be unit-tested. renderer.ts wires these to its state and the DOM.
 import type { GroupState, SessionGroup, SessionSummary } from '../shared/types';
 
-// The stable key for a displayed session entity: the session's own id, always. It is immutable, so
-// pins/archives/tabs can never go stale — a conversation-derived key stopped matching its session
-// the moment the session gained a sibling. conversationId remains the SIGNAL that groups a family
-// (isSibling/siblingIds, derived in the main process) but no longer names anything.
+// The stable key for a displayed session entity: the session's own id, always.
+// It is immutable, so pins/archives/tabs can never go stale — a conversation-derived key stopped matching its session the moment the session gained a sibling.
+// conversationId remains the SIGNAL that groups a family (isSibling/siblingIds, derived in the main process) but no longer names anything.
 export function entityKey(s: SessionSummary): string {
   return s.id;
 }
 
-// One entry per entity key. Keys are unique per session file today, so this is a plain index; the
-// latest-activity preference only matters if the same id ever appears twice in a listing.
+// One entry per entity key. Keys are unique per session file today, so this is a plain index; the latest-activity preference only matters if the same id ever appears twice in a listing.
 export function sessionsByKey(sessions: SessionSummary[]): Map<string, SessionSummary> {
   const byKey = new Map<string, SessionSummary>();
   for (const s of sessions) {
@@ -22,8 +19,7 @@ export function sessionsByKey(sessions: SessionSummary[]): Map<string, SessionSu
   return byKey;
 }
 
-// The list's structure: one line per session for the fields that affect what the sidebar shows.
-// Excludes lastActivity so a running session writing its transcript isn't a "change".
+// The list's structure: one line per session for the fields that affect what the sidebar shows. Excludes lastActivity so a running session writing its transcript isn't a "change".
 export function structuralSignature(sessions: SessionSummary[]): string {
   return sessions
     .map((s) => `${s.conversationId}\0${s.id}\0${s.cwd}\0${s.title}\0${s.firstMessage}`)
@@ -42,9 +38,8 @@ export function groupByRepo(sessions: SessionSummary[]): [string, SessionSummary
   return [...groups.entries()];
 }
 
-// Put grouped projects into the user's explicit order. A root with no slot yet keeps its incoming
-// (recency) position at the END rather than the front: it is about to be seeded, and guessing a
-// placement here would make it jump once the real order arrives.
+// Put grouped projects into the user's explicit order.
+// A root with no slot yet keeps its incoming (recency) position at the END rather than the front: it is about to be seeded, and guessing a placement here would make it jump once the real order arrives.
 export function orderProjects<T>(entries: [string, T][], order: readonly string[]): [string, T][] {
   const slot = new Map(order.map((root, i) => [root, i]));
   return entries
@@ -63,17 +58,16 @@ export function folderName(repoRoot: string): string {
   return repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
 }
 
-// A project's display name: the user's rename override if set, else the folder name. Used everywhere a
-// project is labelled (project headings, tab bar, switcher); the full path stays available on hover.
+// A project's display name: the user's rename override if set, else the folder name.
+// Used everywhere a project is labelled (project headings, tab bar, switcher); the full path stays available on hover.
 export function displayName(repoRoot: string, names?: ReadonlyMap<string, string>): string {
   return names?.get(repoRoot) || folderName(repoRoot);
 }
 
-// Short, human label for a model id, parsed generically (no hardcoded model list): the alphabetic
-// segment is the family, the numeric segments (minus the trailing YYYYMMDD date, either id order)
-// are the version. So new models need no code change. Examples: claude-opus-4-8 -> "Opus 4.8",
-// claude-fable-5 -> "Fable 5", claude-3-5-haiku-20241022 -> "Haiku 3.5". Falls back to the raw id
-// only when there's no family word at all; empty in -> empty out.
+// Short, human label for a model id, parsed generically (no hardcoded model list): the alphabetic segment is the family, the numeric segments (minus the trailing YYYYMMDD date, either id order) are the version.
+// So new models need no code change.
+// Examples: claude-opus-4-8 -> "Opus 4.8", claude-fable-5 -> "Fable 5", claude-3-5-haiku-20241022 -> "Haiku 3.5".
+// Falls back to the raw id only when there's no family word at all; empty in -> empty out.
 export function modelLabel(model: string): string {
   if (!model) return '';
   const segs = model.toLowerCase().split('-').filter((s) => s && s !== 'claude');
@@ -84,8 +78,7 @@ export function modelLabel(model: string): string {
   return version ? `${name} ${version}` : name;
 }
 
-// Move `moved` to `targetIndex` within the subsequence of items sharing its group key, leaving items
-// of other groups in their slots. Pure; used to reorder a tab within its own project.
+// Move `moved` to `targetIndex` within the subsequence of items sharing its group key, leaving items of other groups in their slots. Pure; used to reorder a tab within its own project.
 export function reorderWithinGroup<T>(items: T[], keyOf: (t: T) => string, moved: T, targetIndex: number): T[] {
   const key = keyOf(moved);
   const group = items.filter((t) => keyOf(t) === key);
@@ -108,8 +101,7 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
   return `${Math.round(hours / 24)} d ago`;
 }
 
-// The [from, to] window for a date preset, rolling from `now`. 'any' and 'custom' have no preset
-// bounds ('custom' is read from the date inputs by the caller).
+// The [from, to] window for a date preset, rolling from `now`. 'any' and 'custom' have no preset bounds ('custom' is read from the date inputs by the caller).
 export function datePresetRange(preset: string, now: number): { from: number | null; to: number | null } {
   const day = 86_400_000;
   if (preset === 'today') {
@@ -150,8 +142,7 @@ export interface FilterCriteria {
   groupNames?: ReadonlyMap<string, string>;
 }
 
-// Whether a session survives every active filter. Archived sessions are hidden from the normal
-// list and are the only ones shown in the archived view; the toggle flips which set is visible.
+// Whether a session survives every active filter. Archived sessions are hidden from the normal list and are the only ones shown in the archived view; the toggle flips which set is visible.
 export function sessionPasses(session: SessionSummary, c: FilterCriteria): boolean {
   const key = entityKey(session);
   if (c.pendingDeletes.has(key)) return false;
@@ -168,17 +159,16 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   }
   if (!c.text) return true;
   const note = c.notes?.get(key) ?? '';
-  // The group name matches every session in that group, which is what makes typing one a way to
-  // reach it — the group headings themselves are not searchable, only the rows under them.
+  // The group name matches every session in that group, which is what makes typing one a way to reach it — the group headings themselves are not searchable, only the rows under them.
   const group = c.groupNames?.get(key) ?? '';
   return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id} ${note} ${group}`
     .toLowerCase()
     .includes(c.text.toLowerCase());
 }
 
-// A project's rolled-up nudge for the switcher: the strongest UNATTENDED status among its sessions,
-// so a project you're not looking at still shows it needs you. Priority waiting > idle > busy; null
-// when nothing needs surfacing. An acked (read) session is muted and contributes nothing.
+// A project's rolled-up nudge for the switcher: the strongest UNATTENDED status among its sessions, so a project you're not looking at still shows it needs you.
+// Priority waiting > idle > busy; null when nothing needs surfacing.
+// An acked (read) session is muted and contributes nothing.
 export type NudgeStatus = 'waiting' | 'idle' | 'busy' | null;
 
 export interface SwitcherProject {
@@ -218,10 +208,9 @@ function rollUpNudge(
   return waiting ? 'waiting' : idle ? 'idle' : busy ? 'busy' : null;
 }
 
-// Build the project-switcher model from the VISIBLE tips (one per conversation, already filtered to
-// what the sidebar shows). Projects order by recency: the input is recency-sorted, so a project takes
-// the position of its most-recent session (first appearance). Per project: session count + the
-// rolled-up nudge badge; plus an "All" aggregate over everything passed.
+// Build the project-switcher model from the VISIBLE tips (one per conversation, already filtered to what the sidebar shows).
+// Projects order by recency: the input is recency-sorted, so a project takes the position of its most-recent session (first appearance).
+// Per project: session count + the rolled-up nudge badge; plus an "All" aggregate over everything passed.
 export function projectsForSwitcher(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,
@@ -229,8 +218,7 @@ export function projectsForSwitcher(
   names?: ReadonlyMap<string, string>,
   projectOrder: readonly string[] = [],
 ): SwitcherModel {
-  // Same order as the sidebar sections: the switcher is the compact view of the same list, so the
-  // two must never disagree about where a project sits.
+  // Same order as the sidebar sections: the switcher is the compact view of the same list, so the two must never disagree about where a project sits.
   const projects = orderProjects(groupByRepo(sessions), projectOrder).map(([repoRoot, list]) => ({
     repoRoot,
     name: displayName(repoRoot, names),
@@ -243,10 +231,8 @@ export function projectsForSwitcher(
   };
 }
 
-// --- The session list's shape --------------------------------------------------------------------
-// One project section per repo, each holding its groups (in registry order) and then the sessions
-// that are in no group. Pure: renderer.ts turns this into DOM, and every ordering rule lives here so
-// it can be tested without a browser.
+// --- The session list's shape -------------------------------------------------------------------- One project section per repo, each holding its groups (in registry order) and then the sessions that are in no group.
+// Pure: renderer.ts turns this into DOM, and every ordering rule lives here so it can be tested without a browser.
 
 export interface GroupedSessions {
   group: SessionGroup;
@@ -265,9 +251,8 @@ export interface ProjectTree {
   isRepo: boolean;
 }
 
-// Pinned sessions rise to the front, everything else keeps the order it came in (callers pass a
-// recency-sorted list). A stable partition, so this floats a pin inside whichever section it lands
-// in rather than lifting it out of its group.
+// Pinned sessions rise to the front, everything else keeps the order it came in (callers pass a recency-sorted list).
+// A stable partition, so this floats a pin inside whichever section it lands in rather than lifting it out of its group.
 function pinnedFirst(sessions: SessionSummary[], pinned: ReadonlySet<string>): SessionSummary[] {
   return [
     ...sessions.filter((s) => pinned.has(entityKey(s))),
@@ -276,12 +261,10 @@ function pinnedFirst(sessions: SessionSummary[], pinned: ReadonlySet<string>): S
 }
 
 /**
- * Arrange the visible sessions into project sections. Projects keep the order they appear in
- * `sessions` (recency, since the caller sorts that way); inside a project the groups come first in
- * registry order, then the ungrouped remainder.
+ * Arrange the visible sessions into project sections.
+ * Projects keep the order they appear in `sessions` (recency, since the caller sorts that way); inside a project the groups come first in registry order, then the ungrouped remainder.
  *
- * `hideEmptyGroups` is for filtering: a group whose sessions were all filtered out is noise in a
- * search, but an empty group must stay visible normally — that is how a freshly created one is seen.
+ * `hideEmptyGroups` is for filtering: a group whose sessions were all filtered out is noise in a search, but an empty group must stay visible normally — that is how a freshly created one is seen.
  */
 export function buildProjectTree(
   sessions: SessionSummary[],
@@ -306,8 +289,7 @@ export function buildProjectTree(
     const groups = projectGroups
       .map((group) => ({ group, sessions: ordered.filter((s) => state.groupOf[entityKey(s)] === group.id) }))
       .filter((g) => !hideEmptyGroups || g.sessions.length > 0);
-    // A session whose group belongs to ANOTHER project (it moved cwd, say) is loose here rather than
-    // invisible: a row must always show up under the project it actually belongs to.
+    // A session whose group belongs to ANOTHER project (it moved cwd, say) is loose here rather than invisible: a row must always show up under the project it actually belongs to.
     const loose = ordered.filter((s) => !ids.has(state.groupOf[entityKey(s)] ?? ''));
     return { repoRoot, groups, loose, count: ordered.length, isRepo: ordered.some((s) => s.isRepo) };
   });
@@ -324,14 +306,11 @@ export interface GroupJumpTarget {
 }
 
 /**
- * The places you can jump to inside one project: its groups in list order, then "Ungrouped" when
- * loose sessions exist. Each carries what the menu shows — a name, a count, and the same rolled-up
- * nudge the switcher puts on a project, so the menu answers "which group needs me" as well as
- * "where is it".
+ * The places you can jump to inside one project: its groups in list order, then "Ungrouped" when loose sessions exist.
+ * Each carries what the menu shows — a name, a count, and the same rolled-up nudge the switcher puts on a project, so the menu answers "which group needs me" as well as "where is it".
  *
- * Empty groups are kept: an empty group still has a heading in the list, so it is still somewhere
- * you can go. The 2+ rule that decides whether the trigger appears at all is the caller's, so this
- * stays a plain description of the project.
+ * Empty groups are kept: an empty group still has a heading in the list, so it is still somewhere you can go.
+ * The 2+ rule that decides whether the trigger appears at all is the caller's, so this stays a plain description of the project.
  */
 export function groupJumpTargets(
   project: ProjectTree,
@@ -358,18 +337,14 @@ export function groupJumpTargets(
 /**
  * Does this chunk put anything on screen?
  *
- * The first BYTES out of the pty are not the first thing you can see: measured, claude sends three
- * chunks of pure terminal setup — save/restore cursor, scroll region, bracketed paste, focus
- * reporting — before any content. Clearing the loader on those flashed it away and left the pane
- * empty again, which on a resume is seconds of nothing while the transcript renders.
+ * The first BYTES out of the pty are not the first thing you can see: measured, claude sends three chunks of pure terminal setup — save/restore cursor, scroll region, bracketed paste, focus reporting — before any content.
+ * Clearing the loader on those flashed it away and left the pane empty again, which on a resume is seconds of nothing while the transcript renders.
  *
- * Strips CSI and OSC sequences, then the remaining control characters, and asks whether anything is
- * left. Erring towards "not visible" is the safe direction: the loader stays a moment longer rather
- * than uncovering an empty pane.
+ * Strips CSI and OSC sequences, then the remaining control characters, and asks whether anything is left.
+ * Erring towards "not visible" is the safe direction: the loader stays a moment longer rather than uncovering an empty pane.
  */
-// The final alternative is "ESC + any single character that is not [ or ]", which covers the two-char
-// escapes claude actually sends — ESC 7 and ESC 8, save and restore cursor. A narrower class missed
-// those, the digits survived the strip, and "7" read as content.
+// The final alternative is "ESC + any single character that is not [ or ]", which covers the two-char escapes claude actually sends — ESC 7 and ESC 8, save and restore cursor.
+// A narrower class missed those, the digits survived the strip, and "7" read as content.
 const ANSI_SEQUENCE = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)?|[^[\]])/g;
 export function hasVisibleOutput(data: string): boolean {
   return data.replace(ANSI_SEQUENCE, '').replace(/[\x00-\x1f\x7f]/g, '').trim().length > 0;

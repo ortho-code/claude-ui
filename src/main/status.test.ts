@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-// A temp HOME so installStatusHooks writes into a throwaway ~/.claude and ~/.config. Created in
-// vi.hoisted so it exists before the node:os mock (which closes over it) and before status.ts loads.
+// A temp HOME so installStatusHooks writes into a throwaway ~/.claude and ~/.config. Created in vi.hoisted so it exists before the node:os mock (which closes over it) and before status.ts loads.
 const { testHome } = vi.hoisted(() => {
   const os = require('node:os');
   const fs = require('node:fs');
@@ -11,9 +10,8 @@ const { testHome } = vi.hoisted(() => {
   return { testHome: fs.mkdtempSync(path.join(os.tmpdir(), 'claude-ui-status-')) as string };
 });
 
-// paths.ts pins userData to <appData>/claude-ui on import, so the fake app has to honour setPath for
-// the status paths to land where this test looks for them. appData -> <testHome>/.config keeps that
-// the same directory the app uses on Linux.
+// paths.ts pins userData to <appData>/claude-ui on import, so the fake app has to honour setPath for the status paths to land where this test looks for them.
+// appData -> <testHome>/.config keeps that the same directory the app uses on Linux.
 vi.mock('electron', () => {
   const nodePath = require('node:path');
   const pinned: Record<string, string> = {};
@@ -64,18 +62,15 @@ describe('installStatusHooks', () => {
       'Stop',
       'UserPromptSubmit',
     ]);
-    // PostToolUse is what ends the waiting a permission prompt starts: approving one fires nothing
-    // else, so without it the dot stays on waiting for the rest of the turn.
+    // PostToolUse is what ends the waiting a permission prompt starts: approving one fires nothing else, so without it the dot stays on waiting for the rest of the turn.
     expect(tool.hooks.PostToolUse[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
-    // The script path is single-quoted: on macOS it lives under "Application Support" and an
-    // unquoted space would split it into two arguments.
+    // The script path is single-quoted: on macOS it lives under "Application Support" and an unquoted space would split it into two arguments.
     expect(tool.hooks.UserPromptSubmit[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
     // SessionStart reports identity, not a state — see HOOK_EVENTS.
     expect(tool.hooks.SessionStart[0].hooks[0].command).toBe(`'${ourCmd}' start`);
   });
 
-  // The commands here are deliberately UNQUOTED: the entries being cleaned up were written by
-  // versions that did not quote the script path, which is why the matcher uses `includes`.
+  // The commands here are deliberately UNQUOTED: the entries being cleaned up were written by versions that did not quote the script path, which is why the matcher uses `includes`.
   it('strips only the previously-injected status hooks from ~/.claude/settings.json', async () => {
     await writeSettings({
       model: 'sonnet',

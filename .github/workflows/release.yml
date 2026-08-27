@@ -16,7 +16,9 @@ jobs:
           - os: ubuntu-latest
             args: --linux
           - os: macos-latest
-            # Apple Silicon only: no one who needs this build has an Intel Mac. Adding --x64 would cross-compile node-pty on an arm64 runner, which is both the likeliest thing to fail and a doubling of the macOS minutes, which bill at 10x on a private repo. Add it back the day someone turns up with an Intel Mac — an arm64 build will not run on one.
+            # Apple Silicon only: no one who needs this build has an Intel Mac.
+            # Adding --x64 would cross-compile node-pty on an arm64 runner, which is both the likeliest thing to fail and a doubling of the macOS minutes, which bill at 10x on a private repo.
+            # Add it back the day someone turns up with an Intel Mac — an arm64 build will not run on one.
             args: --mac --arm64
     runs-on: ${{ matrix.os }}
     steps:
@@ -53,7 +55,8 @@ jobs:
           path: artifacts
           merge-multiple: true
       # Published, not a draft: a draft is invisible to read-only collaborators, who would see an empty Releases page. The repo is private, so published still means visible only to them.
-      # The release notes ARE the changelog entry, not a generated commit list: the changelog is written for the people installing this, and a commit list is not. Extracts the section for this tag — everything from its own heading up to the next one.
+      # The release notes ARE the changelog entry, not a generated commit list: the changelog is written for the people installing this, and a commit list is not.
+      # Extracts the section for this tag — everything from its own heading up to the next one.
       - run: |
           version="${GITHUB_REF_NAME#v}"
           awk -v v="$version" '

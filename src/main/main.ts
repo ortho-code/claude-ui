@@ -1,5 +1,4 @@
-// First, and for its side effect: paths.ts pins the userData directory, and must run before any
-// module computes a path from it. See the comment there.
+// First, and for its side effect: paths.ts pins the userData directory, and must run before any module computes a path from it. See the comment there.
 import './paths';
 import { app, BrowserWindow, ipcMain, Menu, dialog, shell, nativeImage } from 'electron';
 import type { NativeImage } from 'electron';
@@ -47,21 +46,17 @@ let mainWindow: BrowserWindow | null = null;
 /** Window title, and the app's only always-visible version stamp. See createWindow. */
 const appTitle = `Claude UI ${app.getVersion()}`;
 
-// `--no-sandbox` cannot be set from inside the app. Do NOT try
-// `app.commandLine.appendSwitch('no-sandbox')`: it was tried and reverted, because it runs too late
-// for the renderer, which then dies with a FATAL about /dev/shm permissions (misleading — /dev/shm is
-// fine) and leaves an empty window painted in the background colour. Measured both ways with a
-// throwaway XDG_CONFIG_HOME: argv flag clean, appendSwitch fatal. The switch has to be on the command
-// line before Electron starts, so it belongs to whatever launches the app — the `start` script in
-// development, and the packaged launcher's own arguments once there is one.
+// `--no-sandbox` cannot be set from inside the app.
+// Do NOT try `app.commandLine.appendSwitch('no-sandbox')`: it was tried and reverted, because it runs too late for the renderer, which then dies with a FATAL about /dev/shm permissions (misleading — /dev/shm is fine) and leaves an empty window painted in the background colour.
+// Measured both ways with a throwaway XDG_CONFIG_HOME: argv flag clean, appendSwitch fatal.
+// The switch has to be on the command line before Electron starts, so it belongs to whatever launches the app — the `start` script in development, and the packaged launcher's own arguments once there is one.
 
-// The app stays on X11 (Xwayland) under WSLg. Do NOT add --ozone-platform=wayland: it paints this
-// window solid white, with or without app.disableHardwareAcceleration(). Both were tried and
-// reverted. See docs/architecture.md, including the note on an all-arrow cursor, which looks like an
-// X11 limitation but is WSLg's pointer state stuck.
+// The app stays on X11 (Xwayland) under WSLg.
+// Do NOT add --ozone-platform=wayland: it paints this window solid white, with or without app.disableHardwareAcceleration().
+// Both were tried and reverted.
+// See docs/architecture.md, including the note on an all-arrow cursor, which looks like an X11 limitation but is WSLg's pointer state stuck.
 
-// Only one claude-ui instance at a time; a second launch focuses the existing window.
-// This may change if we add pop-out / multi-window sessions later.
+// Only one claude-ui instance at a time; a second launch focuses the existing window. This may change if we add pop-out / multi-window sessions later.
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -75,13 +70,12 @@ if (!app.requestSingleInstanceLock()) {
 /**
  * The application menu, which is a platform decision rather than a preference.
  *
- * On Linux there is none, so the default File/Edit/View items — reload, dev tools, view source —
- * stay out of a UI that drives everything itself.
+ * On Linux there is none, so the default File/Edit/View items — reload, dev tools, view source — stay out of a UI that drives everything itself.
  *
- * macOS cannot afford that. There, Cmd+C/V/X/A/Z are delivered by menu ROLES, not by the focused web
- * contents, so a null menu silently costs copy and paste everywhere, the terminal included. This is
- * the smallest menu that keeps them: the app menu macOS expects (About, Hide, Quit), the edit roles,
- * and the window roles. Nothing custom, so nothing to keep in sync.
+ * macOS cannot afford that.
+ * There, Cmd+C/V/X/A/Z are delivered by menu ROLES, not by the focused web contents, so a null menu silently costs copy and paste everywhere, the terminal included.
+ * This is the smallest menu that keeps them: the app menu macOS expects (About, Hide, Quit), the edit roles, and the window roles.
+ * Nothing custom, so nothing to keep in sync.
  */
 function installAppMenu(): void {
   if (process.platform !== 'darwin') {
@@ -92,13 +86,10 @@ function installAppMenu(): void {
 }
 
 /**
- * Is the `claude` CLI actually installed? Asked through a login+interactive shell for the same
- * reason terminal.ts spawns one: on this kind of setup `claude` arrives on PATH via mise/asdf/direnv
- * activation in the shell rc, which a non-interactive shell skips entirely.
+ * Is the `claude` CLI actually installed?
+ * Asked through a login+interactive shell for the same reason terminal.ts spawns one: on this kind of setup `claude` arrives on PATH via mise/asdf/direnv activation in the shell rc, which a non-interactive shell skips entirely.
  *
- * This has never been false on the development machine, which is exactly why it needs asking: an
- * install without the CLI would otherwise open every tab on "command not found", which reads as this
- * app being broken rather than as a missing prerequisite.
+ * This has never been false on the development machine, which is exactly why it needs asking: an install without the CLI would otherwise open every tab on "command not found", which reads as this app being broken rather than as a missing prerequisite.
  */
 function claudeIsInstalled(): Promise<boolean> {
   const shell = process.env.SHELL ?? '/bin/bash';
@@ -112,15 +103,12 @@ function claudeIsInstalled(): Promise<boolean> {
 /**
  * The window icon, read as BYTES rather than handed over as a path.
  *
- * `BrowserWindow`'s `icon` option is consumed by native code, which does not go through Electron's
- * asar-aware fs layer. Once packaged, `…/resources/app.asar/assets/icon.png` is therefore a path
- * that does not exist on disk: the icon silently fails to load, X11 gets no `_NET_WM_ICON`, and the
- * window shows the desktop's generic fallback instead. It only appears when packaged, because in
- * development `assets/` is a real directory. Node's `fs` does read inside the asar, so loading the
- * bytes here behaves identically both ways with nothing to unpack.
+ * `BrowserWindow`'s `icon` option is consumed by native code, which does not go through Electron's asar-aware fs layer.
+ * Once packaged, `…/resources/app.asar/assets/icon.png` is therefore a path that does not exist on disk: the icon silently fails to load, X11 gets no `_NET_WM_ICON`, and the window shows the desktop's generic fallback instead.
+ * It only appears when packaged, because in development `assets/` is a real directory.
+ * Node's `fs` does read inside the asar, so loading the bytes here behaves identically both ways with nothing to unpack.
  *
- * Resized down from the 1024px source that macOS needs: this one is drawn at taskbar size, and
- * Electron's own filtering beats leaving a window manager to crush 1024px into 32.
+ * Resized down from the 1024px source that macOS needs: this one is drawn at taskbar size, and Electron's own filtering beats leaving a window manager to crush 1024px into 32.
  */
 function windowIcon(): NativeImage | undefined {
   try {
@@ -147,9 +135,8 @@ function createWindow(): void {
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   mainWindow.webContents.on('did-finish-load', () => {
-    // index.html carries its own <title>, which wins over the BrowserWindow option, so set it here
-    // instead. Without auto-update the version has to be visible somewhere, and the title bar is
-    // where someone asked "which version are you on?" will actually look.
+    // index.html carries its own <title>, which wins over the BrowserWindow option, so set it here instead.
+    // Without auto-update the version has to be visible somewhere, and the title bar is where someone asked "which version are you on?" will actually look.
     mainWindow?.setTitle(appTitle);
     void claudeIsInstalled().then((installed) => {
       if (installed || !mainWindow || mainWindow.isDestroyed()) return;
@@ -172,8 +159,7 @@ ipcMain.on('shell:openExternal', (_event, url: string) => {
 ipcMain.handle('meta:getArchived', () => getArchived());
 ipcMain.handle('meta:toggleArchive', (_event, id: string) => toggleArchive(id));
 ipcMain.handle('sessions:delete', async (_event, id: string) => {
-  // The renderer confirms via its own modal (a native dialog flickers under WSLg), so here we
-  // just do the deletion: move the files to trash, then drop the session from metadata.
+  // The renderer confirms via its own modal (a native dialog flickers under WSLg), so here we just do the deletion: move the files to trash, then drop the session from metadata.
   await trashSessions([id]);
   await purgeSession(id);
   await clearStatuses([id]);
@@ -222,8 +208,7 @@ app.whenReady().then(async () => {
   installAppMenu();
   // Feeds the macOS About item, which the app menu above provides for free.
   app.setAboutPanelOptions({ applicationName: 'Claude UI', applicationVersion: app.getVersion() });
-  // One-time: rewrite pins/open-tabs/archived stored under conversation keys to stable session ids.
-  // First-wins over the recency-sorted list, so a family's conversationId maps to its latest member.
+  // One-time: rewrite pins/open-tabs/archived stored under conversation keys to stable session ids. First-wins over the recency-sorted list, so a family's conversationId maps to its latest member.
   const sessions = await listSessions();
   const conversationToId = new Map<string, string>();
   for (const s of sessions) if (!conversationToId.has(s.conversationId)) conversationToId.set(s.conversationId, s.id);
@@ -247,8 +232,7 @@ app.on('before-quit', (event) => {
   if (quitting) return;
   quitting = true;
   event.preventDefault();
-  // Tell the renderer we're shutting down before killing terminals, so the tab-close it triggers
-  // for each dying pty doesn't persist an empty open-tabs list over the real one.
+  // Tell the renderer we're shutting down before killing terminals, so the tab-close it triggers for each dying pty doesn't persist an empty open-tabs list over the real one.
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:quitting');
   terminateAll();
   setTimeout(() => app.quit(), 1500);

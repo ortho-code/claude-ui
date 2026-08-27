@@ -19,34 +19,27 @@ const HOOK_EVENTS: [string, string][] = [
   ['UserPromptSubmit', 'busy'],
   ['Stop', 'idle'],
   ['Notification', 'waiting'],
-  // Also busy, and the reason is the gap it closes. A permission prompt arrives as `Notification`,
-  // so the dot goes waiting; approving it is not a `UserPromptSubmit`, so before this NOTHING fired
-  // between the approval and the end of the turn, and the dot sat on waiting while the session
-  // worked. Measured on a live session: 34 seconds of work showing "needs you". A tool having RUN is
-  // the signal that work resumed, which is exactly what was missing.
-  // It fires once per tool call, so it is a busier stream than the rest of this table — cheap
-  // (one small file write, already debounced by the watcher) and it only ever re-asserts a state the
-  // session is already in.
+  // Also busy, and the reason is the gap it closes.
+  // A permission prompt arrives as `Notification`, so the dot goes waiting; approving it is not a `UserPromptSubmit`, so before this NOTHING fired between the approval and the end of the turn, and the dot sat on waiting while the session worked.
+  // Measured on a live session: 34 seconds of work showing "needs you".
+  // A tool having RUN is the signal that work resumed, which is exactly what was missing.
+  // It fires once per tool call, so it is a busier stream than the rest of this table — cheap (one small file write, already debounced by the watcher) and it only ever re-asserts a state the session is already in.
   ['PostToolUse', 'busy'],
   // Ends reset the dot to empty: 'closed' has no color rule, so it renders hollow.
   ['SessionEnd', 'closed'],
   // Not a status: 'start' reports only WHICH session a tab is running, at the moment claude starts.
-  // Without it a new tab holds a placeholder id until its first prompt (the earliest of the events
-  // above), so anything done before that — /rename, most obviously — leaves the tab named
-  // "New: <folder>" and its placeholder row sitting beside the real session in the sidebar. The
-  // renderer treats 'start' as identity only and does not touch the dot: this also fires on `clear`
-  // and `compact`, which happen MID-session, where setting a status would knock out a live one.
+  // Without it a new tab holds a placeholder id until its first prompt (the earliest of the events above), so anything done before that — /rename, most obviously — leaves the tab named "New: <folder>" and its placeholder row sitting beside the real session in the sidebar.
+  // The renderer treats 'start' as identity only and does not touch the dot: this also fires on `clear` and `compact`, which happen MID-session, where setting a status would knock out a live one.
   ['SessionStart', 'start'],
 ];
 
 /**
- * A hook script Claude runs on each event. It reports only for sessions launched
- * by claude-ui (CLAUDE_UI set), extracts the session id from the JSON on stdin, and
- * writes a status file the app watches. Dependency-free and always exits 0.
+ * A hook script Claude runs on each event.
+ * It reports only for sessions launched by claude-ui (CLAUDE_UI set), extracts the session id from the JSON on stdin, and writes a status file the app watches.
+ * Dependency-free and always exits 0.
  */
 const HOOK_SCRIPT = `#!/usr/bin/env bash
-# Written by claude-ui. Reports Claude Code session status to the app,
-# only for sessions launched by claude-ui (CLAUDE_UI is set on its terminals).
+# Written by claude-ui. Reports Claude Code session status to the app, only for sessions launched by claude-ui (CLAUDE_UI is set on its terminals).
 [ -n "\${CLAUDE_UI:-}" ] || exit 0
 status="\${1:-}"
 dir=${shellQuote(statusDir)}
@@ -55,10 +48,8 @@ input="$(cat)"
 sid="$(printf '%s' "$input" | grep -oE '"session_id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\\1/')"
 tab="\${CLAUDE_UI_TAB:-}"
 [ -n "$sid" ] || exit 0
-# 'start' carries identity, not status, so it must never overwrite a real one: these files are what
-# readAllStatuses seeds from at launch, and SessionStart also fires on clear/compact, where a session
-# already has a status worth keeping. A brand-new session has no file yet, which is the case it is
-# here for.
+# 'start' carries identity, not status, so it must never overwrite a real one: these files are what readAllStatuses seeds from at launch, and SessionStart also fires on clear/compact, where a session already has a status worth keeping.
+# A brand-new session has no file yet, which is the case it is here for.
 if [ "$status" = "start" ] && [ -e "$dir/$sid.json" ]; then
   exit 0
 fi
@@ -67,9 +58,8 @@ exit 0
 `;
 
 /**
- * Write the hook script and a claude-ui-owned settings file holding the status hooks. claude gets
- * that file via `--settings` (terminal.ts), whose hooks MERGE with the user's ~/.claude hooks
- * (verified), so the status hooks work without claude-ui writing into the user's settings.json.
+ * Write the hook script and a claude-ui-owned settings file holding the status hooks.
+ * claude gets that file via `--settings` (terminal.ts), whose hooks MERGE with the user's ~/.claude hooks (verified), so the status hooks work without claude-ui writing into the user's settings.json.
  * Also strips any status hooks an earlier version injected there.
  */
 export async function installStatusHooks(): Promise<void> {
@@ -78,8 +68,7 @@ export async function installStatusHooks(): Promise<void> {
 
   const hooks: Record<string, unknown[]> = {};
   for (const [event, status] of HOOK_EVENTS) {
-    // Quote the script path: on macOS it sits under "Application Support", and an unquoted space
-    // would make claude run "…/Application" with "Support/claude-ui/status-hook.sh" as an argument.
+    // Quote the script path: on macOS it sits under "Application Support", and an unquoted space would make claude run "…/Application" with "Support/claude-ui/status-hook.sh" as an argument.
     hooks[event] = [{ hooks: [{ type: 'command', command: `${shellQuote(hookScriptPath)} ${status}` }] }];
   }
   await fs.writeFile(statusSettingsFile, `${JSON.stringify({ hooks }, null, 2)}\n`);
@@ -88,10 +77,9 @@ export async function installStatusHooks(): Promise<void> {
 }
 
 /**
- * One-time cleanup: earlier versions registered the status hooks directly in the user's
- * ~/.claude/settings.json. Strip only those entries (matched by our hook-script path), leaving
- * every other hook untouched. Idempotent — once removed, later launches find nothing and never
- * rewrite the file, so it stops polluting the user's (possibly version-controlled) settings.
+ * One-time cleanup: earlier versions registered the status hooks directly in the user's ~/.claude/settings.json.
+ * Strip only those entries (matched by our hook-script path), leaving every other hook untouched.
+ * Idempotent — once removed, later launches find nothing and never rewrite the file, so it stops polluting the user's (possibly version-controlled) settings.
  */
 async function removeInjectedHooks(): Promise<void> {
   let settings: { hooks?: Record<string, { hooks?: { command?: string }[] }[]> };
@@ -107,8 +95,7 @@ async function removeInjectedHooks(): Promise<void> {
     const entries = settings.hooks[event];
     if (!Array.isArray(entries)) continue;
     const kept = entries.filter(
-      // `includes`, not `startsWith`: the command is quoted now, and the entries being cleaned up
-      // here were written by versions that did not quote it.
+      // `includes`, not `startsWith`: the command is quoted now, and the entries being cleaned up here were written by versions that did not quote it.
       (entry) => !entry.hooks?.some((h) => typeof h.command === 'string' && h.command.includes(hookScriptPath)),
     );
     if (kept.length === entries.length) continue;

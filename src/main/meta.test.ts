@@ -3,8 +3,7 @@ import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-// meta.ts stores its JSON under app.getPath('userData'); point that at a fresh temp dir per test.
-// getVersion feeds the appVersion stamp and the version-change backup, so tests can move it.
+// meta.ts stores its JSON under app.getPath('userData'); point that at a fresh temp dir per test. getVersion feeds the appVersion stamp and the version-change backup, so tests can move it.
 vi.mock('electron', () => ({
   app: { getPath: () => process.env.TEST_USERDATA, getVersion: () => process.env.TEST_APPVERSION ?? '1.0.0' },
 }));
@@ -167,8 +166,7 @@ describe('active project', () => {
     expect(await getActiveProject()).toBeNull();
   });
 
-  // The key was `activeFolder` before the project/folder split; an existing meta.json must keep its
-  // scope rather than silently reverting to All.
+  // The key was `activeFolder` before the project/folder split; an existing meta.json must keep its scope rather than silently reverting to All.
   it('reads the legacy activeFolder key and rewrites it under the new name', async () => {
     await writeMetaFile({ activeFolder: '/home/me/dev/scienta' });
     expect(await getActiveProject()).toBe('/home/me/dev/scienta');
@@ -250,8 +248,7 @@ describe('session groups', () => {
 });
 
 describe('moveGroup', () => {
-  // Three in /a with one of /b wedged between them, so a move that leaked outside its own project
-  // would be visible in the result rather than passing by luck.
+  // Three in /a with one of /b wedged between them, so a move that leaked outside its own project would be visible in the result rather than passing by luck.
   async function seed(): Promise<string[]> {
     await createGroup('a3', '/a');
     await createGroup('b1', '/b');
@@ -397,8 +394,7 @@ describe('notes', () => {
   });
 });
 
-// A meta file can be read by a build that is not the one that wrote it: versions get skipped, and an
-// older build can be installed over a newer one.
+// A meta file can be read by a build that is not the one that wrote it: versions get skipped, and an older build can be installed over a newer one.
 describe('across app versions', () => {
   const readMetaFile = async (): Promise<Record<string, unknown>> =>
     JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
@@ -456,9 +452,8 @@ describe('across app versions', () => {
   });
 });
 
-// The audit log grows by one line per meta write and is bounded by size. It is tested because the
-// bound has failed silently once already: it used to be triggered only when a startup marker was
-// written elsewhere, so removing that marker left the file growing forever with nothing to notice.
+// The audit log grows by one line per meta write and is bounded by size.
+// It is tested because the bound has failed silently once already: it used to be triggered only when a startup marker was written elsewhere, so removing that marker left the file growing forever with nothing to notice.
 describe('audit log', () => {
   const auditFile = (): string => path.join(dir, 'meta-audit.log');
 
@@ -471,8 +466,7 @@ describe('audit log', () => {
   });
 
   it('trims itself once it passes the size cap, and keeps the NEWEST lines', async () => {
-    // Seed well past the 256KB cap. The content does not matter, only that the next real write finds
-    // an oversized file; `marker` proves the survivors are the tail, not the head.
+    // Seed well past the 256KB cap. The content does not matter, only that the next real write finds an oversized file; `marker` proves the survivors are the tail, not the head.
     await fs.writeFile(auditFile(), `${'x'.repeat(300 * 1024)}\nmarker-last\n`);
     await togglePin('s1');
     const text = await fs.readFile(auditFile(), 'utf8');

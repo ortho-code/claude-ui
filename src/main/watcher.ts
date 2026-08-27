@@ -6,10 +6,9 @@ import * as path from 'node:path';
 const projectsDir = path.join(os.homedir(), '.claude', 'projects');
 
 /**
- * Watch ~/.claude/projects and tell the renderer when session transcripts change, so the
- * sidebar updates without a manual refresh. Recursive watch is unreliable on Linux/WSL, so we
- * watch the root (new project folders) plus each project subdirectory (new/changed .jsonl) and
- * add a watcher whenever a new folder appears. Changes are debounced into one notification.
+ * Watch ~/.claude/projects and tell the renderer when session transcripts change, so the sidebar updates without a manual refresh.
+ * Recursive watch is unreliable on Linux/WSL, so we watch the root (new project folders) plus each project subdirectory (new/changed .jsonl) and add a watcher whenever a new folder appears.
+ * Changes are debounced into one notification.
  */
 export function registerSessionsWatcher(getWindow: () => BrowserWindow | null): void {
   mkdirSync(projectsDir, { recursive: true });
