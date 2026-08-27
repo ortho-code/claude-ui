@@ -2,6 +2,11 @@ name: CI
 
 on:
   push:
+    # Branches only. A bare `push:` also matches TAGS, so pushing v0.1.0 ran this workflow alongside
+    # release.yml — which builds and tests the same commit itself before packaging it. `'**'` matches
+    # every branch, including ones with slashes, and no tags.
+    branches:
+      - '**'
   pull_request:
 
 jobs:
