@@ -49,6 +49,9 @@ Done:
 - Project rename, app icon, single-instance lock.
 - A consistent control system: every mark is an SVG icon (no font glyphs), clickable icons
   share one size and one hover treatment, and radius and type come from tokens.
+- Reaching a group without scrolling: a jump list on the project heading.
+- Installable builds for macOS and Linux, built on CI from a version tag. See
+  [CHANGELOG.md](CHANGELOG.md) for what each release contains.
 
 Next:
 
@@ -57,17 +60,47 @@ Next:
 - Config viewer, minimize-to-tray, and later a diff / file side panel.
 - A readable transcript viewer (after a compaction, the CLI cannot show a resumed
   session's earlier history — the transcript file still has it).
-- Reaching a group without scrolling: a jump list on the project heading.
+- Telling you when a session fails to start, instead of leaving the terminal to explain it.
 - A taskbar attention nudge requires a native Windows build; parked while the app
   runs under WSLg.
 
-## Requirements
+## Install a build
+
+The app runs the real `claude` CLI, so **install and sign in to Claude Code first** — without it every
+session opens on "command not found".
+
+Builds are not published anywhere: ask for the file. The version you are running is in the window
+title, which is what to quote in a bug report.
+
+**macOS** (Apple Silicon). Open the `.dmg` and drag the app to Applications. The first launch is
+refused, because the app is signed but not notarised — macOS says it "could not verify" it. Allow it
+once, either from Terminal:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Claude UI.app"
+```
+
+or by clicking Done, then **System Settings → Privacy & Security**, scrolling to Security, and
+pressing **Open Anyway**. On macOS 15 the old right-click-Open trick no longer works. The step repeats
+for each new version.
+
+**Linux** (Debian, Ubuntu, and Ubuntu under WSL):
+
+```bash
+sudo apt install ./claude-ui-<version>-amd64.deb
+```
+
+Use `apt`, not `dpkg -i`: apt pulls in the dependencies the app needs, and `dpkg` fails without them.
+The same command installs a newer version over an older one, keeping your pins, groups and notes.
+
+For a non-Debian distribution there is an `.AppImage`: `chmod +x` it and run it. It has no install or
+upgrade step, so updating means replacing the file yourself.
+
+## Run from source
 
 - WSL 2 with WSLg. The app and `claude` both run inside the Linux distribution.
 - Node, managed by [mise](https://mise.jdx.dev). Run `mise install` once.
 - A C toolchain for the native terminal module: `sudo apt-get install build-essential`.
-
-## Install and run
 
 ```bash
 mise install
@@ -77,6 +110,9 @@ npm start
 ```
 
 `npm start` builds and launches the app. It runs with `--no-sandbox`, which WSL requires.
+
+To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a Mac. Artifacts land
+in `release/`. Tagging a version builds both on CI and collects them in a draft release.
 
 ## Project layout
 
