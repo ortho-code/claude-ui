@@ -52,3 +52,15 @@ mac:
   target: dmg
   category: public.app-category.developer-tools
   icon: assets/icon.png
+  # Ad-hoc signing, opted into EXPLICITLY. Left unset, electron-builder looks for a certificate in
+  # the keychain and simply skips signing when it finds none — and an unsigned app will not launch on
+  # Apple Silicon at all. "-" is not a real identity: it proves nothing about who built the app, it
+  # only makes it runnable. Gatekeeper still warns on first launch, so colleagues need the
+  # right-click-Open (or xattr) step in the install instructions.
+  identity: "-"
+  # Required BECAUSE of ad-hoc signing — see the file for why the app will not start without it.
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Notarisation needs an Apple developer account, which this deliberately does not have. Explicit so
+  # a missing APPLE_* environment variable never looks like the reason a build behaved oddly.
+  notarize: false

@@ -1,0 +1,65 @@
+name: Release
+
+# Tag-driven, because a release should be a deliberate act rather than a side effect of pushing.
+# `ci.yml` still covers every push and pull request; this only runs for a version tag.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      # Keep going if one platform fails: a working Linux artifact is still worth having while a mac
+      # problem is diagnosed, and vice versa.
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            args: --linux
+          - os: macos-latest
+            # Apple Silicon only: no one who needs this build has an Intel Mac. Adding --x64 would
+            # cross-compile node-pty on an arm64 runner, which is both the likeliest thing to fail
+            # and a doubling of the macOS minutes, which bill at 10x on a private repo. Add it back
+            # the day someone turns up with an Intel Mac — an arm64 build will not run on one.
+            args: --mac --arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      # No ELECTRON_SKIP_BINARY_DOWNLOAD here, unlike ci.yml: packaging needs the real binary.
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      # --publish never: this job only produces files. The release job below decides what happens to
+      # them, so a failed upload can never leave a half-published release behind.
+      - run: npx electron-builder ${{ matrix.args }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          if-no-files-found: error
+          path: |
+            release/*.deb
+            release/*.AppImage
+            release/*.dmg
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      # The only write this workflow needs, and only in this job.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      # A DRAFT: the artifacts are handed to colleagues directly, so the release is a private staging
+      # area to collect them, not an announcement. Publishing it is a manual decision.
+      - run: gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes artifacts/*
+        env:
+          GH_TOKEN: ${{ github.token }}

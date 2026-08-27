@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements for the AD-HOC signed macOS build (mac.identity: "-" in electron-builder.yml).
+
+  disable-library-validation is not optional here. electron-builder's own docs: ad-hoc signing plus
+  the default hardenedRuntime enforces library validation, which rejects the pre-signed Electron
+  frameworks because they carry a different Team ID — the app then fails to launch at all. The
+  alternative is hardenedRuntime: false; this is the narrower of the two.
+
+  allow-jit and allow-unsigned-executable-memory are what V8 needs to run under the hardened runtime.
+
+  All three become unnecessary the day this is signed with a real Developer ID.
+-->
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+  </dict>
+</plist>
