@@ -392,3 +392,29 @@ describe('notes', () => {
     expect(await getNotes()).toEqual({ s1: 'fine' });
   });
 });
+
+// The audit log grows by one line per meta write and is bounded by size. It is tested because the
+// bound has failed silently once already: it used to be triggered only when a startup marker was
+// written elsewhere, so removing that marker left the file growing forever with nothing to notice.
+describe('audit log', () => {
+  const auditFile = (): string => path.join(dir, 'meta-audit.log');
+
+  it('records one line per write', async () => {
+    await togglePin('s1');
+    await togglePin('s2');
+    const lines = (await fs.readFile(auditFile(), 'utf8')).split('\n').filter(Boolean);
+    expect(lines).toHaveLength(2);
+    expect(lines[1]).toContain('togglePin');
+  });
+
+  it('trims itself once it passes the size cap, and keeps the NEWEST lines', async () => {
+    // Seed well past the 256KB cap. The content does not matter, only that the next real write finds
+    // an oversized file; `marker` proves the survivors are the tail, not the head.
+    await fs.writeFile(auditFile(), `${'x'.repeat(300 * 1024)}\nmarker-last\n`);
+    await togglePin('s1');
+    const text = await fs.readFile(auditFile(), 'utf8');
+    expect(text.length).toBeLessThan(256 * 1024);
+    expect(text).toContain('marker-last');
+    expect(text).toContain('togglePin');
+  });
+});

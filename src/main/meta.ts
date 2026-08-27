@@ -185,9 +185,11 @@ function serialize<T>(op: () => Promise<T>): Promise<T> {
   return run;
 }
 
-// TEMPORARY debug aid (remove once tab persistence is trusted — see .plan): append one line per
-// write to meta-audit.log, so a dropped tab-list change can be traced to the op and moment that
-// wrote it. Best-effort — logging must never break a real write.
+// One line per meta write, appended to meta-audit.log, so a lost tab list or a dropped pin can be
+// traced to the operation and the moment that wrote it. Written as a temporary aid for one bug; kept
+// deliberately now the app is distributed, because "my tabs disappeared" is exactly the report you
+// cannot reproduce on someone else's machine, and this is the only record of what actually happened.
+// Best-effort throughout: logging must never break a real write.
 let auditSeq = 0;
 function auditPath(): string {
   return path.join(app.getPath('userData'), 'meta-audit.log');
@@ -196,35 +198,35 @@ async function auditWrite(op: string, meta: Meta): Promise<void> {
   try {
     const line = `${new Date().toISOString()} #${(auditSeq += 1)} ${op} open=${JSON.stringify(meta.openSessions)} pinned=${JSON.stringify(meta.pinned)}\n`;
     await fs.appendFile(auditPath(), line);
+    await trimAudit();
   } catch {
     // ignore
   }
 }
 
-// Append a lifecycle marker (STARTUP/QUITTING) with the on-disk open-tabs at that moment, so restart
-// boundaries are visible in the log. On STARTUP, trim the log to the last few restarts so it can't
-// grow unbounded. Serialized with the writes so a marker and the trim can't race an append.
-export function auditMarker(label: string): Promise<void> {
-  return serialize(async () => {
-    try {
-      const meta = await readMeta();
-      const line = `${new Date().toISOString()} ===== ${label} ===== open=${JSON.stringify(meta.openSessions)}\n`;
-      await fs.appendFile(auditPath(), line);
-      if (label === 'STARTUP') await trimAudit();
-    } catch {
-      // ignore
-    }
-  });
-}
+// At the ~150 bytes a typical line costs, this keeps on the order of a thousand writes: enough to
+// read back through several sessions of work. Trimming to HALF the cap, rather than just under it,
+// keeps the rewrite occasional instead of firing on every subsequent write.
+const AUDIT_MAX_BYTES = 256 * 1024;
+const AUDIT_KEEP_BYTES = 128 * 1024;
 
-// Keep only the last `keepRestarts` STARTUP segments; drop everything before that.
-async function trimAudit(keepRestarts = 5): Promise<void> {
-  const text = await fs.readFile(auditPath(), 'utf8').catch(() => '');
-  if (!text) return;
-  const lines = text.split('\n');
-  const starts = lines.flatMap((line, i) => (line.includes('===== STARTUP =====') ? [i] : []));
-  if (starts.length <= keepRestarts) return;
-  await fs.writeFile(auditPath(), lines.slice(starts[starts.length - keepRestarts]).join('\n'));
+/**
+ * Bound the log by SIZE. It used to be trimmed only when a STARTUP marker was written, which tied a
+ * file's growth to a debug marker elsewhere — so removing that marker left the log growing forever,
+ * and left the trim unable to fire anyway, since it looked for STARTUP lines that no longer existed.
+ * Size is the property actually being bounded, so bound that directly, in bytes rather than lines:
+ * a line-count trim does not bound a file whose lines can be any length, and `openSessions` grows
+ * with the number of open tabs. Runs inside the same serialize() as the write it follows, so a trim
+ * can never race an append.
+ */
+async function trimAudit(): Promise<void> {
+  const { size } = await fs.stat(auditPath()).catch(() => ({ size: 0 }));
+  if (size <= AUDIT_MAX_BYTES) return;
+  const tail = (await fs.readFile(auditPath())).subarray(-AUDIT_KEEP_BYTES);
+  // The cut lands mid-line, so drop that partial record and start on a whole one. No newline at all
+  // means the tail is one oversized line with no complete record in it: keep none of it.
+  const firstBreak = tail.indexOf(0x0a);
+  await fs.writeFile(auditPath(), firstBreak === -1 ? Buffer.alloc(0) : tail.subarray(firstBreak + 1));
 }
 
 // Read-modify-write the meta as one atomic step in the queue. `mutate` returns the value to resolve.
