@@ -26,11 +26,20 @@ linux:
   # inside an artifact. The trade is that mail to it bounces; fine while the audience is colleagues
   # who have other ways to reach us, worth revisiting if this is ever published more widely.
   maintainer: alleknalle <5603434+alleknalle@users.noreply.github.com>
-  # Makes the window's WM_CLASS match the .desktop entry, so the desktop environment associates the
-  # running window with it and the taskbar shows this app's icon rather than a generic one. The name
-  # itself is `desktopName` in package.json — Electron reads that one, not electron-builder.
-  syncDesktopName: true
+  # NO syncDesktopName. It writes `StartupWMClass` into the .desktop entry so desktop environments can
+  # associate a running window with it — electron-builder warns when it is missing, and that warning
+  # is why it was briefly added. Under WSLg the association is actively harmful: once a window matches
+  # an entry, Windows draws the taskbar button with the DISTRO's Tux icon instead of the app's.
+  # Verified by removing the installed entry entirely, at which point the icon came straight back.
+  # Without the association Windows treats the window as generic and uses its own icon, which is
+  # correct. The Start-menu shortcut and its icon come from `Icon=` and do not need this at all.
   synopsis: Run and track several Claude Code sessions from one window
+  desktop:
+    entry:
+      # Explicitly NO StartupWMClass. See the note above: an entry a running window matches is what
+      # makes Windows draw the taskbar button with the distro's icon. electron-builder writes this key
+      # by default, so it has to be removed rather than merely not asked for.
+      StartupWMClass: null
   target:
     # deb is the one that answers "install it again and it updates": dpkg upgrades a higher version
     # in place and leaves userData alone. AppImage is a fallback for non-Debian distros and has no
@@ -43,8 +52,17 @@ linux:
   # looking for 16 through 256 fell back to the distro's icon. macOS was fine throughout, because
   # there the whole .icns is derived from that one file — which is why this read as a Linux bug.
   icon: assets/icons
-  # Keeps the CLI name lowercase and space-free despite productName.
-  executableName: claude-ui
+  # Also names the .desktop entry, and that name MUST NOT equal the window's WM_CLASS, which Electron
+  # derives from productName as `claude-ui`. When the two match, Windows binds a running WSLg window
+  # to the shortcut WSLg generates from the entry and draws the taskbar button from the distro's
+  # identity — a Tux icon — even though the entry, its converted .ico, the Start menu and the hover
+  # preview all show the app's icon correctly. Verified three ways: removing the entry restored the
+  # button, restoring it broke it again, and renaming it so the names differ restored it while
+  # keeping the Start-menu entry working.
+  # The trade, accepted: a native Linux desktop may not group running windows under this entry. That
+  # costs a dash grouping nicety; the alternative cost a visibly wrong icon on the machine this is
+  # developed on.
+  executableName: claude-ui-app
   # The sandbox switch CANNOT be set from inside the app — it arrives too late for the renderer,
   # which then dies with a misleading /dev/shm FATAL and leaves a blank window (see main.ts). Only
   # the launcher can supply it, so it goes here, where electron-builder writes it into the generated

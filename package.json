@@ -6,7 +6,6 @@
   "license": "MIT",
   "author": "Jille",
   "main": "dist/main/main.js",
-  "desktopName": "claude-ui.desktop",
   "scripts": {
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "tsc --noEmit -p tsconfig.renderer.json && esbuild src/renderer/renderer.ts --bundle --format=esm --outfile=dist/renderer/renderer.js --sourcemap && cp src/renderer/index.html src/renderer/styles.css node_modules/@xterm/xterm/css/xterm.css node_modules/air-datepicker/air-datepicker.css dist/renderer/",
