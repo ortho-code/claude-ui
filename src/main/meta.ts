@@ -44,14 +44,48 @@ interface Meta {
   groupOf: Record<string, string>;
   /** Schema version; 3 = keyed by session id; 2 was conversation-keyed; 1 raw ids. */
   version: number;
+  /**
+   * The app version that last wrote this file. Empty for a file written before this was tracked.
+   * Distinct from `version`, which describes the SHAPE of the data: this one says which build
+   * touched it, which is what makes a rollback detectable and a backup worth stamping.
+   */
+  appVersion: string;
+  /**
+   * Keys this build does not recognise, kept verbatim and written back untouched.
+   *
+   * `normalize` rebuilds the object from the keys it knows, so without this an older build opening a
+   * newer file would silently drop whatever the newer one added, the moment anything was changed.
+   * That was harmless while one machine ran one build. It stops being harmless once installed
+   * versions exist, where the build reading a file may be older than the one that wrote it.
+   */
+  extra: Record<string, unknown>;
 }
+
+/** Every key `normalize` handles. Anything else is preserved through `extra` rather than dropped. */
+const KNOWN_KEYS = new Set([
+  'pinned',
+  'openSessions',
+  'activeSession',
+  'activeSessionByProject',
+  'archived',
+  'activeProject',
+  'activeFolder', // the pre-rename spelling of activeProject; read, never written
+  'projectNames',
+  'projectOrder',
+  'footerExpanded',
+  'notes',
+  'groups',
+  'groupOf',
+  'version',
+  'appVersion',
+]);
 
 function metaPath(): string {
   return path.join(app.getPath('userData'), 'meta.json');
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], footerExpanded: true, notes: {}, groups: [], groupOf: {}, version: 3 };
+  return { pinned: [], openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], footerExpanded: true, notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 // Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
@@ -116,6 +150,10 @@ function normalize(parsed: Record<string, unknown>): Meta {
     groups,
     groupOf,
     version: typeof parsed.version === 'number' ? parsed.version : 1,
+    appVersion: typeof parsed.appVersion === 'string' ? parsed.appVersion : '',
+    // Anything a newer build wrote that this one has never heard of. Carried through untouched;
+    // nothing here is ever read.
+    extra: Object.fromEntries(Object.entries(parsed).filter(([key]) => !KNOWN_KEYS.has(key))),
   };
 }
 
@@ -151,9 +189,60 @@ async function readMeta(): Promise<Meta> {
   }
 }
 
+/**
+ * Compare two `major.minor.patch` strings. Returns <0, 0 or >0 like a sort comparator, and treats a
+ * missing or unparseable part as 0 — enough to tell an upgrade from a downgrade, which is all this
+ * is for. Deliberately not a full semver implementation: pre-release tags sort as equal here, and
+ * the only cost of that is a slightly less precise log line.
+ */
+function compareVersions(a: string, b: string): number {
+  const parts = (v: string): number[] => v.split('.').map((n) => Number.parseInt(n, 10) || 0);
+  const [x, y] = [parts(a), parts(b)];
+  for (let i = 0; i < 3; i++) {
+    if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
+  }
+  return 0;
+}
+
+/**
+ * Keep a copy of meta.json as the OUTGOING version left it, the first time a different build writes.
+ *
+ * The existing `.bak` protects against a corrupt write; this protects against a version change, which
+ * is a different risk and needs its own copy — a rolling backup is overwritten by the very next
+ * write, so by the time anyone notices a new build mishandled something, the pre-upgrade state is
+ * long gone. Stamped with the version that wrote it, so `meta.json.0.1.0.bak` is unambiguous.
+ *
+ * Best-effort throughout: failing to take a backup must never stop the app writing its metadata.
+ */
+async function snapshotOnVersionChange(storedVersion: string): Promise<void> {
+  const current = app.getVersion();
+  // No stored version means a file written before this was tracked, or a brand-new one. There is
+  // nothing a rollback could want back, so take no copy — just let the stamp below record this build.
+  if (!storedVersion || storedVersion === current) return;
+  const direction = compareVersions(current, storedVersion) < 0 ? 'DOWNGRADE' : 'upgrade';
+  try {
+    await fs.copyFile(metaPath(), `${metaPath()}.${storedVersion}.bak`);
+  } catch {
+    // No file to copy yet, or an unwritable directory: the stamp still happens.
+  }
+  try {
+    await fs.appendFile(
+      auditPath(),
+      `${new Date().toISOString()} ===== ${direction} ${storedVersion} -> ${current} =====\n`,
+    );
+  } catch {
+    // ignore
+  }
+}
+
 async function writeMeta(meta: Meta): Promise<void> {
   const file = metaPath();
   await fs.mkdir(path.dirname(file), { recursive: true });
+  // Before anything overwrites the previous build's file. This needs no "have I already done it"
+  // flag: the stamp below makes the stored version match the running one, so every later write hits
+  // the early return inside.
+  await snapshotOnVersionChange(meta.appVersion);
+  meta.appVersion = app.getVersion();
   // Keep the current file as the backup only if it's valid, so a corrupt main file can't clobber a
   // good backup. This is the recovery point readMeta falls back to.
   try {
@@ -166,7 +255,11 @@ async function writeMeta(meta: Meta): Promise<void> {
   // Atomic replace: write a temp file then rename over the target, so a crash mid-write leaves the
   // live meta.json intact (rename is atomic on the same filesystem).
   const tmp = `${file}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(meta, null, 2));
+  // `extra` is a container for keys this build does not know, not a key of its own: spread its
+  // contents back alongside the known ones. Known keys are written second so they always win, though
+  // by construction the two sets cannot overlap.
+  const { extra, ...known } = meta;
+  await fs.writeFile(tmp, JSON.stringify({ ...extra, ...known }, null, 2));
   await fs.rename(tmp, file);
 }
 

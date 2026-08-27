@@ -4,7 +4,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 // meta.ts stores its JSON under app.getPath('userData'); point that at a fresh temp dir per test.
-vi.mock('electron', () => ({ app: { getPath: () => process.env.TEST_USERDATA } }));
+// getVersion feeds the appVersion stamp and the version-change backup, so tests can move it.
+vi.mock('electron', () => ({
+  app: { getPath: () => process.env.TEST_USERDATA, getVersion: () => process.env.TEST_APPVERSION ?? '1.0.0' },
+}));
 
 import {
   getPinned,
@@ -37,6 +40,7 @@ let dir: string;
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-ui-meta-'));
   process.env.TEST_USERDATA = dir;
+  delete process.env.TEST_APPVERSION; // back to the default 1.0.0 unless a test moves it
 });
 
 async function writeMetaFile(contents: unknown): Promise<void> {
@@ -390,6 +394,65 @@ describe('notes', () => {
   it('ignores non-string notes in a hand-edited file', async () => {
     await writeMetaFile({ notes: { s1: 'fine', s2: { nope: true }, s3: 42 }, version: 3 });
     expect(await getNotes()).toEqual({ s1: 'fine' });
+  });
+});
+
+// A meta file can be read by a build that is not the one that wrote it: versions get skipped, and an
+// older build can be installed over a newer one.
+describe('across app versions', () => {
+  const readMetaFile = async (): Promise<Record<string, unknown>> =>
+    JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+
+  it('stamps the writing version into the file', async () => {
+    process.env.TEST_APPVERSION = '0.2.0';
+    await togglePin('s1');
+    expect((await readMetaFile()).appVersion).toBe('0.2.0');
+  });
+
+  it('keeps a stamped copy of the file the previous version left behind', async () => {
+    process.env.TEST_APPVERSION = '0.1.0';
+    await togglePin('kept-by-0.1.0');
+
+    process.env.TEST_APPVERSION = '0.2.0';
+    await togglePin('added-by-0.2.0');
+
+    // The rolling .bak is overwritten by the very next write; this one is not, which is the point.
+    const snapshot = JSON.parse(await fs.readFile(path.join(dir, 'meta.json.0.1.0.bak'), 'utf8'));
+    expect(snapshot.pinned).toEqual(['kept-by-0.1.0']);
+    expect(snapshot.appVersion).toBe('0.1.0');
+    expect((await readMetaFile()).appVersion).toBe('0.2.0');
+  });
+
+  it('takes only one snapshot per version, not one per write', async () => {
+    process.env.TEST_APPVERSION = '0.1.0';
+    await togglePin('a');
+    process.env.TEST_APPVERSION = '0.2.0';
+    await togglePin('b');
+    const first = await fs.readFile(path.join(dir, 'meta.json.0.1.0.bak'), 'utf8');
+    await togglePin('c');
+    // A second snapshot would capture 0.2.0's own writes and destroy the pre-upgrade state.
+    expect(await fs.readFile(path.join(dir, 'meta.json.0.1.0.bak'), 'utf8')).toBe(first);
+  });
+
+  it('records a downgrade in the audit log, so a rollback is visible', async () => {
+    process.env.TEST_APPVERSION = '0.3.0';
+    await togglePin('a');
+    process.env.TEST_APPVERSION = '0.2.0'; // someone was handed an older build
+    await togglePin('b');
+    const log = await fs.readFile(path.join(dir, 'meta-audit.log'), 'utf8');
+    expect(log).toContain('DOWNGRADE 0.3.0 -> 0.2.0');
+  });
+
+  it('preserves keys it does not know, so an older build cannot drop a newer one\'s data', async () => {
+    // What a future version might add, written by a build that understands it.
+    await writeMetaFile({ pinned: ['s1'], version: 3, appVersion: '9.0.0', somethingNew: { a: 1 } });
+    // This build has never heard of `somethingNew`, and rewrites the file for an unrelated reason.
+    await togglePin('s2');
+    const after = await readMetaFile();
+    expect(after.somethingNew).toEqual({ a: 1 });
+    expect(after.pinned).toEqual(['s1', 's2']);
+    // The container itself is an implementation detail and must not leak into the file.
+    expect('extra' in after).toBe(false);
   });
 });
 
