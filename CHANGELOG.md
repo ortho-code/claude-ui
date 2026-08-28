@@ -4,7 +4,9 @@ What changed in each release, for people running a build rather than the source.
 
 ## Unreleased
 
-- The attention strip at the bottom of the sidebar is gone when nothing needs you, rather than sitting there saying "All clear" with a caret that could not open anything. It comes back — the way you left it, open or closed — as soon as a session wants something.
+- The attention strip at the bottom of the sidebar now lists what is RUNNING, wherever it is running, rather than only what is nudging: marking a dot read no longer deletes its row, and a live session in a project you are not looking at is reachable from somewhere at last. Its label counts what actually wants you ("2 of 5 need you"), rows you have read stay dimmed, and a session in a group carries that group's name.
+- The strip keeps its order now. It used to sort itself most-urgent-first, so every status change reshuffled it; it follows the sidebar's order instead — your project order, pins floated.
+- The strip is gone entirely when nothing is running, rather than sitting there saying "All clear" with a caret that could not open anything. It comes back — the way you left it, open or closed — as soon as something starts.
 - A tab's button now takes two presses: the first stops the session and leaves the tab cold and resumable, the second removes the tab. The mark says which press you are on — a stop square, then a cross — and it is inert while a session is arriving or leaving, so a tab cannot be acted on before its process is there or while it is still going away. A cold tab still goes in one press, and stopping has left the session's menu for the tab it belongs to.
 - Deleting a session while its tab was still starting left a `claude` running with nothing pointing at it. It is now shut down as soon as it reports for duty.
 - A filter for sessions carrying a note, alongside the pinned, open, running, worktree, siblings and archived ones.

@@ -298,6 +298,23 @@ export function buildProjectTree(
   });
 }
 
+/**
+ * The attention strip's sessions, grouped by project and ordered exactly as the sidebar orders the same sessions: projects by the explicit project order, pins floated inside each one.
+ *
+ * The strip used to sort itself attention-first — sessions by urgency, projects by their most urgent session — which meant every status change reshuffled both levels and nothing stayed where you last saw it.
+ * Stability wins here: the strip already contains only sessions worth listing, and each row still carries its own status dot, so the ordering was doing little work while costing the one thing a list you read repeatedly needs.
+ */
+export function orderAsSidebar(
+  sessions: SessionSummary[],
+  pinned: ReadonlySet<string>,
+  projectOrder: readonly string[] = [],
+): [string, SessionSummary[]][] {
+  return orderProjects(groupByRepo(sessions), projectOrder).map(([repoRoot, list]) => [
+    repoRoot,
+    pinnedFirst(list, pinned),
+  ]);
+}
+
 // --- Jumping to a group ---------------------------------------------------------------------------
 
 export interface GroupJumpTarget {

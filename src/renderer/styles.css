@@ -519,11 +519,16 @@ button:hover {
   font-variant-numeric: tabular-nums;
 }
 
-/* A project's rolled-up nudge in the switcher. Static (the per-session pulse lives in the list);
-   busy reuses the spinner ring so it reads as "working" there too. */
+/* A project's rolled-up nudge in the switcher, and the mark on every compact row.
+   One state, one appearance, wherever it is drawn: same size as .status-dot, same busy ring, and the
+   waiting pulse too — a dot that pulses on one surface and sits still on another reads as two states.
+   (The pulse used to be list-only, on the argument that a roll-up should be calmer.)
+   Sized to match .status-dot exactly: one dot size across the app, so the same state never renders at
+   two scales depending on which surface it lands on. Busy showed this worst — an arc drawn at 7px
+   against the same arc at 9px reads as two different marks rather than one. */
 .project-badge {
-  width: 7px;
-  height: 7px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   flex: 0 0 auto;
   background: transparent;
@@ -531,6 +536,7 @@ button:hover {
 
 .project-badge.waiting {
   background: var(--waiting);
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
 .project-badge.idle {
@@ -538,10 +544,19 @@ button:hover {
 }
 
 .project-badge.busy {
+  /* The same ring .status-dot.busy draws — same width, same two-tone arc — so "working" is one mark everywhere. */
   box-sizing: border-box;
-  border: 1.5px solid var(--accent);
-  border-top-color: transparent;
+  border: 2px solid #89b4fa40;
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
   animation: spin 1.5s linear infinite;
+}
+
+/* "Read": dim it and stop the pulse, the same treatment .status-dot gets — a muted row in the attention
+   strip has to read as muted next to a live one. */
+.project-badge.acked {
+  opacity: 0.4;
+  animation: none;
 }
 
 /* A bordered panel groups the filter controls into one unit that belongs to the 🔍 toggle. */
@@ -1746,7 +1761,8 @@ button:focus:not(:focus-visible) {
   background: none;
   border: none;
   color: var(--text);
-  font-size: var(--text-meta);
+  /* The size of the rows it summarises. A single step down read as a mistake rather than as hierarchy. */
+  font-size: var(--text-body);
   text-align: left;
   cursor: pointer;
 }
@@ -1758,6 +1774,22 @@ button:focus:not(:focus-visible) {
 /* No held open state here, deliberately (user, 2026-08-13): the footer list is a PERSISTENT panel,
    often open for a whole session, so a pressed look is lasting noise — unlike the switcher popover
    (open briefly to pick) or the filter toggle (a compact button, where it reads fine). */
+
+/* Which group a strip row belongs to, as a chip rather than a heading level: the strip is capped at
+   40vh, so a nested group would cost a row and an indent per group where this costs neither. Muted and
+   shrink-proof — the session name gives up the space, since the chip is short and the name is not. */
+.footer-item-group {
+  flex: 0 0 auto;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
 
 #footer-label {
   flex: 1;
@@ -1790,6 +1822,8 @@ button:focus:not(:focus-visible) {
 }
 
 .footer-item-name {
+  /* Takes the slack so the group chip sits at the row's right edge: a column of chips reads as a column, where chips trailing each name at its own width read as ragged. */
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

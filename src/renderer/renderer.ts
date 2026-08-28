@@ -19,6 +19,7 @@ import {
   sessionPasses,
   datePresetRange,
   projectsForSwitcher,
+  orderAsSidebar,
   hasVisibleOutput,
   type NudgeStatus,
   type SwitcherModel,
@@ -804,7 +805,6 @@ function renderSwitcher(pool: SessionSummary[]): void {
   renderFooter(model, pool);
 }
 
-const NUDGE_ORDER: Record<'waiting' | 'idle' | 'busy', number> = { waiting: 0, idle: 1, busy: 2 };
 // Seeded from meta at startup (default open — the strip exists to be read), and written back on every toggle so the choice survives a restart.
 let footerExpanded = true;
 
@@ -989,23 +989,21 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   footerBadge.className = overall ? `project-badge ${overall}` : 'project-badge';
   footerBadge.hidden = !overall;
 
-  // Nudged sessions grouped by project; projects and sessions ordered attention-first.
-  const projects = new Map<string, { name: string; items: { session: SessionSummary; badge: NudgeStatus }[] }>();
-  for (const session of pool) {
-    const badge = sessionNudge(session.id);
-    if (!badge) continue;
-    let project = projects.get(session.repoRoot);
-    if (!project) {
-      project = { name: projName(session.repoRoot), items: [] };
-      projects.set(session.repoRoot, project);
-    }
-    project.items.push({ session, badge });
-  }
-  for (const project of projects.values()) {
-    project.items.sort((a, b) => NUDGE_ORDER[a.badge!] - NUDGE_ORDER[b.badge!]);
-  }
-  const ordered = [...projects.values()].sort((a, b) => NUDGE_ORDER[a.items[0].badge!] - NUDGE_ORDER[b.items[0].badge!]);
+  // What is RUNNING, wherever it is running — not what is nudging.
+  // Membership used to be "has a live nudge", which meant marking a dot read deleted the row: muting said "erase this" when it should have said "seen it".
+  // Running is also the only rule that closes the gap this strip exists for: scoped to one project, a live session in another is invisible in the tab bar (filtered to the active project) and out of scope in the list, and the switcher only ever gets you to a PROJECT, never back to a SESSION.
+  // Nothing is lost by dropping the nudge from the membership: a session that is not running has already reported SessionEnd, so it cannot be nudging in the first place.
+  const live = new Set(tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)));
+  // Grouped and ordered exactly as the sidebar orders them — see orderAsSidebar for why this is not sorted by urgency.
+  const ordered = orderAsSidebar(pool.filter((s) => live.has(entityKey(s))), pinned, projectOrder).map(
+    ([repoRoot, list]) => ({ name: projName(repoRoot), items: list }),
+  );
   const total = ordered.reduce((n, g) => n + g.items.length, 0);
+  // "Needs you" is idle or waiting and NOT already read; busy is work in progress, which wants nothing from you.
+  const needing = ordered.reduce(
+    (n, g) => n + g.items.filter((s) => sessionNudge(s.id) === 'idle' || sessionNudge(s.id) === 'waiting').length,
+    0,
+  );
 
   if (total === 0) {
     // Gone entirely rather than sitting there saying "All clear", which read as odd on a first run — nothing had happened yet for anything to be clear of — and left a caret pointing at a panel that could not open.
@@ -1019,23 +1017,38 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
 
   sidebarFooter.hidden = false;
   footerToggle.setAttribute('aria-expanded', String(footerExpanded));
-  footerLabel.textContent = `${total} ${total === 1 ? 'session' : 'sessions'}`;
+  // Counting ATTENTION rather than rows: now that a session stays listed while it runs, a plain row count would report five sessions wanting you when four of them are working away happily.
+  footerLabel.textContent = needing > 0 ? `${needing} of ${total} need you` : `${total} running`;
   footerList.hidden = !footerExpanded;
+  // Once for the whole strip rather than per row: the membership and the registry have to come from the same read anyway.
+  const { groups, groupOf } = effectiveGroupState();
   footerList.replaceChildren(
     ...ordered.flatMap((project) => {
       const heading = document.createElement('div');
       heading.className = 'footer-project';
       heading.textContent = project.name;
-      const rows = project.items.map(({ session, badge }) => {
+      const rows = project.items.map((session) => {
         const row = document.createElement('button');
         row.type = 'button';
         row.className = 'footer-item';
+        // The roll-up badge, not the sidebar's status dot: that one is a CONTROL (9px, bordered, click to mark read) where this is decoration on a row whose whole job is to jump you to the session.
+        // The read state still has to show, though, or a muted row reads as live — hence the acked modifier, which dims this badge exactly as it dims the dot.
         const dot = document.createElement('span');
-        dot.className = `project-badge ${badge}`;
+        const status = statuses.get(session.id);
+        dot.className = `project-badge ${status ?? ''}${acked.has(session.id) ? ' acked' : ''}`.trim();
         const name = document.createElement('span');
         name.className = 'footer-item-name';
         name.textContent = sessionLabel(session);
         row.append(dot, name);
+        // The group as a CHIP rather than a third level of headings. The strip is capped at 40vh, where a project -> group -> session nesting costs a heading row and an indent per group, and a chip costs no rows at all.
+        // Worth revisiting if several sessions of one group routinely show here together, since the same chip repeated down a run of rows reads as noise where a single heading would not.
+        const groupName = groups.find((g) => g.id === groupOf[entityKey(session)])?.name;
+        if (groupName) {
+          const chip = document.createElement('span');
+          chip.className = 'footer-item-group';
+          chip.textContent = groupName;
+          row.append(chip);
+        }
         setTooltip(row, sessionLabel(session, '') || null);
         row.addEventListener('click', () => jumpToSession(session));
         return row;
@@ -2412,6 +2425,7 @@ async function startTab(
     renderTabBar();
     updatePlaceholder();
     updateSidebarHighlight(); // its row's bar goes from muted to accent now that it is live
+    refreshSwitcher(); // and the attention strip lists what is RUNNING, so a new one belongs in it now
   } finally {
     tab.starting = false;
     // A start that ends without reaching the render above — a throw, or the early return below — must still hand the button back.
@@ -2525,6 +2539,7 @@ function coolTab(tab: Tab): void {
   renderTabBar();
   updatePlaceholder();
   updateSidebarHighlight();
+  refreshSwitcher(); // drops it from the attention strip now rather than when its SessionEnd lands
 }
 
 /**

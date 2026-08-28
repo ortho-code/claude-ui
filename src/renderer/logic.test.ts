@@ -17,6 +17,7 @@ import {
   groupJumpTargets,
   type FilterCriteria,
   orderProjects,
+  orderAsSidebar,
 } from './logic';
 
 function session(over: Partial<SessionSummary> = {}): SessionSummary {
@@ -474,5 +475,33 @@ describe('hasVisibleOutput', () => {
   it('reports the first chunk that actually draws', () => {
     expect(hasVisibleOutput('\r\n\x1b[38;2;255;193;7m────\x1b[39m\r\n\x1b[2GAccessing')).toBe(true);
     expect(hasVisibleOutput('hello')).toBe(true);
+  });
+});
+
+describe('orderAsSidebar', () => {
+  const s = (id: string, repoRoot: string) => session({ id, repoRoot });
+
+  it('follows the explicit project order rather than anything about the sessions', () => {
+    const sessions = [s('a', '/late'), s('b', '/early')];
+    const ordered = orderAsSidebar(sessions, new Set(), ['/early', '/late']);
+    expect(ordered.map(([root]) => root)).toEqual(['/early', '/late']);
+  });
+
+  it('floats pins inside a project, like the list does', () => {
+    const sessions = [s('a', '/repo'), s('b', '/repo'), s('c', '/repo')];
+    const [[, list]] = orderAsSidebar(sessions, new Set(['c']), ['/repo']);
+    expect(list.map((x) => x.id)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('keeps a project the order has never seen, rather than dropping it', () => {
+    const ordered = orderAsSidebar([s('a', '/unknown')], new Set(), ['/known']);
+    expect(ordered.map(([root]) => root)).toEqual(['/unknown']);
+  });
+
+  it('is stable as statuses change, since it never looks at them', () => {
+    const sessions = [s('a', '/one'), s('b', '/two')];
+    const first = orderAsSidebar(sessions, new Set(), ['/one', '/two']);
+    const again = orderAsSidebar([...sessions].reverse(), new Set(), ['/one', '/two']);
+    expect(again.map(([root]) => root)).toEqual(first.map(([root]) => root));
   });
 });
