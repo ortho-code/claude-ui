@@ -120,8 +120,8 @@ export interface FilterCriteria {
   pinnedOnly: boolean;
   /** Show only sessions with a tab — running or cold. */
   openOnly: boolean;
-  /** Show only sessions with a LIVE process. Narrower than openOnly, and what the stop action needs. */
-  runningOnly: boolean;
+  /** Show only LIVE sessions — a claude process behind them. Narrower than openOnly, which counts a cold tab too. */
+  liveOnly: boolean;
   worktreeOnly: boolean;
   /** Show only members of a multi-session family (siblings). */
   siblingOnly: boolean;
@@ -133,8 +133,8 @@ export interface FilterCriteria {
   pinned: ReadonlySet<string>;
   /** Keys of the sessions with a tab; only consulted when openOnly is set. */
   open?: ReadonlySet<string>;
-  /** Keys of the sessions currently running; only consulted when runningOnly is set. */
-  running?: ReadonlySet<string>;
+  /** Keys of the live sessions; only consulted when liveOnly is set. */
+  live?: ReadonlySet<string>;
   /** Set or Map keyed by conversationId; only membership is used. */
   archived: { has(key: string): boolean };
   pendingDeletes: ReadonlySet<string>;
@@ -151,7 +151,7 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   if (c.archivedOnly !== c.archived.has(key)) return false;
   if (c.pinnedOnly && !c.pinned.has(key)) return false;
   if (c.openOnly && !c.open?.has(key)) return false;
-  if (c.runningOnly && !c.running?.has(key)) return false;
+  if (c.liveOnly && !c.live?.has(key)) return false;
   if (c.worktreeOnly && !session.worktree) return false;
   if (c.siblingOnly && !session.isSibling) return false;
   if (c.notedOnly && !c.notes?.has(key)) return false;

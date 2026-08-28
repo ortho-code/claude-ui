@@ -39,7 +39,7 @@ const container = document.getElementById('sessions')!;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const pinnedFilter = document.getElementById('pinned-filter') as HTMLButtonElement;
 const openFilter = document.getElementById('open-filter') as HTMLButtonElement;
-const runningFilter = document.getElementById('running-filter') as HTMLButtonElement;
+const liveFilter = document.getElementById('live-filter') as HTMLButtonElement;
 const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonElement;
 const siblingFilter = document.getElementById('sibling-filter') as HTMLButtonElement;
 const noteFilter = document.getElementById('note-filter') as HTMLButtonElement;
@@ -234,7 +234,7 @@ let allSessions: SessionSummary[] = [];
 let filterText = '';
 let showPinnedOnly = false;
 let showOpenOnly = false;
-let showRunningOnly = false;
+let showLiveOnly = false;
 let showWorktreeOnly = false;
 let showSiblingsOnly = false;
 let showNotedOnly = false;
@@ -531,7 +531,7 @@ function isFiltering(): boolean {
     filterText.length > 0 ||
     showPinnedOnly ||
     showOpenOnly ||
-    showRunningOnly ||
+    showLiveOnly ||
     showWorktreeOnly ||
     showSiblingsOnly ||
     showNotedOnly ||
@@ -560,9 +560,9 @@ function passesFilters(session: SessionSummary, groupNames?: ReadonlyMap<string,
     pinnedOnly: showPinnedOnly,
     openOnly: showOpenOnly,
     open: showOpenOnly ? new Set(tabs.map((t) => entityKey(t.session))) : undefined,
-    runningOnly: showRunningOnly,
+    liveOnly: showLiveOnly,
     // Built per call rather than hoisted: cheap next to the tab count, and it must reflect the tabs as they are right now, since starting or stopping one changes what this filter shows.
-    running: showRunningOnly
+    live: showLiveOnly
       ? new Set(tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)))
       : undefined,
     worktreeOnly: showWorktreeOnly,
@@ -640,8 +640,8 @@ function updateFilterStatus(matches: number, total: number): void {
   pinnedFilter.setAttribute('aria-pressed', String(showPinnedOnly));
   openFilter.classList.toggle('active', showOpenOnly);
   openFilter.setAttribute('aria-pressed', String(showOpenOnly));
-  runningFilter.classList.toggle('active', showRunningOnly);
-  runningFilter.setAttribute('aria-pressed', String(showRunningOnly));
+  liveFilter.classList.toggle('active', showLiveOnly);
+  liveFilter.setAttribute('aria-pressed', String(showLiveOnly));
   worktreeFilter.classList.toggle('active', showWorktreeOnly);
   worktreeFilter.setAttribute('aria-pressed', String(showWorktreeOnly));
   siblingFilter.classList.toggle('active', showSiblingsOnly);
@@ -660,7 +660,7 @@ function clearFilter(): void {
   filterText = '';
   showPinnedOnly = false;
   showOpenOnly = false;
-  showRunningOnly = false;
+  showLiveOnly = false;
   showWorktreeOnly = false;
   showSiblingsOnly = false;
   showNotedOnly = false;
@@ -697,7 +697,7 @@ function uiSnapshot(): UiState {
     filters: {
       pinned: showPinnedOnly,
       open: showOpenOnly,
-      running: showRunningOnly,
+      live: showLiveOnly,
       worktree: showWorktreeOnly,
       siblings: showSiblingsOnly,
       noted: showNotedOnly,
@@ -747,7 +747,7 @@ async function restoreUiState(): Promise<number> {
   filterText = state.search.trim().toLowerCase();
   showPinnedOnly = state.filters.pinned;
   showOpenOnly = state.filters.open;
-  showRunningOnly = state.filters.running;
+  showLiveOnly = state.filters.live;
   showWorktreeOnly = state.filters.worktree;
   showSiblingsOnly = state.filters.siblings;
   showNotedOnly = state.filters.noted;
@@ -1018,7 +1018,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   sidebarFooter.hidden = false;
   footerToggle.setAttribute('aria-expanded', String(footerExpanded));
   // Counting ATTENTION rather than rows: now that a session stays listed while it runs, a plain row count would report five sessions wanting you when four of them are working away happily.
-  footerLabel.textContent = needing > 0 ? `${needing} of ${total} need you` : `${total} running`;
+  footerLabel.textContent = needing > 0 ? `${needing} of ${total} need you` : `${total} live`;
   footerList.hidden = !footerExpanded;
   // Once for the whole strip rather than per row: the membership and the registry have to come from the same read anyway.
   const { groups, groupOf } = effectiveGroupState();
@@ -1938,7 +1938,7 @@ const OPEN_ICON =
   '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.6" y="3.4" width="10.8" height="9.2" rx="1.4" /><path d="M2.6 6.4h10.8" /></svg>';
 
 // The running filter's mark: a filled dot inside a ring — the same "live" language the status dots speak, rather than a play triangle, which would read as "start these".
-const RUNNING_ICON =
+const LIVE_ICON =
   '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" /></svg>';
 
 // The archived filter's mark: a lidded box. Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
@@ -2937,14 +2937,14 @@ function wireFilterToggle(button: HTMLButtonElement, flip: () => void): void {
 // Icon-only: the words cost the panel an extra line at a 320px sidebar, and every pill carries a tooltip and an aria-label (see index.html) for what it means.
 pinnedFilter.innerHTML = PINNED_ICON;
 openFilter.innerHTML = OPEN_ICON;
-runningFilter.innerHTML = RUNNING_ICON;
+liveFilter.innerHTML = LIVE_ICON;
 siblingFilter.innerHTML = SIBLING_ICON;
 worktreeFilter.innerHTML = WORKTREE_ICON;
 noteFilter.innerHTML = NOTE_ICON;
 archivedFilter.innerHTML = ARCHIVE_ICON;
 wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
 wireFilterToggle(openFilter, () => (showOpenOnly = !showOpenOnly));
-wireFilterToggle(runningFilter, () => (showRunningOnly = !showRunningOnly));
+wireFilterToggle(liveFilter, () => (showLiveOnly = !showLiveOnly));
 wireFilterToggle(worktreeFilter, () => (showWorktreeOnly = !showWorktreeOnly));
 wireFilterToggle(siblingFilter, () => (showSiblingsOnly = !showSiblingsOnly));
 wireFilterToggle(noteFilter, () => (showNotedOnly = !showNotedOnly));

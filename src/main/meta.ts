@@ -95,7 +95,7 @@ function defaults(): Meta {
 function defaultUi(): UiState {
   return {
     search: '',
-    filters: { pinned: false, open: false, running: false, worktree: false, siblings: false, noted: false, archived: false },
+    filters: { pinned: false, open: false, live: false, worktree: false, siblings: false, noted: false, archived: false },
     datePreset: 'any',
     dateFrom: null,
     dateTo: null,
@@ -131,7 +131,8 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
   return {
     search: typeof ui.search === 'string' ? ui.search : base.search,
     filters: Object.fromEntries(
-      Object.keys(base.filters).map((key) => [key, bool(filters[key], false)]),
+      // `live` was stored as `running` before the word changed; read the old key as its fallback so an existing file keeps the toggle rather than silently clearing it.
+      Object.keys(base.filters).map((key) => [key, bool(filters[key], key === 'live' ? filters.running === true : false)]),
     ) as UiState['filters'],
     datePreset: typeof ui.datePreset === 'string' ? ui.datePreset : base.datePreset,
     dateFrom: ms(ui.dateFrom),

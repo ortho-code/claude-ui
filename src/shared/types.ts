@@ -65,7 +65,7 @@ export interface UiState {
   filters: {
     pinned: boolean;
     open: boolean;
-    running: boolean;
+    live: boolean;
     worktree: boolean;
     siblings: boolean;
     noted: boolean;
