@@ -43,8 +43,11 @@ import type { OrderMove } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
-/** Window title, and the app's only always-visible version stamp. See createWindow. */
-const appTitle = `Claude UI ${app.getVersion()}`;
+/**
+ * Window title, and the app's only always-visible version stamp. See createWindow.
+ * The dev suffix matters because the two are otherwise identical: same name, same version, same icon, and the same data directory, so there is nothing on screen to say whether you are looking at the installed app or one started from source. `app.isPackaged` is derived rather than configured, so it cannot drift.
+ */
+const appTitle = `Claude UI ${app.getVersion()}${app.isPackaged ? '' : ' — dev'}`;
 
 // `--no-sandbox` cannot be set from inside the app.
 // Do NOT try `app.commandLine.appendSwitch('no-sandbox')`: it was tried and reverted, because it runs too late for the renderer, which then dies with a FATAL about /dev/shm permissions (misleading — /dev/shm is fine) and leaves an empty window painted in the background colour.
