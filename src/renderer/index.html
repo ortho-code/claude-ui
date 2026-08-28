@@ -2,13 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <!-- img-src spelled out rather than left to default-src: the app mark in the title bar is a real file next to this one, and a file:// page is not reliably its own origin. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
     <title>claude-ui</title>
     <link rel="stylesheet" href="./xterm.css" />
     <link rel="stylesheet" href="./air-datepicker.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <!-- Our title bar. A strip of its own rather than controls folded into the row below, which was
+         tried first: with the tab bar wrapping to two rows there was almost no empty space left to
+         grab, so the window became hard to move. See .plan/plan_window-chrome.md. -->
+    <div id="titlebar" hidden>
+      <!-- The top three resize handles live INSIDE the bar, not laid over it: no-drag only carves out
+           of a drag region it is a descendant of, so as siblings they were ignored and the top edge
+           never resized. The other five are outside, below, where nothing is draggable. -->
+      <div class="resize-edge" data-edge="nw"></div>
+      <div class="resize-edge" data-edge="n"></div>
+      <div class="resize-edge" data-edge="ne"></div>
+      <img id="app-mark" src="./icon.png" alt="" width="16" height="16" />
+      <span id="window-title"></span>
+      <div id="window-controls">
+        <button id="win-minimize" type="button" data-tooltip="Minimize" aria-label="Minimize"></button>
+        <button id="win-maximize" type="button" data-tooltip="Maximize" aria-label="Maximize"></button>
+        <button id="win-close" type="button" class="danger" data-tooltip="Close" aria-label="Close"></button>
+      </div>
+    </div>
     <div id="app">
       <aside id="sidebar">
         <header>
@@ -16,7 +35,7 @@
             <button id="switcher-current" type="button" aria-haspopup="true" aria-expanded="false" data-tooltip="Switch project">
               <span id="switcher-name">All</span>
               <span class="switcher-right">
-                <span id="switcher-badge" class="project-badge" hidden></span>
+                <span id="switcher-badge" class="nudge" hidden></span>
                 <span class="switcher-chev" aria-hidden="true"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.89" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6L8 10L12 6" /></svg></span>
               </span>
             </button>
@@ -61,7 +80,7 @@
         <div id="sidebar-footer" hidden>
           <div id="footer-list" hidden></div>
           <button id="footer-toggle" type="button" aria-expanded="false">
-            <span id="footer-badge" class="project-badge" hidden></span>
+            <span id="footer-badge" class="nudge" hidden></span>
             <span id="footer-label"></span>
             <span class="footer-chev" aria-hidden="true"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.89" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6L8 10L12 6" /></svg></span>
           </button>
@@ -97,6 +116,15 @@
           <button id="rename-ok" type="button">Save</button>
         </div>
       </div>
+    </div>
+    <!-- The remaining edges and corners. Fixed to the window, above everything, and only shown where
+         we draw the chrome — see .plan/plan_window-chrome.md. -->
+    <div id="resize-edges" hidden>
+      <div class="resize-edge" data-edge="w"></div>
+      <div class="resize-edge" data-edge="e"></div>
+      <div class="resize-edge" data-edge="s"></div>
+      <div class="resize-edge" data-edge="sw"></div>
+      <div class="resize-edge" data-edge="se"></div>
     </div>
     <div id="toast" hidden>
       <span id="toast-message"></span>

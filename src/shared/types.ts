@@ -58,6 +58,18 @@ export interface GroupState {
  * Stored and restored as ONE object rather than as a key each.
  * These are all answers to the same question — "put the sidebar back the way it was" — and they are written together on a debounce from a single snapshot, so a key each would mean ten round trips and ten chances for half of a view to be restored.
  */
+/** What the renderer needs to know about who draws the window's chrome. */
+export interface WindowChrome {
+  /** True where the window is frameless and the app draws its own title bar. False on macOS, which keeps its traffic lights. */
+  own: boolean;
+  maximized: boolean;
+  /** The full window title, for the bar's tooltip. The renderer cannot read it: `setTitle` from the main process does not touch `document.title`. */
+  title: string;
+  version: string;
+  /** A run from source rather than the installed app. Worth showing, since the two are otherwise identical down to the data directory. */
+  dev: boolean;
+}
+
 export interface UiState {
   /** The search box's contents. */
   search: string;
@@ -142,6 +154,25 @@ export interface ClaudeUiApi {
   /** The sidebar's view state — search, filters, folds, width, scroll — as it was last left. */
   getUiState(): Promise<UiState>;
   setUiState(state: UiState): void;
+  /**
+   * Whether this window has no OS title bar, so the renderer has to draw one, plus the current maximized state.
+   * Asked once at startup: it is decided by the platform and cannot change while the app runs.
+   */
+  getWindowChrome(): Promise<WindowChrome>;
+  minimizeWindow(): void;
+  toggleMaximizeWindow(): void;
+  closeWindow(): void;
+  /**
+   * Begin a window gesture: an edge or corner ('n', 'se', …) to resize, or 'move' to drag the window.
+   * Moving is ours rather than a drag region because a drag region brings Chromium's own
+   * double-click-to-maximize, which cannot be suppressed. See `.plan/plan_window-chrome.md`.
+   */
+  startWindowResize(edge: string, pointer?: { x: number; y: number }): void;
+  /** Offset of the gesture from where it started — total, not incremental. */
+  resizeWindowBy(dx: number, dy: number): void;
+  endWindowResize(): void;
+  /** Fires when the window is maximized or restored, including when a window manager did it. */
+  onWindowMaximized(handler: (maximized: boolean) => void): void;
   getProjectNames(): Promise<Record<string, string>>;
   setProjectName(repoRoot: string, name: string): Promise<Record<string, string>>;
   /** Every group plus the session -> group membership. */

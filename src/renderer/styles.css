@@ -216,13 +216,19 @@ body {
   font-family: system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
+  /* A column so our own title bar can sit above the app without either overlapping it or overflowing
+     the viewport. With no title bar (macOS) the single child simply takes the whole height. */
+  display: flex;
+  flex-direction: column;
 }
 
 #app {
   display: flex;
-  /* 100% of the (100%-height, overflow-hidden) body, not 100vh, which can overshoot the real
-     content area and push the bottom of the terminal below the fold. */
-  height: 100%;
+  /* Flex rather than height:100%, which would mean 100% of the body PLUS the title bar's height and
+     push the bottom of the terminal below the fold — the same fallout the tab rows once caused.
+     min-height:0 so the panes inside can scroll instead of stretching this. */
+  flex: 1;
+  min-height: 0;
 }
 
 #sidebar {
@@ -519,44 +525,77 @@ button:hover {
   font-variant-numeric: tabular-nums;
 }
 
-/* A project's rolled-up nudge in the switcher, and the mark on every compact row.
-   One state, one appearance, wherever it is drawn: same size as .status-dot, same busy ring, and the
-   waiting pulse too — a dot that pulses on one surface and sits still on another reads as two states.
-   (The pulse used to be list-only, on the argument that a roll-up should be calmer.)
-   Sized to match .status-dot exactly: one dot size across the app, so the same state never renders at
-   two scales depending on which surface it lands on. Busy showed this worst — an arc drawn at 7px
-   against the same arc at 9px reads as two different marks rather than one. */
-.project-badge {
+/* THE NUDGE — one mark for a session's state, wherever it is drawn: the session rows, the attention
+   strip, the project switcher, the jump menu, the toasts.
+   The waiting pulse is part of it everywhere, including the rolled-up ones — a mark that pulses on
+   one surface and sits still on another reads as two different states. (The pulse used to be
+   list-only, on the argument that a roll-up should be calmer; it wasn't worth the ambiguity.)
+   It used to be two near-identical classes and they drifted twice: once to two different SIZES, and
+   once to a hollow ring in the list but a 9px hole in the strip for a session with no status yet.
+   Anything about how a nudge looks belongs here, and only here.
+   Hollow when there is no status: a cold session that has not reported has to read as quiet, not as
+   something missing. Every filled state matches its border to its fill so none of them gains a rim. */
+.nudge {
   width: 9px;
   height: 9px;
   border-radius: 50%;
   flex: 0 0 auto;
   background: transparent;
+  /* Transparent, not absent: the states below only set a colour, so the ring has to already be here
+     or a filled dot would be 2px bigger than a hollow one. */
+  border: 1px solid transparent;
 }
 
-.project-badge.waiting {
+/* A mark standing for ONE session is hollow when that session has nothing to report — "here, and
+   quiet". Without it a session that has not reported yet, a cold one just started, left a 9px hole.
+   A ROLL-UP is not marked: a project in the switcher or a group in the jump menu stands for many
+   sessions and has no quiet state of its own, so it carries the strongest nudge underneath it or
+   shows nothing at all. Ringing every one of them just draws a column of empty circles. */
+.nudge.single {
+  border-color: var(--muted);
+}
+
+.nudge.waiting {
   background: var(--waiting);
+  border-color: var(--waiting);
   animation: pulse 1.2s ease-in-out infinite;
 }
 
-.project-badge.idle {
+.nudge.idle {
   background: var(--idle);
+  border-color: var(--idle);
 }
 
-.project-badge.busy {
-  /* The same ring .status-dot.busy draws — same width, same two-tone arc — so "working" is one mark everywhere. */
-  box-sizing: border-box;
-  border: 2px solid #89b4fa40;
+/* Busy is a spinning two-tone ring rather than a filled dot: "working" reads as motion, and it is
+   unmistakable next to the waiting pulse. 2px on the inherited 9px footprint, so nothing jumps. */
+.nudge.busy {
+  border-width: 2px;
+  border-color: #89b4fa40;
   border-top-color: var(--accent);
   border-right-color: var(--accent);
   animation: spin 1.5s linear infinite;
 }
 
-/* "Read": dim it and stop the pulse, the same treatment .status-dot gets — a muted row in the attention
-   strip has to read as muted next to a live one. */
-.project-badge.acked {
+/* "Read": dim whatever colour it is and stop the pulse — acknowledged, still open. */
+.nudge.acked {
   opacity: 0.4;
   animation: none;
+}
+
+/* The one place a nudge is a CONTROL rather than decoration: the session row, where clicking it
+   marks the session read. Everywhere else the nudge only reports, and the row around it is what you
+   click, so the pointer and the enlarged hit target would both be lies. */
+.nudge.clickable {
+  cursor: pointer;
+  position: relative;
+}
+
+/* Keeps the 9px mark while giving it a target worth aiming at. */
+.nudge.clickable::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
 }
 
 /* A bordered panel groups the filter controls into one unit that belongs to the 🔍 toggle. */
@@ -1198,55 +1237,6 @@ button:focus:not(:focus-visible) {
   box-shadow: inset 3px 0 0 var(--muted);
 }
 
-.status-dot {
-  flex: 0 0 auto;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: transparent;
-  border: 1px solid var(--muted);
-  /* Clickable to toggle "read"; keep the 9px dot but widen the hit target with a transparent halo. */
-  cursor: pointer;
-  position: relative;
-}
-
-.status-dot::after {
-  content: '';
-  position: absolute;
-  inset: -5px;
-  border-radius: 50%;
-}
-
-/* Busy = a spinning ring (bright accent arc over a faint track): reads as "working", clearly not
-   the waiting pulse. Rotation vs fade + ring vs filled keeps the two states unmistakable. A 2px
-   ring with a ~90deg bright arc (top+right) makes the spin obvious. Size stays the inherited 9px
-   (all dots are border-box), so busy has the same footprint as the filled dots and nothing jumps. */
-.status-dot.busy {
-  border-width: 2px;
-  background: transparent;
-  border-color: #89b4fa40;
-  border-top-color: var(--accent);
-  border-right-color: var(--accent);
-  animation: spin 1.5s linear infinite;
-}
-
-.status-dot.idle {
-  background: var(--idle);
-  border-color: var(--idle);
-}
-
-.status-dot.waiting {
-  background: var(--waiting);
-  border-color: var(--waiting);
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-/* "Read": dim whatever colour the dot is and stop the pulse — acknowledged, still open. */
-.status-dot.acked {
-  opacity: 0.4;
-  animation: none;
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -1519,6 +1509,154 @@ button:focus:not(:focus-visible) {
   flex-wrap: wrap;
   gap: 2px;
   padding: 4px 6px 0;
+}
+
+/* Our title bar, on the platforms where the OS no longer draws one.
+   Note there is NO `-webkit-app-region: drag` anywhere: dragging is done by hand, like resizing.
+   A drag region brings Chromium's own double-click-to-maximize with it, which cannot be turned off
+   (`maximizable: false` does not stop it) and fought our own handler — the window would maximize
+   natively, drawn offset from where it could be clicked, while the app still believed it was not
+   maximized. Owning the gesture outright is what removed the conflict. */
+#titlebar {
+  position: relative; /* the resize strip positions against this */
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 0 0 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+#app-mark {
+  display: block;
+  border-radius: 3px;
+}
+
+/* The version, and the dev marker, which lived in the OS title bar until we stopped having one. */
+#window-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-meta);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#window-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-self: stretch;
+}
+
+/* Full-height, square-ish and unrounded, the way a title bar's controls are everywhere else: they
+   read as part of the window frame rather than as three more buttons in the app's toolbar. */
+#window-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  align-self: stretch;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+#window-controls button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* Close is the one destructive control in the row, and it sits beside two that are not.
+   The same red as the delete button in the confirm dialog, rather than a second one. */
+#window-controls button.danger:hover {
+  background: #c92a2a;
+  color: #fff;
+}
+
+/* The top edge's resize handle. A frameless window has no resize zone there on this compositor, so
+   this thin strip is the whole mechanism — see .plan/plan_window-chrome.md.
+   `no-drag` is LOAD-BEARING, not tidiness: it lies over the title bar, and a drag region swallows the
+   pointerdown before any handler sees it, which is exactly how the first version silently did nothing.
+   6px rather than the 4 the other edges get, because this one is a target you have to find. */
+/* Every edge and corner of the window, ours rather than the compositor's.
+   6px edges and 12px corners: the 4px Chromium gave three of these was a genuinely hard target. */
+.resize-edge {
+  position: fixed;
+  z-index: 60;
+}
+
+/* The top three are positioned against the title bar they sit in, not the viewport. */
+#titlebar .resize-edge {
+  position: absolute;
+  top: 0;
+}
+
+.resize-edge[data-edge='n'] {
+  left: 12px;
+  right: 12px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.resize-edge[data-edge='s'] {
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+/* The side edges start below the title bar, whose own corners cover that stretch. */
+.resize-edge[data-edge='w'],
+.resize-edge[data-edge='e'] {
+  top: 32px;
+  bottom: 12px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.resize-edge[data-edge='w'] {
+  left: 0;
+}
+
+.resize-edge[data-edge='e'] {
+  right: 0;
+}
+
+.resize-edge[data-edge='nw'],
+.resize-edge[data-edge='ne'],
+.resize-edge[data-edge='sw'],
+.resize-edge[data-edge='se'] {
+  width: 12px;
+  height: 12px;
+}
+
+.resize-edge[data-edge='nw'] {
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.resize-edge[data-edge='ne'] {
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.resize-edge[data-edge='sw'] {
+  left: 0;
+  bottom: 0;
+  cursor: nesw-resize;
+}
+
+.resize-edge[data-edge='se'] {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
 }
 
 /* In the All view the tab bar groups by project: each project on its own line, prefixed by a muted

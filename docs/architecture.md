@@ -94,6 +94,26 @@ The session store is never written to: `~/.claude` is read-only as far as this a
 Writes are serialized through one queue and land via a temp file renamed over the target, with the previous good copy kept as a backup, so a crash mid-write can't leave the file half-written.
 Reads are tolerant by design: unknown or malformed entries are dropped rather than trusted, and older field names are still understood, so an older `meta.json` upgrades in place without a migration step.
 
+## The window's own chrome
+
+On Linux and Windows the window is frameless and the app draws its own title bar: a strip across the top carrying the app mark, the version, and the minimize / maximize / close buttons.
+macOS is deliberately excluded and keeps its native frame — a Mac window without its traffic lights is one you cannot close, and the variant that would replace them (`titleBarStyle: 'hiddenInset'`, with the sidebar header inset beneath the lights) is not built while nobody can look at a Mac to judge it.
+One flag decides all of it, so the two never disagree: the frame, the buttons, the drag and the resize handles all hang off it.
+
+Everything the OS would have done for that window, the app now does, and each piece exists because the compositor's own version is unusable here rather than as a matter of taste.
+
+**Maximize is `setBounds`, never `maximize()`.** The native call paints a frameless window offset from where it hit-tests, so its controls are drawn in one place and clickable in another. The app therefore never enters the native maximized state and keeps the flag itself.
+The rectangle to fill cannot simply be the display's work area, because nothing here publishes one that accounts for the Windows taskbar — so the app asks the window manager the only way it answers, by maximizing a window nobody sees and reading the result back. That answer belongs to whichever display the window manager chose, so it is remembered per display and asked again when an unmeasured one turns up.
+
+**Every edge and corner is a handle the app draws.** Chromium leaves a 4px resize margin on three sides and none at the top, so the top edge could not be resized at all and the other three were a hard target; eight handles at 6px, and 12px at the corners, make them uniform. They clamp to the same minimum size the window enforces, which is one constant rather than two.
+
+**Dragging the window is the app's too, and it stutters.** That is a chosen trade, not an oversight.
+Handing the drag back to the compositor — a drag region — is smooth, but it brings a double-click-to-maximize that uses the native maximize above, and that cannot be suppressed or intercepted: the decision is made on the first mousedown, and every route around it either deadlocks the window or leaves it drawing offset.
+So the choice is a drag that steps and lands correctly, or a maximized window whose buttons are not where they appear. The first is cosmetic and confined to one gesture.
+The gesture itself is one helper shared by moving and by all eight resize handles: it measures in screen coordinates, because the window moves under the pointer; it reports the total offset from where it began rather than per-move deltas, which would each be measured against the previous move's result; it starts only after a few pixels of travel, so a plain click on the bar of a maximized window does not restore it; and it sends at most one change per animation frame.
+
+Two smaller things follow from having no OS title bar. The version and the "dev" marker live in the app's bar, because the window title was the only place they were shown. And a window manager here wraps every window in a 32px invisible frame of its own, which offers a resize affordance it does not honour — nothing in the app can remove it.
+
 ## Reopening the way you left it
 
 Two things are restored on launch, and each has one rule worth knowing.
@@ -132,6 +152,12 @@ The kebabs, both split-button carets (project and group heading), and the siblin
 Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an `attach-top`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a small notch on the menu's edge pointing at the trigger's center.
 Anything new that floats near an anchor should go through those helpers so it gets the notch (and the active-state stamping) for free rather than reinventing positioning.
 
+**One appearance, one rule.** Anything drawn on more than one surface is a single class, never parallel rules kept in step by hand.
+Parallel rules always drift, and they drift silently: the session mark and the strip mark were the same dot in two classes, and they diverged twice — first to two different sizes, worst on the busy arc, where 7px and 9px read as two different marks rather than one state; then to a hollow ring in the list and a 9px hole in the strip for a session that had not reported yet.
+They are now one `.nudge`, with `.nudge.clickable` for the single surface where it is a control rather than a report.
+The practical test: **a comment saying "match X exactly", or "same as Y", is a bug report against the stylesheet.** It means the relationship is being maintained by whoever remembers it. Extract the shared rule and let the difference be a modifier.
+When a variant genuinely differs — a group heading is deliberately lighter than a project heading — that is a modifier on the shared base, not a second copy of it.
+
 ### Sizes and shapes
 
 Sizes come from a small set of decisions, not per-component choices. Reach for the existing tier before inventing a value; if something genuinely needs its own, say why in a comment next to it.
@@ -143,7 +169,7 @@ Ink is centred on (8,8) so flex centring needs no nudge, and stroke width is exp
 sidebar, row and toast controls; **compact** 22×16 (`0 3px`) where density matters, i.e. the tab bar;
 **large** 32×26 (`5px 8px`) for the header actions.
 Each carries a 1px transparent border so the hover/active outline can't resize the box.
-Documented exceptions: the note mark (inline inside a 12px text line) and the 9px status dot.
+Documented exceptions: the note mark (inline inside a 12px text line) and the 9px nudge.
 
 **Composite controls carry a resting border**, single icon controls don't.
 The split buttons on the project and group headings are two halves acting as one button, so they need to look like one object before you touch them; outlining them only on hover makes the pair read as two loose icons that suddenly acquire a box.

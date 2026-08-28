@@ -4,6 +4,12 @@ What changed in each release, for people running a build rather than the source.
 
 ## Unreleased
 
+- The window is the app's own now, on Linux and Windows: its own title bar in the app's colours, with the app icon, the version, and its own minimize, maximize and close buttons, instead of the grey bar the system drew around it. macOS keeps its native frame and traffic lights.
+- Maximize fills the screen without covering the taskbar, and drops back to the size you had. Double-clicking the title bar does the same, and dragging a maximized window restores it under the cursor and keeps dragging, the way a title bar should.
+- The window resizes from every edge and every corner, with a bigger grip than before. The top edge could not be resized at all previously. It stops at a usable minimum size rather than collapsing to nothing.
+- The window no longer drifts down and to the right by one title bar each time you launch it.
+- Dragging the window by its bar is a little steppy — it lands exactly where you put it, but it does not glide. That is the cost of the maximize above working correctly; the smooth alternative comes with a maximized window whose buttons are not where they are drawn.
+- A session that has just started, before it reports anything, shows as a quiet ring in the live strip instead of an empty gap. Projects in the switcher stay unmarked until something under them actually wants you.
 - The attention strip at the bottom of the sidebar now lists what is RUNNING, wherever it is running, rather than only what is nudging: marking a dot read no longer deletes its row, and a live session in a project you are not looking at is reachable from somewhere at last. Its label counts what actually wants you ("2 of 5 need you"), rows you have read stay dimmed, and a session in a group carries that group's name.
 - A session with a `claude` behind it is called LIVE now, not running — "running" read as a state the session was in, like busy, rather than as the difference between a session and a tab. The filter pill says so too.
 - The strip keeps its order now. It used to sort itself most-urgent-first, so every status change reshuffled it; it follows the sidebar's order instead — your project order, pins floated.

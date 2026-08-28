@@ -39,7 +39,18 @@ import {
   getUiState,
   setUiState,
 } from './meta';
-import { placeWindow } from './bounds';
+import {
+  placeWindow,
+  maximizedRect,
+  insetFromProbe,
+  resizeBy,
+  unmaximizeUnderPointer,
+  frameOffsetVerdict,
+  MIN_WIDTH,
+  MIN_HEIGHT,
+  NO_INSET,
+} from './bounds';
+import type { Edge, Inset } from './bounds';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
 import type { OrderMove, UiState } from '../shared/types';
@@ -51,6 +62,16 @@ let mainWindow: BrowserWindow | null = null;
  * The dev suffix matters because the two are otherwise identical: same name, same version, same icon, and the same data directory, so there is nothing on screen to say whether you are looking at the installed app or one started from source. `app.isPackaged` is derived rather than configured, so it cannot drift.
  */
 const appTitle = `Claude UI ${app.getVersion()}${app.isPackaged ? '' : ' — dev'}`;
+
+/**
+ * Whether the app draws its own window chrome instead of letting the OS do it.
+ *
+ * macOS is excluded, and NOT as a "not yet": `frame: false` there removes the traffic lights and puts nothing in their place, which is a Mac app you cannot close — and the mac build is real, published as an arm64 dmg on every version tag.
+ * The macOS variant is `titleBarStyle: 'hiddenInset'`, which keeps the lights and needs the sidebar header inset under them; it is deliberately not built while nobody working on this can look at a Mac to judge it. See `.plan/plan_window-chrome.md`.
+ *
+ * Everything that follows from drawing our own chrome hangs off this flag: the frame, our own maximize, and the title bar the renderer draws.
+ */
+const OWN_CHROME = process.platform !== 'darwin';
 
 // `--no-sandbox` cannot be set from inside the app.
 // Do NOT try `app.commandLine.appendSwitch('no-sandbox')`: it was tried and reverted, because it runs too late for the renderer, which then dies with a FATAL about /dev/shm permissions (misleading — /dev/shm is fine) and leaves an empty window painted in the background colour.
@@ -131,16 +152,24 @@ function windowIcon(): NativeImage | undefined {
  * Debounced because `resize` and `move` fire continuously while a window is being dragged, and every write here is a full read-modify-write of meta.json plus an audit line; one write per gesture is what is wanted, not one per frame.
  * The `close` handler flushes rather than schedules, since the last resize before quitting is exactly the one worth keeping and there is no later tick to run it in.
  *
- * `getNormalBounds` rather than `getBounds`: while maximized the latter reports the maximized rectangle, so saving it would grow the window to the screen and lose the size to go back to.
+ * The rectangle saved is the UNMAXIMIZED one, or a maximized window would be stored as its own screen-sized self and there would be nothing to go back to.
+ * `getNormalBounds` is what supplies that while the OS owns maximizing; where we own it the window is never natively maximized, so that call would return the maximized rectangle and `normalBounds` is the answer instead.
  */
 function trackBounds(win: BrowserWindow): void {
   let timer: NodeJS.Timeout | null = null;
+  // Undebounced, unlike the save: this has to see the size the user dragged to BEFORE a maximize replaces it, and a debounce could let the maximize land first.
+  const remember = (): void => {
+    // `isMaximized` as well as our own flag: a native maximize fires this event before the handler that converts it into ours, and the window already reports the maximized rectangle by then.
+    if (win.isDestroyed() || maximized || win.isMaximized()) return;
+    normalBounds = win.getBounds();
+  };
   const save = (): void => {
     if (win.isDestroyed()) return;
-    const { x, y, width, height } = win.getNormalBounds();
-    void setWindowBounds({ x, y, width, height, maximized: win.isMaximized() });
+    const { x, y, width, height } = OWN_CHROME ? (normalBounds ?? win.getBounds()) : win.getNormalBounds();
+    void setWindowBounds({ x, y, width, height, maximized: OWN_CHROME ? maximized : win.isMaximized() });
   };
   const schedule = (): void => {
+    remember();
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
@@ -158,13 +187,14 @@ function trackBounds(win: BrowserWindow): void {
   });
 }
 
-/** Bigger than any title bar. A difference larger than this is the window manager placing the window by a policy of its own, or the user already dragging it — not a frame, and not ours to cancel. */
-const MAX_FRAME = 64;
 /** How long to wait for the frame to appear before giving up on there being one. Measured at ~250ms here, with a trivial window and with the real one alike, so this is eight times the margin it needs. */
 const FRAME_DEADLINE_MS = 2000;
 
 /**
  * Cancel the frame offset this window manager adds to every position it is given.
+ *
+ * ONLY REACHED WHEN THE WINDOW IS DECORATED (`!OWN_CHROME`), because the offset is a property of the DECORATION and a frameless window lands exactly where it asks.
+ * It is kept, rather than deleted with the frame, so that turning our own chrome off is genuinely one flag: without it the native path would quietly bring back the per-launch drift this was written to fix.
  *
  * Measured under WSLg: asking for 300,200 — at creation, through setPosition, or through setBounds alike — lands the window at 306,227, and that is also what reading the bounds back reports.
  * So storing the position on close and asking for it again on launch walks the window down and to the right by one title bar every single time.
@@ -183,7 +213,7 @@ function correctFramePlacement(win: BrowserWindow, wanted: { x: number; y: numbe
     const dx = x - wanted.x;
     const dy = y - wanted.y;
     // A frame-sized difference is the offset this exists to cancel. Take it and stop.
-    if ((dx !== 0 || dy !== 0) && Math.abs(dx) <= MAX_FRAME && Math.abs(dy) <= MAX_FRAME) {
+    if (frameOffsetVerdict(dx, dy) === 'correct') {
       win.setPosition(wanted.x - dx, wanted.y - dy);
       return;
     }
@@ -193,6 +223,112 @@ function correctFramePlacement(win: BrowserWindow, wanted: { x: number; y: numbe
     if (Date.now() - started < FRAME_DEADLINE_MS) setTimeout(tick, 25);
   };
   setTimeout(tick, 25);
+}
+
+/**
+ * Our own maximize, because the native one cannot be used on a frameless window here.
+ *
+ * `maximize()` and `setFullScreen()` both MISDRAW a frameless window under WSLg: the invisible resize margin a frameless window still carries is applied to the pixels but not to the input region, so a control is painted in one place and clicked in another, and anything near the right edge is pushed off-screen while remaining clickable at the true edge.
+ * `setBounds` to the work area has neither problem — bounds and content agree, and it lands where it says.
+ * So the window never enters the native maximized state at all, and the flag is ours. The measurements are in the `wsl` skill; this is not a preference and should not be "simplified" back to `maximize()`.
+ *
+ * The frame offset this file used to cancel by polling (the window manager adding its title bar to every position it was given) went with the frame: it was a property of the decoration, and a frameless window lands exactly where it asks.
+ */
+let maximized = false;
+/**
+ * How much smaller than its display's work area a maximized window should be.
+ *
+ * `screen`'s work area is the WHOLE display here — WSLg publishes no `_NET_WORKAREA` for anything to read — so maximizing to it covers the Windows taskbar.
+ * The window manager itself knows the right rectangle and will say so when asked to maximize something, so we ask once, with a window that is never shown: `{ show: false, frame: false }` maximizes and reports `3440x1392` against a `3440x1440` work area, correct within 100ms and with nothing on screen.
+ * Kept as an INSET rather than a rectangle so it still means something on a second display, whose work area is its own.
+ */
+const maximizeInsets = new Map<number, Inset>();
+let probing = false;
+
+/**
+ * Ask the window manager what a maximized window measures, using a window nobody ever sees.
+ *
+ * WHICH DISPLAY THE ANSWER IS ABOUT CANNOT BE CHOSEN, so it is recorded per display and learned again when a display turns up that we have no answer for.
+ * Measured: a probe positioned onto the second display with `setBounds` — which does move it — still maximizes onto the first, and in a run where another window was being built at the same time it maximized onto the second instead. There is no way to ask the question OF a display; only to see which one answered.
+ * Hence the map and the re-probe, rather than a single value: one shot at startup is a coin flip, and losing it silently leaves a maximized window over the taskbar for the whole session.
+ */
+function learnMaximizeInset(): void {
+  if (!OWN_CHROME || probing) return;
+  let probe: BrowserWindow;
+  try {
+    probing = true;
+    probe = new BrowserWindow({
+      show: false,
+      frame: false,
+      width: 400,
+      height: 300,
+      skipTaskbar: true,
+      // A PLAIN window, deliberately, and this is the trap: `show: false` does not stop a maximized
+      // window being mapped, so it paints — but every way of making it not paint also stops it
+      // maximizing, which is the one thing it exists to do.
+      // Measured, each in its own process: plain maximizes; `opacity: 0`, `transparent: true`,
+      // `backgroundColor: '#00000000'` and `focusable: false` each leave it at its original size.
+      // An earlier version set opacity and transparency to kill the white flash and thereby stopped
+      // learning the inset at all, which put maximized windows back over the taskbar — with no error,
+      // because the nonsense measurement was correctly rejected.
+      // So the flash stays, in the app's own colour rather than white.
+      backgroundColor: '#1e1e2e',
+    });
+    probe.maximize();
+  } catch {
+    probing = false;
+    return; // The work area stays the answer; a taskbar-covering maximize beats no window.
+  }
+  setTimeout(() => {
+    try {
+      const got = probe.getBounds();
+      // The display it LANDED on, not the primary: computing against the wrong one yields a negative inset, which is how this silently did nothing the first time.
+      const display = screen.getDisplayMatching(got);
+      const inset = insetFromProbe(got, display.workArea);
+      if (inset) {
+        maximizeInsets.set(display.id, inset);
+        // A window maximized before this answer existed is sitting over whatever the inset avoids —
+        // the launch path restores a maximized window well before the probe replies. Re-apply now.
+        if (mainWindow && !mainWindow.isDestroyed() && maximized) mainWindow.setBounds(maximizedTarget(mainWindow));
+      }
+    } catch {
+      // Keep the plain work area.
+    }
+    if (!probe.isDestroyed()) probe.destroy();
+    probing = false;
+  }, 250);
+}
+/**
+ * Where an un-maximize goes back to.
+ *
+ * Kept continuously rather than captured at the moment of maximizing, because by the time a NATIVE maximize event reaches us the window already reports the maximized rectangle, leaving nothing to restore.
+ */
+let normalBounds: Electron.Rectangle | null = null;
+
+/** The rectangle a maximized window should fill on whichever display it is on. */
+function maximizedTarget(win: BrowserWindow): Electron.Rectangle {
+  const display = screen.getDisplayMatching(win.getBounds());
+  // An inset measured on one display means nothing on another, so an unknown display gets none —
+  // and asks for one, which corrects this window a moment later if it turns out to need it.
+  const known = maximizeInsets.get(display.id);
+  if (!known) learnMaximizeInset();
+  return maximizedRect(display.workArea, known ?? NO_INSET);
+}
+
+function setMaximized(win: BrowserWindow, on: boolean): void {
+  // On macOS the window still has its frame, so the OS owns this and does it correctly.
+  if (!OWN_CHROME) {
+    if (on) win.maximize();
+    else win.unmaximize();
+    return;
+  }
+  if (on === maximized || win.isDestroyed()) return;
+  if (on && !normalBounds) normalBounds = win.getBounds();
+  const target = on ? maximizedTarget(win) : normalBounds;
+  // Set the flag BEFORE moving: the resize this causes must not be mistaken for the user resizing, which would overwrite the very rectangle being kept to go back to.
+  maximized = on;
+  if (target) win.setBounds(target);
+  win.webContents.send('window:maximized', maximized);
 }
 
 async function createWindow(): Promise<void> {
@@ -207,8 +343,29 @@ async function createWindow(): Promise<void> {
     // Undefined leaves placement to the platform, which is what we want both on a first run and when the stored position is no longer on any screen.
     x: placement?.x,
     y: placement?.y,
+    // The floor the resize handles clamp against, via getMinimumSize. Without it that clamp reads
+    // [0, 0] and does nothing: dragging an edge past its opposite collapsed the window to nothing
+    // and left it in the screen corner, recoverable only because placeWindow repairs the stored size
+    // on the next launch.
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
     title: appTitle,
     icon: windowIcon(),
+    // The renderer draws the title bar wherever this is frameless. macOS keeps its own — see OWN_CHROME.
+    frame: !OWN_CHROME,
+    // NOT cosmetic, and not about the border down the side of the window — that one is weston's 32px
+    // frame and nothing here touches it. Chromium's shadow is what reserves the small margin that
+    // shows up as `getBounds` disagreeing with `getContentBounds`, and with the window sized to fill
+    // the screen that margin insets the PAINT while the input region keeps the full rectangle: the
+    // controls are then drawn in one place and clickable in another.
+    // Removed once on the mistaken grounds that it "did nothing", which was judged against the border
+    // it was never fixing; the mismatch came straight back. Leave it off.
+    hasShadow: !OWN_CHROME,
+    // Refuse the NATIVE maximize outright rather than undoing it after the fact.
+    // Intercepting it — unmaximize, then apply ours — deadlocked the window on a double-click: the
+    // window manager and the app each kept answering the other, and it came back only after some seconds.
+    // With this the double-click has no native meaning, and the renderer's own handler is the only path.
+    maximizable: !OWN_CHROME,
     backgroundColor: '#1e1e2e',
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'preload.js'),
@@ -217,10 +374,12 @@ async function createWindow(): Promise<void> {
     },
   });
 
-  // After construction, unlike the size: maximizing is a state change rather than a geometry argument, and doing it here keeps the normal bounds above as the size to return to.
-  if (placement?.maximized) mainWindow.maximize();
-  // Only when a position was actually restored: on a first run the window manager places the window, and wherever it puts it is by definition where it belongs.
-  else if (placement?.x !== undefined && placement.y !== undefined) {
+  // After construction, unlike the size: maximizing is a state change rather than a geometry argument, and doing it here leaves the constructed rectangle as the size to return to.
+  if (placement?.maximized) setMaximized(mainWindow, true);
+  // A decorated window is placed at its requested position PLUS the frame, so a restored position
+  // walks down-right on every launch unless it is cancelled. Only the decorated path needs it, which
+  // today is macOS — and whatever OWN_CHROME is turned off for tomorrow.
+  else if (!OWN_CHROME && placement?.x !== undefined && placement.y !== undefined) {
     correctFramePlacement(mainWindow, { x: placement.x, y: placement.y });
   }
   trackBounds(mainWindow);
@@ -279,6 +438,73 @@ ipcMain.handle('meta:getUiState', () => getUiState());
 ipcMain.on('meta:setUiState', (_event, state: UiState) => {
   void setUiState(state);
 });
+// The title bar the renderer draws needs the controls the OS bar used to provide.
+// `window:chrome` is asked once at startup: the renderer draws its bar only where there is no OS one, and the answer cannot change while the app runs.
+ipcMain.handle('window:chrome', () => ({
+  own: OWN_CHROME,
+  maximized,
+  title: appTitle,
+  version: app.getVersion(),
+  dev: !app.isPackaged,
+}));
+ipcMain.on('window:minimize', () => mainWindow?.minimize());
+ipcMain.on('window:toggleMaximize', () => {
+  if (mainWindow) setMaximized(mainWindow, !maximized);
+});
+ipcMain.on('window:close', () => mainWindow?.close());
+/**
+ * Resizing, all four edges and the corners, driven by the renderer.
+ *
+ * Chromium gives a frameless window an invisible resize margin of its own, but only 4px and only on three sides — the top has none at all, so that edge could not be resized without this.
+ * Rather than have one edge behave differently from the other three, every edge is ours: uniform, and a comfortable target instead of 4px.
+ *
+ * The gesture sends its TOTAL offset from where it started, against the bounds captured at pointerdown, rather than a delta per move.
+ * Deltas accumulate rounding, and worse, each one would be measured against a window that the previous one just moved.
+ */
+let resizeFrom: { edge: Edge; bounds: Electron.Rectangle } | null = null;
+
+ipcMain.on('window:resizeStart', (_event, edge: Edge, pointer?: { x: number; y: number }) => {
+  if (!mainWindow || !OWN_CHROME) return;
+  // Dragging a maximized window restores it and keeps dragging, the way a real title bar does.
+  // Resizing one is refused instead — there is no size to resize FROM.
+  if (maximized) {
+    if (edge !== 'move' || !pointer) return;
+    const from = mainWindow.getBounds();
+    const restored = normalBounds ?? { ...from, width: Math.round(from.width / 2), height: Math.round(from.height / 2) };
+    // Put the window back under the cursor rather than back where it last was.
+    // Restoring to its old position left the pointer somewhere else entirely, so the window jumped away and the drag carried on from a place the cursor was not.
+    // The cursor keeps its position ACROSS the bar proportionally, and its exact offset DOWN it, which is what every other title bar does.
+    maximized = false;
+    const target = unmaximizeUnderPointer(from, restored, pointer);
+    mainWindow.setBounds(target);
+    mainWindow.webContents.send('window:maximized', false);
+    // The rectangle we ASKED for, not one read back: `getBounds` right after `setBounds` still
+    // reports the old geometry here (the same lag the startup placement had to poll around), so
+    // reading it would base the whole drag on the MAXIMIZED rectangle and throw the window across
+    // the screen until a later frame corrected it. That is the stutter, at its worst.
+    resizeFrom = { edge, bounds: target };
+    return;
+  }
+  resizeFrom = { edge, bounds: mainWindow.getBounds() };
+});
+ipcMain.on('window:resizeEnd', () => {
+  resizeFrom = null;
+});
+ipcMain.on('window:resizeBy', (_event, dx: number, dy: number) => {
+  if (!mainWindow || !resizeFrom) return;
+  const { edge, bounds } = resizeFrom;
+  const next = resizeBy(bounds, edge, dx, dy);
+  if (edge === 'move') {
+    const at = mainWindow.getPosition();
+    if (at[0] === next.x && at[1] === next.y) return; // nothing to ask for; every call is a round trip to the compositor
+    // setPosition rather than setBounds: a move that also states a size makes the window manager
+    // renegotiate the size on every frame of a drag, and it is the size negotiation that lags.
+    mainWindow.setPosition(next.x, next.y);
+    return;
+  }
+  mainWindow.setBounds(next);
+});
+
 ipcMain.handle('meta:getProjectNames', () => getProjectNames());
 ipcMain.handle('meta:setProjectName', (_event, repoRoot: string, name: string) => setProjectName(repoRoot, name));
 ipcMain.handle('meta:getGroupState', () => getGroupState());
@@ -308,6 +534,8 @@ app.whenReady().then(async () => {
   await installStatusHooks();
   registerStatusIpc(() => mainWindow);
   registerSessionsWatcher(() => mainWindow);
+  // Before the window, so the answer is in hand by the time anyone can reach the maximize button.
+  learnMaximizeInset();
   await createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
