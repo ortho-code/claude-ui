@@ -20,7 +20,7 @@ In daily use: the app lists your `~/.claude` sessions grouped by project, runs s
 Done:
 
 - Session list from `~/.claude`, grouped into collapsible projects, refreshed live as transcripts change on disk.
-- Tabs: several sessions open at once, drag to reorder, and restored on the next launch without starting them — a tab resumes its session when you click it, and can be stopped again from the session's menu while keeping its place.
+- Tabs: several sessions open at once, drag to reorder, and restored on the next launch without starting them — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
   Sessions sharing a conversation show as siblings (a fork badge with a jump list); worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life.
@@ -40,6 +40,7 @@ Next:
 
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).
 - Playwright end-to-end tests, then split view.
+- Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.
 - Config viewer, minimize-to-tray, and later a diff / file side panel.
 - A readable transcript viewer (after a compaction, the CLI cannot show a resumed session's earlier history — the transcript file still has it).
 - Telling you when a session fails to start, instead of leaving the terminal to explain it.

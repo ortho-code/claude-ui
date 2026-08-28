@@ -95,6 +95,8 @@ const chevronRight = (size: number): string => strokeIcon(size, '<path d="M6 4L1
 const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
 const tickIcon = (size: number): string => strokeIcon(size, '<path d="M3.5 8.4L6.6 11.5L12.5 4.9" />', 1.5);
 const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4" />');
+// A tab's button ends the session before it removes the tab, so it needs two marks rather than one: the media-stop square for the first press, the cross for the second. Squared off at 6.6 units so it reads at the same weight as the cross's diagonal.
+const stopIcon = (size: number): string => strokeIcon(size, '<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2" />');
 // Dots, so it stays a kebab rather than becoming a dashed line. The radius is in px for the same reason the stroke is: three 2.6px dots whatever the button's size.
 const kebabIcon = (size: number): string => {
   const r = ((1.3 * 16) / size).toFixed(2);
@@ -954,10 +956,7 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
   });
   // The state changes sit below a rule, away from the navigate/copy items. Only the normal view offers them: the archived view keeps unarchive on the row and hides the kebab.
   items.push({ label: '', separator: true });
-  // Stop is offered only while something is actually running — on a cold or unopened session there is nothing to stop, and an always-present item that usually does nothing is worse than an absent one.
-  // "Stop", not "close": closing already means the tab goes away.
-  const running = tabs.find((t) => t.session.id === session.id && t.terminalId !== null);
-  if (running) items.push({ label: 'Stop session', onSelect: () => stopSession(running) });
+  // Stopping lives on the tab's own button, which is where the session you want to stop is: see closeOrStop.
   items.push({ label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
   return items;
 }
@@ -2388,7 +2387,16 @@ async function startTab(
     tab.booting = true;
     // Before the await, not after: otherwise a cold tab keeps saying "click its tab to resume it" across the spawn round-trip, which is the one thing you have just done.
     if (tab === activeTab) updatePlaceholder();
+    renderTabBar(); // and for the same reason: the button has to show the pause while the process is on its way, not once it has arrived.
     tab.terminalId = await window.claudeUi.startTerminal(tab.session.cwd, resumeId, tab.token, fork, name, worktree);
+    // Gone while it was still starting: the tab has been removed but the pty has not, so hand it straight back rather than leaving a claude running with nothing pointing at it.
+    // The button is disabled throughout the wait, so this is not that route — it is deleting the session, which closes its tab wherever that tab had got to.
+    // It has to be the first thing after the await, since everything below touches a terminal that removeTab has already disposed.
+    if (!tabs.includes(tab)) {
+      window.claudeUi.closeTerminal(tab.terminalId);
+      tab.terminalId = null;
+      return;
+    }
     // Reveal it BEFORE fitting: `.term` is display:none until `.active`, and FitAddon sizes from the element's own box, so fitting a hidden pane leaves the terminal at xterm's 80x24 default and claude draws its whole TUI at that width.
     // Cold tabs are what exposed this — the pane used to be revealed by activateTab before any of this ran, and now it only reveals a tab that HAS a process.
     // A tab you switched away from during the await stays hidden and mis-fitted, which activateTab's own fit corrects when you come back to it.
@@ -2404,6 +2412,8 @@ async function startTab(
     updateSidebarHighlight(); // its row's bar goes from muted to accent now that it is live
   } finally {
     tab.starting = false;
+    // A start that ends without reaching the render above — a throw, or the early return below — must still hand the button back.
+    if (tabs.includes(tab)) renderTabBar();
   }
 }
 
@@ -2494,6 +2504,8 @@ function removeTab(tab: Tab): void {
 function stopSession(tab: Tab): void {
   if (tab.terminalId === null) return;
   tab.stopping = true;
+  // At once, so the button shows the pause for as long as the exit takes rather than after it.
+  renderTabBar();
   window.claudeUi.closeTerminal(tab.terminalId); // Ctrl-C twice, then kill
 }
 
@@ -2511,6 +2523,22 @@ function coolTab(tab: Tab): void {
   renderTabBar();
   updatePlaceholder();
   updateSidebarHighlight();
+}
+
+/**
+ * The tab button's two steps: end the session first, remove the tab second.
+ *
+ * A running session and a tab are separate things — a cold tab costs nothing but a line in the bar, and it is restored on the next launch — so one press should not decide both.
+ * The first press stops (claude gets its normal exit path and flushes), the tab stays and goes cold; the second removes it. A tab that is already cold goes in one press, since there is nothing live to protect.
+ * While a session is arriving or leaving the button does nothing at all: see the disabled state in tabElement. Checked here too, since a middle click reaches this without going through the button.
+ */
+function closeOrStop(tab: Tab): void {
+  if (tab.stopping || tab.starting) return;
+  if (tab.terminalId !== null) {
+    stopSession(tab);
+    return;
+  }
+  closeTab(tab);
 }
 
 function closeTab(tab: Tab): void {
@@ -2626,13 +2654,24 @@ function tabElement(tab: Tab): HTMLElement {
   label.textContent = text;
   setTooltip(label, `${projName(tab.session.repoRoot)} · ${text}`);
 
+  // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind. See closeOrStop.
   const close = document.createElement('button');
   close.className = 'tab-close';
-  close.innerHTML = closeIcon(14);
-  setTooltip(close, 'Close tab');
+  if (tab.stopping || tab.starting) {
+    // Both ends of a session's life are a pause, for the same reason: neither a tab whose process has not arrived yet nor one whose process is still leaving can be acted on without the bar disagreeing with what is actually running.
+    close.disabled = true;
+    close.innerHTML = stopIcon(14);
+    setTooltip(close, tab.starting ? 'Starting…' : 'Stopping…');
+  } else if (tab.terminalId !== null) {
+    close.innerHTML = stopIcon(14);
+    setTooltip(close, 'Stop session');
+  } else {
+    close.innerHTML = closeIcon(14);
+    setTooltip(close, 'Close tab');
+  }
   close.addEventListener('click', (event) => {
     event.stopPropagation();
-    closeTab(tab);
+    closeOrStop(tab);
   });
 
   el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
@@ -2654,7 +2693,8 @@ function tabElement(tab: Tab): HTMLElement {
   el.addEventListener('mousedown', (event) => {
     if (event.button === 1) {
       event.preventDefault();
-      closeTab(tab);
+      // The same two steps as the button: a middle click that killed a running session outright would be the one way left to lose one by accident.
+      closeOrStop(tab);
     }
   });
   return el;

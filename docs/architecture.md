@@ -52,7 +52,7 @@ Keeping the real CLI in a PTY is the point: its approval prompts, diffs, and per
 A tab owns at most one terminal, and `terminalId` is **nullable** — null means the tab is **cold**: it has its row in the bar, its title and its place in the layout, but no `claude` behind it.
 Cold is a first-class state, not an error one.
 
-A tab goes cold in two ways: it is **restored** that way at launch (the app starts nothing on startup — 20 restored tabs used to mean 20 processes at ~437 MB each), or the user **stops** the session from the row's kebab.
+A tab goes cold in two ways: it is **restored** that way at launch (the app starts nothing on startup — 20 restored tabs used to mean 20 processes at ~437 MB each), or the user **stops** the session with the tab's own button.
 It leaves cold by being activated, which starts it immediately; there is no separate "start" affordance, because selecting a tab has always meant "work in this session".
 
 Activating a tab can only ever **resume** it, because the only id it has to work with is the tab's own.
@@ -61,6 +61,8 @@ Getting that backwards launched every new session as `claude --resume new-<times
 
 Two exits must stay distinguishable.
 A **user stop** sets a `stopping` flag before the kill, and the exit handler checks it first: that tab is cooled and kept. **Any other exit** closes the tab, which is deliberate — it stops a finished session leaving an empty tab behind.
+
+That separation is what the tab's button is built on: ending a session and removing a tab are different intents, so one press does not decide both. The first press stops a running session and leaves the tab cold, the second removes it, and a tab that is already cold goes in one. Both ends of a session's life disable the button rather than merely ignore it, for one reason: a tab acted on before its process has arrived, or while that process is still leaving, would leave the bar disagreeing with what is actually running. The mark follows the state, so which press you are on is visible: a stop square while there is a session to end, a cross once there is only a tab.
 A third case sits in between: an exit within 1500ms of launch is treated as a failed start, and the tab is kept with the error visible in its terminal.
 
 The cold state is visible in three places, all reading the same `terminalId === null`: the tab is unfilled rather than dimmed, the session row's left bar and the selected tab's top edge are `--muted` instead of accent, and the terminal pane explains that clicking the tab resumes it.

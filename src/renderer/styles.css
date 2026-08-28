@@ -1306,7 +1306,7 @@ button:focus:not(:focus-visible) {
 .group h3 .group-add:hover,
 .group h3 .group-kebab:hover,
 .group h3 .group-add-caret:hover,
-.tab-close:hover,
+.tab-close:not(:disabled):hover,
 #toast-close:hover,
 .notif-close:hover,
 .note-badge:hover {
@@ -1666,6 +1666,12 @@ button:focus:not(:focus-visible) {
 
 /* Compact tier of the standard control (see .unarchive-btn): same 14px icon, tighter padding, so a
    tab keeps its density while the close stays a real click target. */
+/* While the session is exiting the button is inert, and says so: no hover, no pointer, and dimmed like any other unavailable control. */
+.tab-close:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .tab-close {
   flex: 0 0 auto;
   display: flex;

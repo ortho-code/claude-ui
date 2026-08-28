@@ -4,8 +4,9 @@ What changed in each release, for people running a build rather than the source.
 
 ## Unreleased
 
+- A tab's button now takes two presses: the first stops the session and leaves the tab cold and resumable, the second removes the tab. The mark says which press you are on — a stop square, then a cross — and it is inert while a session is arriving or leaving, so a tab cannot be acted on before its process is there or while it is still going away. A cold tab still goes in one press, and stopping has left the session's menu for the tab it belongs to.
+- Deleting a session while its tab was still starting left a `claude` running with nothing pointing at it. It is now shut down as soon as it reports for duty.
 - A filter for sessions carrying a note, alongside the pinned, open, running, worktree, siblings and archived ones.
-
 - The app reopens the way you left it: the window's size and position, and the sidebar's search, filters, date range, folded-away projects and groups, width and scroll offset. A window whose screen is gone opens on one that exists, at the size you had.
 - The filter panel reopens as you left it, open or closed, with whatever filter was on still applied and the filter icon accented to say so.
 - Folding a project or group while a filter is on is its own thing: it is a way through the results, so it lasts as long as the filter, leaves your usual folds alone underneath, and comes back with the filter after a restart.
