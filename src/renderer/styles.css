@@ -1758,14 +1758,6 @@ button:focus:not(:focus-visible) {
 /* No held open state here, deliberately (user, 2026-08-13): the footer list is a PERSISTENT panel,
    often open for a whole session, so a pressed look is lasting noise — unlike the switcher popover
    (open briefly to pick) or the filter toggle (a compact button, where it reads fine). */
-#footer-toggle.clear {
-  color: var(--muted);
-  cursor: default;
-}
-
-#footer-toggle.clear:hover {
-  background: none;
-}
 
 #footer-label {
   flex: 1;

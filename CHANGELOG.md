@@ -4,6 +4,7 @@ What changed in each release, for people running a build rather than the source.
 
 ## Unreleased
 
+- The attention strip at the bottom of the sidebar is gone when nothing needs you, rather than sitting there saying "All clear" with a caret that could not open anything. It comes back — the way you left it, open or closed — as soon as a session wants something.
 - A tab's button now takes two presses: the first stops the session and leaves the tab cold and resumable, the second removes the tab. The mark says which press you are on — a stop square, then a cross — and it is inert while a session is arriving or leaving, so a tab cannot be acted on before its process is there or while it is still going away. A cold tab still goes in one press, and stopping has left the session's menu for the tab it belongs to.
 - Deleting a session while its tab was still starting left a `claude` running with nothing pointing at it. It is now shut down as soon as it reports for duty.
 - A filter for sessions carrying a note, alongside the pinned, open, running, worktree, siblings and archived ones.

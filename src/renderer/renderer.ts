@@ -70,6 +70,7 @@ const switcherCurrent = document.getElementById('switcher-current') as HTMLButto
 const switcherName = document.getElementById('switcher-name')!;
 const switcherBadge = document.getElementById('switcher-badge')!;
 const switcherPopover = document.getElementById('switcher-popover')!;
+const sidebarFooter = document.getElementById('sidebar-footer')!;
 const footerToggle = document.getElementById('footer-toggle')!;
 const footerBadge = document.getElementById('footer-badge')!;
 const footerLabel = document.getElementById('footer-label')!;
@@ -1007,16 +1008,16 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   const total = ordered.reduce((n, g) => n + g.items.length, 0);
 
   if (total === 0) {
-    // Collapsed for this render only — deliberately NOT touching footerExpanded, or an all-clear moment would quietly reset a preference the user set.
-    footerToggle.classList.add('clear');
-    footerToggle.setAttribute('aria-expanded', 'false');
-    footerLabel.textContent = 'All clear';
+    // Gone entirely rather than sitting there saying "All clear", which read as odd on a first run — nothing had happened yet for anything to be clear of — and left a caret pointing at a panel that could not open.
+    // Absent over inert is what the rest of the sidebar does: the group jump button is dropped below two targets, the filter status hides when nothing is filtering.
+    // The stored footerExpanded is deliberately untouched: this is what there is to show, not a preference, and the strip must come back the way you left it.
+    sidebarFooter.hidden = true;
     footerList.hidden = true;
     footerList.replaceChildren();
     return;
   }
 
-  footerToggle.classList.remove('clear');
+  sidebarFooter.hidden = false;
   footerToggle.setAttribute('aria-expanded', String(footerExpanded));
   footerLabel.textContent = `${total} ${total === 1 ? 'session' : 'sessions'}`;
   footerList.hidden = !footerExpanded;
@@ -1045,7 +1046,6 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
 }
 
 footerToggle.addEventListener('click', () => {
-  if (footerToggle.classList.contains('clear')) return; // nothing to expand
   footerExpanded = !footerExpanded;
   footerList.hidden = !footerExpanded;
   footerToggle.setAttribute('aria-expanded', String(footerExpanded));
