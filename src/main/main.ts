@@ -1,6 +1,6 @@
 // First, and for its side effect: paths.ts pins the userData directory, and must run before any module computes a path from it. See the comment there.
 import './paths';
-import { app, BrowserWindow, ipcMain, Menu, dialog, shell, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, dialog, shell, nativeImage, screen } from 'electron';
 import type { NativeImage } from 'electron';
 import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -36,10 +36,15 @@ import {
   moveProject,
   migrateToSessionKeys,
   purgeSession,
+  getWindowBounds,
+  setWindowBounds,
+  getUiState,
+  setUiState,
 } from './meta';
+import { placeWindow } from './bounds';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
-import type { OrderMove } from '../shared/types';
+import type { OrderMove, UiState } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -122,10 +127,88 @@ function windowIcon(): NativeImage | undefined {
   }
 }
 
-function createWindow(): void {
+/**
+ * Persist the window's geometry as it changes.
+ *
+ * Debounced because `resize` and `move` fire continuously while a window is being dragged, and every write here is a full read-modify-write of meta.json plus an audit line; one write per gesture is what is wanted, not one per frame.
+ * The `close` handler flushes rather than schedules, since the last resize before quitting is exactly the one worth keeping and there is no later tick to run it in.
+ *
+ * `getNormalBounds` rather than `getBounds`: while maximized the latter reports the maximized rectangle, so saving it would grow the window to the screen and lose the size to go back to.
+ */
+function trackBounds(win: BrowserWindow): void {
+  let timer: NodeJS.Timeout | null = null;
+  const save = (): void => {
+    if (win.isDestroyed()) return;
+    const { x, y, width, height } = win.getNormalBounds();
+    void setWindowBounds({ x, y, width, height, maximized: win.isMaximized() });
+  };
+  const schedule = (): void => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      save();
+    }, 400);
+  };
+  // One per line rather than a loop over the names: BrowserWindow.on is overloaded per event, so a union of event names does not type-check.
+  win.on('resize', schedule);
+  win.on('move', schedule);
+  win.on('maximize', schedule);
+  win.on('unmaximize', schedule);
+  win.on('close', () => {
+    if (timer) clearTimeout(timer);
+    save();
+  });
+}
+
+/** Bigger than any title bar. A difference larger than this is the window manager placing the window by a policy of its own, or the user already dragging it — not a frame, and not ours to cancel. */
+const MAX_FRAME = 64;
+/** How long to wait for the frame to appear before giving up on there being one. Measured at ~250ms here, with a trivial window and with the real one alike, so this is eight times the margin it needs. */
+const FRAME_DEADLINE_MS = 2000;
+
+/**
+ * Cancel the frame offset this window manager adds to every position it is given.
+ *
+ * Measured under WSLg: asking for 300,200 — at creation, through setPosition, or through setBounds alike — lands the window at 306,227, and that is also what reading the bounds back reports.
+ * So storing the position on close and asking for it again on launch walks the window down and to the right by one title bar every single time.
+ * Since the same offset applies to a request as to a reading, asking for `wanted - offset` lands exactly on `wanted`.
+ *
+ * POLLED rather than driven by an event, and that is the whole subtlety: the first `move` fires while the bounds still read back exactly what was asked for, and the frame only appears some 40ms later.
+ * Correcting on `move` would therefore measure an offset of zero and quietly leave the drift in place — which is the failure this is here to prevent, so it must not be the failure it ships with.
+ * On a window manager that adds no offset, nothing ever differs, the deadline passes, and no correction is made.
+ */
+function correctFramePlacement(win: BrowserWindow, wanted: { x: number; y: number }): void {
+  const started = Date.now();
+  const tick = (): void => {
+    // Nothing to correct on a maximized window, and nothing to correct on one that has gone away.
+    if (win.isDestroyed() || win.isMaximized()) return;
+    const { x, y } = win.getBounds();
+    const dx = x - wanted.x;
+    const dy = y - wanted.y;
+    // A frame-sized difference is the offset this exists to cancel. Take it and stop.
+    if ((dx !== 0 || dy !== 0) && Math.abs(dx) <= MAX_FRAME && Math.abs(dy) <= MAX_FRAME) {
+      win.setPosition(wanted.x - dx, wanted.y - dy);
+      return;
+    }
+    // Everything else means "not settled yet", and MUST keep polling rather than conclude anything.
+    // Two readings arrive before the real one: the position we asked for, unchanged, and — for the first ~50ms, while the window is not yet mapped — the far off-screen coordinates X11 parks it at, measured here as about -32700 on both axes.
+    // Treating either as an answer is what made an earlier version of this give up at 54ms and never see the offset that arrived at ~250ms.
+    if (Date.now() - started < FRAME_DEADLINE_MS) setTimeout(tick, 25);
+  };
+  setTimeout(tick, 25);
+}
+
+async function createWindow(): Promise<void> {
+  // Reading this before the window exists is the point: bounds have to be constructor arguments, since assigning them afterwards makes the window visibly jump from the default position to the stored one.
+  const placement = placeWindow(
+    await getWindowBounds(),
+    screen.getAllDisplays().map((d) => d.workArea),
+  );
   mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 760,
+    width: placement?.width ?? 1100,
+    height: placement?.height ?? 760,
+    // Undefined leaves placement to the platform, which is what we want both on a first run and when the stored position is no longer on any screen.
+    x: placement?.x,
+    y: placement?.y,
     title: appTitle,
     icon: windowIcon(),
     backgroundColor: '#1e1e2e',
@@ -135,6 +218,14 @@ function createWindow(): void {
       nodeIntegration: false,
     },
   });
+
+  // After construction, unlike the size: maximizing is a state change rather than a geometry argument, and doing it here keeps the normal bounds above as the size to return to.
+  if (placement?.maximized) mainWindow.maximize();
+  // Only when a position was actually restored: on a first run the window manager places the window, and wherever it puts it is by definition where it belongs.
+  else if (placement?.x !== undefined && placement.y !== undefined) {
+    correctFramePlacement(mainWindow, { x: placement.x, y: placement.y });
+  }
+  trackBounds(mainWindow);
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   mainWindow.webContents.on('did-finish-load', () => {
@@ -190,6 +281,10 @@ ipcMain.handle('meta:getFooterExpanded', () => getFooterExpanded());
 ipcMain.on('meta:setFooterExpanded', (_event, expanded: boolean) => {
   void setFooterExpanded(expanded);
 });
+ipcMain.handle('meta:getUiState', () => getUiState());
+ipcMain.on('meta:setUiState', (_event, state: UiState) => {
+  void setUiState(state);
+});
 ipcMain.handle('meta:getProjectNames', () => getProjectNames());
 ipcMain.handle('meta:setProjectName', (_event, repoRoot: string, name: string) => setProjectName(repoRoot, name));
 ipcMain.handle('meta:getGroupState', () => getGroupState());
@@ -219,9 +314,9 @@ app.whenReady().then(async () => {
   await installStatusHooks();
   registerStatusIpc(() => mainWindow);
   registerSessionsWatcher(() => mainWindow);
-  createWindow();
+  await createWindow();
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });
 });
 

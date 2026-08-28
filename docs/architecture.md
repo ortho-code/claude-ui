@@ -86,11 +86,21 @@ The main process watches that directory and pushes updates to the renderer, whic
 
 ## App-side metadata and session groups
 
-Everything the app knows that Claude Code doesn't — pins, archived sessions, open tabs, per-project display names, and custom groups — lives in a `meta.json` under the app's own user-data directory.
+Everything the app knows that Claude Code doesn't — pins, archived sessions, open tabs, per-project display names, custom groups, the window's geometry and the sidebar's view state — lives in a `meta.json` under the app's own user-data directory.
 The session store is never written to: `~/.claude` is read-only as far as this app is concerned.
 
 Writes are serialized through one queue and land via a temp file renamed over the target, with the previous good copy kept as a backup, so a crash mid-write can't leave the file half-written.
 Reads are tolerant by design: unknown or malformed entries are dropped rather than trusted, and older field names are still understood, so an older `meta.json` upgrades in place without a migration step.
+
+## Reopening the way you left it
+
+Two things are restored on launch, and each has one rule worth knowing.
+
+The **window's** size and position are stored as the unmaximized rectangle plus a maximized flag, and are checked against the displays that exist at launch rather than replayed blind: the size is a preference and survives a monitor going away (clamped to the screen it opens on), while the position is dropped whole once it no longer lands somewhere reachable — including a window with only a sliver on screen, or one whose title bar sits above the top edge and could not be dragged back. The geometry decision is a pure function, so those cases are tested rather than reproduced by hand.
+
+The **sidebar's** view — search text, the filter toggles, the date filter, folded projects and groups, width, scroll offset — is one object written as a whole, on a debounce, and only when a snapshot differs from the last one stored; renders happen constantly for reasons that have nothing to do with the view. Rolling date presets are recomputed from the current moment, so "last 7 days" still means the last 7 days; only a custom range is restored literally. The filter panel comes back exactly as it was left, an active filter included — closing it over a filter you meant to keep is a choice to reclaim the space, and the filter icon carries an accent whenever anything is on.
+
+Folds come in two states, and they are deliberately separate. Filtering opens the whole tree so a match inside a folded section is never hidden, and folding from there is a way through the results — shut a project you have already been through — rather than a statement about how the sidebar should look. So those folds apply only while a filter is on and are dropped the moment one stops, by any route: Clear, the last character of a search, a date preset going back to Any. Both states are stored, because the filter itself is restored, and coming back to the same results without the same view is the thing remembering the view is meant to prevent.
 
 A **group** is a user-made sub-section inside one project.
 Membership is one group per session, so it is stored as a session-id-to-group-id map — a session cannot be in two groups by construction.

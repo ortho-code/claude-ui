@@ -2,7 +2,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import type { ClaudeUiApi, OrderMove, GroupState, SessionGroup, SessionSummary } from '../shared/types';
+import type { ClaudeUiApi, OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
 import {
   sessionsByKey,
   structuralSignature,
@@ -233,8 +233,7 @@ let showRunningOnly = false;
 let showWorktreeOnly = false;
 let showSiblingsOnly = false;
 let showArchivedOnly = false;
-// The project the switcher is scoped to; null = "All" (the grouped overview). In-memory for now;
-// Phase 3 persists it.
+// The project the switcher is scoped to; null = "All" (the grouped overview). Persisted, like the rest of the view state.
 let activeProject: string | null = null;
 // Date filter, as an inclusive [from, to] window in epoch ms; null means unbounded on that side.
 let datePreset = 'any';
@@ -251,6 +250,25 @@ let renderedSections: { projects: string[]; groups: string[] } = { projects: [],
 const collapsedProjects = new Set<string>();
 // Collapsed custom groups, by group id (projects collapse by repo root, groups by their own id).
 const collapsedGroups = new Set<string>();
+/**
+ * The same two, for while a filter is on — and a separate pair rather than a flag, because they answer a different question.
+ *
+ * Filtering opens the whole tree, so that a match inside something you had folded away is not hidden from you.
+ * Folding from there is a way THROUGH the results — shut a project you have already looked at — rather than a statement about how you like the sidebar arranged.
+ * So these last exactly as long as the filter, and leave the folds you made without a filter untouched underneath.
+ *
+ * They are stored all the same: the filter itself is restored on the next launch, and coming back to the same results without the same view is precisely what remembering the view is for.
+ */
+const filterFoldedProjects = new Set<string>();
+const filterFoldedGroups = new Set<string>();
+
+/** The fold sets in play right now: the transient pair while filtering, the stored pair otherwise. Every read and every write goes through these, so the two can never be mixed up. */
+function foldedProjects(): Set<string> {
+  return isFiltering() ? filterFoldedProjects : collapsedProjects;
+}
+function foldedGroups(): Set<string> {
+  return isFiltering() ? filterFoldedGroups : collapsedGroups;
+}
 // Every group and who is in one, loaded once at startup and refreshed after any change.
 let groupState: GroupState = { groups: [], groupOf: {} };
 // Group membership for sessions that do not exist on disk yet, keyed by their PLACEHOLDER id.
@@ -644,6 +662,112 @@ function clearFilter(): void {
   container.scrollTop = 0;
 }
 
+// --- View state that survives a restart ---
+// Search, filters, folds, width and scroll are one answer to one question — put the sidebar back the way it was — so they are snapshotted, stored and restored together rather than as a setting each.
+
+/**
+ * Show or hide the filter panel. Split out because both the toggle and the restore need it, and the restore must not touch focus: at startup the terminal wants it.
+ */
+function setFilterPanel(open: boolean): void {
+  filterPanel.hidden = !open;
+  filterToggle.setAttribute('aria-expanded', String(open));
+}
+
+// Nothing is written until the stored state has been applied, or the first render would snapshot an empty sidebar straight over the real one.
+let uiRestored = false;
+let uiSaveTimer: number | undefined;
+// The last snapshot actually sent. Renders happen for reasons that have nothing to do with the view — a transcript growing, a status dot changing — and without this each one would cost a full read-modify-write of meta.json.
+let lastUiSignature = '';
+
+function uiSnapshot(): UiState {
+  return {
+    // The raw box contents, not the trimmed and lowercased `filterText`: what is restored has to be what was typed.
+    search: searchInput.value,
+    filters: {
+      pinned: showPinnedOnly,
+      open: showOpenOnly,
+      running: showRunningOnly,
+      worktree: showWorktreeOnly,
+      siblings: showSiblingsOnly,
+      archived: showArchivedOnly,
+    },
+    datePreset,
+    dateFrom: dateFromMs,
+    dateTo: dateToMs,
+    filterPanelOpen: !filterPanel.hidden,
+    collapsedProjects: [...collapsedProjects],
+    collapsedGroups: [...collapsedGroups],
+    filterCollapsedProjects: [...filterFoldedProjects],
+    filterCollapsedGroups: [...filterFoldedGroups],
+    // An empty flex-basis means the sidebar has never been dragged, so the stylesheet still owns the width.
+    sidebarWidth: parseInt(sidebar.style.flexBasis, 10) || null,
+    scrollTop: container.scrollTop,
+  };
+}
+
+/**
+ * Store the view, on a debounce.
+ * Typing in the search box and dragging the scrollbar both change this state continuously, and every write is a read-modify-write of meta.json plus an audit line, so what is wanted is one write per pause rather than one per keystroke.
+ */
+function persistUi(): void {
+  if (!uiRestored) return;
+  if (uiSaveTimer !== undefined) clearTimeout(uiSaveTimer);
+  uiSaveTimer = window.setTimeout(() => {
+    uiSaveTimer = undefined;
+    const state = uiSnapshot();
+    const signature = JSON.stringify(state);
+    if (signature === lastUiSignature) return;
+    lastUiSignature = signature;
+    window.claudeUi.setUiState(state);
+  }, 400);
+}
+
+/**
+ * Put the sidebar back the way it was left, and hand back the scroll offset to apply once there is a list to scroll.
+ *
+ * Runs before the first render on purpose: restoring filters afterwards would draw the full list and then visibly cut it down.
+ * Reads `groupState`, so it has to run after that is loaded.
+ */
+async function restoreUiState(): Promise<number> {
+  const state = await window.claudeUi.getUiState();
+  searchInput.value = state.search;
+  filterText = state.search.trim().toLowerCase();
+  showPinnedOnly = state.filters.pinned;
+  showOpenOnly = state.filters.open;
+  showRunningOnly = state.filters.running;
+  showWorktreeOnly = state.filters.worktree;
+  showSiblingsOnly = state.filters.siblings;
+  showArchivedOnly = state.filters.archived;
+  for (const repoRoot of state.collapsedProjects) collapsedProjects.add(repoRoot);
+  for (const repoRoot of state.filterCollapsedProjects) filterFoldedProjects.add(repoRoot);
+  // A project keeps its fold even while it has no sessions to show (same reasoning as projectOrder), but a DELETED group is gone for good, and this is the one moment we know which ids are real.
+  const liveGroups = new Set(groupState.groups.map((g) => g.id));
+  for (const id of state.collapsedGroups) if (liveGroups.has(id)) collapsedGroups.add(id);
+  for (const id of state.filterCollapsedGroups) if (liveGroups.has(id)) filterFoldedGroups.add(id);
+  // Nothing special is needed for a restore that lands with no filter on: the first render empties these, and stores that.
+  // The width lived in localStorage before this; adopt that value once, so an existing install keeps its sidebar, and let meta.json own it from here.
+  const width = state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth'));
+  if (width >= SIDEBAR_MIN && width <= SIDEBAR_MAX) sidebar.style.flexBasis = `${width}px`;
+  // Only a CUSTOM range is restored as stored. The rolling presets are recomputed by applyDatePreset from the current moment, which is the whole point of "last 7 days" still meaning the last 7 days.
+  if (state.datePreset === 'custom') {
+    const picked = [state.dateFrom, state.dateTo].filter((ms): ms is number => ms !== null).map((ms) => new Date(ms));
+    if (picked.length > 0) {
+      // Awaited, because applyDatePreset reads the range back OUT of the picker: the selection has to have landed first.
+      // Flagged rather than the picker's own `silent`, so the calendar still repaints — this only needs onSelect not to re-apply and re-render mid-restore.
+      suppressPickerSelect = true;
+      await datePicker.selectDate(picked);
+      suppressPickerSelect = false;
+    }
+  }
+  applyDatePreset(state.datePreset);
+  // Exactly as it was left, an active filter included. Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; the filter icon carries its accent while anything is on, which is the cue that the list is cut down.
+  setFilterPanel(state.filterPanelOpen);
+  uiRestored = true;
+  // Seed the signature from what was just restored, so an opening render that changed nothing writes nothing.
+  lastUiSignature = JSON.stringify(uiSnapshot());
+  return state.scrollTop;
+}
+
 // --- Project switcher ---
 
 // Update the switcher header + popover from the visible project pool. The pool is every project's tips (see renderList); the switcher is independent of search/project so you can always navigate.
@@ -944,7 +1068,7 @@ function switcherItem(name: string, repoRoot: string | null, count: number, badg
 function selectProject(repoRoot: string | null): void {
   activeProject = repoRoot;
   // Open a project expanded even if it was collapsed in the All view.
-  if (repoRoot) collapsedProjects.delete(repoRoot);
+  if (repoRoot) foldedProjects().delete(repoRoot);
   window.claudeUi.setActiveProject(repoRoot);
   closeSwitcher();
   renderList();
@@ -998,6 +1122,11 @@ function refreshSwitcher(): void {
 function renderList(): void {
   const scroll = container.scrollTop;
   statusDots.clear();
+  // The filter is off, so the folds made while it was on have served their purpose and go. Done here rather than where a filter is cleared, because a filter also ends by deleting the last character, by a date preset going back to Any, and by Clear.
+  if (!isFiltering()) {
+    filterFoldedProjects.clear();
+    filterFoldedGroups.clear();
+  }
 
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions();
@@ -1027,6 +1156,7 @@ function renderList(): void {
     // Nothing on screen to fold away: this early return would otherwise leave the toggle live with the previous render's sections.
     renderedSections = { projects: [], groups: [] };
     updateCollapseToggle();
+    persistUi();
     return;
   }
   container.querySelector(':scope > .empty-message')?.remove();
@@ -1047,6 +1177,8 @@ function renderList(): void {
   updateCollapseToggle();
   syncStickyOffset();
   updatePlaceholder(); // its wording depends on whether there are sessions at all
+  // Every change to a filter or a fold ends here, so this one call covers all of them; the snapshot is compared before it is written, so the renders that change nothing about the view cost nothing.
+  persistUi();
 }
 
 // Chevrons stacked in the direction things will move: up to fold everything away, down to open it again. Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
@@ -1060,8 +1192,8 @@ const EXPAND_ALL_ICON =
 // In a single-project view folding the one project you asked to look at is pointless, so it folds THAT project's groups instead.
 function collapseScope(): { ids: string[]; collapsed: Set<string> } {
   return activeProject === null
-    ? { ids: renderedSections.projects, collapsed: collapsedProjects }
-    : { ids: renderedSections.groups, collapsed: collapsedGroups };
+    ? { ids: renderedSections.projects, collapsed: foldedProjects() }
+    : { ids: renderedSections.groups, collapsed: foldedGroups() };
 }
 
 // Everything in scope folded away already? Then the button offers the way back instead.
@@ -1089,8 +1221,8 @@ collapseToggle.addEventListener('click', () => {
   }
   // In the All view a project's groups fold along with it, so expanding one afterwards shows its group headings rather than dumping every row back. In a project view the groups ARE the scope already.
   if (activeProject === null) {
-    if (expanding) collapsedGroups.clear();
-    else for (const id of renderedSections.groups) collapsedGroups.add(id);
+    if (expanding) foldedGroups().clear();
+    else for (const id of renderedSections.groups) foldedGroups().add(id);
   }
   renderList();
 });
@@ -1129,7 +1261,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
       projectSections.set(project.repoRoot, els);
     }
     // While filtering, force projects open so matches inside a collapsed one are visible; the stored collapse state is left untouched, so it returns when the filter clears.
-    const collapsed = !isFiltering() && activeProject === null && collapsedProjects.has(project.repoRoot);
+    const collapsed = activeProject === null && foldedProjects().has(project.repoRoot);
     els.section.classList.toggle('collapsed', collapsed);
     // A project view can't collapse its one project, so it shows no caret and no clickable styling.
     els.section.classList.toggle('no-collapse', activeProject !== null);
@@ -1147,7 +1279,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
     for (const { group, sessions } of project.groups) {
       const groupEls = groupSections.get(group.id) ?? createGroupSection(group.id);
       groupSections.set(group.id, groupEls);
-      const groupCollapsed = !isFiltering() && collapsedGroups.has(group.id);
+      const groupCollapsed = foldedGroups().has(group.id);
       groupEls.section.classList.toggle('collapsed', groupCollapsed);
       groupEls.caret.innerHTML = caretIcon(groupCollapsed, 10);
       groupEls.label.textContent = group.name;
@@ -1485,9 +1617,9 @@ function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
 function revealSessionInSidebar(session: SessionSummary): void {
   // Its group can be collapsed too, and then the row is hidden even with the project open.
   const groupId = groupState.groupOf[entityKey(session)];
-  if (groupId && collapsedGroups.delete(groupId)) renderList();
-  if (collapsedProjects.has(session.repoRoot)) {
-    collapsedProjects.delete(session.repoRoot);
+  if (groupId && foldedGroups().delete(groupId)) renderList();
+  if (foldedProjects().has(session.repoRoot)) {
+    foldedProjects().delete(session.repoRoot);
     renderList();
   }
   const row = sessionRows.get(entityKey(session));
@@ -1505,8 +1637,8 @@ const REVEAL_GAP = 6;
 
 // Scroll the (All-view) session list to a project's heading — used by the project name in the tab bar, so it links to where that project's sessions live.
 function revealProjectInSidebar(repoRoot: string): void {
-  if (collapsedProjects.has(repoRoot)) {
-    collapsedProjects.delete(repoRoot);
+  if (foldedProjects().has(repoRoot)) {
+    foldedProjects().delete(repoRoot);
     renderList();
   }
   const els = projectSections.get(repoRoot);
@@ -1532,8 +1664,8 @@ function syncStickyOffset(): void {
 function jumpToGroup(repoRoot: string, groupId: string | null): void {
   const els = projectSections.get(repoRoot);
   if (!els) return;
-  if (collapsedProjects.delete(repoRoot)) renderList();
-  if (groupId !== null && collapsedGroups.delete(groupId)) renderList();
+  if (foldedProjects().delete(repoRoot)) renderList();
+  if (groupId !== null && foldedGroups().delete(groupId)) renderList();
 
   // A group jumps to its heading; the ungrouped remainder has none, so it jumps to its first row — which is the one carrying .after-groups, the class that marks where the loose rows begin.
   const target: HTMLElement | null | undefined =
@@ -1650,14 +1782,16 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     // Not collapsible in a single-project view: hiding the one project you're looking at leaves an empty sidebar. The heading is a title there, and updateProjectSection drops its caret to say so.
     if (activeProject !== null) return;
     const before = heading.getBoundingClientRect().top;
-    const collapsed = !collapsedProjects.has(name);
-    if (collapsed) collapsedProjects.add(name);
-    else collapsedProjects.delete(name);
+    const collapsed = !foldedProjects().has(name);
+    if (collapsed) foldedProjects().add(name);
+    else foldedProjects().delete(name);
     section.classList.toggle('collapsed', collapsed);
     caret.innerHTML = caretIcon(collapsed, 10);
     container.scrollTop += heading.getBoundingClientRect().top - before;
     // This toggle deliberately skips renderList (no flicker, no scroll jump), so the header button has to be refreshed by hand — otherwise it still reads "Expand all" after one project reopens.
     updateCollapseToggle();
+    // And so does the store, for the same reason: skipping the render skips the one call that would otherwise have saved this.
+    persistUi();
   });
   section.appendChild(heading);
 
@@ -1724,11 +1858,13 @@ function createGroupSection(id: string): GroupSectionEls {
   });
   heading.append(caret, icon, label, count, split, kebab);
   heading.addEventListener('click', () => {
-    const collapsed = !collapsedGroups.has(id);
-    if (collapsed) collapsedGroups.add(id);
-    else collapsedGroups.delete(id);
+    const collapsed = !foldedGroups().has(id);
+    if (collapsed) foldedGroups().add(id);
+    else foldedGroups().delete(id);
     section.classList.toggle('collapsed', collapsed);
     caret.innerHTML = caretIcon(collapsed, 10);
+    // Same as the project heading above: no render here, so nothing else would store the fold.
+    persistUi();
   });
 
   // The rows live in their own element so the indent and its rail wrap the whole group, which is what shows where a group ends without needing to read the next heading.
@@ -2686,8 +2822,7 @@ const sidebar = document.getElementById('sidebar')!;
 const sidebarResizer = document.getElementById('sidebar-resizer')!;
 const SIDEBAR_MIN = 220;
 const SIDEBAR_MAX = 640;
-const savedWidth = Number(localStorage.getItem('sidebarWidth'));
-if (savedWidth >= SIDEBAR_MIN && savedWidth <= SIDEBAR_MAX) sidebar.style.flexBasis = `${savedWidth}px`;
+// The width is restored with the rest of the view state (restoreUiState), not read here.
 sidebarResizer.addEventListener('mousedown', (event) => {
   event.preventDefault();
   document.body.classList.add('resizing');
@@ -2701,7 +2836,7 @@ sidebarResizer.addEventListener('mousedown', (event) => {
     document.removeEventListener('mouseup', onUp);
     document.body.classList.remove('resizing');
     sidebarResizer.classList.remove('dragging');
-    localStorage.setItem('sidebarWidth', String(parseInt(sidebar.style.flexBasis, 10)));
+    persistUi();
   };
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
@@ -2747,12 +2882,14 @@ wireFilterToggle(worktreeFilter, () => (showWorktreeOnly = !showWorktreeOnly));
 wireFilterToggle(siblingFilter, () => (showSiblingsOnly = !showSiblingsOnly));
 wireFilterToggle(archivedFilter, () => (showArchivedOnly = !showArchivedOnly));
 filterToggle.addEventListener('click', () => {
-  const opening = filterPanel.hidden;
-  filterPanel.hidden = !opening;
-  filterToggle.setAttribute('aria-expanded', String(opening));
+  // Boolean(): `hidden` is a string-or-boolean these days (it also takes "until-found").
+  const opening = Boolean(filterPanel.hidden);
+  setFilterPanel(opening);
   // Opening hands focus to the search box; closing drops focus so the ring doesn't linger.
   if (opening) searchInput.focus();
   else filterToggle.blur();
+  // The only view change that does not re-render, so it needs its own call.
+  persistUi();
 });
 datePresets.addEventListener('click', (event) => {
   const preset = (event.target as HTMLElement).dataset.range;
@@ -2782,6 +2919,8 @@ function onCustomDateChange(): void {
   renderList();
   container.scrollTop = 0;
 }
+// Where the list was scrolled to is remembered, so a scroll of your own is a change to remember too.
+container.addEventListener('scroll', persistUi);
 installTooltips();
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
@@ -2789,8 +2928,14 @@ void (async () => {
   activeProject = await window.claudeUi.getActiveProject();
   // Read once at boot, not per render: a render-time read could race a toggle whose write is still in flight and snap the strip back.
   footerExpanded = await window.claudeUi.getFooterExpanded();
+  // Before the first render: restoring filters afterwards would draw the whole list and then visibly cut it down.
+  const scrollTop = await restoreUiState();
   await renderSessions();
   await restoreOpenTabs();
+  // Again, now that the tabs exist. Two filters — open, and running — are questions about the TABS, and the render above happened while there were none, so a restored "open" filter would otherwise show an empty list next to a full tab bar. It also puts the open marker on the rows, which used to wait for the next render for its own reasons.
+  renderList();
+  // Last, because there is nothing to scroll until the rows are on screen. Later renders carry the offset along themselves.
+  container.scrollTop = scrollTop;
   switchWorkspaceTerminal(activeProject);
 })();
 updatePlaceholder();

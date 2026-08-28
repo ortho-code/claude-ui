@@ -32,6 +32,10 @@ import {
   setFooterExpanded,
   getNotes,
   setNote,
+  getWindowBounds,
+  setWindowBounds,
+  getUiState,
+  setUiState,
 } from './meta';
 
 let dir: string;
@@ -357,6 +361,118 @@ describe('footerExpanded', () => {
   it('keeps a stored false across a reload rather than reverting to the default', async () => {
     await writeMetaFile({ footerExpanded: false, version: 3 });
     expect(await getFooterExpanded()).toBe(false);
+  });
+});
+
+describe('windowBounds', () => {
+  it('has nothing stored until the window has been somewhere', async () => {
+    expect(await getWindowBounds()).toBeNull();
+  });
+
+  it('stores and reads back a position', async () => {
+    const bounds = { x: 40, y: 60, width: 1400, height: 900, maximized: false };
+    await setWindowBounds(bounds);
+    expect(await getWindowBounds()).toEqual(bounds);
+  });
+
+  it('remembers a maximized window and the size to un-maximize to', async () => {
+    await setWindowBounds({ x: 0, y: 0, width: 1100, height: 760, maximized: true });
+    expect(await getWindowBounds()).toMatchObject({ width: 1100, height: 760, maximized: true });
+  });
+
+  it('ignores a half-written rectangle rather than placing a window from it', async () => {
+    await writeMetaFile({ windowBounds: { x: 40, y: 60, width: 1400 }, version: 3 });
+    expect(await getWindowBounds()).toBeNull();
+  });
+
+  it('ignores a rectangle with no size', async () => {
+    await writeMetaFile({ windowBounds: { x: 40, y: 60, width: 0, height: 900 }, version: 3 });
+    expect(await getWindowBounds()).toBeNull();
+  });
+
+  it('ignores values that are not numbers at all', async () => {
+    await writeMetaFile({ windowBounds: { x: null, y: '60', width: 1400, height: 900 }, version: 3 });
+    expect(await getWindowBounds()).toBeNull();
+  });
+});
+
+describe('ui state', () => {
+  const view = {
+    search: 'psalm',
+    filters: { pinned: true, open: false, running: false, worktree: false, siblings: false, archived: false },
+    datePreset: 'custom',
+    dateFrom: 1_700_000_000_000,
+    dateTo: 1_700_500_000_000,
+    filterPanelOpen: true,
+    collapsedProjects: ['/home/me/work'],
+    collapsedGroups: ['g1'],
+    filterCollapsedProjects: ['/home/me/other'],
+    filterCollapsedGroups: ['g2'],
+    sidebarWidth: 380,
+    scrollTop: 240,
+  };
+
+  it('starts unfiltered, unfolded and at the default width', async () => {
+    expect(await getUiState()).toEqual({
+      search: '',
+      filters: { pinned: false, open: false, running: false, worktree: false, siblings: false, archived: false },
+      datePreset: 'any',
+      dateFrom: null,
+      dateTo: null,
+      filterPanelOpen: false,
+      collapsedProjects: [],
+      collapsedGroups: [],
+      filterCollapsedProjects: [],
+      filterCollapsedGroups: [],
+      sidebarWidth: null,
+      scrollTop: 0,
+    });
+  });
+
+  it('stores and reads back a whole view', async () => {
+    await setUiState(view);
+    expect(await getUiState()).toEqual(view);
+  });
+
+  it('fills in what an older meta.json never stored', async () => {
+    await writeMetaFile({ ui: { search: 'psalm' }, version: 3 });
+    const ui = await getUiState();
+    expect(ui.search).toBe('psalm');
+    expect(ui.filters.pinned).toBe(false);
+    expect(ui.datePreset).toBe('any');
+    expect(ui.collapsedProjects).toEqual([]);
+    expect(ui.filterCollapsedProjects).toEqual([]);
+  });
+
+  it('drops values of the wrong type rather than restoring a broken sidebar', async () => {
+    await writeMetaFile({
+      ui: { search: 42, filters: 'all', collapsedProjects: ['/a', 7, null], scrollTop: 'top' },
+      version: 3,
+    });
+    const ui = await getUiState();
+    expect(ui.search).toBe('');
+    expect(ui.filters.pinned).toBe(false);
+    expect(ui.collapsedProjects).toEqual(['/a']);
+    expect(ui.scrollTop).toBe(0);
+  });
+
+  it('keeps the folds made while filtering apart from the folds made without one', async () => {
+    await setUiState(view);
+    const ui = await getUiState();
+    expect(ui.collapsedProjects).toEqual(['/home/me/work']);
+    expect(ui.filterCollapsedProjects).toEqual(['/home/me/other']);
+    expect(ui.collapsedGroups).toEqual(['g1']);
+    expect(ui.filterCollapsedGroups).toEqual(['g2']);
+  });
+
+  it('treats a zero width as never set, since it could not be dragged back', async () => {
+    await setUiState({ ...view, sidebarWidth: 0 });
+    expect((await getUiState()).sidebarWidth).toBeNull();
+  });
+
+  it('normalizes on the way in too, so the renderer cannot store a shape the next launch chokes on', async () => {
+    await setUiState({ ...view, scrollTop: -50 });
+    expect((await getUiState()).scrollTop).toBe(0);
   });
 });
 

@@ -4,6 +4,10 @@ What changed in each release, for people running a build rather than the source.
 
 ## Unreleased
 
+- The app reopens the way you left it: the window's size and position, and the sidebar's search, filters, date range, folded-away projects and groups, width and scroll offset. A window whose screen is gone opens on one that exists, at the size you had.
+- The filter panel reopens as you left it, open or closed, with whatever filter was on still applied and the filter icon accented to say so.
+- Folding a project or group while a filter is on is its own thing: it is a way through the results, so it lasts as long as the filter, leaves your usual folds alone underneath, and comes back with the filter after a restart.
+
 ## 0.2.0 — 2026-08-28
 
 **Upgrading on macOS, this version only:** delete the old Claude UI from Applications before installing this one.

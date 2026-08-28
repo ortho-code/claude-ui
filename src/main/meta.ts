@@ -2,7 +2,8 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { OrderMove, GroupState, SessionGroup } from '../shared/types';
+import type { OrderMove, GroupState, SessionGroup, UiState } from '../shared/types';
+import type { WindowBounds } from './bounds';
 
 /**
  * UI-only metadata, kept outside ~/.claude so we never touch the session store.
@@ -34,6 +35,13 @@ interface Meta {
   footerExpanded: boolean;
   /** Free-text note per session id. An empty note is deleted, so presence here means there IS one. */
   notes: Record<string, string>;
+  /**
+   * Size and position of the window as it was last left, or null until it has been.
+   * The size stored is always the unmaximized one, with `maximized` recorded beside it, so restoring a maximized window still knows how big to make it when it is un-maximized.
+   */
+  windowBounds: WindowBounds | null;
+  /** How the sidebar was left: search, filters, folds, width, scroll. See UiState. */
+  ui: UiState;
   /** User-defined session groups, in display order (a new one is prepended). */
   groups: SessionGroup[];
   /** Session id -> group id; a session is in at most one group. */
@@ -68,6 +76,8 @@ const KNOWN_KEYS = new Set([
   'projectNames',
   'projectOrder',
   'footerExpanded',
+  'windowBounds',
+  'ui',
   'notes',
   'groups',
   'groupOf',
@@ -80,7 +90,76 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], footerExpanded: true, notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], footerExpanded: true, windowBounds: null, ui: defaultUi(), notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+}
+
+/** An unfiltered, unfolded sidebar at its default width: what a first run gets, and what any field missing from the stored object falls back to. */
+function defaultUi(): UiState {
+  return {
+    search: '',
+    filters: { pinned: false, open: false, running: false, worktree: false, siblings: false, archived: false },
+    datePreset: 'any',
+    dateFrom: null,
+    dateTo: null,
+    filterPanelOpen: false,
+    collapsedProjects: [],
+    collapsedGroups: [],
+    filterCollapsedProjects: [],
+    filterCollapsedGroups: [],
+    sidebarWidth: null,
+    scrollTop: 0,
+  };
+}
+
+/**
+ * Fill in a stored UiState field by field, defaulting anything absent or of the wrong type.
+ *
+ * Applied on READ and on WRITE, deliberately.
+ * On read it means a meta.json from before this existed, or one a newer build wrote with fields this one has never heard of, still produces a usable sidebar.
+ * On write it means the renderer cannot put something in the file that the next launch would choke on — this is the one structure the UI hands over wholesale rather than a value at a time.
+ */
+function normalizeUi(raw: unknown): UiState {
+  const base = defaultUi();
+  if (!raw || typeof raw !== 'object') return base;
+  const ui = raw as Record<string, unknown>;
+  const bool = (value: unknown, fallback: boolean): boolean => (typeof value === 'boolean' ? value : fallback);
+  const strings = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  const ms = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+  const filters = (ui.filters ?? {}) as Record<string, unknown>;
+  return {
+    search: typeof ui.search === 'string' ? ui.search : base.search,
+    filters: Object.fromEntries(
+      Object.keys(base.filters).map((key) => [key, bool(filters[key], false)]),
+    ) as UiState['filters'],
+    datePreset: typeof ui.datePreset === 'string' ? ui.datePreset : base.datePreset,
+    dateFrom: ms(ui.dateFrom),
+    dateTo: ms(ui.dateTo),
+    filterPanelOpen: bool(ui.filterPanelOpen, base.filterPanelOpen),
+    collapsedProjects: strings(ui.collapsedProjects),
+    collapsedGroups: strings(ui.collapsedGroups),
+    filterCollapsedProjects: strings(ui.filterCollapsedProjects),
+    filterCollapsedGroups: strings(ui.filterCollapsedGroups),
+    // A width of 0 would collapse the sidebar to nothing with no way to drag it back, so anything non-positive is treated as "never set" and takes the CSS default.
+    sidebarWidth: typeof ui.sidebarWidth === 'number' && ui.sidebarWidth > 0 ? ui.sidebarWidth : null,
+    scrollTop: typeof ui.scrollTop === 'number' && Number.isFinite(ui.scrollTop) ? Math.max(0, ui.scrollTop) : 0,
+  };
+}
+
+/**
+ * Stored window bounds, or null if there is nothing trustworthy there.
+ * All four numbers are required together, because a partial rectangle is not a position — half of one would place the window somewhere nobody asked for.
+ * `Number.isFinite` rather than a `typeof` check: JSON can hold `null`, and a NaN or Infinity that reached the file would come back out as an unopenable window rather than as an error.
+ */
+function parseBounds(raw: unknown): WindowBounds | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const b = raw as Record<string, unknown>;
+  const numbers = ['x', 'y', 'width', 'height'].map((key) => b[key]);
+  if (!numbers.every((n) => typeof n === 'number' && Number.isFinite(n))) return null;
+  const [x, y, width, height] = numbers as number[];
+  // A zero or negative size is damage, not a preference. Placement handles a size that is merely too SMALL by clamping it; this rejects the ones that are not sizes at all.
+  if (width <= 0 || height <= 0) return null;
+  return { x, y, width, height, maximized: b.maximized === true };
 }
 
 // Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
@@ -130,6 +209,9 @@ function normalize(parsed: Record<string, unknown>): Meta {
       : [],
     // Absent (an older meta.json) means the preference was never expressed, so take the new default rather than the old hard-coded "closed".
     footerExpanded: typeof parsed.footerExpanded === 'boolean' ? parsed.footerExpanded : true,
+    // Absent for anything written before the window remembered itself, which simply means "open at the default size".
+    windowBounds: parseBounds(parsed.windowBounds),
+    ui: normalizeUi(parsed.ui),
     // Same reasoning as projectOrder: no version bump for a new defaulted field. Non-string values are dropped so a hand-edited file can't put an object where a note should be.
     notes: Object.fromEntries(
       Object.entries((parsed.notes ?? {}) as Record<string, unknown>).filter(
@@ -432,6 +514,31 @@ export function getFooterExpanded(): Promise<boolean> {
 export function setFooterExpanded(expanded: boolean): Promise<void> {
   return update('setFooterExpanded', (meta) => {
     meta.footerExpanded = expanded;
+  });
+}
+
+export function getWindowBounds(): Promise<WindowBounds | null> {
+  return serialize(async () => (await readMeta()).windowBounds);
+}
+
+/**
+ * Remember where the window is.
+ * Written through the same queue as everything else, so a resize landing at the same moment as a tab change cannot overwrite it — the reason this lives in meta.json at all rather than in a file of its own.
+ */
+export function setWindowBounds(bounds: WindowBounds): Promise<void> {
+  return update('setWindowBounds', (meta) => {
+    meta.windowBounds = bounds;
+  });
+}
+
+export function getUiState(): Promise<UiState> {
+  return serialize(async () => (await readMeta()).ui);
+}
+
+/** Store the sidebar's view state. Normalized on the way in, so a renderer bug cannot write a shape the next launch can't read. */
+export function setUiState(state: UiState): Promise<void> {
+  return update('setUiState', (meta) => {
+    meta.ui = normalizeUi(state);
   });
 }
 

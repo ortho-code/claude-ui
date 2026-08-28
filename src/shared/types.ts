@@ -52,6 +52,54 @@ export interface GroupState {
   groupOf: Record<string, string>;
 }
 
+/**
+ * How the sidebar was left: what was searched for, what was filtered, what was folded away, how wide it was and how far down it was scrolled.
+ *
+ * Stored and restored as ONE object rather than as a key each.
+ * These are all answers to the same question — "put the sidebar back the way it was" — and they are written together on a debounce from a single snapshot, so a key each would mean ten round trips and ten chances for half of a view to be restored.
+ */
+export interface UiState {
+  /** The search box's contents. */
+  search: string;
+  /** The six filter toggles, named as their buttons are. */
+  filters: {
+    pinned: boolean;
+    open: boolean;
+    running: boolean;
+    worktree: boolean;
+    siblings: boolean;
+    archived: boolean;
+  };
+  /**
+   * The active date preset, or 'any' when the date filter is off.
+   * A rolling preset ("last 7 days") is recomputed from the current moment on restore, which is what makes it still mean what it said; only 'custom' reads the stored range back.
+   */
+  datePreset: string;
+  /** The custom range, in epoch ms. Only meaningful while `datePreset` is 'custom'. */
+  dateFrom: number | null;
+  dateTo: number | null;
+  /**
+   * Whether the filter panel is open, restored exactly as stored — an active filter included.
+   * Closing it over a filter left deliberately on is a choice to keep the results and take the space back, so the accent the filter icon carries while anything is on is the cue that the list is cut down.
+   */
+  filterPanelOpen: boolean;
+  /** Folded-away projects, by repo root. */
+  collapsedProjects: string[];
+  /** Folded-away groups, by group id. */
+  collapsedGroups: string[];
+  /**
+   * The folds made WHILE filtering, which are a separate state from the two above.
+   * Filtering opens the whole tree so a match is never hidden, and folding from there is a way through the results rather than a statement about how the sidebar should look — so it applies only while a filter is on, and the moment one stops the pair is emptied.
+   * Stored all the same, because the filter itself is restored: coming back to the same results and not the same view would be the very thing this exists to prevent.
+   */
+  filterCollapsedProjects: string[];
+  filterCollapsedGroups: string[];
+  /** Sidebar width in px; null until it has been dragged. */
+  sidebarWidth: number | null;
+  /** How far the session list was scrolled, in px. */
+  scrollTop: number;
+}
+
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
   /** Whether a worktree of this name already exists for the repo (blocks creating a duplicate). */
@@ -91,6 +139,9 @@ export interface ClaudeUiApi {
   setNote(id: string, note: string): Promise<Record<string, string>>;
   getFooterExpanded(): Promise<boolean>;
   setFooterExpanded(expanded: boolean): void;
+  /** The sidebar's view state — search, filters, folds, width, scroll — as it was last left. */
+  getUiState(): Promise<UiState>;
+  setUiState(state: UiState): void;
   getProjectNames(): Promise<Record<string, string>>;
   setProjectName(repoRoot: string, name: string): Promise<Record<string, string>>;
   /** Every group plus the session -> group membership. */
