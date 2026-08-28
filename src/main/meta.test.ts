@@ -28,8 +28,6 @@ import {
   getProjectOrder,
   seedProjectOrder,
   moveProject,
-  getFooterExpanded,
-  setFooterExpanded,
   getNotes,
   setNote,
   getWindowBounds,
@@ -343,24 +341,40 @@ describe('projectOrder', () => {
 
 describe('footerExpanded', () => {
   it('starts expanded, because the strip is meant to be read', async () => {
-    expect(await getFooterExpanded()).toBe(true);
+    expect((await getUiState()).footerExpanded).toBe(true);
   });
 
   it('remembers being closed, and being opened again', async () => {
-    await setFooterExpanded(false);
-    expect(await getFooterExpanded()).toBe(false);
-    await setFooterExpanded(true);
-    expect(await getFooterExpanded()).toBe(true);
+    const ui = await getUiState();
+    await setUiState({ ...ui, footerExpanded: false });
+    expect((await getUiState()).footerExpanded).toBe(false);
+    await setUiState({ ...ui, footerExpanded: true });
+    expect((await getUiState()).footerExpanded).toBe(true);
   });
 
-  it('takes the new default when an older meta.json never mentioned it', async () => {
+  it('takes the default when an older meta.json never mentioned it', async () => {
     await writeMetaFile({ pinned: ['s1'], version: 3 });
-    expect(await getFooterExpanded()).toBe(true);
+    expect((await getUiState()).footerExpanded).toBe(true);
   });
 
-  it('keeps a stored false across a reload rather than reverting to the default', async () => {
+  // It used to be a key of its own, so an existing install's setting has to survive the move into `ui`.
+  it('adopts the value from the key this used to live under', async () => {
     await writeMetaFile({ footerExpanded: false, version: 3 });
-    expect(await getFooterExpanded()).toBe(false);
+    expect((await getUiState()).footerExpanded).toBe(false);
+  });
+
+  it('prefers what `ui` says over the old key, once both exist', async () => {
+    await writeMetaFile({ footerExpanded: false, ui: { footerExpanded: true }, version: 3 });
+    expect((await getUiState()).footerExpanded).toBe(true);
+  });
+
+  // The old key is consumed rather than carried along, so it does not linger in the file for ever.
+  it('stops writing the old key back out', async () => {
+    await writeMetaFile({ footerExpanded: false, version: 3 });
+    await setUiState({ ...(await getUiState()), footerExpanded: true });
+    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    expect(raw.footerExpanded).toBeUndefined();
+    expect(raw.ui.footerExpanded).toBe(true);
   });
 });
 
@@ -404,6 +418,7 @@ describe('ui state', () => {
     dateFrom: 1_700_000_000_000,
     dateTo: 1_700_500_000_000,
     filterPanelOpen: true,
+    footerExpanded: false,
     collapsedProjects: ['/home/me/work'],
     collapsedGroups: ['g1'],
     filterCollapsedProjects: ['/home/me/other'],
@@ -420,6 +435,7 @@ describe('ui state', () => {
       dateFrom: null,
       dateTo: null,
       filterPanelOpen: false,
+      footerExpanded: true,
       collapsedProjects: [],
       collapsedGroups: [],
       filterCollapsedProjects: [],

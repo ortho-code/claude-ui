@@ -705,6 +705,7 @@ function uiSnapshot(): UiState {
     dateFrom: dateFromMs,
     dateTo: dateToMs,
     filterPanelOpen: !filterPanel.hidden,
+    footerExpanded,
     collapsedProjects: [...collapsedProjects],
     collapsedGroups: [...collapsedGroups],
     filterCollapsedProjects: [...filterFoldedProjects],
@@ -773,6 +774,7 @@ async function restoreUiState(): Promise<number> {
   applyDatePreset(state.datePreset);
   // Exactly as it was left, an active filter included. Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; the filter icon carries its accent while anything is on, which is the cue that the list is cut down.
   setFilterPanel(state.filterPanelOpen);
+  footerExpanded = state.footerExpanded;
   uiRestored = true;
   // Seed the signature from what was just restored, so an opening render that changed nothing writes nothing.
   lastUiSignature = JSON.stringify(uiSnapshot());
@@ -1047,7 +1049,7 @@ footerToggle.addEventListener('click', () => {
   footerExpanded = !footerExpanded;
   footerList.hidden = !footerExpanded;
   footerToggle.setAttribute('aria-expanded', String(footerExpanded));
-  window.claudeUi.setFooterExpanded(footerExpanded);
+  persistUi();
 });
 
 function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean): HTMLElement {
@@ -2977,8 +2979,6 @@ installTooltips();
 void (async () => {
   groupState = await window.claudeUi.getGroupState();
   activeProject = await window.claudeUi.getActiveProject();
-  // Read once at boot, not per render: a render-time read could race a toggle whose write is still in flight and snap the strip back.
-  footerExpanded = await window.claudeUi.getFooterExpanded();
   // Before the first render: restoring filters afterwards would draw the whole list and then visibly cut it down.
   const scrollTop = await restoreUiState();
   await renderSessions();

@@ -84,6 +84,8 @@ export interface UiState {
    * Closing it over a filter left deliberately on is a choice to keep the results and take the space back, so the accent the filter icon carries while anything is on is the cue that the list is cut down.
    */
   filterPanelOpen: boolean;
+  /** Whether the attention strip in the sidebar footer is expanded. Open by default — it is meant to be read. */
+  footerExpanded: boolean;
   /** Folded-away projects, by repo root. */
   collapsedProjects: string[];
   /** Folded-away groups, by group id. */
@@ -133,13 +135,10 @@ export interface ClaudeUiApi {
   setActiveSession(id: string | null, repoRoot?: string): void;
   getActiveProject(): Promise<string | null>;
   setActiveProject(folder: string | null): void;
-  /** Whether the attention strip starts expanded (true for a meta that never said otherwise). */
   /** Session id -> note text. Only sessions WITH a note appear. */
   getNotes(): Promise<Record<string, string>>;
   /** Write or clear a session's note (blank clears); resolves to the updated map. */
   setNote(id: string, note: string): Promise<Record<string, string>>;
-  getFooterExpanded(): Promise<boolean>;
-  setFooterExpanded(expanded: boolean): void;
   /** The sidebar's view state — search, filters, folds, width, scroll — as it was last left. */
   getUiState(): Promise<UiState>;
   setUiState(state: UiState): void;

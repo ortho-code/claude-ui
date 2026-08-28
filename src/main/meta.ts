@@ -31,8 +31,6 @@ interface Meta {
   projectNames: Record<string, string>;
   /** repoRoots in display order. Empty means "never seeded"; the first seed fills it from recency. */
   projectOrder: string[];
-  /** Whether the sidebar's attention strip starts expanded. Open by default — it's meant to be read. */
-  footerExpanded: boolean;
   /** Free-text note per session id. An empty note is deleted, so presence here means there IS one. */
   notes: Record<string, string>;
   /**
@@ -75,7 +73,7 @@ const KNOWN_KEYS = new Set([
   'activeFolder', // the pre-rename spelling of activeProject; read, never written
   'projectNames',
   'projectOrder',
-  'footerExpanded',
+  'footerExpanded', // moved into `ui`; still listed so an old file's copy is consumed rather than preserved through `extra`
   'windowBounds',
   'ui',
   'notes',
@@ -90,7 +88,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], footerExpanded: true, windowBounds: null, ui: defaultUi(), notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /** An unfiltered, unfolded sidebar at its default width: what a first run gets, and what any field missing from the stored object falls back to. */
@@ -102,6 +100,7 @@ function defaultUi(): UiState {
     dateFrom: null,
     dateTo: null,
     filterPanelOpen: false,
+    footerExpanded: true,
     collapsedProjects: [],
     collapsedGroups: [],
     filterCollapsedProjects: [],
@@ -118,8 +117,10 @@ function defaultUi(): UiState {
  * On read it means a meta.json from before this existed, or one a newer build wrote with fields this one has never heard of, still produces a usable sidebar.
  * On write it means the renderer cannot put something in the file that the next launch would choke on — this is the one structure the UI hands over wholesale rather than a value at a time.
  */
-function normalizeUi(raw: unknown): UiState {
+function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
   const base = defaultUi();
+  // Even with no `ui` at all: an older file's attention-strip setting is the one value in here worth carrying across.
+  if (typeof legacyFooterExpanded === 'boolean') base.footerExpanded = legacyFooterExpanded;
   if (!raw || typeof raw !== 'object') return base;
   const ui = raw as Record<string, unknown>;
   const bool = (value: unknown, fallback: boolean): boolean => (typeof value === 'boolean' ? value : fallback);
@@ -136,6 +137,7 @@ function normalizeUi(raw: unknown): UiState {
     dateFrom: ms(ui.dateFrom),
     dateTo: ms(ui.dateTo),
     filterPanelOpen: bool(ui.filterPanelOpen, base.filterPanelOpen),
+    footerExpanded: bool(ui.footerExpanded, base.footerExpanded),
     collapsedProjects: strings(ui.collapsedProjects),
     collapsedGroups: strings(ui.collapsedGroups),
     filterCollapsedProjects: strings(ui.filterCollapsedProjects),
@@ -208,10 +210,10 @@ function normalize(parsed: Record<string, unknown>): Meta {
       ? (parsed.projectOrder as unknown[]).filter((r): r is string => typeof r === 'string')
       : [],
     // Absent (an older meta.json) means the preference was never expressed, so take the new default rather than the old hard-coded "closed".
-    footerExpanded: typeof parsed.footerExpanded === 'boolean' ? parsed.footerExpanded : true,
     // Absent for anything written before the window remembered itself, which simply means "open at the default size".
     windowBounds: parseBounds(parsed.windowBounds),
-    ui: normalizeUi(parsed.ui),
+    // The strip's open state used to be a key of its own, so an existing file's value is handed in as the fallback: read once from there, written from here on.
+    ui: normalizeUi(parsed.ui, parsed.footerExpanded),
     // Same reasoning as projectOrder: no version bump for a new defaulted field. Non-string values are dropped so a hand-edited file can't put an object where a note should be.
     notes: Object.fromEntries(
       Object.entries((parsed.notes ?? {}) as Record<string, unknown>).filter(
@@ -504,16 +506,6 @@ export function setNote(id: string, note: string): Promise<Record<string, string
     if (trimmed) meta.notes[id] = trimmed;
     else delete meta.notes[id];
     return meta.notes;
-  });
-}
-
-export function getFooterExpanded(): Promise<boolean> {
-  return serialize(async () => (await readMeta()).footerExpanded);
-}
-
-export function setFooterExpanded(expanded: boolean): Promise<void> {
-  return update('setFooterExpanded', (meta) => {
-    meta.footerExpanded = expanded;
   });
 }
 
