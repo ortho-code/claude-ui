@@ -97,7 +97,7 @@ function defaults(): Meta {
 function defaultUi(): UiState {
   return {
     search: '',
-    filters: { pinned: false, open: false, running: false, worktree: false, siblings: false, archived: false },
+    filters: { pinned: false, open: false, running: false, worktree: false, siblings: false, noted: false, archived: false },
     datePreset: 'any',
     dateFrom: null,
     dateTo: null,

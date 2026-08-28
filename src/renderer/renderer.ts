@@ -41,6 +41,7 @@ const openFilter = document.getElementById('open-filter') as HTMLButtonElement;
 const runningFilter = document.getElementById('running-filter') as HTMLButtonElement;
 const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonElement;
 const siblingFilter = document.getElementById('sibling-filter') as HTMLButtonElement;
+const noteFilter = document.getElementById('note-filter') as HTMLButtonElement;
 const archivedFilter = document.getElementById('archived-filter') as HTMLButtonElement;
 const filterToggle = document.getElementById('filter-toggle') as HTMLButtonElement;
 const collapseToggle = document.getElementById('collapse-toggle') as HTMLButtonElement;
@@ -232,6 +233,7 @@ let showOpenOnly = false;
 let showRunningOnly = false;
 let showWorktreeOnly = false;
 let showSiblingsOnly = false;
+let showNotedOnly = false;
 let showArchivedOnly = false;
 // The project the switcher is scoped to; null = "All" (the grouped overview). Persisted, like the rest of the view state.
 let activeProject: string | null = null;
@@ -528,6 +530,7 @@ function isFiltering(): boolean {
     showRunningOnly ||
     showWorktreeOnly ||
     showSiblingsOnly ||
+    showNotedOnly ||
     showArchivedOnly ||
     datePreset !== 'any'
   );
@@ -560,6 +563,7 @@ function passesFilters(session: SessionSummary, groupNames?: ReadonlyMap<string,
       : undefined,
     worktreeOnly: showWorktreeOnly,
     siblingOnly: showSiblingsOnly,
+    notedOnly: showNotedOnly,
     archivedOnly: showArchivedOnly,
     dateFrom: dateFromMs,
     dateTo: dateToMs,
@@ -638,6 +642,8 @@ function updateFilterStatus(matches: number, total: number): void {
   worktreeFilter.setAttribute('aria-pressed', String(showWorktreeOnly));
   siblingFilter.classList.toggle('active', showSiblingsOnly);
   siblingFilter.setAttribute('aria-pressed', String(showSiblingsOnly));
+  noteFilter.classList.toggle('active', showNotedOnly);
+  noteFilter.setAttribute('aria-pressed', String(showNotedOnly));
   archivedFilter.classList.toggle('active', showArchivedOnly);
   archivedFilter.setAttribute('aria-pressed', String(showArchivedOnly));
   // The toggle carries the accent when any filter is on, so an active filter is visible even with the panel closed.
@@ -653,6 +659,7 @@ function clearFilter(): void {
   showRunningOnly = false;
   showWorktreeOnly = false;
   showSiblingsOnly = false;
+  showNotedOnly = false;
   showArchivedOnly = false;
   suppressPickerSelect = true;
   datePicker.clear();
@@ -689,6 +696,7 @@ function uiSnapshot(): UiState {
       running: showRunningOnly,
       worktree: showWorktreeOnly,
       siblings: showSiblingsOnly,
+      noted: showNotedOnly,
       archived: showArchivedOnly,
     },
     datePreset,
@@ -737,6 +745,7 @@ async function restoreUiState(): Promise<number> {
   showRunningOnly = state.filters.running;
   showWorktreeOnly = state.filters.worktree;
   showSiblingsOnly = state.filters.siblings;
+  showNotedOnly = state.filters.noted;
   showArchivedOnly = state.filters.archived;
   for (const repoRoot of state.collapsedProjects) collapsedProjects.add(repoRoot);
   for (const repoRoot of state.filterCollapsedProjects) filterFoldedProjects.add(repoRoot);
@@ -2874,12 +2883,14 @@ openFilter.innerHTML = OPEN_ICON;
 runningFilter.innerHTML = RUNNING_ICON;
 siblingFilter.innerHTML = SIBLING_ICON;
 worktreeFilter.innerHTML = WORKTREE_ICON;
+noteFilter.innerHTML = NOTE_ICON;
 archivedFilter.innerHTML = ARCHIVE_ICON;
 wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
 wireFilterToggle(openFilter, () => (showOpenOnly = !showOpenOnly));
 wireFilterToggle(runningFilter, () => (showRunningOnly = !showRunningOnly));
 wireFilterToggle(worktreeFilter, () => (showWorktreeOnly = !showWorktreeOnly));
 wireFilterToggle(siblingFilter, () => (showSiblingsOnly = !showSiblingsOnly));
+wireFilterToggle(noteFilter, () => (showNotedOnly = !showNotedOnly));
 wireFilterToggle(archivedFilter, () => (showArchivedOnly = !showArchivedOnly));
 filterToggle.addEventListener('click', () => {
   // Boolean(): `hidden` is a string-or-boolean these days (it also takes "until-found").

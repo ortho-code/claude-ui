@@ -126,6 +126,8 @@ export interface FilterCriteria {
   /** Show only members of a multi-session family (siblings). */
   siblingOnly: boolean;
   archivedOnly: boolean;
+  /** Show only sessions carrying a note. Reads `notes`, where an entry exists only when there IS one (a blank note deletes it). */
+  notedOnly: boolean;
   dateFrom: number | null;
   dateTo: number | null;
   pinned: ReadonlySet<string>;
@@ -152,6 +154,7 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   if (c.runningOnly && !c.running?.has(key)) return false;
   if (c.worktreeOnly && !session.worktree) return false;
   if (c.siblingOnly && !session.isSibling) return false;
+  if (c.notedOnly && !c.notes?.has(key)) return false;
   if (c.dateFrom !== null || c.dateTo !== null) {
     const activity = new Date(session.lastActivity).getTime();
     if (c.dateFrom !== null && activity < c.dateFrom) return false;

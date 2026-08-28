@@ -108,6 +108,7 @@ describe('sessionPasses', () => {
     runningOnly: false,
     worktreeOnly: false,
     siblingOnly: false,
+    notedOnly: false,
     archivedOnly: false,
     dateFrom: null,
     dateTo: null,
@@ -115,6 +116,12 @@ describe('sessionPasses', () => {
     archived: new Set(),
     pendingDeletes: new Set(),
   };
+
+  it('keeps only sessions carrying a note when the note filter is on', () => {
+    const notes = new Map([['s1', 'waiting on review']]);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, notedOnly: true, notes })).toBe(true);
+    expect(sessionPasses(session({ id: 's2' }), { ...base, notedOnly: true, notes })).toBe(false);
+  });
 
   it('matches note text, so a note is findable by searching for it', () => {
     const s = session({ id: 's1', title: 'Untitled', firstMessage: '', cwd: '/repo' });

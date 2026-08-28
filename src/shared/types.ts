@@ -61,13 +61,14 @@ export interface GroupState {
 export interface UiState {
   /** The search box's contents. */
   search: string;
-  /** The six filter toggles, named as their buttons are. */
+  /** The filter toggles, named as their buttons are. */
   filters: {
     pinned: boolean;
     open: boolean;
     running: boolean;
     worktree: boolean;
     siblings: boolean;
+    noted: boolean;
     archived: boolean;
   };
   /**
