@@ -94,13 +94,19 @@ The session store is never written to: `~/.claude` is read-only as far as this a
 Writes are serialized through one queue and land via a temp file renamed over the target, with the previous good copy kept as a backup, so a crash mid-write can't leave the file half-written.
 Reads are tolerant by design: unknown or malformed entries are dropped rather than trusted, and older field names are still understood, so an older `meta.json` upgrades in place without a migration step.
 
-## The window's own chrome
+## The window's own chrome — built, and currently switched off
 
-On Linux and Windows the window is frameless and the app draws its own title bar: a strip across the top carrying the app mark, the version, and the minimize / maximize / close buttons.
+**The app uses the system's window frame today.** What follows is a complete alternative that exists in the code behind a single flag, `OWN_CHROME` in `main.ts`, and is turned off.
+
+It works, and it was turned off for one reason: dragging the window is visibly steppy. The gesture is the app's own, so every move is a round trip to the compositor, and it cannot be made smooth — handing the drag back to the compositor is smooth, but brings a double-click-to-maximize that draws the window offset from where it hit-tests and cannot be suppressed. That trade was not worth it in daily use.
+
+Both paths are live rather than one being dead code: macOS has always run the system-chrome side of every branch below, because a frameless window there would have no traffic lights. So this describes what turning the flag back on gives, and why each piece is hand-built rather than borrowed from the OS.
+
+With it on, the window is frameless and the app draws its own title bar: a strip across the top carrying the app mark, the version, and the minimize / maximize / close buttons.
 macOS is deliberately excluded and keeps its native frame — a Mac window without its traffic lights is one you cannot close, and the variant that would replace them (`titleBarStyle: 'hiddenInset'`, with the sidebar header inset beneath the lights) is not built while nobody can look at a Mac to judge it.
 One flag decides all of it, so the two never disagree: the frame, the buttons, the drag and the resize handles all hang off it.
 
-Everything the OS would have done for that window, the app now does, and each piece exists because the compositor's own version is unusable here rather than as a matter of taste.
+Everything the OS would have done for that window, the app does itself, and each piece exists because the compositor's own version is unusable here rather than as a matter of taste.
 
 **Maximize is `setBounds`, never `maximize()`.** The native call paints a frameless window offset from where it hit-tests, so its controls are drawn in one place and clickable in another. The app therefore never enters the native maximized state and keeps the flag itself.
 The rectangle to fill cannot simply be the display's work area, because nothing here publishes one that accounts for the Windows taskbar — so the app asks the window manager the only way it answers, by maximizing a window nobody sees and reading the result back. That answer belongs to whichever display the window manager chose, so it is remembered per display and asked again when an unmeasured one turns up.
@@ -109,7 +115,7 @@ The rectangle to fill cannot simply be the display's work area, because nothing 
 
 **Dragging the window is the app's too, and it stutters.** That is a chosen trade, not an oversight.
 Handing the drag back to the compositor — a drag region — is smooth, but it brings a double-click-to-maximize that uses the native maximize above, and that cannot be suppressed or intercepted: the decision is made on the first mousedown, and every route around it either deadlocks the window or leaves it drawing offset.
-So the choice is a drag that steps and lands correctly, or a maximized window whose buttons are not where they appear. The first is cosmetic and confined to one gesture.
+So the choice is a drag that steps and lands correctly, or a maximized window whose buttons are not where they appear — and since neither is good, the flag is off and the system draws the frame instead.
 The gesture itself is one helper shared by moving and by all eight resize handles: it measures in screen coordinates, because the window moves under the pointer; it reports the total offset from where it began rather than per-move deltas, which would each be measured against the previous move's result; it starts only after a few pixels of travel, so a plain click on the bar of a maximized window does not restore it; and it sends at most one change per animation frame.
 
 Two smaller things follow from having no OS title bar. The version and the "dev" marker live in the app's bar, because the window title was the only place they were shown. And a window manager here wraps every window in a 32px invisible frame of its own, which offers a resize affordance it does not honour — nothing in the app can remove it.
