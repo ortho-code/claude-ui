@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { SessionSummary } from '../shared/types';
 import {
   hasVisibleOutput,
+  statusLabel,
   sessionsByKey,
   structuralSignature,
   groupByRepo,
@@ -505,3 +506,33 @@ describe('orderAsSidebar', () => {
     expect(again.map(([root]) => root)).toEqual(first.map(([root]) => root));
   });
 });
+
+describe('statusLabel', () => {
+  it('names each status as a state', () => {
+    expect(statusLabel('busy')).toBe('Busy');
+    expect(statusLabel('idle')).toBe('Idle');
+    expect(statusLabel('waiting')).toBe('Waiting for you');
+    // Not "Stopped": the status arrives from SessionEnd, which fires whether the session was stopped,
+    // finished on its own, or had its tab closed — so naming the event would be wrong twice over.
+    expect(statusLabel('closed')).toBe('Not running');
+  });
+
+  it('marks a read status without losing what it says', () => {
+    expect(statusLabel('waiting', true)).toBe('Waiting for you (read)');
+    expect(statusLabel('idle', false)).toBe('Idle');
+  });
+
+  it('says nothing at all for a session with no status', () => {
+    // The hollow dot: no tooltip rather than an empty one, so closest() falls through to whatever it sits in.
+    expect(statusLabel(undefined)).toBe(null);
+    expect(statusLabel(undefined, true)).toBe(null);
+    expect(statusLabel('')).toBe(null);
+  });
+
+  it('falls back to the raw value for a status it has never heard of', () => {
+    // A new hook state should read oddly, not crash — but it SHOULD read oddly, which is the signal to name it here.
+    expect(statusLabel('compacting')).toBe('compacting');
+    expect(statusLabel('compacting', true)).toBe('compacting (read)');
+  });
+});
+

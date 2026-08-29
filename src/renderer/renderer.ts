@@ -21,6 +21,7 @@ import {
   projectsForSwitcher,
   orderAsSidebar,
   hasVisibleOutput,
+  statusLabel,
   type NudgeStatus,
   type SwitcherModel,
 } from './logic';
@@ -2241,7 +2242,7 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
 
 function applyStatus(dot: HTMLElement, status: string | undefined, isAcked = false): void {
   dot.className = status ? `nudge single clickable ${status}${isAcked ? ' acked' : ''}` : 'nudge single clickable';
-  setTooltip(dot, status ? (isAcked ? `${status} (read)` : status) : null);
+  setTooltip(dot, statusLabel(status, isAcked));
 }
 
 // --- Tabs ---

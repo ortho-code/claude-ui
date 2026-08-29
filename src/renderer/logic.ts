@@ -355,6 +355,27 @@ export function groupJumpTargets(
 }
 
 /**
+ * What each status is CALLED. States, phrased as states: a dot answers "what is this session doing", not "what just happened to it".
+ * `closed` is "Not running" rather than "Stopped" for that reason — it arrives from SessionEnd, which fires whether you stopped the session, claude finished, or the tab closed, so naming the event would be wrong in two of those three cases.
+ */
+const STATUS_LABEL: Record<string, string> = {
+  busy: 'Busy',
+  idle: 'Idle',
+  waiting: 'Waiting for you',
+  closed: 'Not running',
+};
+
+/**
+ * A status dot's tooltip: the status as a label, plus whether it has been marked read.
+ * Here rather than beside the dot it decorates, because the wording is the thing worth pinning — an unknown status used to render its own internal value at the user.
+ */
+export function statusLabel(status: string | undefined, isAcked = false): string | null {
+  if (!status) return null;
+  const label = STATUS_LABEL[status] ?? status;
+  return isAcked ? `${label} (read)` : label;
+}
+
+/**
  * Does this chunk put anything on screen?
  *
  * The first BYTES out of the pty are not the first thing you can see: measured, claude sends three chunks of pure terminal setup — save/restore cursor, scroll region, bracketed paste, focus reporting — before any content.
