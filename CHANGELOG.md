@@ -4,6 +4,8 @@ What changed in each release, for people running a build rather than the source.
 
 ## Unreleased
 
+## 0.3.0 — 2026-08-29
+
 - A settings screen, behind the gear in the sidebar header, holding one setting for now: flags added to every session the app starts. So `--allowedTools Grep,Glob` is set once instead of typed per session. Quoted values are handled properly, and the flags the app sets for itself — the ones deciding which session a tab resumes, or where its status hooks come from — are refused with a reason rather than allowed to break a session in a way that looks like the app is broken. Flags apply to sessions started from then on; anything already running keeps what it started with.
 - A session in the live strip can be muted where it is listed: click its dot, exactly as you would in the sidebar or on its tab. Marking one read anywhere else means going to where that session lives, which costs you the project you were looking at.
 - And stopped from the same row. The strip lists what has a `claude` behind it, which is exactly the set of things that can be stopped, so the square beside a session ends it without taking you out of the project you are in. Like the tab's own button, it is inert while a session is still on its way in or out.

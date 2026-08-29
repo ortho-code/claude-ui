@@ -1,7 +1,7 @@
 {
   "name": "claude-ui",
   "productName": "Claude UI",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Desktop UI for managing Claude Code sessions: session list from ~/.claude, pin/group, embedded terminal, waiting-for-input nudges.",
   "license": "MIT",
   "author": "OrthoCode",
