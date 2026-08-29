@@ -3,6 +3,8 @@ import * as pty from 'node-pty';
 import * as os from 'node:os';
 import { existsSync } from 'node:fs';
 import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
+import { parseLaunchFlags } from '../shared/flags';
+import { getSettings } from './meta';
 
 const terminals = new Map<number, pty.IPty>();
 let nextId = 1;
@@ -37,6 +39,8 @@ export interface LaunchOptions {
   name?: string;
   /** A new git worktree: a name, `''` to let claude pick one, `undefined` for no worktree. */
   worktree?: string;
+  /** The user's default flags, already parsed (see flags.ts). Appended last. */
+  extra?: string[];
 }
 
 /**
@@ -65,6 +69,8 @@ export function claudeArgs(opts: LaunchOptions): string[] {
     args.push('-w');
     if (opts.worktree) args.push(opts.worktree);
   }
+  // The user's own flags go last, so a repeated flag resolves in their favour on any flag claude takes last-wins. The ones that would break the app are refused before they can be saved, so nothing here can displace what is above.
+  if (opts.extra) args.push(...opts.extra);
   return args;
 }
 
@@ -77,19 +83,22 @@ export function claudeArgs(opts: LaunchOptions): string[] {
 const SHELL_COMMAND = 'claude "$@"';
 
 export function registerTerminalIpc(): void {
-  ipcMain.handle('terminal:start', (event, cwd: string, resumeSessionId?: string, tabToken?: string, fork?: boolean, name?: string, worktree?: string): number => {
+  // Async only for the settings read: the user's default flags live in meta.json, and a session has to be launched with the flags as they are NOW, not as they were when the app started.
+  ipcMain.handle('terminal:start', async (event, cwd: string, resumeSessionId?: string, tabToken?: string, fork?: boolean, name?: string, worktree?: string): Promise<number> => {
     const id = nextId++;
     const shell = process.env.SHELL ?? '/bin/bash';
     // The shell is interactive (-i) as well as login
     // (-l): a non-interactive shell skips ~/.bashrc (the usual `case $- in *i*) ;; *) return;; esac` guard), so any rc-based per-directory setup — mise/asdf/direnv activation, PATH, env vars — never runs, and claude launches without the tools its MCP servers need.
     // An interactive shell in the pty runs that setup for the session's directory, like a real terminal.
     // Guard on the settings file's existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
+    // Stored flags are validated before they are written, so a failure here means a hand-edited meta.json; launch without them rather than refusing to start a session over it.
     const launch = claudeArgs({
       settingsFile: existsSync(statusSettingsFile) ? statusSettingsFile : null,
       resumeSessionId,
       fork,
       name,
       worktree,
+      extra: parseLaunchFlags((await getSettings()).launchFlags).tokens,
     });
     // `claude` is `$0`: it names the process in any error the shell itself prints, and it is not passed on to claude.
     const args = ['-l', '-i', '-c', SHELL_COMMAND, 'claude', ...launch];

@@ -47,6 +47,16 @@ TypeScript 7 removed the old `moduleResolution: "node"`, so both projects use th
 `node-pty` is a native module and must be rebuilt against Electron's ABI.
 Keeping the real CLI in a PTY is the point: its approval prompts, diffs, and permission modes stay exactly as they are in a terminal.
 
+The shell runs `claude "$@"`, and every flag — the app's own and the user's — is passed after it as a positional parameter.
+So nothing the app launches with is ever interpolated into a command string, and no value needs quoting or escaping on the way: a session name with an apostrophe and macOS's `Application Support` path arrive as one argument each.
+A shell is still in the middle because it has to be — an interactive login shell is what runs the rc files that put mise, direnv and the MCP servers' tools on `PATH`.
+
+The settings screen refuses any flag that would break the app's model of a session, aliases included, and says which one and why rather than failing at launch.
+Three kinds: the ones the app sets itself (`--settings`, `--resume`, `--fork-session`, `--name`, `-w`, `--session-id`), the ones that would leave no interactive claude in the tab (`--print`, `--continue`, `--background`, `--cloud`, `--teleport`, `--remote-control`, `--tmux`, `--from-pr`, `--version`, `--help`), and the ones that would leave a session the app cannot see or read (`--no-session-persistence`, and the `--print`-only output flags).
+A leading bare word is refused too: claude would read it as a subcommand, so a field holding `update` would run `claude update` in every new tab.
+What is deliberately NOT refused is anything merely risky — `--dangerously-skip-permissions` and the permission modes are the user's call on their own machine, and they do not stop the app working.
+`src/shared/flags.ts` holds both halves — the parser that turns the user's line into arguments, and the reserved list — and a test asserts that everything the launcher emits appears in that list, so a new app flag cannot be added without reserving it.
+
 ### Tab lifecycle: a tab can exist without a process
 
 A tab owns at most one terminal, and `terminalId` is **nullable** — null means the tab is **cold**: it has its row in the bar, its title and its place in the layout, but no `claude` behind it.
@@ -88,7 +98,8 @@ The main process watches that directory and pushes updates to the renderer, whic
 
 ## App-side metadata and session groups
 
-Everything the app knows that Claude Code doesn't — pins, archived sessions, open tabs, per-project display names, custom groups, the window's geometry and the sidebar's view state — lives in a `meta.json` under the app's own user-data directory.
+Everything the app knows that Claude Code doesn't — pins, archived sessions, open tabs, per-project display names, custom groups, the window's geometry, the sidebar's view state and the app's own preferences — lives in a `meta.json` under the app's own user-data directory.
+Preferences are kept apart from view state, in `settings` rather than `ui`: one is what you chose, the other is where you left off, and neither should be able to reset the other.
 The session store is never written to: `~/.claude` is read-only as far as this app is concerned.
 
 Writes are serialized through one queue and land via a temp file renamed over the target, with the previous good copy kept as a backup, so a crash mid-write can't leave the file half-written.

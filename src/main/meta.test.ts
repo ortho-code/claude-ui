@@ -34,6 +34,8 @@ import {
   setWindowBounds,
   getUiState,
   setUiState,
+  getSettings,
+  setSettings,
 } from './meta';
 
 let dir: string;
@@ -489,6 +491,35 @@ describe('ui state', () => {
   it('normalizes on the way in too, so the renderer cannot store a shape the next launch chokes on', async () => {
     await setUiState({ ...view, scrollTop: -50 });
     expect((await getUiState()).scrollTop).toBe(0);
+  });
+});
+
+describe('settings', () => {
+  it('starts empty, and stores what it is given', async () => {
+    expect(await getSettings()).toEqual({ launchFlags: '' });
+    expect(await setSettings({ launchFlags: '--allowedTools Grep,Glob' })).toEqual({
+      launchFlags: '--allowedTools Grep,Glob',
+    });
+    expect(await getSettings()).toEqual({ launchFlags: '--allowedTools Grep,Glob' });
+  });
+
+  it('refuses unusable flags and keeps the last good ones, rather than storing something a launch would choke on', async () => {
+    await setSettings({ launchFlags: '--allowedTools Grep' });
+    // A flag we set ourselves, and an unclosed quote: both are refused by the parser.
+    expect(await setSettings({ launchFlags: '--resume other' })).toEqual({ launchFlags: '--allowedTools Grep' });
+    expect(await setSettings({ launchFlags: '--x "oops' })).toEqual({ launchFlags: '--allowedTools Grep' });
+    expect(await getSettings()).toEqual({ launchFlags: '--allowedTools Grep' });
+  });
+
+  it('defaults a stored value of the wrong type instead of handing it on', async () => {
+    await writeMetaFile({ version: 3, settings: { launchFlags: 42 } });
+    expect(await getSettings()).toEqual({ launchFlags: '' });
+  });
+
+  it('is untouched by a ui-state write, since the two are stored apart', async () => {
+    await setSettings({ launchFlags: '--allowedTools Grep' });
+    await setUiState({ ...(await getUiState()), search: 'anything' });
+    expect(await getSettings()).toEqual({ launchFlags: '--allowedTools Grep' });
   });
 });
 

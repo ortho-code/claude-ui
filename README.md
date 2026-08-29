@@ -34,6 +34,8 @@ Done:
 - Opens the way you left it: window size and position, and the sidebar's search, filters, folds, width and scroll offset.
 - A consistent control system: every mark is an SVG icon (no font glyphs), clickable icons share one size and one hover treatment, and radius and type come from tokens.
 - Reaching a group without scrolling: a jump list on the project heading.
+- Settings: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included.
+  The flags the app sets for itself are refused there rather than allowed to break a session.
 - Installable builds for macOS and Linux, built on CI from a version tag. See [CHANGELOG.md](CHANGELOG.md) for what each release contains.
 
 Next:
@@ -98,7 +100,7 @@ To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a
 - `src/main/sessions.ts` — reads and summarizes `~/.claude/projects`.
 - `src/preload` — the bridge the renderer uses to reach the main process.
 - `src/renderer` — the window UI.
-- `src/shared` — types shared by both sides.
+- `src/shared` — types and pure helpers shared by both sides.
 - `docs/` — architecture and design notes.
 
 ## License

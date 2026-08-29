@@ -24,6 +24,7 @@ import {
   type NudgeStatus,
   type SwitcherModel,
 } from './logic';
+import { parseLaunchFlags } from '../shared/flags';
 import { installTooltips, setTooltip } from './tooltip';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
@@ -132,6 +133,12 @@ const renameInput = document.getElementById('rename-input') as HTMLInputElement;
 const renameTextarea = document.getElementById('rename-textarea') as HTMLTextAreaElement;
 const renameOk = document.getElementById('rename-ok') as HTMLButtonElement;
 const renameCancel = document.getElementById('rename-cancel') as HTMLButtonElement;
+const settingsToggle = document.getElementById('settings-toggle') as HTMLButtonElement;
+const settingsOverlay = document.getElementById('settings-overlay')!;
+const settingsFlags = document.getElementById('settings-flags') as HTMLInputElement;
+const settingsError = document.getElementById('settings-error')!;
+const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
+const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
 const toast = document.getElementById('toast')!;
 const toastMessage = document.getElementById('toast-message')!;
 const toastClose = document.getElementById('toast-close') as HTMLButtonElement;
@@ -1459,6 +1466,47 @@ function promptText(
     ];
   });
 }
+
+/**
+ * The app's own preferences.
+ *
+ * Shares the overlay skin and `runModal`'s behaviour with the other two dialogs, but is its own form rather than a call to `promptText`: that one is a transient prompt built per call, this is a fixed screen that will grow sections.
+ * Saving is validated by the same parser the launcher uses (shared/flags.ts), so what the field accepts and what a session gets can't disagree.
+ */
+async function openSettings(): Promise<void> {
+  const stored = await window.claudeUi.getSettings();
+  settingsFlags.value = stored.launchFlags;
+  settingsError.hidden = true;
+  settingsOverlay.hidden = false;
+  settingsFlags.focus();
+  settingsFlags.select();
+  await runModal<void>(settingsOverlay, undefined, (finish) => {
+    const submit = async (): Promise<void> => {
+      const value = settingsFlags.value.trim();
+      const { error } = parseLaunchFlags(value);
+      if (error) {
+        settingsError.textContent = error;
+        settingsError.hidden = false;
+        return;
+      }
+      await window.claudeUi.setSettings({ ...stored, launchFlags: value });
+      finish();
+    };
+    return [
+      listen(settingsOk, 'click', () => void submit()),
+      listen(settingsCancel, 'click', () => finish()),
+      listen(settingsFlags, 'keydown', (event) => {
+        if (event.key === 'Enter') void submit();
+      }),
+      // Typing is the fix for an error, so clear it as soon as they do rather than leaving a stale complaint under the field.
+      listen(settingsFlags, 'input', () => {
+        settingsError.hidden = true;
+      }),
+    ];
+  });
+}
+
+settingsToggle.addEventListener('click', () => void openSettings());
 
 // The ordering moves for a project, minus any that would do nothing — same rule as a group's.
 // The order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen (a filter or an all-archived project can hide neighbours without changing where this one sits).

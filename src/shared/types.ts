@@ -70,6 +70,20 @@ export interface WindowChrome {
   dev: boolean;
 }
 
+/**
+ * Deliberate preferences, kept apart from UiState on purpose.
+ *
+ * UiState is where you LEFT the app — which project, which folds, how far down the list.
+ * This is what you CHOSE, and the two are separated so that a future "reset settings" cannot throw away your place in the app, and so that clearing your place cannot silently undo a choice.
+ */
+export interface Settings {
+  /**
+   * Flags added to every `claude` the app launches, as one line the way you would type it.
+   * Stored as text rather than as parsed tokens so the field shows exactly what was entered; it is parsed at launch (and validated before it can be saved).
+   */
+  launchFlags: string;
+}
+
 export interface UiState {
   /** The search box's contents. */
   search: string;
@@ -154,6 +168,13 @@ export interface ClaudeUiApi {
   /** The sidebar's view state — search, filters, folds, width, scroll — as it was last left. */
   getUiState(): Promise<UiState>;
   setUiState(state: UiState): void;
+  /** The app's own preferences. */
+  getSettings(): Promise<Settings>;
+  /**
+   * Store the app's preferences; resolves to what was actually stored.
+   * The launch flags are validated here as well as in the dialog: the main process is what hands them to a session, so it is what has to be sure of them.
+   */
+  setSettings(settings: Settings): Promise<Settings>;
   /**
    * Whether this window has no OS title bar, so the renderer has to draw one, plus the current maximized state.
    * Asked once at startup: it is decided by the platform and cannot change while the app runs.

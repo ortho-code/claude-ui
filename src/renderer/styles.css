@@ -149,6 +149,49 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
+/* A dialog holding a form rather than a question: a flag line is typed left to right and wants to be
+   readable at a glance, which 360px does not give it. */
+.dialog.wide {
+  width: min(520px, 86vw);
+}
+
+/* One labelled setting. The gap belongs to the section so a second one spaces itself. */
+.dialog-section {
+  margin-bottom: 16px;
+}
+
+/* The section owns the gap below it, so its last child must not add a second one — a .dialog-detail
+   carries its own bottom margin for the dialogs where it IS the last thing before the buttons. */
+.dialog-section > :last-child {
+  margin-bottom: 0;
+}
+
+/* A setting's explanation sits between its label and its field, so label, hint and control read as
+   one group: half the gap .dialog-detail uses when it introduces a whole dialog. It goes ABOVE the
+   field rather than below so the inline error is the only thing under it — an error that pushed a
+   permanent explanation down the dialog moved furniture to say one transient thing. */
+.dialog-label + .dialog-detail {
+  margin-bottom: 8px;
+}
+
+.dialog-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+#rename-ok {
+  border-color: var(--accent);
+}
+
+/* Inline validation error under a field (a duplicate worktree name, a flag we set ourselves). */
+.dialog-error {
+  margin: 8px 0 0;
+  font-size: var(--text-meta);
+  color: #f38ba8;
+}
+
 .dialog-title {
   margin: 0 0 8px;
   font-size: var(--text-title);
@@ -2156,19 +2199,10 @@ button:focus:not(:focus-visible) {
   font-family: inherit;
 }
 
-/* Inline validation error under the field (e.g. a duplicate worktree name). */
-#rename-error {
-  margin: 8px 0 0;
-  font-size: var(--text-meta);
-  color: #f38ba8;
-}
 
 /* The field sits above these, so they need the gap the detail line gives the confirm dialog. */
 #rename-actions {
   margin-top: 16px;
 }
 
-#rename-ok {
-  border-color: var(--accent);
-}
 

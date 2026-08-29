@@ -38,6 +38,8 @@ import {
   setWindowBounds,
   getUiState,
   setUiState,
+  getSettings,
+  setSettings,
 } from './meta';
 import {
   placeWindow,
@@ -53,7 +55,7 @@ import {
 import type { Edge, Inset } from './bounds';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
-import type { OrderMove, UiState } from '../shared/types';
+import type { OrderMove, UiState, Settings } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -449,6 +451,9 @@ ipcMain.handle('meta:getUiState', () => getUiState());
 ipcMain.on('meta:setUiState', (_event, state: UiState) => {
   void setUiState(state);
 });
+ipcMain.handle('meta:getSettings', () => getSettings());
+// Unlike setUiState this is an invoke, not a send: the write can be refused (see setSettings), and the renderer is entitled to see what was actually stored.
+ipcMain.handle('meta:setSettings', (_event, settings: Settings) => setSettings(settings));
 // The title bar the renderer draws needs the controls the OS bar used to provide.
 // `window:chrome` is asked once at startup: the renderer draws its bar only where there is no OS one, and the answer cannot change while the app runs.
 ipcMain.handle('window:chrome', () => ({

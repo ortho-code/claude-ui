@@ -2,8 +2,9 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { OrderMove, GroupState, SessionGroup, UiState } from '../shared/types';
+import type { OrderMove, GroupState, SessionGroup, UiState, Settings } from '../shared/types';
 import type { WindowBounds } from './bounds';
+import { parseLaunchFlags } from '../shared/flags';
 
 /**
  * UI-only metadata, kept outside ~/.claude so we never touch the session store.
@@ -40,6 +41,8 @@ interface Meta {
   windowBounds: WindowBounds | null;
   /** How the sidebar was left: search, filters, folds, width, scroll. See UiState. */
   ui: UiState;
+  /** Deliberate preferences, kept apart from `ui` so resetting one cannot wipe the other. See Settings. */
+  settings: Settings;
   /** User-defined session groups, in display order (a new one is prepended). */
   groups: SessionGroup[];
   /** Session id -> group id; a session is in at most one group. */
@@ -76,6 +79,7 @@ const KNOWN_KEYS = new Set([
   'footerExpanded', // moved into `ui`; still listed so an old file's copy is consumed rather than preserved through `extra`
   'windowBounds',
   'ui',
+  'settings',
   'notes',
   'groups',
   'groupOf',
@@ -88,7 +92,25 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: defaultSettings(), notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+}
+
+/** What the app does before anyone has chosen otherwise: nothing added to the launch line. */
+function defaultSettings(): Settings {
+  return { launchFlags: '' };
+}
+
+/**
+ * Fill in stored settings field by field, defaulting anything absent or of the wrong type — the same treatment `ui` gets, and for the same reason.
+ * Applied on read and on write, so neither an older meta.json nor a renderer bug can produce a shape the launcher then has to guess at.
+ */
+function normalizeSettings(raw: unknown): Settings {
+  const base = defaultSettings();
+  if (!raw || typeof raw !== 'object') return base;
+  const settings = raw as Record<string, unknown>;
+  return {
+    launchFlags: typeof settings.launchFlags === 'string' ? settings.launchFlags : base.launchFlags,
+  };
 }
 
 /** An unfiltered, unfolded sidebar at its default width: what a first run gets, and what any field missing from the stored object falls back to. */
@@ -215,6 +237,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     windowBounds: parseBounds(parsed.windowBounds),
     // The strip's open state used to be a key of its own, so an existing file's value is handed in as the fallback: read once from there, written from here on.
     ui: normalizeUi(parsed.ui, parsed.footerExpanded),
+    // Same reasoning as projectOrder: a new defaulted field is not a reinterpretation of what is stored, so no version bump. Absent means nothing was ever chosen.
+    settings: normalizeSettings(parsed.settings),
     // Same reasoning as projectOrder: no version bump for a new defaulted field. Non-string values are dropped so a hand-edited file can't put an object where a note should be.
     notes: Object.fromEntries(
       Object.entries((parsed.notes ?? {}) as Record<string, unknown>).filter(
@@ -532,6 +556,24 @@ export function getUiState(): Promise<UiState> {
 export function setUiState(state: UiState): Promise<void> {
   return update('setUiState', (meta) => {
     meta.ui = normalizeUi(state);
+  });
+}
+
+export function getSettings(): Promise<Settings> {
+  return serialize(async () => (await readMeta()).settings);
+}
+
+/**
+ * Store the app's preferences, and resolve to what is actually stored.
+ *
+ * Unusable launch flags are refused rather than written: the dialog validates before it saves, but this is the side that hands the flags to a real session, so it does not take the renderer's word for it.
+ * Refusing leaves the previous value in place, which is why the stored settings come back — the caller can see that its write did not take.
+ */
+export function setSettings(settings: Settings): Promise<Settings> {
+  return update('setSettings', (meta) => {
+    const next = normalizeSettings(settings);
+    if (parseLaunchFlags(next.launchFlags).error === null) meta.settings = next;
+    return meta.settings;
   });
 }
 
