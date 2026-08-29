@@ -226,24 +226,33 @@
    The hover is a brightness step rather than another colour: these already carry the strongest
    colour in the dialog, so darkening what they have keeps one rule for both. */
 .dialog-actions .primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  --fill: var(--accent);
   /* Dark text, not white: --accent is a light blue and white on it barely separates. */
   color: var(--bg);
 }
 
 .dialog-actions .danger {
-  background: #c92a2a;
-  border-color: #c92a2a;
+  --fill: #c92a2a;
   color: #fff;
 }
 
+/* Background and border are the SAME colour, at rest and on hover, so the brightness step darkens
+   the whole button and its outline never appears to move.
+   Naming the fill once per colour is what makes that safe: an earlier version set the hover border
+   to `currentColor` — the TEXT colour, not the fill — which put a dark border on the blue button
+   (it read as shrinking by a pixel all round) and a white ring on the red one. */
+.dialog-actions .primary,
+.dialog-actions .danger {
+  background: var(--fill);
+  border-color: var(--fill);
+}
+
+/* The override has to exist: `button:hover` sets an accent border app-wide, and on a filled button
+   that is an outline in a near-copy of its own colour, or on the red one a clashing blue. */
 .dialog-actions .primary:hover,
 .dialog-actions .danger:hover {
   filter: brightness(0.92);
-  /* The fill IS the button, so the app-wide accent hover border would just outline it in a
-     near-copy of its own colour, and on the red one in a colour that clashes. */
-  border-color: currentColor;
+  border-color: var(--fill);
 }
 
 /* Replace the browser default focus ring with a thin accent highlight that hugs the element. */
