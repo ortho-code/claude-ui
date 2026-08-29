@@ -1972,6 +1972,31 @@ button:focus:not(:focus-visible) {
   background: var(--surface-hover);
 }
 
+/* The strip row is a wrapper holding two buttons — jump, and stop — because a button cannot contain
+   a button. The wrapper keeps the menu-row shape, so this half only has to give up a button's own
+   box and stretch: the row's padding, hover and radius all still belong to .footer-item. */
+.footer-item-jump {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  /* Without this a long session name refuses to shrink below its content and pushes the stop button
+     out of the row — a flex item's min-width is auto, not 0. */
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Sits at the row's right edge, at the same 4px the trailing controls use everywhere else. */
+.footer-item-stop {
+  margin-left: 4px;
+}
+
 .footer-item-name {
   /* Takes the slack so the group chip sits at the row's right edge: a column of chips reads as a column, where chips trailing each name at its own width read as ragged. */
   flex: 1;

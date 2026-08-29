@@ -3,6 +3,7 @@ import type { SessionSummary } from '../shared/types';
 import {
   hasVisibleOutput,
   statusLabel,
+  stopControlState,
   sessionsByKey,
   structuralSignature,
   groupByRepo,
@@ -536,3 +537,20 @@ describe('statusLabel', () => {
   });
 });
 
+describe('stopControlState', () => {
+  it('offers to stop a settled session', () => {
+    expect(stopControlState({})).toEqual({ disabled: false, tooltip: 'Stop session' });
+    expect(stopControlState({ starting: false, stopping: false })).toEqual({ disabled: false, tooltip: 'Stop session' });
+  });
+
+  it('refuses both ends of a session lifetime, and says which end it is', () => {
+    expect(stopControlState({ starting: true })).toEqual({ disabled: true, tooltip: 'Starting…' });
+    expect(stopControlState({ stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…' });
+  });
+
+  it('reports ARRIVING when a tab somehow carries both flags', () => {
+    // The precedence is load-bearing and was implicit until this test: a tab that is both is one being
+    // started, and calling it "Stopping…" would tell the user the opposite of what is happening.
+    expect(stopControlState({ starting: true, stopping: true })).toEqual({ disabled: true, tooltip: 'Starting…' });
+  });
+});

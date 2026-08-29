@@ -30,6 +30,7 @@ Done:
 - Ordering and overview: reorder projects and groups from their kebabs, fold every section away and back from one header button, and attach a note to any session.
 - Pin, archive, and delete (to the OS trash); search plus filters (pinned, open, running, worktree, siblings, noted, archived, date range).
 - Per-session status dots (busy / idle / waiting) driven by Claude Code hooks scoped to app-launched sessions; dots can be marked read, a footer strip surfaces sessions needing attention across projects, and a project switcher scopes the sidebar.
+  A session in the strip can be muted or stopped where it is listed, so acting on one in another project doesn't cost you the project you're looking at.
 - Project rename, app icon, single-instance lock.
 - Opens the way you left it: window size and position, and the sidebar's search, filters, folds, width and scroll offset.
 - A consistent control system: every mark is an SVG icon (no font glyphs), clickable icons share one size and one hover treatment, and radius and type come from tokens.

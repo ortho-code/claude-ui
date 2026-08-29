@@ -22,6 +22,7 @@ import {
   orderAsSidebar,
   hasVisibleOutput,
   statusLabel,
+  stopControlState,
   type NudgeStatus,
   type SwitcherModel,
 } from './logic';
@@ -1010,6 +1011,37 @@ function openSiblingsMenu(anchor: HTMLElement, session: SessionSummary): void {
   openMenu(anchor, siblingMenuItems(siblings));
 }
 
+/**
+ * The strip row's stop control.
+ *
+ * WHY IT BELONGS HERE and is not just a shortcut for the tab's button: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab. So stopping a stray session from the strip costs you your place: you go there, stop it, and come back. This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
+ * The membership rule makes it exact: the strip lists what has a PROCESS, which is precisely the set of things that can be stopped — so there is no scoping or filtering to reason about, and no cold-tab case.
+ * STOP ONLY, never close: the strip is not a list of tabs. A row leaves it by the session stopping, which is what this already does.
+ */
+function stripStopButton(session: SessionSummary): HTMLButtonElement {
+  const stop = document.createElement('button');
+  stop.type = 'button';
+  stop.className = 'icon-btn compact footer-item-stop';
+  stop.innerHTML = stopIcon(14);
+  const tab = tabs.find((t) => t.session.id === session.id);
+  // No tab at all should not happen — membership is "has a process", and a process belongs to a tab — so it is inert rather than guessed at.
+  if (!tab) {
+    stop.disabled = true;
+    return stop;
+  }
+  const { disabled, tooltip } = stopControlState(tab);
+  stop.disabled = disabled;
+  setTooltip(stop, tooltip);
+  if (!disabled) {
+    stop.addEventListener('click', (event) => {
+      // The row around it jumps to the session; stopping must not also take you there.
+      event.stopPropagation();
+      stopSession(tab);
+    });
+  }
+  return stop;
+}
+
 // Cross-project attention strip in the sidebar footer.
 // The toggle badge is the same overall roll-up as the switcher header; expanded, it lists the nudged SESSIONS grouped under their project (each a row: state dot + session title), click one to jump to it.
 // Muted "all clear" when nothing pending.
@@ -1057,9 +1089,13 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
       heading.className = 'footer-project';
       heading.textContent = project.name;
       const rows = project.items.map((session) => {
-        const row = document.createElement('button');
-        row.type = 'button';
+        // The row is a DIV holding two buttons rather than one button, because a button cannot contain a button and this row now has two things to do: jump to the session, or stop it.
+        // The row shape (.footer-item, the shared menu-row rule) stays on the wrapper, so hovering anywhere in it still lights the whole row and the strip looks exactly as it did.
+        const row = document.createElement('div');
         row.className = 'footer-item';
+        const jump = document.createElement('button');
+        jump.type = 'button';
+        jump.className = 'footer-item-jump';
         // The roll-up badge rather than the sidebar's status dot: that one is 9px and bordered because it is a control in a dense row, where this sits on a row of its own.
         // It IS clickable though, and for the same reason the row is: acking a session anywhere else means going to where that session lives, which costs you the project you are looking at — the exact gap this strip exists to close.
         // The read state has to show either way, or a muted row reads as live — hence the acked modifier, which dims this badge exactly as it dims the dot.
@@ -1070,7 +1106,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
         const name = document.createElement('span');
         name.className = 'footer-item-name';
         name.textContent = sessionLabel(session);
-        row.append(dot, name);
+        jump.append(dot, name);
         // The group as a CHIP rather than a third level of headings. The strip is capped at 40vh, where a project -> group -> session nesting costs a heading row and an indent per group, and a chip costs no rows at all.
         // Worth revisiting if several sessions of one group routinely show here together, since the same chip repeated down a run of rows reads as noise where a single heading would not.
         const groupName = groups.find((g) => g.id === groupOf[entityKey(session)])?.name;
@@ -1078,10 +1114,11 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
           const chip = document.createElement('span');
           chip.className = 'footer-item-group';
           chip.textContent = groupName;
-          row.append(chip);
+          jump.append(chip);
         }
-        setTooltip(row, sessionLabel(session, '') || null);
-        row.addEventListener('click', () => jumpToSession(session));
+        setTooltip(jump, sessionLabel(session, '') || null);
+        jump.addEventListener('click', () => jumpToSession(session));
+        row.append(jump, stripStopButton(session));
         return row;
       });
       return [heading, ...rows];
@@ -2510,11 +2547,13 @@ async function startTab(
     renderTabBar();
     updatePlaceholder();
     updateSidebarHighlight(); // its row's bar goes from muted to accent now that it is live
-    refreshSwitcher(); // and the attention strip lists what is RUNNING, so a new one belongs in it now
   } finally {
     tab.starting = false;
     // A start that ends without reaching the render above — a throw, or the early return below — must still hand the button back.
     if (tabs.includes(tab)) renderTabBar();
+    // The attention strip lists what is RUNNING, so a new session belongs in it now.
+    // AFTER `starting` is cleared, not before: the strip draws that flag as a disabled stop button, and rendering it a moment early left every freshly started session with a dead button that nothing came back to repaint.
+    refreshSwitcher();
   }
 }
 
@@ -2603,10 +2642,12 @@ function removeTab(tab: Tab): void {
  * `stopping` is what tells those two apart when the exit arrives.
  */
 function stopSession(tab: Tab): void {
-  if (tab.terminalId === null) return;
+  if (tab.terminalId === null || tab.stopping) return;
   tab.stopping = true;
   // At once, so the button shows the pause for as long as the exit takes rather than after it.
+  // Both buttons: the session is in the attention strip too, by definition — it has a process — and a pause shown in one place and not the other is two surfaces disagreeing about the same session.
   renderTabBar();
+  refreshSwitcher();
   window.claudeUi.closeTerminal(tab.terminalId); // Ctrl-C twice, then kill
 }
 
@@ -2756,14 +2797,13 @@ function tabElement(tab: Tab): HTMLElement {
   // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind. See closeOrStop.
   const close = document.createElement('button');
   close.className = 'icon-btn compact tab-close';
-  if (tab.stopping || tab.starting) {
-    // Both ends of a session's life are a pause, for the same reason: neither a tab whose process has not arrived yet nor one whose process is still leaving can be acted on without the bar disagreeing with what is actually running.
-    close.disabled = true;
+  // Anything but a settled cold tab: it has a process, or one is on its way, or one is on its way out.
+  if (tab.terminalId !== null || tab.starting || tab.stopping) {
+    // Stopping, and its two pauses, are the same rule the attention strip's button follows — see stopControlState.
+    const { disabled, tooltip } = stopControlState(tab);
+    close.disabled = disabled;
     close.innerHTML = stopIcon(14);
-    setTooltip(close, tab.starting ? 'Starting…' : 'Stopping…');
-  } else if (tab.terminalId !== null) {
-    close.innerHTML = stopIcon(14);
-    setTooltip(close, 'Stop session');
+    setTooltip(close, tooltip);
   } else {
     close.innerHTML = closeIcon(14);
     setTooltip(close, 'Close tab');

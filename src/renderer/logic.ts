@@ -376,6 +376,31 @@ export function statusLabel(status: string | undefined, isAcked = false): string
 }
 
 /**
+ * Enough of a tab to know what its stop control should say. The full Tab carries a terminal and an addon; this rule needs neither.
+ * Both flags are optional because that is how Tab declares them — absent means "not in that transition", which is the same thing as false and is why every check here is a truthiness test.
+ */
+export interface StopControlTab {
+  /** A process is on its way. */
+  starting?: boolean;
+  /** A process is on its way out. */
+  stopping?: boolean;
+}
+
+/**
+ * What a session's stop control shows, wherever it is drawn — the tab's button and the attention strip's.
+ *
+ * Both ends of a session's life are a pause, for the same reason: neither a tab whose process has not arrived yet nor one whose process is still leaving can be acted on without the UI disagreeing with what is actually running.
+ * ONE RULE RATHER THAN TWO, and it is here rather than in the renderer because the two surfaces did come to different conclusions about the same tab the day the strip grew its own copy.
+ * The tab's THIRD state, closing a cold tab, is deliberately not here: the strip has no such case, since it only ever lists sessions that have a process.
+ */
+export function stopControlState(tab: StopControlTab): { disabled: boolean; tooltip: string } {
+  // Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving.
+  if (tab.starting) return { disabled: true, tooltip: 'Starting…' };
+  if (tab.stopping) return { disabled: true, tooltip: 'Stopping…' };
+  return { disabled: false, tooltip: 'Stop session' };
+}
+
+/**
  * Does this chunk put anything on screen?
  *
  * The first BYTES out of the pty are not the first thing you can see: measured, claude sends three chunks of pure terminal setup — save/restore cursor, scroll region, bracketed paste, focus reporting — before any content.
