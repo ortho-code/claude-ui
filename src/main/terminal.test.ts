@@ -34,7 +34,7 @@ describe('claudeArgs', () => {
   });
 
   it('drops a session id that is not filename-safe, rather than passing it on', () => {
-    for (const id of ['a b', 'a;rm -rf /', '../x', '']) {
+    for (const id of ['a b', 'a;rm -rf /', '../x', '--version', '-w', '']) {
       expect(claudeArgs({ settingsFile: null, resumeSessionId: id })).toEqual([]);
     }
   });

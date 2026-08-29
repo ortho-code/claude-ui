@@ -50,8 +50,9 @@ export function claudeArgs(opts: LaunchOptions): string[] {
   // Load claude-ui's status hooks from its own settings file (merges with the user's ~/.claude hooks) so we never write into the user's settings.json.
   if (opts.settingsFile) args.push('--settings', opts.settingsFile);
   // Session ids are filename-derived; only pass through safe characters.
+  // The first character must be alphanumeric: `-` is legal later in an id, but an id that STARTS with one would reach claude as a flag rather than as the value of --resume.
   const safeId =
-    opts.resumeSessionId && /^[A-Za-z0-9_-]+$/.test(opts.resumeSessionId) ? opts.resumeSessionId : null;
+    opts.resumeSessionId && /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(opts.resumeSessionId) ? opts.resumeSessionId : null;
   if (safeId) {
     args.push('--resume', safeId);
     // `--fork-session` copies the resumed transcript into a new session id (a fork); it needs an id to resume from, so it only applies when we have one.
