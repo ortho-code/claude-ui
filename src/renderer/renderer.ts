@@ -405,6 +405,21 @@ function toggleAck(id: string): void {
   refreshSwitcher(); // an acked/un-acked session changes its project's roll-up badge
 }
 
+/**
+ * Make a status dot mute its session when clicked, wherever that dot is drawn.
+ *
+ * The gesture is "click the status dot", and it has to mean the same thing on all three surfaces that draw one — the sidebar row, the tab, and the attention strip — so it is one helper rather than three copies of the same four lines.
+ * `stopPropagation` is the load-bearing part: every one of those dots sits inside something clickable that does something else (select the row, switch to the tab, jump to the session), and muting must not also do that.
+ * The id arrives as a thunk because the sidebar's rows are REUSED across renders: the row knows its key, and which session that key holds is only true at the moment of the click.
+ */
+function ackOnClick(dot: HTMLElement, sessionId: () => string | null): void {
+  dot.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const id = sessionId();
+    if (id) toggleAck(id);
+  });
+}
+
 // You've attended to a session by viewing it, so drop its "needs you" nudge.
 function clearNudge(id: string): void {
   window.claudeUi.clearStatus(id);
@@ -1045,11 +1060,13 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
         const row = document.createElement('button');
         row.type = 'button';
         row.className = 'footer-item';
-        // The roll-up badge, not the sidebar's status dot: that one is a CONTROL (9px, bordered, click to mark read) where this is decoration on a row whose whole job is to jump you to the session.
-        // The read state still has to show, though, or a muted row reads as live — hence the acked modifier, which dims this badge exactly as it dims the dot.
+        // The roll-up badge rather than the sidebar's status dot: that one is 9px and bordered because it is a control in a dense row, where this sits on a row of its own.
+        // It IS clickable though, and for the same reason the row is: acking a session anywhere else means going to where that session lives, which costs you the project you are looking at — the exact gap this strip exists to close.
+        // The read state has to show either way, or a muted row reads as live — hence the acked modifier, which dims this badge exactly as it dims the dot.
         const dot = document.createElement('span');
-        const status = statuses.get(session.id);
-        dot.className = `nudge single ${status ?? ''}${acked.has(session.id) ? ' acked' : ''}`.trim();
+        applyStatus(dot, statuses.get(session.id), acked.has(session.id));
+        // A muted row stays LISTED: membership is "has a process", and acking says "seen it", not "stop". Only the count above drops it.
+        ackOnClick(dot, () => session.id);
         const name = document.createElement('span');
         name.className = 'footer-item-name';
         name.textContent = sessionLabel(session);
@@ -2046,11 +2063,7 @@ function createSessionRow(key: string): HTMLElement {
 
   const dot = document.createElement('span');
   // Click the dot to toggle "read": mute a done/waiting session without opening or replying to it.
-  dot.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const session = currentByKey.get(key);
-    if (session) toggleAck(session.id);
-  });
+  ackOnClick(dot, () => currentByKey.get(key)?.id ?? null);
   const content = document.createElement('div');
   content.className = 'session-content';
   const title = document.createElement('p');
@@ -2716,11 +2729,8 @@ function tabElement(tab: Tab): HTMLElement {
 
   const dot = document.createElement('span');
   applyStatus(dot, statuses.get(tab.session.id), acked.has(tab.session.id));
-  // Toggle "read" from the tab too; stopPropagation so it doesn't also switch tabs.
-  dot.addEventListener('click', (event) => {
-    event.stopPropagation();
-    toggleAck(tab.session.id);
-  });
+  // Toggle "read" from the tab too, rather than only from the sidebar row.
+  ackOnClick(dot, () => tab.session.id);
 
   // Siblings often share a title, so mark the tab too — keyed on isSibling, the same signal as the sidebar row's badge, so tab and row always agree.
   const siblingMark = document.createElement('span');

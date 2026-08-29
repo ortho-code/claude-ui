@@ -684,9 +684,10 @@ button:hover {
   animation: none;
 }
 
-/* The one place a nudge is a CONTROL rather than decoration: the session row, where clicking it
-   marks the session read. Everywhere else the nudge only reports, and the row around it is what you
-   click, so the pointer and the enlarged hit target would both be lies. */
+/* Where a nudge is a CONTROL rather than decoration — the session row, the tab, and the attention
+   strip — clicking it marks the session read. Everywhere else (the switcher's roll-ups, the footer
+   toggle's badge) the nudge only reports, and the thing around it is what you click, so the pointer
+   and the enlarged hit target would both be lies. */
 .nudge.clickable {
   cursor: pointer;
   position: relative;
