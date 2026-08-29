@@ -4,6 +4,12 @@ What changed in each release, for people running a build rather than the source.
 
 ## Unreleased
 
+- A settings screen, behind the gear in the sidebar header, holding one setting for now: flags added to every session the app starts. So `--allowedTools Grep,Glob` is set once instead of typed per session. Quoted values are handled properly, and the flags the app sets for itself — the ones deciding which session a tab resumes, or where its status hooks come from — are refused with a reason rather than allowed to break a session in a way that looks like the app is broken. Flags apply to sessions started from then on; anything already running keeps what it started with.
+- A session in the live strip can be muted where it is listed: click its dot, exactly as you would in the sidebar or on its tab. Marking one read anywhere else means going to where that session lives, which costs you the project you were looking at.
+- And stopped from the same row. The strip lists what has a `claude` behind it, which is exactly the set of things that can be stopped, so the square beside a session ends it without taking you out of the project you are in. Like the tab's own button, it is inert while a session is still on its way in or out.
+- The status dots say what a session is doing rather than what the app calls it internally: "Busy", "Idle", "Waiting for you", and "Not running" for a hollow one, which used to say "closed".
+- The button that acts in a dialog — Save, or Delete — is filled now, so it is the one your eye lands on. It used to be outlined in the accent colour, which is the same treatment every button gets on hover, so Save looked permanently hovered.
+- The pin, the toast close and the notification close grew by two pixels when hovered, while every other icon button held still. All of them share one rule now.
 - The window no longer drifts down and to the right by one title bar each time you launch it.
 - Its minimum size is enforced, so it cannot be resized down to nothing.
 - A session that has just started, before it reports anything, shows as a quiet ring in the live strip instead of an empty gap. Projects in the switcher stay unmarked until something under them actually wants you.
