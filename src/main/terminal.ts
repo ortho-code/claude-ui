@@ -25,30 +25,73 @@ function cleanEnv(): { [key: string]: string } {
   return env;
 }
 
+/** What a session is launched with, beyond the flags every session gets. */
+export interface LaunchOptions {
+  /** claude-ui's own settings file, or null when it has not been written yet. */
+  settingsFile: string | null;
+  /** The session to resume, or null for a fresh one. */
+  resumeSessionId?: string;
+  /** Fork the resumed session into a new id instead of continuing it. */
+  fork?: boolean;
+  /** The session's display name. */
+  name?: string;
+  /** A new git worktree: a name, `''` to let claude pick one, `undefined` for no worktree. */
+  worktree?: string;
+}
+
+/**
+ * The argument list handed to `claude`, in order.
+ *
+ * These are real argv entries, never a shell string, so nothing here needs quoting or escaping: a name with a space or an apostrophe, and macOS's `~/Library/Application Support` path, all arrive as one argument each.
+ * Pure so it can be tested without spawning anything.
+ */
+export function claudeArgs(opts: LaunchOptions): string[] {
+  const args: string[] = [];
+  // Load claude-ui's status hooks from its own settings file (merges with the user's ~/.claude hooks) so we never write into the user's settings.json.
+  if (opts.settingsFile) args.push('--settings', opts.settingsFile);
+  // Session ids are filename-derived; only pass through safe characters.
+  const safeId =
+    opts.resumeSessionId && /^[A-Za-z0-9_-]+$/.test(opts.resumeSessionId) ? opts.resumeSessionId : null;
+  if (safeId) {
+    args.push('--resume', safeId);
+    // `--fork-session` copies the resumed transcript into a new session id (a fork); it needs an id to resume from, so it only applies when we have one.
+    if (opts.fork) args.push('--fork-session');
+  }
+  // `--name` sets the session's display name (claude writes it as a custom-title, so the sidebar picks it up).
+  if (opts.name) args.push('--name', opts.name);
+  // `-w` starts the session in a new git worktree: a non-empty string names it, `''` lets claude auto-name, `undefined` means no worktree.
+  if (opts.worktree !== undefined) {
+    args.push('-w');
+    if (opts.worktree) args.push(opts.worktree);
+  }
+  return args;
+}
+
+/**
+ * What the pty's shell runs.
+ *
+ * `"$@"` is the whole point: the flags reach claude as the shell's positional parameters (passed after this string, with `claude` standing in as `$0`) rather than being interpolated into this command, so no user-supplied value is ever parsed as shell syntax.
+ * When claude exits, the shell exits too (no trailing `exec bash`), so the pty closes and the renderer can close the tab instead of leaving a bare shell behind.
+ */
+const SHELL_COMMAND = 'claude "$@"';
+
 export function registerTerminalIpc(): void {
   ipcMain.handle('terminal:start', (event, cwd: string, resumeSessionId?: string, tabToken?: string, fork?: boolean, name?: string, worktree?: string): number => {
     const id = nextId++;
     const shell = process.env.SHELL ?? '/bin/bash';
-    // Session ids are filename-derived; only pass through safe characters.
-    const safeId = resumeSessionId && /^[A-Za-z0-9_-]+$/.test(resumeSessionId) ? resumeSessionId : null;
-    // Resume the given session, or start a fresh one when there's no id.
-    // When claude exits, the shell exits too (no trailing `exec bash`), so the pty closes and the renderer can close the tab instead of leaving a bare shell behind.
     // The shell is interactive (-i) as well as login
     // (-l): a non-interactive shell skips ~/.bashrc (the usual `case $- in *i*) ;; *) return;; esac` guard), so any rc-based per-directory setup — mise/asdf/direnv activation, PATH, env vars — never runs, and claude launches without the tools its MCP servers need.
     // An interactive shell in the pty runs that setup for the session's directory, like a real terminal.
-    // Load claude-ui's status hooks from its own settings file (merges with the user's ~/.claude hooks) so we never write into the user's settings.json.
-    // Guard on existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
-    const base = existsSync(statusSettingsFile) ? `claude --settings '${statusSettingsFile}'` : 'claude';
-    // `--name` sets the session's display name (claude writes it as a custom-title, so the sidebar picks it up).
-    // Single-quote it, escaping any embedded quotes, since the whole command is a string handed to `bash -c`.
-    const nameArg = name ? ` --name '${name.replace(/'/g, "'\\''")}'` : '';
-    // `-w` starts the session in a new git worktree: a non-empty string names it, `''` lets claude auto-name, `undefined` means no worktree. Single-quote the name like --name.
-    const worktreeArg =
-      worktree === undefined ? '' : worktree ? ` -w '${worktree.replace(/'/g, "'\\''")}'` : ' -w';
-    // `--fork-session` copies the resumed transcript into a new session id (a fork); it needs an id to resume from, so it only applies when we have one.
-    const resume = safeId ? ` --resume ${safeId}${fork ? ' --fork-session' : ''}` : '';
-    const command = `${base}${resume}${nameArg}${worktreeArg}`;
-    const args = ['-l', '-i', '-c', command];
+    // Guard on the settings file's existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
+    const launch = claudeArgs({
+      settingsFile: existsSync(statusSettingsFile) ? statusSettingsFile : null,
+      resumeSessionId,
+      fork,
+      name,
+      worktree,
+    });
+    // `claude` is `$0`: it names the process in any error the shell itself prints, and it is not passed on to claude.
+    const args = ['-l', '-i', '-c', SHELL_COMMAND, 'claude', ...launch];
     const env = cleanEnv();
     if (tabToken) env[TAB_ENV] = tabToken;
     const proc = pty.spawn(shell, args, {
