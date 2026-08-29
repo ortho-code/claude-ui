@@ -181,10 +181,6 @@
   font-weight: 600;
 }
 
-#rename-ok {
-  border-color: var(--accent);
-}
-
 /* Inline validation error under a field (a duplicate worktree name, a flag we set ourselves). */
 .dialog-error {
   margin: 8px 0 0;
@@ -221,14 +217,33 @@
   font-size: var(--text-body);
 }
 
-#confirm-ok.danger {
+/* THE DECISIVE BUTTON of a dialog: filled, so it is what your eye lands on and nothing else in the
+   dialog competes. Two colours of one shape — .primary confirms, .danger destroys — rather than the
+   two unrelated blocks they were before .primary existed.
+   FILLED RATHER THAN OUTLINED for a specific reason: `button:hover` sets an accent BORDER app-wide,
+   so a resting accent border is indistinguishable from an ordinary button being hovered, which is
+   exactly how the old `#rename-ok` read. A fill cannot be confused with it.
+   The hover is a brightness step rather than another colour: these already carry the strongest
+   colour in the dialog, so darkening what they have keeps one rule for both. */
+.dialog-actions .primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  /* Dark text, not white: --accent is a light blue and white on it barely separates. */
+  color: var(--bg);
+}
+
+.dialog-actions .danger {
   background: #c92a2a;
   border-color: #c92a2a;
   color: #fff;
 }
 
-#confirm-ok.danger:hover {
+.dialog-actions .primary:hover,
+.dialog-actions .danger:hover {
   filter: brightness(0.92);
+  /* The fill IS the button, so the app-wide accent hover border would just outline it in a
+     near-copy of its own colour, and on the red one in a colour that clashes. */
+  border-color: currentColor;
 }
 
 /* Replace the browser default focus ring with a thin accent highlight that hugs the element. */
