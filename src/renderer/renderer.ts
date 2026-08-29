@@ -1350,33 +1350,55 @@ function pruneRows(wanted: Set<string>): void {
 // In-app confirm modal (a native dialog flickers under WSLg).
 // Resolves true on Delete, false on Cancel / Esc.
 // Deliberately NOT dismissable by clicking the backdrop: selecting text inside the dialog and releasing the mouse outside it dispatches the click on the common ancestor of the mousedown and mouseup — the overlay — so an outside-click dismiss threw the dialog away mid-drag.
-function confirmDelete(title: string): Promise<boolean> {
-  confirmMessage.textContent = `Delete "${title}"?`;
-  confirmDetail.textContent = 'Its transcript files move to the trash, so you can restore them from there if needed.';
-  confirmOverlay.hidden = false;
-  // Focus Cancel, not Delete: safer default for a destructive action, and it keeps the accent focus ring off the red button.
-  confirmCancel.focus();
-  return new Promise((resolve) => {
-    const close = (result: boolean): void => {
-      confirmOverlay.hidden = true;
-      confirmOk.removeEventListener('click', onOk);
-      confirmCancel.removeEventListener('click', onCancel);
+/**
+ * Run a modal to completion.
+ *
+ * Everything a modal in this app does the same way: show the overlay, close on Escape from anywhere,
+ * unbind every listener exactly once, and resolve a promise with the result.
+ * `bind` wires the modal's own controls and returns the unbinds; `escapeValue` is what Escape means
+ * for this modal, which is the only part that genuinely differs between them.
+ *
+ * Escape is bound on the DOCUMENT rather than the dialog: clicking the dialog's own text blurs the
+ * field, and with no backdrop dismiss that would leave Cancel as the only way out.
+ * There is deliberately no backdrop dismiss — selecting text inside the dialog and releasing outside
+ * it dispatches the click on the overlay, which threw the dialog away mid-drag.
+ */
+function runModal<T>(overlay: HTMLElement, escapeValue: T, bind: (finish: (result: T) => void) => Array<() => void>): Promise<T> {
+  overlay.hidden = false;
+  return new Promise<T>((resolve) => {
+    let unbind: Array<() => void> = [];
+    const finish = (result: T): void => {
+      overlay.hidden = true;
+      for (const off of unbind) off();
       document.removeEventListener('keydown', onKey);
       resolve(result);
     };
-    const onOk = (): void => close(true);
-    const onCancel = (): void => close(false);
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') close(false);
+      if (event.key === 'Escape') finish(escapeValue);
     };
-    confirmOk.addEventListener('click', onOk);
-    confirmCancel.addEventListener('click', onCancel);
     document.addEventListener('keydown', onKey);
+    unbind = bind(finish);
   });
 }
 
+/** Add a listener and hand back the function that removes it, so a modal cannot forget one. */
+function listen<K extends keyof HTMLElementEventMap>(el: HTMLElement, type: K, handler: (event: HTMLElementEventMap[K]) => void): () => void {
+  el.addEventListener(type, handler);
+  return () => el.removeEventListener(type, handler);
+}
+
+function confirmDelete(title: string): Promise<boolean> {
+  confirmMessage.textContent = `Delete "${title}"?`;
+  confirmDetail.textContent = 'Its transcript files move to the trash, so you can restore them from there if needed.';
+  // Focus Cancel, not Delete: safer default for a destructive action, and it keeps the accent focus ring off the red button.
+  confirmCancel.focus();
+  return runModal<boolean>(confirmOverlay, false, (finish) => [
+    listen(confirmOk, 'click', () => finish(true)),
+    listen(confirmCancel, 'click', () => finish(false)),
+  ]);
+}
+
 // A small modal text prompt (Promise-resolving): OK/Enter resolves the value, Cancel/Esc resolves null.
-// No backdrop dismiss, for the same drag-select reason as the confirm modal above.
 // Shared by project rename, fork naming, and worktree naming; okLabel names the confirm button.
 // An optional async `validate` runs on submit: return an error string to show it inline and keep the dialog open (so the user can fix the value), or null to accept.
 function promptText(
@@ -1400,20 +1422,13 @@ function promptText(
   renameInput.hidden = multiline;
   renameTextarea.hidden = !multiline;
   field.value = initialValue;
+  // Shown by runModal; focus has to wait for that, since a hidden field cannot take it.
   renameOverlay.hidden = false;
   field.focus();
   // Select-all suits a short name you're replacing; a note you're editing wants the caret at the end.
   if (multiline) field.setSelectionRange(initialValue.length, initialValue.length);
   else field.select();
-  return new Promise((resolve) => {
-    const close = (result: string | null): void => {
-      renameOverlay.hidden = true;
-      renameOk.removeEventListener('click', onOk);
-      renameCancel.removeEventListener('click', onCancel);
-      fieldEl.removeEventListener('keydown', onInputKey);
-      document.removeEventListener('keydown', onKey);
-      resolve(result);
-    };
+  return runModal<string | null>(renameOverlay, null, (finish) => {
     // Validate before accepting; on an error, show it inline and leave the dialog open.
     const submit = async (): Promise<void> => {
       const value = field.value;
@@ -1425,28 +1440,23 @@ function promptText(
           return;
         }
       }
-      close(value);
+      finish(value);
     };
-    const onOk = (): void => void submit();
-    const onCancel = (): void => close(null);
-    // Enter belongs to the field (it submits what you typed), but Esc has to close the dialog from anywhere: clicking the dialog's own text blurs the input, and with no backdrop dismiss that would otherwise leave Cancel as the only way out.
-    // Same document-level Esc as confirmDelete.
-    const onInputKey = (event: KeyboardEvent): void => {
-      if (event.key !== 'Enter') return;
-      // In a note, Enter is a newline; Ctrl/Cmd+Enter saves (same habit as the terminal). A one-line field submits on plain Enter as before.
-      if (!multiline) void submit();
-      else if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        void submit();
-      }
-    };
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') close(null);
-    };
-    renameOk.addEventListener('click', onOk);
-    renameCancel.addEventListener('click', onCancel);
-    fieldEl.addEventListener('keydown', onInputKey);
-    document.addEventListener('keydown', onKey);
+    return [
+      listen(renameOk, 'click', () => void submit()),
+      listen(renameCancel, 'click', () => finish(null)),
+      // Enter belongs to the field, since it submits what you typed; Escape is the modal's own and
+      // lives in runModal. In a note Enter is a newline and Ctrl/Cmd+Enter saves, the same habit as
+      // the terminal; a one-line field submits on plain Enter.
+      listen(fieldEl, 'keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        if (!multiline) void submit();
+        else if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          void submit();
+        }
+      }),
+    ];
   });
 }
 

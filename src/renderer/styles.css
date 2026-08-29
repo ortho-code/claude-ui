@@ -124,7 +124,13 @@
 
 
 
-#confirm-overlay {
+/* THE MODAL — the confirm dialog and the text prompt are the same object with different contents,
+   so they are one set of classes rather than two parallel id blocks that drifted apart by a few
+   pixels of margin each.
+   Deliberately NOT dismissable by clicking the backdrop: selecting text inside the dialog and
+   releasing the mouse outside it dispatches the click on the common ancestor — the overlay — so an
+   outside-click dismiss threw the dialog away mid-drag. */
+.overlay {
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -134,7 +140,7 @@
   background: rgba(0, 0, 0, 0.5);
 }
 
-#confirm-dialog {
+.dialog {
   width: min(360px, 80vw);
   padding: 18px;
   background: var(--surface);
@@ -143,22 +149,33 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
-#confirm-message {
+.dialog-title {
   margin: 0 0 8px;
   font-size: var(--text-title);
   font-weight: 600;
 }
 
-#confirm-detail {
+.dialog-detail {
   margin: 0 0 16px;
   font-size: var(--text-meta);
   color: var(--muted);
 }
 
-#confirm-actions {
+.dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* The dialog's text field, single-line or multiline. */
+.dialog-field {
+  width: 100%;
+  padding: 7px 9px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  font-size: var(--text-body);
 }
 
 #confirm-ok.danger {
@@ -2146,78 +2163,36 @@ button:focus:not(:focus-visible) {
   color: var(--text);
 }
 
-/* Rename-project dialog (mirrors the confirm dialog). */
-#rename-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-}
-
+/* Wider than the confirm dialog: it holds a text field rather than a sentence. */
 #rename-dialog {
   width: min(400px, 80vw);
-  padding: 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-surface);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
-#rename-title {
-  margin: 0 0 6px;
-  font-size: var(--text-title);
-  font-weight: 600;
-}
-
+/* A path can be long and has no spaces to break on. */
 #rename-path {
-  margin: 0 0 12px;
-  font-size: var(--text-meta);
-  color: var(--muted);
   overflow-wrap: anywhere;
 }
 
-#rename-input {
-  width: 100%;
-  padding: 7px 9px;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  font-size: var(--text-body);
-}
-
-/* The multiline variant of the same dialog field (session notes): same skin, room to write, and a
-   fixed height so the dialog doesn't resize as you type. */
+/* Room to write, at a fixed height so the dialog does not resize as you type. */
 #rename-textarea {
-  width: 100%;
-  padding: 7px 9px;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  font-size: var(--text-body);
   resize: vertical;
   min-height: 120px;
   font-family: inherit;
 }
 
-/* Inline validation error under the input (e.g. a duplicate worktree name). */
+/* Inline validation error under the field (e.g. a duplicate worktree name). */
 #rename-error {
   margin: 8px 0 0;
   font-size: var(--text-meta);
   color: #f38ba8;
 }
 
+/* The field sits above these, so they need the gap the detail line gives the confirm dialog. */
 #rename-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
   margin-top: 16px;
 }
 
 #rename-ok {
   border-color: var(--accent);
 }
+

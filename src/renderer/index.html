@@ -94,24 +94,24 @@
         </div>
       </section>
     </div>
-    <div id="confirm-overlay" hidden>
-      <div id="confirm-dialog" role="dialog" aria-modal="true">
-        <p id="confirm-message"></p>
-        <p id="confirm-detail"></p>
-        <div id="confirm-actions">
+    <div id="confirm-overlay" class="overlay" hidden>
+      <div id="confirm-dialog" class="dialog" role="dialog" aria-modal="true">
+        <p id="confirm-message" class="dialog-title"></p>
+        <p id="confirm-detail" class="dialog-detail"></p>
+        <div id="confirm-actions" class="dialog-actions">
           <button id="confirm-cancel" type="button">Cancel</button>
           <button id="confirm-ok" type="button" class="danger">Delete</button>
         </div>
       </div>
     </div>
-    <div id="rename-overlay" hidden>
-      <div id="rename-dialog" role="dialog" aria-modal="true">
-        <p id="rename-title">Rename project</p>
-        <p id="rename-path"></p>
-        <input id="rename-input" type="text" aria-label="Project name" />
-        <textarea id="rename-textarea" rows="6" aria-label="Note" hidden></textarea>
+    <div id="rename-overlay" class="overlay" hidden>
+      <div id="rename-dialog" class="dialog" role="dialog" aria-modal="true">
+        <p id="rename-title" class="dialog-title">Rename project</p>
+        <p id="rename-path" class="dialog-detail"></p>
+        <input id="rename-input" class="dialog-field" type="text" aria-label="Project name" />
+        <textarea id="rename-textarea" class="dialog-field" rows="6" aria-label="Note" hidden></textarea>
         <p id="rename-error" hidden></p>
-        <div id="rename-actions">
+        <div id="rename-actions" class="dialog-actions">
           <button id="rename-cancel" type="button">Cancel</button>
           <button id="rename-ok" type="button">Save</button>
         </div>
