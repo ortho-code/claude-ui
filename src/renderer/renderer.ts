@@ -174,7 +174,7 @@ function showAttentionToast(tab: Tab, status: 'waiting' | 'idle'): void {
   text.append(title, proj);
   const close = document.createElement('button');
   close.type = 'button';
-  close.className = 'notif-close';
+  close.className = 'icon-btn notif-close';
   close.innerHTML = closeIcon(14);
   close.setAttribute('aria-label', 'Dismiss');
   el.append(dot, text, close);
@@ -1738,7 +1738,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   // The heading is position:sticky, so this trigger is on screen the whole time you scroll the project — which is what makes a menu enough here, rather than a panel that would cost a line of height per project.
   // reconcileProjectSections hides it below 2 targets and disables it while filtering.
   const groupsBtn = document.createElement('button');
-  groupsBtn.className = 'project-groups';
+  groupsBtn.className = 'icon-btn project-groups';
   groupsBtn.innerHTML = layersIcon(14);
   groupsBtn.hidden = true;
   setTooltip(groupsBtn, 'Jump to a group');
@@ -1766,7 +1766,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     const split = document.createElement('div');
     split.className = 'split-button';
     const add = document.createElement('button');
-    add.className = 'project-add';
+    add.className = 'icon-btn composite project-add';
     add.innerHTML = plusIcon(12);
     setTooltip(add, 'New session in this project');
     add.addEventListener('click', (event) => {
@@ -1774,7 +1774,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
       void openNewSession(folderCwd);
     });
     const caret = document.createElement('button');
-    caret.className = 'project-add-caret';
+    caret.className = 'icon-btn composite project-add-caret';
     caret.innerHTML = chevronDown(9);
     caret.hidden = true;
     setTooltip(caret, 'New session options');
@@ -1791,7 +1791,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   }
   // Project options (rename now, hide later); stopPropagation so it doesn't toggle collapse.
   const kebab = document.createElement('button');
-  kebab.className = 'project-kebab';
+  kebab.className = 'icon-btn project-kebab';
   kebab.innerHTML = kebabIcon(14);
   setTooltip(kebab, 'Project options');
   kebab.addEventListener('click', (event) => {
@@ -1847,7 +1847,7 @@ function createGroupSection(id: string): GroupSectionEls {
   const split = document.createElement('div');
   split.className = 'split-button';
   const add = document.createElement('button');
-  add.className = 'group-add';
+  add.className = 'icon-btn composite group-add';
   add.innerHTML = plusIcon(14);
   setTooltip(add, 'New session in this group');
   add.addEventListener('click', (event) => {
@@ -1856,7 +1856,7 @@ function createGroupSection(id: string): GroupSectionEls {
     if (group?.repoRoot) void openNewSession(group.repoRoot, id);
   });
   const addCaret = document.createElement('button');
-  addCaret.className = 'group-add-caret';
+  addCaret.className = 'icon-btn composite group-add-caret';
   addCaret.innerHTML = chevronDown(9);
   addCaret.hidden = true;
   setTooltip(addCaret, 'New session options');
@@ -1872,7 +1872,7 @@ function createGroupSection(id: string): GroupSectionEls {
   split.append(add, addCaret);
   // Group options, same shape as the project heading's kebab; stopPropagation so it doesn't collapse.
   const kebab = document.createElement('button');
-  kebab.className = 'group-kebab';
+  kebab.className = 'icon-btn group-kebab';
   kebab.innerHTML = kebabIcon(14);
   setTooltip(kebab, 'Group options');
   kebab.addEventListener('click', (event) => {
@@ -2034,7 +2034,7 @@ function createSessionRow(key: string): HTMLElement {
   content.append(title, subline);
 
   const pin = document.createElement('button');
-  pin.className = 'pin';
+  pin.className = 'icon-btn pin';
   pin.addEventListener('click', async (event) => {
     event.stopPropagation();
     if (pin.disabled) return;
@@ -2046,7 +2046,7 @@ function createSessionRow(key: string): HTMLElement {
 
   // Unarchive lives on the row because it is what the archived view is for; archiving a live session is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
   const unarchiveBtn = document.createElement('button');
-  unarchiveBtn.className = 'unarchive-btn';
+  unarchiveBtn.className = 'icon-btn unarchive-btn';
   unarchiveBtn.hidden = true;
   unarchiveBtn.innerHTML = UNARCHIVE_ICON;
   setTooltip(unarchiveBtn, 'Unarchive');
@@ -2057,7 +2057,7 @@ function createSessionRow(key: string): HTMLElement {
 
   // Delete lives only in the archived view (shown/hidden in updateRow); trash-based + confirmed.
   const deleteBtn = document.createElement('button');
-  deleteBtn.className = 'delete-btn';
+  deleteBtn.className = 'icon-btn delete-btn';
   setTooltip(deleteBtn, 'Delete session');
   deleteBtn.hidden = true;
   deleteBtn.innerHTML =
@@ -2089,7 +2089,7 @@ function createSessionRow(key: string): HTMLElement {
 
   // Per-session actions menu: fork this session, and (for a family member) list its siblings.
   const kebab = document.createElement('button');
-  kebab.className = 'session-kebab';
+  kebab.className = 'icon-btn session-kebab';
   kebab.innerHTML = kebabIcon(14);
   setTooltip(kebab, 'Session options');
   kebab.addEventListener('click', (event) => {
@@ -2679,7 +2679,7 @@ function tabElement(tab: Tab): HTMLElement {
 
   // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind. See closeOrStop.
   const close = document.createElement('button');
-  close.className = 'tab-close';
+  close.className = 'icon-btn compact tab-close';
   if (tab.stopping || tab.starting) {
     // Both ends of a session's life are a pause, for the same reason: neither a tab whose process has not arrived yet nor one whose process is still leaving can be acted on without the bar disagreeing with what is actually running.
     close.disabled = true;

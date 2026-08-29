@@ -63,22 +63,6 @@
   font-size: var(--text-body);
 }
 
-/* Same treatment as .notif-close — the two toast dismissors should read identically. */
-#toast-close {
-  flex: 0 0 auto;
-  /* Flex-centred around an SVG, so the box is sized by the icon rather than by a text line box —
-     which is why no font-size or line-height is left here doing layout work. Same for every mark in
-     the chrome now that none of them are glyphs. */
-  display: flex;
-  align-items: center;
-  padding: 2px 4px;
-  background: none;
-  border: 1px solid transparent; /* standard control box — see .unarchive-btn */
-  border-radius: var(--radius-control);
-  color: var(--muted);
-  cursor: pointer;
-}
-
 
 /* Stacking attention toasts (a background tab went waiting/idle). Separate from the one-off #toast. */
 #notifications {
@@ -138,17 +122,6 @@
   font-size: var(--text-small);
 }
 
-.notif-close {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  padding: 2px 4px;
-  background: none;
-  border: 1px solid transparent; /* standard control box — see .unarchive-btn */
-  border-radius: var(--radius-control);
-  color: var(--muted);
-  cursor: pointer;
-}
 
 
 #confirm-overlay {
@@ -296,22 +269,67 @@ button:hover {
   border-color: var(--accent);
 }
 
+/* THE ICON BUTTON — every control that is a single 14px mark you can click: the kebabs, the pin,
+   the row's archive and delete, the tab close, the toast and notification closes, the header
+   actions, the split buttons' halves.
+   One rule, because these were a dozen near-identical blocks kept in step by hand, with comments
+   that said so ("Match the session-row kebab exactly", "standard control box — see .unarchive-btn").
+   They had already drifted: .pin, #toast-close and .notif-close were missing the transparent border
+   below, so those three grew by 2px when hovered while the rest held still.
+   The transparent border is load-bearing, not decoration: it reserves the space the hover outline
+   would otherwise add. A control that wants a RESTING border takes .composite instead. */
+.icon-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The standard box: 24x20 around a 14px mark. Sidebar, rows, toasts. */
+  padding: 2px 4px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* Denser, for the tab bar, where every pixel is width a tab title loses. */
+.icon-btn.compact {
+  padding: 0 3px;
+}
+
+/* The header actions. Roomier, and unlike every other icon button they wear the ORDINARY button skin
+   — surface fill, resting border, full-strength mark — because they stand beside "+ New" and have to
+   read as its peers rather than as bare marks on the header.
+   Spelled out here rather than inherited from the `button` rule: `.icon-btn` is a class and wins over
+   it, so leaving these out silently stripped their border and left the icon muted once the pointer
+   moved away. */
+.icon-btn.large {
+  padding: 5px 8px;
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Two halves acting as one button need to look like one object before you touch them, so they carry
+   a resting border where a lone icon does not. See "Composite controls" in docs/architecture.md. */
+.icon-btn.composite {
+  border-color: var(--border);
+}
+
+/* One hover for all of them, replacing a thirteen-selector list that a new control had to be
+   remembered into. `:not(:disabled)` covers the two that opt out while inert — the tab close mid
+   transition, and the group-jump button below two targets. */
+.icon-btn:not(:disabled):hover,
+.note-badge:hover {
+  background: var(--active);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 /* Filter panel toggle in the header. A corner badge dot (not an accent border, which would
    look like the focus ring) marks that a filter is active. */
 #filter-toggle {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 8px;
-}
-
-/* Collapse/expand every section at once. Same box as the filter toggle beside it. */
-#collapse-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 8px;
+  position: relative; /* anchors the active-filter badge dot below */
 }
 
 /* Dimmed rather than hidden while filtering: filtering forces every section open, so the action has
@@ -963,9 +981,6 @@ button:hover {
 
 /* A bordered box so it reads as a "new session" action, not part of the collapse chrome. */
 .project h2 .project-add {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
@@ -974,9 +989,6 @@ button:hover {
   padding: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  color: var(--muted);
-  cursor: pointer;
 }
 
 .project h2 .project-add:hover {
@@ -992,8 +1004,6 @@ button:hover {
 }
 
 .split-button .project-add-caret {
-  display: flex;
-  align-items: center;
   justify-content: center;
   width: 16px;
   height: 22px;
@@ -1002,8 +1012,6 @@ button:hover {
   border: 1px solid var(--border);
   border-left: none;
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
-  color: var(--muted);
-  cursor: pointer;
 }
 
 .split-button .project-add-caret:hover {
@@ -1258,19 +1266,6 @@ button:focus:not(:focus-visible) {
   min-width: 0;
 }
 
-/* An SVG star, not a font glyph (see PIN_ICON in renderer.ts), so it lines up with the other row
-   icons and keeps its weight whatever font the system resolves. */
-.pin {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  background: none;
-  border: 1px solid transparent; /* standard control box — see .unarchive-btn */
-  border-radius: var(--radius-control);
-  padding: 2px 4px;
-  color: var(--muted);
-  cursor: pointer;
-}
 
 
 /* The standard icon-control box: a 14px icon, 2px 4px padding and a transparent 1px border, giving
@@ -1281,17 +1276,6 @@ button:focus:not(:focus-visible) {
    13px mark inline in a 12px meta line), the 9px status dot, and the decorative chevrons/tick. */
 .unarchive-btn,
 .delete-btn,
-.session-kebab {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  padding: 2px 4px;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  color: var(--muted);
-  cursor: pointer;
-}
 
 /* Every icon control hovers identically: --active fill, accent outline, brighter glyph. One rule
    rather than per-control ones, because the old behaviour was an accident of SPECIFICITY, not a
@@ -1302,28 +1286,8 @@ button:focus:not(:focus-visible) {
    --active, not --surface-hover: a hovered session ROW is already --surface-hover, so a button
    filling to the same colour inside it shows no change at all. --active reads on bg, surface and
    surface-hover alike. It matches .menu-open, which is fine — an open menu is visible below it. */
-.pin:hover,
-.unarchive-btn:hover,
-.delete-btn:hover,
-.session-kebab:hover,
-.project h2 .project-kebab:hover,
-.project h2 .project-groups:enabled:hover,
-.group h3 .group-add:hover,
-.group h3 .group-kebab:hover,
-.group h3 .group-add-caret:hover,
-.tab-close:not(:disabled):hover,
-#toast-close:hover,
-.notif-close:hover,
-.note-badge:hover {
-  background: var(--active);
-  border-color: var(--accent);
-  color: var(--text);
-}
 
 .session-kebab {
-  /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
   margin-left: -4px; /* row gap 8 - 4 = the 4px trailing-pair gap — see .group-kebab */
 }
 
@@ -1825,18 +1789,6 @@ button:focus:not(:focus-visible) {
   opacity: 0.45;
 }
 
-.tab-close {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  padding: 0 3px;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  color: var(--muted);
-  cursor: pointer;
-}
-
 
 #terminals {
   position: relative;
@@ -1992,20 +1944,6 @@ button:focus:not(:focus-visible) {
 }
 
 /* Per-project kebab on a project heading (rename now, hide later). */
-/* The jump-to-a-group trigger. Borderless like the kebab beside it — a single icon control, not a
-   composite — and it sits between the count and the "+" so the two ACTIONS stay together at the
-   right end. Absent below 2 targets, so a project with one group keeps a clean heading. */
-.project h2 .project-groups {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  padding: 2px 4px;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  color: var(--muted);
-  cursor: pointer;
-}
 
 .project h2 .project-groups:disabled {
   opacity: 0.4;
@@ -2013,21 +1951,12 @@ button:focus:not(:focus-visible) {
 }
 
 .project h2 .project-kebab {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
   justify-content: center;
   /* Match the session-row kebab exactly: padding-sized (no fixed box), same padding and same icon
      size, so the dots have the same room. The split button below is grown to this height to stay
      inline. */
-  padding: 2px 4px;
-  color: var(--muted);
-  background: none;
   /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
   margin-left: -2px; /* 6px heading gap - 2 = the 4px trailing-pair gap — see .group-kebab */
-  cursor: pointer;
 }
 
 
@@ -2170,16 +2099,8 @@ button:focus:not(:focus-visible) {
    button has always worked this way; this is the group's catching up. Fill stays transparent (the
    heading bar is already --surface), so the border alone does the work until hover. */
 .group h3 .group-add {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
   /* Standard control box, same as .session-kebab — see the recipe there. */
-  padding: 2px 4px;
-  background: none;
   border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  color: var(--muted);
-  cursor: pointer;
 }
 
 
@@ -2188,19 +2109,13 @@ button:focus:not(:focus-visible) {
    it modifies the button beside it rather than being a control in its own right. Its left border is
    dropped so the two halves share one edge. */
 .group h3 .group-add-caret {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
   justify-content: center;
   width: 14px;
   height: 20px; /* match the "+" half, which is the standard 24x20 */
   padding: 0;
-  background: none;
   border: 1px solid var(--border);
   border-left: none;
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
-  color: var(--muted);
-  cursor: pointer;
 }
 
 /* Square the +'s right corners only while the caret sits beside it, so they read as one control. */
@@ -2217,20 +2132,12 @@ button:focus:not(:focus-visible) {
 }
 
 .group h3 .group-kebab {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
   /* The two trailing controls sit 4px apart, here and on the session row and project heading, so the
      second-from-right control lines up down the whole list. Each row reaches 4 from a different base
      gap — this heading's is 6px, a session row's is 8 — so the offsets differ; the TOTAL is the rule.
      4px rather than a roomier gap because every pixel here is width the session title loses. */
   margin-left: -2px;
   padding: 2px 4px; /* standard control box — see .unarchive-btn */
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  color: var(--muted);
-  cursor: pointer;
 }
 
 .group h3 .group-kebab.menu-open {
