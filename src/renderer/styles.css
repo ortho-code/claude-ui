@@ -924,13 +924,63 @@ button:hover {
   margin-top: 0;
 }
 
-.project h2 {
+/* A COLLAPSIBLE SECTION HEADING — the project's and the group's are the same bar with different
+   weight, spacing and sticky layer, so what they share lives here and each keeps only its own
+   differences below. They were two mirrored sets of rules, right down to identical `.label` blocks.
+   Both are sticky: a project pins to the top of the list, a group pins under it. */
+.section-heading {
   display: flex;
   align-items: center;
   gap: 6px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+}
+
+/* :has(.menu-open) alongside :hover, matching .session: a heading whose kebab menu is open stays lit
+   while the pointer is down inside the menu. */
+.section-heading:hover,
+.section-heading:has(.menu-open) {
+  background: var(--surface-hover);
+}
+
+.section-heading .caret {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  width: 10px;
+}
+
+.section-heading .heading-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.section-heading .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A count wears a pill on both headings, so the two say "count" the same way. It is not decoration:
+   as bare text the digits sat 6px from the neighbouring control's border while a kebab's ink floats
+   ~15px inside its box, and the pill's padding puts them where the eye expects. The fill differs
+   because the two bars do — see each heading below. */
+.section-heading .heading-count {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 1px 7px;
+  font-size: var(--text-small);
+  font-weight: 400;
+  color: var(--muted);
+  border-radius: var(--radius-pill);
+}
+
+.project h2 {
   font-size: var(--text-heading);
   font-weight: 700;
-  color: var(--text);
   /* Negative horizontal margins (cancelled by matching padding) let the divider run edge-to-edge
      across the sidebar, so each project reads as a hard section break. No margin-bottom: the gap below
      the divider comes from the first session's margin-top, so every gap in the list is a single 8px.
@@ -938,25 +988,15 @@ button:hover {
   margin: 0 -16px;
   padding: 8px 16px;
   border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  user-select: none;
-  /* Stay visible while scrolling that project's sessions, so the current project is always known.
-     The opaque background masks rows scrolling underneath. Above the group headings (1), which are
-     in turn above the rows — the three layers the list needs. */
-  position: sticky;
+  /* The top layer of the three the list needs: project heading over group heading (1) over rows.
+     The opaque background masks rows scrolling underneath. */
   top: 0;
   z-index: 2;
   background: var(--bg);
 }
 
-/* The whole project row toggles collapse, so give it a hover cue like the other clickable rows —
-   except where it can't collapse (a single-project view), where a hover cue and a pointer would both
-   claim a click that does nothing. The open-menu cue stays in both views: the kebab still works. */
-.project h2:hover,
-.project h2:has(.menu-open) {
-  background: var(--surface-hover);
-}
-
+/* Except where it cannot collapse (a single-project view), where a hover cue and a pointer would
+   both claim a click that does nothing. The open-menu cue stays: the kebab still works. */
 .project.no-collapse h2 {
   cursor: default;
 }
@@ -965,36 +1005,14 @@ button:hover {
   background: var(--bg);
 }
 
-.project h2 .caret {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  width: 10px;
-}
-
-.project h2 .project-icon {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
+.project h2 .heading-icon {
   color: var(--accent);
 }
 
-.project h2 .label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.project h2 .heading-count {
+  background: var(--surface);
 }
 
-.project h2 .project-count {
-  flex: 0 0 auto;
-  margin-left: auto;
-  padding: 1px 7px;
-  font-size: var(--text-small);
-  font-weight: 400;
-  color: var(--muted);
-  background: var(--surface);
-  border-radius: var(--radius-pill);
-}
 
 /* A bordered box so it reads as a "new session" action, not part of the collapse chrome. */
 .project h2 .project-add {
@@ -1104,9 +1122,6 @@ button:focus:not(:focus-visible) {
    alone: at 12px it read smaller than its own contents, so it looked like a label on the rows rather
    than a heading over them. */
 .group h3 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   /* No margin of its own: a sticky element pins its MARGIN box, so a margin-top here would park the
      heading that far below the project heading and leave a band of scrolling rows showing between
      the two. The space above a group lives on the .group section instead. */
@@ -1119,7 +1134,6 @@ button:focus:not(:focus-visible) {
      covers the first paint) — hard-coding it would go stale the moment the type scale moves, which
      is how revealSessionInSidebar's old 44 went wrong. Sticky is scoped to the .group section, so a
      heading unpins when its own group scrolls away rather than stacking with the next one. */
-  position: sticky;
   top: var(--project-heading-height, 39px);
   /* Above the rows, below the project heading. It has to be a real layer, not 0: a session's status
      dot is position:relative (for its hit-target halo) and so paints in the positioned layer, in DOM
@@ -1129,56 +1143,18 @@ button:focus:not(:focus-visible) {
   border-radius: var(--radius-surface); /* a filled bar like .session, so the same corner */
   font-size: var(--text-body);
   font-weight: 650;
-  color: var(--text);
-  cursor: pointer;
-  user-select: none;
 }
 
-/* :has(.menu-open) alongside :hover, matching .project h2 and .session: a heading whose kebab menu
-   is open stays lit while the pointer is down in the menu. The group heading was the one collapsible
-   container missing it, so its fill dropped away the moment the menu appeared. */
-.group h3:hover,
-.group h3:has(.menu-open) {
-  background: var(--surface-hover);
-}
-
-.group h3 .caret {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  width: 10px;
+.group h3 .caret,
+.group h3 .heading-icon {
   color: var(--muted);
 }
 
-.group h3 .group-icon {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  color: var(--muted);
-}
-
-.group h3 .label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* No pill here: the project's count keeps that treatment, so the group's stays plain text. */
-/* The same pill the project heading's count wears, so the two headings say "count" the same way —
-   and it fixes what looked like a spacing fault: as bare text the count's ink sat 6px from the split
-   button's border while the kebab's dots sit ~15px from it, because a kebab's ink is 2.6px of dots
-   floating in a 24px box. The pill's own padding puts the digits ~13px away, which is what the eye
-   was asking for. --bg, not --surface: the heading bar is already --surface. */
-.group h3 .group-count {
-  flex: 0 0 auto;
-  margin-left: auto;
-  padding: 1px 7px;
-  font-size: var(--text-small);
-  font-weight: 400;
-  color: var(--muted);
+/* --bg, not --surface: this heading's bar is already --surface. */
+.group h3 .heading-count {
   background: var(--bg);
-  border-radius: var(--radius-pill);
 }
+
 
 /* Where a jump landed. A short jump moves the list barely at all, so without this there is no way to
    tell the click did anything. It fades rather than blinks, and an inset ring means it reads the same

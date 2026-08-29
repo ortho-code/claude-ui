@@ -1727,23 +1727,51 @@ function flash(el: HTMLElement): void {
   window.setTimeout(() => el.classList.remove('flash'), 900);
 }
 
+/**
+ * The parts every collapsible section heading has: a caret, an icon, an ellipsizing label and a count
+ * pill. The project's and the group's differ in tag, icon, and what is appended after these.
+ */
+function buildHeading(
+  tag: 'h2' | 'h3',
+  iconHtml: string,
+): { heading: HTMLElement; caret: HTMLElement; icon: HTMLElement; label: HTMLElement; count: HTMLElement } {
+  const heading = document.createElement(tag);
+  heading.className = 'section-heading';
+  const caret = document.createElement('span');
+  caret.className = 'caret';
+  const icon = document.createElement('span');
+  icon.className = 'heading-icon';
+  icon.innerHTML = iconHtml;
+  const label = document.createElement('span');
+  label.className = 'label';
+  const count = document.createElement('span');
+  count.className = 'heading-count';
+  return { heading, caret, icon, label, count };
+}
+
+/**
+ * Fold or unfold a section: remember it, hide the rows, turn the caret, save.
+ *
+ * Both toggles deliberately skip renderList — no flicker, no scroll jump — and that render is the one
+ * call which would otherwise have persisted the fold, which is why saving happens here instead.
+ */
+function toggleFold(section: HTMLElement, caret: HTMLElement, folded: Set<string>, key: string): void {
+  const collapsed = !folded.has(key);
+  if (collapsed) folded.add(key);
+  else folded.delete(key);
+  section.classList.toggle('collapsed', collapsed);
+  caret.innerHTML = caretIcon(collapsed, 10);
+  persistUi();
+}
+
 // Build a project section once; contents (count, caret, rows) are updated on later renders.
 function createProjectSection(name: string, folderCwd?: string): ProjectSectionEls {
   const section = document.createElement('section');
   section.className = 'project';
 
-  const heading = document.createElement('h2');
-  const caret = document.createElement('span');
-  caret.className = 'caret';
-  const icon = document.createElement('span');
-  icon.className = 'project-icon';
-  icon.innerHTML = FOLDER_ICON;
-  const label = document.createElement('span');
-  label.className = 'label';
+  const { heading, caret, icon, label, count } = buildHeading('h2', FOLDER_ICON);
   setTooltip(label, name); // full path on hover
   label.textContent = projName(name);
-  const count = document.createElement('span');
-  count.className = 'project-count';
   // Jump straight to one of this project's groups instead of scrolling for it.
   // The heading is position:sticky, so this trigger is on screen the whole time you scroll the project — which is what makes a menu enough here, rather than a panel that would cost a line of height per project.
   // reconcileProjectSections hides it below 2 targets and disables it while filtering.
@@ -1821,16 +1849,10 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     // Not collapsible in a single-project view: hiding the one project you're looking at leaves an empty sidebar. The heading is a title there, and updateProjectSection drops its caret to say so.
     if (activeProject !== null) return;
     const before = heading.getBoundingClientRect().top;
-    const collapsed = !foldedProjects().has(name);
-    if (collapsed) foldedProjects().add(name);
-    else foldedProjects().delete(name);
-    section.classList.toggle('collapsed', collapsed);
-    caret.innerHTML = caretIcon(collapsed, 10);
+    toggleFold(section, caret, foldedProjects(), name);
     container.scrollTop += heading.getBoundingClientRect().top - before;
-    // This toggle deliberately skips renderList (no flicker, no scroll jump), so the header button has to be refreshed by hand — otherwise it still reads "Expand all" after one project reopens.
+    // No render here, so the header button has to be refreshed by hand — otherwise it still reads "Expand all" after one project reopens.
     updateCollapseToggle();
-    // And so does the store, for the same reason: skipping the render skips the one call that would otherwise have saved this.
-    persistUi();
   });
   section.appendChild(heading);
 
@@ -1842,16 +1864,7 @@ function createGroupSection(id: string): GroupSectionEls {
   const section = document.createElement('section');
   section.className = 'group';
 
-  const heading = document.createElement('h3');
-  const caret = document.createElement('span');
-  caret.className = 'caret';
-  const icon = document.createElement('span');
-  icon.className = 'group-icon';
-  icon.innerHTML = layersIcon(13);
-  const label = document.createElement('span');
-  label.className = 'label';
-  const count = document.createElement('span');
-  count.className = 'group-count';
+  const { heading, caret, icon, label, count } = buildHeading('h3', layersIcon(13));
   // Start a session already in this group — the group's answer to the project heading's split button, and the same two parts: "+" starts one straight away, the caret offers the worktree variant.
   // reconcileProjectSections shows the caret only when the project is a git repo.
   const split = document.createElement('div');
@@ -1897,13 +1910,7 @@ function createGroupSection(id: string): GroupSectionEls {
   });
   heading.append(caret, icon, label, count, split, kebab);
   heading.addEventListener('click', () => {
-    const collapsed = !foldedGroups().has(id);
-    if (collapsed) foldedGroups().add(id);
-    else foldedGroups().delete(id);
-    section.classList.toggle('collapsed', collapsed);
-    caret.innerHTML = caretIcon(collapsed, 10);
-    // Same as the project heading above: no render here, so nothing else would store the fold.
-    persistUi();
+    toggleFold(section, caret, foldedGroups(), id);
   });
 
   // The rows live in their own element so the indent and its rail wrap the whole group, which is what shows where a group ends without needing to read the next heading.
@@ -2636,7 +2643,7 @@ function renderTabBar(): void {
       const label = document.createElement('span');
       label.className = 'tab-group-label';
       const icon = document.createElement('span');
-      icon.className = 'group-icon';
+      icon.className = 'heading-icon';
       icon.innerHTML = layersIcon(11);
       label.append(icon, document.createTextNode(group.name));
       row.append(rail, label, ...groupTabs.map(tabElement));
