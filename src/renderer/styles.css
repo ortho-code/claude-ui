@@ -33,6 +33,12 @@
   --text-meta: 12px;
   --text-small: 11px;
   --text-badge: 10px;
+
+  /* The terminal's face, and so the face of anything showing what a terminal would have shown (a
+     command panel's output). xterm takes its font as options, so renderer.ts reads these two back
+     rather than holding a second copy of the values. */
+  --font-mono: monospace;
+  --text-mono: 13px;
 }
 
 * {

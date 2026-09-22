@@ -2545,6 +2545,11 @@ async function forkSession(parent: SessionSummary): Promise<void> {
  * `terminalId` stays null until startTab fills it in, which is what lets tabs be restored cold — 20 restored tabs used to mean 20 `claude --resume` processes at ~437 MB each, spawned whether or not you looked at any of them.
  * The xterm instance stays eager on purpose: an empty one costs almost nothing next to a process, and keeping it non-null confines this to the handful of places that use terminalId.
  */
+// The terminal's face comes from the stylesheet's tokens, so a panel showing command output is set in the same type without a second copy of the values.
+const rootStyle = getComputedStyle(document.documentElement);
+const MONO_FAMILY = rootStyle.getPropertyValue('--font-mono').trim();
+const MONO_SIZE = parseInt(rootStyle.getPropertyValue('--text-mono'), 10);
+
 function buildTab(session: SessionSummary): Tab {
   const token = crypto.randomUUID();
 
@@ -2553,8 +2558,8 @@ function buildTab(session: SessionSummary): Tab {
   terminalsEl.appendChild(el);
 
   const term = new Terminal({
-    fontFamily: 'monospace',
-    fontSize: 13,
+    fontFamily: MONO_FAMILY,
+    fontSize: MONO_SIZE,
     // Neutral (hue-less) default foreground: claude's selected-item accent is a periwinkle, so a neutral grey fg makes it pop by HUE (the old lavender-white #cdd6f4 shared its hue and merged).
     // The fix was the hue, not the brightness, so it can be a light near-white for comfortable reading.
     // The select-menu contrast bug (28a); proper per-user terminal colours are item 28.
