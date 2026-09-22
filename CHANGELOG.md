@@ -16,6 +16,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - Compacting a session shows it as busy while it runs and idle when it finishes, instead of leaving the dot on whatever it said before.
 - Entering or leaving a worktree, and gaining a sibling, show up in the session list when they happen instead of waiting for some unrelated change.
 - Stopping a session now ends it. It was asked once, with a signal it was free to ignore, and the session could keep running while the app showed it as stopped — including the sessions left behind when you quit the app.
+- Switching model with `/model` updates the model shown in the session list straight away, instead of only once that model had answered something.
 
 ## 0.3.0 — 2026-08-29
 

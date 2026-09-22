@@ -377,6 +377,20 @@ function setStatus(id: string, status: string | undefined): void {
   maybeAttentionToast(id, status, prev);
 }
 
+/**
+ * Models a session has switched to while the app was watching, by session id.
+ *
+ * A transcript records which model ANSWERED, never which one was chosen, so `/model` leaves no trace in it until the next reply — and the row went on naming the old model in between.
+ * `PostModelSwitch` is the only place that answer exists at the moment it becomes true, so it is kept here and preferred over the transcript's.
+ * In memory only: it can never be staler than what is on disk (every switch in this app's sessions lands here), and after a restart the transcript's own last answer is the right source again.
+ */
+const switchedModel = new Map<string, string>();
+
+/** The model to show for a session: the one it has switched to if we saw that happen, else the one that last answered. */
+function modelOf(session: SessionSummary): string {
+  return switchedModel.get(session.id) ?? session.model;
+}
+
 // Repaint a session's dot wherever it shows (sidebar row + open tab) from the current status/ack.
 function renderStatusDot(id: string): void {
   const dot = statusDots.get(id);
@@ -2274,7 +2288,7 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
     const ts = archived.get(entityKey(session));
     els.metaText.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
   } else {
-    const model = modelLabel(session.model);
+    const model = modelLabel(modelOf(session));
     const when = relativeTime(session.lastActivity);
     els.metaText.textContent = model ? `${when} · ${model}` : when;
   }
@@ -2985,6 +2999,13 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
   setStatus(id, status);
   // A new session's title isn't on disk immediately; re-read on its status events until it is (this also replaces the tab's own stand-in row with the real one).
   if (tabs.some((t) => t.session.id === id) && !allSessions.some((s) => s.id === id)) void refreshFromDisk();
+});
+
+window.claudeUi.onSessionModel((id, model) => {
+  if (switchedModel.get(id) === model) return;
+  switchedModel.set(id, model);
+  // The row prints the model, and nothing else is going to redraw it: the session list on disk has not changed, so the usual refresh would see no reason to.
+  renderList();
 });
 
 // The sidebar keeps itself current: a transcript created or changed on disk re-renders it.

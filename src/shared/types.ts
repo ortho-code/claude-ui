@@ -255,6 +255,11 @@ export interface ClaudeUiApi {
   getAllStatuses(): Promise<Record<string, string>>;
   /** Subscribe to live status changes. `tab` is the reporting terminal's token (empty for a session claude-ui is not running). */
   onSessionStatus(callback: (id: string, status: string, tab: string) => void): void;
+  /**
+   * Subscribe to a session changing model.
+   * Only a live switch arrives here; a session's model at rest comes from its transcript, which records which model answered.
+   */
+  onSessionModel(callback: (id: string, model: string) => void): void;
   /** Clear a session's status (removes its status file). */
   clearStatus(id: string): void;
   /** Open a terminal in `cwd` running claude as `launch` describes. Resolves to a terminal id. */

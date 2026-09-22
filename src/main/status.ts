@@ -40,6 +40,10 @@ const HOOK_EVENTS: [string, string][] = [
   // That distinction is the whole point: this app tracks SESSIONS, not processes. Declining to write `closed` here was tried on 2026-09-22 and reverted the same day; it left a dead session showing a live dot for good.
   // What the process does next is the business of `SessionStart` below, which reports the id that succeeded this one.
   ['SessionEnd', 'closed'],
+  // Not a state either: it reports WHICH MODEL the session is on from here.
+  // The app cannot get this anywhere else while a session sits idle — a transcript records only which model ANSWERED, so `/model` is invisible in it until the next reply, and the row went on naming the old model in the meantime.
+  // MEASURED: the payload carries `from_model`, `to_model`, `requested_model` and `source`; `to_model` is the one that matters and is a full model id.
+  ['PostModelSwitch', 'model'],
   // Compaction is claude WORKING — it is thinking about the transcript — so the dot belongs on busy until it finishes, and the finish is a `SessionStart` carrying `source=compact` (see the script).
   // `PostCompact` would be the obvious end signal, but a probe on 2026-08-29 never observed it firing and could not prove it ever does; `SessionStart` was observed.
   ['PreCompact', 'busy'],
@@ -68,6 +72,12 @@ field() {
 }
 sid="$(field session_id)"
 [ -n "$sid" ] || exit 0
+# A model switch goes to a file of its own, so it can never overwrite a status: the two answer different questions about the same session.
+if [ "$status" = model ]; then
+  to="$(field to_model)"
+  [ -n "$to" ] && printf '%s' "$to" > "$dir/$sid.model"
+  exit 0
+fi
 # The end of a compaction, which is the only SessionStart that means a state rather than an identity.
 if [ "$status" = start ] && [ "$(field source)" = compact ]; then
   status=idle
@@ -143,7 +153,21 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
   });
 
   watch(statusDir, (_event, filename) => {
-    if (!filename || !filename.endsWith('.json')) return;
+    if (!filename) return;
+    // A model switch, which is a fact about the session rather than a state it is in — hence its own file and its own channel.
+    // Deliberately NOT read at launch: by then the transcript's own last answer is the better source, and a file left over from a previous run could only be staler than that.
+    if (filename.endsWith('.model')) {
+      const id = filename.slice(0, -'.model'.length);
+      void fs
+        .readFile(path.join(statusDir, filename), 'utf8')
+        .then((model) => {
+          const win = getWindow();
+          if (model.trim() && win && !win.isDestroyed()) win.webContents.send('session:model', id, model.trim());
+        })
+        .catch(() => {});
+      return;
+    }
+    if (!filename.endsWith('.json')) return;
     const id = filename.replace(/\.json$/, '');
     void readStatus(id).then((entry) => {
       if (entry === null) return;
@@ -172,9 +196,10 @@ async function readStatus(id: string): Promise<StatusEntry | null> {
   }
 }
 
-/** Remove the status files for the given session ids (used when a conversation is deleted). */
+/** Remove everything this directory holds for the given session ids (used when a conversation is deleted). */
 export async function clearStatuses(ids: string[]): Promise<void> {
-  await Promise.all(ids.map((id) => fs.rm(path.join(statusDir, `${id}.json`)).catch(() => {})));
+  const files = ids.flatMap((id) => [`${id}.json`, `${id}.model`]);
+  await Promise.all(files.map((file) => fs.rm(path.join(statusDir, file)).catch(() => {})));
 }
 
 /** Every session's status as the renderer receives it at launch. Exported for the tests that pin what does and does not survive into it. */

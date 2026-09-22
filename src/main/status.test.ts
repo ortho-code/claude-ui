@@ -58,6 +58,7 @@ describe('installStatusHooks', () => {
     const tool = JSON.parse(await fs.readFile(statusSettingsFile, 'utf8'));
     expect(Object.keys(tool.hooks).sort()).toEqual([
       'Notification',
+      'PostModelSwitch',
       'PostToolUse',
       'PreCompact',
       'SessionEnd',
@@ -159,6 +160,7 @@ describe('the hook script', () => {
   beforeEach(async () => {
     await installStatusHooks();
     await fs.rm(statusFile, { force: true });
+    await fs.rm(path.join(statusDir, `${SID}.model`), { force: true });
   });
 
   it('writes the status it is given for the session on stdin', async () => {
@@ -222,6 +224,28 @@ describe('the hook script', () => {
     expect(await getAllStatuses()).not.toHaveProperty(SID);
     runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
     expect(await getAllStatuses()).toHaveProperty(SID, 'busy');
+  });
+
+  /**
+   * A model switch is the one report that is neither a state nor an identity, so it goes to a file of its own.
+   * A transcript only records which model ANSWERED, which is why this is the only place the answer exists at the moment it becomes true.
+   */
+  it('records a model switch beside the status, without disturbing it', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+    runHook('model', {
+      session_id: SID,
+      hook_event_name: 'PostModelSwitch',
+      from_model: 'claude-opus-5',
+      to_model: 'claude-sonnet-5',
+    });
+    expect(await fs.readFile(path.join(statusDir, `${SID}.model`), 'utf8')).toBe('claude-sonnet-5');
+    // The session is still working; a switch says nothing about that.
+    expect((await readStatusFile())?.status).toBe('busy');
+  });
+
+  it('writes no model file when the event names no model to switch to', async () => {
+    runHook('model', { session_id: SID, hook_event_name: 'PostModelSwitch', from_model: 'claude-opus-5' });
+    await expect(fs.access(path.join(statusDir, `${SID}.model`))).rejects.toThrow();
   });
 
   // `source` belongs to SessionStart alone: one riding along on any other event must not rewrite its status.
