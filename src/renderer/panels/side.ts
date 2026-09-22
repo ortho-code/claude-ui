@@ -4,6 +4,7 @@ import { installResizer } from '../resizer';
 import { setTooltip } from '../tooltip';
 import { resolveLayout, type PanelSlot } from './layout';
 import { commandType, type MountedPanel, type PanelHost, type PanelType, type Where } from './types/command';
+import { terminalType } from './types/terminal';
 
 /**
  * The right side: one group holding one panel, beside the terminal.
@@ -13,7 +14,7 @@ import { commandType, type MountedPanel, type PanelHost, type PanelType, type Wh
  * The plain-DOM one-group side is deliberate: the file already has the tree shape, so nothing on disk changes when groups and docking arrive; only this module does.
  */
 
-const TYPES: Record<string, PanelType> = { command: commandType };
+const TYPES: Record<string, PanelType> = { command: commandType, terminal: terminalType };
 
 export const SIDE_MIN = 200;
 export const SIDE_MAX = 960;
@@ -125,8 +126,9 @@ function panelGroup(slot: PanelSlot, type: PanelType, notShown: string[]): HTMLE
   const end = element('span', 'panel-end');
   const refresh = element('button', 'icon-btn');
   refresh.setAttribute('type', 'button');
-  refresh.setAttribute('aria-label', 'Refresh');
-  setTooltip(refresh, 'Refresh');
+  const action = type.actionLabel ?? 'Refresh';
+  refresh.setAttribute('aria-label', action);
+  setTooltip(refresh, action);
   refresh.innerHTML = REFRESH_ICON;
   const panelHost: PanelHost = {
     where: () => host.where(),

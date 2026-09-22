@@ -169,7 +169,7 @@ export interface PanelState {
   width: number | null;
 }
 
-import type { LayoutReport, PanelRunEvent, PanelRunRequest } from './panels';
+import type { LayoutReport, PanelContext, PanelRunEvent, PanelRunRequest } from './panels';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
@@ -282,6 +282,8 @@ export interface ClaudeUiApi {
   clearStatus(id: string): void;
   /** Open a terminal in `cwd` running claude as `launch` describes. Resolves to a terminal id. */
   startTerminal(cwd: string, launch: TerminalLaunch): Promise<number>;
+  /** Open a plain login shell in `cwd` for a terminal panel, with the context in its environment. Same terminal id space, same data, exit, input and stop calls. */
+  startShell(cwd: string, context: PanelContext): Promise<number>;
   onTerminalData(callback: (id: number, data: string) => void): void;
   onTerminalExit(callback: (id: number, exitCode: number) => void): void;
   sendTerminalInput(id: number, data: string): void;

@@ -8,9 +8,12 @@ const { handlers, spawned, seq } = vi.hoisted(() => ({
   seq: { pid: 4000 },
 }));
 
-/** Enough of node-pty's IPty to drive the stop paths: a pid to signal, the writes to inspect, and an exit we fire by hand. */
+/** Enough of node-pty's IPty to drive the stop paths: a pid to signal, the writes to inspect, and an exit we fire by hand — plus what it was spawned with, for the tests that pin that. */
 interface FakePty {
   pid: number;
+  file: string;
+  args: string[];
+  options: { cwd: string; env: Record<string, string> };
   written: string[];
   exit: (code?: number) => void;
   onData: (cb: (d: string) => void) => void;
@@ -27,12 +30,16 @@ vi.mock('electron', () => ({
     handle: (channel: string, fn: (...a: unknown[]) => unknown) => handlers.set(channel, fn),
     on: (channel: string, fn: (...a: unknown[]) => unknown) => handlers.set(channel, fn),
   },
+  shell: {},
 }));
 vi.mock('node-pty', () => ({
-  spawn: () => {
+  spawn: (file: string, args: string[], options: FakePty['options']) => {
     let onExit: (e: { exitCode: number }) => void = () => {};
     const proc: FakePty = {
       pid: seq.pid++,
+      file,
+      args,
+      options,
       written: [],
       exit: (code = 0) => onExit({ exitCode: code }),
       onData: () => {},
@@ -234,6 +241,53 @@ describe('stopping a session', () => {
     handlers.get('terminal:close')!(null, id);
     await vi.advanceTimersByTimeAsync(500);
     expect(proc.written).toEqual(['\x03', '\x03']);
+  });
+
+  /** Start a panel's shell the way the renderer does. */
+  const CONTEXT = { projectRoot: '/repo', cwd: process.cwd(), sessionId: 'sess-1' };
+  async function startShell(): Promise<{ proc: FakePty; id: number }> {
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+    const id = (await handlers.get('terminal:startShell')!({ sender }, process.cwd(), CONTEXT)) as number;
+    return { proc: spawned[spawned.length - 1], id };
+  }
+
+  it('starts a panel shell as the plain interactive login shell, with the context and without the session marker', async () => {
+    const { proc } = await startShell();
+    expect(proc.file).toBe(process.env.SHELL ?? '/bin/bash');
+    // No `-c`: nothing to run, the prompt is the user's own.
+    expect(proc.args).toEqual(['-l', '-i']);
+    expect(proc.options.cwd).toBe(process.cwd());
+    expect(proc.options.env).toMatchObject({
+      COLORTERM: 'truecolor',
+      CLAUDE_UI_PROJECT_ROOT: '/repo',
+      CLAUDE_UI_CWD: process.cwd(),
+      CLAUDE_UI_SESSION_ID: 'sess-1',
+    });
+    // The marker fires the status hooks, so a `claude` typed into the panel must not carry it.
+    expect(proc.options.env).not.toHaveProperty('CLAUDE_UI');
+  });
+
+  it('a session still carries the marker, which the shell start above must not have loosened', async () => {
+    const { proc } = await start();
+    expect(proc.args.slice(0, 3)).toEqual(['-l', '-i', '-c']);
+    expect(proc.options.env.CLAUDE_UI).toBe('1');
+  });
+
+  it('refuses to start a panel shell in a folder that is not there', async () => {
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+    await expect(handlers.get('terminal:startShell')!({ sender }, '/definitely/not/here', CONTEXT)).rejects.toThrow(/MISSING_CWD/);
+    expect(spawned).toHaveLength(0);
+  });
+
+  it('stops and sweeps a panel shell exactly as a session', async () => {
+    const shell = await startShell();
+    handlers.get('terminal:kill')!(null, shell.id);
+    expect(signals(shell.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(signals(shell.proc.pid)).toContain('SIGKILL');
+    const other = await startShell();
+    terminateAll();
+    expect(signals(other.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
   });
 
   // Quitting used to be its own path, sending one SIGTERM and clearing the table in the same breath — so the app exited without ever checking.

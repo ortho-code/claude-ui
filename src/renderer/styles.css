@@ -1993,6 +1993,15 @@ button:focus:not(:focus-visible) {
   white-space: pre;
 }
 
+/* A shell in a panel: the terminal pane's padding and background, filling the body. xterm sizes itself
+   to this box (the fit addon reads the parent's box minus its padding), so nothing else here is sized. */
+.panel-terminal {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+  background: var(--terminal-bg);
+}
+
 /* A panel that cannot run says why, one sentence per line, where its output would be. */
 .panel-problems {
   flex: 1;

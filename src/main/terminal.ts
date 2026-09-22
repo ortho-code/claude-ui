@@ -2,10 +2,12 @@ import { ipcMain, type WebContents } from 'electron';
 import * as pty from 'node-pty';
 import { existsSync } from 'node:fs';
 import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
-import { inheritedEnv, shellCommand, terminateGroup } from './shell';
+import { inheritedEnv, loginShell, shellCommand, terminateGroup } from './shell';
+import { contextEnv } from './panels';
 import { parseLaunchFlags } from '../shared/flags';
 import { getSettings } from './meta';
 import type { TerminalLaunch } from '../shared/types';
+import type { PanelContext } from '../shared/panels';
 
 const terminals = new Map<number, pty.IPty>();
 /** Sessions already on their way out, so a second press cannot restart the escalation behind the first. */
@@ -149,6 +151,15 @@ export function registerTerminalIpc(): void {
     // Marks the terminal rather than the session, so the hook can still say which tab reported after `/clear` has replaced the session in it.
     if (launch.tabToken) env[TAB_ENV] = launch.tabToken;
     return spawnPty(event.sender, shell, args, cwd, env);
+  });
+
+  // A PLAIN SHELL, for a terminal panel: the same interactive login shell a session runs `claude` in, with nothing to run, so the prompt is the user's own.
+  // It gets the panel's context in its environment and NOT the session marker: a `claude` started by hand in it must not report as one of the app's sessions.
+  // Same refusal of a missing folder, same pty path, so it is stopped and swept exactly as a session is.
+  // Async like `terminal:start`, so a refusal reaches the renderer as a rejection either way.
+  ipcMain.handle('terminal:startShell', async (event, cwd: string, context: PanelContext): Promise<number> => {
+    if (!cwd || !existsSync(cwd)) throw new Error(`MISSING_CWD:${cwd}`);
+    return spawnPty(event.sender, loginShell(), ['-l', '-i'], cwd, { ...ptyEnv(), ...contextEnv(context) });
   });
 
   ipcMain.on('terminal:input', (_event, id: number, data: string) => {

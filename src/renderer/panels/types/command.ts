@@ -54,6 +54,8 @@ export interface MountedPanel {
 }
 
 export interface PanelType extends PanelTypeDecl {
+  /** What the header's one button does, for its tooltip and label. "Refresh" when the type says nothing. */
+  actionLabel?: string;
   mount(slot: PanelSlot, host: PanelHost): MountedPanel;
 }
 

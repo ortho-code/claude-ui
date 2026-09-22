@@ -52,11 +52,17 @@ export function panelEnv(context: PanelContext): { [key: string]: string } {
   delete env.COLORTERM;
   env.NO_COLOR = '1';
   env.TERM = 'dumb';
-  env.CLAUDE_UI_PROJECT_ROOT = context.projectRoot;
-  env.CLAUDE_UI_CWD = context.cwd;
-  env.CLAUDE_UI_SESSION_ID = context.sessionId;
-  env.CLAUDE_UI_CONFIG_ROOT = configRoot;
-  return env;
+  return { ...env, ...contextEnv(context) };
+}
+
+/** The context as flat variables, the same set for a command panel's run and a terminal panel's shell. */
+export function contextEnv(context: PanelContext): { [key: string]: string } {
+  return {
+    CLAUDE_UI_PROJECT_ROOT: context.projectRoot,
+    CLAUDE_UI_CWD: context.cwd,
+    CLAUDE_UI_SESSION_ID: context.sessionId,
+    CLAUDE_UI_CONFIG_ROOT: configRoot,
+  };
 }
 
 interface Run {

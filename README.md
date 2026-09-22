@@ -69,7 +69,9 @@ Write `layouts/default.json` there.
 The app picks it up as you save, and hides the panel again when the file goes away or has no panel left to show.
 The app never writes to this folder, so it is yours to edit, version, or hand to a colleague.
 
-One panel type exists so far, `command`, given its command in one of two ways: a command line, run by your login shell as you typed it, or a path to an executable script.
+Two panel types exist so far.
+`command` runs something and shows what it printed, given its command in one of two ways: a command line, run by your login shell as you typed it, or a path to an executable script.
+`terminal` is a plain shell, the same login shell your sessions run in.
 
 ```json
 {
@@ -81,7 +83,8 @@ One panel type exists so far, `command`, given its command in one of two ways: a
         {
           "panels": [
             { "id": "status", "type": "command", "command": "git status --short" },
-            { "id": "checks", "type": "command", "script": "scripts/checks.sh", "title": "Checks", "hidden": true }
+            { "id": "checks", "type": "command", "script": "scripts/checks.sh", "title": "Checks", "hidden": true },
+            { "id": "shell", "type": "terminal", "hidden": true }
           ]
         }
       ]
@@ -90,7 +93,8 @@ One panel type exists so far, `command`, given its command in one of two ways: a
 }
 ```
 
-Each entry needs a unique `id` (lowercase letters, digits and hyphens) and exactly one of `command` or `script`; `title` and `hidden` are optional.
+Each entry needs a unique `id` (lowercase letters, digits and hyphens); `title` and `hidden` are optional.
+A `command` entry needs exactly one of `command` or `script`, and a `terminal` entry needs nothing else.
 A relative `script` resolves against the config folder, so `scripts/` is the place to keep one, and it has to be executable.
 `size` is the side's share of the window until you drag the divider, after which your width is kept.
 The file's shape leaves room for more than this version shows: it shows the first panel that is not hidden in the first group on the right side, and says so under the panel when the file holds more.
@@ -106,6 +110,11 @@ It sees these variables:
 | `CLAUDE_UI_CONFIG_ROOT` | the config folder |
 
 Output is shown as plain text (`NO_COLOR` and `TERM=dumb` are set, and escape codes are stripped), a non-zero exit shows as `exit N`, a run still going after 30 seconds is stopped, and output is cut at 1 MB.
+
+A `terminal` panel's shell starts in that folder too, but stays there when you switch tab or project, since a shell may have something running in it.
+The header names the folder it is in, and the button restarts it in the current one.
+It gets the same variables, and a `claude` you start in it by hand is not tracked as one of the app's sessions.
+
 A mistake in the file — an unknown type, a missing id, a script that is not there or not executable — is named in the panel's place, and a file that does not parse leaves the last good layout up and names the position.
 
 ## Install a build

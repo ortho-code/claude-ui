@@ -271,6 +271,24 @@ The end of the OUTPUT (`close`) and the end of the PROCESS (`exit`) are read sep
 
 **A run carries a token.** The renderer mints one per run and every event echoes it, so output still in flight from a run just replaced never lands in the new run's body.
 
+### The `terminal` type
+
+A plain shell in a panel: the interactive login shell a session runs `claude` in, with nothing to run, in a pty, shown in an xterm.
+No parameters.
+
+**It stays put.** The shell starts in the context directory of the moment the panel first shows and stays there through tab and project switches.
+A shell has state — the command you have running in it — so following the context the way the `command` panel does would kill that command on every switch, and one shell per directory kept alive and swapped like tabs is a lifecycle that belongs with groups and tabs, not here.
+So the header names the folder the shell is in, the button is "Restart here", which kills the shell and starts one in the current context, and the one exception is a panel with no shell because there was nothing to run in, which starts as soon as a context appears.
+The type declares that button's label itself, so the side keeps one button and the type says what it does.
+
+**The same pty path as a session.** `terminal.ts` has one spawn for both — the terminals map, the data and exit routing, the stop escalation and the quit sweep — with the claude-specific argument building and the plain-shell start as two callers of it.
+A panel's shell is therefore stopped and swept exactly as a session is, and nothing about it is a second implementation of a process the app runs.
+It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` as a session does, and NOT `CLAUDE_UI=1`: a `claude` started by hand in it must not report as one of the app's sessions.
+
+**One xterm, one router.** The renderer's `terminal.ts` builds every xterm in the window (the font tokens, the neutral foreground, the canvas fallback, clickable links) and routes every terminal's output and exit to whichever sink bound its id, a tab or a panel.
+The tab's claude-specific key handling — Ctrl+Enter and Shift+Enter as newline, Ctrl+Z refused, Ctrl+C twice to close — stays with the tab.
+A panel fits its xterm from a `ResizeObserver` on its own box rather than at mount, because it is mounted before the side has laid it out and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
+
 ### Panel state
 
 The side's dragged width lives in `UiState.panelState`, per machine, beside the sidebar's, and never in the layout file, which is what may be shared.
