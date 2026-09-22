@@ -30,6 +30,21 @@ export const hookScriptPath = path.join(configDir, 'status-hook.sh');
 export const statusSettingsFile = path.join(configDir, 'claude-settings.json');
 
 /**
+ * The folder for everything a person may EDIT or SHARE — the layout file and the scripts it points at — and nothing else.
+ * One folder apart from `meta.json` and the status files, which are the app's own and never meant for an editor, so "copy this folder" hands a colleague exactly the customisation and none of the machine state.
+ * The app creates it, reads it and watches it; in this version it never writes into it.
+ */
+export const configRoot = path.join(configDir, 'config');
+
+/** `layouts/` rather than a single file, so named and per-project layouts are added beside the default rather than by moving it. */
+export const layoutsDir = path.join(configRoot, 'layouts');
+
+/** Where a `script` belongs; a relative `script` resolves against the config folder, so `scripts/x.sh` travels with it. */
+export const scriptsDir = path.join(configRoot, 'scripts');
+
+export const defaultLayoutFile = path.join(layoutsDir, 'default.json');
+
+/**
  * Quote a path for the single shell command string that claude runs a hook through.
  * macOS makes this necessary: `~/Library/Application Support/...` contains a space, so an unquoted path would reach the hook as two arguments and simply not run.
  */

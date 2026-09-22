@@ -159,6 +159,8 @@ export interface UiState {
   scrollTop: number;
 }
 
+import type { LayoutReport, PanelRunEvent, PanelRunRequest } from './panels';
+
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
   /** Whether a worktree of this name already exists for the repo (blocks creating a duplicate). */
@@ -277,4 +279,16 @@ export interface ClaudeUiApi {
   killTerminal(id: number): void;
   /** Close a session, letting claude exit cleanly so it flushes first. */
   closeTerminal(id: number): void;
+  /** The layout file as main last read it, script checks included. Validated in the renderer (panels/layout.ts). */
+  getLayout(): Promise<LayoutReport>;
+  /** Fires with a fresh report whenever anything in the config folder changes (debounced). */
+  onLayoutChanged(callback: (report: LayoutReport) => void): void;
+  /** Run a `command` panel's command in its context; a run already going for the entry is stopped first. Output arrives through `onPanelRun`. */
+  runPanel(request: PanelRunRequest): void;
+  /** Stop an entry's run, because its panel was hidden or removed. */
+  stopPanel(entryId: string): void;
+  /** Subscribe to every run's events. `token` is the one the run was requested with, so a superseded run's tail can be told apart. */
+  onPanelRun(callback: (entryId: string, token: string, event: PanelRunEvent) => void): void;
+  /** Show the config folder in the OS file manager. */
+  revealConfigFolder(): void;
 }

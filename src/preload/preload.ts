@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ClaudeUiApi } from '../shared/types';
+import type { LayoutReport, PanelRunEvent } from '../shared/panels';
 
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
@@ -62,6 +63,15 @@ const api: ClaudeUiApi = {
   resizeTerminal: (id, cols, rows) => ipcRenderer.send('terminal:resize', id, cols, rows),
   killTerminal: (id) => ipcRenderer.send('terminal:kill', id),
   closeTerminal: (id) => ipcRenderer.send('terminal:close', id),
+  getLayout: () => ipcRenderer.invoke('config:getLayout'),
+  onLayoutChanged: (callback) => ipcRenderer.on('config:changed', (_event, report: LayoutReport) => callback(report)),
+  runPanel: (request) => ipcRenderer.send('panel:run', request),
+  stopPanel: (entryId) => ipcRenderer.send('panel:stop', entryId),
+  onPanelRun: (callback) =>
+    ipcRenderer.on('panel:run', (_event, entryId: string, token: string, event: PanelRunEvent) =>
+      callback(entryId, token, event),
+    ),
+  revealConfigFolder: () => ipcRenderer.send('config:reveal'),
 };
 
 contextBridge.exposeInMainWorld('claudeUi', api);

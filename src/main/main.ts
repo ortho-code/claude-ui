@@ -7,6 +7,8 @@ import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { listSessions, trashSessions, worktreeExists } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
+import { registerConfig } from './config';
+import { registerPanelsIpc, stopAllPanels } from './panels';
 import {
   getPinned,
   togglePin,
@@ -539,6 +541,7 @@ ipcMain.handle('meta:moveSessionToGroup', (_event, sessionId: string, groupId: s
   moveSessionToGroup(sessionId, groupId),
 );
 registerTerminalIpc();
+registerPanelsIpc();
 
 app.whenReady().then(async () => {
   installAppMenu();
@@ -552,6 +555,7 @@ app.whenReady().then(async () => {
   await installStatusHooks();
   registerStatusIpc(() => mainWindow);
   registerSessionsWatcher(() => mainWindow);
+  registerConfig(() => mainWindow);
   // Before the window, so the answer is in hand by the time anyone can reach the maximize button.
   learnMaximizeInset();
   await createWindow();
@@ -573,5 +577,6 @@ app.on('before-quit', (event) => {
   // Tell the renderer we're shutting down before killing terminals, so the tab-close it triggers for each dying pty doesn't persist an empty open-tabs list over the real one.
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:quitting');
   terminateAll();
+  stopAllPanels();
   setTimeout(() => app.quit(), 1500);
 });
