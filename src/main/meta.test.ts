@@ -448,6 +448,7 @@ describe('ui state', () => {
     filterCollapsedGroups: ['g2'],
     sidebarWidth: 380,
     scrollTop: 240,
+    panelState: { width: 420 },
   };
 
   it('starts unfiltered, unfolded and at the default width', async () => {
@@ -465,6 +466,7 @@ describe('ui state', () => {
       filterCollapsedGroups: [],
       sidebarWidth: null,
       scrollTop: 0,
+      panelState: { width: null },
     });
   });
 
@@ -481,6 +483,7 @@ describe('ui state', () => {
     expect(ui.datePreset).toBe('any');
     expect(ui.collapsedProjects).toEqual([]);
     expect(ui.filterCollapsedProjects).toEqual([]);
+    expect(ui.panelState).toEqual({ width: null });
   });
 
   it('drops values of the wrong type rather than restoring a broken sidebar', async () => {
@@ -505,8 +508,9 @@ describe('ui state', () => {
   });
 
   it('treats a zero width as never set, since it could not be dragged back', async () => {
-    await setUiState({ ...view, sidebarWidth: 0 });
+    await setUiState({ ...view, sidebarWidth: 0, panelState: { width: 0 } });
     expect((await getUiState()).sidebarWidth).toBeNull();
+    expect((await getUiState()).panelState.width).toBeNull();
   });
 
   it('normalizes on the way in too, so the renderer cannot store a shape the next launch chokes on', async () => {

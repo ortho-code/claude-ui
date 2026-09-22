@@ -62,6 +62,18 @@ describe('the file as a whole', () => {
     expect(shown(resolveLayout(report(both), TYPES)).notShown).toEqual(['Only the right side is shown yet; this file also has left.']);
   });
 
+  it('reads the side’s share of the window, and names a share it cannot read', () => {
+    const one = [{ id: 'a', type: 'command', command: 'ls' }];
+    expect(shown(resolveLayout(report(layout(one)), TYPES)).sideSize).toBeNull();
+    const sized = { version: 1, sides: { right: { size: 0.3, groups: [{ panels: one }] } } };
+    expect(shown(resolveLayout(report(sized), TYPES)).sideSize).toBe(0.3);
+    for (const size of ['30%', 0, 1.5, -1]) {
+      const view = shown(resolveLayout(report({ version: 1, sides: { right: { size, groups: [{ panels: one }] } } }), TYPES));
+      expect(view.sideSize).toBeNull();
+      expect(view.notShown).toEqual(['sides.right.size is not a number between 0 and 1; the default width is used.']);
+    }
+  });
+
   it('shows the first non-hidden entry of the first group and names the rest', () => {
     const view = shown(
       resolveLayout(

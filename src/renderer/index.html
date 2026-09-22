@@ -95,6 +95,10 @@
           <div id="term-placeholder" class="pane-placeholder">Pick a tab above, or a session in the sidebar, to resume it.</div>
         </div>
       </section>
+      <!-- The right side: built by panels/side.ts from the layout file, and hidden with its divider
+           while that file gives it nothing to show. -->
+      <div id="side-right-resizer" class="resizer" data-tooltip="Drag to resize" hidden></div>
+      <aside id="side-right" hidden></aside>
     </div>
     <div id="confirm-overlay" class="overlay" hidden>
       <div id="confirm-dialog" class="dialog" role="dialog" aria-modal="true">
@@ -129,6 +133,15 @@
           <p class="dialog-detail">Added to every session started from now on. Sessions already running keep the flags they started with.</p>
           <input id="settings-flags" class="dialog-field" type="text" spellcheck="false" autocomplete="off" placeholder="--allowedTools Grep,Glob" />
           <p id="settings-error" class="dialog-error" hidden></p>
+        </div>
+        <!-- Read-only: the folder is edited by hand, so this row only says where it is. -->
+        <div class="dialog-section">
+          <span class="dialog-label">Config folder</span>
+          <p class="dialog-detail">Holds <code>layouts/default.json</code>, which describes the panels beside the terminal, and the scripts it points at.</p>
+          <div class="dialog-row">
+            <code id="settings-config-path" class="dialog-path"></code>
+            <button id="settings-config-reveal" type="button">Reveal</button>
+          </div>
         </div>
         <div class="dialog-actions">
           <button id="settings-cancel" type="button">Cancel</button>

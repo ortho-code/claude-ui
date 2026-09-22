@@ -223,6 +223,23 @@
   font-size: var(--text-body);
 }
 
+/* A read-only value with a button beside it (the config folder's path and Reveal). The path is data,
+   so it is monospace, and it may break anywhere rather than push the button out of the dialog. */
+.dialog-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dialog-path {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 /* THE DECISIVE BUTTON of a dialog: filled, so it is what your eye lands on and nothing else in the
    dialog competes. Two colours of one shape — .primary confirms, .danger destroys — rather than the
    two unrelated blocks they were before .primary existed.
@@ -1905,6 +1922,97 @@ button:focus:not(:focus-visible) {
   /* Most of what lands here is one sentence, but a refused start names the folder it could not use on a line of its own. */
   white-space: pre-line;
   text-align: center;
+}
+
+/* THE RIGHT SIDE: one group holding one panel, beside the terminal. Hidden, and its divider with it,
+   whenever the layout file gives it nothing to show, so a window without a layout is unchanged.
+   The same base as the sidebar: a column on --bg that holds its own scrolling. */
+#side-right {
+  flex: 0 0 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.panel-group {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The group's header: title, the busy mark, the run's last word, Refresh. Body size at the group
+   heading's weight, since it names a section the way a group heading does; the padding is the tab
+   bar's density rather than a row's, because it sits beside the terminal, not in the list. */
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  font-size: var(--text-body);
+  font-weight: 650;
+}
+
+.panel-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-end {
+  font-size: var(--text-meta);
+  font-weight: 400;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Command output wears the terminal's face, since it is what the terminal would have shown. No
+   wrapping (a status line is a line) and it scrolls both ways; a wrap toggle is a later addition. */
+.panel-output {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 12px;
+  overflow: auto;
+  background: var(--terminal-bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  line-height: 1.35;
+  white-space: pre;
+}
+
+/* A panel that cannot run says why, one sentence per line, where its output would be. */
+.panel-problems {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+  color: var(--muted);
+  font-size: var(--text-body);
+}
+
+.panel-problems p {
+  margin: 0 0 6px;
+}
+
+/* What the file holds that this build does not show yet. */
+.panel-note {
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-small);
+  color: var(--muted);
 }
 
 /* Custom tooltip (replaces native title=). One floating element, positioned by tooltip.ts. */

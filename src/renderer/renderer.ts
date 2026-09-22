@@ -30,6 +30,7 @@ import {
 import { parseLaunchFlags } from '../shared/flags';
 import { installTooltips, setTooltip } from './tooltip';
 import { installResizer } from './resizer';
+import { initSide, sideContextChanged, sideState, setSideWidth, configRoot } from './panels/side';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
 import Sortable from 'sortablejs';
@@ -144,6 +145,8 @@ const settingsFlags = document.getElementById('settings-flags') as HTMLInputElem
 const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
+const settingsConfigPath = document.getElementById('settings-config-path')!;
+const settingsConfigReveal = document.getElementById('settings-config-reveal') as HTMLButtonElement;
 const toast = document.getElementById('toast')!;
 const toastMessage = document.getElementById('toast-message')!;
 const toastClose = document.getElementById('toast-close') as HTMLButtonElement;
@@ -780,6 +783,7 @@ function uiSnapshot(): UiState {
     // An empty flex-basis means the sidebar has never been dragged, so the stylesheet still owns the width.
     sidebarWidth: parseInt(sidebar.style.flexBasis, 10) || null,
     scrollTop: container.scrollTop,
+    panelState: sideState(),
   };
 }
 
@@ -828,6 +832,8 @@ async function restoreUiState(): Promise<number> {
   // The width lived in localStorage before this; adopt that value once, so an existing install keeps its sidebar, and let meta.json own it from here.
   const width = state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth'));
   if (width >= SIDEBAR_MIN && width <= SIDEBAR_MAX) sidebar.style.flexBasis = `${width}px`;
+  // Held by the side and applied when it first renders, which is after the layout file has been read.
+  setSideWidth(state.panelState.width);
   // Only a CUSTOM range is restored as stored. The rolling presets are recomputed by applyDatePreset from the current moment, which is the whole point of "last 7 days" still meaning the last 7 days.
   if (state.datePreset === 'custom') {
     const picked = [state.dateFrom, state.dateTo].filter((ms): ms is number => ms !== null).map((ms) => new Date(ms));
@@ -1599,6 +1605,8 @@ async function openSettings(): Promise<void> {
   const stored = await window.claudeUi.getSettings();
   settingsFlags.value = stored.launchFlags;
   settingsError.hidden = true;
+  // Read-only: the folder is edited by hand, so the dialog only says where it is.
+  settingsConfigPath.textContent = configRoot() ?? '';
   settingsOverlay.hidden = false;
   settingsFlags.focus();
   settingsFlags.select();
@@ -1629,6 +1637,7 @@ async function openSettings(): Promise<void> {
 }
 
 settingsToggle.addEventListener('click', () => void openSettings());
+settingsConfigReveal.addEventListener('click', () => window.claudeUi.revealConfigFolder());
 
 // The ordering moves for a project, minus any that would do nothing — same rule as a group's.
 // The order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen (a filter or an all-archived project can hide neighbours without changing where this one sits).
@@ -2745,6 +2754,8 @@ function activateTab(tab: Tab, start = true): void {
   lastActiveKey = entityKey(tab.session);
   activeByProject[tab.session.repoRoot] = lastActiveKey;
   window.claudeUi.setActiveSession(lastActiveKey, tab.session.repoRoot);
+  // The panel beside the terminal runs in the active tab's folder, so it follows the tab.
+  sideContextChanged();
 }
 
 // Full workspace switch: bring the active terminal in line with the current scope (a project, or All).
@@ -2771,6 +2782,8 @@ function switchWorkspaceTerminal(repoRoot: string | null): void {
   renderTabBar();
   updatePlaceholder();
   updateSidebarHighlight();
+  // With no tab in scope the panel falls back to the project's root, or to nothing in the All view.
+  sideContextChanged();
 }
 
 // Drop a tab from the UI. Idempotent (a user close and the terminal's own exit can both fire). It does not touch the terminal process; callers terminate it when they need to.
@@ -2820,6 +2833,7 @@ function coolTab(tab: Tab): void {
   updatePlaceholder();
   updateSidebarHighlight();
   refreshSwitcher(); // drops it from the attention strip now rather than when its SessionEnd lands
+  sideContextChanged(); // the panel loses its tab too, and falls back to the project
 }
 
 /**
@@ -3414,5 +3428,15 @@ void (async () => {
   // Last, because there is nothing to scroll until the rows are on screen. Later renders carry the offset along themselves.
   container.scrollTop = scrollTop;
   switchWorkspaceTerminal(activeProject);
+  // After the tabs, so the panel's first run is in the restored tab's folder rather than once for the project and again for the tab.
+  void initSide({
+    where: () => ({
+      tab: activeTab ? { cwd: activeTab.session.cwd, repoRoot: activeTab.session.repoRoot, id: activeTab.session.id } : null,
+      project: activeProject,
+    }),
+    showToast,
+    hideToast,
+    persist: persistUi,
+  });
 })();
 updatePlaceholder();

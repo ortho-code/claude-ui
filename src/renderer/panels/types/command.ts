@@ -1,10 +1,13 @@
-import type { PanelEntry, PanelRunEvent, PanelSource } from '../../../shared/panels';
+import type { PanelContext, PanelEntry, PanelRunEvent, PanelSource } from '../../../shared/panels';
 import { PANEL_TIMEOUT_MS } from '../../../shared/panels';
+import type { PanelSlot } from '../layout';
+import { stripAnsi, splitPendingEscape } from '../ansi';
 
 /**
  * The `command` panel type: runs a command line or a script and shows what it printed.
  *
  * A TYPE DECLARES ITS PARAMETERS ONCE, here. The validator reads this declaration to say what is missing or doubled, the degraded panel words its sentence from the same names, and the editor's form (next slice) will be built from it — so a parameter cannot be known to one of them and not the others.
+ * The same module owns the panel's body and its run: the side draws the chrome around it (side.ts) and asks it to refresh or to follow a context change.
  */
 
 export type ParamKind = 'text' | 'path';
@@ -25,34 +28,55 @@ export interface PanelTypeDecl {
   defaultTitle(entry: PanelEntry): string;
 }
 
+/** Where a panel would run right now: the renderer's active tab and selected project, as the side reads them. */
+export interface Where {
+  tab: { cwd: string; repoRoot: string; id: string } | null;
+  project: string | null;
+}
+
+/** What the side gives a mounted panel: where it is, and the header marks that are the side's to draw. */
+export interface PanelHost {
+  where(): Where;
+  setBusy(busy: boolean): void;
+  /** The header's word on the last run: `exit 3`, `stopped after 30 s`, or '' for a run that ended well. */
+  setEnd(label: string): void;
+}
+
+export interface MountedPanel {
+  /** The panel's body, which the side places under its header. */
+  el: HTMLElement;
+  /** Run again, now. */
+  refresh(): void;
+  /** The tab or project changed; run again if that moved the panel's context. */
+  contextChanged(): void;
+  /** The panel is leaving the screen: stop its run and forget it. */
+  unmount(): void;
+}
+
+export interface PanelType extends PanelTypeDecl {
+  mount(slot: PanelSlot, host: PanelHost): MountedPanel;
+}
+
 /** Where a command line is cut for a default title: a title is a label, not the whole line. */
 export const TITLE_MAX = 40;
 
+/** Shown in the empty-pane style when there is neither a tab nor a project to run in. */
+export const NO_CONTEXT = 'Pick a project to run this in.';
+
 /**
- * Two ways to say what runs, exactly one required.
- * The type keeps the name `command` although a `script` is not a command line, because a one-liner is not a script either and Claude Code's own statusline and hooks are `"type": "command"` for both.
+ * The panel's CONTEXT DIRECTORY is the active tab's cwd, else the selected project's repo root, so a worktree session's panel reports the worktree.
+ * With neither there is nothing to run in, and the panel says so rather than running somewhere nobody chose.
  */
-export const commandType: PanelTypeDecl = {
-  name: 'command',
-  params: [
-    { name: 'command', kind: 'text' },
-    { name: 'script', kind: 'path', against: 'config' },
-  ],
-  exactlyOne: [['command', 'script']],
-  defaultTitle: (entry) => {
-    if (typeof entry.script === 'string') return entry.script.split('/').filter(Boolean).at(-1) ?? entry.script;
-    const line = (entry.command ?? '').trim();
-    return line.length > TITLE_MAX ? `${line.slice(0, TITLE_MAX - 1)}…` : line;
-  },
-};
+export function resolveContext(where: Where): PanelContext | null {
+  if (where.tab) return { projectRoot: where.tab.repoRoot, cwd: where.tab.cwd, sessionId: where.tab.id };
+  if (where.project) return { projectRoot: where.project, cwd: where.project, sessionId: '' };
+  return null;
+}
 
 /** What an entry runs, in the form the runner takes. Only for an entry that passed validation, which is what guarantees exactly one is present. */
 export function commandSource(entry: PanelEntry): PanelSource {
   return typeof entry.script === 'string' ? { script: entry.script } : { command: entry.command ?? '' };
 }
-
-/** Shown in the empty-pane style when there is neither a tab nor a project to run in. */
-export const NO_CONTEXT = 'Pick a project to run this in.';
 
 /**
  * The header's word on a run that has ended, or '' for one that ended well.
@@ -64,6 +88,8 @@ export function endLabel(event: PanelRunEvent): string {
       if (event.error) return event.error;
       if (event.code === 0) return '';
       return event.code === null ? `killed by ${event.signal ?? 'a signal'}` : `exit ${event.code}`;
+    case 'truncated':
+      return 'output cut at 1 MB';
     case 'stopped':
       switch (event.reason) {
         case 'timeout':
@@ -77,3 +103,134 @@ export function endLabel(event: PanelRunEvent): string {
       return '';
   }
 }
+
+/**
+ * An escape sequence cut by a chunk boundary is held back until the next chunk completes it; past this length it is not a sequence but a stream that never terminated one, and it goes out as text.
+ */
+const PENDING_MAX = 4096;
+
+/** The mounted command panels by entry key, for the one run-event subscription below to dispatch to. */
+const mountedByKey = new Map<string, CommandPanel>();
+let subscribed = false;
+
+class CommandPanel implements MountedPanel {
+  readonly el = document.createElement('div');
+  private readonly output = document.createElement('pre');
+  private readonly placeholder = document.createElement('div');
+  /** The current run's token, or null while nothing is running. Every event is checked against it, so a superseded run's tail never lands in the new run's body. */
+  private token: string | null = null;
+  private pending = '';
+  /** The context the last run was started in, so a tab or project change that lands on the same place does not run again. */
+  private lastContext: string | null = null;
+
+  constructor(
+    private readonly slot: PanelSlot,
+    private readonly host: PanelHost,
+  ) {
+    this.el.className = 'panel-body';
+    this.output.className = 'panel-output';
+    this.placeholder.className = 'pane-placeholder';
+    this.placeholder.textContent = NO_CONTEXT;
+    this.placeholder.hidden = true;
+    this.el.append(this.output, this.placeholder);
+    mountedByKey.set(slot.key, this);
+    if (!subscribed) {
+      subscribed = true;
+      window.claudeUi.onPanelRun((entryId, token, event) => mountedByKey.get(entryId)?.handle(token, event));
+    }
+    this.run();
+  }
+
+  refresh(): void {
+    this.run();
+  }
+
+  contextChanged(): void {
+    if (contextKey(resolveContext(this.host.where())) !== this.lastContext) this.run();
+  }
+
+  unmount(): void {
+    if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
+    this.token = null;
+    if (mountedByKey.get(this.slot.key) === this) mountedByKey.delete(this.slot.key);
+  }
+
+  private run(): void {
+    const context = resolveContext(this.host.where());
+    this.lastContext = contextKey(context);
+    this.host.setEnd('');
+    if (!context) {
+      if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
+      this.token = null;
+      this.host.setBusy(false);
+      this.output.hidden = true;
+      this.placeholder.hidden = false;
+      return;
+    }
+    this.token = crypto.randomUUID();
+    this.pending = '';
+    this.output.replaceChildren();
+    this.output.hidden = false;
+    this.placeholder.hidden = true;
+    this.host.setBusy(true);
+    // The runner stops the run before this one itself; the token is what keeps that run's tail out of this body.
+    window.claudeUi.runPanel({ entryId: this.slot.key, token: this.token, source: commandSource(this.slot.entry!), context });
+  }
+
+  private handle(token: string, event: PanelRunEvent): void {
+    if (token !== this.token) return;
+    switch (event.kind) {
+      case 'output': {
+        const [text, tail] = splitPendingEscape(this.pending + event.text);
+        if (tail.length > PENDING_MAX) {
+          this.append(text + tail);
+          this.pending = '';
+        } else {
+          this.append(text);
+          this.pending = tail;
+        }
+        return;
+      }
+      case 'truncated':
+        this.host.setEnd(endLabel(event));
+        return;
+      case 'exit':
+      case 'stopped':
+        this.append(this.pending);
+        this.pending = '';
+        this.token = null;
+        this.host.setBusy(false);
+        this.host.setEnd(endLabel(event));
+        return;
+    }
+  }
+
+  private append(text: string): void {
+    const clean = stripAnsi(text);
+    // A text node per chunk rather than `textContent +=`, which would re-copy everything before it on every chunk.
+    if (clean) this.output.appendChild(document.createTextNode(clean));
+  }
+}
+
+function contextKey(context: PanelContext | null): string {
+  return context ? `${context.projectRoot}\n${context.cwd}\n${context.sessionId}` : '';
+}
+
+/**
+ * Two ways to say what runs, exactly one required.
+ * The type keeps the name `command` although a `script` is not a command line, because a one-liner is not a script either and Claude Code's own statusline and hooks are `"type": "command"` for both.
+ */
+export const commandType: PanelType = {
+  name: 'command',
+  params: [
+    { name: 'command', kind: 'text' },
+    { name: 'script', kind: 'path', against: 'config' },
+  ],
+  exactlyOne: [['command', 'script']],
+  defaultTitle: (entry) => {
+    if (typeof entry.script === 'string') return entry.script.split('/').filter(Boolean).at(-1) ?? entry.script;
+    const line = (entry.command ?? '').trim();
+    return line.length > TITLE_MAX ? `${line.slice(0, TITLE_MAX - 1)}…` : line;
+  },
+  mount: (slot, host) => new CommandPanel(slot, host),
+};

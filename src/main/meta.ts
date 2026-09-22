@@ -129,6 +129,7 @@ function defaultUi(): UiState {
     filterCollapsedGroups: [],
     sidebarWidth: null,
     scrollTop: 0,
+    panelState: { width: null },
   };
 }
 
@@ -149,7 +150,10 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
   const strings = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
   const ms = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+  // A width of 0 would collapse a pane to nothing with no way to drag it back, so anything non-positive is treated as "never set" and takes the default.
+  const px = (value: unknown): number | null => (typeof value === 'number' && value > 0 ? value : null);
   const filters = (ui.filters ?? {}) as Record<string, unknown>;
+  const panelState = (ui.panelState ?? {}) as Record<string, unknown>;
   return {
     search: typeof ui.search === 'string' ? ui.search : base.search,
     filters: Object.fromEntries(
@@ -165,9 +169,9 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
     collapsedGroups: strings(ui.collapsedGroups),
     filterCollapsedProjects: strings(ui.filterCollapsedProjects),
     filterCollapsedGroups: strings(ui.filterCollapsedGroups),
-    // A width of 0 would collapse the sidebar to nothing with no way to drag it back, so anything non-positive is treated as "never set" and takes the CSS default.
-    sidebarWidth: typeof ui.sidebarWidth === 'number' && ui.sidebarWidth > 0 ? ui.sidebarWidth : null,
+    sidebarWidth: px(ui.sidebarWidth),
     scrollTop: typeof ui.scrollTop === 'number' && Number.isFinite(ui.scrollTop) ? Math.max(0, ui.scrollTop) : 0,
+    panelState: { width: px(panelState.width) },
   };
 }
 

@@ -31,8 +31,11 @@ export type LayoutView =
   | { kind: 'unparsable'; file: string; message: string }
   /** The file's own shape is not one this build honours: one degraded panel in the side saying exactly what. */
   | { kind: 'degraded'; problems: string[] }
-  /** The entry to show — degraded if it has problems — and a sentence for each thing in the file that is not shown yet. */
-  | { kind: 'panel'; slot: PanelSlot; notShown: string[] };
+  /**
+   * The entry to show — degraded if it has problems — and a sentence for each thing in the file that is not shown yet.
+   * `sideSize` is the side's share of the window from the file, or null when it gives none; read only while no dragged width is stored.
+   */
+  | { kind: 'panel'; slot: PanelSlot; notShown: string[]; sideSize: number | null };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -129,6 +132,11 @@ export function resolveLayout(report: LayoutReport, types: Record<string, PanelT
   if (right === undefined) return notShown.length > 0 ? { kind: 'degraded', problems: notShown } : { kind: 'empty' };
   if (!isObject(right)) return { kind: 'degraded', problems: ['sides.right is not an object.'] };
   if (!Array.isArray(right.groups)) return { kind: 'degraded', problems: ['sides.right.groups is not an array.'] };
+  let sideSize: number | null = null;
+  if (right.size !== undefined) {
+    if (typeof right.size === 'number' && right.size > 0 && right.size <= 1) sideSize = right.size;
+    else notShown.push('sides.right.size is not a number between 0 and 1; the default width is used.');
+  }
   if (right.groups.length === 0) return notShown.length > 0 ? { kind: 'degraded', problems: notShown } : { kind: 'empty' };
   if (right.groups.length > 1) notShown.push(`Only the first group is shown yet; the right side has ${count(right.groups.length - 1, 'more group')}.`);
 
@@ -142,5 +150,5 @@ export function resolveLayout(report: LayoutReport, types: Record<string, PanelT
   if (!shown) return { kind: 'empty' };
   const rest = slots.filter((slot) => slot !== shown && !slot.hidden);
   if (rest.length > 0) notShown.push(`Only one panel is shown yet; this group also has ${rest.map((slot) => slot.key).join(', ')}.`);
-  return { kind: 'panel', slot: shown, notShown };
+  return { kind: 'panel', slot: shown, notShown, sideSize };
 }

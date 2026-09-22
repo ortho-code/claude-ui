@@ -157,6 +157,16 @@ export interface UiState {
   sidebarWidth: number | null;
   /** How far the session list was scrolled, in px. */
   scrollTop: number;
+  /** Where the panel side was left. Per machine, never in the layout file, which is what may be shared. */
+  panelState: PanelState;
+}
+
+/**
+ * The right side's own state: its width in px once dragged, null while the layout file's proportion (or the stylesheet) decides.
+ * Only a DRAGGED width is stored, so changing `size` in the layout file still moves a side nobody has dragged.
+ */
+export interface PanelState {
+  width: number | null;
 }
 
 import type { LayoutReport, PanelRunEvent, PanelRunRequest } from './panels';
