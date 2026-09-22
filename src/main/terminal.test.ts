@@ -1,13 +1,52 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// terminal.ts reaches electron and node-pty at import time, and through status.ts it reaches paths.ts, which pins the userData path on import. None of that is involved in building an argument list.
+// The IPC handlers terminal.ts registers, captured so the tests can call them the way the renderer does.
+const { handlers, spawned } = vi.hoisted(() => ({
+  handlers: new Map<string, (...args: unknown[]) => unknown>(),
+  spawned: [] as FakePty[],
+}));
+
+/** Enough of node-pty's IPty to drive the stop paths: a pid to signal, the writes to inspect, and an exit we fire by hand. */
+interface FakePty {
+  pid: number;
+  written: string[];
+  exit: (code?: number) => void;
+  onData: (cb: (d: string) => void) => void;
+  onExit: (cb: (e: { exitCode: number }) => void) => void;
+  write: (d: string) => void;
+  resize: () => void;
+  kill: () => void;
+}
+
+// terminal.ts reaches electron and node-pty at import time, and through status.ts it reaches paths.ts, which pins the userData path on import.
 vi.mock('electron', () => ({
   app: { getPath: () => '/tmp/claude-ui-test', setPath: () => {} },
-  ipcMain: { handle: () => {}, on: () => {} },
+  ipcMain: {
+    handle: (channel: string, fn: (...a: unknown[]) => unknown) => handlers.set(channel, fn),
+    on: (channel: string, fn: (...a: unknown[]) => unknown) => handlers.set(channel, fn),
+  },
 }));
-vi.mock('node-pty', () => ({ spawn: () => ({}) }));
+vi.mock('node-pty', () => ({
+  spawn: () => {
+    let onExit: (e: { exitCode: number }) => void = () => {};
+    const proc: FakePty = {
+      pid: 4000 + spawned.length,
+      written: [],
+      exit: (code = 0) => onExit({ exitCode: code }),
+      onData: () => {},
+      onExit: (cb) => {
+        onExit = cb;
+      },
+      write: (d: string) => proc.written.push(d),
+      resize: () => {},
+      kill: () => {},
+    };
+    spawned.push(proc);
+    return proc;
+  },
+}));
 
-import { claudeArgs } from './terminal';
+import { claudeArgs, registerTerminalIpc, terminateAll } from './terminal';
 
 const SETTINGS = '/home/u/.config/claude-ui/claude-settings.json';
 
@@ -100,5 +139,93 @@ describe('claudeArgs', () => {
       '-w',
       'wt',
     ]);
+  });
+});
+
+/**
+ * Stopping a session, which is the one thing here that has to be true rather than attempted.
+ * A single signal is a REQUEST — `SIGHUP` most of all, which a Node program may decline — and the app used to send one and forget the process, so a stop could report success over a session that was still running.
+ */
+describe('stopping a session', () => {
+  let kill: ReturnType<typeof vi.spyOn>;
+
+  /** Start a session the way the renderer does, and hand back its pty and terminal id. */
+  async function start(): Promise<{ proc: FakePty; id: number }> {
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+    const id = (await handlers.get('terminal:start')!({ sender }, '/tmp', {})) as number;
+    return { proc: spawned[spawned.length - 1], id };
+  }
+  const signals = (pid: number): string[] =>
+    kill.mock.calls.filter((c) => c[0] === -pid || c[0] === pid).map((c) => String(c[1]));
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    handlers.clear();
+    spawned.length = 0;
+    registerTerminalIpc();
+    // Nothing here has a real process behind it, so the signals are recorded rather than sent.
+    kill = vi.spyOn(process, 'kill').mockImplementation(() => true);
+  });
+  afterEach(() => {
+    kill.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('signals the process GROUP, not just the process it spawned', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:kill')!(null, id);
+    // The app talks to a shell, not to claude, and claude's MCP servers are below that — so the negative pid is the only form that reaches what we mean to stop.
+    expect(kill).toHaveBeenCalledWith(-proc.pid, 'SIGTERM');
+  });
+
+  it('escalates to SIGKILL when the session ignores the ask', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:kill')!(null, id);
+    expect(signals(proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(signals(proc.pid)).toEqual(['SIGTERM', 'SIGTERM', 'SIGKILL', 'SIGKILL']);
+  });
+
+  // The whole point of reading the pty's exit rather than assuming the signal worked: a session that left politely must not then be killed, because by then the pid may belong to somebody else.
+  it('does not escalate against a session that has already exited', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:kill')!(null, id);
+    proc.exit();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(signals(proc.pid)).not.toContain('SIGKILL');
+  });
+
+  it('lets claude exit on its own first when the tab is closed, then insists', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:close')!(null, id);
+    // Ctrl-C twice is claude's own way out, which is what writes the transcript.
+    expect(proc.written).toEqual(['\x03']);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(proc.written).toEqual(['\x03', '\x03']);
+    expect(signals(proc.pid)).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1400);
+    expect(signals(proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    await vi.advanceTimersByTimeAsync(1300);
+    expect(signals(proc.pid)).toContain('SIGKILL');
+  });
+
+  it('ignores a second stop rather than starting a second escalation', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:close')!(null, id);
+    handlers.get('terminal:close')!(null, id);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(proc.written).toEqual(['\x03', '\x03']);
+  });
+
+  // Quitting used to be its own path, sending one SIGTERM and clearing the table in the same breath — so the app exited without ever checking.
+  it('takes every session down the same path when the app quits', async () => {
+    const a = await start();
+    const b = await start();
+    terminateAll();
+    expect(signals(a.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    expect(signals(b.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(signals(a.proc.pid)).toContain('SIGKILL');
+    expect(signals(b.proc.pid)).toContain('SIGKILL');
   });
 });

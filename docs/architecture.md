@@ -116,11 +116,15 @@ Nothing is meant to be live after a restart, so the remembered tab is *selected*
 
 ### Stopping a session is a signal, and a signal can be declined
 
-Three paths end a process: the tab's stop button, the graceful close that gives `claude` its normal exit path (Ctrl-C twice, then a kill), and the sweep at app quit.
-All three currently send **one** signal and then forget the process: the first two a bare `kill()`, which is `SIGHUP`, and the quit sweep a `SIGTERM` with the table cleared in the same breath, so nothing is left that could escalate or even notice the process is still there.
-A Node program is entitled to decline a `SIGHUP`, and this app always has more than one process to reach: `claude` runs under a login shell, and its MCP servers are children below that.
-What it needs is what any process manager needs — signal the process **group** rather than the leader (the pty session-leader's pid is the group id, and asking for it after the leader is reaped is too late), wait a grace period, `SIGKILL`, then sweep the group once more once the leader has gone.
-A signal to an already-exited process is refused rather than sent, because a reaped pid can already belong to somebody else.
+Three things end a session — the tab's stop button, closing a tab, and the sweep at app quit — and they are **one function**, differing only in whether `claude` is given its own exit path first.
+They used to be three, each sending a single signal and then forgetting the process: a bare `kill()`, which is `SIGHUP` and which a Node program is entitled to decline. The stop then reported success over a session that was still running.
+
+Two things make it work now.
+**The signal goes to the process GROUP**, not to the process the app spawned. That is the part that matters here: the app never talks to `claude` directly, only to a login shell that runs it, with `claude`'s MCP servers below that — so signalling the one process it knows about is the one thing guaranteed not to reach what it means to stop. It is sound because node-pty's child leads its own session, measured rather than assumed: `pid == pgid == sid` for every live session, so the pid doubles as the group id.
+**And it escalates**: `SIGTERM`, then `SIGKILL` for anything still there after the grace period. Whether the first worked is read from the pty's own exit — the one place a session is recorded as over — rather than inferred from having sent something. A session that left politely is never killed afterwards, because by then its pid may belong to somebody else.
+
+`before-quit` already delays the quit, which is what gives the escalation room to land, so quitting is not a special path.
+Not implemented, and deliberately: their design also sweeps the group once more *after* the leader exits, for a grandchild that changed its own group. Nothing here has been observed needing it, and a `SIGKILL` aimed at a group id that no longer exists is the one version of this that could reach an innocent process.
 
 ### A cwd that is not there becomes `$HOME`, silently
 

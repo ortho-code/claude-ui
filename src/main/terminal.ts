@@ -8,7 +8,67 @@ import { getSettings } from './meta';
 import type { TerminalLaunch } from '../shared/types';
 
 const terminals = new Map<number, pty.IPty>();
+/** Sessions already on their way out, so a second press cannot restart the escalation behind the first. */
+const ending = new Set<number>();
 let nextId = 1;
+
+/**
+ * How long a session gets to leave on its own after being asked, before it is killed outright.
+ *
+ * Under the app's quit budget: `before-quit` calls `terminateAll` and delays the actual quit, so the SIGKILL still lands while the app is alive to send it.
+ */
+const KILL_GRACE_MS = 1200;
+
+/**
+ * Signal a whole process GROUP rather than one process.
+ *
+ * MEASURED: node-pty's child leads its own session (`pid == pgid == sid` for every live session), so the pid doubles as the group id and the negative form reaches everything under it — the login shell, `claude`, and the MCP servers `claude` starts.
+ * That matters here specifically: the app never talks to `claude` directly, only to a shell that runs it, so signalling the one process we know about is the one thing guaranteed NOT to reach the thing we mean to stop.
+ * The leader is signalled separately too, so this still does something if a future node-pty stops calling `setsid` and the group does not exist.
+ * Both are wrapped: a pid that has already gone is not an error, and a REAPED pid may already belong to somebody else — which is the sharper reason never to signal on a guess.
+ */
+function signalGroup(pid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    // No such group: already gone, or never had one.
+  }
+  try {
+    process.kill(pid, signal);
+  } catch {
+    // Already reaped.
+  }
+}
+
+/**
+ * End a session, and then make sure it actually ended.
+ *
+ * ONE implementation for all three ways a session stops — the tab's stop button, closing a tab, and the sweep at app quit — because they differ only in whether `claude` is given its own exit path first.
+ * They used to differ in more than that, and each sent a single signal and forgot the process: `SIGHUP` by default, which a Node program is entitled to decline, leaving the app certain it had stopped something that was still running.
+ *
+ * `flush` writes Ctrl-C twice so `claude` exits the way it does in a terminal and writes its transcript. Without it the session is asked to leave at once.
+ * Either way the ask is a `SIGTERM` to the group, and anything still there after the grace period gets `SIGKILL`.
+ * Whether it worked is read from `terminals`, which only the pty's own exit removes from — so the escalation is driven by the process actually being gone, not by having sent something.
+ */
+function endSession(id: number, flush: boolean): void {
+  const proc = terminals.get(id);
+  if (!proc || ending.has(id)) return;
+  ending.add(id);
+  const { pid } = proc;
+  const insist = (): void => {
+    signalGroup(pid, 'SIGTERM');
+    setTimeout(() => {
+      if (terminals.has(id)) signalGroup(pid, 'SIGKILL');
+    }, KILL_GRACE_MS);
+  };
+  if (!flush) {
+    insist();
+    return;
+  }
+  proc.write('\x03');
+  setTimeout(() => proc.write('\x03'), 400);
+  setTimeout(insist, 1800);
+}
 
 /** Environment as node-pty wants it: no undefined values. */
 function cleanEnv(): { [key: string]: string } {
@@ -112,8 +172,10 @@ export function registerTerminalIpc(): void {
     proc.onData((data) => {
       if (!sender.isDestroyed()) sender.send('terminal:data', id, data);
     });
+    // The pty's own exit is the ONE place a session is recorded as over. Everything that stops one reads this rather than assuming its signal worked.
     proc.onExit(({ exitCode }) => {
       terminals.delete(id);
+      ending.delete(id);
       if (!sender.isDestroyed()) sender.send('terminal:exit', id, exitCode);
     });
 
@@ -128,30 +190,17 @@ export function registerTerminalIpc(): void {
     terminals.get(id)?.resize(cols, rows);
   });
 
-  ipcMain.on('terminal:kill', (_event, id: number) => {
-    terminals.get(id)?.kill();
-    terminals.delete(id);
-  });
+  // Stop now: the session is being discarded, so there is nothing to flush for.
+  ipcMain.on('terminal:kill', (_event, id: number) => endSession(id, false));
 
-  // Graceful close: give claude its normal exit path (Ctrl-C twice) so it flushes the transcript, then kill the leftover shell.
-  ipcMain.on('terminal:close', (_event, id: number) => {
-    const proc = terminals.get(id);
-    if (!proc) return;
-    terminals.delete(id);
-    proc.write('\x03');
-    setTimeout(() => proc.write('\x03'), 400);
-    setTimeout(() => proc.kill(), 1800);
-  });
+  // Graceful close: give claude its normal exit path (Ctrl-C twice) so it flushes the transcript, then insist.
+  ipcMain.on('terminal:close', (_event, id: number) => endSession(id, true));
 }
 
-/** SIGTERM every live session so claude gets a chance to flush before the app quits. */
+/**
+ * Stop every live session as the app quits.
+ * Down the same path as any other stop, so quitting cannot be the one route that leaves something running — `before-quit` delays the quit itself, which is what gives the escalation room to land.
+ */
 export function terminateAll(): void {
-  for (const proc of terminals.values()) {
-    try {
-      proc.kill('SIGTERM');
-    } catch {
-      // Already gone.
-    }
-  }
-  terminals.clear();
+  for (const id of [...terminals.keys()]) endSession(id, false);
 }
