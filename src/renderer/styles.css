@@ -296,14 +296,15 @@ body {
   min-height: 0;
 }
 
-#sidebar-resizer {
+/* A draggable divider between two panes: the sidebar's and the right side's, one rule. */
+.resizer {
   flex: 0 0 5px;
   cursor: col-resize;
   background: transparent;
 }
 
-#sidebar-resizer:hover,
-#sidebar-resizer.dragging {
+.resizer:hover,
+.resizer.dragging {
   background: var(--accent);
 }
 
