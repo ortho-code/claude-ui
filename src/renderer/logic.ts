@@ -334,8 +334,8 @@ export function buildProjectTree(
 /**
  * THE TAB BAR'S ORDER, as clusters: per project, the ungrouped items first and then one run per group in registry order, with each run left exactly as it was handed over.
  *
- * ONE implementation for the tab bar and the attention strip, which is the point — they draw the same tabs, and a second copy of "project, then group in registry order" is the kind of thing that drifts between the times anyone looks.
- * They differ in one parameter only: the bar orders projects by the first tab it meets, the strip by the project order you set.
+ * ONE implementation for the tab bar and the attention strip, called identically by both — they draw the same tabs, and a second copy of "project, then group in registry order" is the kind of thing that drifts between the times anyone looks.
+ * Projects come from the explicit project order, so the bar, the strip and the sidebar all agree about where a project sits. The bar used to order them by whichever it met first, which nobody chose and which moved on its own.
  *
  * WHY TAB ORDER AT ALL, for the strip. A list you read while working needs to stay where you last saw it more than it needs to be sorted well, and two earlier answers failed that.
  * Sorting attention-first reshuffled both levels on every status change. Ordering as the SESSION LIST does was closer and still wrong, because the sidebar's within-project order is RECENCY — and every session in the strip is running by definition, so those timestamps are all moving and two rows swap whenever the lower one writes a message.

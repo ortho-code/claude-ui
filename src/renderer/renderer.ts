@@ -1617,6 +1617,7 @@ function projectMoveItems(repoRoot: string): MenuItem[] {
 async function moveProjectBy(repoRoot: string, move: OrderMove): Promise<void> {
   projectOrder = await window.claudeUi.moveProject(repoRoot, move);
   renderList();
+  renderTabBar(); // the bar orders its project rows by this too, so it moves with the list rather than at the next unrelated redraw
 }
 
 async function renameProject(repoRoot: string): Promise<void> {
@@ -2740,10 +2741,12 @@ function visibleTabs(): Tab[] {
 function renderTabBar(): void {
   const shown = visibleTabs();
   const groupOf = groupState.groupOf; // computed once; every tab is keyed against it
-  // The bar's own project order is the order it meets them in, which is what the empty projectOrder argument asks for; the strip passes yours instead.
+  // Your project order, the same one the sidebar and the strip use — so all three agree about where a project sits.
+  // The bar used to order projects by whichever it met first, which nobody chose and which moved on its own: closing a project's last tab and opening another sent that project to the end.
   const clustered = orderAsTabs(
     shown.map((tab) => ({ repoRoot: tab.session.repoRoot, groupId: groupOf[tab.session.id] ?? '', item: tab })),
     (root) => projectGroups(root).map((g) => g.id),
+    projectOrder,
   );
   const byCluster = new Map(clustered.map((c) => [`${c.repoRoot}\0${c.groupId}`, c.items]));
   const roots = [...new Set(clustered.map((c) => c.repoRoot))];
