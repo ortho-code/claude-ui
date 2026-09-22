@@ -1123,20 +1123,26 @@ button:hover {
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
-.project h2 .project-add:not(.unavailable):hover {
-  color: var(--text);
-  background: var(--surface-hover);
-}
-
+/* Both halves of the project heading's split button fill the same way on hover. They take their own
+   fill rather than the shared .icon-btn one because they already sit on --surface, where --active
+   does not read as a change; the group's halves have no such box and use the shared rule. */
+.project h2 .project-add:not(.unavailable):hover,
 .split-button .project-add-caret:not(.unavailable):hover {
   color: var(--text);
   background: var(--surface-hover);
 }
 
-/* Hovering either half accents the whole control's border (it's one split button); the per-half
-   background above still shows which half you're about to click. */
-.split-button:hover .project-add:not(.unavailable),
-.split-button:hover .project-add-caret:not(.unavailable) {
+/* A SPLIT BUTTON IS ONE CONTROL, so hovering either half outlines the whole of it — and so does one
+   half's menu being open. Keyed on the container and its children rather than on each half's class:
+   this used to be three rules naming .project-add, .project-add-caret, .group-add and
+   .group-add-caret between them, and every state added to a split button had to be written into all
+   of them. An unavailable half is excluded, since an outline reads as "clickable".
+   The per-half fill above still shows which half is about to be clicked.
+   BOTH selectors carry `:not(.unavailable)` for a second reason besides meaning: the halves' own
+   border is painted by rules like `.project h2 .project-add` at three components, so a selector of
+   two would lose to them and the outline would simply not appear. */
+.split-button:hover > :not(.unavailable),
+.split-button:has(.menu-open) > :not(.unavailable) {
   border-color: var(--accent);
 }
 
@@ -1157,18 +1163,12 @@ button:hover {
 .session-kebab.menu-open {
   border-color: var(--accent);
 }
-.split-button:has(.project-add-caret.menu-open) .project-add,
-.split-button:has(.project-add-caret.menu-open) .project-add-caret,
-.split-button:has(.group-add-caret.menu-open) .group-add,
-.split-button:has(.group-add-caret.menu-open) .group-add-caret {
-  border-color: var(--accent);
-}
 /* Keep the active fill on the open caret even while hovering it, or the background flips to the hover
    colour and back as the pointer moves off a menu that is still up.
    It has to out-specify the per-half hover fill above, which is `.split-button .project-add-caret
    :not(.unavailable):hover` — four classes — so this carries `:not(.unavailable)` for the fourth and
    wins by order. An open menu on an unavailable half cannot happen anyway: it does not open one. */
-.split-button .project-add-caret.menu-open {
+.split-button .project-add-caret:not(.unavailable).menu-open {
   background: var(--active);
 }
 
@@ -1871,13 +1871,6 @@ button:focus:not(:focus-visible) {
 /* Compact tier of the standard control (see .unarchive-btn): same 14px icon, tighter padding, so a
    tab keeps its density while the close stays a real click target. */
 
-/* While the session is exiting the button is inert, and says so: no hover, no pointer, and dimmed like any other unavailable control. */
-.tab-close:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
-
-
 #terminals {
   position: relative;
   flex: 1;
@@ -2248,13 +2241,6 @@ button:focus:not(:focus-visible) {
 .group h3 .split-button:has(.group-add-caret:not([hidden])) .group-add {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
-}
-
-/* Hovering either half outlines the WHOLE control (it is one button); the per-half fill from the
-   shared icon-control hover rule still shows which half is about to be clicked. */
-.group h3 .split-button:hover .group-add:not(.unavailable),
-.group h3 .split-button:hover .group-add-caret:not(.unavailable) {
-  border-color: var(--accent);
 }
 
 .group h3 .group-kebab {
