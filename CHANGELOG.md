@@ -9,6 +9,9 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 ### Added
 
 - A filter for sessions whose folder is gone, next to the other filter pills — the set to clean up, or to put folders back for.
+- A config folder for the files you may edit or share, `config/` inside the app's data directory, holding the layout file `layouts/default.json` and the scripts it points at; the app reads and watches it and never writes to it, and Settings shows where it is with a Reveal button.
+- A panel beside the terminal, laid out by that file. It hides while the file gives it nothing to show, keeps the width you drag it to, and names a mistake in the file in the panel's place instead of dropping it.
+- A `command` panel type: a command line or a script, run in the active tab's folder (or the selected project's) and shown as plain text, run again when you switch project or tab or press Refresh.
 
 ### Changed
 

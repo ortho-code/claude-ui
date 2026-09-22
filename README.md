@@ -37,6 +37,7 @@ Done:
 - Reaching a group without scrolling: a jump list on the project heading.
 - Settings: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included.
   The flags the app sets for itself are refused there rather than allowed to break a session.
+- A panel beside the terminal, laid out by a file you edit by hand: a `command` panel runs a command line or a script for the selected project or tab and shows the output. See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag. See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
 
 Next:
@@ -46,14 +47,66 @@ Next:
 - Creating an empty group from the project heading, not only from a session.
 - A steady order for the attention strip: clustered by group like the session list, and fixed inside a cluster instead of following recency.
 - A log file, so a problem in an installed build can be looked at afterwards.
-- Clickable paths in terminal output, opening the file the session just named.
+- Clickable paths in terminal output, opening the file the session just named in a panel.
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).
 - Playwright end-to-end tests, then split view.
 - Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.
-- Config viewer, minimize-to-tray, and later a diff / file side panel.
+- More panel types (markdown, diff, transcript, config), several panels in a group, and docking.
+- Minimize-to-tray.
 - A readable transcript viewer (after a compaction, the CLI cannot show a resumed session's earlier history — the transcript file still has it).
 - Telling you when a session fails to start, instead of leaving the terminal to explain it.
 - A taskbar attention nudge requires a native Windows build; parked while the app runs under WSLg.
+
+## Panels
+
+A layout file puts a panel beside the terminal.
+It lives in the app's config folder, which Settings shows with a Reveal button:
+
+- Linux: `~/.config/claude-ui/config/`
+- macOS: `~/Library/Application Support/claude-ui/config/`
+
+Write `layouts/default.json` there.
+The app picks it up as you save, and hides the panel again when the file goes away or has no panel left to show.
+The app never writes to this folder, so it is yours to edit, version, or hand to a colleague.
+
+One panel type exists so far, `command`, given its command in one of two ways: a command line, run by your login shell as you typed it, or a path to an executable script.
+
+```json
+{
+  "version": 1,
+  "sides": {
+    "right": {
+      "size": 0.25,
+      "groups": [
+        {
+          "panels": [
+            { "id": "status", "type": "command", "command": "git status --short" },
+            { "id": "checks", "type": "command", "script": "scripts/checks.sh", "title": "Checks", "hidden": true }
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+Each entry needs a unique `id` (lowercase letters, digits and hyphens) and exactly one of `command` or `script`; `title` and `hidden` are optional.
+A relative `script` resolves against the config folder, so `scripts/` is the place to keep one, and it has to be executable.
+`size` is the side's share of the window until you drag the divider, after which your width is kept.
+The file's shape leaves room for more than this version shows: it shows the first panel that is not hidden in the first group on the right side, and says so under the panel when the file holds more.
+
+The command runs in the active tab's folder, or the selected project's root when no tab is open, and runs again when you switch project or tab or press Refresh.
+It sees these variables:
+
+| Variable | Value |
+|---|---|
+| `CLAUDE_UI_PROJECT_ROOT` | the selected project's repo root |
+| `CLAUDE_UI_CWD` | the folder the command runs in |
+| `CLAUDE_UI_SESSION_ID` | the active tab's session, empty without one |
+| `CLAUDE_UI_CONFIG_ROOT` | the config folder |
+
+Output is shown as plain text (`NO_COLOR` and `TERM=dumb` are set, and escape codes are stripped), a non-zero exit shows as `exit N`, a run still going after 30 seconds is stopped, and output is cut at 1 MB.
+A mistake in the file — an unknown type, a missing id, a script that is not there or not executable — is named in the panel's place, and a file that does not parse leaves the last good layout up and names the position.
 
 ## Install a build
 

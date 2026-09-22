@@ -192,6 +192,90 @@ The session store is never written to: `~/.claude` is read-only as far as this a
 Writes are serialized through one queue and land via a temp file renamed over the target, with the previous good copy kept as a backup, so a crash mid-write can't leave the file half-written.
 Reads are tolerant by design: unknown or malformed entries are dropped rather than trusted, and older field names are still understood, so an older `meta.json` upgrades in place without a migration step.
 
+## Panels
+
+A layout file puts a panel beside the terminal.
+This is the first slice of a larger design — a tree of sides, groups and panels, per project, shareable — and what exists is one side, one group, one panel type, and the seams for the rest.
+
+### The config folder
+
+Everything a person may edit or share lives in ONE folder, `config/` under the app's data directory, and nothing else does: the layout file at `layouts/default.json`, and the scripts it points at under `scripts/`.
+It sits apart from `meta.json` and the status files on purpose.
+Those are machine state the app writes, which nobody should edit and nobody would want to hand a colleague; this folder is the opposite on every count, so "copy this folder" hands over exactly the customisation and none of the state.
+`layouts/` is a directory rather than a single `layout.json` so that named and per-project layouts can be added beside the default instead of by moving it.
+
+The app creates the folder, reads it and watches it, and in this version never writes into it.
+That is what keeps an editor, id assignment, normalisation and an atomic-write path out of the slice, and it also settles the trust question for now: a command in a hand-edited file is the user's own, and a trust step arrives with the first thing that lets a command reach the file by another route — the app's own editor, or a shared folder.
+The settings dialog shows the folder's path with a Reveal button, which is the whole of the UI for finding it.
+
+Three directories are watched rather than the folder recursively (recursive watch is unreliable on Linux and WSL, as the session watcher found): the folder, `layouts/`, and `scripts/`.
+An event on the folder itself re-opens the two below it, because a directory deleted and recreated leaves its old watcher pointing at nothing.
+`scripts/` is watched so that a script appearing, or gaining its executable bit, clears the panel's error without a restart; that an attribute change reaches a directory watch was measured rather than assumed.
+
+### The layout file
+
+The file has the tree shape of the full design, `sides.right.groups[].panels[]`, although this build honours the first non-hidden entry of the first group on the right side.
+Nothing written now is thrown away when groups and docking arrive, and the renderer names what it does not show yet in a line under the panel rather than ignoring it.
+The plain-DOM one-group side is a deliberate stop short of a docking engine; that question waits until groups and docking are wanted.
+
+A panel is an ENTRY in the layout, not a file of its own: `{ "id": "status", "type": "command", "command": "git status --short" }`.
+That is the shape of Claude Code's own statusline and hooks, and it keeps sharing at its simplest — a line pasted from one file into another.
+`id` is a slug the user writes, unique within the file, and it is what panel state keys on; the app assigns nothing, because it writes nothing.
+
+**Every mistake in the file is named, in the place of the thing that is wrong, and nothing is dropped or guessed.**
+This is the opposite of meta's rule, and for the opposite reason: meta drops what it does not understand because the app wrote that file and a past version's field is noise, while this file was written by a person, so what the app does not understand has to be said back to them or they go looking for the bug somewhere else.
+A file that does not parse keeps the last good layout up and toasts the file and the parser's position until a read succeeds.
+An unknown `version`, a shape the renderer does not honour, a missing, duplicate or malformed `id`, an unknown `type`, a missing or doubled parameter, and a script that is not there or not executable each render a degraded panel saying exactly that, in the entry's place, with every problem listed rather than the first.
+The validator (`src/renderer/panels/layout.ts`) is pure and tested per rule, including every refusal, so a validator that accepts everything fails its tests.
+
+### A type declares its parameters once
+
+A panel type is a module under `src/renderer/panels/types/`, and it declares its parameters in one place: name, kind (`text` or `path`), what a `path` resolves against, and which groups of parameters are exactly-one-of.
+The validator, the degraded panel's wording and, later, the editor's form all read that one declaration, so a parameter cannot be known to one of them and not the others.
+The type also owns its panel's body and its run; the side (`side.ts`) draws only the chrome around it — the header with the busy mark, the run's last word and Refresh, and the divider.
+
+### The `command` type
+
+It runs something and shows what it printed, and it takes its command in one of two ways, exactly one required.
+`command` is a command line, run by a fresh copy of the user's shell as they typed it, so pipes and quoting are the shell's business.
+`script` is a path to an executable, relative to the config folder or absolute, passed to the shell as ONE argument with no parsing of the path, so a space in it is nothing.
+The type kept the name `command` for both: a one-liner is not a script and a script is not a command line, and Claude Code's statusline and hooks say `"type": "command"` for either.
+
+A script is checked when the layout is READ, not when it runs, and by the main process, which has the filesystem: "not found" and "not executable" travel in the same report as the file's shape, so one read answers everything about the file.
+The resolver is one function used by the check and by the run, so the two cannot disagree about which file was meant.
+
+The command runs in the panel's CONTEXT DIRECTORY — the active tab's cwd, else the selected project's repo root — so a worktree session's panel reports the worktree.
+That is the one thing that differs between the two forms: a relative path INSIDE a command line is resolved by the shell against that directory, while a relative `script` resolves against the config folder, so the script travels with it.
+The context reaches the command as environment variables only for now (`CLAUDE_UI_PROJECT_ROOT`, `CLAUDE_UI_CWD`, `CLAUDE_UI_SESSION_ID`, `CLAUDE_UI_CONFIG_ROOT`); JSON on stdin joins when a second type wants it.
+With neither a tab nor a project the panel says "Pick a project to run this in." and runs nothing.
+It runs when first shown, on Refresh, and when the context directory changes, which a tab switch, a project switch and stopping the tab you are on all do.
+
+### How a command runs
+
+**Through the same shell as a session.** `src/main/shell.ts` holds the one login-shell invocation both use, so `PATH` is identical: the rc files that put mise, direnv and the MCP servers' tools on a session's `PATH` run for a panel too.
+The command is a positional parameter of a fixed script of the app's, never interpolated into it.
+
+**Measured: an interactive login bash without a tty prints two lines of job-control noise on stderr before anything runs (`cannot set terminal process group`, `no job control in this shell`), and `logout` on exit if it is still the parent when the command ends.**
+Both are handled by shape rather than by filtering text: the spawn discards the SHELL's stderr, the script's first act is `exec 2>&1` so the COMMAND's stderr joins the one pipe — which is also what puts the two streams in true arrival order — and the command is `exec`ed in the shell's place, so nothing is left to say `logout`.
+Dropping `-i` was the alternative; mise resolves without it on the machine this was written on, but the rc-based setup would be skipped and a panel would no longer see the `PATH` a session sees.
+
+**Non-interactive, spawn and read.** No pty: stdout and stderr in one pipe, output capped at 1 MB and the run at 30 seconds, after which the process is stopped and the panel says so.
+A process that never exits by design — a dev server, a watcher — is not this panel type.
+Plain text is asked for with `NO_COLOR=1` and `TERM=dumb`, and escape sequences are stripped on top for the tools that do not listen, with a sequence cut at a chunk boundary held back until the next chunk completes it.
+
+**Stopping is the group.** The child is spawned `detached`, so its pid is a group id, and a stop is the same SIGTERM-then-SIGKILL escalation a session gets, shared from `shell.ts`, reading whether it worked from the child's own exit.
+A re-run stops the run before it, hiding or removing the panel stops it, and quitting sweeps every live run down the same path.
+The end of the OUTPUT (`close`) and the end of the PROCESS (`exit`) are read separately: something the command started can outlive it holding the pipe, and once the leader is gone nothing may be signalled, since its pid may already belong to somebody else.
+
+**`CLAUDE_UI` is deliberately not set.** It is the marker the status hooks fire on, and a panel that happens to run `claude -p` must not report as a session.
+
+**A run carries a token.** The renderer mints one per run and every event echoes it, so output still in flight from a run just replaced never lands in the new run's body.
+
+### Panel state
+
+The side's dragged width lives in `UiState.panelState`, per machine, beside the sidebar's, and never in the layout file, which is what may be shared.
+Only a DRAGGED width is stored: the file's `size` proportion is read while there is none, so changing it still moves a side nobody has dragged.
+
 ## The window's own chrome — built, and currently switched off
 
 **The app uses the system's window frame today.** What follows is a complete alternative that exists in the code behind a single flag, `OWN_CHROME` in `main.ts`, and is turned off.
