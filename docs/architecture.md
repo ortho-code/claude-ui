@@ -57,6 +57,19 @@ A leading bare word is refused too: claude would read it as a subcommand, so a f
 What is deliberately NOT refused is anything merely risky — `--dangerously-skip-permissions` and the permission modes are the user's call on their own machine, and they do not stop the app working.
 `src/shared/flags.ts` holds both halves — the parser that turns the user's line into arguments, and the reserved list — and a test asserts that everything the launcher emits appears in that list, so a new app flag cannot be added without reserving it.
 
+### The app chooses the session id
+
+Every session the app starts is created under an id the app mints, handed to `claude` as `--session-id`.
+The transcript then lands under exactly that id, so a tab knows which session it is running before the process has even spawned — and everything keyed by that id (the sidebar row, a group, a pin, a note, the status file) is right from the first paint.
+
+The alternative, letting `claude` pick and finding out afterwards, is what the app used to do, and the cost was spread across the whole renderer: a tab held a made-up `new-<timestamp>` id, a hook had to report the real one back through a per-terminal token, group membership for such a session was held in a second in-memory map until adoption, and a row created inside a group could still appear loose and jump into place a moment later.
+None of that exists now.
+
+A fork is the one launch that names two sessions: `--session-id <new> --resume <parent> --fork-session`, and `claude` honours both, so a fork is a row of its own immediately rather than one that arrives with the next disk read.
+
+`claude` refuses an id that is already in use, which turns out to be the same question as "does this session have a transcript" — nothing is written until the first prompt, so a session that never got one can be started again under its own id, and a session that has one is resumed by it.
+That is the single test `startTab` makes, and it is why a tab stopped before its first prompt keeps its identity instead of coming back as a different session.
+
 ### Tab lifecycle: a tab can exist without a process
 
 A tab owns at most one terminal, and `terminalId` is **nullable** — null means the tab is **cold**: it has its row in the bar, its title and its place in the layout, but no `claude` behind it.
@@ -65,9 +78,8 @@ Cold is a first-class state, not an error one.
 A tab goes cold in two ways: it is **restored** that way at launch (the app starts nothing on startup — 20 restored tabs used to mean 20 processes at ~437 MB each), or the user **stops** the session with the tab's own button.
 It leaves cold by being activated, which starts it immediately; there is no separate "start" affordance, because selecting a tab has always meant "work in this session".
 
-Activating a tab can only ever **resume** it, because the only id it has to work with is the tab's own.
-A path that needs different arguments — a new session, a fork's `--fork-session`, a worktree's `-w` — must therefore select the tab *without* starting it and start it itself.
-Getting that backwards launched every new session as `claude --resume new-<timestamp>`, and the sidebar's own resume path hid it completely: there the guessed id and the real one are the same value.
+Activating a tab can only ever **resume** it: the tab's own session is all it knows about.
+The arguments that apply to a session's first start and to nothing afterwards — `--fork-session`, `--name`, `-w` — belong to the call that creates the tab, so that call selects the tab *without* starting it and starts it itself.
 
 Two exits must stay distinguishable.
 A **user stop** sets a `stopping` flag before the kill, and the exit handler checks it first: that tab is cooled and kept. **Any other exit** closes the tab, which is deliberate — it stops a finished session leaving an empty tab behind.
@@ -102,15 +114,13 @@ Refusing to launch is the better answer, and the repair for the underlying case 
 Rather than parse terminal output to guess a session's state, the app drives status from Claude Code hooks.
 On startup it writes a hook script and its own settings file to `~/.config/claude-ui/`, and passes that file to `claude --settings`, whose hooks merge with the user's own — so claude-ui never writes into `~/.claude/settings.json` (an earlier version did, and still strips those entries when it finds them).
 
-Four events map to statuses: `UserPromptSubmit` → busy, `Stop` → idle, `Notification` → waiting, `SessionEnd` → closed.
-A fifth, `SessionStart`, reports **identity rather than state**: it tells the app which session a tab is running, at the moment claude starts, so a new tab stops holding a placeholder id until its first prompt.
-It never touches the dot — it also fires on `clear` and `compact`, mid-session, where that would wipe a live status — and it never overwrites an existing status file, which is what the launch state is seeded from.
-Any future hook that carries information rather than a state should follow that shape.
+Every hook maps to a status, and there are five: `UserPromptSubmit` → busy, `PostToolUse` → busy, `Stop` → idle, `Notification` → waiting, `SessionEnd` → closed.
+Nothing else is hooked. `SessionStart` was, once, to report which session a tab was running; the app decides that itself now (see "The app chooses the session id"), so the event carries nothing it needs.
+The cleanup of hooks an older version injected into `~/.claude/settings.json` therefore scans every event in that file rather than the ones this version registers — an entry for a retired event would otherwise never be found again.
 
 **`SessionEnd` is not always an ending, and today we read it as one.**
 Its payload carries a `reason` — `clear`, `resume`, `logout`, `prompt_input_exit`, `other` — and the first two fire mid-session and leave `claude` running.
-The hook script ignores it, so every `SessionEnd` writes `closed`: after a `/clear` a working session shows a hollow dot reading "Not running", and because the status files are what the launch state is seeded from, and `SessionStart` deliberately refuses to overwrite one, that answer then survives a restart.
-This is the exact mirror of the `SessionStart` case above, which is handled — the reasoning was done for one event and not for its opposite.
+The hook script ignores it, so every `SessionEnd` writes `closed`: after a `/clear` a working session shows a hollow dot reading "Not running", and because the status files are what the launch state is seeded from, that answer then survives a restart.
 The fix is to read `reason` in the hook and exit without writing on `clear` and `resume`.
 
 A hook also has about a second to answer before Claude Code moves on, so it must never wait on anything: answer, then finish detached.
@@ -168,9 +178,8 @@ A **group** is a user-made sub-section inside one project.
 Membership is one group per session, so it is stored as a session-id-to-group-id map — a session cannot be in two groups by construction.
 Groups carry their own display order, and deleting one only unfiles its members; the sessions are untouched.
 
-Two rules shape how the sidebar draws this.
 The nested shape (projects, their groups in order, then the sessions in no group, with pins floated inside whichever section they land in) is computed by a pure function in the renderer's `logic.ts`, so the ordering rules are unit-tested without a DOM.
-And a session created inside a group has no real id until Claude Code reports for it, so the app files it optimistically under its placeholder id and replaces that with the real membership on adoption — otherwise a new row would appear outside its group and jump in a moment later.
+A session started from a group's "+" is filed by the ordinary membership write, before its tab is built, so its row's first paint is already inside the group — there is no second, provisional membership anywhere, because the session has its real id from the start.
 
 ## UI conventions
 

@@ -6,6 +6,10 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 
 ## Unreleased
 
+### Changed
+
+- A session stopped before you had sent it anything comes back as the same session when you start it again, keeping its pin, note and group, instead of returning as a new one.
+
 ## 0.3.0 — 2026-08-29
 
 ### Added

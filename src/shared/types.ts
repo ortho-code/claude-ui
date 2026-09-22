@@ -32,6 +32,25 @@ export interface SessionSummary {
 }
 
 /**
+ * What the renderer asks for when it opens a terminal, beyond the flags every session gets.
+ *
+ * The app MINTS the session id (`sessionId`) and hands it to claude, rather than letting claude pick one and then finding out which: a tab therefore knows its own session from the first paint, and every id-keyed thing — the sidebar row, a group, a pin, a note, the status files — lands on the right session immediately.
+ * `resumeSessionId` is the opposite direction: a session that already has a transcript. The two meet only in a fork, which resumes the parent and writes a new session under the minted id.
+ */
+export interface TerminalLaunch {
+  /** `--session-id`: the id to create the session under. Omitted when resuming, where the id already exists. */
+  sessionId?: string;
+  /** `--resume`: the session to continue. For a fork this is the PARENT — the new session lands on `sessionId`. */
+  resumeSessionId?: string;
+  /** `--fork-session`: copy the resumed transcript into a new session instead of continuing it. Needs both ids. */
+  fork?: boolean;
+  /** `--name`: the session's display name (claude records it as a custom-title). */
+  name?: string;
+  /** `-w`: start in a new git worktree — a non-empty string names it, `''` lets claude auto-name, `undefined` means no worktree. */
+  worktree?: string;
+}
+
+/**
  * A user-defined group of sessions, shown as a sub-section under its project's heading. Groups are app-side only: nothing about them is written to ~/.claude.
  */
 export interface SessionGroup {
@@ -224,28 +243,12 @@ export interface ClaudeUiApi {
   openExternal(url: string): void;
   /** Current status per session id (busy | idle | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
-  /** Subscribe to live status changes. `tab` is the spawning terminal's token (may be empty). */
-  onSessionStatus(callback: (id: string, status: string, tab: string) => void): void;
+  /** Subscribe to live status changes. */
+  onSessionStatus(callback: (id: string, status: string) => void): void;
   /** Clear a session's status (removes its status file). */
   clearStatus(id: string): void;
-  /**
-   * Open a terminal in `cwd`: resume `resumeSessionId`, or start a fresh claude when omitted.
-   * `tabToken` is echoed back by the status hook so the app can learn a new session's real id.
-   * Resolves to a terminal id.
-   */
-  /**
-   * `fork` runs `--fork-session` (copies the resumed session into a new fork; needs resumeSessionId).
-   * `name` runs `--name` to set the session's display name (claude records it as a custom-title).
-   * `worktree` runs `-w` to start in a new git worktree: a non-empty string names it, `''` lets claude auto-name, `undefined` means no worktree.
-   */
-  startTerminal(
-    cwd: string,
-    resumeSessionId?: string,
-    tabToken?: string,
-    fork?: boolean,
-    name?: string,
-    worktree?: string,
-  ): Promise<number>;
+  /** Open a terminal in `cwd` running claude as `launch` describes. Resolves to a terminal id. */
+  startTerminal(cwd: string, launch: TerminalLaunch): Promise<number>;
   onTerminalData(callback: (id: number, data: string) => void): void;
   onTerminalExit(callback: (id: number, exitCode: number) => void): void;
   sendTerminalInput(id: number, data: string): void;

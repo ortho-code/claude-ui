@@ -11,9 +11,6 @@ export { statusSettingsFile };
 /** Env var claude-ui sets on its terminals; the hook only reports when it is present. */
 export const SCOPE_ENV = 'CLAUDE_UI';
 
-/** Per-terminal token so the app can match a reported session id back to the tab that spawned it. */
-export const TAB_ENV = 'CLAUDE_UI_TAB';
-
 /** Which Claude Code hook event maps to which status. */
 const HOOK_EVENTS: [string, string][] = [
   ['UserPromptSubmit', 'busy'],
@@ -27,10 +24,6 @@ const HOOK_EVENTS: [string, string][] = [
   ['PostToolUse', 'busy'],
   // Ends reset the dot to empty: 'closed' has no color rule, so it renders hollow.
   ['SessionEnd', 'closed'],
-  // Not a status: 'start' reports only WHICH session a tab is running, at the moment claude starts.
-  // Without it a new tab holds a placeholder id until its first prompt (the earliest of the events above), so anything done before that — /rename, most obviously — leaves the tab named "New: <folder>" and its placeholder row sitting beside the real session in the sidebar.
-  // The renderer treats 'start' as identity only and does not touch the dot: this also fires on `clear` and `compact`, which happen MID-session, where setting a status would knock out a live one.
-  ['SessionStart', 'start'],
 ];
 
 /**
@@ -46,14 +39,8 @@ dir=${shellQuote(statusDir)}
 mkdir -p "$dir"
 input="$(cat)"
 sid="$(printf '%s' "$input" | grep -oE '"session_id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\\1/')"
-tab="\${CLAUDE_UI_TAB:-}"
 [ -n "$sid" ] || exit 0
-# 'start' carries identity, not status, so it must never overwrite a real one: these files are what readAllStatuses seeds from at launch, and SessionStart also fires on clear/compact, where a session already has a status worth keeping.
-# A brand-new session has no file yet, which is the case it is here for.
-if [ "$status" = "start" ] && [ -e "$dir/$sid.json" ]; then
-  exit 0
-fi
-printf '{"status":"%s","ts":%s,"tab":"%s"}\\n' "$status" "$(date +%s)" "$tab" > "$dir/$sid.json"
+printf '{"status":"%s","ts":%s}\\n' "$status" "$(date +%s)" > "$dir/$sid.json"
 exit 0
 `;
 
@@ -80,6 +67,8 @@ export async function installStatusHooks(): Promise<void> {
  * One-time cleanup: earlier versions registered the status hooks directly in the user's ~/.claude/settings.json.
  * Strip only those entries (matched by our hook-script path), leaving every other hook untouched.
  * Idempotent — once removed, later launches find nothing and never rewrite the file, so it stops polluting the user's (possibly version-controlled) settings.
+ *
+ * Every event in the file is scanned rather than the ones this version registers: an entry left behind by a version that hooked an event this one has since dropped (`SessionStart`, retired once the app started minting session ids) would otherwise never be found again.
  */
 async function removeInjectedHooks(): Promise<void> {
   let settings: { hooks?: Record<string, { hooks?: { command?: string }[] }[]> };
@@ -91,7 +80,7 @@ async function removeInjectedHooks(): Promise<void> {
   if (!settings.hooks) return;
 
   let changed = false;
-  for (const [event] of HOOK_EVENTS) {
+  for (const event of Object.keys(settings.hooks)) {
     const entries = settings.hooks[event];
     if (!Array.isArray(entries)) continue;
     const kept = entries.filter(
@@ -119,27 +108,18 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
   watch(statusDir, (_event, filename) => {
     if (!filename || !filename.endsWith('.json')) return;
     const id = filename.replace(/\.json$/, '');
-    void readStatus(id).then((entry) => {
-      if (entry === null) return;
+    void readStatus(id).then((status) => {
+      if (status === null) return;
       const win = getWindow();
-      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, entry.status, entry.tab);
+      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, status);
     });
   });
 }
 
-interface StatusEntry {
-  status: string;
-  tab: string;
-}
-
-async function readStatus(id: string): Promise<StatusEntry | null> {
+async function readStatus(id: string): Promise<string | null> {
   try {
-    const parsed = JSON.parse(await fs.readFile(path.join(statusDir, `${id}.json`), 'utf8')) as {
-      status?: unknown;
-      tab?: unknown;
-    };
-    if (typeof parsed.status !== 'string') return null;
-    return { status: parsed.status, tab: typeof parsed.tab === 'string' ? parsed.tab : '' };
+    const parsed = JSON.parse(await fs.readFile(path.join(statusDir, `${id}.json`), 'utf8')) as { status?: unknown };
+    return typeof parsed.status === 'string' ? parsed.status : null;
   } catch {
     return null;
   }
@@ -161,8 +141,8 @@ async function readAllStatuses(): Promise<Record<string, string>> {
   for (const file of files) {
     if (!file.endsWith('.json')) continue;
     const id = file.replace(/\.json$/, '');
-    const entry = await readStatus(id);
-    if (entry) result[id] = entry.status;
+    const status = await readStatus(id);
+    if (status) result[id] = status;
   }
   return result;
 }

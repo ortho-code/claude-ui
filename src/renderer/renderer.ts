@@ -291,17 +291,8 @@ function foldedGroups(): Set<string> {
   return isFiltering() ? filterFoldedGroups : collapsedGroups;
 }
 // Every group and who is in one, loaded once at startup and refreshed after any change.
+// A session started inside a group is filed under its real id before claude has even spawned — the app mints that id — so there is no transient membership to hold anywhere: what the UI draws is what meta says, always.
 let groupState: GroupState = { groups: [], groupOf: {} };
-// Group membership for sessions that do not exist on disk yet, keyed by their PLACEHOLDER id.
-// A new session started from a group's "+" (or a fork of a grouped session) has no real id until claude reports for it, but it must show inside its group straight away rather than appearing loose and jumping in later.
-// Kept in memory only — placeholder ids are transient and never belong in meta.
-const pendingGroupOf = new Map<string, string>();
-
-// The membership the UI should draw: what's on disk, plus the not-yet-created sessions.
-function effectiveGroupState(): GroupState {
-  if (pendingGroupOf.size === 0) return groupState;
-  return { groups: groupState.groups, groupOf: { ...groupState.groupOf, ...Object.fromEntries(pendingGroupOf) } };
-}
 
 interface ProjectSectionEls {
   section: HTMLElement;
@@ -371,7 +362,6 @@ function reconcileOpenTabs(): void {
       fresh.siblingIds.length !== tab.session.siblingIds.length;
     tab.session = fresh;
     if (shownDiffers) changed = true;
-    if (fresh.title || fresh.firstMessage) tab.needsTitle = false;
   }
   if (changed) renderTabBar();
 }
@@ -447,16 +437,25 @@ interface Tab {
   term: Terminal;
   fitAddon: FitAddon;
   el: HTMLElement;
-  // Unique per terminal; the status hook echoes it so we can learn a new session's real id.
-  token: string;
-  // A new session has no title on disk yet; keep re-reading on status events until it does.
-  needsTitle: boolean;
-  // The group this session should join the moment it has a real id. A brand-new session runs on a placeholder id, so it cannot be filed until claude reports for it (see onSessionStatus).
-  joinGroupId?: string;
   // When claude was launched, to tell a real exit from a failed-to-start one.
   startedAt: number;
   // Bumped on each activation, so a workspace switch can restore a project's most-recent tab.
   activatedSeq: number;
+}
+
+/**
+ * The arguments that apply only to a session's FIRST start, and to nothing else.
+ * A resume needs none of them — the session already exists and carries its own name, worktree and history — which is why they are passed in rather than kept on the tab.
+ */
+interface TabLaunch {
+  /** The session to resume FROM: a fork's parent. A plain resume needs nothing here, since a tab resumes its own session. */
+  resumeFrom?: string;
+  /** Copy the resumed session rather than continue it (`--fork-session`). */
+  fork?: boolean;
+  /** The session's display name (`--name`). */
+  name?: string;
+  /** A new git worktree to start in (`-w`): a name, or `''` to let claude pick one. */
+  worktree?: string;
 }
 
 const tabs: Tab[] = [];
@@ -474,7 +473,7 @@ let shuttingDown = false;
 
 function persistOpenTabs(): void {
   if (restoring || shuttingDown) return;
-  // Persist entity keys (session ids — immutable, so a restart always finds them again). Fall back to the tab's placeholder id before it has reconciled to disk.
+  // Persist entity keys (session ids — immutable, so a restart always finds them again). A session with no transcript yet is not in the map; its own id stands in, and restore drops it, which is right — there is nothing on disk to reopen.
   const idToKey = new Map(allSessions.map((s) => [s.id, entityKey(s)]));
   window.claudeUi.setOpenSessions(tabs.map((t) => idToKey.get(t.session.id) ?? t.session.id));
 }
@@ -498,7 +497,7 @@ async function restoreOpenTabs(): Promise<void> {
     for (const key of openKeys) {
       const session = tips.get(key);
       if (!session) continue;
-      const tab = buildTab(session, false);
+      const tab = buildTab(session);
       if (key === activeKey) toActivate = tab;
     }
     // Land where you left off — SELECTED but not started, since nothing is meant to be live after a restart. Without a remembered tab we open on none rather than guessing.
@@ -575,7 +574,7 @@ function isFiltering(): boolean {
 function groupNameByKey(): Map<string, string> {
   const byId = new Map(groupState.groups.map((g) => [g.id, g.name]));
   const out = new Map<string, string>();
-  for (const [key, id] of Object.entries(effectiveGroupState().groupOf)) {
+  for (const [key, id] of Object.entries(groupState.groupOf)) {
     const name = byId.get(id);
     if (name) out.set(key, name);
   }
@@ -1082,7 +1081,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   footerLabel.textContent = needing > 0 ? `${needing} of ${total} need you` : `${total} live`;
   footerList.hidden = !footerExpanded;
   // Once for the whole strip rather than per row: the membership and the registry have to come from the same read anyway.
-  const { groups, groupOf } = effectiveGroupState();
+  const { groups, groupOf } = groupState;
   footerList.replaceChildren(
     ...ordered.flatMap((project) => {
       const heading = document.createElement('div');
@@ -1189,11 +1188,12 @@ switcherCurrent.addEventListener('click', () => {
   else closeSwitcher();
 });
 
-// The sessions the sidebar can show: every session on disk, plus new-but-unsaved tabs (so a fresh session appears in its project immediately, before it is written to disk).
+// The sessions the sidebar can show: every session on disk, plus the open tabs whose session has not written a transcript yet (so a fresh session appears in its project immediately).
+// A tab's id is the session's real id from the moment it is created, so this adds a row that the transcript later fills in — never a second row beside it.
 function visibleSessions(): SessionSummary[] {
   const tips = sessionsByKey(allSessions);
   const knownIds = new Set(allSessions.map((s) => s.id));
-  const pending = tabs.filter((t) => t.needsTitle && !knownIds.has(t.session.id)).map((t) => t.session);
+  const pending = tabs.filter((t) => !knownIds.has(t.session.id)).map((t) => t.session);
   return [...pending, ...tips.values()];
 }
 
@@ -1255,7 +1255,7 @@ function renderList(): void {
   // One section per repo, each holding its groups and then the sessions in no group.
   // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
   // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  const tree = buildProjectTree(scoped, effectiveGroupState(), pinned, isFiltering(), projectOrder);
+  const tree = buildProjectTree(scoped, groupState, pinned, isFiltering(), projectOrder);
   renderedSections = {
     projects: tree.map((p) => p.repoRoot),
     groups: tree.flatMap((p) => p.groups.map((g) => g.group.id)),
@@ -2303,20 +2303,18 @@ async function openSession(session: SessionSummary): Promise<void> {
     activateTab(existing);
     return;
   }
-  await createTab(session, session.id);
+  await createTab(session);
 }
 
-let newSessionCounter = 0;
-
-// Placeholder for a session whose transcript hasn't been written yet (a new/fork/worktree tab): a minted id plus the SessionSummary defaults; callers override what they already know.
-// One factory, so a SessionSummary field change lands here once instead of in three literals.
-/** True for an id minted by placeholderSession: no transcript exists under it, so it can't be resumed. */
-function isPlaceholderId(id: string): boolean {
-  return id.startsWith('new-');
-}
-
-function placeholderSession(over: Partial<SessionSummary> & Pick<SessionSummary, 'cwd' | 'repoRoot' | 'title'>): SessionSummary {
-  const id = `new-${Date.now()}-${newSessionCounter++}`;
+/**
+ * A session that does not exist yet (a new/fork/worktree tab): a freshly minted id plus the SessionSummary defaults, with callers overriding what they already know.
+ * One factory, so a SessionSummary field change lands here once instead of in three literals.
+ *
+ * THE ID IS THE REAL ONE. It is handed to claude as `--session-id`, so the transcript claude writes lands under exactly this id, and everything the app keys by id — the sidebar row, a group, a pin, a note, the status file — is right from the first paint rather than being moved once claude reports in.
+ * Until claude writes that transcript the session exists only as this object, held by its tab; `visibleSessions` is what puts it in the sidebar in the meantime.
+ */
+function newSession(over: Partial<SessionSummary> & Pick<SessionSummary, 'cwd' | 'repoRoot' | 'title'>): SessionSummary {
+  const id = crypto.randomUUID();
   return {
     id,
     conversationId: id,
@@ -2340,20 +2338,20 @@ function ensureProjectVisible(repoRoot: string): void {
   }
 }
 
-// Start a brand-new claude session in `cwd`. It has no real id until claude creates it, so the tab uses a placeholder; the real session appears in the sidebar on the next refresh.
+// Start a brand-new claude session in `cwd`, under an id this app mints; the sidebar row is that same session, filled in once claude writes its transcript.
 async function openNewSession(cwd: string, joinGroupId?: string): Promise<void> {
   const folder = cwd.split('/').filter(Boolean).pop() ?? cwd;
-  const session = placeholderSession({ cwd, repoRoot: cwd, title: `New: ${folder}` });
-  // Show it in its group from the first paint; the real membership is written once it has an id.
-  if (joinGroupId) pendingGroupOf.set(session.id, joinGroupId);
+  const session = newSession({ cwd, repoRoot: cwd, title: `New: ${folder}` });
+  // Filed BEFORE the tab exists, so the row's first paint is already inside the group. An ordinary membership write: the id is the session's real one, so there is nothing to correct afterwards.
+  if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
   ensureProjectVisible(session.repoRoot);
-  await createTab(session, undefined, false, undefined, undefined, joinGroupId);
+  await createTab(session);
   renderList();
 }
 
 // Start a new session in a fresh git worktree of `repoRoot`: `claude -w [name]`.
 // Prompts for an optional name (blank -> claude auto-names).
-// Like openNewSession, the tab starts on a placeholder and adopts the real id via its token; the worktree session appears (badged) on the next refresh.
+// Like openNewSession, the tab carries the session's real id from the start; the worktree badge is the only optimistic part, and it reconciles on the next refresh.
 async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Promise<void> {
   const folder = repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
   // claude's `-w` name must be a slug (letters/digits/dots/underscores/dashes); turn the free-text label into one. A blank slug means auto-name, which can't collide.
@@ -2375,7 +2373,7 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
   const friendly = label.trim();
   // Pass the label as `--name` so the session still displays what was typed.
   const slug = slugify(friendly);
-  const session = placeholderSession({
+  const session = newSession({
     cwd: repoRoot,
     repoRoot,
     isRepo: true,
@@ -2384,28 +2382,28 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
     // The name you typed becomes the title (it's also what --name sets); the badge already says it's a worktree, so no prefix. Blank name falls back to a plain new-session label.
     title: friendly || `New: ${folder}`,
   });
-  // Same as openNewSession: show it in its group from the first paint, before the real id exists.
-  if (joinGroupId) pendingGroupOf.set(session.id, joinGroupId);
+  // Same as openNewSession: filed before the tab exists, so the row never appears loose.
+  if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
   ensureProjectVisible(session.repoRoot);
-  await createTab(session, undefined, false, friendly || undefined, slug, joinGroupId);
+  await createTab(session, { name: friendly || undefined, worktree: slug });
   renderList();
 }
 
-// Fork an existing session: `claude --resume <id> --fork-session` copies its transcript into a new session in the same cwd.
-// Like openNewSession, the tab starts on a placeholder and adopts the real fork id via its token; the fork then appears in the sidebar (as a sibling) on the next disk refresh.
+// Fork an existing session: `claude --session-id <new> --resume <parent> --fork-session` copies its transcript into a new session in the same cwd.
+// The fork's id is minted here like any other new session — claude honours it even while resuming — so the fork is a row of its own from the first paint, not one that arrives later.
 async function forkSession(parent: SessionSummary): Promise<void> {
   const parentTitle = sessionLabel(parent, 'session');
   // Forks copy the parent's title, so offer a fresh name up front (via claude's --name). Cancel aborts the fork; keeping/clearing the field just inherits the parent title.
   const name = await promptText('Create fork', `Fork from "${parentTitle}"`, parentTitle, 'Fork');
   if (name === null) return;
   const trimmed = name.trim();
-  const session = placeholderSession({
+  const session = newSession({
     cwd: parent.cwd,
     repoRoot: parent.repoRoot,
     isRepo: parent.isRepo,
     worktree: parent.worktree,
     title: trimmed || parentTitle,
-    // Mark the placeholder as a family member right away (we know its parent is a sibling), so the row shows the sibling mark immediately instead of waiting for claude to write the transcript.
+    // Mark it a family member right away (we know its parent is a sibling), so the row shows the sibling mark immediately instead of waiting for claude to write the transcript.
     // It reconciles to the real row once that file lands and grouping runs on the next refresh.
     isSibling: true,
     siblingIds: [parent.id],
@@ -2413,8 +2411,8 @@ async function forkSession(parent: SessionSummary): Promise<void> {
   ensureProjectVisible(session.repoRoot);
   // A fork continues its parent's work, so it belongs wherever the parent was filed — and it shows there immediately, like a new session started from the group's "+".
   const parentGroup = groupState.groupOf[entityKey(parent)];
-  if (parentGroup) pendingGroupOf.set(session.id, parentGroup);
-  await createTab(session, parent.id, true, trimmed || undefined, undefined, parentGroup);
+  if (parentGroup) await moveSessionToGroup(session, parentGroup);
+  await createTab(session, { resumeFrom: parent.id, fork: true, name: trimmed || undefined });
   renderList();
 }
 
@@ -2423,9 +2421,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
  * `terminalId` stays null until startTab fills it in, which is what lets tabs be restored cold — 20 restored tabs used to mean 20 `claude --resume` processes at ~437 MB each, spawned whether or not you looked at any of them.
  * The xterm instance stays eager on purpose: an empty one costs almost nothing next to a process, and keeping it non-null confines this to the handful of places that use terminalId.
  */
-function buildTab(session: SessionSummary, needsTitle: boolean, joinGroupId?: string): Tab {
-  const token = crypto.randomUUID();
-
+function buildTab(session: SessionSummary): Tab {
   const el = document.createElement('div');
   el.className = 'term';
   terminalsEl.appendChild(el);
@@ -2473,9 +2469,6 @@ function buildTab(session: SessionSummary, needsTitle: boolean, joinGroupId?: st
     term,
     fitAddon,
     el,
-    token,
-    needsTitle,
-    joinGroupId,
     startedAt: 0,
     activatedSeq: 0,
   };
@@ -2509,13 +2502,7 @@ function buildTab(session: SessionSummary, needsTitle: boolean, joinGroupId?: st
  * Separate from buildTab so a tab can exist cold: restored tabs start this way and only spawn when you activate one.
  * Returns early if it is already running, so activating a live tab is free.
  */
-async function startTab(
-  tab: Tab,
-  resumeId: string | undefined,
-  fork = false,
-  name?: string,
-  worktree?: string,
-): Promise<void> {
+async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
   if (tab.terminalId !== null || tab.starting) return;
   tab.starting = true;
   try {
@@ -2525,7 +2512,18 @@ async function startTab(
     // Before the await, not after: otherwise a cold tab keeps saying "click its tab to resume it" across the spawn round-trip, which is the one thing you have just done.
     if (tab === activeTab) updatePlaceholder();
     renderTabBar(); // and for the same reason: the button has to show the pause while the process is on its way, not once it has arrived.
-    tab.terminalId = await window.claudeUi.startTerminal(tab.session.cwd, resumeId, tab.token, fork, name, worktree);
+    // Which of the two id flags a start uses is one question: does this session have a transcript?
+    // No — the tab's id is one this app minted, so claude is told to CREATE the session under it (claude refuses an id that is already in use, which is exactly the same question).
+    // Yes — that id is what there is to resume, and `--session-id` would be refused.
+    // A fork is the one start that does both: it resumes the PARENT and creates the tab's own session.
+    const onDisk = allSessions.some((s) => s.id === tab.session.id);
+    tab.terminalId = await window.claudeUi.startTerminal(tab.session.cwd, {
+      sessionId: onDisk ? undefined : tab.session.id,
+      resumeSessionId: launch.resumeFrom ?? (onDisk ? tab.session.id : undefined),
+      fork: launch.fork,
+      name: launch.name,
+      worktree: launch.worktree,
+    });
     // Gone while it was still starting: the tab has been removed but the pty has not, so hand it straight back rather than leaving a claude running with nothing pointing at it.
     // The button is disabled throughout the wait, so this is not that route — it is deleting the session, which closes its tab wherever that tab had got to.
     // It has to be the first thing after the await, since everything below touches a terminal that removeTab has already disposed.
@@ -2557,14 +2555,13 @@ async function startTab(
   }
 }
 
-async function createTab(session: SessionSummary, resumeId: string | undefined, fork = false, name?: string, worktree?: string, joinGroupId?: string): Promise<void> {
-  // A fork mints a NEW session id despite resuming one, so it also needs to adopt its real id via the token (like a fresh session) — a plain resume already carries its final id.
-  const tab = buildTab(session, resumeId === undefined || fork, joinGroupId);
-  // Select it WITHOUT starting: this call knows the real arguments (fork, --name, -w) and starts the tab itself below.
-  // Letting activateTab start it instead launched every new session as `claude --resume new-<ts>-<n>` — it can only guess `tab.session.id`, which for a new, forked or worktree tab is the placeholder — and its `starting` flag then made the real start a no-op.
+async function createTab(session: SessionSummary, launch: TabLaunch = {}): Promise<void> {
+  const tab = buildTab(session);
+  // Select it WITHOUT starting: this call knows the arguments that only apply to a session's FIRST start (--fork-session, --name, -w), and starts the tab itself below.
+  // activateTab can only ever resume, and its `starting` flag would then make the real start a no-op.
   activateTab(tab, false);
   persistOpenTabs();
-  await startTab(tab, resumeId, fork, name, worktree);
+  await startTab(tab, launch);
 }
 
 /**
@@ -2584,8 +2581,8 @@ function activateTab(tab: Tab, start = true): void {
   // A cold tab starts the moment you select it — selecting IS starting, with no separate affordance, because that is how activating a tab has always behaved and laziness should show up only as a wait.
   // Fire-and-forget: activateTab is called from click handlers and stays synchronous.
   if (tab.terminalId === null) {
-    // A tab still on its placeholder id has no transcript to resume (it can reach here by being stopped before claude reported its real id), so start it fresh rather than resuming nothing.
-    if (start) void startTab(tab, isPlaceholderId(tab.session.id) ? undefined : tab.session.id);
+    // No arguments: startTab resumes the tab's session, or — for a tab stopped before it ever wrote a transcript — starts it fresh under that same id, so nothing keyed to it is lost.
+    if (start) void startTab(tab);
   } else window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
   tab.term.focus();
   // Remembered twice: overall (where to reopen at launch) and for this project (where to return to when you switch back to it).
@@ -2624,7 +2621,6 @@ function switchWorkspaceTerminal(repoRoot: string | null): void {
 function removeTab(tab: Tab): void {
   const index = tabs.indexOf(tab);
   if (index === -1) return;
-  pendingGroupOf.delete(tab.session.id); // a session that never started leaves no optimistic entry
   clearNudge(tab.session.id);
   tab.term.dispose();
   tab.el.remove();
@@ -2690,7 +2686,7 @@ function closeTab(tab: Tab): void {
 }
 
 // The key a tab is grouped and dragged within: its project, plus its group when it has one. A drag stays inside its own cluster because each cluster is its own Sortable container.
-function tabClusterKey(tab: Tab, groupOf: Record<string, string> = effectiveGroupState().groupOf): string {
+function tabClusterKey(tab: Tab, groupOf: Record<string, string> = groupState.groupOf): string {
   return `${tab.session.repoRoot}\0${groupOf[tab.session.id] ?? ''}`;
 }
 
@@ -2703,7 +2699,7 @@ function visibleTabs(): Tab[] {
 
 function renderTabBar(): void {
   const shown = visibleTabs();
-  const groupOf = effectiveGroupState().groupOf; // computed once; every tab is keyed against it
+  const groupOf = groupState.groupOf; // computed once; every tab is keyed against it
   const byCluster = new Map<string, Tab[]>();
   const projectOrder: string[] = [];
   for (const tab of shown) {
@@ -2942,42 +2938,10 @@ window.claudeUi.onTerminalExit((id, exitCode) => {
   }
   removeTab(tab);
 });
-window.claudeUi.onSessionStatus((id, status, tab) => {
-  // A new-session tab learns its real session id the first time claude reports for it, so it then matches the sidebar entry (clicking it focuses the tab instead of opening a duplicate).
-  if (tab) {
-    const owner = tabs.find((t) => t.token === tab);
-    if (owner && owner.session.id !== id) {
-      const placeholderId = owner.session.id;
-      owner.session = { ...owner.session, id };
-      persistOpenTabs();
-      // Now that the session has a real id it can be filed for real. The optimistic entry under the placeholder id is dropped in the same breath, so the row never leaves its group in between.
-      if (owner.joinGroupId) {
-        const groupId = owner.joinGroupId;
-        owner.joinGroupId = undefined;
-        pendingGroupOf.set(id, groupId); // hold the spot until the write comes back
-        void window.claudeUi.moveSessionToGroup(id, groupId).then((next) => {
-          pendingGroupOf.delete(id);
-          applyGroupState(next);
-        });
-      }
-      pendingGroupOf.delete(placeholderId);
-      // Adoption changes the tab's IDENTITY, so the tab that could not be matched a moment ago can be matched now — and nothing else re-runs that match.
-      // The refresh below is gated on the SESSION LIST's structure, which a rename before the first prompt has already consumed: the transcript was written (and its signature stored) while the tab still held its placeholder id, so the gate short-circuits and the tab keeps the "New: <folder>" name for good.
-      // Reconciling here is cheap and needs no fresh read — refreshFromDisk assigns allSessions BEFORE that gate, so the renamed session is already in hand.
-      reconcileOpenTabs();
-      // And the SIDEBAR has to be redrawn for the same reason.
-      // A not-yet-saved tab is shown from its own placeholder (visibleSessions adds it while its id is unknown to disk), so between the rename and this moment the list carries BOTH: the real renamed session and the placeholder.
-      // Adoption is what retires the placeholder, and nothing else here redraws the list — reconcileOpenTabs paints only the tab bar, setStatus only the dots and the switcher.
-      renderList();
-    }
-  }
-  // 'start' is the SessionStart hook reporting which session a tab is running, not a state it is in.
-  // It fires on `clear` and `compact` too — mid-session — so passing it to setStatus would clear a live dot.
-  // Identity is all it carries, and that has been applied above.
-  if (status === 'start') return;
+window.claudeUi.onSessionStatus((id, status) => {
   setStatus(id, status);
-  // A new session's title isn't on disk immediately; re-read on its status events until it is (this also makes the new session appear in the sidebar).
-  if (tabs.some((t) => t.needsTitle && t.session.id === id)) void refreshFromDisk();
+  // A new session's title isn't on disk immediately; re-read on its status events until it is (this also replaces the tab's own stand-in row with the real one).
+  if (tabs.some((t) => t.session.id === id) && !allSessions.some((s) => s.id === id)) void refreshFromDisk();
 });
 
 // The sidebar keeps itself current: a transcript created or changed on disk re-renders it.

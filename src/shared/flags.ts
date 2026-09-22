@@ -20,7 +20,7 @@ const RESERVED: Array<{ names: string[]; because: string }> = [
   { names: ['--fork-session'], because: 'claude-ui sets it when you fork a session' },
   { names: ['--name', '-n'], because: 'claude-ui sets it when you name a session' },
   { names: ['--worktree', '-w'], because: 'claude-ui sets it when you start a session in a worktree' },
-  { names: ['--session-id'], because: 'every session would be given the same id, and the app tracks sessions by id' },
+  { names: ['--session-id'], because: 'claude-ui gives each session its own id, and claude refuses an id twice' },
 
   // Would not leave an interactive claude running in the tab, which is the one thing a tab is.
   { names: ['--print', '-p'], because: 'it answers once and exits, so the tab would close immediately' },

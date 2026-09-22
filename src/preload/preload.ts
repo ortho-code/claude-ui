@@ -48,12 +48,9 @@ const api: ClaudeUiApi = {
   openExternal: (url) => ipcRenderer.send('shell:openExternal', url),
   getAllStatuses: () => ipcRenderer.invoke('status:getAll'),
   onSessionStatus: (callback) =>
-    ipcRenderer.on('session:status', (_event, id: string, status: string, tab: string) =>
-      callback(id, status, tab),
-    ),
+    ipcRenderer.on('session:status', (_event, id: string, status: string) => callback(id, status)),
   clearStatus: (id) => ipcRenderer.send('status:clear', id),
-  startTerminal: (cwd, resumeSessionId, tabToken, fork, name, worktree) =>
-    ipcRenderer.invoke('terminal:start', cwd, resumeSessionId, tabToken, fork, name, worktree),
+  startTerminal: (cwd, launch) => ipcRenderer.invoke('terminal:start', cwd, launch),
   onTerminalData: (callback) =>
     ipcRenderer.on('terminal:data', (_event, id: number, data: string) => callback(id, data)),
   onTerminalExit: (callback) =>

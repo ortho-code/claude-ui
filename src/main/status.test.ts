@@ -54,11 +54,11 @@ describe('installStatusHooks', () => {
   it('writes the status hooks into the tool-owned settings file, not the user settings', async () => {
     await installStatusHooks();
     const tool = JSON.parse(await fs.readFile(statusSettingsFile, 'utf8'));
+    // Every hook here maps to a STATUS. SessionStart is deliberately absent: it only ever reported which session a tab was running, which the app now decides itself with `--session-id`.
     expect(Object.keys(tool.hooks).sort()).toEqual([
       'Notification',
       'PostToolUse',
       'SessionEnd',
-      'SessionStart',
       'Stop',
       'UserPromptSubmit',
     ]);
@@ -66,8 +66,17 @@ describe('installStatusHooks', () => {
     expect(tool.hooks.PostToolUse[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
     // The script path is single-quoted: on macOS it lives under "Application Support" and an unquoted space would split it into two arguments.
     expect(tool.hooks.UserPromptSubmit[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
-    // SessionStart reports identity, not a state — see HOOK_EVENTS.
-    expect(tool.hooks.SessionStart[0].hooks[0].command).toBe(`'${ourCmd}' start`);
+  });
+
+  // An event claude-ui no longer registers still has to be cleaned up, or a SessionStart entry injected by an older version would sit in the user's settings for good.
+  it('strips a retired event injected by an older version', async () => {
+    await writeSettings({
+      hooks: {
+        SessionStart: [{ hooks: [{ type: 'command', command: `${ourCmd} start` }] }, foreignPromptHook],
+      },
+    });
+    await installStatusHooks();
+    expect(((await readSettings()).hooks as Record<string, unknown>).SessionStart).toEqual([foreignPromptHook]);
   });
 
   // The commands here are deliberately UNQUOTED: the entries being cleaned up were written by versions that did not quote the script path, which is why the matcher uses `includes`.

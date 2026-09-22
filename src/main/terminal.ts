@@ -2,9 +2,10 @@ import { ipcMain } from 'electron';
 import * as pty from 'node-pty';
 import * as os from 'node:os';
 import { existsSync } from 'node:fs';
-import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
+import { SCOPE_ENV, statusSettingsFile } from './status';
 import { parseLaunchFlags } from '../shared/flags';
 import { getSettings } from './meta';
+import type { TerminalLaunch } from '../shared/types';
 
 const terminals = new Map<number, pty.IPty>();
 let nextId = 1;
@@ -27,18 +28,10 @@ function cleanEnv(): { [key: string]: string } {
   return env;
 }
 
-/** What a session is launched with, beyond the flags every session gets. */
-export interface LaunchOptions {
+/** What a session is launched with: the renderer's request plus the parts only the main process knows. */
+export interface LaunchOptions extends TerminalLaunch {
   /** claude-ui's own settings file, or null when it has not been written yet. */
   settingsFile: string | null;
-  /** The session to resume, or null for a fresh one. */
-  resumeSessionId?: string;
-  /** Fork the resumed session into a new id instead of continuing it. */
-  fork?: boolean;
-  /** The session's display name. */
-  name?: string;
-  /** A new git worktree: a name, `''` to let claude pick one, `undefined` for no worktree. */
-  worktree?: string;
   /** The user's default flags, already parsed (see flags.ts). Appended last. */
   extra?: string[];
 }
@@ -53,6 +46,9 @@ export function claudeArgs(opts: LaunchOptions): string[] {
   const args: string[] = [];
   // Load claude-ui's status hooks from its own settings file (merges with the user's ~/.claude hooks) so we never write into the user's settings.json.
   if (opts.settingsFile) args.push('--settings', opts.settingsFile);
+  // The id the session is CREATED under, so the app never has to ask claude which session a tab is running.
+  // claude documents this as `<uuid>` and refuses an id that is already in use, so the caller passes one only for a session that does not exist yet — a uuid it minted, never a value read back off disk.
+  if (opts.sessionId) args.push('--session-id', opts.sessionId);
   // Session ids are filename-derived; only pass through safe characters.
   // The first character must be alphanumeric: `-` is legal later in an id, but an id that STARTS with one would reach claude as a flag rather than as the value of --resume.
   const safeId =
@@ -84,7 +80,7 @@ const SHELL_COMMAND = 'claude "$@"';
 
 export function registerTerminalIpc(): void {
   // Async only for the settings read: the user's default flags live in meta.json, and a session has to be launched with the flags as they are NOW, not as they were when the app started.
-  ipcMain.handle('terminal:start', async (event, cwd: string, resumeSessionId?: string, tabToken?: string, fork?: boolean, name?: string, worktree?: string): Promise<number> => {
+  ipcMain.handle('terminal:start', async (event, cwd: string, launch: TerminalLaunch): Promise<number> => {
     const id = nextId++;
     const shell = process.env.SHELL ?? '/bin/bash';
     // The shell is interactive (-i) as well as login
@@ -92,25 +88,20 @@ export function registerTerminalIpc(): void {
     // An interactive shell in the pty runs that setup for the session's directory, like a real terminal.
     // Guard on the settings file's existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
     // Stored flags are validated before they are written, so a failure here means a hand-edited meta.json; launch without them rather than refusing to start a session over it.
-    const launch = claudeArgs({
+    const claudeFlags = claudeArgs({
+      ...launch,
       settingsFile: existsSync(statusSettingsFile) ? statusSettingsFile : null,
-      resumeSessionId,
-      fork,
-      name,
-      worktree,
       extra: parseLaunchFlags((await getSettings()).launchFlags).tokens,
     });
     // `claude` is `$0`: it names the process in any error the shell itself prints, and it is not passed on to claude.
-    const args = ['-l', '-i', '-c', SHELL_COMMAND, 'claude', ...launch];
-    const env = cleanEnv();
-    if (tabToken) env[TAB_ENV] = tabToken;
+    const args = ['-l', '-i', '-c', SHELL_COMMAND, 'claude', ...claudeFlags];
     const proc = pty.spawn(shell, args, {
       // xterm.js speaks 256-colour/truecolor; the old 'xterm-color' (8-colour) terminfo made claude pick a degraded palette for its TUI.
       name: 'xterm-256color',
       cols: 80,
       rows: 24,
       cwd: cwd && existsSync(cwd) ? cwd : os.homedir(),
-      env,
+      env: cleanEnv(),
     });
     terminals.set(id, proc);
 

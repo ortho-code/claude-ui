@@ -166,6 +166,7 @@ describe('the reserved list and the launch line', () => {
     // launch with every option set, and require that each flag it emits is refused in the field.
     const emitted = claudeArgs({
       settingsFile: '/tmp/claude-settings.json',
+      sessionId: 'new-id',
       resumeSessionId: 'abc',
       fork: true,
       name: 'a name',

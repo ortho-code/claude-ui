@@ -20,6 +20,23 @@ describe('claudeArgs', () => {
     expect(claudeArgs({ settingsFile: null })).toEqual([]);
   });
 
+  it('creates a session under the id it is given', () => {
+    const id = '0a945f9c-209b-4758-bf8e-30474af5826c';
+    expect(claudeArgs({ settingsFile: null, sessionId: id })).toEqual(['--session-id', id]);
+  });
+
+  // A fork is the one launch that carries both ids: claude honours --session-id while resuming, so the copy lands on an id the app chose rather than one it has to be told afterwards.
+  it('forks the parent into a session id of our own', () => {
+    const id = '994a9944-ebf8-4586-95eb-3bb9fed20f96';
+    expect(claudeArgs({ settingsFile: null, sessionId: id, resumeSessionId: 'parent-1', fork: true })).toEqual([
+      '--session-id',
+      id,
+      '--resume',
+      'parent-1',
+      '--fork-session',
+    ]);
+  });
+
   it('resumes a session, and forks only when asked', () => {
     expect(claudeArgs({ settingsFile: null, resumeSessionId: 'abc-123' })).toEqual(['--resume', 'abc-123']);
     expect(claudeArgs({ settingsFile: null, resumeSessionId: 'abc-123', fork: true })).toEqual([
@@ -60,9 +77,28 @@ describe('claudeArgs', () => {
     expect(claudeArgs({ settingsFile: null, name: '' })).toEqual([]);
   });
 
-  it('orders the flags settings, resume, name, worktree', () => {
+  it('orders the flags settings, session id, resume, name, worktree', () => {
     expect(
-      claudeArgs({ settingsFile: SETTINGS, resumeSessionId: 'abc', fork: true, name: 'my thing', worktree: 'wt' }),
-    ).toEqual(['--settings', SETTINGS, '--resume', 'abc', '--fork-session', '--name', 'my thing', '-w', 'wt']);
+      claudeArgs({
+        settingsFile: SETTINGS,
+        sessionId: 'new-id',
+        resumeSessionId: 'abc',
+        fork: true,
+        name: 'my thing',
+        worktree: 'wt',
+      }),
+    ).toEqual([
+      '--settings',
+      SETTINGS,
+      '--session-id',
+      'new-id',
+      '--resume',
+      'abc',
+      '--fork-session',
+      '--name',
+      'my thing',
+      '-w',
+      'wt',
+    ]);
   });
 });
