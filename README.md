@@ -41,6 +41,12 @@ Done:
 
 Next:
 
+- Fixes to how sessions are watched and stopped: a `/clear` currently reads as a session ending, stopping a session sends one signal and never escalates, and the sidebar can miss a model change.
+- Context health per session in the list, coloured the way the CLI's own status line colours it.
+- Creating an empty group from the project heading, not only from a session.
+- A steady order for the attention strip: clustered by group like the session list, and fixed inside a cluster instead of following recency.
+- A log file, so a problem in an installed build can be looked at afterwards.
+- Clickable paths in terminal output, opening the file the session just named.
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).
 - Playwright end-to-end tests, then split view.
 - Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.

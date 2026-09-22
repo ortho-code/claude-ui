@@ -82,6 +82,21 @@ Where you were is remembered twice, in meta: `activeSession` (which tab to open 
 The in-memory `activatedSeq` still decides while a project has something running; the stored map only matters when nothing does, which after a restart is always.
 Nothing is meant to be live after a restart, so the remembered tab is *selected* at launch but not started — a deliberately open question, since a tab marked active with no process behind it is arguable.
 
+### Stopping a session is a signal, and a signal can be declined
+
+Three paths end a process: the tab's stop button, the graceful close that gives `claude` its normal exit path (Ctrl-C twice, then a kill), and the sweep at app quit.
+All three currently send **one** signal and then forget the process: the first two a bare `kill()`, which is `SIGHUP`, and the quit sweep a `SIGTERM` with the table cleared in the same breath, so nothing is left that could escalate or even notice the process is still there.
+A Node program is entitled to decline a `SIGHUP`, and this app always has more than one process to reach: `claude` runs under a login shell, and its MCP servers are children below that.
+What it needs is what any process manager needs — signal the process **group** rather than the leader (the pty session-leader's pid is the group id, and asking for it after the leader is reaped is too late), wait a grace period, `SIGKILL`, then sweep the group once more once the leader has gone.
+A signal to an already-exited process is refused rather than sent, because a reaped pid can already belong to somebody else.
+
+### A cwd that is not there becomes `$HOME`, silently
+
+The launcher falls back to the home directory when a session's recorded directory is missing, which is how a resumed session whose worktree has been removed ends up running `claude --resume` in `~`.
+Nothing fails; the session simply works somewhere nobody chose, and the first sign is Claude Code asking for workspace trust on the home directory.
+Refusing to launch is the better answer, and the repair for the underlying case is to rebuild the worktree where it stood rather than cut a second one — transcripts are keyed by that directory, so a new tree in a new place is a different session's history.
+(`claude -w` also `git worktree lock`s the tree it cuts, and that lock outlives the session, so a later `git worktree remove` refuses until the lock of a dead pid is cleared.)
+
 ## Status cues
 
 Rather than parse terminal output to guess a session's state, the app drives status from Claude Code hooks.
@@ -91,6 +106,14 @@ Four events map to statuses: `UserPromptSubmit` → busy, `Stop` → idle, `Noti
 A fifth, `SessionStart`, reports **identity rather than state**: it tells the app which session a tab is running, at the moment claude starts, so a new tab stops holding a placeholder id until its first prompt.
 It never touches the dot — it also fires on `clear` and `compact`, mid-session, where that would wipe a live status — and it never overwrites an existing status file, which is what the launch state is seeded from.
 Any future hook that carries information rather than a state should follow that shape.
+
+**`SessionEnd` is not always an ending, and today we read it as one.**
+Its payload carries a `reason` — `clear`, `resume`, `logout`, `prompt_input_exit`, `other` — and the first two fire mid-session and leave `claude` running.
+The hook script ignores it, so every `SessionEnd` writes `closed`: after a `/clear` a working session shows a hollow dot reading "Not running", and because the status files are what the launch state is seeded from, and `SessionStart` deliberately refuses to overwrite one, that answer then survives a restart.
+This is the exact mirror of the `SessionStart` case above, which is handled — the reasoning was done for one event and not for its opposite.
+The fix is to read `reason` in the hook and exit without writing on `clear` and `resume`.
+
+A hook also has about a second to answer before Claude Code moves on, so it must never wait on anything: answer, then finish detached.
 
 The hooks are scoped to claude-ui: it sets `CLAUDE_UI=1` on the terminals it spawns, and the hook script no-ops unless that variable is set, so sessions run in a plain terminal are left untouched.
 When it does fire, the script writes `~/.config/claude-ui/status/<id>.json`.
@@ -244,3 +267,17 @@ Every conditionally-visible pane carries this hazard, split view included.
 **Specificity quietly opts controls out of shared hover rules.** `button:hover` is 0,1,1, so a resting rule like `.project h2 .project-kebab` (0,2,2) or `#toast-close` (1,0,0) beats it and never takes the accent border, while `.session-kebab` (0,1,0) does.
 This produced three separate "why does only this one look different" bugs.
 When a shared appearance matters, list the selectors explicitly with their own `:hover` so each beats its own resting rule, and check with forced pseudo-states rather than by reading the cascade.
+
+**A signature that lists its inputs is a guard nothing can check.** The sidebar re-renders only when `structuralSignature` changes, which keeps a growing transcript from rebuilding the list — and whether that signature named *every* field the rows draw is a question about the whole render path, so it cannot be asserted cheaply.
+Getting it wrong does not churn, it **freezes**: the field is stale until something else happens to move.
+`session.model` is missing from it today and the row draws it, so changing model mid-session leaves the sidebar showing the old one.
+`worktree` and `repoRoot` are covered only because they move with `cwd`, which is true for now rather than by construction.
+Prefer the whole-record shape wherever stale is worse than an extra rebuild, and treat a new field on a row as a change to the signature.
+
+**Two surfaces can disagree about the same list, because only one of them re-rendered.** The session list is assigned before that signature check decides whether to draw, so a transcript merely growing updates the data and skips the render.
+The attention strip is then rebuilt by the next status event, from the newer list, while the sidebar still shows the older one — which is why the strip appears to reorder itself on a dot changing.
+Anything that reads the session list off a status event has the same hazard.
+
+**Session order inside a project is recency, and recency moves under you.** The strip orders itself as the sidebar does — explicit project order, pins floated — and the sidebar's own within-project order is last activity.
+Every row in the strip is by definition a running session, so those timestamps are all moving and two rows swap whenever the lower one writes a message.
+A list you read repeatedly wants stability more than freshness; the fix is to cluster by group as the tab bar does and hold a fixed order inside each cluster.
