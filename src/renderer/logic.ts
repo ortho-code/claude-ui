@@ -332,20 +332,48 @@ export function buildProjectTree(
 }
 
 /**
- * The attention strip's sessions, grouped by project and ordered exactly as the sidebar orders the same sessions: projects by the explicit project order, pins floated inside each one.
+ * THE TAB BAR'S ORDER, as clusters: per project, the ungrouped items first and then one run per group in registry order, with each run left exactly as it was handed over.
  *
- * The strip used to sort itself attention-first — sessions by urgency, projects by their most urgent session — which meant every status change reshuffled both levels and nothing stayed where you last saw it.
- * Stability wins here: the strip already contains only sessions worth listing, and each row still carries its own status dot, so the ordering was doing little work while costing the one thing a list you read repeatedly needs.
+ * ONE implementation for the tab bar and the attention strip, which is the point — they draw the same tabs, and a second copy of "project, then group in registry order" is the kind of thing that drifts between the times anyone looks.
+ * They differ in one parameter only: the bar orders projects by the first tab it meets, the strip by the project order you set.
+ *
+ * WHY TAB ORDER AT ALL, for the strip. A list you read while working needs to stay where you last saw it more than it needs to be sorted well, and two earlier answers failed that.
+ * Sorting attention-first reshuffled both levels on every status change. Ordering as the SESSION LIST does was closer and still wrong, because the sidebar's within-project order is RECENCY — and every session in the strip is running by definition, so those timestamps are all moving and two rows swap whenever the lower one writes a message.
+ * The tabs array cannot move on its own: it changes when you open, close, drag, or regroup a tab.
+ *
+ * Pins are deliberately NOT floated, unlike the sidebar. A pin says where a session belongs in the LIST; the tab bar has never honoured it, and floating one here would be a second thing able to move a row you were reading.
  */
-export function orderAsSidebar(
-  sessions: SessionSummary[],
-  pinned: ReadonlySet<string>,
+export function orderAsTabs<T>(
+  entries: readonly TabCluster<T>[],
+  groupIdsFor: (repoRoot: string) => readonly string[],
   projectOrder: readonly string[] = [],
-): [string, SessionSummary[]][] {
-  return orderProjects(groupByRepo(sessions), projectOrder).map(([repoRoot, list]) => [
-    repoRoot,
-    pinnedFirst(list, pinned),
-  ]);
+): { repoRoot: string; groupId: string; items: T[] }[] {
+  const byCluster = new Map<string, T[]>();
+  const seen: [string, null][] = [];
+  for (const { repoRoot, groupId, item } of entries) {
+    if (!byCluster.has(`${repoRoot}\0`) && !seen.some(([r]) => r === repoRoot)) seen.push([repoRoot, null]);
+    // A group belonging to ANOTHER project cannot be rendered under this one, so such an item is LOOSE here rather than invisible — the same rule the sidebar's tree applies.
+    const known = groupId && groupIdsFor(repoRoot).includes(groupId);
+    const key = `${repoRoot}\0${known ? groupId : ''}`;
+    byCluster.set(key, [...(byCluster.get(key) ?? []), item]);
+  }
+  const out: { repoRoot: string; groupId: string; items: T[] }[] = [];
+  for (const [repoRoot] of orderProjects(seen, projectOrder)) {
+    const loose = byCluster.get(`${repoRoot}\0`);
+    if (loose?.length) out.push({ repoRoot, groupId: '', items: loose });
+    for (const groupId of groupIdsFor(repoRoot)) {
+      const items = byCluster.get(`${repoRoot}\0${groupId}`);
+      if (items?.length) out.push({ repoRoot, groupId, items });
+    }
+  }
+  return out;
+}
+
+/** One thing to place: which project it belongs to, which group it is in (`''` for none), and the thing itself. */
+export interface TabCluster<T> {
+  repoRoot: string;
+  groupId: string;
+  item: T;
 }
 
 // --- Jumping to a group ---------------------------------------------------------------------------

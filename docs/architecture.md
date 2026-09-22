@@ -327,6 +327,11 @@ The general rule this stands for: **where stale is worse than an extra rebuild, 
 The attention strip is then rebuilt by the next status event, from the newer list, while the sidebar still shows the older one — which is why the strip appears to reorder itself on a dot changing.
 Anything that reads the session list off a status event has the same hazard.
 
-**Session order inside a project is recency, and recency moves under you.** The strip orders itself as the sidebar does — explicit project order, pins floated — and the sidebar's own within-project order is last activity.
-Every row in the strip is by definition a running session, so those timestamps are all moving and two rows swap whenever the lower one writes a message.
-A list you read repeatedly wants stability more than freshness; the fix is to cluster by group as the tab bar does and hold a fixed order inside each cluster.
+**A list you read while working needs to stay still more than it needs to be sorted well.** The attention strip has had three orders, and the first two both moved under the reader.
+Sorting attention-first — sessions by urgency, projects by their most urgent session — reshuffled both levels on every status change.
+Ordering it as the *session list* does was closer and still wrong, because the sidebar's own within-project order is **recency**, and every row in this strip is a running session by definition: those timestamps are all moving, so two rows swap whenever the lower one writes a message.
+
+It orders by **tab order** now, which is the only order available here that nothing on disk can touch — it changes when you open, close, drag or regroup a tab, and a drag persists. Projects keep the explicit project order, which is also something you set by dragging, so both levels are yours.
+"Tab order" is not the tabs array, though: the bar draws a project's ungrouped tabs first and then one row per group in registry order, so the strip shares that clustering (`orderAsTabs`) rather than reading the array directly. The two differ in one parameter — the bar orders projects by the first tab it meets, the strip by your project order — and in nothing else, which is what keeps them from drifting.
+Pins are deliberately not floated here, unlike the sidebar: a pin says where a session belongs in the LIST, the tab bar has never honoured it, and floating one would be a second thing able to move a row you were reading.
+The sessions still come from the session list, so a row shows what the sidebar shows; only the order is the tab bar's.

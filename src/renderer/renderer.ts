@@ -19,7 +19,7 @@ import {
   sessionPasses,
   datePresetRange,
   projectsForSwitcher,
-  orderAsSidebar,
+  orderAsTabs,
   hasVisibleOutput,
   statusLabel,
   stopControlState,
@@ -1070,11 +1070,25 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   // Membership used to be "has a live nudge", which meant marking a dot read deleted the row: muting said "erase this" when it should have said "seen it".
   // Running is also the only rule that closes the gap this strip exists for: scoped to one project, a live session in another is invisible in the tab bar (filtered to the active project) and out of scope in the list, and the switcher only ever gets you to a PROJECT, never back to a SESSION.
   // Nothing is lost by dropping the nudge from the membership: a session that is not running has already reported SessionEnd, so it cannot be nudging in the first place.
-  const live = new Set(tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)));
-  // Grouped and ordered exactly as the sidebar orders them — see orderAsSidebar for why this is not sorted by urgency.
-  const ordered = orderAsSidebar(pool.filter((s) => live.has(entityKey(s))), pinned, projectOrder).map(
-    ([repoRoot, list]) => ({ name: projName(repoRoot), items: list }),
+  // IN TAB ORDER, which is the only order here that nothing on disk can move — see orderAsTabs.
+  // Driven from the tabs rather than from the session list on purpose: every row in this strip IS a live tab, and taking the order from the tabs array is what stops a session writing a message from swapping two rows you were reading.
+  // The session data still comes from the list, so a row shows what the sidebar shows; only the ORDER is the tab bar's.
+  const shown = new Map(pool.map((s) => [entityKey(s), s]));
+  const clusters = orderAsTabs(
+    tabs
+      .filter((t) => t.terminalId !== null)
+      .flatMap((t) => {
+        const session = shown.get(entityKey(t.session));
+        return session ? [{ repoRoot: session.repoRoot, groupId: groupState.groupOf[session.id] ?? '', item: session }] : [];
+      }),
+    (root) => projectGroups(root).map((g) => g.id),
+    projectOrder,
   );
+  // The strip has no group ROWS — each row carries its group as a chip — so a project's clusters are flattened back into one run, in the order the tab bar would have drawn them.
+  const ordered = [...new Map(clusters.map((c) => [c.repoRoot, [] as SessionSummary[]])).keys()].map((repoRoot) => ({
+    name: projName(repoRoot),
+    items: clusters.filter((c) => c.repoRoot === repoRoot).flatMap((c) => c.items),
+  }));
   const total = ordered.reduce((n, g) => n + g.items.length, 0);
   // "Needs you" is idle or waiting and NOT already read; busy is work in progress, which wants nothing from you.
   const needing = ordered.reduce(
@@ -2724,19 +2738,16 @@ function visibleTabs(): Tab[] {
 function renderTabBar(): void {
   const shown = visibleTabs();
   const groupOf = groupState.groupOf; // computed once; every tab is keyed against it
-  const byCluster = new Map<string, Tab[]>();
-  const projectOrder: string[] = [];
-  for (const tab of shown) {
-    const root = tab.session.repoRoot;
-    if (!projectOrder.includes(root)) projectOrder.push(root);
-    const key = tabClusterKey(tab, groupOf);
-    const list = byCluster.get(key) ?? [];
-    list.push(tab);
-    byCluster.set(key, list);
-  }
+  // The bar's own project order is the order it meets them in, which is what the empty projectOrder argument asks for; the strip passes yours instead.
+  const clustered = orderAsTabs(
+    shown.map((tab) => ({ repoRoot: tab.session.repoRoot, groupId: groupOf[tab.session.id] ?? '', item: tab })),
+    (root) => projectGroups(root).map((g) => g.id),
+  );
+  const byCluster = new Map(clustered.map((c) => [`${c.repoRoot}\0${c.groupId}`, c.items]));
+  const roots = [...new Set(clustered.map((c) => c.repoRoot))];
 
   const children: HTMLElement[] = [];
-  for (const root of projectOrder) {
+  for (const root of roots) {
     // The project's own row: its label (in All) and every tab of its that is in no group.
     const loose = byCluster.get(`${root}\0`) ?? [];
     if (!activeProject || loose.length > 0) {
@@ -2895,6 +2906,8 @@ function initTabSortables(): void {
         if (!moved || newIndex < 0) return;
         tabs.splice(0, tabs.length, ...reorderWithinGroup(tabs, tabClusterKey, moved, newIndex));
         persistOpenTabs();
+        // The strip reads its order from this array, and SortableJS has only moved the TAB's element — nothing else here repaints, so without this the strip keeps the order it was drawn with until something unrelated redraws it.
+        refreshSwitcher();
       },
     }),
   );

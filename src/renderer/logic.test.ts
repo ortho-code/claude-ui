@@ -19,7 +19,7 @@ import {
   groupJumpTargets,
   type FilterCriteria,
   orderProjects,
-  orderAsSidebar,
+  orderAsTabs,
 } from './logic';
 
 function session(over: Partial<SessionSummary> = {}): SessionSummary {
@@ -507,31 +507,65 @@ describe('hasVisibleOutput', () => {
   });
 });
 
-describe('orderAsSidebar', () => {
-  const s = (id: string, repoRoot: string) => session({ id, repoRoot });
+describe('orderAsTabs', () => {
+  /** An item to place: its project, its group ('' for none), and a name to assert on. */
+  const at = (item: string, repoRoot: string, groupId = '') => ({ repoRoot, groupId, item });
+  /** The group registry, in the order the sidebar and the tab bar both use. */
+  const groups = (byRoot: Record<string, string[]>) => (root: string) => byRoot[root] ?? [];
+  const flat = (out: ReturnType<typeof orderAsTabs<string>>) => out.flatMap((c) => c.items);
 
-  it('follows the explicit project order rather than anything about the sessions', () => {
-    const sessions = [s('a', '/late'), s('b', '/early')];
-    const ordered = orderAsSidebar(sessions, new Set(), ['/early', '/late']);
-    expect(ordered.map(([root]) => root)).toEqual(['/early', '/late']);
+  it('follows the given project order', () => {
+    const out = orderAsTabs([at('a', '/late'), at('b', '/early')], groups({}), ['/early', '/late']);
+    expect(out.map((c) => c.repoRoot)).toEqual(['/early', '/late']);
   });
 
-  it('floats pins inside a project, like the list does', () => {
-    const sessions = [s('a', '/repo'), s('b', '/repo'), s('c', '/repo')];
-    const [[, list]] = orderAsSidebar(sessions, new Set(['c']), ['/repo']);
-    expect(list.map((x) => x.id)).toEqual(['c', 'a', 'b']);
+  // The tab bar passes no project order and gets the order it met them in; the strip passes yours. Same function, one parameter apart.
+  it('falls back to the order projects first appear', () => {
+    const out = orderAsTabs([at('a', '/second'), at('b', '/first')], groups({}));
+    expect(out.map((c) => c.repoRoot)).toEqual(['/second', '/first']);
+  });
+
+  /**
+   * The shape the tab bar draws: a project's ungrouped tabs first, then one run per group in REGISTRY order — not the order the tabs happen to sit in.
+   * The strip flattens these back into one run per project, which is how it ends up matching the bar.
+   */
+  it('puts ungrouped items first, then each group in registry order', () => {
+    const out = orderAsTabs(
+      [at('in-g2', '/repo', 'g2'), at('loose-1', '/repo'), at('in-g1', '/repo', 'g1'), at('loose-2', '/repo')],
+      groups({ '/repo': ['g1', 'g2'] }),
+    );
+    expect(out.map((c) => c.groupId)).toEqual(['', 'g1', 'g2']);
+    expect(flat(out)).toEqual(['loose-1', 'loose-2', 'in-g1', 'in-g2']);
+  });
+
+  // Within a run, the caller's order is passed through untouched — no recency, no pins, no urgency. Sorting by any of those is what made rows swap while they were being read.
+  it('leaves a run in the order it was handed', () => {
+    const out = orderAsTabs([at('c', '/repo'), at('a', '/repo'), at('b', '/repo')], groups({}));
+    expect(flat(out)).toEqual(['c', 'a', 'b']);
+  });
+
+  // Moving a session into a group moves it in the bar, which is why the strip has to be built from this and not from the tabs array directly.
+  it('moves an item when its group changes, without anything else moving', () => {
+    const entries = [at('a', '/repo'), at('b', '/repo'), at('c', '/repo')];
+    expect(flat(orderAsTabs(entries, groups({ '/repo': ['g1'] })))).toEqual(['a', 'b', 'c']);
+    const regrouped = [at('a', '/repo'), at('b', '/repo', 'g1'), at('c', '/repo')];
+    expect(flat(orderAsTabs(regrouped, groups({ '/repo': ['g1'] })))).toEqual(['a', 'c', 'b']);
+  });
+
+  // A group belonging to another project cannot be drawn under this one; the item is loose here rather than vanishing, which is what the sidebar's tree does too.
+  it('treats a group this project does not own as no group at all', () => {
+    const out = orderAsTabs([at('a', '/repo', 'group-of-elsewhere')], groups({ '/repo': ['g1'] }));
+    expect(out).toEqual([{ repoRoot: '/repo', groupId: '', items: ['a'] }]);
   });
 
   it('keeps a project the order has never seen, rather than dropping it', () => {
-    const ordered = orderAsSidebar([s('a', '/unknown')], new Set(), ['/known']);
-    expect(ordered.map(([root]) => root)).toEqual(['/unknown']);
+    const out = orderAsTabs([at('a', '/unknown')], groups({}), ['/known']);
+    expect(out.map((c) => c.repoRoot)).toEqual(['/unknown']);
   });
 
-  it('is stable as statuses change, since it never looks at them', () => {
-    const sessions = [s('a', '/one'), s('b', '/two')];
-    const first = orderAsSidebar(sessions, new Set(), ['/one', '/two']);
-    const again = orderAsSidebar([...sessions].reverse(), new Set(), ['/one', '/two']);
-    expect(again.map(([root]) => root)).toEqual(first.map(([root]) => root));
+  it('omits a group with nothing open in it', () => {
+    const out = orderAsTabs([at('a', '/repo')], groups({ '/repo': ['empty-group'] }));
+    expect(out.map((c) => c.groupId)).toEqual(['']);
   });
 });
 

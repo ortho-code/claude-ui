@@ -17,6 +17,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - Entering or leaving a worktree, and gaining a sibling, show up in the session list when they happen instead of waiting for some unrelated change.
 - Stopping a session now ends it. It was asked once, with a signal it was free to ignore, and the session could keep running while the app showed it as stopped — including the sessions left behind when you quit the app.
 - Switching model with `/model` updates the model shown in the session list straight away, instead of only once that model had answered something.
+- The live strip keeps still. It follows your tabs now, so a row only moves when you drag, open, close or regroup a tab — rows used to swap places whenever one of them wrote a message. Pinned sessions no longer float to the top of it.
 
 ## 0.3.0 — 2026-08-29
 
