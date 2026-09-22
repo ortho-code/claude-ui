@@ -1888,11 +1888,13 @@ button:focus:not(:focus-visible) {
   display: block;
 }
 
-#term-placeholder {
+/* A pane with nothing in it names the next action, in the terminal's and in a panel's. */
+.pane-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
+  padding: 0 16px;
   color: var(--muted);
   /* Most of what lands here is one sentence, but a refused start names the folder it could not use on a line of its own. */
   white-space: pre-line;
