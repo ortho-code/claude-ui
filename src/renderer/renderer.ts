@@ -1,7 +1,5 @@
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { CanvasAddon } from '@xterm/addon-canvas';
-import { WebLinksAddon } from '@xterm/addon-web-links';
+import type { Terminal } from '@xterm/xterm';
+import type { FitAddon } from '@xterm/addon-fit';
 import type { ClaudeUiApi, OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
 import {
   sessionsByKey,
@@ -30,6 +28,7 @@ import {
 import { parseLaunchFlags } from '../shared/flags';
 import { installTooltips, setTooltip } from './tooltip';
 import { installResizer } from './resizer';
+import { createTerminal, bindTerminal, routeTerminals } from './terminal';
 import { initSide, sideContextChanged, sideState, setSideWidth, configRoot } from './panels/side';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
@@ -2554,11 +2553,6 @@ async function forkSession(parent: SessionSummary): Promise<void> {
  * `terminalId` stays null until startTab fills it in, which is what lets tabs be restored cold — 20 restored tabs used to mean 20 `claude --resume` processes at ~437 MB each, spawned whether or not you looked at any of them.
  * The xterm instance stays eager on purpose: an empty one costs almost nothing next to a process, and keeping it non-null confines this to the handful of places that use terminalId.
  */
-// The terminal's face comes from the stylesheet's tokens, so a panel showing command output is set in the same type without a second copy of the values.
-const rootStyle = getComputedStyle(document.documentElement);
-const MONO_FAMILY = rootStyle.getPropertyValue('--font-mono').trim();
-const MONO_SIZE = parseInt(rootStyle.getPropertyValue('--text-mono'), 10);
-
 function buildTab(session: SessionSummary): Tab {
   const token = crypto.randomUUID();
 
@@ -2566,27 +2560,8 @@ function buildTab(session: SessionSummary): Tab {
   el.className = 'term';
   terminalsEl.appendChild(el);
 
-  const term = new Terminal({
-    fontFamily: MONO_FAMILY,
-    fontSize: MONO_SIZE,
-    // Neutral (hue-less) default foreground: claude's selected-item accent is a periwinkle, so a neutral grey fg makes it pop by HUE (the old lavender-white #cdd6f4 shared its hue and merged).
-    // The fix was the hue, not the brightness, so it can be a light near-white for comfortable reading.
-    // The select-menu contrast bug (28a); proper per-user terminal colours are item 28.
-    theme: { background: '#11111b', foreground: '#d8d8d8' },
-  });
-  const fitAddon = new FitAddon();
-  term.loadAddon(fitAddon);
-  term.open(el);
-
-  // Canvas renderer for smoother scrolling/paste than the default DOM renderer; fall back to DOM if it can't initialize (e.g. a WSLg GPU quirk) so the terminal always works.
-  try {
-    term.loadAddon(new CanvasAddon());
-  } catch {
-    // DOM renderer stays in place.
-  }
-
-  // Make http(s) URLs clickable; open them in the OS browser via the main process.
-  term.loadAddon(new WebLinksAddon((_event, uri) => window.claudeUi.openExternal(uri)));
+  // The xterm itself is the one every terminal here shares (terminal.ts); what follows is the handling that belongs to a tab running claude.
+  const { term, fitAddon } = createTerminal(el);
 
   // Ctrl+Enter and Shift+Enter insert a newline (send \n, which claude reads as a newline) rather than submitting — matching the terminal (Ctrl+Enter) and Claude Desktop (Shift+Enter) habits.
   // Plain Enter still submits; Ctrl+J and Alt+Enter already produce \n on their own.
@@ -2675,6 +2650,8 @@ async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
       tab.terminalId = null;
       return;
     }
+    // From here its output and exit are this tab's, until the pty's own exit unbinds it.
+    bindTerminal(tab.terminalId, { data: (data) => onTabData(tab, data), exit: (exitCode) => onTabExit(tab, exitCode) });
     // Reveal it BEFORE fitting: `.term` is display:none until `.active`, and FitAddon sizes from the element's own box, so fitting a hidden pane leaves the terminal at xterm's 80x24 default and claude draws its whole TUI at that width.
     // Cold tabs are what exposed this — the pane used to be revealed by activateTab before any of this ran, and now it only reveals a tab that HAS a process.
     // A tab you switched away from during the await stays hidden and mis-fitted, which activateTab's own fit corrects when you come back to it.
@@ -3085,9 +3062,10 @@ function updatePlaceholder(): void {
 
 // --- Wiring ---
 
-window.claudeUi.onTerminalData((id, data) => {
-  const tab = tabs.find((t) => t.terminalId === id);
-  if (!tab) return;
+// Output and exits reach a tab through the sink it bound when it started (terminal.ts routes them by terminal id, for tabs and panels alike).
+routeTerminals();
+
+function onTabData(tab: Tab, data: string): void {
   tab.term.write(data);
   // First VISIBLE output: the pane has something to show, so stop covering it.
   if (tab.booting && hasVisibleOutput(data)) {
@@ -3095,10 +3073,10 @@ window.claudeUi.onTerminalData((id, data) => {
     if (tab === activeTab) updatePlaceholder();
     renderTabBar();
   }
-});
-window.claudeUi.onTerminalExit((id, exitCode) => {
-  const tab = tabs.find((t) => t.terminalId === id);
-  if (!tab) return; // Already closed by the user.
+}
+
+function onTabExit(tab: Tab, exitCode: number): void {
+  if (!tabs.includes(tab)) return; // Already closed by the user.
   // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed. Every other exit keeps today's behaviour below.
   if (tab.stopping) {
     coolTab(tab);
@@ -3115,7 +3093,7 @@ window.claudeUi.onTerminalExit((id, exitCode) => {
     return;
   }
   removeTab(tab);
-});
+}
 window.claudeUi.onSessionStatus((id, status, tab) => {
   // A tab's session can be REPLACED under it: `/clear` ends the session and starts a fresh one in the same terminal, under an id Claude Code chooses rather than one the app passed as `--session-id`.
   // The token is what ties the two together — without this the tab would keep pointing at the session that just ended, and resuming it later would reopen the wrong history.

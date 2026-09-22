@@ -1,0 +1,81 @@
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { CanvasAddon } from '@xterm/addon-canvas';
+import { WebLinksAddon } from '@xterm/addon-web-links';
+
+/**
+ * The xterm every terminal in the window is built from — a tab's `claude` and a panel's shell — and the one place their output and exits are routed.
+ * One construction rather than two, because the options here are decisions (the font tokens, the neutral foreground, the canvas fallback, clickable links) that would otherwise be made twice and drift.
+ */
+
+// The terminal's face comes from the stylesheet's tokens, so a panel showing command output is set in the same type without a second copy of the values.
+const rootStyle = getComputedStyle(document.documentElement);
+const MONO_FAMILY = rootStyle.getPropertyValue('--font-mono').trim();
+const MONO_SIZE = parseInt(rootStyle.getPropertyValue('--text-mono'), 10);
+
+export interface TerminalView {
+  term: Terminal;
+  fitAddon: FitAddon;
+}
+
+/** An xterm opened in `container`, sized to it by the fit addon, drawn on canvas where that works, with http(s) links clickable. */
+export function createTerminal(container: HTMLElement): TerminalView {
+  const term = new Terminal({
+    fontFamily: MONO_FAMILY,
+    fontSize: MONO_SIZE,
+    // Neutral (hue-less) default foreground: claude's selected-item accent is a periwinkle, so a neutral grey fg makes it pop by HUE (the old lavender-white #cdd6f4 shared its hue and merged).
+    // The fix was the hue, not the brightness, so it can be a light near-white for comfortable reading.
+    // The select-menu contrast bug (28a); proper per-user terminal colours are item 28.
+    theme: { background: '#11111b', foreground: '#d8d8d8' },
+  });
+  const fitAddon = new FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(container);
+
+  // Canvas renderer for smoother scrolling/paste than the default DOM renderer; fall back to DOM if it can't initialize (e.g. a WSLg GPU quirk) so the terminal always works.
+  try {
+    term.loadAddon(new CanvasAddon());
+  } catch {
+    // DOM renderer stays in place.
+  }
+
+  // Make http(s) URLs clickable; open them in the OS browser via the main process.
+  term.loadAddon(new WebLinksAddon((_event, uri) => window.claudeUi.openExternal(uri)));
+
+  return { term, fitAddon };
+}
+
+/** Where a terminal's output and exit go: a tab's handlers, or a panel's. */
+export interface TerminalSink {
+  data(data: string): void;
+  exit(exitCode: number): void;
+}
+
+const sinks = new Map<number, TerminalSink>();
+
+/** Route terminal `id`'s output and exit to `sink`, from now until it exits or is unbound. */
+export function bindTerminal(id: number, sink: TerminalSink): void {
+  sinks.set(id, sink);
+}
+
+/** Stop routing `id`: what it still prints, and its exit, go nowhere. For a panel that replaced its shell and does not want the old one's tail. */
+export function unbindTerminal(id: number): void {
+  sinks.delete(id);
+}
+
+let routed = false;
+
+/**
+ * Subscribe once to every terminal's data and exit, and hand each to whichever sink bound the id.
+ * A terminal nobody bound — one whose tab was closed while it was still starting, or a panel's shell after a restart — is dropped here rather than each consumer guarding for it.
+ */
+export function routeTerminals(): void {
+  if (routed) return;
+  routed = true;
+  window.claudeUi.onTerminalData((id, data) => sinks.get(id)?.data(data));
+  window.claudeUi.onTerminalExit((id, exitCode) => {
+    const sink = sinks.get(id);
+    sinks.delete(id);
+    sink?.exit(exitCode);
+  });
+}
