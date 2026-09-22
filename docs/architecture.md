@@ -307,11 +307,13 @@ Every conditionally-visible pane carries this hazard, split view included.
 This produced three separate "why does only this one look different" bugs.
 When a shared appearance matters, list the selectors explicitly with their own `:hover` so each beats its own resting rule, and check with forced pseudo-states rather than by reading the cascade.
 
-**A signature that lists its inputs is a guard nothing can check.** The sidebar re-renders only when `structuralSignature` changes, which keeps a growing transcript from rebuilding the list — and whether that signature named *every* field the rows draw is a question about the whole render path, so it cannot be asserted cheaply.
-Getting it wrong does not churn, it **freezes**: the field is stale until something else happens to move.
-`session.model` is missing from it today and the row draws it, so changing model mid-session leaves the sidebar showing the old one.
-`worktree` and `repoRoot` are covered only because they move with `cwd`, which is true for now rather than by construction.
-Prefer the whole-record shape wherever stale is worse than an extra rebuild, and treat a new field on a row as a change to the signature.
+**A signature that lists its inputs is a guard nothing can check — so this one is checked by the compiler.** The sidebar re-renders only when `structuralSignature` changes, which keeps a growing transcript from rebuilding the list. Whether such a signature names *every* field the rows draw is a question about the whole render path, so it cannot be asserted cheaply, and getting it wrong does not churn — it **freezes**, leaving a field stale until something else happens to move.
+It had been wrong: `model` was absent while the row printed it, so switching model mid-session showed the old one, and `worktree`/`repoRoot` were covered only by riding along with `cwd`.
+
+The shape that fixes it is `AFFECTS_ROW`, a `Record<keyof SessionSummary, boolean>` naming every field with a yes or a no.
+The annotation is the whole mechanism: adding a field to `SessionSummary` **fails to compile** until somebody says whether the list must redraw for it, which turns "did we remember?" into a question the build answers.
+Only two are `false`, each with its reason written beside it — `lastActivity`, rewritten on every message of a running session, and `postCompactHeads`, which no row reads.
+The general rule this stands for: **where stale is worse than an extra rebuild, make the exhaustive case the one the compiler enforces**, rather than trusting a list to be complete.
 
 **Two surfaces can disagree about the same list, because only one of them re-rendered.** The session list is assigned before that signature check decides whether to draw, so a transcript merely growing updates the data and skips the render.
 The attention strip is then rebuilt by the next status event, from the newer list, while the sidebar still shows the older one — which is why the strip appears to reorder itself on a dot changing.

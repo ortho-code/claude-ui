@@ -65,6 +65,33 @@ describe('structuralSignature', () => {
     const a = session();
     expect(structuralSignature([a])).not.toBe(structuralSignature([session({ title: 'Renamed' })]));
   });
+
+  /**
+   * Every field a row is drawn from, one case each. The sidebar is only redrawn when this string moves, so a field missing here is a row that FREEZES — it keeps the old value until something unrelated changes.
+   * `model` is the one that was actually missing: switching model mid-session left the old label on the row.
+   */
+  it.each([
+    ['model', { model: 'claude-opus-4' }],
+    ['worktree', { worktree: 'feature-x' }],
+    ['repoRoot', { repoRoot: '/elsewhere' }],
+    ['isRepo', { isRepo: true }],
+    ['cwd', { cwd: '/elsewhere' }],
+    ['firstMessage', { firstMessage: 'hello' }],
+    ['isSibling', { isSibling: true }],
+    ['siblingIds', { siblingIds: ['other'] }],
+    ['id', { id: 'other' }],
+    ['conversationId', { conversationId: 'other' }],
+  ])('changes when %s changes', (_field, over) => {
+    expect(structuralSignature([session()])).not.toBe(structuralSignature([session(over)]));
+  });
+
+  // The two that must NOT move it: one is rewritten on every message of a running session, the other is never drawn.
+  it.each([
+    ['lastActivity', { lastActivity: '2030-01-01T00:00:00Z' }],
+    ['postCompactHeads', { postCompactHeads: ['head-1'] }],
+  ])('ignores %s', (_field, over) => {
+    expect(structuralSignature([session()])).toBe(structuralSignature([session(over)]));
+  });
 });
 
 describe('groupByRepo / folderName', () => {

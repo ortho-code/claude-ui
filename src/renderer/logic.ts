@@ -19,10 +19,43 @@ export function sessionsByKey(sessions: SessionSummary[]): Map<string, SessionSu
   return byKey;
 }
 
-// The list's structure: one line per session for the fields that affect what the sidebar shows. Excludes lastActivity so a running session writing its transcript isn't a "change".
+/**
+ * Whether each field a session carries can change what the sidebar DRAWS.
+ *
+ * The annotation is doing real work: `Record<keyof SessionSummary, boolean>` makes this exhaustive, so adding a field to SessionSummary fails to compile until somebody says whether the list has to redraw for it.
+ * That is the point — a hand-kept list of "the fields that matter" cannot be checked, and it was wrong.
+ */
+const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
+  id: true,
+  conversationId: true,
+  cwd: true,
+  repoRoot: true,
+  isRepo: true,
+  worktree: true,
+  title: true,
+  firstMessage: true,
+  // The row prints it, and switching model mid-session used to leave the old one there until something else moved.
+  model: true,
+  // Both shown as the sibling mark, and both can change MID-session when a fork lands.
+  isSibling: true,
+  siblingIds: true,
+  // A running session rewrites this constantly and no row is drawn from it; including it would make the guard useless.
+  lastActivity: false,
+  // Main-process bookkeeping that links a fork of a compacted session into its family. The renderer never reads it.
+  postCompactHeads: false,
+};
+
+const SIGNATURE_FIELDS = (Object.keys(AFFECTS_ROW) as (keyof SessionSummary)[]).filter((k) => AFFECTS_ROW[k]);
+
+/**
+ * The list's structure: one line per session, over every field that affects a row.
+ *
+ * `refreshFromDisk` skips the whole render when this is unchanged, so anything drawn but missing here goes stale until something unrelated moves — it FREEZES a row rather than churning it, which is the harder failure to notice.
+ * Getting it wrong is not hypothetical: `model` was missing, and the same gap is why a mid-session worktree move or a new sibling only appeared at the next unrelated change.
+ */
 export function structuralSignature(sessions: SessionSummary[]): string {
   return sessions
-    .map((s) => `${s.conversationId}\0${s.id}\0${s.cwd}\0${s.title}\0${s.firstMessage}`)
+    .map((s) => SIGNATURE_FIELDS.map((k) => String(s[k])).join('\0'))
     .sort()
     .join('\n');
 }
