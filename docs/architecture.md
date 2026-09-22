@@ -133,9 +133,13 @@ Rather than parse terminal output to guess a session's state, the app drives sta
 On startup it writes a hook script and its own settings file to `~/.config/claude-ui/`, and passes that file to `claude --settings`, whose hooks merge with the user's own — so claude-ui never writes into `~/.claude/settings.json` (an earlier version did, and still strips those entries when it finds them).
 
 Five events map straight to a status: `UserPromptSubmit` → busy, `PostToolUse` → busy, `Stop` → idle, `Notification` → waiting, `SessionEnd` → closed.
-One more is not that simple, and it cost a wrong guess to work out.
+Two more are not that simple, and both cost a wrong guess to work out.
 
-**`SessionStart` is identity, not state.** Its session id is what the terminal is running *now*, which is the only way to follow a `/clear` (below). The script writes an identity-only marker that the renderer applies to the tab and never shows as a dot, and it refuses to overwrite an existing status file — these files seed the dots at launch, and the event also fires mid-session, where a real status is worth keeping.
+**Compaction is work, so it reads as work.** `PreCompact` → busy, and the END of a compaction is a `SessionStart` carrying `source=compact`, which the script rewrites to idle.
+`PostCompact` looks like the obvious end signal and is not used: a probe never observed it firing and could not prove it ever does, while `SessionStart` was observed.
+That follows from what the states mean here — **idle is "finished something, and your input is required to continue", not merely "not busy"** — so a session thinking about its own transcript is busy, and green when it comes back.
+
+**`SessionStart` is mostly identity, not state.** Its session id is what the terminal is running *now*, which is the only way to follow a `/clear` (below). For every source but `compact` the script writes an identity-only marker that the renderer applies to the tab and never shows as a dot, and it refuses to overwrite an existing status file — these files seed the dots at launch, and the event also fires mid-session, where a real status is worth keeping.
 For the same reason that marker is dropped when the launch state is read back: identity is answered by the tabs being restored around it, and seeding it would hand the renderer a status no dot has wording for.
 
 **`SessionEnd` ends the session it names, every time — including `clear` and `resume`.**

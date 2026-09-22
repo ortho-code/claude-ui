@@ -59,6 +59,7 @@ describe('installStatusHooks', () => {
     expect(Object.keys(tool.hooks).sort()).toEqual([
       'Notification',
       'PostToolUse',
+      'PreCompact',
       'SessionEnd',
       'SessionStart',
       'Stop',
@@ -68,7 +69,8 @@ describe('installStatusHooks', () => {
     expect(tool.hooks.PostToolUse[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
     // The script path is single-quoted: on macOS it lives under "Application Support" and an unquoted space would split it into two arguments.
     expect(tool.hooks.UserPromptSubmit[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
-    // SessionStart reports identity, not a state — see HOOK_EVENTS.
+    // Compaction is work: busy while it runs, and its END arrives as a SessionStart the script turns into idle.
+    expect(tool.hooks.PreCompact[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
     expect(tool.hooks.SessionStart[0].hooks[0].command).toBe(`'${ourCmd}' start`);
   });
 
@@ -192,7 +194,14 @@ describe('the hook script', () => {
     expect((await readStatusFile())?.status).toBe('closed');
   });
 
-  // SessionStart is identity only. Writing it over a real status would hollow a live dot, and the wrong answer would then be seeded at the next launch.
+  // A compaction ending is the one SessionStart that means a STATE, and it has to beat the guard below because the session already has a status — the busy that PreCompact set.
+  it('turns the end of a compaction into idle, over a live status', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'PreCompact' });
+    runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'compact' });
+    expect((await readStatusFile())?.status).toBe('idle');
+  });
+
+  // Every other SessionStart is identity only. Writing it over a real status would hollow a live dot, and the wrong answer would then be seeded at the next launch.
   it.each(['clear', 'resume', 'startup'])('never overwrites a status when SessionStart says %s', async (source) => {
     runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
     runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source });
@@ -215,4 +224,9 @@ describe('the hook script', () => {
     expect(await getAllStatuses()).toHaveProperty(SID, 'busy');
   });
 
+  // `source` belongs to SessionStart alone: one riding along on any other event must not rewrite its status.
+  it('ignores a source on an event that is not a SessionStart', async () => {
+    runHook('waiting', { session_id: SID, hook_event_name: 'Notification', source: 'compact' });
+    expect((await readStatusFile())?.status).toBe('waiting');
+  });
 });

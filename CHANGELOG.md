@@ -13,6 +13,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 ### Fixed
 
 - A session you `/clear` stays in the group it was in, instead of the tab dropping out of its section.
+- Compacting a session shows it as busy while it runs and idle when it finishes, instead of leaving the dot on whatever it said before.
 
 ## 0.3.0 — 2026-08-29
 

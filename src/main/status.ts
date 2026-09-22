@@ -40,9 +40,13 @@ const HOOK_EVENTS: [string, string][] = [
   // That distinction is the whole point: this app tracks SESSIONS, not processes. Declining to write `closed` here was tried on 2026-09-22 and reverted the same day; it left a dead session showing a live dot for good.
   // What the process does next is the business of `SessionStart` below, which reports the id that succeeded this one.
   ['SessionEnd', 'closed'],
-  // NOT A STATUS: `start` reports only WHICH session a terminal is running, at the moment claude starts one.
-  // That is what lets a tab follow a `/clear` onto the session that replaced it — the one identity question `--session-id` cannot answer, since Claude Code chooses that id, not us.
-  // It must never overwrite a real status, because these files seed the dots at launch and this event also fires mid-session, on clear and compact; the script guards that.
+  // Compaction is claude WORKING — it is thinking about the transcript — so the dot belongs on busy until it finishes, and the finish is a `SessionStart` carrying `source=compact` (see the script).
+  // `PostCompact` would be the obvious end signal, but a probe on 2026-08-29 never observed it firing and could not prove it ever does; `SessionStart` was observed.
+  ['PreCompact', 'busy'],
+  // Two jobs, and only one of them is a status.
+  // IDENTITY, always: the payload's session id is what this terminal is running NOW, which is how a tab follows a `/clear` onto the session that replaced it.
+  // A STATUS, only for `source=compact`, where it means the compaction above has ended; the script turns that one into `idle` and leaves every other source as the identity-only marker `start`.
+  // It must never overwrite a real status, because these files seed the dots at launch and this event also fires mid-session — the script guards that too.
   ['SessionStart', 'start'],
 ];
 
@@ -58,9 +62,17 @@ status="\${1:-}"
 dir=${shellQuote(statusDir)}
 mkdir -p "$dir"
 input="$(cat)"
-sid="$(printf '%s' "$input" | grep -oE '"session_id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\\1/')"
+# One reader for every field this script pulls out of the event, so a second one cannot drift from the first.
+field() {
+  printf '%s' "$input" | grep -oE "\\"$1\\"[[:space:]]*:[[:space:]]*\\"[^\\"]+\\"" | head -1 | sed -E 's/.*"([^"]+)"$/\\1/'
+}
+sid="$(field session_id)"
 [ -n "$sid" ] || exit 0
-# 'start' carries identity only, so it must not overwrite a status: these files seed the dots at launch, and the event fires on clear and compact MID-session, where a session already has a status worth keeping.
+# The end of a compaction, which is the only SessionStart that means a state rather than an identity.
+if [ "$status" = start ] && [ "$(field source)" = compact ]; then
+  status=idle
+fi
+# Every other SessionStart carries identity only, so it must not overwrite a status: these files seed the dots at launch, and the event fires on clear and compact MID-session, where a session already has a status worth keeping.
 # A brand-new session has no file yet, which is the case this still writes for.
 if [ "$status" = start ] && [ -e "$dir/$sid.json" ]; then
   exit 0
