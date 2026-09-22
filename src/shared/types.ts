@@ -48,6 +48,11 @@ export interface TerminalLaunch {
   name?: string;
   /** `-w`: start in a new git worktree — a non-empty string names it, `''` lets claude auto-name, `undefined` means no worktree. */
   worktree?: string;
+  /**
+   * Not a claude flag: an environment marker naming the TAB, echoed back by the status hook.
+   * `sessionId` settles which session a terminal starts with; this is what keeps the answer right afterwards, since `/clear` replaces the session with one the app did not name.
+   */
+  tabToken?: string;
 }
 
 /**
@@ -243,8 +248,8 @@ export interface ClaudeUiApi {
   openExternal(url: string): void;
   /** Current status per session id (busy | idle | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
-  /** Subscribe to live status changes. */
-  onSessionStatus(callback: (id: string, status: string) => void): void;
+  /** Subscribe to live status changes. `tab` is the reporting terminal's token (empty for a session claude-ui is not running). */
+  onSessionStatus(callback: (id: string, status: string, tab: string) => void): void;
   /** Clear a session's status (removes its status file). */
   clearStatus(id: string): void;
   /** Open a terminal in `cwd` running claude as `launch` describes. Resolves to a terminal id. */

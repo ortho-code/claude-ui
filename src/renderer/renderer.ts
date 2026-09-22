@@ -437,6 +437,9 @@ interface Tab {
   term: Terminal;
   fitAddon: FitAddon;
   el: HTMLElement;
+  // Names this TAB for the status hook, which echoes it back.
+  // The tab's session id would not do: `/clear` ends the session and starts another in the same terminal, and this is what says the two belong to the same tab.
+  token: string;
   // When claude was launched, to tell a real exit from a failed-to-start one.
   startedAt: number;
   // Bumped on each activation, so a workspace switch can restore a project's most-recent tab.
@@ -2307,14 +2310,14 @@ async function openSession(session: SessionSummary): Promise<void> {
 }
 
 /**
- * A session that does not exist yet (a new/fork/worktree tab): a freshly minted id plus the SessionSummary defaults, with callers overriding what they already know.
- * One factory, so a SessionSummary field change lands here once instead of in three literals.
+ * A session with no transcript yet, as the SessionSummary defaults plus whatever the caller already knows.
+ * One factory, so a SessionSummary field change lands here once instead of in four literals.
  *
- * THE ID IS THE REAL ONE. It is handed to claude as `--session-id`, so the transcript claude writes lands under exactly this id, and everything the app keys by id — the sidebar row, a group, a pin, a note, the status file — is right from the first paint rather than being moved once claude reports in.
- * Until claude writes that transcript the session exists only as this object, held by its tab; `visibleSessions` is what puts it in the sidebar in the meantime.
+ * THE ID IS THE REAL ONE, and the caller says what it is: minted here for a session the app is about to start (handed to claude as `--session-id`), or the id Claude Code reported for a session that replaced another in the same terminal.
+ * Either way everything keyed by id — the sidebar row, a group, a pin, a note, the status file — is right from the first paint rather than being moved later.
+ * Until claude writes the transcript the session exists only as this object, held by its tab; `visibleSessions` is what puts it in the sidebar in the meantime.
  */
-function newSession(over: Partial<SessionSummary> & Pick<SessionSummary, 'cwd' | 'repoRoot' | 'title'>): SessionSummary {
-  const id = crypto.randomUUID();
+function newSession(id: string, over: Partial<SessionSummary> & Pick<SessionSummary, 'cwd' | 'repoRoot' | 'title'>): SessionSummary {
   return {
     id,
     conversationId: id,
@@ -2338,10 +2341,14 @@ function ensureProjectVisible(repoRoot: string): void {
   }
 }
 
+/** What a session with nothing in it yet is called: the folder it runs in. Shared with a session `/clear` has just emptied, which is the same thing. */
+function untitledLabel(cwd: string): string {
+  return `New: ${cwd.split('/').filter(Boolean).pop() ?? cwd}`;
+}
+
 // Start a brand-new claude session in `cwd`, under an id this app mints; the sidebar row is that same session, filled in once claude writes its transcript.
 async function openNewSession(cwd: string, joinGroupId?: string): Promise<void> {
-  const folder = cwd.split('/').filter(Boolean).pop() ?? cwd;
-  const session = newSession({ cwd, repoRoot: cwd, title: `New: ${folder}` });
+  const session = newSession(crypto.randomUUID(), { cwd, repoRoot: cwd, title: untitledLabel(cwd) });
   // Filed BEFORE the tab exists, so the row's first paint is already inside the group. An ordinary membership write: the id is the session's real one, so there is nothing to correct afterwards.
   if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
   ensureProjectVisible(session.repoRoot);
@@ -2353,7 +2360,6 @@ async function openNewSession(cwd: string, joinGroupId?: string): Promise<void> 
 // Prompts for an optional name (blank -> claude auto-names).
 // Like openNewSession, the tab carries the session's real id from the start; the worktree badge is the only optimistic part, and it reconciles on the next refresh.
 async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Promise<void> {
-  const folder = repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
   // claude's `-w` name must be a slug (letters/digits/dots/underscores/dashes); turn the free-text label into one. A blank slug means auto-name, which can't collide.
   const slugify = (value: string): string => value.trim().replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
   const label = await promptText(
@@ -2373,14 +2379,14 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
   const friendly = label.trim();
   // Pass the label as `--name` so the session still displays what was typed.
   const slug = slugify(friendly);
-  const session = newSession({
+  const session = newSession(crypto.randomUUID(), {
     cwd: repoRoot,
     repoRoot,
     isRepo: true,
     // Show the worktree badge right away (optimistic); it reconciles to the real name on refresh.
     worktree: slug || 'new worktree',
     // The name you typed becomes the title (it's also what --name sets); the badge already says it's a worktree, so no prefix. Blank name falls back to a plain new-session label.
-    title: friendly || `New: ${folder}`,
+    title: friendly || untitledLabel(repoRoot),
   });
   // Same as openNewSession: filed before the tab exists, so the row never appears loose.
   if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
@@ -2397,7 +2403,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
   const name = await promptText('Create fork', `Fork from "${parentTitle}"`, parentTitle, 'Fork');
   if (name === null) return;
   const trimmed = name.trim();
-  const session = newSession({
+  const session = newSession(crypto.randomUUID(), {
     cwd: parent.cwd,
     repoRoot: parent.repoRoot,
     isRepo: parent.isRepo,
@@ -2422,6 +2428,8 @@ async function forkSession(parent: SessionSummary): Promise<void> {
  * The xterm instance stays eager on purpose: an empty one costs almost nothing next to a process, and keeping it non-null confines this to the handful of places that use terminalId.
  */
 function buildTab(session: SessionSummary): Tab {
+  const token = crypto.randomUUID();
+
   const el = document.createElement('div');
   el.className = 'term';
   terminalsEl.appendChild(el);
@@ -2469,6 +2477,7 @@ function buildTab(session: SessionSummary): Tab {
     term,
     fitAddon,
     el,
+    token,
     startedAt: 0,
     activatedSeq: 0,
   };
@@ -2523,6 +2532,7 @@ async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
       fork: launch.fork,
       name: launch.name,
       worktree: launch.worktree,
+      tabToken: tab.token,
     });
     // Gone while it was still starting: the tab has been removed but the pty has not, so hand it straight back rather than leaving a claude running with nothing pointing at it.
     // The button is disabled throughout the wait, so this is not that route — it is deleting the session, which closes its tab wherever that tab had got to.
@@ -2938,7 +2948,38 @@ window.claudeUi.onTerminalExit((id, exitCode) => {
   }
   removeTab(tab);
 });
-window.claudeUi.onSessionStatus((id, status) => {
+window.claudeUi.onSessionStatus((id, status, tab) => {
+  // A tab's session can be REPLACED under it: `/clear` ends the session and starts a fresh one in the same terminal, under an id Claude Code chooses rather than one the app passed as `--session-id`.
+  // The token is what ties the two together — without this the tab would keep pointing at the session that just ended, and resuming it later would reopen the wrong history.
+  const owner = tab ? tabs.find((t) => t.token === tab) : undefined;
+  if (owner && owner.session.id !== id) {
+    const previous = owner.session;
+    const replaced = previous.id;
+    // A CLEARED SESSION IS A NEW SESSION, so it starts from the same blank the "+" button does rather than from its predecessor's row.
+    // Carrying the old object forward was the app's own half of the copied-title problem: it kept the title, the first message and the sibling marks of a conversation this session does not have.
+    // The folder is all that genuinely survives — it is the same terminal, in the same place.
+    owner.session = newSession(id, {
+      cwd: previous.cwd,
+      repoRoot: previous.repoRoot,
+      isRepo: previous.isRepo,
+      worktree: previous.worktree,
+      title: untitledLabel(previous.cwd),
+    });
+    // The stand-in is ours to choose; the TITLE on disk is not, and is left alone.
+    // Claude Code copies the cleared session's name into the new transcript, where nothing distinguishes it from a name somebody chose — so a named session goes on showing that name, exactly as `claude --resume` lists it. Overriding it would mean this app and the CLI disagreeing about what a session is called.
+    persistOpenTabs();
+    // A group says where this WORK lives, and clearing a session does not move the work — so the replacement joins the group its predecessor was in, rather than the tab visibly dropping out of its section.
+    // The predecessor keeps its own membership: it is still a real session, and still that group's history.
+    // Only the group carries over. A pin and a note are about one CONVERSATION, and that conversation still has its own row to hold them.
+    const group = groupState.groupOf[replaced];
+    if (group) void window.claudeUi.moveSessionToGroup(id, group).then(applyGroupState);
+    // The tab's identity is what decides which row is "open" and which session the bar names, and nothing else re-runs that match.
+    reconcileOpenTabs();
+    renderList();
+  }
+  // 'start' reports which session a tab is running, not a state it is in — and it fires mid-session on clear and compact, where setting a status would wipe a live one.
+  // The one SessionStart that does mean a state (a compaction ending) reaches us as 'idle', not as this.
+  if (status === 'start') return;
   setStatus(id, status);
   // A new session's title isn't on disk immediately; re-read on its status events until it is (this also replaces the tab's own stand-in row with the real one).
   if (tabs.some((t) => t.session.id === id) && !allSessions.some((s) => s.id === id)) void refreshFromDisk();

@@ -368,6 +368,9 @@ const STATUS_LABEL: Record<string, string> = {
 /**
  * A status dot's tooltip: the status as a label, plus whether it has been marked read.
  * Here rather than beside the dot it decorates, because the wording is the thing worth pinning — an unknown status used to render its own internal value at the user.
+ *
+ * It still falls back to the raw value, deliberately: a state this table has not been taught reads oddly rather than vanishing, which is the signal to name it.
+ * That only works while everything reaching here is MEANT to be a state — the identity marker `start` is not, and is filtered out where it is read rather than hidden here.
  */
 export function statusLabel(status: string | undefined, isAcked = false): string | null {
   if (!status) return null;

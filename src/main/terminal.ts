@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import * as pty from 'node-pty';
 import * as os from 'node:os';
 import { existsSync } from 'node:fs';
-import { SCOPE_ENV, statusSettingsFile } from './status';
+import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
 import { parseLaunchFlags } from '../shared/flags';
 import { getSettings } from './meta';
 import type { TerminalLaunch } from '../shared/types';
@@ -95,13 +95,16 @@ export function registerTerminalIpc(): void {
     });
     // `claude` is `$0`: it names the process in any error the shell itself prints, and it is not passed on to claude.
     const args = ['-l', '-i', '-c', SHELL_COMMAND, 'claude', ...claudeFlags];
+    const env = cleanEnv();
+    // Marks the terminal rather than the session, so the hook can still say which tab reported after `/clear` has replaced the session in it.
+    if (launch.tabToken) env[TAB_ENV] = launch.tabToken;
     const proc = pty.spawn(shell, args, {
       // xterm.js speaks 256-colour/truecolor; the old 'xterm-color' (8-colour) terminfo made claude pick a degraded palette for its TUI.
       name: 'xterm-256color',
       cols: 80,
       rows: 24,
       cwd: cwd && existsSync(cwd) ? cwd : os.homedir(),
-      env: cleanEnv(),
+      env,
     });
     terminals.set(id, proc);
 

@@ -62,13 +62,31 @@ What is deliberately NOT refused is anything merely risky — `--dangerously-ski
 Every session the app starts is created under an id the app mints, handed to `claude` as `--session-id`.
 The transcript then lands under exactly that id, so a tab knows which session it is running before the process has even spawned — and everything keyed by that id (the sidebar row, a group, a pin, a note, the status file) is right from the first paint.
 
-The alternative, letting `claude` pick and finding out afterwards, is what the app used to do, and the cost was spread across the whole renderer: a tab held a made-up `new-<timestamp>` id, a hook had to report the real one back through a per-terminal token, group membership for such a session was held in a second in-memory map until adoption, and a row created inside a group could still appear loose and jump into place a moment later.
+The alternative, letting `claude` pick and finding out afterwards, is what the app used to do, and the cost was spread across the whole renderer: a tab held a made-up `new-<timestamp>` id, group membership for such a session was held in a second in-memory map until the real id arrived, and a row created inside a group could still appear loose and jump into place a moment later.
 None of that exists now.
 
 A fork is the one launch that names two sessions: `--session-id <new> --resume <parent> --fork-session`, and `claude` honours both, so a fork is a row of its own immediately rather than one that arrives with the next disk read.
 
 `claude` refuses an id that is already in use, which turns out to be the same question as "does this session have a transcript" — nothing is written until the first prompt, so a session that never got one can be started again under its own id, and a session that has one is resumed by it.
 That is the single test `startTab` makes, and it is why a tab stopped before its first prompt keeps its identity instead of coming back as a different session.
+
+**What the flag cannot cover is an id changing mid-life**, and one thing does that: `/clear` ends the session and starts a fresh one in the same terminal, under an id Claude Code chooses.
+So a tab also carries a token, set as an environment variable on its pty and echoed back by the status hook, and a reported id that differs from the tab's own replaces it.
+Without that the tab goes on naming the session that just ended, and resuming it later reopens the wrong history.
+The token names the **terminal**, not the session, which is exactly why the tab's own id could not do the job.
+
+### A cleared session is a new session
+
+`/clear` is "start again here", so the app treats what comes out of it as a session with nothing in it: the folder is all that carries over, and the tab reads `New: <project>` until the session has something of its own, exactly as one started from the "+" does.
+Carrying the previous summary forward instead — which is what the code did at first — gave the new session a title, a first message and sibling marks belonging to a conversation it does not have.
+Its predecessor keeps everything of its own and stays in the list: it is a real session with a real transcript, and still resumable.
+Only the **group** follows the tab across, because a group says where the work lives and clearing does not move the work. A pin and a note are about one conversation, and that conversation still has its row to hold them.
+
+**The title on disk is left exactly as Claude Code writes it**, and that is a deliberate limit on the above.
+Claude Code copies the cleared session's `custom-title` into the new transcript, in the same record a deliberate name is written to and with nothing to tell the two apart — and since a custom title is preferred over a generated one when a row is labelled, a named session goes on wearing the name it was handed.
+The app could tell them apart, since it alone sees the end and the start arrive on one terminal, and an earlier version did exactly that.
+It was removed: `claude --resume` lists that session under the copied name, and an app that showed a different one would put two names on one session. **Staying legible next to the CLI beats being tidier than it.**
+In practice the case is narrow — 127 of 710 transcripts here carry a name at all, so clearing an unnamed session already produces a blank one with no help from us.
 
 ### Tab lifecycle: a tab can exist without a process
 
@@ -114,16 +132,22 @@ Refusing to launch is the better answer, and the repair for the underlying case 
 Rather than parse terminal output to guess a session's state, the app drives status from Claude Code hooks.
 On startup it writes a hook script and its own settings file to `~/.config/claude-ui/`, and passes that file to `claude --settings`, whose hooks merge with the user's own — so claude-ui never writes into `~/.claude/settings.json` (an earlier version did, and still strips those entries when it finds them).
 
-Every hook maps to a status, and there are five: `UserPromptSubmit` → busy, `PostToolUse` → busy, `Stop` → idle, `Notification` → waiting, `SessionEnd` → closed.
-Nothing else is hooked. `SessionStart` was, once, to report which session a tab was running; the app decides that itself now (see "The app chooses the session id"), so the event carries nothing it needs.
-The cleanup of hooks an older version injected into `~/.claude/settings.json` therefore scans every event in that file rather than the ones this version registers — an entry for a retired event would otherwise never be found again.
+Five events map straight to a status: `UserPromptSubmit` → busy, `PostToolUse` → busy, `Stop` → idle, `Notification` → waiting, `SessionEnd` → closed.
+One more is not that simple, and it cost a wrong guess to work out.
 
-**`SessionEnd` is not always an ending, and today we read it as one.**
-Its payload carries a `reason` — `clear`, `resume`, `logout`, `prompt_input_exit`, `other` — and the first two fire mid-session and leave `claude` running.
-The hook script ignores it, so every `SessionEnd` writes `closed`: after a `/clear` a working session shows a hollow dot reading "Not running", and because the status files are what the launch state is seeded from, that answer then survives a restart.
-The fix is to read `reason` in the hook and exit without writing on `clear` and `resume`.
+**`SessionStart` is identity, not state.** Its session id is what the terminal is running *now*, which is the only way to follow a `/clear` (below). The script writes an identity-only marker that the renderer applies to the tab and never shows as a dot, and it refuses to overwrite an existing status file — these files seed the dots at launch, and the event also fires mid-session, where a real status is worth keeping.
+For the same reason that marker is dropped when the launch state is read back: identity is answered by the tabs being restored around it, and seeding it would hand the renderer a status no dot has wording for.
 
+**`SessionEnd` ends the session it names, every time — including `clear` and `resume`.**
+Those two leave the *process* running, which makes them look like exceptions, and one was written here on that basis and reverted the same day.
+This app tracks **sessions, not processes**: `/clear` writes a last line to the old transcript and opens a new file under a new id, so the id the event carries really is finished, and declining to close it leaves a dead session showing a live dot for good.
+The process's next session arrives separately, as the `SessionStart` above.
+
+The general shape, for any hook added later: **ask what the event means for a SESSION before mapping it to a state.** An event named for a lifecycle is not necessarily about the lifecycle you are tracking.
+
+The cleanup of hooks an older version injected into `~/.claude/settings.json` scans every event in that file rather than the ones this version registers, so an entry for an event since dropped is still found.
 A hook also has about a second to answer before Claude Code moves on, so it must never wait on anything: answer, then finish detached.
+The script is covered by tests that run it the way Claude Code does — argument, JSON on stdin, `CLAUDE_UI` set — because it is the one part of the app that executes outside it.
 
 The hooks are scoped to claude-ui: it sets `CLAUDE_UI=1` on the terminals it spawns, and the hook script no-ops unless that variable is set, so sessions run in a plain terminal are left untouched.
 When it does fire, the script writes `~/.config/claude-ui/status/<id>.json`.

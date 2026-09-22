@@ -11,7 +11,19 @@ export { statusSettingsFile };
 /** Env var claude-ui sets on its terminals; the hook only reports when it is present. */
 export const SCOPE_ENV = 'CLAUDE_UI';
 
-/** Which Claude Code hook event maps to which status. */
+/**
+ * Per-terminal token, echoed back by the hook so the app can tell WHICH TAB a reported session belongs to.
+ *
+ * `--session-id` gives a session its identity at birth, and that is the whole of it for a session that runs and ends.
+ * This exists for the one thing that flag cannot cover: an id changing MID-LIFE. `/clear` ends the session and starts a fresh one, with an id Claude Code chooses, in the same terminal — without this the tab would go on pointing at the session that just ended.
+ */
+export const TAB_ENV = 'CLAUDE_UI_TAB';
+
+/**
+ * Which Claude Code hook event maps to which status.
+ *
+ * The question to ask of a new one is what the event MEANS, not what it is called: `SessionEnd` sounds like an ending and `SessionStart` like a beginning, and neither is reliably either.
+ */
 const HOOK_EVENTS: [string, string][] = [
   ['UserPromptSubmit', 'busy'],
   ['Stop', 'idle'],
@@ -23,13 +35,21 @@ const HOOK_EVENTS: [string, string][] = [
   // It fires once per tool call, so it is a busier stream than the rest of this table — cheap (one small file write, already debounced by the watcher) and it only ever re-asserts a state the session is already in.
   ['PostToolUse', 'busy'],
   // Ends reset the dot to empty: 'closed' has no color rule, so it renders hollow.
+  //
+  // EVERY SessionEnd IS AN END FOR THE SESSION IT NAMES, including the `clear` and `resume` reasons that leave the PROCESS running — measured: `/clear` writes a final line to the old transcript and opens a new file under a new id, so the id this event carries is genuinely finished.
+  // That distinction is the whole point: this app tracks SESSIONS, not processes. Declining to write `closed` here was tried on 2026-09-22 and reverted the same day; it left a dead session showing a live dot for good.
+  // What the process does next is the business of `SessionStart` below, which reports the id that succeeded this one.
   ['SessionEnd', 'closed'],
+  // NOT A STATUS: `start` reports only WHICH session a terminal is running, at the moment claude starts one.
+  // That is what lets a tab follow a `/clear` onto the session that replaced it — the one identity question `--session-id` cannot answer, since Claude Code chooses that id, not us.
+  // It must never overwrite a real status, because these files seed the dots at launch and this event also fires mid-session, on clear and compact; the script guards that.
+  ['SessionStart', 'start'],
 ];
 
 /**
  * A hook script Claude runs on each event.
- * It reports only for sessions launched by claude-ui (CLAUDE_UI set), extracts the session id from the JSON on stdin, and writes a status file the app watches.
- * Dependency-free and always exits 0.
+ * It reports only for sessions launched by claude-ui (CLAUDE_UI set), reads what it needs from the JSON on stdin, and writes a status file the app watches.
+ * Dependency-free and always exits 0. A hook has about a second before Claude Code moves on, so nothing here may wait on anything.
  */
 const HOOK_SCRIPT = `#!/usr/bin/env bash
 # Written by claude-ui. Reports Claude Code session status to the app, only for sessions launched by claude-ui (CLAUDE_UI is set on its terminals).
@@ -40,7 +60,12 @@ mkdir -p "$dir"
 input="$(cat)"
 sid="$(printf '%s' "$input" | grep -oE '"session_id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"([^"]+)"$/\\1/')"
 [ -n "$sid" ] || exit 0
-printf '{"status":"%s","ts":%s}\\n' "$status" "$(date +%s)" > "$dir/$sid.json"
+# 'start' carries identity only, so it must not overwrite a status: these files seed the dots at launch, and the event fires on clear and compact MID-session, where a session already has a status worth keeping.
+# A brand-new session has no file yet, which is the case this still writes for.
+if [ "$status" = start ] && [ -e "$dir/$sid.json" ]; then
+  exit 0
+fi
+printf '{"status":"%s","ts":%s,"tab":"%s"}\\n' "$status" "$(date +%s)" "\${CLAUDE_UI_TAB:-}" > "$dir/$sid.json"
 exit 0
 `;
 
@@ -108,18 +133,28 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
   watch(statusDir, (_event, filename) => {
     if (!filename || !filename.endsWith('.json')) return;
     const id = filename.replace(/\.json$/, '');
-    void readStatus(id).then((status) => {
-      if (status === null) return;
+    void readStatus(id).then((entry) => {
+      if (entry === null) return;
       const win = getWindow();
-      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, status);
+      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, entry.status, entry.tab);
     });
   });
 }
 
-async function readStatus(id: string): Promise<string | null> {
+interface StatusEntry {
+  status: string;
+  /** The terminal that reported it (TAB_ENV), or '' for a session claude-ui is not running. */
+  tab: string;
+}
+
+async function readStatus(id: string): Promise<StatusEntry | null> {
   try {
-    const parsed = JSON.parse(await fs.readFile(path.join(statusDir, `${id}.json`), 'utf8')) as { status?: unknown };
-    return typeof parsed.status === 'string' ? parsed.status : null;
+    const parsed = JSON.parse(await fs.readFile(path.join(statusDir, `${id}.json`), 'utf8')) as {
+      status?: unknown;
+      tab?: unknown;
+    };
+    if (typeof parsed.status !== 'string') return null;
+    return { status: parsed.status, tab: typeof parsed.tab === 'string' ? parsed.tab : '' };
   } catch {
     return null;
   }
@@ -130,7 +165,8 @@ export async function clearStatuses(ids: string[]): Promise<void> {
   await Promise.all(ids.map((id) => fs.rm(path.join(statusDir, `${id}.json`)).catch(() => {})));
 }
 
-async function readAllStatuses(): Promise<Record<string, string>> {
+/** Every session's status as the renderer receives it at launch. Exported for the tests that pin what does and does not survive into it. */
+export async function readAllStatuses(): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   let files: string[];
   try {
@@ -141,8 +177,9 @@ async function readAllStatuses(): Promise<Record<string, string>> {
   for (const file of files) {
     if (!file.endsWith('.json')) continue;
     const id = file.replace(/\.json$/, '');
-    const status = await readStatus(id);
-    if (status) result[id] = status;
+    const entry = await readStatus(id);
+    // 'start' is identity, and identity is answered by the tabs being restored around it — seeding it here would hand the renderer a status no dot has wording for.
+    if (entry && entry.status !== 'start') result[id] = entry.status;
   }
   return result;
 }

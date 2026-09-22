@@ -10,6 +10,10 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 
 - A session stopped before you had sent it anything comes back as the same session when you start it again, keeping its pin, note and group, instead of returning as a new one.
 
+### Fixed
+
+- A session you `/clear` stays in the group it was in, instead of the tab dropping out of its section.
+
 ## 0.3.0 — 2026-08-29
 
 ### Added
