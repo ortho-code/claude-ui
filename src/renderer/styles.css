@@ -307,8 +307,8 @@ body {
   background: var(--accent);
 }
 
+/* The cursor is set inline by the resizer helper, from the handle being dragged. */
 body.resizing {
-  cursor: col-resize;
   user-select: none;
 }
 

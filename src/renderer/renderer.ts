@@ -29,6 +29,7 @@ import {
 } from './logic';
 import { parseLaunchFlags } from '../shared/flags';
 import { installTooltips, setTooltip } from './tooltip';
+import { installResizer } from './resizer';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
 import Sortable from 'sortablejs';
@@ -3169,27 +3170,15 @@ new ResizeObserver(() => fitActive()).observe(terminalsEl);
 
 // Drag the divider between the sidebar and the terminal to resize the session list; the width is remembered across launches.
 const sidebar = document.getElementById('sidebar')!;
-const sidebarResizer = document.getElementById('sidebar-resizer')!;
 const SIDEBAR_MIN = 220;
 const SIDEBAR_MAX = 640;
 // The width is restored with the rest of the view state (restoreUiState), not read here.
-sidebarResizer.addEventListener('mousedown', (event) => {
-  event.preventDefault();
-  document.body.classList.add('resizing');
-  sidebarResizer.classList.add('dragging');
-  const onMove = (move: MouseEvent): void => {
-    const width = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, move.clientX - sidebar.getBoundingClientRect().left));
-    sidebar.style.flexBasis = `${width}px`;
-  };
-  const onUp = (): void => {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-    document.body.classList.remove('resizing');
-    sidebarResizer.classList.remove('dragging');
-    persistUi();
-  };
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
+installResizer(document.getElementById('sidebar-resizer')!, {
+  target: sidebar,
+  axis: 'x',
+  min: SIDEBAR_MIN,
+  max: SIDEBAR_MAX,
+  onEnd: () => persistUi(),
 });
 
 newButton.addEventListener('click', async () => {
