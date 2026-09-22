@@ -117,7 +117,7 @@ function normalizeSettings(raw: unknown): Settings {
 function defaultUi(): UiState {
   return {
     search: '',
-    filters: { pinned: false, open: false, live: false, worktree: false, siblings: false, noted: false, archived: false },
+    filters: { pinned: false, open: false, live: false, worktree: false, gone: false, siblings: false, noted: false, archived: false },
     datePreset: 'any',
     dateFrom: null,
     dateTo: null,

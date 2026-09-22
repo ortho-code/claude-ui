@@ -164,6 +164,7 @@ describe('sessionPasses', () => {
     openOnly: false,
     liveOnly: false,
     worktreeOnly: false,
+    goneOnly: false,
     siblingOnly: false,
     notedOnly: false,
     archivedOnly: false,
@@ -203,6 +204,17 @@ describe('sessionPasses', () => {
   it("matches a group name only on that group's own members", () => {
     const groupNames = new Map([['other', 'Terminal work']]);
     expect(sessionPasses(session({ id: 's1' }), { ...base, text: 'terminal', groupNames })).toBe(false);
+  });
+
+  // The set worth finding: what to clean up, or what to put a folder back for. It asks the row's own question rather than a second rule that could disagree with the dimming.
+  it('shows only sessions whose folder is gone when asked', () => {
+    const alive = session({ id: 'a' });
+    const dead = session({ id: 'b', cwd: '/gone', cwdExists: false });
+    expect(sessionPasses(dead, { ...base, goneOnly: true })).toBe(true);
+    expect(sessionPasses(alive, { ...base, goneOnly: true })).toBe(false);
+    // Off, it hides nothing.
+    expect(sessionPasses(alive, base)).toBe(true);
+    expect(sessionPasses(dead, base)).toBe(true);
   });
 
   it('shows only live sessions when asked, which is what the stop action needs', () => {

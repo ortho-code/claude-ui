@@ -121,6 +121,8 @@ export interface UiState {
     open: boolean;
     live: boolean;
     worktree: boolean;
+    /** Sessions whose folder is gone. */
+    gone: boolean;
     siblings: boolean;
     noted: boolean;
     archived: boolean;

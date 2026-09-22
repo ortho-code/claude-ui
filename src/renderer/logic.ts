@@ -175,6 +175,8 @@ export interface FilterCriteria {
   /** Show only LIVE sessions — a claude process behind them. Narrower than openOnly, which counts a cold tab too. */
   liveOnly: boolean;
   worktreeOnly: boolean;
+  /** Show only sessions that cannot run because their folder is gone — the set worth finding to clean up, or to put a folder back for. */
+  goneOnly: boolean;
   /** Show only members of a multi-session family (siblings). */
   siblingOnly: boolean;
   archivedOnly: boolean;
@@ -205,6 +207,8 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   if (c.openOnly && !c.open?.has(key)) return false;
   if (c.liveOnly && !c.live?.has(key)) return false;
   if (c.worktreeOnly && !session.worktree) return false;
+  // The same question the row asks itself, through the same function — a second rule for "is this dead" would be able to disagree with the dimming.
+  if (c.goneOnly && unstartableReason(session) === null) return false;
   if (c.siblingOnly && !session.isSibling) return false;
   if (c.notedOnly && !c.notes?.has(key)) return false;
   if (c.dateFrom !== null || c.dateTo !== null) {

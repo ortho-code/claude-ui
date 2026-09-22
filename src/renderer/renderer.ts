@@ -48,6 +48,7 @@ const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonE
 const siblingFilter = document.getElementById('sibling-filter') as HTMLButtonElement;
 const noteFilter = document.getElementById('note-filter') as HTMLButtonElement;
 const archivedFilter = document.getElementById('archived-filter') as HTMLButtonElement;
+const goneFilter = document.getElementById('gone-filter') as HTMLButtonElement;
 const filterToggle = document.getElementById('filter-toggle') as HTMLButtonElement;
 const collapseToggle = document.getElementById('collapse-toggle') as HTMLButtonElement;
 const filterPanel = document.getElementById('filter-panel')!;
@@ -252,6 +253,7 @@ let showPinnedOnly = false;
 let showOpenOnly = false;
 let showLiveOnly = false;
 let showWorktreeOnly = false;
+let showGoneOnly = false;
 let showSiblingsOnly = false;
 let showNotedOnly = false;
 let showArchivedOnly = false;
@@ -589,6 +591,7 @@ function isFiltering(): boolean {
     showOpenOnly ||
     showLiveOnly ||
     showWorktreeOnly ||
+    showGoneOnly ||
     showSiblingsOnly ||
     showNotedOnly ||
     showArchivedOnly ||
@@ -622,6 +625,7 @@ function passesFilters(session: SessionSummary, groupNames?: ReadonlyMap<string,
       ? new Set(tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)))
       : undefined,
     worktreeOnly: showWorktreeOnly,
+    goneOnly: showGoneOnly,
     siblingOnly: showSiblingsOnly,
     notedOnly: showNotedOnly,
     archivedOnly: showArchivedOnly,
@@ -700,6 +704,8 @@ function updateFilterStatus(matches: number, total: number): void {
   liveFilter.setAttribute('aria-pressed', String(showLiveOnly));
   worktreeFilter.classList.toggle('active', showWorktreeOnly);
   worktreeFilter.setAttribute('aria-pressed', String(showWorktreeOnly));
+  goneFilter.classList.toggle('active', showGoneOnly);
+  goneFilter.setAttribute('aria-pressed', String(showGoneOnly));
   siblingFilter.classList.toggle('active', showSiblingsOnly);
   siblingFilter.setAttribute('aria-pressed', String(showSiblingsOnly));
   noteFilter.classList.toggle('active', showNotedOnly);
@@ -718,6 +724,7 @@ function clearFilter(): void {
   showOpenOnly = false;
   showLiveOnly = false;
   showWorktreeOnly = false;
+  showGoneOnly = false;
   showSiblingsOnly = false;
   showNotedOnly = false;
   showArchivedOnly = false;
@@ -755,6 +762,7 @@ function uiSnapshot(): UiState {
       open: showOpenOnly,
       live: showLiveOnly,
       worktree: showWorktreeOnly,
+      gone: showGoneOnly,
       siblings: showSiblingsOnly,
       noted: showNotedOnly,
       archived: showArchivedOnly,
@@ -805,6 +813,7 @@ async function restoreUiState(): Promise<number> {
   showOpenOnly = state.filters.open;
   showLiveOnly = state.filters.live;
   showWorktreeOnly = state.filters.worktree;
+  showGoneOnly = state.filters.gone;
   showSiblingsOnly = state.filters.siblings;
   showNotedOnly = state.filters.noted;
   showArchivedOnly = state.filters.archived;
@@ -3215,12 +3224,14 @@ openFilter.innerHTML = OPEN_ICON;
 liveFilter.innerHTML = LIVE_ICON;
 siblingFilter.innerHTML = SIBLING_ICON;
 worktreeFilter.innerHTML = WORKTREE_ICON;
+goneFilter.innerHTML = FOLDER_GONE_ICON;
 noteFilter.innerHTML = NOTE_ICON;
 archivedFilter.innerHTML = ARCHIVE_ICON;
 wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
 wireFilterToggle(openFilter, () => (showOpenOnly = !showOpenOnly));
 wireFilterToggle(liveFilter, () => (showLiveOnly = !showLiveOnly));
 wireFilterToggle(worktreeFilter, () => (showWorktreeOnly = !showWorktreeOnly));
+wireFilterToggle(goneFilter, () => (showGoneOnly = !showGoneOnly));
 wireFilterToggle(siblingFilter, () => (showSiblingsOnly = !showSiblingsOnly));
 wireFilterToggle(noteFilter, () => (showNotedOnly = !showNotedOnly));
 wireFilterToggle(archivedFilter, () => (showArchivedOnly = !showArchivedOnly));

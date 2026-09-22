@@ -6,6 +6,10 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 
 ## Unreleased
 
+### Added
+
+- A filter for sessions whose folder is gone, next to the other filter pills — the set to clean up, or to put folders back for.
+
 ### Changed
 
 - A session stopped before you had sent it anything comes back as the same session when you start it again, keeping its pin, note and group, instead of returning as a new one.
