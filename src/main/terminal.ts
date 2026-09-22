@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, type WebContents } from 'electron';
 import * as pty from 'node-pty';
 import { existsSync } from 'node:fs';
 import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
@@ -37,14 +37,45 @@ function endSession(id: number, flush: boolean): void {
   setTimeout(insist, 1800);
 }
 
-/** A session's environment: the inherited one, marked as claude-ui's. */
-function sessionEnv(): { [key: string]: string } {
+/** What anything in a pty gets: the inherited environment, advertising 24-bit colour so claude emits its full TUI styling (e.g. the select-menu highlight) instead of a degraded fallback; the frontend xterm renders truecolor fine. */
+function ptyEnv(): { [key: string]: string } {
   const env = inheritedEnv();
-  // Mark this session as launched by claude-ui so the status hook reports it.
-  env[SCOPE_ENV] = '1';
-  // Advertise 24-bit colour so claude emits its full TUI styling (e.g. the select-menu highlight) instead of a degraded fallback; the frontend xterm renders truecolor fine.
   env.COLORTERM = 'truecolor';
   return env;
+}
+
+/** A session's environment: a pty's, marked as claude-ui's so the status hook reports it. */
+function sessionEnv(): { [key: string]: string } {
+  const env = ptyEnv();
+  env[SCOPE_ENV] = '1';
+  return env;
+}
+
+/**
+ * Give a spawned pty an id, route its output and exit to the window that asked, and record it as live.
+ * ONE place for a session's `claude` and a panel's shell alike, so both are stopped by the same escalation and swept at quit by the same pass.
+ */
+function spawnPty(sender: WebContents, file: string, args: string[], cwd: string, env: { [key: string]: string }): number {
+  const id = nextId++;
+  const proc = pty.spawn(file, args, {
+    // xterm.js speaks 256-colour/truecolor; the old 'xterm-color' (8-colour) terminfo made claude pick a degraded palette for its TUI.
+    name: 'xterm-256color',
+    cols: 80,
+    rows: 24,
+    cwd,
+    env,
+  });
+  terminals.set(id, proc);
+  proc.onData((data) => {
+    if (!sender.isDestroyed()) sender.send('terminal:data', id, data);
+  });
+  // The pty's own exit is the ONE place a session is recorded as over. Everything that stops one reads this rather than assuming its signal worked.
+  proc.onExit(({ exitCode }) => {
+    terminals.delete(id);
+    ending.delete(id);
+    if (!sender.isDestroyed()) sender.send('terminal:exit', id, exitCode);
+  });
+  return id;
 }
 
 /** What a session is launched with: the renderer's request plus the parts only the main process knows. */
@@ -105,7 +136,6 @@ export function registerTerminalIpc(): void {
     // HOW OFTEN depends entirely on how somebody works, so it is not worth guessing: on the machine this was written on exactly one resolved directory was missing, because a session that LEAVES a `claude -w` worktree records its original cwd and the reader follows that. Somebody who removes trees while sessions still point INTO them meets it constantly.
     // Refusing here rather than only in the UI, so nothing can reach a spawn by another route.
     if (!cwd || !existsSync(cwd)) throw new Error(`MISSING_CWD:${cwd}`);
-    const id = nextId++;
     // Guard on the settings file's existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
     // Stored flags are validated before they are written, so a failure here means a hand-edited meta.json; launch without them rather than refusing to start a session over it.
     const claudeFlags = claudeArgs({
@@ -118,28 +148,7 @@ export function registerTerminalIpc(): void {
     const env = sessionEnv();
     // Marks the terminal rather than the session, so the hook can still say which tab reported after `/clear` has replaced the session in it.
     if (launch.tabToken) env[TAB_ENV] = launch.tabToken;
-    const proc = pty.spawn(shell, args, {
-      // xterm.js speaks 256-colour/truecolor; the old 'xterm-color' (8-colour) terminfo made claude pick a degraded palette for its TUI.
-      name: 'xterm-256color',
-      cols: 80,
-      rows: 24,
-      cwd,
-      env,
-    });
-    terminals.set(id, proc);
-
-    const sender = event.sender;
-    proc.onData((data) => {
-      if (!sender.isDestroyed()) sender.send('terminal:data', id, data);
-    });
-    // The pty's own exit is the ONE place a session is recorded as over. Everything that stops one reads this rather than assuming its signal worked.
-    proc.onExit(({ exitCode }) => {
-      terminals.delete(id);
-      ending.delete(id);
-      if (!sender.isDestroyed()) sender.send('terminal:exit', id, exitCode);
-    });
-
-    return id;
+    return spawnPty(event.sender, shell, args, cwd, env);
   });
 
   ipcMain.on('terminal:input', (_event, id: number, data: string) => {
