@@ -2667,6 +2667,8 @@ function removeTab(tab: Tab): void {
   // Re-establish the active tab within the current workspace scope (or clear); this re-renders too.
   switchWorkspaceTerminal(activeProject);
   persistOpenTabs();
+  // Closing a LIVE tab takes its row out of the strip here, not when the pty's exit eventually lands — `closeTab` removes the tab first and kills the process after, so without this the strip lists a session nothing is running.
+  refreshSwitcher();
 }
 
 // User-initiated close: terminate the session (claude persists per turn, so its context is on disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
