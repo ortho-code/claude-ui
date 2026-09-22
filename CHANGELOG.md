@@ -20,6 +20,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - The live strip keeps still. It follows your tabs now, so a row only moves when you drag, open, close or regroup a tab — rows used to swap places whenever one of them wrote a message. Pinned sessions no longer float to the top of it.
 - Closing a live session's tab takes it out of the live strip at once, instead of a moment later.
 - The tab bar puts projects in the order you set, like the session list and the live strip. It used to order them by whichever project you happened to open a tab for first, which moved on its own as tabs came and went.
+- A session whose folder no longer exists says so instead of quietly starting in your home directory and moving itself there in the list. Such a session is dimmed and can't be opened or forked, and a project whose folder is gone can't start new sessions — with the reason on hover. Pinning, notes, archiving and deleting still work, and a session comes back to life if you put its folder back (for a worktree, recreate it at the same path).
 
 ## 0.3.0 — 2026-08-29
 

@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // The IPC handlers terminal.ts registers, captured so the tests can call them the way the renderer does.
-const { handlers, spawned } = vi.hoisted(() => ({
+const { handlers, spawned, seq } = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   spawned: [] as FakePty[],
+  // Never reset, unlike `spawned`: terminal.ts keeps its own map of live ptys across tests, and a recycled pid would have one test's signals counted against another's process.
+  seq: { pid: 4000 },
 }));
 
 /** Enough of node-pty's IPty to drive the stop paths: a pid to signal, the writes to inspect, and an exit we fire by hand. */
@@ -30,7 +32,7 @@ vi.mock('node-pty', () => ({
   spawn: () => {
     let onExit: (e: { exitCode: number }) => void = () => {};
     const proc: FakePty = {
-      pid: 4000 + spawned.length,
+      pid: seq.pid++,
       written: [],
       exit: (code = 0) => onExit({ exitCode: code }),
       onData: () => {},
@@ -169,6 +171,23 @@ describe('stopping a session', () => {
   afterEach(() => {
     kill.mockRestore();
     vi.useRealTimers();
+  });
+
+  /**
+   * A folder that is no longer there is REFUSED. It used to be swapped for the home directory in silence, so a session whose worktree had been removed ran in `~` and then wrote its transcript under the home project, moving in the sidebar.
+   * `claude -w` removes its own tree when the session ends, so this is the ordinary fate of a worktree session rather than an edge case.
+   */
+  it.each([['/definitely/not/here'], ['']])('refuses to start in a folder that is not there (%s)', async (cwd) => {
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+    await expect(handlers.get('terminal:start')!({ sender }, cwd, {})).rejects.toThrow(/MISSING_CWD/);
+    // Nothing was spawned, so there is no pty to leak and nothing to stop.
+    expect(spawned).toHaveLength(0);
+  });
+
+  it('starts in a folder that IS there', async () => {
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+    await expect(handlers.get('terminal:start')!({ sender }, process.cwd(), {})).resolves.toEqual(expect.any(Number));
+    expect(spawned).toHaveLength(1);
   });
 
   it('signals the process GROUP, not just the process it spawned', async () => {

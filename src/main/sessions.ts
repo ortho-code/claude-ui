@@ -91,6 +91,15 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
   return summary;
 }
 
+/** Whether a path is a directory right now. A file sitting where a folder was is as unusable as nothing at all, so it is not enough to ask whether the path exists. */
+async function isDirectory(dir: string): Promise<boolean> {
+  try {
+    return (await fs.stat(dir)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 /** The per-project directories under ~/.claude/projects ([] when the root is missing). */
 async function projectDirs(): Promise<string[]> {
   try {
@@ -114,6 +123,17 @@ export async function listSessions(): Promise<SessionSummary[]> {
   const summaries = (await Promise.all(files.map(summarizeCached))).filter(
     (s): s is SessionSummary => s !== null,
   );
+
+  // DOES THE FOLDER STILL EXIST, asked fresh on every listing rather than cached beside the summary: a folder can be removed or put back without the transcript changing, and a stale yes is what let a session start somewhere nobody chose.
+  // One stat per distinct path, not per session — hundreds of sessions share a handful of directories.
+  const dirs = new Set(summaries.flatMap((s) => [s.cwd, s.repoRoot]));
+  const exists = new Map(
+    await Promise.all([...dirs].map(async (dir) => [dir, await isDirectory(dir)] as const)),
+  );
+  for (const s of summaries) {
+    s.cwdExists = exists.get(s.cwd) ?? false;
+    s.repoRootExists = exists.get(s.repoRoot) ?? false;
+  }
 
   // Sibling grouping: sessions sharing a conversationId are one family.
   // No direction is derived — fork direction is not reliably recoverable from transcript data (see the plan) — so a multi-file family is marked as SIBLINGS.
@@ -308,6 +328,9 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
     isSibling: false,
     siblingIds: [],
     postCompactHeads,
+    // Both re-derived per listing, like the sibling marks: a folder can be removed or put back without the transcript changing, so the answer cannot be cached beside one.
+    cwdExists: true,
+    repoRootExists: true,
   };
 }
 

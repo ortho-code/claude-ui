@@ -376,6 +376,16 @@ button:hover {
   cursor: pointer;
 }
 
+/* A control that cannot act says so before it is pressed: no pointer, no hover, dimmed.
+   `.unavailable` goes with `aria-disabled` rather than the `disabled` property, because a natively
+   disabled button emits no mouse events and its tooltip — the only thing that says WHY — never
+   fires. See setUnavailable(). The native `:disabled` is covered too, for the controls that use it. */
+.icon-btn:disabled,
+.unavailable {
+  cursor: default;
+  opacity: 0.4;
+}
+
 /* Denser, for the tab bar, where every pixel is width a tab title loses. */
 .icon-btn.compact {
   padding: 0 3px;
@@ -403,7 +413,7 @@ button:hover {
 /* One hover for all of them, replacing a thirteen-selector list that a new control had to be
    remembered into. `:not(:disabled)` covers the two that opt out while inert — the tab close mid
    transition, and the group-jump button below two targets. */
-.icon-btn:not(:disabled):hover,
+.icon-btn:not(:disabled):not(.unavailable):hover,
 .note-badge:hover {
   background: var(--active);
   border-color: var(--accent);
@@ -1094,10 +1104,6 @@ button:hover {
   border: 1px solid var(--border);
 }
 
-.project h2 .project-add:hover {
-  color: var(--text);
-  background: var(--surface-hover);
-}
 
 /* Split button: the "+" and a dropdown caret joined into one control. The caret is hidden for
    non-repo folders (no worktree option), so the "+" keeps its full rounding then. */
@@ -1117,15 +1123,20 @@ button:hover {
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
-.split-button .project-add-caret:hover {
+.project h2 .project-add:not(.unavailable):hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.split-button .project-add-caret:not(.unavailable):hover {
   color: var(--text);
   background: var(--surface-hover);
 }
 
 /* Hovering either half accents the whole control's border (it's one split button); the per-half
    background above still shows which half you're about to click. */
-.split-button:hover .project-add,
-.split-button:hover .project-add-caret {
+.split-button:hover .project-add:not(.unavailable),
+.split-button:hover .project-add-caret:not(.unavailable) {
   border-color: var(--accent);
 }
 
@@ -1152,9 +1163,11 @@ button:hover {
 .split-button:has(.group-add-caret.menu-open) .group-add-caret {
   border-color: var(--accent);
 }
-/* Keep the active fill on the open caret even while hovering it — the .split-button :hover rule
-   above is more specific than `.project-add-caret.menu-open`, so match its specificity here (and win
-   by order) so the background doesn't flip to the hover colour and back as the pointer moves off. */
+/* Keep the active fill on the open caret even while hovering it, or the background flips to the hover
+   colour and back as the pointer moves off a menu that is still up.
+   It has to out-specify the per-half hover fill above, which is `.split-button .project-add-caret
+   :not(.unavailable):hover` — four classes — so this carries `:not(.unavailable)` for the fourth and
+   wins by order. An open menu on an unavailable half cannot happen anyway: it does not open one. */
 .split-button .project-add-caret.menu-open {
   background: var(--active);
 }
@@ -1287,6 +1300,19 @@ button:focus:not(:focus-visible) {
 .session:hover,
 .session:has(.menu-open) {
   background: var(--surface-hover);
+}
+
+/* A session whose folder is gone: it cannot be run, only managed (unpin, note, archive, delete).
+   Dimmed rather than hidden — it is still real history you may want to read or clean up — and the
+   default cursor says the row is not the way in, with the tooltip carrying the reason. The controls
+   inside keep their own pointer, since those still work. */
+.session.unstartable {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.session.unstartable .icon-btn {
+  cursor: pointer;
 }
 
 .session.open {
@@ -1844,6 +1870,7 @@ button:focus:not(:focus-visible) {
 
 /* Compact tier of the standard control (see .unarchive-btn): same 14px icon, tighter padding, so a
    tab keeps its density while the close stays a real click target. */
+
 /* While the session is exiting the button is inert, and says so: no hover, no pointer, and dimmed like any other unavailable control. */
 .tab-close:disabled {
   cursor: default;
@@ -1873,6 +1900,9 @@ button:focus:not(:focus-visible) {
   justify-content: center;
   height: 100%;
   color: var(--muted);
+  /* Most of what lands here is one sentence, but a refused start names the folder it could not use on a line of its own. */
+  white-space: pre-line;
+  text-align: center;
 }
 
 /* Custom tooltip (replaces native title=). One floating element, positioned by tooltip.ts. */
@@ -2108,9 +2138,19 @@ button:focus:not(:focus-visible) {
 
 /* A submenu-parent (.menu-open) holds the hover look while its child list is up, so moving the
    mouse into the submenu doesn't drop it back. */
-.kebab-menu button:hover,
+.kebab-menu button:not(.unavailable):hover,
 .kebab-menu button.menu-open {
   background: var(--surface-hover);
+}
+
+/* An action that is there but cannot be taken: dimmed, no hover, no pointer. It stays in the list so
+   the menu keeps its shape and the tooltip can say why — see MenuItem.disabled. */
+.kebab-menu button.unavailable {
+  color: var(--muted);
+  /* `.kebab-menu button` sets the pointer at a higher specificity than `.unavailable` alone, so the
+     hand has to be undone here: an arrow is what says "this will not do anything". */
+  cursor: default;
+  opacity: 0.55;
 }
 
 /* A submenu-parent row keeps its label left and pushes the ▸ marker to the right edge. */
@@ -2212,8 +2252,8 @@ button:focus:not(:focus-visible) {
 
 /* Hovering either half outlines the WHOLE control (it is one button); the per-half fill from the
    shared icon-control hover rule still shows which half is about to be clicked. */
-.group h3 .split-button:hover .group-add,
-.group h3 .split-button:hover .group-add-caret {
+.group h3 .split-button:hover .group-add:not(.unavailable),
+.group h3 .split-button:hover .group-add-caret:not(.unavailable) {
   border-color: var(--accent);
 }
 

@@ -20,6 +20,7 @@ import {
   type FilterCriteria,
   orderProjects,
   orderAsTabs,
+  unstartableReason,
 } from './logic';
 
 function session(over: Partial<SessionSummary> = {}): SessionSummary {
@@ -37,9 +38,35 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     isSibling: false,
     siblingIds: [],
     postCompactHeads: [],
+    // A session whose folders are both there, which is every case except the ones that say otherwise.
+    cwdExists: true,
+    repoRootExists: true,
     ...over,
   };
 }
+
+describe('unstartableReason', () => {
+  it('says nothing about a session whose folder is there', () => {
+    expect(unstartableReason(session())).toBeNull();
+  });
+
+  // The repo is fine and only the tree is gone, so the reason names the thing to put back — `git worktree add` at that path and the session works again.
+  it('names the worktree when only the worktree is gone', () => {
+    const gone = session({ cwd: '/repo/.claude/worktrees/wt', worktree: 'wt', cwdExists: false, repoRootExists: true });
+    expect(unstartableReason(gone)).toContain('worktree “wt” is gone');
+    expect(unstartableReason(gone)).toContain('/repo/.claude/worktrees/wt');
+  });
+
+  // The whole checkout is gone, so there is nothing smaller to point at.
+  it('names the folder when the project itself is gone', () => {
+    const gone = session({ cwd: '/gone', worktree: 'wt', cwdExists: false, repoRootExists: false });
+    expect(unstartableReason(gone)).toBe("This session's folder is gone, so it cannot run: /gone");
+  });
+
+  it('treats a plain session with no worktree the same way', () => {
+    expect(unstartableReason(session({ cwd: '/gone', cwdExists: false }))).toContain('/gone');
+  });
+});
 
 describe('sessionsByKey', () => {
   it('indexes every session by its own id (ids are the stable entity key)', () => {

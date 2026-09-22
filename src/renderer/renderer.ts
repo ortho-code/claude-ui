@@ -20,6 +20,7 @@ import {
   datePresetRange,
   projectsForSwitcher,
   orderAsTabs,
+  unstartableReason,
   hasVisibleOutput,
   statusLabel,
   stopControlState,
@@ -304,6 +305,8 @@ interface ProjectSectionEls {
   groupsBtn: HTMLButtonElement;
   /** The new-session split-button's dropdown caret (present only for a project with a folder). */
   addCaret?: HTMLElement;
+  /** The new-session "+" itself, disabled when the project's folder is gone. */
+  addBtn?: HTMLButtonElement;
 }
 // What each project's group menu offers, refreshed on every render so the menu can't name a group that has since been deleted or renamed.
 const jumpTargets = new Map<string, GroupJumpTarget[]>();
@@ -319,6 +322,8 @@ interface GroupSectionEls {
   count: HTMLElement;
   /** The new-session split-button's dropdown caret; hidden unless the project is a git repo. */
   addCaret: HTMLElement;
+  /** The new-session "+" itself, disabled when the project's folder is gone. */
+  addBtn: HTMLButtonElement;
   /** Holds the member rows; the indent and its rail live on this element. */
   members: HTMLElement;
   /** Shown instead of rows when the group has no members yet. */
@@ -448,6 +453,11 @@ interface Tab {
   booting?: boolean;
   /** Set while a user-initiated stop is in flight, so its exit cools the tab instead of closing it. */
   stopping?: boolean;
+  /**
+   * Why the last attempt to start this tab was refused, shown in place of the pane until it is tried again.
+   * A refusal is not an exit: the tab never had a process, so nothing arrives on the terminal to explain itself.
+   */
+  failure?: string;
   term: Terminal;
   fitAddon: FitAddon;
   el: HTMLElement;
@@ -991,7 +1001,14 @@ async function toggleArchiveFor(key: string): Promise<void> {
 
 // The per-session action list — one builder, shared by the row kebab (and any future surface that offers session actions, e.g. a tab context menu).
 function sessionMenuItems(session: SessionSummary): MenuItem[] {
-  const items: MenuItem[] = [{ label: 'Fork this session', onSelect: () => { void forkSession(session); } }];
+  // Forking RUNS claude in the session's folder, so it needs that folder to be there — but the item stays in the list, dimmed and carrying the reason, rather than vanishing.
+  // Everything below is bookkeeping about a session rather than a way to start one, so it stays available: cleaning up after a folder that has gone is exactly when you need it.
+  const cannotRun = unstartableReason(session);
+  const items: MenuItem[] = [
+    cannotRun
+      ? { label: 'Fork this session', disabled: cannotRun }
+      : { label: 'Fork this session', onSelect: () => { void forkSession(session); } },
+  ];
   const siblings = siblingsOf(session);
   if (siblings.length > 0) {
     items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
@@ -1398,6 +1415,12 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
     els.groupsBtn.hidden = targets.length < 2;
     els.groupsBtn.disabled = isFiltering();
     if (els.addCaret) els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
+    // Nothing can be started in a folder that is not there. Disabled rather than hidden: the project still has sessions to read, and a control that vanishes explains nothing — the tooltip does.
+    const rootGone = !project.rootExists;
+    const goneReason = rootGone ? `This project's folder is gone: ${project.repoRoot}` : null;
+    if (els.addBtn) setUnavailable(els.addBtn, goneReason, 'New session in this project');
+    if (els.addCaret) setUnavailable(els.addCaret, goneReason, 'New session options');
+    els.section.classList.toggle('root-gone', rootGone);
     for (const { group, sessions } of project.groups) {
       const groupEls = groupSections.get(group.id) ?? createGroupSection(group.id);
       groupSections.set(group.id, groupEls);
@@ -1407,6 +1430,9 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
       groupEls.label.textContent = group.name;
       groupEls.count.textContent = String(sessions.length);
       groupEls.addCaret.hidden = !project.isRepo; // worktree option only for git repos
+      // A group starts its sessions in the project's folder, so it is gated by the same fact.
+      setUnavailable(groupEls.addBtn, goneReason, 'New session in this group');
+      setUnavailable(groupEls.addCaret, goneReason, 'New session options');
       groupEls.empty.hidden = sessions.length > 0;
       for (const session of sessions) {
         const row = getOrCreateRow(entityKey(session));
@@ -1632,6 +1658,24 @@ async function renameProject(repoRoot: string): Promise<void> {
 
 // A small floating kebab menu, generic over its items so the project-heading and session-row kebabs share the open/close/outside-click machinery.
 // An item may carry a `submenu`: it then opens a child list on hover (one level deep) instead of running an action.
+/**
+ * Mark a control unavailable, carrying the reason, or available again when `reason` is null.
+ *
+ * `aria-disabled` rather than the `disabled` PROPERTY, and that is the whole point: a natively disabled button emits no mouse events in Chromium, so the tooltip delegated from `document` never fires and the one thing that says WHY is invisible.
+ * The click is refused by the handler instead, which `unavailable()` answers for.
+ */
+function setUnavailable(control: HTMLElement, reason: string | null, tooltipWhenAvailable?: string): void {
+  control.classList.toggle('unavailable', reason !== null);
+  if (reason) control.setAttribute('aria-disabled', 'true');
+  else control.removeAttribute('aria-disabled');
+  setTooltip(control, reason ?? tooltipWhenAvailable ?? null);
+}
+
+/** Whether a control has been marked unavailable, for the handlers that must then do nothing. */
+function unavailable(control: HTMLElement): boolean {
+  return control.getAttribute('aria-disabled') === 'true';
+}
+
 interface MenuItem {
   label: string;
   onSelect?: () => void;
@@ -1646,6 +1690,11 @@ interface MenuItem {
   badge?: NudgeStatus;
   /** Dims the label — used for "Ungrouped", which is a place rather than a named thing. */
   muted?: boolean;
+  /**
+   * The action exists but cannot be taken right now, with `disabled` saying why.
+   * Kept in the list rather than dropped: a menu that changes SHAPE is one you have to re-read, and an action that silently disappears looks like it was never there — where a dimmed one with a reason answers the question you opened the menu to ask.
+   */
+  disabled?: string;
 }
 let openMenuEl: HTMLElement | null = null;
 let openMenuAnchor: HTMLElement | null = null;
@@ -1692,6 +1741,12 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = item.label;
+    if (item.disabled) {
+      // Nothing is wired below: it takes no click and opens no submenu, and it carries the reason as its tooltip.
+      setUnavailable(button, item.disabled);
+      menu.append(button);
+      continue;
+    }
     // A row that names something countable (a group, say): a status dot leads, the label takes the room it needs and ellipsizes, and the count sits in its own column at the right.
     if (item.count !== undefined) {
       button.classList.add('has-count');
@@ -1934,6 +1989,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   });
   heading.append(caret, icon, label, count, groupsBtn);
   let addCaret: HTMLElement | undefined;
+  let addBtn: HTMLButtonElement | undefined;
   if (folderCwd) {
     // Split button: the "+" is one-click "New session"; the caret opens a dropdown with worktree options. reconcileProjectSections shows the caret only for git repos.
     const split = document.createElement('div');
@@ -1944,6 +2000,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     setTooltip(add, 'New session in this project');
     add.addEventListener('click', (event) => {
       event.stopPropagation();
+      if (unavailable(add)) return; // aria-disabled still delivers the click, which is the trade for a tooltip that works
       void openNewSession(folderCwd);
     });
     const caret = document.createElement('button');
@@ -1953,6 +2010,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     setTooltip(caret, 'New session options');
     caret.addEventListener('click', (event) => {
       event.stopPropagation();
+      if (unavailable(caret)) return;
       openMenu(caret, [
         { label: 'New session', onSelect: () => void openNewSession(folderCwd) },
         { label: 'New worktree session…', onSelect: () => void openWorktreeSession(folderCwd) },
@@ -1961,6 +2019,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     split.append(add, caret);
     heading.append(split);
     addCaret = caret;
+    addBtn = add;
   }
   // Project options (rename now, hide later); stopPropagation so it doesn't toggle collapse.
   const kebab = document.createElement('button');
@@ -1991,7 +2050,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   });
   section.appendChild(heading);
 
-  return { section, heading, caret, count, label, groupsBtn, addCaret };
+  return { section, heading, caret, count, label, groupsBtn, addCaret, addBtn };
 }
 
 // Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky) over an indented well that holds its rows. Contents are updated on later renders.
@@ -2010,6 +2069,7 @@ function createGroupSection(id: string): GroupSectionEls {
   setTooltip(add, 'New session in this group');
   add.addEventListener('click', (event) => {
     event.stopPropagation();
+    if (unavailable(add)) return;
     const group = groupState.groups.find((g) => g.id === id);
     if (group?.repoRoot) void openNewSession(group.repoRoot, id);
   });
@@ -2020,6 +2080,7 @@ function createGroupSection(id: string): GroupSectionEls {
   setTooltip(addCaret, 'New session options');
   addCaret.addEventListener('click', (event) => {
     event.stopPropagation();
+    if (unavailable(addCaret)) return;
     const repoRoot = groupState.groups.find((g) => g.id === id)?.repoRoot;
     if (!repoRoot) return;
     openMenu(addCaret, [
@@ -2058,7 +2119,7 @@ function createGroupSection(id: string): GroupSectionEls {
   members.append(empty);
 
   section.append(heading, members);
-  return { section, heading, caret, label, count, addCaret, members, empty };
+  return { section, heading, caret, label, count, addCaret, addBtn: add, members, empty };
 }
 
 function getOrCreateRow(key: string): HTMLElement {
@@ -2100,6 +2161,11 @@ const LIVE_ICON =
   '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" /></svg>';
 
 // The archived filter's mark: a lidded box. Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
+// A folder with a slash through it: the session's directory is not there any more.
+// Drawn at the same size and weight as the other pill marks, so it sits with them rather than beside them.
+const FOLDER_GONE_ICON =
+  '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12.2V3.8h3.6l1.2 1.6H14v6.8z" /><line x1="3" y1="13.2" x2="13.4" y2="2.8" /></svg>';
+
 const ARCHIVE_ICON =
   '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" /></svg>';
 
@@ -2252,7 +2318,14 @@ function createSessionRow(key: string): HTMLElement {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (showArchivedOnly) return;
     const session = currentByKey.get(key);
-    if (session) void openSession(session);
+    if (!session) return;
+    // A session whose folder is gone cannot run anywhere. The row says so in its tooltip, and this answers the click for anyone who tries it anyway rather than opening a tab that could only fail.
+    const reason = unstartableReason(session);
+    if (reason) {
+      showToast(reason);
+      return;
+    }
+    void openSession(session);
   });
   return item;
 }
@@ -2266,7 +2339,10 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
   statusDots.set(session.id, els.dot);
 
   els.title.textContent = sessionLabel(session, '(no prompt yet)');
-  setTooltip(els.title, sessionLabel(session, '') || null);
+  // A session that cannot run says why on the row itself, rather than only when you try it: the tooltip is the one place with room for the folder's path.
+  const unstartable = unstartableReason(session);
+  row.classList.toggle('unstartable', unstartable !== null);
+  setTooltip(els.title, unstartable ?? (sessionLabel(session, '') || null));
 
   els.badge.hidden = !session.worktree;
   if (session.worktree) {
@@ -2358,6 +2434,9 @@ function newSession(id: string, over: Partial<SessionSummary> & Pick<SessionSumm
     isSibling: false,
     siblingIds: [],
     postCompactHeads: [],
+    // A session the app is about to start in a folder it just resolved: both are there, or the start would not have been offered.
+    cwdExists: true,
+    repoRootExists: true,
     ...over,
   };
 }
@@ -2547,6 +2626,7 @@ async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
     tab.startedAt = Date.now();
     // Every way a session begins — new, fork, worktree, resuming a cold tab — funnels through here, so the starting state belongs here rather than at any one call site.
     tab.booting = true;
+    tab.failure = undefined; // trying again clears what the last attempt said, so a stale reason cannot outlive it
     // Before the await, not after: otherwise a cold tab keeps saying "click its tab to resume it" across the spawn round-trip, which is the one thing you have just done.
     if (tab === activeTab) updatePlaceholder();
     renderTabBar(); // and for the same reason: the button has to show the pause while the process is on its way, not once it has arrived.
@@ -2584,6 +2664,19 @@ async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
     renderTabBar();
     updatePlaceholder();
     updateSidebarHighlight(); // its row's bar goes from muted to accent now that it is live
+  } catch (error) {
+    // The main process refuses to launch into a folder that is no longer there rather than starting somewhere else and saying nothing, so this is where the session gets told.
+    // It goes on the PLACEHOLDER rather than into the tab's terminal: the tab stays cold, and a cold tab's pane is covered by the placeholder, so anything written to the terminal would be hidden behind it.
+    // The tab is kept rather than closed — put the folder back and the same tab starts.
+    tab.terminalId = null;
+    tab.booting = false;
+    // The same wording the row's tooltip and the toast use, so the three cannot drift — this is the backstop for a folder that disappeared while the app was running, which no amount of gating can pre-empt.
+    const refused = /MISSING_CWD:/.test(error instanceof Error ? error.message : '');
+    tab.failure = refused
+      ? (unstartableReason({ ...tab.session, cwdExists: false }) ?? '')
+      : 'This session could not be started.';
+    if (tab === activeTab) updatePlaceholder();
+    showToast(tab.failure);
   } finally {
     tab.starting = false;
     // A start that ends without reaching the render above — a throw, or the early return below — must still hand the button back.
@@ -2620,8 +2713,17 @@ function activateTab(tab: Tab, start = true): void {
   // A cold tab starts the moment you select it — selecting IS starting, with no separate affordance, because that is how activating a tab has always behaved and laziness should show up only as a wait.
   // Fire-and-forget: activateTab is called from click handlers and stays synchronous.
   if (tab.terminalId === null) {
-    // No arguments: startTab resumes the tab's session, or — for a tab stopped before it ever wrote a transcript — starts it fresh under that same id, so nothing keyed to it is lost.
-    if (start) void startTab(tab);
+    // A tab whose folder has gone cannot be started, so say so rather than letting the spawn be refused a moment later with the same message.
+    // The tab is KEPT, cold: put the folder back — recreate the worktree at its old path — and the very same tab starts.
+    const reason = unstartableReason(tab.session);
+    if (reason) {
+      tab.failure = reason;
+      updatePlaceholder();
+      if (start) showToast(reason);
+    } else if (start) {
+      // No arguments: startTab resumes the tab's session, or — for a tab stopped before it ever wrote a transcript — starts it fresh under that same id, so nothing keyed to it is lost.
+      void startTab(tab);
+    }
   } else window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
   tab.term.focus();
   // Remembered twice: overall (where to reopen at launch) and for this project (where to return to when you switch back to it).
@@ -2933,6 +3035,11 @@ function updatePlaceholder(): void {
   placeholder.style.display = activeTab && !cold && !booting ? 'none' : 'flex';
   if (booting) {
     placeholder.textContent = `Starting “${sessionLabel(activeTab!.session)}”…`;
+    return;
+  }
+  // A start that was REFUSED says why, in place of "click its tab to resume it" — which would be telling you to do the thing that just failed.
+  if (activeTab?.failure) {
+    placeholder.textContent = activeTab.failure;
     return;
   }
   // Four different situations reach this pane, and each has a different next move — one sentence covering all of them tells someone with no sessions to pick one, and someone with no tabs to pick a tab that isn't there.

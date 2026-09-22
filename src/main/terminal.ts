@@ -1,6 +1,5 @@
 import { ipcMain } from 'electron';
 import * as pty from 'node-pty';
-import * as os from 'node:os';
 import { existsSync } from 'node:fs';
 import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
 import { parseLaunchFlags } from '../shared/flags';
@@ -141,6 +140,11 @@ const SHELL_COMMAND = 'claude "$@"';
 export function registerTerminalIpc(): void {
   // Async only for the settings read: the user's default flags live in meta.json, and a session has to be launched with the flags as they are NOW, not as they were when the app started.
   ipcMain.handle('terminal:start', async (event, cwd: string, launch: TerminalLaunch): Promise<number> => {
+    // A DIRECTORY THAT IS NOT THERE IS REFUSED, never quietly swapped for the home directory.
+    // The old fallback did exactly that, and said nothing: a session whose folder had been removed started in `~`, and then wrote its transcript under the HOME project, so it moved in the sidebar as well. The only visible sign was Claude Code asking for workspace trust on a directory nobody had chosen.
+    // HOW OFTEN depends entirely on how somebody works, so it is not worth guessing: on the machine this was written on exactly one resolved directory was missing, because a session that LEAVES a `claude -w` worktree records its original cwd and the reader follows that. Somebody who removes trees while sessions still point INTO them meets it constantly.
+    // Refusing here rather than only in the UI, so nothing can reach a spawn by another route.
+    if (!cwd || !existsSync(cwd)) throw new Error(`MISSING_CWD:${cwd}`);
     const id = nextId++;
     const shell = process.env.SHELL ?? '/bin/bash';
     // The shell is interactive (-i) as well as login
@@ -163,7 +167,7 @@ export function registerTerminalIpc(): void {
       name: 'xterm-256color',
       cols: 80,
       rows: 24,
-      cwd: cwd && existsSync(cwd) ? cwd : os.homedir(),
+      cwd,
       env,
     });
     terminals.set(id, proc);

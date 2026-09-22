@@ -39,6 +39,9 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   // Both shown as the sibling mark, and both can change MID-session when a fork lands.
   isSibling: true,
   siblingIds: true,
+  // Both change what the row IS — a session whose folder is gone cannot be opened, and says so — and both can flip while the app is running, with nothing in the transcript moving to announce it.
+  cwdExists: true,
+  repoRootExists: true,
   // A running session rewrites this constantly and no row is drawn from it; including it would make the guard useless.
   lastActivity: false,
   // Main-process bookkeeping that links a fork of a compacted session into its family. The renderer never reads it.
@@ -58,6 +61,22 @@ export function structuralSignature(sessions: SessionSummary[]): string {
     .map((s) => SIGNATURE_FIELDS.map((k) => String(s[k])).join('\0'))
     .sort()
     .join('\n');
+}
+
+/**
+ * Why a session cannot be started, or null when it can.
+ *
+ * ONE wording for every surface that has to say it — the tooltip on a row you cannot click, the toast when you click its tab anyway, and the pane of a tab you are already sitting on.
+ * They answer the same question at three different moments, so they say the same words; three copies of this sentence would drift the first time one of them was reworded.
+ *
+ * The two cases are worth telling apart. A missing WORKTREE leaves the repo intact and can be cut again at the same path, which is a thing to go and do; a missing PROJECT means the whole checkout is gone and nothing under it can run.
+ */
+export function unstartableReason(session: SessionSummary): string | null {
+  if (session.cwdExists) return null;
+  if (session.worktree && session.repoRootExists) {
+    return `The worktree “${session.worktree}” is gone, so this session cannot run. Recreate it at ${session.cwd} to use this session again.`;
+  }
+  return `This session's folder is gone, so it cannot run: ${session.cwd}`;
 }
 
 // Group by repo root so a repo's worktrees (and subdirectories) file under one heading.
@@ -285,6 +304,8 @@ export interface ProjectTree {
   count: number;
   /** Whether any session here is in a git repo (gates the worktree option on the "+"). */
   isRepo: boolean;
+  /** Whether the project's own folder is still there. False means nothing new can be started in it — the sessions remain, as history to read or clean up. */
+  rootExists: boolean;
 }
 
 // Pinned sessions rise to the front, everything else keeps the order it came in (callers pass a recency-sorted list).
@@ -327,7 +348,15 @@ export function buildProjectTree(
       .filter((g) => !hideEmptyGroups || g.sessions.length > 0);
     // A session whose group belongs to ANOTHER project (it moved cwd, say) is loose here rather than invisible: a row must always show up under the project it actually belongs to.
     const loose = ordered.filter((s) => !ids.has(state.groupOf[entityKey(s)] ?? ''));
-    return { repoRoot, groups, loose, count: ordered.length, isRepo: ordered.some((s) => s.isRepo) };
+    return {
+      repoRoot,
+      groups,
+      loose,
+      count: ordered.length,
+      isRepo: ordered.some((s) => s.isRepo),
+      // Every session under a heading shares its repoRoot, so any of them answers for the project; `some` rather than `every` so one stale summary cannot condemn a folder that is there.
+      rootExists: ordered.some((s) => s.repoRootExists),
+    };
   });
 }
 

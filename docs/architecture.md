@@ -126,11 +126,27 @@ Two things make it work now.
 `before-quit` already delays the quit, which is what gives the escalation room to land, so quitting is not a special path.
 Not implemented, and deliberately: their design also sweeps the group once more *after* the leader exits, for a grandchild that changed its own group. Nothing here has been observed needing it, and a `SIGKILL` aimed at a group id that no longer exists is the one version of this that could reach an innocent process.
 
-### A cwd that is not there becomes `$HOME`, silently
+### A session whose folder is gone
 
-The launcher falls back to the home directory when a session's recorded directory is missing, which is how a resumed session whose worktree has been removed ends up running `claude --resume` in `~`.
-Nothing fails; the session simply works somewhere nobody chose, and the first sign is Claude Code asking for workspace trust on the home directory.
-Refusing to launch is the better answer, and the repair for the underlying case is to rebuild the worktree where it stood rather than cut a second one — transcripts are keyed by that directory, so a new tree in a new place is a different session's history.
+A session cannot run anywhere but its own directory, so when that directory is missing the app **refuses**, in two layers.
+
+The launcher refuses the spawn outright. It used to substitute `$HOME` instead, silently: the session ran somewhere nobody chose, and then wrote its transcript under the home directory's project, so it moved in the sidebar too — the only sign being Claude Code asking for workspace trust on `~`.
+That is the backstop, and it is deliberately below the UI, so nothing can reach a spawn by another route.
+
+Above it, the session list carries two facts per session: whether its **own** directory exists and whether its **project's** does.
+They are separate because a removed worktree leaves its repo perfectly usable, while a removed repo takes its worktrees with it — and the wording differs for the same reason. A missing worktree names the tree to recreate, since `git worktree add` at the same path brings the session back; a missing project has nothing smaller to point at.
+Both are re-derived on every listing rather than cached beside the summary: a folder can be removed or put back without the transcript changing, and one stat per distinct path covers hundreds of sessions.
+
+What that buys is a row that says so before you click it. A session whose folder is gone is dimmed and unclickable with the reason in its tooltip, its **Fork** item stays in the kebab but dimmed and inert, and the "+" on a project whose root is gone is unavailable with the same explanation.
+An action that cannot be taken is shown rather than removed: a menu that changes shape has to be re-read, and an item that vanishes looks like it was never there, where a dimmed one answers the question you opened the menu to ask.
+
+**Unavailable is `aria-disabled`, never the `disabled` property**, and the reason is the tooltip: a natively disabled button emits no mouse events in Chromium, so a tooltip delegated from `document` never fires and the only thing explaining the refusal is invisible. `setUnavailable()` marks a control and carries the reason; the click handler refuses with `unavailable()`, which is the trade for a tooltip that works.
+**Management stays**: pin, note, archive and delete all keep working, because cleaning up after a folder that has gone is exactly when you need them.
+One function produces that sentence and the tooltip, the toast and the pane all use it, so they cannot drift.
+
+Two cases no amount of gating can pre-empt — a folder that disappears while the app is running, and a tab you are already sitting on — which is why the refusal still has to explain itself when it happens.
+A tab is kept, cold, rather than closed: the click meant "look at this", and the folder may come back.
+
 (`claude -w` also `git worktree lock`s the tree it cuts, and that lock outlives the session, so a later `git worktree remove` refuses until the lock of a dead pid is cleared.)
 
 ## Status cues

@@ -29,6 +29,10 @@ export interface SessionSummary {
   /** First user/assistant uuid after each compaction boundary. A fork of a compacted session adopts
    *  one of these as its own conversationId, which is how such a fork is linked into the family. Main-process bookkeeping; the renderer doesn't use it. */
   postCompactHeads: string[];
+  /** Whether `cwd` is still a directory. A session cannot run anywhere else, so false refuses everything that would start one. */
+  cwdExists: boolean;
+  /** Whether `repoRoot` is still a directory. Separate from `cwdExists` on purpose: a removed worktree leaves its repo perfectly fine, and a removed repo takes its worktrees with it. */
+  repoRootExists: boolean;
 }
 
 /**
