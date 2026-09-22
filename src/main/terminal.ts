@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import * as pty from 'node-pty';
 import { existsSync } from 'node:fs';
 import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
+import { inheritedEnv, shellCommand, terminateGroup } from './shell';
 import { parseLaunchFlags } from '../shared/flags';
 import { getSettings } from './meta';
 import type { TerminalLaunch } from '../shared/types';
@@ -10,34 +11,6 @@ const terminals = new Map<number, pty.IPty>();
 /** Sessions already on their way out, so a second press cannot restart the escalation behind the first. */
 const ending = new Set<number>();
 let nextId = 1;
-
-/**
- * How long a session gets to leave on its own after being asked, before it is killed outright.
- *
- * Under the app's quit budget: `before-quit` calls `terminateAll` and delays the actual quit, so the SIGKILL still lands while the app is alive to send it.
- */
-const KILL_GRACE_MS = 1200;
-
-/**
- * Signal a whole process GROUP rather than one process.
- *
- * MEASURED: node-pty's child leads its own session (`pid == pgid == sid` for every live session), so the pid doubles as the group id and the negative form reaches everything under it — the login shell, `claude`, and the MCP servers `claude` starts.
- * That matters here specifically: the app never talks to `claude` directly, only to a shell that runs it, so signalling the one process we know about is the one thing guaranteed NOT to reach the thing we mean to stop.
- * The leader is signalled separately too, so this still does something if a future node-pty stops calling `setsid` and the group does not exist.
- * Both are wrapped: a pid that has already gone is not an error, and a REAPED pid may already belong to somebody else — which is the sharper reason never to signal on a guess.
- */
-function signalGroup(pid: number, signal: NodeJS.Signals): void {
-  try {
-    process.kill(-pid, signal);
-  } catch {
-    // No such group: already gone, or never had one.
-  }
-  try {
-    process.kill(pid, signal);
-  } catch {
-    // Already reaped.
-  }
-}
 
 /**
  * End a session, and then make sure it actually ended.
@@ -54,12 +27,7 @@ function endSession(id: number, flush: boolean): void {
   if (!proc || ending.has(id)) return;
   ending.add(id);
   const { pid } = proc;
-  const insist = (): void => {
-    signalGroup(pid, 'SIGTERM');
-    setTimeout(() => {
-      if (terminals.has(id)) signalGroup(pid, 'SIGKILL');
-    }, KILL_GRACE_MS);
-  };
+  const insist = (): void => terminateGroup(pid, () => terminals.has(id));
   if (!flush) {
     insist();
     return;
@@ -69,17 +37,9 @@ function endSession(id: number, flush: boolean): void {
   setTimeout(insist, 1800);
 }
 
-/** Environment as node-pty wants it: no undefined values. */
-function cleanEnv(): { [key: string]: string } {
-  const env: { [key: string]: string } = {};
-  for (const [key, value] of Object.entries(process.env)) {
-    if (value === undefined) continue;
-    // Strip Claude Code harness variables.
-    // When the app is launched from inside a Claude session these get inherited, and the claude we spawn then thinks it is a nested SDK / child session and never persists its transcript.
-    // Keep our own CLAUDE_UI marker.
-    if (key !== SCOPE_ENV && (key === 'CLAUDECODE' || key.startsWith('CLAUDE_'))) continue;
-    env[key] = value;
-  }
+/** A session's environment: the inherited one, marked as claude-ui's. */
+function sessionEnv(): { [key: string]: string } {
+  const env = inheritedEnv();
   // Mark this session as launched by claude-ui so the status hook reports it.
   env[SCOPE_ENV] = '1';
   // Advertise 24-bit colour so claude emits its full TUI styling (e.g. the select-menu highlight) instead of a degraded fallback; the frontend xterm renders truecolor fine.
@@ -130,7 +90,7 @@ export function claudeArgs(opts: LaunchOptions): string[] {
 }
 
 /**
- * What the pty's shell runs.
+ * What the pty's shell runs (an interactive login shell, see shell.ts — that is what runs the rc files that put mise, direnv and the MCP servers' tools on `PATH`, like a real terminal).
  *
  * `"$@"` is the whole point: the flags reach claude as the shell's positional parameters (passed after this string, with `claude` standing in as `$0`) rather than being interpolated into this command, so no user-supplied value is ever parsed as shell syntax.
  * When claude exits, the shell exits too (no trailing `exec bash`), so the pty closes and the renderer can close the tab instead of leaving a bare shell behind.
@@ -146,10 +106,6 @@ export function registerTerminalIpc(): void {
     // Refusing here rather than only in the UI, so nothing can reach a spawn by another route.
     if (!cwd || !existsSync(cwd)) throw new Error(`MISSING_CWD:${cwd}`);
     const id = nextId++;
-    const shell = process.env.SHELL ?? '/bin/bash';
-    // The shell is interactive (-i) as well as login
-    // (-l): a non-interactive shell skips ~/.bashrc (the usual `case $- in *i*) ;; *) return;; esac` guard), so any rc-based per-directory setup — mise/asdf/direnv activation, PATH, env vars — never runs, and claude launches without the tools its MCP servers need.
-    // An interactive shell in the pty runs that setup for the session's directory, like a real terminal.
     // Guard on the settings file's existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
     // Stored flags are validated before they are written, so a failure here means a hand-edited meta.json; launch without them rather than refusing to start a session over it.
     const claudeFlags = claudeArgs({
@@ -158,8 +114,8 @@ export function registerTerminalIpc(): void {
       extra: parseLaunchFlags((await getSettings()).launchFlags).tokens,
     });
     // `claude` is `$0`: it names the process in any error the shell itself prints, and it is not passed on to claude.
-    const args = ['-l', '-i', '-c', SHELL_COMMAND, 'claude', ...claudeFlags];
-    const env = cleanEnv();
+    const { file: shell, args } = shellCommand(SHELL_COMMAND, claudeFlags, 'claude');
+    const env = sessionEnv();
     // Marks the terminal rather than the session, so the hook can still say which tab reported after `/clear` has replaced the session in it.
     if (launch.tabToken) env[TAB_ENV] = launch.tabToken;
     const proc = pty.spawn(shell, args, {
