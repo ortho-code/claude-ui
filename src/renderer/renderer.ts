@@ -2967,6 +2967,8 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
     });
     // The stand-in is ours to choose; the TITLE on disk is not, and is left alone.
     // Claude Code copies the cleared session's name into the new transcript, where nothing distinguishes it from a name somebody chose — so a named session goes on showing that name, exactly as `claude --resume` lists it. Overriding it would mean this app and the CLI disagreeing about what a session is called.
+    // The pairing is recorded because nothing else can observe it: neither transcript points at the other, and the connection exists only in this moment.
+    void window.claudeUi.recordClear(replaced, id, previous.title);
     persistOpenTabs();
     // A group says where this WORK lives, and clearing a session does not move the work — so the replacement joins the group its predecessor was in, rather than the tab visibly dropping out of its section.
     // The predecessor keeps its own membership: it is still a real session, and still that group's history.

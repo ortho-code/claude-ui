@@ -88,6 +88,8 @@ The app could tell them apart, since it alone sees the end and the start arrive 
 It was removed: `claude --resume` lists that session under the copied name, and an app that showed a different one would put two names on one session. **Staying legible next to the CLI beats being tidier than it.**
 In practice the case is narrow — 127 of 710 transcripts here carry a name at all, so clearing an unnamed session already produces a blank one with no help from us.
 
+What is kept is the **pairing**, appended to the audit log: which session became which. Nothing reads it back. It is recorded because it is observable exactly once and nowhere else — neither transcript points at the other — and whether a cleared session should be shown as related to its predecessor is a question better answered later from what happened than guessed at now.
+
 ### Tab lifecycle: a tab can exist without a process
 
 A tab owns at most one terminal, and `terminalId` is **nullable** — null means the tab is **cold**: it has its row in the bar, its title and its place in the layout, but no `claude` behind it.

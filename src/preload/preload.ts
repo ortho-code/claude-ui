@@ -40,6 +40,7 @@ const api: ClaudeUiApi = {
   renameGroup: (id, name) => ipcRenderer.invoke('meta:renameGroup', id, name),
   deleteGroup: (id) => ipcRenderer.invoke('meta:deleteGroup', id),
   moveSessionToGroup: (sessionId, groupId) => ipcRenderer.invoke('meta:moveSessionToGroup', sessionId, groupId),
+  recordClear: (from, to, title) => ipcRenderer.invoke('meta:recordClear', from, to, title),
   moveGroup: (id, move) => ipcRenderer.invoke('meta:moveGroup', id, move),
   getProjectOrder: () => ipcRenderer.invoke('meta:getProjectOrder'),
   seedProjectOrder: (roots) => ipcRenderer.invoke('meta:seedProjectOrder', roots),

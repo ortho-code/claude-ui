@@ -242,6 +242,11 @@ export interface ClaudeUiApi {
   seedProjectOrder(roots: string[]): Promise<string[]>;
   /** Reorder one project among the others. */
   moveProject(repoRoot: string, move: OrderMove): Promise<string[]>;
+  /**
+   * Note, for the record, that `/clear` replaced session `from` with session `to`.
+   * Data collection: nothing reads it back. The app is the only thing that can observe the two are connected, and only at the moment it happens.
+   */
+  recordClear(from: string, to: string, title: string): Promise<void>;
   /** Open a folder picker; resolves to the chosen path or null if cancelled. */
   pickFolder(): Promise<string | null>;
   /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */

@@ -36,6 +36,7 @@ import {
   setUiState,
   getSettings,
   setSettings,
+  recordClear,
 } from './meta';
 
 let dir: string;
@@ -82,6 +83,26 @@ describe('purgeSession', () => {
     expect(await getPinned()).toEqual([]);
     expect(await getArchived()).toEqual({});
     expect(await getOpenSessions()).toEqual(['conv2']);
+  });
+
+});
+
+describe('recordClear', () => {
+  // Data collection only: nothing reads this back. Nothing in either transcript links a cleared session to its predecessor, so the log is the only account that they are connected.
+  it('writes the pairing to the audit log, named or not', async () => {
+    await recordClear('old-a', 'new-a', 'Named');
+    await recordClear('old-b', 'new-b', '');
+    const log = await fs.readFile(path.join(dir, 'meta-audit.log'), 'utf8');
+    expect(log).toContain('clear old-a -> new-a title="Named"');
+    expect(log).toContain('clear old-b -> new-b');
+  });
+
+  // It is a lineage note, not a change to anything stored — so it must not rewrite meta.json to say so.
+  it('leaves the stored state untouched', async () => {
+    await togglePin('s1');
+    const before = await fs.readFile(path.join(dir, 'meta.json'), 'utf8');
+    await recordClear('old', 'new', 'Named');
+    expect(await fs.readFile(path.join(dir, 'meta.json'), 'utf8')).toBe(before);
   });
 });
 

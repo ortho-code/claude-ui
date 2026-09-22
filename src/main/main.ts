@@ -23,6 +23,7 @@ import {
   getNotes,
   setNote,
   setProjectName,
+  recordClear,
   getGroupState,
   createGroup,
   renameGroup,
@@ -413,6 +414,7 @@ async function createWindow(): Promise<void> {
 }
 
 ipcMain.handle('sessions:list', () => listSessions());
+ipcMain.handle('meta:recordClear', (_event, from: string, to: string, title: string) => recordClear(from, to, title));
 ipcMain.handle('sessions:worktreeExists', (_event, repoRoot: string, name: string) => worktreeExists(repoRoot, name));
 ipcMain.handle('meta:getPinned', () => getPinned());
 ipcMain.handle('meta:togglePin', (_event, id: string) => togglePin(id));

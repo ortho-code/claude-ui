@@ -371,14 +371,21 @@ let auditSeq = 0;
 function auditPath(): string {
   return path.join(app.getPath('userData'), 'meta-audit.log');
 }
-async function auditWrite(op: string, meta: Meta): Promise<void> {
+/**
+ * Append one stamped line and keep the file bounded.
+ * Separate from `auditWrite` so something worth recording that is NOT a meta write — a lineage event — costs an append rather than a pointless rewrite of meta.json.
+ */
+async function appendAudit(text: string): Promise<void> {
   try {
-    const line = `${new Date().toISOString()} #${(auditSeq += 1)} ${op} open=${JSON.stringify(meta.openSessions)} pinned=${JSON.stringify(meta.pinned)}\n`;
-    await fs.appendFile(auditPath(), line);
+    await fs.appendFile(auditPath(), `${new Date().toISOString()} #${(auditSeq += 1)} ${text}\n`);
     await trimAudit();
   } catch {
     // ignore
   }
+}
+
+async function auditWrite(op: string, meta: Meta): Promise<void> {
+  await appendAudit(`${op} open=${JSON.stringify(meta.openSessions)} pinned=${JSON.stringify(meta.pinned)}`);
 }
 
 // At the ~150 bytes a typical line costs, this keeps on the order of a thousand writes: enough to read back through several sessions of work.
@@ -473,6 +480,17 @@ export function purgeSession(id: string): Promise<void> {
     delete meta.groupOf[id];
     delete meta.notes[id];
   });
+}
+
+/**
+ * Record that `/clear` replaced session `from` with session `to`, which Claude Code started under a copy of `from`'s name.
+ *
+ * DATA COLLECTION, deliberately and only. Nothing reads it back, and the app's behaviour does not depend on it.
+ * It is here because the pairing is observable exactly once, in this app and nowhere else — nothing in either transcript links the two sessions, and the connection is gone the moment the event passes.
+ * Whether a cleared session should be presented as related to its predecessor is an open question; this is the record that will let it be answered from what happened rather than guessed.
+ */
+export function recordClear(from: string, to: string, title: string): Promise<void> {
+  return serialize(() => appendAudit(`clear ${from} -> ${to}${title ? ` title=${JSON.stringify(title)}` : ''}`));
 }
 
 export function getOpenSessions(): Promise<string[]> {
