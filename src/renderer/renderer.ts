@@ -28,9 +28,8 @@ import {
 import { parseLaunchFlags } from '../shared/flags';
 import { installTooltips, setTooltip } from './tooltip';
 import { strokeIcon } from './svg';
-import { installResizer } from './resizer';
 import { createTerminal, bindTerminal, routeTerminals } from './terminal';
-import { initSide, sideContextChanged, sideState, configRoot } from './panels/side';
+import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, configRoot } from './panels/tree';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
 import Sortable from 'sortablejs';
@@ -776,10 +775,10 @@ function uiSnapshot(): UiState {
     collapsedGroups: [...collapsedGroups],
     filterCollapsedProjects: [...filterFoldedProjects],
     filterCollapsedGroups: [...filterFoldedGroups],
-    // An empty flex-basis means the sidebar has never been dragged, so the stylesheet still owns the width.
-    sidebarWidth: parseInt(sidebar.style.flexBasis, 10) || null,
+    // Adopted into the layout tree's sizes on the first launch that has them, and not written again: the tree owns the sidebar's width now.
+    sidebarWidth: null,
     scrollTop: container.scrollTop,
-    panelState: sideState(),
+    panelState: treeState(),
   };
 }
 
@@ -825,9 +824,8 @@ async function restoreUiState(): Promise<number> {
   for (const id of state.collapsedGroups) if (liveGroups.has(id)) collapsedGroups.add(id);
   for (const id of state.filterCollapsedGroups) if (liveGroups.has(id)) filterFoldedGroups.add(id);
   // Nothing special is needed for a restore that lands with no filter on: the first render empties these, and stores that.
-  // The width lived in localStorage before this; adopt that value once, so an existing install keeps its sidebar, and let meta.json own it from here.
-  const width = state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth'));
-  if (width >= SIDEBAR_MIN && width <= SIDEBAR_MAX) sidebar.style.flexBasis = `${width}px`;
+  // The sidebar's width lived in localStorage, then in `sidebarWidth`; either is adopted once into the layout tree's sizes, so an existing install keeps its sidebar, and the tree owns it from here.
+  restoreTreeState(state.panelState, state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth')));
   // Only a CUSTOM range is restored as stored. The rolling presets are recomputed by applyDatePreset from the current moment, which is the whole point of "last 7 days" still meaning the last 7 days.
   if (state.datePreset === 'custom') {
     const picked = [state.dateFrom, state.dateTo].filter((ms): ms is number => ms !== null).map((ms) => new Date(ms));
@@ -2726,8 +2724,8 @@ function activateTab(tab: Tab, start = true): void {
   lastActiveKey = entityKey(tab.session);
   activeByProject[tab.session.repoRoot] = lastActiveKey;
   window.claudeUi.setActiveSession(lastActiveKey, tab.session.repoRoot);
-  // The panel beside the terminal runs in the active tab's folder, so it follows the tab.
-  sideContextChanged();
+  // Panels run in the active tab's folder, so they follow the tab.
+  treeContextChanged();
 }
 
 // Full workspace switch: bring the active terminal in line with the current scope (a project, or All).
@@ -2754,8 +2752,8 @@ function switchWorkspaceTerminal(repoRoot: string | null): void {
   renderTabBar();
   updatePlaceholder();
   updateSidebarHighlight();
-  // With no tab in scope the panel falls back to the project's root, or to nothing in the All view.
-  sideContextChanged();
+  // With no tab in scope the panels fall back to the project's root, or to nothing in the All view.
+  treeContextChanged();
 }
 
 // Drop a tab from the UI. Idempotent (a user close and the terminal's own exit can both fire). It does not touch the terminal process; callers terminate it when they need to.
@@ -2805,7 +2803,7 @@ function coolTab(tab: Tab): void {
   updatePlaceholder();
   updateSidebarHighlight();
   refreshSwitcher(); // drops it from the attention strip now rather than when its SessionEnd lands
-  sideContextChanged(); // the panel loses its tab too, and falls back to the project
+  treeContextChanged(); // the panels lose their tab too, and fall back to the project
 }
 
 /**
@@ -3149,29 +3147,16 @@ window.claudeUi.onClaudeMissing(() => {
 });
 
 function fitActive(): void {
-  if (!activeTab) return;
+  // A terminal area with no size is hidden — behind another panel of its group, or folded — and a fit now would tell the pty xterm's 80×24 default (the hidden-pane trap); the ResizeObserver below fits it once it has a size again.
+  if (!activeTab || terminalsEl.clientWidth === 0 || terminalsEl.clientHeight === 0) return;
   activeTab.fitAddon.fit();
   if (activeTab.terminalId === null) return; // cold: nothing to resize until it starts
   window.claudeUi.resizeTerminal(activeTab.terminalId, activeTab.term.cols, activeTab.term.rows);
 }
 
 window.addEventListener('resize', fitActive);
-// Re-fit when the terminal area itself changes height (e.g. the tab bar wrapping to a new row), not just on window resize, so the terminal always fills its pane instead of being clipped.
-// The ResizeObserver also covers sidebar resizing, since that changes the terminal pane's width.
+// Re-fit when the terminal area itself changes size (the tab bar wrapping to a new row, a divider dragged, the layout rebuilt), not just on window resize, so the terminal always fills its pane instead of being clipped.
 new ResizeObserver(() => fitActive()).observe(terminalsEl);
-
-// Drag the divider between the sidebar and the terminal to resize the session list; the width is remembered across launches.
-const sidebar = document.getElementById('sidebar')!;
-const SIDEBAR_MIN = 220;
-const SIDEBAR_MAX = 640;
-// The width is restored with the rest of the view state (restoreUiState), not read here.
-installResizer(document.getElementById('sidebar-resizer')!, {
-  target: sidebar,
-  axis: 'x',
-  min: SIDEBAR_MIN,
-  max: SIDEBAR_MAX,
-  onEnd: () => persistUi(),
-});
 
 newButton.addEventListener('click', async () => {
   // Show an active state while the folder picker is open (it has no persistent menu of its own), matching how the other header buttons look while their panel/menu is up.
@@ -3388,12 +3373,24 @@ void (async () => {
 })();
 
 installTooltips();
+// The window's layout, drawn now so the first paint is already the window: the default layout until the file has been read, which the start-up below does before it draws a single row.
+initTree({
+  where: () => ({
+    tab: activeTab ? { cwd: activeTab.session.cwd, repoRoot: activeTab.session.repoRoot, id: activeTab.session.id } : null,
+    project: activeProject,
+  }),
+  showToast,
+  hideToast,
+  persist: persistUi,
+});
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
   groupState = await window.claudeUi.getGroupState();
   activeProject = await window.claudeUi.getActiveProject();
   // Before the first render: restoring filters afterwards would draw the whole list and then visibly cut it down.
   const scrollTop = await restoreUiState();
+  // Before the rows and the tabs too: placing the layout moves the sidebar and the terminal area into it, and a move is cheapest, and invisible, while they are still empty.
+  await loadLayout();
   await renderSessions();
   await restoreOpenTabs();
   // Again, now that the tabs exist. Two filters — open, and running — are questions about the TABS, and the render above happened while there were none, so a restored "open" filter would otherwise show an empty list next to a full tab bar. It also puts the open marker on the rows, which used to wait for the next render for its own reasons.
@@ -3401,15 +3398,7 @@ void (async () => {
   // Last, because there is nothing to scroll until the rows are on screen. Later renders carry the offset along themselves.
   container.scrollTop = scrollTop;
   switchWorkspaceTerminal(activeProject);
-  // After the tabs, so the panel's first run is in the restored tab's folder rather than once for the project and again for the tab.
-  void initSide({
-    where: () => ({
-      tab: activeTab ? { cwd: activeTab.session.cwd, repoRoot: activeTab.session.repoRoot, id: activeTab.session.id } : null,
-      project: activeProject,
-    }),
-    showToast,
-    hideToast,
-    persist: persistUi,
-  });
+  // After the tabs, so a panel's first run is in the restored tab's folder rather than once for the project and again for the tab.
+  startPanels();
 })();
 updatePlaceholder();

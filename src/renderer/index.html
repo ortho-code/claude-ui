@@ -88,18 +88,18 @@
           </button>
         </div>
       </aside>
-      <div id="sidebar-resizer" class="resizer" data-tooltip="Drag to resize"></div>
       <section id="terminal-pane">
         <div id="tabbar"></div>
         <div id="terminals">
           <div id="term-placeholder" class="pane-placeholder">Pick a tab above, or a session in the sidebar, to resume it.</div>
         </div>
       </section>
-      <!-- The right side: built by panels/side.ts from the layout file, and hidden with its divider
-           while that file gives it nothing to show. -->
-      <div id="side-right-resizer" class="resizer" data-tooltip="Drag to resize" hidden></div>
-      <aside id="side-right" hidden></aside>
     </div>
+    <!--
+      #app is drawn by panels/tree.ts from the layout file, and the sidebar and the terminal area above are moved into it as panels before the first paint.
+      One the layout lets go of is parked here, never rebuilt, so whatever runs in it keeps running.
+    -->
+    <div id="parked" hidden></div>
     <div id="confirm-overlay" class="overlay" hidden>
       <div id="confirm-dialog" class="dialog" role="dialog" aria-modal="true">
         <p id="confirm-message" class="dialog-title"></p>
@@ -137,7 +137,7 @@
         <!-- Read-only: the folder is edited by hand, so this row only says where it is. -->
         <div class="dialog-section">
           <span class="dialog-label">Config folder</span>
-          <p class="dialog-detail">Holds <code>layouts/default.json</code>, which describes the panels beside the terminal, and the scripts it points at.</p>
+          <p class="dialog-detail">Holds <code>layouts/default.json</code>, which lays out the window and its panels, and the scripts it points at.</p>
           <div class="dialog-row">
             <code id="settings-config-path" class="dialog-path"></code>
             <button id="settings-config-reveal" type="button">Reveal</button>

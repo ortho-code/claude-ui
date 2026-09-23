@@ -311,23 +311,90 @@ body {
   min-height: 0;
 }
 
+/* The sidebar is a panel: it fills the node the layout gives it, whose size is the layout's business. */
 #sidebar {
-  width: 320px;
-  flex: 0 0 320px;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
-/* A draggable divider between two panes: the sidebar's and the right side's, one rule. */
-.resizer {
+/*
+  THE LAYOUT TREE (panels/tree.ts): rows and columns of nodes, a divider between every two.
+  A node's flex and its min along the split's axis are set inline from the file and the dragged sizes; both mins are 0 here so a node can shrink across the other axis.
+  A node does not clip: the sidebar's switcher opens past its own edge at a narrow width, as it always has.
+*/
+.split {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split.columns {
+  flex-direction: row;
+}
+
+.split.rows {
+  flex-direction: column;
+}
+
+/* A split with a note under it. */
+.split-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.node {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+/*
+  Always there between two neighbours, and always drawn, as a hairline down its middle: two panels on the same background would otherwise read as one.
+  Only a draggable one reacts to the pointer.
+*/
+.divider {
+  position: relative;
   flex: 0 0 5px;
-  cursor: col-resize;
   background: transparent;
 }
 
-.resizer:hover,
-.resizer.dragging {
+.divider::after {
+  content: "";
+  position: absolute;
+  background: var(--border);
+}
+
+.split.columns > .divider::after {
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 1px;
+}
+
+.split.rows > .divider::after {
+  left: 0;
+  right: 0;
+  top: 2px;
+  height: 1px;
+}
+
+.split.columns > .divider.drag {
+  cursor: col-resize;
+}
+
+.split.rows > .divider.drag {
+  cursor: row-resize;
+}
+
+.divider.drag:hover,
+.divider.dragging {
   background: var(--accent);
 }
 
@@ -1573,6 +1640,7 @@ button:focus:not(:focus-visible) {
 #terminal-pane {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--terminal-bg);
@@ -1924,23 +1992,17 @@ button:focus:not(:focus-visible) {
   text-align: center;
 }
 
-/* THE RIGHT SIDE: one group holding one panel, beside the terminal. Hidden, and its divider with it,
-   whenever the layout file gives it nothing to show, so a window without a layout is unchanged.
-   The same base as the sidebar: a column on --bg that holds its own scrolling. */
-#side-right {
-  flex: 0 0 320px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: var(--bg);
-}
-
+/*
+  A group: its shown panel under a header (or none, for a panel with a bar of its own), the others beside it, hidden.
+  A column on --bg that leaves the scrolling to the panel.
+*/
 .panel-group {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  background: var(--bg);
 }
 
 /* The group's header: title, the busy mark, the run's last word, Refresh. Body size at the group
