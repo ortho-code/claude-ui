@@ -27,7 +27,7 @@ import {
 } from './logic';
 import { parseLaunchFlags } from '../shared/flags';
 import { installTooltips, setTooltip } from './tooltip';
-import { strokeIcon } from './svg';
+import { chevronIcon, strokeIcon } from './svg';
 import { createTerminal, bindTerminal, routeTerminals } from './terminal';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, configRoot } from './panels/tree';
 import AirDatepicker from 'air-datepicker';
@@ -94,8 +94,8 @@ const FOLDER_ICON =
 // Every one of those resolved through system font fallback, which is how ⑂ ended up rendering from a MONOSPACE face beside its neighbours (see the family/worktree marks below).
 // These render the same whatever the system has installed, take their colour from `currentColor` like the other icons, and are drawn through `strokeIcon`, which keeps their weight equal at every size.
 // Chevrons, not filled triangles: the collapse-all button already says fold/unfold with a chevron, and a solid triangle would be the only filled shape in an outline icon set.
-const chevronDown = (size: number): string => strokeIcon(size, '<path d="M4 6L8 10L12 6" />');
-const chevronRight = (size: number): string => strokeIcon(size, '<path d="M6 4L10 8L6 12" />');
+const chevronDown = (size: number): string => chevronIcon('down', size);
+const chevronRight = (size: number): string => chevronIcon('right', size);
 const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
 const tickIcon = (size: number): string => strokeIcon(size, '<path d="M3.5 8.4L6.6 11.5L12.5 4.9" />', 1.5);
 const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4" />');
@@ -3193,6 +3193,8 @@ worktreeFilter.innerHTML = WORKTREE_ICON;
 goneFilter.innerHTML = FOLDER_GONE_ICON;
 noteFilter.innerHTML = NOTE_ICON;
 archivedFilter.innerHTML = ARCHIVE_ICON;
+// The switcher's and the attention strip's carets, from the same chevron as every other fold in the app.
+for (const caret of document.querySelectorAll<HTMLElement>('.switcher-chev, .footer-chev')) caret.innerHTML = chevronDown(11);
 wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
 wireFilterToggle(openFilter, () => (showOpenOnly = !showOpenOnly));
 wireFilterToggle(liveFilter, () => (showLiveOnly = !showLiveOnly));
