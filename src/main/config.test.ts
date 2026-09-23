@@ -3,20 +3,24 @@ import { mkdirSync, writeFileSync, chmodSync, rmSync } from 'node:fs';
 import * as path from 'node:path';
 
 // A real folder, so the script checks are made against a real filesystem rather than a fake one that agrees with the code.
-const { dataDir } = vi.hoisted(() => {
+const { dataDir, listeners, openPath } = vi.hoisted(() => {
   const { mkdtempSync } = require('node:fs') as typeof import('node:fs');
   const { tmpdir } = require('node:os') as typeof import('node:os');
   const { join } = require('node:path') as typeof import('node:path');
-  return { dataDir: mkdtempSync(join(tmpdir(), 'claude-ui-config-')) };
+  return {
+    dataDir: mkdtempSync(join(tmpdir(), 'claude-ui-config-')),
+    listeners: new Map<string, () => void>(),
+    openPath: vi.fn(async () => ''),
+  };
 });
 
 vi.mock('electron', () => ({
   app: { getPath: () => dataDir, setPath: () => {} },
-  ipcMain: { handle: () => {}, on: () => {} },
-  shell: { showItemInFolder: () => {} },
+  ipcMain: { handle: () => {}, on: (channel: string, fn: () => void) => listeners.set(channel, fn) },
+  shell: { openPath },
 }));
 
-import { readLayout, resolveScript } from './config';
+import { readLayout, registerConfig, resolveScript } from './config';
 import { configRoot, defaultLayoutFile, scriptsDir } from './paths';
 
 const write = (json: unknown): void => writeFileSync(defaultLayoutFile, typeof json === 'string' ? json : JSON.stringify(json));
@@ -93,5 +97,13 @@ describe('readLayout', () => {
   it('resolves a relative script against the config folder and leaves an absolute one alone', () => {
     expect(resolveScript('scripts/x.sh')).toBe(path.join(configRoot, 'scripts', 'x.sh'));
     expect(resolveScript('/opt/x')).toBe('/opt/x');
+  });
+});
+
+describe('config:reveal', () => {
+  it('opens the config folder itself, not its parent with the folder selected', () => {
+    registerConfig(() => null);
+    listeners.get('config:reveal')!();
+    expect(openPath).toHaveBeenCalledWith(configRoot);
   });
 });

@@ -26,7 +26,7 @@ vi.mock('electron', () => ({
     handle: (channel: string, fn: (...a: unknown[]) => unknown) => handlers.set(channel, fn),
     on: (channel: string, fn: (...a: unknown[]) => unknown) => handlers.set(channel, fn),
   },
-  shell: { showItemInFolder: () => {} },
+  shell: { openPath: async () => '' },
 }));
 vi.mock('node:child_process', () => ({
   spawn: (file: string, args: string[], options: FakeChild['options']) => {

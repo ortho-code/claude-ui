@@ -84,7 +84,8 @@ export function registerConfig(getWindow: () => BrowserWindow | null): void {
   for (const dir of [configRoot, layoutsDir, scriptsDir]) mkdirSync(dir, { recursive: true });
 
   ipcMain.handle('config:getLayout', () => readLayout());
-  ipcMain.on('config:reveal', () => shell.showItemInFolder(configRoot));
+  // `openPath`, not `showItemInFolder`: that one opens the folder's PARENT with the folder selected, and a Linux file manager without FileManager1 support (WSLg's) selects nothing, which reads as the wrong folder.
+  ipcMain.on('config:reveal', () => void shell.openPath(configRoot));
 
   const watchers = new Map<string, FSWatcher>();
   let timer: NodeJS.Timeout | null = null;
