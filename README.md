@@ -99,7 +99,7 @@ The sizes you drag to, the groups you fold and the panel you pick in a group are
 A group with several panels switches between them from a strip of icons on its edge: hovering an icon names the panel, and a dot on it says a command failed or a session is waiting for you.
 
 Every id, of a node or a panel, is unique in the file and uses lowercase letters, digits, hyphens and underscores.
-A panel needs an `id` and a `type`; `title`, `icon` and `hidden` are optional.
+A panel needs an `id` and a `type`; `title`, `icon` and `hidden` are optional, and whatever the type itself takes goes under `options`.
 `icon` picks its icon by name: `git`, `list`, `check`, `eye`, `bug`, `book`, `clock`, `server`, `play`, `search`, `bell`, `terminal`, `command`, `sessions`, `claude` or `alert`.
 A panel that cannot run wears `alert` whatever it names, so a broken one stands out on a strip of icons too.
 
@@ -107,8 +107,8 @@ The panel types:
 
 - `sessions` is the sidebar and `claude` is the terminal area with its tabs.
   Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
-- `command` runs something and shows what it printed, given one of two ways: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
-- `terminal` is a plain shell, the same login shell your sessions run in.
+- `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
+- `terminal` is a plain shell, the same login shell your sessions run in. It takes no options.
 
 This one puts a shell in a drawer under the terminal area and two commands behind icons on the right, and lets the sidebar, the drawer and the right side fold:
 
@@ -122,14 +122,15 @@ This one puts a shell in a drawer under the terminal area and two commands behin
       { "id": "drawer", "size": 0.3, "collapsible": true, "panels": [{ "id": "shell", "type": "terminal" }] }
     ] },
     { "id": "right", "size": "360px", "collapsible": true, "panels": [
-      { "id": "status", "type": "command", "command": "git status --short", "icon": "git" },
-      { "id": "checks", "type": "command", "script": "scripts/checks.sh", "title": "Checks", "icon": "check" }
+      { "id": "status", "type": "command", "icon": "git", "options": { "command": "git status --short" } },
+      { "id": "checks", "type": "command", "title": "Checks", "icon": "check", "options": { "script": "scripts/checks.sh" } }
     ] }
   ] }
 }
 ```
 
-A relative `script` resolves against the config folder, so `scripts/` is the place to keep one, and it has to be executable.
+A relative `script` resolves against the config folder, so `scripts/` is the place to keep one, and it has to be executable; `~/` works too.
+It never resolves against the project, so switching to a repo cannot run that repo's file in place of yours. To run a project's own script, say so with a command line such as `"command": "./bin/status"`, which runs in the project's folder.
 
 The command runs in the active tab's folder, or the selected project's root when no tab is open, and runs again when you switch project or tab or press Refresh.
 While it is out of sight, behind another panel or folded away, it does not run; it runs once when you show it again, if the folder changed meanwhile.
@@ -150,7 +151,8 @@ When the shell exits, the panel says so, and any key starts a new one in the cur
 It keeps running while hidden or folded, and while you edit the layout file around it.
 It gets the same variables, and a `claude` you start in it by hand is not tracked as one of the app's sessions.
 
-A mistake in the file — an unknown type, a missing id, a size it cannot read, a script that is not there or not executable — is named in the place of the thing that is wrong, and a file that does not parse leaves the last good layout up and names the position.
+A mistake in the file — an unknown type, a missing id, a size it cannot read, an option the type does not have, a script that is not there or not executable — is named in the place of the thing that is wrong, and a file that does not parse leaves the last good layout up and names the position.
+A panel's options are checked by the panel itself, when it appears and before each run, so a missing script is named a moment after the rest.
 
 ## Install a build
 

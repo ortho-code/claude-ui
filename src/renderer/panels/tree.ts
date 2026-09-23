@@ -50,6 +50,10 @@ interface Mounted {
   action: HTMLButtonElement | null;
   /** The dot on its rail icon (P8). */
   badge: HTMLElement;
+  /** Why the panel says it cannot run, as it last reported: drawn in its place, with `alert` on its rail icon. */
+  problems: string[];
+  /** What the panel says about itself that does not stop it, for its group's note line. */
+  notes: string[];
 }
 
 /** Where a child sits in its split: along which axis, which edge it folds toward, and whether it is folded. The root has no axis and cannot fold. */
@@ -79,12 +83,23 @@ let active: PanelState['active'] = {};
 let live = false;
 /** Whether the toast up right now is the tree's, so a good read takes it down without touching anybody else's. */
 let toasted = false;
+/** A render asked for by a panel reporting something new, run once the current task is done so a report made during a render never renders inside it. */
+let renderQueued = false;
+
+function queueRender(): void {
+  if (renderQueued) return;
+  renderQueued = true;
+  queueMicrotask(() => {
+    renderQueued = false;
+    render();
+  });
+}
 
 /** Draw the default layout now, before the first paint, and follow the layout file from here on. */
 export function initTree(treeHost: TreeHost): void {
   host = treeHost;
   app = document.getElementById('app')!;
-  const view = resolveLayout({ configRoot: '', file: '', status: 'missing', error: null, json: null, scripts: {} }, TYPES);
+  const view = resolveLayout({ configRoot: '', file: '', status: 'missing', error: null, json: null }, TYPES);
   if (view.kind === 'tree') tree = view.root;
   render();
   window.claudeUi.onLayoutChanged((next) => apply(next));
@@ -151,6 +166,8 @@ function apply(next: LayoutReport): void {
   }
   tree = view.root;
   render();
+  // Something in the config folder changed, which may be a file or folder a panel's options point at: every panel checks again, in its own terms.
+  for (const { panel } of mounted.values()) panel.recheck();
 }
 
 function render(): void {
@@ -181,7 +198,7 @@ function collectWanted(node: ResolvedNode, into: Map<string, string>): void {
     for (const child of node.children) collectWanted(child, into);
     return;
   }
-  for (const slot of node.slots) if (!slot.hidden && slot.problems.length === 0) into.set(slot.key, mountSignature(slot, TYPES));
+  for (const slot of node.slots) if (!slot.hidden && slot.problems.length === 0) into.set(slot.key, mountSignature(slot));
 }
 
 function scrollOffsets(): [HTMLElement, number, number][] {
@@ -343,19 +360,23 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   const content = element('div', 'panel-content');
   for (const slot of slots) {
     if (slot.problems.length > 0) continue;
-    const { panel } = mountedFor(slot);
-    // Every panel of the group is placed, the ones not on show hidden, so each keeps its DOM and its process.
-    panel.el.hidden = place.folded || slot !== shown;
+    const { panel, problems } = mountedFor(slot);
+    // Every panel of the group is placed, the ones not on show hidden, so each keeps its DOM and its process; one that says it cannot run is drawn as its problems instead.
+    panel.el.hidden = place.folded || slot !== shown || problems.length > 0;
     content.append(panel.el);
   }
   if (shown.problems.length > 0) {
     content.prepend(header(shown.title), problemList(shown.problems));
   } else if (!TYPES[shown.type!].bare) {
-    const { busy, end, action } = mountedFor(shown);
-    content.prepend(header(shown.title, action ? [busy, end, action] : [busy, end]));
+    const { busy, end, action, problems } = mountedFor(shown);
+    const row = header(shown.title, action ? [busy, end, action] : [busy, end]);
+    // The layout's refusals and the panel's own are one list, drawn the same way.
+    if (problems.length > 0) content.prepend(row, problemList(problems));
+    else content.prepend(row);
   }
+  // Shown even while it says it cannot run, so a check that passes later runs it where it stands.
   if (!place.folded && shown.problems.length === 0) onShow.add(shown.key);
-  const notes = [...group.notes, ...slots.flatMap((slot) => slot.notes)];
+  const notes = [...group.notes, ...slots.flatMap((slot) => [...slot.notes, ...(mounted.get(slot.key)?.notes ?? [])])];
   if (notes.length > 0) content.append(notesLine(notes));
 
   const rail = switcher(group, slots, shown, place);
@@ -382,7 +403,8 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
   for (const slot of slots) {
     const item = element('button', 'icon-btn rail-item');
     item.type = 'button';
-    item.innerHTML = iconSvg(slot.icon);
+    // `alert` for a panel that cannot run, whoever said so: the layout (already in the slot's icon) or the panel itself.
+    item.innerHTML = iconSvg((mounted.get(slot.key)?.problems.length ?? 0) > 0 ? 'alert' : slot.icon);
     item.setAttribute('aria-label', slot.title);
     setTooltip(item, slot.title);
     const isShown = slot === shown && !place.folded;
@@ -415,6 +437,15 @@ function mountedFor(slot: PanelSlot): Mounted {
   const action = type.bare ? null : actionButton(type);
   const badge = element('span', 'nudge');
   badge.hidden = true;
+  // What the panel reports about itself, held here so a report made while it is still mounting is not lost; a change re-renders, since both the panel's place and its rail icon draw from it.
+  const said = { problems: [] as string[], notes: [] as string[] };
+  const report = (field: keyof typeof said, lines: string[]): void => {
+    if (lines.join('\n') === said[field].join('\n')) return;
+    said[field] = lines;
+    const current = mounted.get(slot.key);
+    if (current) current[field] = lines;
+    queueRender();
+  };
   const panelHost: PanelHost = {
     where: () => host.where(),
     setBusy: (on) => {
@@ -424,10 +455,12 @@ function mountedFor(slot: PanelSlot): Mounted {
       end.textContent = label;
     },
     setStatus: (status) => showStatus(badge, status),
+    setProblems: (problems) => report('problems', problems),
+    setNotes: (notes) => report('notes', notes),
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
-  const entry: Mounted = { panel, signature: mountSignature(slot, TYPES), busy, end, action, badge };
+  const entry: Mounted = { panel, signature: mountSignature(slot), busy, end, action, badge, ...said };
   mounted.set(slot.key, entry);
   return entry;
 }

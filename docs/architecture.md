@@ -220,8 +220,10 @@ A node with `rows` or `columns` is a split; a node with `panels` is a **panel gr
 "Panel group" is the layout's word, and a plain "group" stays the session list's (see UI conventions); the two are unrelated.
 The first shape of the file, one panel beside the terminal, never shipped, so version 1 is refused with a notice rather than converted.
 
-A panel is an ENTRY in a group, not a file of its own: `{ "id": "status", "type": "command", "command": "git status --short" }`.
-That is the shape of Claude Code's own statusline and hooks, and it keeps sharing at its simplest — a line pasted from one file into another.
+A panel is an ENTRY in a group, not a file of its own: `{ "id": "status", "type": "command", "options": { "command": "git status --short" } }`.
+**The layout reads the layout, and a panel reads its own options.** `id`, `type`, `title`, `hidden` and `icon` are the layout's, and it checks them; `options` is the type's, handed over whole and read by nothing else (see A type owns its options).
+The nesting is that rule made visible in the file rather than kept as a list of names the layout holds back: a field the layout gains later can never collide with a type's setting, and an unknown key is named by the side that owns it — the layout for the entry (`"tilte"`), the type inside `options` (`"comand"`).
+Entries used to be flat, the shape of Claude Code's statusline and hooks, so that a line could be pasted from one file into another; in practice that saved one line, and it made every future layout field a name no type could use. Grafana's panels, the nearest thing to this file, nest theirs under `options` too, which is where the name comes from.
 Every id, of a node or an entry, is a slug the user writes (lowercase letters, digits, hyphens and underscores) and unique across the whole file, because ids are what the window's state keys on: dragged sizes, folds, the panel picked in a group.
 The app assigns nothing, because it writes nothing.
 
@@ -233,6 +235,7 @@ The file stays engine-agnostic, so a library could replace the renderer later wi
 This is the opposite of meta's rule, and for the opposite reason: meta drops what it does not understand because the app wrote that file and a past version's field is noise, while this file was written by a person, so what the app does not understand has to be said back to them or they go looking for the bug somewhere else.
 A node whose own fields are wrong — none or several of `rows`, `columns` and `panels`, an empty list, a size it cannot read, a field it does not know — becomes a degraded group in its place, listing every problem rather than the first.
 An entry's problems show in its slot, and a mistake that is no reason to refuse a panel, such as an icon the app does not have, is a note under the group instead.
+A key the layout does not know on an entry is refused with a sentence saying a type's own settings go under `options`, worded without knowing any type's options — which is also the whole notice for a file from before they were nested.
 A file that cannot be read as a layout at all — not an object, another version, no root — keeps the default window and adds one degraded group beside it saying why, so the window stays usable while the file is fixed.
 A file that does not parse keeps the last good layout up and toasts the file and the parser's position until a read succeeds.
 The validator (`src/renderer/panels/layout.ts`) is pure and tested per rule, including every refusal, so a validator that accepts everything fails its tests.
@@ -304,7 +307,8 @@ The fold control and the switcher each live in one function in `tree.ts` (`foldC
 ### A layout change keeps panels running
 
 The tree is rebuilt on every layout change, fold and panel switch, but a panel never is: mounted panels are kept by entry key and moved into their new place.
-A panel is mounted afresh only when its type or its declared parameters change (`mountSignature`, tested), so a new title, icon or position moves a running command or shell rather than restarting it, and a save that adds a panel restarts nothing else.
+A panel is mounted afresh only when its type or its `options` change (`mountSignature`, tested), so a new title, icon or position moves a running command or shell rather than restarting it, and a save that adds a panel restarts nothing else.
+The signature is whatever sits under `options`, with its keys sorted, so it knows no type's options and reordering them restarts nothing.
 Moving an element resets its scroll offsets and drops its focus, so a rebuild carries both across.
 
 A panel behind another in its group, or in a folded group, keeps its DOM and its process: hiding stops nothing, and only removal from the file does.
@@ -313,21 +317,29 @@ A `terminal` keeps its shell and refits from its own `ResizeObserver` once it ha
 
 At start-up the default layout is drawn before the first paint, the file is read before a single row is drawn — so the sidebar and terminal area are moved into the tree while they are still empty — and panels are shown only once the tabs are restored, so a panel's first run is in the restored tab's folder.
 
-### A type declares its parameters once
+### A type owns its options
 
-A panel type is a module under `src/renderer/panels/types/`, and it declares its parameters in one place: name, kind (`text` or `path`), what a `path` resolves against, and which groups of parameters are exactly-one-of — with its default icon, whether it is bare, and whether it is a built-in the layout must place once.
-The validator, the degraded panel's wording and, later, an editor's form all read that one declaration, so a parameter cannot be known to one of them and not the others.
-The type also owns its panel's body and its run; the tree (`tree.ts`) draws only what is around it — the header, the rail icon and its dot, the dividers.
+A panel type is a module under `src/renderer/panels/types/`, and it declares its options in one place: name, kind (`text` or `path`), for a `path` what it resolves against and what it must point at, and which groups of options are exactly-one-of.
+The layout sees only what it needs to draw and place an entry: the default icon, a default title from the options where they give one, whether the type is bare, and whether it is a built-in the layout must place once.
+
+**The type checks its own options**, with one checker every type shares (`panels/options.ts`), driven by that declaration: a key it does not know, a missing or doubled exactly-one-of, a value that is not a string or is empty, and what a path points at — the last asked of the main process, which has the filesystem.
+It checks when it is mounted, so a panel behind another already wears `alert` on its rail; before every run or shell start, since a script can go missing between runs; and whenever the config folder changes, which is how a script gaining its executable bit clears without a restart.
+It says what it found through its HOST, the tree's side of a conversation that already carried the busy mark, the run's last word and the rail dot: "cannot run, because …" is drawn with the same problem list the layout's own refusals use, with `alert` on the rail icon, and a note goes on the group's note line. `alert` is "will not start as its options stand"; the red dot is still "a run failed".
+A built-in reports what it does not understand as notes, never as problems, because no file may produce a window without the sidebar or the terminal.
+
+It was the other way round at first — main checked every `script` in the file when it read it, so one read named everything — and it moved for two reasons. A path relative to the selected project, which the `cwd` option needs, changes while the app runs, so no read of the file can answer it; and a layout that knows a type's option names is a layout every new option has to touch. The cost is that a missing file is named when the panel checks rather than in the same read as the file's shape: the same place on screen, a moment later.
+
+The type also owns its panel's body and its run; the tree (`tree.ts`) draws only what is around it — the header, the rail icon and its dot, the dividers, and the problems a panel reports.
 
 ### The `command` type
 
 It runs something and shows what it printed, and it takes its command in one of two ways, exactly one required.
 `command` is a command line, run by a fresh copy of the user's shell as they typed it, so pipes and quoting are the shell's business.
-`script` is a path to an executable, relative to the config folder or absolute, passed to the shell as ONE argument with no parsing of the path, so a space in it is nothing.
+`script` is a path to an executable, relative to the config folder, absolute, or under `~/`, passed to the shell as ONE argument with no parsing of the path, so a space in it is nothing.
 The type kept the name `command` for both: a one-liner is not a script and a script is not a command line, and Claude Code's statusline and hooks say `"type": "command"` for either.
 
-A script is checked when the layout is READ, not when it runs, and by the main process, which has the filesystem: "not found" and "not executable" travel in the same report as the file's shape, so one read answers everything about the file.
-The resolver is one function used by the check and by the run, so the two cannot disagree about which file was meant.
+A script resolves against the config folder ONLY, never the selected project, deliberately: a project-first lookup would change which code runs, not where — a repo with a file at the same path would silently replace yours, and since a panel runs on show and on a project switch, selecting a freshly cloned repo would run its executable unasked. A project's own script is reachable, explicitly, as `"command": "./bin/status"`, which the shell resolves in the context directory.
+The resolver is one function in main (`resolvePath` in `config.ts`) used by the panel's check and by the run, so the two cannot disagree about which file was meant.
 
 The command runs in the panel's CONTEXT DIRECTORY — the active tab's cwd, else the selected project's repo root — so a worktree session's panel reports the worktree.
 That is the one thing that differs between the two forms: a relative path INSIDE a command line is resolved by the shell against that directory, while a relative `script` resolves against the config folder, so the script travels with it.
@@ -359,7 +371,7 @@ The end of the OUTPUT (`close`) and the end of the PROCESS (`exit`) are read sep
 ### The `terminal` type
 
 A plain shell in a panel: the interactive login shell a session runs `claude` in, with nothing to run, in a pty, shown in an xterm.
-No parameters.
+No options.
 
 **It stays put.** The shell starts in the context directory of the moment the panel first shows and stays there through tab and project switches.
 A shell has state — the command you have running in it — so following the context the way the `command` panel does would kill that command on every switch, and one shell per directory kept alive and swapped like tabs is a lifecycle that belongs with groups and tabs, not here.

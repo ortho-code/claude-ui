@@ -16,18 +16,17 @@ import {
   type ResolvedSplit,
 } from './layout';
 import { commandType, type PanelTypeDecl } from './types/command';
-import type { LayoutReport, ScriptCheck } from '../../shared/panels';
+import type { LayoutReport } from '../../shared/panels';
 
 // The built-ins' declarations as the validator sees them; their mounts are the tree's business.
-const sessions: PanelTypeDecl = { name: 'sessions', params: [], exactlyOne: [], defaultTitle: () => 'Sessions', icon: 'sessions', bare: true, singleton: true };
-const claude: PanelTypeDecl = { name: 'claude', params: [], exactlyOne: [], defaultTitle: () => 'Claude', icon: 'claude', bare: true, singleton: true };
+const sessions: PanelTypeDecl = { name: 'sessions', defaultTitle: () => 'Sessions', icon: 'sessions', bare: true, singleton: true };
+const claude: PanelTypeDecl = { name: 'claude', defaultTitle: () => 'Claude', icon: 'claude', bare: true, singleton: true };
 const TYPES = { sessions, claude, command: commandType };
 const FILE = '/home/u/.config/claude-ui/config/layouts/default.json';
 
-function report(json: unknown, scripts: Record<string, ScriptCheck> = {}): LayoutReport {
-  return { configRoot: '/home/u/.config/claude-ui/config', file: FILE, status: 'read', error: null, json, scripts };
+function report(json: unknown): LayoutReport {
+  return { configRoot: '/home/u/.config/claude-ui/config', file: FILE, status: 'read', error: null, json };
 }
-const ok: ScriptCheck = { path: '/home/u/.config/claude-ui/config/scripts/status.sh', problem: null };
 
 /** The two built-ins in their usual places, for a test about something else. */
 const SIDEBAR = { id: 'sidebar', panels: [{ id: 'sessions', type: 'sessions' }] };
@@ -41,8 +40,8 @@ function tree(view: LayoutView): ResolvedNode {
   expect(view.kind).toBe('tree');
   return (view as Extract<LayoutView, { kind: 'tree' }>).root;
 }
-function resolve(json: unknown, scripts: Record<string, ScriptCheck> = {}): ResolvedNode {
-  return tree(resolveLayout(report(json, scripts), TYPES));
+function resolve(json: unknown): ResolvedNode {
+  return tree(resolveLayout(report(json), TYPES));
 }
 function split(node: ResolvedNode): ResolvedSplit {
   expect(node.kind).toBe('split');
@@ -53,8 +52,8 @@ function group(node: ResolvedNode): ResolvedGroup {
   return node as ResolvedGroup;
 }
 /** The node after the two built-ins in a `file(...)` root. */
-function third(json: unknown, scripts: Record<string, ScriptCheck> = {}): ResolvedNode {
-  return split(resolve(json, scripts)).children[2];
+function third(json: unknown): ResolvedNode {
+  return split(resolve(json)).children[2];
 }
 /** Every problem and note in the tree, with the id it is on: what a person reading the window would see. */
 function said(node: ResolvedNode): string[] {
@@ -107,7 +106,7 @@ describe('a node', () => {
     const root = split(
       resolve({
         version: 2,
-        root: { id: 'window', columns: [SIDEBAR, { id: 'main', rows: [CLAUDE, { id: 'drawer', panels: [{ id: 'status', type: 'command', command: 'ls' }] }] }] },
+        root: { id: 'window', columns: [SIDEBAR, { id: 'main', rows: [CLAUDE, { id: 'drawer', panels: [{ id: 'status', type: 'command', options: { command: 'ls' } }] }] }] },
       }),
     );
     const main = split(root.children[1]);
@@ -118,30 +117,30 @@ describe('a node', () => {
   });
 
   it('reads size, min, resizable and collapsible, with their defaults', () => {
-    const side = group(third(file({ id: 'side', size: 0.3, min: 200, resizable: false, collapsible: true, panels: [{ id: 'a', type: 'command', command: 'ls' }] })));
+    const side = group(third(file({ id: 'side', size: 0.3, min: 200, resizable: false, collapsible: true, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] })));
     expect(side).toMatchObject({ size: { share: 0.3 }, min: 200, resizable: false, collapsible: true, problems: [] });
-    const plain = group(third(file({ id: 'side', panels: [{ id: 'a', type: 'command', command: 'ls' }] })));
+    const plain = group(third(file({ id: 'side', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] })));
     expect(plain).toMatchObject({ size: null, min: DEFAULT_MIN, resizable: true, collapsible: false });
   });
 
   it('reads a size in pixels', () => {
-    const side = group(third(file({ id: 'side', size: '360px', panels: [{ id: 'a', type: 'command', command: 'ls' }] })));
+    const side = group(third(file({ id: 'side', size: '360px', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] })));
     expect(side).toMatchObject({ size: { px: 360 }, notes: [], problems: [] });
-    expect(group(third(file({ id: 'side', size: '180.5px', panels: [{ id: 'a', type: 'command', command: 'ls' }] }))).size).toEqual({ px: 180.5 });
+    expect(group(third(file({ id: 'side', size: '180.5px', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }))).size).toEqual({ px: 180.5 });
   });
 
   it('says so when a pixel size is below the min, which wins', () => {
-    const side = group(third(file({ id: 'side', size: '100px', min: 200, panels: [{ id: 'a', type: 'command', command: 'ls' }] })));
+    const side = group(third(file({ id: 'side', size: '100px', min: 200, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] })));
     expect(side.notes).toEqual(['size 100px is below min 200, so the node starts at 200px.']);
-    expect(group(third(file({ id: 'side', size: '100px', panels: [{ id: 'a', type: 'command', command: 'ls' }] }))).notes).toEqual([
+    expect(group(third(file({ id: 'side', size: '100px', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }))).notes).toEqual([
       'size 100px is below min 120, so the node starts at 120px.',
     ]);
   });
 
   it.each([
-    [{ panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'id is missing.'],
-    [{ id: 7, panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'id is not a string.'],
-    [{ id: 'Side', panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'id "Side" is not a slug (lowercase letters, digits, hyphens and underscores, starting with a letter or digit).'],
+    [{ panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'id is missing.'],
+    [{ id: 7, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'id is not a string.'],
+    [{ id: 'Side', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'id "Side" is not a slug (lowercase letters, digits, hyphens and underscores, starting with a letter or digit).'],
     [{ id: 'side' }, 'One of rows, columns or panels is required.'],
     [{ id: 'side', rows: [CLAUDE], panels: [] }, 'rows and panels are both given; give one.'],
     [{ id: 'side', rows: [], columns: [], panels: [] }, 'rows, columns and panels are all given; give one.'],
@@ -149,24 +148,24 @@ describe('a node', () => {
     [{ id: 'side', panels: [] }, 'panels is empty.'],
     [{ id: 'side', rows: [] }, 'rows is empty.'],
     [{ id: 'side', columns: 'x' }, 'columns is not an array.'],
-    [{ id: 'side', size: 0, panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'size is not a positive number or a pixel size like "320px".'],
-    [{ id: 'side', size: '30%', panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'size is not a positive number or a pixel size like "320px".'],
-    [{ id: 'side', size: -1, panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'size is not a positive number or a pixel size like "320px".'],
-    [{ id: 'side', size: '0px', panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'size is not a positive number or a pixel size like "320px".'],
-    [{ id: 'side', size: '320 px', panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'size is not a positive number or a pixel size like "320px".'],
-    [{ id: 'side', size: 'px', panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'size is not a positive number or a pixel size like "320px".'],
-    [{ id: 'side', size: '0.3', panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'size is not a positive number or a pixel size like "320px".'],
-    [{ id: 'side', min: '200px', panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'min is not a positive number of pixels.'],
-    [{ id: 'side', min: 0, panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'min is not a positive number of pixels.'],
-    [{ id: 'side', resizable: 'no', panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'resizable is not true or false.'],
-    [{ id: 'side', collapsible: 1, panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'collapsible is not true or false.'],
-    [{ id: 'side', colapsible: true, panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'colapsible is not a field a node has.'],
-    [{ id: 'side', type: 'command', command: 'ls' }, 'This looks like a panel entry; entries go in a group’s panels.'],
-    [{ id: 'side', active: 'b', panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'active "b" is not one of this group’s panels.'],
-    [{ id: 'side', active: 'sessions', panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'active "sessions" is not one of this group’s panels.'],
-    [{ id: 'side', active: 'a', panels: [{ id: 'a', type: 'command', command: 'ls', hidden: true }] }, 'active "a" is hidden.'],
-    [{ id: 'side', active: 3, panels: [{ id: 'a', type: 'command', command: 'ls' }] }, 'active is not a string.'],
-    [{ id: 'side', active: 'a', rows: [{ id: 'x', panels: [{ id: 'a', type: 'command', command: 'ls' }] }] }, 'active is for a group of panels; this node has rows.'],
+    [{ id: 'side', size: 0, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'size is not a positive number or a pixel size like "320px".'],
+    [{ id: 'side', size: '30%', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'size is not a positive number or a pixel size like "320px".'],
+    [{ id: 'side', size: -1, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'size is not a positive number or a pixel size like "320px".'],
+    [{ id: 'side', size: '0px', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'size is not a positive number or a pixel size like "320px".'],
+    [{ id: 'side', size: '320 px', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'size is not a positive number or a pixel size like "320px".'],
+    [{ id: 'side', size: 'px', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'size is not a positive number or a pixel size like "320px".'],
+    [{ id: 'side', size: '0.3', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'size is not a positive number or a pixel size like "320px".'],
+    [{ id: 'side', min: '200px', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'min is not a positive number of pixels.'],
+    [{ id: 'side', min: 0, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'min is not a positive number of pixels.'],
+    [{ id: 'side', resizable: 'no', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'resizable is not true or false.'],
+    [{ id: 'side', collapsible: 1, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'collapsible is not true or false.'],
+    [{ id: 'side', colapsible: true, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'colapsible is not a field a node has.'],
+    [{ id: 'side', type: 'command', options: { command: 'ls' } }, 'This looks like a panel entry; entries go in a group’s panels.'],
+    [{ id: 'side', active: 'b', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'active "b" is not one of this group’s panels.'],
+    [{ id: 'side', active: 'sessions', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'active "sessions" is not one of this group’s panels.'],
+    [{ id: 'side', active: 'a', panels: [{ id: 'a', type: 'command', options: { command: 'ls' }, hidden: true }] }, 'active "a" is hidden.'],
+    [{ id: 'side', active: 3, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }, 'active is not a string.'],
+    [{ id: 'side', active: 'a', rows: [{ id: 'x', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }] }, 'active is for a group of panels; this node has rows.'],
   ])('degrades %j in its place, saying: %s', (node, problem) => {
     const degraded = group(third(file(node)));
     expect(degraded.problems).toContain(problem);
@@ -196,7 +195,7 @@ describe('a node', () => {
   });
 
   it('names collapsible on rows or columns as not honoured yet, and still draws them', () => {
-    const node = split(third(file({ id: 'more', collapsible: true, rows: [{ id: 'x', panels: [{ id: 'a', type: 'command', command: 'ls' }] }] })));
+    const node = split(third(file({ id: 'more', collapsible: true, rows: [{ id: 'x', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }] })));
     expect(node.notes).toEqual(['collapsible is not honoured on rows or columns yet; only a group folds.']);
     expect(node.children).toHaveLength(1);
   });
@@ -204,10 +203,10 @@ describe('a node', () => {
 
 describe('one id namespace', () => {
   it('names a node that reuses an entry’s id, and an entry that reuses a node’s', () => {
-    expect(group(third(file({ id: 'cli', panels: [{ id: 'a', type: 'command', command: 'ls' }] }))).problems).toEqual([
+    expect(group(third(file({ id: 'cli', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }))).problems).toEqual([
       'id "cli" is already used earlier in the file.',
     ]);
-    const slot = group(third(file({ id: 'side', panels: [{ id: 'window', type: 'command', command: 'ls' }] }))).slots[0];
+    const slot = group(third(file({ id: 'side', panels: [{ id: 'window', type: 'command', options: { command: 'ls' } }] }))).slots[0];
     expect(slot.problems).toEqual(['id "window" is already used earlier in the file.']);
   });
 
@@ -215,8 +214,8 @@ describe('one id namespace', () => {
     const root = split(
       resolve(
         file(
-          { id: 'one', panels: [{ type: 'command', command: 'ls' }] },
-          { id: 'two', panels: [{ type: 'command', command: 'ls' }] },
+          { id: 'one', panels: [{ type: 'command', options: { command: 'ls' } }] },
+          { id: 'two', panels: [{ type: 'command', options: { command: 'ls' } }] },
         ),
       ),
     );
@@ -227,9 +226,9 @@ describe('one id namespace', () => {
 
 describe('a group', () => {
   const panels = [
-    { id: 'a', type: 'command', command: 'ls', hidden: true },
-    { id: 'b', type: 'command', command: 'pwd' },
-    { id: 'c', type: 'command', command: 'ls' },
+    { id: 'a', type: 'command', options: { command: 'ls' }, hidden: true },
+    { id: 'b', type: 'command', options: { command: 'pwd' } },
+    { id: 'c', type: 'command', options: { command: 'ls' } },
   ];
 
   it('shows the first panel that is not hidden, or the one the file names', () => {
@@ -238,7 +237,7 @@ describe('a group', () => {
   });
 
   it('takes no room when every panel is hidden, and neither does a split of such groups', () => {
-    const hidden = { id: 'side', panels: [{ id: 'a', type: 'command', command: 'ls', hidden: true }] };
+    const hidden = { id: 'side', panels: [{ id: 'a', type: 'command', options: { command: 'ls' }, hidden: true }] };
     const node = third(file(hidden));
     expect(group(node).active).toBeNull();
     expect(isEmpty(node)).toBe(true);
@@ -253,17 +252,17 @@ describe('a group', () => {
   it('is bare only for one built-in on show alone', () => {
     const root = split(resolve(file()));
     expect(group(root.children[0]).bare).toBe(true);
-    expect(group(third(file({ id: 'side', panels: [{ id: 'a', type: 'command', command: 'ls' }] }))).bare).toBe(false);
-    const shared = { version: 2, root: { id: 'window', columns: [SIDEBAR, { id: 'main', panels: [{ id: 'cli', type: 'claude' }, { id: 'a', type: 'command', command: 'ls' }] }] } };
+    expect(group(third(file({ id: 'side', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }))).bare).toBe(false);
+    const shared = { version: 2, root: { id: 'window', columns: [SIDEBAR, { id: 'main', panels: [{ id: 'cli', type: 'claude' }, { id: 'a', type: 'command', options: { command: 'ls' } }] }] } };
     expect(group(split(resolve(shared)).children[1]).bare).toBe(false);
-    const alone = { version: 2, root: { id: 'window', columns: [SIDEBAR, { id: 'main', panels: [{ id: 'cli', type: 'claude' }, { id: 'a', type: 'command', command: 'ls', hidden: true }] }] } };
+    const alone = { version: 2, root: { id: 'window', columns: [SIDEBAR, { id: 'main', panels: [{ id: 'cli', type: 'claude' }, { id: 'a', type: 'command', options: { command: 'ls' }, hidden: true }] }] } };
     expect(group(split(resolve(alone)).children[1]).bare).toBe(true);
   });
 });
 
 describe('the built-ins', () => {
   it('adds claude as the root’s last column when the file leaves it out, and says so there', () => {
-    const root = split(resolve({ version: 2, root: { id: 'window', columns: [SIDEBAR, { id: 'side', panels: [{ id: 'a', type: 'command', command: 'ls' }] }] } }));
+    const root = split(resolve({ version: 2, root: { id: 'window', columns: [SIDEBAR, { id: 'side', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }] } }));
     expect(root.id).toBe('window');
     expect(root.children.map((child) => child.id)).toEqual(['sidebar', 'side', '@claude']);
     expect(group(root.children[2])).toMatchObject({ active: '@cli', bare: true, notes: ['The layout does not place the claude panel, so it is added here.'] });
@@ -277,10 +276,10 @@ describe('the built-ins', () => {
   });
 
   it('wraps a root that is rows, or a group, in columns to add them beside it', () => {
-    const rows = split(resolve({ version: 2, root: { id: 'main', rows: [CLAUDE, { id: 'drawer', panels: [{ id: 'a', type: 'command', command: 'ls' }] }] } }));
+    const rows = split(resolve({ version: 2, root: { id: 'main', rows: [CLAUDE, { id: 'drawer', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }] } }));
     expect(rows).toMatchObject({ id: '@window', axis: 'columns' });
     expect(rows.children.map((child) => child.id)).toEqual(['@sidebar', 'main']);
-    const single = split(resolve({ version: 2, root: { id: 'only', panels: [{ id: 'a', type: 'command', command: 'ls' }] } }));
+    const single = split(resolve({ version: 2, root: { id: 'only', panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] } }));
     expect(single.children.map((child) => child.id)).toEqual(['@sidebar', 'only', '@claude']);
   });
 
@@ -326,79 +325,87 @@ describe('sizes', () => {
 
   it('weights the unsized as the average when the sized leave nothing, and says so', () => {
     expect(fileWeights([0.6, 0.6, null])).toEqual({ weights: [0.6, 0.6, 0.6], exhausted: true });
-    const root = split(resolve(file({ id: 'a', size: 0.5, panels: [{ id: 'x', type: 'command', command: 'ls' }] }, { id: 'b', size: 0.6, panels: [{ id: 'y', type: 'command', command: 'ls' }] })));
+    const root = split(resolve(file({ id: 'a', size: 0.5, panels: [{ id: 'x', type: 'command', options: { command: 'ls' } }] }, { id: 'b', size: 0.6, panels: [{ id: 'y', type: 'command', options: { command: 'ls' } }] })));
     expect(root.notes).toEqual(['The sizes in window add up to 1.1, which leaves nothing for sidebar, claude; each is sized as their average.']);
   });
 
   it('leaves pixel children out of the shares, since the shares divide what they leave', () => {
     const fixed = { id: 'sidebar', size: '320px', panels: [{ id: 'sessions', type: 'sessions' }] };
-    const root = split(resolve({ version: 2, root: { id: 'window', columns: [fixed, CLAUDE, { id: 'side', size: 0.3, panels: [{ id: 'a', type: 'command', command: 'ls' }] }] } }));
+    const root = split(resolve({ version: 2, root: { id: 'window', columns: [fixed, CLAUDE, { id: 'side', size: 0.3, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }] } }));
     expect(root.notes).toEqual([]);
-    const full = { version: 2, root: { id: 'window', columns: [fixed, CLAUDE, { id: 'side', size: 1, panels: [{ id: 'a', type: 'command', command: 'ls' }] }] } };
+    const full = { version: 2, root: { id: 'window', columns: [fixed, CLAUDE, { id: 'side', size: 1, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }] } };
     expect(split(resolve(full)).notes).toEqual(['The sizes in window add up to 1, which leaves nothing for claude; it is sized as their average.']);
   });
 
   it('checks the sizes after a built-in is added, since the added one is unsized', () => {
     const sized = { id: 'sidebar', size: 0.5, panels: [{ id: 'sessions', type: 'sessions' }] };
-    const root = split(resolve({ version: 2, root: { id: 'window', columns: [sized, { id: 'side', size: 0.5, panels: [{ id: 'a', type: 'command', command: 'ls' }] }] } }));
+    const root = split(resolve({ version: 2, root: { id: 'window', columns: [sized, { id: 'side', size: 0.5, panels: [{ id: 'a', type: 'command', options: { command: 'ls' } }] }] } }));
     expect(root.children.map((child) => child.id)).toEqual(['sidebar', 'side', '@claude']);
     expect(root.notes).toEqual(['The sizes in window add up to 1, which leaves nothing for @claude; it is sized as their average.']);
   });
 });
 
 describe('one entry', () => {
-  const entry = (raw: unknown, scripts: Record<string, ScriptCheck> = {}, seen = new Set<string>()) =>
-    validateEntry(raw, 0, TYPES, report(null, scripts), seen);
+  const entry = (raw: unknown, seen = new Set<string>()) => validateEntry(raw, 0, TYPES, seen);
 
   it('accepts a command line, titled by the line', () => {
-    const slot = entry({ id: 'status', type: 'command', command: 'git status --short' });
+    const slot = entry({ id: 'status', type: 'command', options: { command: 'git status --short' } });
     expect(slot).toMatchObject({ key: 'status', type: 'command', title: 'git status --short', problems: [], hidden: false });
   });
 
-  it('accepts a script that checked out, titled by its file name', () => {
-    const slot = entry({ id: 'status', type: 'command', script: 'scripts/status.sh' }, { 'scripts/status.sh': ok });
-    expect(slot).toMatchObject({ key: 'status', title: 'status.sh', problems: [] });
+  it('accepts a script, titled by its file name, without looking for it: that is the panel’s to do', () => {
+    const slot = entry({ id: 'status', type: 'command', options: { script: 'scripts/nowhere.sh' } });
+    expect(slot).toMatchObject({ key: 'status', title: 'nowhere.sh', problems: [] });
   });
 
   it('prefers a given title and cuts a long default one', () => {
-    expect(entry({ id: 'a', type: 'command', command: 'ls', title: 'Files' }).title).toBe('Files');
+    expect(entry({ id: 'a', type: 'command', options: { command: 'ls' }, title: 'Files' }).title).toBe('Files');
     const long = 'git log --oneline --graph --decorate --all --since=yesterday';
     // 40 characters including the ellipsis.
-    expect(entry({ id: 'a', type: 'command', command: long }).title).toBe('git log --oneline --graph --decorate --…');
+    expect(entry({ id: 'a', type: 'command', options: { command: long } }).title).toBe('git log --oneline --graph --decorate --…');
   });
 
-  it('carries the script’s own problem into the entry, in the value as written', () => {
-    const missing = { 'scripts/status.sh': { path: '/x/scripts/status.sh', problem: 'scripts/status.sh not found' } };
-    expect(entry({ id: 'a', type: 'command', script: 'scripts/status.sh' }, missing).problems).toEqual(['scripts/status.sh not found.']);
-    const mode = { 'scripts/status.sh': { path: '/x/scripts/status.sh', problem: 'scripts/status.sh is not executable' } };
-    expect(entry({ id: 'a', type: 'command', script: 'scripts/status.sh' }, mode).problems).toEqual(['scripts/status.sh is not executable.']);
+  it('titles an entry by its id when its options give no title, since they are not checked yet', () => {
+    expect(entry({ id: 'status', type: 'command' }).title).toBe('status');
+    expect(entry({ id: 'status', type: 'command', options: { command: 7 } }).title).toBe('status');
+    expect(entry({ id: 'status', type: 'command', options: { command: '  ' } }).title).toBe('status');
+  });
+
+  it('refuses nothing inside options: what is wrong there is the type’s to say, once it is mounted', () => {
+    for (const options of [{}, { command: 'ls', script: 'x.sh' }, { command: 7 }, { comand: 'ls' }]) {
+      expect(entry({ id: 'a', type: 'command', options }).problems).toEqual([]);
+    }
+  });
+
+  it('names a setting written beside options rather than in them, without knowing any type’s options', () => {
+    expect(entry({ id: 'a', type: 'command', command: 'ls' }).problems).toEqual(['command is not a field of a panel entry; a type’s own settings go under options.']);
+    expect(entry({ id: 'a', type: 'command', options: { command: 'ls' }, tilte: 'x' }).problems).toEqual([
+      'tilte is not a field of a panel entry; a type’s own settings go under options.',
+    ]);
   });
 
   it.each([
-    [{ type: 'command', command: 'ls' }, 'id is missing.'],
-    [{ id: 4, type: 'command', command: 'ls' }, 'id is not a string.'],
-    [{ id: 'Status', type: 'command', command: 'ls' }, 'id "Status" is not a slug (lowercase letters, digits, hyphens and underscores, starting with a letter or digit).'],
-    [{ id: '-x', type: 'command', command: 'ls' }, 'id "-x" is not a slug (lowercase letters, digits, hyphens and underscores, starting with a letter or digit).'],
-    [{ id: 'a b', type: 'command', command: 'ls' }, 'id "a b" is not a slug (lowercase letters, digits, hyphens and underscores, starting with a letter or digit).'],
-    [{ id: 'a', command: 'ls' }, 'type is missing.'],
-    [{ id: 'a', type: 3, command: 'ls' }, 'type is not a string.'],
-    [{ id: 'a', type: 'comand', command: 'ls' }, 'type "comand" is not a type this build knows (it knows: sessions, claude, command).'],
-    [{ id: 'a', type: 'command' }, 'One of command or script is required.'],
-    [{ id: 'a', type: 'command', command: 'ls', script: 'x.sh' }, 'command and script are both given; give one.'],
-    [{ id: 'a', type: 'command', command: 7 }, 'command is not a string.'],
-    [{ id: 'a', type: 'command', command: '  ' }, 'command is empty.'],
-    [{ id: 'a', type: 'command', script: '' }, 'script is empty.'],
-    [{ id: 'a', type: 'command', command: 'ls', title: 1 }, 'title is not a string.'],
-    [{ id: 'a', type: 'command', command: 'ls', hidden: 'yes' }, 'hidden is not true or false.'],
+    [{ type: 'command', options: { command: 'ls' } }, 'id is missing.'],
+    [{ id: 4, type: 'command', options: { command: 'ls' } }, 'id is not a string.'],
+    [{ id: 'Status', type: 'command', options: { command: 'ls' } }, 'id "Status" is not a slug (lowercase letters, digits, hyphens and underscores, starting with a letter or digit).'],
+    [{ id: '-x', type: 'command', options: { command: 'ls' } }, 'id "-x" is not a slug (lowercase letters, digits, hyphens and underscores, starting with a letter or digit).'],
+    [{ id: 'a b', type: 'command', options: { command: 'ls' } }, 'id "a b" is not a slug (lowercase letters, digits, hyphens and underscores, starting with a letter or digit).'],
+    [{ id: 'a', options: { command: 'ls' } }, 'type is missing.'],
+    [{ id: 'a', type: 3, options: { command: 'ls' } }, 'type is not a string.'],
+    [{ id: 'a', type: 'comand', options: { command: 'ls' } }, 'type "comand" is not a type this build knows (it knows: sessions, claude, command).'],
+    [{ id: 'a', type: 'command', options: { command: 'ls' }, title: 1 }, 'title is not a string.'],
+    [{ id: 'a', type: 'command', options: { command: 'ls' }, hidden: 'yes' }, 'hidden is not true or false.'],
+    [{ id: 'a', type: 'command', options: 'ls' }, 'options is not an object.'],
+    [{ id: 'a', type: 'command', options: ['ls'] }, 'options is not an object.'],
+    [{ id: 'a', type: 'command', options: null }, 'options is not an object.'],
   ])('refuses %j: %s', (raw, problem) => {
-    const slot = entry(raw, { 'x.sh': ok });
-    expect(slot.problems).toContain(problem);
+    expect(entry(raw).problems).toContain(problem);
   });
 
   it('refuses the second use of an id, and keys the slot by position so state cannot land on the first', () => {
     const seen = new Set<string>();
-    const first = validateEntry({ id: 'a', type: 'command', command: 'ls' }, 0, TYPES, report(null), seen);
-    const second = validateEntry({ id: 'a', type: 'command', command: 'pwd' }, 1, TYPES, report(null), seen);
+    const first = validateEntry({ id: 'a', type: 'command', options: { command: 'ls' } }, 0, TYPES, seen);
+    const second = validateEntry({ id: 'a', type: 'command', options: { command: 'pwd' } }, 1, TYPES, seen);
     expect(first.problems).toEqual([]);
     expect(second.problems).toEqual(['id "a" is already used earlier in the file.']);
     expect(second.key).toBe('#1');
@@ -420,22 +427,22 @@ describe('one entry', () => {
   });
 
   it('honours hidden, and only true', () => {
-    expect(entry({ id: 'a', type: 'command', command: 'ls', hidden: true }).hidden).toBe(true);
-    expect(entry({ id: 'a', type: 'command', command: 'ls', hidden: false }).hidden).toBe(false);
+    expect(entry({ id: 'a', type: 'command', options: { command: 'ls' }, hidden: true }).hidden).toBe(true);
+    expect(entry({ id: 'a', type: 'command', options: { command: 'ls' }, hidden: false }).hidden).toBe(false);
   });
 
   it('wears its type’s icon, or the one it names', () => {
-    expect(entry({ id: 'a', type: 'command', command: 'ls' })).toMatchObject({ icon: 'command', notes: [] });
-    expect(entry({ id: 'a', type: 'command', command: 'ls', icon: 'git' })).toMatchObject({ icon: 'git', notes: [] });
+    expect(entry({ id: 'a', type: 'command', options: { command: 'ls' } })).toMatchObject({ icon: 'command', notes: [] });
+    expect(entry({ id: 'a', type: 'command', options: { command: 'ls' }, icon: 'git' })).toMatchObject({ icon: 'git', notes: [] });
   });
 
   it('names an icon this build does not have and wears its type’s, since an icon is no reason to refuse a panel', () => {
-    const slot = entry({ id: 'deploy', type: 'command', command: 'ls', icon: 'rocket' });
+    const slot = entry({ id: 'deploy', type: 'command', options: { command: 'ls' }, icon: 'rocket' });
     expect(slot.problems).toEqual([]);
     expect(slot.icon).toBe('command');
     expect(slot.notes).toHaveLength(1);
     expect(slot.notes[0]).toMatch(/^icon "rocket" on deploy is not an icon this build has \(it has: sessions, claude, command, terminal, git, .*\); the command icon is used\.$/);
-    expect(entry({ id: 'a', type: 'command', command: 'ls', icon: 3 }).notes).toEqual(['icon on a is not a string; the command icon is used.']);
+    expect(entry({ id: 'a', type: 'command', options: { command: 'ls' }, icon: 3 }).notes).toEqual(['icon on a is not a string; the command icon is used.']);
   });
 
   it('wears the alert icon when it cannot run, whatever it names', () => {
@@ -447,21 +454,26 @@ describe('one entry', () => {
 });
 
 describe('mountSignature', () => {
-  const slot = (raw: Record<string, unknown>) => validateEntry(raw, 0, TYPES, report(null), new Set());
-  const base = { id: 'status', type: 'command', command: 'git status --short' };
+  const slot = (raw: Record<string, unknown>) => validateEntry(raw, 0, TYPES, new Set());
+  const base = { id: 'status', type: 'command', options: { command: 'git status --short', cwd: '~/x' } };
 
   it('stays the same when only the title, the icon or hidden change, so the panel is moved rather than restarted', () => {
-    const before = mountSignature(slot(base), TYPES);
-    expect(mountSignature(slot({ ...base, title: 'Status' }), TYPES)).toBe(before);
-    expect(mountSignature(slot({ ...base, icon: 'git' }), TYPES)).toBe(before);
-    expect(mountSignature(slot({ ...base, hidden: false }), TYPES)).toBe(before);
+    const before = mountSignature(slot(base));
+    expect(mountSignature(slot({ ...base, title: 'Status' }))).toBe(before);
+    expect(mountSignature(slot({ ...base, icon: 'git' }))).toBe(before);
+    expect(mountSignature(slot({ ...base, hidden: false }))).toBe(before);
   });
 
-  it('changes with a declared parameter or the type, so the panel is mounted afresh', () => {
-    const before = mountSignature(slot(base), TYPES);
-    expect(mountSignature(slot({ ...base, command: 'git status' }), TYPES)).not.toBe(before);
-    expect(mountSignature(slot({ id: 'status', type: 'command', script: 'git status --short' }), TYPES)).not.toBe(before);
-    expect(mountSignature(slot({ id: 'status', type: 'sessions' }), TYPES)).not.toBe(before);
+  it('stays the same when the options are only reordered in the file', () => {
+    expect(mountSignature(slot({ ...base, options: { cwd: '~/x', command: 'git status --short' } }))).toBe(mountSignature(slot(base)));
+  });
+
+  it('changes with anything under options, or the type, so the panel is mounted afresh — without knowing which options a type has', () => {
+    const before = mountSignature(slot(base));
+    expect(mountSignature(slot({ ...base, options: { ...base.options, command: 'git status' } }))).not.toBe(before);
+    expect(mountSignature(slot({ ...base, options: { ...base.options, later: true } }))).not.toBe(before);
+    expect(mountSignature(slot({ id: 'status', type: 'command', options: { script: 'git status --short' } }))).not.toBe(before);
+    expect(mountSignature(slot({ id: 'status', type: 'sessions' }))).not.toBe(before);
   });
 });
 

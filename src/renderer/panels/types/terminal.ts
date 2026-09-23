@@ -1,5 +1,6 @@
 import type { PanelSlot } from '../layout';
 import { bindTerminal, createTerminal, unbindTerminal, type TerminalView } from '../../terminal';
+import { checkOptions, optionsOf } from '../options';
 import { NO_CONTEXT, resolveContext, type MountedPanel, type PanelHost, type PanelType } from './command';
 
 /**
@@ -25,6 +26,8 @@ class TerminalPanel implements MountedPanel {
   private exited = false;
   /** Whether it has been on screen yet: the shell starts on the first reveal, in the context of that moment. */
   private shown = false;
+  /** No shell because the options did not pass; a recheck that passes starts one. */
+  private refused = false;
   private disposed = false;
   private readonly observer: ResizeObserver;
 
@@ -42,6 +45,8 @@ class TerminalPanel implements MountedPanel {
     // The same observer covers every later reveal — a tab switch, a group unfolding from its rail, a divider reopening a squeezed node — since each one gives the box a size again.
     this.observer = new ResizeObserver(() => this.fit());
     this.observer.observe(this.box);
+    // Checked at once rather than on first show, so a panel behind another already wears `alert` on its rail.
+    void this.check();
   }
 
   refresh(): void {
@@ -60,6 +65,14 @@ class TerminalPanel implements MountedPanel {
     void this.start();
   }
 
+  recheck(): void {
+    // Only a panel that was refused has anything to gain: a running shell is never restarted by a change elsewhere in the folder.
+    if (!this.refused) return;
+    void this.check().then((ok) => {
+      if (ok && this.shown && !this.starting && this.terminalId === null) void this.start();
+    });
+  }
+
   unmount(): void {
     this.disposed = true;
     this.observer.disconnect();
@@ -68,8 +81,21 @@ class TerminalPanel implements MountedPanel {
     this.view = null;
   }
 
+  /** Check the options, tell the host what is wrong with them, and say whether the panel can start a shell. */
+  private async check(): Promise<boolean> {
+    const problems = await checkOptions(optionsOf(this.slot.entry), terminalType);
+    if (this.disposed) return false;
+    this.refused = problems.length > 0;
+    this.host.setProblems(problems);
+    return !this.refused;
+  }
+
   private async start(): Promise<void> {
     this.exited = false;
+    this.starting = true;
+    const runnable = await this.check();
+    this.starting = false;
+    if (!runnable || this.disposed) return;
     const context = resolveContext(this.host.where());
     if (!context) {
       this.waiting = true;
@@ -147,7 +173,7 @@ function folderName(path: string): string {
 
 export const terminalType: PanelType = {
   name: 'terminal',
-  params: [],
+  options: [],
   exactlyOne: [],
   icon: 'terminal',
   defaultTitle: () => 'Terminal',

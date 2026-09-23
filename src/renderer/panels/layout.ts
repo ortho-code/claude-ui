@@ -127,18 +127,15 @@ function doubled(given: string[]): string {
   return `${list} are ${given.length === 2 ? 'both' : 'all'} given; give one.`;
 }
 
+/** The fields of an entry that are the layout's; `options` is the one it hands on unread. */
+const ENTRY_FIELDS = new Set(['id', 'type', 'title', 'hidden', 'icon', 'options']);
+
 /**
- * Validate one entry against its type's declaration. Every problem is collected, not only the first, so one read of the panel says all there is to fix.
+ * Validate one entry's LAYOUT fields: its id, its type, and how it is drawn. Every problem is collected, not only the first, so one read of the panel says all there is to fix.
+ * The entry's `options` are its type's: checked here only for being an object, and by the type itself for everything inside, once it is mounted.
  * `seen` holds every id met so far in the file, nodes included, for the uniqueness rule; `fallbackKey` is what the slot is keyed by when its id is not usable.
  */
-export function validateEntry(
-  raw: unknown,
-  index: number,
-  types: Record<string, PanelTypeDecl>,
-  report: LayoutReport,
-  seen: Set<string>,
-  fallbackKey = `#${index}`,
-): PanelSlot {
+export function validateEntry(raw: unknown, index: number, types: Record<string, PanelTypeDecl>, seen: Set<string>, fallbackKey = `#${index}`): PanelSlot {
   const problems: string[] = [];
   const notes: string[] = [];
   if (!isObject(raw)) {
@@ -159,25 +156,10 @@ export function validateEntry(
 
   if (raw.title !== undefined && typeof raw.title !== 'string') problems.push('title is not a string.');
   if (raw.hidden !== undefined && typeof raw.hidden !== 'boolean') problems.push('hidden is not true or false.');
-
-  if (type) {
-    for (const group of type.exactlyOne) {
-      const given = group.filter((name) => raw[name] !== undefined);
-      if (given.length === 0) problems.push(`One of ${group.join(' or ')} is required.`);
-      else if (given.length > 1) problems.push(doubled(given));
-    }
-    for (const param of type.params) {
-      const value = raw[param.name];
-      if (value === undefined) continue;
-      if (typeof value !== 'string') problems.push(`${param.name} is not a string.`);
-      else if (value.trim() === '') problems.push(`${param.name} is empty.`);
-      else if (param.kind === 'path') {
-        // Main checked the file when it read the layout; the check is keyed by the value as written.
-        const check = report.scripts[value];
-        if (!check) problems.push(`${param.name} ${value} was not checked.`);
-        else if (check.problem) problems.push(`${check.problem}.`);
-      }
-    }
+  if (raw.options !== undefined && !isObject(raw.options)) problems.push('options is not an object.');
+  // Worded without knowing any type's options, which is also the whole of the notice for a setting written where options used not to be nested.
+  for (const field of Object.keys(raw)) {
+    if (!ENTRY_FIELDS.has(field)) problems.push(`${field} is not a field of a panel entry; a type’s own settings go under options.`);
   }
 
   // A wrong icon is cosmetic, so it is named and the type's own is used, rather than the panel refused.
@@ -192,11 +174,12 @@ export function validateEntry(
   } else if (raw.icon !== undefined) icon = raw.icon as IconName;
   if (problems.length > 0) icon = 'alert';
 
+  const derived = type && problems.length === 0 ? type.defaultTitle(isObject(raw.options) ? raw.options : {}) : null;
   const title =
     typeof raw.title === 'string' && raw.title.trim() !== ''
       ? raw.title
-      : type && problems.length === 0
-        ? type.defaultTitle(entry)
+      : derived
+        ? derived
         : typeof raw.id === 'string'
           ? raw.id
           : `Entry ${index + 1}`;
@@ -232,13 +215,23 @@ export function foldEdge(siblings: { size: NodeSize | null }[], index: number): 
 }
 
 /**
- * What a mounted panel IS, beyond its key: its type and its declared parameters as written.
- * The tree keeps a panel alive across a layout change while this stays the same, so a new title, icon or place moves it rather than restarting its run or its shell; a changed command mounts it afresh (decision 13).
+ * What a mounted panel IS, beyond its key: its type and its `options` as written.
+ * The tree keeps a panel alive across a layout change while this stays the same, so a new title, icon or place moves it rather than restarting its run or its shell; a changed option mounts it afresh (decision 13).
+ * Nothing here knows a type's options: whatever sits under `options` is what the panel was mounted from. Keys are sorted first, so reordering them in the file restarts nothing.
  */
-export function mountSignature(slot: PanelSlot, types: Record<string, PanelTypeDecl>): string {
-  const params = slot.type ? (types[slot.type]?.params ?? []) : [];
-  const entry = (slot.entry ?? {}) as unknown as Record<string, unknown>;
-  return JSON.stringify([slot.type, ...params.map((param) => entry[param.name] ?? null)]);
+export function mountSignature(slot: PanelSlot): string {
+  return JSON.stringify([slot.type, sorted(slot.entry?.options ?? null)]);
+}
+
+/** A JSON value with every object's keys in order, for a comparison that ignores how the file happened to order them. */
+function sorted(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sorted);
+  if (!isObject(value)) return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, sorted(value[key])]),
+  );
 }
 
 /** Whether a node takes no room: a group with every slot hidden, or a split of nothing but such groups. A degraded group always shows. */
@@ -261,10 +254,7 @@ class Resolver {
   /** Singleton type → the key of the slot that placed it. */
   readonly placed = new Map<string, string>();
 
-  constructor(
-    private readonly types: Record<string, PanelTypeDecl>,
-    private readonly report: LayoutReport,
-  ) {}
+  constructor(private readonly types: Record<string, PanelTypeDecl>) {}
 
   /** `key` is the node's position, used when its id is not; `title` is what to call it when it has no id to go by. */
   node(raw: unknown, key: string, title: string): ResolvedNode {
@@ -319,7 +309,7 @@ class Resolver {
   }
 
   private group(common: NodeCommon, title: string, entries: unknown[], active: string | null, collapsible: boolean): ResolvedGroup {
-    const slots = entries.map((raw, index) => validateEntry(raw, index, this.types, this.report, this.seen, `${common.id}/${index}`));
+    const slots = entries.map((raw, index) => validateEntry(raw, index, this.types, this.seen, `${common.id}/${index}`));
     for (const slot of slots) {
       const type = slot.type ? this.types[slot.type] : null;
       if (!type?.singleton || slot.problems.length > 0) continue;
@@ -404,15 +394,16 @@ function defaultHome(type: string): { node: Extract<LayoutNode, { panels: PanelE
 function addSingleton(root: ResolvedNode, type: PanelTypeDecl): ResolvedNode {
   const home = defaultHome(type.name);
   const entry = home?.entry ?? { id: type.name, type: type.name };
+  const title = type.defaultTitle({}) ?? type.name;
   const group: ResolvedGroup = {
     kind: 'group',
     id: `@${home?.node.id ?? type.name}`,
-    title: type.defaultTitle(entry),
+    title,
     size: parseSize(home?.node.size),
     min: home?.node.min ?? DEFAULT_MIN,
     resizable: home?.node.resizable !== false,
     notes: [`The layout does not place the ${type.name} panel, so it is added here.`],
-    slots: [{ key: `@${entry.id}`, type: type.name, title: type.defaultTitle(entry), problems: [], notes: [], entry, hidden: false, icon: type.icon }],
+    slots: [{ key: `@${entry.id}`, type: type.name, title, problems: [], notes: [], entry, hidden: false, icon: type.icon }],
     active: `@${entry.id}`,
     collapsible: home?.node.collapsible === true,
     bare: type.bare === true,
@@ -433,7 +424,7 @@ function addSingleton(root: ResolvedNode, type: PanelTypeDecl): ResolvedNode {
  * `problems`, when given, is a file that could not be read as a layout at all: `json` is then the default layout, and one degraded group saying why sits beside it where a right-hand side would, so the window stays usable while the file is fixed.
  */
 function resolveRoot(json: unknown, types: Record<string, PanelTypeDecl>, report: LayoutReport, notes: string[], problems: string[] = []): LayoutView {
-  const resolver = new Resolver(types, report);
+  const resolver = new Resolver(types);
   let root = resolver.node(json, '#root', 'root');
   root.notes.push(...notes);
   for (const type of Object.values(types)) {

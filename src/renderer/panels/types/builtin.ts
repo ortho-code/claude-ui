@@ -1,4 +1,5 @@
 import type { IconName } from '../icons';
+import { optionProblems, optionsOf } from '../options';
 import type { MountedPanel, PanelHost, PanelStatus, PanelType } from './command';
 
 /**
@@ -26,18 +27,20 @@ export function reportBuiltinStatus(name: BuiltinName, status: PanelStatus): voi
 }
 
 function builtin(name: BuiltinName, elementId: string, title: string, icon: IconName): PanelType {
-  return {
+  const type: PanelType = {
     name,
-    params: [],
+    options: [],
     exactlyOne: [],
     icon,
     bare: true,
     singleton: true,
     defaultTitle: () => title,
-    mount: (_slot, host): MountedPanel => {
+    mount: (slot, host): MountedPanel => {
       const el = document.getElementById(elementId)!;
       hosts.set(name, host);
       host.setStatus(statuses.get(name) ?? null);
+      // Named as NOTES, never as problems: a built-in cannot be refused, since no file may produce a window without the sidebar or the terminal.
+      host.setNotes(optionProblems(optionsOf(slot.entry), type).map((line) => `${slot.key}: ${line}`));
       return {
         el,
         // Nothing to run: the surface keeps itself current, and follows the tab and the project because the renderer drives it directly.
@@ -45,6 +48,8 @@ function builtin(name: BuiltinName, elementId: string, title: string, icon: Icon
         contextChanged: () => {},
         // A reveal needs no help: the terminal area refits from its own ResizeObserver once it has a size again.
         setVisible: () => {},
+        // Nothing in the config folder is the built-ins' to read.
+        recheck: () => {},
         unmount: () => {
           if (hosts.get(name) === host) hosts.delete(name);
           document.getElementById('parked')!.append(el);
@@ -52,6 +57,7 @@ function builtin(name: BuiltinName, elementId: string, title: string, icon: Icon
       };
     },
   };
+  return type;
 }
 
 export const sessionsType = builtin('sessions', 'sidebar', 'Sessions', 'sessions');

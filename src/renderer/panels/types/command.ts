@@ -1,32 +1,25 @@
-import type { PanelContext, PanelEntry, PanelRunEvent, PanelSource } from '../../../shared/panels';
+import type { PanelContext, PanelRunEvent, PanelSource } from '../../../shared/panels';
 import { PANEL_TIMEOUT_MS } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
 import type { IconName } from '../icons';
 import { stripAnsi, splitPendingEscape } from '../ansi';
+import { checkOptions, optionsOf, type OptionsDecl } from '../options';
 
 /**
  * The `command` panel type: runs a command line or a script and shows what it printed.
  *
- * A TYPE DECLARES ITS PARAMETERS ONCE, here. The validator reads this declaration to say what is missing or doubled, the degraded panel words its sentence from the same names, and the editor's form (next slice) will be built from it — so a parameter cannot be known to one of them and not the others.
- * The same module owns the panel's body and its run: the side draws the chrome around it (side.ts) and asks it to refresh or to follow a context change.
+ * A TYPE OWNS ITS OPTIONS: it declares them here, checks them itself (options.ts) when it is mounted and before every run, and tells the tree through its host when it cannot run. The layout never reads them.
+ * The same module owns the panel's body and its run: the tree draws the chrome around it (tree.ts) and asks it to refresh or to follow a context change.
  */
 
-export type ParamKind = 'text' | 'path';
-
-export interface ParamDecl {
-  name: string;
-  kind: ParamKind;
-  /** For a `path`: what a relative value resolves against. Declared beside the parameter so the resolver is not something the caller has to know. */
-  against?: 'config';
-}
-
+/** What the LAYOUT knows about a type: how to draw and place an entry of it, and nothing about its options. */
 export interface PanelTypeDecl {
   name: string;
-  params: ParamDecl[];
-  /** Groups of parameter names of which EXACTLY ONE must be given. */
-  exactlyOne: string[][];
-  /** The title an entry gets when it names none. Called only on an entry that passed validation. */
-  defaultTitle(entry: PanelEntry): string;
+  /**
+   * The title an entry gets when it names none, from its options where they give one; null when they do not, and the layout uses the id.
+   * Called before the type has checked anything, so it reads the options defensively.
+   */
+  defaultTitle(options: Record<string, unknown>): string | null;
   /** The icon an entry wears on a rail when it names none. */
   icon: IconName;
   /** The panel carries its own chrome, so a group holding only it draws no header. */
@@ -49,7 +42,7 @@ export interface Where {
  */
 export type PanelStatus = 'wait' | 'fail' | null;
 
-/** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw. */
+/** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw — the panel's side of the conversation with the layout. */
 export interface PanelHost {
   where(): Where;
   setBusy(busy: boolean): void;
@@ -57,6 +50,13 @@ export interface PanelHost {
   setEnd(label: string): void;
   /** The dot on the panel's rail icon. */
   setStatus(status: PanelStatus): void;
+  /**
+   * Why the panel cannot run, one sentence each, or none when it can: the tree draws them in the panel's place, with the same problem list as the layout's own refusals, and puts `alert` on its rail icon.
+   * Different from a failed RUN, which is the red dot: this is a panel that will not start as its options stand.
+   */
+  setProblems(problems: string[]): void;
+  /** Sentences about the panel that do not stop it running, shown in its group's note line. */
+  setNotes(notes: string[]): void;
 }
 
 export interface MountedPanel {
@@ -72,11 +72,13 @@ export interface MountedPanel {
    * Hiding stops nothing: a hidden panel keeps its DOM and its process, and only removal from the file ends them.
    */
   setVisible(visible: boolean): void;
+  /** Something in the config folder changed: check the options again, since a file or folder they point at may have appeared or changed. */
+  recheck(): void;
   /** The panel is leaving the layout: stop its run and forget it. */
   unmount(): void;
 }
 
-export interface PanelType extends PanelTypeDecl {
+export interface PanelType extends PanelTypeDecl, OptionsDecl {
   /** What the header's one button does, for its tooltip and label. "Refresh" when the type says nothing. */
   actionLabel?: string;
   mount(slot: PanelSlot, host: PanelHost): MountedPanel;
@@ -98,9 +100,9 @@ export function resolveContext(where: Where): PanelContext | null {
   return null;
 }
 
-/** What an entry runs, in the form the runner takes. Only for an entry that passed validation, which is what guarantees exactly one is present. */
-export function commandSource(entry: PanelEntry): PanelSource {
-  return typeof entry.script === 'string' ? { script: entry.script } : { command: entry.command ?? '' };
+/** What an entry runs, in the form the runner takes. Only for options whose check passed, which is what guarantees exactly one is present. */
+export function commandSource(options: Record<string, unknown>): PanelSource {
+  return typeof options.script === 'string' ? { script: options.script } : { command: typeof options.command === 'string' ? options.command : '' };
 }
 
 /**
@@ -179,6 +181,12 @@ export class RunGate {
     this.fire();
   }
 
+  /** Forget the last run, so it runs again now if shown and on reveal if not: for a panel that could not run and now can. */
+  rerun(): void {
+    this.last = null;
+    this.contextChanged();
+  }
+
   private fire(): void {
     this.last = this.key();
     this.run();
@@ -197,6 +205,11 @@ class CommandPanel implements MountedPanel {
   private token: string | null = null;
   private pending = '';
   private readonly gate: RunGate;
+  /** Whether the options passed their last check; null until the first has answered. */
+  private runnable: boolean | null = null;
+  /** Counts the runs asked for, so one whose check is overtaken by a newer ask drops out rather than starting after it. */
+  private asked = 0;
+  private disposed = false;
 
   constructor(
     private readonly slot: PanelSlot,
@@ -216,8 +229,10 @@ class CommandPanel implements MountedPanel {
     // Keyed by the context the run would get, so a tab or project change that lands on the same place does not run again.
     this.gate = new RunGate(
       () => contextKey(resolveContext(this.host.where())),
-      () => this.run(),
+      () => void this.run(),
     );
+    // Checked at once rather than on first show, so a panel behind another already wears `alert` on its rail.
+    void this.check();
   }
 
   refresh(): void {
@@ -232,22 +247,45 @@ class CommandPanel implements MountedPanel {
     this.gate.setVisible(visible);
   }
 
+  recheck(): void {
+    const was = this.runnable;
+    void this.check().then((ok) => {
+      // A panel that could not run and now can runs again; one that already could is left alone, since a change elsewhere in the folder is no reason to re-run it.
+      if (ok && was === false) this.gate.rerun();
+    });
+  }
+
   unmount(): void {
+    this.disposed = true;
     if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
     this.token = null;
     if (mountedByKey.get(this.slot.key) === this) mountedByKey.delete(this.slot.key);
   }
 
-  private run(): void {
+  /** Check the options, tell the host what is wrong with them, and say whether the panel can run. */
+  private async check(): Promise<boolean> {
+    const problems = await checkOptions(optionsOf(this.slot.entry), commandType);
+    if (this.disposed) return false;
+    this.runnable = problems.length === 0;
+    this.host.setProblems(problems);
+    return this.runnable;
+  }
+
+  /** Every run checks first: a script can go missing or lose its bit between runs, and the check is what says so in the panel's own words. */
+  private async run(): Promise<void> {
+    const asked = ++this.asked;
+    const runnable = await this.check();
+    if (asked !== this.asked || this.disposed) return;
     const context = resolveContext(this.host.where());
     this.host.setEnd('');
     this.host.setStatus(null);
-    if (!context) {
+    if (!runnable || !context) {
       if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
       this.token = null;
       this.host.setBusy(false);
       this.output.hidden = true;
-      this.placeholder.hidden = false;
+      // A panel that cannot run is drawn by the tree as its problems; the placeholder is for one that can, with nowhere to run.
+      this.placeholder.hidden = !runnable;
       return;
     }
     this.token = crypto.randomUUID();
@@ -257,7 +295,7 @@ class CommandPanel implements MountedPanel {
     this.placeholder.hidden = true;
     this.host.setBusy(true);
     // The runner stops the run before this one itself; the token is what keeps that run's tail out of this body.
-    window.claudeUi.runPanel({ entryId: this.slot.key, token: this.token, source: commandSource(this.slot.entry!), context });
+    window.claudeUi.runPanel({ entryId: this.slot.key, token: this.token, source: commandSource(optionsOf(this.slot.entry)), context });
   }
 
   private handle(token: string, event: PanelRunEvent): void {
@@ -307,15 +345,16 @@ function contextKey(context: PanelContext | null): string {
  */
 export const commandType: PanelType = {
   name: 'command',
-  params: [
+  options: [
     { name: 'command', kind: 'text' },
-    { name: 'script', kind: 'path', against: 'config' },
+    { name: 'script', kind: 'path', against: 'config', must: 'executable' },
   ],
   exactlyOne: [['command', 'script']],
   icon: 'command',
-  defaultTitle: (entry) => {
-    if (typeof entry.script === 'string') return entry.script.split('/').filter(Boolean).at(-1) ?? entry.script;
-    const line = (entry.command ?? '').trim();
+  defaultTitle: (options) => {
+    if (typeof options.script === 'string' && options.script.trim() !== '') return options.script.split('/').filter(Boolean).at(-1) ?? options.script;
+    const line = typeof options.command === 'string' ? options.command.trim() : '';
+    if (line === '') return null;
     return line.length > TITLE_MAX ? `${line.slice(0, TITLE_MAX - 1)}…` : line;
   },
   mount: (slot, host) => new CommandPanel(slot, host),

@@ -3,7 +3,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { StringDecoder } from 'node:string_decoder';
 import { configRoot } from './paths';
-import { resolveScript } from './config';
+import { resolvePath } from './config';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup, type ShellInvocation } from './shell';
 import {
   PANEL_OUTPUT_CAP,
@@ -38,7 +38,7 @@ const ARG0 = 'claude-ui-panel';
 /** The exact spawn for a source. Pure, so a test can pin what reaches the shell. */
 export function panelInvocation(source: PanelSource): ShellInvocation {
   if ('command' in source) return shellCommand(RUN_LINE, [loginShell(), source.command], ARG0);
-  return shellCommand(RUN_SCRIPT, [resolveScript(source.script)], ARG0);
+  return shellCommand(RUN_SCRIPT, [resolvePath(source.script, 'config')], ARG0);
 }
 
 /**

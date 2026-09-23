@@ -13,9 +13,9 @@
 export const LAYOUT_VERSION = 2;
 
 /**
- * One panel, as an entry in the layout file: the statusline's shape, an inline entry that is a command line or a script path.
- * `id` is a slug the user writes (`^[a-z0-9][a-z0-9_-]*$`), unique across the whole file — nodes and entries share one namespace — and what panel state keys on.
- * `title` and `hidden` are optional; the parameters after them belong to the entry's `type`, whose module declares them once (`renderer/panels/types/*`).
+ * One panel, as an entry in the layout file.
+ * Everything but `options` is the LAYOUT's: `id` is a slug the user writes (`^[a-z0-9][a-z0-9_-]*$`), unique across the whole file — nodes and entries share one namespace — and what panel state keys on; `title`, `hidden` and `icon` are how the layout draws it.
+ * `options` is the PANEL's, handed to its type whole and read by nobody else: the type declares what it takes (`renderer/panels/types/*`) and says itself what is wrong with it, so a type can gain a setting without the layout learning its name.
  */
 export interface PanelEntry {
   id: string;
@@ -24,10 +24,8 @@ export interface PanelEntry {
   hidden?: boolean;
   /** The panel's icon on a rail, by name from the app's set; the type's own when absent. */
   icon?: string;
-  /** `command` type: a command line, run as typed by the shell in the context directory. */
-  command?: string;
-  /** `command` type: a path to an executable, relative to the config folder or absolute, checked when the layout is read. */
-  script?: string;
+  /** The type's own settings, as written. */
+  options?: Record<string, unknown>;
 }
 
 /** What every node in the tree may say about itself, whatever it holds. */
@@ -79,11 +77,17 @@ export interface PanelState {
   active: Record<string, string>;
 }
 
-/** How one `script` value checked out when the layout was read. Main's, because main has the filesystem. */
-export interface ScriptCheck {
+/** What a relative path option resolves against: the config folder, or a directory the panel names. */
+export type PathBase = 'config' | { dir: string };
+
+/** What a path option must point at. */
+export type PathKind = 'executable' | 'directory';
+
+/** How one path option checked out. Main's, because main has the filesystem; asked by the panel whose option it is. */
+export interface PathCheck {
   /** The absolute path the value resolved to. */
   path: string;
-  /** What is wrong with it, as a sentence naming the value as written, or null when it exists and is executable. */
+  /** What is wrong with it, as a sentence naming the value as written, or null when it is there and of the kind asked for. */
   problem: string | null;
 }
 
@@ -91,7 +95,7 @@ export interface ScriptCheck {
  * One read of the layout file, before any validation of its shape.
  *
  * `missing`: there is no file, so there is no layout. `unparsable`: the file is there and could not be used, and `error` says why and where — the renderer keeps the last good layout up. `read`: `json` holds whatever the file parsed to.
- * The script checks travel with the read so one report answers everything about the file, and they are keyed by the value AS WRITTEN rather than by entry id, so a duplicate or malformed id cannot lose one.
+ * Nothing a panel's options point at is checked here: that is the panel's to ask about, when it is mounted and before it runs.
  */
 export interface LayoutReport {
   configRoot: string;
@@ -99,10 +103,9 @@ export interface LayoutReport {
   status: 'missing' | 'unparsable' | 'read';
   error: string | null;
   json: unknown;
-  scripts: Record<string, ScriptCheck>;
 }
 
-/** What a `command` panel runs: exactly one of the two, as the entry gave it. */
+/** What a `command` panel runs: exactly one of the two, as its options gave it. */
 export type PanelSource = { command: string } | { script: string };
 
 /**

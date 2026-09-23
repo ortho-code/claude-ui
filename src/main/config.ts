@@ -1,60 +1,49 @@
 import { ipcMain, shell, type BrowserWindow } from 'electron';
 import { promises as fs, constants, mkdirSync, watch, type FSWatcher } from 'node:fs';
+import { homedir } from 'node:os';
 import * as path from 'node:path';
 import { configRoot, layoutsDir, scriptsDir, defaultLayoutFile } from './paths';
-import type { LayoutReport, ScriptCheck } from '../shared/panels';
+import type { LayoutReport, PathBase, PathCheck, PathKind } from '../shared/panels';
 
 /**
- * The config folder: read, checked and watched here, never written.
+ * The config folder: read and watched here, never written.
  *
  * A read is TOLERANT the way meta's is not, and for the opposite reason: meta drops what it does not understand because the app wrote it and a past version's field is noise, while this file was written by a person, so what the app does not understand has to be NAMED back to them.
- * So nothing here throws or drops: a missing file is a report saying so, a file that is not JSON is a report carrying the parser's own message and position, and a script that is not there or not executable is a report entry in the value's own name.
+ * So nothing here throws or drops: a missing file is a report saying so, and a file that is not JSON is a report carrying the parser's own message and position.
  */
 
 /**
- * Where a `script` value points: relative to the config folder, so a script travels with it and needs no environment variable, or absolute.
- * The ONE resolver, used by the check at read time and by the run, so the two cannot disagree about which file was meant.
+ * Where a path option points: `~` and `~/…` under the home directory, so a shared layout file works on another machine; an absolute path as it is; anything else against `base`.
+ * The ONE resolver, used by a panel's check and by the run and the shell start that follow it, so the check and the use cannot disagree about which file or folder was meant.
  */
-export function resolveScript(script: string): string {
-  return path.resolve(configRoot, script);
+export function resolvePath(value: string, base: PathBase): string {
+  if (value === '~') return homedir();
+  if (value.startsWith('~/')) return path.join(homedir(), value.slice(2));
+  return path.resolve(base === 'config' ? configRoot : base.dir, value);
 }
 
-/** Whether the file a `script` names is there and can be run, worded in the value as the user wrote it. */
-async function checkScript(script: string): Promise<ScriptCheck> {
-  const resolved = resolveScript(script);
+/** Whether a path option points at what it must, worded in the value as the user wrote it. Asked by the panel whose option it is. */
+export async function checkPath(value: string, base: PathBase, must: PathKind): Promise<PathCheck> {
+  const resolved = resolvePath(value, base);
+  let stat;
   try {
-    const stat = await fs.stat(resolved);
-    if (!stat.isFile()) return { path: resolved, problem: `${script} is not a file` };
+    stat = await fs.stat(resolved);
   } catch {
-    return { path: resolved, problem: `${script} not found` };
+    return { path: resolved, problem: `${value} not found` };
   }
+  if (must === 'directory') return { path: resolved, problem: stat.isDirectory() ? null : `${value} is not a folder` };
+  if (!stat.isFile()) return { path: resolved, problem: `${value} is not a file` };
   try {
     await fs.access(resolved, constants.X_OK);
   } catch {
-    return { path: resolved, problem: `${script} is not executable` };
+    return { path: resolved, problem: `${value} is not executable` };
   }
   return { path: resolved, problem: null };
 }
 
-/**
- * Every string-valued `script` anywhere in the parsed file.
- * A walk of the whole tree rather than of the expected shape, so an entry the validator will reach has its check no matter how the levels above it are malformed; a `script` somewhere the validator never looks costs one stat and nothing else.
- */
-function collectScripts(json: unknown, into = new Set<string>()): Set<string> {
-  if (Array.isArray(json)) {
-    for (const item of json) collectScripts(item, into);
-  } else if (json && typeof json === 'object') {
-    for (const [key, value] of Object.entries(json)) {
-      if (key === 'script' && typeof value === 'string') into.add(value);
-      else collectScripts(value, into);
-    }
-  }
-  return into;
-}
-
-/** One read of the layout file, with its script checks. Exported for the tests. */
+/** One read of the layout file. Exported for the tests. */
 export async function readLayout(file = defaultLayoutFile): Promise<LayoutReport> {
-  const base = { configRoot, file, scripts: {} as Record<string, ScriptCheck> };
+  const base = { configRoot, file };
   let text: string;
   try {
     text = await fs.readFile(file, 'utf8');
@@ -69,21 +58,20 @@ export async function readLayout(file = defaultLayoutFile): Promise<LayoutReport
   } catch (error) {
     return { ...base, status: 'unparsable', error: (error as Error).message, json: null };
   }
-  const scripts: Record<string, ScriptCheck> = {};
-  for (const script of collectScripts(json)) scripts[script] = await checkScript(script);
-  return { ...base, status: 'read', error: null, json, scripts };
+  return { ...base, status: 'read', error: null, json };
 }
 
 /**
  * Create the folder, answer reads, and push a fresh report whenever anything in it changes.
  *
- * Three directories are watched rather than the folder recursively (recursive watch is unreliable on Linux/WSL, as watcher.ts found): the folder itself, `layouts/` for the file, and `scripts/` so a script appearing or gaining its executable bit (an attribute change, MEASURED to reach a directory watch) clears its error without a restart.
+ * Three directories are watched rather than the folder recursively (recursive watch is unreliable on Linux/WSL, as watcher.ts found): the folder itself, `layouts/` for the file, and `scripts/` so a script appearing or gaining its executable bit (an attribute change, MEASURED to reach a directory watch) clears its panel's error without a restart — the report that follows is what tells every panel to check again.
  * Any event on the folder itself re-opens the two below it, because a directory that was deleted and recreated leaves its old watcher pointing at nothing.
  */
 export function registerConfig(getWindow: () => BrowserWindow | null): void {
   for (const dir of [configRoot, layoutsDir, scriptsDir]) mkdirSync(dir, { recursive: true });
 
   ipcMain.handle('config:getLayout', () => readLayout());
+  ipcMain.handle('config:checkPath', (_event, value: string, base: PathBase, must: PathKind) => checkPath(value, base, must));
   // `openPath`, not `showItemInFolder`: that one opens the folder's PARENT with the folder selected, and a Linux file manager without FileManager1 support (WSLg's) selects nothing, which reads as the wrong folder.
   ipcMain.on('config:open', () => void shell.openPath(configRoot));
 

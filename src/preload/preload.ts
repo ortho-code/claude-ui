@@ -65,6 +65,7 @@ const api: ClaudeUiApi = {
   killTerminal: (id) => ipcRenderer.send('terminal:kill', id),
   closeTerminal: (id) => ipcRenderer.send('terminal:close', id),
   getLayout: () => ipcRenderer.invoke('config:getLayout'),
+  checkPath: (value, base, must) => ipcRenderer.invoke('config:checkPath', value, base, must),
   onLayoutChanged: (callback) => ipcRenderer.on('config:changed', (_event, report: LayoutReport) => callback(report)),
   runPanel: (request) => ipcRenderer.send('panel:run', request),
   stopPanel: (entryId) => ipcRenderer.send('panel:stop', entryId),

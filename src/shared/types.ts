@@ -161,7 +161,7 @@ export interface UiState {
   panelState: PanelState;
 }
 
-import type { LayoutReport, PanelContext, PanelRunEvent, PanelRunRequest, PanelState } from './panels';
+import type { LayoutReport, PanelContext, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind } from './panels';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
@@ -283,8 +283,10 @@ export interface ClaudeUiApi {
   killTerminal(id: number): void;
   /** Close a session, letting claude exit cleanly so it flushes first. */
   closeTerminal(id: number): void;
-  /** The layout file as main last read it, script checks included. Validated in the renderer (panels/layout.ts). */
+  /** The layout file as main last read it. Validated in the renderer (panels/layout.ts). */
   getLayout(): Promise<LayoutReport>;
+  /** Resolve a panel's path option against `base` and check it is what it `must` be; the run and the shell start resolve the same way. */
+  checkPath(value: string, base: PathBase, must: PathKind): Promise<PathCheck>;
   /** Fires with a fresh report whenever anything in the config folder changes (debounced). */
   onLayoutChanged(callback: (report: LayoutReport) => void): void;
   /** Run a `command` panel's command in its context; a run already going for the entry is stopped first. Output arrives through `onPanelRun`. */
