@@ -1,5 +1,69 @@
 import { describe, it, expect } from 'vitest';
-import { resolveContext, commandSource, endLabel, commandType } from './command';
+import { resolveContext, commandSource, endLabel, commandType, RunGate } from './command';
+
+describe('RunGate', () => {
+  /** A gate over a context the test moves by hand, counting the runs it lets through. */
+  function gate(start = '/repo') {
+    const state = { context: start, runs: [] as string[] };
+    const g = new RunGate(
+      () => state.context,
+      () => state.runs.push(state.context),
+    );
+    return { g, state };
+  }
+
+  it('runs nothing while mounted hidden, and runs on first being shown', () => {
+    const { g, state } = gate();
+    g.contextChanged();
+    expect(state.runs).toEqual([]);
+    g.setVisible(true);
+    expect(state.runs).toEqual(['/repo']);
+  });
+
+  it('runs on a context change while shown, and not on one that lands where it was', () => {
+    const { g, state } = gate();
+    g.setVisible(true);
+    state.context = '/other';
+    g.contextChanged();
+    g.contextChanged();
+    expect(state.runs).toEqual(['/repo', '/other']);
+  });
+
+  it('holds a change made while hidden and runs it once on reveal', () => {
+    const { g, state } = gate();
+    g.setVisible(true);
+    g.setVisible(false);
+    state.context = '/a';
+    g.contextChanged();
+    state.context = '/b';
+    g.contextChanged();
+    expect(state.runs).toEqual(['/repo']);
+    g.setVisible(true);
+    expect(state.runs).toEqual(['/repo', '/b']);
+  });
+
+  it('does not run on reveal when the context came back to where the last run was', () => {
+    const { g, state } = gate();
+    g.setVisible(true);
+    g.setVisible(false);
+    state.context = '/a';
+    g.contextChanged();
+    state.context = '/repo';
+    g.contextChanged();
+    g.setVisible(true);
+    expect(state.runs).toEqual(['/repo']);
+  });
+
+  it('runs on Refresh whatever the context, and counts that run as the last', () => {
+    const { g, state } = gate();
+    g.setVisible(true);
+    g.refresh();
+    expect(state.runs).toEqual(['/repo', '/repo']);
+    g.setVisible(false);
+    g.setVisible(true);
+    expect(state.runs).toHaveLength(2);
+  });
+});
 
 describe('resolveContext', () => {
   it('runs in the active tab’s cwd, so a worktree session’s panel reports the worktree', () => {

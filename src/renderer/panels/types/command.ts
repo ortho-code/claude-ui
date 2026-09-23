@@ -49,7 +49,13 @@ export interface MountedPanel {
   refresh(): void;
   /** The tab or project changed; run again if that moved the panel's context. */
   contextChanged(): void;
-  /** The panel is leaving the screen: stop its run and forget it. */
+  /**
+   * The panel went behind another tab, into a folded group, or back on screen.
+   * A panel is mounted HIDDEN and shown by the first call with true, which is where it first runs.
+   * Hiding stops nothing: a hidden panel keeps its DOM and its process, and only removal from the file ends them.
+   */
+  setVisible(visible: boolean): void;
+  /** The panel is leaving the layout: stop its run and forget it. */
   unmount(): void;
 }
 
@@ -111,6 +117,40 @@ export function endLabel(event: PanelRunEvent): string {
  */
 const PENDING_MAX = 4096;
 
+/**
+ * WHEN a panel that follows its context runs, apart from what running does: on first being shown, on Refresh, and on a context change — but never while hidden.
+ * A change that happens while the panel is hidden is remembered as a difference, not queued as a run: it runs once on reveal, and not at all if the context came back to where the last run was.
+ * Pure, so the deferral is tested without a DOM or a process.
+ */
+export class RunGate {
+  private visible = false;
+  /** The context key of the last run; null until the first, so the first reveal always runs. */
+  private last: string | null = null;
+
+  constructor(
+    private readonly key: () => string,
+    private readonly run: () => void,
+  ) {}
+
+  setVisible(visible: boolean): void {
+    this.visible = visible;
+    this.contextChanged();
+  }
+
+  contextChanged(): void {
+    if (this.visible && this.key() !== this.last) this.fire();
+  }
+
+  refresh(): void {
+    this.fire();
+  }
+
+  private fire(): void {
+    this.last = this.key();
+    this.run();
+  }
+}
+
 /** The mounted command panels by entry key, for the one run-event subscription below to dispatch to. */
 const mountedByKey = new Map<string, CommandPanel>();
 let subscribed = false;
@@ -122,8 +162,7 @@ class CommandPanel implements MountedPanel {
   /** The current run's token, or null while nothing is running. Every event is checked against it, so a superseded run's tail never lands in the new run's body. */
   private token: string | null = null;
   private pending = '';
-  /** The context the last run was started in, so a tab or project change that lands on the same place does not run again. */
-  private lastContext: string | null = null;
+  private readonly gate: RunGate;
 
   constructor(
     private readonly slot: PanelSlot,
@@ -140,15 +179,23 @@ class CommandPanel implements MountedPanel {
       subscribed = true;
       window.claudeUi.onPanelRun((entryId, token, event) => mountedByKey.get(entryId)?.handle(token, event));
     }
-    this.run();
+    // Keyed by the context the run would get, so a tab or project change that lands on the same place does not run again.
+    this.gate = new RunGate(
+      () => contextKey(resolveContext(this.host.where())),
+      () => this.run(),
+    );
   }
 
   refresh(): void {
-    this.run();
+    this.gate.refresh();
   }
 
   contextChanged(): void {
-    if (contextKey(resolveContext(this.host.where())) !== this.lastContext) this.run();
+    this.gate.contextChanged();
+  }
+
+  setVisible(visible: boolean): void {
+    this.gate.setVisible(visible);
   }
 
   unmount(): void {
@@ -159,7 +206,6 @@ class CommandPanel implements MountedPanel {
 
   private run(): void {
     const context = resolveContext(this.host.where());
-    this.lastContext = contextKey(context);
     this.host.setEnd('');
     if (!context) {
       if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);

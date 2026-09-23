@@ -20,6 +20,8 @@ class TerminalPanel implements MountedPanel {
   private starting = false;
   /** No shell because there was no context; a context appearing starts one. */
   private waiting = false;
+  /** Whether it has been on screen yet: the shell starts on the first reveal, in the context of that moment. */
+  private shown = false;
   private disposed = false;
   private readonly observer: ResizeObserver;
 
@@ -34,9 +36,9 @@ class TerminalPanel implements MountedPanel {
     this.placeholder.hidden = true;
     this.el.append(this.box, this.placeholder);
     // Fit whenever the box changes size, its first layout included: the panel is mounted before the side has placed it, so the box measures nothing yet, and a fit now would leave xterm at its 80×24 default — the hidden-pane trap.
+    // The same observer covers every later reveal — a tab switch, a group unfolding from its rail, a divider reopening a squeezed node — since each one gives the box a size again.
     this.observer = new ResizeObserver(() => this.fit());
     this.observer.observe(this.box);
-    void this.start();
   }
 
   refresh(): void {
@@ -46,6 +48,13 @@ class TerminalPanel implements MountedPanel {
 
   contextChanged(): void {
     if (this.waiting && !this.starting && resolveContext(this.host.where())) void this.start();
+  }
+
+  /** Hiding keeps the shell and whatever runs in it; the refit on reveal is the observer's. */
+  setVisible(visible: boolean): void {
+    if (!visible || this.shown) return;
+    this.shown = true;
+    void this.start();
   }
 
   unmount(): void {

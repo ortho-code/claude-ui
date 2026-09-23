@@ -139,11 +139,13 @@ function panelGroup(slot: PanelSlot, type: PanelType, notShown: string[]): HTMLE
       end.textContent = label;
     },
   };
-  // Mounting starts the first run, which reports through the marks above — so they exist first and are placed after.
   const panel = type.mount(slot, panelHost);
   mounted = panel;
   refresh.addEventListener('click', () => panel.refresh());
-  return group(slot.title, [busy, end, refresh], panel.el, notShown);
+  const section = group(slot.title, [busy, end, refresh], panel.el, notShown);
+  // Showing it starts the first run, which reports through the marks above — so they are placed first.
+  panel.setVisible(true);
+  return section;
 }
 
 function group(title: string, controls: HTMLElement[], body: HTMLElement, notShown: string[]): HTMLElement {
