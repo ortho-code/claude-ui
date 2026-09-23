@@ -231,6 +231,16 @@ export function foldEdge(siblings: { size: NodeSize | null }[], index: number): 
   return before && !after ? 'end' : 'start';
 }
 
+/**
+ * What a mounted panel IS, beyond its key: its type and its declared parameters as written.
+ * The tree keeps a panel alive across a layout change while this stays the same, so a new title, icon or place moves it rather than restarting its run or its shell; a changed command mounts it afresh (decision 13).
+ */
+export function mountSignature(slot: PanelSlot, types: Record<string, PanelTypeDecl>): string {
+  const params = slot.type ? (types[slot.type]?.params ?? []) : [];
+  const entry = (slot.entry ?? {}) as unknown as Record<string, unknown>;
+  return JSON.stringify([slot.type, ...params.map((param) => entry[param.name] ?? null)]);
+}
+
 /** Whether a node takes no room: a group with every slot hidden, or a split of nothing but such groups. A degraded group always shows. */
 export function isEmpty(node: ResolvedNode): boolean {
   if (node.kind === 'group') return node.problems.length === 0 && node.slots.every((slot) => slot.hidden);

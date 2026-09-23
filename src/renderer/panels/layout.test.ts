@@ -5,6 +5,7 @@ import {
   fileWeights,
   foldEdge,
   isEmpty,
+  mountSignature,
   parseSize,
   ID_PATTERN,
   DEFAULT_LAYOUT,
@@ -442,6 +443,25 @@ describe('one entry', () => {
     expect(entry('git status').icon).toBe('alert');
     const twice = group(third(file({ id: 'again', panels: [{ id: 'cli2', type: 'claude' }] }))).slots[0];
     expect(twice.icon).toBe('alert');
+  });
+});
+
+describe('mountSignature', () => {
+  const slot = (raw: Record<string, unknown>) => validateEntry(raw, 0, TYPES, report(null), new Set());
+  const base = { id: 'status', type: 'command', command: 'git status --short' };
+
+  it('stays the same when only the title, the icon or hidden change, so the panel is moved rather than restarted', () => {
+    const before = mountSignature(slot(base), TYPES);
+    expect(mountSignature(slot({ ...base, title: 'Status' }), TYPES)).toBe(before);
+    expect(mountSignature(slot({ ...base, icon: 'git' }), TYPES)).toBe(before);
+    expect(mountSignature(slot({ ...base, hidden: false }), TYPES)).toBe(before);
+  });
+
+  it('changes with a declared parameter or the type, so the panel is mounted afresh', () => {
+    const before = mountSignature(slot(base), TYPES);
+    expect(mountSignature(slot({ ...base, command: 'git status' }), TYPES)).not.toBe(before);
+    expect(mountSignature(slot({ id: 'status', type: 'command', script: 'git status --short' }), TYPES)).not.toBe(before);
+    expect(mountSignature(slot({ id: 'status', type: 'sessions' }), TYPES)).not.toBe(before);
   });
 });
 
