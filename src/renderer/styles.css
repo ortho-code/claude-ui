@@ -638,12 +638,6 @@ button:hover {
   color: var(--text);
 }
 
-#filters > button.active {
-  color: var(--text);
-  border-color: var(--accent);
-  background: var(--active);
-}
-
 .header-actions {
   display: flex;
   gap: 6px;
@@ -953,6 +947,9 @@ button:hover {
   border-color: var(--accent);
 }
 
+/* A filter that is on looks the same wherever it shows: a pill or a date preset.
+   After both hover rules, which it has to beat at equal specificity so an on pill keeps its fill under the pointer. */
+#filters > button.active,
 #date-presets button.active {
   border-color: var(--accent);
   color: var(--text);
