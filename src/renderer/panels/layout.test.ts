@@ -3,6 +3,7 @@ import {
   resolveLayout,
   validateEntry,
   fileWeights,
+  foldEdge,
   isEmpty,
   parseSize,
   ID_PATTERN,
@@ -441,6 +442,44 @@ describe('one entry', () => {
     expect(entry('git status').icon).toBe('alert');
     const twice = group(third(file({ id: 'again', panels: [{ id: 'cli2', type: 'claude' }] }))).slots[0];
     expect(twice.icon).toBe('alert');
+  });
+});
+
+describe('foldEdge', () => {
+  const px = { size: { px: 300 } };
+  const share = { size: { share: 0.3 } };
+  const free = { size: null };
+
+  it('folds the first child to the start and the last to the end, each having one divider', () => {
+    expect(foldEdge([px, free], 0)).toBe('start');
+    expect(foldEdge([free, px], 1)).toBe('end');
+    // Even where the space goes the other way: the chevron has nowhere else to sit.
+    expect(foldEdge([px, px], 1)).toBe('end');
+  });
+
+  it('folds a middle child to the end when all its space goes to siblings before it', () => {
+    // The two-neighbours case: Claude (unsized) before `notes`, a pixel column after it.
+    expect(foldEdge([px, free, px, px], 2)).toBe('end');
+    expect(foldEdge([share, px, px], 1)).toBe('end');
+  });
+
+  it('folds a middle child to the start when its space goes to siblings after it, both ways, or nowhere', () => {
+    expect(foldEdge([px, px, free], 1)).toBe('start');
+    expect(foldEdge([free, px, share], 1)).toBe('start');
+    expect(foldEdge([px, px, px], 1)).toBe('start');
+  });
+
+  it('counts a middle child’s own size for nothing, only its siblings’', () => {
+    expect(foldEdge([free, free, px], 1)).toBe('end');
+    expect(foldEdge([free, px, px], 1)).toBe('end');
+  });
+
+  it('gives two foldable children alone in a split one divider between them, from both sides', () => {
+    expect([foldEdge([px, px], 0), foldEdge([px, px], 1)]).toEqual(['start', 'end']);
+  });
+
+  it('folds a child alone to the start, though with no divider it cannot fold', () => {
+    expect(foldEdge([px], 0)).toBe('start');
   });
 });
 

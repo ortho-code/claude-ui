@@ -217,6 +217,20 @@ export function fileWeights(sizes: (number | null)[]): { weights: number[]; exha
   return { weights: sizes.map((size) => size ?? share), exhausted };
 }
 
+/**
+ * The edge a child of a split folds toward, which is where its rail sits; its chevron is on the divider on the OTHER side, pointing this way (P12).
+ * The first child folds to the start and the last to the end, since each has one divider. A middle child folds away from where its space goes: a folded child's space goes to the siblings without a pixel size, so when those are all before it, the rest slides toward it and it ends up at the end — anything else folds to the start.
+ * `siblings` are the split's children on screen, which is what "first", "last" and "before" mean. Worked out from the file's sizes and not from which siblings happen to be folded, so a chevron never moves when a neighbour folds.
+ */
+export function foldEdge(siblings: { size: NodeSize | null }[], index: number): 'start' | 'end' {
+  if (siblings.length < 2 || index === 0) return 'start';
+  if (index === siblings.length - 1) return 'end';
+  const flexible = (sibling: { size: NodeSize | null }): boolean => pxOf(sibling) === null;
+  const before = siblings.slice(0, index).some(flexible);
+  const after = siblings.slice(index + 1).some(flexible);
+  return before && !after ? 'end' : 'start';
+}
+
 /** Whether a node takes no room: a group with every slot hidden, or a split of nothing but such groups. A degraded group always shows. */
 export function isEmpty(node: ResolvedNode): boolean {
   if (node.kind === 'group') return node.problems.length === 0 && node.slots.every((slot) => slot.hidden);
