@@ -1,5 +1,4 @@
-import type { LayoutReport } from '../../shared/panels';
-import type { PanelState } from '../../shared/types';
+import type { LayoutReport, PanelState } from '../../shared/panels';
 import { installResizer } from '../resizer';
 import { setTooltip } from '../tooltip';
 import { resolveLayout, type PanelSlot } from './layout';
@@ -46,11 +45,7 @@ export function configRoot(): string | null {
 }
 
 export function sideState(): PanelState {
-  return { width: draggedWidth };
-}
-
-export function setSideWidth(width: number | null): void {
-  draggedWidth = width;
+  return { sizes: {}, collapsed: [], active: {} };
 }
 
 /** The tab or project changed: let the shown panel decide whether that moved its context. */

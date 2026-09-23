@@ -43,6 +43,22 @@ export interface Layout {
   sides: { right?: LayoutSide };
 }
 
+/**
+ * Where the tree was left, per machine, in `UiState` — never in the layout file, which is what may be shared.
+ * Everything keys on the file's ids, so an edit that renames a node starts it fresh rather than handing it another node's state.
+ */
+export interface PanelState {
+  /**
+   * Dragged sizes in px, per split id, per child id.
+   * A split's entry is honoured only while it names EVERY current child, so a file edit that adds or removes a child falls back to the file's sizes rather than half of each.
+   */
+  sizes: Record<string, Record<string, number>>;
+  /** Groups folded to their rail, by id. */
+  collapsed: string[];
+  /** The shown panel per group id, by entry id; the file's `active` is the default. */
+  active: Record<string, string>;
+}
+
 /** How one `script` value checked out when the layout was read. Main's, because main has the filesystem. */
 export interface ScriptCheck {
   /** The absolute path the value resolved to. */

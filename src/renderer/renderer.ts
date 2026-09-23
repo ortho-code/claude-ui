@@ -29,7 +29,7 @@ import { parseLaunchFlags } from '../shared/flags';
 import { installTooltips, setTooltip } from './tooltip';
 import { installResizer } from './resizer';
 import { createTerminal, bindTerminal, routeTerminals } from './terminal';
-import { initSide, sideContextChanged, sideState, setSideWidth, configRoot } from './panels/side';
+import { initSide, sideContextChanged, sideState, configRoot } from './panels/side';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
 import Sortable from 'sortablejs';
@@ -831,8 +831,6 @@ async function restoreUiState(): Promise<number> {
   // The width lived in localStorage before this; adopt that value once, so an existing install keeps its sidebar, and let meta.json own it from here.
   const width = state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth'));
   if (width >= SIDEBAR_MIN && width <= SIDEBAR_MAX) sidebar.style.flexBasis = `${width}px`;
-  // Held by the side and applied when it first renders, which is after the layout file has been read.
-  setSideWidth(state.panelState.width);
   // Only a CUSTOM range is restored as stored. The rolling presets are recomputed by applyDatePreset from the current moment, which is the whole point of "last 7 days" still meaning the last 7 days.
   if (state.datePreset === 'custom') {
     const picked = [state.dateFrom, state.dateTo].filter((ms): ms is number => ms !== null).map((ms) => new Date(ms));

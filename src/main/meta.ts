@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import type { OrderMove, GroupState, SessionGroup, UiState, Settings } from '../shared/types';
+import type { PanelState } from '../shared/panels';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
 
@@ -129,8 +130,29 @@ function defaultUi(): UiState {
     filterCollapsedGroups: [],
     sidebarWidth: null,
     scrollTop: 0,
-    panelState: { width: null },
+    panelState: { sizes: {}, collapsed: [], active: {} },
   };
+}
+
+/**
+ * The layout tree's state, entry by entry: what is not the right shape is dropped, and the rest kept.
+ * Only the containers are checked, not whether an id is still in the layout file — that file changes under the app, and the tree ignores state for an id it does not have.
+ * The first slice's `{ width }` is not carried: it had one user and a week of life, and the tree starts that side from the file's size.
+ */
+function normalizePanelState(raw: unknown, px: (value: unknown) => number | null, strings: (value: unknown) => string[]): PanelState {
+  const record = (value: unknown): Record<string, unknown> =>
+    value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  const state = record(raw);
+  const sizes: PanelState['sizes'] = {};
+  for (const [split, children] of Object.entries(record(state.sizes))) {
+    const kept = Object.entries(record(children)).flatMap(([child, size]) => {
+      const value = px(size);
+      return value === null ? [] : [[child, value] as const];
+    });
+    if (kept.length > 0) sizes[split] = Object.fromEntries(kept);
+  }
+  const active = Object.fromEntries(Object.entries(record(state.active)).filter((pair): pair is [string, string] => typeof pair[1] === 'string'));
+  return { sizes, collapsed: strings(state.collapsed), active };
 }
 
 /**
@@ -153,7 +175,6 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
   // A width of 0 would collapse a pane to nothing with no way to drag it back, so anything non-positive is treated as "never set" and takes the default.
   const px = (value: unknown): number | null => (typeof value === 'number' && value > 0 ? value : null);
   const filters = (ui.filters ?? {}) as Record<string, unknown>;
-  const panelState = (ui.panelState ?? {}) as Record<string, unknown>;
   return {
     search: typeof ui.search === 'string' ? ui.search : base.search,
     filters: Object.fromEntries(
@@ -171,7 +192,7 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
     filterCollapsedGroups: strings(ui.filterCollapsedGroups),
     sidebarWidth: px(ui.sidebarWidth),
     scrollTop: typeof ui.scrollTop === 'number' && Number.isFinite(ui.scrollTop) ? Math.max(0, ui.scrollTop) : 0,
-    panelState: { width: px(panelState.width) },
+    panelState: normalizePanelState(ui.panelState, px, strings),
   };
 }
 

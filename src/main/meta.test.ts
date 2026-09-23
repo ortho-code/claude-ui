@@ -448,7 +448,11 @@ describe('ui state', () => {
     filterCollapsedGroups: ['g2'],
     sidebarWidth: 380,
     scrollTop: 240,
-    panelState: { width: 420 },
+    panelState: {
+      sizes: { window: { sidebar: 300, main: 1100 }, work: { claude: 800, side: 300 } },
+      collapsed: ['drawer'],
+      active: { side: 'reviews' },
+    },
   };
 
   it('starts unfiltered, unfolded and at the default width', async () => {
@@ -466,7 +470,7 @@ describe('ui state', () => {
       filterCollapsedGroups: [],
       sidebarWidth: null,
       scrollTop: 0,
-      panelState: { width: null },
+      panelState: { sizes: {}, collapsed: [], active: {} },
     });
   });
 
@@ -483,7 +487,37 @@ describe('ui state', () => {
     expect(ui.datePreset).toBe('any');
     expect(ui.collapsedProjects).toEqual([]);
     expect(ui.filterCollapsedProjects).toEqual([]);
-    expect(ui.panelState).toEqual({ width: null });
+    expect(ui.panelState).toEqual({ sizes: {}, collapsed: [], active: {} });
+  });
+
+  it('drops the first slice’s side width rather than carrying it into the tree', async () => {
+    await writeMetaFile({ ui: { panelState: { width: 420 } }, version: 3 });
+    expect((await getUiState()).panelState).toEqual({ sizes: {}, collapsed: [], active: {} });
+  });
+
+  it('keeps the tree state’s well-formed entries and drops the rest, one by one', async () => {
+    await writeMetaFile({
+      ui: {
+        panelState: {
+          sizes: { window: { sidebar: 300, main: 0, side: -4, drawer: '200' }, work: 'wide', gone: { a: null }, list: [1, 2] },
+          collapsed: ['drawer', 3, null, 'side'],
+          active: { side: 'reviews', work: 7, drawer: null },
+        },
+      },
+      version: 3,
+    });
+    expect((await getUiState()).panelState).toEqual({
+      sizes: { window: { sidebar: 300 } },
+      collapsed: ['drawer', 'side'],
+      active: { side: 'reviews' },
+    });
+  });
+
+  it('starts the tree state empty when it is not an object at all', async () => {
+    for (const panelState of ['x', 3, null, [1]]) {
+      await writeMetaFile({ ui: { panelState }, version: 3 });
+      expect((await getUiState()).panelState).toEqual({ sizes: {}, collapsed: [], active: {} });
+    }
   });
 
   it('drops values of the wrong type rather than restoring a broken sidebar', async () => {
@@ -508,9 +542,9 @@ describe('ui state', () => {
   });
 
   it('treats a zero width as never set, since it could not be dragged back', async () => {
-    await setUiState({ ...view, sidebarWidth: 0, panelState: { width: 0 } });
+    await setUiState({ ...view, sidebarWidth: 0, panelState: { sizes: { window: { sidebar: 0, main: 900 } }, collapsed: [], active: {} } });
     expect((await getUiState()).sidebarWidth).toBeNull();
-    expect((await getUiState()).panelState.width).toBeNull();
+    expect((await getUiState()).panelState.sizes).toEqual({ window: { main: 900 } });
   });
 
   it('normalizes on the way in too, so the renderer cannot store a shape the next launch chokes on', async () => {
