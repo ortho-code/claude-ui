@@ -366,6 +366,11 @@ A shell has state — the command you have running in it — so following the co
 So the header names the folder the shell is in, the button is "Restart here", which kills the shell and starts one in the current context, and the one exception is a panel with no shell because there was nothing to run in, which starts as soon as a context appears.
 The type declares that button's label itself, so the tree keeps one button and the type says what it does.
 
+**A shell that exits comes back on a key press.** Its screen stays up with a dimmed line saying it exited and that any key starts a new shell, and the next key does, through the same start the button uses; the key is the ask, so it is not sent on to the new shell.
+That is what VS Code's terminal does, and it was chosen over a button that appears only once the shell has gone, and over restarting on exit by itself, which would need a guard against a shell that dies at once — a broken rc file, say — starting again forever.
+It exists so that getting a shell back never depends on the button, which a terminal pinned to one folder is not going to have.
+The header keeps its `exited N`, since that is what shows while the panel is behind another.
+
 **The same pty path as a session.** `terminal.ts` has one spawn for both — the terminals map, the data and exit routing, the stop escalation and the quit sweep — with the claude-specific argument building and the plain-shell start as two callers of it.
 A panel's shell is therefore stopped and swept exactly as a session is, and nothing about it is a second implementation of a process the app runs.
 It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` as a session does, and NOT `CLAUDE_UI=1`: a `claude` started by hand in it must not report as one of the app's sessions.

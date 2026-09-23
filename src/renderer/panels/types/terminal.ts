@@ -8,6 +8,7 @@ import { NO_CONTEXT, resolveContext, type MountedPanel, type PanelHost, type Pan
  * IT STAYS PUT. The shell starts in the context directory of the moment the panel first shows and stays there through tab and project switches; a shell has state, and a switch must never kill a command running in it.
  * The header says where it is, and the button restarts it in the current context when that is what you want.
  * The one exception is a panel with no shell because there was nothing to run in: it starts as soon as a context appears.
+ * A shell that EXITS leaves its screen up with a line saying so, and the next key starts a new one, so getting a shell back never depends on a button being there.
  */
 
 class TerminalPanel implements MountedPanel {
@@ -20,6 +21,8 @@ class TerminalPanel implements MountedPanel {
   private starting = false;
   /** No shell because there was no context; a context appearing starts one. */
   private waiting = false;
+  /** No shell because the last one exited; a key starts one. */
+  private exited = false;
   /** Whether it has been on screen yet: the shell starts on the first reveal, in the context of that moment. */
   private shown = false;
   private disposed = false;
@@ -66,6 +69,7 @@ class TerminalPanel implements MountedPanel {
   }
 
   private async start(): Promise<void> {
+    this.exited = false;
     const context = resolveContext(this.host.where());
     if (!context) {
       this.waiting = true;
@@ -81,6 +85,8 @@ class TerminalPanel implements MountedPanel {
       this.view = createTerminal(this.box);
       this.view.term.onData((data) => {
         if (this.terminalId !== null) window.claudeUi.sendTerminalInput(this.terminalId, data);
+        // The key is the ask for a new shell, so it is not sent on to it.
+        else if (this.exited && !this.starting) void this.start();
       });
     } else {
       // A restart: the old shell's screen goes, so the new prompt is not painted over its tail.
@@ -102,7 +108,10 @@ class TerminalPanel implements MountedPanel {
         exit: (exitCode) => {
           if (this.terminalId !== id) return;
           this.terminalId = null;
+          this.exited = true;
           this.host.setEnd(`exited ${exitCode}`);
+          // On the shell's own screen, dimmed, where the eye already is; the header's word is what shows while the panel is behind another.
+          this.view?.term.write(`\r\n\x1b[2m[exited ${exitCode} — press any key for a new shell]\x1b[0m`);
         },
       });
       this.fit();

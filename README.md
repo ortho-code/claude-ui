@@ -146,6 +146,7 @@ Output is shown as plain text (`NO_COLOR` and `TERM=dumb` are set, and escape co
 
 A `terminal` panel's shell starts in that folder too, the first time you show it, but stays there when you switch tab or project, since a shell may have something running in it.
 The header names the folder it is in, and the button restarts it in the current one.
+When the shell exits, the panel says so, and any key starts a new one in the current folder.
 It keeps running while hidden or folded, and while you edit the layout file around it.
 It gets the same variables, and a `claude` you start in it by hand is not tracked as one of the app's sessions.
 
