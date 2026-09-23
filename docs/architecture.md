@@ -273,6 +273,7 @@ It can be dragged only when both neighbours are `resizable` and neither is folde
 A `collapsible` group folds from a chevron on a divider.
 It sits there because a divider takes no room anywhere else, and won over a header row (which a bare group does not have) and over a button placed in the panel's own bar, after all three were tried in a clickable mock.
 The chevron points the way the group moves, and stays on the same divider when the group is folded, turned round: fold and unfold happen at one spot.
+It is FAINT until the pointer is on its divider and full then — quieter than a row of buttons on every foldable divider, and easier to find than a chevron that only appears on hover; all three were tried.
 It is a thin tab centred on the divider's line, 11px across, so it overhangs each neighbour by 3px, inside their padding, and never covers a header's text.
 
 Which divider carries it, and which way it points, follows where the space goes.

@@ -94,6 +94,7 @@ A node can also have:
 | `active` | The panel a group shows first. |
 
 Drag a divider to resize the two nodes beside it.
+A panel group that can fold has a faint chevron on its divider, which brightens when you point at the divider.
 The sizes you drag to, the groups you fold and the panel you pick in a group are remembered on this machine, not written to the file.
 A group with several panels switches between them from a strip of icons on its edge: hovering an icon names the panel, and a dot on it says a command failed or a session is waiting for you.
 

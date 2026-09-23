@@ -294,6 +294,7 @@ const OPPOSITE: Record<Direction, Direction> = { up: 'down', down: 'up', left: '
 /**
  * THE FOLD CONTROL (P7, P12): a chevron on the divider on the other side of the edge a group folds toward, pointing the way it moves, and turned round while it is folded.
  * Two on one divider — two foldable groups alone in a split — sit one after the other along the line, each pointing into its own group, so neither covers a header; hovering one outlines the group it acts on.
+ * Faint until the pointer is on the divider (styles.css), so a window of foldable groups is not a row of buttons.
  */
 function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], a: number, b: number): void {
   const riders = [a, b].filter((index) => foldable(visible[index]) && edges[index] === (index === a ? 'start' : 'end'));

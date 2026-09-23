@@ -404,6 +404,7 @@ body {
   The fold chevron: a thin tab laid along the divider, centred on its line (P12).
   11px across, so it overhangs each neighbour by 3px, which stays inside their padding and never covers a header's text.
   An icon button, so it takes the one hover every icon control shares; the resting fill and border are what make it read as a tab on a line rather than a loose mark.
+  FAINT until the pointer is on its divider, and full then: quieter than always, and easier to find than only on hover — all three were tried.
   Above the panels either side, whose own layers (xterm's among them) would otherwise paint over the part that overhangs them.
 */
 .divider .chev {
@@ -412,6 +413,13 @@ body {
   padding: 0;
   background: var(--surface);
   border-color: var(--border);
+  opacity: 0.35;
+  transition: opacity 0.12s;
+}
+
+.divider:hover .chev,
+.divider .chev:focus-visible {
+  opacity: 1;
 }
 
 .split.columns > .divider .chev {
