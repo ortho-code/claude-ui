@@ -85,11 +85,9 @@ const footerLabel = document.getElementById('footer-label')!;
 const footerList = document.getElementById('footer-list')!;
 
 // A group's mark: layers, meaning "several things stacked as one". Muted, never accent — the accent belongs to the project's folder icon one line above it.
-const layersIcon = (size: number): string =>
-  `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M8 2.2 2 5.4l6 3.2 6-3.2-6-3.2Z" /><path d="M2.4 9.2 8 12.2l5.6-3" /></svg>`;
+const layersIcon = (size: number): string => strokeIcon(size, '<path d="M8 2.2 2 5.4l6 3.2 6-3.2-6-3.2Z" /><path d="M2.4 9.2 8 12.2l5.6-3" />');
 
-const FOLDER_ICON =
-  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2 4h4l1.5 1.5H14V13H2z"/></svg>';
+const FOLDER_ICON = strokeIcon(14, '<path d="M2 4h4l1.5 1.5H14V13H2z" />');
 
 // The chrome marks — carets, +, ⋮, ✓, × — as SVG rather than the text glyphs they used to be.
 // Every one of those resolved through system font fallback, which is how ⑂ ended up rendering from a MONOSPACE face beside its neighbours (see the family/worktree marks below).
@@ -2156,10 +2154,8 @@ function getOrCreateRow(key: string): HTMLElement {
 // Both are drawn so their INK is centred on 8,8 and 10 units tall, not merely their viewBox: the first cut centred the boxes while the fork hung 1.25 low and the branch filled 7.5 units against the fork's 11, which read as one mark misaligned and the other too small.
 // A note's mark: a page with a line of writing on it.
 const NOTE_ICON = strokeIcon(13, '<path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.5M6.25 8.75h3.5" />');
-const SIBLING_ICON =
-  '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12V8M4 4L8 8L12 4" /></svg>';
-const WORKTREE_ICON =
-  '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12V4M4.5 8Q11.5 8 11.5 4" /></svg>';
+const SIBLING_ICON = strokeIcon(11, '<path d="M8 12V8M4 4L8 8L12 4" />');
+const WORKTREE_ICON = strokeIcon(11, '<path d="M4.5 12V4M4.5 8Q11.5 8 11.5 4" />');
 
 // The pin, as SVG rather than the ★/☆ glyphs: those resolve through system font fallback (DejaVu Sans under WSLg), whose outline star is a hairline that reads far fainter than its --muted colour should.
 // Same star either way — filled for pinned, outlined for not — so the two states differ by ink, not by colour, and both render at a weight we control instead of the font's.
@@ -2169,12 +2165,10 @@ const PIN_ICON = strokeIcon(14, `<path d="${STAR_PATH}" />`);
 const PINNED_ICON = strokeIcon(14, `<path d="${STAR_PATH}" fill="currentColor" />`);
 
 // The open filter's mark: a window with a title bar — "this one has a tab". Deliberately a SHAPE where running is a DOT, so the pair reads as two different questions rather than two intensities.
-const OPEN_ICON =
-  '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.6" y="3.4" width="10.8" height="9.2" rx="1.4" /><path d="M2.6 6.4h10.8" /></svg>';
+const OPEN_ICON = strokeIcon(13, '<rect x="2.6" y="3.4" width="10.8" height="9.2" rx="1.4" /><path d="M2.6 6.4h10.8" />');
 
 // The running filter's mark: a filled dot inside a ring — the same "live" language the status dots speak, rather than a play triangle, which would read as "start these".
-const LIVE_ICON =
-  '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" /></svg>';
+const LIVE_ICON = strokeIcon(13, '<circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />');
 
 // The archived filter's mark: a lidded box. Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
 // A folder with a slash through it: the session's directory is not there any more.
@@ -2184,8 +2178,8 @@ const FOLDER_GONE_ICON = strokeIcon(13, '<path d="M2 12.2V3.8h3.6l1.2 1.6H14v6.8
 const ARCHIVE_ICON = strokeIcon(13, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
 
 // Take it back out of the box. Archiving has no row icon — it is a kebab item (text) in the normal view; only unarchiving, the archived view's primary action, stays a button on the row.
-const UNARCHIVE_ICON =
-  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.23" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>';
+// Redrawn from its 24-unit original at two-thirds scale, onto the 16-unit grid the helper draws on.
+const UNARCHIVE_ICON = strokeIcon(14, '<path d="M.67 2.67v4h4" /><path d="M2.34 10a6 6 0 1 0 1.42-6.24L.67 6.67" />');
 
 interface RowEls {
   dot: HTMLElement;
@@ -2288,8 +2282,7 @@ function createSessionRow(key: string): HTMLElement {
   deleteBtn.className = 'icon-btn delete-btn';
   setTooltip(deleteBtn, 'Delete session');
   deleteBtn.hidden = true;
-  deleteBtn.innerHTML =
-    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" /></svg>';
+  deleteBtn.innerHTML = strokeIcon(14, '<path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" />');
   deleteBtn.addEventListener('click', async (event) => {
     event.stopPropagation();
     const session = currentByKey.get(key);
