@@ -1,6 +1,6 @@
 import type { LayoutReport, PanelState } from '../../shared/panels';
 import { installSplitResizer } from '../resizer';
-import { chevronIcon, type Direction } from '../svg';
+import { chevronIcon, strokeIcon, type Direction } from '../svg';
 import { setTooltip } from '../tooltip';
 import { iconSvg } from './icons';
 import {
@@ -59,8 +59,7 @@ interface Place {
   folded: boolean;
 }
 
-const REFRESH_ICON =
-  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.49" stroke-linecap="round" stroke-linejoin="round"><path d="M12.8 8.6A4.8 4.8 0 1 1 11.6 4.5" /><path d="M12.9 2.8v2.6h-2.6" /></svg>';
+const REFRESH_ICON = strokeIcon(14, '<path d="M12.8 8.6A4.8 4.8 0 1 1 11.6 4.5" /><path d="M12.9 2.8v2.6h-2.6" />');
 
 let host: TreeHost;
 let app: HTMLElement;

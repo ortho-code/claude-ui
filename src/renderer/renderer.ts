@@ -166,6 +166,7 @@ function showToast(message: string, sticky = false): void {
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = sticky ? undefined : window.setTimeout(hideToast, 3000);
 }
+toastClose.innerHTML = closeIcon(14);
 toastClose.addEventListener('click', hideToast);
 
 // Stacking attention toasts: a background tab (one you're not viewing) went waiting/idle. Separate from the one-off #toast message bar above.
