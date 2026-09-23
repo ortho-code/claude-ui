@@ -137,6 +137,7 @@ export const terminalType: PanelType = {
   name: 'terminal',
   params: [],
   exactlyOne: [],
+  icon: 'terminal',
   defaultTitle: () => 'Terminal',
   actionLabel: 'Restart here',
   mount: (slot, host) => new TerminalPanel(slot, host),

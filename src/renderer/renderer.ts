@@ -27,6 +27,7 @@ import {
 } from './logic';
 import { parseLaunchFlags } from '../shared/flags';
 import { installTooltips, setTooltip } from './tooltip';
+import { strokeIcon } from './svg';
 import { installResizer } from './resizer';
 import { createTerminal, bindTerminal, routeTerminals } from './terminal';
 import { initSide, sideContextChanged, sideState, configRoot } from './panels/side';
@@ -92,11 +93,7 @@ const FOLDER_ICON =
 
 // The chrome marks — carets, +, ⋮, ✓, × — as SVG rather than the text glyphs they used to be.
 // Every one of those resolved through system font fallback, which is how ⑂ ended up rendering from a MONOSPACE face beside its neighbours (see the family/worktree marks below).
-// These render the same whatever the system has installed, take their colour from `currentColor` like the other icons, and have their ink centred on (8,8) in the viewBox so flex centring lands them square with no nudge.
-// `ink` is the stroke the user actually SEES, in px — the viewBox is a fixed 16 units, so a constant stroke-width would draw a 9px caret at two-thirds the weight of a 14px one and the set would look mismatched at exactly the sizes this chrome uses.
-// Converting px to units per size keeps every mark the same visual weight, and 1.3px is the weight the existing folder/layers icons already render at.
-const strokeIcon = (size: number, path: string, ink = 1.3): string =>
-  `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${((ink * 16) / size).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+// These render the same whatever the system has installed, take their colour from `currentColor` like the other icons, and are drawn through `strokeIcon`, which keeps their weight equal at every size.
 // Chevrons, not filled triangles: the collapse-all button already says fold/unfold with a chevron, and a solid triangle would be the only filled shape in an outline icon set.
 const chevronDown = (size: number): string => strokeIcon(size, '<path d="M4 6L8 10L12 6" />');
 const chevronRight = (size: number): string => strokeIcon(size, '<path d="M6 4L10 8L6 12" />');

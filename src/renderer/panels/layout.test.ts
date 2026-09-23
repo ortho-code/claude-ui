@@ -17,8 +17,8 @@ import { commandType, type PanelTypeDecl } from './types/command';
 import type { LayoutReport, ScriptCheck } from '../../shared/panels';
 
 // The built-ins' declarations as the validator sees them; their mounts are the tree's business.
-const sessions: PanelTypeDecl = { name: 'sessions', params: [], exactlyOne: [], defaultTitle: () => 'Sessions', bare: true, singleton: true };
-const claude: PanelTypeDecl = { name: 'claude', params: [], exactlyOne: [], defaultTitle: () => 'Claude', bare: true, singleton: true };
+const sessions: PanelTypeDecl = { name: 'sessions', params: [], exactlyOne: [], defaultTitle: () => 'Sessions', icon: 'sessions', bare: true, singleton: true };
+const claude: PanelTypeDecl = { name: 'claude', params: [], exactlyOne: [], defaultTitle: () => 'Claude', icon: 'claude', bare: true, singleton: true };
 const TYPES = { sessions, claude, command: commandType };
 const FILE = '/home/u/.config/claude-ui/config/layouts/default.json';
 
@@ -420,6 +420,27 @@ describe('one entry', () => {
   it('honours hidden, and only true', () => {
     expect(entry({ id: 'a', type: 'command', command: 'ls', hidden: true }).hidden).toBe(true);
     expect(entry({ id: 'a', type: 'command', command: 'ls', hidden: false }).hidden).toBe(false);
+  });
+
+  it('wears its type’s icon, or the one it names', () => {
+    expect(entry({ id: 'a', type: 'command', command: 'ls' })).toMatchObject({ icon: 'command', notes: [] });
+    expect(entry({ id: 'a', type: 'command', command: 'ls', icon: 'git' })).toMatchObject({ icon: 'git', notes: [] });
+  });
+
+  it('names an icon this build does not have and wears its type’s, since an icon is no reason to refuse a panel', () => {
+    const slot = entry({ id: 'deploy', type: 'command', command: 'ls', icon: 'rocket' });
+    expect(slot.problems).toEqual([]);
+    expect(slot.icon).toBe('command');
+    expect(slot.notes).toHaveLength(1);
+    expect(slot.notes[0]).toMatch(/^icon "rocket" on deploy is not an icon this build has \(it has: sessions, claude, command, terminal, git, .*\); the command icon is used\.$/);
+    expect(entry({ id: 'a', type: 'command', command: 'ls', icon: 3 }).notes).toEqual(['icon on a is not a string; the command icon is used.']);
+  });
+
+  it('wears the alert icon when it cannot run, whatever it names', () => {
+    expect(entry({ id: 'a', type: 'nope', icon: 'git' }).icon).toBe('alert');
+    expect(entry('git status').icon).toBe('alert');
+    const twice = group(third(file({ id: 'again', panels: [{ id: 'cli2', type: 'claude' }] }))).slots[0];
+    expect(twice.icon).toBe('alert');
   });
 });
 

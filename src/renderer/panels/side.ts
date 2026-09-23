@@ -16,7 +16,7 @@ import { terminalType } from './types/terminal';
 const TYPES: Record<string, PanelType> = { command: commandType, terminal: terminalType };
 
 // Until the tree renderer lands the sidebar and the terminal stay where index.html puts them; the validator only needs to know they exist.
-const builtin = (name: string): PanelTypeDecl => ({ name, params: [], exactlyOne: [], defaultTitle: () => name, bare: true, singleton: true });
+const builtin = (name: 'sessions' | 'claude'): PanelTypeDecl => ({ name, params: [], exactlyOne: [], defaultTitle: () => name, icon: name, bare: true, singleton: true });
 const DECLS: Record<string, PanelTypeDecl> = { sessions: builtin('sessions'), claude: builtin('claude'), ...TYPES };
 
 /** The first group in the tree that holds something other than a built-in: what the one right side can show. */

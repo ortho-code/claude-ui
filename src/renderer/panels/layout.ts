@@ -1,4 +1,5 @@
 import { LAYOUT_VERSION, type Layout, type LayoutNode, type LayoutReport, type PanelEntry } from '../../shared/panels';
+import { ICON_NAMES, isIconName, type IconName } from './icons';
 import type { PanelTypeDecl } from './types/command';
 
 /**
@@ -41,9 +42,13 @@ export interface PanelSlot {
   title: string;
   /** Everything wrong with the entry, one sentence each. Empty means it runs. */
   problems: string[];
+  /** Sentences about the entry that do not stop it running: an icon this build does not have, say. Shown in its group's note line. */
+  notes: string[];
   /** The entry as written, for the type to read its parameters from. Null when the entry was not an object at all. */
   entry: PanelEntry | null;
   hidden: boolean;
+  /** Its icon on a rail: the entry's own, else its type's, and `alert` for an entry that cannot run. */
+  icon: IconName;
 }
 
 interface NodeCommon {
@@ -135,8 +140,9 @@ export function validateEntry(
   fallbackKey = `#${index}`,
 ): PanelSlot {
   const problems: string[] = [];
+  const notes: string[] = [];
   if (!isObject(raw)) {
-    return { key: fallbackKey, type: null, title: `Entry ${index + 1}`, problems: ['The entry is not an object.'], entry: null, hidden: false };
+    return { key: fallbackKey, type: null, title: `Entry ${index + 1}`, problems: ['The entry is not an object.'], notes, entry: null, hidden: false, icon: 'alert' };
   }
   // Handed on as the entry it claims to be; the checks below are what make that claim good before anything reads it as one.
   const entry = raw as unknown as PanelEntry;
@@ -174,6 +180,18 @@ export function validateEntry(
     }
   }
 
+  // A wrong icon is cosmetic, so it is named and the type's own is used, rather than the panel refused.
+  let icon: IconName = type?.icon ?? 'alert';
+  if (raw.icon !== undefined && !isIconName(raw.icon)) {
+    const fallback = type ? `; the ${type.icon} icon is used` : '';
+    notes.push(
+      typeof raw.icon === 'string'
+        ? `icon "${raw.icon}" on ${key} is not an icon this build has (it has: ${ICON_NAMES.join(', ')})${fallback}.`
+        : `icon on ${key} is not a string${fallback}.`,
+    );
+  } else if (raw.icon !== undefined) icon = raw.icon as IconName;
+  if (problems.length > 0) icon = 'alert';
+
   const title =
     typeof raw.title === 'string' && raw.title.trim() !== ''
       ? raw.title
@@ -182,7 +200,7 @@ export function validateEntry(
         : typeof raw.id === 'string'
           ? raw.id
           : `Entry ${index + 1}`;
-  return { key, type: type?.name ?? null, title, problems, entry, hidden: raw.hidden === true };
+  return { key, type: type?.name ?? null, title, problems, notes, entry, hidden: raw.hidden === true, icon };
 }
 
 /**
@@ -284,6 +302,7 @@ class Resolver {
       const first = this.placed.get(type.name);
       if (first !== undefined) {
         slot.problems.push(`type ${type.name} is already placed as "${first}".`);
+        slot.icon = 'alert';
         continue;
       }
       this.placed.set(type.name, slot.key);
@@ -369,7 +388,7 @@ function addSingleton(root: ResolvedNode, type: PanelTypeDecl): ResolvedNode {
     min: home?.node.min ?? DEFAULT_MIN,
     resizable: home?.node.resizable !== false,
     notes: [`The layout does not place the ${type.name} panel, so it is added here.`],
-    slots: [{ key: `@${entry.id}`, type: type.name, title: type.defaultTitle(entry), problems: [], entry, hidden: false }],
+    slots: [{ key: `@${entry.id}`, type: type.name, title: type.defaultTitle(entry), problems: [], notes: [], entry, hidden: false, icon: type.icon }],
     active: `@${entry.id}`,
     collapsible: home?.node.collapsible === true,
     bare: type.bare === true,

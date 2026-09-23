@@ -1,6 +1,7 @@
 import type { PanelContext, PanelEntry, PanelRunEvent, PanelSource } from '../../../shared/panels';
 import { PANEL_TIMEOUT_MS } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
+import type { IconName } from '../icons';
 import { stripAnsi, splitPendingEscape } from '../ansi';
 
 /**
@@ -26,6 +27,8 @@ export interface PanelTypeDecl {
   exactlyOne: string[][];
   /** The title an entry gets when it names none. Called only on an entry that passed validation. */
   defaultTitle(entry: PanelEntry): string;
+  /** The icon an entry wears on a rail when it names none. */
+  icon: IconName;
   /** The panel carries its own chrome, so a group holding only it draws no header. */
   bare?: boolean;
   /**
@@ -282,6 +285,7 @@ export const commandType: PanelType = {
     { name: 'script', kind: 'path', against: 'config' },
   ],
   exactlyOne: [['command', 'script']],
+  icon: 'command',
   defaultTitle: (entry) => {
     if (typeof entry.script === 'string') return entry.script.split('/').filter(Boolean).at(-1) ?? entry.script;
     const line = (entry.command ?? '').trim();

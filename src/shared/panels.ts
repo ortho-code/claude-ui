@@ -22,6 +22,8 @@ export interface PanelEntry {
   type: string;
   title?: string;
   hidden?: boolean;
+  /** The panel's icon on a rail, by name from the app's set; the type's own when absent. */
+  icon?: string;
   /** `command` type: a command line, run as typed by the shell in the context directory. */
   command?: string;
   /** `command` type: a path to an executable, relative to the config folder or absolute, checked when the layout is read. */
