@@ -108,6 +108,8 @@ const maximizeIcon = (size: number): string => strokeIcon(size, '<rect x="3.9" y
 // Restore reads as "there is another window behind this one": the same square, with a second one peeking out top-right.
 const restoreIcon = (size: number): string =>
   strokeIcon(size, '<path d="M5.6 5.6V4.4a1 1 0 011-1h4.8a1 1 0 011 1v4.8a1 1 0 01-1 1h-1.2" /><rect x="3.4" y="5.6" width="7" height="7" rx="1.2" />');
+// The filter toggle's mark: a funnel, not the magnifier it used to be. A magnifier promises a search box, which clears when it closes; what this opens is filters, which stay on.
+const filterIcon = (size: number): string => strokeIcon(size, '<path d="M2.5 2.5h11L9.2 7.9v4.4l-2.4 1.2V7.9z" />');
 // Dots, so it stays a kebab rather than becoming a dashed line. The radius is in px for the same reason the stroke is: three 2.6px dots whatever the button's size.
 const kebabIcon = (size: number): string => {
   const r = ((1.3 * 16) / size).toFixed(2);
@@ -3197,6 +3199,7 @@ worktreeFilter.innerHTML = WORKTREE_ICON;
 goneFilter.innerHTML = FOLDER_GONE_ICON;
 noteFilter.innerHTML = NOTE_ICON;
 archivedFilter.innerHTML = ARCHIVE_ICON;
+filterToggle.innerHTML = filterIcon(14);
 // The switcher's and the attention strip's carets, from the same chevron as every other fold in the app.
 for (const caret of document.querySelectorAll<HTMLElement>('.switcher-chev, .footer-chev')) caret.innerHTML = chevronDown(11);
 wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
