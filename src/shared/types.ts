@@ -137,7 +137,7 @@ export interface UiState {
   dateTo: number | null;
   /**
    * Whether the filter panel is open, restored exactly as stored — an active filter included.
-   * Closing it over a filter left deliberately on is a choice to keep the results and take the space back, so the accent the filter icon carries while anything is on is the cue that the list is cut down.
+   * Closing it over a filter left deliberately on is a choice to keep the results and take the space back, so a shut panel folds down to a row of chips naming what is on, above the count, and the filter icon carries its accent.
    */
   filterPanelOpen: boolean;
   /** Whether the attention strip in the sidebar footer is expanded. Open by default — it is meant to be read. */

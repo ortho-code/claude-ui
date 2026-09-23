@@ -947,10 +947,11 @@ button:hover {
   border-color: var(--accent);
 }
 
-/* A filter that is on looks the same wherever it shows: a pill or a date preset.
+/* A filter that is on looks the same wherever it shows: a pill, a date preset, a chip under a shut panel.
    After both hover rules, which it has to beat at equal specificity so an on pill keeps its fill under the pointer. */
 #filters > button.active,
-#date-presets button.active {
+#date-presets button.active,
+.filter-chip {
   border-color: var(--accent);
   color: var(--text);
   background: var(--active);
@@ -1067,13 +1068,71 @@ button:hover {
   cursor: not-allowed;
 }
 
+/* Under the filter panel rather than inside it, so closing the panel over a filter leaves the count and the way out on screen: a filtered list otherwise passes for the whole one.
+   Inset like the list rows, which it captions. */
 #filter-status {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  margin: 8px 0 0;
+  row-gap: 6px;
+  margin: 0 16px 8px;
   font-size: var(--text-meta);
   color: var(--muted);
+}
+
+/* With the panel shut, the whole row stands in for it and opens it again. */
+#filter-status.collapsed {
+  cursor: pointer;
+}
+
+/* A line of its own above the count, so a long search or several pills wrap among themselves instead of pushing the count and Clear about. */
+#filter-chips {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 4px 2px 7px;
+  /* Width and style only: the colour is the on look's, from the rule shared with the pills. */
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--radius-pill);
+}
+
+/* Pill marks at the size the pills show them. */
+.filter-chip > svg {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+}
+
+.filter-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-chip-remove {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 1px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--muted);
+}
+
+.filter-chip-remove:hover {
+  background: var(--surface-hover);
+  color: var(--text);
 }
 
 #filter-clear {

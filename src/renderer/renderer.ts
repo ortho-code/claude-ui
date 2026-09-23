@@ -28,6 +28,7 @@ import {
 import { parseLaunchFlags } from '../shared/flags';
 import { installTooltips, setTooltip } from './tooltip';
 import { chevronIcon, strokeIcon } from './svg';
+import { iconSvg } from './panels/icons';
 import { createTerminal, bindTerminal, routeTerminals } from './terminal';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, configRoot } from './panels/tree';
 import { reportBuiltinStatus } from './panels/types/builtin';
@@ -120,6 +121,7 @@ const kebabIcon = (size: number): string => {
 const caretIcon = (collapsed: boolean, size: number): string => (collapsed ? chevronRight(size) : chevronDown(size));
 const filterStatus = document.getElementById('filter-status')!;
 const filterCount = document.getElementById('filter-count')!;
+const filterChips = document.getElementById('filter-chips')!;
 const filterClear = document.getElementById('filter-clear') as HTMLButtonElement;
 const loadingEl = document.getElementById('loading')!;
 const tabbar = document.getElementById('tabbar')!;
@@ -693,21 +695,89 @@ function updateFilterStatus(matches: number, total: number): void {
     pill.button.classList.toggle('active', pill.get());
     pill.button.setAttribute('aria-pressed', String(pill.get()));
   }
-  // The toggle carries the accent when any filter is on, so an active filter is visible even with the panel closed.
+  // The toggle carries the accent when any filter is on, beside the status line under the panel, so an active filter is visible even with the panel closed.
   filterToggle.classList.toggle('active', filtering);
   if (filtering) filterCount.textContent = `Showing ${matches} of ${total}`;
+  updateFilterChips();
 }
 
-function clearFilter(): void {
+function clearSearch(): void {
   searchInput.value = '';
   filterText = '';
-  for (const pill of FILTER_PILLS) pill.set(false);
+}
+
+function clearDateFilter(): void {
   suppressPickerSelect = true;
   datePicker.clear();
   suppressPickerSelect = false;
   applyDatePreset('any');
+}
+
+function clearFilter(): void {
+  clearSearch();
+  for (const pill of FILTER_PILLS) pill.set(false);
+  clearDateFilter();
   renderList();
   container.scrollTop = 0;
+}
+
+// --- What is on, while the panel is shut ---
+// Closing the panel over a filter keeps the filter, so the panel folds down to a row of what is on rather than disappearing: the search text, each pill that is on, the date range, each with its own ×.
+// A filter that is on is never out of sight, which is the whole point; the count and Clear on the line below stay as they are with the panel open.
+
+// What the chips were last built from, so the row is rebuilt only when that changes: renders happen constantly, and rebuilding each time would drop the hover and focus from under the pointer.
+let lastChipsSignature = '';
+
+function filterChip(icon: string, text: string, label: string, remove: () => void): HTMLElement {
+  const chip = document.createElement('span');
+  chip.className = 'filter-chip';
+  chip.innerHTML = icon;
+  if (text) {
+    const words = document.createElement('span');
+    words.className = 'filter-chip-text';
+    words.textContent = text;
+    chip.append(words);
+  }
+  setTooltip(chip, label);
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'filter-chip-remove';
+  x.innerHTML = closeIcon(10);
+  x.setAttribute('aria-label', `Remove: ${label}`);
+  x.addEventListener('click', () => {
+    remove();
+    renderList();
+    container.scrollTop = 0;
+  });
+  chip.append(x);
+  return chip;
+}
+
+function updateFilterChips(): void {
+  const show = isFiltering() && Boolean(filterPanel.hidden);
+  filterChips.hidden = !show;
+  filterStatus.classList.toggle('collapsed', show);
+  if (!show) {
+    lastChipsSignature = '';
+    return;
+  }
+  const search = searchInput.value.trim();
+  const pills = FILTER_PILLS.filter((pill) => pill.get());
+  // The date chip says what the preset button says, or the picked range for Custom, so it reads the same words as the control that set it.
+  const dateText =
+    datePreset === 'any'
+      ? ''
+      : datePreset === 'custom'
+        ? (dateRangeLabel.textContent ?? '')
+        : (datePresets.querySelector(`[data-range="${datePreset}"]`)?.textContent ?? datePreset);
+  const signature = JSON.stringify([filterText ? search : '', pills.map((pill) => pill.button.id), dateText]);
+  if (signature === lastChipsSignature) return;
+  lastChipsSignature = signature;
+  const chips: HTMLElement[] = [];
+  if (filterText) chips.push(filterChip(iconSvg('search', 13), search, `Search: ${search}`, clearSearch));
+  for (const pill of pills) chips.push(filterChip(pill.icon, '', pill.button.getAttribute('aria-label') ?? '', () => pill.set(false)));
+  if (dateText) chips.push(filterChip(iconSvg('clock', 13), dateText, `Last active: ${dateText}`, clearDateFilter));
+  filterChips.replaceChildren(...chips);
 }
 
 // --- View state that survives a restart ---
@@ -719,6 +789,18 @@ function clearFilter(): void {
 function setFilterPanel(open: boolean): void {
   filterPanel.hidden = !open;
   filterToggle.setAttribute('aria-expanded', String(open));
+  // Opening and closing does not re-render, so the chips that stand in for a shut panel follow it here.
+  updateFilterChips();
+}
+
+/** Open or shut the panel from a click: the toggle, or the row of chips that stands in for it. */
+function toggleFilterPanel(open: boolean): void {
+  setFilterPanel(open);
+  // Opening hands focus to the search box; closing drops focus so the ring doesn't linger.
+  if (open) searchInput.focus();
+  else filterToggle.blur();
+  // The only view change that does not re-render, so it needs its own call.
+  persistUi();
 }
 
 // Nothing is written until the stored state has been applied, or the first render would snapshot an empty sidebar straight over the real one.
@@ -813,7 +895,7 @@ async function restoreUiState(): Promise<number> {
     }
   }
   applyDatePreset(state.datePreset);
-  // Exactly as it was left, an active filter included. Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; the filter icon carries its accent while anything is on, which is the cue that the list is cut down.
+  // Exactly as it was left, an active filter included. Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
   setFilterPanel(state.filterPanelOpen);
   footerExpanded = state.footerExpanded;
   uiRestored = true;
@@ -3144,7 +3226,7 @@ filterClear.addEventListener('click', clearFilter);
 
 /**
  * The filter pills, once, in the order they sit in the panel: each one's button, its mark and its flag.
- * Everything that asks about the pills as a set reads this — whether any is on, how they are drawn and wired, what Clear resets — so none of them can miss a pill.
+ * Everything that asks about the pills as a set reads this — whether any is on, how they are drawn and wired, what Clear resets, which chips stand in for a shut panel — so the chips cannot fall out of step with the panel.
  * The stored view (`uiSnapshot`, `restoreUiState`) and the predicate (`passesFilters`) still name each flag, because each maps it to a key of its own.
  */
 interface FilterPill {
@@ -3180,15 +3262,11 @@ settingsToggle.innerHTML = settingsIcon(14);
 filterToggle.innerHTML = filterIcon(14);
 // The switcher's and the attention strip's carets, from the same chevron as every other fold in the app.
 for (const caret of document.querySelectorAll<HTMLElement>('.switcher-chev, .footer-chev')) caret.innerHTML = chevronDown(11);
-filterToggle.addEventListener('click', () => {
-  // Boolean(): `hidden` is a string-or-boolean these days (it also takes "until-found").
-  const opening = Boolean(filterPanel.hidden);
-  setFilterPanel(opening);
-  // Opening hands focus to the search box; closing drops focus so the ring doesn't linger.
-  if (opening) searchInput.focus();
-  else filterToggle.blur();
-  // The only view change that does not re-render, so it needs its own call.
-  persistUi();
+// Boolean(): `hidden` is a string-or-boolean these days (it also takes "until-found").
+filterToggle.addEventListener('click', () => toggleFilterPanel(Boolean(filterPanel.hidden)));
+// The row of chips stands in for the shut panel, so a press anywhere on it but a × or Clear opens the panel again.
+filterStatus.addEventListener('click', (event) => {
+  if (filterPanel.hidden && !(event.target as HTMLElement).closest('button')) toggleFilterPanel(true);
 });
 datePresets.addEventListener('click', (event) => {
   const preset = (event.target as HTMLElement).dataset.range;

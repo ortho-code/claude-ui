@@ -21,6 +21,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - A session stopped before you had sent it anything comes back as the same session when you start it again, keeping its pin, note and group, instead of returning as a new one.
 - The filter button is a funnel instead of a magnifier: closing its panel keeps the filter on, which is not what a search box does.
 - Icons in the sidebar and tab bar share one line weight.
+- Closing the filter panel while a filter is on leaves a row showing what is on — the search text, each filter, the date range — each with its own ×, above the count and Clear; press the row to open the panel again.
 
 ### Fixed
 
