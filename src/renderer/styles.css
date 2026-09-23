@@ -52,6 +52,31 @@
   display: none !important;
 }
 
+/*
+  One scrollbar for the whole window, thin and quiet, where Chromium's own is a chunky light bar that reads wrong on the dark theme (and is what xterm 5 shows).
+  Unscoped on purpose: the session list, the terminals, panel output, the project switcher and the live strip all scroll with it, and a scroller added later gets it without joining a list.
+  `height` is the horizontal bar's thickness, which command output needs since it scrolls both ways; the corner where two bars meet stays clear.
+  Chromium ignores all of this on an element that sets `scrollbar-width` or `scrollbar-color`, so neither is used anywhere.
+*/
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ffffff22;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffffff44;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 #toast {
   position: fixed;
   left: 50%;
@@ -1184,29 +1209,6 @@ button:hover {
   /* Collapse/expand anchors the clicked heading by hand; the browser's own scroll anchoring
      would fight that and shift the list, so turn it off here. */
   overflow-anchor: none;
-}
-
-/* Thin, subtle scrollbars, shared by the session list and the terminal viewport (xterm 5 shows a
-   chunky default otherwise). */
-#sessions::-webkit-scrollbar,
-.xterm-viewport::-webkit-scrollbar {
-  width: 8px;
-}
-
-#sessions::-webkit-scrollbar-thumb,
-.xterm-viewport::-webkit-scrollbar-thumb {
-  background: #ffffff22;
-  border-radius: 4px;
-}
-
-#sessions::-webkit-scrollbar-thumb:hover,
-.xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: #ffffff44;
-}
-
-#sessions::-webkit-scrollbar-track,
-.xterm-viewport::-webkit-scrollbar-track {
-  background: transparent;
 }
 
 .project + .project {

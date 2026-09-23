@@ -22,6 +22,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - The filter button is a funnel instead of a magnifier: closing its panel keeps the filter on, which is not what a search box does.
 - Icons in the sidebar and tab bar share one line weight.
 - Closing the filter panel while a filter is on leaves a row showing what is on — the search text, each filter, the date range — each with its own ×, above the count and Clear; press the row to open the panel again.
+- Every scrollbar is the thin dark one the session list and the terminal already had, including the project switcher, the live strip and panels, instead of the system's light one.
 
 ### Fixed
 
