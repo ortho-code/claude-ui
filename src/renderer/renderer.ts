@@ -589,18 +589,7 @@ async function refreshFromDisk(): Promise<void> {
 
 // Any filter active? Used to auto-expand projects with matches and to show the filter status.
 function isFiltering(): boolean {
-  return (
-    filterText.length > 0 ||
-    showPinnedOnly ||
-    showOpenOnly ||
-    showLiveOnly ||
-    showWorktreeOnly ||
-    showGoneOnly ||
-    showSiblingsOnly ||
-    showNotedOnly ||
-    showArchivedOnly ||
-    datePreset !== 'any'
-  );
+  return filterText.length > 0 || FILTER_PILLS.some((pill) => pill.get()) || datePreset !== 'any';
 }
 
 // Session key -> its group's NAME, so typing a group name reaches its sessions.
@@ -700,22 +689,10 @@ function updateFilterStatus(matches: number, total: number): void {
   const filtering = isFiltering();
   filterStatus.hidden = !filtering;
   searchInput.classList.toggle('active', filterText.length > 0);
-  pinnedFilter.classList.toggle('active', showPinnedOnly);
-  pinnedFilter.setAttribute('aria-pressed', String(showPinnedOnly));
-  openFilter.classList.toggle('active', showOpenOnly);
-  openFilter.setAttribute('aria-pressed', String(showOpenOnly));
-  liveFilter.classList.toggle('active', showLiveOnly);
-  liveFilter.setAttribute('aria-pressed', String(showLiveOnly));
-  worktreeFilter.classList.toggle('active', showWorktreeOnly);
-  worktreeFilter.setAttribute('aria-pressed', String(showWorktreeOnly));
-  goneFilter.classList.toggle('active', showGoneOnly);
-  goneFilter.setAttribute('aria-pressed', String(showGoneOnly));
-  siblingFilter.classList.toggle('active', showSiblingsOnly);
-  siblingFilter.setAttribute('aria-pressed', String(showSiblingsOnly));
-  noteFilter.classList.toggle('active', showNotedOnly);
-  noteFilter.setAttribute('aria-pressed', String(showNotedOnly));
-  archivedFilter.classList.toggle('active', showArchivedOnly);
-  archivedFilter.setAttribute('aria-pressed', String(showArchivedOnly));
+  for (const pill of FILTER_PILLS) {
+    pill.button.classList.toggle('active', pill.get());
+    pill.button.setAttribute('aria-pressed', String(pill.get()));
+  }
   // The toggle carries the accent when any filter is on, so an active filter is visible even with the panel closed.
   filterToggle.classList.toggle('active', filtering);
   if (filtering) filterCount.textContent = `Showing ${matches} of ${total}`;
@@ -724,14 +701,7 @@ function updateFilterStatus(matches: number, total: number): void {
 function clearFilter(): void {
   searchInput.value = '';
   filterText = '';
-  showPinnedOnly = false;
-  showOpenOnly = false;
-  showLiveOnly = false;
-  showWorktreeOnly = false;
-  showGoneOnly = false;
-  showSiblingsOnly = false;
-  showNotedOnly = false;
-  showArchivedOnly = false;
+  for (const pill of FILTER_PILLS) pill.set(false);
   suppressPickerSelect = true;
   datePicker.clear();
   suppressPickerSelect = false;
@@ -3171,37 +3141,45 @@ searchInput.addEventListener('input', () => {
   container.scrollTop = 0;
 });
 filterClear.addEventListener('click', clearFilter);
-// Every filter pill does the same thing: flip its flag, re-render, scroll back to the results' top.
-function wireFilterToggle(button: HTMLButtonElement, flip: () => void): void {
-  button.addEventListener('click', () => {
-    flip();
+
+/**
+ * The filter pills, once, in the order they sit in the panel: each one's button, its mark and its flag.
+ * Everything that asks about the pills as a set reads this — whether any is on, how they are drawn and wired, what Clear resets — so none of them can miss a pill.
+ * The stored view (`uiSnapshot`, `restoreUiState`) and the predicate (`passesFilters`) still name each flag, because each maps it to a key of its own.
+ */
+interface FilterPill {
+  button: HTMLButtonElement;
+  icon: string;
+  get: () => boolean;
+  set: (on: boolean) => void;
+}
+const FILTER_PILLS: FilterPill[] = [
+  { button: pinnedFilter, icon: PINNED_ICON, get: () => showPinnedOnly, set: (on) => (showPinnedOnly = on) },
+  { button: openFilter, icon: OPEN_ICON, get: () => showOpenOnly, set: (on) => (showOpenOnly = on) },
+  { button: liveFilter, icon: LIVE_ICON, get: () => showLiveOnly, set: (on) => (showLiveOnly = on) },
+  { button: worktreeFilter, icon: WORKTREE_ICON, get: () => showWorktreeOnly, set: (on) => (showWorktreeOnly = on) },
+  { button: siblingFilter, icon: SIBLING_ICON, get: () => showSiblingsOnly, set: (on) => (showSiblingsOnly = on) },
+  { button: noteFilter, icon: NOTE_ICON, get: () => showNotedOnly, set: (on) => (showNotedOnly = on) },
+  { button: archivedFilter, icon: ARCHIVE_ICON, get: () => showArchivedOnly, set: (on) => (showArchivedOnly = on) },
+  { button: goneFilter, icon: FOLDER_GONE_ICON, get: () => showGoneOnly, set: (on) => (showGoneOnly = on) },
+];
+
+// Each pill shows the same mark the rows use, from the one definition — a glyph would render at a different weight beside them.
+// Icon-only: the words cost the panel an extra line at a 320px sidebar, and every pill carries a tooltip and an aria-label (see index.html) for what it means.
+for (const pill of FILTER_PILLS) {
+  pill.button.innerHTML = pill.icon;
+  // Every filter pill does the same thing: flip its flag, re-render, scroll back to the results' top.
+  pill.button.addEventListener('click', () => {
+    pill.set(!pill.get());
     renderList();
     container.scrollTop = 0;
   });
 }
-// Each pill shows the same mark the rows use, from the one definition — a glyph would render at a different weight beside them.
-// Icon-only: the words cost the panel an extra line at a 320px sidebar, and every pill carries a tooltip and an aria-label (see index.html) for what it means.
-pinnedFilter.innerHTML = PINNED_ICON;
-openFilter.innerHTML = OPEN_ICON;
-liveFilter.innerHTML = LIVE_ICON;
-siblingFilter.innerHTML = SIBLING_ICON;
-worktreeFilter.innerHTML = WORKTREE_ICON;
-goneFilter.innerHTML = FOLDER_GONE_ICON;
-noteFilter.innerHTML = NOTE_ICON;
-archivedFilter.innerHTML = ARCHIVE_ICON;
 // The header's icons come from here too, rather than inline in index.html, so they are drawn through the same helper as the rest.
 settingsToggle.innerHTML = settingsIcon(14);
 filterToggle.innerHTML = filterIcon(14);
 // The switcher's and the attention strip's carets, from the same chevron as every other fold in the app.
 for (const caret of document.querySelectorAll<HTMLElement>('.switcher-chev, .footer-chev')) caret.innerHTML = chevronDown(11);
-wireFilterToggle(pinnedFilter, () => (showPinnedOnly = !showPinnedOnly));
-wireFilterToggle(openFilter, () => (showOpenOnly = !showOpenOnly));
-wireFilterToggle(liveFilter, () => (showLiveOnly = !showLiveOnly));
-wireFilterToggle(worktreeFilter, () => (showWorktreeOnly = !showWorktreeOnly));
-wireFilterToggle(goneFilter, () => (showGoneOnly = !showGoneOnly));
-wireFilterToggle(siblingFilter, () => (showSiblingsOnly = !showSiblingsOnly));
-wireFilterToggle(noteFilter, () => (showNotedOnly = !showNotedOnly));
-wireFilterToggle(archivedFilter, () => (showArchivedOnly = !showArchivedOnly));
 filterToggle.addEventListener('click', () => {
   // Boolean(): `hidden` is a string-or-boolean these days (it also takes "until-found").
   const opening = Boolean(filterPanel.hidden);
