@@ -2155,8 +2155,7 @@ function getOrCreateRow(key: string): HTMLElement {
 // Asymmetric vs symmetric, so they stay apart at badge size.
 // Both are drawn so their INK is centred on 8,8 and 10 units tall, not merely their viewBox: the first cut centred the boxes while the fork hung 1.25 low and the branch filled 7.5 units against the fork's 11, which read as one mark misaligned and the other too small.
 // A note's mark: a page with a line of writing on it.
-const NOTE_ICON =
-  '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.5M6.25 8.75h3.5" /></svg>';
+const NOTE_ICON = strokeIcon(13, '<path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.5M6.25 8.75h3.5" />');
 const SIBLING_ICON =
   '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12V8M4 4L8 8L12 4" /></svg>';
 const WORKTREE_ICON =
@@ -2166,10 +2165,8 @@ const WORKTREE_ICON =
 // Same star either way — filled for pinned, outlined for not — so the two states differ by ink, not by colour, and both render at a weight we control instead of the font's.
 const STAR_PATH =
   'M8 2.1 L9.41 6.06 L13.61 6.18 L10.28 8.74 L11.47 12.77 L8 10.4 L4.53 12.77 L5.72 8.74 L2.39 6.18 L6.59 6.06 Z';
-const PIN_ICON =
-  `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.49" stroke-linejoin="round"><path d="${STAR_PATH}" /></svg>`;
-const PINNED_ICON =
-  `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" stroke="currentColor" stroke-width="1.49" stroke-linejoin="round"><path d="${STAR_PATH}" /></svg>`;
+const PIN_ICON = strokeIcon(14, `<path d="${STAR_PATH}" />`);
+const PINNED_ICON = strokeIcon(14, `<path d="${STAR_PATH}" fill="currentColor" />`);
 
 // The open filter's mark: a window with a title bar — "this one has a tab". Deliberately a SHAPE where running is a DOT, so the pair reads as two different questions rather than two intensities.
 const OPEN_ICON =
@@ -2182,11 +2179,9 @@ const LIVE_ICON =
 // The archived filter's mark: a lidded box. Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
 // A folder with a slash through it: the session's directory is not there any more.
 // Drawn at the same size and weight as the other pill marks, so it sits with them rather than beside them.
-const FOLDER_GONE_ICON =
-  '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12.2V3.8h3.6l1.2 1.6H14v6.8z" /><line x1="3" y1="13.2" x2="13.4" y2="2.8" /></svg>';
+const FOLDER_GONE_ICON = strokeIcon(13, '<path d="M2 12.2V3.8h3.6l1.2 1.6H14v6.8z" /><line x1="3" y1="13.2" x2="13.4" y2="2.8" />');
 
-const ARCHIVE_ICON =
-  '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" /></svg>';
+const ARCHIVE_ICON = strokeIcon(13, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
 
 // Take it back out of the box. Archiving has no row icon — it is a kebab item (text) in the normal view; only unarchiving, the archived view's primary action, stays a button on the row.
 const UNARCHIVE_ICON =
