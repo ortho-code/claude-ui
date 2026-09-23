@@ -185,7 +185,7 @@ The main process watches that directory and pushes updates to the renderer, whic
 
 ## App-side metadata and session groups
 
-Everything the app knows that Claude Code doesn't — pins, archived sessions, open tabs, per-project display names, custom groups, the window's geometry, the sidebar's view state and the app's own preferences — lives in a `meta.json` under the app's own user-data directory.
+Everything the app knows that Claude Code doesn't — pins, archived sessions, open tabs, per-project display names, custom groups, the window's geometry, the sidebar's view state, where the layout was left and the app's own preferences — lives in a `meta.json` under the app's own user-data directory.
 Preferences are kept apart from view state, in `settings` rather than `ui`: one is what you chose, the other is where you left off, and neither should be able to reset the other.
 The session store is never written to: `~/.claude` is read-only as far as this app is concerned.
 
@@ -194,8 +194,8 @@ Reads are tolerant by design: unknown or malformed entries are dropped rather th
 
 ## Panels
 
-A layout file puts a panel beside the terminal.
-This is the first slice of a larger design — a tree of sides, groups and panels, per project, shareable — and what exists is one side, one group, one panel type, and the seams for the rest.
+A layout file arranges the whole window: rows and columns of panel groups, with the sidebar and the terminal area as two of the panels.
+Per-project and named layouts are the next steps of the same design, and the file's shape leaves room for them.
 
 ### The config folder
 
@@ -214,25 +214,108 @@ An event on the folder itself re-opens the two below it, because a directory del
 
 ### The layout file
 
-The file has the tree shape of the full design, `sides.right.groups[].panels[]`, although this build honours the first non-hidden entry of the first group on the right side.
-Nothing written now is thrown away when groups and docking arrive, and the renderer names what it does not show yet in a line under the panel rather than ignoring it.
-The plain-DOM one-group side is a deliberate stop short of a docking engine; that question waits until groups and docking are wanted.
+The file is ONE TREE, and the app's own surfaces are nodes in it: `{ "version": 2, "root": … }`, where every node has an `id` and exactly one of `rows`, `columns` or `panels`.
+A node with `rows` or `columns` is a split; a node with `panels` is a **panel group**, which shows one panel at a time.
+"Panel group" is the layout's word, and a plain "group" stays the session list's (see UI conventions); the two are unrelated.
+The first shape of the file, one panel beside the terminal, never shipped, so version 1 is refused with a notice rather than converted.
 
-A panel is an ENTRY in the layout, not a file of its own: `{ "id": "status", "type": "command", "command": "git status --short" }`.
+A panel is an ENTRY in a group, not a file of its own: `{ "id": "status", "type": "command", "command": "git status --short" }`.
 That is the shape of Claude Code's own statusline and hooks, and it keeps sharing at its simplest — a line pasted from one file into another.
-`id` is a slug the user writes, unique within the file, and it is what panel state keys on; the app assigns nothing, because it writes nothing.
+Every id, of a node or an entry, is a slug the user writes (lowercase letters, digits, hyphens and underscores) and unique across the whole file, because ids are what the window's state keys on: dragged sizes, folds, the panel picked in a group.
+The app assigns nothing, because it writes nothing.
+
+The tree is hand-built from flex containers rather than taken from a docking library.
+What it needs — splits, dividers, a rail, folding — is small and already in the app's own vocabulary; what a library is for, dragging panels between groups and floating them, is deliberately not wanted, since the file is the editor.
+The file stays engine-agnostic, so a library could replace the renderer later without a layout changing.
 
 **Every mistake in the file is named, in the place of the thing that is wrong, and nothing is dropped or guessed.**
 This is the opposite of meta's rule, and for the opposite reason: meta drops what it does not understand because the app wrote that file and a past version's field is noise, while this file was written by a person, so what the app does not understand has to be said back to them or they go looking for the bug somewhere else.
+A node whose own fields are wrong — none or several of `rows`, `columns` and `panels`, an empty list, a size it cannot read, a field it does not know — becomes a degraded group in its place, listing every problem rather than the first.
+An entry's problems show in its slot, and a mistake that is no reason to refuse a panel, such as an icon the app does not have, is a note under the group instead.
+A file that cannot be read as a layout at all — not an object, another version, no root — keeps the default window and adds one degraded group beside it saying why, so the window stays usable while the file is fixed.
 A file that does not parse keeps the last good layout up and toasts the file and the parser's position until a read succeeds.
-An unknown `version`, a shape the renderer does not honour, a missing, duplicate or malformed `id`, an unknown `type`, a missing or doubled parameter, and a script that is not there or not executable each render a degraded panel saying exactly that, in the entry's place, with every problem listed rather than the first.
 The validator (`src/renderer/panels/layout.ts`) is pure and tested per rule, including every refusal, so a validator that accepts everything fails its tests.
+
+**The default layout lives in code, never on disk**: the sidebar at 320px beside the terminal area.
+It is what a missing file means, and what an unparsable one means before any good read, so there is always a way back to a window that works — a file could be moved, deleted or renamed, and the default cannot be.
+It goes through the same validator as any file, and a test pins that it resolves without a word said.
+
+### The app's own surfaces are panels
+
+Two built-in types exist: `sessions`, the whole sidebar (switcher, actions, filter, list, attention strip), and `claude`, the terminal area (tab bar and terminals).
+For now they are OPAQUE: each is the element the app has always built, moved into the group that places it and parked in a hidden holder if the layout lets go of it — never rebuilt and never disposed, so a layout change keeps every running session and its xterm exactly as they were.
+Splitting the sidebar into panels of its own is later work, one surface at a time.
+
+Both must be placed exactly once, and the rule is the validator's rather than the DOM's: **no layout file can produce a window without the terminal.**
+One left out is added — `sessions` as the root's first column, `claude` as its last, wrapping a root that is not columns — with a note saying so; a second copy stands in its place saying where the first one is; `hidden` on one is ignored, with a note.
+An entry for one that has a problem does not count as placed, so a working one is added and the broken entry stays where it was, saying why.
+
+Both are BARE: each carries its own top bar, so it gets no header of the tree's.
+The tab bar is not a panel of its own but the terminal area's own strip.
+The sidebar's width from before it was a node is adopted once into the tree's state, so an existing install keeps its sidebar.
+
+### Sizes
+
+A node's `size` is a SHARE of its parent (a number) or PIXELS (`"320px"`).
+A pixel node keeps its size when the window resizes, and the shares divide what the pixel nodes leave: the unsized children share what the shares leave of 1 equally, and shares on every child are plain proportions.
+When the shares leave nothing, each unsized child is weighted as their average, with a note — a built-in the validator adds lands here, and a terminal squeezed down to its `min` would be no window at all.
+In a narrow window a pixel node gives way once the others are down to their `min`, rather than the window's edge being cut off.
+
+ONE UNIT FOR EVERYTHING: a share is a flex weight, and a dragged size is stored in px and used as that same weight, so a drag and the file's proportions mix without conversion, and a window resize redistributes by weight with no code at all.
+A split's dragged sizes are honoured only while they name every one of its children, and dropped whole when its children change, so a file edit that adds or removes a child falls back to the file's sizes rather than keeping half of each.
+The arithmetic lives in `src/renderer/panels/sizes.ts`, pure and tested; `tree.ts` only measures and applies.
+
+### Dividers and folding
+
+A divider sits between every two neighbours and is always drawn, as a hairline: two panels on the same background otherwise read as one.
+It can be dragged only when both neighbours are `resizable` and neither is folded, and one that cannot says why on hover (`Fixed size: side has "resizable": false`, `Unfold drawer to resize`), so it does not read as broken.
+
+A `collapsible` group folds from a chevron on a divider.
+It sits there because a divider takes no room anywhere else, and won over a header row (which a bare group does not have) and over a button placed in the panel's own bar, after all three were tried in a clickable mock.
+The chevron points the way the group moves, and stays on the same divider when the group is folded, turned round: fold and unfold happen at one spot.
+It is a thin tab centred on the divider's line, 11px across, so it overhangs each neighbour by 3px, inside their padding, and never covers a header's text.
+
+Which divider carries it, and which way it points, follows where the space goes.
+A folded group's room goes to its siblings without a pixel size, so a group in the middle of a split whose flexible siblings are all before it slides toward the END as they grow — and a chevron on its far side pointing back toward the start said the opposite of what happened, which is how the rule was found.
+So the first child folds to the start and the last to the end, each having one divider, and a middle child folds away from where its space goes, with its chevron on the divider on the other side.
+Two chevrons share a divider only for two foldable groups that are a split's only children, and they then sit one after the other along the line, each pointing into its own group.
+They first sat one on each side of the line, which put one of them on the header below; hovering a chevron outlines the group it acts on, which is what tells two apart.
+The edge is worked out from the file's sizes rather than from which siblings happen to be folded, so a chevron never moves when a neighbour folds (`foldEdge` in layout.ts, tested).
+
+A folded group is its rail, 28px along its parent's axis.
+Folding first stores every sibling's measured size, the folded group's own included, so it unfolds to the size it had and nothing else moves when it does.
+Only panel groups fold; `collapsible` on rows or columns is named as not honoured yet.
+
+### Several panels in a group
+
+A group with several panels shows one, and switches from a RAIL of icons on the edge it folds toward — the edge a folded group's rail sits on, so the rail stays where it is when the rest folds away.
+It won over a tab strip after both were tried: a strip costs a row and changes shape when its group folds, and a built-in sharing a group with a strip put two rows of tabs above the terminal, where with the rail the terminal area keeps its own tab bar and gets no header.
+
+Each type declares an icon, and an entry can pick another with `icon`, by name from a fixed set; the tooltip is the panel's title.
+A dot on an icon reports a panel that is not on show: a command whose run failed, or a session waiting for you behind `claude` or anywhere behind `sessions`.
+The dot is the status dot the rest of the app uses (`.nudge`), with one state of its own for a failed run.
+Clicking an icon shows that panel and unfolds the group; the shown panel's own icon does nothing, so the chevron stays the one fold control.
+A panel's own marks — the busy mark, the run's last word, its button — sit in a header over it, unless its type is bare.
+
+The fold control and the switcher each live in one function in `tree.ts` (`foldControls`, `switcher`), so trying one of the other variants from the mock — a header button, a tab strip — is a local change there, and none of it is in the file format.
+
+### A layout change keeps panels running
+
+The tree is rebuilt on every layout change, fold and panel switch, but a panel never is: mounted panels are kept by entry key and moved into their new place.
+A panel is mounted afresh only when its type or its declared parameters change (`mountSignature`, tested), so a new title, icon or position moves a running command or shell rather than restarting it, and a save that adds a panel restarts nothing else.
+Moving an element resets its scroll offsets and drops its focus, so a rebuild carries both across.
+
+A panel behind another in its group, or in a folded group, keeps its DOM and its process: hiding stops nothing, and only removal from the file does.
+A `command` panel does not run while hidden; a context change meanwhile is remembered as a difference, and it runs once when shown — and not at all if the context came back to where its last run was (`RunGate`, tested).
+A `terminal` keeps its shell and refits from its own `ResizeObserver` once it has a size again.
+
+At start-up the default layout is drawn before the first paint, the file is read before a single row is drawn — so the sidebar and terminal area are moved into the tree while they are still empty — and panels are shown only once the tabs are restored, so a panel's first run is in the restored tab's folder.
 
 ### A type declares its parameters once
 
-A panel type is a module under `src/renderer/panels/types/`, and it declares its parameters in one place: name, kind (`text` or `path`), what a `path` resolves against, and which groups of parameters are exactly-one-of.
-The validator, the degraded panel's wording and, later, the editor's form all read that one declaration, so a parameter cannot be known to one of them and not the others.
-The type also owns its panel's body and its run; the side (`side.ts`) draws only the chrome around it — the header with the busy mark, the run's last word and Refresh, and the divider.
+A panel type is a module under `src/renderer/panels/types/`, and it declares its parameters in one place: name, kind (`text` or `path`), what a `path` resolves against, and which groups of parameters are exactly-one-of — with its default icon, whether it is bare, and whether it is a built-in the layout must place once.
+The validator, the degraded panel's wording and, later, an editor's form all read that one declaration, so a parameter cannot be known to one of them and not the others.
+The type also owns its panel's body and its run; the tree (`tree.ts`) draws only what is around it — the header, the rail icon and its dot, the dividers.
 
 ### The `command` type
 
@@ -248,7 +331,7 @@ The command runs in the panel's CONTEXT DIRECTORY — the active tab's cwd, else
 That is the one thing that differs between the two forms: a relative path INSIDE a command line is resolved by the shell against that directory, while a relative `script` resolves against the config folder, so the script travels with it.
 The context reaches the command as environment variables only for now (`CLAUDE_UI_PROJECT_ROOT`, `CLAUDE_UI_CWD`, `CLAUDE_UI_SESSION_ID`, `CLAUDE_UI_CONFIG_ROOT`); JSON on stdin joins when a second type wants it.
 With neither a tab nor a project the panel says "Pick a project to run this in." and runs nothing.
-It runs when first shown, on Refresh, and when the context directory changes, which a tab switch, a project switch and stopping the tab you are on all do.
+It runs when first shown, on Refresh, and when the context directory changes, which a tab switch, a project switch and stopping the tab you are on all do — but never while hidden (see A layout change keeps panels running).
 
 ### How a command runs
 
@@ -264,7 +347,7 @@ A process that never exits by design — a dev server, a watcher — is not this
 Plain text is asked for with `NO_COLOR=1` and `TERM=dumb`, and escape sequences are stripped on top for the tools that do not listen, with a sequence cut at a chunk boundary held back until the next chunk completes it.
 
 **Stopping is the group.** The child is spawned `detached`, so its pid is a group id, and a stop is the same SIGTERM-then-SIGKILL escalation a session gets, shared from `shell.ts`, reading whether it worked from the child's own exit.
-A re-run stops the run before it, hiding or removing the panel stops it, and quitting sweeps every live run down the same path.
+A re-run stops the run before it, removing the panel from the file stops it, and quitting sweeps every live run down the same path; hiding it does not.
 The end of the OUTPUT (`close`) and the end of the PROCESS (`exit`) are read separately: something the command started can outlive it holding the pipe, and once the leader is gone nothing may be signalled, since its pid may already belong to somebody else.
 
 **`CLAUDE_UI` is deliberately not set.** It is the marker the status hooks fire on, and a panel that happens to run `claude -p` must not report as a session.
@@ -279,7 +362,7 @@ No parameters.
 **It stays put.** The shell starts in the context directory of the moment the panel first shows and stays there through tab and project switches.
 A shell has state — the command you have running in it — so following the context the way the `command` panel does would kill that command on every switch, and one shell per directory kept alive and swapped like tabs is a lifecycle that belongs with groups and tabs, not here.
 So the header names the folder the shell is in, the button is "Restart here", which kills the shell and starts one in the current context, and the one exception is a panel with no shell because there was nothing to run in, which starts as soon as a context appears.
-The type declares that button's label itself, so the side keeps one button and the type says what it does.
+The type declares that button's label itself, so the tree keeps one button and the type says what it does.
 
 **The same pty path as a session.** `terminal.ts` has one spawn for both — the terminals map, the data and exit routing, the stop escalation and the quit sweep — with the claude-specific argument building and the plain-shell start as two callers of it.
 A panel's shell is therefore stopped and swept exactly as a session is, and nothing about it is a second implementation of a process the app runs.
@@ -287,12 +370,14 @@ It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` a
 
 **One xterm, one router.** The renderer's `terminal.ts` builds every xterm in the window (the font tokens, the neutral foreground, the canvas fallback, clickable links) and routes every terminal's output and exit to whichever sink bound its id, a tab or a panel.
 The tab's claude-specific key handling — Ctrl+Enter and Shift+Enter as newline, Ctrl+Z refused, Ctrl+C twice to close — stays with the tab.
-A panel fits its xterm from a `ResizeObserver` on its own box rather than at mount, because it is mounted before the side has laid it out and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
+A panel fits its xterm from a `ResizeObserver` on its own box rather than at mount, because it is mounted before the tree has placed it and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
+The same observer covers every later reveal — a switch on the rail, an unfold, a divider reopening a squeezed node — since each gives the box a size again.
 
 ### Panel state
 
-The side's dragged width lives in `UiState.panelState`, per machine, beside the sidebar's, and never in the layout file, which is what may be shared.
-Only a DRAGGED width is stored: the file's `size` proportion is read while there is none, so changing it still moves a side nobody has dragged.
+Where the tree was left lives in `UiState.panelState`, per machine, and never in the layout file, which is what may be shared: the dragged sizes per split and child, the folded groups, and the panel picked in each group, all keyed by the file's ids.
+So an edit that renames a node starts it fresh rather than handing it another node's state.
+Only what the user did is stored: the file's `size` is read while a split has no dragged sizes, so changing it still moves a split nobody has dragged.
 
 ## The window's own chrome — built, and currently switched off
 
@@ -326,7 +411,7 @@ Two things are restored on launch, and each has one rule worth knowing.
 
 The **window's** size and position are stored as the unmaximized rectangle plus a maximized flag, and are checked against the displays that exist at launch rather than replayed blind: the size is a preference and survives a monitor going away (clamped to the screen it opens on), while the position is dropped whole once it no longer lands somewhere reachable — including a window with only a sliver on screen, or one whose title bar sits above the top edge and could not be dragged back. The geometry decision is a pure function, so those cases are tested rather than reproduced by hand.
 
-The **sidebar's** view — search text, the filter toggles, the date filter, folded projects and groups, width, scroll offset — is one object written as a whole, on a debounce, and only when a snapshot differs from the last one stored; renders happen constantly for reasons that have nothing to do with the view. Rolling date presets are recomputed from the current moment, so "last 7 days" still means the last 7 days; only a custom range is restored literally. The filter panel comes back exactly as it was left, an active filter included — closing it over a filter you meant to keep is a choice to reclaim the space, and the filter icon carries an accent whenever anything is on.
+The **sidebar's** view — search text, the filter toggles, the date filter, folded projects and groups, scroll offset — is one object written as a whole (its width belongs to the layout tree now; see Panel state), on a debounce, and only when a snapshot differs from the last one stored; renders happen constantly for reasons that have nothing to do with the view. Rolling date presets are recomputed from the current moment, so "last 7 days" still means the last 7 days; only a custom range is restored literally. The filter panel comes back exactly as it was left, an active filter included — closing it over a filter you meant to keep is a choice to reclaim the space, and the filter icon carries an accent whenever anything is on.
 
 Folds come in two states, and they are deliberately separate. Filtering opens the whole tree so a match inside a folded section is never hidden, and folding from there is a way through the results — shut a project you have already been through — rather than a statement about how the sidebar should look. So those folds apply only while a filter is on and are dropped the moment one stops, by any route: Clear, the last character of a search, a date preset going back to Any. Both states are stored, because the filter itself is restored, and coming back to the same results without the same view is the thing remembering the view is meant to prevent.
 
@@ -340,6 +425,7 @@ A session started from a group's "+" is filed by the ordinary membership write, 
 ## UI conventions
 
 Vocabulary, in code and in the UI: a **folder** is a literal directory path; a **project** is the grouping a session belongs to, keyed by its repo root, which merges a repo's worktrees and subdirectories into one entry; a **group** is a user-made sub-section inside a project.
+A **panel group** is the layout's node of panels and unrelated to either, so the layout always says "panel group" in words meant for people.
 The three are not interchangeable — one project spans several folders, which is why the switcher, the session list and the tab bar all say "project".
 
 **The project scope holds everywhere.** Selecting a project in the switcher is a statement about what you are looking at, so every surface honours it — the list, the tab bar, the placeholder's wording, and the archived view, which used to be exempt and no longer is.
@@ -428,6 +514,7 @@ Measure the font's descent rather than guessing the value.
 Fitting one before revealing it therefore yields xterm's 80×24 default rather than an error — and that default is what the PTY is told, so `claude` draws its entire TUI to 80 columns for the life of the session.
 Reveal, then fit, then resize.
 Every conditionally-visible pane carries this hazard, split view included.
+The whole terminal area is one now: it is hidden while another panel of its group is shown or its group is folded, so the tab fit refuses a terminal area with no size and leaves it to the `ResizeObserver` on it, which fires once the area has a size again.
 
 **Specificity quietly opts controls out of shared hover rules.** `button:hover` is 0,1,1, so a resting rule like `.project h2 .project-kebab` (0,2,2) or `#toast-close` (1,0,0) beats it and never takes the accent border, while `.session-kebab` (0,1,0) does.
 This produced three separate "why does only this one look different" bugs.

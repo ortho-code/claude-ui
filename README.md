@@ -37,7 +37,8 @@ Done:
 - Reaching a group without scrolling: a jump list on the project heading.
 - Settings: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included.
   The flags the app sets for itself are refused there rather than allowed to break a session.
-- A panel beside the terminal, laid out by a file you edit by hand: a `command` panel runs a command line or a script for the selected project or tab and shows the output. See [Panels](#panels).
+- The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
+  Panels so far run a command or a script and show its output, or give you a plain shell. See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag. See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
 
 Next:
@@ -51,7 +52,7 @@ Next:
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).
 - Playwright end-to-end tests, then split view.
 - Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.
-- More panel types (markdown, diff, transcript, config), several panels in a group, and docking.
+- More panel types (markdown, diff, transcript, config), and layouts per project.
 - Minimize-to-tray.
 - A readable transcript viewer (after a compaction, the CLI cannot show a resumed session's earlier history — the transcript file still has it).
 - Telling you when a session fails to start, instead of leaving the terminal to explain it.
@@ -59,47 +60,78 @@ Next:
 
 ## Panels
 
-A layout file puts a panel beside the terminal.
+A layout file arranges the window: rows and columns of panel groups, with the sidebar and the terminal area as two of the panels.
 It lives in the app's config folder, which Settings shows with a Reveal button:
 
 - Linux: `~/.config/claude-ui/config/`
 - macOS: `~/Library/Application Support/claude-ui/config/`
 
-Write `layouts/default.json` there.
-The app picks it up as you save, and hides the panel again when the file goes away or has no panel left to show.
+Write `layouts/default.json` there, and the app picks it up as you save.
+Without a file — or after you delete or rename yours — the window is the default layout below, so there is always a way back to one that works.
 The app never writes to this folder, so it is yours to edit, version, or hand to a colleague.
 
-Two panel types exist so far.
-`command` runs something and shows what it printed, given its command in one of two ways: a command line, run by your login shell as you typed it, or a path to an executable script.
-`terminal` is a plain shell, the same login shell your sessions run in.
+The default layout, as a starting point to copy:
 
 ```json
 {
-  "version": 1,
-  "sides": {
-    "right": {
-      "size": 0.25,
-      "groups": [
-        {
-          "panels": [
-            { "id": "status", "type": "command", "command": "git status --short" },
-            { "id": "checks", "type": "command", "script": "scripts/checks.sh", "title": "Checks", "hidden": true },
-            { "id": "shell", "type": "terminal", "hidden": true }
-          ]
-        }
-      ]
-    }
-  }
+  "version": 2,
+  "root": { "id": "window", "columns": [
+    { "id": "sidebar", "size": "320px", "min": 220, "panels": [{ "id": "sessions", "type": "sessions" }] },
+    { "id": "claude", "panels": [{ "id": "cli", "type": "claude" }] }
+  ] }
 }
 ```
 
-Each entry needs a unique `id` (lowercase letters, digits and hyphens); `title` and `hidden` are optional.
-A `command` entry needs exactly one of `command` or `script`, and a `terminal` entry needs nothing else.
+Every node has an `id` and exactly one of `rows`, `columns` or `panels`: `rows` and `columns` split the space, and `panels` makes a panel group, which shows one panel at a time.
+A node can also have:
+
+| Field | Meaning |
+|---|---|
+| `size` | A share of its parent (`0.25`), or pixels (`"320px"`). Pixels keep their size when the window resizes and shares divide the rest; children without a size share what is left. |
+| `min` | The smallest it gets, in pixels; 120 when absent. |
+| `resizable` | `false` fixes its size: the divider beside it cannot be dragged. |
+| `collapsible` | `true` lets a panel group fold to a strip of icons, from the chevron on its divider. |
+| `active` | The panel a group shows first. |
+
+Drag a divider to resize the two nodes beside it.
+The sizes you drag to, the groups you fold and the panel you pick in a group are remembered on this machine, not written to the file.
+A group with several panels switches between them from a strip of icons on its edge: hovering an icon names the panel, and a dot on it says a command failed or a session is waiting for you.
+
+Every id, of a node or a panel, is unique in the file and uses lowercase letters, digits, hyphens and underscores.
+A panel needs an `id` and a `type`; `title`, `icon` and `hidden` are optional.
+`icon` picks its icon by name: `git`, `list`, `check`, `eye`, `bug`, `book`, `clock`, `server`, `play`, `search`, `bell`, `terminal`, `command`, `sessions`, `claude` or `alert`.
+A panel that cannot run wears `alert` whatever it names, so a broken one stands out on a strip of icons too.
+
+The panel types:
+
+- `sessions` is the sidebar and `claude` is the terminal area with its tabs.
+  Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
+- `command` runs something and shows what it printed, given one of two ways: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
+- `terminal` is a plain shell, the same login shell your sessions run in.
+
+This one puts a shell in a drawer under the terminal area and two commands behind icons on the right, and lets the sidebar, the drawer and the right side fold:
+
+```json
+{
+  "version": 2,
+  "root": { "id": "window", "columns": [
+    { "id": "sidebar", "size": "320px", "min": 220, "collapsible": true, "panels": [{ "id": "sessions", "type": "sessions" }] },
+    { "id": "main", "rows": [
+      { "id": "claude", "panels": [{ "id": "cli", "type": "claude" }] },
+      { "id": "drawer", "size": 0.3, "collapsible": true, "panels": [{ "id": "shell", "type": "terminal" }] }
+    ] },
+    { "id": "right", "size": "360px", "collapsible": true, "panels": [
+      { "id": "status", "type": "command", "command": "git status --short", "icon": "git" },
+      { "id": "checks", "type": "command", "script": "scripts/checks.sh", "title": "Checks", "icon": "check" }
+    ] }
+  ] }
+}
+```
+
 A relative `script` resolves against the config folder, so `scripts/` is the place to keep one, and it has to be executable.
-`size` is the side's share of the window until you drag the divider, after which your width is kept.
-The file's shape leaves room for more than this version shows: it shows the first panel that is not hidden in the first group on the right side, and says so under the panel when the file holds more.
 
 The command runs in the active tab's folder, or the selected project's root when no tab is open, and runs again when you switch project or tab or press Refresh.
+While it is out of sight, behind another panel or folded away, it does not run; it runs once when you show it again, if the folder changed meanwhile.
 It sees these variables:
 
 | Variable | Value |
@@ -111,11 +143,12 @@ It sees these variables:
 
 Output is shown as plain text (`NO_COLOR` and `TERM=dumb` are set, and escape codes are stripped), a non-zero exit shows as `exit N`, a run still going after 30 seconds is stopped, and output is cut at 1 MB.
 
-A `terminal` panel's shell starts in that folder too, but stays there when you switch tab or project, since a shell may have something running in it.
+A `terminal` panel's shell starts in that folder too, the first time you show it, but stays there when you switch tab or project, since a shell may have something running in it.
 The header names the folder it is in, and the button restarts it in the current one.
+It keeps running while hidden or folded, and while you edit the layout file around it.
 It gets the same variables, and a `claude` you start in it by hand is not tracked as one of the app's sessions.
 
-A mistake in the file — an unknown type, a missing id, a script that is not there or not executable — is named in the panel's place, and a file that does not parse leaves the last good layout up and names the position.
+A mistake in the file — an unknown type, a missing id, a size it cannot read, a script that is not there or not executable — is named in the place of the thing that is wrong, and a file that does not parse leaves the last good layout up and names the position.
 
 ## Install a build
 
