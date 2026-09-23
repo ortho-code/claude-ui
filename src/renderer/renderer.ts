@@ -110,6 +110,9 @@ const restoreIcon = (size: number): string =>
   strokeIcon(size, '<path d="M5.6 5.6V4.4a1 1 0 011-1h4.8a1 1 0 011 1v4.8a1 1 0 01-1 1h-1.2" /><rect x="3.4" y="5.6" width="7" height="7" rx="1.2" />');
 // The filter toggle's mark: a funnel, not the magnifier it used to be. A magnifier promises a search box, which clears when it closes; what this opens is filters, which stay on.
 const filterIcon = (size: number): string => strokeIcon(size, '<path d="M2.5 2.5h11L9.2 7.9v4.4l-2.4 1.2V7.9z" />');
+// Settings as two sliders, each with its knob.
+const settingsIcon = (size: number): string =>
+  strokeIcon(size, '<path d="M2 4.6h8.1M13.1 4.6h.9M2 11.4h2.9M7.9 11.4h6.1" /><circle cx="11.7" cy="4.6" r="1.6" /><circle cx="6.4" cy="11.4" r="1.6" />');
 // Dots, so it stays a kebab rather than becoming a dashed line. The radius is in px for the same reason the stroke is: three 2.6px dots whatever the button's size.
 const kebabIcon = (size: number): string => {
   const r = ((1.3 * 16) / size).toFixed(2);
@@ -1335,10 +1338,8 @@ function renderList(): void {
 }
 
 // Chevrons stacked in the direction things will move: up to fold everything away, down to open it again. Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
-const COLLAPSE_ALL_ICON =
-  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.49" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.25L8 3.75L12 7.25" /><path d="M4 12.25L8 8.75L12 12.25" /></svg>';
-const EXPAND_ALL_ICON =
-  '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.49" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3.75L8 7.25L12 3.75" /><path d="M4 8.75L8 12.25L12 8.75" /></svg>';
+const COLLAPSE_ALL_ICON = strokeIcon(14, '<path d="M4 7.25L8 3.75L12 7.25" /><path d="M4 12.25L8 8.75L12 12.25" />');
+const EXPAND_ALL_ICON = strokeIcon(14, '<path d="M4 3.75L8 7.25L12 3.75" /><path d="M4 8.75L8 12.25L12 8.75" />');
 
 // What the button folds depends on the view.
 // In All it folds the project sections (keyed on projects alone: with every project shut its groups are out of sight anyway, which is why a group toggling on its own needs no refresh call).
@@ -3199,6 +3200,8 @@ worktreeFilter.innerHTML = WORKTREE_ICON;
 goneFilter.innerHTML = FOLDER_GONE_ICON;
 noteFilter.innerHTML = NOTE_ICON;
 archivedFilter.innerHTML = ARCHIVE_ICON;
+// The header's icons come from here too, rather than inline in index.html, so they are drawn through the same helper as the rest.
+settingsToggle.innerHTML = settingsIcon(14);
 filterToggle.innerHTML = filterIcon(14);
 // The switcher's and the attention strip's carets, from the same chevron as every other fold in the app.
 for (const caret of document.querySelectorAll<HTMLElement>('.switcher-chev, .footer-chev')) caret.innerHTML = chevronDown(11);
