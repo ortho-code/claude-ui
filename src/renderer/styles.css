@@ -400,6 +400,57 @@ body {
   background: var(--accent);
 }
 
+/*
+  The fold chevron: a thin tab laid along the divider, centred on its line (P12).
+  11px across, so it overhangs each neighbour by 3px, which stays inside their padding and never covers a header's text.
+  An icon button, so it takes the one hover every icon control shares; the resting fill and border are what make it read as a tab on a line rather than a loose mark.
+  Above the panels either side, whose own layers (xterm's among them) would otherwise paint over the part that overhangs them.
+*/
+.divider .chev {
+  position: absolute;
+  z-index: 10;
+  padding: 0;
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.split.columns > .divider .chev {
+  width: 11px;
+  height: 30px;
+  top: calc(50% - 15px);
+  left: -3px;
+}
+
+.split.rows > .divider .chev {
+  width: 30px;
+  height: 11px;
+  left: calc(50% - 15px);
+  top: -3px;
+}
+
+/* Two groups alone in a split share one divider: both chevrons sit on the line, one after the other along it, each pointing into its own group; the hover outline says which is which. */
+.split.columns > .divider .chev.shared.before {
+  top: calc(50% - 32px);
+}
+
+.split.columns > .divider .chev.shared.after {
+  top: calc(50% + 2px);
+}
+
+.split.rows > .divider .chev.shared.before {
+  left: calc(50% - 32px);
+}
+
+.split.rows > .divider .chev.shared.after {
+  left: calc(50% + 2px);
+}
+
+/* The group a hovered chevron acts on. An outline, so it paints over the group's own content. */
+.node.fold-target {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 /* The cursor is set inline by the resizer helper, from the handle being dragged. */
 body.resizing {
   user-select: none;
@@ -2011,6 +2062,80 @@ button:focus:not(:focus-visible) {
   display: flex;
   flex-direction: column;
   background: var(--bg);
+}
+
+/* With a rail (several panels, or folded), the rail sits on the edge the group folds toward and the content fills the rest. */
+.panel-group.with-rail.vertical {
+  flex-direction: row;
+}
+
+.panel-group.with-rail.horizontal {
+  flex-direction: column;
+}
+
+.panel-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+  THE RAIL (P8, P9): the icons of a group's panels, 28px across, the whole of a folded group.
+  Its items are icon buttons in the standard box, so they share every icon control's hover.
+*/
+.panel-rail {
+  flex: 0 0 28px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.panel-rail.vertical {
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.panel-rail.horizontal {
+  flex-direction: row;
+  padding: 0 4px;
+}
+
+.icon-btn.rail-item {
+  position: relative;
+}
+
+/* The panel on show: filled, with the accent on the rail's outer edge, the side away from the content. */
+.icon-btn.rail-item.shown {
+  background: var(--active);
+  color: var(--text);
+}
+
+.panel-rail.vertical.start .rail-item.shown {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.panel-rail.vertical.end .rail-item.shown {
+  box-shadow: inset -2px 0 0 var(--accent);
+}
+
+.panel-rail.horizontal.start .rail-item.shown {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.panel-rail.horizontal.end .rail-item.shown {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* The dot on an icon: the status dot itself, ringed in the rail's colour so it reads against the mark it overlaps. */
+.rail-item .nudge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  box-shadow: 0 0 0 2px var(--surface);
 }
 
 /* The group's header: title, the busy mark, the run's last word, Refresh. Body size at the group

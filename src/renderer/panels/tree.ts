@@ -1,9 +1,12 @@
 import type { LayoutReport, PanelState } from '../../shared/panels';
 import { installSplitResizer } from '../resizer';
+import { chevronIcon, type Direction } from '../svg';
 import { setTooltip } from '../tooltip';
+import { iconSvg } from './icons';
 import {
   DEFAULT_LAYOUT,
   fileName,
+  foldEdge,
   isEmpty,
   mountSignature,
   resolveLayout,
@@ -12,7 +15,7 @@ import {
   type ResolvedNode,
   type ResolvedSplit,
 } from './layout';
-import { dragTo, flexFor, keptSizes, type FlexChild } from './sizes';
+import { dragTo, flexFor, keptSizes, snapshot, type FlexChild } from './sizes';
 import { claudeType, sessionsType } from './types/builtin';
 import { commandType, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type Where } from './types/command';
 import { terminalType } from './types/terminal';
@@ -20,9 +23,11 @@ import { terminalType } from './types/terminal';
 /**
  * The window, drawn from the layout tree: nested rows and columns of groups, each group showing one panel, with the app's own sidebar and terminal area as two of the panels.
  *
- * Built from main's report of the layout file and rebuilt whenever that file changes. A rebuild recreates the splits, dividers and headers, but NEVER a panel: mounted panels are kept by entry key and moved into their new place, so a save that adds a panel restarts nothing else (decision 13). The built-ins are the elements the app has always had, moved in the same way.
+ * Built from main's report of the layout file and rebuilt whenever that file changes, a group folds, or another panel is picked. A rebuild recreates the splits, dividers, rails and headers, but NEVER a panel: mounted panels are kept by entry key and moved into their new place, so a save that adds a panel restarts nothing else (decision 13). The built-ins are the elements the app has always had, moved in the same way.
  * Before the first read the tree is the default layout, drawn synchronously at start-up, so the first paint is already the window as it will be without a file.
  * Panels are mounted hidden and not shown until `startPanels`, which the renderer calls once the tabs are restored, so a panel's first run is in the restored tab's folder.
+ *
+ * Two choices tried in the playground and open to change sit in one function each, so swapping to another variant is a local change: `foldControls` (the chevron on the divider, P7/P12) and `switcher` (the rail of icons, P9).
  */
 
 const TYPES: Record<string, PanelType> = { sessions: sessionsType, claude: claudeType, command: commandType, terminal: terminalType };
@@ -35,7 +40,7 @@ export interface TreeHost {
   persist(): void;
 }
 
-/** A panel on screen, and the header marks it reports through — made once with it, so a rebuilt header shows the same marks rather than orphaning them. */
+/** A panel on screen, and the marks it reports through — made once with it, so a rebuilt header or rail shows the same marks rather than orphaning them. */
 interface Mounted {
   panel: MountedPanel;
   /** Its type and declared parameters: a change to either mounts it afresh, a change to anything else (title, icon) does not. */
@@ -45,6 +50,13 @@ interface Mounted {
   action: HTMLButtonElement | null;
   /** The dot on its rail icon (P8). */
   badge: HTMLElement;
+}
+
+/** Where a child sits in its split: along which axis, which edge it folds toward, and whether it is folded. The root has no axis and cannot fold. */
+interface Place {
+  axis: 'rows' | 'columns' | null;
+  edge: 'start' | 'end';
+  folded: boolean;
 }
 
 const REFRESH_ICON =
@@ -57,11 +69,12 @@ let report: LayoutReport | null = null;
 /** The tree on screen: the last good read, or the default layout until there is one. */
 let tree: ResolvedNode;
 const mounted = new Map<string, Mounted>();
-/** The keys of the panels the last render put on show, as opposed to mounted behind another. */
+/** The keys of the panels the last render put on show, as opposed to mounted behind another or folded away. */
 let onShow = new Set<string>();
 let sizes: PanelState['sizes'] = {};
-/** Kept as restored and written back unchanged until folding and the rail use them (phase 4), so nothing stored is lost in between. */
-let collapsed: string[] = [];
+/** Groups folded to their rail, by id. */
+let collapsed = new Set<string>();
+/** The panel picked in each group, by group id; the file's `active` until one is. */
 let active: PanelState['active'] = {};
 /** Whether panels may be shown, which is when they first run. */
 let live = false;
@@ -109,7 +122,7 @@ export function treeState(): PanelState {
  */
 export function restoreTreeState(state: PanelState, legacySidebarWidth: number | null): void {
   sizes = { ...state.sizes };
-  collapsed = [...state.collapsed];
+  collapsed = new Set(state.collapsed);
   active = { ...state.active };
   const root = DEFAULT_LAYOUT.root;
   if (!sizes[root.id] && 'columns' in root) {
@@ -154,7 +167,7 @@ function render(): void {
   const focused = document.activeElement;
   const scrolled = scrollOffsets();
   onShow = new Set();
-  app.replaceChildren(renderNode(tree));
+  app.replaceChildren(renderNode(tree, { axis: null, edge: 'start', folded: false }));
   for (const [el, top, left] of scrolled) {
     el.scrollTop = top;
     el.scrollLeft = left;
@@ -187,34 +200,39 @@ function showPanels(): void {
   for (const [key, { panel }] of mounted) panel.setVisible(onShow.has(key));
 }
 
-function renderNode(node: ResolvedNode): HTMLElement {
-  return node.kind === 'split' ? renderSplit(node) : renderGroup(node);
+function renderNode(node: ResolvedNode, place: Place): HTMLElement {
+  return node.kind === 'split' ? renderSplit(node) : renderGroup(node, place);
 }
+
+/** A group that can fold: it asks to, and is not degraded. Whether it has a divider to fold from is the split's to say. */
+const foldable = (node: ResolvedNode): node is ResolvedGroup => node.kind === 'group' && node.collapsible && node.problems.length === 0;
 
 function renderSplit(split: ResolvedSplit): HTMLElement {
   const visible = split.children.filter((child) => !isEmpty(child));
+  const edges = visible.map((_, index) => foldEdge(visible, index));
+  const folded = visible.map((child) => foldable(child) && collapsed.has(child.id));
   const box = element('div', `split ${split.axis}`);
   const nodes: HTMLElement[] = [];
   visible.forEach((child, index) => {
-    if (index > 0) box.append(divider(split, visible, nodes, index - 1, index));
+    if (index > 0) box.append(divider(split, visible, nodes, edges, folded, index - 1, index));
     const node = element('div', 'node');
-    node.append(renderNode(child));
+    node.append(renderNode(child, { axis: split.axis, edge: edges[index], folded: folded[index] }));
     nodes.push(node);
     box.append(node);
   });
-  applyFlex(split, visible, nodes);
+  applyFlex(split, visible, nodes, folded);
   if (split.notes.length === 0) return box;
   const wrap = element('div', 'split-wrap');
   wrap.append(box, notesLine(split.notes));
   return wrap;
 }
 
-function flexChildren(visible: ResolvedNode[]): FlexChild[] {
-  return visible.map((child) => ({ id: child.id, size: child.size, min: child.min, folded: false }));
+function flexChildren(visible: ResolvedNode[], folded: boolean[]): FlexChild[] {
+  return visible.map((child, index) => ({ id: child.id, size: child.size, min: child.min, folded: folded[index] }));
 }
 
 /** Size a split's children from the file and the dragged sizes (panels/sizes.ts decides; this applies). */
-function applyFlex(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[]): void {
+function applyFlex(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], folded: boolean[]): void {
   const stored = keptSizes(sizes[split.id], visible.map((child) => child.id));
   // Dropped whole once its children changed — but only against a tree read from the file: the default layout drawn before the first read would otherwise wipe the sizes of the file's own splits at every start.
   if (report && !stored && sizes[split.id]) {
@@ -222,7 +240,7 @@ function applyFlex(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLEle
     host.persist();
   }
   const horizontal = split.axis === 'columns';
-  flexFor(flexChildren(visible), stored).forEach((value, index) => {
+  flexFor(flexChildren(visible, folded), stored).forEach((value, index) => {
     const style = nodes[index].style;
     style.flex = value.flex;
     style.minWidth = horizontal && value.min !== null ? `${value.min}px` : '';
@@ -230,12 +248,25 @@ function applyFlex(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLEle
   });
 }
 
+function measure(nodes: HTMLElement[], horizontal: boolean): number[] {
+  return nodes.map((node) => {
+    const box = node.getBoundingClientRect();
+    return horizontal ? box.width : box.height;
+  });
+}
+
 /**
- * The divider between two neighbours. Always there; draggable only when both are resizable, and one that is not says why on hover, so it does not read as broken (P11).
+ * The divider between two neighbours. Always there; draggable only when both are resizable and neither is folded, and one that is not says why on hover, so it does not read as broken (P11).
  */
-function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], a: number, b: number): HTMLElement {
+function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], a: number, b: number): HTMLElement {
   const handle = element('div', 'divider');
-  const fixed = [visible[a], visible[b]].filter((node) => !node.resizable).map((node) => node.id);
+  foldControls(handle, split, visible, nodes, edges, folded, a, b);
+  const shut = [a, b].filter((index) => folded[index]).map((index) => visible[index].id);
+  const fixed = [a, b].filter((index) => !visible[index].resizable).map((index) => visible[index].id);
+  if (shut.length > 0) {
+    setTooltip(handle, `Unfold ${shut.join(' and ')} to resize`);
+    return handle;
+  }
   if (fixed.length > 0) {
     setTooltip(handle, `Fixed size: ${fixed.join(' and ')} ${fixed.length === 1 ? 'has' : 'have'} "resizable": false`);
     return handle;
@@ -247,29 +278,60 @@ function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLEleme
   installSplitResizer(handle, {
     axis: horizontal ? 'x' : 'y',
     onStart: () => {
-      measured = nodes.map((node) => {
-        const box = node.getBoundingClientRect();
-        return horizontal ? box.width : box.height;
-      });
+      measured = measure(nodes, horizontal);
     },
     onMove: (delta) => {
-      sizes[split.id] = dragTo(flexChildren(visible), measured, a, b, delta, sizes[split.id]);
-      applyFlex(split, visible, nodes);
+      sizes[split.id] = dragTo(flexChildren(visible, folded), measured, a, b, delta, sizes[split.id]);
+      applyFlex(split, visible, nodes, folded);
     },
     onEnd: () => host.persist(),
   });
   return handle;
 }
 
+const OPPOSITE: Record<Direction, Direction> = { up: 'down', down: 'up', left: 'right', right: 'left' };
+
 /**
- * The slot a group shows. Until the rail lands (phase 4) a group shows one panel and cannot switch, so a built-in in it is the one shown — it must stay reachable — and otherwise the file's `active`.
+ * THE FOLD CONTROL (P7, P12): a chevron on the divider on the other side of the edge a group folds toward, pointing the way it moves, and turned round while it is folded.
+ * Two on one divider — two foldable groups alone in a split — sit one after the other along the line, each pointing into its own group, so neither covers a header; hovering one outlines the group it acts on.
  */
-function shownSlot(group: ResolvedGroup, slots: PanelSlot[]): PanelSlot {
-  const builtin = slots.find((slot) => slot.problems.length === 0 && TYPES[slot.type!].singleton);
-  return builtin ?? slots.find((slot) => slot.key === group.active) ?? slots[0];
+function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], a: number, b: number): void {
+  const riders = [a, b].filter((index) => foldable(visible[index]) && edges[index] === (index === a ? 'start' : 'end'));
+  const horizontal = split.axis === 'columns';
+  for (const index of riders) {
+    const group = visible[index];
+    const toward: Direction = horizontal ? (edges[index] === 'start' ? 'left' : 'right') : edges[index] === 'start' ? 'up' : 'down';
+    const chevron = element('button', `icon-btn chev ${index === a ? 'before' : 'after'}${riders.length === 2 ? ' shared' : ''}`);
+    chevron.type = 'button';
+    chevron.innerHTML = chevronIcon(folded[index] ? OPPOSITE[toward] : toward, 10);
+    const label = `${folded[index] ? 'Unfold' : 'Fold'} ${group.id}`;
+    chevron.setAttribute('aria-label', label);
+    setTooltip(chevron, label);
+    chevron.addEventListener('mouseenter', () => nodes[index].classList.add('fold-target'));
+    chevron.addEventListener('mouseleave', () => nodes[index].classList.remove('fold-target'));
+    chevron.addEventListener('click', () => {
+      if (folded[index]) collapsed.delete(group.id);
+      else {
+        // Every sibling's size now, the group's own included, so it unfolds to the size it had and nothing else moves when it does.
+        sizes[split.id] = snapshot(flexChildren(visible, folded), measure(nodes, horizontal), sizes[split.id]);
+        collapsed.add(group.id);
+      }
+      host.persist();
+      render();
+    });
+    handle.append(chevron);
+  }
 }
 
-function renderGroup(group: ResolvedGroup): HTMLElement {
+/**
+ * The slot a group shows: the one picked there, else the file's `active`, else the first.
+ * Every slot is reachable from the rail, so nothing — the terminal included — can be stranded behind another.
+ */
+function shownSlot(group: ResolvedGroup, slots: PanelSlot[]): PanelSlot {
+  return slots.find((slot) => slot.key === active[group.id]) ?? slots.find((slot) => slot.key === group.active) ?? slots[0];
+}
+
+function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   const section = element('section', 'panel-group');
   if (group.problems.length > 0) {
     section.append(header(`⚠ ${group.title}`), problemList(group.problems));
@@ -278,25 +340,68 @@ function renderGroup(group: ResolvedGroup): HTMLElement {
   }
   const slots = group.slots.filter((slot) => !slot.hidden);
   const shown = shownSlot(group, slots);
+  const content = element('div', 'panel-content');
   for (const slot of slots) {
     if (slot.problems.length > 0) continue;
     const { panel } = mountedFor(slot);
     // Every panel of the group is placed, the ones not on show hidden, so each keeps its DOM and its process.
-    panel.el.hidden = slot !== shown;
-    section.append(panel.el);
+    panel.el.hidden = place.folded || slot !== shown;
+    content.append(panel.el);
   }
   if (shown.problems.length > 0) {
-    section.prepend(header(shown.title), problemList(shown.problems));
+    content.prepend(header(shown.title), problemList(shown.problems));
   } else if (!TYPES[shown.type!].bare) {
     const { busy, end, action } = mountedFor(shown);
-    section.prepend(header(shown.title, action ? [busy, end, action] : [busy, end]));
+    content.prepend(header(shown.title, action ? [busy, end, action] : [busy, end]));
   }
-  if (shown.problems.length === 0) onShow.add(shown.key);
+  if (!place.folded && shown.problems.length === 0) onShow.add(shown.key);
   const notes = [...group.notes, ...slots.flatMap((slot) => slot.notes)];
-  const others = slots.filter((slot) => slot !== shown);
-  if (others.length > 0) notes.push(`Only one panel is shown yet; this group also has ${others.map((slot) => slot.key).join(', ')}.`);
-  if (notes.length > 0) section.append(notesLine(notes));
+  if (notes.length > 0) content.append(notesLine(notes));
+
+  const rail = switcher(group, slots, shown, place);
+  if (!rail) {
+    section.append(content);
+    return section;
+  }
+  // A folded group is its rail: the content stays in place, hidden, so every panel keeps its DOM.
+  content.hidden = place.folded;
+  section.classList.add('with-rail', place.axis === 'rows' ? 'horizontal' : 'vertical');
+  if (place.edge === 'start') section.append(rail, content);
+  else section.append(content, rail);
   return section;
+}
+
+/**
+ * THE SWITCHER (P9): a group with several panels, or a folded group, shows a rail of icons on the edge it folds toward, so the rail stays where it is when the rest folds away.
+ * An icon's tooltip names the panel and its dot says it waits or failed (P8); a click shows that panel, unfolding the group; the shown panel's own icon does nothing, since folding is the chevron's alone.
+ * Null for a group with one panel on show, which needs no switching.
+ */
+function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, place: Place): HTMLElement | null {
+  if (slots.length < 2 && !place.folded) return null;
+  const rail = element('div', `panel-rail ${place.axis === 'rows' ? 'horizontal' : 'vertical'} ${place.edge}`);
+  for (const slot of slots) {
+    const item = element('button', 'icon-btn rail-item');
+    item.type = 'button';
+    item.innerHTML = iconSvg(slot.icon);
+    item.setAttribute('aria-label', slot.title);
+    setTooltip(item, slot.title);
+    const isShown = slot === shown && !place.folded;
+    if (isShown) {
+      item.classList.add('shown');
+      item.setAttribute('aria-current', 'true');
+    }
+    const entry = slot.problems.length === 0 ? mounted.get(slot.key) : undefined;
+    if (entry) item.append(entry.badge);
+    item.addEventListener('click', () => {
+      if (isShown) return;
+      active[group.id] = slot.key;
+      collapsed.delete(group.id);
+      host.persist();
+      render();
+    });
+    rail.append(item);
+  }
+  return rail;
 }
 
 /** The mounted panel for a slot, mounting it on first sight. */
