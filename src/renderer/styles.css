@@ -13,6 +13,8 @@
   /* Status colours, shared by the session dots, project badges and attention toasts. */
   --waiting: #f9e2af;
   --idle: #a6e3a1;
+  /* A panel's run that did not end well, on its rail icon. */
+  --failed: #f38ba8;
 
   /* Corner radii, one per KIND of thing rather than one per component — the stylesheet had eight
      values (1, 4, 5, 6, 7, 8, 10, 12) that no rule explained. Controls are anything you click;
@@ -767,6 +769,12 @@ button:hover {
 .nudge.idle {
   background: var(--idle);
   border-color: var(--idle);
+}
+
+/* A panel's run that failed: steady, since it waits for nobody, only for being looked at. */
+.nudge.failed {
+  background: var(--failed);
+  border-color: var(--failed);
 }
 
 /* Busy is a spinning two-tone ring rather than a filled dot: "working" reads as motion, and it is

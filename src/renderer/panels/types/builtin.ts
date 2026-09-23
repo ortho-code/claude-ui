@@ -1,5 +1,5 @@
 import type { IconName } from '../icons';
-import type { MountedPanel, PanelType } from './command';
+import type { MountedPanel, PanelHost, PanelStatus, PanelType } from './command';
 
 /**
  * The app's own surfaces as panels: `sessions` is the whole sidebar (switcher, actions, filter, list, attention strip) and `claude` is the terminal area (tab bar and terminals).
@@ -9,7 +9,23 @@ import type { MountedPanel, PanelType } from './command';
  * Both are `singleton` (the layout must place each exactly once, which the validator enforces) and `bare` (each carries its own top bar, so a group holding only it draws no header).
  */
 
-function builtin(name: string, elementId: string, title: string, icon: IconName): PanelType {
+type BuiltinName = 'sessions' | 'claude';
+
+/** The host of each built-in on screen, and the last status the renderer reported for it: a status can arrive before the panel is mounted, and must be there when it is. */
+const hosts = new Map<BuiltinName, PanelHost>();
+const statuses = new Map<BuiltinName, PanelStatus>();
+
+/**
+ * The renderer reporting what a built-in's rail icon should say: `sessions` waits while any session anywhere waits for you, `claude` while one of the tabs on show does.
+ * The renderer knows that and the surfaces do not, since the surfaces are the renderer's own elements.
+ */
+export function reportBuiltinStatus(name: BuiltinName, status: PanelStatus): void {
+  if (statuses.get(name) === status) return;
+  statuses.set(name, status);
+  hosts.get(name)?.setStatus(status);
+}
+
+function builtin(name: BuiltinName, elementId: string, title: string, icon: IconName): PanelType {
   return {
     name,
     params: [],
@@ -18,8 +34,10 @@ function builtin(name: string, elementId: string, title: string, icon: IconName)
     bare: true,
     singleton: true,
     defaultTitle: () => title,
-    mount: (): MountedPanel => {
+    mount: (_slot, host): MountedPanel => {
       const el = document.getElementById(elementId)!;
+      hosts.set(name, host);
+      host.setStatus(statuses.get(name) ?? null);
       return {
         el,
         // Nothing to run: the surface keeps itself current, and follows the tab and the project because the renderer drives it directly.
@@ -27,7 +45,10 @@ function builtin(name: string, elementId: string, title: string, icon: IconName)
         contextChanged: () => {},
         // A reveal needs no help: the terminal area refits from its own ResizeObserver once it has a size again.
         setVisible: () => {},
-        unmount: () => document.getElementById('parked')!.append(el),
+        unmount: () => {
+          if (hosts.get(name) === host) hosts.delete(name);
+          document.getElementById('parked')!.append(el);
+        },
       };
     },
   };

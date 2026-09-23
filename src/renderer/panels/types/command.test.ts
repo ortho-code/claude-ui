@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveContext, commandSource, endLabel, commandType, RunGate } from './command';
+import { resolveContext, commandSource, endLabel, runFailed, commandType, RunGate } from './command';
 
 describe('RunGate', () => {
   /** A gate over a context the test moves by hand, counting the runs it lets through. */
@@ -107,6 +107,28 @@ describe('endLabel', () => {
     expect(endLabel({ kind: 'stopped', reason: 'truncated' })).toBe('output cut at 1 MB');
     expect(endLabel({ kind: 'truncated' })).toBe('output cut at 1 MB');
     expect(endLabel({ kind: 'stopped', reason: 'request' })).toBe('stopped');
+  });
+});
+
+describe('runFailed', () => {
+  it('marks a non-zero exit, a signal and a failure to start', () => {
+    expect(runFailed({ kind: 'exit', code: 3, signal: null })).toBe(true);
+    expect(runFailed({ kind: 'exit', code: null, signal: 'SIGSEGV' })).toBe(true);
+    expect(runFailed({ kind: 'exit', code: null, signal: null, error: '/gone is not there' })).toBe(true);
+  });
+
+  it('marks the timeout and the output cap', () => {
+    expect(runFailed({ kind: 'stopped', reason: 'timeout' })).toBe(true);
+    expect(runFailed({ kind: 'stopped', reason: 'truncated' })).toBe(true);
+    expect(runFailed({ kind: 'truncated' })).toBe(true);
+  });
+
+  it('says nothing about a run that ended well, or one the app stopped itself', () => {
+    expect(runFailed({ kind: 'exit', code: 0, signal: null })).toBe(false);
+    expect(runFailed({ kind: 'stopped', reason: 'rerun' })).toBe(false);
+    expect(runFailed({ kind: 'stopped', reason: 'request' })).toBe(false);
+    expect(runFailed({ kind: 'stopped', reason: 'quit' })).toBe(false);
+    expect(runFailed({ kind: 'output', text: 'x' })).toBe(false);
   });
 });
 

@@ -88,6 +88,7 @@ class TerminalPanel implements MountedPanel {
     }
     this.starting = true;
     this.host.setEnd(folderName(context.cwd));
+    this.host.setStatus(null);
     try {
       const id = await window.claudeUi.startShell(context.cwd, context);
       // Gone while it was starting: hand the shell straight back rather than leave one running with nothing showing it.
@@ -108,6 +109,8 @@ class TerminalPanel implements MountedPanel {
     } catch (error) {
       const refused = /MISSING_CWD:/.test(error instanceof Error ? error.message : '');
       this.host.setEnd(refused ? `${context.cwd} is not there` : 'could not start');
+      // A shell that exits is somebody typing `exit`; one that never started is the failure worth a dot.
+      this.host.setStatus('fail');
     } finally {
       this.starting = false;
     }

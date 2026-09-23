@@ -30,6 +30,7 @@ import { installTooltips, setTooltip } from './tooltip';
 import { chevronIcon, strokeIcon } from './svg';
 import { createTerminal, bindTerminal, routeTerminals } from './terminal';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, configRoot } from './panels/tree';
+import { reportBuiltinStatus } from './panels/types/builtin';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
 import Sortable from 'sortablejs';
@@ -867,6 +868,9 @@ function renderSwitcher(pool: SessionSummary[]): void {
   );
 
   renderFooter(model, pool);
+  // What the built-ins' rail icons say while they are folded or behind another panel: the same roll-up as the header's badge for the sidebar, and the tabs on show for the terminal area.
+  reportBuiltinStatus('sessions', headerBadge === 'waiting' ? 'wait' : null);
+  reportBuiltinStatus('claude', visibleTabs().some((tab) => sessionNudge(tab.session.id) === 'waiting') ? 'wait' : null);
 }
 
 // Seeded from meta at startup (default open — the strip exists to be read), and written back on every toggle so the choice survives a restart.

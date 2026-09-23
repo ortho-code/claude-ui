@@ -14,7 +14,7 @@ import {
 } from './layout';
 import { dragTo, flexFor, keptSizes, type FlexChild } from './sizes';
 import { claudeType, sessionsType } from './types/builtin';
-import { commandType, type MountedPanel, type PanelHost, type PanelType, type Where } from './types/command';
+import { commandType, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type Where } from './types/command';
 import { terminalType } from './types/terminal';
 
 /**
@@ -43,6 +43,8 @@ interface Mounted {
   busy: HTMLElement;
   end: HTMLElement;
   action: HTMLButtonElement | null;
+  /** The dot on its rail icon (P8). */
+  badge: HTMLElement;
 }
 
 const REFRESH_ICON =
@@ -306,6 +308,8 @@ function mountedFor(slot: PanelSlot): Mounted {
   busy.hidden = true;
   const end = element('span', 'panel-end');
   const action = type.bare ? null : actionButton(type);
+  const badge = element('span', 'nudge');
+  badge.hidden = true;
   const panelHost: PanelHost = {
     where: () => host.where(),
     setBusy: (on) => {
@@ -314,12 +318,19 @@ function mountedFor(slot: PanelSlot): Mounted {
     setEnd: (label) => {
       end.textContent = label;
     },
+    setStatus: (status) => showStatus(badge, status),
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
-  const entry: Mounted = { panel, signature: mountSignature(slot, TYPES), busy, end, action };
+  const entry: Mounted = { panel, signature: mountSignature(slot, TYPES), busy, end, action, badge };
   mounted.set(slot.key, entry);
   return entry;
+}
+
+/** The rail dot, in the status dot's own states: `waiting` as a session's dot pulses, `failed` for a run that did not end well. */
+function showStatus(badge: HTMLElement, status: PanelStatus): void {
+  badge.className = status === 'wait' ? 'nudge waiting' : status === 'fail' ? 'nudge failed' : 'nudge';
+  badge.hidden = status === null;
 }
 
 function actionButton(type: PanelType): HTMLButtonElement {

@@ -44,12 +44,19 @@ export interface Where {
   project: string | null;
 }
 
-/** What the side gives a mounted panel: where it is, and the header marks that are the side's to draw. */
+/**
+ * What a panel's icon on a rail says about it, so a panel that is not on show still reports: a session waiting for you, or a run that failed. Null says nothing.
+ */
+export type PanelStatus = 'wait' | 'fail' | null;
+
+/** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw. */
 export interface PanelHost {
   where(): Where;
   setBusy(busy: boolean): void;
   /** The header's word on the last run: `exit 3`, `stopped after 30 s`, or '' for a run that ended well. */
   setEnd(label: string): void;
+  /** The dot on the panel's rail icon. */
+  setStatus(status: PanelStatus): void;
 }
 
 export interface MountedPanel {
@@ -119,6 +126,23 @@ export function endLabel(event: PanelRunEvent): string {
       }
     default:
       return '';
+  }
+}
+
+/**
+ * Whether a run's end is a failure worth a dot on the rail: a non-zero exit, a signal, a failure to start, the timeout, or the output cap.
+ * A stop the app asked for itself — a re-run, a removal, the quit — is not the command failing, so it says nothing.
+ */
+export function runFailed(event: PanelRunEvent): boolean {
+  switch (event.kind) {
+    case 'exit':
+      return event.error !== undefined || event.code !== 0;
+    case 'truncated':
+      return true;
+    case 'stopped':
+      return event.reason === 'timeout' || event.reason === 'truncated';
+    default:
+      return false;
   }
 }
 
@@ -217,6 +241,7 @@ class CommandPanel implements MountedPanel {
   private run(): void {
     const context = resolveContext(this.host.where());
     this.host.setEnd('');
+    this.host.setStatus(null);
     if (!context) {
       if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
       this.token = null;
@@ -251,6 +276,7 @@ class CommandPanel implements MountedPanel {
       }
       case 'truncated':
         this.host.setEnd(endLabel(event));
+        this.host.setStatus('fail');
         return;
       case 'exit':
       case 'stopped':
@@ -259,6 +285,7 @@ class CommandPanel implements MountedPanel {
         this.token = null;
         this.host.setBusy(false);
         this.host.setEnd(endLabel(event));
+        this.host.setStatus(runFailed(event) ? 'fail' : null);
         return;
     }
   }
