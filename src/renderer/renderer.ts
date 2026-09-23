@@ -148,7 +148,7 @@ const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
 const settingsConfigPath = document.getElementById('settings-config-path')!;
-const settingsConfigReveal = document.getElementById('settings-config-reveal') as HTMLButtonElement;
+const settingsConfigOpen = document.getElementById('settings-config-open') as HTMLButtonElement;
 const toast = document.getElementById('toast')!;
 const toastMessage = document.getElementById('toast-message')!;
 const toastClose = document.getElementById('toast-close') as HTMLButtonElement;
@@ -1696,7 +1696,7 @@ async function openSettings(): Promise<void> {
 }
 
 settingsToggle.addEventListener('click', () => void openSettings());
-settingsConfigReveal.addEventListener('click', () => window.claudeUi.revealConfigFolder());
+settingsConfigOpen.addEventListener('click', () => window.claudeUi.openConfigFolder());
 
 // The ordering moves for a project, minus any that would do nothing — same rule as a group's.
 // The order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen (a filter or an all-archived project can hide neighbours without changing where this one sits).

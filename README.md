@@ -61,7 +61,7 @@ Next:
 ## Panels
 
 A layout file arranges the window: rows and columns of panel groups, with the sidebar and the terminal area as two of the panels.
-It lives in the app's config folder, which Settings shows with a Reveal button:
+It lives in the app's config folder, which Settings shows with an Open button:
 
 - Linux: `~/.config/claude-ui/config/`
 - macOS: `~/Library/Application Support/claude-ui/config/`

@@ -206,7 +206,7 @@ Those are machine state the app writes, which nobody should edit and nobody woul
 
 The app creates the folder, reads it and watches it, and in this version never writes into it.
 That is what keeps an editor, id assignment, normalisation and an atomic-write path out of the slice, and it also settles the trust question for now: a command in a hand-edited file is the user's own, and a trust step arrives with the first thing that lets a command reach the file by another route — the app's own editor, or a shared folder.
-The settings dialog shows the folder's path with a Reveal button, which is the whole of the UI for finding it.
+The settings dialog shows the folder's path with an Open button, which is the whole of the UI for finding it.
 It opens the folder itself (`shell.openPath`) rather than showing it selected in its parent (`showItemInFolder`): a Linux file manager without FileManager1 support, which is what WSLg offers, opens the parent and selects nothing, which reads as the wrong folder.
 
 Three directories are watched rather than the folder recursively (recursive watch is unreliable on Linux and WSL, as the session watcher found): the folder, `layouts/`, and `scripts/`.

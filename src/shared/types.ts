@@ -293,6 +293,6 @@ export interface ClaudeUiApi {
   stopPanel(entryId: string): void;
   /** Subscribe to every run's events. `token` is the one the run was requested with, so a superseded run's tail can be told apart. */
   onPanelRun(callback: (entryId: string, token: string, event: PanelRunEvent) => void): void;
-  /** Show the config folder in the OS file manager. */
-  revealConfigFolder(): void;
+  /** Open the config folder in the OS file manager. */
+  openConfigFolder(): void;
 }

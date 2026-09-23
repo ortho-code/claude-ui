@@ -72,7 +72,7 @@ const api: ClaudeUiApi = {
     ipcRenderer.on('panel:run', (_event, entryId: string, token: string, event: PanelRunEvent) =>
       callback(entryId, token, event),
     ),
-  revealConfigFolder: () => ipcRenderer.send('config:reveal'),
+  openConfigFolder: () => ipcRenderer.send('config:open'),
 };
 
 contextBridge.exposeInMainWorld('claudeUi', api);

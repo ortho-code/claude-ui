@@ -100,10 +100,10 @@ describe('readLayout', () => {
   });
 });
 
-describe('config:reveal', () => {
+describe('config:open', () => {
   it('opens the config folder itself, not its parent with the folder selected', () => {
     registerConfig(() => null);
-    listeners.get('config:reveal')!();
+    listeners.get('config:open')!();
     expect(openPath).toHaveBeenCalledWith(configRoot);
   });
 });
