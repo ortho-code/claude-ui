@@ -12,6 +12,7 @@ import {
   relativeTime,
   datePresetRange,
   sessionPasses,
+  inView,
   projectsForSwitcher,
   modelLabel,
   reorderWithinGroup,
@@ -154,6 +155,23 @@ describe('datePresetRange', () => {
     const today = datePresetRange('today', now);
     expect(new Date(today.from!).getHours()).toBe(0);
     expect(today.from!).toBeLessThanOrEqual(now);
+  });
+});
+
+describe('inView', () => {
+  const archived = new Set(['old']);
+  const pendingDeletes = new Set(['going']);
+
+  it('holds the sessions that are not archived in the normal view, and only the archived ones in the archived view', () => {
+    expect(inView('live', false, archived, pendingDeletes)).toBe(true);
+    expect(inView('old', false, archived, pendingDeletes)).toBe(false);
+    expect(inView('old', true, archived, pendingDeletes)).toBe(true);
+    expect(inView('live', true, archived, pendingDeletes)).toBe(false);
+  });
+
+  it('holds a session on its way to the trash in neither view, archived or not', () => {
+    expect(inView('going', false, archived, pendingDeletes)).toBe(false);
+    expect(inView('going', true, new Set(['going']), pendingDeletes)).toBe(false);
   });
 });
 

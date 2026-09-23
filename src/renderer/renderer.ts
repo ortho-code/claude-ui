@@ -15,6 +15,7 @@ import {
   relativeTime,
   modelLabel,
   sessionPasses,
+  inView,
   datePresetRange,
   projectsForSwitcher,
   orderAsTabs,
@@ -697,7 +698,8 @@ function updateFilterStatus(matches: number, total: number): void {
   }
   // The toggle carries the accent when any filter is on, beside the status line under the panel, so an active filter is visible even with the panel closed.
   filterToggle.classList.toggle('active', filtering);
-  if (filtering) filterCount.textContent = `Showing ${matches} of ${total}`;
+  // The archived view counts against the archived set, and says so, since that total is not the number the switcher shows.
+  if (filtering) filterCount.textContent = `Showing ${matches} of ${total}${showArchivedOnly ? ' archived' : ''}`;
   updateFilterChips();
 }
 
@@ -1315,7 +1317,12 @@ function visibleSessions(): SessionSummary[] {
 
 // The switcher's project pool: every project's tips minus archived/pending-delete, independent of the search text and active project so you can always navigate to any project.
 function switcherPool(all: SessionSummary[]): SessionSummary[] {
-  return all.filter((s) => !archived.has(entityKey(s)) && !pendingDeletes.has(entityKey(s)));
+  return viewPool(all, false);
+}
+
+// The sessions a view holds before any filter, archived or not (see inView).
+function viewPool(all: SessionSummary[], archivedView: boolean): SessionSummary[] {
+  return all.filter((s) => inView(entityKey(s), archivedView, archived, pendingDeletes));
 }
 
 // Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
@@ -1351,8 +1358,10 @@ function renderList(): void {
   // Project scope applies everywhere, the archived view included.
   // It used to be exempt, from when archived was a rarely-visited global bin — but the scope is an explicit statement of what you are looking at, and one view quietly overriding it reads as a leak.
   // Switch to All to find an archived session whose project you have forgotten.
-  const scoped = activeProject ? filtered.filter((s) => s.repoRoot === activeProject) : filtered;
-  updateFilterStatus(scoped.length, all.length);
+  const inScope = (list: SessionSummary[]): SessionSummary[] => (activeProject ? list.filter((s) => s.repoRoot === activeProject) : list);
+  const scoped = inScope(filtered);
+  // The total is the set the matches were taken from: the same project scope and the same view, archived or not, before the other filters. So the count only ever compares a set with part of itself, and in the normal view the total is the number the switcher shows.
+  updateFilterStatus(scoped.length, inScope(viewPool(all, showArchivedOnly)).length);
 
   if (scoped.length === 0) {
     clearList();

@@ -35,6 +35,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - The tab bar puts projects in the order you set, like the session list and the live strip. It used to order them by whichever project you happened to open a tab for first, which moved on its own as tabs came and went.
 - A session whose folder no longer exists says so instead of quietly starting in your home directory and moving itself there in the list. Such a session is dimmed and can't be opened or forked, and a project whose folder is gone can't start new sessions — with the reason on hover. Pinning, notes, archiving and deleting still work, and a session comes back to life if you put its folder back (for a worktree, recreate it at the same path).
 - Screen readers announce the filter button by name; it had none.
+- The filter count's total is what you are filtering — the selected project's sessions, and in the archived view its archived ones — instead of every session in every project, archived included.
 
 ## 0.3.0 — 2026-08-29
 

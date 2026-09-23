@@ -198,11 +198,18 @@ export interface FilterCriteria {
   groupNames?: ReadonlyMap<string, string>;
 }
 
+/**
+ * Whether a session is in the set a view holds before any filter: the archived view holds the archived sessions, the normal view the rest, and a session on its way to the trash is in neither.
+ * One rule for the list, the switcher's counts and the filter count's total, so the total is always the set the matches were taken from.
+ */
+export function inView(key: string, archivedView: boolean, archived: { has(key: string): boolean }, pendingDeletes: ReadonlySet<string>): boolean {
+  return !pendingDeletes.has(key) && archived.has(key) === archivedView;
+}
+
 // Whether a session survives every active filter. Archived sessions are hidden from the normal list and are the only ones shown in the archived view; the toggle flips which set is visible.
 export function sessionPasses(session: SessionSummary, c: FilterCriteria): boolean {
   const key = entityKey(session);
-  if (c.pendingDeletes.has(key)) return false;
-  if (c.archivedOnly !== c.archived.has(key)) return false;
+  if (!inView(key, c.archivedOnly, c.archived, c.pendingDeletes)) return false;
   if (c.pinnedOnly && !c.pinned.has(key)) return false;
   if (c.openOnly && !c.open?.has(key)) return false;
   if (c.liveOnly && !c.live?.has(key)) return false;
