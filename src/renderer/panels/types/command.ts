@@ -26,6 +26,13 @@ export interface PanelTypeDecl {
   exactlyOne: string[][];
   /** The title an entry gets when it names none. Called only on an entry that passed validation. */
   defaultTitle(entry: PanelEntry): string;
+  /** The panel carries its own chrome, so a group holding only it draws no header. */
+  bare?: boolean;
+  /**
+   * The layout must place this type EXACTLY ONCE: one missing is added, a second copy is refused in its place, and `hidden` is ignored.
+   * For the app's own surfaces, without which the window is not usable — the rule is the validator's, so no file can produce a window without the terminal.
+   */
+  singleton?: boolean;
 }
 
 /** Where a panel would run right now: the renderer's active tab and selected project, as the side reads them. */

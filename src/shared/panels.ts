@@ -2,16 +2,19 @@
  * Panels: the layout file's shape, what main reports about one read of it, and how a `command` panel's run reaches the renderer.
  *
  * The layout file is hand-edited, and that decides two things here.
- * Its shape is the TREE from the long design (`sides.right.groups[].panels[]`) even though this build honours one panel, so nothing written now is thrown away when groups and docking arrive.
- * And nothing in it is trusted at the type level: main hands the parsed JSON over as `unknown`, and the renderer's validator names every mistake in the entry's place rather than dropping it — a person wrote the file, so a silent drop would be a lie about what they wrote.
+ * Its shape is ONE TREE for the whole window — rows, columns and groups of panels — in which the app's own surfaces (the sidebar, the terminal area) are panels like any other.
+ * And nothing in it is trusted at the type level: main hands the parsed JSON over as `unknown`, and the renderer's validator names every mistake in its place rather than dropping it — a person wrote the file, so a silent drop would be a lie about what they wrote.
  */
 
-/** The layout file's `version`. The one shape this build reads; anything else renders a degraded panel saying so. */
-export const LAYOUT_VERSION = 1;
+/**
+ * The layout file's `version`. The one shape this build reads; anything else renders a degraded group saying so.
+ * Version 1 (`sides.right.groups[].panels[]`) is replaced rather than converted: it had one user, and the validator's "version 1 is not one this build reads" is its migration notice.
+ */
+export const LAYOUT_VERSION = 2;
 
 /**
  * One panel, as an entry in the layout file: the statusline's shape, an inline entry that is a command line or a script path.
- * `id` is a slug the user writes (`^[a-z0-9][a-z0-9-]*$`), unique in the file, and what panel state keys on.
+ * `id` is a slug the user writes (`^[a-z0-9][a-z0-9_-]*$`), unique across the whole file — nodes and entries share one namespace — and what panel state keys on.
  * `title` and `hidden` are optional; the parameters after them belong to the entry's `type`, whose module declares them once (`renderer/panels/types/*`).
  */
 export interface PanelEntry {
@@ -25,22 +28,37 @@ export interface PanelEntry {
   script?: string;
 }
 
-export interface LayoutGroup {
-  /** Share of the side; read only while no pixel size is stored for it. */
-  size?: number;
-  panels: PanelEntry[];
+/** What every node in the tree may say about itself, whatever it holds. */
+interface LayoutNodeBase {
+  /** A slug, unique across nodes and entries: what sizes, collapse and the shown tab key on. */
+  id: string;
+  /**
+   * A number is a SHARE of the parent's axis, any positive number; siblings without one share what the shares leave equally.
+   * `"320px"` is PIXELS: the node keeps that size when the window resizes, and the shares divide what is left.
+   * Read only while no dragged size is stored for every sibling.
+   */
+  size?: number | `${number}px`;
+  /** In px along the parent's axis; 120 when absent. */
+  min?: number;
+  /** False removes the dividers on this node's edges, so it keeps its share. True when absent. */
+  resizable?: boolean;
+  /** Whether a group can fold to a rail. False when absent; honoured on groups only in this build. */
+  collapsible?: boolean;
 }
 
-export interface LayoutSide {
-  /** Share of the window; read only while no pixel width is stored. */
-  size?: number;
-  groups: LayoutGroup[];
-}
+/**
+ * One node of the layout: exactly one of `rows`, `columns` or `panels`.
+ * A node with `panels` is a GROUP, which shows one panel at a time; `active` names the one shown until the user picks another.
+ */
+export type LayoutNode =
+  | (LayoutNodeBase & { rows: LayoutNode[] })
+  | (LayoutNodeBase & { columns: LayoutNode[] })
+  | (LayoutNodeBase & { panels: PanelEntry[]; active?: string });
 
 /** A layout file as this build reads it. */
 export interface Layout {
   version: typeof LAYOUT_VERSION;
-  sides: { right?: LayoutSide };
+  root: LayoutNode;
 }
 
 /**

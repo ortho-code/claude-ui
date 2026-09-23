@@ -1,8 +1,8 @@
 import type { LayoutReport, PanelState } from '../../shared/panels';
 import { installResizer } from '../resizer';
 import { setTooltip } from '../tooltip';
-import { resolveLayout, type PanelSlot } from './layout';
-import { commandType, type MountedPanel, type PanelHost, type PanelType, type Where } from './types/command';
+import { fileName, isEmpty, resolveLayout, type PanelSlot, type ResolvedGroup, type ResolvedNode } from './layout';
+import { commandType, type MountedPanel, type PanelHost, type PanelType, type PanelTypeDecl, type Where } from './types/command';
 import { terminalType } from './types/terminal';
 
 /**
@@ -14,6 +14,23 @@ import { terminalType } from './types/terminal';
  */
 
 const TYPES: Record<string, PanelType> = { command: commandType, terminal: terminalType };
+
+// Until the tree renderer lands the sidebar and the terminal stay where index.html puts them; the validator only needs to know they exist.
+const builtin = (name: string): PanelTypeDecl => ({ name, params: [], exactlyOne: [], defaultTitle: () => name, bare: true, singleton: true });
+const DECLS: Record<string, PanelTypeDecl> = { sessions: builtin('sessions'), claude: builtin('claude'), ...TYPES };
+
+/** The first group in the tree that holds something other than a built-in: what the one right side can show. */
+function firstPanelGroup(node: ResolvedNode): ResolvedGroup | null {
+  if (isEmpty(node)) return null;
+  if (node.kind === 'split') {
+    for (const child of node.children) {
+      const found = firstPanelGroup(child);
+      if (found) return found;
+    }
+    return null;
+  }
+  return node.problems.length > 0 || node.slots.some((slot) => slot.type !== null && !DECLS[slot.type].singleton) ? node : null;
+}
 
 export const SIDE_MIN = 200;
 export const SIDE_MAX = 960;
@@ -74,7 +91,7 @@ export async function initSide(sideHost: SideHost): Promise<void> {
 function render(next: LayoutReport): void {
   // Kept whatever the read found: the folder's path is right in every report, and the settings dialog asks for it.
   report = next;
-  const view = resolveLayout(next, TYPES);
+  const view = resolveLayout(next, DECLS);
   // A file that does not parse keeps the last good layout up: the message names the file and the parser's position, and stays until the next read that succeeds, because the condition does not clear on its own.
   if (view.kind === 'unparsable') {
     host.showToast(`${fileName(view.file)}: ${view.message}`, true);
@@ -88,24 +105,25 @@ function render(next: LayoutReport): void {
   mounted?.unmount();
   mounted = null;
   side.replaceChildren();
-  if (view.kind === 'empty') {
+  const found = firstPanelGroup(view.root);
+  if (!found) {
     side.hidden = true;
     handle.hidden = true;
     return;
   }
   side.hidden = false;
   handle.hidden = false;
-  applyWidth(view.kind === 'panel' ? view.sideSize : null);
-  if (view.kind === 'degraded') {
-    side.appendChild(group(fileName(next.file), [], problems(view.problems), []));
+  applyWidth(null);
+  if (found.problems.length > 0) {
+    side.appendChild(group(found.title, [], problems(found.problems), []));
     return;
   }
-  const { slot, notShown } = view;
+  const slot = found.slots.find((candidate) => candidate.key === found.active)!;
   if (slot.problems.length > 0) {
-    side.appendChild(group(slot.title, [], problems(slot.problems), notShown));
+    side.appendChild(group(slot.title, [], problems(slot.problems), []));
     return;
   }
-  side.appendChild(panelGroup(slot, TYPES[slot.type!], notShown));
+  side.appendChild(panelGroup(slot, TYPES[slot.type!], []));
 }
 
 /** The dragged width wins; the file's proportion is read only while there is none; with neither the stylesheet decides. */
@@ -174,8 +192,4 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = ''):
   const el = document.createElement(tag);
   if (className) el.className = className;
   return el;
-}
-
-function fileName(path: string): string {
-  return path.split('/').at(-1) ?? path;
 }
