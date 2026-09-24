@@ -3,6 +3,7 @@ import { installSplitResizer } from '../resizer';
 import { chevronIcon, strokeIcon, type Direction } from '../svg';
 import { setTooltip } from '../tooltip';
 import { iconSvg } from './icons';
+import { optionsOf } from './options';
 import {
   DEFAULT_LAYOUT,
   fileName,
@@ -434,7 +435,9 @@ function mountedFor(slot: PanelSlot): Mounted {
   const busy = element('span', 'nudge busy');
   busy.hidden = true;
   const end = element('span', 'panel-end');
-  const action = type.bare ? null : actionButton(type);
+  // Per entry, since what the button would do can depend on the options: a terminal pinned to a folder has none.
+  const label = type.bare ? null : type.actionLabel ? type.actionLabel(optionsOf(slot.entry)) : 'Refresh';
+  const action = label === null ? null : actionButton(label);
   const badge = element('span', 'nudge');
   badge.hidden = true;
   // What the panel reports about itself, held here so a report made while it is still mounting is not lost; a change re-renders, since both the panel's place and its rail icon draw from it.
@@ -471,10 +474,9 @@ function showStatus(badge: HTMLElement, status: PanelStatus): void {
   badge.hidden = status === null;
 }
 
-function actionButton(type: PanelType): HTMLButtonElement {
+function actionButton(label: string): HTMLButtonElement {
   const button = element('button', 'icon-btn');
   button.type = 'button';
-  const label = type.actionLabel ?? 'Refresh';
   button.setAttribute('aria-label', label);
   setTooltip(button, label);
   button.innerHTML = REFRESH_ICON;

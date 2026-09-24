@@ -11,9 +11,23 @@ import type { PanelEntry, PathBase, PathKind } from '../../shared/panels';
 export interface OptionDecl {
   name: string;
   kind: 'text' | 'path';
-  /** For a `path`: what a relative value resolves against, and what it must point at. Declared beside the option so the check is not something the type has to remember. */
-  against?: 'config';
+  /**
+   * For a `path`: what a relative value resolves against — the config folder, or the panel's context directory — and what it must point at.
+   * Declared beside the option so the check is not something the type has to remember.
+   */
+  against?: 'config' | 'context';
   must?: PathKind;
+}
+
+/**
+ * The folder a `command` or `terminal` panel runs in, when it is not the context directory itself. ONE declaration, used by both types.
+ * Absolute or under `~` is FIXED: there, whatever is selected. Relative is under the context directory, so it follows the project into a subfolder.
+ */
+export const CWD_OPTION: OptionDecl = { name: 'cwd', kind: 'path', against: 'context', must: 'directory' };
+
+/** Whether a path value names one place whatever is selected: absolute, or under the home directory. */
+export function isFixedPath(value: string): boolean {
+  return value.startsWith('/') || value === '~' || value.startsWith('~/');
 }
 
 /** What a type declares about its options. */
@@ -70,17 +84,48 @@ export function optionProblems(options: Record<string, unknown>, decl: OptionsDe
   return problems;
 }
 
-/** The path options an entry gives, with what each resolves against and must be: what main is asked about. Only for options whose shape passed. */
-export function pathChecks(options: Record<string, unknown>, decl: OptionsDecl): { value: string; base: PathBase; must: PathKind }[] {
-  return decl.options
-    .filter((option) => option.kind === 'path' && typeof options[option.name] === 'string')
-    .map((option) => ({ value: options[option.name] as string, base: 'config', must: option.must ?? 'executable' }));
+/** One path option to ask main about. */
+export interface PathAsk {
+  name: string;
+  value: string;
+  base: PathBase;
+  must: PathKind;
 }
 
-/** Every problem with an entry's options: the shape, and when that is sound, each path as main finds it. Empty means the panel can run. */
-export async function checkOptions(options: Record<string, unknown>, decl: OptionsDecl): Promise<string[]> {
+/**
+ * The path options an entry gives, with what each resolves against and must be: what main is asked about. Only for options whose shape passed.
+ * `contextDir` is the panel's context directory, or null without one: a relative value against the context then has nothing to be checked against and is left out, since the panel says "Pick a project" for it instead.
+ */
+export function pathChecks(options: Record<string, unknown>, decl: OptionsDecl, contextDir: string | null): PathAsk[] {
+  const asks: PathAsk[] = [];
+  for (const option of decl.options) {
+    const value = options[option.name];
+    if (option.kind !== 'path' || typeof value !== 'string') continue;
+    const must = option.must ?? 'executable';
+    if (option.against !== 'context') asks.push({ name: option.name, value, base: 'config', must });
+    // A fixed value ignores its base, so any will do; a relative one needs the context it is under.
+    else if (isFixedPath(value)) asks.push({ name: option.name, value, base: { dir: '/' }, must });
+    else if (contextDir !== null) asks.push({ name: option.name, value, base: { dir: contextDir }, must });
+  }
+  return asks;
+}
+
+/** What checking an entry's options found: every problem, and where each path option resolved to. */
+export interface OptionsCheck {
+  /** Empty means the panel can run. */
+  problems: string[];
+  /** The absolute path each checked path option resolved to, by option name: what the run uses, so it goes where the check looked. */
+  paths: Record<string, string>;
+}
+
+/** Every problem with an entry's options: the shape, and when that is sound, each path as main finds it. */
+export async function checkOptions(options: Record<string, unknown>, decl: OptionsDecl, contextDir: string | null): Promise<OptionsCheck> {
   const shape = optionProblems(options, decl);
-  if (shape.length > 0) return shape;
-  const checks = await Promise.all(pathChecks(options, decl).map(({ value, base, must }) => window.claudeUi.checkPath(value, base, must)));
-  return checks.flatMap((check) => (check.problem ? [`${check.problem}.`] : []));
+  if (shape.length > 0) return { problems: shape, paths: {} };
+  const asks = pathChecks(options, decl, contextDir);
+  const checks = await Promise.all(asks.map(({ value, base, must }) => window.claudeUi.checkPath(value, base, must)));
+  return {
+    problems: checks.flatMap((check) => (check.problem ? [`${check.problem}.`] : [])),
+    paths: Object.fromEntries(asks.map((ask, index) => [ask.name, checks[index].path])),
+  };
 }

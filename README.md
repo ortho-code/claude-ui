@@ -107,8 +107,8 @@ The panel types:
 
 - `sessions` is the sidebar and `claude` is the terminal area with its tabs.
   Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
-- `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
-- `terminal` is a plain shell, the same login shell your sessions run in. It takes no options.
+- `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable. `cwd` picks the folder it runs in.
+- `terminal` is a plain shell, the same login shell your sessions run in. `cwd` picks the folder it starts in.
 
 This one puts a shell in a drawer under the terminal area and two commands behind icons on the right, and lets the sidebar, the drawer and the right side fold:
 
@@ -138,7 +138,7 @@ It sees these variables:
 
 | Variable | Value |
 |---|---|
-| `CLAUDE_UI_PROJECT_ROOT` | the selected project's repo root |
+| `CLAUDE_UI_PROJECT_ROOT` | the selected project's repo root, empty without one |
 | `CLAUDE_UI_CWD` | the folder the command runs in |
 | `CLAUDE_UI_SESSION_ID` | the active tab's session, empty without one |
 | `CLAUDE_UI_CONFIG_ROOT` | the config folder |
@@ -150,6 +150,17 @@ The header names the folder it is in, and the button restarts it in the current 
 When the shell exits, the panel says so, and any key starts a new one in the current folder.
 It keeps running while hidden or folded, and while you edit the layout file around it.
 It gets the same variables, and a `claude` you start in it by hand is not tracked as one of the app's sessions.
+
+Either type takes a `cwd` in its `options` to run somewhere other than that folder:
+
+- An absolute path, or one under `~/`, is fixed: the panel runs there whatever is selected, even with no project at all. A command with one does not run again when you switch project or tab, since its folder has not moved; Refresh runs it. A terminal with one has no button, and a key starts a new shell there after the old one exits.
+- A relative path is under the active tab's folder, or the project's root, so `"cwd": "packages/api"` follows the project into that folder.
+
+```json
+{ "id": "notes", "type": "command", "icon": "git", "options": { "command": "git status --short", "cwd": "~/notes" } }
+```
+
+The variables tell the panel where it runs: `CLAUDE_UI_CWD` is that folder, and the project and session are the ones selected when it ran or started.
 
 A mistake in the file — an unknown type, a missing id, a size it cannot read, an option the type does not have, a script that is not there or not executable — is named in the place of the thing that is wrong, and a file that does not parse leaves the last good layout up and names the position.
 A panel's options are checked by the panel itself, when it appears and before each run, so a missing script is named a moment after the rest.

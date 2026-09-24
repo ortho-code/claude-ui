@@ -3,7 +3,7 @@ import { PANEL_TIMEOUT_MS } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
 import type { IconName } from '../icons';
 import { stripAnsi, splitPendingEscape } from '../ansi';
-import { checkOptions, optionsOf, type OptionsDecl } from '../options';
+import { CWD_OPTION, checkOptions, isFixedPath, optionsOf, type OptionsDecl } from '../options';
 
 /**
  * The `command` panel type: runs a command line or a script and shows what it printed.
@@ -79,8 +79,8 @@ export interface MountedPanel {
 }
 
 export interface PanelType extends PanelTypeDecl, OptionsDecl {
-  /** What the header's one button does, for its tooltip and label. "Refresh" when the type says nothing. */
-  actionLabel?: string;
+  /** What the header's one button does, for its tooltip and label, from the entry's options: "Refresh" when the type says nothing, and no button for null. */
+  actionLabel?(options: Record<string, unknown>): string | null;
   mount(slot: PanelSlot, host: PanelHost): MountedPanel;
 }
 
@@ -98,6 +98,58 @@ export function resolveContext(where: Where): PanelContext | null {
   if (where.tab) return { projectRoot: where.tab.repoRoot, cwd: where.tab.cwd, sessionId: where.tab.id };
   if (where.project) return { projectRoot: where.project, cwd: where.project, sessionId: '' };
   return null;
+}
+
+/**
+ * WHERE A PANEL RUNS, for either type, from its `cwd` option — one rule, pure and tested:
+ * without a `cwd`, the context directory itself; with an absolute or `~` one, that folder whatever is selected (FIXED, needing no context); with a relative one, under the context directory, so it follows the project into a subfolder.
+ * Null when the panel needs a context and there is none: it says "Pick a project" rather than running somewhere nobody chose.
+ */
+export type Placement = { kind: 'context' } | { kind: 'fixed'; value: string } | { kind: 'under'; value: string };
+
+export function placement(cwd: unknown, context: PanelContext | null): Placement | null {
+  if (typeof cwd !== 'string') return context ? { kind: 'context' } : null;
+  if (isFixedPath(cwd)) return { kind: 'fixed', value: cwd };
+  return context ? { kind: 'under', value: cwd } : null;
+}
+
+/**
+ * What a `command` panel's run is keyed on, so a switch that lands where the last run was does not run it again.
+ * Without a `cwd`, the whole context, as it always was. A fixed one never changes, so no switch re-runs it: it has nothing new to read. A relative one changes with the folder it lands in, and a tab switch within that folder does not move it.
+ */
+export function runKey(cwd: unknown, context: PanelContext | null): string {
+  const place = placement(cwd, context);
+  if (!place) return '';
+  if (place.kind === 'context') return contextKey(context);
+  if (place.kind === 'fixed') return `fixed\n${place.value}`;
+  return `${context!.cwd}\n${place.value}`;
+}
+
+/**
+ * The context a run or a shell is handed: the selection as it is at that moment, with `cwd` the folder it actually runs in, so `CLAUDE_UI_CWD` tells the truth.
+ * A fixed panel with nothing selected gets empty project and session variables rather than none.
+ */
+export function runContext(context: PanelContext | null, dir: string): PanelContext {
+  return { projectRoot: context?.projectRoot ?? '', cwd: dir, sessionId: context?.sessionId ?? '' };
+}
+
+/** A panel about to run: what is wrong with its options, or, when nothing is, the context it runs with — null for one with nowhere to run. */
+export interface Prepared {
+  problems: string[];
+  run: PanelContext | null;
+}
+
+/**
+ * The one path both types take before a run or a shell start, and when they check themselves: check the options against the current selection, then place the panel.
+ * The folder comes from the check, so the run goes exactly where main looked.
+ */
+export async function prepare(options: Record<string, unknown>, decl: OptionsDecl, where: Where): Promise<Prepared> {
+  const context = resolveContext(where);
+  const { problems, paths } = await checkOptions(options, decl, context?.cwd ?? null);
+  if (problems.length > 0) return { problems, run: null };
+  const place = placement(options.cwd, context);
+  if (!place) return { problems: [], run: null };
+  return { problems: [], run: runContext(context, place.kind === 'context' ? context!.cwd : paths.cwd) };
 }
 
 /** What an entry runs, in the form the runner takes. Only for options whose check passed, which is what guarantees exactly one is present. */
@@ -226,9 +278,9 @@ class CommandPanel implements MountedPanel {
       subscribed = true;
       window.claudeUi.onPanelRun((entryId, token, event) => mountedByKey.get(entryId)?.handle(token, event));
     }
-    // Keyed by the context the run would get, so a tab or project change that lands on the same place does not run again.
+    // Keyed by where the run would go, so a tab or project change that lands on the same place does not run again, and a fixed `cwd` never does.
     this.gate = new RunGate(
-      () => contextKey(resolveContext(this.host.where())),
+      () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
       () => void this.run(),
     );
     // Checked at once rather than on first show, so a panel behind another already wears `alert` on its rail.
@@ -244,7 +296,10 @@ class CommandPanel implements MountedPanel {
   }
 
   setVisible(visible: boolean): void {
+    const asked = this.asked;
     this.gate.setVisible(visible);
+    // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
+    if (visible && this.runnable === false && this.asked === asked) this.recheck();
   }
 
   recheck(): void {
@@ -262,21 +317,26 @@ class CommandPanel implements MountedPanel {
     if (mountedByKey.get(this.slot.key) === this) mountedByKey.delete(this.slot.key);
   }
 
-  /** Check the options, tell the host what is wrong with them, and say whether the panel can run. */
-  private async check(): Promise<boolean> {
-    const problems = await checkOptions(optionsOf(this.slot.entry), commandType);
-    if (this.disposed) return false;
-    this.runnable = problems.length === 0;
-    this.host.setProblems(problems);
-    return this.runnable;
+  /** Check the options against the selection as it is now, tell the host what is wrong with them, and hand back where the panel would run. */
+  private async prepared(): Promise<Prepared | null> {
+    const prepared = await prepare(optionsOf(this.slot.entry), commandType, this.host.where());
+    if (this.disposed) return null;
+    this.runnable = prepared.problems.length === 0;
+    this.host.setProblems(prepared.problems);
+    return prepared;
   }
 
-  /** Every run checks first: a script can go missing or lose its bit between runs, and the check is what says so in the panel's own words. */
+  private async check(): Promise<boolean> {
+    return (await this.prepared())?.problems.length === 0;
+  }
+
+  /** Every run checks first: a script or a folder can go missing between runs, and the check is what says so in the panel's own words. */
   private async run(): Promise<void> {
     const asked = ++this.asked;
-    const runnable = await this.check();
-    if (asked !== this.asked || this.disposed) return;
-    const context = resolveContext(this.host.where());
+    const prepared = await this.prepared();
+    if (asked !== this.asked || !prepared) return;
+    const runnable = prepared.problems.length === 0;
+    const context = prepared.run;
     this.host.setEnd('');
     this.host.setStatus(null);
     if (!runnable || !context) {
@@ -348,6 +408,7 @@ export const commandType: PanelType = {
   options: [
     { name: 'command', kind: 'text' },
     { name: 'script', kind: 'path', against: 'config', must: 'executable' },
+    CWD_OPTION,
   ],
   exactlyOne: [['command', 'script']],
   icon: 'command',

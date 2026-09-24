@@ -347,6 +347,19 @@ The context reaches the command as environment variables only for now (`CLAUDE_U
 With neither a tab nor a project the panel says "Pick a project to run this in." and runs nothing.
 It runs when first shown, on Refresh, and when the context directory changes, which a tab switch, a project switch and stopping the tab you are on all do — but never while hidden (see A layout change keeps panels running).
 
+### Where a panel runs: the `cwd` option
+
+Both the `command` and the `terminal` type take a `cwd`, one declaration (`CWD_OPTION` in `options.ts`) and one rule (`placement` in `types/command.ts`, tested), because "where does this panel run" is one question with one answer on both.
+Without it, the panel runs in the context directory. An absolute or `~/` value is FIXED: that folder whatever is selected, so it runs with no project at all. A relative value is under the context directory, so `"cwd": "packages/api"` follows the project into its subfolder — and a worktree session's panel into the worktree's copy.
+The folder the run uses is the one main's check resolved, so the run goes exactly where the check looked, and `CLAUDE_UI_CWD` names it; the project and session variables are the selection at the moment of the run, empty when there is none.
+
+A relative `cwd` resolves against the project and never falls back to the config folder, which was considered: the same file would then run in different places depending on which folders happen to exist, and a typo in one project would silently become a folder in the config directory.
+(`script` is the opposite way round for the reason given under The `command` type: a `cwd` only moves where your command runs, while a project-first `script` would change which code runs.)
+
+**A fixed `command` panel does not run again on a switch**; it runs on first show and on Refresh. It has nothing new to read, and re-running it on every tab click would print the same folder's output again — which is what keying it on the whole context, as before, would have done, since its variables change even when its folder does not.
+The run is keyed on where it goes (`runKey`, tested): the whole context without a `cwd`, as it always was; nothing that changes for a fixed one; the folder it lands in for a relative one, so a tab switch within that folder does not re-run it.
+A refresh on a timer, or a script that refreshes itself, is later work, and when it comes it is the answer to "when does a panel run" for every panel, not one for this option.
+
 ### How a command runs
 
 **Through the same shell as a session.** `src/main/shell.ts` holds the one login-shell invocation both use, so `PATH` is identical: the rc files that put mise, direnv and the MCP servers' tools on a session's `PATH` run for a panel too.
@@ -371,16 +384,17 @@ The end of the OUTPUT (`close`) and the end of the PROCESS (`exit`) are read sep
 ### The `terminal` type
 
 A plain shell in a panel: the interactive login shell a session runs `claude` in, with nothing to run, in a pty, shown in an xterm.
-No options.
+Its one option is `cwd` (see Where a panel runs).
 
-**It stays put.** The shell starts in the context directory of the moment the panel first shows and stays there through tab and project switches.
+**It stays put.** The shell starts where the panel is placed at the moment it first shows — the context directory, or its `cwd` — and stays there through tab and project switches.
 A shell has state — the command you have running in it — so following the context the way the `command` panel does would kill that command on every switch, and one shell per directory kept alive and swapped like tabs is a lifecycle that belongs with groups and tabs, not here.
 So the header names the folder the shell is in, the button is "Restart here", which kills the shell and starts one in the current context, and the one exception is a panel with no shell because there was nothing to run in, which starts as soon as a context appears.
-The type declares that button's label itself, so the tree keeps one button and the type says what it does.
+The type declares that button's label itself, per entry, so the tree keeps one button and the type says what it does.
+**A terminal with a fixed `cwd` has no button**: it would restart in the same place, so what is left of its purpose is bringing a dead shell back, and a key press does that (below). One whose folder is missing says so in its place, like any panel that cannot run, and looks again whenever it comes back into view and whenever the config folder changes — with no button, being looked at is how a folder that has appeared since gets picked up.
 
 **A shell that exits comes back on a key press.** Its screen stays up with a dimmed line saying it exited and that any key starts a new shell, and the next key does, through the same start the button uses; the key is the ask, so it is not sent on to the new shell.
 That is what VS Code's terminal does, and it was chosen over a button that appears only once the shell has gone, and over restarting on exit by itself, which would need a guard against a shell that dies at once — a broken rc file, say — starting again forever.
-It exists so that getting a shell back never depends on the button, which a terminal pinned to one folder is not going to have.
+It exists so that getting a shell back never depends on the button, which a terminal with a fixed `cwd` does not have.
 The header keeps its `exited N`, since that is what shows while the panel is behind another.
 
 **The same pty path as a session.** `terminal.ts` has one spawn for both — the terminals map, the data and exit routing, the stop escalation and the quit sweep — with the claude-specific argument building and the plain-shell start as two callers of it.

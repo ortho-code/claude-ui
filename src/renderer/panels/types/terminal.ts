@@ -1,13 +1,14 @@
+import type { PanelContext } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
 import { bindTerminal, createTerminal, unbindTerminal, type TerminalView } from '../../terminal';
-import { checkOptions, optionsOf } from '../options';
-import { NO_CONTEXT, resolveContext, type MountedPanel, type PanelHost, type PanelType } from './command';
+import { CWD_OPTION, isFixedPath, optionsOf } from '../options';
+import { NO_CONTEXT, prepare, resolveContext, type MountedPanel, type PanelHost, type PanelType } from './command';
 
 /**
  * The `terminal` panel type: a plain shell beside the terminal, in a pty, shown in an xterm.
  *
- * IT STAYS PUT. The shell starts in the context directory of the moment the panel first shows and stays there through tab and project switches; a shell has state, and a switch must never kill a command running in it.
- * The header says where it is, and the button restarts it in the current context when that is what you want.
+ * IT STAYS PUT. The shell starts where the panel is placed at the moment it first shows — the context directory, or its `cwd` under it, or a fixed `cwd` — and stays there through tab and project switches; a shell has state, and a switch must never kill a command running in it.
+ * The header says where it is, and the button restarts it in the current context when that is what you want; a terminal with a fixed `cwd` has no button, since it would restart in the same place.
  * The one exception is a panel with no shell because there was nothing to run in: it starts as soon as a context appears.
  * A shell that EXITS leaves its screen up with a line saying so, and the next key starts a new one, so getting a shell back never depends on a button being there.
  */
@@ -60,7 +61,12 @@ class TerminalPanel implements MountedPanel {
 
   /** Hiding keeps the shell and whatever runs in it; the refit on reveal is the observer's. */
   setVisible(visible: boolean): void {
-    if (!visible || this.shown) return;
+    if (!visible) return;
+    // Coming back into view while it could not start is a look at it, so it looks again: with no button on a fixed terminal, that is how a folder that has appeared since is picked up.
+    if (this.shown) {
+      this.recheck();
+      return;
+    }
     this.shown = true;
     void this.start();
   }
@@ -81,22 +87,25 @@ class TerminalPanel implements MountedPanel {
     this.view = null;
   }
 
-  /** Check the options, tell the host what is wrong with them, and say whether the panel can start a shell. */
+  /** Check the options against the selection as it is now, tell the host what is wrong with them, and hand back where the shell would start. */
+  private async prepared(): Promise<{ runnable: boolean; context: PanelContext | null }> {
+    const prepared = await prepare(optionsOf(this.slot.entry), terminalType, this.host.where());
+    if (this.disposed) return { runnable: false, context: null };
+    this.refused = prepared.problems.length > 0;
+    this.host.setProblems(prepared.problems);
+    return { runnable: !this.refused, context: prepared.run };
+  }
+
   private async check(): Promise<boolean> {
-    const problems = await checkOptions(optionsOf(this.slot.entry), terminalType);
-    if (this.disposed) return false;
-    this.refused = problems.length > 0;
-    this.host.setProblems(problems);
-    return !this.refused;
+    return (await this.prepared()).runnable;
   }
 
   private async start(): Promise<void> {
     this.exited = false;
     this.starting = true;
-    const runnable = await this.check();
+    const { runnable, context } = await this.prepared();
     this.starting = false;
     if (!runnable || this.disposed) return;
-    const context = resolveContext(this.host.where());
     if (!context) {
       this.waiting = true;
       this.box.hidden = true;
@@ -173,10 +182,11 @@ function folderName(path: string): string {
 
 export const terminalType: PanelType = {
   name: 'terminal',
-  options: [],
+  options: [CWD_OPTION],
   exactlyOne: [],
   icon: 'terminal',
   defaultTitle: () => 'Terminal',
-  actionLabel: 'Restart here',
+  // A fixed `cwd` would restart in the same place, which is no action worth a button: a key after the shell exits is how it comes back.
+  actionLabel: (options) => (typeof options.cwd === 'string' && isFixedPath(options.cwd) ? null : 'Restart here'),
   mount: (slot, host) => new TerminalPanel(slot, host),
 };
