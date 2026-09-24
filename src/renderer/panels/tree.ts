@@ -474,8 +474,9 @@ function showStatus(badge: HTMLElement, status: PanelStatus): void {
   badge.hidden = status === null;
 }
 
+/** The header's one button, in the compact box: the header takes the tab bar's density, and a standard box made it taller than a header without one. */
 function actionButton(label: string): HTMLButtonElement {
-  const button = element('button', 'icon-btn');
+  const button = element('button', 'icon-btn compact');
   button.type = 'button';
   button.setAttribute('aria-label', label);
   setTooltip(button, label);

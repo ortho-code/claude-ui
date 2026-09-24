@@ -2206,12 +2206,15 @@ button:focus:not(:focus-visible) {
 
 /* The group's header: title, the busy mark, the run's last word, Refresh. Body size at the group
    heading's weight, since it names a section the way a group heading does; the padding is the tab
-   bar's density rather than a row's, because it sits beside the terminal, not in the list. */
+   bar's density rather than a row's, because it sits beside the terminal, not in the list.
+   A FIXED height rather than one its content decides: a header with a button stood 5px taller than one without, so switching panels in a group made the bar jump.
+   28px is the compact button's 16px box with 6px either side, the tallest thing the bar holds; the title's 15px line centres in it. */
 .panel-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px 6px 12px;
+  height: 28px;
+  padding: 0 8px 0 12px;
   font-size: var(--text-body);
   font-weight: 650;
 }
