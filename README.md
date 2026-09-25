@@ -28,9 +28,13 @@ Done:
   Move a session between them, rename or delete a group (its sessions stay), and start a session, a fork or a worktree session straight into one.
   Open tabs cluster by group in the tab bar.
 - Ordering and overview: reorder projects and groups from their kebabs, fold every section away and back from one header button, and attach a note to any session.
-- Pin, archive, and delete (to the OS trash); search plus filters (pinned, open, running, worktree, siblings, noted, archived, date range).
+- Pin, archive, and delete (to the OS trash); search plus filters (pinned, open, running, worktree, folder gone, siblings, noted, archived, date range).
+  A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
 - Per-session status dots (busy / idle / waiting) driven by Claude Code hooks scoped to app-launched sessions; dots can be marked read, a footer strip surfaces sessions needing attention across projects, and a project switcher scopes the sidebar.
   A session in the strip can be muted or stopped where it is listed, so acting on one in another project doesn't cost you the project you're looking at.
+  The strip keeps still: it follows your tabs, clustered by group, so a row only moves when you move a tab.
+- Sessions are followed the way they actually run: stopping one escalates until it has really ended, a `/clear` carries on in the same tab and group as a new session, and a `/model` switch shows at once.
+- A session whose folder is gone says so and refuses to start, instead of starting somewhere nobody chose; pinning, notes, archiving and deleting still work.
 - Project rename, app icon, single-instance lock.
 - Opens the way you left it: window size and position, and the sidebar's search, filters, folds, width and scroll offset.
 - A consistent control system: every mark is an SVG icon (no font glyphs), clickable icons share one size and one hover treatment, and radius and type come from tokens.
@@ -38,15 +42,13 @@ Done:
 - Settings: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included.
   The flags the app sets for itself are refused there rather than allowed to break a session.
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
-  Panels so far run a command or a script and show its output, or give you a plain shell. See [Panels](#panels).
+  Panels so far run a command or a script and show its output, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong. See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag. See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
 
 Next:
 
-- Fixes to how sessions are watched and stopped: a `/clear` currently reads as a session ending, stopping a session sends one signal and never escalates, and the sidebar can miss a model change.
 - Context health per session in the list, coloured the way the CLI's own status line colours it.
 - Creating an empty group from the project heading, not only from a session.
-- A steady order for the attention strip: clustered by group like the session list, and fixed inside a cluster instead of following recency.
 - A log file, so a problem in an installed build can be looked at afterwards.
 - Clickable paths in terminal output, opening the file the session just named in a panel.
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).
