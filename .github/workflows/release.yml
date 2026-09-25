@@ -36,6 +36,8 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.os }}
+          # Only a handoff to the release job, which attaches its own copies to the release, and the free tier's 500MB of Actions storage fits little more than one release's worth. A day still leaves room to re-run a failed release job.
+          retention-days: 1
           if-no-files-found: error
           path: |
             release/*.deb
@@ -46,8 +48,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      # The only write this workflow needs, and only in this job.
+      # The only writes this workflow needs, and only in this job.
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -71,5 +74,9 @@ jobs:
           fi
           cat notes.md
           gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md artifacts/*
+        env:
+          GH_TOKEN: ${{ github.token }}
+      # The release now holds its own copies, so the handoff artifacts are dead weight against the storage quota. Runs only after a successful release, so a failed one keeps them for a re-run of this job.
+      - run: gh api --paginate "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[].id' | xargs -r -I{} gh api -X DELETE "/repos/$GITHUB_REPOSITORY/actions/artifacts/{}"
         env:
           GH_TOKEN: ${{ github.token }}
