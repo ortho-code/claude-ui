@@ -250,7 +250,7 @@
   font-size: var(--text-body);
 }
 
-/* A read-only value with a button beside it (the config folder's path and Open). The path is data,
+/* A read-only value with a button beside it (a folder's path and Open). The path is data,
    so it is monospace, and it may break anywhere rather than push the button out of the dialog. */
 .dialog-row {
   display: flex;

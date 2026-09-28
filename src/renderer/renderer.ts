@@ -29,11 +29,12 @@ import {
   type SwitcherModel,
 } from './logic';
 import { parseLaunchFlags } from '../shared/flags';
+import { KEEP_CRASH_LOGS, KEEP_LOG_DATES, type FolderName } from '../shared/folders';
 import { installTooltips, setTooltip } from './tooltip';
 import { chevronIcon, strokeIcon } from './svg';
 import { iconSvg } from './panels/icons';
 import { createTerminal, bindTerminal, routeTerminals } from './terminal';
-import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, configRoot } from './panels/tree';
+import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged } from './panels/tree';
 import { reportBuiltinStatus } from './panels/types/builtin';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
@@ -147,8 +148,7 @@ const settingsFlags = document.getElementById('settings-flags') as HTMLInputElem
 const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
-const settingsConfigPath = document.getElementById('settings-config-path')!;
-const settingsConfigOpen = document.getElementById('settings-config-open') as HTMLButtonElement;
+const settingsFolders = document.getElementById('settings-folders')!;
 const toast = document.getElementById('toast')!;
 const toastMessage = document.getElementById('toast-message')!;
 const toastClose = document.getElementById('toast-close') as HTMLButtonElement;
@@ -1700,6 +1700,52 @@ function promptText(
 }
 
 /**
+ * The app's own folders, as Settings lists them: what each holds, where it is, and a button to open it.
+ * Both are read-only here — the config folder is edited by hand, the logs are the app's — so a row only says where the folder is.
+ * `detail` is the app's own text, never data, which is what makes it safe as markup.
+ */
+const SETTINGS_FOLDERS: { name: FolderName; label: string; detail: string }[] = [
+  {
+    name: 'config',
+    label: 'Config folder',
+    detail: 'Holds <code>layouts/default.json</code>, which lays out the window and its panels, and the scripts it points at.',
+  },
+  {
+    name: 'logs',
+    label: 'Logs',
+    detail: `What the app did, to send along when something goes wrong. It keeps the last ${KEEP_LOG_DATES} days it ran plus the ${KEEP_CRASH_LOGS} newest crash logs, and removes older ones itself. Any of them is safe to delete.`,
+  },
+];
+
+/** One row per folder, built afresh each time Settings opens, from one shape so the rows cannot drift apart. */
+function renderFolderRows(paths: Record<FolderName, string>): void {
+  settingsFolders.replaceChildren(
+    ...SETTINGS_FOLDERS.map(({ name, label, detail }) => {
+      const section = document.createElement('div');
+      section.className = 'dialog-section';
+      const heading = document.createElement('span');
+      heading.className = 'dialog-label';
+      heading.textContent = label;
+      const explanation = document.createElement('p');
+      explanation.className = 'dialog-detail';
+      explanation.innerHTML = detail;
+      const row = document.createElement('div');
+      row.className = 'dialog-row';
+      const where = document.createElement('code');
+      where.className = 'dialog-path';
+      where.textContent = paths[name];
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.textContent = 'Open';
+      open.addEventListener('click', () => window.claudeUi.openFolder(name));
+      row.append(where, open);
+      section.append(heading, explanation, row);
+      return section;
+    }),
+  );
+}
+
+/**
  * The app's own preferences.
  *
  * Shares the overlay skin and `runModal`'s behaviour with the other two dialogs, but is its own form rather than a call to `promptText`: that one is a transient prompt built per call, this is a fixed screen that will grow sections.
@@ -1709,8 +1755,7 @@ async function openSettings(): Promise<void> {
   const stored = await window.claudeUi.getSettings();
   settingsFlags.value = stored.launchFlags;
   settingsError.hidden = true;
-  // Read-only: the folder is edited by hand, so the dialog only says where it is.
-  settingsConfigPath.textContent = configRoot() ?? '';
+  renderFolderRows(await window.claudeUi.getFolders());
   settingsOverlay.hidden = false;
   settingsFlags.focus();
   settingsFlags.select();
@@ -1742,7 +1787,6 @@ async function openSettings(): Promise<void> {
 }
 
 settingsToggle.addEventListener('click', () => void openSettings());
-settingsConfigOpen.addEventListener('click', () => window.claudeUi.openConfigFolder());
 
 // The ordering moves for a project, minus any that would do nothing — same rule as a group's.
 // The order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen (a filter or an all-archived project can hide neighbours without changing where this one sits).

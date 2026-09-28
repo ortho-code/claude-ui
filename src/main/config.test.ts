@@ -4,24 +4,19 @@ import { homedir } from 'node:os';
 import * as path from 'node:path';
 
 // A real folder, so the script checks are made against a real filesystem rather than a fake one that agrees with the code.
-const { dataDir, listeners, openPath } = vi.hoisted(() => {
+const { dataDir } = vi.hoisted(() => {
   const { mkdtempSync } = require('node:fs') as typeof import('node:fs');
   const { tmpdir } = require('node:os') as typeof import('node:os');
   const { join } = require('node:path') as typeof import('node:path');
-  return {
-    dataDir: mkdtempSync(join(tmpdir(), 'claude-ui-config-')),
-    listeners: new Map<string, () => void>(),
-    openPath: vi.fn(async () => ''),
-  };
+  return { dataDir: mkdtempSync(join(tmpdir(), 'claude-ui-config-')) };
 });
 
 vi.mock('electron', () => ({
   app: { getPath: () => dataDir, setPath: () => {} },
-  ipcMain: { handle: () => {}, on: (channel: string, fn: () => void) => listeners.set(channel, fn) },
-  shell: { openPath },
+  ipcMain: { handle: () => {}, on: () => {} },
 }));
 
-import { checkPath, readLayout, registerConfig, resolvePath } from './config';
+import { checkPath, readLayout, resolvePath } from './config';
 import { configRoot, defaultLayoutFile, scriptsDir } from './paths';
 
 const write = (json: unknown): void => writeFileSync(defaultLayoutFile, typeof json === 'string' ? json : JSON.stringify(json));
@@ -105,13 +100,5 @@ describe('checkPath', () => {
     expect((await checkPath('scripts/later.sh', 'config', 'executable')).problem).toBe('scripts/later.sh is not executable');
     chmodSync(path.join(scriptsDir, 'later.sh'), 0o755);
     expect((await checkPath('scripts/later.sh', 'config', 'executable')).problem).toBeNull();
-  });
-});
-
-describe('config:open', () => {
-  it('opens the config folder itself, not its parent with the folder selected', () => {
-    registerConfig(() => null);
-    listeners.get('config:open')!();
-    expect(openPath).toHaveBeenCalledWith(configRoot);
   });
 });

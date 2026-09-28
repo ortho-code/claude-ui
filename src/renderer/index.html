@@ -136,15 +136,8 @@
           <input id="settings-flags" class="dialog-field" type="text" spellcheck="false" autocomplete="off" placeholder="--allowedTools Grep,Glob" />
           <p id="settings-error" class="dialog-error" hidden></p>
         </div>
-        <!-- Read-only: the folder is edited by hand, so this row only says where it is. -->
-        <div class="dialog-section">
-          <span class="dialog-label">Config folder</span>
-          <p class="dialog-detail">Holds <code>layouts/default.json</code>, which lays out the window and its panels, and the scripts it points at.</p>
-          <div class="dialog-row">
-            <code id="settings-config-path" class="dialog-path"></code>
-            <button id="settings-config-open" type="button">Open</button>
-          </div>
-        </div>
+        <!-- The app's own folders, one row each, built from SETTINGS_FOLDERS in renderer.ts. -->
+        <div id="settings-folders"></div>
         <div class="dialog-actions">
           <button id="settings-cancel" type="button">Cancel</button>
           <button id="settings-ok" type="button" class="primary">Save</button>

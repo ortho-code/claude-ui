@@ -8,6 +8,7 @@ import * as path from 'node:path';
 import { listSessions, trashSessions, worktreeExists } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
 import { registerConfig } from './config';
+import { registerFolders } from './folders';
 import { registerPanelsIpc, stopAllPanels } from './panels';
 import { logsDir } from './paths';
 import { startLog, closeLog } from './log';
@@ -565,6 +566,7 @@ void app.whenReady().then(async () => {
   registerStatusIpc(() => mainWindow);
   registerSessionsWatcher(() => mainWindow);
   registerConfig(() => mainWindow);
+  registerFolders();
   // Before the window, so the answer is in hand by the time anyone can reach the maximize button.
   learnMaximizeInset();
   await createWindow();

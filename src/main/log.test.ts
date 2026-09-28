@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createLog, expiredLogs, logFileName, KEEP_CRASHES, REPEAT_FLUSH_MS } from './log';
+import { createLog, expiredLogs, logFileName, REPEAT_FLUSH_MS } from './log';
+import { KEEP_CRASH_LOGS } from '../shared/folders';
 import type { Log } from './log';
 
 // Names and dates are local time, so the zone is pinned; the clock is faked so a file's name is known before it is made.
@@ -70,7 +71,7 @@ describe('expiredLogs', () => {
   });
 
   it('keeps the newest crash logs apart from the dates', () => {
-    const crashes = Array.from({ length: KEEP_CRASHES + 2 }, (_, i) => `claude-ui-202601${String(i + 1).padStart(2, '0')}100000-crash.log`);
+    const crashes = Array.from({ length: KEEP_CRASH_LOGS + 2 }, (_, i) => `claude-ui-202601${String(i + 1).padStart(2, '0')}100000-crash.log`);
     const ordinary = ['claude-ui-20260928100000.log'];
     expect(expiredLogs([...ordinary, ...crashes]).sort()).toEqual(['claude-ui-20260101100000-crash.log', 'claude-ui-20260102100000-crash.log']);
   });

@@ -1,6 +1,8 @@
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { appendStamped, localTimestamp } from './stamp';
+// Shared because Settings says how long logs are kept, and the numbers it gives must be the ones used here.
+import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/folders';
 
 /**
  * The app's log: what a launch did, kept where it can be read afterwards, because an installed build is started from a launcher and has no stdout for any of it to go to.
@@ -15,11 +17,6 @@ import { appendStamped, localTimestamp } from './stamp';
  */
 
 const NAME = /^claude-ui-(\d{14})(-crash)?\.log$/;
-
-/** Ordinary files are kept for this many of the most recent DATES THAT HAVE A LOG, not calendar days, so two weeks away does not empty the folder on the next launch. */
-export const KEEP_DATES = 7;
-/** Crash logs are kept apart from the dates, newest first. */
-export const KEEP_CRASHES = 20;
 
 /** Identical lines in a row are counted rather than written, and the count is written at the next different line, at a file's end, or this long after the first repeat — so a crash in the middle of a flood still leaves the count behind. */
 export const REPEAT_FLUSH_MS = 5000;
@@ -73,15 +70,15 @@ function logNames(names: string[]): LogName[] {
 }
 
 /**
- * The files retention removes: ordinary ones outside the KEEP_DATES most recent dates that have one, and crash logs past the KEEP_CRASHES newest.
+ * The files retention removes: ordinary ones outside the KEEP_LOG_DATES most recent dates that have one, and crash logs past the KEEP_CRASH_LOGS newest.
  * A name that is not one of ours is never touched, so anything else put in the folder stays.
  */
 export function expiredLogs(names: string[]): string[] {
   const logs = logNames(names);
   const ordinary = logs.filter((log) => !log.crash);
-  const keptDates = new Set([...new Set(ordinary.map((log) => log.stamp.slice(0, 8)))].sort().reverse().slice(0, KEEP_DATES));
+  const keptDates = new Set([...new Set(ordinary.map((log) => log.stamp.slice(0, 8)))].sort().reverse().slice(0, KEEP_LOG_DATES));
   const crashes = logs.filter((log) => log.crash);
-  return [...ordinary.filter((log) => !keptDates.has(log.stamp.slice(0, 8))), ...crashes.slice(KEEP_CRASHES)].map((log) => log.name);
+  return [...ordinary.filter((log) => !keptDates.has(log.stamp.slice(0, 8))), ...crashes.slice(KEEP_CRASH_LOGS)].map((log) => log.name);
 }
 
 /** `INFO  app message`; a message of several lines keeps them, indented, so every line at the margin is a record of its own. */

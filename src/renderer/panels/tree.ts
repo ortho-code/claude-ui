@@ -118,11 +118,6 @@ export function startPanels(): void {
   showPanels();
 }
 
-/** The config folder, for the settings dialog; null until the first report has arrived. */
-export function configRoot(): string | null {
-  return report?.configRoot ?? null;
-}
-
 /** The tab or project changed: let every panel decide whether that moved its context. A hidden one only notes it (RunGate). */
 export function treeContextChanged(): void {
   for (const { panel } of mounted.values()) panel.contextChanged();

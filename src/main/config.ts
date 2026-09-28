@@ -1,4 +1,4 @@
-import { ipcMain, shell, type BrowserWindow } from 'electron';
+import { ipcMain, type BrowserWindow } from 'electron';
 import { promises as fs, constants, mkdirSync, watch, type FSWatcher } from 'node:fs';
 import { homedir } from 'node:os';
 import * as path from 'node:path';
@@ -72,8 +72,6 @@ export function registerConfig(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle('config:getLayout', () => readLayout());
   ipcMain.handle('config:checkPath', (_event, value: string, base: PathBase, must: PathKind) => checkPath(value, base, must));
-  // `openPath`, not `showItemInFolder`: that one opens the folder's PARENT with the folder selected, and a Linux file manager without FileManager1 support (WSLg's) selects nothing, which reads as the wrong folder.
-  ipcMain.on('config:open', () => void shell.openPath(configRoot));
 
   const watchers = new Map<string, FSWatcher>();
   let timer: NodeJS.Timeout | null = null;

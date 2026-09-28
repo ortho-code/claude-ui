@@ -162,6 +162,7 @@ export interface UiState {
 }
 
 import type { LayoutReport, PanelContext, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind } from './panels';
+import type { FolderName } from './folders';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
@@ -295,6 +296,8 @@ export interface ClaudeUiApi {
   stopPanel(entryId: string): void;
   /** Subscribe to every run's events. `token` is the one the run was requested with, so a superseded run's tail can be told apart. */
   onPanelRun(callback: (entryId: string, token: string, event: PanelRunEvent) => void): void;
-  /** Open the config folder in the OS file manager. */
-  openConfigFolder(): void;
+  /** Where each of the app's own folders is, for Settings to show. */
+  getFolders(): Promise<Record<FolderName, string>>;
+  /** Open one of the app's own folders in the OS file manager, by name; the window never sends a path. */
+  openFolder(name: FolderName): void;
 }
