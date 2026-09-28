@@ -31,6 +31,11 @@ describe('stripAnsi', () => {
     expect(stripAnsi('\x1b]0;title\x07text')).toBe('text');
   });
 
+  it('ends an unterminated string at the next ESC, as a terminal does, rather than running on to a later terminator', () => {
+    expect(stripAnsi('\x1b]0;title\x1b[31mred\x1b[m done')).toBe('red done');
+    expect(stripAnsi('\x1b]0;title\x1b[31mred\x1b[m\x07')).toBe('red\x07');
+  });
+
   it('strips two-byte escapes: charset, reset, save and restore cursor', () => {
     expect(stripAnsi('\x1b(Bmore\x1bc end')).toBe('more end');
     expect(stripAnsi('\x1b7saved\x1b8')).toBe('saved');

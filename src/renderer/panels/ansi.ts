@@ -4,7 +4,7 @@
  * Defensive, on top of `NO_COLOR=1` and `TERM=dumb` in the command's environment: those are requests, and not every tool listens.
  * Three shapes, MEASURED from real `git` and `ls` output rather than from the standard:
  * - CSI: `ESC [`, parameter bytes, intermediate bytes, one final byte — colour (`ESC[31m`, `ESC[m`, `ESC[38;2;…m`), cursor and erase (`ESC[?25l`, `ESC[2K`).
- * - Strings: `ESC ]` (OSC, a title or an OSC 8 hyperlink), `ESC P` (DCS), `ESC _`, `ESC ^`, `ESC X`, each up to `BEL` or `ESC \`.
+ * - Strings: `ESC ]` (OSC, a title or an OSC 8 hyperlink), `ESC P` (DCS), `ESC _`, `ESC ^`, `ESC X`, each up to `BEL` or `ESC \`, or cut short by any other ESC, as a terminal's own parser cuts it.
  * - Two-byte escapes: `ESC (` `B` (charset), `ESC c` (reset), `ESC 7`/`ESC 8` (save/restore cursor) — an ESC, optional intermediates, one final.
  * Nothing else is touched: `\r`, `\t` and the text stay as they came.
  */
@@ -13,7 +13,7 @@
 // The two-byte form excludes the introducers of the other two (`[`, `]`, `P`, `X`, `^`, `_`) as its final byte, so a CSI or string escape cut off right after its introducer reads as incomplete rather than as a complete short one.
 const ESCAPES =
   // eslint-disable-next-line no-control-regex
-  /\x1b\[[0-?]*[ -/]*[@-~]|\x1b[\]P_^X][\s\S]*?(?:\x07|\x1b\\)|\x1b(?:[ -/]+[0-~]|[0-OQ-WY-Z\\`-~])/g;
+  /\x1b\[[0-?]*[ -/]*[@-~]|\x1b[\]P_^X][^\x07\x1b]*(?:\x07|\x1b\\|(?=\x1b))|\x1b(?:[ -/]+[0-~]|[0-OQ-WY-Z\\`-~])/g;
 const ESCAPE_AT_START = new RegExp(`^(?:${ESCAPES.source})`);
 
 export function stripAnsi(text: string): string {
