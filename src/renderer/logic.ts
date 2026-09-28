@@ -79,6 +79,20 @@ export function unstartableReason(session: SessionSummary): string | null {
   return `This session's folder is gone, so it cannot run: ${session.cwd}`;
 }
 
+/**
+ * Whether a project's folder is still there, answered from the sessions filed under it.
+ * Every one of them shares the project's repoRoot, so any of them can answer; `some` rather than `every`, so one stale summary cannot condemn a folder that is there.
+ * ONE rule for every surface that asks, so the session list and the switcher cannot disagree about which projects are dead.
+ */
+export function projectRootExists(sessions: readonly SessionSummary[]): boolean {
+  return sessions.some((s) => s.repoRootExists);
+}
+
+/** Why nothing can be started in a project whose folder is gone: the one sentence for every surface that says it, as `unstartableReason` is for a session. */
+export function projectGoneReason(repoRoot: string): string {
+  return `This project's folder is gone: ${repoRoot}`;
+}
+
 // Group by repo root so a repo's worktrees (and subdirectories) file under one heading.
 export function groupByRepo(sessions: SessionSummary[]): [string, SessionSummary[]][] {
   const groups = new Map<string, SessionSummary[]>();
@@ -365,8 +379,7 @@ export function buildProjectTree(
       loose,
       count: ordered.length,
       isRepo: ordered.some((s) => s.isRepo),
-      // Every session under a heading shares its repoRoot, so any of them answers for the project; `some` rather than `every` so one stale summary cannot condemn a folder that is there.
-      rootExists: ordered.some((s) => s.repoRootExists),
+      rootExists: projectRootExists(ordered),
     };
   });
 }

@@ -20,6 +20,7 @@ import {
   projectsForSwitcher,
   orderAsTabs,
   unstartableReason,
+  projectGoneReason,
   hasVisibleOutput,
   statusLabel,
   stopControlState,
@@ -1492,7 +1493,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
     if (els.addCaret) els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
     // Nothing can be started in a folder that is not there. Disabled rather than hidden: the project still has sessions to read, and a control that vanishes explains nothing — the tooltip does.
     const rootGone = !project.rootExists;
-    const goneReason = rootGone ? `This project's folder is gone: ${project.repoRoot}` : null;
+    const goneReason = rootGone ? projectGoneReason(project.repoRoot) : null;
     if (els.addBtn) setUnavailable(els.addBtn, goneReason, 'New session in this project');
     if (els.addCaret) setUnavailable(els.addCaret, goneReason, 'New session options');
     els.section.classList.toggle('root-gone', rootGone);

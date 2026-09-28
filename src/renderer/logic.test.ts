@@ -22,6 +22,8 @@ import {
   orderProjects,
   orderAsTabs,
   unstartableReason,
+  projectRootExists,
+  projectGoneReason,
 } from './logic';
 
 function session(over: Partial<SessionSummary> = {}): SessionSummary {
@@ -66,6 +68,22 @@ describe('unstartableReason', () => {
 
   it('treats a plain session with no worktree the same way', () => {
     expect(unstartableReason(session({ cwd: '/gone', cwdExists: false }))).toContain('/gone');
+  });
+});
+
+describe('projectRootExists', () => {
+  it('holds while any session under the project still sees its folder', () => {
+    expect(projectRootExists([session({ repoRootExists: false }), session({ repoRootExists: true })])).toBe(true);
+  });
+
+  it('fails only when every session says the folder is gone', () => {
+    expect(projectRootExists([session({ repoRootExists: false }), session({ repoRootExists: false })])).toBe(false);
+  });
+});
+
+describe('projectGoneReason', () => {
+  it('names the folder that is gone', () => {
+    expect(projectGoneReason('/gone')).toBe("This project's folder is gone: /gone");
   });
 });
 
