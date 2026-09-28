@@ -12,7 +12,7 @@ import { registerFolders } from './folders';
 import { registerPanelsIpc, stopAllPanels } from './panels';
 import { logsDir } from './paths';
 import { startLog, closeLog, errorText, log } from './log';
-import { headerLines, logGpuStatus, logProcessFailures, logResponsiveness } from './diagnostics';
+import { headerLines, logGpuStatus, logProcessFailures, registerRendererLog, watchWindow } from './diagnostics';
 import { localTimestamp } from './stamp';
 import {
   getPinned,
@@ -111,6 +111,7 @@ if (!app.requestSingleInstanceLock()) {
   const launched = localTimestamp();
   startLog({ dir: logsDir, header: () => headerLines(launched) });
   logProcessFailures();
+  registerRendererLog();
   logGpuStatus();
   app.on('second-instance', () => {
     if (!mainWindow) return;
@@ -412,7 +413,7 @@ async function createWindow(): Promise<void> {
     correctFramePlacement(mainWindow, { x: placement.x, y: placement.y });
   }
   trackBounds(mainWindow);
-  logResponsiveness(mainWindow);
+  watchWindow(mainWindow);
 
   void mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   mainWindow.webContents.on('did-finish-load', () => {

@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { appendStamped, localTimestamp } from './stamp';
 // Shared because Settings says how long logs are kept, and the numbers it gives must be the ones used here.
-import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/folders';
+import { KEEP_CRASH_LOGS, KEEP_LOG_DATES, errorText, type LogLevel } from '../shared/log';
 
 /**
  * The app's log: what a launch did, kept where it can be read afterwards, because an installed build is started from a launcher and has no stdout for any of it to go to.
@@ -28,7 +28,9 @@ const QUIT = '===== quit =====';
 const CONTINUES_IN = '===== continues in ';
 const ENDED = '===== this launch ended without quitting: the line above is the last it wrote =====';
 
-export type LogLevel = 'info' | 'warn' | 'error';
+export type { LogLevel };
+// Main's callers take it from here with the rest of the log; it lives in shared because the window says errors the same way.
+export { errorText };
 
 /**
  * `20260928143012`, the local wall-clock moment as digits.
@@ -97,11 +99,6 @@ function isMissing(error: unknown): boolean {
 export function fsFailure(error: unknown): string | null {
   if (isMissing(error)) return null;
   return errorText(error);
-}
-
-/** An error as a log line says it: its message, or the value itself when something threw a non-Error. */
-export function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 /** The last non-empty line of a file, or null when it cannot be read. */

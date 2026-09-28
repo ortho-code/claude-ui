@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createLog, expiredLogs, fsFailure, logFileName, REPEAT_FLUSH_MS } from './log';
-import { KEEP_CRASH_LOGS } from '../shared/folders';
+import { KEEP_CRASH_LOGS } from '../shared/log';
 import type { Log } from './log';
 
 // Names and dates are local time, so the zone is pinned; the clock is faked so a file's name is known before it is made.

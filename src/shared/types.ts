@@ -163,6 +163,7 @@ export interface UiState {
 
 import type { LayoutReport, PanelContext, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind } from './panels';
 import type { FolderName } from './folders';
+import type { LogLevel } from './log';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
@@ -300,4 +301,6 @@ export interface ClaudeUiApi {
   getFolders(): Promise<Record<FolderName, string>>;
   /** Open one of the app's own folders in the OS file manager, by name; the window never sends a path. */
   openFolder(name: FolderName): void;
+  /** Write a line of the window's own to the app's log. `area` is a short lowercase word; main checks both and cuts a long line. */
+  log(level: LogLevel, area: string, message: string): void;
 }

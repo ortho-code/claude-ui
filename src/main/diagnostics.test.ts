@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { appHandlers, logged } = vi.hoisted(() => ({
+const { appHandlers, ipcHandlers, logged } = vi.hoisted(() => ({
   appHandlers: new Map<string, (...args: unknown[]) => void>(),
+  ipcHandlers: new Map<string, (...args: unknown[]) => void>(),
   /** Every log line as `level area message`, and every crash line as `crash area message`. */
   logged: [] as string[],
 }));
 
 vi.mock('electron', () => ({
   app: { on: (event: string, fn: (...args: unknown[]) => void) => appHandlers.set(event, fn) },
+  ipcMain: { on: (channel: string, fn: (...args: unknown[]) => void) => ipcHandlers.set(channel, fn) },
 }));
 vi.mock('./log', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./log')>()),
@@ -15,7 +17,8 @@ vi.mock('./log', async (importOriginal) => ({
   logCrash: (area: string, message: string) => logged.push(`crash ${area} ${message}`),
 }));
 
-import { describeInstall, logProcessFailures, logResponsiveness } from './diagnostics';
+import { describeInstall, logProcessFailures, registerRendererLog, sourceLabel, watchWindow } from './diagnostics';
+import { RENDERER_LINE_MAX } from '../shared/log';
 import type { BrowserWindow } from 'electron';
 
 const facts = { packaged: true, appImage: undefined, execPath: '/opt/Claude UI/claude-ui-app', packageType: null };
@@ -90,16 +93,72 @@ describe('logProcessFailures', () => {
   });
 });
 
-describe('logResponsiveness', () => {
+describe('watchWindow', () => {
+  function watched(): { win: Map<string, (...args: unknown[]) => void>; contents: Map<string, (...args: unknown[]) => void> } {
+    const win = new Map<string, (...args: unknown[]) => void>();
+    const contents = new Map<string, (...args: unknown[]) => void>();
+    watchWindow({
+      on: (event: string, fn: (...args: unknown[]) => void) => win.set(event, fn),
+      webContents: { on: (event: string, fn: (...args: unknown[]) => void) => contents.set(event, fn) },
+    } as unknown as BrowserWindow);
+    logged.length = 0;
+    return { win, contents };
+  }
+
   it('says when the window stopped answering and how long it took to come back', () => {
     vi.useFakeTimers();
-    logged.length = 0;
-    const handlers = new Map<string, () => void>();
-    logResponsiveness({ on: (event: string, fn: () => void) => handlers.set(event, fn) } as unknown as BrowserWindow);
-    handlers.get('unresponsive')!();
+    const { win } = watched();
+    win.get('unresponsive')!();
     vi.advanceTimersByTime(4200);
-    handlers.get('responsive')!();
+    win.get('responsive')!();
     vi.useRealTimers();
     expect(logged).toEqual(['warn renderer window stopped responding', 'info renderer window responding again after 4.2 s']);
+  });
+
+  it('forwards the page’s warnings and errors with where they came from, and nothing quieter', () => {
+    const { contents } = watched();
+    const message = (level: string, text: string, sourceId = 'file:///opt/Claude%20UI/resources/app.asar/dist/renderer/renderer.js') =>
+      contents.get('console-message')!({ level, message: text, sourceId, lineNumber: 12 });
+    message('info', 'chatter');
+    message('debug', 'more chatter');
+    message('warning', 'deprecated thing');
+    message('error', 'Uncaught (in promise) Error: boom');
+    message('error', 'from a data URL', 'data:text/html,%3Cscript%3E');
+    expect(logged).toEqual([
+      'warn console deprecated thing (renderer.js:12)',
+      'error console Uncaught (in promise) Error: boom (renderer.js:12)',
+      'error console from a data URL',
+    ]);
+  });
+});
+
+describe('sourceLabel', () => {
+  it('is the file’s name, or nothing for a source that is not a file', () => {
+    expect(sourceLabel('file:///home/me/claude-ui/dist/renderer/renderer.js')).toBe('renderer.js');
+    expect(sourceLabel('node:electron/js2c/sandbox_bundle')).toBe('sandbox_bundle');
+    expect(sourceLabel(`data:text/html,${'%3C'.repeat(40)}`)).toBe('');
+    expect(sourceLabel('')).toBe('');
+  });
+});
+
+describe('registerRendererLog', () => {
+  it('writes the window’s own lines, cutting one that runs long', () => {
+    registerRendererLog();
+    logged.length = 0;
+    const write = ipcHandlers.get('log:write')!;
+    write(null, 'info', 'xterm', 'terminals draw on canvas');
+    write(null, 'warn', 'tab', 'x'.repeat(RENDERER_LINE_MAX + 50));
+    expect(logged).toEqual(['info xterm terminals draw on canvas', `warn tab ${'x'.repeat(RENDERER_LINE_MAX)}`]);
+  });
+
+  it('refuses a level or an area it does not know, and a message that is not text', () => {
+    registerRendererLog();
+    logged.length = 0;
+    const write = ipcHandlers.get('log:write')!;
+    write(null, 'fatal', 'tab', 'made-up level');
+    write(null, 'info', 'Tab With Spaces', 'bad area');
+    write(null, 'info', 'app\n2026-09-28 ERROR fake', 'an area that forges a line');
+    write(null, 'info', 'tab', { not: 'text' });
+    expect(logged).toEqual([]);
   });
 });

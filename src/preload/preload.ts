@@ -75,6 +75,7 @@ const api: ClaudeUiApi = {
     ),
   getFolders: () => ipcRenderer.invoke('folders:get'),
   openFolder: (name) => ipcRenderer.send('folder:open', name),
+  log: (level, area, message) => ipcRenderer.send('log:write', level, area, message),
 };
 
 contextBridge.exposeInMainWorld('claudeUi', api);

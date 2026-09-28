@@ -1,9 +1,10 @@
-import { app, type BrowserWindow } from 'electron';
+import { app, ipcMain, type BrowserWindow } from 'electron';
 import { readFileSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { log, logCrash } from './log';
 import { formatDuration } from './stamp';
+import { LOG_LEVELS, RENDERER_LINE_MAX, type LogLevel } from '../shared/log';
 
 export interface InstallFacts {
   packaged: boolean;
@@ -101,8 +102,27 @@ export function logProcessFailures(): void {
   });
 }
 
-/** A window whose page stops answering, and how long it took to come back. */
-export function logResponsiveness(win: BrowserWindow): void {
+/**
+ * Where a console message came from, short enough for a line: the file's name from its URL (`renderer.js`), or nothing for a source that is not one — a `data:` URL is the whole page.
+ */
+export function sourceLabel(sourceId: string): string {
+  if (sourceId.startsWith('data:')) return '';
+  const name = sourceId.split('/').pop() ?? '';
+  return name.length > 0 && name.length <= 60 ? name : '';
+}
+
+/**
+ * What the window does that the log should hear about: its page's warnings and errors, and its stopping answering.
+ *
+ * MEASURED on Electron 43 with a hidden window: an uncaught error in the page and an unhandled rejection both arrive here, as `error` lines reading `Uncaught …` and `Uncaught (in promise) …`, so this one listener is the renderer's crash reporting as well as its console.
+ * The renderer itself writes nothing to the console on purpose; what arrives is Chromium's and the page's failures, so `info` and `debug` are left out.
+ */
+export function watchWindow(win: BrowserWindow): void {
+  win.webContents.on('console-message', ({ level, message, sourceId, lineNumber }) => {
+    if (level !== 'warning' && level !== 'error') return;
+    const source = sourceLabel(sourceId);
+    log(level === 'error' ? 'error' : 'warn', 'console', `${message}${source ? ` (${source}:${lineNumber})` : ''}`);
+  });
   let since: number | null = null;
   win.on('unresponsive', () => {
     since = Date.now();
@@ -111,5 +131,16 @@ export function logResponsiveness(win: BrowserWindow): void {
   win.on('responsive', () => {
     log('info', 'renderer', `window responding again${since === null ? '' : ` after ${formatDuration(Date.now() - since)}`}`);
     since = null;
+  });
+}
+
+/**
+ * The window's own lines, from the preload `log()`: checked here rather than trusted, since the window is the less trusted side.
+ * A level must be one of the log's, an area a short lowercase word, and a line is cut at RENDERER_LINE_MAX.
+ */
+export function registerRendererLog(): void {
+  ipcMain.on('log:write', (_event, level: unknown, area: unknown, message: unknown) => {
+    if (!LOG_LEVELS.includes(level as LogLevel) || typeof area !== 'string' || !/^[a-z][a-z-]{0,19}$/.test(area) || typeof message !== 'string') return;
+    log(level as LogLevel, area, message.slice(0, RENDERER_LINE_MAX));
   });
 }

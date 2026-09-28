@@ -29,11 +29,12 @@ import {
   type SwitcherModel,
 } from './logic';
 import { parseLaunchFlags } from '../shared/flags';
-import { KEEP_CRASH_LOGS, KEEP_LOG_DATES, type FolderName } from '../shared/folders';
+import type { FolderName } from '../shared/folders';
+import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { installTooltips, setTooltip } from './tooltip';
 import { chevronIcon, strokeIcon } from './svg';
 import { iconSvg } from './panels/icons';
-import { createTerminal, bindTerminal, routeTerminals } from './terminal';
+import { createTerminal, bindTerminal, routeTerminals, lastLines } from './terminal';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged } from './panels/tree';
 import { reportBuiltinStatus } from './panels/types/builtin';
 import AirDatepicker from 'air-datepicker';
@@ -3234,6 +3235,9 @@ function onTabData(tab: Tab, data: string): void {
   }
 }
 
+/** How much of what a failed start printed goes into the log: enough for claude's own error and the line before it, and little enough that a resumed session's history, which it draws first, mostly stays out. */
+const FAILED_START_LINES = 5;
+
 function onTabExit(tab: Tab, exitCode: number): void {
   if (!tabs.includes(tab)) return; // Already closed by the user.
   // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed. Every other exit keeps today's behaviour below.
@@ -3244,7 +3248,18 @@ function onTabExit(tab: Tab, exitCode: number): void {
   // A near-instant exit almost always means claude failed to start (bad env, not found, rc error).
   // Keep the tab so the error stays visible instead of flashing away.
   // Otherwise claude exited normally, so close the tab — no leftover shell.
-  if (Date.now() - tab.startedAt < 1500) {
+  const ran = Date.now() - tab.startedAt;
+  if (ran < 1500) {
+    // What it said before it went, for the log: main records the exit, only the terminal has the words.
+    // Read once xterm has parsed everything written so far, and before the line below adds the app's own.
+    tab.term.write('', () => {
+      const said = lastLines(tab.term, FAILED_START_LINES);
+      window.claudeUi.log(
+        'warn',
+        'tab',
+        `session ${tab.session.id} did not start: claude exited with code ${exitCode} after ${ran} ms${said.length > 0 ? `, its last lines:\n${said.join('\n')}` : ', printing nothing'}`,
+      );
+    });
     tab.term.writeln(`\r\n[claude exited immediately (code ${exitCode}) — the session did not start]`);
     // Uncover the pane: this line IS the explanation of the failure, and it is exactly what the loader would otherwise hide.
     tab.booting = false;

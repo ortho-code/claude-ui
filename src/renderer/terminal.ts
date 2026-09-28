@@ -2,6 +2,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { errorText } from '../shared/log';
 
 /**
  * The xterm every terminal in the window is built from — a tab's `claude` and a panel's shell — and the one place their output and exits are routed.
@@ -16,6 +17,22 @@ const MONO_SIZE = parseInt(rootStyle.getPropertyValue('--text-mono'), 10);
 export interface TerminalView {
   term: Terminal;
   fitAddon: FitAddon;
+}
+
+let canvasLogged = false;
+
+/**
+ * The last `count` non-empty lines of a terminal, trimmed, oldest first: what a failed start said, for the log.
+ * Read from the buffer as parsed so far, so a caller that has just written waits for `term.write('', …)` first.
+ */
+export function lastLines(term: Terminal, count: number): string[] {
+  const buffer = term.buffer.active;
+  const lines: string[] = [];
+  for (let i = buffer.length - 1; i >= 0 && lines.length < count; i--) {
+    const text = buffer.getLine(i)?.translateToString(true).trim();
+    if (text) lines.unshift(text);
+  }
+  return lines;
 }
 
 /** An xterm opened in `container`, sized to it by the fit addon, drawn on canvas where that works, with http(s) links clickable. */
@@ -33,10 +50,16 @@ export function createTerminal(container: HTMLElement): TerminalView {
   term.open(container);
 
   // Canvas renderer for smoother scrolling/paste than the default DOM renderer; fall back to DOM if it can't initialize (e.g. a WSLg GPU quirk) so the terminal always works.
+  // Which one a terminal got is logged, because "the terminal is slow" cannot be answered without it: canvas once, since it is the usual answer, and every fallback, since each is news.
   try {
     term.loadAddon(new CanvasAddon());
-  } catch {
+    if (!canvasLogged) {
+      canvasLogged = true;
+      window.claudeUi.log('info', 'xterm', 'terminals draw on canvas');
+    }
+  } catch (error) {
     // DOM renderer stays in place.
+    window.claudeUi.log('warn', 'xterm', `canvas renderer failed, this terminal draws with the DOM renderer instead: ${errorText(error)}`);
   }
 
   // Make http(s) URLs clickable; open them in the OS browser via the main process.
