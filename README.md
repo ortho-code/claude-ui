@@ -24,7 +24,7 @@ Done:
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
   Sessions sharing a conversation show as siblings (a fork badge with a jump list); worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life.
-- Custom groups: sub-sections inside a project, made from a session's kebab.
+- Custom groups: sub-sections inside a project, made empty from the project's kebab or around a session from its kebab.
   Move a session between them, rename or delete a group (its sessions stay), and start a session, a fork or a worktree session straight into one.
   Open tabs cluster by group in the tab bar, and a group's name there takes you to the group in the list.
 - Ordering and overview: reorder projects and groups from their kebabs, fold every section away and back from one header button, and attach a note to any session.
@@ -51,7 +51,6 @@ Next:
 - Letting you answer when Claude asks something on its way out — whether to keep a worktree, say — instead of the tab closing over the question.
 - A worktree session keeping its worktree badge after the app restarts.
 - Context health per session in the list, coloured the way the CLI's own status line colours it.
-- Creating an empty group from the project heading, not only from a session.
 - A log file, so a problem in an installed build can be looked at afterwards.
 - Clickable paths in terminal output, opening the file the session just named in a panel.
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).

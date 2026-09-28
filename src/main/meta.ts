@@ -695,7 +695,7 @@ export function getGroupState(): Promise<GroupState> {
 }
 
 /**
- * Create a group in a project, optionally moving a session into it in the same step (the row menu's "New group…" creates and moves at once).
+ * Create a group in a project, optionally moving a session into it in the same step (the row menu's "New group…" creates and moves at once; the project heading's creates it empty).
  * Prepends, so a new group lands at the top of its project.
  * A blank name creates nothing — the caller's dialog can be dismissed empty.
  */
