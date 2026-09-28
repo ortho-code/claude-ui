@@ -459,7 +459,7 @@ interface Tab {
   /**
    * Spawned, but nothing has come out of the pty yet — the window where the pane would otherwise be black.
    * MEASURED at 2.3-3.4s for a claude start, which is far too long to show nothing.
-   * Cleared by the first byte of output, deliberately rather than by anything claude-specific: claude never switches to the alternate screen buffer (the sequence is absent from the binary), so there is no "the TUI is up" marker to wait for, and a signal that depends on how claude renders would break the moment it changed.
+   * Cleared by the first byte of output, deliberately rather than by anything claude-specific: whether claude draws on the alternate screen buffer depends on its renderer (`"tui": "fullscreen"` does, the default does not), so there is no one "the TUI is up" marker to wait for, and a signal that depends on how claude renders would break the moment it changed.
    */
   booting?: boolean;
   /** Set while a user-initiated stop is in flight, so its exit cools the tab instead of closing it. */
