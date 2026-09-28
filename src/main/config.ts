@@ -54,7 +54,7 @@ export async function readLayout(file = defaultLayoutFile): Promise<LayoutReport
   let json: unknown;
   try {
     // A byte-order mark is an editor's doing, not a mistake in the file; JSON.parse refuses it all the same.
-    json = JSON.parse(text.replace(/^﻿/, ''));
+    json = JSON.parse(text.replace(/^\uFEFF/, ''));
   } catch (error) {
     return { ...base, status: 'unparsable', error: (error as Error).message, json: null };
   }

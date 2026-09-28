@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
 import { watch, mkdirSync, type FSWatcher, promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';

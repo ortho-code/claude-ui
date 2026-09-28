@@ -344,9 +344,7 @@ describe('projectsForSwitcher', () => {
 
   it('badge is null when a folder has no live status (or all acked)', () => {
     const statuses = new Map([['a1', 'waiting']]);
-    expect(projectsForSwitcher([s('a1', '/x/alpha')], new Map(), new Set())[
-      'projects'
-    ][0].badge).toBeNull();
+    expect(projectsForSwitcher([s('a1', '/x/alpha')], new Map(), new Set()).projects[0].badge).toBeNull();
     expect(
       projectsForSwitcher([s('a1', '/x/alpha')], statuses, new Set(['a1'])).projects[0].badge,
     ).toBeNull();

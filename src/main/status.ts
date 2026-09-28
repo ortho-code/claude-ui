@@ -1,4 +1,5 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
+import { ipcMain } from 'electron';
 import { promises as fs, watch, mkdirSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -120,7 +121,7 @@ export async function installStatusHooks(): Promise<void> {
 async function removeInjectedHooks(): Promise<void> {
   let settings: { hooks?: Record<string, { hooks?: { command?: string }[] }[]> };
   try {
-    settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
+    settings = JSON.parse(await fs.readFile(settingsPath, 'utf8')) as typeof settings;
   } catch {
     return; // Missing (nothing we polluted) or malformed (must not touch it).
   }

@@ -76,7 +76,7 @@ export function installTooltips(): void {
   // Keyboard focus shows the tooltip; a mouse click that focuses does not (:focus-visible).
   document.addEventListener('focusin', (event) => {
     const target = tooltipTarget(event.target);
-    if (target && target.matches(':focus-visible')) scheduleShow(target);
+    if (target?.matches(':focus-visible')) scheduleShow(target);
   });
   document.addEventListener('focusout', hide);
   // A click acts on the element, so the hint has served its purpose; scrolling moves the anchor.

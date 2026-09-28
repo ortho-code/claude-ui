@@ -34,8 +34,8 @@ export function shellCommand(script: string, argv: string[], arg0: string): Shel
  * When the app is launched from inside a Claude session those get inherited, and a `claude` spawned with them thinks it is a nested SDK / child session and never persists its transcript.
  * `CLAUDE_UI` goes too: it is the marker the status hook fires on, so it is for the caller that WANTS the hooks to set, and only that one.
  */
-export function inheritedEnv(): { [key: string]: string } {
-  const env: { [key: string]: string } = {};
+export function inheritedEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined) continue;
     if (key === 'CLAUDECODE' || key.startsWith('CLAUDE_')) continue;

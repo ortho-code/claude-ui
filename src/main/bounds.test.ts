@@ -125,7 +125,7 @@ describe('resizeBy', () => {
   });
 
   // One case per edge and corner: which of the four numbers each one is allowed to touch.
-  const cases: Array<[string, ReturnType<typeof resizeBy>]> = [
+  const cases: [string, ReturnType<typeof resizeBy>][] = [
     ['e', { x: 500, y: 300, width: 1100, height: 800 }],
     ['s', { x: 500, y: 300, width: 1000, height: 900 }],
     ['w', { x: 600, y: 300, width: 900, height: 800 }],

@@ -151,7 +151,7 @@ class TerminalPanel implements MountedPanel {
       });
       this.fit();
     } catch (error) {
-      const refused = /MISSING_CWD:/.test(error instanceof Error ? error.message : '');
+      const refused = (error instanceof Error ? error.message : '').includes('MISSING_CWD:');
       this.host.setEnd(refused ? `${context.cwd} is not there` : 'could not start');
       // A shell that exits is somebody typing `exit`; one that never started is the failure worth a dot.
       this.host.setStatus('fail');

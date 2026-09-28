@@ -285,6 +285,8 @@ function rollUpNudge(
       case 'busy':
         busy = true;
         break;
+      default:
+        break; // closed, unknown or not reported yet — contributes nothing
     }
   }
   return waiting ? 'waiting' : idle ? 'idle' : busy ? 'busy' : null;
@@ -531,7 +533,9 @@ export function stopControlState(tab: StopControlTab): { disabled: boolean; tool
  */
 // The final alternative is "ESC + any single character that is not [ or ]", which covers the two-char escapes claude actually sends — ESC 7 and ESC 8, save and restore cursor.
 // A narrower class missed those, the digits survived the strip, and "7" read as content.
+// eslint-disable-next-line no-control-regex
 const ANSI_SEQUENCE = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)?|[^[\]])/g;
 export function hasVisibleOutput(data: string): boolean {
+  // eslint-disable-next-line no-control-regex
   return data.replace(ANSI_SEQUENCE, '').replace(/[\x00-\x1f\x7f]/g, '').trim().length > 0;
 }

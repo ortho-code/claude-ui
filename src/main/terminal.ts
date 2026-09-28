@@ -40,14 +40,14 @@ function endSession(id: number, flush: boolean): void {
 }
 
 /** What anything in a pty gets: the inherited environment, advertising 24-bit colour so claude emits its full TUI styling (e.g. the select-menu highlight) instead of a degraded fallback; the frontend xterm renders truecolor fine. */
-function ptyEnv(): { [key: string]: string } {
+function ptyEnv(): Record<string, string> {
   const env = inheritedEnv();
   env.COLORTERM = 'truecolor';
   return env;
 }
 
 /** A session's environment: a pty's, marked as claude-ui's so the status hook reports it. */
-function sessionEnv(): { [key: string]: string } {
+function sessionEnv(): Record<string, string> {
   const env = ptyEnv();
   env[SCOPE_ENV] = '1';
   return env;
@@ -57,7 +57,7 @@ function sessionEnv(): { [key: string]: string } {
  * Give a spawned pty an id, route its output and exit to the window that asked, and record it as live.
  * ONE place for a session's `claude` and a panel's shell alike, so both are stopped by the same escalation and swept at quit by the same pass.
  */
-function spawnPty(sender: WebContents, file: string, args: string[], cwd: string, env: { [key: string]: string }): number {
+function spawnPty(sender: WebContents, file: string, args: string[], cwd: string, env: Record<string, string>): number {
   const id = nextId++;
   const proc = pty.spawn(file, args, {
     // xterm.js speaks 256-colour/truecolor; the old 'xterm-color' (8-colour) terminfo made claude pick a degraded palette for its TUI.
@@ -157,6 +157,7 @@ export function registerTerminalIpc(): void {
   // It gets the panel's context in its environment and NOT the session marker: a `claude` started by hand in it must not report as one of the app's sessions.
   // Same refusal of a missing folder, same pty path, so it is stopped and swept exactly as a session is.
   // Async like `terminal:start`, so a refusal reaches the renderer as a rejection either way.
+  // eslint-disable-next-line @typescript-eslint/require-await -- async for the rejection above, with nothing to await
   ipcMain.handle('terminal:startShell', async (event, cwd: string, context: PanelContext): Promise<number> => {
     if (!cwd || !existsSync(cwd)) throw new Error(`MISSING_CWD:${cwd}`);
     return spawnPty(event.sender, loginShell(), ['-l', '-i'], cwd, { ...ptyEnv(), ...contextEnv(context) });

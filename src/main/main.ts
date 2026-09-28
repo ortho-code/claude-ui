@@ -400,7 +400,7 @@ async function createWindow(): Promise<void> {
   }
   trackBounds(mainWindow);
 
-  mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  void mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   mainWindow.webContents.on('did-finish-load', () => {
     // index.html carries its own <title>, which wins over the BrowserWindow option, so set it here instead.
     // Without auto-update the version has to be visible somewhere, and the title bar is where someone asked "which version are you on?" will actually look.
@@ -543,7 +543,7 @@ ipcMain.handle('meta:moveSessionToGroup', (_event, sessionId: string, groupId: s
 registerTerminalIpc();
 registerPanelsIpc();
 
-app.whenReady().then(async () => {
+void app.whenReady().then(async () => {
   installAppMenu();
   // Feeds the macOS About item, which the app menu above provides for free.
   app.setAboutPanelOptions({ applicationName: 'Claude UI', applicationVersion: app.getVersion() });

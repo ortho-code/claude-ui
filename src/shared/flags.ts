@@ -13,7 +13,7 @@
  * Names are checked against `claude --help` (2.1.241) rather than remembered, aliases included, since blocking `--print` while letting `-p` through would be worse than not blocking it at all.
  * `claudeArgs` is the other half of the first group: a test asserts that every flag it emits appears here, so adding one to the launch line without reserving it fails the suite rather than shipping.
  */
-const RESERVED: Array<{ names: string[]; because: string }> = [
+const RESERVED: { names: string[]; because: string }[] = [
   // Set by claude-ui itself. A second one decides something the app has already decided — which session a tab opens, what it is called, where its hooks come from.
   { names: ['--settings'], because: 'claude-ui loads its status hooks through it' },
   { names: ['--resume', '-r'], because: 'claude-ui decides which session a tab resumes' },

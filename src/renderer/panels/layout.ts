@@ -171,7 +171,7 @@ export function validateEntry(raw: unknown, index: number, types: Record<string,
         ? `icon "${raw.icon}" on ${key} is not an icon this build has (it has: ${ICON_NAMES.join(', ')})${fallback}.`
         : `icon on ${key} is not a string${fallback}.`,
     );
-  } else if (raw.icon !== undefined) icon = raw.icon as IconName;
+  } else if (raw.icon !== undefined) icon = raw.icon;
   if (problems.length > 0) icon = 'alert';
 
   const derived = type && problems.length === 0 ? type.defaultTitle(isObject(raw.options) ? raw.options : {}) : null;
@@ -291,7 +291,7 @@ class Resolver {
       else if (typeof raw.active !== 'string') problems.push('active is not a string.');
       else if (Array.isArray(list)) {
         // Checked against the entries as written, before they are walked, so a group degraded by it never registers what it holds.
-        const target = list.find((entry) => isObject(entry) && entry.id === raw.active);
+        const target: unknown = list.find((entry) => isObject(entry) && entry.id === raw.active);
         if (!target) problems.push(`active "${raw.active}" is not one of this group’s panels.`);
         else if ((target as Record<string, unknown>).hidden === true) problems.push(`active "${raw.active}" is hidden.`);
       }
@@ -438,7 +438,7 @@ function resolveRoot(json: unknown, types: Record<string, PanelTypeDecl>, report
 /** What the window shows for one read of the file. */
 export function resolveLayout(report: LayoutReport, types: Record<string, PanelTypeDecl>): LayoutView {
   if (report.status === 'unparsable') return { kind: 'unparsable', file: report.file, message: report.error ?? 'could not be read' };
-  const fallback = (problem: string) => resolveRoot(DEFAULT_LAYOUT.root, types, report, [], [problem]);
+  const fallback = (problem: string): LayoutView => resolveRoot(DEFAULT_LAYOUT.root, types, report, [], [problem]);
   if (report.status === 'missing') return resolveRoot(DEFAULT_LAYOUT.root, types, report, []);
   const json = report.json;
   if (!isObject(json)) return fallback('The file is not a JSON object.');

@@ -73,7 +73,7 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
   }
   const key = `${stat.mtimeMs}:${stat.size}`;
   const cached = summaryCache.get(file);
-  if (cached && cached.key === key) return cached.summary;
+  if (cached?.key === key) return cached.summary;
 
   let summary: SessionSummary | null;
   try {
@@ -267,7 +267,7 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
 
       let event: Record<string, unknown>;
       try {
-        event = JSON.parse(line);
+        event = JSON.parse(line) as Record<string, unknown>;
       } catch {
         continue;
       }
@@ -364,7 +364,7 @@ function extractUserText(event: Record<string, unknown>): string {
   const content = message?.content;
   if (typeof content === 'string') return content.trim();
   if (Array.isArray(content)) {
-    const text = content
+    const text = (content as ({ type?: unknown; text?: unknown } | null)[])
       .filter((b): b is { type: string; text: string } => typeof b?.text === 'string' && b.type === 'text')
       .map((b) => b.text)
       .join(' ')

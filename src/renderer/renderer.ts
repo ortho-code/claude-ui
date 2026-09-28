@@ -351,17 +351,13 @@ const groupSections = new Map<string, GroupSectionEls>();
 // The session each row currently shows, by entity key (session id), so a reused row's click/pin handlers act on the live session data of the latest render.
 let currentByKey = new Map<string, SessionSummary>();
 
-function isOpen(id: string): boolean {
-  return tabs.some((t) => t.session.id === id);
-}
-
 function updateSidebarHighlight(): void {
   for (const row of sessionRows.values()) {
     const id = row.dataset.sid ?? '';
     const tab = tabs.find((t) => t.session.id === id);
     row.classList.toggle('open', tab !== undefined);
     // "Has a tab" and "is running" stopped being the same thing once tabs restore cold, so the row says which: an accent bar for a live session, a muted one for a tab waiting to be resumed.
-    row.classList.toggle('cold', tab !== undefined && tab.terminalId === null);
+    row.classList.toggle('cold', tab?.terminalId === null);
     row.classList.toggle('active-session', activeTab?.session.id === id);
   }
 }
@@ -1036,7 +1032,7 @@ async function moveSessionToGroup(session: SessionSummary, groupId: string | nul
 // "New group…" from a row names the group and moves the session into it in one step, so the group is never briefly empty and the user never has to find it again to fill it.
 async function newGroupForSession(session: SessionSummary): Promise<void> {
   const name = await promptText('New group', projName(session.repoRoot), '', 'Create');
-  if (name === null || !name.trim()) return;
+  if (!name?.trim()) return;
   applyGroupState(await window.claudeUi.createGroup(name, session.repoRoot, entityKey(session)));
 }
 
@@ -1069,7 +1065,7 @@ async function renameGroupById(id: string): Promise<void> {
   const group = groupState.groups.find((g) => g.id === id);
   if (!group) return;
   const name = await promptText('Rename group', projName(group.repoRoot ?? ''), group.name);
-  if (name === null || !name.trim()) return;
+  if (!name?.trim()) return;
   applyGroupState(await window.claudeUi.renameGroup(id, name));
 }
 
@@ -1599,10 +1595,10 @@ function pruneRows(wanted: Set<string>): void {
  * There is deliberately no backdrop dismiss — selecting text inside the dialog and releasing outside
  * it dispatches the click on the overlay, which threw the dialog away mid-drag.
  */
-function runModal<T>(overlay: HTMLElement, escapeValue: T, bind: (finish: (result: T) => void) => Array<() => void>): Promise<T> {
+function runModal<T>(overlay: HTMLElement, escapeValue: T, bind: (finish: (result: T) => void) => (() => void)[]): Promise<T> {
   overlay.hidden = false;
   return new Promise<T>((resolve) => {
-    let unbind: Array<() => void> = [];
+    let unbind: (() => void)[] = [];
     const finish = (result: T): void => {
       overlay.hidden = true;
       for (const off of unbind) off();
@@ -1711,6 +1707,7 @@ async function openSettings(): Promise<void> {
   settingsOverlay.hidden = false;
   settingsFlags.focus();
   settingsFlags.select();
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- a dialog that returns nothing, so `finish()` takes no argument
   await runModal<void>(settingsOverlay, undefined, (finish) => {
     const submit = async (): Promise<void> => {
       const value = settingsFlags.value.trim();
@@ -1896,7 +1893,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       chev.className = 'submenu-chev';
       chev.innerHTML = chevronRight(10);
       button.append(chev);
-      const open = () => openSubmenu(button, item.submenu!);
+      const open = (): void => openSubmenu(button, item.submenu!);
       button.addEventListener('mouseenter', open);
       button.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -2034,6 +2031,7 @@ function jumpToGroup(repoRoot: string, groupId: string | null): void {
 // A brief accent wash on whatever you just jumped to. Short jumps move the list barely at all, so without it there is no way to tell the click did anything.
 function flash(el: HTMLElement): void {
   el.classList.remove('flash'); // restart it if you jump to the same place twice
+  // eslint-disable-next-line @typescript-eslint/no-meaningless-void-operator -- the read is the point, and `void` says it is unused on purpose
   void el.offsetWidth; // force a reflow so removing and re-adding actually replays the animation
   el.classList.add('flash');
   window.setTimeout(() => el.classList.remove('flash'), 900);
@@ -2358,13 +2356,15 @@ function createSessionRow(key: string): HTMLElement {
 
   const pin = document.createElement('button');
   pin.className = 'icon-btn pin';
-  pin.addEventListener('click', async (event) => {
+  pin.addEventListener('click', (event) => {
     event.stopPropagation();
     if (pin.disabled) return;
     // Disabling it is the pending cue: .pin:disabled dims. (There was a 'loading' class here with no CSS behind it, so it painted nothing.)
     pin.disabled = true;
-    pinned = new Set(await window.claudeUi.togglePin(key));
-    renderList();
+    void window.claudeUi.togglePin(key).then((ids) => {
+      pinned = new Set(ids);
+      renderList();
+    });
   });
 
   // Unarchive lives on the row because it is what the archived view is for; archiving a live session is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
@@ -2384,8 +2384,7 @@ function createSessionRow(key: string): HTMLElement {
   setTooltip(deleteBtn, 'Delete session');
   deleteBtn.hidden = true;
   deleteBtn.innerHTML = strokeIcon(14, '<path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" />');
-  deleteBtn.addEventListener('click', async (event) => {
-    event.stopPropagation();
+  const confirmAndDelete = async (): Promise<void> => {
     const session = currentByKey.get(key);
     const title = session ? sessionLabel(session) : key.slice(0, 8);
     if (!(await confirmDelete(title))) return;
@@ -2407,6 +2406,10 @@ function createSessionRow(key: string): HTMLElement {
       pendingDeletes.delete(key);
       await renderSessions(false);
     }
+  };
+  deleteBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    void confirmAndDelete();
   });
 
   // Per-session actions menu: fork this session, and (for a family member) list its siblings.
@@ -2762,7 +2765,7 @@ async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
     tab.terminalId = null;
     tab.booting = false;
     // The same wording the row's tooltip and the toast use, so the three cannot drift — this is the backstop for a folder that disappeared while the app was running, which no amount of gating can pre-empt.
-    const refused = /MISSING_CWD:/.test(error instanceof Error ? error.message : '');
+    const refused = (error instanceof Error ? error.message : '').includes('MISSING_CWD:');
     tab.failure = refused
       ? (unstartableReason({ ...tab.session, cwdExists: false }) ?? '')
       : 'This session could not be started.';
@@ -3111,10 +3114,10 @@ function initTabSortables(): void {
       onEnd: (evt) => {
         tabDragActive = false;
         tabbar.classList.remove('dragging');
-        const el = evt.item as HTMLElement;
+        const el = evt.item;
         const moved = tabs.find((t) => t.session.id === el.dataset.sid);
         // Index among the destination's tabs (ignores the project label), mapped onto the tabs array.
-        const newIndex = [...(evt.to as HTMLElement).querySelectorAll<HTMLElement>('.tab')].indexOf(el);
+        const newIndex = [...evt.to.querySelectorAll<HTMLElement>('.tab')].indexOf(el);
         if (!moved || newIndex < 0) return;
         tabs.splice(0, tabs.length, ...reorderWithinGroup(tabs, tabClusterKey, moved, newIndex));
         persistOpenTabs();
@@ -3266,16 +3269,17 @@ window.addEventListener('resize', fitActive);
 // Re-fit when the terminal area itself changes size (the tab bar wrapping to a new row, a divider dragged, the layout rebuilt), not just on window resize, so the terminal always fills its pane instead of being clipped.
 new ResizeObserver(() => fitActive()).observe(terminalsEl);
 
-newButton.addEventListener('click', async () => {
+async function pickFolderAndOpen(): Promise<void> {
   // Show an active state while the folder picker is open (it has no persistent menu of its own), matching how the other header buttons look while their panel/menu is up.
   newButton.classList.add('active');
   try {
     const dir = await window.claudeUi.pickFolder();
-    if (dir) openNewSession(dir);
+    if (dir) void openNewSession(dir);
   } finally {
     newButton.classList.remove('active');
   }
-});
+}
+newButton.addEventListener('click', () => void pickFolderAndOpen());
 searchInput.addEventListener('input', () => {
   filterText = searchInput.value.trim().toLowerCase();
   renderList();

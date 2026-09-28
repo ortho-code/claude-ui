@@ -30,7 +30,7 @@ export function splitPendingEscape(text: string): [string, string] {
   const tail = text.slice(esc);
   // A complete sequence at the end is fine to strip now; only one the regex cannot finish is held back.
   const whole = tail.match(ESCAPES);
-  if (whole && whole[0].length === tail.length) return [text, ''];
+  if (whole?.[0].length === tail.length) return [text, ''];
   // A string escape that has not seen its terminator yet is also incomplete, however long it is.
   return [text.slice(0, esc), tail];
 }

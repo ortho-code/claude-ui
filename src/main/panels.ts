@@ -47,7 +47,7 @@ export function panelInvocation(source: PanelSource): ShellInvocation {
  * `CLAUDE_UI` is deliberately NOT set — it is what fires the app's status hooks, and a panel that happens to run `claude -p` must not report as a session.
  * `NO_COLOR` and `TERM=dumb` ask for plain text; the renderer strips escape sequences on top for the tools that do not listen.
  */
-export function panelEnv(context: PanelContext): { [key: string]: string } {
+export function panelEnv(context: PanelContext): Record<string, string> {
   const env = inheritedEnv();
   delete env.COLORTERM;
   env.NO_COLOR = '1';
@@ -56,7 +56,7 @@ export function panelEnv(context: PanelContext): { [key: string]: string } {
 }
 
 /** The context as flat variables, the same set for a command panel's run and a terminal panel's shell. */
-export function contextEnv(context: PanelContext): { [key: string]: string } {
+export function contextEnv(context: PanelContext): Record<string, string> {
   return {
     CLAUDE_UI_PROJECT_ROOT: context.projectRoot,
     CLAUDE_UI_CWD: context.cwd,
@@ -150,7 +150,7 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
 
   // One decoder across chunks, so a multibyte character split between two reads still decodes.
   const decoder = new StringDecoder('utf8');
-  child.stdout!.on('data', (chunk: Buffer) => {
+  child.stdout.on('data', (chunk: Buffer) => {
     if (current.bytes >= PANEL_OUTPUT_CAP || current.finished) return;
     const room = PANEL_OUTPUT_CAP - current.bytes;
     const kept = chunk.length > room ? chunk.subarray(0, room) : chunk;
