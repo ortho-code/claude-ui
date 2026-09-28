@@ -90,7 +90,10 @@ const footerList = document.getElementById('footer-list')!;
 // A group's mark: layers, meaning "several things stacked as one". Muted, never accent — the accent belongs to the project's folder icon one line above it.
 const layersIcon = (size: number): string => strokeIcon(size, '<path d="M8 2.2 2 5.4l6 3.2 6-3.2-6-3.2Z" /><path d="M2.4 9.2 8 12.2l5.6-3" />');
 
-const FOLDER_ICON = strokeIcon(14, '<path d="M2 4h4l1.5 1.5H14V13H2z" />');
+// A project's mark, and the same folder with a slash through it for one whose directory is not there any more: ONE folder, so swapping the two moves no outline.
+const FOLDER_PATH = '<path d="M2 3.5h4l1.5 1.5H14v7.5H2z" />';
+const folderIcon = (size: number): string => strokeIcon(size, FOLDER_PATH);
+const folderGoneIcon = (size: number): string => strokeIcon(size, `${FOLDER_PATH}<line x1="2.8" y1="13.2" x2="13.2" y2="2.8" />`);
 
 // The chrome marks — carets, +, ⋮, ✓, × — as SVG rather than the text glyphs they used to be.
 // Every one of those resolved through system font fallback, which is how ⑂ ended up rendering from a MONOSPACE face beside its neighbours (see the family/worktree marks below).
@@ -2038,7 +2041,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   const section = document.createElement('section');
   section.className = 'project';
 
-  const { heading, caret, icon, label, count } = buildHeading('h2', FOLDER_ICON);
+  const { heading, caret, icon, label, count } = buildHeading('h2', folderIcon(14));
   setTooltip(label, name); // full path on hover
   label.textContent = projName(name);
   // Jump straight to one of this project's groups instead of scrolling for it.
@@ -2233,10 +2236,6 @@ const OPEN_ICON = strokeIcon(13, '<rect x="2.6" y="3.4" width="10.8" height="9.2
 const LIVE_ICON = strokeIcon(13, '<circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />');
 
 // The archived filter's mark: a lidded box. Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
-// A folder with a slash through it: the session's directory is not there any more.
-// Drawn at the same size and weight as the other pill marks, so it sits with them rather than beside them.
-const FOLDER_GONE_ICON = strokeIcon(13, '<path d="M2 12.2V3.8h3.6l1.2 1.6H14v6.8z" /><line x1="3" y1="13.2" x2="13.4" y2="2.8" />');
-
 const ARCHIVE_ICON = strokeIcon(13, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
 
 // Take it back out of the box. Archiving has no row icon — it is a kebab item (text) in the normal view; only unarchiving, the archived view's primary action, stays a button on the row.
@@ -3253,7 +3252,7 @@ const FILTER_PILLS: FilterPill[] = [
   { button: siblingFilter, icon: SIBLING_ICON, get: () => showSiblingsOnly, set: (on) => (showSiblingsOnly = on) },
   { button: noteFilter, icon: NOTE_ICON, get: () => showNotedOnly, set: (on) => (showNotedOnly = on) },
   { button: archivedFilter, icon: ARCHIVE_ICON, get: () => showArchivedOnly, set: (on) => (showArchivedOnly = on) },
-  { button: goneFilter, icon: FOLDER_GONE_ICON, get: () => showGoneOnly, set: (on) => (showGoneOnly = on) },
+  { button: goneFilter, icon: folderGoneIcon(13), get: () => showGoneOnly, set: (on) => (showGoneOnly = on) },
 ];
 
 // Each pill shows the same mark the rows use, from the one definition — a glyph would render at a different weight beside them.
