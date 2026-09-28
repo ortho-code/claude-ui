@@ -11,6 +11,7 @@ import { registerConfig } from './config';
 import { registerPanelsIpc, stopAllPanels } from './panels';
 import { logsDir } from './paths';
 import { startLog, closeLog } from './log';
+import { headerLines, logGpuStatus } from './diagnostics';
 import { localTimestamp } from './stamp';
 import {
   getPinned,
@@ -107,10 +108,8 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   const launched = localTimestamp();
-  startLog({
-    dir: logsDir,
-    header: () => [`claude-ui ${app.getVersion()} on ${process.platform} ${process.arch}, pid ${process.pid}, launched ${launched}`],
-  });
+  startLog({ dir: logsDir, header: () => headerLines(launched) });
+  logGpuStatus();
   app.on('second-instance', () => {
     if (!mainWindow) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
