@@ -25,6 +25,9 @@ The standard Electron split, with the renderer locked down:
   `contextIsolation` is on and `nodeIntegration` is off, so the renderer never touches Node directly.
 - **Renderer** (`src/renderer`) is plain DOM, no framework yet, and talks only to the preload API.
 
+The linter holds the split: a source file importing from another process's folder fails `npm run lint`, and code both sides need goes in `src/shared`.
+Tests are exempt, since a test may assert across the line — the launcher's flags against the reserved list, for one.
+
 ## Reading sessions
 
 `src/main/sessions.ts` walks `~/.claude/projects/*/*.jsonl`.
@@ -40,6 +43,13 @@ Two TypeScript projects, because the two sides need different module systems:
 - `tsconfig.renderer.json` — renderer. `ESNext` module with `bundler` resolution and the DOM libs.
 
 TypeScript 7 removed the old `moduleResolution: "node"`, so both projects use the newer values above. Shared types in `src/shared` are type-only, so nothing crosses at runtime.
+
+**`typescript` in `package.json` is TypeScript 6, and `tsc` is TypeScript 7.** TypeScript 7 has no JavaScript API yet, and typescript-eslint, which lints with the compiler's own type information, cannot run without one.
+So the `typescript` name holds `@typescript/typescript6`, the package Microsoft publishes for tools in this position, and the compiler the build runs is installed as `@typescript/native`, which is what provides the `tsc` command.
+The alias goes once typescript-eslint's supported TypeScript range includes 7.
+
+The linter reads a third project, `tsconfig.test.json`, because the test files are in neither build project and a type-aware rule needs a project for every file it reads.
+It is the linter's only: nothing type-checks the tests yet.
 
 ## Embedded terminal
 

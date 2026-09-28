@@ -18,7 +18,9 @@ Read both at the start of any change. The roadmap in `README.md` is the source o
 
 - Node is pinned in `mise.toml`. If the shell has no mise activation: `mise exec -- npm ...`.
 - Runs under WSL via WSLg; launch needs `--no-sandbox` (the `start` script sets it).
-- Two tsconfigs: `tsconfig.main.json` (main + preload, NodeNext/CommonJS) and `tsconfig.renderer.json` (renderer, ESNext/bundler). TypeScript 7 removed `moduleResolution: node`; don't reintroduce it.
+- Two tsconfigs build the app: `tsconfig.main.json` (main + preload, NodeNext/CommonJS) and `tsconfig.renderer.json` (renderer, ESNext/bundler). TypeScript 7 removed `moduleResolution: node`; don't reintroduce it. A third, `tsconfig.test.json`, is read only by the linter.
+- `typescript` in `package.json` is the TypeScript 6 API package on purpose, because typescript-eslint needs a JS API that TypeScript 7 lacks; `tsc` is TypeScript 7, installed as `@typescript/native`. Keep them as two entries (see `docs/architecture.md` § Build).
+- `npm run lint` is ESLint with type-aware rules, and CI runs it. Why each rule is off or tuned is written beside it in `eslint.config.mjs`.
 - `node-pty` (M2) is a native module — rebuild against Electron's ABI after install.
 
 ## Conventions
