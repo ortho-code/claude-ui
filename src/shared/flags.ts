@@ -105,10 +105,15 @@ function tokenize(input: string): ParsedFlags {
   return { tokens, error: null };
 }
 
+/** The flag a token names: `--flag=value` is named by what comes before the `=`. */
+function flagName(token: string): string {
+  return token.split('=', 1)[0]!;
+}
+
 /** Whether a token names a flag claude-ui passes itself, and why it is taken. `--flag=value` is checked by its name. */
 function reservationFor(token: string): { names: string[]; because: string } | null {
   if (!token.startsWith('-')) return null;
-  const name = token.split('=', 1)[0]!;
+  const name = flagName(token);
   return RESERVED.find((entry) => entry.names.includes(name)) ?? null;
 }
 
@@ -135,10 +140,7 @@ export function parseLaunchFlags(input: string): ParsedFlags {
   }
   for (const token of parsed.tokens) {
     const reserved = reservationFor(token);
-    if (reserved) {
-      const name = token.split('=', 1)[0]!;
-      return { tokens: [], error: `${name} can't be set here — ${reserved.because}.` };
-    }
+    if (reserved) return { tokens: [], error: `${flagName(token)} can't be set here — ${reserved.because}.` };
   }
   return parsed;
 }
