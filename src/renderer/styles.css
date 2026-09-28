@@ -2532,6 +2532,14 @@ button:focus:not(:focus-visible) {
   border-left: 1px solid var(--border);
 }
 
+/* Flipped menu (above its trigger, near the bottom of the window): the notch sits on the menu's bottom edge. */
+.kebab-menu.attach-bottom::before {
+  bottom: -4.5px;
+  left: var(--notch-x);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
 /* Submenu to the right of its parent item: the notch sits on the menu's left edge. */
 .kebab-menu.attach-right::before {
   left: -4.5px;

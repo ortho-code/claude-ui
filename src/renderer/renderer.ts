@@ -1936,11 +1936,15 @@ function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   }
   closeMenu();
   const menu = document.createElement('div');
-  menu.className = 'kebab-menu attach-top';
+  menu.className = 'kebab-menu';
   fillMenu(menu, items, true);
   document.body.append(menu);
   const r = anchor.getBoundingClientRect();
-  menu.style.top = `${r.bottom + 5}px`;
+  // Below the trigger, and above it when the menu would run off the bottom of the window and there is more room above — a row near the bottom of the list opened its menu half out of sight.
+  const roomBelow = window.innerHeight - r.bottom - 5 - 8;
+  const flipped = menu.offsetHeight > roomBelow && r.top - 5 - 8 > roomBelow;
+  menu.classList.add(flipped ? 'attach-bottom' : 'attach-top');
+  menu.style.top = `${flipped ? Math.max(8, r.top - 5 - menu.offsetHeight) : r.bottom + 5}px`;
   const left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8));
   menu.style.left = `${left}px`;
   // The notch points at the anchor's horizontal center, clamped clear of the rounded corners.

@@ -512,7 +512,7 @@ Any control that opens a menu or popover keeps its active look (the same fill or
 The shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, so give every such trigger a `.menu-open` style that matches its `:hover`.
 The kebabs, both split-button carets (project and group heading), and the sibling-count badge all follow this.
 
-Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an `attach-top`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a small notch on the menu's edge pointing at the trigger's center.
+Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an `attach-top`/`attach-bottom`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a small notch on the menu's edge pointing at the trigger's center.
 Anything new that floats near an anchor should go through those helpers so it gets the notch (and the active-state stamping) for free rather than reinventing positioning.
 
 **One appearance, one rule.** Anything drawn on more than one surface is a single class, never parallel rules kept in step by hand.
