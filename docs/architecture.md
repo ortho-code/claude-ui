@@ -42,7 +42,8 @@ Two TypeScript projects, because the two sides need different module systems:
 - `tsconfig.main.json` — main and preload. `NodeNext` module and resolution, emitted as CommonJS (the package has no `"type": "module"`), so `require` and `__dirname` work.
 - `tsconfig.renderer.json` — renderer. `ESNext` module with `bundler` resolution and the DOM libs.
 
-TypeScript 7 removed the old `moduleResolution: "node"`, so both projects use the newer values above. Shared types in `src/shared` are type-only, so nothing crosses at runtime.
+TypeScript 7 removed the old `moduleResolution: "node"`, so both projects use the newer values above.
+`src/shared` holds types and pure helpers, and each side compiles its own copy, so no module is shared at runtime.
 
 **`typescript` in `package.json` is TypeScript 6, and `tsc` is TypeScript 7.** TypeScript 7 has no JavaScript API yet, and typescript-eslint, which lints with the compiler's own type information, cannot run without one.
 So the `typescript` name holds `@typescript/typescript6`, the package Microsoft publishes for tools in this position, and the compiler the build runs is installed as `@typescript/native`, which is what provides the `tsc` command.
