@@ -6,6 +6,7 @@ import type { OrderMove, GroupState, SessionGroup, UiState, Settings } from '../
 import type { PanelState } from '../shared/panels';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
+import { appendStamped } from './stamp';
 
 /**
  * UI-only metadata, kept outside ~/.claude so we never touch the session store.
@@ -344,10 +345,7 @@ async function snapshotOnVersionChange(storedVersion: string): Promise<void> {
     // No file to copy yet, or an unwritable directory: the stamp still happens.
   }
   try {
-    await fs.appendFile(
-      auditPath(),
-      `${new Date().toISOString()} ===== ${direction} ${storedVersion} -> ${current} =====\n`,
-    );
+    await appendStamped(auditPath(), `===== ${direction} ${storedVersion} -> ${current} =====`);
   } catch {
     // ignore
   }
@@ -404,7 +402,7 @@ function auditPath(): string {
  */
 async function appendAudit(text: string): Promise<void> {
   try {
-    await fs.appendFile(auditPath(), `${new Date().toISOString()} #${(auditSeq += 1)} ${text}\n`);
+    await appendStamped(auditPath(), `#${(auditSeq += 1)} ${text}`);
     await trimAudit();
   } catch {
     // ignore
