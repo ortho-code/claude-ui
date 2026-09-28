@@ -28,7 +28,7 @@ export default defineConfig(
       },
     },
     rules: {
-      // Off because they fight how this code is written rather than catch mistakes in it: shorthand arrows returning void, `!` after a `has`, records used as maps, deliberate no-ops, `match` without a `g`.
+      // Off because they fight how this code is written rather than catch mistakes in it: shorthand arrows returning void, `!` where the lines just before guarantee a value, records used as maps, deliberate no-ops, `match` without a `g`.
       '@typescript-eslint/no-confusing-void-expression': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-dynamic-delete': 'off',
