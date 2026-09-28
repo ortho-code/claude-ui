@@ -380,7 +380,8 @@ function reconcileOpenTabs(): void {
       fresh.firstMessage !== tab.session.firstMessage ||
       fresh.worktree !== tab.session.worktree ||
       fresh.repoRoot !== tab.session.repoRoot ||
-      // The project label marks a project whose folder is gone, which can happen with the app running.
+      // A tab is dimmed when its session's folder is gone, and its project label marked when the project's is, and either can happen with the app running.
+      fresh.cwdExists !== tab.session.cwdExists ||
       fresh.repoRootExists !== tab.session.repoRootExists ||
       fresh.isSibling !== tab.session.isSibling ||
       fresh.siblingIds.length !== tab.session.siblingIds.length;
@@ -2994,11 +2995,14 @@ function renderTabBar(): void {
 
 function tabElement(tab: Tab): HTMLElement {
   const el = document.createElement('div');
-  // 'cold' = restored but never started. Dimmed rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
+  // 'cold' = restored but never started. Unfilled rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
+  // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
+  const unstartable = unstartableReason(tab.session);
   el.className = [
     'tab',
     tab === activeTab ? 'active' : '',
     tab.terminalId === null ? 'cold' : '',
+    unstartable ? 'unstartable' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -3027,7 +3031,7 @@ function tabElement(tab: Tab): HTMLElement {
   label.className = 'tab-label';
   const text = sessionLabel(tab.session);
   label.textContent = text;
-  setTooltip(label, `${projName(tab.session.repoRoot)} · ${text}`);
+  setTooltip(label, unstartable ?? `${projName(tab.session.repoRoot)} · ${text}`);
 
   // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind. See closeOrStop.
   const close = document.createElement('button');

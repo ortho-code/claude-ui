@@ -1539,11 +1539,16 @@ button:focus:not(:focus-visible) {
 }
 
 /* A session whose folder is gone: it cannot be run, only managed (unpin, note, archive, delete).
-   Dimmed rather than hidden — it is still real history you may want to read or clean up — and the
-   default cursor says the row is not the way in, with the tooltip carrying the reason. The controls
-   inside keep their own pointer, since those still work. */
-.session.unstartable {
+   Dimmed rather than hidden — it is still real history you may want to read or clean up — with the tooltip carrying the reason.
+   Its tab is dimmed by the same rule, so the row and the tab cannot come to disagree, and that is also what tells it apart from a cold tab, which can be resumed. */
+.session.unstartable,
+.tab.unstartable {
   opacity: 0.55;
+}
+
+/* The default cursor says the row is not the way in; the controls inside keep their own pointer, since those still work.
+   A tab keeps its pointer: clicking it still selects it, and the pane says why it will not start. */
+.session.unstartable {
   cursor: default;
 }
 

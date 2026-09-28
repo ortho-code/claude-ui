@@ -34,7 +34,7 @@ Done:
   A session in the strip can be muted or stopped where it is listed, so acting on one in another project doesn't cost you the project you're looking at.
   The strip keeps still: it follows your tabs, clustered by group, so a row only moves when you move a tab.
 - Sessions are followed the way they actually run: stopping one escalates until it has really ended, a `/clear` carries on in the same tab and group as a new session, and a `/model` switch shows at once.
-- A session whose folder is gone says so and refuses to start, instead of starting somewhere nobody chose; pinning, notes, archiving and deleting still work.
+- A session whose folder is gone says so, in its row and on its tab, and refuses to start, instead of starting somewhere nobody chose; pinning, notes, archiving and deleting still work.
   A project whose folder is gone says so too, in the project switcher, on its heading and in the tab bar.
 - Project rename, app icon, single-instance lock.
 - Opens the way you left it: window size and position, and the sidebar's search, filters, folds, width and scroll offset.

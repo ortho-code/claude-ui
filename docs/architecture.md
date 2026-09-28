@@ -138,6 +138,8 @@ They are separate because a removed worktree leaves its repo perfectly usable, w
 Both are re-derived on every listing rather than cached beside the summary: a folder can be removed or put back without the transcript changing, and one stat per distinct path covers hundreds of sessions.
 
 What that buys is a row that says so before you click it. A session whose folder is gone is dimmed and unclickable with the reason in its tooltip, its **Fork** item stays in the kebab but dimmed and inert, and the "+" on a project whose root is gone is unavailable with the same explanation.
+Its tab, if it has one, is dimmed by the same rule with the same tooltip, and that is what tells it apart from a cold tab: cold is unfilled and resumes on a click, dimmed will not start at all.
+The tab still selects on a click, since the pane is where the reason is said in full.
 An action that cannot be taken is shown rather than removed: a menu that changes shape has to be re-read, and an item that vanishes looks like it was never there, where a dimmed one answers the question you opened the menu to ask.
 
 **Unavailable is `aria-disabled`, never the `disabled` property**, and the reason is the tooltip: a natively disabled button emits no mouse events in Chromium, so a tooltip delegated from `document` never fires and the only thing explaining the refusal is invisible. `setUnavailable()` marks a control and carries the reason; the click handler refuses with `unavailable()`, which is the trade for a tooltip that works.
