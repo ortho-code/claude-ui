@@ -1,8 +1,9 @@
-import { app } from 'electron';
+import { app, type BrowserWindow } from 'electron';
 import { readFileSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { log } from './log';
+import { log, logCrash } from './log';
+import { formatDuration } from './stamp';
 
 export interface InstallFacts {
   packaged: boolean;
@@ -70,5 +71,45 @@ export function logGpuStatus(): void {
     if (status === logged) return;
     logged = status;
     log('info', 'gpu', status);
+  });
+}
+
+/**
+ * Everything that ends a process of the app, logged without changing what happens next.
+ *
+ * `uncaughtExceptionMonitor`, never `uncaughtException`: Electron shows its "A JavaScript error occurred in the main process" dialog only while nobody else listens for the latter (`lib/browser/init.ts`), so a listener here would silently take that dialog away. The monitor sees the error first and does not count as a listener.
+ * MEASURED on Electron's own Node: it also sees an unhandled rejection, which Node raises as an uncaught exception, with `origin` saying which it was. Both are kept as crash logs — they reach the user as the same dialog, and Node treats them as the same thing.
+ * A renderer or child process that exits cleanly is a line, not a crash; the GPU process dying is one, since it is the first suspect for a window that paints blank.
+ */
+export function logProcessFailures(): void {
+  process.on('uncaughtExceptionMonitor', (error, origin) => {
+    // Typed as an Error, but a rejection can carry any value at all.
+    const reason: unknown = error;
+    const what = origin === 'unhandledRejection' ? 'unhandled rejection' : 'uncaught exception';
+    logCrash('main', `${what}: ${reason instanceof Error ? (reason.stack ?? reason.message) : String(reason)}`);
+  });
+  app.on('render-process-gone', (_event, _contents, details) => {
+    const line = `renderer gone: ${details.reason}, exit code ${details.exitCode}`;
+    if (details.reason === 'clean-exit') log('info', 'renderer', line);
+    else logCrash('renderer', line);
+  });
+  app.on('child-process-gone', (_event, details) => {
+    const line = `${details.type} process gone: ${details.reason}, exit code ${details.exitCode}${details.name ? ` (${details.name})` : ''}`;
+    if (details.reason === 'clean-exit') log('info', 'process', line);
+    else if (details.type === 'GPU') logCrash('gpu', line);
+    else log('error', 'process', line);
+  });
+}
+
+/** A window whose page stops answering, and how long it took to come back. */
+export function logResponsiveness(win: BrowserWindow): void {
+  let since: number | null = null;
+  win.on('unresponsive', () => {
+    since = Date.now();
+    log('warn', 'renderer', 'window stopped responding');
+  });
+  win.on('responsive', () => {
+    log('info', 'renderer', `window responding again${since === null ? '' : ` after ${formatDuration(Date.now() - since)}`}`);
+    since = null;
   });
 }
