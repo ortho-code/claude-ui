@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { EventEmitter } from 'node:events';
 
 // The IPC handlers panels.ts registers, and every child it spawns, captured so the tests can drive them the way the renderer and the OS do.
@@ -90,7 +90,7 @@ describe('what reaches the shell', () => {
 });
 
 describe('a run', () => {
-  let kill: ReturnType<typeof vi.spyOn>;
+  let kill: MockInstance<typeof process.kill>;
   let sent: { entryId: string; token: string; event: PanelRunEvent }[];
   const sender = {
     isDestroyed: () => false,

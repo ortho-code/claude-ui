@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 
 // The IPC handlers terminal.ts registers, captured so the tests can call them the way the renderer does.
 const { handlers, spawned, seq } = vi.hoisted(() => ({
@@ -156,7 +156,7 @@ describe('claudeArgs', () => {
  * A single signal is a REQUEST — `SIGHUP` most of all, which a Node program may decline — and the app used to send one and forget the process, so a stop could report success over a session that was still running.
  */
 describe('stopping a session', () => {
-  let kill: ReturnType<typeof vi.spyOn>;
+  let kill: MockInstance<typeof process.kill>;
 
   /** Start a session the way the renderer does, and hand back its pty and terminal id. */
   async function start(): Promise<{ proc: FakePty; id: number }> {

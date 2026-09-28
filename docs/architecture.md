@@ -49,8 +49,8 @@ TypeScript 7 removed the old `moduleResolution: "node"`, so both projects use th
 So the `typescript` name holds `@typescript/typescript6`, the package Microsoft publishes for tools in this position, and the compiler the build runs is installed as `@typescript/native`, which is what provides the `tsc` command.
 The alias goes once typescript-eslint's supported TypeScript range includes 7.
 
-The linter reads a third project, `tsconfig.test.json`, because the test files are in neither build project and a type-aware rule needs a project for every file it reads.
-It is the linter's only: nothing type-checks the tests yet.
+A third project, `tsconfig.test.json`, covers the test files, which are in neither build project.
+The linter reads it, because a type-aware rule needs a project for every file it reads, and `npm test` type-checks it before running anything, because vitest strips a test's types without checking them.
 
 ## Embedded terminal
 

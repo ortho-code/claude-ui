@@ -1,6 +1,6 @@
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
-import type { ClaudeUiApi, OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
+import type { OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
 import {
   sessionsByKey,
   structuralSignature,
@@ -38,12 +38,6 @@ import { reportBuiltinStatus } from './panels/types/builtin';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
 import Sortable from 'sortablejs';
-
-declare global {
-  interface Window {
-    claudeUi: ClaudeUiApi;
-  }
-}
 
 const container = document.getElementById('sessions')!;
 const newButton = document.getElementById('new-session') as HTMLButtonElement;

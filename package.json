@@ -11,7 +11,7 @@
     "build:renderer": "tsc --noEmit -p tsconfig.renderer.json && esbuild src/renderer/renderer.ts --bundle --format=esm --minify --outfile=dist/renderer/renderer.js --sourcemap && cp src/renderer/index.html src/renderer/styles.css assets/icon.png node_modules/@xterm/xterm/css/xterm.css node_modules/air-datepicker/air-datepicker.css dist/renderer/",
     "build": "npm run build:main && npm run build:renderer",
     "start": "npm run build && electron . --no-sandbox",
-    "test": "vitest run",
+    "test": "tsc --noEmit -p tsconfig.test.json && vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
     "rebuild": "electron-rebuild -f -w node-pty",
