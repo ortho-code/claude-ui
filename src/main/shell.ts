@@ -9,6 +9,8 @@
  * Both are the shell's own, not the command's, so a pipe-bound caller discards the shell's stderr and `exec`s the command in its place (see panels.ts); the pty has a tty, so neither shows there.
  */
 
+import { log } from './log';
+
 /** The user's login shell. */
 export function loginShell(): string {
   return process.env.SHELL ?? '/bin/bash';
@@ -81,6 +83,9 @@ export function signalGroup(pid: number, signal: NodeJS.Signals): void {
 export function terminateGroup(pid: number, stillRunning: () => boolean): void {
   signalGroup(pid, 'SIGTERM');
   setTimeout(() => {
-    if (stillRunning()) signalGroup(pid, 'SIGKILL');
+    if (!stillRunning()) return;
+    // Worth a line of its own: a process that declines SIGTERM is either stuck or ignoring it, and nothing else would say which one needed killing.
+    log('warn', 'process', `pid ${pid} still running ${KILL_GRACE_MS} ms after SIGTERM, sending SIGKILL`);
+    signalGroup(pid, 'SIGKILL');
   }, KILL_GRACE_MS);
 }

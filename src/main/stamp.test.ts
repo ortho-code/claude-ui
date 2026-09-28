@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { localTimestamp, appendStamped } from './stamp';
+import { localTimestamp, appendStamped, formatDuration } from './stamp';
 
 // Node re-reads TZ when it is assigned, so each case can pin a zone. Restored afterwards, since the rest of the file must not depend on which case ran last.
 const originalTz = process.env.TZ;
@@ -52,6 +52,23 @@ describe('localTimestamp', () => {
       const moment = new Date('2026-09-28T12:30:12.345Z');
       expect(new Date(localTimestamp(moment)).getTime()).toBe(moment.getTime());
     }
+  });
+});
+
+describe('formatDuration', () => {
+  it('says each size of duration in the unit it is read in', () => {
+    expect(formatDuration(850)).toBe('850 ms');
+    expect(formatDuration(12_345)).toBe('12.3 s');
+    expect(formatDuration(245_000)).toBe('4m 05s');
+    expect(formatDuration(7_380_000)).toBe('2h 03m');
+  });
+
+  it('moves up a unit exactly at each boundary', () => {
+    expect(formatDuration(999)).toBe('999 ms');
+    expect(formatDuration(1000)).toBe('1.0 s');
+    expect(formatDuration(59_999)).toBe('59.9 s');
+    expect(formatDuration(60_000)).toBe('1m 00s');
+    expect(formatDuration(3_600_000)).toBe('1h 00m');
   });
 });
 

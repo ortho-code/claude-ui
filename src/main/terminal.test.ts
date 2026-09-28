@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 
 // The IPC handlers terminal.ts registers, captured so the tests can call them the way the renderer does.
-const { handlers, spawned, seq } = vi.hoisted(() => ({
+const { handlers, spawned, seq, logged } = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   spawned: [] as FakePty[],
   // Never reset, unlike `spawned`: terminal.ts keeps its own map of live ptys across tests, and a recycled pid would have one test's signals counted against another's process.
   seq: { pid: 4000 },
+  /** Every log line, as `level area message`; the log itself is not started in tests. */
+  logged: [] as string[],
+}));
+
+vi.mock('./log', () => ({
+  log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
 /** Enough of node-pty's IPty to drive the stop paths: a pid to signal, the writes to inspect, and an exit we fire by hand — plus what it was spawned with, for the tests that pin that. */
@@ -55,7 +61,7 @@ vi.mock('node-pty', () => ({
   },
 }));
 
-import { claudeArgs, registerTerminalIpc, terminateAll } from './terminal';
+import { claudeArgs, describeLaunch, registerTerminalIpc, terminateAll } from './terminal';
 
 const SETTINGS = '/home/u/.config/claude-ui/claude-settings.json';
 
@@ -300,5 +306,66 @@ describe('stopping a session', () => {
     await vi.advanceTimersByTimeAsync(2000);
     expect(signals(a.proc.pid)).toContain('SIGKILL');
     expect(signals(b.proc.pid)).toContain('SIGKILL');
+  });
+});
+
+describe('describeLaunch', () => {
+  it('names the kind of start and the sessions in it', () => {
+    expect(describeLaunch({ sessionId: 'new-1' }, [])).toBe('new session new-1');
+    expect(describeLaunch({ resumeSessionId: 'old-1' }, [])).toBe('resume old-1');
+    expect(describeLaunch({ sessionId: 'new-2', resumeSessionId: 'old-1', fork: true }, [])).toBe('fork new-2 of old-1');
+  });
+
+  it('says a worktree is new but never its name, nor the session name', () => {
+    const line = describeLaunch({ sessionId: 'new-1', name: 'Payroll rewrite', worktree: 'payroll' }, []);
+    expect(line).toBe('new session new-1, in a new worktree');
+    expect(describeLaunch({ sessionId: 'new-1', worktree: '' }, [])).toBe('new session new-1, in a new worktree');
+  });
+
+  it('lists the user flags by name, never their values', () => {
+    expect(describeLaunch({ resumeSessionId: 'old-1' }, ['--model', 'opus', '--append-system-prompt=private words'])).toBe(
+      'resume old-1, flags --model --append-system-prompt',
+    );
+  });
+});
+
+describe('what a terminal logs', () => {
+  const sender = { isDestroyed: () => false, send: vi.fn() };
+  const lines = (id: number): string[] => logged.filter((line) => line.startsWith(`info terminal ${id} `) || line.startsWith(`warn terminal ${id} `));
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    handlers.clear();
+    spawned.length = 0;
+    logged.length = 0;
+    registerTerminalIpc();
+    vi.spyOn(process, 'kill').mockImplementation(() => true);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('its start with the pid, and an exit nobody asked for with a failing code as a warning', async () => {
+    const id = (await handlers.get('terminal:start')!({ sender }, process.cwd(), { resumeSessionId: 'old-1' })) as number;
+    const proc = spawned[spawned.length - 1];
+    await vi.advanceTimersByTimeAsync(2500);
+    proc.exit(1);
+    expect(lines(id)).toEqual([`info terminal ${id} started, pid ${proc.pid}: resume old-1 in ${process.cwd()}`, `warn terminal ${id} ended: code 1, after 2.5 s`]);
+  });
+
+  it('a stop, the SIGKILL it needed, and the exit as asked', async () => {
+    const id = (await handlers.get('terminal:start')!({ sender }, process.cwd(), {})) as number;
+    const proc = spawned[spawned.length - 1];
+    handlers.get('terminal:kill')!(null, id);
+    await vi.advanceTimersByTimeAsync(2000);
+    proc.exit(137);
+    expect(lines(id).slice(1)).toEqual([`info terminal ${id} stopping`, `info terminal ${id} ended: code 137, after 2.0 s, as asked`]);
+    expect(logged).toContain(`warn process pid ${proc.pid} still running 1200 ms after SIGTERM, sending SIGKILL`);
+  });
+
+  it('a start refused because its folder is not there', async () => {
+    await expect(handlers.get('terminal:start')!({ sender }, '/definitely/not/here', {})).rejects.toThrow(/MISSING_CWD/);
+    expect(logged).toEqual(['warn terminal refused to start: /definitely/not/here is not there']);
   });
 });

@@ -110,6 +110,14 @@ function flagName(token: string): string {
   return token.split('=', 1)[0]!;
 }
 
+/**
+ * The flags a parsed line names, without their values: `--model opus --effort=high` gives `--model --effort`.
+ * What the log records of the user's flags, since a value can hold text nobody meant to hand over (`--append-system-prompt`'s, for one).
+ */
+export function flagNames(tokens: string[]): string[] {
+  return tokens.filter((token) => token.startsWith('-')).map(flagName);
+}
+
 /** Whether a token names a flag claude-ui passes itself, and why it is taken. `--flag=value` is checked by its name. */
 function reservationFor(token: string): { names: string[]; because: string } | null {
   if (!token.startsWith('-')) return null;

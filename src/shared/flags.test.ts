@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { parseLaunchFlags, isReservedFlag } from './flags';
+import { parseLaunchFlags, isReservedFlag, flagNames } from './flags';
 
 // Only needed for the reserved-list cross-check below, which imports terminal.ts.
 vi.mock('electron', () => ({
@@ -23,6 +23,20 @@ const fails = (input: string): string => {
   expect(parsed.tokens).toEqual([]);
   return parsed.error!;
 };
+
+describe('flagNames', () => {
+  it('names each flag once, without its value in either form', () => {
+    expect(flagNames(ok('--model opus --effort=high --append-system-prompt "be brief, it is late"'))).toEqual([
+      '--model',
+      '--effort',
+      '--append-system-prompt',
+    ]);
+  });
+
+  it('has nothing for an empty line', () => {
+    expect(flagNames([])).toEqual([]);
+  });
+});
 
 describe('parseLaunchFlags', () => {
   it('has nothing to say about an empty field', () => {

@@ -4,8 +4,10 @@ import { existsSync } from 'node:fs';
 import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup } from './shell';
 import { contextEnv } from './panels';
-import { parseLaunchFlags } from '../shared/flags';
+import { flagNames, parseLaunchFlags } from '../shared/flags';
 import { getSettings } from './meta';
+import { log } from './log';
+import { formatDuration } from './stamp';
 import type { TerminalLaunch } from '../shared/types';
 import type { PanelContext } from '../shared/panels';
 
@@ -29,6 +31,7 @@ function endSession(id: number, flush: boolean): void {
   if (!proc || ending.has(id)) return;
   ending.add(id);
   const { pid } = proc;
+  log('info', 'terminal', `${id} stopping${flush ? ', Ctrl-C first' : ''}`);
   const insist = (): void => terminateGroup(pid, () => terminals.has(id));
   if (!flush) {
     insist();
@@ -55,10 +58,11 @@ function sessionEnv(): Record<string, string> {
 
 /**
  * Give a spawned pty an id, route its output and exit to the window that asked, and record it as live.
- * ONE place for a session's `claude` and a panel's shell alike, so both are stopped by the same escalation and swept at quit by the same pass.
+ * ONE place for a session's `claude` and a panel's shell alike, so both are stopped by the same escalation and swept at quit by the same pass — and logged the same way, `what` saying which it is.
  */
-function spawnPty(sender: WebContents, file: string, args: string[], cwd: string, env: Record<string, string>): number {
+function spawnPty(sender: WebContents, what: string, file: string, args: string[], cwd: string, env: Record<string, string>): number {
   const id = nextId++;
+  const started = Date.now();
   const proc = pty.spawn(file, args, {
     // xterm.js speaks 256-colour/truecolor; the old 'xterm-color' (8-colour) terminfo made claude pick a degraded palette for its TUI.
     name: 'xterm-256color',
@@ -68,16 +72,43 @@ function spawnPty(sender: WebContents, file: string, args: string[], cwd: string
     env,
   });
   terminals.set(id, proc);
+  // The pid is what the stop escalation's own lines name (shell.ts), so it is here to match them against.
+  log('info', 'terminal', `${id} started, pid ${proc.pid}: ${what} in ${cwd}`);
   proc.onData((data) => {
     if (!sender.isDestroyed()) sender.send('terminal:data', id, data);
   });
   // The pty's own exit is the ONE place a session is recorded as over. Everything that stops one reads this rather than assuming its signal worked.
-  proc.onExit(({ exitCode }) => {
+  proc.onExit(({ exitCode, signal }) => {
+    const asked = ending.has(id);
     terminals.delete(id);
     ending.delete(id);
+    // An exit nobody asked for, with a failing code, is the one worth finding again; a stop's code is whatever the signal left.
+    const how = `code ${exitCode}${signal ? `, signal ${signal}` : ''}, after ${formatDuration(Date.now() - started)}`;
+    log(asked || exitCode === 0 ? 'info' : 'warn', 'terminal', `${id} ended: ${how}${asked ? ', as asked' : ''}`);
     if (!sender.isDestroyed()) sender.send('terminal:exit', id, exitCode);
   });
   return id;
+}
+
+/**
+ * How a session's start reads in the log: which kind of start, the sessions involved, and the user's own flags by NAME.
+ * A session's name and a worktree's are the user's words, like its prompts, so neither is written; nor is a flag's value.
+ */
+export function describeLaunch(launch: TerminalLaunch, extra: string[]): string {
+  let what: string;
+  if (launch.fork && launch.resumeSessionId) what = `fork ${launch.sessionId ?? '(no id)'} of ${launch.resumeSessionId}`;
+  else if (launch.resumeSessionId) what = `resume ${launch.resumeSessionId}`;
+  else what = `new session ${launch.sessionId ?? '(no id)'}`;
+  if (launch.worktree !== undefined) what += ', in a new worktree';
+  const names = flagNames(extra);
+  if (names.length > 0) what += `, flags ${names.join(' ')}`;
+  return what;
+}
+
+/** A start refused because its folder is not there, logged before the renderer is told. */
+function refuseMissing(cwd: string): never {
+  log('warn', 'terminal', `refused to start: ${cwd ? `${cwd} is not there` : 'no folder given'}`);
+  throw new Error(`MISSING_CWD:${cwd}`);
 }
 
 /** What a session is launched with: the renderer's request plus the parts only the main process knows. */
@@ -137,20 +168,21 @@ export function registerTerminalIpc(): void {
     // The old fallback did exactly that, and said nothing: a session whose folder had been removed started in `~`, and then wrote its transcript under the HOME project, so it moved in the sidebar as well. The only visible sign was Claude Code asking for workspace trust on a directory nobody had chosen.
     // HOW OFTEN depends entirely on how somebody works, so it is not worth guessing: on the machine this was written on exactly one resolved directory was missing, because a session that LEAVES a `claude -w` worktree records its original cwd and the reader follows that. Somebody who removes trees while sessions still point INTO them meets it constantly.
     // Refusing here rather than only in the UI, so nothing can reach a spawn by another route.
-    if (!cwd || !existsSync(cwd)) throw new Error(`MISSING_CWD:${cwd}`);
+    if (!cwd || !existsSync(cwd)) refuseMissing(cwd);
     // Guard on the settings file's existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
     // Stored flags are validated before they are written, so a failure here means a hand-edited meta.json; launch without them rather than refusing to start a session over it.
+    const extra = parseLaunchFlags((await getSettings()).launchFlags).tokens;
     const claudeFlags = claudeArgs({
       ...launch,
       settingsFile: existsSync(statusSettingsFile) ? statusSettingsFile : null,
-      extra: parseLaunchFlags((await getSettings()).launchFlags).tokens,
+      extra,
     });
     // `claude` is `$0`: it names the process in any error the shell itself prints, and it is not passed on to claude.
     const { file: shell, args } = shellCommand(SHELL_COMMAND, claudeFlags, 'claude');
     const env = sessionEnv();
     // Marks the terminal rather than the session, so the hook can still say which tab reported after `/clear` has replaced the session in it.
     if (launch.tabToken) env[TAB_ENV] = launch.tabToken;
-    return spawnPty(event.sender, shell, args, cwd, env);
+    return spawnPty(event.sender, describeLaunch(launch, extra), shell, args, cwd, env);
   });
 
   // A PLAIN SHELL, for a terminal panel: the same interactive login shell a session runs `claude` in, with nothing to run, so the prompt is the user's own.
@@ -159,8 +191,8 @@ export function registerTerminalIpc(): void {
   // Async like `terminal:start`, so a refusal reaches the renderer as a rejection either way.
   // eslint-disable-next-line @typescript-eslint/require-await -- async for the rejection above, with nothing to await
   ipcMain.handle('terminal:startShell', async (event, cwd: string, context: PanelContext): Promise<number> => {
-    if (!cwd || !existsSync(cwd)) throw new Error(`MISSING_CWD:${cwd}`);
-    return spawnPty(event.sender, loginShell(), ['-l', '-i'], cwd, { ...ptyEnv(), ...contextEnv(context) });
+    if (!cwd || !existsSync(cwd)) refuseMissing(cwd);
+    return spawnPty(event.sender, 'panel shell', loginShell(), ['-l', '-i'], cwd, { ...ptyEnv(), ...contextEnv(context) });
   });
 
   ipcMain.on('terminal:input', (_event, id: number, data: string) => {
@@ -183,5 +215,6 @@ export function registerTerminalIpc(): void {
  * Down the same path as any other stop, so quitting cannot be the one route that leaves something running — `before-quit` delays the quit itself, which is what gives the escalation room to land.
  */
 export function terminateAll(): void {
+  if (terminals.size > 0) log('info', 'terminal', `quitting: stopping ${terminals.size} terminal${terminals.size === 1 ? '' : 's'}`);
   for (const id of [...terminals.keys()]) endSession(id, false);
 }

@@ -15,6 +15,17 @@ export function localTimestamp(date: Date = new Date()): string {
   return `${day}T${time}${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
 }
 
+/** How long something ran, as a record line says it: `850 ms`, `12.3 s`, `4m 05s`, `2h 03m`. */
+export function formatDuration(ms: number): string {
+  // Every unit is cut rather than rounded, so a duration never reads as the next unit up (`1000 ms`, `60.0 s`).
+  if (ms < 1000) return `${Math.floor(ms)} ms`;
+  if (ms < 60_000) return `${(Math.floor(ms / 100) / 10).toFixed(1)} s`;
+  const seconds = Math.floor(ms / 1000);
+  const two = (n: number): string => String(n).padStart(2, '0');
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${two(seconds % 60)}s`;
+  return `${Math.floor(seconds / 3600)}h ${two(Math.floor(seconds / 60) % 60)}m`;
+}
+
 /**
  * Append one line to `file`, stamped with the moment it is written.
  * The one way the app's own record files take a line, so they cannot disagree about how a moment is written.
