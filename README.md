@@ -47,6 +47,9 @@ Done:
 
 Next:
 
+- Letting you answer when Claude asks something on its way out — whether to keep a worktree, say — instead of the tab closing over the question.
+- A worktree session keeping its worktree badge after the app restarts.
+- Clicking a group's label in the tab bar to reach that group in the sidebar, as a project's label already does.
 - Context health per session in the list, coloured the way the CLI's own status line colours it.
 - Creating an empty group from the project heading, not only from a session.
 - A log file, so a problem in an installed build can be looked at afterwards.
@@ -55,6 +58,7 @@ Next:
 - Playwright end-to-end tests, then split view.
 - Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.
 - More panel types (markdown, diff, transcript, config), and layouts per project.
+- Panels opened at will rather than only from the file, such as a second shell, and panels that belong to one project while others stay the same everywhere.
 - Minimize-to-tray.
 - A readable transcript viewer (after a compaction, the CLI cannot show a resumed session's earlier history — the transcript file still has it).
 - Telling you when a session fails to start, instead of leaving the terminal to explain it.
