@@ -133,6 +133,7 @@ class TerminalPanel implements MountedPanel {
     try {
       const id = await window.claudeUi.startShell(context.cwd, context);
       // Gone while it was starting: hand the shell straight back rather than leave one running with nothing showing it.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- dispose() can run during the await, which TypeScript's narrowing does not see
       if (this.disposed) {
         window.claudeUi.killTerminal(id);
         return;

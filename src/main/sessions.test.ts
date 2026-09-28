@@ -309,7 +309,7 @@ describe('sibling grouping across refreshes', () => {
       ),
     );
     let p1 = (await listSessions()).find((s) => s.id === 'p1');
-    expect(p1?.siblingIds?.slice().sort()).toEqual(['p2', 'p3']);
+    expect(p1?.siblingIds.slice().sort()).toEqual(['p2', 'p3']);
 
     // p3 leaves again: cached summaries must lose the stale mark, not keep it.
     await fs.rm(p3File);

@@ -771,7 +771,7 @@ function updateFilterChips(): void {
     datePreset === 'any'
       ? ''
       : datePreset === 'custom'
-        ? (dateRangeLabel.textContent ?? '')
+        ? dateRangeLabel.textContent
         : (datePresets.querySelector(`[data-range="${datePreset}"]`)?.textContent ?? datePreset);
   const signature = JSON.stringify([filterText ? search : '', pills.map((pill) => pill.button.id), dateText]);
   if (signature === lastChipsSignature) return;

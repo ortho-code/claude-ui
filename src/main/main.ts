@@ -87,7 +87,7 @@ const appTitle = `Claude UI ${app.getVersion()}${app.isPackaged ? '' : ' — dev
  * lights and puts nothing in their place, and the mac build is real, published on every version tag.
  * Its variant is `titleBarStyle: 'hiddenInset'`, unbuilt while nobody here can look at a Mac.
  */
-const OWN_CHROME = false;
+const OWN_CHROME = false as boolean;
 
 // `--no-sandbox` cannot be set from inside the app.
 // Do NOT try `app.commandLine.appendSwitch('no-sandbox')`: it was tried and reverted, because it runs too late for the renderer, which then dies with a FATAL about /dev/shm permissions (misleading — /dev/shm is fine) and leaves an empty window painted in the background colour.

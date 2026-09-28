@@ -34,8 +34,6 @@ export default defineConfig(
       '@typescript-eslint/no-dynamic-delete': 'off',
       '@typescript-eslint/no-empty-function': 'off',
       '@typescript-eslint/prefer-regexp-exec': 'off',
-      // Off because without `noUncheckedIndexedAccess` every index lookup looks non-nullable, so the rule asks for exactly the checks that guard parsed files and constant flags to be removed.
-      '@typescript-eslint/no-unnecessary-condition': 'off',
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
       // An empty string falls through to the next choice on purpose wherever `||` meets a string here.
       '@typescript-eslint/prefer-nullish-coalescing': ['error', { ignorePrimitives: { string: true } }],

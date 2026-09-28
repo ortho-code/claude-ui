@@ -226,9 +226,11 @@ function normalize(parsed: Record<string, unknown>): Meta {
   }
   // Drop malformed group entries, then any membership naming a group that no longer exists, so a hand-edited or half-written file can't leave a session pointing at nothing.
   const groups = Array.isArray(parsed.groups)
-    ? (parsed.groups as SessionGroup[]).filter(
-        (g) => g && typeof g.id === 'string' && typeof g.name === 'string' && (typeof g.repoRoot === 'string' || g.repoRoot === null),
-      )
+    ? (parsed.groups as unknown[]).filter((raw): raw is SessionGroup => {
+        if (!raw || typeof raw !== 'object') return false;
+        const g = raw as Record<string, unknown>;
+        return typeof g.id === 'string' && typeof g.name === 'string' && (typeof g.repoRoot === 'string' || g.repoRoot === null);
+      })
     : [];
   const ids = new Set(groups.map((g) => g.id));
   const groupOf: Record<string, string> = {};

@@ -185,7 +185,7 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
     live.delete(current);
     setTimeout(() => {
       if (closed) return;
-      child.stdout?.destroy();
+      child.stdout.destroy();
       ended(code, signal);
     }, 1000);
   });
