@@ -18,6 +18,13 @@ app.setPath('userData', path.join(app.getPath('appData'), 'claude-ui'));
 /** Everything claude-ui owns lives here: meta.json, the status files, and the hook script. */
 export const configDir = app.getPath('userData');
 
+/**
+ * The app's log files (log.ts): `~/.config/claude-ui/logs` on Linux, `~/Library/Logs/Claude UI` on macOS, where a Mac keeps logs.
+ * Read here, below the pin, and nowhere else: the call creates the folder as a side effect, and made before the pin on Linux it resolves under `productName` and leaves a stray `~/.config/Claude UI/logs` behind.
+ * On macOS it follows the app's name rather than `userData`, so the pin does not move it.
+ */
+export const logsDir = app.getPath('logs');
+
 /** One file per session, written by the hook script and watched by the app. */
 export const statusDir = path.join(configDir, 'status');
 

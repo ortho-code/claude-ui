@@ -9,6 +9,9 @@ import { listSessions, trashSessions, worktreeExists } from './sessions';
 import { registerTerminalIpc, terminateAll } from './terminal';
 import { registerConfig } from './config';
 import { registerPanelsIpc, stopAllPanels } from './panels';
+import { logsDir } from './paths';
+import { startLog, closeLog } from './log';
+import { localTimestamp } from './stamp';
 import {
   getPinned,
   togglePin,
@@ -103,6 +106,11 @@ const OWN_CHROME = false as boolean;
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
+  const launched = localTimestamp();
+  startLog({
+    dir: logsDir,
+    header: () => [`claude-ui ${app.getVersion()} on ${process.platform} ${process.arch}, pid ${process.pid}, launched ${launched}`],
+  });
   app.on('second-instance', () => {
     if (!mainWindow) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
@@ -578,5 +586,6 @@ app.on('before-quit', (event) => {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:quitting');
   terminateAll();
   stopAllPanels();
-  setTimeout(() => app.quit(), 1500);
+  // The quit line goes last, once everything else has had its budget, because it is what tells the next launch this one ended on purpose.
+  setTimeout(() => void closeLog().then(() => app.quit()), 1500);
 });

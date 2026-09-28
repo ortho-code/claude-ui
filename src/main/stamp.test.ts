@@ -68,4 +68,15 @@ describe('appendStamped', () => {
     expect(lines[2]).toMatch(/ second$/);
     expect(lines[3]).toBe('');
   });
+
+  it('with create: false, appends to a file that is there and refuses one that has gone', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-ui-stamp-'));
+    const file = path.join(dir, 'record.log');
+    await fs.writeFile(file, 'earlier\n');
+    await appendStamped(file, 'kept', { create: false });
+    expect(await fs.readFile(file, 'utf8')).toMatch(/^earlier\n.* kept\n$/);
+    await fs.rm(file);
+    await expect(appendStamped(file, 'lost', { create: false })).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(fs.access(file)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
 });
