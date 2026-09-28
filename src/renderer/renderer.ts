@@ -1541,6 +1541,11 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
       setUnavailable(groupEls.addBtn, goneReason, 'New session in this group');
       setUnavailable(groupEls.addCaret, goneReason, 'New session options');
       groupEls.empty.hidden = sessions.length > 0;
+      // Both ways to fill it, or only the move where the project's folder is gone and nothing can be started.
+      // A control is named the way its tooltip names it ("Session options") rather than drawn as a glyph in text, which rendered in whatever the UI font offered; "+" is plain ASCII, so it is named as itself.
+      groupEls.empty.textContent = rootGone
+        ? "Empty — move a session here from any session's options."
+        : "Empty — start a session with the + above, or move one here from any session's options.";
       for (const session of sessions) {
         const row = getOrCreateRow(entityKey(session));
         updateRow(row, session);
@@ -2231,9 +2236,7 @@ function createGroupSection(id: string): GroupSectionEls {
   const members = document.createElement('div');
   members.className = 'group-members';
   const empty = document.createElement('div');
-  empty.className = 'group-empty';
-  // Names the control the way its own tooltip does ("Session options") rather than drawing a ⋮ in text: the glyphs this used to lean on are all SVG now, and a lone one here rendered in whatever the UI font offered.
-  empty.textContent = "Empty — move a session here from any session's options.";
+  empty.className = 'group-empty'; // its text depends on the project's folder, so reconcileProjectSections writes it
   members.append(empty);
 
   section.append(heading, members);
