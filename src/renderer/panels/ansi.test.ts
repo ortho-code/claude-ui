@@ -68,6 +68,11 @@ describe('splitPendingEscape', () => {
     expect(splitPendingEscape('')).toEqual(['', '']);
   });
 
+  it('releases the text after the last sequence when that sequence is complete', () => {
+    expect(splitPendingEscape(' \x1b[31mM tracked')).toEqual([' \x1b[31mM tracked', '']);
+    expect(splitPendingEscape('\x1b(Bmore')).toEqual(['\x1b(Bmore', '']);
+  });
+
   it('reassembles across the boundary to what one read would have given', () => {
     const [head, pending] = splitPendingEscape(' \x1b[3');
     expect(stripAnsi(head) + stripAnsi(pending + '1mM\x1b[m tracked')).toBe(' M tracked');

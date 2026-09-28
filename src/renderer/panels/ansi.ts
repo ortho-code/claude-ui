@@ -14,6 +14,7 @@
 const ESCAPES =
   // eslint-disable-next-line no-control-regex
   /\x1b\[[0-?]*[ -/]*[@-~]|\x1b[\]P_^X][\s\S]*?(?:\x07|\x1b\\)|\x1b(?:[ -/]+[0-~]|[0-OQ-WY-Z\\`-~])/g;
+const ESCAPE_AT_START = new RegExp(`^(?:${ESCAPES.source})`);
 
 export function stripAnsi(text: string): string {
   return text.replace(ESCAPES, '');
@@ -28,9 +29,9 @@ export function splitPendingEscape(text: string): [string, string] {
   const esc = text.lastIndexOf('\x1b');
   if (esc === -1) return [text, ''];
   const tail = text.slice(esc);
-  // A complete sequence at the end is fine to strip now; only one the regex cannot finish is held back.
-  const whole = tail.match(ESCAPES);
-  if (whole?.[0].length === tail.length) return [text, ''];
+  // The last ESC starting a complete sequence means the chunk is fine to strip now: whatever follows it is plain text.
+  // Only a sequence the regex cannot finish is held back.
+  if (ESCAPE_AT_START.test(tail)) return [text, ''];
   // A string escape that has not seen its terminator yet is also incomplete, however long it is.
   return [text.slice(0, esc), tail];
 }
