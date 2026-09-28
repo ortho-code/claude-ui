@@ -8,6 +8,14 @@ vi.mock('electron', () => ({
   app: { getPath: () => process.env.TEST_USERDATA, getVersion: () => process.env.TEST_APPVERSION ?? '1.0.0' },
 }));
 
+// What meta.ts says about recovering its file, captured; the log's own helpers are the real ones.
+const { logged } = vi.hoisted(() => ({ logged: [] as string[] }));
+vi.mock('./log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./log')>()),
+  log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
+  logOnce: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
+}));
+
 import {
   getPinned,
   togglePin,
@@ -156,6 +164,47 @@ describe('corruption safety', () => {
     const bak = JSON.parse(await fs.readFile(path.join(dir, 'meta.json.bak'), 'utf8'));
     expect(bak.pinned).toEqual(['conv1']);
     expect((await fs.readdir(dir)).some((f) => f.endsWith('.tmp'))).toBe(false);
+  });
+
+  // "My pins and tabs are gone" starts here, so the log says which copy the app went on with.
+  describe('what the log says', () => {
+    beforeEach(() => {
+      logged.length = 0;
+    });
+
+    it('nothing on a first run, with no file and no backup', async () => {
+      await getPinned();
+      expect(logged).toEqual([]);
+    });
+
+    it('that a missing file was recovered from the backup', async () => {
+      await togglePin('conv1');
+      await setActiveProject('/x');
+      await fs.rm(path.join(dir, 'meta.json'));
+      logged.length = 0;
+      await getPinned();
+      expect(logged).toEqual([`warn meta ${path.join(dir, 'meta.json')} is missing, using the backup`]);
+    });
+
+    it('that a corrupt file was kept, and which copy replaced it', async () => {
+      await togglePin('conv1');
+      await setActiveProject('/x');
+      await fs.writeFile(path.join(dir, 'meta.json'), '{ "pinned": ["conv1"');
+      logged.length = 0;
+      await getPinned();
+      const kept = (await fs.readdir(dir)).find((f) => f.startsWith('meta.json.corrupt-'));
+      expect(logged).toHaveLength(1);
+      expect(logged[0]).toMatch(new RegExp(`^error meta ${path.join(dir, 'meta.json')} does not parse \\(.+\\), kept as ${kept}, recovered from the backup$`));
+    });
+
+    it('that a write failed, as well as rejecting it', async () => {
+      await togglePin('conv1');
+      // A directory where the temp file goes makes the write itself fail.
+      await fs.mkdir(path.join(dir, 'meta.json.tmp'));
+      logged.length = 0;
+      await expect(togglePin('conv2')).rejects.toThrow();
+      expect(logged).toEqual([expect.stringMatching(new RegExp(`^error meta ${path.join(dir, 'meta.json')} not saved: EISDIR`))]);
+    });
   });
 });
 

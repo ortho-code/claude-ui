@@ -15,9 +15,9 @@ vi.mock('electron', () => ({
   app: { getPath: () => dataDir, setPath: () => {} },
   ipcMain: { handle: () => {}, on: () => {} },
 }));
-vi.mock('./log', () => ({
+vi.mock('./log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./log')>()),
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
-  fsFailure: () => null,
 }));
 
 import { checkPath, noteLayout, readLayout, resolvePath } from './config';

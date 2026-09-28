@@ -7,6 +7,7 @@ import type { PanelState } from '../shared/panels';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
 import { appendStamped } from './stamp';
+import { errorText, fsFailure, log, logOnce } from './log';
 
 /**
  * UI-only metadata, kept outside ~/.claude so we never touch the session store.
@@ -295,20 +296,31 @@ async function readMeta(): Promise<Meta> {
   let raw: string;
   try {
     raw = await fs.readFile(metaPath(), 'utf8');
-  } catch {
+  } catch (error) {
     // No file yet (first run) or it was moved aside: prefer the last good backup, else defaults.
-    return (await readBackup()) ?? defaults();
+    const recovered = await readBackup();
+    // A first run — no file and no backup — is not news. Anything else is where "my pins and tabs are gone" starts, so it says which copy the app went on with.
+    const failure = fsFailure(error);
+    if (failure || recovered) {
+      logOnce('warn', 'meta', `${metaPath()} ${failure ? `unreadable: ${failure}` : 'is missing'}, ${recovered ? 'using the backup' : 'starting from defaults'}`);
+    }
+    return recovered ?? defaults();
   }
   try {
     return normalize(JSON.parse(raw) as Record<string, unknown>);
-  } catch {
+  } catch (error) {
     // The file exists but won't parse (e.g. a write truncated by a crash). Preserve it for recovery rather than silently resetting, then fall back to the last good backup before defaults.
+    const kept = `${metaPath()}.corrupt-${Date.now()}.json`;
+    let keptLine = `kept as ${path.basename(kept)}`;
     try {
-      await fs.writeFile(`${metaPath()}.corrupt-${Date.now()}.json`, raw);
-    } catch {
+      await fs.writeFile(kept, raw);
+    } catch (keepError) {
       // Best-effort: if we can't preserve it, still recover below.
+      keptLine = `could not be kept: ${errorText(keepError)}`;
     }
-    return (await readBackup()) ?? defaults();
+    const recovered = await readBackup();
+    log('error', 'meta', `${metaPath()} does not parse (${errorText(error)}), ${keptLine}, ${recovered ? 'recovered from the backup' : 'starting from defaults'}`);
+    return recovered ?? defaults();
   }
 }
 
@@ -352,6 +364,16 @@ async function snapshotOnVersionChange(storedVersion: string): Promise<void> {
 }
 
 async function writeMeta(meta: Meta): Promise<void> {
+  try {
+    await writeMetaFile(meta);
+  } catch (error) {
+    // Rejected to the caller as before, and said here too: the window only learns that one action failed, not that nothing it changes is being kept.
+    log('error', 'meta', `${metaPath()} not saved: ${errorText(error)}`);
+    throw error;
+  }
+}
+
+async function writeMetaFile(meta: Meta): Promise<void> {
   const file = metaPath();
   await fs.mkdir(path.dirname(file), { recursive: true });
   // Before anything overwrites the previous build's file.
@@ -404,8 +426,9 @@ async function appendAudit(text: string): Promise<void> {
   try {
     await appendStamped(auditPath(), `#${(auditSeq += 1)} ${text}`);
     await trimAudit();
-  } catch {
-    // ignore
+  } catch (error) {
+    // Never allowed to break a real write, but a gap in the audit log is worth knowing about when that log is what someone is reading.
+    logOnce('warn', 'meta', `${auditPath()} not written: ${errorText(error)}`);
   }
 }
 

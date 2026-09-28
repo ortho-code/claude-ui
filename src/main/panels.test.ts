@@ -11,7 +11,8 @@ const { handlers, spawned, seq, logged } = vi.hoisted(() => ({
   logged: [] as string[],
 }));
 
-vi.mock('./log', () => ({
+vi.mock('./log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./log')>()),
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 

@@ -9,7 +9,8 @@ const { appHandlers, logged } = vi.hoisted(() => ({
 vi.mock('electron', () => ({
   app: { on: (event: string, fn: (...args: unknown[]) => void) => appHandlers.set(event, fn) },
 }));
-vi.mock('./log', () => ({
+vi.mock('./log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./log')>()),
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
   logCrash: (area: string, message: string) => logged.push(`crash ${area} ${message}`),
 }));

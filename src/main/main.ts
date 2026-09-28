@@ -11,7 +11,7 @@ import { registerConfig } from './config';
 import { registerFolders } from './folders';
 import { registerPanelsIpc, stopAllPanels } from './panels';
 import { logsDir } from './paths';
-import { startLog, closeLog } from './log';
+import { startLog, closeLog, errorText, log } from './log';
 import { headerLines, logGpuStatus, logProcessFailures, logResponsiveness } from './diagnostics';
 import { localTimestamp } from './stamp';
 import {
@@ -166,8 +166,10 @@ function windowIcon(): NativeImage | undefined {
   try {
     const png = readFileSync(path.join(__dirname, '..', '..', 'assets', 'icon.png'));
     return nativeImage.createFromBuffer(png).resize({ width: 256, height: 256, quality: 'best' });
-  } catch {
-    return undefined; // A default icon is a far better outcome than no window.
+  } catch (error) {
+    // A default icon is a far better outcome than no window, but a build without its icon is a packaging mistake worth finding.
+    log('warn', 'window', `icon not loaded: ${errorText(error)}`);
+    return undefined;
   }
 }
 
@@ -300,9 +302,11 @@ function learnMaximizeInset(): void {
       backgroundColor: '#1e1e2e',
     });
     probe.maximize();
-  } catch {
+  } catch (error) {
+    // The work area stays the answer; a taskbar-covering maximize beats no window.
+    log('warn', 'window', `maximize probe not created, maximizing to the work area: ${errorText(error)}`);
     probing = false;
-    return; // The work area stays the answer; a taskbar-covering maximize beats no window.
+    return;
   }
   setTimeout(() => {
     try {
@@ -316,8 +320,8 @@ function learnMaximizeInset(): void {
         // the launch path restores a maximized window well before the probe replies. Re-apply now.
         if (mainWindow && !mainWindow.isDestroyed() && maximized) mainWindow.setBounds(maximizedTarget(mainWindow));
       }
-    } catch {
-      // Keep the plain work area.
+    } catch (error) {
+      log('warn', 'window', `maximize probe not read, keeping the work area: ${errorText(error)}`);
     }
     if (!probe.isDestroyed()) probe.destroy();
     probing = false;

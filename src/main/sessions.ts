@@ -7,6 +7,8 @@ import { createReadStream } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { SessionSummary } from '../shared/types';
+import { errorText, fsFailure, log, logOnce } from './log';
+import { formatDuration } from './stamp';
 
 const execFileAsync = promisify(execFile);
 const projectsDir = path.join(os.homedir(), '.claude', 'projects');
@@ -23,6 +25,9 @@ interface RepoInfo {
 // A cwd's repo layout is effectively stable, so cache it and never re-run git for the same path.
 const repoCache = new Map<string, RepoInfo>();
 
+/** How long `git rev-parse` gets before a directory is treated as not a repo. */
+const GIT_TIMEOUT_MS = 3000;
+
 /**
  * Resolve which repo a directory belongs to, and whether it is a linked git worktree.
  * `--show-toplevel` is the directory's own working-tree root; `--git-common-dir` is the main repo's `.git`, so its parent is the main repo root.
@@ -37,7 +42,7 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
     const { stdout } = await execFileAsync(
       'git',
       ['-C', cwd, 'rev-parse', '--path-format=absolute', '--show-toplevel', '--git-common-dir'],
-      { timeout: 3000 },
+      { timeout: GIT_TIMEOUT_MS },
     );
     const [toplevel, commonDir] = stdout.trim().split('\n');
     if (toplevel && commonDir) {
@@ -48,8 +53,13 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
         isRepo: true,
       };
     }
-  } catch {
+  } catch (error) {
     // Not a git repo, git missing, or the directory is gone: fall through to the path fallback.
+    // Two of those are worth a line, because the answer is cached for the rest of the run: git itself missing, and git too slow to answer, which files a real repo as none.
+    // MEASURED: with `-C`, a gone directory is git's own exit 128 like any non-repo, so ENOENT is only ever the binary; a timeout sets `killed`.
+    const failed = error as NodeJS.ErrnoException & { killed?: boolean };
+    if (failed.code === 'ENOENT') logOnce('warn', 'sessions', 'git not found on PATH: no session is recognised as being in a repo or a worktree');
+    else if (failed.killed) logOnce('warn', 'sessions', `git took over ${formatDuration(GIT_TIMEOUT_MS)} in ${cwd}: treated as not a repo until a restart`);
   }
   // When git can't tell us it's a worktree (most importantly, when the worktree directory was removed), recognize the `claude -w` layout: <repo>/.claude/worktrees/<name>.
   // That path only exists inside a repo, so it's a repo even though git couldn't answer.
@@ -80,7 +90,10 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
   let summary: SessionSummary | null;
   try {
     summary = await summarizeFile(file);
-  } catch {
+  } catch (error) {
+    // Gone since the stat is a race; anything else keeps that session out of the list, or stale in it, on every listing.
+    const failure = fsFailure(error);
+    if (failure) logOnce('warn', 'sessions', `cannot read ${file}: ${failure}`);
     return cached?.summary ?? null;
   }
   if (summary) {
@@ -107,7 +120,10 @@ async function projectDirs(): Promise<string[]> {
   try {
     const entries = await fs.readdir(projectsDir, { withFileTypes: true });
     return entries.filter((e) => e.isDirectory()).map((e) => path.join(projectsDir, e.name));
-  } catch {
+  } catch (error) {
+    // Missing is a machine with no sessions yet; unreadable is a list that stays empty with nothing on screen to say why.
+    const failure = fsFailure(error);
+    if (failure) logOnce('warn', 'sessions', `cannot list ${projectsDir}: ${failure}`);
     return [];
   }
 }
@@ -220,7 +236,13 @@ async function trashIfExists(target: string): Promise<void> {
   } catch {
     return; // Not here; nothing to trash.
   }
-  await shell.trashItem(target);
+  try {
+    await shell.trashItem(target);
+  } catch (error) {
+    // Still rejected to the caller, which says so on screen; the log is where the reason stays.
+    log('warn', 'sessions', `could not move ${target} to the trash: ${errorText(error)}`);
+    throw error;
+  }
 }
 
 /** Summarize one transcript without loading the whole file into memory. */

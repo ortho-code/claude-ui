@@ -215,6 +215,44 @@ describe('repeated lines', () => {
   });
 });
 
+describe('a line written once', () => {
+  it('is written the first time only, however much comes between', async () => {
+    const log = open();
+    log.writeOnce('warn', 'sessions', 'cannot read a.jsonl');
+    log.write('info', 'session', 'between');
+    log.writeOnce('warn', 'sessions', 'cannot read a.jsonl');
+    log.writeOnce('warn', 'sessions', 'cannot read b.jsonl');
+    await log.settled();
+    expect(await body(FIRST)).toEqual(['WARN  sessions cannot read a.jsonl', 'INFO  session between', 'WARN  sessions cannot read b.jsonl']);
+  });
+
+  it('is written again in the next file, so a file that starts at midnight still says it', async () => {
+    const log = open();
+    log.writeOnce('warn', 'sessions', 'cannot read a.jsonl');
+    await log.settled();
+    vi.setSystemTime(new Date('2026-09-29T08:00:00.000Z'));
+    log.writeOnce('warn', 'sessions', 'cannot read a.jsonl');
+    await log.settled();
+    const next = 'claude-ui-20260929100000.log';
+    expect((await lines(next)).slice(header(next, `continued from ${FIRST}`).length)).toEqual(['WARN  sessions cannot read a.jsonl']);
+  });
+
+  it('counts a repeat before it, and does not collapse across it', async () => {
+    const log = open();
+    log.write('error', 'renderer', 'boom');
+    log.write('error', 'renderer', 'boom');
+    log.writeOnce('warn', 'sessions', 'cannot read a.jsonl');
+    log.write('error', 'renderer', 'boom');
+    await log.settled();
+    expect(await body(FIRST)).toEqual([
+      'ERROR renderer boom',
+      'ERROR renderer repeated 1 more time: boom',
+      'WARN  sessions cannot read a.jsonl',
+      'ERROR renderer boom',
+    ]);
+  });
+});
+
 describe('a process that died', () => {
   it('keeps the file as a crash log once it is closed', async () => {
     const log = open();

@@ -96,6 +96,11 @@ function isMissing(error: unknown): boolean {
  */
 export function fsFailure(error: unknown): string | null {
   if (isMissing(error)) return null;
+  return errorText(error);
+}
+
+/** An error as a log line says it: its message, or the value itself when something threw a non-Error. */
+export function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -124,6 +129,12 @@ export interface LogOptions {
 
 export interface Log {
   write(level: LogLevel, area: string, message: string): void;
+  /**
+   * `write`, but a line already written to the current file is not written again.
+   * For a failure met on every pass of something that runs over and over — every session listing re-reads the transcripts — where the collapse of identical lines in a row cannot help, because other lines come between.
+   * Once per FILE rather than per launch, so a file that starts at midnight still says it.
+   */
+  writeOnce(level: LogLevel, area: string, message: string): void;
   /** A process of the app died: an error line, and the file it lands in is kept as a crash log once it is finished with. */
   crash(area: string, message: string): void;
   /** Writes the quit line, which is what tells the next launch this one ended on purpose. Nothing is written after it. */
@@ -138,6 +149,8 @@ export function createLog({ dir, header }: LogOptions): Log {
   let last: { level: LogLevel; area: string; message: string } | null = null;
   let repeats = 0;
   let repeatTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The lines `writeOnce` has written into the current file. */
+  let once = new Set<string>();
 
   // Every write runs in order through one queue, so a roll or a restart can never interleave with the line that caused it.
   let queue: Promise<void> = Promise.resolve();
@@ -151,6 +164,7 @@ export function createLog({ dir, header }: LogOptions): Log {
     await fs.mkdir(dir, { recursive: true });
     const name = logFileName(now);
     current = { name, day: dayOf(now), crash: false };
+    once = new Set();
     for (const line of [`log ${file(name)}`, ...(context === undefined ? [] : [context]), ...header()]) {
       await appendStamped(file(name), formatLine('info', 'app', line));
     }
@@ -167,14 +181,18 @@ export function createLog({ dir, header }: LogOptions): Log {
     if (done.crash) await fs.rename(file(done.name), file(crashName(done.name))).catch(() => undefined);
   }
 
+  /** Start the next file when the date has moved on since the current one began. */
+  async function rollIfDue(now: Date): Promise<void> {
+    if (current === null || dayOf(now) === current.day) return;
+    const previous = current.name;
+    await finish(`${CONTINUES_IN}${logFileName(now)} =====`);
+    await begin(now, `continued from ${previous}`);
+  }
+
   async function put(text: string): Promise<void> {
     if (current === null) return;
     const now = new Date();
-    if (dayOf(now) !== current.day) {
-      const previous = current.name;
-      await finish(`${CONTINUES_IN}${logFileName(now)} =====`);
-      await begin(now, `continued from ${previous}`);
-    }
+    await rollIfDue(now);
     try {
       await appendStamped(file(current.name), text, { create: false });
     } catch (error) {
@@ -213,7 +231,21 @@ export function createLog({ dir, header }: LogOptions): Log {
     await begin(new Date());
   });
 
-  return {
+  const instance: Log = {
+    writeOnce(level, area, message) {
+      if (closed) return;
+      const text = formatLine(level, area, message);
+      // A line of its own between repeats, so the count before it is written first and nothing collapses across it.
+      flushRepeats();
+      last = null;
+      // Checked when the line reaches the front of the queue, and after a roll the line itself would cause, so it is counted against the file it actually lands in.
+      enqueue(async () => {
+        await rollIfDue(new Date());
+        if (once.has(text)) return;
+        await put(text);
+        once.add(text);
+      });
+    },
     write(level, area, message) {
       if (closed) return;
       if (last !== null && last.level === level && last.area === area && last.message === message) {
@@ -247,6 +279,7 @@ export function createLog({ dir, header }: LogOptions): Log {
     },
     settled: () => queue,
   };
+  return instance;
 }
 
 // The app's one log, started once the single-instance lock is held, so a second launch that quits at once leaves no file behind.
@@ -258,6 +291,10 @@ export function startLog(options: LogOptions): void {
 
 export function log(level: LogLevel, area: string, message: string): void {
   active?.write(level, area, message);
+}
+
+export function logOnce(level: LogLevel, area: string, message: string): void {
+  active?.writeOnce(level, area, message);
 }
 
 export function logCrash(area: string, message: string): void {
