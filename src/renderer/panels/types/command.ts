@@ -149,7 +149,7 @@ export async function prepare(options: Record<string, unknown>, decl: OptionsDec
   if (problems.length > 0) return { problems, run: null };
   const place = placement(options.cwd, context);
   if (!place) return { problems: [], run: null };
-  return { problems: [], run: runContext(context, place.kind === 'context' ? context!.cwd : paths.cwd) };
+  return { problems: [], run: runContext(context, place.kind === 'context' ? context!.cwd : paths.cwd!) };
 }
 
 /** What an entry runs, in the form the runner takes. Only for options whose check passed, which is what guarantees exactly one is present. */

@@ -65,7 +65,7 @@ function tokenize(input: string): ParsedFlags {
   let quote: "'" | '"' | null = null;
 
   for (let i = 0; i < input.length; i++) {
-    const char = input[i];
+    const char = input[i]!;
     if (quote === "'") {
       if (char === "'") quote = null;
       else current += char;
@@ -73,7 +73,7 @@ function tokenize(input: string): ParsedFlags {
     }
     if (quote === '"') {
       // Inside double quotes a backslash only escapes a quote or another backslash; anywhere else it is literal, which is what a shell does and what someone typing a Windows path expects.
-      if (char === '\\' && (input[i + 1] === '"' || input[i + 1] === '\\')) current += input[++i];
+      if (char === '\\' && (input[i + 1] === '"' || input[i + 1] === '\\')) current += input[++i]!;
       else if (char === '"') quote = null;
       else current += char;
       continue;
@@ -86,7 +86,7 @@ function tokenize(input: string): ParsedFlags {
     }
     if (char === '\\') {
       if (i + 1 >= input.length) return { tokens: [], error: 'The flags end with a lone backslash.' };
-      current += input[++i];
+      current += input[++i]!;
       started = true;
       continue;
     }
@@ -108,7 +108,7 @@ function tokenize(input: string): ParsedFlags {
 /** Whether a token names a flag claude-ui passes itself, and why it is taken. `--flag=value` is checked by its name. */
 function reservationFor(token: string): { names: string[]; because: string } | null {
   if (!token.startsWith('-')) return null;
-  const name = token.split('=', 1)[0];
+  const name = token.split('=', 1)[0]!;
   return RESERVED.find((entry) => entry.names.includes(name)) ?? null;
 }
 
@@ -127,7 +127,7 @@ export function parseLaunchFlags(input: string): ParsedFlags {
   if (parsed.error) return parsed;
   // A leading word is not a flag: claude reads it as a subcommand or as a prompt, so a field holding `update` would run `claude update` in every new tab.
   // Only the FIRST token can be judged this way — a bare word after a flag is that flag's value, and there is no table here of which flags take one.
-  if (parsed.tokens.length > 0 && !parsed.tokens[0].startsWith('-')) {
+  if (parsed.tokens.length > 0 && !parsed.tokens[0]!.startsWith('-')) {
     return {
       tokens: [],
       error: `Flags have to start with a flag. "${parsed.tokens[0]}" would reach claude as a command or a prompt.`,
@@ -136,7 +136,7 @@ export function parseLaunchFlags(input: string): ParsedFlags {
   for (const token of parsed.tokens) {
     const reserved = reservationFor(token);
     if (reserved) {
-      const name = token.split('=', 1)[0];
+      const name = token.split('=', 1)[0]!;
       return { tokens: [], error: `${name} can't be set here — ${reserved.because}.` };
     }
   }

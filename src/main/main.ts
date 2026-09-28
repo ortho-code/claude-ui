@@ -434,7 +434,7 @@ ipcMain.handle('sessions:delete', async (_event, id: string) => {
 });
 ipcMain.handle('dialog:pickFolder', async (): Promise<string | null> => {
   const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
-  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  return result.canceled ? null : (result.filePaths[0] ?? null);
 });
 ipcMain.handle('meta:getOpenSessions', () => getOpenSessions());
 ipcMain.handle('meta:getActiveSession', () => getActiveSession());

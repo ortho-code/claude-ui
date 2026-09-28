@@ -48,8 +48,9 @@ export function flexFor(children: FlexChild[], stored: Record<string, number> | 
 export function snapshot(children: FlexChild[], measured: number[], previous: Record<string, number> = {}): Record<string, number> {
   const next: Record<string, number> = {};
   children.forEach((child, index) => {
-    if (!child.folded) next[child.id] = measured[index];
-    else if (previous[child.id] !== undefined) next[child.id] = previous[child.id];
+    const kept = previous[child.id];
+    if (!child.folded) next[child.id] = measured[index]!;
+    else if (kept !== undefined) next[child.id] = kept;
   });
   return next;
 }
@@ -60,11 +61,15 @@ export function snapshot(children: FlexChild[], measured: number[], previous: Re
  */
 export function dragTo(children: FlexChild[], measured: number[], a: number, b: number, delta: number, previous: Record<string, number> = {}): Record<string, number> {
   const next = snapshot(children, measured, previous);
-  const lowest = Math.min(0, children[a].min - measured[a]);
-  const highest = Math.max(0, measured[b] - children[b].min);
+  const before = children[a]!;
+  const after = children[b]!;
+  const beforePx = measured[a]!;
+  const afterPx = measured[b]!;
+  const lowest = Math.min(0, before.min - beforePx);
+  const highest = Math.max(0, afterPx - after.min);
   const moved = Math.min(highest, Math.max(lowest, delta));
-  next[children[a].id] = measured[a] + moved;
-  next[children[b].id] = measured[b] - moved;
+  next[before.id] = beforePx + moved;
+  next[after.id] = afterPx - moved;
   return next;
 }
 

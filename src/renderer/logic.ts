@@ -154,7 +154,7 @@ export function reorderWithinGroup<T>(items: T[], keyOf: (t: T) => string, moved
   group.splice(from, 1);
   group.splice(Math.max(0, Math.min(targetIndex, group.length)), 0, moved);
   let i = 0;
-  return items.map((t) => (keyOf(t) === key ? group[i++] : t));
+  return items.map((t) => (keyOf(t) === key ? group[i++]! : t));
 }
 
 // A short "x min ago" relative time. `now` is injectable for tests.

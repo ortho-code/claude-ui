@@ -152,7 +152,7 @@ export function validateEntry(raw: unknown, index: number, types: Record<string,
   else if (typeof raw.type !== 'string') problems.push('type is not a string.');
   else if (!Object.hasOwn(types, raw.type)) {
     problems.push(`type "${raw.type}" is not a type this build knows (it knows: ${Object.keys(types).join(', ')}).`);
-  } else type = types[raw.type];
+  } else type = types[raw.type]!;
 
   if (raw.title !== undefined && typeof raw.title !== 'string') problems.push('title is not a string.');
   if (raw.hidden !== undefined && typeof raw.hidden !== 'boolean') problems.push('hidden is not true or false.');
@@ -326,7 +326,7 @@ class Resolver {
       }
     }
     const shown = slots.filter((slot) => !slot.hidden);
-    const only = shown.length === 1 ? shown[0] : null;
+    const only = shown.length === 1 ? shown[0]! : null;
     return {
       kind: 'group',
       ...common,

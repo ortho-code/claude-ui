@@ -126,6 +126,6 @@ export async function checkOptions(options: Record<string, unknown>, decl: Optio
   const checks = await Promise.all(asks.map(({ value, base, must }) => window.claudeUi.checkPath(value, base, must)));
   return {
     problems: checks.flatMap((check) => (check.problem ? [`${check.problem}.`] : [])),
-    paths: Object.fromEntries(asks.map((ask, index) => [ask.name, checks[index].path])),
+    paths: Object.fromEntries(asks.map((ask, index) => [ask.name, checks[index]!.path])),
   };
 }

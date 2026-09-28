@@ -142,7 +142,8 @@ export function restoreTreeState(state: PanelState, legacySidebarWidth: number |
   active = { ...state.active };
   const root = DEFAULT_LAYOUT.root;
   if (!sizes[root.id] && 'columns' in root) {
-    const [sidebar, main] = root.columns;
+    const sidebar = root.columns[0]!;
+    const main = root.columns[1]!;
     // A width the sidebar could not have been dragged to is damage, not a preference.
     const width = legacySidebarWidth ?? 0;
     const usable = width >= (sidebar.min ?? 0) && width < window.innerWidth;
@@ -236,7 +237,7 @@ function renderSplit(split: ResolvedSplit): HTMLElement {
   visible.forEach((child, index) => {
     if (index > 0) box.append(divider(split, visible, nodes, edges, folded, toggles, index - 1, index));
     const node = element('div', 'node');
-    node.append(renderNode(child, { axis: split.axis, edge: edges[index], folded: folded[index], toggleFold: toggles[index] }));
+    node.append(renderNode(child, { axis: split.axis, edge: edges[index]!, folded: folded[index]!, toggleFold: toggles[index] ?? null }));
     nodes.push(node);
     box.append(node);
   });
@@ -248,7 +249,7 @@ function renderSplit(split: ResolvedSplit): HTMLElement {
 }
 
 function flexChildren(visible: ResolvedNode[], folded: boolean[]): FlexChild[] {
-  return visible.map((child, index) => ({ id: child.id, size: child.size, min: child.min, folded: folded[index] }));
+  return visible.map((child, index) => ({ id: child.id, size: child.size, min: child.min, folded: folded[index]! }));
 }
 
 /** Size a split's children from the file and the dragged sizes (panels/sizes.ts decides; this applies). */
@@ -261,7 +262,7 @@ function applyFlex(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLEle
   }
   const horizontal = split.axis === 'columns';
   flexFor(flexChildren(visible, folded), stored).forEach((value, index) => {
-    const style = nodes[index].style;
+    const style = nodes[index]!.style;
     style.flex = value.flex;
     style.minWidth = horizontal && value.min !== null ? `${value.min}px` : '';
     style.minHeight = !horizontal && value.min !== null ? `${value.min}px` : '';
@@ -282,8 +283,8 @@ function measure(nodes: HTMLElement[], horizontal: boolean): number[] {
 function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], toggles: Place['toggleFold'][], a: number, b: number): HTMLElement {
   const handle = element('div', 'divider');
   foldControls(handle, split, visible, nodes, edges, folded, toggles, a, b);
-  const shut = [a, b].filter((index) => folded[index]).map((index) => visible[index].id);
-  const fixed = [a, b].filter((index) => !visible[index].resizable).map((index) => visible[index].id);
+  const shut = [a, b].filter((index) => folded[index]).map((index) => visible[index]!.id);
+  const fixed = [a, b].filter((index) => !visible[index]!.resizable).map((index) => visible[index]!.id);
   if (shut.length > 0) {
     setTooltip(handle, `Unfold ${shut.join(' and ')} to resize`);
     return handle;
@@ -328,7 +329,7 @@ function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: Resolv
   const riders = [a, b].filter((index) => toggles[index] && edges[index] === (index === a ? 'start' : 'end'));
   const horizontal = split.axis === 'columns';
   for (const index of riders) {
-    const group = visible[index];
+    const group = visible[index]!;
     const toward: Direction = horizontal ? (edges[index] === 'start' ? 'left' : 'right') : edges[index] === 'start' ? 'up' : 'down';
     const chevron = element('button', `icon-btn chev ${index === a ? 'before' : 'after'}${riders.length === 2 ? ' shared' : ''}`);
     chevron.type = 'button';
@@ -336,8 +337,8 @@ function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: Resolv
     const label = `${folded[index] ? 'Unfold' : 'Fold'} ${group.id}`;
     chevron.setAttribute('aria-label', label);
     setTooltip(chevron, label);
-    chevron.addEventListener('mouseenter', () => nodes[index].classList.add('fold-target'));
-    chevron.addEventListener('mouseleave', () => nodes[index].classList.remove('fold-target'));
+    chevron.addEventListener('mouseenter', () => nodes[index]!.classList.add('fold-target'));
+    chevron.addEventListener('mouseleave', () => nodes[index]!.classList.remove('fold-target'));
     chevron.addEventListener('click', toggles[index]!);
     handle.append(chevron);
   }
@@ -345,7 +346,7 @@ function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: Resolv
 
 /** Fold a group to its rail, or unfold it: the one fold, behind the chevron and the rail alike. */
 function toggleFold(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], folded: boolean[], index: number): void {
-  const group = visible[index];
+  const group = visible[index]!;
   if (folded[index]) collapsed.delete(group.id);
   else {
     // Every sibling's size now, the group's own included, so it unfolds to the size it had and nothing else moves when it does.
@@ -361,7 +362,7 @@ function toggleFold(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLEl
  * Every slot is reachable from the rail, so nothing — the terminal included — can be stranded behind another.
  */
 function shownSlot(group: ResolvedGroup, slots: PanelSlot[]): PanelSlot {
-  return slots.find((slot) => slot.key === active[group.id]) ?? slots.find((slot) => slot.key === group.active) ?? slots[0];
+  return slots.find((slot) => slot.key === active[group.id]) ?? slots.find((slot) => slot.key === group.active) ?? slots[0]!;
 }
 
 function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
@@ -383,7 +384,7 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   }
   if (shown.problems.length > 0) {
     content.prepend(header(shown.title), problemList(shown.problems));
-  } else if (!TYPES[shown.type!].bare) {
+  } else if (!TYPES[shown.type!]!.bare) {
     const { busy, end, action, problems } = mountedFor(shown);
     const row = header(shown.title, action ? [busy, end, action] : [busy, end]);
     // The layout's refusals and the panel's own are one list, drawn the same way.
@@ -453,7 +454,7 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
 function mountedFor(slot: PanelSlot): Mounted {
   const existing = mounted.get(slot.key);
   if (existing) return existing;
-  const type = TYPES[slot.type!];
+  const type = TYPES[slot.type!]!;
   const busy = element('span', 'nudge busy');
   busy.hidden = true;
   const end = element('span', 'panel-end');

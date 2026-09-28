@@ -40,12 +40,14 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
       { timeout: 3000 },
     );
     const [toplevel, commonDir] = stdout.trim().split('\n');
-    const mainRoot = path.basename(commonDir) === '.git' ? path.dirname(commonDir) : toplevel;
-    info = {
-      repoRoot: mainRoot || cwd,
-      worktree: toplevel && toplevel !== mainRoot ? path.basename(toplevel) : '',
-      isRepo: true,
-    };
+    if (toplevel && commonDir) {
+      const mainRoot = path.basename(commonDir) === '.git' ? path.dirname(commonDir) : toplevel;
+      info = {
+        repoRoot: mainRoot || cwd,
+        worktree: toplevel !== mainRoot ? path.basename(toplevel) : '',
+        isRepo: true,
+      };
+    }
   } catch {
     // Not a git repo, git missing, or the directory is gone: fall through to the path fallback.
   }
@@ -53,7 +55,7 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
   // That path only exists inside a repo, so it's a repo even though git couldn't answer.
   if (!info.worktree) {
     const match = cwd.match(/^(.*)\/\.claude\/worktrees\/([^/]+)/);
-    if (match) info = { repoRoot: match[1], worktree: match[2], isRepo: true };
+    if (match) info = { repoRoot: match[1]!, worktree: match[2]!, isRepo: true };
   }
   repoCache.set(cwd, info);
   return info;
@@ -248,12 +250,12 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
 
       // Keep the latest model an assistant message reported. A cheap regex (not a full parse) so it doesn't defeat the early-continue below; assistant lines carry `"model":"claude-…"`.
       const modelMatch = line.match(/"model":"(claude-[^"]+)"/);
-      if (modelMatch) model = modelMatch[1];
+      if (modelMatch) model = modelMatch[1]!;
 
       // Last message's timestamp (lastActivity): a cheap regex before the early-continue, so it sees every message line without a full parse. Overwrites, so the final value is the newest message.
       if (line.includes('"type":"user"') || line.includes('"type":"assistant"')) {
         const tsMatch = line.match(/"timestamp":"([^"]+)"/);
-        if (tsMatch) lastMsgTs = tsMatch[1];
+        if (tsMatch) lastMsgTs = tsMatch[1]!;
       }
 
       // Title events recur through the file, so always parse them to keep the latest.
@@ -352,9 +354,9 @@ function displayableUserText(text: string): string {
  * Anything else passes through untouched.
  */
 function commandLabel(text: string): string {
-  const name = text.match(/<command-name>([^<]*)<\/command-name>/)?.[1].trim();
+  const name = text.match(/<command-name>([^<]*)<\/command-name>/)?.[1]!.trim();
   if (!name) return text;
-  const args = text.match(/<command-args>([^<]*)<\/command-args>/)?.[1].trim();
+  const args = text.match(/<command-args>([^<]*)<\/command-args>/)?.[1]!.trim();
   return args ? `${name} ${args}` : name;
 }
 
