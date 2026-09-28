@@ -1,5 +1,6 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested. renderer.ts wires these to its state and the DOM.
 import type { GroupState, SessionGroup, SessionSummary } from '../shared/types';
+import { splitPendingEscape, stripAnsi } from './panels/ansi';
 
 // The stable key for a displayed session entity: the session's own id, always.
 // It is immutable, so pins/archives/tabs can never go stale — a conversation-derived key stopped matching its session the moment the session gained a sibling.
@@ -528,14 +529,12 @@ export function stopControlState(tab: StopControlTab): { disabled: boolean; tool
  * The first BYTES out of the pty are not the first thing you can see: measured, claude sends three chunks of pure terminal setup — save/restore cursor, scroll region, bracketed paste, focus reporting — before any content.
  * Clearing the loader on those flashed it away and left the pane empty again, which on a resume is seconds of nothing while the transcript renders.
  *
- * Strips CSI and OSC sequences, then the remaining control characters, and asks whether anything is left.
+ * Strips escape sequences with the stripper the command panel uses, then the remaining control characters, and asks whether anything is left.
+ * A sequence the chunk ends partway through counts as nothing yet, rather than as the text it starts with.
  * Erring towards "not visible" is the safe direction: the loader stays a moment longer rather than uncovering an empty pane.
  */
-// The final alternative is "ESC + any single character that is not [ or ]", which covers the two-char escapes claude actually sends — ESC 7 and ESC 8, save and restore cursor.
-// A narrower class missed those, the digits survived the strip, and "7" read as content.
-// eslint-disable-next-line no-control-regex
-const ANSI_SEQUENCE = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)?|[^[\]])/g;
 export function hasVisibleOutput(data: string): boolean {
+  const [complete] = splitPendingEscape(data);
   // eslint-disable-next-line no-control-regex
-  return data.replace(ANSI_SEQUENCE, '').replace(/[\x00-\x1f\x7f]/g, '').trim().length > 0;
+  return stripAnsi(complete).replace(/[\x00-\x1f\x7f]/g, '').trim().length > 0;
 }

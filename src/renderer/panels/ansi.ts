@@ -1,5 +1,6 @@
 /**
  * Strip terminal escape sequences from command output, so `ls --color=always` does not paint garbage into a `<pre>`.
+ * A starting session's loader uses the same two functions to tell claude's terminal setup from its first real output (`hasVisibleOutput` in logic.ts).
  *
  * Defensive, on top of `NO_COLOR=1` and `TERM=dumb` in the command's environment: those are requests, and not every tool listens.
  * Three shapes, MEASURED from real `git` and `ls` output rather than from the standard:

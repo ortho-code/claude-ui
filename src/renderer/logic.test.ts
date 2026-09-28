@@ -591,6 +591,13 @@ describe('hasVisibleOutput', () => {
     expect(hasVisibleOutput('\r\n\x1b[38;2;255;193;7m────\x1b[39m\r\n\x1b[2GAccessing')).toBe(true);
     expect(hasVisibleOutput('hello')).toBe(true);
   });
+
+  it('counts a sequence the chunk ends partway through as nothing yet, and the text after a complete one as content', () => {
+    expect(hasVisibleOutput('\x1b]0;claude\x1b[?25l')).toBe(false);
+    expect(hasVisibleOutput('\x1b[38;2;25')).toBe(false);
+    expect(hasVisibleOutput('\x1bPq#0;2;0;0;0')).toBe(false);
+    expect(hasVisibleOutput('\x1b[2GAccessing')).toBe(true);
+  });
 });
 
 describe('orderAsTabs', () => {
