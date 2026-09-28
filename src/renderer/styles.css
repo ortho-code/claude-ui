@@ -2217,6 +2217,16 @@ button:focus:not(:focus-visible) {
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
+/* The panel on show in a group that cannot fold: a click does nothing, so neither a pointer nor the shared hover's border may claim one, as on a project heading that cannot collapse.
+   The tooltip still names the panel. */
+.icon-btn.rail-item.shown.no-fold {
+  cursor: default;
+}
+
+.icon-btn.rail-item.shown.no-fold:hover {
+  border-color: transparent;
+}
+
 /* The dot on an icon: the status dot itself, ringed in the rail's colour so it reads against the mark it overlaps. */
 .rail-item .nudge {
   position: absolute;

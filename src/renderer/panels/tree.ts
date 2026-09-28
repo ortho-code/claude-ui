@@ -418,6 +418,8 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
     setTooltip(item, isShown && place.toggleFold ? `${slot.title} — click to fold` : slot.title);
     if (isShown) {
       item.classList.add('shown');
+      // Nothing for a click to do in a group that cannot fold, so no hover to claim one.
+      item.classList.toggle('no-fold', !place.toggleFold);
       item.setAttribute('aria-current', 'true');
     }
     const entry = slot.problems.length === 0 ? mounted.get(slot.key) : undefined;

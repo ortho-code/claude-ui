@@ -314,7 +314,7 @@ A dot on an icon reports a panel that is not on show: a command whose run failed
 The dot is the status dot the rest of the app uses (`.nudge`), with one state of its own for a failed run.
 Clicking an icon shows that panel and unfolds the group, and clicking the shown panel's own icon folds the group, as VS Code's activity bar does, so a panel is put away from the icon that brought it out.
 That icon used to do nothing, which kept the chevron the one fold control; both now call the one fold (`toggleFold`), so they cannot fold a group two ways, and the icon's tooltip says it folds.
-In a group that cannot fold the shown icon still does nothing.
+In a group that cannot fold the shown icon still does nothing, and has neither a pointer nor a hover to suggest otherwise.
 A panel's own marks — the busy mark, the run's last word, its button — sit in a header over it, unless its type is bare.
 
 The fold control and the switcher each live in one function in `tree.ts` (`foldControls`, `switcher`), so trying one of the other variants from the mock — a header button, a tab strip — is a local change there, and none of it is in the file format.
