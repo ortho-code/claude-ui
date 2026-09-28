@@ -1961,19 +1961,28 @@ button:focus:not(:focus-visible) {
   flex-basis: 100%;
 }
 
-/* Clickable: jumps the session list to this project.
+/* The tab bar's two labels are both clickable — a project's scrolls the session list to the project, a group's to the group — so they are one shape with one hover, and differ only in weight and in what sits beside the name.
    Full text colour, like the project's own heading in the sidebar, so a project whose folder is gone reads the same way in both halves of the window: muted, beside names that are not. */
-.tab-project-label {
+.tab-project-label,
+.tab-group-label {
   display: flex;
   align-items: center;
-  gap: 4px;
   padding: 2px 8px;
   border-radius: var(--radius-control);
   font-size: var(--text-small);
-  font-weight: 600;
   color: var(--text);
   white-space: nowrap;
   cursor: pointer;
+}
+
+.tab-project-label {
+  gap: 4px;
+  font-weight: 600;
+}
+
+.tab-project-label:hover,
+.tab-group-label:hover {
+  background: var(--surface-hover);
 }
 
 /* A group's row of tabs, indented behind the same muted rail the sidebar uses so a group looks the
@@ -1987,31 +1996,22 @@ button:focus:not(:focus-visible) {
   flex: 0 0 auto;
   align-self: stretch;
   width: 2px;
-  margin-right: 9px;
+  /* With the label's own 8px of padding, the group's name sits 9px from the rail. */
+  margin-right: 1px;
   background: #9399b240;
   border-radius: 1px;
 }
 
-/* Regular weight, full-strength text: the deeper level is marked by the rail and by being lighter than the semibold project label, not by piling more weight onto an 11px line. */
+/* Regular weight: the deeper level is marked by the rail and by being lighter than the semibold project label, not by piling more weight onto an 11px line. */
 .tab-group-label {
-  display: flex;
-  align-items: center;
   gap: 5px;
-  padding-right: 4px;
-  font-size: var(--text-small);
   font-weight: 400;
-  color: var(--text);
-  white-space: nowrap;
 }
 
 .tab-group-label .group-icon {
   display: flex;
   align-items: center;
   color: var(--muted);
-}
-
-.tab-project-label:hover {
-  background: var(--surface-hover);
 }
 
 .tab {

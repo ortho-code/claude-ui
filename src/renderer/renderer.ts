@@ -2985,6 +2985,8 @@ function renderTabBar(): void {
       icon.className = 'heading-icon';
       icon.innerHTML = layersIcon(11);
       label.append(icon, document.createTextNode(group.name));
+      // The same jump as the heading's group menu: unfold, scroll the group's heading into view, and flash it.
+      label.addEventListener('click', () => jumpToGroup(root, group.id));
       row.append(rail, label, ...groupTabs.map(tabElement));
       children.push(row);
     }

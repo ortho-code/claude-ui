@@ -26,7 +26,7 @@ Done:
   Sessions sharing a conversation show as siblings (a fork badge with a jump list); worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life.
 - Custom groups: sub-sections inside a project, made from a session's kebab.
   Move a session between them, rename or delete a group (its sessions stay), and start a session, a fork or a worktree session straight into one.
-  Open tabs cluster by group in the tab bar.
+  Open tabs cluster by group in the tab bar, and a group's name there takes you to the group in the list.
 - Ordering and overview: reorder projects and groups from their kebabs, fold every section away and back from one header button, and attach a note to any session.
 - Pin, archive, and delete (to the OS trash); search plus filters (pinned, open, running, worktree, folder gone, siblings, noted, archived, date range).
   A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
@@ -50,7 +50,6 @@ Next:
 
 - Letting you answer when Claude asks something on its way out — whether to keep a worktree, say — instead of the tab closing over the question.
 - A worktree session keeping its worktree badge after the app restarts.
-- Clicking a group's label in the tab bar to reach that group in the sidebar, as a project's label already does.
 - Context health per session in the list, coloured the way the CLI's own status line colours it.
 - Creating an empty group from the project heading, not only from a session.
 - A log file, so a problem in an installed build can be looked at afterwards.

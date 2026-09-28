@@ -15,6 +15,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - A `terminal` panel type: a plain shell in the folder the panel first showed for. It stays there when you switch tab or project, the header says where it is, and the button restarts it in the current folder. After the shell exits, any key starts a new one. It takes the same `cwd`; with a fixed one it starts there and has no restart button.
 - Several panels in one group, switched from a strip of icons whose dot says a command failed or a session is waiting for you; a panel out of sight keeps what it was doing and runs again only once shown.
 - Folding a group of panels to its strip of icons, from a chevron on the divider beside it.
+- Clicking a group's name in the tab bar takes the session list to that group, as a project's name already does.
 
 ### Changed
 
