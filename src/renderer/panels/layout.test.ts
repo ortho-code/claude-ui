@@ -402,6 +402,12 @@ describe('one entry', () => {
     expect(entry(raw).problems).toContain(problem);
   });
 
+  it('refuses the name of something every object has, rather than taking it for a type', () => {
+    for (const type of ['toString', 'constructor', '__proto__']) {
+      expect(entry({ id: 'a', type }).problems).toEqual([`type "${type}" is not a type this build knows (it knows: sessions, claude, command).`]);
+    }
+  });
+
   it('refuses the second use of an id, and keys the slot by position so state cannot land on the first', () => {
     const seen = new Set<string>();
     const first = validateEntry({ id: 'a', type: 'command', options: { command: 'ls' } }, 0, TYPES, seen);

@@ -150,7 +150,7 @@ export function validateEntry(raw: unknown, index: number, types: Record<string,
   let type: PanelTypeDecl | null = null;
   if (raw.type === undefined) problems.push('type is missing.');
   else if (typeof raw.type !== 'string') problems.push('type is not a string.');
-  else if (!(raw.type in types)) {
+  else if (!Object.hasOwn(types, raw.type)) {
     problems.push(`type "${raw.type}" is not a type this build knows (it knows: ${Object.keys(types).join(', ')}).`);
   } else type = types[raw.type];
 
