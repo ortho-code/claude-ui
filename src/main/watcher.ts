@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron';
 import { watch, mkdirSync, type FSWatcher, promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fsFailure, log } from './log';
 
 const projectsDir = path.join(os.homedir(), '.claude', 'projects');
 
@@ -33,8 +34,10 @@ export function registerSessionsWatcher(getWindow: () => BrowserWindow | null): 
         notify();
       });
       watchers.set(dir, watcher);
-    } catch {
-      // The directory vanished between readdir and watch; ignore.
+    } catch (error) {
+      // A directory that vanished between readdir and watch is not worth a line. Anything else — the inotify limit (ENOSPC) above all — leaves that project's sessions without live updates, with nothing on screen to say so.
+      const failure = fsFailure(error);
+      if (failure) log('warn', 'watch', `cannot watch ${dir}: ${failure}`);
     }
   };
 
@@ -44,8 +47,10 @@ export function registerSessionsWatcher(getWindow: () => BrowserWindow | null): 
       for (const entry of entries) {
         if (entry.isDirectory()) watchDir(path.join(projectsDir, entry.name), false);
       }
-    } catch {
-      // Projects dir unreadable; nothing to watch yet.
+    } catch (error) {
+      // Not there yet is nothing to watch yet; unreadable is worth knowing.
+      const failure = fsFailure(error);
+      if (failure) log('warn', 'watch', `cannot list ${projectsDir}: ${failure}`);
     }
   };
 

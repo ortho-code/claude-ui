@@ -2,11 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } fr
 import { EventEmitter } from 'node:events';
 
 // The IPC handlers panels.ts registers, and every child it spawns, captured so the tests can drive them the way the renderer and the OS do.
-const { handlers, spawned, seq } = vi.hoisted(() => ({
+const { handlers, spawned, seq, logged } = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   spawned: [] as FakeChild[],
   // Never reset: panels.ts keeps its own map of live runs across tests, and a recycled pid would have one test's signals counted against another's process.
   seq: { pid: 7000 },
+  /** Every log line as `level area message`; the log itself is not started in tests. */
+  logged: [] as string[],
+}));
+
+vi.mock('./log', () => ({
+  log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
 /** Enough of a ChildProcess to drive a run: a pid to signal, a stdout to feed, and an exit we fire by hand. */
@@ -117,6 +123,7 @@ describe('a run', () => {
     handlers.clear();
     spawned.length = 0;
     sent = [];
+    logged.length = 0;
     registerPanelsIpc();
     kill = vi.spyOn(process, 'kill').mockImplementation(() => true);
   });
@@ -233,6 +240,39 @@ describe('a run', () => {
     const { child, token } = start();
     child.emit('error', new Error('spawn /bin/bash ENOENT'));
     expect(events(token)).toEqual([{ kind: 'exit', code: null, signal: null, error: 'spawn /bin/bash ENOENT' }]);
+  });
+
+  it('logs a failing run by its panel id and how long it took, and a clean one not at all', async () => {
+    const clean = start({ entryId: 'clean' });
+    clean.child.end(0);
+    const failing = start({ entryId: 'failing', source: { command: 'secret-tool lookup token' } });
+    await vi.advanceTimersByTimeAsync(1500);
+    failing.child.end(2);
+    expect(logged).toEqual(['warn panel failing failed: code 2, after 1.5 s']);
+    // The command line is the user's own words.
+    expect(logged.join('\n')).not.toContain('secret-tool');
+  });
+
+  it('logs a timeout, a spawn that fails and a refused folder', async () => {
+    const slow = start({ entryId: 'slow' });
+    await vi.advanceTimersByTimeAsync(PANEL_TIMEOUT_MS);
+    slow.child.end(null, 'SIGTERM');
+    start({ entryId: 'broken' }).child.emit('error', new Error('spawn /bin/bash ENOENT'));
+    start({ entryId: 'nowhere', context: { ...CONTEXT, cwd: '/definitely/not/here' } });
+    expect(logged).toEqual([
+      'warn panel slow still running at 30.0 s, stopped',
+      'warn panel broken could not run: spawn /bin/bash ENOENT',
+      'warn panel nowhere refused: /definitely/not/here is not there',
+    ]);
+  });
+
+  it('logs nothing for a run the app stopped on purpose', () => {
+    const first = start();
+    start();
+    first.child.end(null, 'SIGTERM');
+    handlers.get('panel:stop')!(null, 'status');
+    spawned[spawned.length - 1].end(null, 'SIGTERM');
+    expect(logged).toEqual([]);
   });
 
   it('ends the run a moment after the process when something it started keeps the pipe open', async () => {

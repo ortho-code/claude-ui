@@ -5,6 +5,8 @@ import { StringDecoder } from 'node:string_decoder';
 import { configRoot } from './paths';
 import { resolvePath } from './config';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup, type ShellInvocation } from './shell';
+import { log } from './log';
+import { formatDuration } from './stamp';
 import {
   PANEL_OUTPUT_CAP,
   PANEL_TIMEOUT_MS,
@@ -81,6 +83,8 @@ interface Run {
   /** Superseded by a re-run: the entry's surface belongs to the new run, so this one says nothing more. */
   muted: boolean;
   timeout: NodeJS.Timeout;
+  /** When it was spawned, for how long a failed run lasted. */
+  started: number;
 }
 
 /** The current run per entry. A superseded run leaves this map at once and lives on only in its own closures until its process is gone. */
@@ -93,8 +97,23 @@ function emit(run: Run, event: PanelRunEvent): void {
   run.sender.send('panel:run', run.entryId, run.token, event);
 }
 
+/**
+ * A run's end, as the log says it — failures only, since a panel runs on every tab switch and a clean run is not news.
+ * The panel's id names it, never its command line or output, which are the user's own.
+ */
+function logRunEnd(run: Run, event: PanelRunEvent): void {
+  const after = `after ${formatDuration(Date.now() - run.started)}`;
+  if (event.kind === 'stopped' && event.reason === 'timeout') log('warn', 'panel', `${run.entryId} still running at ${formatDuration(PANEL_TIMEOUT_MS)}, stopped`);
+  else if (event.kind === 'stopped' && event.reason === 'truncated') log('info', 'panel', `${run.entryId} printed more than the cap, stopped ${after}`);
+  else if (event.kind === 'exit' && event.error !== undefined) log('warn', 'panel', `${run.entryId} could not run: ${event.error}`);
+  else if (event.kind === 'exit' && (event.code !== 0 || event.signal !== null)) {
+    log('warn', 'panel', `${run.entryId} failed: code ${event.code}${event.signal ? `, signal ${event.signal}` : ''}, ${after}`);
+  }
+}
+
 function finish(run: Run, event: PanelRunEvent): void {
   if (run.finished) return;
+  logRunEnd(run, event);
   emit(run, event);
   run.finished = true;
   clearTimeout(run.timeout);
@@ -122,7 +141,9 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
   };
   // Refused rather than left to the spawn, whose error would name the shell rather than the folder.
   if (!cwd || !existsSync(cwd)) {
-    tell({ kind: 'exit', code: null, signal: null, error: `${cwd || 'the context directory'} is not there` });
+    const error = `${cwd || 'the context directory'} is not there`;
+    log('warn', 'panel', `${request.entryId} refused: ${error}`);
+    tell({ kind: 'exit', code: null, signal: null, error });
     return;
   }
   const { file, args } = panelInvocation(request.source);
@@ -144,6 +165,7 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
     finished: false,
     muted: false,
     timeout: setTimeout(() => stopRun(current, 'timeout'), PANEL_TIMEOUT_MS),
+    started: Date.now(),
   };
   runs.set(request.entryId, current);
   live.add(current);

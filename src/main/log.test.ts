@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createLog, expiredLogs, logFileName, REPEAT_FLUSH_MS } from './log';
+import { createLog, expiredLogs, fsFailure, logFileName, REPEAT_FLUSH_MS } from './log';
 import { KEEP_CRASH_LOGS } from '../shared/folders';
 import type { Log } from './log';
 
@@ -60,6 +60,18 @@ describe('logFileName', () => {
   it('is the local moment the file started, as digits', () => {
     expect(logFileName(new Date('2026-09-28T12:30:12.345Z'))).toBe(FIRST);
     expect(logFileName(new Date('2026-09-28T12:30:12.345Z'), true)).toBe('claude-ui-20260928143012-crash.log');
+  });
+});
+
+describe('fsFailure', () => {
+  it('has nothing to say about a path that is not there', () => {
+    expect(fsFailure(Object.assign(new Error('ENOENT: no such file or directory'), { code: 'ENOENT' }))).toBeNull();
+  });
+
+  it('gives any other failure its message, which names the code', () => {
+    const limit = Object.assign(new Error('ENOSPC: System limit for number of file watchers reached'), { code: 'ENOSPC' });
+    expect(fsFailure(limit)).toBe('ENOSPC: System limit for number of file watchers reached');
+    expect(fsFailure('odd')).toBe('odd');
   });
 });
 

@@ -4,19 +4,23 @@ import { homedir } from 'node:os';
 import * as path from 'node:path';
 
 // A real folder, so the script checks are made against a real filesystem rather than a fake one that agrees with the code.
-const { dataDir } = vi.hoisted(() => {
+const { dataDir, logged } = vi.hoisted(() => {
   const { mkdtempSync } = require('node:fs') as typeof import('node:fs');
   const { tmpdir } = require('node:os') as typeof import('node:os');
   const { join } = require('node:path') as typeof import('node:path');
-  return { dataDir: mkdtempSync(join(tmpdir(), 'claude-ui-config-')) };
+  return { dataDir: mkdtempSync(join(tmpdir(), 'claude-ui-config-')), logged: [] as string[] };
 });
 
 vi.mock('electron', () => ({
   app: { getPath: () => dataDir, setPath: () => {} },
   ipcMain: { handle: () => {}, on: () => {} },
 }));
+vi.mock('./log', () => ({
+  log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
+  fsFailure: () => null,
+}));
 
-import { checkPath, readLayout, resolvePath } from './config';
+import { checkPath, noteLayout, readLayout, resolvePath } from './config';
 import { configRoot, defaultLayoutFile, scriptsDir } from './paths';
 
 const write = (json: unknown): void => writeFileSync(defaultLayoutFile, typeof json === 'string' ? json : JSON.stringify(json));
@@ -100,5 +104,22 @@ describe('checkPath', () => {
     expect((await checkPath('scripts/later.sh', 'config', 'executable')).problem).toBe('scripts/later.sh is not executable');
     chmodSync(path.join(scriptsDir, 'later.sh'), 0o755);
     expect((await checkPath('scripts/later.sh', 'config', 'executable')).problem).toBeNull();
+  });
+});
+
+describe('noteLayout', () => {
+  it('logs the layout file only when what a read found changes', () => {
+    logged.length = 0;
+    const base = { configRoot, file: '/cfg/layouts/default.json', json: null };
+    noteLayout({ ...base, status: 'missing', error: null });
+    noteLayout({ ...base, status: 'missing', error: null });
+    noteLayout({ ...base, status: 'unparsable', error: 'Unexpected token } at position 12' });
+    noteLayout({ ...base, status: 'read', error: null, json: {} });
+    noteLayout({ ...base, status: 'read', error: null, json: { changed: true } });
+    expect(logged).toEqual([
+      'info layout /cfg/layouts/default.json: not there, the default layout is shown',
+      'warn layout /cfg/layouts/default.json: does not parse, the last good layout stays up: Unexpected token } at position 12',
+      'info layout /cfg/layouts/default.json: read',
+    ]);
   });
 });

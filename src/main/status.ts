@@ -4,6 +4,7 @@ import { promises as fs, watch, mkdirSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { statusDir, hookScriptPath, statusSettingsFile, shellQuote } from './paths';
+import { fsFailure, log } from './log';
 
 const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
 
@@ -122,12 +123,15 @@ async function removeInjectedHooks(): Promise<void> {
   let settings: { hooks?: Record<string, { hooks?: { command?: string }[] }[]> };
   try {
     settings = JSON.parse(await fs.readFile(settingsPath, 'utf8')) as typeof settings;
-  } catch {
-    return; // Missing (nothing we polluted) or malformed (must not touch it).
+  } catch (error) {
+    // Missing means nothing we polluted; malformed means it must not be touched, and is worth a line, since hooks are exactly what a broken settings file breaks.
+    const failure = fsFailure(error);
+    if (failure) log('info', 'hooks', `left ${settingsPath} alone: ${failure}`);
+    return;
   }
   if (!settings.hooks) return;
 
-  let changed = false;
+  const cleaned: string[] = [];
   for (const event of Object.keys(settings.hooks)) {
     const entries = settings.hooks[event];
     if (!Array.isArray(entries)) continue;
@@ -136,12 +140,15 @@ async function removeInjectedHooks(): Promise<void> {
       (entry) => !entry.hooks?.some((h) => typeof h.command === 'string' && h.command.includes(hookScriptPath)),
     );
     if (kept.length === entries.length) continue;
-    changed = true;
+    cleaned.push(event);
     if (kept.length === 0) delete settings.hooks[event];
     else settings.hooks[event] = kept;
   }
+  if (cleaned.length === 0) return;
   // Keep the file's trailing newline (JSON.stringify omits it) so cleanup leaves no spurious diff.
-  if (changed) await fs.writeFile(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+  await fs.writeFile(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+  // A write to a file that is the user's, not the app's, so it is said where it can be found.
+  log('info', 'hooks', `removed an older version's status hooks from ${settingsPath}: ${cleaned.join(' ')}`);
 }
 
 /** Watch the status directory and push per-session status updates to the renderer. */

@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import * as path from 'node:path';
 import { configRoot, layoutsDir, scriptsDir, defaultLayoutFile } from './paths';
 import type { LayoutReport, PathBase, PathCheck, PathKind } from '../shared/panels';
+import { fsFailure, log } from './log';
 
 /**
  * The config folder: read and watched here, never written.
@@ -62,6 +63,30 @@ export async function readLayout(file = defaultLayoutFile): Promise<LayoutReport
 }
 
 /**
+ * What the layout file's last read said, as a log line.
+ * Only a change is written: the file is read at start-up and on every save, and "read" a hundred times over says nothing. What the file's CONTENTS got wrong is the renderer's to say (panels/layout.ts); this is only whether there was a file to judge.
+ */
+let lastLayoutLine: string | null = null;
+export function noteLayout(report: LayoutReport): void {
+  const line =
+    report.status === 'read'
+      ? `${report.file}: read`
+      : report.status === 'missing'
+        ? `${report.file}: not there, the default layout is shown`
+        : `${report.file}: does not parse, the last good layout stays up: ${report.error}`;
+  if (line === lastLayoutLine) return;
+  lastLayoutLine = line;
+  log(report.status === 'unparsable' ? 'warn' : 'info', 'layout', line);
+}
+
+/** A read of the layout file that also notes what it found. */
+async function readAndNoteLayout(): Promise<LayoutReport> {
+  const report = await readLayout();
+  noteLayout(report);
+  return report;
+}
+
+/**
  * Create the folder, answer reads, and push a fresh report whenever anything in it changes.
  *
  * Three directories are watched rather than the folder recursively (recursive watch is unreliable on Linux/WSL, as watcher.ts found): the folder itself, `layouts/` for the file, and `scripts/` so a script appearing or gaining its executable bit (an attribute change, MEASURED to reach a directory watch) clears its panel's error without a restart — the report that follows is what tells every panel to check again.
@@ -70,7 +95,7 @@ export async function readLayout(file = defaultLayoutFile): Promise<LayoutReport
 export function registerConfig(getWindow: () => BrowserWindow | null): void {
   for (const dir of [configRoot, layoutsDir, scriptsDir]) mkdirSync(dir, { recursive: true });
 
-  ipcMain.handle('config:getLayout', () => readLayout());
+  ipcMain.handle('config:getLayout', () => readAndNoteLayout());
   ipcMain.handle('config:checkPath', (_event, value: string, base: PathBase, must: PathKind) => checkPath(value, base, must));
 
   const watchers = new Map<string, FSWatcher>();
@@ -79,7 +104,7 @@ export function registerConfig(getWindow: () => BrowserWindow | null): void {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      void readLayout().then((report) => {
+      void readAndNoteLayout().then((report) => {
         const win = getWindow();
         if (win && !win.isDestroyed()) win.webContents.send('config:changed', report);
       });
@@ -94,10 +119,16 @@ export function registerConfig(getWindow: () => BrowserWindow | null): void {
     try {
       const watcher = watch(dir, onEvent);
       // A watched directory going away surfaces here on some platforms; drop the dead watcher so the next root event can re-open it.
-      watcher.on('error', () => unwatch(dir));
+      watcher.on('error', (error) => {
+        const failure = fsFailure(error);
+        if (failure) log('warn', 'watch', `stopped watching ${dir}: ${failure}`);
+        unwatch(dir);
+      });
       watchers.set(dir, watcher);
-    } catch {
-      // Not there right now; the next event on the folder above tries again.
+    } catch (error) {
+      // Not there right now is routine, and the next event on the folder above tries again; anything else means changes there go unseen until a restart.
+      const failure = fsFailure(error);
+      if (failure) log('warn', 'watch', `cannot watch ${dir}: ${failure}`);
     }
   };
   const watchBelow = (): void => {

@@ -90,6 +90,15 @@ function isMissing(error: unknown): boolean {
   return (error as NodeJS.ErrnoException | null)?.code === 'ENOENT';
 }
 
+/**
+ * A filesystem failure as a log line says it, or null for ENOENT — the "it was not there" that every watcher and cleanup here meets as a matter of course, and which is not worth a line.
+ * Anything else is: its message leads with the code (`ENOSPC`, `EACCES`, `EMFILE`), which is what tells a limit or a permission apart from a folder that simply went away.
+ */
+export function fsFailure(error: unknown): string | null {
+  if (isMissing(error)) return null;
+  return error instanceof Error ? error.message : String(error);
+}
+
 /** The last non-empty line of a file, or null when it cannot be read. */
 async function readLastLine(file: string): Promise<string | null> {
   let handle: fs.FileHandle | undefined;
