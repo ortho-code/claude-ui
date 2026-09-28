@@ -1,6 +1,6 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested. renderer.ts wires these to its state and the DOM.
 import type { GroupState, SessionGroup, SessionSummary } from '../shared/types';
-import { splitPendingEscape, stripAnsi } from './panels/ansi';
+import { splitPendingEscape, stripAnsi } from './ansi';
 
 // The stable key for a displayed session entity: the session's own id, always.
 // It is immutable, so pins/archives/tabs can never go stale — a conversation-derived key stopped matching its session the moment the session gained a sibling.
