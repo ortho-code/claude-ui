@@ -277,6 +277,7 @@ function measure(nodes: HTMLElement[], horizontal: boolean): number[] {
 
 /**
  * The divider between two neighbours. Always there; draggable only when both are resizable and neither is folded, and one that is not says why on hover, so it does not read as broken (P11).
+ * A double-click on one that drags drops its split's dragged sizes, whichever divider made them, since a split's sizes are kept or dropped whole.
  */
 function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], toggles: Place['toggleFold'][], a: number, b: number): HTMLElement {
   const handle = element('div', 'divider');
@@ -292,7 +293,14 @@ function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLEleme
     return handle;
   }
   handle.classList.add('drag');
-  setTooltip(handle, 'Drag to resize');
+  setTooltip(handle, 'Drag to resize, double-click to reset');
+  // Back to the file's sizes: a split somebody has dragged does not read its children's `size` again, so without this an edit to the file would not move it.
+  handle.addEventListener('dblclick', (event) => {
+    if ((event.target instanceof Element && event.target.closest('button')) || !sizes[split.id]) return;
+    delete sizes[split.id];
+    host.persist();
+    render();
+  });
   const horizontal = split.axis === 'columns';
   let measured: number[] = [];
   installSplitResizer(handle, {

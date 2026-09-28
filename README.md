@@ -99,7 +99,7 @@ A node can also have:
 | `collapsible` | `true` lets a panel group fold to a strip of icons, from the chevron on its divider. |
 | `active` | The panel a group shows first. |
 
-Drag a divider to resize the two nodes beside it.
+Drag a divider to resize the two nodes beside it, and double-click it to go back to the sizes in the file: once you have dragged a divider, a `size` you change in the file does not move it until you double-click.
 A panel group that can fold has a faint chevron on its divider, which brightens when you point at the divider.
 The sizes you drag to, the groups you fold and the panel you pick in a group are remembered on this machine, not written to the file.
 A group with several panels switches between them from a strip of icons on its edge: hovering an icon names the panel, and a dot on it says a command failed or a session is waiting for you.

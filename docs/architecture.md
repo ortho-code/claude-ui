@@ -426,6 +426,7 @@ The same observer covers every later reveal — a switch on the rail, an unfold,
 Where the tree was left lives in `UiState.panelState`, per machine, and never in the layout file, which is what may be shared: the dragged sizes per split and child, the folded groups, and the panel picked in each group, all keyed by the file's ids.
 So an edit that renames a node starts it fresh rather than handing it another node's state.
 Only what the user did is stored: the file's `size` is read while a split has no dragged sizes, so changing it still moves a split nobody has dragged.
+A split somebody has dragged goes back to the file's sizes on a double-click on any of its dividers that drags, which drops its dragged sizes whole; without it the only way back was an edit that changes the split's children.
 
 ## The window's own chrome — built, and currently switched off
 
