@@ -313,7 +313,7 @@ Each type declares an icon, and an entry can pick another with `icon`, by name f
 A dot on an icon reports a panel that is not on show: a command whose run failed, or a session waiting for you behind `claude` or anywhere behind `sessions`.
 The dot is the status dot the rest of the app uses (`.nudge`), with one state of its own for a failed run.
 Clicking an icon shows that panel and unfolds the group, and clicking the shown panel's own icon folds the group, as VS Code's activity bar does, so a panel is put away from the icon that brought it out.
-That icon used to do nothing, which kept the chevron the one fold control; both now call the one fold (`toggleFold`), so they cannot fold a group two ways, and the icon's tooltip says it folds.
+That icon used to do nothing, which kept the chevron the one fold control; both now call the one fold (`toggleFold`), so they cannot fold a group two ways, and the icon's tooltip and its `aria-label`, one string, say it folds.
 In a group that cannot fold the shown icon still does nothing, and has neither a pointer nor a hover to suggest otherwise.
 A panel's own marks — the busy mark, the run's last word, its button — sit in a header over it, unless its type is bare.
 

@@ -421,9 +421,11 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
     item.type = 'button';
     // `alert` for a panel that cannot run, whoever said so: the layout (already in the slot's icon) or the panel itself.
     item.innerHTML = iconSvg((mounted.get(slot.key)?.problems.length ?? 0) > 0 ? 'alert' : slot.icon);
-    item.setAttribute('aria-label', slot.title);
     const isShown = slot === shown && !place.folded;
-    setTooltip(item, isShown && place.toggleFold ? `${slot.title} — click to fold` : slot.title);
+    // One label for the tooltip and a screen reader, so neither is told less than the other.
+    const label = isShown && place.toggleFold ? `${slot.title} — click to fold` : slot.title;
+    item.setAttribute('aria-label', label);
+    setTooltip(item, label);
     if (isShown) {
       item.classList.add('shown');
       // Nothing for a click to do in a group that cannot fold, so no hover to claim one.
