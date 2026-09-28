@@ -490,6 +490,7 @@ Folds come in two states, and they are deliberately separate. Filtering opens th
 A **group** is a user-made sub-section inside one project.
 Membership is one group per session, so it is stored as a session-id-to-group-id map — a session cannot be in two groups by construction.
 Groups carry their own display order, and deleting one only unfiles its members; the sessions are untouched.
+A row's "New group…" makes the group around that session in the same write, so it is never briefly empty, and the list then jumps to it, because a new group lands at the top of its project, which can be far from the row it was made from.
 
 The nested shape (projects, their groups in order, then the sessions in no group, with pins floated inside whichever section they land in) is computed by a pure function in the renderer's `logic.ts`, so the ordering rules are unit-tested without a DOM.
 A session started from a group's "+" is filed by the ordinary membership write, before its tab is built, so its row's first paint is already inside the group — there is no second, provisional membership anywhere, because the session has its real id from the start.

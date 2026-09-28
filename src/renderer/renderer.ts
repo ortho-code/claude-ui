@@ -1024,10 +1024,14 @@ async function moveSessionToGroup(session: SessionSummary, groupId: string | nul
 }
 
 // "New group…" from a row names the group and moves the session into it in one step, so the group is never briefly empty and the user never has to find it again to fill it.
+// A new group lands at the top of its project, which can be well away from the row it was made from, so the jump and its flash show where it went.
 async function newGroupForSession(session: SessionSummary): Promise<void> {
   const name = await promptText('New group', projName(session.repoRoot), '', 'Create');
   if (!name?.trim()) return;
+  const known = new Set(groupState.groups.map((g) => g.id));
   applyGroupState(await window.claudeUi.createGroup(name, session.repoRoot, entityKey(session)));
+  const group = groupState.groups.find((g) => !known.has(g.id));
+  if (group) jumpToGroup(session.repoRoot, group.id);
 }
 
 // The four ordering moves for a group, minus any that would be a no-op here: the first group has no "up", the last no "down", and a lone group in a project has nowhere to go at all.

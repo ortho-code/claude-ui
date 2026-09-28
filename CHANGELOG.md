@@ -27,6 +27,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - A project whose folder is gone is marked in the project switcher, on its heading and in the tab bar, with a crossed-out folder and a muted name, instead of only in its sessions' rows.
 - Project names in the tab bar are in full text colour, as their headings in the session list are.
 - A tab whose session's folder is gone is dimmed like its row, with the reason on hover, instead of looking like a tab you can resume.
+- Making a group from a session's options takes the list to the new group at the top of its project, instead of leaving the session to move out of sight.
 
 ### Fixed
 
