@@ -17,6 +17,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - Folding a group of panels to its strip of icons, from a chevron on the divider beside it or by clicking the icon of the panel on show.
 - Clicking a group's name in the tab bar takes the session list to that group, as a project's name already does; either one flashes the heading it lands on.
 - A new, empty group from a project's options; a group used to need a session to start from.
+- A log file, one per launch and day, to send along when something goes wrong: Settings shows its folder with an Open button, and the log of a launch that crashed is kept for longer.
 
 ### Changed
 

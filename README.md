@@ -45,13 +45,13 @@ Done:
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
   Panels so far run a command or a script and show its output, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong. See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag. See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
+- A log file per launch and day, so a problem in an installed build can be looked at afterwards; a launch that crashed keeps its log for longer. See [Install a build](#install-a-build) for where it is.
 
 Next:
 
 - Letting you answer when Claude asks something on its way out — whether to keep a worktree, say — instead of the tab closing over the question.
 - A worktree session keeping its worktree badge after the app restarts.
 - Context health per session in the list, coloured the way the CLI's own status line colours it.
-- A log file, so a problem in an installed build can be looked at afterwards.
 - Clickable paths in terminal output, opening the file the session just named in a panel.
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).
 - Playwright end-to-end tests, then split view.
@@ -176,6 +176,11 @@ A panel's options are checked by the panel itself, when it appears and before ea
 The app runs the real `claude` CLI, so **install and sign in to Claude Code first** — without it every session opens on "command not found".
 
 Builds are not published anywhere: ask for the file. The version you are running is in the window title, which is what to quote in a bug report.
+
+Send the log along with it: **Settings → Logs → Open** shows the folder, `~/.config/claude-ui/logs/` on Linux and `~/Library/Logs/Claude UI/` on macOS.
+There is a file per launch and day, named for the moment it started, and a launch that crashed or ended without quitting keeps its file as `…-crash.log`.
+The files record what the app did — sessions starting and ending, and what failed — and not your prompts or conversations, apart from the last few lines a session printed if it failed to start.
+The app removes old files itself, keeping the last 7 days it ran and the 20 newest crash logs, and any of them is safe to delete.
 
 **macOS** (Apple Silicon).
 Open the `.dmg` and drag the app to Applications.
