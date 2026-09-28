@@ -287,7 +287,7 @@ The arithmetic lives in `src/renderer/panels/sizes.ts`, pure and tested; `tree.t
 A divider sits between every two neighbours and is always drawn, as a hairline: two panels on the same background otherwise read as one.
 It can be dragged only when both neighbours are `resizable` and neither is folded, and one that cannot says why on hover (`Fixed size: side has "resizable": false`, `Unfold drawer to resize`), so it does not read as broken.
 
-A `collapsible` group folds from a chevron on a divider.
+A `collapsible` group folds from a chevron on a divider, and a group with a rail from its rail too (see Several panels in a group).
 It sits there because a divider takes no room anywhere else, and won over a header row (which a bare group does not have) and over a button placed in the panel's own bar, after all three were tried in a clickable mock.
 The chevron points the way the group moves, and stays on the same divider when the group is folded, turned round: fold and unfold happen at one spot.
 It is FAINT until the pointer is on its divider and full then — quieter than a row of buttons on every foldable divider, and easier to find than a chevron that only appears on hover; all three were tried.
@@ -312,7 +312,9 @@ It won over a tab strip after both were tried: a strip costs a row and changes s
 Each type declares an icon, and an entry can pick another with `icon`, by name from a fixed set; the tooltip is the panel's title.
 A dot on an icon reports a panel that is not on show: a command whose run failed, or a session waiting for you behind `claude` or anywhere behind `sessions`.
 The dot is the status dot the rest of the app uses (`.nudge`), with one state of its own for a failed run.
-Clicking an icon shows that panel and unfolds the group; the shown panel's own icon does nothing, so the chevron stays the one fold control.
+Clicking an icon shows that panel and unfolds the group, and clicking the shown panel's own icon folds the group, as VS Code's activity bar does, so a panel is put away from the icon that brought it out.
+That icon used to do nothing, which kept the chevron the one fold control; both now call the one fold (`toggleFold`), so they cannot fold a group two ways, and the icon's tooltip says it folds.
+In a group that cannot fold the shown icon still does nothing.
 A panel's own marks — the busy mark, the run's last word, its button — sit in a header over it, unless its type is bare.
 
 The fold control and the switcher each live in one function in `tree.ts` (`foldControls`, `switcher`), so trying one of the other variants from the mock — a header button, a tab strip — is a local change there, and none of it is in the file format.

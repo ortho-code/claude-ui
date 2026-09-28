@@ -57,11 +57,12 @@ interface Mounted {
   notes: string[];
 }
 
-/** Where a child sits in its split: along which axis, which edge it folds toward, and whether it is folded. The root has no axis and cannot fold. */
+/** Where a child sits in its split: along which axis, which edge it folds toward, whether it is folded, and how to fold or unfold it — null for a child that cannot. The root has no axis and cannot fold. */
 interface Place {
   axis: 'rows' | 'columns' | null;
   edge: 'start' | 'end';
   folded: boolean;
+  toggleFold: (() => void) | null;
 }
 
 const REFRESH_ICON = strokeIcon(14, '<path d="M12.8 8.6A4.8 4.8 0 1 1 11.6 4.5" /><path d="M12.9 2.8v2.6h-2.6" />');
@@ -184,7 +185,7 @@ function render(): void {
   const focused = document.activeElement;
   const scrolled = scrollOffsets();
   onShow = new Set();
-  app.replaceChildren(renderNode(tree, { axis: null, edge: 'start', folded: false }));
+  app.replaceChildren(renderNode(tree, { axis: null, edge: 'start', folded: false, toggleFold: null }));
   for (const [el, top, left] of scrolled) {
     el.scrollTop = top;
     el.scrollLeft = left;
@@ -230,10 +231,12 @@ function renderSplit(split: ResolvedSplit): HTMLElement {
   const folded = visible.map((child) => foldable(child) && collapsed.has(child.id));
   const box = element('div', `split ${split.axis}`);
   const nodes: HTMLElement[] = [];
+  // One fold per child that has a divider to fold from, behind both its chevron and its rail, so the two cannot fold it differently.
+  const toggles = visible.map((child, index) => (visible.length > 1 && foldable(child) ? () => toggleFold(split, visible, nodes, folded, index) : null));
   visible.forEach((child, index) => {
-    if (index > 0) box.append(divider(split, visible, nodes, edges, folded, index - 1, index));
+    if (index > 0) box.append(divider(split, visible, nodes, edges, folded, toggles, index - 1, index));
     const node = element('div', 'node');
-    node.append(renderNode(child, { axis: split.axis, edge: edges[index], folded: folded[index] }));
+    node.append(renderNode(child, { axis: split.axis, edge: edges[index], folded: folded[index], toggleFold: toggles[index] }));
     nodes.push(node);
     box.append(node);
   });
@@ -275,9 +278,9 @@ function measure(nodes: HTMLElement[], horizontal: boolean): number[] {
 /**
  * The divider between two neighbours. Always there; draggable only when both are resizable and neither is folded, and one that is not says why on hover, so it does not read as broken (P11).
  */
-function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], a: number, b: number): HTMLElement {
+function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], toggles: Place['toggleFold'][], a: number, b: number): HTMLElement {
   const handle = element('div', 'divider');
-  foldControls(handle, split, visible, nodes, edges, folded, a, b);
+  foldControls(handle, split, visible, nodes, edges, folded, toggles, a, b);
   const shut = [a, b].filter((index) => folded[index]).map((index) => visible[index].id);
   const fixed = [a, b].filter((index) => !visible[index].resizable).map((index) => visible[index].id);
   if (shut.length > 0) {
@@ -313,8 +316,8 @@ const OPPOSITE: Record<Direction, Direction> = { up: 'down', down: 'up', left: '
  * Two on one divider — two foldable groups alone in a split — sit one after the other along the line, each pointing into its own group, so neither covers a header; hovering one outlines the group it acts on.
  * Faint until the pointer is on the divider (styles.css), so a window of foldable groups is not a row of buttons.
  */
-function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], a: number, b: number): void {
-  const riders = [a, b].filter((index) => foldable(visible[index]) && edges[index] === (index === a ? 'start' : 'end'));
+function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], toggles: Place['toggleFold'][], a: number, b: number): void {
+  const riders = [a, b].filter((index) => toggles[index] && edges[index] === (index === a ? 'start' : 'end'));
   const horizontal = split.axis === 'columns';
   for (const index of riders) {
     const group = visible[index];
@@ -327,18 +330,22 @@ function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: Resolv
     setTooltip(chevron, label);
     chevron.addEventListener('mouseenter', () => nodes[index].classList.add('fold-target'));
     chevron.addEventListener('mouseleave', () => nodes[index].classList.remove('fold-target'));
-    chevron.addEventListener('click', () => {
-      if (folded[index]) collapsed.delete(group.id);
-      else {
-        // Every sibling's size now, the group's own included, so it unfolds to the size it had and nothing else moves when it does.
-        sizes[split.id] = snapshot(flexChildren(visible, folded), measure(nodes, horizontal), sizes[split.id]);
-        collapsed.add(group.id);
-      }
-      host.persist();
-      render();
-    });
+    chevron.addEventListener('click', toggles[index]!);
     handle.append(chevron);
   }
+}
+
+/** Fold a group to its rail, or unfold it: the one fold, behind the chevron and the rail alike. */
+function toggleFold(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], folded: boolean[], index: number): void {
+  const group = visible[index];
+  if (folded[index]) collapsed.delete(group.id);
+  else {
+    // Every sibling's size now, the group's own included, so it unfolds to the size it had and nothing else moves when it does.
+    sizes[split.id] = snapshot(flexChildren(visible, folded), measure(nodes, split.axis === 'columns'), sizes[split.id]);
+    collapsed.add(group.id);
+  }
+  host.persist();
+  render();
 }
 
 /**
@@ -395,7 +402,7 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
 
 /**
  * THE SWITCHER (P9): a group with several panels, or a folded group, shows a rail of icons on the edge it folds toward, so the rail stays where it is when the rest folds away.
- * An icon's tooltip names the panel and its dot says it waits or failed (P8); a click shows that panel, unfolding the group; the shown panel's own icon does nothing, since folding is the chevron's alone.
+ * An icon's tooltip names the panel and its dot says it waits or failed (P8); a click shows that panel, unfolding the group, and a click on the panel already on show folds the group, as its chevron does.
  * Null for a group with one panel on show, which needs no switching.
  */
 function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, place: Place): HTMLElement | null {
@@ -407,8 +414,8 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
     // `alert` for a panel that cannot run, whoever said so: the layout (already in the slot's icon) or the panel itself.
     item.innerHTML = iconSvg((mounted.get(slot.key)?.problems.length ?? 0) > 0 ? 'alert' : slot.icon);
     item.setAttribute('aria-label', slot.title);
-    setTooltip(item, slot.title);
     const isShown = slot === shown && !place.folded;
+    setTooltip(item, isShown && place.toggleFold ? `${slot.title} — click to fold` : slot.title);
     if (isShown) {
       item.classList.add('shown');
       item.setAttribute('aria-current', 'true');
@@ -416,7 +423,10 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
     const entry = slot.problems.length === 0 ? mounted.get(slot.key) : undefined;
     if (entry) item.append(entry.badge);
     item.addEventListener('click', () => {
-      if (isShown) return;
+      if (isShown) {
+        place.toggleFold?.();
+        return;
+      }
       active[group.id] = slot.key;
       collapsed.delete(group.id);
       host.persist();
