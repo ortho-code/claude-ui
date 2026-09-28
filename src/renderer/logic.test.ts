@@ -83,7 +83,7 @@ describe('projectRootExists', () => {
 
 describe('projectGoneReason', () => {
   it('names the folder that is gone', () => {
-    expect(projectGoneReason('/gone')).toBe("This project's folder is gone: /gone");
+    expect(projectGoneReason('/gone')).toBe("This project's folder is gone, so nothing in it can run: /gone");
   });
 });
 
@@ -350,6 +350,19 @@ describe('projectsForSwitcher', () => {
     expect(
       projectsForSwitcher([s('a1', '/x/alpha')], statuses, new Set(['a1'])).projects[0].badge,
     ).toBeNull();
+  });
+
+  // The switcher marks a dead project the way its heading does, so the two are answered by the same rule.
+  it('says which projects have lost their folder', () => {
+    const model = projectsForSwitcher(
+      [session({ id: 'a', repoRoot: '/x/alive' }), session({ id: 'g', repoRoot: '/x/gone', repoRootExists: false, cwdExists: false })],
+      new Map(),
+      new Set(),
+    );
+    expect(model.projects.map((f) => [f.name, f.rootExists])).toEqual([
+      ['alive', true],
+      ['gone', false],
+    ]);
   });
 
   it('handles an empty session list', () => {

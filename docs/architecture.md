@@ -144,6 +144,17 @@ An action that cannot be taken is shown rather than removed: a menu that changes
 **Management stays**: pin, note, archive and delete all keep working, because cleaning up after a folder that has gone is exactly when you need them.
 One function produces that sentence and the tooltip, the toast and the pane all use it, so they cannot drift.
 
+**A project whose folder is gone is marked wherever it is named**, not only through its rows: its heading, the switcher's entries and title, and the tab bar's project label.
+The name is muted and the crossed-out folder — the "folder gone" filter's own mark — sits beside it, with the reason as the tooltip.
+The heading swaps its folder icon for it, since it already has one in front of the name; everywhere else it comes after the name, so a dead project's name lines up with the rest.
+A muted name only says something beside names that are not muted, so the tab bar's project labels are in full text colour like the headings, where they used to be muted themselves; a group's label under its project is told apart by its rail and its lighter weight instead.
+Muted rather than dimmed, because the project is not disabled: it can still be folded, selected, renamed and cleaned up, and selecting it is how you get to its sessions to do that.
+Scoped to it, the empty pane says the same sentence instead of pointing at sessions or tabs that cannot open.
+One rule decides it (`projectRootExists`, which the list's headings and the switcher's model both call), one function says it (`projectGoneReason`, shaped like the session one), and one helper draws it (`markProjectGone`).
+Marking was chosen over hiding: an unmounted drive would make a project you use every day vanish without a word, and a dead project nobody is coming back to already has a way out — delete or archive its sessions, and it leaves the switcher with the last one.
+Nor does it move: a dead project keeps the place you gave it, since a project that sank to the end whenever a drive was unmounted would move a list under the person reading it.
+Group headings, the attention strip and the panels are left alone on purpose: the project heading above a group is sticky, so its mark is on screen the whole time; the strip lists running sessions, which a dead project cannot have; and a panel already refuses a folder that is not there, in words about its own folder.
+
 Two cases no amount of gating can pre-empt — a folder that disappears while the app is running, and a tab you are already sitting on — which is why the refusal still has to explain itself when it happens.
 A tab is kept, cold, rather than closed: the click meant "look at this", and the folder may come back.
 

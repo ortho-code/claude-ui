@@ -88,9 +88,9 @@ export function projectRootExists(sessions: readonly SessionSummary[]): boolean 
   return sessions.some((s) => s.repoRootExists);
 }
 
-/** Why nothing can be started in a project whose folder is gone: the one sentence for every surface that says it, as `unstartableReason` is for a session. */
+/** Why nothing can be started in a project whose folder is gone: the one sentence for every surface that says it, as `unstartableReason` is for a session, and shaped like it. */
 export function projectGoneReason(repoRoot: string): string {
-  return `This project's folder is gone: ${repoRoot}`;
+  return `This project's folder is gone, so nothing in it can run: ${repoRoot}`;
 }
 
 // Group by repo root so a repo's worktrees (and subdirectories) file under one heading.
@@ -256,6 +256,8 @@ export interface SwitcherProject {
   name: string;
   count: number;
   badge: NudgeStatus;
+  /** Whether the project's folder is still there, by the same rule as the session list's headings. */
+  rootExists: boolean;
 }
 
 export interface SwitcherModel {
@@ -304,6 +306,7 @@ export function projectsForSwitcher(
     name: displayName(repoRoot, names),
     count: list.length,
     badge: rollUpNudge(list, statuses, acked),
+    rootExists: projectRootExists(list),
   }));
   return {
     all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked) },

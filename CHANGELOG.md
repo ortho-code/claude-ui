@@ -23,6 +23,8 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - Icons in the sidebar and tab bar share one line weight.
 - Closing the filter panel while a filter is on leaves a row showing what is on — the search text, each filter, the date range — each with its own ×, above the count and Clear; press the row to open the panel again.
 - Every scrollbar is the thin dark one the session list and the terminal already had, including the project switcher, the live strip and panels, instead of the system's light one.
+- A project whose folder is gone is marked in the project switcher, on its heading and in the tab bar, with a crossed-out folder and a muted name, instead of only in its sessions' rows.
+- Project names in the tab bar are in full text colour, as their headings in the session list are.
 
 ### Fixed
 

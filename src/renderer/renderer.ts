@@ -20,6 +20,7 @@ import {
   projectsForSwitcher,
   orderAsTabs,
   unstartableReason,
+  projectRootExists,
   projectGoneReason,
   hasVisibleOutput,
   statusLabel,
@@ -79,6 +80,7 @@ const searchInput = document.getElementById('search') as HTMLInputElement;
 const switcherEl = document.getElementById('project-switcher')!;
 const switcherCurrent = document.getElementById('switcher-current') as HTMLButtonElement;
 const switcherName = document.getElementById('switcher-name')!;
+const switcherGone = document.getElementById('switcher-gone')!;
 const switcherBadge = document.getElementById('switcher-badge')!;
 const switcherPopover = document.getElementById('switcher-popover')!;
 const sidebarFooter = document.getElementById('sidebar-footer')!;
@@ -313,6 +315,8 @@ interface ProjectSectionEls {
   heading: HTMLElement;
   caret: HTMLElement;
   count: HTMLElement;
+  /** The folder in front of the name, which turns into the crossed-out folder when the project's folder is gone. */
+  icon: HTMLElement;
   label: HTMLElement;
   /** Opens the jump-to-a-group menu; hidden below 2 targets, disabled while filtering. */
   groupsBtn: HTMLButtonElement;
@@ -376,6 +380,8 @@ function reconcileOpenTabs(): void {
       fresh.firstMessage !== tab.session.firstMessage ||
       fresh.worktree !== tab.session.worktree ||
       fresh.repoRoot !== tab.session.repoRoot ||
+      // The project label marks a project whose folder is gone, which can happen with the app running.
+      fresh.repoRootExists !== tab.session.repoRootExists ||
       fresh.isSibling !== tab.session.isSibling ||
       fresh.siblingIds.length !== tab.session.siblingIds.length;
     tab.session = fresh;
@@ -912,11 +918,34 @@ async function restoreUiState(): Promise<number> {
 
 // --- Project switcher ---
 
+/**
+ * Mark a project whose folder is gone, the same way on every surface that names one — its heading, the switcher's entries and title, the tab bar's project label: the name muted, the crossed-out folder beside it, and why as the tooltip.
+ * The heading already has a folder in front of its name, so its `mark` is that slot and `live` is what it holds while the folder is there; everywhere else the mark comes after the name and is empty then, so the names stay aligned.
+ * `pathTip` is the element whose tooltip is the project's path while it is alive, and the reason once it is not.
+ */
+function markProjectGone(repoRoot: string, gone: boolean, name: HTMLElement, mark: HTMLElement, size: number, pathTip?: HTMLElement, live = ''): void {
+  const reason = gone ? projectGoneReason(repoRoot) : null;
+  name.classList.toggle('project-gone', gone);
+  mark.classList.toggle('project-gone', gone);
+  mark.innerHTML = gone ? folderGoneIcon(size) : live;
+  mark.hidden = !gone && !live;
+  setTooltip(mark, reason);
+  if (pathTip) setTooltip(pathTip, reason ?? repoRoot);
+}
+
+// Whether a project is dead, by the rule the session list and the switcher use, for the surfaces that hold only a repo root: the tab bar and the empty pane. A root with no sessions to ask is not called dead.
+function projectGone(repoRoot: string): boolean {
+  const sessions = visibleSessions().filter((s) => s.repoRoot === repoRoot);
+  return sessions.length > 0 && !projectRootExists(sessions);
+}
+
 // Update the switcher header + popover from the visible project pool. The pool is every project's tips (see renderList); the switcher is independent of search/project so you can always navigate.
 function renderSwitcher(pool: SessionSummary[]): void {
   const model = projectsForSwitcher(pool, statuses, acked, projectNames, projectOrder);
   const active = activeProject ? model.projects.find((f) => f.repoRoot === activeProject) : null;
   switcherName.textContent = active ? active.name : 'All';
+  // The title keeps "Switch project" as its tooltip; only the mark says why.
+  markProjectGone(activeProject ?? '', active ? !active.rootExists : false, switcherName, switcherGone, 14);
 
   // Header nudge: the overall roll-up across ALL projects (incl. the active one and busy), so any attention is visible at a glance even when scoped to a project or scrolled down a long list.
   const headerBadge = model.all.badge;
@@ -925,8 +954,8 @@ function renderSwitcher(pool: SessionSummary[]): void {
   setTooltip(switcherBadge, headerBadge ? `A project is ${headerBadge}` : null);
 
   switcherPopover.replaceChildren(
-    switcherItem('All', null, model.all.count, null, activeProject === null),
-    ...model.projects.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeProject)),
+    switcherItem('All', null, model.all.count, null, activeProject === null, false),
+    ...model.projects.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeProject, !f.rootExists)),
   );
 
   renderFooter(model, pool);
@@ -1254,16 +1283,24 @@ footerToggle.addEventListener('click', () => {
   persistUi();
 });
 
-function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean): HTMLElement {
+function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean, gone: boolean): HTMLElement {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = active ? 'switcher-item active' : 'switcher-item';
   btn.setAttribute('role', 'menuitem');
-  setTooltip(btn, repoRoot ?? 'All projects'); // full path on hover (the row shows only the last segment)
 
   const label = document.createElement('span');
   label.className = 'switcher-item-name';
   label.textContent = name;
+
+  // The full path on hover, since the row shows only the last segment; a dead project's reason carries the path too.
+  const mark = document.createElement('span');
+  mark.className = 'gone-mark';
+  if (repoRoot) markProjectGone(repoRoot, gone, label, mark, 13, btn);
+  else {
+    mark.hidden = true;
+    setTooltip(btn, 'All projects');
+  }
 
   const dot = document.createElement('span');
   dot.className = badge ? `nudge ${badge}` : 'nudge';
@@ -1272,7 +1309,7 @@ function switcherItem(name: string, repoRoot: string | null, count: number, badg
   cnt.className = 'switcher-item-count';
   cnt.textContent = String(count);
 
-  btn.append(label, dot, cnt);
+  btn.append(label, mark, dot, cnt);
   btn.addEventListener('click', () => selectProject(repoRoot));
   return btn;
 }
@@ -1499,7 +1536,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
     const goneReason = rootGone ? projectGoneReason(project.repoRoot) : null;
     if (els.addBtn) setUnavailable(els.addBtn, goneReason, 'New session in this project');
     if (els.addCaret) setUnavailable(els.addCaret, goneReason, 'New session options');
-    els.section.classList.toggle('root-gone', rootGone);
+    markProjectGone(project.repoRoot, rootGone, els.label, els.icon, 14, els.label, folderIcon(14));
     for (const { group, sessions } of project.groups) {
       const groupEls = groupSections.get(group.id) ?? createGroupSection(group.id);
       groupSections.set(group.id, groupEls);
@@ -2132,7 +2169,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   });
   section.appendChild(heading);
 
-  return { section, heading, caret, count, label, groupsBtn, addCaret, addBtn };
+  return { section, heading, caret, count, icon, label, groupsBtn, addCaret, addBtn };
 }
 
 // Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky) over an indented well that holds its rows. Contents are updated on later renders.
@@ -2920,8 +2957,12 @@ function renderTabBar(): void {
       if (!activeProject) {
         const label = document.createElement('span');
         label.className = 'tab-project-label';
-        label.textContent = projName(root);
-        setTooltip(label, root);
+        const name = document.createElement('span');
+        name.textContent = projName(root);
+        const mark = document.createElement('span');
+        mark.className = 'gone-mark';
+        markProjectGone(root, projectGone(root), name, mark, 11, label);
+        label.append(name, mark);
         label.addEventListener('click', () => revealProjectInSidebar(root));
         row.append(label);
       }
@@ -3103,11 +3144,13 @@ function updatePlaceholder(): void {
     ? `“${sessionLabel(activeTab!.session)}” isn’t running. Click its tab to resume it.`
     : allSessions.length === 0
       ? 'No sessions yet — start one with + New.'
-      : // visibleTabs, not tabs: a project view shows only its own, so "pick a tab above" was being
-        // offered next to an empty bar whenever the open tabs all belonged to other projects.
-        visibleTabs().length === 0
-        ? 'Pick a session in the sidebar to open it.'
-        : 'Pick a tab above, or a session in the sidebar, to resume it.';
+      : // Nothing in a dead project can be opened or resumed, so pointing at its sessions or tabs would send you to a click that is refused.
+        activeProject !== null && projectGone(activeProject)
+        ? projectGoneReason(activeProject)
+        : // visibleTabs, not tabs: a project view shows only its own, so "pick a tab above" was being offered next to an empty bar whenever the open tabs all belonged to other projects.
+          visibleTabs().length === 0
+          ? 'Pick a session in the sidebar to open it.'
+          : 'Pick a tab above, or a session in the sidebar, to resume it.';
 }
 
 // --- Wiring ---

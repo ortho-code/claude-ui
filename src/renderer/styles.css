@@ -795,11 +795,17 @@ button:hover {
   background: var(--active);
 }
 
+/* The name takes only its own width, so a dead project's mark sits against it rather than out by the dot; the dot is pushed to the right instead. */
 .switcher-item-name {
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.switcher-item-name ~ .nudge {
+  margin-left: auto;
 }
 
 .switcher-item-count {
@@ -1301,6 +1307,20 @@ button:hover {
 
 .project h2 .heading-icon {
   color: var(--accent);
+}
+
+/* A PROJECT WHOSE FOLDER IS GONE, wherever it is named (markProjectGone): the name and its mark muted.
+   Muted rather than dimmed, because the project is not disabled — it can still be folded, selected, renamed and cleaned up.
+   The second selector only outweighs the heading icon's accent. */
+.project-gone,
+.project h2 .heading-icon.project-gone {
+  color: var(--muted);
+}
+
+.gone-mark {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
 }
 
 .project h2 .heading-count {
@@ -1927,8 +1947,7 @@ button:focus:not(:focus-visible) {
   cursor: nwse-resize;
 }
 
-/* In the All view the tab bar groups by project: each project on its own line, prefixed by a muted
-   label (flex-basis 100% forces every project onto a fresh row). */
+/* In the All view the tab bar groups by project: each project on its own line, prefixed by its label (flex-basis 100% forces every project onto a fresh row). */
 .tab-project {
   display: flex;
   flex-wrap: wrap;
@@ -1937,15 +1956,17 @@ button:focus:not(:focus-visible) {
   flex-basis: 100%;
 }
 
-/* Clickable: jumps the session list to this project. */
+/* Clickable: jumps the session list to this project.
+   Full text colour, like the project's own heading in the sidebar, so a project whose folder is gone reads the same way in both halves of the window: muted, beside names that are not. */
 .tab-project-label {
   display: flex;
   align-items: center;
+  gap: 4px;
   padding: 2px 8px;
   border-radius: var(--radius-control);
   font-size: var(--text-small);
   font-weight: 600;
-  color: var(--muted);
+  color: var(--text);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -1966,8 +1987,7 @@ button:focus:not(:focus-visible) {
   border-radius: 1px;
 }
 
-/* Regular weight, full-strength text: the deeper level is marked by colour and the rail, not by
-   piling more weight onto an 11px line (the project label above stays muted and semibold). */
+/* Regular weight, full-strength text: the deeper level is marked by the rail and by being lighter than the semibold project label, not by piling more weight onto an 11px line. */
 .tab-group-label {
   display: flex;
   align-items: center;
@@ -1986,7 +2006,6 @@ button:focus:not(:focus-visible) {
 }
 
 .tab-project-label:hover {
-  color: var(--text);
   background: var(--surface-hover);
 }
 
