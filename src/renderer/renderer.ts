@@ -1993,6 +1993,8 @@ function revealProjectInSidebar(repoRoot: string): void {
   const els = projectSections.get(repoRoot);
   if (!els) return;
   container.scrollTop += els.section.getBoundingClientRect().top - container.getBoundingClientRect().top;
+  // Flashed as a group's heading is after a jump, so the tab bar's project and group labels do the same thing at their own level.
+  flash(els.heading);
 }
 
 // The group headings pin below the project heading, so their sticky offset is its height.

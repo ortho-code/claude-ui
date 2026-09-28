@@ -1473,18 +1473,15 @@ button:focus:not(:focus-visible) {
 }
 
 
-/* Where a jump landed. A short jump moves the list barely at all, so without this there is no way to
-   tell the click did anything. It fades rather than blinks, and an inset ring means it reads the same
-   on a group heading (surface fill) as on a session row. The only animation in the app: the one
-   place where something happens that the eye would otherwise miss. */
+/* Where a jump landed.
+   A short jump moves the list barely at all, so without this there is no way to tell the click did anything.
+   It fades rather than blinks, and an inset ring means it reads the same on a heading as on a session row.
+   There is no end keyframe, so it fades into whatever the element itself has — a project heading's --bg, a group heading's --surface, an open row's accent bar — rather than ending on one colour and snapping to the element's own.
+   The only animation in the app: the one place where something happens that the eye would otherwise miss. */
 @keyframes jump-flash {
   from {
     background: var(--active);
     box-shadow: inset 0 0 0 1px var(--accent);
-  }
-  to {
-    background: var(--surface);
-    box-shadow: inset 0 0 0 1px transparent;
   }
 }
 
