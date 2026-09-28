@@ -2008,7 +2008,7 @@ button:focus:not(:focus-visible) {
   font-weight: 400;
 }
 
-.tab-group-label .group-icon {
+.tab-group-label .heading-icon {
   display: flex;
   align-items: center;
   color: var(--muted);
