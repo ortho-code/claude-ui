@@ -5,6 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { statusDir, hookScriptPath, statusSettingsFile, shellQuote } from './paths';
 import { fsFailure, log } from './log';
+import { writeFileAtomic } from './atomic';
 
 const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
 
@@ -146,7 +147,8 @@ async function removeInjectedHooks(): Promise<void> {
   }
   if (cleaned.length === 0) return;
   // Keep the file's trailing newline (JSON.stringify omits it) so cleanup leaves no spurious diff.
-  await fs.writeFile(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+  // Atomic, since this is the user's own file and a crash mid-write must not leave it cut short.
+  await writeFileAtomic(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
   // A write to a file that is the user's, not the app's, so it is said where it can be found.
   log('info', 'hooks', `removed an older version's status hooks from ${settingsPath}: ${cleaned.join(' ')}`);
 }
