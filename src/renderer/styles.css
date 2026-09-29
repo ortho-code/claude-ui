@@ -2319,15 +2319,20 @@ button:focus:not(:focus-visible) {
   background: var(--surface);
 }
 
+/* The `> ` hangs in a gutter of its own, so a request's later lines line up under its text, as claude indents a prompt's following lines. */
 .exchange-request-text {
+  position: relative;
   flex: 1;
   min-width: 0;
+  padding-left: 2ch;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .exchange-request-text::before {
-  content: '> ';
+  content: '>';
+  position: absolute;
+  left: 0;
   color: var(--muted);
 }
 
