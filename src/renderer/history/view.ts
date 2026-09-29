@@ -257,6 +257,13 @@ export class HistoryView {
     flash(target);
   }
 
+  /** Where a jump to exchange `index` puts the top of the view: its request line, which is what stepping measures from too. */
+  private anchor(index: number): number {
+    const node = this.nodes[index];
+    const request = node?.querySelector<HTMLElement>('.exchange-request') ?? node;
+    return request ? request.offsetTop - 4 : 0;
+  }
+
   private stepButton(direction: 'up' | 'down', label: string, step: number): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button';
@@ -268,12 +275,12 @@ export class HistoryView {
     return button;
   }
 
-  /** The exchange at the top of the view: the last one whose top is at or above it. */
+  /** The exchange at the top of the view: the last one whose request line is at or above it. */
   private current(): number {
     const top = this.scroller.scrollTop + 8;
     let found = 0;
     this.nodes.forEach((node, index) => {
-      if (!node.hidden && node.offsetTop <= top) found = index;
+      if (!node.hidden && this.anchor(index) <= top) found = index;
     });
     return found;
   }
@@ -281,9 +288,8 @@ export class HistoryView {
   private step(by: number): void {
     const visible = this.nodes.map((node, index) => (node.hidden ? -1 : index)).filter((index) => index >= 0);
     const at = this.current();
-    // Scrolled into an exchange, "previous" goes to its own start first, as a page's previous-heading key does.
-    const node = this.nodes[at];
-    const inside = node !== undefined && this.scroller.scrollTop > node.offsetTop + 8;
+    // Scrolled into an exchange, "previous" goes to its own start first, as a page's previous-heading key does; sitting on its request line, it goes to the one before.
+    const inside = this.scroller.scrollTop > this.anchor(at) + 8;
     const position = visible.indexOf(at);
     const target = by < 0 && inside ? at : visible[Math.min(visible.length - 1, Math.max(0, position + by))];
     if (target !== undefined) this.goTo(target);
