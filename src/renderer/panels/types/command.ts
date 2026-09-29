@@ -29,6 +29,11 @@ export interface PanelTypeDecl {
    * For the app's own surfaces, without which the window is not usable — the rule is the validator's, so no file can produce a window without the terminal.
    */
   singleton?: boolean;
+  /**
+   * What the type itself was built from, for one that can change while the app runs — a type from the config folder, whose manifest is edited by hand: a change mounts its entries afresh.
+   * Absent for a built-in, which changes only with the build.
+   */
+  revision?: string;
 }
 
 /** Where a panel would run right now: the renderer's active tab and selected project, as the side reads them. */

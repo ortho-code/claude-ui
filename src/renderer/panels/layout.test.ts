@@ -25,7 +25,7 @@ const TYPES = { sessions, claude, command: commandType };
 const FILE = '/home/u/.config/claude-ui/config/layouts/default.json';
 
 function report(json: unknown): LayoutReport {
-  return { configRoot: '/home/u/.config/claude-ui/config', file: FILE, status: 'read', error: null, json };
+  return { configRoot: '/home/u/.config/claude-ui/config', file: FILE, status: 'read', error: null, json, types: [] };
 }
 
 /** The two built-ins in their usual places, for a test about something else. */
@@ -78,6 +78,13 @@ describe('the default layout', () => {
 });
 
 describe('the file as a whole', () => {
+  it('puts what is said about the config folder under the root, with or without a file, and beside the file’s own notes', () => {
+    const note = 'types/command is not read: command is a type the app has built in.';
+    expect(tree(resolveLayout({ ...report(null), status: 'missing', json: null }, TYPES, [note])).notes).toEqual([note]);
+    const root = tree(resolveLayout(report({ version: 2, root: DEFAULT_LAYOUT.root, stray: 1 }), TYPES, [note]));
+    expect(root.notes).toEqual(['stray is not a field the layout file has.', note]);
+  });
+
   it('names the file and the parser’s position when it does not parse, so the last good layout can stay up', () => {
     const broken = { ...report(null), status: 'unparsable' as const, error: "Expected ',' or '}' after property value in JSON at position 32 (line 4 column 2)" };
     expect(resolveLayout(broken, TYPES)).toEqual({ kind: 'unparsable', file: FILE, message: broken.error });
@@ -480,6 +487,11 @@ describe('mountSignature', () => {
     expect(mountSignature(slot({ ...base, options: { ...base.options, later: true } }))).not.toBe(before);
     expect(mountSignature(slot({ id: 'status', type: 'command', options: { script: 'git status --short' } }))).not.toBe(before);
     expect(mountSignature(slot({ id: 'status', type: 'sessions' }))).not.toBe(before);
+  });
+
+  it('changes with what the type was built from, so an edited manifest mounts its panels afresh', () => {
+    expect(mountSignature(slot(base), 'manifest v2')).not.toBe(mountSignature(slot(base), 'manifest v1'));
+    expect(mountSignature(slot(base), 'manifest v1')).toBe(mountSignature(slot(base), 'manifest v1'));
   });
 });
 

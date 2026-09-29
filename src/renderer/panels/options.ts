@@ -10,13 +10,16 @@ import type { PanelEntry, PathBase, PathKind } from '../../shared/panels';
 
 export interface OptionDecl {
   name: string;
-  kind: 'text' | 'path';
+  /** `duration` is a whole number and a unit, `30s`, `5m` or `1h`. */
+  kind: 'text' | 'path' | 'duration';
   /**
    * For a `path`: what a relative value resolves against — the config folder, or the panel's context directory — and what it must point at.
    * Declared beside the option so the check is not something the type has to remember.
    */
   against?: 'config' | 'context';
   must?: PathKind;
+  /** For a `duration`: the shortest it may be, in ms. */
+  atLeast?: number;
 }
 
 /**
@@ -24,6 +27,30 @@ export interface OptionDecl {
  * Absolute or under `~` is FIXED: there, whatever is selected. Relative is under the context directory, so it follows the project into a subfolder.
  */
 export const CWD_OPTION: OptionDecl = { name: 'cwd', kind: 'path', against: 'context', must: 'directory' };
+
+/**
+ * How often a panel runs again on its own, for a type that re-runs at all: ONE declaration, taken by the types that want it and by no other, since a shell has nothing to re-run.
+ * Ten seconds at the least, so a typo cannot turn a panel into a script started every second.
+ */
+export const INTERVAL_OPTION: OptionDecl = { name: 'interval', kind: 'duration', atLeast: 10_000 };
+
+const DURATION = /^(\d+)(s|m|h)$/;
+const UNIT_MS = { s: 1000, m: 60_000, h: 3_600_000 } as const;
+
+/** A duration as the file writes it, in ms; null for anything that is not one. */
+export function parseDuration(value: string): number | null {
+  const match = DURATION.exec(value);
+  if (!match) return null;
+  const ms = Number(match[1]) * UNIT_MS[match[2] as keyof typeof UNIT_MS];
+  return ms > 0 ? ms : null;
+}
+
+/** "10s", "5m": a length in ms in the unit the file would write it in. */
+function durationLabel(ms: number): string {
+  if (ms % UNIT_MS.h === 0) return `${ms / UNIT_MS.h}h`;
+  if (ms % UNIT_MS.m === 0) return `${ms / UNIT_MS.m}m`;
+  return `${ms / UNIT_MS.s}s`;
+}
 
 /** Whether a path value names one place whatever is selected: absolute, or under the home directory. */
 export function isFixedPath(value: string): boolean {
@@ -74,14 +101,27 @@ export function optionProblems(options: Record<string, unknown>, decl: OptionsDe
   for (const option of decl.options) {
     const value = options[option.name];
     if (value === undefined) continue;
-    if (typeof value !== 'string') problems.push(`${option.name} is not a string.`);
-    else if (value.trim() === '') problems.push(`${option.name} is empty.`);
-    // Only `~` alone and `~/…` are expanded; `~user` would quietly become a folder named `~user` under the base.
-    else if (option.kind === 'path' && value.startsWith('~') && value !== '~' && !value.startsWith('~/')) {
-      problems.push(`${option.name} ${value}: only ~ and ~/… are expanded.`);
-    }
+    const problem = valueProblem(option, value);
+    if (problem) problems.push(problem);
   }
   return problems;
+}
+
+/**
+ * What is wrong with one option's value as written, or null: the ONE check of a value, for an entry's options and for a default a type's manifest gives.
+ * Nothing on disk is looked at here; a path's target is `checkOptions`' to ask about.
+ */
+export function valueProblem(option: OptionDecl, value: unknown): string | null {
+  if (typeof value !== 'string') return `${option.name} is not a string.`;
+  if (value.trim() === '') return `${option.name} is empty.`;
+  // Only `~` alone and `~/…` are expanded; `~user` would quietly become a folder named `~user` under the base.
+  if (option.kind === 'path' && value.startsWith('~') && value !== '~' && !value.startsWith('~/')) return `${option.name} ${value}: only ~ and ~/… are expanded.`;
+  if (option.kind === 'duration') {
+    const ms = parseDuration(value);
+    if (ms === null) return `${option.name} "${value}" is not a duration like 30s, 5m or 1h.`;
+    if (option.atLeast !== undefined && ms < option.atLeast) return `${option.name} ${value} is shorter than the ${durationLabel(option.atLeast)} it can be at the least.`;
+  }
+  return null;
 }
 
 /** One path option to ask main about. */

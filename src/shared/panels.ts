@@ -91,18 +91,38 @@ export interface PathCheck {
   problem: string | null;
 }
 
+/** How one read of a hand-written JSON file went: not there, there and not JSON (`error` says why and where), or read (`json` is what it parsed to). */
+export type ReadStatus = 'missing' | 'unparsable' | 'read';
+
 /**
- * One read of the layout file, before any validation of its shape.
+ * One folder under the config folder's `types/`: a panel type of a person's own, which the layout file uses by the folder's name.
+ * Read and not judged, like the layout file: `missing` is a folder without a `panel.json`, and what is wrong inside one is the renderer's to say.
+ */
+export interface TypeReport {
+  /** The folder's name, which is the type's name. */
+  name: string;
+  /** The folder, absolute: what the manifest's `run` resolves against. */
+  dir: string;
+  status: ReadStatus;
+  error: string | null;
+  json: unknown;
+}
+
+/**
+ * One read of the layout file and of the type folders beside it, before any validation of their shape.
  *
  * `missing`: there is no file, so there is no layout. `unparsable`: the file is there and could not be used, and `error` says why and where — the renderer keeps the last good layout up. `read`: `json` holds whatever the file parsed to.
+ * Read together so the renderer resolves the layout knowing every type at once, and never shows an entry of a type from the folder as unknown for the moment between two reads.
  * Nothing a panel's options point at is checked here: that is the panel's to ask about, when it is mounted and before it runs.
  */
 export interface LayoutReport {
   configRoot: string;
   file: string;
-  status: 'missing' | 'unparsable' | 'read';
+  status: ReadStatus;
   error: string | null;
   json: unknown;
+  /** Every folder under `types/`, by name; empty when there is none. */
+  types: TypeReport[];
 }
 
 /** What a `command` panel runs: exactly one of the two, as its options gave it. */

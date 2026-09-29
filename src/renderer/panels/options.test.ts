@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isFixedPath, optionProblems, optionsOf, pathChecks, type OptionsDecl } from './options';
+import { INTERVAL_OPTION, isFixedPath, optionProblems, optionsOf, parseDuration, pathChecks, type OptionsDecl } from './options';
 import { commandType } from './types/command';
 
 const none: OptionsDecl = { name: 'terminal', options: [], exactlyOne: [] };
@@ -44,6 +44,24 @@ describe('optionProblems', () => {
       'comand is not an option of the command type (it has: command, script, cwd).',
       'One of command or script is required.',
     ]);
+  });
+});
+
+describe('a duration', () => {
+  const every: OptionsDecl = { name: 'reviews', options: [INTERVAL_OPTION], exactlyOne: [] };
+
+  it.each([
+    ['30s', 30_000],
+    ['5m', 300_000],
+    ['1h', 3_600_000],
+  ])('reads %s as %i ms', (value, ms) => expect(parseDuration(value)).toBe(ms));
+
+  it.each(['5', '5 m', '1.5m', '0s', '-5m', '5d', 'm'])('refuses %j', (value) => expect(parseDuration(value)).toBeNull());
+
+  it('names a value that is not one, and one below the shortest the interval allows', () => {
+    expect(optionProblems({ interval: 'soon' }, every)).toEqual(['interval "soon" is not a duration like 30s, 5m or 1h.']);
+    expect(optionProblems({ interval: '5s' }, every)).toEqual(['interval 5s is shorter than the 10s it can be at the least.']);
+    expect(optionProblems({ interval: '10s' }, every)).toEqual([]);
   });
 });
 

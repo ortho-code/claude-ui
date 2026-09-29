@@ -49,6 +49,9 @@ export const layoutsDir = path.join(configRoot, 'layouts');
 /** Where a `script` belongs; a relative `script` resolves against the config folder, so `scripts/x.sh` travels with it. */
 export const scriptsDir = path.join(configRoot, 'scripts');
 
+/** Panel types of a person's own, a folder each: its `panel.json` and the script it runs. The folder's name is the type's, so a folder is shared by copying it. */
+export const typesDir = path.join(configRoot, 'types');
+
 export const defaultLayoutFile = path.join(layoutsDir, 'default.json');
 
 /**

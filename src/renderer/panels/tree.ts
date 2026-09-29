@@ -18,6 +18,7 @@ import {
 } from './layout';
 import { dragTo, flexFor, keptSizes, snapshot, type FlexChild } from './sizes';
 import { claudeType, sessionsType } from './types/builtin';
+import { folderTypes } from './types/folder';
 import { commandType, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type Where } from './types/command';
 import { terminalType } from './types/terminal';
 
@@ -31,7 +32,10 @@ import { terminalType } from './types/terminal';
  * Two choices tried in the playground and open to change sit in one function each, so swapping to another variant is a local change: `foldControls` (the chevron on the divider, P7/P12) and `switcher` (the rail of icons, P9).
  */
 
-const TYPES: Record<string, PanelType> = { sessions: sessionsType, claude: claudeType, command: commandType, terminal: terminalType };
+const BUILTIN_TYPES: Record<string, PanelType> = { sessions: sessionsType, claude: claudeType, command: commandType, terminal: terminalType };
+
+/** Every type the layout can place: the built-ins, and the config folder's as of its last read (types/folder.ts). */
+let types = BUILTIN_TYPES;
 
 /** What the tree needs from the renderer: where a panel would run, the toast, and the view-state write. */
 export interface TreeHost {
@@ -101,7 +105,7 @@ function queueRender(): void {
 export function initTree(treeHost: TreeHost): void {
   host = treeHost;
   app = document.getElementById('app')!;
-  const view = resolveLayout({ configRoot: '', file: '', status: 'missing', error: null, json: null }, TYPES);
+  const view = resolveLayout({ configRoot: '', file: '', status: 'missing', error: null, json: null, types: [] }, types);
   if (view.kind === 'tree') tree = view.root;
   render();
   window.claudeUi.onLayoutChanged((next) => apply(next));
@@ -151,7 +155,8 @@ export function restoreTreeState(state: PanelState, legacySidebarWidth: number |
 function apply(next: LayoutReport): void {
   // Kept whatever the read found: the folder's path is right in every report, and the settings dialog asks for it.
   report = next;
-  const view = resolveLayout(next, TYPES);
+  const found = folderTypes(next.types, BUILTIN_TYPES);
+  const view = resolveLayout(next, found.types, found.notes);
   // A file that does not parse keeps the last good layout up: the message names the file and the parser's position, and stays until a read succeeds, because the condition does not clear on its own.
   if (view.kind === 'unparsable') {
     host.showToast(`${fileName(view.file)}: ${view.message}`, true);
@@ -162,6 +167,8 @@ function apply(next: LayoutReport): void {
     host.hideToast();
     toasted = false;
   }
+  // Taken with the tree it was resolved against, never apart from it, so a layout kept up over a bad read keeps the types it was drawn with.
+  types = found.types;
   tree = view.root;
   render();
   // Something in the config folder changed, which may be a file or folder a panel's options point at: every panel checks again, in its own terms.
@@ -196,7 +203,12 @@ function collectWanted(node: ResolvedNode, into: Map<string, string>): void {
     for (const child of node.children) collectWanted(child, into);
     return;
   }
-  for (const slot of node.slots) if (!slot.hidden && slot.problems.length === 0) into.set(slot.key, mountSignature(slot));
+  for (const slot of node.slots) if (!slot.hidden && slot.problems.length === 0) into.set(slot.key, signatureOf(slot));
+}
+
+/** What a slot is mounted as, its type's revision included, so an edited manifest mounts that type's panels afresh. */
+function signatureOf(slot: PanelSlot): string {
+  return mountSignature(slot, (slot.type && types[slot.type]?.revision) ?? null);
 }
 
 function scrollOffsets(): [HTMLElement, number, number][] {
@@ -379,7 +391,7 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   }
   if (shown.problems.length > 0) {
     content.prepend(header(shown.title), problemList(shown.problems));
-  } else if (!TYPES[shown.type!]!.bare) {
+  } else if (!types[shown.type!]!.bare) {
     const { busy, end, action, problems } = mountedFor(shown);
     const row = header(shown.title, action ? [busy, end, action] : [busy, end]);
     // The layout's refusals and the panel's own are one list, drawn the same way.
@@ -449,7 +461,7 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
 function mountedFor(slot: PanelSlot): Mounted {
   const existing = mounted.get(slot.key);
   if (existing) return existing;
-  const type = TYPES[slot.type!]!;
+  const type = types[slot.type!]!;
   const busy = element('span', 'nudge busy');
   busy.hidden = true;
   const end = element('span', 'panel-end');
@@ -481,7 +493,7 @@ function mountedFor(slot: PanelSlot): Mounted {
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
-  const entry: Mounted = { panel, signature: mountSignature(slot), busy, end, action, badge, ...said };
+  const entry: Mounted = { panel, signature: signatureOf(slot), busy, end, action, badge, ...said };
   mounted.set(slot.key, entry);
   return entry;
 }

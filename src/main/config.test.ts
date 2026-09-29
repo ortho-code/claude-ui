@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { mkdirSync, writeFileSync, chmodSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, chmodSync, rmSync, symlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import * as path from 'node:path';
 
@@ -20,8 +20,9 @@ vi.mock('./log', async (importOriginal) => ({
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
-import { checkPath, noteLayout, readLayout, resolvePath } from './config';
-import { configRoot, defaultLayoutFile, scriptsDir } from './paths';
+import { checkPath, noteLayout, readLayout, readTypes, resolvePath } from './config';
+import { configRoot, defaultLayoutFile, scriptsDir, typesDir } from './paths';
+import type { TypeReport } from '../shared/panels';
 
 const write = (json: unknown): void => writeFileSync(defaultLayoutFile, typeof json === 'string' ? json : JSON.stringify(json));
 
@@ -57,7 +58,57 @@ describe('readLayout', () => {
 
   it('checks nothing a panel’s options point at: that is the panel’s to ask', async () => {
     write({ version: 2, root: { id: 'w', panels: [{ id: 'a', type: 'command', options: { script: 'scripts/missing.sh' } }] } });
-    expect(Object.keys(await readLayout()).sort()).toEqual(['configRoot', 'error', 'file', 'json', 'status']);
+    expect(Object.keys(await readLayout()).sort()).toEqual(['configRoot', 'error', 'file', 'json', 'status', 'types']);
+  });
+});
+
+describe('readTypes', () => {
+  const folder = (name: string, manifest?: string): void => {
+    mkdirSync(path.join(typesDir, name), { recursive: true });
+    if (manifest !== undefined) writeFileSync(path.join(typesDir, name, 'panel.json'), manifest);
+  };
+
+  beforeAll(() => {
+    folder('reviews', '{"version": 1, "kind": "list"}');
+    folder('broken', '{"version": 1,');
+    folder('empty');
+    folder('bom', '﻿{"version": 1}');
+    folder('.git');
+    writeFileSync(path.join(typesDir, 'notes.txt'), 'not a folder');
+    mkdirSync(path.join(dataDir, 'elsewhere', 'linked'), { recursive: true });
+    writeFileSync(path.join(dataDir, 'elsewhere', 'linked', 'panel.json'), '{"version": 1}');
+    symlinkSync(path.join(dataDir, 'elsewhere', 'linked'), path.join(typesDir, 'linked'));
+  });
+
+  it('reads every folder’s manifest as it is, in name order, each named after its folder', async () => {
+    const reports = await readTypes();
+    expect(reports.map(({ name }) => name)).toEqual(['bom', 'broken', 'empty', 'linked', 'reviews']);
+    expect(reports.find(({ name }) => name === 'reviews')).toEqual({
+      name: 'reviews',
+      dir: path.join(typesDir, 'reviews'),
+      status: 'read',
+      error: null,
+      json: { version: 1, kind: 'list' },
+    });
+  });
+
+  it('says a folder without a manifest is missing one, and one that is not JSON with the parser’s message', async () => {
+    const reports = await readTypes();
+    expect(reports.find(({ name }) => name === 'empty')).toMatchObject({ status: 'missing', error: null, json: null });
+    expect(reports.find(({ name }) => name === 'broken')).toMatchObject({ status: 'unparsable', json: null });
+    expect(reports.find(({ name }) => name === 'bom')).toMatchObject({ status: 'read', json: { version: 1 } });
+  });
+
+  it('follows a linked folder, and skips dot-folders and files', async () => {
+    const reports = await readTypes();
+    expect(reports.find(({ name }) => name === 'linked')).toMatchObject({ status: 'read', json: { version: 1 } });
+    expect(reports.map(({ name }) => name)).not.toContain('.git');
+    expect(reports.map(({ name }) => name)).not.toContain('notes.txt');
+  });
+
+  it('is empty without a types folder, and is part of every read of the layout', async () => {
+    expect(await readTypes(path.join(dataDir, 'nowhere'))).toEqual([]);
+    expect((await readLayout()).types.map(({ name }) => name)).toContain('reviews');
   });
 });
 
@@ -110,7 +161,7 @@ describe('checkPath', () => {
 describe('noteLayout', () => {
   it('logs the layout file only when what a read found changes', () => {
     logged.length = 0;
-    const base = { configRoot, file: '/cfg/layouts/default.json', json: null };
+    const base = { configRoot, file: '/cfg/layouts/default.json', json: null, types: [] };
     noteLayout({ ...base, status: 'missing', error: null });
     noteLayout({ ...base, status: 'missing', error: null });
     noteLayout({ ...base, status: 'unparsable', error: 'Unexpected token } at position 12' });
@@ -120,6 +171,22 @@ describe('noteLayout', () => {
       'info layout /cfg/layouts/default.json: not there, the default layout is shown',
       'warn layout /cfg/layouts/default.json: does not parse, the last good layout stays up: Unexpected token } at position 12',
       'info layout /cfg/layouts/default.json: read',
+    ]);
+  });
+
+  it('logs the type folders when which there are, or whether each could be read, changes', () => {
+    logged.length = 0;
+    const base = { configRoot, file: '/cfg/layouts/default.json', status: 'read' as const, error: null, json: {} };
+    const type = (name: string, over: Partial<TypeReport> = {}): TypeReport => ({ name, dir: `/cfg/types/${name}`, status: 'read', error: null, json: {}, ...over });
+    noteLayout({ ...base, types: [type('reviews')] });
+    noteLayout({ ...base, types: [type('reviews', { json: { changed: true } })] });
+    noteLayout({ ...base, types: [type('reviews'), type('ci', { status: 'unparsable', error: 'Unexpected end of JSON input' }), type('bare', { status: 'missing' })] });
+    noteLayout({ ...base, types: [] });
+    noteLayout({ ...base, types: [] });
+    expect(logged.filter((line) => line.includes('types:'))).toEqual([
+      'info layout types: reviews',
+      'warn layout types: reviews, ci (panel.json does not parse: Unexpected end of JSON input), bare (no panel.json)',
+      'info layout types: none',
     ]);
   });
 });

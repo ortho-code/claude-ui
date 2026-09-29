@@ -109,7 +109,7 @@ export function parseSize(value: unknown): NodeSize | null {
 export const shareOf = (node: { size: NodeSize | null }): number | null => (node.size && 'share' in node.size ? node.size.share : null);
 export const pxOf = (node: { size: NodeSize | null }): number | null => (node.size && 'px' in node.size ? node.size.px : null);
 
-const SLUG_RULE = 'lowercase letters, digits, hyphens and underscores, starting with a letter or digit';
+export const SLUG_RULE = 'lowercase letters, digits, hyphens and underscores, starting with a letter or digit';
 
 /** The same sentence for a node's id and an entry's, since they share one namespace. Adds a usable id to `seen`; returns the problem or null. */
 function checkId(raw: Record<string, unknown>, seen: Set<string>): string | null {
@@ -215,12 +215,12 @@ export function foldEdge(siblings: { size: NodeSize | null }[], index: number): 
 }
 
 /**
- * What a mounted panel IS, beyond its key: its type and its `options` as written.
- * The tree keeps a panel alive across a layout change while this stays the same, so a new title, icon or place moves it rather than restarting its run or its shell; a changed option mounts it afresh (decision 13).
+ * What a mounted panel IS, beyond its key: its type, what that type was built from, and its `options` as written.
+ * The tree keeps a panel alive across a layout change while this stays the same, so a new title, icon or place moves it rather than restarting its run or its shell; a changed option mounts it afresh (decision 13), and so does an edit to the manifest of a type from the config folder (`revision`).
  * Nothing here knows a type's options: whatever sits under `options` is what the panel was mounted from. Keys are sorted first, so reordering them in the file restarts nothing.
  */
-export function mountSignature(slot: PanelSlot): string {
-  return JSON.stringify([slot.type, sorted(slot.entry?.options ?? null)]);
+export function mountSignature(slot: PanelSlot, revision: string | null = null): string {
+  return JSON.stringify([slot.type, revision, sorted(slot.entry?.options ?? null)]);
 }
 
 /** A JSON value with every object's keys in order, for a comparison that ignores how the file happened to order them. */
@@ -435,11 +435,14 @@ function resolveRoot(json: unknown, types: Record<string, PanelTypeDecl>, report
   return { kind: 'tree', root };
 }
 
-/** What the window shows for one read of the file. */
-export function resolveLayout(report: LayoutReport, types: Record<string, PanelTypeDecl>): LayoutView {
+/**
+ * What the window shows for one read of the file.
+ * `notes` are about the config folder rather than any one node — a type folder that is not read, say — and go under the root with the file's own.
+ */
+export function resolveLayout(report: LayoutReport, types: Record<string, PanelTypeDecl>, notes: string[] = []): LayoutView {
   if (report.status === 'unparsable') return { kind: 'unparsable', file: report.file, message: report.error ?? 'could not be read' };
-  const fallback = (problem: string): LayoutView => resolveRoot(DEFAULT_LAYOUT.root, types, report, [], [problem]);
-  if (report.status === 'missing') return resolveRoot(DEFAULT_LAYOUT.root, types, report, []);
+  const fallback = (problem: string): LayoutView => resolveRoot(DEFAULT_LAYOUT.root, types, report, notes, [problem]);
+  if (report.status === 'missing') return resolveRoot(DEFAULT_LAYOUT.root, types, report, notes);
   const json = report.json;
   if (!isObject(json)) return fallback('The file is not a JSON object.');
   if (json.version === undefined) return fallback(`version is missing (this build reads ${LAYOUT_VERSION}).`);
@@ -448,5 +451,5 @@ export function resolveLayout(report: LayoutReport, types: Record<string, PanelT
   const stray = Object.keys(json)
     .filter((field) => !LAYOUT_FIELDS.has(field))
     .map((field) => `${field} is not a field the layout file has.`);
-  return resolveRoot(json.root, types, report, stray);
+  return resolveRoot(json.root, types, report, [...stray, ...notes]);
 }
