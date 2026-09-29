@@ -2299,7 +2299,7 @@ button:focus:not(:focus-visible) {
 .exchange-request {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 8px;
   padding: 3px 8px;
   border-radius: var(--radius-control);
   background: var(--surface);
@@ -2315,6 +2315,24 @@ button:focus:not(:focus-visible) {
 .exchange-request-text::before {
   content: '> ';
   color: var(--muted);
+}
+
+/* The star, first on the line: hidden until the exchange is hovered or the star focused, and always shown once pinned. */
+.exchange-pin {
+  align-self: flex-start;
+  margin: 1px 0 0 -4px;
+  visibility: hidden;
+}
+
+.exchange:hover .exchange-pin,
+.exchange-pin:focus-visible,
+.exchange.pinned .exchange-pin {
+  visibility: visible;
+}
+
+/* A pinned request: the accent edge the bar's pinned tick matches. */
+.exchange.pinned .exchange-request {
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 /* The number, the time and any mark, at the band's end: chrome, so the interface's face rather than the terminal's. */

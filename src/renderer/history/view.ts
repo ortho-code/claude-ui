@@ -363,12 +363,13 @@ export class HistoryView {
       setTooltip(mark, tooltip);
       meta.append(mark);
     }
+    // The star at the start of the line, where the eye starts reading; shown on hover, and always once pinned.
     const pin = document.createElement('button');
     pin.type = 'button';
     pin.className = 'icon-btn compact exchange-pin';
     pin.addEventListener('click', () => void this.togglePin(exchange));
-    meta.append(when, pin);
-    request.append(text, meta);
+    meta.append(when);
+    request.append(pin, text, meta);
 
     // The reply as claude wrote it: each message its own block, the tool calls where they came between them.
     const reply = document.createElement('div');
@@ -394,8 +395,9 @@ export class HistoryView {
   private drawPin(node: HTMLElement, exchange: Exchange): void {
     const pin = node.querySelector<HTMLElement>('.exchange-pin');
     if (!pin) return;
-    // The session row's star, and like it told apart by ink alone, filled or outlined.
+    // The session row's star, and like it told apart by ink alone, filled or outlined; the exchange itself carries the accent edge.
     const pinned = exchange.id in this.pins;
+    node.classList.toggle('pinned', pinned);
     pin.innerHTML = pinned ? PINNED_ICON : PIN_ICON;
     pin.setAttribute('aria-pressed', String(pinned));
     pin.setAttribute('aria-label', pinned ? 'Unpin this request' : 'Pin this request');
