@@ -41,8 +41,6 @@ export class HistoryView {
   private followed = 0;
   private pins: Record<string, RequestPin> = {};
   private pinnedOnly = false;
-  /** Tool lists opened by hand, by request id, so redrawing a growing exchange does not fold its list shut again. */
-  private readonly toolsOpen = new Set<string>();
   private reading = false;
   private readAgain = false;
   /** Whenever what is drawn changes size or order: the bar measures its marks from it. */
@@ -106,7 +104,6 @@ export class HistoryView {
     this.model = emptyModel();
     this.nodes = [];
     this.list.replaceChildren();
-    this.toolsOpen.clear();
     this.drawCount();
     if (id) void this.refresh();
     else this.drawEmpty();
@@ -176,7 +173,7 @@ export class HistoryView {
     this.model.exchanges.forEach((exchange, k) => {
       const node = this.nodes[k];
       if (!node || node.hidden) return;
-      const reply = exchange.reply || exchange.tools.length > 0 ? node.querySelector<HTMLElement>('.exchange-reply') : null;
+      const reply = exchange.parts.length > 0 ? node.querySelector<HTMLElement>('.exchange-reply') : null;
       marks.push({ k, request: node.offsetTop / height, reply: reply ? reply.offsetTop / height : null, pinned: exchange.id in this.pins, replaced: exchange.replaced });
     });
     return marks;
@@ -192,11 +189,9 @@ export class HistoryView {
   describe(k: number): { number: number; time: string; request: string; reply: string | null; pinned: boolean } | null {
     const exchange = this.model.exchanges[k];
     if (!exchange) return null;
-    const reply = exchange.reply
-      ? requestLabel(exchange.reply.replace(/^\s*(#{1,6}|>|[-*+])\s+/gm, ''))
-      : exchange.tools.length > 0
-        ? `${exchange.tools.length} tool call${exchange.tools.length === 1 ? '' : 's'}`
-        : null;
+    // The reply's first message, as a line; a reply that is only tool calls so far is named by its first one.
+    const first = exchange.parts.find((part) => part.kind === 'text') ?? exchange.parts[0];
+    const reply = !first ? null : first.kind === 'text' ? requestLabel(first.text.replace(/^\s*(#{1,6}|>|[-*+])\s+/gm, '')) : first.line;
     return { number: k + 1, time: exchange.time, request: requestLabel(exchange.request), reply, pinned: exchange.id in this.pins };
   }
 
@@ -375,44 +370,25 @@ export class HistoryView {
     request.className = 'exchange-request';
     request.textContent = exchange.request;
 
+    // The reply as claude wrote it: each message its own block, the tool calls where they came between them.
     const reply = document.createElement('div');
     reply.className = 'exchange-reply';
-    if (exchange.tools.length > 0) reply.append(...this.toolsNodes(exchange));
-    if (exchange.reply) {
-      const text = document.createElement('div');
-      text.className = 'exchange-text';
-      // Safe to hand to innerHTML: raw HTML in a reply comes out as text, and dangerous links not at all (markdown.ts).
-      text.innerHTML = renderMarkdown(exchange.reply);
-      reply.append(text);
+    for (const part of exchange.parts) {
+      const piece = document.createElement('div');
+      if (part.kind === 'text') {
+        piece.className = 'exchange-text';
+        // Safe to hand to innerHTML: raw HTML in a reply comes out as text, and dangerous links not at all (markdown.ts).
+        piece.innerHTML = renderMarkdown(part.text);
+      } else {
+        piece.className = 'exchange-tool';
+        piece.textContent = part.line;
+      }
+      reply.append(piece);
     }
 
     node.append(meta, request, reply);
     this.drawPin(node, exchange);
     return node;
-  }
-
-  private toolsNodes(exchange: Exchange): HTMLElement[] {
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'exchange-tools';
-    const list = document.createElement('div');
-    list.className = 'exchange-tool-list';
-    list.textContent = exchange.tools.join('\n');
-    const label = `${exchange.tools.length} tool call${exchange.tools.length === 1 ? '' : 's'}`;
-    const draw = (): void => {
-      const open = this.toolsOpen.has(exchange.id);
-      list.hidden = !open;
-      toggle.innerHTML = `${chevronIcon(open ? 'down' : 'right', 11)}${label}`;
-      toggle.setAttribute('aria-expanded', String(open));
-    };
-    toggle.addEventListener('click', () => {
-      if (this.toolsOpen.has(exchange.id)) this.toolsOpen.delete(exchange.id);
-      else this.toolsOpen.add(exchange.id);
-      draw();
-      this.onLayout?.();
-    });
-    draw();
-    return [toggle, list];
   }
 
   private drawPin(node: HTMLElement, exchange: Exchange): void {

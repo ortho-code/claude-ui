@@ -2336,25 +2336,9 @@ button:focus:not(:focus-visible) {
   overflow-wrap: anywhere;
 }
 
-.exchange-tools {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font-size: var(--text-small);
-  cursor: pointer;
-}
-
-.exchange-tools:hover {
-  color: var(--text);
-  border: 0;
-}
-
-.exchange-tool-list {
-  margin: 2px 0 8px 14px;
+/* A tool call, one line, where it came in the reply. */
+.exchange-tool {
+  margin: 2px 0 6px;
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: var(--text-small);

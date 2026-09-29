@@ -53,11 +53,12 @@ export interface Exchange {
    * Shown, dimmed, rather than hidden, so a stopped attempt's partial reply and any pin on it stay.
    */
   replaced: boolean;
-  /** Claude's text in reply, markdown, in the order it was written. */
-  reply: string;
-  /** One line per tool call claude made in reply: the tool's name and its main input. */
-  tools: string[];
+  /** Claude's reply, piece by piece in the order it was written: its messages, and the tool calls between them. */
+  parts: ReplyPart[];
 }
+
+/** One piece of a reply: a message from claude (markdown), or a tool call, as one line — the tool's name and its main input. */
+export type ReplyPart = { kind: 'text'; text: string } | { kind: 'tool'; line: string };
 
 /**
  * A request pinned in the history, stored in meta.json under the request's uuid (`Exchange.id`).

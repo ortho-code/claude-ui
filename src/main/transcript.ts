@@ -83,8 +83,7 @@ function exchangeOf(record: Record<string, unknown>, request: string, kind: Exch
     request,
     kind,
     replaced: false,
-    reply: '',
-    tools: [],
+    parts: [],
   };
 }
 
@@ -139,11 +138,12 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
     if (!last) return;
     const content = (record.message as { content?: unknown } | undefined)?.content;
     if (!Array.isArray(content)) return;
+    // In the order claude wrote them, each message its own part, with the tool calls where they came: that is how claude itself shows a reply.
     for (const part of content as ({ type?: unknown; text?: unknown; name?: unknown; input?: unknown } | null)[]) {
       if (part?.type === 'text' && typeof part.text === 'string' && part.text.trim()) {
-        last.reply = last.reply ? `${last.reply}\n\n${part.text}` : part.text;
+        last.parts.push({ kind: 'text', text: part.text });
       } else if (part?.type === 'tool_use') {
-        last.tools.push(toolLine(part));
+        last.parts.push({ kind: 'tool', line: toolLine(part) });
       }
     }
     return;
@@ -257,7 +257,7 @@ export function readHistory(file: string, known: number, generation: number, chu
     await readOn(file, at, chunkBytes);
     const total = at.fold.exchanges.length;
     const from = generation === at.generation ? Math.max(0, Math.min(known, total) - 1) : 0;
-    const exchanges = at.fold.exchanges.slice(from).map((e) => ({ ...e, tools: [...e.tools] }));
+    const exchanges = at.fold.exchanges.slice(from).map((e) => ({ ...e, parts: e.parts.map((p) => ({ ...p })) }));
     return { generation: at.generation, from, exchanges, total };
   });
   at.queue = read.catch(() => undefined);

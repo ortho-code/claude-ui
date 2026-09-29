@@ -2,6 +2,7 @@ import { describe, it, expect, afterAll } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Exchange } from '../shared/types';
 import { foldRecord, newFold, readHistory, type HistoryFold } from './transcript';
 
 // Records shaped as Claude Code writes them, reduced to the fields the fold reads.
@@ -22,13 +23,26 @@ function fold(...records: Record<string, unknown>[]): HistoryFold {
   return f;
 }
 const requests = (f: HistoryFold) => f.exchanges.map((e) => `${e.kind}: ${e.request}`);
+const replyText = (e: Exchange) => e.parts.flatMap((p) => (p.kind === 'text' ? [p.text] : [])).join('\n\n');
+const toolLines = (e: Exchange) => e.parts.flatMap((p) => (p.kind === 'tool' ? [p.line] : []));
 
 describe('what counts as a request', () => {
-  it('a typed prompt, with its reply and its tool calls', () => {
+  it('a typed prompt, with its reply: each message its own part, the tool calls where they came', () => {
     const q = typed('why does the sniff not fire?');
     const f = fold(q, answer(text('Let me look.'), tool('Read', { file_path: '/repo/src/Sniff.php' })), toolResult(), answer(text('Found it.')));
     expect(f.exchanges).toEqual([
-      { id: q.uuid, time: q.timestamp, request: 'why does the sniff not fire?', kind: 'typed', replaced: false, reply: 'Let me look.\n\nFound it.', tools: ['Read(/repo/src/Sniff.php)'] },
+      {
+        id: q.uuid,
+        time: q.timestamp,
+        request: 'why does the sniff not fire?',
+        kind: 'typed',
+        replaced: false,
+        parts: [
+          { kind: 'text', text: 'Let me look.' },
+          { kind: 'tool', line: 'Read(/repo/src/Sniff.php)' },
+          { kind: 'text', text: 'Found it.' },
+        ],
+      },
     ]);
   });
 
@@ -55,7 +69,7 @@ describe('what counts as a request', () => {
   it('a slash command claude answers is a request, as its command line', () => {
     const f = fold(command('/review', 'https://github.com/o/r/pull/1'), userList([text('Base directory for this skill: …')], { isMeta: true }), answer(text('The review.')));
     expect(requests(f)).toEqual(['command: /review https://github.com/o/r/pull/1']);
-    expect(f.exchanges[0].reply).toBe('The review.');
+    expect(replyText(f.exchanges[0])).toBe('The review.');
   });
 
   it('a slash command claude does not answer is dropped when the user sends something else', () => {
@@ -84,12 +98,12 @@ describe('what counts as a request', () => {
   });
 
   it('claude text before the first request answers nothing and is dropped', () => {
-    expect(fold(answer(text('Hello.')), typed('first')).exchanges[0].reply).toBe('');
+    expect(fold(answer(text('Hello.')), typed('first')).exchanges[0].parts).toEqual([]);
   });
 
   it('an interruption keeps the reply written so far on its request', () => {
     const f = fold(typed('long job'), answer(text('Starting.')), userList([text('[Request interrupted by user]')]));
-    expect(f.exchanges.map((e) => e.reply)).toEqual(['Starting.']);
+    expect(f.exchanges.map(replyText)).toEqual(['Starting.']);
   });
 });
 
@@ -133,8 +147,8 @@ describe('a request sent again', () => {
 describe('tool lines', () => {
   it('names the tool and the one input that says what it acted on, on one line, cut long', () => {
     const f = fold(typed('go'), answer(tool('Bash', { command: 'git status\ngit diff' }), tool('Grep', { pattern: 'enum ' }), tool('TodoWrite', { todos: [] }), tool('Bash', { command: 'x'.repeat(200) })));
-    expect(f.exchanges[0].tools.slice(0, 3)).toEqual(['Bash(git status)', 'Grep(enum )', 'TodoWrite']);
-    expect(f.exchanges[0].tools[3]).toHaveLength('Bash()'.length + 120);
+    expect(toolLines(f.exchanges[0]).slice(0, 3)).toEqual(['Bash(git status)', 'Grep(enum )', 'TodoWrite']);
+    expect(toolLines(f.exchanges[0])[3]).toHaveLength('Bash()'.length + 120);
   });
 });
 
@@ -160,7 +174,7 @@ describe('reading a transcript', () => {
     const next = await readHistory(f, first.total, first.generation);
     expect(next.generation).toBe(first.generation);
     expect(next.from).toBe(1);
-    expect(next.exchanges.map((e) => [e.request, e.reply])).toEqual([['two', 'B.'], ['three', '']]);
+    expect(next.exchanges.map((e) => [e.request, replyText(e)])).toEqual([['two', 'B.'], ['three', '']]);
     expect(next.total).toBe(3);
   });
 

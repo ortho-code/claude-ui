@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Exchange } from '../../shared/types';
 import { applySlice, emptyModel, requestLabel } from './model';
 
-const ex = (request: string, reply = ''): Exchange => ({ id: request, time: '', request, kind: 'typed', replaced: false, reply, tools: [] });
+const ex = (request: string, reply = ''): Exchange => ({ id: request, time: '', request, kind: 'typed', replaced: false, parts: reply ? [{ kind: 'text', text: reply }] : [] });
 
 describe('applySlice', () => {
   it('takes the first read whole', () => {
@@ -15,7 +15,7 @@ describe('applySlice', () => {
     const model = emptyModel();
     applySlice(model, { generation: 1, from: 0, exchanges: [ex('a', 'A'), ex('b')], total: 2 });
     expect(applySlice(model, { generation: 1, from: 1, exchanges: [ex('b', 'B'), ex('c')], total: 3 })).toBe(1);
-    expect(model.exchanges.map((e) => `${e.request}${e.reply}`)).toEqual(['aA', 'bB', 'c']);
+    expect(model.exchanges.map((e) => `${e.request}${e.parts.map((p) => (p.kind === 'text' ? p.text : '')).join('')}`)).toEqual(['aA', 'bB', 'c']);
   });
 
   it('drops everything held when the transcript was read again from the start', () => {
