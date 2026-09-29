@@ -121,8 +121,14 @@ export interface PanelContext {
   sessionId: string;
 }
 
+/**
+ * Where a run's stderr goes. `merged`: into its output, in true arrival order, for a panel that shows what was printed. `apart`: as `stderr` events of its own, for a panel that parses its stdout, which must then be the result and nothing else.
+ */
+export type PanelStderr = 'merged' | 'apart';
+
 export interface PanelRunRequest {
   entryId: string;
+  stderr: PanelStderr;
   /**
    * The renderer's own token for this run, carried back on every event.
    * A re-run stops the run before it, but output already on its way is not recalled, so the token is how the renderer tells a superseded run's tail from the new run's start.
@@ -136,16 +142,18 @@ export interface PanelRunRequest {
 export type PanelStopReason = 'timeout' | 'truncated' | 'rerun' | 'request' | 'quit';
 
 /**
- * What a run sends the renderer, in order: any number of `output`, at most one `truncated`, then exactly one of `exit` (it ended by itself, or never started) or `stopped` (the app ended it).
+ * What a run sends the renderer, in order: any number of `output` (and, in an `apart` run, `stderr`), at most one `truncated`, then exactly one of `exit` (it ended by itself, or never started) or `stopped` (the app ended it).
  */
 export type PanelRunEvent =
   | { kind: 'output'; text: string }
+  /** Only in an `apart` run: what the command wrote on stderr. In order among themselves, but not against `output`, since the two arrive on pipes of their own. */
+  | { kind: 'stderr'; text: string }
   /** The cap was reached: nothing after this is forwarded, and the process is being stopped. */
   | { kind: 'truncated' }
   | { kind: 'exit'; code: number | null; signal: string | null; error?: string }
   | { kind: 'stopped'; reason: PanelStopReason };
 
-/** Output beyond this is cut and the process stopped: a panel shows a result, not a log. */
+/** Output beyond this is cut and the process stopped: a panel shows a result, not a log. An `apart` run's stderr counts toward it too. */
 export const PANEL_OUTPUT_CAP = 1024 * 1024;
 
 /** A run still going after this is stopped: a process that never exits by design is not this panel type. */

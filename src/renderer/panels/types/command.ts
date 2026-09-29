@@ -355,7 +355,7 @@ class CommandPanel implements MountedPanel {
     this.placeholder.hidden = true;
     this.host.setBusy(true);
     // The runner stops the run before this one itself; the token is what keeps that run's tail out of this body.
-    window.claudeUi.runPanel({ entryId: this.slot.key, token: this.token, source: commandSource(optionsOf(this.slot.entry)), context });
+    window.claudeUi.runPanel({ entryId: this.slot.key, stderr: 'merged', token: this.token, source: commandSource(optionsOf(this.slot.entry)), context });
   }
 
   private handle(token: string, event: PanelRunEvent): void {
@@ -372,6 +372,9 @@ class CommandPanel implements MountedPanel {
         }
         return;
       }
+      // Never sent to this panel's runs, which are `merged`: its stderr arrives as output.
+      case 'stderr':
+        return;
       case 'truncated':
         this.host.setEnd(endLabel(event));
         this.host.setStatus('fail');

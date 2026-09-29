@@ -16,13 +16,17 @@ vi.mock('./log', async (importOriginal) => ({
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
-/** Enough of a ChildProcess to drive a run: a pid to signal, a stdout to feed, and an exit we fire by hand. */
+type FakePipe = EventEmitter & { destroy: () => void };
+
+/** Enough of a ChildProcess to drive a run: a pid to signal, pipes to feed, and an exit we fire by hand. */
 interface FakeChild extends EventEmitter {
   pid: number;
   file: string;
   args: string[];
   options: { cwd: string; env: Record<string, string>; detached: boolean; stdio: unknown };
-  stdout: EventEmitter & { destroy: () => void };
+  stdout: FakePipe;
+  /** Every descriptor, as ChildProcess has them: an `apart` run reads fds 3 and 4. */
+  stdio: (FakePipe | null)[];
   /** What the OS would do: the process ends, `exit` first and `close` once the pipe drains. */
   end: (code: number | null, signal?: NodeJS.Signals | null) => void;
 }
@@ -42,7 +46,9 @@ vi.mock('node:child_process', () => ({
     child.file = file;
     child.args = args;
     child.options = options;
-    child.stdout = Object.assign(new EventEmitter(), { destroy: vi.fn() });
+    const pipe = (): FakePipe => Object.assign(new EventEmitter(), { destroy: vi.fn() });
+    child.stdout = pipe();
+    child.stdio = [null, child.stdout, null, pipe(), pipe()];
     child.end = (code, signal = null) => {
       child.emit('exit', code, signal);
       child.emit('close', code, signal);
@@ -78,6 +84,11 @@ describe('what reaches the shell', () => {
   it('leaves an absolute script path where it is', () => {
     const { args } = panelInvocation({ script: '/opt/tools/status' });
     expect(args.at(-1)).toBe('/opt/tools/status');
+  });
+
+  it('apart, sends the command’s stdout and stderr to fds 3 and 4 and closes both before it runs, in either form', () => {
+    expect(panelInvocation({ script: '/opt/tools/status' }, 'apart').args[3]).toBe('exec 1>&3 2>&4 3>&- 4>&-; exec "$1"');
+    expect(panelInvocation({ command: 'true' }, 'apart').args[3]).toBe('exec 1>&3 2>&4 3>&- 4>&-; exec "$1" -c "$2"');
   });
 
   it('asks for plain text, names the context, and does NOT mark the run as a claude-ui session', () => {
@@ -287,6 +298,50 @@ describe('a run', () => {
     // The leader is gone, so the timeout must not signal a pid that may have been reused.
     await vi.advanceTimersByTimeAsync(PANEL_TIMEOUT_MS);
     expect(signals(child.pid)).toEqual([]);
+  });
+
+  describe('with stderr apart', () => {
+    const apart = (): { child: FakeChild; token: string } => start({ stderr: 'apart' });
+    // The descriptors the command's two streams arrive on.
+    const stdout = 3;
+    const stderr = 4;
+
+    it('discards the shell’s own stdout and stderr, and reads the command’s from fds 3 and 4', () => {
+      expect(apart().child.options.stdio).toEqual(['ignore', 'ignore', 'ignore', 'pipe', 'pipe']);
+    });
+
+    it('forwards stdout as output and stderr as stderr, each decoded on its own', () => {
+      const { child, token } = apart();
+      const bytes = Buffer.from('é');
+      child.stdio[stdout]!.emit('data', Buffer.from('{"version":1}'));
+      child.stdio[stderr]!.emit('data', bytes.subarray(0, 1));
+      child.stdio[stdout]!.emit('data', Buffer.from('\n'));
+      child.stdio[stderr]!.emit('data', bytes.subarray(1));
+      child.end(2);
+      expect(events(token)).toEqual([
+        { kind: 'output', text: '{"version":1}' },
+        { kind: 'output', text: '\n' },
+        { kind: 'stderr', text: 'é' },
+        { kind: 'exit', code: 2, signal: null },
+      ]);
+    });
+
+    it('counts both pipes toward the one cap', () => {
+      const { child, token } = apart();
+      child.stdio[stderr]!.emit('data', Buffer.alloc(PANEL_OUTPUT_CAP - 10, 'e'));
+      child.stdio[stdout]!.emit('data', Buffer.alloc(100, 'o'));
+      expect(events(token).filter((e) => e.kind === 'output')).toEqual([{ kind: 'output', text: 'o'.repeat(10) }]);
+      expect(events(token).at(-1)).toEqual({ kind: 'truncated' });
+    });
+
+    it('closes both pipes from this end when something the command started holds them open', async () => {
+      const { child, token } = apart();
+      child.emit('exit', 0, null);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(events(token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null });
+      expect(child.stdio[stdout]!.destroy).toHaveBeenCalled();
+      expect(child.stdio[stderr]!.destroy).toHaveBeenCalled();
+    });
   });
 
   it('sends nothing to a window that has gone', () => {

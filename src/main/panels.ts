@@ -1,6 +1,7 @@
 import { ipcMain, type WebContents } from 'electron';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, type ChildProcess, type StdioOptions } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import type { Readable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 import { configRoot } from './paths';
 import { resolvePath } from './config';
@@ -14,6 +15,7 @@ import {
   type PanelRunEvent,
   type PanelRunRequest,
   type PanelSource,
+  type PanelStderr,
   type PanelStopReason,
 } from '../shared/panels';
 
@@ -25,22 +27,28 @@ import {
  */
 
 /**
- * What the login shell runs for a panel, in the two forms an entry can take.
+ * What the login shell runs for a panel: the command in either form an entry can take, behind a first act that decides where its output goes.
  *
  * The shell is the same interactive login shell a session gets (shell.ts), so `PATH` is identical — and MEASURED without a tty it prints two lines of job-control noise on stderr first, and `logout` on the way out if it is still the parent when the command ends.
- * Both are dealt with by the shape of these two lines rather than by filtering text: the shell's own stderr is discarded by the spawn below, the script's first act is to send the COMMAND's stderr to the pipe (`exec 2>&1`, which is also what puts the two streams in true arrival order), and the command is `exec`ed in the shell's place, so nothing is left to say `logout`.
+ * Both are dealt with by the shape of these lines rather than by filtering text: the shell's own stderr is discarded by the spawn below, the script's first act sends the COMMAND's streams where they belong, and the command is `exec`ed in the shell's place, so nothing is left to say `logout`.
+ * MERGED, for a panel that shows what was printed: the command's stderr joins its stdout in the one pipe (`exec 2>&1`), which is also what puts the two streams in true arrival order.
+ * APART, for a panel that parses what was printed: the command's stdout and stderr go to pipes of their own, fds 3 and 4, closed again before it runs, and the shell's own stdout is discarded as its stderr is, so nothing an rc file prints can land in front of the result (MEASURED 2026-09-29: rc output on either stream reaches neither pipe).
  * A command LINE is run by a fresh copy of the same shell, so it is parsed as the user typed it; it reaches that shell as `$2`, an argument, never interpolated into either script. A script PATH is `$1`, passed whole: a space in it is nothing to the shell.
  */
-const RUN_LINE = 'exec 2>&1; exec "$1" -c "$2"';
-const RUN_SCRIPT = 'exec 2>&1; exec "$1"';
+const FIRST: Record<PanelStderr, string> = { merged: 'exec 2>&1; ', apart: 'exec 1>&3 2>&4 3>&- 4>&-; ' };
+const RUN_LINE = 'exec "$1" -c "$2"';
+const RUN_SCRIPT = 'exec "$1"';
+
+/** The spawn's descriptors for each: stdin closed so nothing can wait on it, the shell's own stderr discarded (and, apart, its stdout), and the pipes the first act above writes to. */
+const STDIO: Record<PanelStderr, StdioOptions> = { merged: ['ignore', 'pipe', 'ignore'], apart: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] };
 
 /** `$0` for the shell: names the process in any error the shell itself prints. */
 const ARG0 = 'claude-ui-panel';
 
 /** The exact spawn for a source. Pure, so a test can pin what reaches the shell. */
-export function panelInvocation(source: PanelSource): ShellInvocation {
-  if ('command' in source) return shellCommand(RUN_LINE, [loginShell(), source.command], ARG0);
-  return shellCommand(RUN_SCRIPT, [resolvePath(source.script, 'config')], ARG0);
+export function panelInvocation(source: PanelSource, stderr: PanelStderr = 'merged'): ShellInvocation {
+  if ('command' in source) return shellCommand(FIRST[stderr] + RUN_LINE, [loginShell(), source.command], ARG0);
+  return shellCommand(FIRST[stderr] + RUN_SCRIPT, [resolvePath(source.script, 'config')], ARG0);
 }
 
 /**
@@ -146,13 +154,15 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
     tell({ kind: 'exit', code: null, signal: null, error });
     return;
   }
-  const { file, args } = panelInvocation(request.source);
-  // `detached` puts the child in a session of its own, so its pid is a group id the stop can signal (shell.ts); stdin is closed so nothing can wait on it, and fd 2 is the shell's own stderr, discarded on purpose (see RUN_LINE).
+  // Anything but `apart` is the one pipe, as every run was before the choice existed.
+  const stderr: PanelStderr = request.stderr === 'apart' ? 'apart' : 'merged';
+  const { file, args } = panelInvocation(request.source, stderr);
+  // `detached` puts the child in a session of its own, so its pid is a group id the stop can signal (shell.ts).
   const child = spawn(file, args, {
     cwd,
     env: panelEnv(request.context),
     detached: true,
-    stdio: ['ignore', 'pipe', 'ignore'],
+    stdio: STDIO[stderr],
   });
   const current: Run = {
     entryId: request.entryId,
@@ -170,33 +180,46 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
   runs.set(request.entryId, current);
   live.add(current);
 
-  // One decoder across chunks, so a multibyte character split between two reads still decodes.
-  const decoder = new StringDecoder('utf8');
-  child.stdout.on('data', (chunk: Buffer) => {
-    if (current.bytes >= PANEL_OUTPUT_CAP || current.finished) return;
-    const room = PANEL_OUTPUT_CAP - current.bytes;
-    const kept = chunk.length > room ? chunk.subarray(0, room) : chunk;
-    current.bytes += kept.length;
-    const text = decoder.write(kept);
-    if (text) emit(current, { kind: 'output', text });
-    if (current.bytes >= PANEL_OUTPUT_CAP) {
-      emit(current, { kind: 'truncated' });
-      stopRun(current, 'truncated');
-    }
-  });
+  // Merged, the one pipe is the shell's stdout; apart, the command's two are fds 3 and 4 (see FIRST).
+  const sources: [Readable, 'output' | 'stderr'][] =
+    stderr === 'merged'
+      ? [[child.stdout!, 'output']]
+      : [
+          [child.stdio[3] as Readable, 'output'],
+          [child.stdio[4] as Readable, 'stderr'],
+        ];
+  // One decoder per pipe across its chunks, so a multibyte character split between two reads still decodes.
+  const pipes = sources.map(([stream, kind]) => ({ stream, kind, decoder: new StringDecoder('utf8') }));
+  for (const { stream, kind, decoder } of pipes) {
+    stream.on('data', (chunk: Buffer) => {
+      // One cap for the run, whichever pipe the bytes came down.
+      if (current.bytes >= PANEL_OUTPUT_CAP || current.finished) return;
+      const room = PANEL_OUTPUT_CAP - current.bytes;
+      const kept = chunk.length > room ? chunk.subarray(0, room) : chunk;
+      current.bytes += kept.length;
+      const text = decoder.write(kept);
+      if (text) emit(current, { kind, text });
+      if (current.bytes >= PANEL_OUTPUT_CAP) {
+        emit(current, { kind: 'truncated' });
+        stopRun(current, 'truncated');
+      }
+    });
+  }
   child.on('error', (error) => {
     current.exited = true;
     live.delete(current);
     finish(current, { kind: 'exit', code: null, signal: null, error: error.message });
   });
   const ended = (code: number | null, signal: NodeJS.Signals | null): void => {
-    const tail = decoder.end();
-    if (tail) emit(current, { kind: 'output', text: tail });
+    for (const { kind, decoder } of pipes) {
+      const tail = decoder.end();
+      if (tail) emit(current, { kind, text: tail });
+    }
     if (current.stopReason !== null) finish(current, { kind: 'stopped', reason: current.stopReason });
     else finish(current, { kind: 'exit', code, signal });
   };
   // `close` is the end of the OUTPUT, which is when the final line has been forwarded; `exit` is the end of the PROCESS, which is what the escalation reads.
-  // The two part when something the command started outlives it holding the pipe (a daemon it forked): the leader is gone, so nothing may be signalled any more, and after a moment the pipe is closed from this end so the panel is not left waiting on a process that is not the one it ran.
+  // The two part when something the command started outlives it holding a pipe (a daemon it forked): the leader is gone, so nothing may be signalled any more, and after a moment the pipes are closed from this end so the panel is not left waiting on a process that is not the one it ran.
   let closed = false;
   child.on('close', (code, signal) => {
     closed = true;
@@ -207,7 +230,7 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
     live.delete(current);
     setTimeout(() => {
       if (closed) return;
-      child.stdout.destroy();
+      for (const { stream } of pipes) stream.destroy();
       ended(code, signal);
     }, 1000);
   });
