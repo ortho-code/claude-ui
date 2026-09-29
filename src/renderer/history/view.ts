@@ -80,10 +80,6 @@ export class HistoryView {
     // Focusable, so the page keys scroll it and End and Esc reach it; -1 keeps it out of the tab order.
     this.scroller.tabIndex = -1;
     this.scroller.addEventListener('scroll', () => this.onScroll?.());
-    // Scrolling on past the end goes back to the live session, the way it was left.
-    this.scroller.addEventListener('wheel', (event) => {
-      if (event.deltaY > 0 && this.atEnd()) this.leave();
-    });
     this.scroller.addEventListener('keydown', (event) => {
       if (event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
       // Standing in for a tab with no claude there is no live view, so End is the page key it always was; Esc closes either way.
@@ -193,12 +189,10 @@ export class HistoryView {
     return marks;
   }
 
-  /** The part of the history in view, as fractions of its height; while the live terminal covers it, the end, which is where the live view is. */
+  /** The part of the history in view, as fractions of its height. */
   band(): { top: number; height: number } {
     const total = this.scroller.scrollHeight || 1;
-    const view = this.scroller.clientHeight;
-    const top = this.shown ? this.scroller.scrollTop : Math.max(0, total - view);
-    return { top: top / total, height: view / total };
+    return { top: this.scroller.scrollTop / total, height: this.scroller.clientHeight / total };
   }
 
   /** What the loupe says about exchange `k`: its number, when, the request's first line, and the reply's (null when there is none). */

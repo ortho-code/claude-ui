@@ -2745,15 +2745,6 @@ function buildTab(session: SessionSummary): Tab {
     return true;
   });
 
-  // Claude's fullscreen view is on the alternate screen, keeps no scrollback in the terminal and scrolls itself; the app takes the wheel from it instead, and the wheel up hands the pane to the session's history, which holds all of it.
-  // With claude's default renderer the conversation IS in the terminal's scrollback, so there the wheel is left to scroll it; which screen is on show is xterm's own fact, not a guess.
-  // Returning false is what keeps the wheel from claude: xterm asks this before it sends a mouse report or turns the wheel into arrow keys (read in xterm 5.5's source).
-  term.attachCustomWheelEventHandler((event) => {
-    if (term.buffer.active.type !== 'alternate') return true;
-    if (event.deltaY < 0 && tab === activeTab) showHistory(true);
-    return false;
-  });
-
   const tab: Tab = {
     session,
     terminalId: null,
@@ -3220,7 +3211,7 @@ window.addEventListener('blur', () => {
 
 /**
  * Hand the pane to the history, or back to the live terminal.
- * The history opens at its end, where the live view is, so scrolling up into it reads as scrolling back through the terminal.
+ * Only ever on purpose — the bar, its foot arrow, Ctrl+Shift+↑ — and never from the wheel, which scrolls claude's own view: the point is to work in the session, and a scroll that turned into another mode was a surprise.
  */
 function showHistory(shown: boolean): void {
   if (history.setShown(shown) && !shown) activeTab?.term.focus();

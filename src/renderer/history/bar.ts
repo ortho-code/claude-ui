@@ -22,7 +22,7 @@ const DENSE = 120;
 
 /**
  * The bar at the edge of the terminal area: the history's scrollbar, always there, live or not.
- * A request is a tick across it and its reply a thin bar down its middle until the next request — a shape apart, not only a shade — with pins in the accent, a request that was sent again dimmer, the last request in full white, and a band for where you are (on the end while live).
+ * A request is a tick across it and its reply a thin bar down its middle until the next request — a shape apart, not only a shade — with pins in the accent, a request that was sent again dimmer, the last request in full white, and, in the history, a band for where you are.
  * Its marks are placed from the history's measured heights, so they sit where the history's own scrolling puts things.
  *
  * Hovering opens the LOUPE beside it: the entries around the pointer, in words. At 821 requests the bar has under a pixel each, so the pointer alone picks roughly; the wheel — over the bar, or inside the loupe once the pointer has moved into it — steps one entry at a time, and a click or Enter opens it.
@@ -108,8 +108,13 @@ export class HistoryBar {
     this.loupe?.rebuild(this.marks);
   }
 
-  /** Put the band where the history is scrolled to. */
+  /**
+   * Put the band where the history is scrolled to — and none while the live terminal has the pane.
+   * The wheel scrolls claude's own view there, and where claude is scrolled is not something the app can know, so a band "at the end" would be a guess.
+   */
   moveBand(): void {
+    this.bandEl.hidden = !this.source.shown;
+    if (!this.source.shown) return;
     const height = this.area.clientHeight;
     const band = this.source.band();
     this.bandEl.style.top = `${band.top * height}px`;
