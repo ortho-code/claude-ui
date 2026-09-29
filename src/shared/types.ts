@@ -60,6 +60,21 @@ export interface Exchange {
 }
 
 /**
+ * A request pinned in the history, stored in meta.json under the request's uuid (`Exchange.id`).
+ * Keyed by the request rather than the session, so it outlives the process and shows in both siblings of a fork; it carries enough to be listed without opening its transcript.
+ */
+export interface RequestPin {
+  /** The session it was pinned in. */
+  session: string;
+  /** The request's opening text, cut to a few hundred characters when it is pinned (`meta.ts`). */
+  text: string;
+  /** When the request was sent (ISO), as its transcript records it. */
+  time: string;
+  /** When it was pinned (epoch ms). */
+  pinnedAt: number;
+}
+
+/**
  * What a history read hands back: the exchanges from `from` on, which replace whatever the caller held from that index.
  * A `generation` other than the one the caller passed means the transcript was read again from the start (it shrank), so nothing the caller held is still good.
  */
@@ -219,6 +234,10 @@ export interface ClaudeUiApi {
   getPinned(): Promise<string[]>;
   /** Toggle a session's pin; resolves to the updated pinned list. */
   togglePin(id: string): Promise<string[]>;
+  /** Requests pinned in any session's history, by the request's uuid. */
+  getRequestPins(): Promise<Record<string, RequestPin>>;
+  /** Pin request `id` with what a list of pins shows of it, or unpin it; returns every request pin after the change. */
+  toggleRequestPin(id: string, pin: Pick<RequestPin, 'session' | 'text' | 'time'>): Promise<Record<string, RequestPin>>;
   /** Archived session ids mapped to when they were archived (epoch ms; 0 = unknown). */
   getArchived(): Promise<Record<string, number>>;
   /** Toggle a session's archived state; resolves to the updated archived map. */

@@ -19,6 +19,8 @@ vi.mock('./log', async (importOriginal) => ({
 import {
   getPinned,
   togglePin,
+  getRequestPins,
+  toggleRequestPin,
   getArchived,
   toggleArchive,
   purgeSession,
@@ -65,6 +67,41 @@ describe('pins', () => {
     expect(await togglePin('conv1')).toEqual(['conv1']);
     expect(await getPinned()).toEqual(['conv1']);
     expect(await togglePin('conv1')).toEqual([]);
+  });
+});
+
+describe('request pins', () => {
+  const pin = { session: 's1', text: 'why does the sniff not fire?', time: '2026-09-29T10:00:00Z' };
+
+  it('pins a request by its uuid with what a list shows of it, and unpins it', async () => {
+    expect(await getRequestPins()).toEqual({});
+    const pinned = await toggleRequestPin('u1', pin);
+    expect(Object.keys(pinned)).toEqual(['u1']);
+    expect(pinned.u1).toMatchObject(pin);
+    expect(pinned.u1.pinnedAt).toBeGreaterThan(0);
+    expect(await getRequestPins()).toEqual(pinned);
+    expect(await toggleRequestPin('u1', pin)).toEqual({});
+  });
+
+  it('keeps only the opening of a long request', async () => {
+    const pinned = await toggleRequestPin('u1', { ...pin, text: 'x'.repeat(1000) });
+    expect(pinned.u1.text).toHaveLength(300);
+  });
+
+  it('refuses a pin that arrives malformed', async () => {
+    expect(await toggleRequestPin('u1', { session: 's1', text: 42, time: 't' } as never)).toEqual({});
+    expect(await toggleRequestPin('', pin)).toEqual({});
+  });
+
+  it('drops a stored pin missing its session or text, and keeps the rest', async () => {
+    await writeMetaFile({ version: 3, requestPins: { good: { ...pin, pinnedAt: 5 }, noText: { session: 's1', time: 't' }, broken: 'yes', old: { ...pin } } });
+    expect(await getRequestPins()).toEqual({ good: { ...pin, pinnedAt: 5 }, old: { ...pin, pinnedAt: 0 } });
+  });
+
+  it('survives deleting the session it was pinned in, since a fork sibling may still carry the request', async () => {
+    await toggleRequestPin('u1', pin);
+    await purgeSession('s1');
+    expect(Object.keys(await getRequestPins())).toEqual(['u1']);
   });
 });
 

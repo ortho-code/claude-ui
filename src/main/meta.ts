@@ -2,7 +2,7 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { OrderMove, GroupState, SessionGroup, UiState, Settings } from '../shared/types';
+import type { OrderMove, GroupState, RequestPin, SessionGroup, UiState, Settings } from '../shared/types';
 import type { PanelState } from '../shared/panels';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
@@ -16,6 +16,8 @@ import { errorText, fsFailure, log, logOnce } from './log';
  */
 interface Meta {
   pinned: string[];
+  /** Requests pinned in a session's history, by the request's uuid. See RequestPin. */
+  requestPins: Record<string, RequestPin>;
   openSessions: string[];
   /**
    * Which open session was last looked at, so a restart lands you where you left off.
@@ -71,6 +73,7 @@ interface Meta {
 /** Every key `normalize` handles. Anything else is preserved through `extra` rather than dropped. */
 const KNOWN_KEYS = new Set([
   'pinned',
+  'requestPins',
   'openSessions',
   'activeSession',
   'activeSessionByProject',
@@ -95,7 +98,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: defaultSettings(), notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], requestPins: {}, openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: defaultSettings(), notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /** What the app does before anyone has chosen otherwise: nothing added to the launch line. */
@@ -198,6 +201,19 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
   };
 }
 
+/** The stored request pins, each kept only whole: a pin missing its session or its text is nothing a list could show. */
+function normalizeRequestPins(raw: unknown): Record<string, RequestPin> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const pins: Record<string, RequestPin> = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== 'object') continue;
+    const pin = value as Record<string, unknown>;
+    if (typeof pin.session !== 'string' || typeof pin.text !== 'string' || typeof pin.time !== 'string') continue;
+    pins[id] = { session: pin.session, text: pin.text, time: pin.time, pinnedAt: typeof pin.pinnedAt === 'number' && Number.isFinite(pin.pinnedAt) ? pin.pinnedAt : 0 };
+  }
+  return pins;
+}
+
 /**
  * Stored window bounds, or null if there is nothing trustworthy there.
  * All four numbers are required together, because a partial rectangle is not a position — half of one would place the window somewhere nobody asked for.
@@ -243,6 +259,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
   }
   return {
     pinned: Array.isArray(parsed.pinned) ? (parsed.pinned as string[]) : [],
+    // Same reasoning as projectOrder: no version bump for a new defaulted field.
+    requestPins: normalizeRequestPins(parsed.requestPins),
     openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
     // Same reasoning as projectOrder below: a new defaulted field is not a reinterpretation of what is stored, so no version bump. Absent means "no memory yet" — open on nothing.
     activeSession: typeof parsed.activeSession === 'string' ? parsed.activeSession : null,
@@ -503,6 +521,30 @@ export function togglePin(id: string): Promise<string[]> {
   });
 }
 
+/** How much of a request a pin keeps: enough to recognise it in a list of pins, and a pin stays a few hundred bytes. */
+const REQUEST_PIN_TEXT = 300;
+
+export function getRequestPins(): Promise<Record<string, RequestPin>> {
+  return serialize(async () => (await readMeta()).requestPins);
+}
+
+/**
+ * Pin request `id` (its uuid) with what a list of pins shows of it, or unpin it if it is pinned.
+ * The pin arrives from the window, so a malformed one is refused here, the same way a malformed stored one is dropped on read.
+ */
+export function toggleRequestPin(id: string, pin: Pick<RequestPin, 'session' | 'text' | 'time'>): Promise<Record<string, RequestPin>> {
+  // Typed as what the window should send; checked as what it might.
+  const given = pin as Partial<Record<keyof typeof pin, unknown>> | undefined;
+  return update('toggleRequestPin', (meta) => {
+    if (id in meta.requestPins) {
+      delete meta.requestPins[id];
+    } else if (id && typeof given?.session === 'string' && typeof given.text === 'string' && typeof given.time === 'string') {
+      meta.requestPins[id] = { session: given.session, text: given.text.slice(0, REQUEST_PIN_TEXT), time: given.time, pinnedAt: Date.now() };
+    }
+    return meta.requestPins;
+  });
+}
+
 export function getArchived(): Promise<Record<string, number>> {
   return serialize(async () => (await readMeta()).archived);
 }
@@ -515,7 +557,10 @@ export function toggleArchive(id: string): Promise<Record<string, number>> {
   });
 }
 
-/** Drop a session from all metadata (used when it is deleted). */
+/**
+ * Drop a session from all metadata (used when it is deleted).
+ * Request pins stay: they are keyed by the request, which a fork sibling may still carry, and telling which pins nothing opens any more needs every transcript read — a job for a list of every pin, not for a delete.
+ */
 export function purgeSession(id: string): Promise<void> {
   return update('purgeSession', (meta) => {
     meta.pinned = meta.pinned.filter((k) => k !== id);
