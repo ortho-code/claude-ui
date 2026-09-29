@@ -5,7 +5,8 @@ import type { NativeImage } from 'electron';
 import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
-import { listSessions, trashSessions, worktreeExists } from './sessions';
+import { findTranscript, listSessions, trashSessions, worktreeExists } from './sessions';
+import { readHistory } from './transcript';
 import { registerTerminalIpc, terminateAll } from './terminal';
 import { registerConfig } from './config';
 import { registerFolders } from './folders';
@@ -63,7 +64,7 @@ import {
 import type { Edge, Inset } from './bounds';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
-import type { OrderMove, UiState, Settings } from '../shared/types';
+import type { HistorySlice, OrderMove, UiState, Settings } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -431,6 +432,12 @@ async function createWindow(): Promise<void> {
 }
 
 ipcMain.handle('sessions:list', () => listSessions());
+ipcMain.handle('history:get', async (_event, id: string, known: number, generation: number): Promise<HistorySlice> => {
+  const file = await findTranscript(id);
+  // No transcript yet is a session nothing has been sent in: an empty history, not an error.
+  if (!file) return { generation: 0, from: 0, exchanges: [], total: 0 };
+  return readHistory(file, Number.isInteger(known) && known > 0 ? known : 0, Number.isInteger(generation) ? generation : 0);
+});
 ipcMain.handle('meta:recordClear', (_event, from: string, to: string, title: string) => recordClear(from, to, title));
 ipcMain.handle('sessions:worktreeExists', (_event, repoRoot: string, name: string) => worktreeExists(repoRoot, name));
 ipcMain.handle('meta:getPinned', () => getPinned());

@@ -219,6 +219,25 @@ export async function worktreeExists(repoRoot: string, name: string): Promise<bo
 }
 
 /**
+ * The transcript file of session `id`: from the last listing when it was in it, else by looking in every project directory. Null when there is none.
+ * The id arrives from the window, so it has to look like one before it goes anywhere near a path.
+ */
+export async function findTranscript(id: string): Promise<string | null> {
+  if (!/^[\w-]+$/.test(id)) return null;
+  for (const file of summaryCache.keys()) if (path.basename(file, '.jsonl') === id) return file;
+  for (const dir of await projectDirs()) {
+    const file = path.join(dir, `${id}.jsonl`);
+    try {
+      await fs.access(file);
+      return file;
+    } catch {
+      // Not in this project; try the next.
+    }
+  }
+  return null;
+}
+
+/**
  * Move the given sessions' transcript files and subagent dirs to the OS trash (recoverable), across whichever project directories hold them.
  * This is the only place the app mutates the Claude session store.
  */

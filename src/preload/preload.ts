@@ -4,6 +4,7 @@ import type { LayoutReport, PanelRunEvent } from '../shared/panels';
 
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
+  getHistory: (id, known, generation) => ipcRenderer.invoke('history:get', id, known, generation),
   worktreeExists: (repoRoot, name) => ipcRenderer.invoke('sessions:worktreeExists', repoRoot, name),
   onSessionsChanged: (callback) => ipcRenderer.on('sessions:changed', () => callback()),
   onQuitting: (callback) => ipcRenderer.on('app:quitting', () => callback()),

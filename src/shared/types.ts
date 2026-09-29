@@ -36,6 +36,41 @@ export interface SessionSummary {
 }
 
 /**
+ * One request in a session and what claude sent back, read from the session's transcript (`src/main/transcript.ts`).
+ * Only the LAST exchange of a session ever changes, and only by growing: claude's reply to it is still being written.
+ */
+export interface Exchange {
+  /** The request record's uuid: what a pin keys on, and the same in both transcripts of a fork. */
+  id: string;
+  /** When the request was sent, as the transcript records it (ISO). */
+  time: string;
+  /** What was asked, as it was typed; a slash command as its command line ("/review https://…"). */
+  request: string;
+  /** Typed at the prompt, a slash command claude answered, or sent while claude was still working on something else. */
+  kind: 'typed' | 'command' | 'busy';
+  /**
+   * The next request replaced this one: it has the same parent in the transcript's tree, which is what stopping claude and sending again, or editing and resending, leaves behind.
+   * Shown, dimmed, rather than hidden, so a stopped attempt's partial reply and any pin on it stay.
+   */
+  replaced: boolean;
+  /** Claude's text in reply, markdown, in the order it was written. */
+  reply: string;
+  /** One line per tool call claude made in reply: the tool's name and its main input. */
+  tools: string[];
+}
+
+/**
+ * What a history read hands back: the exchanges from `from` on, which replace whatever the caller held from that index.
+ * A `generation` other than the one the caller passed means the transcript was read again from the start (it shrank), so nothing the caller held is still good.
+ */
+export interface HistorySlice {
+  generation: number;
+  from: number;
+  exchanges: Exchange[];
+  total: number;
+}
+
+/**
  * What the renderer asks for when it opens a terminal, beyond the flags every session gets.
  *
  * The app MINTS the session id (`sessionId`) and hands it to claude, rather than letting claude pick one and then finding out which: a tab therefore knows its own session from the first paint, and every id-keyed thing — the sidebar row, a group, a pin, a note, the status files — lands on the right session immediately.
@@ -167,6 +202,11 @@ import type { LogLevel } from './log';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
+  /**
+   * Session `id`'s requests and replies, for a caller that holds `known` exchanges of `generation` (0 and 0 the first time).
+   * The first call reads the whole transcript and later ones only what was appended; see HistorySlice for how to apply the answer.
+   */
+  getHistory(id: string, known: number, generation: number): Promise<HistorySlice>;
   /** Whether a worktree of this name already exists for the repo (blocks creating a duplicate). */
   worktreeExists(repoRoot: string, name: string): Promise<boolean>;
   /** Fires when a session transcript on disk is created or changes (debounced). */

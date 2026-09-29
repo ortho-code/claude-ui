@@ -16,7 +16,7 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => testHome };
 });
 
-import { listSessions } from './sessions';
+import { findTranscript, listSessions } from './sessions';
 
 const projectsDir = path.join(testHome, '.claude', 'projects');
 
@@ -316,5 +316,25 @@ describe('sibling grouping across refreshes', () => {
     p1 = (await listSessions()).find((s) => s.id === 'p1');
     expect(p1?.isSibling).toBe(true);
     expect(p1?.siblingIds).toEqual(['p2']);
+  });
+});
+
+describe('findTranscript', () => {
+  it('finds a listed session by its id', async () => {
+    await listSessions();
+    expect(await findTranscript('a')).toBe(path.join(projectsDir, '-tmp-proj', 'a.jsonl'));
+  });
+
+  it('finds one the last listing has not seen yet', async () => {
+    const dir = path.join(projectsDir, '-tmp-late');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'late.jsonl'), jsonl({ type: 'user', uuid: 'ul', cwd: '/tmp/late', message: { content: 'hi' } }));
+    expect(await findTranscript('late')).toBe(path.join(dir, 'late.jsonl'));
+  });
+
+  it('answers null for no such session, and for anything that is not an id', async () => {
+    expect(await findTranscript('nope')).toBeNull();
+    expect(await findTranscript('../-tmp-proj/a')).toBeNull();
+    expect(await findTranscript('')).toBeNull();
   });
 });

@@ -3,6 +3,10 @@
  * What a record says is decided here once, for every reader of the transcript: the session list's summary, and the history of a session's requests.
  */
 
+import { promises as fs } from 'node:fs';
+import type { Exchange, HistorySlice } from '../shared/types';
+import { fsFailure, logOnce } from './log';
+
 /**
  * A message that is pure local-command plumbing — the `<local-command-caveat>` preamble a session gets when it starts with local commands, or captured `<local-command-stdout>` output — is not a usable first message; blank it so the latch waits for the first real prompt instead.
  */
@@ -36,4 +40,226 @@ export function extractUserText(event: Record<string, unknown>): string {
     return text;
   }
   return '';
+}
+
+// --- The history: a session's requests and what came back ---
+
+/**
+ * The fold's state, record by record: every exchange so far, and a slash command waiting for its answer.
+ * A slash command is a request only once claude answers it — `/review` is one, `/model` is not, and nothing in the command line tells them apart (arguments do not: `/learn` is answered with none, `/model` is not with one) — so it waits here until an assistant record arrives, and is dropped if the user sends something else first.
+ * It waits across reads as well, since the answer can land in the next read of a file claude is still writing.
+ */
+export interface HistoryFold {
+  exchanges: Exchange[];
+  /** Each exchange's parent record in the transcript's tree, index for index, so the next request can tell whether it replaces the last. */
+  parents: (string | null)[];
+  pending: { exchange: Exchange; parent: string | null } | null;
+}
+
+export function newFold(): HistoryFold {
+  return { exchanges: [], parents: [], pending: null };
+}
+
+/** Claude Code's own records, written into the user's turn: a local command's output, a reminder, a task notification, `!` bash mode. */
+const PLUMBING = /^<[a-z][a-z-]*>/;
+
+/** The line a tool call gets in the history: its name, and the one input that says what it acted on. */
+function toolLine(part: { name?: unknown; input?: unknown }): string {
+  const name = typeof part.name === 'string' ? part.name : 'tool';
+  const input = (part.input ?? {}) as Record<string, unknown>;
+  const main = [input.file_path, input.path, input.command, input.pattern, input.url, input.query, input.description].find(
+    (value): value is string => typeof value === 'string' && value.trim() !== '',
+  );
+  if (!main) return name;
+  // Its first line as written, not trimmed: a pattern's trailing space is part of what was searched for.
+  const first = main.split('\n').find((line) => line.trim() !== '') ?? '';
+  return `${name}(${first.length > 120 ? `${first.slice(0, 119)}…` : first})`;
+}
+
+function exchangeOf(record: Record<string, unknown>, request: string, kind: Exchange['kind']): Exchange {
+  return {
+    id: typeof record.uuid === 'string' ? record.uuid : '',
+    time: typeof record.timestamp === 'string' ? record.timestamp : '',
+    request,
+    kind,
+    replaced: false,
+    reply: '',
+    tools: [],
+  };
+}
+
+function parentOf(record: Record<string, unknown>): string | null {
+  return typeof record.parentUuid === 'string' ? record.parentUuid : null;
+}
+
+/**
+ * Add a request, marking the one before it as replaced when both hang off the same parent.
+ * Only the one just before. Of the 569 replaced requests on the machine this was written on, 250 were replaced by the very next one, the case examples confirm; the rest are not understood yet, and are left unmarked rather than guessed at.
+ */
+function push(fold: HistoryFold, exchange: Exchange, parent: string | null): void {
+  const last = fold.exchanges.length - 1;
+  if (parent !== null && last >= 0 && fold.parents[last] === parent) fold.exchanges[last]!.replaced = true;
+  fold.exchanges.push(exchange);
+  fold.parents.push(parent);
+}
+
+/** A waiting slash command becomes a request: claude is answering it. */
+function promote(fold: HistoryFold): void {
+  if (!fold.pending) return;
+  push(fold, fold.pending.exchange, fold.pending.parent);
+  fold.pending = null;
+}
+
+/** Whether a user record carries a tool's result: a request inside it was sent while that tool ran. */
+function carriesToolResult(record: Record<string, unknown>): boolean {
+  const content = (record.message as { content?: unknown } | undefined)?.content;
+  return Array.isArray(content) && content.some((part) => (part as { type?: unknown } | null)?.type === 'tool_result');
+}
+
+/**
+ * Fold one transcript record into the history.
+ * A request is what the user sent: a typed prompt (with or without a pasted image), one sent while a tool ran, one queued while claude worked (a `queued_command` attachment, which is not a user record at all), and a slash command claude answered.
+ * Not a request: tool results, meta records (a skill's expanded body, a message from another session), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing.
+ * The rule and the counts behind it are in docs/architecture.md, In-session history.
+ */
+export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): void {
+  if (record.isSidechain === true) return;
+  if (record.type === 'attachment') {
+    const attachment = record.attachment as { type?: unknown; prompt?: unknown } | undefined;
+    if (attachment?.type !== 'queued_command' || typeof attachment.prompt !== 'string' || !attachment.prompt.trim()) return;
+    // Queued means claude was working, so a command still waiting is the thing it was working on.
+    promote(fold);
+    push(fold, exchangeOf(record, attachment.prompt.trim(), 'busy'), parentOf(record));
+    return;
+  }
+  if (record.type === 'assistant') {
+    promote(fold);
+    const last = fold.exchanges[fold.exchanges.length - 1];
+    // Before the first request there is nothing for it to be a reply to.
+    if (!last) return;
+    const content = (record.message as { content?: unknown } | undefined)?.content;
+    if (!Array.isArray(content)) return;
+    for (const part of content as ({ type?: unknown; text?: unknown; name?: unknown; input?: unknown } | null)[]) {
+      if (part?.type === 'text' && typeof part.text === 'string' && part.text.trim()) {
+        last.reply = last.reply ? `${last.reply}\n\n${part.text}` : part.text;
+      } else if (part?.type === 'tool_use') {
+        last.tools.push(toolLine(part));
+      }
+    }
+    return;
+  }
+  if (record.type !== 'user' || record.isMeta === true || record.isCompactSummary === true) return;
+  const text = extractUserText(record);
+  // A tool's result, with nothing the user wrote beside it.
+  if (!text) return;
+  if (text.includes('<command-name>')) {
+    fold.pending = { exchange: exchangeOf(record, commandLabel(text), 'command'), parent: parentOf(record) };
+    return;
+  }
+  if (PLUMBING.test(text) || text.startsWith('[Request interrupted')) return;
+  fold.pending = null;
+  const busy = carriesToolResult(record) || record.promptSource === 'queued';
+  push(fold, exchangeOf(record, text, busy ? 'busy' : 'typed'), parentOf(record));
+}
+
+/** Where the history of one transcript has been read to. */
+interface Cursor {
+  /** Changes when the file is read again from the start, so a caller knows that what it holds is stale. */
+  generation: number;
+  offset: number;
+  /** The bytes after the last newline: a line claude has not finished writing. Bytes rather than text, since a read can end inside a multi-byte character. */
+  carry: Buffer;
+  fold: HistoryFold;
+  /** One read at a time per file, so two callers never fold the same bytes twice. */
+  queue: Promise<unknown>;
+}
+
+const cursors = new Map<string, Cursor>();
+/** Cursors kept at once, the least recently asked for going first; the largest session's history is about a megabyte. */
+const MAX_CURSORS = 16;
+let generations = 0;
+
+/** How much is read at a time, so a 50 MB transcript is read in pieces with the main process handed back between them. */
+const CHUNK_BYTES = 4 * 1024 * 1024;
+
+function restart(cursor: Cursor): void {
+  cursor.generation = ++generations;
+  cursor.offset = 0;
+  cursor.carry = Buffer.alloc(0);
+  cursor.fold = newFold();
+}
+
+function foldLine(fold: HistoryFold, line: string): void {
+  if (!line.trim()) return;
+  let record: unknown;
+  try {
+    record = JSON.parse(line);
+  } catch {
+    return;
+  }
+  if (record !== null && typeof record === 'object') foldRecord(fold, record as Record<string, unknown>);
+}
+
+/** Read what was appended to the file since the cursor's offset, or the whole file again when it shrank. */
+async function readOn(file: string, cursor: Cursor, chunkBytes: number): Promise<void> {
+  let handle;
+  try {
+    handle = await fs.open(file, 'r');
+  } catch (error) {
+    const failure = fsFailure(error);
+    if (failure) logOnce('warn', 'history', `cannot read ${file}: ${failure}`);
+    return;
+  }
+  try {
+    const { size } = await handle.stat();
+    // Shorter than what was already read means it is not the same file any more.
+    if (size < cursor.offset) restart(cursor);
+    while (cursor.offset < size) {
+      const chunk = Buffer.alloc(Math.min(chunkBytes, size - cursor.offset));
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, cursor.offset);
+      if (bytesRead === 0) break;
+      cursor.offset += bytesRead;
+      const bytes = cursor.carry.length > 0 ? Buffer.concat([cursor.carry, chunk.subarray(0, bytesRead)]) : chunk.subarray(0, bytesRead);
+      const end = bytes.lastIndexOf(0x0a);
+      if (end < 0) {
+        cursor.carry = Buffer.from(bytes);
+        continue;
+      }
+      // A newline byte never occurs inside a multi-byte UTF-8 character, so cutting at the last one leaves whole characters on both sides.
+      for (const line of bytes.subarray(0, end).toString('utf8').split('\n')) foldLine(cursor.fold, line);
+      cursor.carry = Buffer.from(bytes.subarray(end + 1));
+    }
+  } catch (error) {
+    logOnce('warn', 'history', `cannot read ${file}: ${fsFailure(error) ?? 'it disappeared while being read'}`);
+  } finally {
+    await handle.close();
+  }
+}
+
+/**
+ * The history of the transcript at `file`, for a caller that holds `known` exchanges of `generation`.
+ * The first call reads the whole file; later calls read only what was appended. Only the last exchange ever changes, so the caller's last one is sent again, with everything after it.
+ */
+export function readHistory(file: string, known: number, generation: number, chunkBytes = CHUNK_BYTES): Promise<HistorySlice> {
+  let cursor = cursors.get(file);
+  if (cursor) {
+    cursors.delete(file);
+  } else {
+    cursor = { generation: 0, offset: 0, carry: Buffer.alloc(0), fold: newFold(), queue: Promise.resolve() };
+    restart(cursor);
+  }
+  cursors.set(file, cursor);
+  // A Map iterates in insertion order and the one just asked for was re-inserted last, so the first key is the least recently asked for; the loop condition guarantees there is one.
+  while (cursors.size > MAX_CURSORS) cursors.delete(cursors.keys().next().value!);
+
+  const at = cursor;
+  const read = at.queue.then(async () => {
+    await readOn(file, at, chunkBytes);
+    const total = at.fold.exchanges.length;
+    const from = generation === at.generation ? Math.max(0, Math.min(known, total) - 1) : 0;
+    const exchanges = at.fold.exchanges.slice(from).map((e) => ({ ...e, tools: [...e.tools] }));
+    return { generation: at.generation, from, exchanges, total };
+  });
+  at.queue = read.catch(() => undefined);
+  return read;
 }
