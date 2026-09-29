@@ -2392,7 +2392,7 @@ button:focus:not(:focus-visible) {
   overflow-wrap: anywhere;
 }
 
-/* Claude's dot: a message in the text's colour, a tool call muted. Drawn, not a glyph, as every mark in the app is. */
+/* Claude's dot: a message in the text's colour, a tool call in green. Drawn, not a glyph, as every mark in the app is. */
 .exchange-text,
 .exchange-tool {
   position: relative;
@@ -2413,14 +2413,19 @@ button:focus:not(:focus-visible) {
   background: currentColor;
 }
 
-/* A tool call, one line, where it came in the reply. */
+/* A tool call, where it came in the reply, as claude draws one: a green dot, the tool's name in bold, what it acted on in grey. */
 .exchange-tool {
   color: var(--muted);
   white-space: pre-wrap;
 }
 
 .exchange-tool::before {
-  background: var(--muted);
+  background: var(--idle);
+}
+
+.exchange-tool-name {
+  color: var(--terminal-fg);
+  font-weight: 600;
 }
 
 .exchange-text > :first-child {

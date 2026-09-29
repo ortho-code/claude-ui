@@ -24,7 +24,7 @@ function fold(...records: Record<string, unknown>[]): HistoryFold {
 }
 const requests = (f: HistoryFold) => f.exchanges.map((e) => `${e.kind}: ${e.request}`);
 const replyText = (e: Exchange) => e.parts.flatMap((p) => (p.kind === 'text' ? [p.text] : [])).join('\n\n');
-const toolLines = (e: Exchange) => e.parts.flatMap((p) => (p.kind === 'tool' ? [p.line] : []));
+const toolLines = (e: Exchange) => e.parts.flatMap((p) => (p.kind === 'tool' ? [p.detail ? `${p.name}(${p.detail})` : p.name] : []));
 
 describe('what counts as a request', () => {
   it('a typed prompt, with its reply: each message its own part, the tool calls where they came', () => {
@@ -39,7 +39,7 @@ describe('what counts as a request', () => {
         replaced: false,
         parts: [
           { kind: 'text', text: 'Let me look.' },
-          { kind: 'tool', line: 'Read(/repo/src/Sniff.php)' },
+          { kind: 'tool', name: 'Read', detail: '/repo/src/Sniff.php' },
           { kind: 'text', text: 'Found it.' },
         ],
       },

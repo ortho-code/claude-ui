@@ -4,7 +4,7 @@
  */
 
 import { promises as fs } from 'node:fs';
-import type { Exchange, HistorySlice } from '../shared/types';
+import type { Exchange, HistorySlice, ReplyPart } from '../shared/types';
 import { fsFailure, logOnce } from './log';
 
 /**
@@ -63,17 +63,16 @@ export function newFold(): HistoryFold {
 /** Claude Code's own records, written into the user's turn: a local command's output, a reminder, a task notification, `!` bash mode. */
 const PLUMBING = /^<[a-z][a-z-]*>/;
 
-/** The line a tool call gets in the history: its name, and the one input that says what it acted on. */
-function toolLine(part: { name?: unknown; input?: unknown }): string {
+/** A tool call as the history shows it: its name, and apart from it, on one line, the one input that says what it acted on. */
+function toolPart(part: { name?: unknown; input?: unknown }): ReplyPart {
   const name = typeof part.name === 'string' ? part.name : 'tool';
   const input = (part.input ?? {}) as Record<string, unknown>;
   const main = [input.file_path, input.path, input.command, input.pattern, input.url, input.query, input.description].find(
     (value): value is string => typeof value === 'string' && value.trim() !== '',
   );
-  if (!main) return name;
   // Its first line as written, not trimmed: a pattern's trailing space is part of what was searched for.
-  const first = main.split('\n').find((line) => line.trim() !== '') ?? '';
-  return `${name}(${first.length > 120 ? `${first.slice(0, 119)}…` : first})`;
+  const first = main?.split('\n').find((line) => line.trim() !== '') ?? '';
+  return { kind: 'tool', name, detail: first.length > 120 ? `${first.slice(0, 119)}…` : first };
 }
 
 function exchangeOf(record: Record<string, unknown>, request: string, kind: Exchange['kind']): Exchange {
@@ -143,7 +142,7 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
       if (part?.type === 'text' && typeof part.text === 'string' && part.text.trim()) {
         last.parts.push({ kind: 'text', text: part.text });
       } else if (part?.type === 'tool_use') {
-        last.parts.push({ kind: 'tool', line: toolLine(part) });
+        last.parts.push(toolPart(part));
       }
     }
     return;

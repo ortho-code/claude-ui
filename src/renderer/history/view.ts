@@ -198,7 +198,7 @@ export class HistoryView {
     if (!exchange) return null;
     // The reply's first message, as a line; a reply that is only tool calls so far is named by its first one.
     const first = exchange.parts.find((part) => part.kind === 'text') ?? exchange.parts[0];
-    const reply = !first ? null : first.kind === 'text' ? requestLabel(first.text.replace(/^\s*(#{1,6}|>|[-*+])\s+/gm, '')) : first.line;
+    const reply = !first ? null : first.kind === 'text' ? requestLabel(first.text.replace(/^\s*(#{1,6}|>|[-*+])\s+/gm, '')) : `${first.name}${first.detail ? `(${first.detail})` : ''}`;
     return { number: k + 1, time: exchange.time, request: requestLabel(exchange.request), reply, pinned: exchange.id in this.pins };
   }
 
@@ -399,8 +399,13 @@ export class HistoryView {
         // Safe to hand to innerHTML: raw HTML in a reply comes out as text, and dangerous links not at all (markdown.ts).
         piece.innerHTML = renderMarkdown(part.text);
       } else {
+        // As claude draws it: the name in bold, what it acted on in brackets after it.
         piece.className = 'exchange-tool';
-        piece.textContent = part.line;
+        const name = document.createElement('span');
+        name.className = 'exchange-tool-name';
+        name.textContent = part.name;
+        piece.append(name);
+        if (part.detail) piece.append(`(${part.detail})`);
       }
       reply.append(piece);
     }

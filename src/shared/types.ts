@@ -57,8 +57,8 @@ export interface Exchange {
   parts: ReplyPart[];
 }
 
-/** One piece of a reply: a message from claude (markdown), or a tool call, as one line — the tool's name and its main input. */
-export type ReplyPart = { kind: 'text'; text: string } | { kind: 'tool'; line: string };
+/** One piece of a reply: a message from claude (markdown), or a tool call — the tool's name and, on one line, the input that says what it acted on (empty when none does). */
+export type ReplyPart = { kind: 'text'; text: string } | { kind: 'tool'; name: string; detail: string };
 
 /**
  * A request pinned in the history, stored in meta.json under the request's uuid (`Exchange.id`).
