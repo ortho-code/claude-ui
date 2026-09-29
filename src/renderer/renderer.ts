@@ -139,6 +139,7 @@ const history = new HistoryView({
   toggleHistoryPin: (id, pin) => window.claudeUi.toggleHistoryPin(id, pin),
   openExternal: (url) => window.claudeUi.openExternal(url),
   leave: () => showHistory(false),
+  open: () => openHistory(),
 });
 terminalsEl.append(history.el);
 // A click in the part of claude still in view under the history goes back to it: that part is the way back, and the click reaches claude as well.
@@ -2952,6 +2953,8 @@ function removeTab(tab: Tab): void {
   if (activeTab === tab) activeTab = null;
   // Re-establish the active tab within the current workspace scope (or clear); this re-renders too.
   switchWorkspaceTerminal(activeProject);
+  // After the switch, which is what remembers how the tab was left.
+  history.forget(tab.session.id);
   persistOpenTabs();
   // Closing a LIVE tab takes its row out of the strip here, not when the pty's exit eventually lands — `closeTab` removes the tab first and kills the process after, so without this the strip lists a session nothing is running.
   refreshSwitcher();
@@ -3229,8 +3232,8 @@ function showHistory(shown: boolean): void {
 }
 
 function updatePlaceholder(): void {
-  // The history follows the tab from here, since every change to what the pane shows passes through this function; a tab switch shows the new tab live.
-  if (history.follow(activeTab?.session.id ?? null)) showHistory(false);
+  // The history follows the tab from here, since every change to what the pane shows passes through this function; a tab switch shows the new tab as you left it, live or in its history.
+  history.follow(activeTab?.session.id ?? null);
   // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so without this a restored session would look like a session that had nothing in it.
   const cold = activeTab !== null && activeTab.terminalId === null;
   // A booting tab HAS a terminal, but it is still empty: keep the pane covered rather than showing the black rectangle that the wait would otherwise be.
@@ -3271,7 +3274,7 @@ function resumeButton(tab: Tab): HTMLButtonElement {
 
 /**
  * Open the history of the tab on show: over its live terminal, or, for a tab with no claude behind it, standing under the sentence the pane says, since there is no live view to go back to.
- * Every way in comes here — the bar, its foot arrow, Ctrl+Shift+↑, a cold tab's "Show history" — so they cannot disagree about which.
+ * Every way in comes here — the bar, its foot arrow, Ctrl+Shift+↑, a cold tab's "Show history", a tab reopening its history where it was left — so they cannot disagree about which.
  */
 function openHistory(): void {
   if (!activeTab) return;

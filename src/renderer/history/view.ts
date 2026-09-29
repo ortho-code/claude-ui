@@ -13,12 +13,17 @@ export interface HistoryHost {
   openExternal(url: string): void;
   /** Hand the pane back to the live terminal. */
   leave(): void;
+  /** Open the history on the tab on show, the way every other way in does. */
+  open(): void;
 }
 
 const MARKS: Partial<Record<Exchange['kind'], [label: string, tooltip: string]>> = {
   busy: ['sent while claude was working', 'Sent while claude was still working on something else, and taken up by it.'],
 };
 const REPLACED: [string, string] = ['sent again', 'You stopped this and sent it again: the request below replaced it.'];
+
+/** Where in a history to come back to: the exchange at the top of the view and how far past its request line, or null for the end. */
+type Place = { at: number; offset: number } | null;
 
 /**
  * The app's own view of a session's requests and claude's replies, read from its transcript.
@@ -43,6 +48,10 @@ export class HistoryView {
   private pinnedOnly = false;
   private reading = false;
   private readAgain = false;
+  /** Per session, where its history was left open when its tab was left: the exchange at the top and how far into it, or null for the end. A session left with it closed has no entry. */
+  private readonly left = new Map<string, Place>();
+  /** Where to reopen the session followed once its history has been read; undefined when it was left closed, or has been opened or closed since. */
+  private reopen: Place | undefined;
   /** Whenever what is drawn changes size or order: the bar measures its marks from it. */
   onLayout: (() => void) | null = null;
   /** Whenever where you are in it changes, by scrolling or by the pane changing hands: the bar moves its band. */
@@ -102,10 +111,20 @@ export class HistoryView {
     this.drawCount();
   }
 
-  /** Show session `id`'s history, or nothing. Says whether that is a different session from the one shown; the same one is a no-op. */
-  follow(id: string | null): boolean {
-    if (id === this.session) return false;
+  /**
+   * Show session `id`'s history, or nothing; the same session is a no-op.
+   * Each tab keeps its own: leaving one with its history open remembers where, and coming back reopens it there once it has been read again.
+   */
+  follow(id: string | null): void {
+    if (id === this.session) return;
+    if (this.session) {
+      if (this.shown) this.left.set(this.session, this.place());
+      // Left again before its history came back: it was never closed, so it keeps where it was.
+      else if (this.reopen === undefined) this.left.delete(this.session);
+    }
     this.setStandalone(null);
+    if (this.shown) this.host.leave();
+    this.reopen = id ? this.left.get(id) : undefined;
     this.session = id;
     this.followed++;
     this.model = emptyModel();
@@ -115,7 +134,11 @@ export class HistoryView {
     if (id) void this.refresh();
     else this.drawEmpty();
     this.onLayout?.();
-    return true;
+  }
+
+  /** Drop what is remembered about session `id`, whose tab has gone: opening it again later starts closed. */
+  forget(id: string): void {
+    this.left.delete(id);
   }
 
   get shown(): boolean {
@@ -161,6 +184,8 @@ export class HistoryView {
    */
   setShown(shown: boolean): boolean {
     if (shown === this.shown) return false;
+    // Opened or closed by hand before its history came back: that says where it should be now, not where it was left.
+    this.reopen = undefined;
     this.el.classList.toggle('shown', shown);
     if (shown) {
       this.scrollToEnd();
@@ -239,6 +264,7 @@ export class HistoryView {
         const atEnd = this.atEnd();
         this.draw(applySlice(this.model, slice));
         if (atEnd) this.scrollToEnd();
+        this.reopenWhereLeft();
       } while (this.readAgain);
     } finally {
       this.reading = false;
@@ -267,6 +293,22 @@ export class HistoryView {
     const target = (part === 'reply' ? node.querySelector<HTMLElement>('.exchange-reply') : node.querySelector<HTMLElement>('.exchange-request')) ?? node;
     this.scroller.scrollTop = target.offsetTop - 4;
     flash(target);
+  }
+
+  /** Where the view is, to come back to: the exchange at its top and how far into it, or null at the end, where it keeps following what claude adds. */
+  private place(): Place {
+    if (this.atEnd()) return null;
+    const at = this.current();
+    return { at, offset: this.scroller.scrollTop - this.anchor(at) };
+  }
+
+  /** Reopen the history where its tab left it, now that it has been read; the way in is the host's, so a tab with no claude behind it gets it standing. */
+  private reopenWhereLeft(): void {
+    const where = this.reopen;
+    if (where === undefined) return;
+    this.reopen = undefined;
+    this.host.open();
+    if (where) this.scroller.scrollTop = this.anchor(where.at) + where.offset;
   }
 
   /** Where a jump to exchange `index` puts the top of the view: its request line, which is what stepping measures from too. */
