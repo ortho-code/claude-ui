@@ -2261,8 +2261,10 @@ button:focus:not(:focus-visible) {
 }
 
 /* Positioned, so an exchange's offsetTop is measured from here: that is what goTo scrolls by. */
-/* The terminal's background and type, so the history reads as claude's own view of the session. */
+/* The terminal's background, face and colour, so the history reads as claude's own view of the session.
+   A step smaller than the terminal on purpose: the browser draws the face heavier than xterm's grid does, and at the terminal's own size the history read louder than claude beside it. */
 .history-scroll {
+  --history-line: 1.3;
   position: relative;
   flex: 1;
   min-height: 0;
@@ -2271,8 +2273,8 @@ button:focus:not(:focus-visible) {
   background: var(--terminal-bg);
   color: var(--terminal-fg);
   font-family: var(--font-mono);
-  font-size: var(--text-mono);
-  line-height: 1.3;
+  font-size: var(--text-meta);
+  line-height: var(--history-line);
 }
 
 /* It takes the focus so its keys work, but it is not a control: the browser's ring around the whole history was the loudest thing on screen. */
@@ -2471,13 +2473,14 @@ button:focus:not(:focus-visible) {
 
 .exchange-text::before,
 .exchange-tool::before {
+  --dot: 6px;
   content: '';
   position: absolute;
   left: 5px;
-  /* Centred on the first line: (1.3em line − 7px) / 2 at the terminal's 13px. */
-  top: 0.4em;
-  width: 7px;
-  height: 7px;
+  /* Centred on the first line, whatever the size. */
+  top: calc((var(--history-line) * 1em - var(--dot)) / 2);
+  width: var(--dot);
+  height: var(--dot);
   border-radius: 50%;
   background: currentColor;
 }
