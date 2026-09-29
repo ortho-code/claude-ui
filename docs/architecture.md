@@ -28,6 +28,9 @@ The standard Electron split, with the renderer locked down:
 The linter holds the split: a source file importing from another process's folder fails `npm run lint`, and code both sides need goes in `src/shared`.
 Tests are exempt, since a test may assert across the line — the launcher's flags against the reserved list, for one.
 
+**The window never navigates.** Main refuses any navigation away from the app's own page and any new window (`will-navigate`, `setWindowOpenHandler`), because a page loaded there would get the preload's bridge, and the bridge runs commands.
+Links leave through `shell:openExternal` instead, which accepts only http(s); the app itself never navigates, and `loadFile` is programmatic, which the event does not see.
+
 ## Reading sessions
 
 `src/main/sessions.ts` walks `~/.claude/projects/*/*.jsonl`.
@@ -175,6 +178,85 @@ Two cases no amount of gating can pre-empt — a folder that disappears while th
 A tab is kept, cold, rather than closed: the click meant "look at this", and the folder may come back.
 
 (`claude -w` also `git worktree lock`s the tree it cuts, and that lock outlives the session, so a later `git worktree remove` refuses until the lock of a dead pid is cleared.)
+
+## In-session history
+
+Claude's fullscreen renderer (`"tui": "fullscreen"`) draws on the terminal's alternate screen and scrolls itself, so the terminal keeps no scrollback of the conversation, and claude publishes neither where it is scrolled nor how tall the conversation is.
+So nothing here can follow claude's own scrolling, and marking lines in the terminal's buffer — xterm markers placed as each request is sent, the first design — has no line to hold on to.
+The app draws a history of its own instead, from the session's transcript, which holds every request and reply, outlives every restart, and keeps what a compaction took out of claude's own view.
+The code is in `src/main/transcript.ts` (reading) and `src/renderer/history/` (the view, the bar and the loupe).
+
+### Opening it, and getting out
+
+**The history opens only on purpose**: from the bar beside the terminal (a click, or the loupe), the arrow at the bar's foot, or Ctrl+Shift+↑ for your last request — every way in goes through one function, `openHistory`.
+The wheel over a running claude stays claude's, and scrolls claude's own view.
+**Getting out is one labelled control**, "Back to live", in the history's head and always in view, with Esc as its key; the focus goes back to the terminal.
+Ctrl+Shift+↑ is caught on the window in the capture phase, before xterm, which would otherwise send it to claude; app shortcuts take Ctrl+Shift because a bare Ctrl+letter belongs to the terminal.
+
+That is the second version, and the first is worth knowing because it was tried and reversed after use.
+It took the wheel: xterm asks `attachCustomWheelEventHandler` before it sends a mouse report or turns the wheel into arrow keys, so answering false keeps the wheel from claude, and a wheel up over the alternate screen handed the pane to the history, scrolling on past its end handing it back.
+It read well as "scrollback that remembers everything", but in use a scroll that turned into another mode was a surprise, claude's own wheel scrolling was gone, and the point of the app is to work in a session, not to read it.
+The exit was a floating pill at the foot and End, and was not found.
+
+The history is ONE view, for the active tab, rebuilt when the tab changes, and a tab switch shows the new tab live.
+It is kept laid out beneath the live terminal — hidden by visibility, never display — because the bar beside it places its marks from the history's measured heights, and a node with `display: none` measures as nothing.
+
+**A tab with no claude behind it** that is on screen, the one restored at launch or one refused a start, shows the pane's sentence — "“…” isn't running." — with a Resume button, which starts it as a click on its tab does, and a Show history button.
+The history then stands under the same sentence, one function for both, with Resume and Close; there is no "Back to live", since there is no live view.
+With the folder gone, Resume is unavailable with the reason, and Show history still works, since reading a session whose folder has gone is exactly when you want it.
+Showing the history there by itself, at launch, was tried and reversed: it was not clear what had happened or why it was shown.
+A stopped tab still drops you to the empty screen; reopening it resumes claude, and the history is then on the bar.
+
+### What counts as a request
+
+A typed prompt, one with a pasted image, one sent while a tool ran, one queued while claude was working — a `queued_command` attachment, which is not a user record at all — and a slash command claude answered.
+Not a request: tool results, meta records (a skill's expanded body, a message from another session), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing (a local command's output, a reminder, a task notification, `!` bash mode).
+The rule was taken from a scan of 312 transcripts, and the numbers below are from them.
+
+**A slash command counts only once claude answers it.** `/review` and `/learn` are answered, `/model` and `/clear` are not, and nothing in the command line tells them apart — `/learn` usually has no arguments, `/model` usually has one; 265 were answered and 112 not.
+So a command waits for an assistant record, across reads of a file claude is still writing, and is dropped if the user sends something else first.
+Leaving slash commands out altogether was the first rule, and it left a session that was one `/review` doing all the work with an empty history.
+
+**A transcript is a tree, and it keeps abandoned attempts.** Stopping claude and sending again, or editing and resending, leaves the first attempt in the file beside the second, both hanging off the same parent record.
+The history shows it, dimmed and marked "sent again", rather than hiding it, so a stopped attempt's partial reply and a pin on it stay.
+Only a request replaced by the very next one is marked — 265 of them, not one with a reply — because what it means when a request is replaced from further on is not understood yet, and it is left unmarked rather than guessed at.
+
+The session list's first message is deliberately NOT the history's first request: the list is labelling a session, where `/model opus` beats a blank row, and the history is listing what was asked.
+
+### Reading a transcript
+
+The first read of a session is whole, and every later one reads on from a byte offset; the largest transcript here, 50 MB, reads whole in 0.4–0.8 s and reads on in under a millisecond.
+The partial last line is kept as bytes rather than text, because a read can end inside a multi-byte character; a newline byte never occurs inside one, so cutting at the last newline leaves whole characters on both sides.
+A file shorter than what was already read is read again from the start as a new generation, which tells the window that nothing it holds is still good.
+Only the last exchange ever changes — claude's reply to it grows — so each read hands back the caller's last exchange again with everything after it, and the window redraws only those.
+The window reads on `sessions:changed` and on the active session's status events.
+
+### Pins
+
+A request is pinned by its uuid, which a fork copies, so a pin shows in both siblings.
+Each pin keeps the session it was made in, the opening of the request and its time, so a list of every pin can be drawn from `meta.json` alone.
+Deleting a session leaves its request pins: a sibling may still carry the request, and telling which pins nothing opens any more takes every transcript read, which is a job for a list of every pin rather than for a delete.
+
+### A reply is untrusted text
+
+Claude quotes web pages, files and tool output, so a reply is rendered with raw HTML off (`markdown-it`, `html: false`): markup in it is shown as text.
+Its link check refuses `javascript:`, `vbscript:`, `file:` and `data:` links, bare URLs included, and images are not rendered, since the CSP would refuse a remote one and leave a broken icon.
+Every link click, middle-click included, goes to `shell:openExternal`, and main refuses any navigation of the window besides (see Processes); the CSP is the last layer.
+`marked` was the alternative, and passes raw HTML through, so it would have needed a sanitizer beside it.
+
+### The bar and the loupe
+
+The bar at the terminal area's edge is the history's scrollbar, there whether the pane is live or not: a tick across it per request, a thin bar down its middle per reply — a shape apart, not only a shade — pins in the accent, a request sent again dimmer, the last request in white, and, while the history is open, a band for where you are in it.
+There is no band while live: the wheel scrolls claude's own view there, and where claude is scrolled is not something the app can know, so any band would be a guess.
+It is a column of its own rather than an overlay, so it never covers claude's text; the terminal is that much narrower, and the fit hands the pty the new width.
+
+Hovering it opens the loupe, the entries around the pointer in words, and the wheel steps it one entry per notch, a trackpad one per 30px.
+That is the answer to the hard requirement, that one exact request or reply be reachable in a session of hundreds: at 821 requests the bar has under a pixel per entry, so the pointer alone picks roughly.
+A fisheye on the bar itself was tried in a mock and rejected — it spreads the entries under the pointer, but the pointer still moves through them too fast to stop on one.
+The loupe stays on an entry once the wheel has stepped until the pointer really moves, and keeps it when the pointer crosses into the loupe, so reaching for it does not undo the choice.
+It takes the arrows, Enter and Esc only while the pointer is inside it or the history has the pane: with the pointer merely resting on the bar, the live terminal has the focus, and a prompt typed with the pointer parked there must still reach claude.
+
+Rejected from the same mock: a popover from the tab bar (no scrollbar), a panel (a layout-file entry today), typing claude's own transcript-mode keys into the pty to move claude's view (it lands wrong when claude is in another state, and nothing says so), and xterm's own overview ruler (only on claude's default renderer, and its marks go with the process).
 
 ## Status cues
 
@@ -630,6 +712,9 @@ Fitting one before revealing it therefore yields xterm's 80×24 default rather t
 Reveal, then fit, then resize.
 Every conditionally-visible pane carries this hazard, split view included.
 The whole terminal area is one now: it is hidden while another panel of its group is shown or its group is folded, so the tab fit refuses a terminal area with no size and leaves it to the `ResizeObserver` on it, which fires once the area has a size again.
+
+**xterm's layers carry z-indexes of their own, up to 10.** A `.term` makes no stacking context by default, so those layers competed with the history lying over the terminal area, painted over it and took its clicks.
+Each `.term` is `isolation: isolate` for that reason: nothing inside a terminal can rise above its siblings, whatever number it carries.
 
 **Specificity quietly opts controls out of shared hover rules.** `button:hover` is 0,1,1, so a resting rule like `.project h2 .project-kebab` (0,2,2) or `#toast-close` (1,0,0) beats it and never takes the accent border, while `.session-kebab` (0,1,0) does.
 This produced three separate "why does only this one look different" bugs.

@@ -46,6 +46,8 @@ Done:
   Panels so far run a command or a script and show its output, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong. See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag. See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
 - A log file per launch and day, so a problem in an installed build can be looked at afterwards; a launch that crashed keeps its log for longer. See [Install a build](#install-a-build) for where it is.
+- A history of each session, from its transcript: every request and reply since the session began, compactions included, with pins for the ones to come back to.
+  A bar beside the terminal marks them all and opens the history where you click, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ goes to your last request.
 
 Next:
 
@@ -59,7 +61,6 @@ Next:
 - More panel types (markdown, diff, transcript, config), and layouts per project.
 - Panels opened at will rather than only from the file, such as a second shell, and panels that belong to one project while others stay the same everywhere.
 - Minimize-to-tray.
-- A readable transcript viewer (after a compaction, the CLI cannot show a resumed session's earlier history — the transcript file still has it).
 - Telling you when a session fails to start, instead of leaving the terminal to explain it.
 - A taskbar attention nudge requires a native Windows build; parked while the app runs under WSLg.
 

@@ -18,6 +18,9 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - Clicking a group's name in the tab bar takes the session list to that group, as a project's name already does; either one flashes the heading it lands on.
 - A new, empty group from a project's options; a group used to need a session to start from.
 - A log file, one per launch and day, to send along when something goes wrong: Settings shows its folder with an Open button, and the log of a launch that crashed is kept for longer.
+- A history of each session: every request with claude's reply, from the start of the session and across compactions, opened from the bar beside the terminal or with Ctrl+Shift+↑ for your last request, and left with Back to live or Esc.
+- A bar beside the terminal marking every request, reply and pin; hovering it opens a list that the wheel steps through one entry at a time, and a click opens the history there.
+- Pinning a request in the history, with its star; the pin lasts, and shows in both sessions of a fork.
 
 ### Changed
 
@@ -30,6 +33,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - Project names in the tab bar are in full text colour, as their headings in the session list are.
 - A tab whose session's folder is gone is dimmed like its row, with the reason on hover, instead of looking like a tab you can resume.
 - Making a group from a session's options takes the list to the new group at the top of its project, instead of leaving the session to move out of sight.
+- A tab that isn't running says so with a Resume button and a Show history button, instead of asking you to click its tab.
 
 ### Fixed
 
