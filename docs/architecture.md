@@ -232,18 +232,26 @@ So a command waits for an assistant record, across reads of a file claude is sti
 Leaving slash commands out altogether was the first rule, and it left a session that was one `/review` doing all the work with an empty history.
 
 **A transcript is a tree, and it keeps abandoned attempts.** Stopping claude and sending again, or editing and resending, leaves the first attempt in the file beside the second, both hanging off the same parent record.
-The history shows it, dimmed and marked "sent again", rather than hiding it, so a stopped attempt's partial reply and a pin on it stay.
-Only a request replaced by the very next one is marked — 265 of them, not one with a reply — because what it means when a request is replaced from further on is not understood yet, and it is left unmarked rather than guessed at.
+The history shows it, dimmed and marked "sent again", rather than hiding it, so a stopped attempt's partial reply and a pin on it stay; 268 of them in a later scan, of 353 transcripts, which the numbers for rewinds and records written twice come from too.
+**Claude's rewind leaves the requests it went back past** in the file too: a later request hangs off the same parent as one further back, and every request in between follows on from that one.
+All of them are marked "rewound" and dimmed the same way, since claude's conversation no longer has any of them; 59 requests in 2 sessions, in one of which the request after the rewind says "I rewinded, but one too many".
+A same-parent request further back that the ones since do not all follow on from is left unmarked, rather than guessed at: there were 304 such at first, and all but those 2 rewinds turned out to be records Claude Code writes twice (see Reading a transcript).
 
 The session list's first message is deliberately NOT the history's first request: the list is labelling a session, where `/model opus` beats a blank row, and the history is listing what was asked.
 
 ### Reading a transcript
 
-The first read of a session is whole, and every later one reads on from a byte offset; the largest transcript here, 50 MB, reads whole in 0.4–0.8 s and reads on in under a millisecond.
+The first read of a session is whole, and every later one reads on from a byte offset; the largest transcript here, 50 MB, reads whole in about 0.3 s and reads on in under a millisecond.
+The whole read goes in 4 MB pieces with the main process handed back between them, so it holds the main process, and every terminal's output with it, for at most about 40 ms at a time; measured, so no worker is needed.
 The partial last line is kept as bytes rather than text, because a read can end inside a multi-byte character; a newline byte never occurs inside one, so cutting at the last newline leaves whole characters on both sides.
 A file shorter than what was already read is read again from the start as a new generation, which tells the window that nothing it holds is still good.
 Only the last exchange ever changes — claude's reply to it grows — so each read hands back the caller's last exchange again with everything after it, and the window redraws only those.
+A rewind is the one exception: it marks requests the window already holds, so that read hands them back again from the first it went back past.
 The window reads on `sessions:changed` and on the active session's status events.
+
+**Claude Code writes records twice.** After a compaction it writes much of the conversation into the file a second time under the same uuids, with only bookkeeping changed (git branch, version, prompt id; the message itself in 3 of 6,490 copies, in 8 transcripts).
+Folded as they came, those copies drew 302 requests, and 763 of claude's messages, twice, and a pin on one lit both.
+The reader folds each uuid once and keeps the first copy.
 
 ### What it looks like
 
