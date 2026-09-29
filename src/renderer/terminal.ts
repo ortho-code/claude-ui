@@ -13,6 +13,9 @@ import { errorText } from '../shared/log';
 const rootStyle = getComputedStyle(document.documentElement);
 const MONO_FAMILY = rootStyle.getPropertyValue('--font-mono').trim();
 const MONO_SIZE = parseInt(rootStyle.getPropertyValue('--text-mono'), 10);
+// Its colours as well, so the history, which is drawn in them, cannot drift from what the terminal shows.
+const TERMINAL_BG = rootStyle.getPropertyValue('--terminal-bg').trim();
+const TERMINAL_FG = rootStyle.getPropertyValue('--terminal-fg').trim();
 
 export interface TerminalView {
   term: Terminal;
@@ -40,10 +43,9 @@ export function createTerminal(container: HTMLElement): TerminalView {
   const term = new Terminal({
     fontFamily: MONO_FAMILY,
     fontSize: MONO_SIZE,
-    // Neutral (hue-less) default foreground: claude's selected-item accent is a periwinkle, so a neutral grey fg makes it pop by HUE (the old lavender-white #cdd6f4 shared its hue and merged).
-    // The fix was the hue, not the brightness, so it can be a light near-white for comfortable reading.
+    // A neutral (hue-less) foreground, and why, are with the token (--terminal-fg in styles.css).
     // The select-menu contrast bug (28a); proper per-user terminal colours are item 28.
-    theme: { background: '#11111b', foreground: '#d8d8d8' },
+    theme: { background: TERMINAL_BG, foreground: TERMINAL_FG },
   });
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);

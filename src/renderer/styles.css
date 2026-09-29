@@ -41,6 +41,9 @@
      rather than holding a second copy of the values. */
   --font-mono: monospace;
   --text-mono: 13px;
+  /* The terminal's text: a neutral (hue-less) grey, because claude's selected-item accent is a periwinkle and a neutral foreground makes it pop by HUE (the old lavender-white --text shared its hue and merged); a light near-white for comfortable reading.
+     The history is drawn in it too, so what it shows reads as the terminal's. */
+  --terminal-fg: #d8d8d8;
 }
 
 * {
@@ -2229,9 +2232,10 @@ button:focus:not(:focus-visible) {
   overflow-y: auto;
   padding: 10px 16px 16px;
   background: var(--terminal-bg);
+  color: var(--terminal-fg);
   font-family: var(--font-mono);
   font-size: var(--text-mono);
-  line-height: 1.45;
+  line-height: 1.3;
 }
 
 /* It takes the focus so its keys work, but it is not a control: the browser's ring around the whole history was the loudest thing on screen. */
@@ -2401,11 +2405,12 @@ button:focus:not(:focus-visible) {
   content: '';
   position: absolute;
   left: 5px;
-  top: 0.5em;
+  /* Centred on the first line: (1.3em line − 7px) / 2 at the terminal's 13px. */
+  top: 0.4em;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--text);
+  background: currentColor;
 }
 
 /* A tool call, one line, where it came in the reply. */
