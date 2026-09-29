@@ -2629,6 +2629,22 @@ button:focus:not(:focus-visible) {
   opacity: 0.35;
 }
 
+/* The marks in view, lit as the loupe's entry is (.hot, below) but a step dimmer, so the one the loupe is on stays the brightest.
+   After the dense rule, which they outrank in view. */
+.history-bar .mark-request.seen:not(.hot) {
+  opacity: 0.95;
+}
+
+.history-bar .mark-reply.seen:not(.hot) {
+  left: 5px;
+  width: 4px;
+  opacity: 0.75;
+}
+
+.history-bar .mark-reply.seen:not(.hot, .pinned) {
+  background: var(--text);
+}
+
 .mark-request.replaced {
   opacity: 0.2;
 }
@@ -2675,9 +2691,9 @@ button:focus:not(:focus-visible) {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px solid #ffffff45;
-  border-bottom: 1px solid #ffffff45;
-  background: #ffffff1c;
+  border-top: 1px solid #ffffff80;
+  border-bottom: 1px solid #ffffff80;
+  background: #ffffff2e;
   pointer-events: none;
   z-index: 2;
 }

@@ -42,6 +42,8 @@ export class HistoryBar {
   private readonly requestEls = new Map<number, HTMLElement>();
   private readonly replyEls = new Map<number, HTMLElement>();
   private hot: Entry | null = null;
+  /** The marks lit for being in view. */
+  private seen: HTMLElement[] = [];
   private loupe: Loupe | null = null;
   /** A press on the bar, while the button is down: where on the band it holds it. */
   private press: { grab: number } | null = null;
@@ -163,16 +165,27 @@ export class HistoryBar {
   }
 
   /**
-   * Put the band where the history is scrolled to — and none while the live terminal has the pane.
+   * Put the band where the history is scrolled to, and light the marks in it — and none while the live terminal has the pane.
    * The wheel scrolls claude's own view there, and where claude is scrolled is not something the app can know, so a band "at the end" would be a guess.
    */
   moveBand(): void {
     this.bandEl.hidden = !this.source.shown;
+    for (const el of this.seen) el.classList.remove('seen');
+    this.seen = [];
     if (!this.source.shown) return;
     const height = this.area.clientHeight;
     const band = this.source.band();
-    this.bandEl.style.top = `${band.top * height}px`;
+    const top = band.top * height;
+    const bottom = top + band.height * height;
+    this.bandEl.style.top = `${top}px`;
     this.bandEl.style.height = `${Math.max(4, band.height * height)}px`;
+    // What is in view is lit, as the loupe's entry is: a request whose tick is in the band, a reply whose bar reaches into it.
+    this.marks.forEach((mark, index) => {
+      const end = this.marks[index + 1]?.request ?? height;
+      if (mark.request >= top && mark.request <= bottom) this.seen.push(this.requestEls.get(mark.k)!);
+      if (mark.reply !== null && mark.reply < bottom && end > top) this.seen.push(this.replyEls.get(mark.k)!);
+    });
+    for (const el of this.seen) el.classList.add('seen');
   }
 
   /** Light the mark of `entry` on the bar, the one the loupe is on. */
