@@ -32,6 +32,9 @@ export class HistoryView {
   private readonly scroller = document.createElement('div');
   private readonly list = document.createElement('div');
   private readonly end = document.createElement('div');
+  private readonly note = document.createElement('div');
+  /** The sentence it stands under while its tab has no claude behind it; null while there is a live view to go back to. */
+  private standalone: string | null = null;
   private model: HistoryModel = emptyModel();
   private nodes: HTMLElement[] = [];
   private session: string | null = null;
@@ -79,12 +82,14 @@ export class HistoryView {
     this.scroller.addEventListener('scroll', () => this.onScroll?.());
     // Scrolling on past the end goes back to the live session, the way it was left.
     this.scroller.addEventListener('wheel', (event) => {
-      if (event.deltaY > 0 && this.atEnd()) this.host.leave();
+      if (event.deltaY > 0 && this.atEnd()) this.leave();
     });
     this.scroller.addEventListener('keydown', (event) => {
-      if ((event.key === 'End' || event.key === 'Escape') && !event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey) {
+      if (event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
+      // Standing in for a tab with no claude there is no live view, so End is the page key it always was; Esc closes either way.
+      if (event.key === 'Escape' || (event.key === 'End' && this.standalone === null)) {
         event.preventDefault();
-        this.host.leave();
+        this.leave();
       }
     });
     routeLinks(this.scroller, (url) => this.host.openExternal(url));
@@ -94,15 +99,18 @@ export class HistoryView {
     toLive.className = 'history-to-live';
     toLive.innerHTML = `Back to live ${chevronIcon('down', 11)}`;
     setTooltip(toLive, 'Back to the live session (End)');
-    toLive.addEventListener('click', () => this.host.leave());
+    toLive.addEventListener('click', () => this.leave());
 
-    this.el.append(head, this.scroller, toLive);
+    this.note.className = 'history-note';
+    this.note.hidden = true;
+    this.el.append(head, this.note, this.scroller, toLive);
     this.drawCount();
   }
 
   /** Show session `id`'s history, or nothing. Says whether that is a different session from the one shown; the same one is a no-op. */
   follow(id: string | null): boolean {
     if (id === this.session) return false;
+    this.setStandalone(null);
     this.session = id;
     this.followed++;
     this.model = emptyModel();
@@ -118,6 +126,40 @@ export class HistoryView {
 
   get shown(): boolean {
     return this.el.classList.contains('shown');
+  }
+
+  /** Whether it is standing in for a tab with no claude behind it. */
+  get standing(): boolean {
+    return this.standalone !== null;
+  }
+
+  /**
+   * Stand in for a tab with no claude behind it, under `note` — the sentence the pane says for it — with `resume` to start it and a Close back to that sentence; null gives the pane back.
+   * Only ever on request (the pane's "Show history", or the bar): a tab opened at launch shows the sentence, since the point is to work in a session, not to read it.
+   * There is no live view to return to meanwhile, so "Back to live" is off.
+   */
+  setStandalone(note: string | null, resume?: HTMLElement): void {
+    const was = this.standalone !== null;
+    this.standalone = note;
+    const text = document.createElement('span');
+    text.className = 'history-note-text';
+    text.textContent = note ?? '';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = 'Close';
+    setTooltip(close, 'Close the history (Esc)');
+    close.addEventListener('click', () => this.setStandalone(null));
+    this.note.replaceChildren(text, ...(resume ? [resume] : []), close);
+    this.note.hidden = note === null;
+    this.end.hidden = note !== null;
+    this.el.classList.toggle('standalone', note !== null);
+    if (note !== null) this.setShown(true);
+    else if (was) this.setShown(false);
+  }
+
+  private leave(): void {
+    if (this.standalone === null) this.host.leave();
+    else this.setStandalone(null);
   }
 
   /**

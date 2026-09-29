@@ -143,7 +143,7 @@ const history = new HistoryView({
 terminalsEl.append(history.el);
 // Its bar, beside the terminal area: picking an entry on it opens the history there, from live or not.
 const historyBar = new HistoryBar(history, (entry) => {
-  showHistory(true);
+  openHistory();
   history.goTo(entry.k, entry.part);
 });
 document.getElementById('terminal-body')!.append(historyBar.el);
@@ -3234,18 +3234,57 @@ function updatePlaceholder(): void {
   // A booting tab HAS a terminal, but it is still empty: keep the pane covered rather than showing the black rectangle that the wait would otherwise be.
   const booting = activeTab?.booting === true;
   placeholder.style.display = activeTab && !cold && !booting ? 'none' : 'flex';
-  if (booting) {
-    placeholder.textContent = `Starting “${sessionLabel(activeTab!.session)}”…`;
-    return;
-  }
+  const sentence = paneSentence(cold, booting);
+  // A tab on show with no claude behind it — restored, or refused a start — says so, and offers the two things to do about it: resume it, or read what it said.
+  const standing = activeTab && cold && !booting ? activeTab : null;
+  if (standing) {
+    const actions = document.createElement('div');
+    actions.className = 'pane-actions';
+    const show = document.createElement('button');
+    show.type = 'button';
+    show.textContent = 'Show history';
+    show.addEventListener('click', openHistory);
+    actions.append(resumeButton(standing), show);
+    const line = document.createElement('div');
+    line.textContent = sentence;
+    placeholder.replaceChildren(line, actions);
+  } else placeholder.textContent = sentence;
+  // The history, once asked for on such a tab, stands under the same sentence; a tab that is no longer cold takes the pane back.
+  if (!standing) history.setStandalone(null);
+  else if (history.standing) history.setStandalone(sentence, resumeButton(standing));
+}
+
+/** Resume the tab on show, as a click on it does; unavailable, with the reason, when its folder has gone. */
+function resumeButton(tab: Tab): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'primary';
+  button.textContent = 'Resume';
+  setUnavailable(button, unstartableReason(tab.session), 'Start claude in this session again');
+  button.addEventListener('click', () => {
+    if (!unavailable(button) && tab === activeTab) activateTab(tab);
+  });
+  return button;
+}
+
+/**
+ * Open the history of the tab on show: over its live terminal, or, for a tab with no claude behind it, standing under the sentence the pane says, since there is no live view to go back to.
+ * Every way in comes here — the bar, its foot arrow, Ctrl+Shift+↑, a cold tab's "Show history" — so they cannot disagree about which.
+ */
+function openHistory(): void {
+  if (!activeTab) return;
+  if (activeTab.terminalId === null && !activeTab.booting) history.setStandalone(paneSentence(true, false), resumeButton(activeTab));
+  else showHistory(true);
+}
+
+/** What the pane says when there is no live claude to show: one sentence, and the next move it names. */
+function paneSentence(cold: boolean, booting: boolean): string {
+  if (booting) return `Starting “${sessionLabel(activeTab!.session)}”…`;
   // A start that was REFUSED says why, in place of "click its tab to resume it" — which would be telling you to do the thing that just failed.
-  if (activeTab?.failure) {
-    placeholder.textContent = activeTab.failure;
-    return;
-  }
+  if (activeTab?.failure) return activeTab.failure;
   // Four different situations reach this pane, and each has a different next move — one sentence covering all of them tells someone with no sessions to pick one, and someone with no tabs to pick a tab that isn't there.
-  placeholder.textContent = cold
-    ? `“${sessionLabel(activeTab!.session)}” isn’t running. Click its tab to resume it.`
+  return cold
+    ? `“${sessionLabel(activeTab!.session)}” isn’t running.`
     : allSessions.length === 0
       ? 'No sessions yet — start one with + New.'
       : // Nothing in a dead project can be opened or resumed, so pointing at its sessions or tabs would send you to a click that is refused.

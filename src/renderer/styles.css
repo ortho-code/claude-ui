@@ -275,7 +275,9 @@
    exactly how the old `#rename-ok` read. A fill cannot be confused with it.
    The hover is a brightness step rather than another colour: these already carry the strongest
    colour in the dialog, so darkening what they have keeps one rule for both. */
-.dialog-actions .primary {
+.dialog-actions .primary,
+.pane-actions .primary,
+.history-note .primary {
   --fill: var(--accent);
   /* Dark text, not white: --accent is a light blue and white on it barely separates. */
   color: var(--bg);
@@ -292,6 +294,8 @@
    to `currentColor` — the TEXT colour, not the fill — which put a dark border on the blue button
    (it read as shrinking by a pixel all round) and a white ring on the red one. */
 .dialog-actions .primary,
+.pane-actions .primary,
+.history-note .primary,
 .dialog-actions .danger {
   background: var(--fill);
   border-color: var(--fill);
@@ -300,6 +304,8 @@
 /* The override has to exist: `button:hover` sets an accent border app-wide, and on a filled button
    that is an outline in a near-copy of its own colour, or on the red one a clashing blue. */
 .dialog-actions .primary:hover,
+.pane-actions .primary:hover,
+.history-note .primary:hover,
 .dialog-actions .danger:hover {
   filter: brightness(0.92);
   border-color: var(--fill);
@@ -2143,6 +2149,9 @@ button:focus:not(:focus-visible) {
 /* A pane with nothing in it names the next action, in the terminal's and in a panel's. */
 .pane-placeholder {
   display: flex;
+  /* A column, so a cold tab's actions sit under its sentence. */
+  flex-direction: column;
+  gap: 12px;
   align-items: center;
   justify-content: center;
   height: 100%;
@@ -2217,6 +2226,41 @@ button:focus:not(:focus-visible) {
 .history-end {
   padding: 12px 0 28px;
   font-size: var(--text-small);
+}
+
+/* The line a history opened on a tab with no claude behind it stands under: the pane's own sentence, with Resume and Close. */
+.history-note {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-meta);
+}
+
+.history-note-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+.history-note button,
+.pane-actions button {
+  padding: 3px 12px;
+  font-size: var(--text-meta);
+}
+
+/* A cold tab's two ways on, under its sentence. */
+.pane-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.history.standalone .history-to-live {
+  display: none;
 }
 
 /* Centred, since the right edge is where every exchange keeps its star. */
