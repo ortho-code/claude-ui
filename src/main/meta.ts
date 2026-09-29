@@ -7,6 +7,7 @@ import type { PanelState } from '../shared/panels';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
 import { appendStamped } from './stamp';
+import { writeFileAtomic } from './atomic';
 import { errorText, fsFailure, log, logOnce } from './log';
 
 /**
@@ -417,13 +418,11 @@ async function writeMetaFile(meta: Meta): Promise<void> {
   } catch {
     // No existing file (first write) or it's already corrupt: leave any prior .bak untouched.
   }
-  // Atomic replace: write a temp file then rename over the target, so a crash mid-write leaves the live meta.json intact (rename is atomic on the same filesystem).
-  const tmp = `${file}.tmp`;
   // `extra` is a container for keys this build does not know, not a key of its own: spread its contents back alongside the known ones.
   // Known keys are written second so they always win, though by construction the two sets cannot overlap.
   const { extra, ...known } = meta;
-  await fs.writeFile(tmp, JSON.stringify({ ...extra, ...known }, null, 2));
-  await fs.rename(tmp, file);
+  // Atomic, so a crash mid-write leaves the live meta.json intact; the queue below is what keeps two writes from sharing the temp file.
+  await writeFileAtomic(file, JSON.stringify({ ...extra, ...known }, null, 2));
 }
 
 // Serialize every meta operation.
