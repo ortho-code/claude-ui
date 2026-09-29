@@ -37,7 +37,10 @@ const DENSE = 120;
  * In the user's words: "I want to press the mouse on a point in the sidebar, then the view should already go there. When I keep the mouse down I can drag and the view scrolls with it until I release the mouse button."
  */
 export class HistoryBar {
+  /** The column the bar takes beside the terminal; its width never changes, so the terminal's never does. */
   readonly el = document.createElement('div');
+  /** What is drawn: the column's width at rest, and wider while pointed at, over the terminal's edge (styles.css). */
+  readonly face = document.createElement('div');
   private readonly area = document.createElement('div');
   private readonly bandEl = document.createElement('div');
   private marks: MarkAt[] = [];
@@ -74,6 +77,7 @@ export class HistoryBar {
     private readonly open: () => void,
   ) {
     this.el.className = 'history-bar';
+    this.face.className = 'history-bar-face';
     this.area.className = 'history-bar-area';
     this.bandEl.className = 'history-band';
     const foot = document.createElement('button');
@@ -83,7 +87,8 @@ export class HistoryBar {
     foot.setAttribute('aria-label', 'Your last request (Ctrl+Shift+↑; again for the one before)');
     setTooltip(foot, 'Your last request (Ctrl+Shift+↑; again for the one before)');
     foot.addEventListener('click', () => this.pickLast());
-    this.el.append(this.area, foot);
+    this.face.append(this.area, foot);
+    this.el.append(this.face);
     // A press on the bar leaves the focus where it was, in the terminal or the history: the bar is something to point at, and taking the focus left Esc and the step keys with nothing.
     this.el.addEventListener('mousedown', (event) => event.preventDefault());
 
@@ -99,7 +104,13 @@ export class HistoryBar {
       if (this.loupe && !this.loupe.el.contains(event.relatedTarget as Node | null)) this.loupe.closeSoon();
     });
     this.area.addEventListener('pointerdown', (event) => this.pressAt(event));
-    new ResizeObserver(() => this.refresh()).observe(this.area);
+    // Placed by height only; the marks follow the width by themselves, so widening on hover places nothing again.
+    let height = -1;
+    new ResizeObserver(() => {
+      if (this.area.clientHeight === height) return;
+      height = this.area.clientHeight;
+      this.refresh();
+    }).observe(this.area);
   }
 
   /** Where `clientY` is on the bar, as a fraction of its height. */
@@ -261,6 +272,8 @@ class Loupe {
     // Pointed at, never focused, as the bar is: a click on a row leaves the keys with the history.
     this.el.addEventListener('mousedown', (event) => event.preventDefault());
     document.body.append(this.el);
+    // The bar stays wide while the loupe is open, so the loupe stays flush against it when the pointer moves in.
+    this.bar.el.classList.add('wide');
     this.rebuild(marks);
 
     this.el.addEventListener('mouseenter', (event) => {
@@ -355,6 +368,7 @@ class Loupe {
     window.clearTimeout(this.closeTimer);
     window.removeEventListener('keydown', this.keys, true);
     this.el.remove();
+    this.bar.el.classList.remove('wide');
     this.bar.setHot(null);
     this.onClosed();
   }
@@ -400,9 +414,9 @@ class Loupe {
     this.bar.setHot(entry);
   }
 
-  /** Beside the bar, flush against it so the pointer crosses nothing on its way in, centred on the pointer and kept within the bar's height. */
+  /** Beside the bar, flush against its wide face so the pointer crosses nothing on its way in, centred on the pointer and kept within the bar's height. */
   private place(clientY: number): void {
-    const bar = this.bar.el.getBoundingClientRect();
+    const bar = this.bar.face.getBoundingClientRect();
     const height = this.el.offsetHeight;
     this.el.style.right = `${window.innerWidth - bar.left - 1}px`;
     this.el.style.top = `${Math.min(bar.bottom - height, Math.max(bar.top, clientY - height / 2))}px`;

@@ -2624,14 +2624,33 @@ button:focus:not(:focus-visible) {
 }
 
 /* THE BAR beside the terminal area: the history's scrollbar, live or not (history/bar.ts).
-   Its own column rather than an overlay, so it never covers claude's text; the terminal is that much narrower. */
+   Its own column rather than an overlay, so it never covers claude's text; the terminal is that much narrower.
+   Above the terminal area and the drawer, which its wide face lies over. */
 .history-bar {
+  position: relative;
+  z-index: 3;
   flex: 0 0 14px;
+  user-select: none;
+}
+
+/* What is drawn: the column's width at rest, and wider while pointed at, the loupe is open or a press is held, so it is easier to stay on.
+   It grows to the left, over the terminal's edge, rather than widening the column: a wider column would make claude redraw on every hover. */
+.history-bar-face {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border);
   background: var(--bg);
-  user-select: none;
+}
+
+.history-bar:hover .history-bar-face,
+.history-bar.wide .history-bar-face,
+.history-bar.dragging .history-bar-face {
+  width: 24px;
 }
 
 .history-bar-area {
@@ -2668,8 +2687,9 @@ button:focus:not(:focus-visible) {
   opacity: 0.5;
 }
 
+/* Down the middle, however wide the bar is drawn. */
 .mark-reply {
-  left: 6px;
+  left: calc(50% - 1px);
   width: 2px;
   background: var(--muted);
   opacity: 0.35;
@@ -2689,7 +2709,7 @@ button:focus:not(:focus-visible) {
 }
 
 .history-bar .mark-reply.seen:not(.hot) {
-  left: 5px;
+  left: calc(50% - 2px);
   width: 4px;
   opacity: 0.75;
 }
@@ -2733,7 +2753,7 @@ button:focus:not(:focus-visible) {
 }
 
 .mark-reply.hot {
-  left: 4px;
+  left: calc(50% - 2.5px);
   width: 5px;
   background: #fff;
   opacity: 0.9;

@@ -306,6 +306,8 @@ The bar at the terminal area's edge is the history's scrollbar, there while clau
 The band alone, a faint wash on a 14px bar, was not seen.
 There is no band while live: the wheel scrolls claude's own view there, and where claude is scrolled is not something the app can know, so any band would be a guess.
 It is a column of its own rather than an overlay, so it never covers claude's text; the terminal is that much narrower, and the fit hands the pty the new width.
+**Pointed at, it is drawn wider**, 24px against the column's 14, so it is easier to stay on; it stays wide while the loupe is open or a press is held.
+The extra width lies over the terminal's edge, as the loupe does, and the column itself never changes: a wider column on hover would narrow the terminal and make claude redraw every time.
 **A request is a target of about 9px** around its tick — 4px above, 5px below — where it was about 5 and hard to hit, and its tick is drawn a pixel taller; its reply has the rest, down to the next request, and two requests closer than that split the room between them.
 
 **Pressing on it is a scrollbar's**: the view goes to that point at once, opening the history if it is closed, and follows the pointer until the button is let go; pressed on the band, it holds the band where it was taken instead of jumping, as a thumb.
