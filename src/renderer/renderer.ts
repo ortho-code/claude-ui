@@ -32,7 +32,7 @@ import { parseLaunchFlags } from '../shared/flags';
 import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { installTooltips, setTooltip } from './tooltip';
-import { chevronIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
+import { caretIcon, chevronIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
 import { flash } from './flash';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
@@ -123,8 +123,6 @@ const kebabIcon = (size: number): string => {
   const r = ((1.3 * 16) / size).toFixed(2);
   return `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="currentColor"><circle cx="8" cy="3.4" r="${r}" /><circle cx="8" cy="8" r="${r}" /><circle cx="8" cy="12.6" r="${r}" /></svg>`;
 };
-// One helper for every collapsible section's caret, so project and group carets can't drift apart.
-const caretIcon = (collapsed: boolean, size: number): string => (collapsed ? chevronRight(size) : chevronDown(size));
 const filterStatus = document.getElementById('filter-status')!;
 const filterCount = document.getElementById('filter-count')!;
 const filterChips = document.getElementById('filter-chips')!;
