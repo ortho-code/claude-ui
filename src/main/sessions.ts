@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 import type { SessionSummary } from '../shared/types';
 import { errorText, fsFailure, log, logOnce } from './log';
 import { formatDuration } from './stamp';
+import { commandLabel, displayableUserText, extractUserText } from './transcript';
 
 const execFileAsync = promisify(execFile);
 const projectsDir = path.join(os.homedir(), '.claude', 'projects');
@@ -361,41 +362,6 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
 /** A title field is usable only when it is a non-empty string. */
 function asTitle(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
-}
-
-/**
- * A message that is pure local-command plumbing — the `<local-command-caveat>` preamble a session gets when it starts with local commands, or captured `<local-command-stdout>` output — is not a usable first message; blank it so the latch waits for the first real prompt instead.
- */
-function displayableUserText(text: string): string {
-  return /^<local-command-(caveat|stdout)>/.test(text.trim()) ? '' : text;
-}
-
-/**
- * A session started by a slash command wraps its first message in tags — `<command-message>word</command-message>\n<command-name>/cmd</command-name>` plus an optional (possibly empty) `<command-args>…</command-args>` — which reads as junk in the row.
- * Render it as the command line the user effectively typed: "/cmd args".
- * Anything else passes through untouched.
- */
-function commandLabel(text: string): string {
-  const name = text.match(/<command-name>([^<]*)<\/command-name>/)?.[1]!.trim();
-  if (!name) return text;
-  const args = text.match(/<command-args>([^<]*)<\/command-args>/)?.[1]!.trim();
-  return args ? `${name} ${args}` : name;
-}
-
-/** Pull display text out of a user event, whether content is a string or an array of blocks. */
-function extractUserText(event: Record<string, unknown>): string {
-  const message = event.message as { content?: unknown } | undefined;
-  const content = message?.content;
-  if (typeof content === 'string') return content.trim();
-  if (Array.isArray(content)) {
-    const text = (content as ({ type?: unknown; text?: unknown } | null)[])
-      .filter((b): b is { type: string; text: string } => typeof b?.text === 'string' && b.type === 'text')
-      .map((b) => b.text)
-      .join(' ')
-      .trim();
-    return text;
-  }
-  return '';
 }
 
 /** Fallback when no event carried a cwd: Claude Code encodes the path with dashes. */
