@@ -141,6 +141,14 @@ const history = new HistoryView({
   leave: () => showHistory(false),
 });
 terminalsEl.append(history.el);
+// A click in the part of claude still in view under the history goes back to it: that part is the way back, and the click reaches claude as well.
+terminalsEl.addEventListener(
+  'mousedown',
+  (event) => {
+    if (history.shown && !history.standing && !history.el.contains(event.target as Node)) showHistory(false);
+  },
+  true,
+);
 // Its bar, beside the terminal area: picking an entry on it opens the history there, from live or not.
 const historyBar = new HistoryBar(history, (entry) => {
   openHistory();

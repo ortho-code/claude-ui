@@ -2181,6 +2181,14 @@ button:focus:not(:focus-visible) {
   visibility: visible;
 }
 
+/* Over the live terminal it takes the upper two-thirds, and the lower third stays claude, live and at its real size: the way back is in view, and claude is never resized, so it never redraws.
+   Standing in for a cold tab there is no live view under it, and it takes the whole pane. */
+.history:not(.standalone) {
+  bottom: 34%;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 8px 18px #00000080;
+}
+
 .history-head {
   flex: 0 0 auto;
   display: flex;
