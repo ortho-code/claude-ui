@@ -48,8 +48,11 @@ Done:
 - A log file per launch and day, so a problem in an installed build can be looked at afterwards; a launch that crashed keeps its log for longer. See [Install a build](#install-a-build) for where it is.
 - A history of each session, from its transcript and laid out as claude shows it: every request, message and tool call since the session began, compactions included, with pins for the ones to come back to.
   A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
+- Panel types of your own, from a folder in the config folder: a script prints a list and the app draws it, with links, sections that fold, and a count on the panel's icon kept current on an interval. See [Panel types of your own](#panel-types-of-your-own).
 
 Next:
+
+- Starting a Claude session from a row of a list panel, such as a review of the PR it names, in the project and group you pick; and the row leading back to the session it started.
 
 - Letting you answer when Claude asks something on its way out — whether to keep a worktree, say — instead of the tab closing over the question.
 - A worktree session keeping its worktree badge after the app restarts.
@@ -119,6 +122,7 @@ The panel types:
   Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
 - `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable. `cwd` picks the folder it runs in.
 - `terminal` is a plain shell, the same login shell your sessions run in. `cwd` picks the folder it starts in.
+- A folder under `types/` in the config folder is a type of your own, named after the folder; see [Panel types of your own](#panel-types-of-your-own).
 
 This one puts a shell in a drawer under the terminal area and two commands behind icons on the right, and lets the sidebar, the drawer and the right side fold:
 
@@ -174,6 +178,49 @@ The variables tell the panel where it runs: `CLAUDE_UI_CWD` is that folder, and 
 
 A mistake in the file — an unknown type, a missing id, a size it cannot read, an option the type does not have, a script that is not there or not executable — is named in the place of the thing that is wrong, and a file that does not parse leaves the last good layout up and names the position.
 A panel's options are checked by the panel itself, when it appears and before each run, so a missing script is named a moment after the rest.
+
+### Panel types of your own
+
+A folder under `types/` in the config folder is a panel type, named after the folder, so a type is shared by copying its folder.
+It holds a `panel.json` and the script it runs:
+
+```json
+{ "version": 1, "kind": "list", "title": "Reviews", "icon": "check", "run": "queue", "interval": "5m", "options": [{ "name": "for", "kind": "text" }] }
+```
+
+`kind` is `list`, the one kind so far: the script prints a list, and the app draws it.
+`run` is the script, relative to the type's folder and inside it, and it has to be executable.
+`title` and `icon` are what a panel of the type shows when its entry names none, and `interval` runs it again on its own, every `30s`, `5m` or `1h`, at least every 10 seconds.
+`options` names settings of the type's own; the script gets each as `CLAUDE_UI_OPTION_<NAME>` (so `for` is `CLAUDE_UI_OPTION_FOR`), beside the variables above.
+
+The layout then uses it by name, and its entry can pin the folder the script runs in and override the interval:
+
+```json
+{ "id": "reviews", "type": "reviews", "options": { "cwd": "~/development/scienta", "for": "me", "interval": "10m" } }
+```
+
+The script prints one JSON object on stdout, and nothing else; what it writes on stderr is kept for when it fails.
+
+```json
+{ "version": 1, "badge": 2,
+  "sections": [
+    { "empty": "Nothing waiting on you.", "items": [
+      { "key": "org/repo#1", "text": "Fix the login redirect", "detail": "#1 · 3d · someone", "href": "https://github.com/org/repo/pull/1", "tone": "attention" }
+    ] },
+    { "title": "Blocked", "shut": true, "items": [] }
+  ],
+  "notes": [] }
+```
+
+Each item needs a `key`, unique in the list, and a `text`; `detail` is a second line, `href` an http or https link a click opens in your browser, and `tone` is `normal`, `attention`, `muted` or `danger`.
+A section with a `title` has a heading that folds it, and `shut` starts it folded; `empty` is what it says with no items.
+`badge` is a count shown on the panel's icon and beside its title, and `notes` go in the line under the panel.
+A field the app does not know is ignored, so a script written for a later version still shows here.
+
+The panel runs its script when you first show it, on Refresh, when you switch project or tab if its folder moves, and on its interval even while it is out of sight, so the count on its icon stays current.
+A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why, and without one the panel says it is unavailable, quoting the end of what the script wrote on stderr.
+A mistake in `panel.json` is named where each panel of the type would be, and a folder named like a built-in type is not read, with a note saying so.
+A type you were sent runs as you, the way a script in `scripts/` does, so read it before you drop it in; everything a panel does beyond running its script, such as opening a link, is something you press.
 
 ## Install a build
 

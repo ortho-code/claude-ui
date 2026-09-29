@@ -146,9 +146,17 @@ export interface PanelContext {
  */
 export type PanelStderr = 'merged' | 'apart';
 
+/**
+ * What an option a type's manifest declares may be called: the script gets it as `CLAUDE_UI_OPTION_<NAME>`, so the name has to make a variable's.
+ * Here rather than with the manifest's other rules, since main holds to it too when it builds the environment.
+ */
+export const OPTION_NAME = /^[a-z][a-z0-9_]*$/;
+
 export interface PanelRunRequest {
   entryId: string;
   stderr: PanelStderr;
+  /** A type from the config folder's options as the entry gives them, by declared name: each reaches the run as `CLAUDE_UI_OPTION_<NAME>`. */
+  options?: Record<string, string>;
   /**
    * The renderer's own token for this run, carried back on every event.
    * A re-run stops the run before it, but output already on its way is not recalled, so the token is how the renderer tells a superseded run's tail from the new run's start.

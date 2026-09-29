@@ -56,6 +56,11 @@ interface Mounted {
   action: HTMLButtonElement | null;
   /** The dot on its rail icon (P8). */
   badge: HTMLElement;
+  /** The count it reports, twice, since one element cannot stand in two places: beside the header's title, and on its rail icon. */
+  count: HTMLElement;
+  railCount: HTMLElement;
+  /** The count as last reported, for the rail's label, which says it whole where the badge cannot. */
+  countValue: number | null;
   /** Why the panel says it cannot run, as it last reported: drawn in its place, with `alert` on its rail icon. */
   problems: string[];
   /** What the panel says about itself that does not stop it, for its group's note line. */
@@ -393,8 +398,8 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   if (shown.problems.length > 0) {
     content.prepend(header(shown.title), problemList(shown.problems));
   } else if (!types[shown.type!]!.bare) {
-    const { busy, end, action, problems } = mountedFor(shown);
-    const row = header(shown.title, action ? [busy, end, action] : [busy, end]);
+    const { count, busy, end, action, problems } = mountedFor(shown);
+    const row = header(shown.title, action ? [count, busy, end, action] : [count, busy, end]);
     // The layout's refusals and the panel's own are one list, drawn the same way.
     if (problems.length > 0) content.prepend(row, problemList(problems));
     else content.prepend(row);
@@ -431,8 +436,10 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
     // `alert` for a panel that cannot run, whoever said so: the layout (already in the slot's icon) or the panel itself.
     item.innerHTML = iconSvg((mounted.get(slot.key)?.problems.length ?? 0) > 0 ? 'alert' : slot.icon);
     const isShown = slot === shown && !place.folded;
-    // One label for the tooltip and a screen reader, so neither is told less than the other.
-    const label = isShown && place.toggleFold ? `${slot.title} — click to fold` : slot.title;
+    // One label for the tooltip and a screen reader, so neither is told less than the other; a count the rail can only show as "99+" is said whole here.
+    const counted = mounted.get(slot.key)?.countValue;
+    const named = counted === null || counted === undefined ? slot.title : `${slot.title} · ${counted}`;
+    const label = isShown && place.toggleFold ? `${named} — click to fold` : named;
     item.setAttribute('aria-label', label);
     setTooltip(item, label);
     if (isShown) {
@@ -442,7 +449,7 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
       item.setAttribute('aria-current', 'true');
     }
     const entry = slot.problems.length === 0 ? mounted.get(slot.key) : undefined;
-    if (entry) item.append(entry.badge);
+    if (entry) item.append(entry.badge, entry.railCount);
     item.addEventListener('click', () => {
       if (isShown) {
         place.toggleFold?.();
@@ -471,6 +478,9 @@ function mountedFor(slot: PanelSlot): Mounted {
   const action = label === null ? null : actionButton(label);
   const badge = element('span', 'nudge');
   badge.hidden = true;
+  const count = element('span', 'panel-count');
+  const railCount = element('span', 'rail-count');
+  count.hidden = railCount.hidden = true;
   // What the panel reports about itself, held here so a report made while it is still mounting is not lost; a change re-renders, since both the panel's place and its rail icon draw from it.
   const said = { problems: [] as string[], notes: [] as string[] };
   const report = (field: keyof typeof said, lines: string[]): void => {
@@ -489,12 +499,22 @@ function mountedFor(slot: PanelSlot): Mounted {
       end.textContent = label;
     },
     setStatus: (status) => showStatus(badge, status),
+    setCount: (value) => {
+      const current = mounted.get(slot.key);
+      if (current?.countValue === value) return;
+      if (current) current.countValue = value;
+      count.hidden = railCount.hidden = value === null;
+      count.textContent = value === null ? '' : String(value);
+      // Two digits at most under a 24px icon; the rail's label, rebuilt by the render below, says the number whole.
+      railCount.textContent = value === null ? '' : value > 99 ? '99+' : String(value);
+      queueRender();
+    },
     setProblems: (problems) => report('problems', problems),
     setNotes: (notes) => report('notes', notes),
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
-  const entry: Mounted = { panel, signature: signatureOf(slot), busy, end, action, badge, ...said };
+  const entry: Mounted = { panel, signature: signatureOf(slot), busy, end, action, badge, count, railCount, countValue: null, ...said };
   mounted.set(slot.key, entry);
   return entry;
 }

@@ -409,18 +409,19 @@ Per-project and named layouts are the next steps of the same design, and the fil
 
 ### The config folder
 
-Everything a person may edit or share lives in ONE folder, `config/` under the app's data directory, and nothing else does: the layout file at `layouts/default.json`, and the scripts it points at under `scripts/`.
+Everything a person may edit or share lives in ONE folder, `config/` under the app's data directory, and nothing else does: the layout file at `layouts/default.json`, the scripts it points at under `scripts/`, and panel types of the person's own under `types/`.
 It sits apart from `meta.json` and the status files on purpose.
 Those are machine state the app writes, which nobody should edit and nobody would want to hand a colleague; this folder is the opposite on every count, so "copy this folder" hands over exactly the customisation and none of the state.
 `layouts/` is a directory rather than a single `layout.json` so that named and per-project layouts can be added beside the default instead of by moving it.
 
 The app creates the folder, reads it and watches it, and in this version never writes into it.
-That is what keeps an editor, id assignment, normalisation and an atomic-write path out of the slice, and it also settles the trust question for now: a command in a hand-edited file is the user's own, and a trust step arrives with the first thing that lets a command reach the file by another route — the app's own editor, or a shared folder.
+That is what keeps an editor, id assignment, normalisation and an atomic-write path out of the slice, and it also settles the trust question for now: a command in a hand-edited file is the user's own, and a trust step arrives with the first thing that lets a command reach the file by another route — the app's own editor.
+A type folder a colleague shared is the other route, and it was decided (2026-09-29) to add no trust step for it: it runs as you, the way a script in `scripts/` does, and what makes that acceptable is that a type can do nothing beyond running its script without being pressed (see Types from the config folder).
 The settings dialog shows the folder's path with an Open button, which is the whole of the UI for finding it.
 It opens the folder itself (`shell.openPath`) rather than showing it selected in its parent (`showItemInFolder`): a Linux file manager without FileManager1 support, which is what WSLg offers, opens the parent and selects nothing, which reads as the wrong folder.
 
-Three directories are watched rather than the folder recursively (recursive watch is unreliable on Linux and WSL, as the session watcher found): the folder, `layouts/`, and `scripts/`.
-An event on the folder itself re-opens the two below it, because a directory deleted and recreated leaves its old watcher pointing at nothing.
+Directories are watched one by one rather than the folder recursively (recursive watch is unreliable on Linux and WSL, as the session watcher found): the folder, `layouts/`, `scripts/`, `types/`, and each type's own folder.
+An event on the folder itself re-opens the ones below it, because a directory deleted and recreated leaves its old watcher pointing at nothing, and an event on `types/` re-lists the type folders, so one added there is watched from then on.
 `scripts/` is watched so that a script appearing, or gaining its executable bit, clears the panel's error without a restart; that an attribute change reaches a directory watch was measured rather than assumed.
 
 ### The layout file
@@ -617,6 +618,42 @@ It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` a
 The tab's claude-specific key handling — Ctrl+Enter and Shift+Enter as newline, Ctrl+Z refused, Ctrl+C twice to close — stays with the tab.
 A panel fits its xterm from a `ResizeObserver` on its own box rather than at mount, because it is mounted before the tree has placed it and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
 The same observer covers every later reveal — a switch on the rail, an unfold, a divider reopening a squeezed node — since each gives the box a size again.
+
+### Types from the config folder
+
+A folder under `types/` is a panel type of the person's own: a `panel.json` manifest and the script it runs.
+It exists so a panel can be shared without being part of the app — the first one is a review queue fed by a task in another repo — and every choice below follows from that.
+
+**The folder's name is the type's name**, so the two cannot disagree, and a folder is shared by copying it.
+A folder named like a built-in type, or with a name that cannot be a type's, is not read, and a note under the whole layout says so, since no single entry is where it went wrong.
+Main reads the manifests in the same pass as the layout file and hands them over raw, as it does the layout, so the renderer resolves the layout knowing every type at once and never shows an entry as a type nobody has for the moment between two reads.
+
+**The kind decides the rest.** A manifest names what kind of panel it is, and the kind brings its own options and behaviour; `list` is the one kind so far.
+So `cwd` and `interval` are the list kind's own, not something every panel takes: a shell has nothing to re-run, so the `terminal` type takes neither, and the `command` type gains `interval` only when it needs one.
+A manifest is checked like the layout file — every mistake named, each prefixed with its file — and a type whose manifest is wrong is still a type, so every entry of it says what is wrong where the panel would be.
+A field the manifest does not know is a note, not a mistake, and the same holds for the list a script prints: both are a contract a shared type is written against, with a `version`, so a field a later version added is ignored here and only a version bump is a break.
+An edit to a manifest mounts that type's panels afresh: the type carries a revision, and the mount signature includes it beside the entry's options.
+
+**The script describes and the app acts.** A list script only prints; opening a row's link is the app's, through the same route every link leaves by, which takes http and https only.
+That is the decision the whole shape rests on (2026-09-29): a JavaScript module loaded into the window would hold the bridge to every session, and a sandboxed page would need a message API of its own for the same result, while a script that prints can do nothing beyond running unless the person presses something.
+It is also why nothing a script prints is ever markup: every row is built as text.
+
+**Stdout alone is the list.** A list run asks the runner to keep stderr apart: the script's stdout and stderr go to two pipes of their own, and the login shell's own output is discarded, so nothing an rc file prints can land in front of the document (measured against the real shell).
+The `command` type still merges the two, in arrival order, since it shows what was printed.
+Stderr's end is kept as the reason a failure gives: mise, for one, writes the task line there on every run.
+
+**When it runs.** On first being shown, on Refresh, on a context change while shown, as a `command` panel does, and on its interval, which also runs while the panel is hidden or folded: the count on its rail icon is the point of a queue, and a count that stops while you are not looking says something false.
+The first run of a panel with an interval is when the tree goes live, shown or not.
+The interval is at least ten seconds, so a typo cannot start a script every second.
+
+**Never an empty list for a broken run.** A run that fails, or prints something that is not a list, says so.
+With a good list already there, the list stays under a line saying when the run failed and why, and that list's count stays beside it; without one the panel says it is unavailable, quoting stderr's last lines.
+An empty queue and a broken one otherwise look the same, and one of them is a lie; blanking the list on every failure was the other way, and a bad minute on the network would blank it every time.
+Before the first run has ended it says it is waiting, which is neither state.
+
+**What it looks like is the app's.** A row is a session-list card and a section heading the sidebar's group bar, shared through the same rules rather than restyled; a row's tone is the status colours on its leading edge, where a session row keeps its accent bar for "open in a tab".
+The count on a rail icon sits inside the button, under the icon on a vertical rail and beside it on a horizontal one: a corner badge was tried first, and at 3x even "9+" covered the whole icon on a 24px button, while the rail clips anything past its 28px.
+The icon's tooltip and label say the count whole.
 
 ### Panel state
 

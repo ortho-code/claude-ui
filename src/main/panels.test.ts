@@ -105,6 +105,14 @@ describe('what reaches the shell', () => {
     expect(env).not.toHaveProperty('CLAUDE_UI');
     expect(env).not.toHaveProperty('COLORTERM');
   });
+
+  it('gives a type’s options as CLAUDE_UI_OPTION_<NAME>, and leaves out a name that cannot make a variable’s', () => {
+    const env = panelEnv({ projectRoot: '/repo', cwd: '/repo', sessionId: '' }, { for: 'HarmenM', team_size: '4', 'bad-name': 'x', PATH: '/evil' });
+    expect(env).toMatchObject({ CLAUDE_UI_OPTION_FOR: 'HarmenM', CLAUDE_UI_OPTION_TEAM_SIZE: '4' });
+    expect(Object.keys(env).filter((key) => key.startsWith('CLAUDE_UI_OPTION_'))).toEqual(['CLAUDE_UI_OPTION_FOR', 'CLAUDE_UI_OPTION_TEAM_SIZE']);
+    // An option never reaches the environment under its own name.
+    expect(env.PATH).not.toBe('/evil');
+  });
 });
 
 describe('a run', () => {

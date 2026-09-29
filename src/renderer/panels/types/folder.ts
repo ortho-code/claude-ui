@@ -1,4 +1,4 @@
-import type { TypeReport } from '../../../shared/panels';
+import { OPTION_NAME, type TypeReport } from '../../../shared/panels';
 import { ICON_NAMES, isIconName, type IconName } from '../icons';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
 import { CWD_OPTION, INTERVAL_OPTION, isFixedPath, valueProblem, type OptionDecl } from '../options';
@@ -19,9 +19,6 @@ export const MANIFEST_VERSION = 1;
 
 export const KINDS = ['list'] as const;
 export type Kind = (typeof KINDS)[number];
-
-/** What an option a manifest declares may be called: the script gets it as `CLAUDE_UI_OPTION_<NAME>`, so the name has to make a variable's. */
-export const OPTION_NAME = /^[a-z][a-z0-9_]*$/;
 
 /** The option kinds a manifest can declare in this build. */
 const MANIFEST_OPTION_KINDS = ['text'] as const;

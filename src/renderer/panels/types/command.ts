@@ -56,6 +56,8 @@ export interface PanelHost {
   setEnd(label: string): void;
   /** The dot on the panel's rail icon. */
   setStatus(status: PanelStatus): void;
+  /** A count the panel reports, such as how many items wait: on its rail icon and beside its title. Null for none. */
+  setCount(count: number | null): void;
   /**
    * Why the panel cannot run, one sentence each, or none when it can: the tree draws them in the panel's place, with the same problem list as the layout's own refusals, and puts `alert` on its rail icon.
    * Different from a failed RUN, which is the red dot: this is a panel that will not start as its options stand.

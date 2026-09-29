@@ -1283,7 +1283,8 @@ button:hover {
    as bare text the digits sat 6px from the neighbouring control's border while a kebab's ink floats
    ~15px inside its box, and the pill's padding puts them where the eye expects. The fill differs
    because the two bars do — see each heading below. */
-.section-heading .heading-count {
+.section-heading .heading-count,
+.panel-count {
   flex: 0 0 auto;
   margin-left: auto;
   padding: 1px 7px;
@@ -1453,7 +1454,9 @@ button:focus:not(:focus-visible) {
    It sits at the SAME size as the session titles it heads (13px), separated by weight and the fill
    alone: at 12px it read smaller than its own contents, so it looked like a label on the rows rather
    than a heading over them. */
-.group h3 {
+/* The group heading's bar, which a list panel's section heading (.list-section h3) shares: a heading over rows it can fold away, one level below the project's. */
+.group h3,
+.list-section h3 {
   /* No margin of its own: a sticky element pins its MARGIN box, so a margin-top here would park the
      heading that far below the project heading and leave a band of scrolling rows showing between
      the two. The space above a group lives on the .group section instead. */
@@ -1461,6 +1464,13 @@ button:focus:not(:focus-visible) {
   /* The same padding as a session row (.session), so the heading's controls line up vertically with
      the rows' and the bar doesn't read as tighter than the rows under it. */
   padding: 7px 14px;
+  background: var(--surface);
+  border-radius: var(--radius-surface); /* a filled bar like .session, so the same corner */
+  font-size: var(--text-body);
+  font-weight: 650;
+}
+
+.group h3 {
   /* Pins UNDER the project heading, so the group you are scrolling through stays named. The offset
      is the project heading's measured height (renderer.ts sets the property; the fallback only
      covers the first paint) — hard-coding it would go stale the moment the type scale moves, which
@@ -1471,19 +1481,17 @@ button:focus:not(:focus-visible) {
      dot is position:relative (for its hit-target halo) and so paints in the positioned layer, in DOM
      order — which put it over a sticky heading at 0, showing a row's dot through the pinned bar. */
   z-index: 1;
-  background: var(--surface);
-  border-radius: var(--radius-surface); /* a filled bar like .session, so the same corner */
-  font-size: var(--text-body);
-  font-weight: 650;
 }
 
 .group h3 .caret,
-.group h3 .heading-icon {
+.group h3 .heading-icon,
+.list-section h3 .caret {
   color: var(--muted);
 }
 
 /* --bg, not --surface: this heading's bar is already --surface. */
-.group h3 .heading-count {
+.group h3 .heading-count,
+.list-section h3 .heading-count {
   background: var(--bg);
 }
 
@@ -1518,7 +1526,8 @@ button:focus:not(:focus-visible) {
 }
 
 /* An empty group persists until deleted, so it explains itself rather than looking broken. */
-.group-empty {
+.group-empty,
+.list-empty {
   padding: 8px 0 2px;
   font-size: var(--text-small);
   color: var(--muted);
@@ -1530,7 +1539,9 @@ button:focus:not(:focus-visible) {
   margin-top: 16px;
 }
 
-.session {
+/* A session row, and a list panel's row (.list-row), which is the same card: one look for "an item in a list" wherever the app draws one. */
+.session,
+.list-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1546,7 +1557,8 @@ button:focus:not(:focus-visible) {
 /* Highlight on hover, and keep it while a menu opened from this row is still up (the menu belongs to
    the row, even though the pointer has moved onto the dropdown). */
 .session:hover,
-.session:has(.menu-open) {
+.session:has(.menu-open),
+.list-row.link:hover {
   background: var(--surface-hover);
 }
 
@@ -1601,7 +1613,8 @@ button:focus:not(:focus-visible) {
   }
 }
 
-.session-content {
+.session-content,
+.list-content {
   flex: 1;
   min-width: 0;
 }
@@ -1644,7 +1657,8 @@ button:focus:not(:focus-visible) {
   cursor: default;
 }
 
-.session-title {
+.session-title,
+.list-text {
   margin: 0 0 2px;
   /* Level with the group heading above it (13px), one step above the 12px meta line below. At 14px
      it out-sized the heading of its own group; the extra characters per line before the clamp are a
@@ -1674,7 +1688,8 @@ button:focus:not(:focus-visible) {
 
 /* Time and model, with the note mark riding at the end. A flex row so the mark is CENTRED against
    the text by layout rather than by a guessed offset — the reason it looked off beside the title. */
-.session-meta {
+.session-meta,
+.list-detail {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -3056,6 +3071,81 @@ button:focus:not(:focus-visible) {
   border-top: 1px solid var(--border);
   font-size: var(--text-small);
   color: var(--muted);
+}
+
+/* A LIST PANEL: a type from the config folder whose script prints a list. Its rows are session-list cards
+   (.list-row beside .session) and its section headings the sidebar's group bar, so what is its own is
+   only the scrolling body, what a row's tone does, and the line a failed run leaves above the list. */
+.list-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 8px 8px;
+}
+
+.list-section h3 {
+  margin-top: 8px;
+}
+
+/* What an empty section says, level with the text in the rows it stands in for. */
+.list-empty {
+  padding-left: 14px;
+}
+
+/* A row with no link has nothing for a click to do, so no pointer claims one (its hover is .link's only). */
+.list-row:not(.link) {
+  cursor: default;
+}
+
+/* A row's tone, as its script says: the status colours on the row's leading edge, where a session row
+   keeps its accent bar for "open in a tab" — a different mark, since a tone says nothing about tabs.
+   A muted row is dimmed, as a session that cannot start is. */
+.list-row.tone-attention {
+  box-shadow: inset 3px 0 0 var(--waiting);
+}
+
+.list-row.tone-danger {
+  box-shadow: inset 3px 0 0 var(--failed);
+}
+
+.list-row.tone-muted {
+  opacity: 0.6;
+}
+
+/* The last run failed while a good list is up: said above that list, in the failed colour, on the note
+   line's face. Its tooltip quotes what the script wrote on stderr. */
+.list-failed {
+  border-top: 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--failed);
+}
+
+/* A count a panel reports, beside its header's title: the section heading's count pill, on the
+   header's --bg, so it takes the bar's --surface to stand out. */
+.panel-count {
+  background: var(--surface);
+}
+
+/* The same count on the panel's rail icon: INSIDE the button, under the icon on a vertical rail and
+   beside it on a horizontal one, in the accent, so the button grows by a line and covers nothing.
+   Not a corner badge, which is what was tried first: MEASURED at 3x, on a 24px button even "9+"
+   covered the whole icon, and the rail clips anything past its 28px, so a badge cannot sit further
+   out. The status dot keeps its corner above. */
+.rail-item .rail-count {
+  font-size: var(--text-badge);
+  font-weight: 650;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.panel-rail.vertical .rail-item:has(.rail-count:not([hidden])) {
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 3px;
+}
+
+.panel-rail.horizontal .rail-item:has(.rail-count:not([hidden])) {
+  gap: 3px;
 }
 
 /* Custom tooltip (replaces native title=). One floating element, positioned by tooltip.ts. */

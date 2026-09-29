@@ -9,6 +9,7 @@ import { inheritedEnv, loginShell, shellCommand, terminateGroup, type ShellInvoc
 import { log } from './log';
 import { formatDuration } from './stamp';
 import {
+  OPTION_NAME,
   PANEL_OUTPUT_CAP,
   PANEL_TIMEOUT_MS,
   type PanelContext,
@@ -57,12 +58,24 @@ export function panelInvocation(source: PanelSource, stderr: PanelStderr = 'merg
  * `CLAUDE_UI` is deliberately NOT set — it is what fires the app's status hooks, and a panel that happens to run `claude -p` must not report as a session.
  * `NO_COLOR` and `TERM=dumb` ask for plain text; the renderer strips escape sequences on top for the tools that do not listen.
  */
-export function panelEnv(context: PanelContext): Record<string, string> {
+export function panelEnv(context: PanelContext, options: Record<string, string> = {}): Record<string, string> {
   const env = inheritedEnv();
   delete env.COLORTERM;
   env.NO_COLOR = '1';
   env.TERM = 'dumb';
-  return { ...env, ...contextEnv(context) };
+  return { ...env, ...contextEnv(context), ...optionEnv(options) };
+}
+
+/**
+ * A type's options as `CLAUDE_UI_OPTION_<NAME>`, so a script reads them the way it reads the context.
+ * A name that could not make a variable's is left out: the renderer's check already refused it, and this is the one place that builds the name.
+ */
+export function optionEnv(options: Record<string, string>): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [name, value] of Object.entries(options)) {
+    if (OPTION_NAME.test(name) && typeof value === 'string') env[`CLAUDE_UI_OPTION_${name.toUpperCase()}`] = value;
+  }
+  return env;
 }
 
 /** The context as flat variables, the same set for a command panel's run and a terminal panel's shell. */
@@ -160,7 +173,7 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
   // `detached` puts the child in a session of its own, so its pid is a group id the stop can signal (shell.ts).
   const child = spawn(file, args, {
     cwd,
-    env: panelEnv(request.context),
+    env: panelEnv(request.context, request.options),
     detached: true,
     stdio: STDIO[stderr],
   });
