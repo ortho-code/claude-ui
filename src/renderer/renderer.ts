@@ -32,7 +32,7 @@ import { parseLaunchFlags } from '../shared/flags';
 import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { installTooltips, setTooltip } from './tooltip';
-import { chevronIcon, strokeIcon } from './svg';
+import { chevronIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
 import { iconSvg } from './panels/icons';
 import { createTerminal, bindTerminal, routeTerminals, lastLines } from './terminal';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged } from './panels/tree';
@@ -2316,12 +2316,6 @@ const NOTE_ICON = strokeIcon(13, '<path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.
 const SIBLING_ICON = strokeIcon(11, '<path d="M8 12V8M4 4L8 8L12 4" />');
 const WORKTREE_ICON = strokeIcon(11, '<path d="M4.5 12V4M4.5 8Q11.5 8 11.5 4" />');
 
-// The pin, as SVG rather than the ★/☆ glyphs: those resolve through system font fallback (DejaVu Sans under WSLg), whose outline star is a hairline that reads far fainter than its --muted colour should.
-// Same star either way — filled for pinned, outlined for not — so the two states differ by ink, not by colour, and both render at a weight we control instead of the font's.
-const STAR_PATH =
-  'M8 2.1 L9.41 6.06 L13.61 6.18 L10.28 8.74 L11.47 12.77 L8 10.4 L4.53 12.77 L5.72 8.74 L2.39 6.18 L6.59 6.06 Z';
-const PIN_ICON = strokeIcon(14, `<path d="${STAR_PATH}" />`);
-const PINNED_ICON = strokeIcon(14, `<path d="${STAR_PATH}" fill="currentColor" />`);
 
 // The open filter's mark: a window with a title bar — "this one has a tab". Deliberately a SHAPE where running is a DOT, so the pair reads as two different questions rather than two intensities.
 const OPEN_ICON = strokeIcon(13, '<rect x="2.6" y="3.4" width="10.8" height="9.2" rx="1.4" /><path d="M2.6 6.4h10.8" />');

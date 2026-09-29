@@ -19,3 +19,10 @@ export type Direction = keyof typeof CHEVRONS;
 
 /** A chevron pointing `direction`: the app's one mark for folding and opening, from a project's caret to a panel's fold. */
 export const chevronIcon = (direction: Direction, size: number): string => strokeIcon(size, `<path d="${CHEVRONS[direction]}" />`);
+
+// The pin, as SVG rather than the ★/☆ glyphs: those resolve through system font fallback (DejaVu Sans under WSLg), whose outline star is a hairline that reads far fainter than its --muted colour should.
+// Same star either way — filled for pinned, outlined for not — so the two states differ by ink, not by colour, and both render at a weight we control instead of the font's.
+const STAR_PATH =
+  'M8 2.1 L9.41 6.06 L13.61 6.18 L10.28 8.74 L11.47 12.77 L8 10.4 L4.53 12.77 L5.72 8.74 L2.39 6.18 L6.59 6.06 Z';
+export const PIN_ICON = strokeIcon(14, `<path d="${STAR_PATH}" />`);
+export const PINNED_ICON = strokeIcon(14, `<path d="${STAR_PATH}" fill="currentColor" />`);
