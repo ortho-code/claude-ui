@@ -33,6 +33,7 @@ import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { installTooltips, setTooltip } from './tooltip';
 import { caretIcon, chevronIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
+import { listen, runModal } from './modal';
 import { flash } from './flash';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
@@ -1628,45 +1629,9 @@ function pruneRows(wanted: Set<string>): void {
   }
 }
 
-// In-app confirm modal (a native dialog flickers under WSLg).
+// In-app confirm modal (a native dialog flickers under WSLg), run by modal.ts like every modal here.
 // Resolves true on Delete, false on Cancel / Esc.
 // Deliberately NOT dismissable by clicking the backdrop: selecting text inside the dialog and releasing the mouse outside it dispatches the click on the common ancestor of the mousedown and mouseup — the overlay — so an outside-click dismiss threw the dialog away mid-drag.
-/**
- * Run a modal to completion.
- *
- * Everything a modal in this app does the same way: show the overlay, close on Escape from anywhere,
- * unbind every listener exactly once, and resolve a promise with the result.
- * `bind` wires the modal's own controls and returns the unbinds; `escapeValue` is what Escape means
- * for this modal, which is the only part that genuinely differs between them.
- *
- * Escape is bound on the DOCUMENT rather than the dialog: clicking the dialog's own text blurs the
- * field, and with no backdrop dismiss that would leave Cancel as the only way out.
- * There is deliberately no backdrop dismiss — selecting text inside the dialog and releasing outside
- * it dispatches the click on the overlay, which threw the dialog away mid-drag.
- */
-function runModal<T>(overlay: HTMLElement, escapeValue: T, bind: (finish: (result: T) => void) => (() => void)[]): Promise<T> {
-  overlay.hidden = false;
-  return new Promise<T>((resolve) => {
-    let unbind: (() => void)[] = [];
-    const finish = (result: T): void => {
-      overlay.hidden = true;
-      for (const off of unbind) off();
-      document.removeEventListener('keydown', onKey);
-      resolve(result);
-    };
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') finish(escapeValue);
-    };
-    document.addEventListener('keydown', onKey);
-    unbind = bind(finish);
-  });
-}
-
-/** Add a listener and hand back the function that removes it, so a modal cannot forget one. */
-function listen<K extends keyof HTMLElementEventMap>(el: HTMLElement, type: K, handler: (event: HTMLElementEventMap[K]) => void): () => void {
-  el.addEventListener(type, handler);
-  return () => el.removeEventListener(type, handler);
-}
 
 function confirmDelete(title: string): Promise<boolean> {
   confirmMessage.textContent = `Delete "${title}"?`;
