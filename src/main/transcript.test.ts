@@ -115,6 +115,18 @@ describe('what counts as a request', () => {
   });
 });
 
+describe('a record written twice', () => {
+  it('is read once: after a compaction Claude Code writes the conversation again under the same uuids', () => {
+    const q = typed('fix the build');
+    const a = answer(text('Fixed.'));
+    const boundary = { type: 'system', subtype: 'compact_boundary', uuid: uuid(), parentUuid: null };
+    const summary = typed('This session is being continued from a previous conversation', { isCompactSummary: true });
+    const f = fold(q, a, boundary, summary, { ...q, gitBranch: 'main' }, { ...a, version: '2' }, typed('next'));
+    expect(requests(f)).toEqual(['typed: fix the build', 'typed: next']);
+    expect(f.exchanges.map(replyText)).toEqual(['Fixed.', '']);
+  });
+});
+
 describe('a request sent again', () => {
   const replaced = (f: HistoryFold) => f.exchanges.map((e) => `${e.request}${e.replaced ? ' (replaced)' : ''}`);
 

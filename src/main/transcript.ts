@@ -53,11 +53,16 @@ export interface HistoryFold {
   exchanges: Exchange[];
   /** Each exchange's parent record in the transcript's tree, index for index, so the next request can tell whether it replaces the last. */
   parents: (string | null)[];
+  /**
+   * Every record folded, by uuid, with its parent: what a record written again is known by.
+   * After a compaction Claude Code writes much of the conversation into the file a second time, under the same uuids; folding the copies drew each of those requests, and claude's messages, twice.
+   */
+  records: Map<string, string | null>;
   pending: { exchange: Exchange; parent: string | null } | null;
 }
 
 export function newFold(): HistoryFold {
-  return { exchanges: [], parents: [], pending: null };
+  return { exchanges: [], parents: [], records: new Map(), pending: null };
 }
 
 /** Claude Code's own records, written into the user's turn: a local command's output, a reminder, a task notification, `!` bash mode. */
@@ -121,6 +126,11 @@ function carriesToolResult(record: Record<string, unknown>): boolean {
  * The rule and the counts behind it are in docs/architecture.md, In-session history.
  */
 export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): void {
+  // A record written again is the one already folded, with its bookkeeping (git branch, version) brought up to date: the first copy stands.
+  if (typeof record.uuid === 'string') {
+    if (fold.records.has(record.uuid)) return;
+    fold.records.set(record.uuid, parentOf(record));
+  }
   if (record.isSidechain === true) return;
   if (record.type === 'attachment') {
     const attachment = record.attachment as { type?: unknown; prompt?: unknown } | undefined;
