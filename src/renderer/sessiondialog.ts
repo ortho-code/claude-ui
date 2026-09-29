@@ -3,6 +3,7 @@ import { listen, runModal } from './modal';
 /**
  * The dialog a panel's row opens to start a claude session: which project and group it goes in, its name, and its first prompt.
  * The row fills it in and the person changes it here; nothing starts before Start, so what a panel shared by anyone asks claude to do is always read first.
+ * For a row that already started a session, it first offers to continue the latest one, which hides the fields only a new session needs.
  */
 
 export interface ProjectChoice {
@@ -16,6 +17,8 @@ export interface SessionAsk {
   from: string;
   /** What the row is, in its own words. */
   about: string;
+  /** The latest session this row started, when it has one: the dialog offers to go on in it, and does so unless the person picks a new one. */
+  continueIn: { title: string; running: boolean } | null;
   projects: ProjectChoice[];
   /** The project shown first, by root; one of `projects`. */
   project: string;
@@ -26,6 +29,8 @@ export interface SessionAsk {
 }
 
 export interface SessionAnswer {
+  /** Go on in the row's latest session, or start a new one where `root` and `groupId` say. */
+  mode: 'continue' | 'new';
   root: string;
   groupId: string | null;
   name: string;
@@ -50,8 +55,36 @@ export function askForSession(ask: SessionAsk): Promise<SessionAnswer | null> {
   const prompt = document.getElementById('session-prompt') as HTMLTextAreaElement;
   const ok = document.getElementById('session-ok')!;
   const cancel = document.getElementById('session-cancel')!;
+  const modeBox = document.getElementById('session-mode')!;
+  const [continueRadio, newRadio] = [...modeBox.querySelectorAll<HTMLInputElement>('input[name="session-mode"]')];
+  const continueLabel = document.getElementById('session-continue-label')!;
+  const continueNote = document.getElementById('session-continue-note')!;
+  const newFields = document.getElementById('session-new')!;
+  const promptSection = document.getElementById('session-prompt-section')!;
+  const promptLabel = document.getElementById('session-prompt-label')!;
+  const promptHint = document.getElementById('session-prompt-hint')!;
 
   about.textContent = `From ${ask.from}: ${ask.about}`;
+  // A row that has a session already goes on in it unless the person says otherwise: that session holds what the first look found.
+  modeBox.hidden = ask.continueIn === null;
+  if (ask.continueIn) {
+    continueLabel.textContent = `Continue in ${ask.continueIn.title}`;
+    continueNote.textContent = ask.continueIn.running
+      ? 'It is running, so it is brought into view and nothing is sent to it: type there yourself.'
+      : 'It is not running, so it is resumed with the prompt below.';
+  }
+  continueRadio!.checked = ask.continueIn !== null;
+  newRadio!.checked = ask.continueIn === null;
+  // The prompt is worded for what happens to it: a new session starts with it and a stopped one resumes with it, while a running one gets none, so there it is not shown at all.
+  const showMode = (): void => {
+    const continuing = continueRadio!.checked;
+    newFields.hidden = continuing;
+    ok.textContent = continuing ? 'Continue' : 'Start';
+    promptSection.hidden = continuing && ask.continueIn?.running === true;
+    promptLabel.textContent = continuing ? 'Prompt' : 'First prompt';
+    promptHint.textContent = continuing ? 'Sent to claude as the session resumes. Ctrl+Enter continues.' : 'Sent to claude as the session starts. Ctrl+Enter starts it.';
+  };
+  showMode();
   project.replaceChildren(...ask.projects.map((choice) => option(choice.root, choice.name)));
   project.value = ask.project;
   // A project's own groups, the one last picked from this panel there first; "No group" is always there.
@@ -65,11 +98,13 @@ export function askForSession(ask: SessionAsk): Promise<SessionAnswer | null> {
   prompt.value = ask.prompt;
 
   const promise = runModal<SessionAnswer | null>(overlay, null, (finish) => {
-    const submit = (): void => finish({ root: project.value, groupId: group.value || null, name: name.value, prompt: prompt.value });
+    const submit = (): void => finish({ mode: continueRadio!.checked ? 'continue' : 'new', root: project.value, groupId: group.value || null, name: name.value, prompt: prompt.value });
     return [
       listen(ok, 'click', submit),
       listen(cancel, 'click', () => finish(null)),
       listen(project, 'change', fillGroups),
+      listen(continueRadio!, 'change', showMode),
+      listen(newRadio!, 'change', showMode),
       // Enter starts from the name, as in the app's other one-line dialogs; the prompt is several lines, so there it is Ctrl+Enter, as in a note.
       listen(name, 'keydown', (event) => {
         if (event.key === 'Enter') submit();

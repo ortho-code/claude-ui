@@ -36,13 +36,14 @@ import { installTooltips, setTooltip } from './tooltip';
 import { caretIcon, chevronIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
 import { listen, runModal } from './modal';
 import { askForSession } from './sessiondialog';
-import type { SessionRequest } from './panels/types/command';
+import type { LinkedSession, SessionRequest } from './panels/types/command';
+import type { PanelData } from '../shared/panels';
 import { flash } from './flash';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
 import { iconSvg } from './panels/icons';
 import { createTerminal, bindTerminal, routeTerminals, lastLines } from './terminal';
-import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged } from './panels/tree';
+import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
 import { reportBuiltinStatus } from './panels/types/builtin';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
@@ -1028,10 +1029,10 @@ async function copyText(text: string, confirmation: string): Promise<void> {
   }
 }
 
-// Jump to a specific session from the footer: scope to its project if needed, then open/focus its tab.
-function jumpToSession(session: SessionSummary): void {
+// Jump to a specific session from outside the list — the footer, a panel's row: scope to its project if needed, then open/focus its tab.
+function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   if (activeProject !== null && activeProject !== session.repoRoot) selectProject(session.repoRoot);
-  void openSession(session);
+  void openSession(session, launch);
   // Scope alone isn't enough to SEE it: the row can sit inside a collapsed group or project.
   // Reveal the same way clicking a tab does — jumping to a sibling filed in another group is exactly the case where scoping to the project still leaves the row hidden.
   revealSessionInSidebar(session);
@@ -1414,6 +1415,8 @@ function viewPool(all: SessionSummary[], archivedView: boolean): SessionSummary[
 // Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
 function refreshSwitcher(): void {
   renderSwitcher(switcherPool(visibleSessions()));
+  // A status or a mark read changed the roll-ups here, and the same dots on a panel's rows.
+  treeSessionsChanged();
 }
 
 // Render from the cached session list, applying the current search filter.
@@ -1422,6 +1425,8 @@ function refreshSwitcher(): void {
 function renderList(): void {
   const scroll = container.scrollTop;
   statusDots.clear();
+  // The sessions themselves changed — a title, one appearing on disk: a panel's rows name them too.
+  treeSessionsChanged();
   // The filter is off, so the folds made while it was on have served their purpose and go. Done here rather than where a filter is cleared, because a filter also ends by deleting the last character, by a date preset going back to Any, and by Clear.
   if (!isFiltering()) {
     filterFoldedProjects.clear();
@@ -2566,13 +2571,22 @@ function applyStatus(dot: HTMLElement, status: string | undefined, isAcked = fal
 
 // --- Tabs ---
 
-async function openSession(session: SessionSummary): Promise<void> {
+/**
+ * Open a session's tab, starting it when it is not running.
+ * A first prompt is for a session that is NOT running, which starts with it — a resumed one included; one that is running is only brought into view, since typing into a live session is never the app's to do.
+ */
+async function openSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): Promise<void> {
   const existing = tabs.find((t) => t.session.id === session.id);
   if (existing) {
+    if (existing.terminalId === null && launch.prompt) {
+      activateTab(existing, false);
+      await startTab(existing, launch);
+      return;
+    }
     activateTab(existing);
     return;
   }
-  await createTab(session);
+  await createTab(session, launch);
 }
 
 /**
@@ -2627,9 +2641,80 @@ async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<Ta
 }
 
 /**
+ * Each panel's own data as last read, by entry key: the sessions its rows started (main's `panel-data/`).
+ * Read the first time a panel asks, and kept current by main's pushes after every write, a forgotten session's included.
+ */
+const panelData = new Map<string, PanelData>();
+const panelDataAsked = new Set<string>();
+
+function panelDataOf(entryKey: string): PanelData | null {
+  const data = panelData.get(entryKey);
+  if (data) return data;
+  if (!panelDataAsked.has(entryKey)) {
+    panelDataAsked.add(entryKey);
+    void window.claudeUi.getPanelData(entryKey).then((read) => {
+      // A push may have landed first, and is the newer of the two.
+      if (!panelData.has(entryKey)) panelData.set(entryKey, read);
+      treeSessionsChanged();
+    });
+  }
+  return null;
+}
+
+window.claudeUi.onPanelDataChanged((entryKey, data) => {
+  panelData.set(entryKey, data);
+  treeSessionsChanged();
+});
+
+/**
+ * The sessions a panel's item started that the app still has, latest first, as the session list would draw them.
+ * A link whose session is gone — one main has not yet forgotten — is left out rather than shown as something to go to.
+ */
+function linkedSessions(entryKey: string, itemKey: string): LinkedSession[] {
+  const data = panelDataOf(entryKey);
+  if (!data) return [];
+  return Object.entries(data.sessions)
+    .filter(([, link]) => link.key === itemKey)
+    .sort(([, a], [, b]) => b.startedAt.localeCompare(a.startedAt))
+    .flatMap(([id]) => {
+      const tab = tabs.find((t) => t.session.id === id);
+      const session = tab?.session ?? allSessions.find((s) => s.id === id);
+      if (!session) return [];
+      return [{ id, title: session.title, status: statuses.get(id) ?? null, acked: acked.has(id), running: tab !== undefined && tab.terminalId !== null }];
+    });
+}
+
+/** The session behind an id, from its tab or the list; null for one the app no longer has. */
+function sessionById(id: string): SessionSummary | null {
+  return tabs.find((t) => t.session.id === id)?.session ?? allSessions.find((s) => s.id === id) ?? null;
+}
+
+/** Go to a session a panel's row started, as a jump from the attention strip does; one whose folder is gone says so, as its row in the list would. */
+function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): void {
+  const session = sessionById(id);
+  if (!session) return;
+  const reason = unstartableReason(session);
+  if (reason) {
+    showToast(reason);
+    return;
+  }
+  jumpToSession(session, launch);
+}
+
+/** Several sessions of one row, in the app's own menu, each with its status dot. */
+function pickLinkedSession(anchor: HTMLElement, sessions: LinkedSession[]): void {
+  const dot = (status: string | null): NudgeStatus => (status === 'waiting' || status === 'idle' || status === 'busy' ? status : null);
+  openMenu(
+    anchor,
+    sessions.map((session) => ({ label: session.title, badge: dot(session.status), onSelect: () => openLinkedSession(session.id) })),
+  );
+}
+
+/**
  * A panel's item asks for a session: the app's dialog says where it goes and what it starts with, and nothing starts until Start.
  * The projects offered are the switcher's, in its order and without the ones whose folder is gone, since a session cannot start there; the one the panel's folder is in comes first, and that folder is offered itself when it is in no project yet.
  * The session is remembered by the panel under the id minted here BEFORE its tab exists, so the row can lead back to it from the start; then it starts down the same path as any new session.
+ * When the row already has a session, the dialog offers to continue the latest one instead, which keeps the context the first one built: stopped, it resumes with the prompt; running, it is brought into view and the prompt is not sent.
  */
 async function startSessionFromPanel(entryKey: string, request: SessionRequest): Promise<void> {
   const known = projectsForSwitcher(switcherPool(visibleSessions()), statuses, acked, projectNames, projectOrder).projects.filter((project) => project.rootExists);
@@ -2643,9 +2728,12 @@ async function startSessionFromPanel(entryKey: string, request: SessionRequest):
   const choices = roots.includes(preset) ? roots : [preset, ...roots];
   const groupsIn = (root: string): { id: string; name: string }[] => groupState.groups.filter((group) => group.repoRoot === root).map(({ id, name }) => ({ id, name }));
   const data = await window.claudeUi.getPanelData(entryKey);
+  panelData.set(entryKey, data);
+  const latest = linkedSessions(entryKey, request.key)[0] ?? null;
   const answer = await askForSession({
     from: request.from,
     about: request.label,
+    continueIn: latest ? { title: latest.title, running: latest.running } : null,
     projects: choices.map((root) => ({ root, name: projName(root), groups: groupsIn(root) })),
     project: preset,
     // The last group picked from this panel in that project, while it still exists.
@@ -2657,8 +2745,12 @@ async function startSessionFromPanel(entryKey: string, request: SessionRequest):
     prompt: request.prompt,
   });
   if (!answer) return;
+  if (answer.mode === 'continue' && latest) {
+    openLinkedSession(latest.id, { prompt: answer.prompt.trim() || undefined });
+    return;
+  }
   const id = crypto.randomUUID();
-  await window.claudeUi.linkPanelSession(entryKey, id, { key: request.key, label: request.label, href: request.href }, { repoRoot: answer.root, groupId: answer.groupId });
+  panelData.set(entryKey, await window.claudeUi.linkPanelSession(entryKey, id, { key: request.key, label: request.label, href: request.href }, { repoRoot: answer.root, groupId: answer.groupId }));
   await openNewSession(answer.root, answer.groupId ?? undefined, { name: answer.name.trim(), prompt: answer.prompt.trim() }, id);
 }
 
@@ -3030,6 +3122,8 @@ function visibleTabs(): Tab[] {
 }
 
 function renderTabBar(): void {
+  // A tab opened, started, stopped or closed: a panel's rows say whether their sessions run.
+  treeSessionsChanged();
   const shown = visibleTabs();
   const groupOf = groupState.groupOf; // computed once; every tab is keyed against it
   // Your project order, the same one the sidebar and the strip use — so all three agree about where a project sits.
@@ -3666,6 +3760,9 @@ initTree({
   hideToast,
   persist: persistUi,
   startSession: (entryKey, request) => void startSessionFromPanel(entryKey, request),
+  linkedSessions,
+  openSession: (id) => openLinkedSession(id),
+  pickSession: pickLinkedSession,
 });
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {

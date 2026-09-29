@@ -67,6 +67,18 @@ export interface SessionRequest {
   dir: string | null;
 }
 
+/** A session one of the panel's items started, as the app sees it now: what to call it, its status dot, and whether it is running. */
+export interface LinkedSession {
+  id: string;
+  title: string;
+  /** The status dot's state, as the session list draws it; null for a session with nothing to report. */
+  status: string | null;
+  /** Its dot marked read. */
+  acked: boolean;
+  /** A tab holds it with its process live. */
+  running: boolean;
+}
+
 /** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw — the panel's side of the conversation with the layout. */
 export interface PanelHost {
   where(): Where;
@@ -86,6 +98,12 @@ export interface PanelHost {
   setNotes(notes: string[]): void;
   /** Ask the app for a session from one of the panel's items (see `SessionRequest`). */
   startSession(request: SessionRequest): void;
+  /** The sessions an item started that the app still has, latest first; empty until the panel's data has been read. */
+  linkedSessions(itemKey: string): LinkedSession[];
+  /** Go to a session, as a jump from the attention strip does: its project, its tab (resumed when it is not running), its row. */
+  openSession(id: string): void;
+  /** Offer several of an item's sessions in a menu at `anchor`, to go to one. */
+  pickSession(anchor: HTMLElement, sessions: LinkedSession[]): void;
 }
 
 export interface MountedPanel {
@@ -103,6 +121,8 @@ export interface MountedPanel {
   setVisible(visible: boolean): void;
   /** Something in the config folder changed: check the options again, since a file or folder they point at may have appeared or changed. */
   recheck(): void;
+  /** A session's status, a tab, or the sessions the panel's items started changed: repaint what the panel draws of them. For the types that draw any. */
+  sessionsChanged?(): void;
   /** The panel is leaving the layout: stop its run and forget it. */
   unmount(): void;
 }

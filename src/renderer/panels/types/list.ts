@@ -1,5 +1,6 @@
 import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelContext, type PanelRunEvent } from '../../../shared/panels';
 import { stripAnsi } from '../../ansi';
+import { statusLabel } from '../../logic';
 import { element } from '../../dom';
 import { caretIcon } from '../../svg';
 import { setTooltip } from '../../tooltip';
@@ -69,6 +70,8 @@ class ListPanel implements MountedPanel {
   private lastDir: string | null = null;
   /** Sections folded or unfolded by hand, by title, over what the document says. */
   private readonly folds = new Map<string, boolean>();
+  /** Each row's mark for the sessions it started, by item key: repainted in place when a session changes, so a status event never rebuilds the list under the pointer. */
+  private readonly sessionMarks = new Map<string, HTMLButtonElement>();
   /** Whether the type, the options and the script passed their last check; null until the first has answered. */
   private runnable: boolean | null = null;
   /** Counts the runs asked for, so one whose check is overtaken by a newer ask drops out rather than starting after it. */
@@ -116,6 +119,10 @@ class ListPanel implements MountedPanel {
     this.gate.setVisible(visible);
     // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
     if (visible && this.runnable === false && this.asked === asked) this.recheck();
+  }
+
+  sessionsChanged(): void {
+    for (const [key, mark] of this.sessionMarks) this.paintSessions(key, mark);
   }
 
   recheck(): void {
@@ -296,7 +303,33 @@ class ListPanel implements MountedPanel {
   }
 
   private drawList(): void {
-    if (this.good) this.body.replaceChildren(...this.good.doc.sections.map((section) => this.drawSection(section)));
+    if (!this.good) return;
+    this.sessionMarks.clear();
+    this.body.replaceChildren(...this.good.doc.sections.map((section) => this.drawSection(section)));
+  }
+
+  /**
+   * A row's mark for the sessions it started: hidden without one; the latest's status dot, the same dot the session list draws, and a press goes to it; with several, their count beside the dot, and a press offers them all.
+   * Only sessions the app still has: a link whose session is gone shows nothing.
+   */
+  private paintSessions(key: string, mark: HTMLButtonElement): void {
+    const sessions = this.host.linkedSessions(key);
+    const latest = sessions[0];
+    mark.hidden = latest === undefined;
+    if (!latest) return;
+    const dot = element('span', latest.status ? `nudge single ${latest.status}${latest.acked ? ' acked' : ''}` : 'nudge single');
+    const parts: HTMLElement[] = [dot];
+    if (sessions.length > 1) {
+      const count = element('span', 'list-session-count');
+      count.textContent = String(sessions.length);
+      parts.push(count);
+    }
+    mark.replaceChildren(...parts);
+    // Its state in the session list's own words, so the dot says the same here as there.
+    const state = statusLabel(latest.status ?? undefined, latest.acked) ?? (latest.running ? 'running' : 'not running');
+    const label = sessions.length > 1 ? `${sessions.length} sessions from this row: pick one` : `Go to ${latest.title} · ${state}`;
+    mark.setAttribute('aria-label', label);
+    setTooltip(mark, label);
   }
 
   /** A section: its heading when it has a title, which folds it, then its rows, or what it says when it has none. */
@@ -343,6 +376,18 @@ class ListPanel implements MountedPanel {
       content.append(detail);
     }
     row.append(content);
+    // The sessions it started, before what it offers, so going back comes before starting again.
+    const mark = element('button', 'icon-btn list-session');
+    mark.type = 'button';
+    mark.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const sessions = this.host.linkedSessions(item.key);
+      if (sessions.length === 1) this.host.openSession(sessions[0]!.id);
+      else if (sessions.length > 1) this.host.pickSession(mark, sessions);
+    });
+    this.sessionMarks.set(item.key, mark);
+    this.paintSessions(item.key, mark);
+    row.append(mark);
     // What a row offers, as buttons at its end. Each only ASKS: the app's dialog shows what would start, and nothing does until Start there.
     for (const action of item.actions) {
       const button = element('button', 'list-action');

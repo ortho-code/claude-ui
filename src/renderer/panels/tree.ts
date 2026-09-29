@@ -20,7 +20,7 @@ import {
 import { dragTo, flexFor, keptSizes, snapshot, type FlexChild } from './sizes';
 import { claudeType, sessionsType } from './types/builtin';
 import { folderTypes } from './types/folder';
-import { commandType, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type SessionRequest, type Where } from './types/command';
+import { commandType, type LinkedSession, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type SessionRequest, type Where } from './types/command';
 import { terminalType } from './types/terminal';
 
 /**
@@ -46,6 +46,10 @@ export interface TreeHost {
   persist(): void;
   /** A panel's item asks for a session; `entryKey` is the panel's, which the session is remembered under. */
   startSession(entryKey: string, request: SessionRequest): void;
+  /** The sessions a panel's item started that the app still has, latest first. */
+  linkedSessions(entryKey: string, itemKey: string): LinkedSession[];
+  openSession(id: string): void;
+  pickSession(anchor: HTMLElement, sessions: LinkedSession[]): void;
 }
 
 /** A panel on screen, and the marks it reports through — made once with it, so a rebuilt header or rail shows the same marks rather than orphaning them. */
@@ -133,6 +137,21 @@ export function startPanels(): void {
 /** The tab or project changed: let every panel decide whether that moved its context. A hidden one only notes it (RunGate). */
 export function treeContextChanged(): void {
   for (const { panel } of mounted.values()) panel.contextChanged();
+}
+
+let sessionsQueued = false;
+
+/**
+ * A session's status, a tab, the session list, or a panel's own data changed: every panel that draws sessions repaints them.
+ * Called from wherever the renderer repaints those itself, often several times in one task, so the panels hear it once, after the task.
+ */
+export function treeSessionsChanged(): void {
+  if (sessionsQueued) return;
+  sessionsQueued = true;
+  queueMicrotask(() => {
+    sessionsQueued = false;
+    for (const { panel } of mounted.values()) panel.sessionsChanged?.();
+  });
 }
 
 export function treeState(): PanelState {
@@ -514,6 +533,9 @@ function mountedFor(slot: PanelSlot): Mounted {
     setProblems: (problems) => report('problems', problems),
     setNotes: (notes) => report('notes', notes),
     startSession: (request) => host.startSession(slot.key, request),
+    linkedSessions: (itemKey) => host.linkedSessions(slot.key, itemKey),
+    openSession: (id) => host.openSession(id),
+    pickSession: (anchor, sessions) => host.pickSession(anchor, sessions),
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());

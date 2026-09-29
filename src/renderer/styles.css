@@ -242,6 +242,20 @@
   gap: 8px;
 }
 
+/* A pick-one in a dialog: a line per choice, the radio beside its words, and a choice's own detail indented under it. */
+.dialog-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+
+.dialog-choices .dialog-detail {
+  margin: 0 0 8px 24px;
+}
+
 /* The dialog's text field, single-line or multiline. */
 .dialog-field {
   width: 100%;
@@ -3090,6 +3104,16 @@ button:focus:not(:focus-visible) {
 /* What an empty section says, level with the text in the rows it stands in for. */
 .list-empty {
   padding-left: 14px;
+}
+
+/* The sessions a row started, before what it offers: the latest's status dot in the icon box every clickable mark uses, and their count beside it when there are several. */
+.list-row .list-session {
+  gap: 4px;
+}
+
+.list-session-count {
+  font-size: var(--text-meta);
+  line-height: 1;
 }
 
 /* What a row offers, at its end: a plain text button at the meta line's size, so a row with one is no taller than a row without. */

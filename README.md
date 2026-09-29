@@ -49,11 +49,9 @@ Done:
 - A history of each session, from its transcript and laid out as claude shows it: every request, message and tool call since the session began, compactions included, with pins for the ones to come back to.
   A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
 - Panel types of your own, from a folder in the config folder: a script prints a list and the app draws it, with links, sections that fold, and a count on the panel's icon kept current on an interval. See [Panel types of your own](#panel-types-of-your-own).
-  A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick.
+  A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick; it then shows that session's status and leads back to it, and a second press offers to continue it.
 
 Next:
-
-- A list panel's row leading back to the session it started, with that session's status on the row, and continuing it for a second look.
 - Panel types that draw themselves: a page of your own in a sandboxed frame, fed by its script, asking the app for what it cannot do itself, such as opening a link or starting a session.
 
 - Letting you answer when Claude asks something on its way out — whether to keep a worktree, say — instead of the tab closing over the question.
@@ -216,6 +214,8 @@ The script prints one JSON object on stdout, and nothing else; what it writes on
 
 Each item needs a `key`, unique in the list, and a `text`; `detail` is a second line, `href` an http or https link a click opens in your browser, and `tone` is `normal`, `attention`, `muted` or `danger`.
 An item can also offer `actions`. `{ "label": "Review", "session": { "prompt": "/review 1", "name": "Review #1" } }` puts a Review button on the row, which asks for a Claude session that starts with that prompt: it opens the app's own dialog, where you pick the project (the one the panel runs in comes first) and the group (the one you last picked from that panel), and can change the name and the prompt. Nothing starts until you press Start.
+A row that started a session shows that session's status dot, the same dot the session list draws; pressing it goes to the session, in its project, resuming it when it is not running. With several sessions from one row, the dot carries their count and pressing it offers them all, the latest first.
+Pressing Review again on such a row offers to continue its latest session, which keeps what the first look found: a stopped one is resumed with the prompt, and a running one is brought into view without it, since the app never types into a live session. New session is the other choice.
 The app remembers which session a row started, on this machine only: in `panel-data/`, beside the app's own data and apart from it, never in the config folder.
 A session that is gone — deleted in the app, cleaned up by Claude Code's own transcript retention, or removed by hand — is forgotten there the next time that panel's file is written, and at once when you delete it in the app.
 A section with a `title` has a heading that folds it, and `shut` starts it folded; `empty` is what it says with no items.
