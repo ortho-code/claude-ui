@@ -1,5 +1,5 @@
 /**
- * The arithmetic of the bar beside the history, kept free of the DOM so it can be tested: what the pointer is on, and how far a wheel movement steps.
+ * The arithmetic of the bar beside the history, kept free of the DOM so it can be tested: what the pointer is on, how far a wheel movement steps, and where a drag puts the view.
  */
 
 /** A request or its reply, as the bar and the loupe address them: `k` is the exchange's index in the history. */
@@ -47,4 +47,23 @@ export function wheelSteps(deltaMode: number, deltaY: number, carry: number): { 
   const total = carry + deltaY / 30;
   const steps = Math.trunc(total);
   return { steps, carry: total - steps };
+}
+
+/** The part of the history in view, as fractions of its whole height: the band on the bar. */
+export interface Band {
+  top: number;
+  height: number;
+}
+
+/**
+ * Where on the band a drag that was pressed at `pressed` holds it, as a scrollbar's thumb is held: where it was pressed when that was on the band, and otherwise its middle, so the band comes to centre on the pointer.
+ * `bandShown` is whether the band was on the bar to be pressed on at all: while the live terminal has the pane there is none.
+ */
+export function grabAt(pressed: number, band: Band, bandShown: boolean): number {
+  return bandShown && pressed >= band.top && pressed <= band.top + band.height ? pressed - band.top : band.height / 2;
+}
+
+/** Where a drag puts the top of the view, as a fraction of the history: under the pointer less the grab, and never past either end. */
+export function dragTop(pointer: number, grab: number, band: Band): number {
+  return Math.max(0, Math.min(1 - band.height, pointer - grab));
 }

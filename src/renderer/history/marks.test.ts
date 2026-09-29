@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { entryAt, wheelSteps, type MarkAt } from './marks';
+import { dragTop, entryAt, grabAt, wheelSteps, type MarkAt } from './marks';
 
 // Three exchanges on a 100px bar: requests at 0, 40 and 70, replies from 10, 50, and none for the last.
 const marks: MarkAt[] = [
@@ -62,5 +62,25 @@ describe('wheelSteps', () => {
 
   it('does nothing for a sideways scroll', () => {
     expect(wheelSteps(0, 0, 0.5)).toEqual({ steps: 0, carry: 0.5 });
+  });
+});
+
+describe('dragging the band', () => {
+  const band = { top: 0.4, height: 0.2 };
+
+  it('holds the band where it was pressed on it', () => {
+    expect(grabAt(0.45, band, true)).toBeCloseTo(0.05);
+    expect(dragTop(0.75, 0.05, band)).toBeCloseTo(0.7);
+  });
+
+  it('centres the band on the pointer when pressed elsewhere, or while there is no band', () => {
+    expect(grabAt(0.1, band, true)).toBeCloseTo(0.1);
+    expect(grabAt(0.45, band, false)).toBeCloseTo(0.1);
+    expect(dragTop(0.3, 0.1, band)).toBeCloseTo(0.2);
+  });
+
+  it('never goes past either end', () => {
+    expect(dragTop(0.02, 0.1, band)).toBe(0);
+    expect(dragTop(1.3, 0.1, band)).toBeCloseTo(0.8);
   });
 });

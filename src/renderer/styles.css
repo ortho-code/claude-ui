@@ -2594,6 +2594,10 @@ button:focus:not(:focus-visible) {
   cursor: pointer;
 }
 
+.history-bar.dragging .history-bar-area {
+  cursor: grabbing;
+}
+
 /* A request is a tick across the bar; its reply, a thin bar down the middle to the next request. */
 .mark-request,
 .mark-reply {

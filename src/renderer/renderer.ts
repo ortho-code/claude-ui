@@ -143,10 +143,14 @@ const history = new HistoryView({
 });
 terminalsEl.append(history.scrim, history.el);
 // Its bar, beside the terminal area: picking an entry on it opens the history there, from live or not.
-const historyBar = new HistoryBar(history, (entry) => {
-  openHistory();
-  history.goTo(entry.k, entry.part);
-});
+const historyBar = new HistoryBar(
+  history,
+  (entry) => {
+    openHistory();
+    history.goTo(entry.k, entry.part);
+  },
+  openHistory,
+);
 document.getElementById('terminal-body')!.append(historyBar.el);
 history.onLayout = () => historyBar.refresh();
 history.onScroll = () => historyBar.moveBand();

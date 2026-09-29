@@ -1,13 +1,15 @@
 import { relativeTime } from '../logic';
 import { PINNED_ICON, strokeIcon } from '../svg';
 import { setTooltip } from '../tooltip';
-import { entryAt, wheelSteps, type Entry, type MarkAt } from './marks';
+import { dragTop, entryAt, grabAt, wheelSteps, type Band, type Entry, type MarkAt } from './marks';
 
 /** What the bar reads from the history it marks (view.ts). */
 export interface BarSource {
   /** `pinned` is the request's pin, `replyPinned` whether any of claude's messages in the exchange is pinned. */
   marks(): { k: number; request: number; reply: number | null; pinned: boolean; replyPinned: boolean; replaced: boolean }[];
-  band(): { top: number; height: number };
+  band(): Band;
+  /** Put the top of the view at `top`, a fraction of the whole history. */
+  scrollTo(top: number): void;
   describe(k: number): { number: number; time: string; request: string; reply: string | null; pinned: boolean; replyPinned: boolean } | null;
   readonly size: number;
   /** Whether the history, rather than the live terminal, has the pane. */
@@ -26,8 +28,11 @@ const DENSE = 120;
  * A request is a tick across it and its reply a thin bar down its middle until the next request — a shape apart, not only a shade — with pins in the accent, a request that was sent again dimmer, the last request in full white, and, in the history, a band for where you are.
  * Its marks are placed from the history's measured heights, so they sit where the history's own scrolling puts things.
  *
- * Hovering opens the LOUPE beside it: the entries around the pointer, in words. At 821 requests the bar has under a pixel each, so the pointer alone picks roughly; the wheel — over the bar, or inside the loupe once the pointer has moved into it — steps one entry at a time, and a click or Enter opens it.
+ * Hovering opens the LOUPE beside it: the entries around the pointer, in words. At 821 requests the bar has under a pixel each, so the pointer alone picks roughly; the wheel — over the bar, or inside the loupe once the pointer has moved into it — steps one entry at a time, and a click on its row or Enter opens it.
  * The user's words that settled this, after a fisheye was tried and rejected: "when there are a lot of messages you can't reach the correct message".
+ *
+ * Pressing on it is a scrollbar's: the view goes to that point at once, opening the history if it is closed, and follows the pointer until the button is let go. The rough way to a place, with the loupe for the exact entry.
+ * In the user's words: "I want to press the mouse on a point in the sidebar, then the view should already go there. When I keep the mouse down I can drag and the view scrolls with it until I release the mouse button."
  */
 export class HistoryBar {
   readonly el = document.createElement('div');
@@ -38,10 +43,30 @@ export class HistoryBar {
   private readonly replyEls = new Map<number, HTMLElement>();
   private hot: Entry | null = null;
   private loupe: Loupe | null = null;
+  /** A press on the bar, while the button is down: where on the band it holds it. */
+  private press: { grab: number } | null = null;
+  /** While a press is held the view follows every move of a held pointer, anywhere on the window. */
+  private readonly follow = (event: PointerEvent): void => {
+    if (!this.press) return;
+    // The button came up where its release did not reach the bar.
+    if (event.buttons === 0) {
+      this.letGo();
+      return;
+    }
+    this.source.scrollTo(dragTop(this.fraction(event.clientY), this.press.grab, this.source.band()));
+  };
+  private readonly letGo = (): void => {
+    this.press = null;
+    this.el.classList.remove('dragging');
+    window.removeEventListener('pointermove', this.follow, true);
+    window.removeEventListener('pointerup', this.letGo, true);
+  };
 
   constructor(
     private readonly source: BarSource,
     private readonly pick: (entry: Entry) => void,
+    /** Open the history, where it is, for a press to scroll. */
+    private readonly open: () => void,
   ) {
     this.el.className = 'history-bar';
     this.area.className = 'history-bar-area';
@@ -57,7 +82,9 @@ export class HistoryBar {
     // A press on the bar leaves the focus where it was, in the terminal or the history: the bar is something to point at, and taking the focus left Esc and the step keys with nothing.
     this.el.addEventListener('mousedown', (event) => event.preventDefault());
 
-    this.area.addEventListener('mousemove', (event) => this.pointerAt(event));
+    this.area.addEventListener('mousemove', (event) => {
+      if (!this.press) this.pointerAt(event);
+    });
     this.area.addEventListener('wheel', (event) => {
       if (!this.loupe) return;
       event.preventDefault();
@@ -66,8 +93,32 @@ export class HistoryBar {
     this.area.addEventListener('mouseleave', (event) => {
       if (this.loupe && !this.loupe.el.contains(event.relatedTarget as Node | null)) this.loupe.closeSoon();
     });
-    this.area.addEventListener('click', () => this.loupe?.pickCurrent());
+    this.area.addEventListener('pointerdown', (event) => this.pressAt(event));
     new ResizeObserver(() => this.refresh()).observe(this.area);
+  }
+
+  /** Where `clientY` is on the bar, as a fraction of its height. */
+  private fraction(clientY: number): number {
+    const area = this.area.getBoundingClientRect();
+    return (clientY - area.top) / (area.height || 1);
+  }
+
+  /**
+   * Go to the point pressed, at once, opening the history if it is closed; pressed on the band, hold it where it was taken instead, as a scrollbar's thumb.
+   * Then follow the pointer until the button is let go, wherever it goes: a hand's drag drifts sideways off a 14px bar.
+   * Followed on the window, from ANY pointer, not by capturing the one pressed: under WSLg the moves of a held mouse button arrive as a second pointer, a pen (id 2 against the press's 1, in the app's log), which a capture of the first never sees — so nothing dragged in the app while every headless check passed.
+   */
+  private pressAt(event: PointerEvent): void {
+    if (event.button !== 0 || this.source.size === 0) return;
+    const bandShown = this.source.shown;
+    this.loupe?.close();
+    this.open();
+    const pressed = this.fraction(event.clientY);
+    this.press = { grab: grabAt(pressed, this.source.band(), bandShown) };
+    this.el.classList.add('dragging');
+    this.source.scrollTo(dragTop(pressed, this.press.grab, this.source.band()));
+    window.addEventListener('pointermove', this.follow, true);
+    window.addEventListener('pointerup', this.letGo, true);
   }
 
   /** Open the history at the session's last request. */
@@ -174,7 +225,7 @@ class Loupe {
     this.list.className = 'history-loupe-list';
     const foot = document.createElement('div');
     foot.className = 'history-loupe-foot';
-    foot.textContent = 'Wheel: one at a time · click opens';
+    foot.textContent = 'Wheel: one at a time · click a row to open it';
     this.el.append(this.head, this.list, foot);
     // Pointed at, never focused, as the bar is: a click on a row leaves the keys with the history.
     this.el.addEventListener('mousedown', (event) => event.preventDefault());

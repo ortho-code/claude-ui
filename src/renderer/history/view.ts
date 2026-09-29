@@ -4,6 +4,7 @@ import { relativeTime } from '../logic';
 import { chevronIcon, PIN_ICON, PINNED_ICON } from '../svg';
 import { setTooltip } from '../tooltip';
 import { renderMarkdown, routeLinks } from './markdown';
+import type { Band } from './marks';
 import { applySlice, emptyModel, requestLabel, type HistoryModel } from './model';
 
 /** What the history needs from the rest of the window. */
@@ -243,9 +244,14 @@ export class HistoryView {
   }
 
   /** The part of the history in view, as fractions of its height. */
-  band(): { top: number; height: number } {
+  band(): Band {
     const total = this.scroller.scrollHeight || 1;
     return { top: this.scroller.scrollTop / total, height: this.scroller.clientHeight / total };
+  }
+
+  /** Put the top of the view at `top`, a fraction of the whole history: a drag on the bar. */
+  scrollTo(top: number): void {
+    this.scroller.scrollTop = top * this.scroller.scrollHeight;
   }
 
   /** What the loupe says about exchange `k`: its number, when, the request's first line, and the reply's (null when there is none). */
