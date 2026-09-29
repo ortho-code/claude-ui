@@ -190,8 +190,13 @@ The code is in `src/main/transcript.ts` (reading) and `src/renderer/history/` (t
 
 **The history opens only on purpose**: from the bar beside the terminal (a click, or the loupe), the arrow at the bar's foot, or Ctrl+Shift+↑ for your last request — every way in goes through one function, `openHistory`.
 The wheel over a running claude stays claude's, and scrolls claude's own view.
-**Getting out is one labelled control**, "Back to live", in the history's head and always in view, with Esc as its key; the focus goes back to the terminal.
-Ctrl+Shift+↑ is caught on the window in the capture phase, before xterm, which would otherwise send it to claude; app shortcuts take Ctrl+Shift because a bare Ctrl+letter belongs to the terminal.
+Inside, Ctrl+Shift+↑ and Ctrl+Shift+↓ step to the previous and next request, and ↓ past the last one goes back to live; previous and next measure from the request line, which is where a jump puts the view.
+Both are caught on the window in the capture phase, before xterm, which would otherwise send them to claude; app shortcuts take Ctrl+Shift because a bare Ctrl+letter belongs to the terminal.
+
+**It covers the upper two-thirds of the pane, and the lower third stays claude**, live and at its real size.
+The terminal is never resized for it, so claude never redraws, and the part of claude still in view is the way back: a click there returns to it, and reaches claude as well.
+**Getting out is otherwise one labelled control**, "Back to live", in the history's head and always in view, with Esc as its key; the focus goes back to the terminal.
+The first versions covered the whole pane, and "how do I get back?" was the question they left.
 
 That is the second version, and the first is worth knowing because it was tried and reversed after use.
 It took the wheel: xterm asks `attachCustomWheelEventHandler` before it sends a mouse report or turns the wheel into arrow keys, so answering false keeps the wheel from claude, and a wheel up over the alternate screen handed the pane to the history, scrolling on past its end handing it back.
@@ -231,7 +236,19 @@ A file shorter than what was already read is read again from the start as a new 
 Only the last exchange ever changes — claude's reply to it grows — so each read hands back the caller's last exchange again with everything after it, and the window redraws only those.
 The window reads on `sessions:changed` and on the active session's status events.
 
+### What it looks like
+
+**Like claude's own view of the session**, because the history is a look back at that same view: the terminal's background and type, your request as claude echoes it — `> …` on a tinted band, with its number, time and marks at the band's end — and each of claude's messages, and each tool call, behind the dot claude marks them with.
+So the reader keeps a reply as `parts`, in the order claude wrote them: every message its own part, every tool call a one-line part where it came.
+The first version joined the text into one reply and folded the tools to a count, which made consecutive messages one block and put every tool call in the wrong place.
+The dot is drawn in CSS rather than claude's `⏺` glyph, since the app draws no mark from a font.
+Code is told apart as claude tells it apart once everything is in the terminal's type: inline in a colour, a block by a rule down its side.
+The history has no scrollbar of its own: the bar beside it is its scrollbar.
+
 ### Pins
+
+The star sits at the start of the request line, where the eye starts reading; it shows on hover and always once pinned, and a pinned request has an accent edge, as its tick on the bar does.
+What is shown is a labelled switch in the head, `All 54 · Pinned 3`, in the filters' pill: an unlabelled star did not say it was a filter.
 
 A request is pinned by its uuid, which a fork copies, so a pin shows in both siblings.
 Each pin keeps the session it was made in, the opening of the request and its time, so a list of every pin can be drawn from `meta.json` alone.
