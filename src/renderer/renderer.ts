@@ -33,6 +33,7 @@ import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { installTooltips, setTooltip } from './tooltip';
 import { chevronIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
+import { flash } from './flash';
 import { iconSvg } from './panels/icons';
 import { createTerminal, bindTerminal, routeTerminals, lastLines } from './terminal';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged } from './panels/tree';
@@ -2082,15 +2083,6 @@ function jumpToGroup(repoRoot: string, groupId: string | null): void {
   const offset = els.heading.getBoundingClientRect().height;
   container.scrollTop += target.getBoundingClientRect().top - container.getBoundingClientRect().top - offset;
   flash(target);
-}
-
-// A brief accent wash on whatever you just jumped to. Short jumps move the list barely at all, so without it there is no way to tell the click did anything.
-function flash(el: HTMLElement): void {
-  el.classList.remove('flash'); // restart it if you jump to the same place twice
-  // eslint-disable-next-line @typescript-eslint/no-meaningless-void-operator -- the read is the point, and `void` says it is unused on purpose
-  void el.offsetWidth; // force a reflow so removing and re-adding actually replays the animation
-  el.classList.add('flash');
-  window.setTimeout(() => el.classList.remove('flash'), 900);
 }
 
 /**
