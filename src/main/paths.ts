@@ -37,6 +37,12 @@ export const hookScriptPath = path.join(configDir, 'status-hook.sh');
 export const statusSettingsFile = path.join(configDir, 'claude-settings.json');
 
 /**
+ * What the app keeps for each panel, a file per entry named after its id: the sessions its rows started, and the group last picked for one.
+ * The app's own, beside `meta.json` and never in it, so a panel's data cannot damage the app's; and not in the config folder, which is shared, while a session id means something only on this machine.
+ */
+export const panelDataDir = path.join(configDir, 'panel-data');
+
+/**
  * The folder for everything a person may EDIT or SHARE — the layout file and the scripts it points at — and nothing else.
  * One folder apart from `meta.json` and the status files, which are the app's own and never meant for an editor, so "copy this folder" hands a colleague exactly the customisation and none of the machine state.
  * The app creates it, reads it and watches it; in this version it never writes into it.

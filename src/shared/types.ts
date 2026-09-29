@@ -223,7 +223,7 @@ export interface UiState {
   panelState: PanelState;
 }
 
-import type { LayoutReport, PanelContext, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind } from './panels';
+import type { LayoutReport, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind } from './panels';
 import type { FolderName } from './folders';
 import type { LogLevel } from './log';
 
@@ -368,6 +368,12 @@ export interface ClaudeUiApi {
   stopPanel(entryId: string): void;
   /** Subscribe to every run's events. `token` is the one the run was requested with, so a superseded run's tail can be told apart. */
   onPanelRun(callback: (entryId: string, token: string, event: PanelRunEvent) => void): void;
+  /** What the app keeps for a panel: the sessions its rows started, and the group last picked for one. */
+  getPanelData(entryId: string): Promise<PanelData>;
+  /** Remember a session a panel's row is starting, and the group it was filed in; answers with the panel's data as written. */
+  linkPanelSession(entryId: string, sessionId: string, link: Omit<PanelLink, 'startedAt'>, filed: { repoRoot: string; groupId: string | null }): Promise<PanelData>;
+  /** Fires when a panel's data changed: a session linked, or one forgotten because it is gone. */
+  onPanelDataChanged(callback: (entryId: string, data: PanelData) => void): void;
   /** Where each of the app's own folders is, for Settings to show. */
   getFolders(): Promise<Record<FolderName, string>>;
   /** Open one of the app's own folders in the OS file manager, by name; the window never sends a path. */

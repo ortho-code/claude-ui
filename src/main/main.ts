@@ -3,7 +3,7 @@ import './paths';
 import { app, BrowserWindow, ipcMain, Menu, dialog, shell, nativeImage, screen } from 'electron';
 import type { NativeImage } from 'electron';
 import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { findTranscript, listSessions, trashSessions, worktreeExists } from './sessions';
 import { readHistory } from './transcript';
@@ -11,6 +11,7 @@ import { registerTerminalIpc, terminateAll } from './terminal';
 import { registerConfig } from './config';
 import { registerFolders } from './folders';
 import { registerPanelsIpc, stopAllPanels } from './panels';
+import { forgetSessions, registerPanelData } from './paneldata';
 import { logsDir } from './paths';
 import { startLog, closeLog, errorText, log } from './log';
 import { headerLines, logGpuStatus, logProcessFailures, registerRendererLog, watchWindow } from './diagnostics';
@@ -467,6 +468,8 @@ ipcMain.handle('sessions:delete', async (_event, id: string) => {
   await trashSessions([id]);
   await purgeSession(id);
   await clearStatuses([id]);
+  // A row that started it would otherwise lead back to a session that is gone.
+  await forgetSessions([id]);
 });
 ipcMain.handle('dialog:pickFolder', async (): Promise<string | null> => {
   const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
@@ -592,6 +595,21 @@ void app.whenReady().then(async () => {
   registerStatusIpc(() => mainWindow);
   registerSessionsWatcher(() => mainWindow);
   registerConfig(() => mainWindow);
+  // A session exists while a tab holds it (one that has sent nothing yet has no transcript), or while its transcript is on disk: looked at, not taken from the listing's cache, which can still name a file Claude Code's retention has since removed.
+  registerPanelData(
+    () => mainWindow,
+    async (ids) => {
+      const open = new Set(await getOpenSessions());
+      const found = await Promise.all(
+        ids.map(async (id) => {
+          if (open.has(id)) return true;
+          const file = await findTranscript(id);
+          return file !== null && existsSync(file);
+        }),
+      );
+      return new Set(ids.filter((_, index) => found[index]));
+    },
+  );
   registerFolders();
   // Before the window, so the answer is in hand by the time anyone can reach the maximize button.
   learnMaximizeInset();

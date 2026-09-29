@@ -7,6 +7,12 @@
  */
 
 /**
+ * A node's or an entry's id: a slug, lowercase letters, digits, hyphens and underscores, not starting with a hyphen or underscore. What panel state keys on.
+ * Here rather than with the layout's other rules because main holds to it too: a panel's own data file is named after its entry's id.
+ */
+export const ID_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
+
+/**
  * The layout file's `version`. The one shape this build reads; anything else renders a degraded group saying so.
  * Version 1 (`sides.right.groups[].panels[]`) is replaced rather than converted: it had one user, and the validator's "version 1 is not one this build reads" is its migration notice.
  */
@@ -180,6 +186,30 @@ export type PanelRunEvent =
   | { kind: 'truncated' }
   | { kind: 'exit'; code: number | null; signal: string | null; error?: string }
   | { kind: 'stopped'; reason: PanelStopReason };
+
+/**
+ * A session a panel's row started, as that panel remembers it: which item it was about, what to call it, and where the item's link goes.
+ * Written by the APP when the session starts, never by the panel's script, which never learns a session id.
+ */
+export interface PanelLink {
+  /** The item's `key`, as the list gave it. */
+  key: string;
+  /** The item's text when the session started. */
+  label: string;
+  href: string | null;
+  /** When the session started, as an ISO time, for which of several is the latest. */
+  startedAt: string;
+}
+
+/**
+ * What the app keeps for one panel, per machine, in a file of that panel's own (`panel-data/<entry id>.json`): never in `meta.json`, so a panel's data cannot damage the app's, and never in the config folder, which is shared while a session id means something only on this machine.
+ */
+export interface PanelData {
+  /** Session id -> the item it was started from. */
+  sessions: Record<string, PanelLink>;
+  /** Project (repo root) -> the group last picked for a session started from this panel there, or null for none. */
+  lastGroup: Record<string, string | null>;
+}
 
 /** Output beyond this is cut and the process stopped: a panel shows a result, not a log. An `apart` run's stderr counts toward it too. */
 export const PANEL_OUTPUT_CAP = 1024 * 1024;

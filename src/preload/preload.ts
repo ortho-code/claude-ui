@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ClaudeUiApi } from '../shared/types';
-import type { LayoutReport, PanelRunEvent } from '../shared/panels';
+import type { LayoutReport, PanelData, PanelRunEvent } from '../shared/panels';
 
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
@@ -76,6 +76,9 @@ const api: ClaudeUiApi = {
     ipcRenderer.on('panel:run', (_event, entryId: string, token: string, event: PanelRunEvent) =>
       callback(entryId, token, event),
     ),
+  getPanelData: (entryId) => ipcRenderer.invoke('panelData:get', entryId),
+  linkPanelSession: (entryId, sessionId, link, filed) => ipcRenderer.invoke('panelData:link', entryId, sessionId, link, filed),
+  onPanelDataChanged: (callback) => ipcRenderer.on('panelData:changed', (_event, entryId: string, data: PanelData) => callback(entryId, data)),
   getFolders: () => ipcRenderer.invoke('folders:get'),
   openFolder: (name) => ipcRenderer.send('folder:open', name),
   log: (level, area, message) => ipcRenderer.send('log:write', level, area, message),

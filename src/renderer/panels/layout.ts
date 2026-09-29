@@ -1,4 +1,4 @@
-import { LAYOUT_VERSION, type Layout, type LayoutNode, type LayoutReport, type PanelEntry } from '../../shared/panels';
+import { ID_PATTERN, LAYOUT_VERSION, type Layout, type LayoutNode, type LayoutReport, type PanelEntry } from '../../shared/panels';
 import { ICON_NAMES, isIconName, type IconName } from './icons';
 import type { PanelTypeDecl } from './types/command';
 
@@ -10,8 +10,7 @@ import type { PanelTypeDecl } from './types/command';
  * And one rule is stronger than the file: the app's own surfaces (`singleton` types) are placed exactly once whatever it says, so nothing a person writes produces a window without the terminal.
  */
 
-/** A slug: lowercase letters, digits, hyphens and underscores, not starting with a hyphen or underscore. What panel state keys on. */
-export const ID_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
+export { ID_PATTERN };
 
 /** A node's minimum along its parent's axis, in px, when the file gives none. */
 export const DEFAULT_MIN = 120;
