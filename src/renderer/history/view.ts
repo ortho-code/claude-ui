@@ -344,12 +344,17 @@ export class HistoryView {
     const node = document.createElement('article');
     node.className = `exchange${exchange.replaced ? ' replaced' : ''}`;
 
-    const meta = document.createElement('div');
+    // Your request as claude echoes it, on a band, with its number, time and marks at the band's end.
+    const request = document.createElement('div');
+    request.className = 'exchange-request';
+    const text = document.createElement('span');
+    text.className = 'exchange-request-text';
+    text.textContent = exchange.request;
+    const meta = document.createElement('span');
     meta.className = 'exchange-meta';
     const when = document.createElement('span');
     when.textContent = `#${index + 1} · ${exchange.time ? relativeTime(exchange.time) : ''}`;
     if (exchange.time) setTooltip(when, new Date(exchange.time).toLocaleString());
-    meta.append(when);
     const marks = [MARKS[exchange.kind], exchange.replaced ? REPLACED : undefined].filter((m): m is [string, string] => m !== undefined);
     for (const [label, tooltip] of marks) {
       const mark = document.createElement('span');
@@ -358,17 +363,12 @@ export class HistoryView {
       setTooltip(mark, tooltip);
       meta.append(mark);
     }
-    const grow = document.createElement('span');
-    grow.className = 'grow';
     const pin = document.createElement('button');
     pin.type = 'button';
     pin.className = 'icon-btn compact exchange-pin';
     pin.addEventListener('click', () => void this.togglePin(exchange));
-    meta.append(grow, pin);
-
-    const request = document.createElement('div');
-    request.className = 'exchange-request';
-    request.textContent = exchange.request;
+    meta.append(when, pin);
+    request.append(text, meta);
 
     // The reply as claude wrote it: each message its own block, the tool calls where they came between them.
     const reply = document.createElement('div');
@@ -386,7 +386,7 @@ export class HistoryView {
       reply.append(piece);
     }
 
-    node.append(meta, request, reply);
+    node.append(request, reply);
     this.drawPin(node, exchange);
     return node;
   }
