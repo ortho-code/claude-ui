@@ -48,6 +48,25 @@ export interface Where {
  */
 export type PanelStatus = 'wait' | 'fail' | null;
 
+/**
+ * A claude session a panel asks the app for, from one of its items: what it is about, and what the session starts with.
+ * An ASK, not a start: the app opens its own dialog on it, and nothing starts until the person presses Start there.
+ */
+export interface SessionRequest {
+  /** The panel asking, by its title. */
+  from: string;
+  /** The item's key, which the session is remembered by. */
+  key: string;
+  /** The item's text. */
+  label: string;
+  href: string | null;
+  /** The session's name, or null for the app's own label. */
+  name: string | null;
+  prompt: string;
+  /** Where the panel last ran, so the dialog can offer the project that folder is in; null when it has not run. */
+  dir: string | null;
+}
+
 /** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw — the panel's side of the conversation with the layout. */
 export interface PanelHost {
   where(): Where;
@@ -65,6 +84,8 @@ export interface PanelHost {
   setProblems(problems: string[]): void;
   /** Sentences about the panel that do not stop it running, shown in its group's note line. */
   setNotes(notes: string[]): void;
+  /** Ask the app for a session from one of the panel's items (see `SessionRequest`). */
+  startSession(request: SessionRequest): void;
 }
 
 export interface MountedPanel {

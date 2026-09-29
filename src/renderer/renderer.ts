@@ -18,6 +18,7 @@ import {
   inView,
   datePresetRange,
   projectsForSwitcher,
+  projectFor,
   orderAsTabs,
   unstartableReason,
   projectRootExists,
@@ -34,6 +35,8 @@ import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { installTooltips, setTooltip } from './tooltip';
 import { caretIcon, chevronIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
 import { listen, runModal } from './modal';
+import { askForSession } from './sessiondialog';
+import type { SessionRequest } from './panels/types/command';
 import { flash } from './flash';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
@@ -2613,13 +2616,50 @@ function untitledLabel(cwd: string): string {
 }
 
 // Start a brand-new claude session in `cwd`, under an id this app mints; the sidebar row is that same session, filled in once claude writes its transcript.
-async function openNewSession(cwd: string, joinGroupId?: string): Promise<void> {
-  const session = newSession(crypto.randomUUID(), { cwd, repoRoot: cwd, title: untitledLabel(cwd) });
+// A panel's row starting one passes a name and a first prompt, and mints the id itself, so it can remember the session before the tab exists.
+async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<TabLaunch, 'name' | 'prompt'> = {}, id = crypto.randomUUID()): Promise<void> {
+  const session = newSession(id, { cwd, repoRoot: cwd, title: launch.name || untitledLabel(cwd) });
   // Filed BEFORE the tab exists, so the row's first paint is already inside the group. An ordinary membership write: the id is the session's real one, so there is nothing to correct afterwards.
   if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
   ensureProjectVisible(session.repoRoot);
-  await createTab(session);
+  await createTab(session, { name: launch.name || undefined, prompt: launch.prompt || undefined });
   renderList();
+}
+
+/**
+ * A panel's item asks for a session: the app's dialog says where it goes and what it starts with, and nothing starts until Start.
+ * The projects offered are the switcher's, in its order and without the ones whose folder is gone, since a session cannot start there; the one the panel's folder is in comes first, and that folder is offered itself when it is in no project yet.
+ * The session is remembered by the panel under the id minted here BEFORE its tab exists, so the row can lead back to it from the start; then it starts down the same path as any new session.
+ */
+async function startSessionFromPanel(entryKey: string, request: SessionRequest): Promise<void> {
+  const known = projectsForSwitcher(switcherPool(visibleSessions()), statuses, acked, projectNames, projectOrder).projects.filter((project) => project.rootExists);
+  const roots = known.map((project) => project.repoRoot);
+  const found = request.dir ? projectFor(roots, request.dir) : null;
+  const preset = found ?? request.dir ?? activeProject ?? roots[0] ?? null;
+  if (preset === null) {
+    showToast('There is no project to start a session in yet.');
+    return;
+  }
+  const choices = roots.includes(preset) ? roots : [preset, ...roots];
+  const groupsIn = (root: string): { id: string; name: string }[] => groupState.groups.filter((group) => group.repoRoot === root).map(({ id, name }) => ({ id, name }));
+  const data = await window.claudeUi.getPanelData(entryKey);
+  const answer = await askForSession({
+    from: request.from,
+    about: request.label,
+    projects: choices.map((root) => ({ root, name: projName(root), groups: groupsIn(root) })),
+    project: preset,
+    // The last group picked from this panel in that project, while it still exists.
+    groupFor: (root) => {
+      const last = data.lastGroup[root] ?? null;
+      return last !== null && groupsIn(root).some((group) => group.id === last) ? last : null;
+    },
+    name: request.name ?? '',
+    prompt: request.prompt,
+  });
+  if (!answer) return;
+  const id = crypto.randomUUID();
+  await window.claudeUi.linkPanelSession(entryKey, id, { key: request.key, label: request.label, href: request.href }, { repoRoot: answer.root, groupId: answer.groupId });
+  await openNewSession(answer.root, answer.groupId ?? undefined, { name: answer.name.trim(), prompt: answer.prompt.trim() }, id);
 }
 
 // Start a new session in a fresh git worktree of `repoRoot`: `claude -w [name]`.
@@ -3625,6 +3665,7 @@ initTree({
   showToast,
   hideToast,
   persist: persistUi,
+  startSession: (entryKey, request) => void startSessionFromPanel(entryKey, request),
 });
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {

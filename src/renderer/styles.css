@@ -3092,6 +3092,13 @@ button:focus:not(:focus-visible) {
   padding-left: 14px;
 }
 
+/* What a row offers, at its end: a plain text button at the meta line's size, so a row with one is no taller than a row without. */
+.list-row .list-action {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  font-size: var(--text-meta);
+}
+
 /* A row with no link has nothing for a click to do, so no pointer claims one (its hover is .link's only). */
 .list-row:not(.link) {
   cursor: default;

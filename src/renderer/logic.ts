@@ -293,6 +293,19 @@ function rollUpNudge(
   return waiting ? 'waiting' : idle ? 'idle' : busy ? 'busy' : null;
 }
 
+/**
+ * The project a folder belongs to, of the ones given: the one it is, else the deepest one it sits under; null for none.
+ * How a panel that runs in a fixed folder finds the project a session it starts belongs in.
+ */
+export function projectFor(roots: readonly string[], dir: string): string | null {
+  let best: string | null = null;
+  for (const root of roots) {
+    const holds = dir === root || dir.startsWith(`${root}/`);
+    if (holds && (best === null || root.length > best.length)) best = root;
+  }
+  return best;
+}
+
 // Build the project-switcher model from the VISIBLE tips (one per conversation, already filtered to what the sidebar shows).
 // Projects order by recency: the input is recency-sorted, so a project takes the position of its most-recent session (first appearance).
 // Per project: session count + the rolled-up nudge badge; plus an "All" aggregate over everything passed.

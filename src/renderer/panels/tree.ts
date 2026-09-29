@@ -20,7 +20,7 @@ import {
 import { dragTo, flexFor, keptSizes, snapshot, type FlexChild } from './sizes';
 import { claudeType, sessionsType } from './types/builtin';
 import { folderTypes } from './types/folder';
-import { commandType, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type Where } from './types/command';
+import { commandType, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type SessionRequest, type Where } from './types/command';
 import { terminalType } from './types/terminal';
 
 /**
@@ -38,12 +38,14 @@ const BUILTIN_TYPES: Record<string, PanelType> = { sessions: sessionsType, claud
 /** Every type the layout can place: the built-ins, and the config folder's as of its last read (types/folder.ts). */
 let types = BUILTIN_TYPES;
 
-/** What the tree needs from the renderer: where a panel would run, the toast, and the view-state write. */
+/** What the tree needs from the renderer: where a panel would run, the toast, the view-state write, and starting a session a panel asks for. */
 export interface TreeHost {
   where(): Where;
   showToast(message: string, sticky?: boolean): void;
   hideToast(): void;
   persist(): void;
+  /** A panel's item asks for a session; `entryKey` is the panel's, which the session is remembered under. */
+  startSession(entryKey: string, request: SessionRequest): void;
 }
 
 /** A panel on screen, and the marks it reports through — made once with it, so a rebuilt header or rail shows the same marks rather than orphaning them. */
@@ -511,6 +513,7 @@ function mountedFor(slot: PanelSlot): Mounted {
     },
     setProblems: (problems) => report('problems', problems),
     setNotes: (notes) => report('notes', notes),
+    startSession: (request) => host.startSession(slot.key, request),
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());

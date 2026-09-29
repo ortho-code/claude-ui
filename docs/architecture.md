@@ -655,6 +655,20 @@ Before the first run has ended it says it is waiting, which is neither state.
 The count on a rail icon sits inside the button, under the icon on a vertical rail and beside it on a horizontal one: a corner badge was tried first, and at 3x even "9+" covered the whole icon on a 24px button, while the rail clips anything past its 28px.
 The icon's tooltip and label say the count whole.
 
+**A row can ask for a session, and only ask.** A `session` action is a button on the row; pressing it hands the app a request (the item, the prompt, the name, the folder the panel last ran in), and the app opens its own dialog on it: the project, the group, the name and the first prompt, all changeable, and nothing starts before Start.
+That dialog is the trust line for a shared type: a prompt runs with the person's permissions, so what a panel from anyone asks claude to do is always read first.
+The projects offered are the switcher's, in its order and without those whose folder is gone; the one the panel's folder is in comes first, found as the deepest project that folder sits under (`projectFor`), and the folder itself is offered when it is in no project yet.
+The group comes first as the one last picked from that panel in that project, while it still exists; making one is left to the session list, since the app never makes a group nobody asked for.
+Start goes down the same path as any new session (`openNewSession`), with the name as `--name` and the prompt as claude's positional first prompt — placed LAST, after `--` and after the user's own flags, since a flag taking several values swallows a prompt after it and a prompt starting with `-` reads as a flag (both measured against claude before this was built).
+
+**Which session a row started is the panel's data, kept by the app.** One file per entry, `panel-data/<entry id>.json` in the app's data directory, with the sessions its rows started (by session id: the item's key, its text, its link, when) and the group last picked per project.
+Not in `meta.json`, so a panel's data cannot damage the app's, and not in the config folder, which is what gets shared while a session id means something only on this machine.
+The app writes it, never the script, which never learns a session id: the id is minted before the tab exists and the link written first, so the row can lead back to the session from the start.
+A file that does not parse, or is of another version, is kept beside itself rather than overwritten, and an entry that is not sound is dropped and logged.
+A link to a session that is gone is forgotten at the file's next write, whatever removed the session — the app's own delete, Claude Code's transcript retention (`cleanupPeriodDays`), or a hand — and at once when the app itself deletes it.
+"Gone" is the app's own measure of a session existing: a transcript on disk, looked at rather than taken from the listing's cache, or a tab holding it, since a session that has sent nothing yet has no transcript and lives only in its tab. The session being linked at that moment has neither yet, so it is kept.
+Not by a link's age, which was the other way considered (2026-09-30): a session started long ago may have been resumed yesterday, and a retention period counts from something the link does not know. A check that fails forgets nothing.
+
 ### Panel state
 
 Where the tree was left lives in `UiState.panelState`, per machine, and never in the layout file, which is what may be shared: the dragged sizes per split and child, the folded groups, and the panel picked in each group, all keyed by the file's ids.

@@ -49,10 +49,11 @@ Done:
 - A history of each session, from its transcript and laid out as claude shows it: every request, message and tool call since the session began, compactions included, with pins for the ones to come back to.
   A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
 - Panel types of your own, from a folder in the config folder: a script prints a list and the app draws it, with links, sections that fold, and a count on the panel's icon kept current on an interval. See [Panel types of your own](#panel-types-of-your-own).
+  A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick.
 
 Next:
 
-- Starting a Claude session from a row of a list panel, such as a review of the PR it names, in the project and group you pick; and the row leading back to the session it started.
+- A list panel's row leading back to the session it started, with that session's status on the row, and continuing it for a second look.
 - Panel types that draw themselves: a page of your own in a sandboxed frame, fed by its script, asking the app for what it cannot do itself, such as opening a link or starting a session.
 
 - Letting you answer when Claude asks something on its way out — whether to keep a worktree, say — instead of the tab closing over the question.
@@ -214,6 +215,9 @@ The script prints one JSON object on stdout, and nothing else; what it writes on
 ```
 
 Each item needs a `key`, unique in the list, and a `text`; `detail` is a second line, `href` an http or https link a click opens in your browser, and `tone` is `normal`, `attention`, `muted` or `danger`.
+An item can also offer `actions`. `{ "label": "Review", "session": { "prompt": "/review 1", "name": "Review #1" } }` puts a Review button on the row, which asks for a Claude session that starts with that prompt: it opens the app's own dialog, where you pick the project (the one the panel runs in comes first) and the group (the one you last picked from that panel), and can change the name and the prompt. Nothing starts until you press Start.
+The app remembers which session a row started, on this machine only: in `panel-data/`, beside the app's own data and apart from it, never in the config folder.
+A session that is gone — deleted in the app, cleaned up by Claude Code's own transcript retention, or removed by hand — is forgotten there the next time that panel's file is written, and at once when you delete it in the app.
 A section with a `title` has a heading that folds it, and `shut` starts it folded; `empty` is what it says with no items.
 `badge` is a count shown on the panel's icon and beside its title, and `notes` go in the line under the panel.
 A field the app does not know is ignored, so a script written for a later version still shows here.
@@ -221,7 +225,7 @@ A field the app does not know is ignored, so a script written for a later versio
 The panel runs its script when you first show it, on Refresh, when you switch project or tab if its folder moves, and on its interval even while it is out of sight, so the count on its icon stays current.
 A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why, and without one the panel says it is unavailable, quoting the end of what the script wrote on stderr.
 A mistake in `panel.json` is named where each panel of the type would be, and a folder named like a built-in type is not read, with a note saying so.
-A type you were sent runs as you, the way a script in `scripts/` does, so read it before you drop it in; everything a panel does beyond running its script, such as opening a link, is something you press.
+A type you were sent runs as you, the way a script in `scripts/` does, so read it before you drop it in; everything a panel does beyond running its script, such as opening a link or starting a session, is something you press.
 
 ## Install a build
 

@@ -22,6 +22,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - A bar beside the terminal marking every request, reply and pin, and lighting what is in view; pressing on it opens the history at that point and holding the button scrolls it with the pointer, and hovering it opens a list that the wheel steps through one entry at a time.
 - Pinning a request or one of claude's messages in the history, with its star; the pin lasts, and shows in both sessions of a fork.
 - Panel types of your own: a folder under `types/` in the config folder, with a `panel.json` and a script that prints a list, is a type of that name, drawn with links, sections that fold and a count on its icon, and run again on an interval even out of sight.
+- A row of such a panel can start a Claude session with a first prompt, in the project and group you pick in the app's own dialog, which shows what would start before anything does.
 
 ### Changed
 

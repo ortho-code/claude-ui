@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { SessionSummary } from '../shared/types';
 import {
+  projectFor,
   hasVisibleOutput,
   statusLabel,
   stopControlState,
@@ -290,6 +291,22 @@ describe('sessionPasses', () => {
     const activity = Date.parse('2026-07-28T10:00:00.000Z');
     expect(sessionPasses(session(), { ...base, dateFrom: activity + 1 })).toBe(false);
     expect(sessionPasses(session(), { ...base, dateFrom: activity - 1 })).toBe(true);
+  });
+});
+
+describe('projectFor', () => {
+  const roots = ['/home/u/dev/scienta', '/home/u/dev/scienta/tools/dev-aws', '/home/u/dev/other'];
+
+  it('finds the project a folder is, or the deepest one it sits under', () => {
+    expect(projectFor(roots, '/home/u/dev/scienta')).toBe('/home/u/dev/scienta');
+    expect(projectFor(roots, '/home/u/dev/scienta/packages/api')).toBe('/home/u/dev/scienta');
+    expect(projectFor(roots, '/home/u/dev/scienta/tools/dev-aws/src')).toBe('/home/u/dev/scienta/tools/dev-aws');
+  });
+
+  it('does not take a folder whose name only starts the same, and finds nothing for a folder outside every project', () => {
+    expect(projectFor(roots, '/home/u/dev/scienta-old')).toBeNull();
+    expect(projectFor(roots, '/tmp')).toBeNull();
+    expect(projectFor([], '/home/u/dev/scienta')).toBeNull();
   });
 });
 

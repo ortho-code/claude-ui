@@ -128,6 +128,34 @@
         </div>
       </div>
     </div>
+    <!-- A session a panel's row asks for: the row fills it in, and nothing starts until Start, so what a shared panel asks for is always seen first. Run by sessiondialog.ts. -->
+    <div id="session-overlay" class="overlay" hidden>
+      <div id="session-dialog" class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="session-title">
+        <p id="session-title" class="dialog-title">Start a session</p>
+        <p id="session-about" class="dialog-detail"></p>
+        <div class="dialog-section">
+          <label class="dialog-label" for="session-project">Project</label>
+          <select id="session-project" class="dialog-field"></select>
+        </div>
+        <div class="dialog-section">
+          <label class="dialog-label" for="session-group">Group</label>
+          <select id="session-group" class="dialog-field"></select>
+        </div>
+        <div class="dialog-section">
+          <label class="dialog-label" for="session-name">Name</label>
+          <input id="session-name" class="dialog-field" type="text" spellcheck="false" autocomplete="off" />
+        </div>
+        <div class="dialog-section">
+          <label class="dialog-label" for="session-prompt">First prompt</label>
+          <p class="dialog-detail">Sent to claude as the session starts. Ctrl+Enter starts it.</p>
+          <textarea id="session-prompt" class="dialog-field" rows="3" spellcheck="false"></textarea>
+        </div>
+        <div class="dialog-actions">
+          <button id="session-cancel" type="button">Cancel</button>
+          <button id="session-ok" type="button" class="primary">Start</button>
+        </div>
+      </div>
+    </div>
     <!-- App preferences. One section for now; the shape is per-section so a second one (a read-only
          view of the user's own Claude config) is an addition rather than a rework. -->
     <div id="settings-overlay" class="overlay" hidden>
