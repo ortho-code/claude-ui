@@ -193,18 +193,25 @@ The wheel over a running claude stays claude's, and scrolls claude's own view.
 Inside, Ctrl+Shift+↑ and Ctrl+Shift+↓ step to the previous and next request, and ↓ past the last one goes back to live; previous and next measure from the request line, which is where a jump puts the view.
 Both are caught on the window in the capture phase, before xterm, which would otherwise send them to claude; app shortcuts take Ctrl+Shift because a bare Ctrl+letter belongs to the terminal.
 
-**It covers the upper two-thirds of the pane, and the lower third stays claude**, live and at its real size.
-The terminal is never resized for it, so claude never redraws, and the part of claude still in view is the way back: a click there returns to it, and reaches claude as well.
+**It is a drawer from the bar**: it slides in from the right edge, beside the bar it was opened from, over about two-thirds of the pane — never narrower than 560px, and the whole pane when the pane is narrower than that.
+Claude stays in view on the left, live and at its real size under a scrim that dims it; the terminal is never resized for it, so claude never redraws, and a click on the dimmed claude is the way back.
+The scrim takes that click rather than passing it to claude, as a drawer's does.
 **Getting out is otherwise one labelled control**, "Back to live", in the history's head and always in view, with Esc as its key; the focus goes back to the terminal.
 The first versions covered the whole pane, and "how do I get back?" was the question they left.
+The next took the upper two-thirds and left the lower third to claude, where a click went back and reached claude as well; in use it read as a split panel rather than something laid over claude, so it was replaced by the drawer.
 
 That is the second version, and the first is worth knowing because it was tried and reversed after use.
 It took the wheel: xterm asks `attachCustomWheelEventHandler` before it sends a mouse report or turns the wheel into arrow keys, so answering false keeps the wheel from claude, and a wheel up over the alternate screen handed the pane to the history, scrolling on past its end handing it back.
 It read well as "scrollback that remembers everything", but in use a scroll that turned into another mode was a surprise, claude's own wheel scrolling was gone, and the point of the app is to work in a session, not to read it.
 The exit was a floating pill at the foot and End, and was not found.
 
-The history is ONE view, for the active tab, rebuilt when the tab changes, and a tab switch shows the new tab live.
+The history is ONE view, for the active tab, rebuilt when the tab changes.
+**Each tab keeps its own state**: leaving a tab with its history open remembers where — the request at the top and how far past it, or the end, where it keeps following what claude adds — and coming back reopens it there once it has been read again; a tab left live comes back live.
+Coming back shows the tab live until that read is done, since there is nothing to draw before it.
+The memory lasts as long as the tab and the run, not across a restart, and it is kept per session, so a `/clear`, which starts a new session in the same tab, closes the history.
+Switching tabs always closed the history at first, which lost your place in it whenever you looked at another tab.
 It is kept laid out beneath the live terminal — hidden by visibility, never display — because the bar beside it places its marks from the history's measured heights, and a node with `display: none` measures as nothing.
+Its width is the drawer's over a live tab and the whole pane's on a cold one, so it re-measures the marks whenever its own size changes, since every width rewraps the replies.
 
 **A tab with no claude behind it** that is on screen, the one restored at launch or one refused a start, shows the pane's sentence — "“…” isn't running." — with a Resume button, which starts it as a click on its tab does, and a Show history button.
 The history then stands under the same sentence, one function for both, with Resume and Close; there is no "Back to live", since there is no live view.
@@ -238,21 +245,27 @@ The window reads on `sessions:changed` and on the active session's status events
 
 ### What it looks like
 
-**Like claude's own view of the session**, because the history is a look back at that same view: the terminal's background and type, your request as claude echoes it — `> …` on a tinted band, with its number, time and marks at the band's end — and each of claude's messages, and each tool call, behind the dot claude marks them with.
+**Like claude's own view of the session**, because the history is a look back at that same view: the terminal's background, type and text colour — one token, `--terminal-fg`, which xterm reads back as well — and its tight line height; your request as claude echoes it, `> …` on a tinted band, with its number, time and marks at the band's end; and each of claude's messages, and each tool call, behind the dot claude marks them with.
+A request's later lines start under its first line's text, not under the `>`, as claude indents them.
 So the reader keeps a reply as `parts`, in the order claude wrote them: every message its own part, every tool call a one-line part where it came.
 The first version joined the text into one reply and folded the tools to a count, which made consecutive messages one block and put every tool call in the wrong place.
+A tool call is drawn as claude draws one, a green dot, the tool's name in bold and what it acted on in grey; drawn like a message, with the same dot and ink, the two were too much alike to tell apart.
 The dot is drawn in CSS rather than claude's `⏺` glyph, since the app draws no mark from a font.
 Code is told apart as claude tells it apart once everything is in the terminal's type: inline in a colour, a block by a rule down its side.
 The history has no scrollbar of its own: the bar beside it is its scrollbar.
 
 ### Pins
 
-The star sits at the start of the request line, where the eye starts reading; it shows on hover and always once pinned, and a pinned request has an accent edge, as its tick on the bar does.
-What is shown is a labelled switch in the head, `All 54 · Pinned 3`, in the filters' pill: an unlabelled star did not say it was a filter.
+A request and each of claude's messages can be pinned.
+The request's star sits at the start of its line, where the eye starts reading; a message's stands where claude's dot is, in place of the dot.
+Both show on hover and always once pinned; a pinned request has an accent edge, as its tick on the bar does, and a pinned message an accent line in the margin beside it.
+On the bar a pinned reply is in the accent as a pinned request is, and in the loupe it carries the star.
+What is shown is a labelled switch in the head, `All 54 · Pinned 3`, in the filters' pill: an unlabelled star did not say it was a filter; the count is of pins, and Pinned shows every exchange holding one.
 
-A request is pinned by its uuid, which a fork copies, so a pin shows in both siblings.
-Each pin keeps the session it was made in, the opening of the request and its time, so a list of every pin can be drawn from `meta.json` alone.
-Deleting a session leaves its request pins: a sibling may still carry the request, and telling which pins nothing opens any more takes every transcript read, which is a job for a list of every pin rather than for a delete.
+A request is pinned by its record's uuid, and a message by its assistant record's uuid and its place among that record's messages; a fork copies uuids, so a pin shows in both siblings.
+Each pin keeps its kind, the session it was made in, the opening of the text and its time, so a list of every pin can be drawn from `meta.json` alone.
+They are stored as `historyPins`; request pins made before messages could be pinned were stored as `requestPins`, which is still read, and written back as `historyPins` the next time `meta.json` is saved.
+Deleting a session leaves its pins: a sibling may still carry the request, and telling which pins nothing opens any more takes every transcript read, which is a job for a list of every pin rather than for a delete.
 
 ### A reply is untrusted text
 
