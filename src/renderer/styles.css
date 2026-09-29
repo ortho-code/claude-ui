@@ -2579,7 +2579,8 @@ button:focus:not(:focus-visible) {
   font-weight: 600;
 }
 
-/* Everything is already in the terminal's type, so code is told apart as claude tells it apart: inline in a colour, a block by a rule down its side. */
+/* Everything is already in the terminal's type, so code is told apart by colour and by place: inline in the accent, a block on a panel of its own.
+   A block had a rule down its side at first, which is how a quote is drawn, and a block read as a quote. */
 .exchange-text code {
   font-family: inherit;
   font-size: inherit;
@@ -2589,10 +2590,14 @@ button:focus:not(:focus-visible) {
   color: var(--accent);
 }
 
+/* A step lighter than the history's background, and scrolled sideways rather than wrapped, so a line of code stays one line. */
 .exchange-text pre {
-  padding: 2px 0 2px 12px;
-  border-left: 2px solid var(--border);
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
   overflow-x: auto;
+  overflow-wrap: normal;
 }
 
 .exchange-text table {
@@ -2606,10 +2611,12 @@ button:focus:not(:focus-visible) {
   text-align: left;
 }
 
+/* A quote: a rule down its side, in the accent's own muted tint so it reads as a mark rather than a border, and its words in italics, as quoted words are set. */
 .exchange-text blockquote {
-  padding-left: 10px;
-  border-left: 2px solid var(--border);
+  padding: 1px 0 1px 12px;
+  border-left: 3px solid var(--active);
   color: var(--muted);
+  font-style: italic;
 }
 
 .exchange-text a {
