@@ -4,6 +4,7 @@ import type { PanelSlot } from '../layout';
 import type { IconName } from '../icons';
 import { stripAnsi, splitPendingEscape } from '../../ansi';
 import { CWD_OPTION, checkOptions, isFixedPath, optionsOf, type OptionsDecl } from '../options';
+import { listenForRuns } from '../runs';
 
 /**
  * The `command` panel type: runs a command line or a script and shows what it printed.
@@ -250,10 +251,6 @@ export class RunGate {
   }
 }
 
-/** The mounted command panels by entry key, for the one run-event subscription below to dispatch to. */
-const mountedByKey = new Map<string, CommandPanel>();
-let subscribed = false;
-
 class CommandPanel implements MountedPanel {
   readonly el = document.createElement('div');
   private readonly output = document.createElement('pre');
@@ -267,6 +264,7 @@ class CommandPanel implements MountedPanel {
   /** Counts the runs asked for, so one whose check is overtaken by a newer ask drops out rather than starting after it. */
   private asked = 0;
   private disposed = false;
+  private readonly stopListening: () => void;
 
   constructor(
     private readonly slot: PanelSlot,
@@ -278,11 +276,7 @@ class CommandPanel implements MountedPanel {
     this.placeholder.textContent = NO_CONTEXT;
     this.placeholder.hidden = true;
     this.el.append(this.output, this.placeholder);
-    mountedByKey.set(slot.key, this);
-    if (!subscribed) {
-      subscribed = true;
-      window.claudeUi.onPanelRun((entryId, token, event) => mountedByKey.get(entryId)?.handle(token, event));
-    }
+    this.stopListening = listenForRuns(slot.key, (token, event) => this.handle(token, event));
     // Keyed by where the run would go, so a tab or project change that lands on the same place does not run again, and a fixed `cwd` never does.
     this.gate = new RunGate(
       () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
@@ -319,7 +313,7 @@ class CommandPanel implements MountedPanel {
     this.disposed = true;
     if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
     this.token = null;
-    if (mountedByKey.get(this.slot.key) === this) mountedByKey.delete(this.slot.key);
+    this.stopListening();
   }
 
   /** Check the options against the selection as it is now, tell the host what is wrong with them, and hand back where the panel would run. */
