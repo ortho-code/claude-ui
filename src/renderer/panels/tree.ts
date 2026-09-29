@@ -1,4 +1,5 @@
 import type { LayoutReport, PanelState } from '../../shared/panels';
+import { element } from '../dom';
 import { installSplitResizer } from '../resizer';
 import { chevronIcon, strokeIcon, type Direction } from '../svg';
 import { setTooltip } from '../tooltip';
@@ -543,10 +544,4 @@ function notesLine(notes: string[]): HTMLElement {
     box.appendChild(line);
   }
   return box;
-}
-
-function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = ''): HTMLElementTagNameMap[K] {
-  const el = document.createElement(tag);
-  if (className) el.className = className;
-  return el;
 }
