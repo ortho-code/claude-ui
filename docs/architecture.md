@@ -306,6 +306,7 @@ The bar at the terminal area's edge is the history's scrollbar, there while clau
 The band alone, a faint wash on a 14px bar, was not seen.
 There is no band while live: the wheel scrolls claude's own view there, and where claude is scrolled is not something the app can know, so any band would be a guess.
 It is a column of its own rather than an overlay, so it never covers claude's text; the terminal is that much narrower, and the fit hands the pty the new width.
+**A request is a target of about 9px** around its tick — 4px above, 5px below — where it was about 5 and hard to hit, and its tick is drawn a pixel taller; its reply has the rest, down to the next request, and two requests closer than that split the room between them.
 
 **Pressing on it is a scrollbar's**: the view goes to that point at once, opening the history if it is closed, and follows the pointer until the button is let go; pressed on the band, it holds the band where it was taken instead of jumping, as a thumb.
 It follows the pointer anywhere on the window until the button is let go, since a hand's drag drifts sideways off a 14px bar, and from any pointer, since WSLg sends a held button's moves as another one (see Traps).

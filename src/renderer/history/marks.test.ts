@@ -20,17 +20,25 @@ describe('entryAt', () => {
     expect(entryAt(marks, 60)).toEqual({ k: 1, part: 'reply' });
   });
 
-  it('takes the next request from just above its tick', () => {
+  it('takes the next request from a few pixels above its tick', () => {
     expect(entryAt(marks, 38.5)).toEqual({ k: 1, part: 'request' });
+    expect(entryAt(marks, 36.5)).toEqual({ k: 1, part: 'request' });
+    expect(entryAt(marks, 35.5)).toEqual({ k: 0, part: 'reply' });
   });
 
   it('is the request of an exchange with no reply, all the way down', () => {
     expect(entryAt(marks, 95)).toEqual({ k: 2, part: 'request' });
   });
 
-  it('keeps the tick 3px wide even when the reply starts at once', () => {
-    expect(entryAt([{ k: 0, request: 0, reply: 0 }], 2)).toEqual({ k: 0, part: 'request' });
-    expect(entryAt([{ k: 0, request: 0, reply: 0 }], 4)).toEqual({ k: 0, part: 'reply' });
+  it('keeps the request 5px below its tick even when the reply starts at once', () => {
+    expect(entryAt([{ k: 0, request: 0, reply: 0 }], 5)).toEqual({ k: 0, part: 'request' });
+    expect(entryAt([{ k: 0, request: 0, reply: 0 }], 6)).toEqual({ k: 0, part: 'reply' });
+  });
+
+  it('splits the room between two requests closer than a target', () => {
+    const close: MarkAt[] = [{ k: 0, request: 0, reply: 1 }, { k: 1, request: 6, reply: 7 }];
+    expect(entryAt(close, 1)).toEqual({ k: 0, part: 'request' });
+    expect(entryAt(close, 3)).toEqual({ k: 1, part: 'request' });
   });
 
   it('keeps the index of an exchange left off the bar', () => {

@@ -2658,11 +2658,12 @@ button:focus:not(:focus-visible) {
   border-radius: 1px;
 }
 
+/* A pixel taller than it was, with a target about 9px around it (marks.ts): a request was hard to hit. */
 .mark-request {
   left: 2px;
   right: 2px;
-  height: 2px;
-  margin-top: -1px;
+  height: 3px;
+  margin-top: -1.5px;
   background: var(--text);
   opacity: 0.5;
 }
@@ -2674,10 +2675,10 @@ button:focus:not(:focus-visible) {
   opacity: 0.35;
 }
 
-/* Over DENSE marks: a pixel thin and faint, so a long session reads as a density. */
+/* Over DENSE marks: thinner and faint, so a long session reads as a density. */
 .history-bar.dense .mark-request {
-  height: 1px;
-  margin-top: 0;
+  height: 2px;
+  margin-top: -1px;
   opacity: 0.35;
 }
 
@@ -2708,8 +2709,8 @@ button:focus:not(:focus-visible) {
 .mark-request.pinned {
   left: 0;
   right: 0;
-  height: 3px;
-  margin-top: -1.5px;
+  height: 4px;
+  margin-top: -2px;
   background: var(--accent);
   opacity: 1;
   z-index: 1;
@@ -2724,8 +2725,8 @@ button:focus:not(:focus-visible) {
 .mark-request.hot {
   left: -1px;
   right: -1px;
-  height: 3px;
-  margin-top: -1.5px;
+  height: 4px;
+  margin-top: -2px;
   background: #fff;
   opacity: 1;
   z-index: 3;

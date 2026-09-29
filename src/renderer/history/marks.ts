@@ -15,9 +15,13 @@ export interface MarkAt {
   reply: number | null;
 }
 
+/** A request's target on the bar, around its tick: this far above it and this far below, where the next request leaves room. About 9px, where it was 5 and hard to hit; its reply has the rest, down to the next request. */
+const REQUEST_ABOVE = 4;
+const REQUEST_BELOW = 5;
+
 /**
  * What the pointer at `y` is on: the last mark that starts at or above it, as its request when the pointer is near the tick, as its reply once it is on the reply's bar.
- * A request whose tick lies within 2px below the pointer wins, so a tick can be hit from just above it.
+ * A request whose tick lies within `REQUEST_ABOVE` below the pointer wins, so a tick can be hit from just above it.
  */
 export function entryAt(marks: readonly MarkAt[], y: number): Entry | null {
   if (marks.length === 0) return null;
@@ -31,9 +35,9 @@ export function entryAt(marks: readonly MarkAt[], y: number): Entry | null {
   const mark = marks[lo]!;
   const next = marks[lo + 1];
   if (y < mark.request) return { k: mark.k, part: 'request' };
-  if (next && next.request - y < 2) return { k: next.k, part: 'request' };
+  if (next && next.request - y < REQUEST_ABOVE) return { k: next.k, part: 'request' };
   const reply = mark.reply;
-  if (reply === null || y <= Math.max(reply, mark.request + 3)) return { k: mark.k, part: 'request' };
+  if (reply === null || y <= Math.max(reply, mark.request + REQUEST_BELOW)) return { k: mark.k, part: 'request' };
   return { k: mark.k, part: 'reply' };
 }
 
