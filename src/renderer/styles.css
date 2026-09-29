@@ -2173,6 +2173,8 @@ button:focus:not(:focus-visible) {
   flex-direction: column;
   background: var(--bg);
   visibility: hidden;
+  /* The app sets its type per component and the body sets none, so without this the history fell to the browser's 16px and read louder than everything around it. */
+  font-size: var(--text-body);
 }
 
 .history.shown {
@@ -2211,6 +2213,11 @@ button:focus:not(:focus-visible) {
   min-height: 0;
   overflow-y: auto;
   padding: 8px 16px 16px;
+}
+
+/* It takes the focus so its keys work, but it is not a control: the browser's ring around the whole history was the loudest thing on screen. */
+.history-scroll:focus {
+  outline: none;
 }
 
 .history-empty,
@@ -2324,9 +2331,11 @@ button:focus:not(:focus-visible) {
   color: var(--muted);
 }
 
+/* A step below the request, so what you asked is the anchor and claude's answer reads beneath it. */
 .exchange-reply {
   padding: 6px 2px 0 10px;
-  line-height: 1.5;
+  font-size: var(--text-meta);
+  line-height: 1.55;
   overflow-wrap: anywhere;
 }
 
@@ -2380,12 +2389,18 @@ button:focus:not(:focus-visible) {
 .exchange-text h5,
 .exchange-text h6 {
   margin: 10px 0 6px;
-  font-size: var(--text-title);
+  font-size: inherit;
+  font-weight: 600;
+}
+
+/* Claude opens most paragraphs with a bold lead-in; at the default 700 a reply was a wall of bold. */
+.exchange-text strong {
+  font-weight: 600;
 }
 
 .exchange-text code {
   font-family: var(--font-mono);
-  font-size: var(--text-meta);
+  font-size: var(--text-small);
 }
 
 .exchange-text :not(pre) > code {
@@ -2395,7 +2410,7 @@ button:focus:not(:focus-visible) {
 }
 
 .exchange-text pre {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: var(--radius-control);
   background: var(--terminal-bg);
   overflow-x: auto;
