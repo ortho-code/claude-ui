@@ -417,6 +417,16 @@ async function createWindow(): Promise<void> {
   }
   trackBounds(mainWindow);
   watchWindow(mainWindow);
+  // Nothing may take this window anywhere else, or open another: a page loaded here would get the preload's bridge, and the bridge runs commands.
+  // Links leave through `shell:openExternal` instead — the terminal's and the history's. The app never navigates on purpose, and `loadFile` below is programmatic, which this event does not see.
+  mainWindow.webContents.on('will-navigate', (event) => {
+    event.preventDefault();
+    log('warn', 'window', 'refused a navigation away from the app');
+  });
+  mainWindow.webContents.setWindowOpenHandler(() => {
+    log('warn', 'window', 'refused to open a new window');
+    return { action: 'deny' };
+  });
 
   void mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   mainWindow.webContents.on('did-finish-load', () => {
