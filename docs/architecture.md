@@ -213,6 +213,13 @@ Switching tabs always closed the history at first, which lost your place in it w
 It is kept laid out beneath the live terminal — hidden by visibility, never display — because the bar beside it places its marks from the history's measured heights, and a node with `display: none` measures as nothing.
 Its width is the drawer's over a live tab and the whole pane's on a cold one, so it re-measures the marks whenever its own size changes, since every width rewraps the replies.
 
+**It is drawn in slices**, with the window free between them, since it is drawn on every switch to a tab, open or not.
+Drawn at once, the longest session here (761 requests) held the window for 1–2 s on each switch, and a profile put most of that on the browser laying out the whole new list in one go, not on the app's code; `content-visibility: auto` on each exchange did not cut it, and broke jumps, since positions were then measured against placeholder heights.
+First the newest exchanges, up to 12 ms of work, which is where the history opens and what Ctrl+Shift+↑ goes to; then the rest from the oldest up, a slice at a time, each put in just above that newest part, so each one lays out only itself and what sits below it.
+Drawn newest first all the way down, every slice went in above everything already drawn and the browser laid all of that out again: twice the work in total, in slices that grew to 300 ms.
+Now no slice holds the window much past 90 ms, and the longest session is whole after about 2 s; the bar measures at most every 250 ms meanwhile, since it measures the whole list each time.
+Coming back to a tab left open further back than the newest slice reopens it once its slice is in.
+
 **A tab with no claude behind it** that is on screen, the one restored at launch or one refused a start, shows the pane's sentence — "“…” isn't running." — with a Resume button, which starts it as a click on its tab does, and a Show history button.
 The history then stands under the same sentence, one function for both, with Resume and Close; there is no "Back to live", since there is no live view.
 With the folder gone, Resume is unavailable with the reason, and Show history still works, since reading a session whose folder has gone is exactly when you want it.

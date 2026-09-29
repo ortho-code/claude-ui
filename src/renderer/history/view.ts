@@ -24,6 +24,11 @@ const MARKS: Partial<Record<Exchange['kind'], [label: string, tooltip: string]>>
 const REPLACED: [string, string] = ['sent again', 'You stopped this and sent it again: the request below replaced it.'];
 const REWOUND: [string, string] = ['rewound', "You went back to before this with claude's rewind and carried on from there, so claude's conversation no longer has it."];
 
+/** How long one slice of drawing may hold the window. */
+const SLICE_MS = 12;
+/** How often the bar measures the list while it is drawn in slices. */
+const BAR_EVERY_MS = 250;
+
 /** Where in a history to come back to: the exchange at the top of the view and how far past its request line, or null for the end. */
 type Place = { at: number; offset: number } | null;
 
@@ -58,6 +63,13 @@ export class HistoryView {
   private reopen: Place | undefined;
   /** The folded runs of tool calls opened by hand, by exchange and where the run starts. */
   private readonly openRuns = new Set<string>();
+  /** Drawn in slices (see draw): the exchanges before `drawnTo` and from `tailFrom` on are drawn, the ones between still to come. */
+  private drawnTo = 0;
+  private tailFrom = 0;
+  /** Counts the times drawing started from the start, so a slice due for an earlier drawing knows to stop. */
+  private slicing = 0;
+  /** When the bar last measured the list while it was drawn in slices. */
+  private measuredAt = 0;
   /** Whenever what is drawn changes size or order: the bar measures its marks from it. */
   onLayout: (() => void) | null = null;
   /** Whenever where you are in it changes, by scrolling or by the pane changing hands: the bar moves its band. */
@@ -143,6 +155,9 @@ export class HistoryView {
     this.followed++;
     this.model = emptyModel();
     this.nodes = [];
+    this.drawnTo = 0;
+    this.tailFrom = 0;
+    this.slicing++;
     this.list.replaceChildren();
     this.drawCount();
     if (id) void this.refresh();
@@ -336,6 +351,8 @@ export class HistoryView {
   private reopenWhereLeft(): void {
     const where = this.reopen;
     if (where === undefined) return;
+    // Not drawn that far back yet: again once its slice is in.
+    if (where && !this.nodes[where.at]) return;
     this.reopen = undefined;
     this.host.open();
     if (where) this.scroller.scrollTop = this.anchor(where.at) + where.offset;
@@ -403,26 +420,92 @@ export class HistoryView {
   private applyFilter(): void {
     this.model.exchanges.forEach((exchange, index) => {
       const node = this.nodes[index];
-      if (node) node.hidden = this.pinnedOnly && !this.holdsPin(exchange);
+      const hidden = this.pinnedOnly && !this.holdsPin(exchange);
+      // Only where it changes: it runs after every slice of drawing, over all that is drawn.
+      if (node && node.hidden !== hidden) node.hidden = hidden;
     });
   }
 
-  /** Draw the exchanges from `from` on, replacing those already drawn: only the last one ever changes. */
+  /**
+   * Draw the exchanges from `from` on, replacing those already drawn: only the last one ever changes, or what a rewind marked.
+   * A whole history is drawn in slices with the window free between them: first the newest, which is where the history opens, then the rest from the oldest up, each slice going in just above that newest part.
+   * So what is drawn is a run from the start, up to `drawnTo`, and the newest, from `tailFrom` on; the two meet once it is all drawn.
+   * Drawn at once, the longest session here held the window for 1–2 s on every switch to its tab, most of it the browser laying out the whole list in one go.
+   * Drawn newest first all the way down, every slice went in above everything drawn and made the browser lay all of that out again: twice the work, in slices that grew to 300 ms.
+   */
   private draw(from: number): void {
-    if (from === 0) this.list.replaceChildren();
-    this.nodes.length = Math.min(this.nodes.length, from);
-    for (let index = from; index < this.model.exchanges.length; index++) {
-      const node = this.exchangeNode(this.model.exchanges[index]!, index);
-      const old = this.list.children[index];
-      if (old) old.replaceWith(node);
-      else this.list.append(node);
-      this.nodes[index] = node;
+    const total = this.model.exchanges.length;
+    if (from === 0) {
+      this.slicing++;
+      this.list.replaceChildren();
+      this.nodes = [];
+      this.drawnTo = 0;
+      this.tailFrom = total;
     }
-    while (this.list.children.length > this.model.exchanges.length) this.list.lastElementChild?.remove();
-    if (this.model.exchanges.length === 0) this.drawEmpty();
+    for (let k = total; k < this.nodes.length; k++) this.nodes[k]?.remove();
+    this.nodes.length = Math.min(this.nodes.length, total);
+    this.tailFrom = Math.min(this.tailFrom, total);
+    this.drawnTo = Math.min(this.drawnTo, this.tailFrom);
+    // Drawn already and changed; one not drawn yet gets the model as it is when its slice comes.
+    for (let k = from; k < this.nodes.length; k++) {
+      const old = this.nodes[k];
+      if (!old) continue;
+      const node = this.exchangeNode(this.model.exchanges[k]!, k);
+      old.replaceWith(node);
+      this.nodes[k] = node;
+    }
+    if (this.nodes.length > 0) {
+      // New at the end, a few at a time as claude goes on.
+      for (let k = this.nodes.length; k < total; k++) this.list.append((this.nodes[k] = this.exchangeNode(this.model.exchanges[k]!, k)));
+    } else if (total > 0) {
+      this.tailFrom = this.drawTail(total, performance.now() + SLICE_MS);
+      if (this.drawnTo < this.tailFrom) this.sliceOn(this.slicing);
+    }
+    if (total === 0) this.drawEmpty();
     this.applyFilter();
     this.drawCount();
     this.onLayout?.();
+  }
+
+  /** Draw the newest exchanges, back from `end`, until `deadline` (always one). Says where they start. */
+  private drawTail(end: number, deadline: number): number {
+    const fresh: HTMLElement[] = [];
+    let k = end;
+    do {
+      k--;
+      const node = this.exchangeNode(this.model.exchanges[k]!, k);
+      this.nodes[k] = node;
+      fresh.push(node);
+    } while (k > 0 && performance.now() < deadline);
+    this.list.append(...fresh.reverse());
+    return k;
+  }
+
+  /** Draw the next slice up from `drawnTo`, once the window has had its turn, until the whole history is drawn or it is drawn again from the start (`token` changes). */
+  private sliceOn(token: number): void {
+    window.setTimeout(() => {
+      if (token !== this.slicing || this.drawnTo >= this.tailFrom) return;
+      // Put in above what is in view, which stays where it is; at the end, the view stays at the end.
+      const atEnd = this.atEnd();
+      const deadline = performance.now() + SLICE_MS;
+      const slice = document.createDocumentFragment();
+      do {
+        const k = this.drawnTo++;
+        slice.append((this.nodes[k] = this.exchangeNode(this.model.exchanges[k]!, k)));
+      } while (this.drawnTo < this.tailFrom && performance.now() < deadline);
+      this.list.insertBefore(slice, this.nodes[this.tailFrom] ?? null);
+      if (atEnd) this.scrollToEnd();
+      this.applyFilter();
+      // The bar measures the whole list, so not after every slice.
+      const done = this.drawnTo >= this.tailFrom;
+      const now = performance.now();
+      if (done || now - this.measuredAt > BAR_EVERY_MS) {
+        this.measuredAt = now;
+        this.onLayout?.();
+      }
+      this.reopenWhereLeft();
+      if (!done) this.sliceOn(token);
+    }, 0);
   }
 
   private drawEmpty(): void {
