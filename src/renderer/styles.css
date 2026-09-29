@@ -1492,7 +1492,7 @@ button:focus:not(:focus-visible) {
    A short jump moves the list barely at all, so without this there is no way to tell the click did anything.
    It fades rather than blinks, and an inset ring means it reads the same on a heading as on a session row.
    There is no end keyframe, so it fades into whatever the element itself has — a project heading's --bg, a group heading's --surface, an open row's accent bar — rather than ending on one colour and snapping to the element's own.
-   The only animation in the app: the one place where something happens that the eye would otherwise miss. */
+   Motion is kept for what the eye would otherwise miss: this, and the history's drawer sliding in from the bar it was opened from. */
 @keyframes jump-flash {
   from {
     background: var(--active);
@@ -2184,12 +2184,49 @@ button:focus:not(:focus-visible) {
   visibility: visible;
 }
 
-/* Over the live terminal it takes the upper two-thirds, and the lower third stays claude, live and at its real size: the way back is in view, and claude is never resized, so it never redraws.
+/* Over the live terminal it is a drawer from the bar beside it: it slides in from the right over about two-thirds of the pane, and claude stays in view on the left, dimmed, at its real size, so it never redraws; a click there is the way back.
+   Two-thirds but never narrower than a reply reads at, and the whole pane when the pane is narrower than that.
    Standing in for a cold tab there is no live view under it, and it takes the whole pane. */
 .history:not(.standalone) {
-  bottom: 34%;
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 8px 18px #00000080;
+  left: clamp(0px, 34%, 100% - 560px);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 18px #00000080;
+  transform: translateX(100%);
+  /* Hidden only once it has slid out, and shown at once when it slides in. */
+  transition:
+    transform 0.16s ease-out,
+    visibility 0s 0.16s;
+}
+
+.history.shown:not(.standalone) {
+  transform: none;
+  transition: transform 0.16s ease-out;
+}
+
+/* What dims claude beside the drawer, and takes the click that closes it.
+   Lighter than a dialog's backdrop: claude is meant to stay readable beside the history, not to be put out of reach. */
+.history-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.16s ease-out,
+    visibility 0s 0.16s;
+}
+
+.history-scrim.shown {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.16s ease-out;
+}
+
+/* While either is on its way out it is still visible, and must not take the click meant for claude. */
+.history:not(.shown),
+.history-scrim:not(.shown) {
+  pointer-events: none;
 }
 
 .history-head {

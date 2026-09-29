@@ -27,11 +27,13 @@ type Place = { at: number; offset: number } | null;
 
 /**
  * The app's own view of a session's requests and claude's replies, read from its transcript.
- * It lies over the terminal area and is KEPT LAID OUT while the live terminal is on show — hidden by visibility, not display — so what is drawn can still be measured, which is how the bar beside it places its marks.
+ * It opens as a drawer over the terminal area, from the bar beside it, and is KEPT LAID OUT while the live terminal is on show — hidden by visibility, not display — so what is drawn can still be measured, which is how the bar places its marks.
  * One view for the active tab: switching tabs points it at the new tab's session.
  */
 export class HistoryView {
   readonly el = document.createElement('section');
+  /** What dims claude beside it while it is open over the live terminal; a click on it closes the history. Goes into the terminal area just before `el`. */
+  readonly scrim = document.createElement('div');
   private readonly allButton = document.createElement('button');
   private readonly pinnedButton = document.createElement('button');
   private readonly scroller = document.createElement('div');
@@ -104,6 +106,14 @@ export class HistoryView {
       this.leave();
     });
     routeLinks(this.scroller, (url) => this.host.openExternal(url));
+    // Its width is the drawer's over a live tab and the whole pane's on a cold one, and the window's besides: every change rewraps the replies, and so moves the marks.
+    new ResizeObserver(() => this.onLayout?.()).observe(this.list);
+
+    this.scrim.className = 'history-scrim';
+    this.scrim.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      this.leave();
+    });
 
     this.note.className = 'history-note';
     this.note.hidden = true;
@@ -168,9 +178,19 @@ export class HistoryView {
     close.addEventListener('click', () => this.setStandalone(null));
     this.note.replaceChildren(text, ...(resume ? [resume] : []), close);
     this.note.hidden = note === null;
+    // Hidden before it turns back into the drawer, so closing it does not slide a drawer out; reading its style makes the browser take the hiding first, where it would otherwise take both changes at once and slide.
+    if (note === null && was) {
+      this.setShown(false);
+      getComputedStyle(this.el).getPropertyValue('visibility');
+    }
     this.el.classList.toggle('standalone', note !== null);
     if (note !== null) this.setShown(true);
-    else if (was) this.setShown(false);
+    this.drawScrim();
+  }
+
+  /** The scrim is up while the history is open as the drawer, over a live claude. */
+  private drawScrim(): void {
+    this.scrim.classList.toggle('shown', this.shown && this.standalone === null);
   }
 
   private leave(): void {
@@ -187,6 +207,7 @@ export class HistoryView {
     // Opened or closed by hand before its history came back: that says where it should be now, not where it was left.
     this.reopen = undefined;
     this.el.classList.toggle('shown', shown);
+    this.drawScrim();
     if (shown) {
       this.scrollToEnd();
       this.scroller.focus({ preventScroll: true });
