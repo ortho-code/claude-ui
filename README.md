@@ -53,6 +53,7 @@ Done:
 Next:
 
 - Starting a Claude session from a row of a list panel, such as a review of the PR it names, in the project and group you pick; and the row leading back to the session it started.
+- Panel types that draw themselves: a page of your own in a sandboxed frame, fed by its script, asking the app for what it cannot do itself, such as opening a link or starting a session.
 
 - Letting you answer when Claude asks something on its way out — whether to keep a worktree, say — instead of the tab closing over the question.
 - A worktree session keeping its worktree badge after the app restarts.
