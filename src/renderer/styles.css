@@ -2354,39 +2354,45 @@ button:focus:not(:focus-visible) {
 }
 
 .exchange-request {
+  position: relative;
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 3px 8px;
+  padding: 3px 8px 3px 0;
   border-radius: var(--radius-control);
   background: var(--surface);
 }
 
-/* The `> ` hangs in a gutter of its own, so a request's later lines line up under its text, as claude indents a prompt's following lines. */
+/* The `>` hangs in the same gutter as claude's dots, so a request's later lines line up under its text, as claude indents a prompt's following lines, and its text lines up with claude's. */
 .exchange-request-text {
   position: relative;
   flex: 1;
   min-width: 0;
-  padding-left: 2ch;
+  padding-left: 20px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
+/* Centred where the dots are centred. */
 .exchange-request-text::before {
   content: '>';
   position: absolute;
   left: 0;
+  width: 16px;
+  text-align: center;
   color: var(--muted);
 }
 
-/* The star, first on the line: hidden until the exchange is hovered or the star focused, and always shown once pinned. */
+/* A star stands in the gutter in place of the `>` or the dot: hidden until its line is hovered or the star focused, and always shown once pinned. */
 .exchange-pin {
   visibility: hidden;
 }
 
-.exchange-request .exchange-pin {
-  align-self: flex-start;
-  margin: 1px 0 0 -4px;
+.exchange-request-text > .exchange-pin,
+.exchange-text > .exchange-pin {
+  position: absolute;
+  left: -3px;
+  top: 0;
 }
 
 .exchange-request:hover .exchange-pin,
@@ -2395,16 +2401,9 @@ button:focus:not(:focus-visible) {
   visibility: visible;
 }
 
-/* A pinned request: the accent edge the bar's pinned tick matches. */
-.exchange.pinned > .exchange-request {
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-
-/* A message's star stands where claude's dot is, at the message's start, in place of the dot on hover and once pinned. */
-.exchange-text > .exchange-pin {
-  position: absolute;
-  left: -3px;
-  top: 0;
+.exchange-request:hover .exchange-request-text::before,
+.exchange.pinned > .exchange-request .exchange-request-text::before {
+  visibility: hidden;
 }
 
 .exchange-text:hover > .exchange-pin,
@@ -2417,7 +2416,9 @@ button:focus:not(:focus-visible) {
   visibility: hidden;
 }
 
-/* A pinned message: an accent line in the margin beside it, as a pinned request has its edge. */
+/* What is pinned, a request or a message, has an accent line in the margin beside it, as its mark on the bar is in the accent.
+   Not an edge inside the request's band, as it was: the star now stands at the band's start, on top of where that edge was. */
+.exchange.pinned > .exchange-request::after,
 .exchange-text.pinned::after {
   content: '';
   position: absolute;

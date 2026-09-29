@@ -454,13 +454,14 @@ export class HistoryView {
       setTooltip(mark, tooltip);
       meta.append(mark);
     }
-    // The star at the start of the line, where the eye starts reading; shown on hover, and always once pinned.
+    // The star stands where the `>` is, at the start of the line, and stands in for it on hover and once pinned, as a message's star does for its dot.
     const pin = document.createElement('button');
     pin.type = 'button';
     pin.className = 'icon-btn compact exchange-pin';
     pin.addEventListener('click', () => void this.togglePin(exchange));
+    text.prepend(pin);
     meta.append(when);
-    request.append(pin, text, meta);
+    request.append(text, meta);
 
     // The reply as claude wrote it: each message its own block, the tool calls where they came between them.
     const reply = document.createElement('div');
@@ -516,7 +517,7 @@ export class HistoryView {
   }
 }
 
-/** A star, like the session row's told apart by ink alone, filled or outlined; what it pins carries the accent edge. */
+/** A star, like the session row's told apart by ink alone, filled or outlined; what it pins carries the accent line in the margin. */
 function drawStar(owner: HTMLElement, star: HTMLElement, pinned: boolean, what: 'request' | 'message'): void {
   owner.classList.toggle('pinned', pinned);
   star.innerHTML = pinned ? PINNED_ICON : PIN_ICON;
