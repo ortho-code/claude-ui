@@ -157,17 +157,20 @@ const historyBar = new HistoryBar(history, (entry) => {
 document.getElementById('terminal-body')!.append(historyBar.el);
 history.onLayout = () => historyBar.refresh();
 history.onScroll = () => historyBar.moveBand();
-// Ctrl+Shift+↑ opens your last request from anywhere in the terminal area, the history included.
-// Caught on the window, before xterm, which would otherwise send it to claude as a key. App shortcuts take Ctrl+Shift, since a bare Ctrl+letter belongs to the terminal.
+// Ctrl+Shift+↑ / ↓: the previous / next request. From live, ↑ opens the history at your last request and ↓ does nothing; in the history they step, and ↓ past the last request goes back to live.
+// Caught on the window, before xterm, which would otherwise send them to claude as keys. App shortcuts take Ctrl+Shift, since a bare Ctrl+letter belongs to the terminal.
 const terminalPane = document.getElementById('terminal-pane')!;
 window.addEventListener(
   'keydown',
   (event) => {
-    if (event.key !== 'ArrowUp' || !event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey) return;
+    const up = event.key === 'ArrowUp';
+    if ((!up && event.key !== 'ArrowDown') || !event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey) return;
     if (!activeTab || !terminalPane.contains(document.activeElement)) return;
     event.preventDefault();
     event.stopPropagation();
-    historyBar.pickLast();
+    if (!history.shown) {
+      if (up) historyBar.pickLast();
+    } else if (!history.step(up ? -1 : 1) && !up && !history.standing) showHistory(false);
   },
   true,
 );

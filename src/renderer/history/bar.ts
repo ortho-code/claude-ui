@@ -49,8 +49,8 @@ export class HistoryBar {
     foot.type = 'button';
     foot.className = 'history-bar-foot';
     foot.innerHTML = LAST_ICON;
-    foot.setAttribute('aria-label', 'Your last request (Ctrl+Shift+↑)');
-    setTooltip(foot, 'Your last request (Ctrl+Shift+↑)');
+    foot.setAttribute('aria-label', 'Your last request (Ctrl+Shift+↑; again for the one before)');
+    setTooltip(foot, 'Your last request (Ctrl+Shift+↑; again for the one before)');
     foot.addEventListener('click', () => this.pickLast());
     this.el.append(this.area, foot);
 

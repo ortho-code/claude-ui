@@ -72,8 +72,8 @@ export class HistoryView {
     }
     const grow = document.createElement('span');
     grow.className = 'grow';
-    const previous = this.stepButton('up', 'Previous request', -1);
-    const next = this.stepButton('down', 'Next request', 1);
+    const previous = this.stepButton('up', 'Previous request (Ctrl+Shift+↑)', -1);
+    const next = this.stepButton('down', 'Next request (Ctrl+Shift+↓)', 1);
     // The way out, labelled and always in view at the head, with its key on it: a floating pill at the foot was not found.
     const leave = document.createElement('button');
     leave.type = 'button';
@@ -287,14 +287,17 @@ export class HistoryView {
     return found;
   }
 
-  private step(by: number): void {
+  /** Go to the previous (-1) or next (+1) request; says whether there was one to go to. */
+  step(by: number): boolean {
     const visible = this.nodes.map((node, index) => (node.hidden ? -1 : index)).filter((index) => index >= 0);
     const at = this.current();
     // Scrolled into an exchange, "previous" goes to its own start first, as a page's previous-heading key does; sitting on its request line, it goes to the one before.
     const inside = this.scroller.scrollTop > this.anchor(at) + 8;
     const position = visible.indexOf(at);
-    const target = by < 0 && inside ? at : visible[Math.min(visible.length - 1, Math.max(0, position + by))];
-    if (target !== undefined) this.goTo(target);
+    const target = by < 0 && inside ? at : visible[position + by];
+    if (target === undefined) return false;
+    this.goTo(target);
+    return true;
   }
 
   private atEnd(): boolean {
