@@ -5,8 +5,8 @@ import { dragTop, entryAt, grabAt, wheelSteps, type Band, type Entry, type MarkA
 
 /** What the bar reads from the history it marks (view.ts). */
 export interface BarSource {
-  /** `pinned` is the request's pin, `replyPinned` whether any of claude's messages in the exchange is pinned. */
-  marks(): { k: number; request: number; reply: number | null; pinned: boolean; replyPinned: boolean; replaced: boolean }[];
+  /** `pinned` is the request's pin, `replyPinned` whether any of claude's messages in the exchange is pinned, `leftBehind` whether it was sent again or rewound past. */
+  marks(): { k: number; request: number; reply: number | null; pinned: boolean; replyPinned: boolean; leftBehind: boolean }[];
   band(): Band;
   /** Put the top of the view at `top`, a fraction of the whole history. */
   scrollTo(top: number): void;
@@ -157,7 +157,7 @@ export class HistoryBar {
       const top = mark.request * height;
       const next = marks[index + 1];
       const tick = document.createElement('div');
-      tick.className = `mark-request${mark.pinned ? ' pinned' : ''}${mark.replaced ? ' replaced' : ''}${mark.k === this.source.size - 1 ? ' last' : ''}`;
+      tick.className = `mark-request${mark.pinned ? ' pinned' : ''}${mark.leftBehind ? ' left-behind' : ''}${mark.k === this.source.size - 1 ? ' last' : ''}`;
       tick.style.top = `${top}px`;
       this.requestEls.set(mark.k, tick);
       let reply: number | null = null;

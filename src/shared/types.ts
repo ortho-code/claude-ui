@@ -37,7 +37,7 @@ export interface SessionSummary {
 
 /**
  * One request in a session and what claude sent back, read from the session's transcript (`src/main/transcript.ts`).
- * Only the LAST exchange of a session ever changes, and only by growing: claude's reply to it is still being written.
+ * Only the LAST exchange of a session ever changes, and only by growing: claude's reply to it is still being written. The one exception is a rewind, which marks the requests it went back past.
  */
 export interface Exchange {
   /** The request record's uuid: what a pin keys on, and the same in both transcripts of a fork. */
@@ -53,6 +53,11 @@ export interface Exchange {
    * Shown, dimmed, rather than hidden, so a stopped attempt's partial reply and any pin on it stay.
    */
   replaced: boolean;
+  /**
+   * Gone back past with claude's rewind: a later request carries on from before this one, and every request in between followed on from it, so claude's conversation no longer has any of them.
+   * Shown, dimmed, as a request sent again is, and for the same reasons.
+   */
+  rewound: boolean;
   /** Claude's reply, piece by piece in the order it was written: its messages, and the tool calls between them. */
   parts: ReplyPart[];
 }

@@ -39,6 +39,7 @@ describe('what counts as a request', () => {
         request: 'why does the sniff not fire?',
         kind: 'typed',
         replaced: false,
+        rewound: false,
         parts: [
           { kind: 'text', id: `${first.uuid}:0`, time: first.timestamp, text: 'Let me look.' },
           { kind: 'tool', name: 'Read', detail: '/repo/src/Sniff.php' },
@@ -146,9 +147,10 @@ describe('a request sent again', () => {
     expect(replaced(f)).toEqual(['one', 'two']);
   });
 
-  it('a request replaced from further on is left unmarked', () => {
+  it('a request replaced from further on, by requests that did not follow on from it, is left unmarked', () => {
     const f = fold(typed('one', { parentUuid: 'p' }), typed('two', { parentUuid: 'q' }), typed('three', { parentUuid: 'p' }));
     expect(replaced(f)).toEqual(['one', 'two', 'three']);
+    expect(f.exchanges.map((e) => e.rewound)).toEqual([false, false, false]);
   });
 
   it('a request with no parent replaces nothing', () => {
@@ -161,6 +163,31 @@ describe('a request sent again', () => {
     foldRecord(f, { ...command('/review', 'y'), parentUuid: 'p' });
     foldRecord(f, answer(text('Review.')));
     expect(replaced(f)).toEqual(['first try (replaced)', '/review y']);
+  });
+});
+
+describe('a rewind', () => {
+  // A conversation that went on from `one` through `two`, then back to before `one` with claude's rewind.
+  const branch = () => {
+    const one = typed('one', { parentUuid: 'p' });
+    const a1 = { ...answer(text('A.')), parentUuid: one.uuid };
+    const two = typed('two', { parentUuid: a1.uuid });
+    const a2 = { ...answer(text('B.')), parentUuid: two.uuid };
+    const again = typed('back before one', { parentUuid: 'p' });
+    return [one, a1, two, a2, again];
+  };
+
+  it('marks every request it went back past, and not the one it carried on with', () => {
+    const f = fold(...branch());
+    expect(f.exchanges.map((e) => `${e.request}${e.rewound ? ' (rewound)' : ''}${e.replaced ? ' (replaced)' : ''}`)).toEqual(['one (rewound)', 'two (rewound)', 'back before one']);
+  });
+
+  it('says from where the exchanges changed, for the reader to send them again', () => {
+    const records = branch();
+    const f = fold(...records.slice(0, 4));
+    expect(f.changedFrom).toBeNull();
+    foldRecord(f, records[4]);
+    expect(f.changedFrom).toBe(0);
   });
 });
 
@@ -207,6 +234,21 @@ describe('reading a transcript', () => {
     const next = await readHistory(f, first.total, first.generation);
     expect(next.from).toBe(0);
     expect(next.exchanges.map((e) => e.replaced)).toEqual([true, false]);
+  });
+
+  it('sends the requests a rewind went back past again, from the first of them', async () => {
+    const f = await file('rewind.jsonl');
+    const one = typed('one', { parentUuid: 'p' });
+    const a1 = { ...answer(text('A.')), parentUuid: one.uuid };
+    const two = typed('two', { parentUuid: a1.uuid });
+    await fs.writeFile(f, line(one) + line(a1) + line(two));
+    const first = await readHistory(f, 0, 0);
+    await fs.appendFile(f, line(typed('back before one', { parentUuid: 'p' })));
+    const next = await readHistory(f, first.total, first.generation);
+    expect(next.from).toBe(0);
+    expect(next.exchanges.map((e) => [e.request, e.rewound])).toEqual([['one', true], ['two', true], ['back before one', false]]);
+    const after = await readHistory(f, next.total, next.generation);
+    expect(after.from).toBe(2);
   });
 
   it('holds a line claude has not finished writing until its newline arrives', async () => {

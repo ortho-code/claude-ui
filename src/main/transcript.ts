@@ -53,16 +53,20 @@ export interface HistoryFold {
   exchanges: Exchange[];
   /** Each exchange's parent record in the transcript's tree, index for index, so the next request can tell whether it replaces the last. */
   parents: (string | null)[];
+  /** The latest exchange hanging off each parent record, so a request can find the one it replaces or rewinds past. */
+  byParent: Map<string, number>;
   /**
-   * Every record folded, by uuid, with its parent: what a record written again is known by.
+   * Every record folded, by uuid, with its parent: the tree the rewinds are told from, and what a record written again is known by.
    * After a compaction Claude Code writes much of the conversation into the file a second time, under the same uuids; folding the copies drew each of those requests, and claude's messages, twice.
    */
   records: Map<string, string | null>;
+  /** The first exchange changed before the last since the reader last looked, by a rewind; null when none was. */
+  changedFrom: number | null;
   pending: { exchange: Exchange; parent: string | null } | null;
 }
 
 export function newFold(): HistoryFold {
-  return { exchanges: [], parents: [], records: new Map(), pending: null };
+  return { exchanges: [], parents: [], byParent: new Map(), records: new Map(), changedFrom: null, pending: null };
 }
 
 /** Claude Code's own records, written into the user's turn: a local command's output, a reminder, a task notification, `!` bash mode. */
@@ -87,6 +91,7 @@ function exchangeOf(record: Record<string, unknown>, request: string, kind: Exch
     request,
     kind,
     replaced: false,
+    rewound: false,
     parts: [],
   };
 }
@@ -96,14 +101,37 @@ function parentOf(record: Record<string, unknown>): string | null {
 }
 
 /**
- * Add a request, marking the one before it as replaced when both hang off the same parent.
- * Only the one just before. Of the 569 replaced requests on the machine this was written on, 250 were replaced by the very next one, the case examples confirm; the rest are not understood yet, and are left unmarked rather than guessed at.
+ * Add a request. One that hangs off the same parent as an earlier one went back to before it:
+ * - the one just before is REPLACED — claude stopped and the request sent again, or edited and resent;
+ * - one further back, with every request since following on from it, is REWOUND past, and all of those with it — claude's rewind.
+ * A same-parent request further back that the ones since do not all descend from is left unmarked: nothing on the machine this was written on was like that once records written twice were skipped, so there is no case to say what it means.
  */
 function push(fold: HistoryFold, exchange: Exchange, parent: string | null): void {
   const last = fold.exchanges.length - 1;
-  if (parent !== null && last >= 0 && fold.parents[last] === parent) fold.exchanges[last]!.replaced = true;
+  const earlier = parent === null ? undefined : fold.byParent.get(parent);
+  if (earlier === last && last >= 0) fold.exchanges[last]!.replaced = true;
+  else if (earlier !== undefined) rewind(fold, earlier, last);
   fold.exchanges.push(exchange);
   fold.parents.push(parent);
+  if (parent !== null) fold.byParent.set(parent, fold.exchanges.length - 1);
+}
+
+/** Mark exchange `from` and every one up to `last` rewound, when each of them followed on from `from`. */
+function rewind(fold: HistoryFold, from: number, last: number): void {
+  const root = fold.exchanges[from]!.id;
+  for (let k = from + 1; k <= last; k++) if (!descends(fold, fold.exchanges[k]!.id, root)) return;
+  for (let k = from; k <= last; k++) fold.exchanges[k]!.rewound = true;
+  fold.changedFrom = Math.min(fold.changedFrom ?? from, from);
+}
+
+/** Whether record `uuid` follows on from record `ancestor`, up the parent links; a compaction cuts them, so nothing after one descends from anything before it. */
+function descends(fold: HistoryFold, uuid: string, ancestor: string): boolean {
+  let at: string | null | undefined = uuid;
+  for (let steps = 0; at && steps <= fold.records.size; steps++) {
+    if (at === ancestor) return true;
+    at = fold.records.get(at);
+  }
+  return false;
 }
 
 /** A waiting slash command becomes a request: claude is answering it. */
@@ -251,7 +279,7 @@ async function readOn(file: string, cursor: Cursor, chunkBytes: number): Promise
 
 /**
  * The history of the transcript at `file`, for a caller that holds `known` exchanges of `generation`.
- * The first call reads the whole file; later calls read only what was appended. Only the last exchange ever changes, so the caller's last one is sent again, with everything after it.
+ * The first call reads the whole file; later calls read only what was appended. Only the last exchange ever changes, so the caller's last one is sent again, with everything after it — or, when a rewind has marked earlier ones, everything from the first of those.
  */
 export function readHistory(file: string, known: number, generation: number, chunkBytes = CHUNK_BYTES): Promise<HistorySlice> {
   let cursor = cursors.get(file);
@@ -269,7 +297,9 @@ export function readHistory(file: string, known: number, generation: number, chu
   const read = at.queue.then(async () => {
     await readOn(file, at, chunkBytes);
     const total = at.fold.exchanges.length;
-    const from = generation === at.generation ? Math.max(0, Math.min(known, total) - 1) : 0;
+    const tail = generation === at.generation ? Math.max(0, Math.min(known, total) - 1) : 0;
+    const from = Math.min(tail, at.fold.changedFrom ?? tail);
+    at.fold.changedFrom = null;
     const exchanges = at.fold.exchanges.slice(from).map((e) => ({ ...e, parts: e.parts.map((p) => ({ ...p })) }));
     return { generation: at.generation, from, exchanges, total };
   });

@@ -22,6 +22,7 @@ const MARKS: Partial<Record<Exchange['kind'], [label: string, tooltip: string]>>
   busy: ['sent while claude was working', 'Sent while claude was still working on something else, and taken up by it.'],
 };
 const REPLACED: [string, string] = ['sent again', 'You stopped this and sent it again: the request below replaced it.'];
+const REWOUND: [string, string] = ['rewound', "You went back to before this with claude's rewind and carried on from there, so claude's conversation no longer has it."];
 
 /** Where in a history to come back to: the exchange at the top of the view and how far past its request line, or null for the end. */
 type Place = { at: number; offset: number } | null;
@@ -223,14 +224,14 @@ export class HistoryView {
    * Where each exchange on show starts, and its reply, as fractions of the whole history's height, for the bar to place its marks.
    * Measured from what is drawn, which is laid out even while the live terminal covers it; an exchange hidden by "Pinned only" is left out.
    */
-  marks(): { k: number; request: number; reply: number | null; pinned: boolean; replyPinned: boolean; replaced: boolean }[] {
+  marks(): { k: number; request: number; reply: number | null; pinned: boolean; replyPinned: boolean; leftBehind: boolean }[] {
     const height = this.scroller.scrollHeight || 1;
-    const marks: { k: number; request: number; reply: number | null; pinned: boolean; replyPinned: boolean; replaced: boolean }[] = [];
+    const marks: { k: number; request: number; reply: number | null; pinned: boolean; replyPinned: boolean; leftBehind: boolean }[] = [];
     this.model.exchanges.forEach((exchange, k) => {
       const node = this.nodes[k];
       if (!node || node.hidden) return;
       const reply = exchange.parts.length > 0 ? node.querySelector<HTMLElement>('.exchange-reply') : null;
-      marks.push({ k, request: node.offsetTop / height, reply: reply ? reply.offsetTop / height : null, pinned: exchange.id in this.pins, replyPinned: this.pinnedMessages(exchange) > 0, replaced: exchange.replaced });
+      marks.push({ k, request: node.offsetTop / height, reply: reply ? reply.offsetTop / height : null, pinned: exchange.id in this.pins, replyPinned: this.pinnedMessages(exchange) > 0, leftBehind: exchange.replaced || exchange.rewound });
     });
     return marks;
   }
@@ -441,7 +442,8 @@ export class HistoryView {
 
   private exchangeNode(exchange: Exchange, index: number): HTMLElement {
     const node = document.createElement('article');
-    node.className = `exchange${exchange.replaced ? ' replaced' : ''}`;
+    // Sent again or rewound past, it is no longer in claude's conversation, and is drawn the one way for both.
+    node.className = `exchange${exchange.replaced || exchange.rewound ? ' left-behind' : ''}`;
 
     // Your request as claude echoes it, on a band, with its number, time and marks at the band's end.
     const request = document.createElement('div');
@@ -454,7 +456,7 @@ export class HistoryView {
     const when = document.createElement('span');
     when.textContent = `#${index + 1} · ${exchange.time ? relativeTime(exchange.time) : ''}`;
     if (exchange.time) setTooltip(when, new Date(exchange.time).toLocaleString());
-    const marks = [MARKS[exchange.kind], exchange.replaced ? REPLACED : undefined].filter((m): m is [string, string] => m !== undefined);
+    const marks = [MARKS[exchange.kind], exchange.replaced ? REPLACED : undefined, exchange.rewound ? REWOUND : undefined].filter((m): m is [string, string] => m !== undefined);
     for (const [label, tooltip] of marks) {
       const mark = document.createElement('span');
       mark.className = 'exchange-mark';

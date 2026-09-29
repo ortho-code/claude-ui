@@ -2447,15 +2447,15 @@ button:focus:not(:focus-visible) {
   border-radius: var(--radius-pill);
 }
 
-/* A request the next one replaced: inactive, so --muted rather than dimmed (opacity is for what is disabled). */
-.exchange.replaced .exchange-request {
+/* A request no longer in claude's conversation, sent again or rewound past: inactive, so --muted rather than dimmed (opacity is for what is disabled). */
+.exchange.left-behind .exchange-request {
   background: none;
   outline: 1px dashed var(--border);
   outline-offset: -1px;
 }
 
-.exchange.replaced .exchange-request,
-.exchange.replaced .exchange-reply {
+.exchange.left-behind .exchange-request,
+.exchange.left-behind .exchange-reply {
   color: var(--muted);
 }
 
@@ -2697,7 +2697,7 @@ button:focus:not(:focus-visible) {
   background: var(--text);
 }
 
-.mark-request.replaced {
+.mark-request.left-behind {
   opacity: 0.2;
 }
 

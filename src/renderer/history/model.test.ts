@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Exchange, ReplyPart } from '../../shared/types';
 import { applySlice, emptyModel, replyBlocks, requestLabel, toolSummary } from './model';
 
-const ex = (request: string, reply = ''): Exchange => ({ id: request, time: '', request, kind: 'typed', replaced: false, parts: reply ? [{ kind: 'text', id: `${request}-reply`, time: '', text: reply }] : [] });
+const ex = (request: string, reply = ''): Exchange => ({ id: request, time: '', request, kind: 'typed', replaced: false, rewound: false, parts: reply ? [{ kind: 'text', id: `${request}-reply`, time: '', text: reply }] : [] });
 
 describe('applySlice', () => {
   it('takes the first read whole', () => {
