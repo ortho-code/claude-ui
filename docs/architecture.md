@@ -188,7 +188,7 @@ The code is in `src/main/transcript.ts` (reading) and `src/renderer/history/` (t
 
 ### Opening it, and getting out
 
-**The history opens only on purpose**: from the bar beside the terminal (a click, or the loupe), the arrow at the bar's foot, or Ctrl+Shift+↑ for your last request — every way in goes through one function, `openHistory`.
+**The history opens only on purpose**: from the bar beside the terminal (a press, or the loupe), the arrow at the bar's foot, or Ctrl+Shift+↑ for your last request — every way in goes through one function, `openHistory`.
 The wheel over a running claude stays claude's, and scrolls claude's own view.
 Inside, Ctrl+Shift+↑ and Ctrl+Shift+↓ step to the previous and next request, and ↓ past the last one goes back to live; previous and next measure from the request line, which is where a jump puts the view.
 Both are caught on the window in the capture phase, before xterm, which would otherwise send them to claude; app shortcuts take Ctrl+Shift because a bare Ctrl+letter belongs to the terminal.
@@ -245,20 +245,29 @@ The window reads on `sessions:changed` and on the active session's status events
 
 ### What it looks like
 
-**Like claude's own view of the session**, because the history is a look back at that same view: the terminal's background, type and text colour — one token, `--terminal-fg`, which xterm reads back as well — and its tight line height; your request as claude echoes it, `> …` on a tinted band, with its number, time and marks at the band's end; and each of claude's messages, and each tool call, behind the dot claude marks them with.
-A request's later lines start under its first line's text, not under the `>`, as claude indents them.
+**Like claude's own view of the session**, because the history is a look back at that same view: the terminal's background, face and text colour — one token, `--terminal-fg`, which xterm reads back as well — and its tight line height; your request as claude echoes it, `> …` on a tinted band, with its number, time and marks at the band's end; and each of claude's messages, and each tool call, behind the dot claude marks them with.
+**A step smaller than the terminal**, 12px against 13px, on purpose: the browser draws the same face heavier than xterm's character grid does, and at the terminal's own size the history read louder than claude beside it.
+The app's own face for claude's prose was tried beside it headless and not taken: the history is to read as claude's view.
+The `>` stands in the same gutter as claude's dots, centred where they are, so a request's text starts where a message's does, and its later lines start under its first line's text, as claude indents them.
 So the reader keeps a reply as `parts`, in the order claude wrote them: every message its own part, every tool call a one-line part where it came.
 The first version joined the text into one reply and folded the tools to a count, which made consecutive messages one block and put every tool call in the wrong place.
 A tool call is drawn as claude draws one, a green dot, the tool's name in bold and what it acted on in grey; drawn like a message, with the same dot and ink, the two were too much alike to tell apart.
+**A run of tool calls between two of claude's messages is folded to one line**, as claude folds them — "Ran 4 shell commands, read 1 file", with a chevron — which opens into the calls; it stays open or closed while claude's reply grows.
+That is a fold in place, where the first version's count was one for the whole reply.
+A lone call stays its own line, since its line says more than a count of one, and an edit (Edit, Write, MultiEdit, NotebookEdit) is never folded and ends a run, so the changes to files stay in view, as claude shows them apart.
+The line uses claude's words where they are known ("ran N shell commands", "read N files") and plain ones otherwise; claude also folds edits to its scratch files into the line, which is not copied, since telling a scratch file from a project file would be a guess from its path.
+Measured on two sessions, of 906 and 54 requests: 417 runs fold, and 1,202 calls stand alone.
 The dot is drawn in CSS rather than claude's `⏺` glyph, since the app draws no mark from a font.
-Code is told apart as claude tells it apart once everything is in the terminal's type: inline in a colour, a block by a rule down its side.
+Code is told apart by colour and by place: inline in the accent, a block on a panel of its own, a step lighter than the history and scrolled sideways rather than wrapped.
+A block had a rule down its side at first, which is how a quote is drawn, and a block read as a quote; a quote keeps the rule, in the accent's muted tint, with its words in italics.
 The history has no scrollbar of its own: the bar beside it is its scrollbar.
 
 ### Pins
 
 A request and each of claude's messages can be pinned.
-The request's star sits at the start of its line, where the eye starts reading; a message's stands where claude's dot is, in place of the dot.
-Both show on hover and always once pinned; a pinned request has an accent edge, as its tick on the bar does, and a pinned message an accent line in the margin beside it.
+Each star stands in the gutter, in place of the mark there: the request's where its `>` is, a message's where claude's dot is.
+Both show on hover and always once pinned, and what is pinned has an accent line in the margin beside it, as its mark on the bar is in the accent.
+A pinned request had an accent edge inside its band at first, which the star now stands on.
 On the bar a pinned reply is in the accent as a pinned request is, and in the loupe it carries the star.
 What is shown is a labelled switch in the head, `All 54 · Pinned 3`, in the filters' pill: an unlabelled star did not say it was a filter; the count is of pins, and Pinned shows every exchange holding one.
 
@@ -276,9 +285,16 @@ Every link click, middle-click included, goes to `shell:openExternal`, and main 
 
 ### The bar and the loupe
 
-The bar at the terminal area's edge is the history's scrollbar, there whether the pane is live or not: a tick across it per request, a thin bar down its middle per reply — a shape apart, not only a shade — pins in the accent, a request sent again dimmer, the last request in white, and, while the history is open, a band for where you are in it.
+The bar at the terminal area's edge is the history's scrollbar, there whether the pane is live or not: a tick across it per request, a thin bar down its middle per reply — a shape apart, not only a shade — pins in the accent, a request sent again dimmer, the last request in white, and, while the history is open, a band for where you are in it, with the marks inside it lit as the loupe's entry is, a step dimmer so that one stays the brightest.
+The band alone, a faint wash on a 14px bar, was not seen.
 There is no band while live: the wheel scrolls claude's own view there, and where claude is scrolled is not something the app can know, so any band would be a guess.
 It is a column of its own rather than an overlay, so it never covers claude's text; the terminal is that much narrower, and the fit hands the pty the new width.
+
+**Pressing on it is a scrollbar's**: the view goes to that point at once, opening the history if it is closed, and follows the pointer until the button is let go; pressed on the band, it holds the band where it was taken instead of jumping, as a thumb.
+It follows the pointer anywhere on the window until the button is let go, since a hand's drag drifts sideways off a 14px bar, and from any pointer, since WSLg sends a held button's moves as another one (see Traps).
+It is the rough way to a place, and the loupe the exact one: the loupe hides while the button is down and is back when you let go, and a click on its row, or Enter, opens that entry.
+The first version started a drag only after 4px of travel and took a press that did not move as a click on the loupe's entry; in the user's words, what was wanted is "press the mouse on a point in the sidebar, then the view should already go there".
+Neither the bar nor the loupe takes the focus, so the terminal or the history keeps the keys: a click on either used to leave the focus nowhere, and Esc and the step keys with it.
 
 Hovering it opens the loupe, the entries around the pointer in words, and the wheel steps it one entry per notch, a trackpad one per 30px.
 That is the answer to the hard requirement, that one exact request or reply be reachable in a session of hundreds: at 821 requests the bar has under a pixel per entry, so the pointer alone picks roughly.
@@ -745,6 +761,10 @@ The whole terminal area is one now: it is hidden while another panel of its grou
 
 **xterm's layers carry z-indexes of their own, up to 10.** A `.term` makes no stacking context by default, so those layers competed with the history lying over the terminal area, painted over it and took its clicks.
 Each `.term` is `isolation: isolate` for that reason: nothing inside a terminal can rise above its siblings, whatever number it carries.
+
+**Under WSLg a held mouse button moves as a different pointer.** The press arrives as the mouse, pointer 1, but the moves while the button is down arrive as a pen, pointer 2, and the release as the mouse again (seen in the app's log).
+So a drag that captures the pressed pointer, or checks each move's `pointerId` against the press, sees no moves at all, and every headless check passes, since synthesized input keeps one pointer.
+The history bar follows every move of a held pointer on the window instead, and ends on any release or on a move with no button down.
 
 **Specificity quietly opts controls out of shared hover rules.** `button:hover` is 0,1,1, so a resting rule like `.project h2 .project-kebab` (0,2,2) or `#toast-close` (1,0,0) beats it and never takes the accent border, while `.session-kebab` (0,1,0) does.
 This produced three separate "why does only this one look different" bugs.

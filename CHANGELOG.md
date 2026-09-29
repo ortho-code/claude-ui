@@ -18,8 +18,8 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - Clicking a group's name in the tab bar takes the session list to that group, as a project's name already does; either one flashes the heading it lands on.
 - A new, empty group from a project's options; a group used to need a session to start from.
 - A log file, one per launch and day, to send along when something goes wrong: Settings shows its folder with an Open button, and the log of a launch that crashed is kept for longer.
-- A history of each session, laid out as claude shows it: every request with claude's messages and tool calls in order, from the start of the session and across compactions. It slides in over two-thirds of the terminal from the bar beside it or with Ctrl+Shift+↑, steps with Ctrl+Shift+↑ and ↓, and goes back to claude with Back to live, Esc, or a click on claude beside it; each tab keeps its history open where you left it.
-- A bar beside the terminal marking every request, reply and pin; hovering it opens a list that the wheel steps through one entry at a time, and a click opens the history there.
+- A history of each session, laid out as claude shows it: every request with claude's messages and tool calls in order, a run of tool calls folded to one line you can open, from the start of the session and across compactions. It slides in over two-thirds of the terminal from the bar beside it or with Ctrl+Shift+↑, steps with Ctrl+Shift+↑ and ↓, and goes back to claude with Back to live, Esc, or a click on claude beside it; each tab keeps its history open where you left it.
+- A bar beside the terminal marking every request, reply and pin, and lighting what is in view; pressing on it opens the history at that point and holding the button scrolls it with the pointer, and hovering it opens a list that the wheel steps through one entry at a time.
 - Pinning a request or one of claude's messages in the history, with its star; the pin lasts, and shows in both sessions of a fork.
 
 ### Changed
