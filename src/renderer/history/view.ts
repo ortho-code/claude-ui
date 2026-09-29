@@ -31,7 +31,6 @@ export class HistoryView {
   private readonly pinnedOnlyButton = document.createElement('button');
   private readonly scroller = document.createElement('div');
   private readonly list = document.createElement('div');
-  private readonly end = document.createElement('div');
   private readonly note = document.createElement('div');
   /** The sentence it stands under while its tab has no claude behind it; null while there is a live view to go back to. */
   private standalone: string | null = null;
@@ -70,36 +69,31 @@ export class HistoryView {
     this.pinnedOnlyButton.addEventListener('click', () => this.setPinnedOnly(!this.pinnedOnly));
     const previous = this.stepButton('up', 'Previous request', -1);
     const next = this.stepButton('down', 'Next request', 1);
-    head.append(title, this.count, this.pinnedOnlyButton, previous, next);
+    // The way out, labelled and always in view at the head, with its key on it: a floating pill at the foot was not found.
+    const leave = document.createElement('button');
+    leave.type = 'button';
+    leave.className = 'history-leave';
+    leave.innerHTML = 'Back to live <kbd>Esc</kbd>';
+    setTooltip(leave, 'Back to the live session');
+    leave.addEventListener('click', () => this.leave());
+    head.append(title, this.count, this.pinnedOnlyButton, previous, next, leave);
 
     this.scroller.className = 'history-scroll';
     this.list.className = 'history-list';
-    this.end.className = 'history-end';
-    this.end.textContent = 'The live session continues below.';
-    this.scroller.append(this.list, this.end);
-    // Focusable, so the page keys scroll it and End and Esc reach it; -1 keeps it out of the tab order.
+    this.scroller.append(this.list);
+    // Focusable, so the page keys scroll it and Esc reaches it; -1 keeps it out of the tab order.
     this.scroller.tabIndex = -1;
     this.scroller.addEventListener('scroll', () => this.onScroll?.());
     this.scroller.addEventListener('keydown', (event) => {
-      if (event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
-      // Standing in for a tab with no claude there is no live view, so End is the page key it always was; Esc closes either way.
-      if (event.key === 'Escape' || (event.key === 'End' && this.standalone === null)) {
-        event.preventDefault();
-        this.leave();
-      }
+      if (event.key !== 'Escape' || event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
+      event.preventDefault();
+      this.leave();
     });
     routeLinks(this.scroller, (url) => this.host.openExternal(url));
 
-    const toLive = document.createElement('button');
-    toLive.type = 'button';
-    toLive.className = 'history-to-live';
-    toLive.innerHTML = `Back to live ${chevronIcon('down', 11)}`;
-    setTooltip(toLive, 'Back to the live session (End)');
-    toLive.addEventListener('click', () => this.leave());
-
     this.note.className = 'history-note';
     this.note.hidden = true;
-    this.el.append(head, this.note, this.scroller, toLive);
+    this.el.append(head, this.note, this.scroller);
     this.drawCount();
   }
 
@@ -147,7 +141,6 @@ export class HistoryView {
     close.addEventListener('click', () => this.setStandalone(null));
     this.note.replaceChildren(text, ...(resume ? [resume] : []), close);
     this.note.hidden = note === null;
-    this.end.hidden = note !== null;
     this.el.classList.toggle('standalone', note !== null);
     if (note !== null) this.setShown(true);
     else if (was) this.setShown(false);

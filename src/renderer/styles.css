@@ -2220,19 +2220,10 @@ button:focus:not(:focus-visible) {
   outline: none;
 }
 
-.history-empty,
-.history-end {
-  color: var(--muted);
-  text-align: center;
-}
-
 .history-empty {
   margin-top: 40px;
-}
-
-.history-end {
-  padding: 12px 0 28px;
-  font-size: var(--text-small);
+  color: var(--muted);
+  text-align: center;
 }
 
 /* The line a history opened on a tab with no claude behind it stands under: the pane's own sentence, with Resume and Close. */
@@ -2266,26 +2257,27 @@ button:focus:not(:focus-visible) {
   gap: 8px;
 }
 
-.history.standalone .history-to-live {
-  display: none;
-}
-
-/* Centred, since the right edge is where every exchange keeps its star. */
-.history-to-live {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
+/* The way out of the history, in its head: labelled, with its key on it. A history standing in for a cold tab has no live view, and closes from its own line instead. */
+.history-leave {
+  margin-left: 6px;
+  padding: 2px 8px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--text);
+  gap: 6px;
   font-size: var(--text-meta);
-  cursor: pointer;
+}
+
+.history-leave kbd {
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--text-badge);
+}
+
+.history.standalone .history-leave {
+  display: none;
 }
 
 .exchange {
