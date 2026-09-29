@@ -2220,6 +2220,11 @@ button:focus:not(:focus-visible) {
   outline: none;
 }
 
+/* The bar beside it is its scrollbar, with the marks on it; a second, plain one was only a copy. */
+.history-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .history-empty {
   margin-top: 40px;
   color: var(--muted);
