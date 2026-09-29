@@ -5,7 +5,7 @@ import { chevronIcon, PIN_ICON, PINNED_ICON } from '../svg';
 import { setTooltip } from '../tooltip';
 import { renderMarkdown, routeLinks } from './markdown';
 import type { Band } from './marks';
-import { applySlice, emptyModel, requestLabel, type HistoryModel } from './model';
+import { applySlice, emptyModel, replyBlocks, requestLabel, toolSummary, type HistoryModel } from './model';
 
 /** What the history needs from the rest of the window. */
 export interface HistoryHost {
@@ -55,6 +55,8 @@ export class HistoryView {
   private readonly left = new Map<string, Place>();
   /** Where to reopen the session followed once its history has been read; undefined when it was left closed, or has been opened or closed since. */
   private reopen: Place | undefined;
+  /** The folded runs of tool calls opened by hand, by exchange and where the run starts. */
+  private readonly openRuns = new Set<string>();
   /** Whenever what is drawn changes size or order: the bar measures its marks from it. */
   onLayout: (() => void) | null = null;
   /** Whenever where you are in it changes, by scrolling or by the pane changing hands: the bar moves its band. */
@@ -469,12 +471,13 @@ export class HistoryView {
     meta.append(when);
     request.append(text, meta);
 
-    // The reply as claude wrote it: each message its own block, the tool calls where they came between them.
+    // The reply as claude wrote it: each message its own block, the tool calls where they came between them, a run of them folded to one line.
     const reply = document.createElement('div');
     reply.className = 'exchange-reply';
-    for (const part of exchange.parts) {
-      const piece = document.createElement('div');
-      if (part.kind === 'text') {
+    for (const block of replyBlocks(exchange.parts)) {
+      if (block.kind === 'text') {
+        const part = block.part;
+        const piece = document.createElement('div');
         piece.className = 'exchange-text';
         piece.dataset.id = part.id;
         // Safe to hand to innerHTML: raw HTML in a reply comes out as text, and dangerous links not at all (markdown.ts).
@@ -485,21 +488,49 @@ export class HistoryView {
         star.className = 'icon-btn compact exchange-pin';
         star.addEventListener('click', () => void this.toggleMessagePin(part));
         piece.prepend(star);
-      } else {
-        // As claude draws it: the name in bold, what it acted on in brackets after it.
-        piece.className = 'exchange-tool';
-        const name = document.createElement('span');
-        name.className = 'exchange-tool-name';
-        name.textContent = part.name;
-        piece.append(name);
-        if (part.detail) piece.append(`(${part.detail})`);
-      }
-      reply.append(piece);
+        reply.append(piece);
+      } else if (block.kind === 'tool') reply.append(toolLine(block.part));
+      else reply.append(this.toolRun(`${exchange.id}:${block.at}`, block.parts));
     }
 
     node.append(request, reply);
     this.drawPin(node, exchange);
     return node;
+  }
+
+  /**
+   * A run of tool calls as one line, "Ran 4 shell commands, read 1 file", that opens into the calls, as claude folds them; closed until opened.
+   * Kept open or closed by `key` while the last exchange is drawn again as claude's reply grows.
+   */
+  private toolRun(key: string, parts: Extract<ReplyPart, { kind: 'tool' }>[]): HTMLElement {
+    const run = document.createElement('div');
+    run.className = 'exchange-tools';
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'exchange-tools-head';
+    const label = document.createElement('span');
+    label.textContent = toolSummary(parts);
+    const chevron = document.createElement('span');
+    chevron.className = 'exchange-tools-chevron';
+    head.append(label, chevron);
+    const list = document.createElement('div');
+    list.className = 'exchange-tools-list';
+    list.append(...parts.map(toolLine));
+    const draw = (): void => {
+      const open = this.openRuns.has(key);
+      run.classList.toggle('open', open);
+      list.hidden = !open;
+      head.setAttribute('aria-expanded', String(open));
+      chevron.innerHTML = chevronIcon(open ? 'down' : 'right', 12);
+      setTooltip(head, open ? 'Fold the tool calls' : 'Show each tool call');
+    };
+    head.addEventListener('click', () => {
+      if (!this.openRuns.delete(key)) this.openRuns.add(key);
+      draw();
+    });
+    draw();
+    run.append(head, list);
+    return run;
   }
 
   /** Draw the stars of an exchange: its request's and each of claude's messages'. */
@@ -521,6 +552,18 @@ export class HistoryView {
     if (!this.session || !part.id) return;
     this.setPins(await this.host.toggleHistoryPin(part.id, { kind: 'reply', session: this.session, text: requestLabel(part.text, 300), time: part.time }));
   }
+}
+
+/** A tool call as claude draws it: the name in bold, what it acted on in brackets after it. */
+function toolLine(part: Extract<ReplyPart, { kind: 'tool' }>): HTMLElement {
+  const piece = document.createElement('div');
+  piece.className = 'exchange-tool';
+  const name = document.createElement('span');
+  name.className = 'exchange-tool-name';
+  name.textContent = part.name;
+  piece.append(name);
+  if (part.detail) piece.append(`(${part.detail})`);
+  return piece;
 }
 
 /** A star, like the session row's told apart by ink alone, filled or outlined; what it pins carries the accent line in the margin. */

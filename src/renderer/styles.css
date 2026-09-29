@@ -2473,7 +2473,8 @@ button:focus:not(:focus-visible) {
 }
 
 .exchange-text::before,
-.exchange-tool::before {
+.exchange-tool::before,
+.exchange-tools-head::before {
   --dot: 6px;
   content: '';
   position: absolute;
@@ -2492,13 +2493,52 @@ button:focus:not(:focus-visible) {
   white-space: pre-wrap;
 }
 
-.exchange-tool::before {
+.exchange-tool::before,
+.exchange-tools-head::before {
   background: var(--idle);
 }
 
 .exchange-tool-name {
   color: var(--terminal-fg);
   font-weight: 600;
+}
+
+/* A run of tool calls folded to one line, as claude folds them: its dot, what the run did in grey, and a chevron; it opens into the calls, indented under the line. */
+.exchange-tools {
+  margin-bottom: 8px;
+}
+
+.exchange-tools-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 0 0 0 20px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+}
+
+.exchange-tools-head:hover {
+  background: none;
+  color: var(--terminal-fg);
+}
+
+.exchange-tools-chevron {
+  display: inline-flex;
+}
+
+.exchange-tools-list {
+  margin-top: 8px;
+  padding-left: 20px;
+}
+
+.exchange-tools-list > .exchange-tool:last-child {
+  margin-bottom: 0;
 }
 
 .exchange-text > :first-child {
