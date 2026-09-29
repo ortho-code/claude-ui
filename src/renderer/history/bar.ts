@@ -54,6 +54,8 @@ export class HistoryBar {
     setTooltip(foot, 'Your last request (Ctrl+Shift+↑; again for the one before)');
     foot.addEventListener('click', () => this.pickLast());
     this.el.append(this.area, foot);
+    // A press on the bar leaves the focus where it was, in the terminal or the history: the bar is something to point at, and taking the focus left Esc and the step keys with nothing.
+    this.el.addEventListener('mousedown', (event) => event.preventDefault());
 
     this.area.addEventListener('mousemove', (event) => this.pointerAt(event));
     this.area.addEventListener('wheel', (event) => {
@@ -174,6 +176,8 @@ class Loupe {
     foot.className = 'history-loupe-foot';
     foot.textContent = 'Wheel: one at a time · click opens';
     this.el.append(this.head, this.list, foot);
+    // Pointed at, never focused, as the bar is: a click on a row leaves the keys with the history.
+    this.el.addEventListener('mousedown', (event) => event.preventDefault());
     document.body.append(this.el);
     this.rebuild(marks);
 
