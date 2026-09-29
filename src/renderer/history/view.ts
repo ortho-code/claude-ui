@@ -4,7 +4,7 @@ import { relativeTime } from '../logic';
 import { chevronIcon, PIN_ICON, PINNED_ICON } from '../svg';
 import { setTooltip } from '../tooltip';
 import { renderMarkdown, routeLinks } from './markdown';
-import { applySlice, emptyModel, type HistoryModel } from './model';
+import { applySlice, emptyModel, requestLabel, type HistoryModel } from './model';
 
 /** What the history needs from the rest of the window. */
 export interface HistoryHost {
@@ -43,8 +43,10 @@ export class HistoryView {
   private readonly toolsOpen = new Set<string>();
   private reading = false;
   private readAgain = false;
-  /** Whenever what is drawn moves or changes size: the bar measures from it. */
+  /** Whenever what is drawn changes size or order: the bar measures its marks from it. */
   onLayout: (() => void) | null = null;
+  /** Whenever where you are in it changes, by scrolling or by the pane changing hands: the bar moves its band. */
+  onScroll: (() => void) | null = null;
 
   constructor(private readonly host: HistoryHost) {
     this.el.className = 'history';
@@ -74,7 +76,7 @@ export class HistoryView {
     this.scroller.append(this.list, this.end);
     // Focusable, so the page keys scroll it and End and Esc reach it; -1 keeps it out of the tab order.
     this.scroller.tabIndex = -1;
-    this.scroller.addEventListener('scroll', () => this.onLayout?.());
+    this.scroller.addEventListener('scroll', () => this.onScroll?.());
     // Scrolling on past the end goes back to the live session, the way it was left.
     this.scroller.addEventListener('wheel', (event) => {
       if (event.deltaY > 0 && this.atEnd()) this.host.leave();
@@ -110,13 +112,67 @@ export class HistoryView {
     this.drawCount();
     if (id) void this.refresh();
     else this.drawEmpty();
+    this.onLayout?.();
     return true;
   }
 
-  /** The pane has just been handed over: start at the end, where the live view was, with the keys here. */
-  enter(): void {
-    this.scrollToEnd();
-    this.scroller.focus({ preventScroll: true });
+  get shown(): boolean {
+    return this.el.classList.contains('shown');
+  }
+
+  /**
+   * Take the pane from the live terminal, or give it back; says whether anything changed.
+   * Taking it starts at the end, where the live view was, with the keys here.
+   */
+  setShown(shown: boolean): boolean {
+    if (shown === this.shown) return false;
+    this.el.classList.toggle('shown', shown);
+    if (shown) {
+      this.scrollToEnd();
+      this.scroller.focus({ preventScroll: true });
+    }
+    this.onScroll?.();
+    return true;
+  }
+
+  /**
+   * Where each exchange on show starts, and its reply, as fractions of the whole history's height, for the bar to place its marks.
+   * Measured from what is drawn, which is laid out even while the live terminal covers it; an exchange hidden by "Pinned only" is left out.
+   */
+  marks(): { k: number; request: number; reply: number | null; pinned: boolean; replaced: boolean }[] {
+    const height = this.scroller.scrollHeight || 1;
+    const marks: { k: number; request: number; reply: number | null; pinned: boolean; replaced: boolean }[] = [];
+    this.model.exchanges.forEach((exchange, k) => {
+      const node = this.nodes[k];
+      if (!node || node.hidden) return;
+      const reply = exchange.reply || exchange.tools.length > 0 ? node.querySelector<HTMLElement>('.exchange-reply') : null;
+      marks.push({ k, request: node.offsetTop / height, reply: reply ? reply.offsetTop / height : null, pinned: exchange.id in this.pins, replaced: exchange.replaced });
+    });
+    return marks;
+  }
+
+  /** The part of the history in view, as fractions of its height; while the live terminal covers it, the end, which is where the live view is. */
+  band(): { top: number; height: number } {
+    const total = this.scroller.scrollHeight || 1;
+    const view = this.scroller.clientHeight;
+    const top = this.shown ? this.scroller.scrollTop : Math.max(0, total - view);
+    return { top: top / total, height: view / total };
+  }
+
+  /** What the loupe says about exchange `k`: its number, when, the request's first line, and the reply's (null when there is none). */
+  describe(k: number): { number: number; time: string; request: string; reply: string | null; pinned: boolean } | null {
+    const exchange = this.model.exchanges[k];
+    if (!exchange) return null;
+    const reply = exchange.reply
+      ? requestLabel(exchange.reply.replace(/^\s*(#{1,6}|>|[-*+])\s+/gm, ''))
+      : exchange.tools.length > 0
+        ? `${exchange.tools.length} tool call${exchange.tools.length === 1 ? '' : 's'}`
+        : null;
+    return { number: k + 1, time: exchange.time, request: requestLabel(exchange.request), reply, pinned: exchange.id in this.pins };
+  }
+
+  get size(): number {
+    return this.model.exchanges.length;
   }
 
   /** Read what was added to the shown session's transcript and draw it; reads that pile up while one is in flight collapse into one more. */

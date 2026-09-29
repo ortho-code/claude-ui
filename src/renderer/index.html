@@ -92,8 +92,11 @@
       </aside>
       <section id="terminal-pane">
         <div id="tabbar"></div>
-        <div id="terminals">
-          <div id="term-placeholder" class="pane-placeholder">Pick a tab above, or a session in the sidebar, to resume it.</div>
+        <!-- The terminals, with the history's bar beside them (history/bar.ts), which renderer.ts appends. -->
+        <div id="terminal-body">
+          <div id="terminals">
+            <div id="term-placeholder" class="pane-placeholder">Pick a tab above, or a session in the sidebar, to resume it.</div>
+          </div>
         </div>
       </section>
     </div>

@@ -34,6 +34,7 @@ import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { installTooltips, setTooltip } from './tooltip';
 import { chevronIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
 import { flash } from './flash';
+import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
 import { iconSvg } from './panels/icons';
 import { createTerminal, bindTerminal, routeTerminals, lastLines } from './terminal';
@@ -140,6 +141,28 @@ const history = new HistoryView({
   leave: () => showHistory(false),
 });
 terminalsEl.append(history.el);
+// Its bar, beside the terminal area: picking an entry on it opens the history there, from live or not.
+const historyBar = new HistoryBar(history, (entry) => {
+  showHistory(true);
+  history.goTo(entry.k, entry.part);
+});
+document.getElementById('terminal-body')!.append(historyBar.el);
+history.onLayout = () => historyBar.refresh();
+history.onScroll = () => historyBar.moveBand();
+// Ctrl+Shift+↑ opens your last request from anywhere in the terminal area, the history included.
+// Caught on the window, before xterm, which would otherwise send it to claude as a key. App shortcuts take Ctrl+Shift, since a bare Ctrl+letter belongs to the terminal.
+const terminalPane = document.getElementById('terminal-pane')!;
+window.addEventListener(
+  'keydown',
+  (event) => {
+    if (event.key !== 'ArrowUp' || !event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey) return;
+    if (!activeTab || !terminalPane.contains(document.activeElement)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    historyBar.pickLast();
+  },
+  true,
+);
 const confirmOverlay = document.getElementById('confirm-overlay')!;
 const confirmMessage = document.getElementById('confirm-message')!;
 const confirmDetail = document.getElementById('confirm-detail')!;
@@ -3200,10 +3223,7 @@ window.addEventListener('blur', () => {
  * The history opens at its end, where the live view is, so scrolling up into it reads as scrolling back through the terminal.
  */
 function showHistory(shown: boolean): void {
-  if (shown === history.el.classList.contains('shown')) return;
-  history.el.classList.toggle('shown', shown);
-  if (shown) history.enter();
-  else activeTab?.term.focus();
+  if (history.setShown(shown) && !shown) activeTab?.term.focus();
 }
 
 function updatePlaceholder(): void {

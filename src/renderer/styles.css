@@ -2115,9 +2115,16 @@ button:focus:not(:focus-visible) {
 /* Compact tier of the standard control (see .unarchive-btn): same 14px icon, tighter padding, so a
    tab keeps its density while the close stays a real click target. */
 
+#terminal-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
 #terminals {
   position: relative;
   flex: 1;
+  min-width: 0;
   min-height: 0;
   padding: 8px;
 }
@@ -2212,10 +2219,12 @@ button:focus:not(:focus-visible) {
   font-size: var(--text-small);
 }
 
+/* Centred, since the right edge is where every exchange keeps its star. */
 .history-to-live {
   position: absolute;
-  right: 20px;
+  left: 50%;
   bottom: 14px;
+  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2367,6 +2376,214 @@ button:focus:not(:focus-visible) {
 
 .exchange-text a {
   color: var(--accent);
+}
+
+/* THE BAR beside the terminal area: the history's scrollbar, live or not (history/bar.ts).
+   Its own column rather than an overlay, so it never covers claude's text; the terminal is that much narrower. */
+.history-bar {
+  flex: 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  user-select: none;
+}
+
+.history-bar-area {
+  position: relative;
+  flex: 1;
+  margin: 6px 0 4px;
+  cursor: pointer;
+}
+
+/* A request is a tick across the bar; its reply, a thin bar down the middle to the next request. */
+.mark-request,
+.mark-reply {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 1px;
+}
+
+.mark-request {
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--text);
+  opacity: 0.5;
+}
+
+.mark-reply {
+  left: 6px;
+  width: 2px;
+  background: var(--muted);
+  opacity: 0.35;
+}
+
+/* Over DENSE marks: a pixel thin and faint, so a long session reads as a density. */
+.history-bar.dense .mark-request {
+  height: 1px;
+  margin-top: 0;
+  opacity: 0.35;
+}
+
+.mark-request.replaced {
+  opacity: 0.2;
+}
+
+.mark-request.last {
+  opacity: 1;
+}
+
+.mark-request.pinned {
+  left: 0;
+  right: 0;
+  height: 3px;
+  margin-top: -1.5px;
+  background: var(--accent);
+  opacity: 1;
+  z-index: 1;
+}
+
+.mark-reply.pinned {
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+/* The one the loupe is on. */
+.mark-request.hot {
+  left: -1px;
+  right: -1px;
+  height: 3px;
+  margin-top: -1.5px;
+  background: #fff;
+  opacity: 1;
+  z-index: 3;
+}
+
+.mark-reply.hot {
+  left: 4px;
+  width: 5px;
+  background: #fff;
+  opacity: 0.9;
+  z-index: 3;
+}
+
+.history-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid #ffffff45;
+  border-bottom: 1px solid #ffffff45;
+  background: #ffffff1c;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.history-bar-foot {
+  flex: 0 0 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.history-bar-foot:hover {
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: var(--active);
+  color: var(--text);
+}
+
+/* The loupe: the entries around the pointer, in words, beside the bar. */
+.history-loupe {
+  position: fixed;
+  z-index: 50;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-surface);
+  background: var(--surface);
+  box-shadow: 0 4px 14px #00000066;
+  font-size: var(--text-meta);
+}
+
+.history-loupe-head,
+.history-loupe-foot {
+  padding: 3px 9px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-loupe-head {
+  border-bottom: 1px solid var(--border);
+}
+
+.history-loupe-foot {
+  border-top: 1px solid var(--border);
+}
+
+/* Rows of a fixed height, nine in view: stepping and keeping the chosen one in view is arithmetic (ROW, ROWS in bar.ts). */
+.history-loupe-list {
+  height: calc(22px * 9);
+  overflow: hidden;
+}
+
+.history-loupe-row {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.history-loupe-row.current {
+  background: var(--active);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.history-loupe-n {
+  flex: 0 0 auto;
+  min-width: 26px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-loupe-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-loupe-row.reply .history-loupe-text {
+  padding-left: 14px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.history-loupe-pin {
+  flex: 0 0 auto;
+  display: flex;
+  color: var(--muted);
+}
+
+.history-loupe-pin svg {
+  width: 11px;
+  height: 11px;
 }
 
 /*
