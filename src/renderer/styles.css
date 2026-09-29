@@ -2196,14 +2196,20 @@ button:focus:not(:focus-visible) {
   font-size: var(--text-body);
 }
 
-.history-count {
-  flex: 1;
-  min-width: 0;
-  margin-left: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* All · Pinned: two filter pills side by side, the one on show in the filters' "on" look. */
+.history-show {
+  display: flex;
+  gap: 4px;
+  margin-left: 10px;
+}
+
+.history-show .history-filter {
+  padding: 2px 8px;
   white-space: nowrap;
-  color: var(--muted);
+}
+
+.history-head .grow {
+  flex: 1;
 }
 
 /* Positioned, so an exchange's offsetTop is measured from here: that is what goTo scrolls by. */

@@ -27,8 +27,8 @@ const REPLACED: [string, string] = ['sent again', 'You stopped this and sent it 
  */
 export class HistoryView {
   readonly el = document.createElement('section');
-  private readonly count = document.createElement('span');
-  private readonly pinnedOnlyButton = document.createElement('button');
+  private readonly allButton = document.createElement('button');
+  private readonly pinnedButton = document.createElement('button');
   private readonly scroller = document.createElement('div');
   private readonly list = document.createElement('div');
   private readonly note = document.createElement('div');
@@ -57,14 +57,21 @@ export class HistoryView {
     const title = document.createElement('span');
     title.className = 'history-title';
     title.textContent = 'History';
-    this.count.className = 'history-count';
-    this.pinnedOnlyButton.className = 'history-filter';
-    this.pinnedOnlyButton.type = 'button';
-    this.pinnedOnlyButton.innerHTML = PINNED_ICON;
-    this.pinnedOnlyButton.setAttribute('aria-label', 'Show only pinned requests');
-    this.pinnedOnlyButton.setAttribute('aria-pressed', 'false');
-    setTooltip(this.pinnedOnlyButton, 'Show only pinned requests');
-    this.pinnedOnlyButton.addEventListener('click', () => this.setPinnedOnly(!this.pinnedOnly));
+    // What is shown, as a labelled switch with the counts on it: all the requests, or only the pinned ones. An unlabelled star did not say it was a filter.
+    const show = document.createElement('span');
+    show.className = 'history-show';
+    for (const [button, pinnedOnly, tooltip] of [
+      [this.allButton, false, 'Show every request'],
+      [this.pinnedButton, true, 'Show only the pinned requests'],
+    ] as const) {
+      button.type = 'button';
+      button.className = 'history-filter';
+      setTooltip(button, tooltip);
+      button.addEventListener('click', () => this.setPinnedOnly(pinnedOnly));
+      show.append(button);
+    }
+    const grow = document.createElement('span');
+    grow.className = 'grow';
     const previous = this.stepButton('up', 'Previous request', -1);
     const next = this.stepButton('down', 'Next request', 1);
     // The way out, labelled and always in view at the head, with its key on it: a floating pill at the foot was not found.
@@ -74,7 +81,7 @@ export class HistoryView {
     leave.innerHTML = 'Back to live <kbd>Esc</kbd>';
     setTooltip(leave, 'Back to the live session');
     leave.addEventListener('click', () => this.leave());
-    head.append(title, this.count, this.pinnedOnlyButton, previous, next, leave);
+    head.append(title, show, grow, previous, next, leave);
 
     this.scroller.className = 'history-scroll';
     this.list.className = 'history-list';
@@ -296,10 +303,16 @@ export class HistoryView {
 
   private setPinnedOnly(on: boolean): void {
     this.pinnedOnly = on;
-    this.pinnedOnlyButton.classList.toggle('active', on);
-    this.pinnedOnlyButton.setAttribute('aria-pressed', String(on));
+    this.drawSwitch();
     this.applyFilter();
     this.onLayout?.();
+  }
+
+  private drawSwitch(): void {
+    this.allButton.classList.toggle('active', !this.pinnedOnly);
+    this.allButton.setAttribute('aria-pressed', String(!this.pinnedOnly));
+    this.pinnedButton.classList.toggle('active', this.pinnedOnly);
+    this.pinnedButton.setAttribute('aria-pressed', String(this.pinnedOnly));
   }
 
   private applyFilter(): void {
@@ -337,7 +350,9 @@ export class HistoryView {
   private drawCount(): void {
     const total = this.model.exchanges.length;
     const pinned = this.model.exchanges.filter((exchange) => exchange.id in this.pins).length;
-    this.count.textContent = `${total} request${total === 1 ? '' : 's'}${pinned ? ` · ${pinned} pinned` : ''}`;
+    this.allButton.textContent = `All ${total}`;
+    this.pinnedButton.innerHTML = `${PINNED_ICON} Pinned ${pinned}`;
+    this.drawSwitch();
   }
 
   private exchangeNode(exchange: Exchange, index: number): HTMLElement {
