@@ -224,7 +224,7 @@ A stopped tab still drops you to the empty screen; reopening it resumes claude, 
 ### What counts as a request
 
 A typed prompt, one with a pasted image, one sent while a tool ran, one queued while claude was working — a `queued_command` attachment, which is not a user record at all — and a slash command claude answered.
-Not a request: tool results, meta records (a skill's expanded body, a message from another session), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing (a local command's output, a reminder, a task notification, `!` bash mode).
+Not a request: tool results, meta records (a skill's expanded body, a message from another session), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing (a local command's output, a reminder, a task notification, `!` bash mode), whether it comes as a user record or queued while claude worked — the queued ones were missed at first, and drew 253 task notifications as requests.
 The rule was taken from a scan of 312 transcripts, and the numbers below are from them.
 
 **A slash command counts only once claude answers it.** `/review` and `/learn` are answered, `/model` and `/clear` are not, and nothing in the command line tells them apart — `/learn` usually has no arguments, `/model` usually has one; 265 were answered and 112 not.

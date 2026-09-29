@@ -99,6 +99,7 @@ describe('what counts as a request', () => {
     ['a compaction summary', typed('This session is being continued from a previous conversation', { isCompactSummary: true })],
     ['an interruption', userList([text('[Request interrupted by user]')])],
     ['a task notification', typed('<task-notification> <task-id>x</task-id>')],
+    ['a task notification queued while claude worked', queued('<task-notification>\n<task-id>x</task-id>')],
     ['a local command caveat', typed('<local-command-caveat>Caveat: …</local-command-caveat>')],
     ['bash mode', typed('<bash-input>ls</bash-input>')],
     ['a sidechain record', typed('from a subagent', { isSidechain: true })],

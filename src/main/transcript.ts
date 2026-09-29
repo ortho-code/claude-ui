@@ -165,6 +165,8 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
     if (attachment?.type !== 'queued_command' || typeof attachment.prompt !== 'string' || !attachment.prompt.trim()) return;
     // Queued means claude was working, so a command still waiting is the thing it was working on.
     promote(fold);
+    // Claude Code's own plumbing is queued the same way — a task notification — and is no more a request here than when it comes as a user record.
+    if (PLUMBING.test(attachment.prompt.trim())) return;
     push(fold, exchangeOf(record, attachment.prompt.trim(), 'busy'), parentOf(record));
     return;
   }
