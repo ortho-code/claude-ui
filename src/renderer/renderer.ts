@@ -3235,6 +3235,7 @@ function updatePlaceholder(): void {
   // A booting tab HAS a terminal, but it is still empty: keep the pane covered rather than showing the black rectangle that the wait would otherwise be.
   const booting = activeTab?.booting === true;
   placeholder.style.display = activeTab && !cold && !booting ? 'none' : 'flex';
+  historyBar.setLive(activeTab !== null && !cold && !booting);
   const sentence = paneSentence(cold, booting);
   // A tab on show with no claude behind it — restored, or refused a start — says so, and offers the two things to do about it: resume it, or read what it said.
   const standing = activeTab && cold && !booting ? activeTab : null;

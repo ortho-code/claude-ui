@@ -217,6 +217,8 @@ Its width is the drawer's over a live tab and the whole pane's on a cold one, so
 The history then stands under the same sentence, one function for both, with Resume and Close; there is no "Back to live", since there is no live view.
 With the folder gone, Resume is unavailable with the reason, and Show history still works, since reading a session whose folder has gone is exactly when you want it.
 Showing the history there by itself, at launch, was tried and reversed: it was not clear what had happened or why it was shown.
+The bar is out of sight on that sentence, and while a tab is starting, and comes with Show history, since until then there is nothing for it to scroll; it was there at first.
+It is hidden by visibility, keeping its column, so the terminal's width does not change when the tab starts and claude is not redrawn.
 A stopped tab still drops you to the empty screen; reopening it resumes claude, and the history is then on the bar.
 
 ### What counts as a request
@@ -285,7 +287,7 @@ Every link click, middle-click included, goes to `shell:openExternal`, and main 
 
 ### The bar and the loupe
 
-The bar at the terminal area's edge is the history's scrollbar, there whether the pane is live or not: a tick across it per request, a thin bar down its middle per reply — a shape apart, not only a shade — pins in the accent, a request sent again dimmer, the last request in white, and, while the history is open, a band for where you are in it, with the marks inside it lit as the loupe's entry is, a step dimmer so that one stays the brightest.
+The bar at the terminal area's edge is the history's scrollbar, there while claude is live or its history is open: a tick across it per request, a thin bar down its middle per reply — a shape apart, not only a shade — pins in the accent, a request sent again dimmer, the last request in white, and, while the history is open, a band for where you are in it, with the marks inside it lit as the loupe's entry is, a step dimmer so that one stays the brightest.
 The band alone, a faint wash on a 14px bar, was not seen.
 There is no band while live: the wheel scrolls claude's own view there, and where claude is scrolled is not something the app can know, so any band would be a guess.
 It is a column of its own rather than an overlay, so it never covers claude's text; the terminal is that much narrower, and the fit hands the pty the new width.

@@ -14,6 +14,8 @@ export interface BarSource {
   readonly size: number;
   /** Whether the history, rather than the live terminal, has the pane. */
   readonly shown: boolean;
+  /** Whether the history stands in for a tab with no claude behind it. */
+  readonly standing: boolean;
 }
 
 const LAST_ICON = strokeIcon(12, '<path d="M3.5 3.5h9M8 13V6.5M5 9.5l3-3 3 3" />');
@@ -24,7 +26,7 @@ const ROWS = 9;
 const DENSE = 120;
 
 /**
- * The bar at the edge of the terminal area: the history's scrollbar, always there, live or not.
+ * The bar at the edge of the terminal area: the history's scrollbar, there while claude is live or its history is open.
  * A request is a tick across it and its reply a thin bar down its middle until the next request — a shape apart, not only a shade — with pins in the accent, a request that was sent again dimmer, the last request in full white, and, in the history, a band for where you are.
  * Its marks are placed from the history's measured heights, so they sit where the history's own scrolling puts things.
  *
@@ -47,6 +49,7 @@ export class HistoryBar {
   private loupe: Loupe | null = null;
   /** A press on the bar, while the button is down: where on the band it holds it. */
   private press: { grab: number } | null = null;
+  private live = false;
   /** While a press is held the view follows every move of a held pointer, anywhere on the window. */
   private readonly follow = (event: PointerEvent): void => {
     if (!this.press) return;
@@ -123,6 +126,20 @@ export class HistoryBar {
     window.addEventListener('pointerup', this.letGo, true);
   }
 
+  /**
+   * Whether the pane shows a live claude: the renderer says, from the tab on show.
+   * Without one the pane says the tab isn't running and offers to resume it or show its history, and the bar is out of sight until the history is shown, since until then there is nothing it scrolls.
+   */
+  setLive(live: boolean): void {
+    this.live = live;
+    this.drawAvailable();
+  }
+
+  /** Out of sight by visibility, not display, so its column stays and the terminal's width never changes with it: a width change would resize the pty and redraw claude as it starts. */
+  private drawAvailable(): void {
+    this.el.classList.toggle('unavailable', !this.live && !this.source.standing);
+  }
+
   /** Open the history at the session's last request. */
   pickLast(): void {
     if (this.source.size > 0) this.pick({ k: this.source.size - 1, part: 'request' });
@@ -169,6 +186,7 @@ export class HistoryBar {
    * The wheel scrolls claude's own view there, and where claude is scrolled is not something the app can know, so a band "at the end" would be a guess.
    */
   moveBand(): void {
+    this.drawAvailable();
     this.bandEl.hidden = !this.source.shown;
     for (const el of this.seen) el.classList.remove('seen');
     this.seen = [];

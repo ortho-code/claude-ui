@@ -2645,6 +2645,11 @@ button:focus:not(:focus-visible) {
   cursor: grabbing;
 }
 
+/* No live claude and no history open: nothing for it to scroll (history/bar.ts, drawAvailable). */
+.history-bar.unavailable {
+  visibility: hidden;
+}
+
 /* A request is a tick across the bar; its reply, a thin bar down the middle to the next request. */
 .mark-request,
 .mark-reply {
