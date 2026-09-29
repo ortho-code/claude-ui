@@ -34,6 +34,7 @@ import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { installTooltips, setTooltip } from './tooltip';
 import { chevronIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
 import { flash } from './flash';
+import { HistoryView } from './history/view';
 import { iconSvg } from './panels/icons';
 import { createTerminal, bindTerminal, routeTerminals, lastLines } from './terminal';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged } from './panels/tree';
@@ -131,6 +132,14 @@ const loadingEl = document.getElementById('loading')!;
 const tabbar = document.getElementById('tabbar')!;
 const terminalsEl = document.getElementById('terminals')!;
 const placeholder = document.getElementById('term-placeholder')!;
+// The active tab's history, over the terminal area (history/view.ts): one view, pointed at whichever session the pane shows.
+const history = new HistoryView({
+  getHistory: (id, known, generation) => window.claudeUi.getHistory(id, known, generation),
+  toggleRequestPin: (id, pin) => window.claudeUi.toggleRequestPin(id, pin),
+  openExternal: (url) => window.claudeUi.openExternal(url),
+  leave: () => showHistory(false),
+});
+terminalsEl.append(history.el);
 const confirmOverlay = document.getElementById('confirm-overlay')!;
 const confirmMessage = document.getElementById('confirm-message')!;
 const confirmDetail = document.getElementById('confirm-detail')!;
@@ -2713,6 +2722,15 @@ function buildTab(session: SessionSummary): Tab {
     return true;
   });
 
+  // Claude's fullscreen view is on the alternate screen, keeps no scrollback in the terminal and scrolls itself; the app takes the wheel from it instead, and the wheel up hands the pane to the session's history, which holds all of it.
+  // With claude's default renderer the conversation IS in the terminal's scrollback, so there the wheel is left to scroll it; which screen is on show is xterm's own fact, not a guess.
+  // Returning false is what keeps the wheel from claude: xterm asks this before it sends a mouse report or turns the wheel into arrow keys (read in xterm 5.5's source).
+  term.attachCustomWheelEventHandler((event) => {
+    if (term.buffer.active.type !== 'alternate') return true;
+    if (event.deltaY < 0 && tab === activeTab) showHistory(true);
+    return false;
+  });
+
   const tab: Tab = {
     session,
     terminalId: null,
@@ -3177,7 +3195,20 @@ window.addEventListener('blur', () => {
   document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 });
 
+/**
+ * Hand the pane to the history, or back to the live terminal.
+ * The history opens at its end, where the live view is, so scrolling up into it reads as scrolling back through the terminal.
+ */
+function showHistory(shown: boolean): void {
+  if (shown === history.el.classList.contains('shown')) return;
+  history.el.classList.toggle('shown', shown);
+  if (shown) history.enter();
+  else activeTab?.term.focus();
+}
+
 function updatePlaceholder(): void {
+  // The history follows the tab from here, since every change to what the pane shows passes through this function; a tab switch shows the new tab live.
+  if (history.follow(activeTab?.session.id ?? null)) showHistory(false);
   // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so without this a restored session would look like a session that had nothing in it.
   const cold = activeTab !== null && activeTab.terminalId === null;
   // A booting tab HAS a terminal, but it is still empty: keep the pane covered rather than showing the black rectangle that the wait would otherwise be.
@@ -3284,7 +3315,11 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
     // The tab's identity is what decides which row is "open" and which session the bar names, and nothing else re-runs that match.
     reconcileOpenTabs();
     renderList();
+    // The history too: a cleared session is a new one, with a transcript of its own.
+    if (owner === activeTab) updatePlaceholder();
   }
+  // What claude just did is in the transcript, and the history of the session on show reads it.
+  if (activeTab?.session.id === id) void history.refresh();
   // 'start' reports which session a tab is running, not a state it is in — and it fires mid-session on clear and compact, where setting a status would wipe a live one.
   // The one SessionStart that does mean a state (a compaction ending) reaches us as 'idle', not as this.
   if (status === 'start') return;
@@ -3301,7 +3336,11 @@ window.claudeUi.onSessionModel((id, model) => {
 });
 
 // The sidebar keeps itself current: a transcript created or changed on disk re-renders it.
-window.claudeUi.onSessionsChanged(() => void refreshFromDisk());
+// So does the history on show, which reads only what was added.
+window.claudeUi.onSessionsChanged(() => {
+  void refreshFromDisk();
+  void history.refresh();
+});
 
 // Stop persisting open tabs once shutdown starts, so the terminal-exit closes it triggers don't overwrite the saved tab list with an empty one (see the shuttingDown note above).
 window.claudeUi.onQuitting(() => {
@@ -3562,6 +3601,7 @@ initTree({
 });
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
+  void window.claudeUi.getRequestPins().then((pins) => history.setPins(pins));
   groupState = await window.claudeUi.getGroupState();
   activeProject = await window.claudeUi.getActiveProject();
   // Before the first render: restoring filters afterwards would draw the whole list and then visibly cut it down.

@@ -632,10 +632,12 @@ button:hover {
 
 /* Filter toggles: dimmed when off, accent-filled when on. */
 /* The filter pills are every direct-child button of #filters (date-preset buttons are nested a level
-   deeper, so they're excluded). Styling by pattern means a new pill needs no CSS change. */
+   deeper, so they're excluded). Styling by pattern means a new pill needs no CSS change.
+   The history's "Pinned only" is a filter too, and wears the same pill. */
 /* Off = --muted, the same "inactive" cue the rest of the app uses, rather than opacity: a dimmed
    button fades its border and background too, so an off pill read as disabled instead of unselected. */
-#filters > button {
+#filters > button,
+.history-filter {
   flex: 0 0 auto;
   padding: 5px 8px;
   font-size: var(--text-meta);
@@ -646,20 +648,23 @@ button:hover {
    archive box), injected in renderer.ts. Words cost the panel a whole extra line at a 320px sidebar,
    and each pill keeps its tooltip and aria-label, so the meaning is still one hover away. Icons are
    13px, matching the pills' 12px text so they don't make the row taller. */
-#filters > button {
+#filters > button,
+.history-filter {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
 }
 
-#filters > button svg {
+#filters > button svg,
+.history-filter svg {
   width: 13px;
   height: 13px;
 }
 
 /* The accent hover outline and fill come from the base button rule; the pill only brightens. */
-#filters > button:hover {
+#filters > button:hover,
+.history-filter:hover {
   color: var(--text);
 }
 
@@ -982,6 +987,7 @@ button:hover {
    After both hover rules, which it has to beat at equal specificity so an on pill keeps its fill under the pointer. */
 #filters > button.active,
 #date-presets button.active,
+.history-filter.active,
 .filter-chip {
   border-color: var(--accent);
   color: var(--text);
@@ -2119,6 +2125,8 @@ button:focus:not(:focus-visible) {
 .term {
   display: none;
   height: 100%;
+  /* A stacking context of its own: xterm's layers inside carry z-indexes up to 10, which would otherwise rise above the history lying over the terminal area and take its clicks. */
+  isolation: isolate;
 }
 
 .term.active {
@@ -2136,6 +2144,229 @@ button:focus:not(:focus-visible) {
   /* Most of what lands here is one sentence, but a refused start names the folder it could not use on a line of its own. */
   white-space: pre-line;
   text-align: center;
+}
+
+/* THE HISTORY: the app's own view of a session's requests and claude's replies, over the terminal area.
+   Hidden by visibility, never display, while the live terminal is on show: it stays laid out, so what
+   it draws can be measured, which is how the bar beside it places its marks. */
+.history {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  visibility: hidden;
+}
+
+.history.shown {
+  visibility: visible;
+}
+
+.history-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 3px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-meta);
+}
+
+.history-title {
+  font-weight: 600;
+  font-size: var(--text-body);
+}
+
+.history-count {
+  flex: 1;
+  min-width: 0;
+  margin-left: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* Positioned, so an exchange's offsetTop is measured from here: that is what goTo scrolls by. */
+.history-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 16px 16px;
+}
+
+.history-empty,
+.history-end {
+  color: var(--muted);
+  text-align: center;
+}
+
+.history-empty {
+  margin-top: 40px;
+}
+
+.history-end {
+  padding: 12px 0 28px;
+  font-size: var(--text-small);
+}
+
+.history-to-live {
+  position: absolute;
+  right: 20px;
+  bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-meta);
+  cursor: pointer;
+}
+
+.exchange {
+  padding: 8px 0 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.exchange-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.exchange-meta .grow {
+  flex: 1;
+}
+
+.exchange-mark {
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.exchange-request {
+  padding: 6px 10px;
+  border-radius: var(--radius-surface);
+  background: var(--surface);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A request the next one replaced: inactive, so --muted rather than dimmed (opacity is for what is disabled). */
+.exchange.replaced .exchange-request {
+  background: none;
+  border: 1px dashed var(--border);
+}
+
+.exchange.replaced .exchange-request,
+.exchange.replaced .exchange-reply {
+  color: var(--muted);
+}
+
+.exchange-reply {
+  padding: 6px 2px 0 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.exchange-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.exchange-tools:hover {
+  color: var(--text);
+  border: 0;
+}
+
+.exchange-tool-list {
+  margin: 2px 0 8px 14px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  white-space: pre-wrap;
+}
+
+.exchange-text > :first-child {
+  margin-top: 4px;
+}
+
+.exchange-text p,
+.exchange-text ul,
+.exchange-text ol,
+.exchange-text pre,
+.exchange-text table,
+.exchange-text blockquote {
+  margin: 0 0 8px;
+}
+
+.exchange-text ul,
+.exchange-text ol {
+  padding-left: 20px;
+}
+
+.exchange-text h1,
+.exchange-text h2,
+.exchange-text h3,
+.exchange-text h4,
+.exchange-text h5,
+.exchange-text h6 {
+  margin: 10px 0 6px;
+  font-size: var(--text-title);
+}
+
+.exchange-text code {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+
+.exchange-text :not(pre) > code {
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--surface);
+}
+
+.exchange-text pre {
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: var(--terminal-bg);
+  overflow-x: auto;
+}
+
+.exchange-text table {
+  border-collapse: collapse;
+}
+
+.exchange-text th,
+.exchange-text td {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.exchange-text blockquote {
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  color: var(--muted);
+}
+
+.exchange-text a {
+  color: var(--accent);
 }
 
 /*
