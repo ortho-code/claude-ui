@@ -62,6 +62,9 @@ Next:
 - Panels opened at will rather than only from the file, such as a second shell, and panels that belong to one project while others stay the same everywhere.
 - Minimize-to-tray.
 - Telling you when a session fails to start, instead of leaving the terminal to explain it.
+- History: file changes under their tool calls (the diffs behind Edit and Write, and claude's result summaries), syntax colouring in code blocks, another look at its type, and tuning the bar and its loupe.
+- History: search within it, and one list of every pin across sessions, with a way to clear pins no session opens any more.
+- History: reading a session's history without starting it, from the session list, and showing an entry in claude's own view as well as the app's.
 - A taskbar attention nudge requires a native Windows build; parked while the app runs under WSLg.
 
 ## Panels
