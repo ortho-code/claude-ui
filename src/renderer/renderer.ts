@@ -136,7 +136,7 @@ const placeholder = document.getElementById('term-placeholder')!;
 // The active tab's history, over the terminal area (history/view.ts): one view, pointed at whichever session the pane shows.
 const history = new HistoryView({
   getHistory: (id, known, generation) => window.claudeUi.getHistory(id, known, generation),
-  toggleRequestPin: (id, pin) => window.claudeUi.toggleRequestPin(id, pin),
+  toggleHistoryPin: (id, pin) => window.claudeUi.toggleHistoryPin(id, pin),
   openExternal: (url) => window.claudeUi.openExternal(url),
   leave: () => showHistory(false),
 });
@@ -3662,7 +3662,7 @@ initTree({
 });
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
-  void window.claudeUi.getRequestPins().then((pins) => history.setPins(pins));
+  void window.claudeUi.getHistoryPins().then((pins) => history.setPins(pins));
   groupState = await window.claudeUi.getGroupState();
   activeProject = await window.claudeUi.getActiveProject();
   // Before the first render: restoring filters afterwards would draw the whole list and then visibly cut it down.

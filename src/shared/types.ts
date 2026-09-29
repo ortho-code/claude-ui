@@ -57,19 +57,23 @@ export interface Exchange {
   parts: ReplyPart[];
 }
 
-/** One piece of a reply: a message from claude (markdown), or a tool call — the tool's name and, on one line, the input that says what it acted on (empty when none does). */
-export type ReplyPart = { kind: 'text'; text: string } | { kind: 'tool'; name: string; detail: string };
+/**
+ * One piece of a reply: a message from claude (markdown), or a tool call — the tool's name and, on one line, the input that says what it acted on (empty when none does).
+ * A message carries an id, its assistant record's uuid and its place among that record's messages, which is what a pin on it keys on and which a fork copies too.
+ */
+export type ReplyPart = { kind: 'text'; id: string; time: string; text: string } | { kind: 'tool'; name: string; detail: string };
 
 /**
- * A request pinned in the history, stored in meta.json under the request's uuid (`Exchange.id`).
- * Keyed by the request rather than the session, so it outlives the process and shows in both siblings of a fork; it carries enough to be listed without opening its transcript.
+ * A request or one of claude's messages, pinned in the history and stored in meta.json under its id (`Exchange.id`, or a message's `id`).
+ * Keyed by what was pinned rather than by the session, so it outlives the process and shows in both siblings of a fork; it carries enough to be listed without opening its transcript.
  */
-export interface RequestPin {
+export interface HistoryPin {
+  kind: 'request' | 'reply';
   /** The session it was pinned in. */
   session: string;
-  /** The request's opening text, cut to a few hundred characters when it is pinned (`meta.ts`). */
+  /** Its opening text, cut to a few hundred characters when it is pinned (`meta.ts`). */
   text: string;
-  /** When the request was sent (ISO), as its transcript records it. */
+  /** When it was written (ISO), as its transcript records it. */
   time: string;
   /** When it was pinned (epoch ms). */
   pinnedAt: number;
@@ -235,10 +239,10 @@ export interface ClaudeUiApi {
   getPinned(): Promise<string[]>;
   /** Toggle a session's pin; resolves to the updated pinned list. */
   togglePin(id: string): Promise<string[]>;
-  /** Requests pinned in any session's history, by the request's uuid. */
-  getRequestPins(): Promise<Record<string, RequestPin>>;
-  /** Pin request `id` with what a list of pins shows of it, or unpin it; returns every request pin after the change. */
-  toggleRequestPin(id: string, pin: Pick<RequestPin, 'session' | 'text' | 'time'>): Promise<Record<string, RequestPin>>;
+  /** Requests and messages pinned in any session's history, by their ids. */
+  getHistoryPins(): Promise<Record<string, HistoryPin>>;
+  /** Pin request or message `id` with what a list of pins shows of it, or unpin it; returns every history pin after the change. */
+  toggleHistoryPin(id: string, pin: Pick<HistoryPin, 'kind' | 'session' | 'text' | 'time'>): Promise<Record<string, HistoryPin>>;
   /** Archived session ids mapped to when they were archived (epoch ms; 0 = unknown). */
   getArchived(): Promise<Record<string, number>>;
   /** Toggle a session's archived state; resolves to the updated archived map. */

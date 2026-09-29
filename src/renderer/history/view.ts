@@ -1,4 +1,4 @@
-import type { ClaudeUiApi, Exchange, RequestPin } from '../../shared/types';
+import type { ClaudeUiApi, Exchange, HistoryPin, ReplyPart } from '../../shared/types';
 import { flash } from '../flash';
 import { relativeTime } from '../logic';
 import { chevronIcon, PIN_ICON, PINNED_ICON } from '../svg';
@@ -9,7 +9,7 @@ import { applySlice, emptyModel, requestLabel, type HistoryModel } from './model
 /** What the history needs from the rest of the window. */
 export interface HistoryHost {
   getHistory: ClaudeUiApi['getHistory'];
-  toggleRequestPin: ClaudeUiApi['toggleRequestPin'];
+  toggleHistoryPin: ClaudeUiApi['toggleHistoryPin'];
   openExternal(url: string): void;
   /** Hand the pane back to the live terminal. */
   leave(): void;
@@ -39,7 +39,7 @@ export class HistoryView {
   private session: string | null = null;
   /** Counts the sessions followed, so a read that comes back after the view moved on can tell. */
   private followed = 0;
-  private pins: Record<string, RequestPin> = {};
+  private pins: Record<string, HistoryPin> = {};
   private pinnedOnly = false;
   private reading = false;
   private readAgain = false;
@@ -174,16 +174,26 @@ export class HistoryView {
    * Where each exchange on show starts, and its reply, as fractions of the whole history's height, for the bar to place its marks.
    * Measured from what is drawn, which is laid out even while the live terminal covers it; an exchange hidden by "Pinned only" is left out.
    */
-  marks(): { k: number; request: number; reply: number | null; pinned: boolean; replaced: boolean }[] {
+  marks(): { k: number; request: number; reply: number | null; pinned: boolean; replyPinned: boolean; replaced: boolean }[] {
     const height = this.scroller.scrollHeight || 1;
-    const marks: { k: number; request: number; reply: number | null; pinned: boolean; replaced: boolean }[] = [];
+    const marks: { k: number; request: number; reply: number | null; pinned: boolean; replyPinned: boolean; replaced: boolean }[] = [];
     this.model.exchanges.forEach((exchange, k) => {
       const node = this.nodes[k];
       if (!node || node.hidden) return;
       const reply = exchange.parts.length > 0 ? node.querySelector<HTMLElement>('.exchange-reply') : null;
-      marks.push({ k, request: node.offsetTop / height, reply: reply ? reply.offsetTop / height : null, pinned: exchange.id in this.pins, replaced: exchange.replaced });
+      marks.push({ k, request: node.offsetTop / height, reply: reply ? reply.offsetTop / height : null, pinned: exchange.id in this.pins, replyPinned: this.pinnedMessages(exchange) > 0, replaced: exchange.replaced });
     });
     return marks;
+  }
+
+  /** How many of claude's messages in an exchange are pinned. */
+  private pinnedMessages(exchange: Exchange): number {
+    return exchange.parts.filter((part) => part.kind === 'text' && part.id in this.pins).length;
+  }
+
+  /** Whether an exchange holds a pin: on its request, or on any of claude's messages in it. */
+  private holdsPin(exchange: Exchange): boolean {
+    return exchange.id in this.pins || this.pinnedMessages(exchange) > 0;
   }
 
   /** The part of the history in view, as fractions of its height. */
@@ -193,13 +203,13 @@ export class HistoryView {
   }
 
   /** What the loupe says about exchange `k`: its number, when, the request's first line, and the reply's (null when there is none). */
-  describe(k: number): { number: number; time: string; request: string; reply: string | null; pinned: boolean } | null {
+  describe(k: number): { number: number; time: string; request: string; reply: string | null; pinned: boolean; replyPinned: boolean } | null {
     const exchange = this.model.exchanges[k];
     if (!exchange) return null;
     // The reply's first message, as a line; a reply that is only tool calls so far is named by its first one.
     const first = exchange.parts.find((part) => part.kind === 'text') ?? exchange.parts[0];
     const reply = !first ? null : first.kind === 'text' ? requestLabel(first.text.replace(/^\s*(#{1,6}|>|[-*+])\s+/gm, '')) : `${first.name}${first.detail ? `(${first.detail})` : ''}`;
-    return { number: k + 1, time: exchange.time, request: requestLabel(exchange.request), reply, pinned: exchange.id in this.pins };
+    return { number: k + 1, time: exchange.time, request: requestLabel(exchange.request), reply, pinned: exchange.id in this.pins, replyPinned: this.pinnedMessages(exchange) > 0 };
   }
 
   get size(): number {
@@ -235,7 +245,7 @@ export class HistoryView {
     }
   }
 
-  setPins(pins: Record<string, RequestPin>): void {
+  setPins(pins: Record<string, HistoryPin>): void {
     this.pins = pins;
     this.model.exchanges.forEach((exchange, index) => {
       const node = this.nodes[index];
@@ -321,7 +331,7 @@ export class HistoryView {
   private applyFilter(): void {
     this.model.exchanges.forEach((exchange, index) => {
       const node = this.nodes[index];
-      if (node) node.hidden = this.pinnedOnly && !(exchange.id in this.pins);
+      if (node) node.hidden = this.pinnedOnly && !this.holdsPin(exchange);
     });
   }
 
@@ -352,7 +362,7 @@ export class HistoryView {
 
   private drawCount(): void {
     const total = this.model.exchanges.length;
-    const pinned = this.model.exchanges.filter((exchange) => exchange.id in this.pins).length;
+    const pinned = this.model.exchanges.reduce((sum, exchange) => sum + (exchange.id in this.pins ? 1 : 0) + this.pinnedMessages(exchange), 0);
     this.allButton.textContent = `All ${total}`;
     this.pinnedButton.innerHTML = `${PINNED_ICON} Pinned ${pinned}`;
     this.drawSwitch();
@@ -396,8 +406,15 @@ export class HistoryView {
       const piece = document.createElement('div');
       if (part.kind === 'text') {
         piece.className = 'exchange-text';
+        piece.dataset.id = part.id;
         // Safe to hand to innerHTML: raw HTML in a reply comes out as text, and dangerous links not at all (markdown.ts).
         piece.innerHTML = renderMarkdown(part.text);
+        // Its star sits where claude's dot is, at the message's start, and stands in for the dot on hover and once pinned.
+        const star = document.createElement('button');
+        star.type = 'button';
+        star.className = 'icon-btn compact exchange-pin';
+        star.addEventListener('click', () => void this.toggleMessagePin(part));
+        piece.prepend(star);
       } else {
         // As claude draws it: the name in bold, what it acted on in brackets after it.
         piece.className = 'exchange-tool';
@@ -415,20 +432,33 @@ export class HistoryView {
     return node;
   }
 
+  /** Draw the stars of an exchange: its request's and each of claude's messages'. */
   private drawPin(node: HTMLElement, exchange: Exchange): void {
-    const pin = node.querySelector<HTMLElement>('.exchange-pin');
-    if (!pin) return;
-    // The session row's star, and like it told apart by ink alone, filled or outlined; the exchange itself carries the accent edge.
-    const pinned = exchange.id in this.pins;
-    node.classList.toggle('pinned', pinned);
-    pin.innerHTML = pinned ? PINNED_ICON : PIN_ICON;
-    pin.setAttribute('aria-pressed', String(pinned));
-    pin.setAttribute('aria-label', pinned ? 'Unpin this request' : 'Pin this request');
-    setTooltip(pin, pinned ? 'Unpin this request' : 'Pin this request');
+    const star = node.querySelector<HTMLElement>('.exchange-request .exchange-pin');
+    if (star) drawStar(node, star, exchange.id in this.pins, 'request');
+    for (const piece of node.querySelectorAll<HTMLElement>('.exchange-text')) {
+      const pin = piece.querySelector<HTMLElement>(':scope > .exchange-pin');
+      if (pin) drawStar(piece, pin, (piece.dataset.id ?? '') in this.pins, 'message');
+    }
   }
 
   private async togglePin(exchange: Exchange): Promise<void> {
     if (!this.session || !exchange.id) return;
-    this.setPins(await this.host.toggleRequestPin(exchange.id, { session: this.session, text: exchange.request, time: exchange.time }));
+    this.setPins(await this.host.toggleHistoryPin(exchange.id, { kind: 'request', session: this.session, text: exchange.request, time: exchange.time }));
   }
+
+  private async toggleMessagePin(part: Extract<ReplyPart, { kind: 'text' }>): Promise<void> {
+    if (!this.session || !part.id) return;
+    this.setPins(await this.host.toggleHistoryPin(part.id, { kind: 'reply', session: this.session, text: requestLabel(part.text, 300), time: part.time }));
+  }
+}
+
+/** A star, like the session row's told apart by ink alone, filled or outlined; what it pins carries the accent edge. */
+function drawStar(owner: HTMLElement, star: HTMLElement, pinned: boolean, what: 'request' | 'message'): void {
+  owner.classList.toggle('pinned', pinned);
+  star.innerHTML = pinned ? PINNED_ICON : PIN_ICON;
+  star.setAttribute('aria-pressed', String(pinned));
+  const label = `${pinned ? 'Unpin' : 'Pin'} this ${what}`;
+  star.setAttribute('aria-label', label);
+  setTooltip(star, label);
 }

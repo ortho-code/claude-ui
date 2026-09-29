@@ -19,8 +19,8 @@ vi.mock('./log', async (importOriginal) => ({
 import {
   getPinned,
   togglePin,
-  getRequestPins,
-  toggleRequestPin,
+  getHistoryPins,
+  toggleHistoryPin,
   getArchived,
   toggleArchive,
   purgeSession,
@@ -70,38 +70,49 @@ describe('pins', () => {
   });
 });
 
-describe('request pins', () => {
-  const pin = { session: 's1', text: 'why does the sniff not fire?', time: '2026-09-29T10:00:00Z' };
+describe('history pins', () => {
+  const pin = { kind: 'request' as const, session: 's1', text: 'why does the sniff not fire?', time: '2026-09-29T10:00:00Z' };
 
   it('pins a request by its uuid with what a list shows of it, and unpins it', async () => {
-    expect(await getRequestPins()).toEqual({});
-    const pinned = await toggleRequestPin('u1', pin);
+    expect(await getHistoryPins()).toEqual({});
+    const pinned = await toggleHistoryPin('u1', pin);
     expect(Object.keys(pinned)).toEqual(['u1']);
     expect(pinned.u1).toMatchObject(pin);
     expect(pinned.u1.pinnedAt).toBeGreaterThan(0);
-    expect(await getRequestPins()).toEqual(pinned);
-    expect(await toggleRequestPin('u1', pin)).toEqual({});
+    expect(await getHistoryPins()).toEqual(pinned);
+    expect(await toggleHistoryPin('u1', pin)).toEqual({});
   });
 
-  it('keeps only the opening of a long request', async () => {
-    const pinned = await toggleRequestPin('u1', { ...pin, text: 'x'.repeat(1000) });
+  it('pins one of claude\'s messages as a reply', async () => {
+    const pinned = await toggleHistoryPin('a1:0', { ...pin, kind: 'reply', text: 'Found it.' });
+    expect(pinned['a1:0']).toMatchObject({ kind: 'reply', text: 'Found it.' });
+  });
+
+  it('keeps only the opening of a long text', async () => {
+    const pinned = await toggleHistoryPin('u1', { ...pin, text: 'x'.repeat(1000) });
     expect(pinned.u1.text).toHaveLength(300);
   });
 
   it('refuses a pin that arrives malformed', async () => {
-    expect(await toggleRequestPin('u1', { session: 's1', text: 42, time: 't' } as never)).toEqual({});
-    expect(await toggleRequestPin('', pin)).toEqual({});
+    expect(await toggleHistoryPin('u1', { ...pin, text: 42 } as never)).toEqual({});
+    expect(await toggleHistoryPin('u1', { ...pin, kind: 'other' } as never)).toEqual({});
+    expect(await toggleHistoryPin('', pin)).toEqual({});
   });
 
   it('drops a stored pin missing its session or text, and keeps the rest', async () => {
-    await writeMetaFile({ version: 3, requestPins: { good: { ...pin, pinnedAt: 5 }, noText: { session: 's1', time: 't' }, broken: 'yes', old: { ...pin } } });
-    expect(await getRequestPins()).toEqual({ good: { ...pin, pinnedAt: 5 }, old: { ...pin, pinnedAt: 0 } });
+    await writeMetaFile({ version: 3, historyPins: { good: { ...pin, pinnedAt: 5 }, noText: { session: 's1', time: 't' }, broken: 'yes', old: { ...pin } } });
+    expect(await getHistoryPins()).toEqual({ good: { ...pin, pinnedAt: 5 }, old: { ...pin, pinnedAt: 0 } });
+  });
+
+  it('reads the pins stored under their old name, before a reply could be pinned, as requests', async () => {
+    await writeMetaFile({ version: 3, requestPins: { u1: { session: pin.session, text: pin.text, time: pin.time, pinnedAt: 5 } } });
+    expect(await getHistoryPins()).toEqual({ u1: { ...pin, pinnedAt: 5 } });
   });
 
   it('survives deleting the session it was pinned in, since a fork sibling may still carry the request', async () => {
-    await toggleRequestPin('u1', pin);
+    await toggleHistoryPin('u1', pin);
     await purgeSession('s1');
-    expect(Object.keys(await getRequestPins())).toEqual(['u1']);
+    expect(Object.keys(await getHistoryPins())).toEqual(['u1']);
   });
 });
 

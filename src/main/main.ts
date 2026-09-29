@@ -18,8 +18,8 @@ import { localTimestamp } from './stamp';
 import {
   getPinned,
   togglePin,
-  getRequestPins,
-  toggleRequestPin,
+  getHistoryPins,
+  toggleHistoryPin,
   getArchived,
   toggleArchive,
   getOpenSessions,
@@ -66,7 +66,7 @@ import {
 import type { Edge, Inset } from './bounds';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
-import type { HistorySlice, OrderMove, RequestPin, UiState, Settings } from '../shared/types';
+import type { HistoryPin, HistorySlice, OrderMove, UiState, Settings } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -454,8 +454,8 @@ ipcMain.handle('meta:recordClear', (_event, from: string, to: string, title: str
 ipcMain.handle('sessions:worktreeExists', (_event, repoRoot: string, name: string) => worktreeExists(repoRoot, name));
 ipcMain.handle('meta:getPinned', () => getPinned());
 ipcMain.handle('meta:togglePin', (_event, id: string) => togglePin(id));
-ipcMain.handle('meta:getRequestPins', () => getRequestPins());
-ipcMain.handle('meta:toggleRequestPin', (_event, id: string, pin: Pick<RequestPin, 'session' | 'text' | 'time'>) => toggleRequestPin(id, pin));
+ipcMain.handle('meta:getHistoryPins', () => getHistoryPins());
+ipcMain.handle('meta:toggleHistoryPin', (_event, id: string, pin: Pick<HistoryPin, 'kind' | 'session' | 'text' | 'time'>) => toggleHistoryPin(id, pin));
 ipcMain.on('shell:openExternal', (_event, url: string) => {
   // Only ever hand the OS http(s) links from terminal output — never file://, etc.
   if (/^https?:\/\//i.test(url)) void shell.openExternal(url);

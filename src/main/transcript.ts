@@ -138,9 +138,13 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
     const content = (record.message as { content?: unknown } | undefined)?.content;
     if (!Array.isArray(content)) return;
     // In the order claude wrote them, each message its own part, with the tool calls where they came: that is how claude itself shows a reply.
+    // A message's id is its record's uuid and its place among that record's messages, stable across reads and copied by a fork, so a pin on it holds.
+    const uuid = typeof record.uuid === 'string' ? record.uuid : '';
+    const time = typeof record.timestamp === 'string' ? record.timestamp : '';
+    let messages = 0;
     for (const part of content as ({ type?: unknown; text?: unknown; name?: unknown; input?: unknown } | null)[]) {
       if (part?.type === 'text' && typeof part.text === 'string' && part.text.trim()) {
-        last.parts.push({ kind: 'text', text: part.text });
+        last.parts.push({ kind: 'text', id: uuid ? `${uuid}:${messages++}` : '', time, text: part.text });
       } else if (part?.type === 'tool_use') {
         last.parts.push(toolPart(part));
       }

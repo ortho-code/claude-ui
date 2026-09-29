@@ -11,7 +11,7 @@ const uuid = (): string => `u${++n}`;
 const typed = (text: string, extra: Record<string, unknown> = {}) => ({ type: 'user', uuid: uuid(), timestamp: '2026-09-29T10:00:00Z', message: { content: text }, ...extra });
 const userList = (content: unknown[], extra: Record<string, unknown> = {}) => ({ type: 'user', uuid: uuid(), timestamp: '2026-09-29T10:00:00Z', message: { content }, ...extra });
 const toolResult = () => userList([{ type: 'tool_result', tool_use_id: 't', content: 'output' }]);
-const answer = (...parts: unknown[]) => ({ type: 'assistant', uuid: uuid(), message: { content: parts } });
+const answer = (...parts: unknown[]) => ({ type: 'assistant', uuid: uuid(), timestamp: '2026-09-29T10:00:30Z', message: { content: parts } });
 const text = (t: string) => ({ type: 'text', text: t });
 const tool = (name: string, input: Record<string, unknown>) => ({ type: 'tool_use', name, input });
 const command = (name: string, args = '') => typed(`<command-message>${name.slice(1)}</command-message>\n<command-name>${name}</command-name>\n<command-args>${args}</command-args>`);
@@ -29,7 +29,9 @@ const toolLines = (e: Exchange) => e.parts.flatMap((p) => (p.kind === 'tool' ? [
 describe('what counts as a request', () => {
   it('a typed prompt, with its reply: each message its own part, the tool calls where they came', () => {
     const q = typed('why does the sniff not fire?');
-    const f = fold(q, answer(text('Let me look.'), tool('Read', { file_path: '/repo/src/Sniff.php' })), toolResult(), answer(text('Found it.')));
+    const first = answer(text('Let me look.'), tool('Read', { file_path: '/repo/src/Sniff.php' }));
+    const second = answer(text('Found it.'));
+    const f = fold(q, first, toolResult(), second);
     expect(f.exchanges).toEqual([
       {
         id: q.uuid,
@@ -38,12 +40,18 @@ describe('what counts as a request', () => {
         kind: 'typed',
         replaced: false,
         parts: [
-          { kind: 'text', text: 'Let me look.' },
+          { kind: 'text', id: `${first.uuid}:0`, time: first.timestamp, text: 'Let me look.' },
           { kind: 'tool', name: 'Read', detail: '/repo/src/Sniff.php' },
-          { kind: 'text', text: 'Found it.' },
+          { kind: 'text', id: `${second.uuid}:0`, time: second.timestamp, text: 'Found it.' },
         ],
       },
     ]);
+  });
+
+  it('gives each message of one record its own id, by its place among them', () => {
+    const a = answer(text('One.'), tool('Bash', { command: 'ls' }), text('Two.'));
+    const f = fold(typed('go'), a);
+    expect(f.exchanges[0].parts.flatMap((p) => (p.kind === 'text' ? [p.id] : []))).toEqual([`${a.uuid}:0`, `${a.uuid}:1`]);
   });
 
   it('a prompt with a pasted image, by its text', () => {

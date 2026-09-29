@@ -2342,20 +2342,52 @@ button:focus:not(:focus-visible) {
 
 /* The star, first on the line: hidden until the exchange is hovered or the star focused, and always shown once pinned. */
 .exchange-pin {
-  align-self: flex-start;
-  margin: 1px 0 0 -4px;
   visibility: hidden;
 }
 
-.exchange:hover .exchange-pin,
-.exchange-pin:focus-visible,
-.exchange.pinned .exchange-pin {
+.exchange-request .exchange-pin {
+  align-self: flex-start;
+  margin: 1px 0 0 -4px;
+}
+
+.exchange-request:hover .exchange-pin,
+.exchange.pinned > .exchange-request .exchange-pin,
+.exchange-pin:focus-visible {
   visibility: visible;
 }
 
 /* A pinned request: the accent edge the bar's pinned tick matches. */
-.exchange.pinned .exchange-request {
+.exchange.pinned > .exchange-request {
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* A message's star stands where claude's dot is, at the message's start, in place of the dot on hover and once pinned. */
+.exchange-text > .exchange-pin {
+  position: absolute;
+  left: -3px;
+  top: 0;
+}
+
+.exchange-text:hover > .exchange-pin,
+.exchange-text.pinned > .exchange-pin {
+  visibility: visible;
+}
+
+.exchange-text:hover::before,
+.exchange-text.pinned::before {
+  visibility: hidden;
+}
+
+/* A pinned message: an accent line in the margin beside it, as a pinned request has its edge. */
+.exchange-text.pinned::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
 }
 
 /* The number, the time and any mark, at the band's end: chrome, so the interface's face rather than the terminal's. */

@@ -5,9 +5,10 @@ import { entryAt, wheelSteps, type Entry, type MarkAt } from './marks';
 
 /** What the bar reads from the history it marks (view.ts). */
 export interface BarSource {
-  marks(): { k: number; request: number; reply: number | null; pinned: boolean; replaced: boolean }[];
+  /** `pinned` is the request's pin, `replyPinned` whether any of claude's messages in the exchange is pinned. */
+  marks(): { k: number; request: number; reply: number | null; pinned: boolean; replyPinned: boolean; replaced: boolean }[];
   band(): { top: number; height: number };
-  describe(k: number): { number: number; time: string; request: string; reply: string | null; pinned: boolean } | null;
+  describe(k: number): { number: number; time: string; request: string; reply: string | null; pinned: boolean; replyPinned: boolean } | null;
   readonly size: number;
   /** Whether the history, rather than the live terminal, has the pane. */
   readonly shown: boolean;
@@ -93,7 +94,7 @@ export class HistoryBar {
         const start = Math.max(reply, top + 2);
         const end = (next ? next.request * height : height) - 2;
         const bar = document.createElement('div');
-        bar.className = `mark-reply${mark.pinned ? ' pinned' : ''}`;
+        bar.className = `mark-reply${mark.replyPinned ? ' pinned' : ''}`;
         bar.style.top = `${start}px`;
         bar.style.height = `${Math.max(0, end - start)}px`;
         this.replyEls.set(mark.k, bar);
@@ -222,7 +223,7 @@ class Loupe {
       text.className = 'history-loupe-text';
       text.textContent = (entry.part === 'request' ? info?.request : info?.reply) ?? '';
       row.append(number, text);
-      if (entry.part === 'request' && info?.pinned) {
+      if (entry.part === 'request' ? info?.pinned : info?.replyPinned) {
         const star = document.createElement('span');
         star.className = 'history-loupe-pin';
         star.innerHTML = PINNED_ICON;
