@@ -100,6 +100,8 @@ export function describeLaunch(launch: TerminalLaunch, extra: string[]): string 
   else if (launch.resumeSessionId) what = `resume ${launch.resumeSessionId}`;
   else what = `new session ${launch.sessionId ?? '(no id)'}`;
   if (launch.worktree !== undefined) what += ', in a new worktree';
+  // That there is one, never what it says.
+  if (launch.prompt) what += ', with a first prompt';
   const names = flagNames(extra);
   if (names.length > 0) what += `, flags ${names.join(' ')}`;
   return what;
@@ -150,6 +152,8 @@ export function claudeArgs(opts: LaunchOptions): string[] {
   }
   // The user's own flags go last, so a repeated flag resolves in their favour on any flag claude takes last-wins. The ones that would break the app are refused before they can be saved, so nothing here can displace what is above.
   if (opts.extra) args.push(...opts.extra);
+  // The first prompt is the positional argument, after `--` and after everything else: a flag taking several values (`--allowedTools Grep,Glob`) swallows a prompt that follows it without one, and a prompt starting with `-` would read as a flag (both MEASURED 2026-09-29).
+  if (opts.prompt) args.push('--', opts.prompt);
   return args;
 }
 

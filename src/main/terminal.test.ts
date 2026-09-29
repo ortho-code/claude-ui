@@ -80,6 +80,22 @@ describe('claudeArgs', () => {
     expect(claudeArgs({ settingsFile: null, sessionId: id })).toEqual(['--session-id', id]);
   });
 
+  it('puts a first prompt last, after -- and after the user’s own flags, so a flag taking several values cannot swallow it', () => {
+    expect(claudeArgs({ settingsFile: null, sessionId: 's1', name: 'Review #1', prompt: '/review 1', extra: ['--allowedTools', 'Grep,Glob'] })).toEqual([
+      '--session-id',
+      's1',
+      '--name',
+      'Review #1',
+      '--allowedTools',
+      'Grep,Glob',
+      '--',
+      '/review 1',
+    ]);
+    // A prompt that starts with a dash is still the prompt.
+    expect(claudeArgs({ settingsFile: null, prompt: '-v is not a flag here' }).slice(-2)).toEqual(['--', '-v is not a flag here']);
+    expect(claudeArgs({ settingsFile: null, prompt: '' })).toEqual([]);
+  });
+
   // A fork is the one launch that carries both ids: claude honours --session-id while resuming, so the copy lands on an id the app chose rather than one it has to be told afterwards.
   it('forks the parent into a session id of our own', () => {
     const id = '994a9944-ebf8-4586-95eb-3bb9fed20f96';
@@ -321,6 +337,10 @@ describe('describeLaunch', () => {
     const line = describeLaunch({ sessionId: 'new-1', name: 'Payroll rewrite', worktree: 'payroll' }, []);
     expect(line).toBe('new session new-1, in a new worktree');
     expect(describeLaunch({ sessionId: 'new-1', worktree: '' }, [])).toBe('new session new-1, in a new worktree');
+  });
+
+  it('says a session has a first prompt, never what it says', () => {
+    expect(describeLaunch({ sessionId: 'new-1', prompt: '/review 35743' }, [])).toBe('new session new-1, with a first prompt');
   });
 
   it('lists the user flags by name, never their values', () => {

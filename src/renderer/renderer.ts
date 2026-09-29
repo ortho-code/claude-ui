@@ -533,6 +533,8 @@ interface TabLaunch {
   name?: string;
   /** A new git worktree to start in (`-w`): a name, or `''` to let claude pick one. */
   worktree?: string;
+  /** The session's first prompt, which claude runs as it starts. */
+  prompt?: string;
 }
 
 const tabs: Tab[] = [];
@@ -2813,6 +2815,7 @@ async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
       fork: launch.fork,
       name: launch.name,
       worktree: launch.worktree,
+      prompt: launch.prompt,
       tabToken: tab.token,
     });
     // Gone while it was still starting: the tab has been removed but the pty has not, so hand it straight back rather than leaving a claude running with nothing pointing at it.

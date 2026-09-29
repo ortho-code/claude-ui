@@ -112,6 +112,8 @@ export interface TerminalLaunch {
   name?: string;
   /** `-w`: start in a new git worktree — a non-empty string names it, `''` lets claude auto-name, `undefined` means no worktree. */
   worktree?: string;
+  /** The session's first prompt, which claude runs as soon as it starts: a slash command such as `/review 35743` runs as one. */
+  prompt?: string;
   /**
    * Not a claude flag: an environment marker naming the TAB, echoed back by the status hook.
    * `sessionId` settles which session a terminal starts with; this is what keeps the answer right afterwards, since `/clear` replaces the session with one the app did not name.
