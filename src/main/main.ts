@@ -67,6 +67,7 @@ import {
 import type { Edge, Inset } from './bounds';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
+import { NO_TRANSCRIPT } from '../shared/history';
 import type { HistoryPin, HistorySlice, OrderMove, UiState, Settings } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
@@ -448,7 +449,7 @@ ipcMain.handle('sessions:list', () => listSessions());
 ipcMain.handle('history:get', async (_event, id: string, known: number, generation: number): Promise<HistorySlice> => {
   const file = await findTranscript(id);
   // No transcript yet is a session nothing has been sent in: an empty history, not an error.
-  if (!file) return { generation: 0, from: 0, exchanges: [], total: 0 };
+  if (!file) return NO_TRANSCRIPT;
   return readHistory(file, Number.isInteger(known) && known > 0 ? known : 0, Number.isInteger(generation) ? generation : 0);
 });
 ipcMain.handle('meta:recordClear', (_event, from: string, to: string, title: string) => recordClear(from, to, title));

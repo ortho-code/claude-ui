@@ -24,7 +24,7 @@ export interface BridgeFixture {
   projectOrder: string[];
   statuses: Record<string, string>;
   historyPins: Record<string, HistoryPin>;
-  /** Session id -> its transcript's exchanges, as main reads them; a session left out has no history the stand-in can answer for. */
+  /** Session id -> its transcript's exchanges, as main reads them; a listed session left out has no history the stand-in can answer for, and one the listing does not have has no transcript yet. */
   history: Record<string, Exchange[]>;
   layout: LayoutReport;
   folders: Record<FolderName, string>;

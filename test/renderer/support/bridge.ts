@@ -1,4 +1,4 @@
-import { readFrom } from '../../../src/shared/history';
+import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import type { BridgeCall, BridgeEvent, BridgeEventArgs, BridgeFixture } from './fixture';
 
@@ -48,8 +48,9 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
   const api: ClaudeUiApi = {
     listSessions: () => answer(fixture.sessions),
     // Where the answer starts is main's own rule, `readFrom`; a fixture transcript never changes after its one read, so nothing in it is ever marked as changed.
+    // A session the listing does not have has no transcript, which is main's empty answer; one it has needs its history in the fixture.
     getHistory: (id, known, generation) => {
-      if (!(id in fixture.history)) return unmodelled('getHistory')();
+      if (!(id in fixture.history)) return fixture.sessions.some((s) => s.id === id) ? unmodelled('getHistory')() : answer(NO_TRANSCRIPT);
       const exchanges = fixture.history[id];
       const from = readFrom(known, exchanges.length, generation === READ, null);
       return answer({ generation: READ, from, exchanges: exchanges.slice(from), total: exchanges.length });

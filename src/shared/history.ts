@@ -1,3 +1,11 @@
+import type { HistorySlice } from './types';
+
+/**
+ * The history of a session with no transcript yet, one nothing has been sent in: empty, not an error.
+ * Main's answer (`history:get` in src/main/main.ts); shared so that the window's checks answer for a new session the way main does.
+ */
+export const NO_TRANSCRIPT: HistorySlice = { generation: 0, from: 0, exchanges: [], total: 0 };
+
 /**
  * Where a history read's answer starts, for a caller holding `known` exchanges of a transcript that now has `total`.
  * A caller of another read (`sameRead` false: the first read, or the transcript was read again from the start) gets everything from 0.
