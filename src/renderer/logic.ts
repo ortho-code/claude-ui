@@ -51,6 +51,11 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
 
 const SIGNATURE_FIELDS = (Object.keys(AFFECTS_ROW) as (keyof SessionSummary)[]).filter((k) => AFFECTS_ROW[k]);
 
+/** One session's line of the signature: every field that affects a row. */
+function rowLine(session: SessionSummary): string {
+  return SIGNATURE_FIELDS.map((k) => String(session[k])).join('\0');
+}
+
 /**
  * The list's structure: one line per session, over every field that affects a row.
  *
@@ -58,10 +63,12 @@ const SIGNATURE_FIELDS = (Object.keys(AFFECTS_ROW) as (keyof SessionSummary)[]).
  * Getting it wrong is not hypothetical: `model` was missing, and the same gap is why a mid-session worktree move or a new sibling only appeared at the next unrelated change.
  */
 export function structuralSignature(sessions: SessionSummary[]): string {
-  return sessions
-    .map((s) => SIGNATURE_FIELDS.map((k) => String(s[k])).join('\0'))
-    .sort()
-    .join('\n');
+  return sessions.map(rowLine).sort().join('\n');
+}
+
+/** Whether two summaries of a session draw the same row — and so the same tab, which shows less of it. */
+export function sameRow(a: SessionSummary, b: SessionSummary): boolean {
+  return a === b || rowLine(a) === rowLine(b);
 }
 
 /**

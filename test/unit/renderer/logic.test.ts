@@ -7,6 +7,7 @@ import {
   stopControlState,
   sessionsByKey,
   structuralSignature,
+  sameRow,
   groupByRepo,
   folderName,
   displayName,
@@ -138,6 +139,15 @@ describe('structuralSignature', () => {
     ['postCompactHeads', { postCompactHeads: ['head-1'] }],
   ])('ignores %s', (_field, over) => {
     expect(structuralSignature([session()])).toBe(structuralSignature([session(over)]));
+  });
+});
+
+// The same fields, for one session against another summary of it: what an open tab asks of a fresh read.
+describe('sameRow', () => {
+  it('holds across a fresh summary that moved only what no row draws, and not across one that moved a drawn field', () => {
+    expect(sameRow(session(), session({ lastActivity: '2030-01-01T00:00:00Z', postCompactHeads: ['head-1'] }))).toBe(true);
+    expect(sameRow(session(), session({ title: 'Renamed' }))).toBe(false);
+    expect(sameRow(session(), session({ cwdExists: false }))).toBe(false);
   });
 });
 

@@ -18,6 +18,7 @@ import type { FitAddon } from '@xterm/addon-fit';
 import type { OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
 import {
   sessionsByKey,
+  sameRow,
   buildProjectTree,
   folderName,
   displayName,
@@ -306,18 +307,8 @@ function reconcileOpenTabs(view: TabBarView): void {
       continue;
     }
     // Always adopt the fresh summary (cheap, and keeps a tab's data from going stale), but only rebuild the bar when something the TAB shows actually differs.
-    // Comparing only title/firstMessage used to leave the mid-session cases behind: entering a worktree or gaining a sibling changes worktree/isSibling (and repoRoot, which groups the tabs), so the mark never appeared until the next unrelated title change.
-    const shownDiffers =
-      fresh.title !== tab.session.title ||
-      fresh.firstMessage !== tab.session.firstMessage ||
-      fresh.worktree !== tab.session.worktree ||
-      fresh.repoRoot !== tab.session.repoRoot ||
-      // A tab is dimmed when its session's folder is gone, and its project label marked when the project's is, and either can happen with the app running.
-      fresh.cwdExists !== tab.session.cwdExists ||
-      fresh.repoRootExists !== tab.session.repoRootExists ||
-      fresh.isSibling !== tab.session.isSibling ||
-      fresh.siblingIds.length !== tab.session.siblingIds.length;
-    if (shownDiffers) changed = true;
+    // That is the rows' own question, whose field list is exhaustive by type: a list kept here once compared only the title and first message, and left a mid-session worktree move or a new sibling off the tab until the next unrelated change.
+    if (!sameRow(fresh, tab.session)) changed = true;
     adopted = true;
     tabs.push({ ...tab, session: fresh });
   }
