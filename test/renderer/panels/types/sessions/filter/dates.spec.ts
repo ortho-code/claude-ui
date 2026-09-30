@@ -66,6 +66,24 @@ test('a custom range picked on the calendar narrows the list to it and names it'
   await expect.poll(() => titles(page)).toEqual(sorted(days20));
 });
 
+test("the calendar starts at the oldest session's day, and follows the listing as it changes", async ({ app, page }) => {
+  // All in the month on show, so the first day that can be picked is on the calendar.
+  await app.boot({ sessions: [today, days3, days20] });
+  await page.locator('#filter-toggle').click();
+  await preset(page, 'custom').click();
+  await page.locator('#date-range-label').click();
+  await expect(day(page, 9)).toHaveClass(/-disabled-/);
+  await expect(day(page, 10)).not.toHaveClass(/-disabled-/);
+
+  const older = session({ id: '00000000-0000-4000-8000-0000000000d5', title: 'Older still', lastActivity: '2026-09-05T12:00:00.000Z' });
+  await page.evaluate((added) => {
+    window.__claudeUiFixture.sessions = [...window.__claudeUiFixture.sessions, added];
+  }, older);
+  expect(await app.emit('onSessionsChanged')).toBe(1);
+  await expect(day(page, 9)).not.toHaveClass(/-disabled-/);
+  await expect(day(page, 4)).toHaveClass(/-disabled-/);
+});
+
 test('a stored custom range comes back as it was picked', async ({ app, page }) => {
   const from = new Date(2026, 8, 9).getTime();
   const to = new Date(2026, 8, 11, 23, 59, 59, 999).getTime();

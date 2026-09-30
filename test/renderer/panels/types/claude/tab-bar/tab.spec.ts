@@ -28,6 +28,19 @@ test("a tab's dot follows its session's status, and a click on it marks it read 
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
+test('a tab follows its session as the listing changes on disk: a new title renames it', async ({ app, page }) => {
+  await app.boot({ sessions: [one, other], openSessions: [one.id, other.id] });
+  await expect(tab(page, other.title)).toHaveCount(1);
+  // As claude writing its title into the transcript would leave it, and main listing it again.
+  await page.evaluate((id) => {
+    const listed = window.__claudeUiFixture.sessions;
+    window.__claudeUiFixture.sessions = listed.map((s) => (s.id === id ? { ...s, title: 'Renamed on disk' } : s));
+  }, other.id);
+  expect(await app.emit('onSessionsChanged')).toBe(1);
+  await expect(tab(page, 'Renamed on disk')).toHaveCount(1);
+  await expect(tab(page, other.title)).toHaveCount(0);
+});
+
 test('a middle click stops the tab of a running session, and closes it once it is cold', async ({ app, page }) => {
   await app.boot(fixture);
   await tab(page, other.title).click();
