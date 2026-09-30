@@ -15,15 +15,15 @@ import { HistoryBar } from './panels/types/claude/history/bar';
 import { HistoryView } from './panels/types/claude/history/view';
 import './styles.css';
 import { store, withEntry, withMember, type TabState, type View } from './state/app';
+import { projName, projectGroups, sessionById, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
-import type { OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
+import type { OrderMove, GroupState, SessionSummary, UiState } from '../shared/types';
 import {
   sessionsByKey,
   structuralSignature,
   buildProjectTree,
   folderName,
-  displayName,
   entityKey,
   reorderWithinGroup,
   type ProjectTree,
@@ -32,7 +32,6 @@ import {
   relativeTime,
   modelLabel,
   sessionPasses,
-  inView,
   datePresetRange,
   projectsForSwitcher,
   projectFor,
@@ -200,7 +199,6 @@ function setLoading(on: boolean): void {
   loadingEl.classList.toggle('active', on);
 }
 
-const projName = (repoRoot: string, view: View<'projectNames'>): string => displayName(repoRoot, view.projectNames);
 let filterText = '';
 let showPinnedOnly = false;
 let showOpenOnly = false;
@@ -444,16 +442,6 @@ function tabOf(token: string): TabState | undefined {
 /** Change one tab's data: a new entry in place of the old, so everyone who draws it is told. */
 function setTab(token: string, patch: Partial<Omit<TabState, 'token'>>): void {
   store.set({ tabs: store.get().tabs.map((t) => (t.token === token ? { ...t, ...patch } : t)) });
-}
-
-/** The tab a session is open in, if any. */
-function tabWith(sessionId: string, view: View<'tabs'> = store.get()): TabState | undefined {
-  return view.tabs.find((t) => t.session.id === sessionId);
-}
-
-/** The tab on show, from the token the store keeps. */
-function tabOnShow(view: View<'tabs' | 'activeTab'>): TabState | null {
-  return view.activeTab === null ? null : (view.tabs.find((t) => t.token === view.activeTab) ?? null);
 }
 
 /** Whether the tab is the one on show, as a handler asks it. */
@@ -1010,11 +998,6 @@ function applyGroupState(next: GroupState): void {
   store.set({ groupState: next });
 }
 
-// The groups belonging to one project, in registry order.
-function projectGroups(repoRoot: string, { groupState }: View<'groupState'>): SessionGroup[] {
-  return groupState.groups.filter((g) => g.repoRoot === repoRoot);
-}
-
 async function moveSessionToGroup(session: SessionSummary, groupId: string | null): Promise<void> {
   applyGroupState(await window.claudeUi.moveSessionToGroup(entityKey(session), groupId));
 }
@@ -1358,25 +1341,6 @@ switcherCurrent.addEventListener('click', () => {
   if (switcherPopover.hidden) openSwitcher();
   else closeSwitcher();
 });
-
-// The sessions the sidebar can show: every session on disk, plus the open tabs whose session has not written a transcript yet (so a fresh session appears in its project immediately).
-// A tab's id is the session's real id from the moment it is created, so this adds a row that the transcript later fills in — never a second row beside it.
-function visibleSessions(view: View<'sessions' | 'tabs'>): SessionSummary[] {
-  const tips = sessionsByKey(view.sessions);
-  const knownIds = new Set(view.sessions.map((s) => s.id));
-  const pending = view.tabs.filter((t) => !knownIds.has(t.session.id)).map((t) => t.session);
-  return [...pending, ...tips.values()];
-}
-
-// The switcher's project pool: every project's tips minus archived/pending-delete, independent of the search text and active project so you can always navigate to any project.
-function switcherPool(all: SessionSummary[], view: View<'archived' | 'pendingDeletes'>): SessionSummary[] {
-  return viewPool(all, false, view);
-}
-
-// The sessions a view holds before any filter, archived or not (see inView).
-function viewPool(all: SessionSummary[], archivedView: boolean, view: View<'archived' | 'pendingDeletes'>): SessionSummary[] {
-  return all.filter((s) => inView(entityKey(s), archivedView, view.archived, view.pendingDeletes));
-}
 
 /** What the switcher and the strip draw from the store. */
 type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs'>;
@@ -2287,11 +2251,6 @@ function linkedSessions(entryKey: string, itemKey: string): LinkedSession[] {
       if (!session) return [];
       return [{ id, title: session.title, status: statuses.get(id) ?? null, acked: acked.has(id), running: tab !== undefined && tab.terminalId !== null }];
     });
-}
-
-/** The session behind an id, from its tab or the list; null for one the app no longer has. */
-function sessionById(id: string): SessionSummary | null {
-  return tabWith(id)?.session ?? store.get().sessions.find((s) => s.id === id) ?? null;
 }
 
 /** Go to a session a panel's row started, as a jump from the attention strip does; one whose folder is gone says so, as its row in the list would. */
