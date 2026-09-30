@@ -1,6 +1,7 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
-import { togglePinned, toggleArchived, withNote, withoutSession } from '../../../src/shared/sessionmarks';
+import { togglePinned, toggleArchived, withoutSession } from '../../../src/shared/sessionmarks';
+import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
 
@@ -86,7 +87,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getActiveProject: () => answer(fixture.activeProject),
     setActiveProject: sent,
     getNotes: () => answer(fixture.notes),
-    setNote: (id, note) => answer((fixture.notes = withNote(fixture.notes, id, note))),
+    setNote: (id, note) => answer((fixture.notes = withText(fixture.notes, id, note))),
     getUiState: () => answer(fixture.uiState),
     setUiState: sent,
     getSettings: () => answer(fixture.settings),

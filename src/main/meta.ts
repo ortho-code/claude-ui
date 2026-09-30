@@ -7,7 +7,8 @@ import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
-import { togglePinned, toggleArchived, withNote, withoutSession } from '../shared/sessionmarks';
+import { togglePinned, toggleArchived, withoutSession } from '../shared/sessionmarks';
+import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
 import { writeFileAtomic } from './atomic';
 import { errorText, fsFailure, log, logOnce } from './log';
@@ -619,7 +620,7 @@ export function getNotes(): Promise<Record<string, string>> {
  */
 export function setNote(id: string, note: string): Promise<Record<string, string>> {
   return update('setNote', (meta) => {
-    meta.notes = withNote(meta.notes, id, note);
+    meta.notes = withText(meta.notes, id, note);
     return meta.notes;
   });
 }
@@ -674,9 +675,7 @@ export function getProjectNames(): Promise<Record<string, string>> {
 // Set a project's display-name override (blank clears it, reverting to the folder name).
 export function setProjectName(repoRoot: string, name: string): Promise<Record<string, string>> {
   return update('setProjectName', (meta) => {
-    const trimmed = name.trim();
-    if (trimmed) meta.projectNames[repoRoot] = trimmed;
-    else delete meta.projectNames[repoRoot];
+    meta.projectNames = withText(meta.projectNames, repoRoot, name);
     return meta.projectNames;
   });
 }

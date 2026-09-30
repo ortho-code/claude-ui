@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { togglePinned, toggleArchived, withNote, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
+import { togglePinned, toggleArchived, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -19,15 +19,6 @@ describe('toggleArchived', () => {
     expect(toggleArchived(archived, 'b', 42)).toEqual({ a: 1, b: 42 });
     expect(toggleArchived(archived, 'a', 42)).toEqual({});
     expect(archived).toEqual({ a: 1 });
-  });
-});
-
-describe('withNote', () => {
-  it('trims a note, and a blank one removes the entry', () => {
-    const notes = { a: 'one' };
-    expect(withNote(notes, 'b', '  two  ')).toEqual({ a: 'one', b: 'two' });
-    expect(withNote(notes, 'a', '   ')).toEqual({});
-    expect(notes).toEqual({ a: 'one' });
   });
 });
 

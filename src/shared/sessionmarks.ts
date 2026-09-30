@@ -1,5 +1,5 @@
 /**
- * Main's rules for the marks a session carries in meta — its pin, its archive entry, its note — pure, so that the window's checks answer them the way main does.
+ * Main's rules for the marks a session carries in meta — its pin, its archive entry, its note (written with `withText`, src/shared/text.ts) — pure, so that the window's checks answer them the way main does.
  * Main (src/main/meta.ts) applies them inside its serialised writes of `meta.json`.
  */
 
@@ -23,15 +23,6 @@ export function toggleArchived(archived: Readonly<Record<string, number>>, id: s
   const next = { ...archived };
   if (id in next) delete next[id];
   else next[id] = now;
-  return next;
-}
-
-/** A note written: trimmed, and a blank one removes the note, which is how a note is deleted. */
-export function withNote(notes: Readonly<Record<string, string>>, id: string, note: string): Record<string, string> {
-  const next = { ...notes };
-  const trimmed = note.trim();
-  if (trimmed) next[id] = trimmed;
-  else delete next[id];
   return next;
 }
 
