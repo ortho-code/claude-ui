@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { Exchange, ReplyPart } from '../../../../src/shared/types';
-import { applySlice, emptyModel, replyBlocks, requestLabel, toolSummary } from '../../../../src/renderer/history/model';
+import type { Exchange, ReplyPart } from '../../../../../../../src/shared/types';
+import { applySlice, emptyModel, replyBlocks, requestLabel, toolSummary } from '../../../../../../../src/renderer/panels/types/claude/history/model';
 
 const ex = (request: string, reply = ''): Exchange => ({ id: request, time: '', request, kind: 'typed', replaced: false, rewound: false, parts: reply ? [{ kind: 'text', id: `${request}-reply`, time: '', text: reply }] : [] });
 

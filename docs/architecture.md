@@ -208,7 +208,7 @@ A tab is kept, cold, rather than closed: the click meant "look at this", and the
 Claude's fullscreen renderer (`"tui": "fullscreen"`) draws on the terminal's alternate screen and scrolls itself, so the terminal keeps no scrollback of the conversation, and claude publishes neither where it is scrolled nor how tall the conversation is.
 So nothing here can follow claude's own scrolling, and marking lines in the terminal's buffer — xterm markers placed as each request is sent, the first design — has no line to hold on to.
 The app draws a history of its own instead, from the session's transcript, which holds every request and reply, outlives every restart, and keeps what a compaction took out of claude's own view.
-The code is in `src/main/transcript.ts` (reading) and `src/renderer/history/` (the view, the bar and the loupe).
+The code is in `src/main/transcript.ts` (reading) and `src/renderer/panels/types/claude/history/` (the view, the bar and the loupe).
 
 ### Opening it, and getting out
 

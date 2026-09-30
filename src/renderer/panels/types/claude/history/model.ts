@@ -1,4 +1,4 @@
-import type { Exchange, HistorySlice, ReplyPart } from '../../shared/types';
+import type { Exchange, HistorySlice, ReplyPart } from '../../../../../shared/types';
 
 type TextPart = Extract<ReplyPart, { kind: 'text' }>;
 type ToolPart = Extract<ReplyPart, { kind: 'tool' }>;

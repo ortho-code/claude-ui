@@ -1,8 +1,8 @@
-import type { ClaudeUiApi, Exchange, HistoryPin, ReplyPart } from '../../shared/types';
-import { flash } from '../flash';
-import { relativeTime } from '../logic';
-import { chevronIcon, PIN_ICON, PINNED_ICON } from '../svg';
-import { setTooltip } from '../tooltip';
+import type { ClaudeUiApi, Exchange, HistoryPin, ReplyPart } from '../../../../../shared/types';
+import { flash } from '../../../../flash';
+import { relativeTime } from '../../../../logic';
+import { chevronIcon, PIN_ICON, PINNED_ICON } from '../../../../svg';
+import { setTooltip } from '../../../../tooltip';
 import { renderMarkdown, routeLinks } from './markdown';
 import type { Band } from './marks';
 import { applySlice, emptyModel, replyBlocks, requestLabel, toolSummary, type HistoryModel } from './model';

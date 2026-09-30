@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dragTop, entryAt, grabAt, wheelSteps, type MarkAt } from '../../../../src/renderer/history/marks';
+import { dragTop, entryAt, grabAt, wheelSteps, type MarkAt } from '../../../../../../../src/renderer/panels/types/claude/history/marks';
 
 // Three exchanges on a 100px bar: requests at 0, 40 and 70, replies from 10, 50, and none for the last.
 const marks: MarkAt[] = [
