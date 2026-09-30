@@ -10,7 +10,6 @@ import { markProjectGone } from './projectgone';
 import { startChrome } from './chrome';
 import { flash } from './flash';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
-import { terminalsEl } from './panels/types/claude/index';
 import { history, paneFollowsTabs, updatePlaceholder } from './panels/types/claude/pane';
 import {
   activateTab,
@@ -24,7 +23,6 @@ import {
   stopSession,
   switchWorkspaceTerminal,
   tabOf,
-  terminalOf,
   type TabLaunch,
 } from './panels/types/claude/terminals';
 import './styles.css';
@@ -2365,20 +2363,6 @@ window.claudeUi.onSessionsChanged(() => {
 window.claudeUi.onClaudeMissing(() => {
   showToast('The claude CLI was not found on your PATH. Install it and restart claude-ui.', true);
 });
-
-function fitActive(): void {
-  const activeTab = tabOnShow(store.get());
-  // A terminal area with no size is hidden — behind another panel of its group, or folded — and a fit now would tell the pty xterm's 80×24 default (the hidden-pane trap); the ResizeObserver below fits it once it has a size again.
-  if (!activeTab || terminalsEl.clientWidth === 0 || terminalsEl.clientHeight === 0) return;
-  const { term, fitAddon } = terminalOf(activeTab.token);
-  fitAddon.fit();
-  if (activeTab.terminalId === null) return; // cold: nothing to resize until it starts
-  window.claudeUi.resizeTerminal(activeTab.terminalId, term.cols, term.rows);
-}
-
-window.addEventListener('resize', fitActive);
-// Re-fit when the terminal area itself changes size (the tab bar wrapping to a new row, a divider dragged, the layout rebuilt), not just on window resize, so the terminal always fills its pane instead of being clipped.
-new ResizeObserver(() => fitActive()).observe(terminalsEl);
 
 async function pickFolderAndOpen(): Promise<void> {
   // Show an active state while the folder picker is open (it has no persistent menu of its own), matching how the other header buttons look while their panel/menu is up.

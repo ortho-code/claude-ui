@@ -310,6 +310,20 @@ export function switchWorkspaceTerminal(repoRoot: string | null): void {
   }
 }
 
+function fitActive(): void {
+  const activeTab = tabOnShow(store.get());
+  // A terminal area with no size is hidden — behind another panel of its group, or folded — and a fit now would tell the pty xterm's 80×24 default (the hidden-pane trap); the ResizeObserver below fits it once it has a size again.
+  if (!activeTab || terminalsEl.clientWidth === 0 || terminalsEl.clientHeight === 0) return;
+  const { term, fitAddon } = terminalOf(activeTab.token);
+  fitAddon.fit();
+  if (activeTab.terminalId === null) return; // cold: nothing to resize until it starts
+  window.claudeUi.resizeTerminal(activeTab.terminalId, term.cols, term.rows);
+}
+
+window.addEventListener('resize', fitActive);
+// Re-fit when the terminal area itself changes size (the tab bar wrapping to a new row, a divider dragged, the layout rebuilt), not just on window resize, so the terminal always fills its pane instead of being clipped.
+new ResizeObserver(() => fitActive()).observe(terminalsEl);
+
 // Drop a tab from the UI. Idempotent (a user close and the terminal's own exit can both fire). It does not touch the terminal process; callers terminate it when they need to.
 function removeTab(token: string): void {
   const tab = tabOf(token);
