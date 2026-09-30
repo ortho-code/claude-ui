@@ -42,8 +42,40 @@ export interface AppState {
   projectOrder: readonly string[];
   /** The project you are looking at, or null for All: the list, the switcher, the tab bar, the pane and the panels' context all honour it. Written through to main by whoever changes it. */
   activeProject: string | null;
+  /** The open tabs, in the bar's order, which is yours: the tab bar, the rows' marks, the strip, the open and live filters and the pane all draw them. */
+  tabs: readonly TabState[];
   /** The tab on show, by its token, or null for none: the tab bar, the rows, the pane, the history and the panels' context all follow it. */
   activeTab: string | null;
+}
+
+/** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
+export interface TabState {
+  /**
+   * Names this TAB for the status hook, which echoes it back.
+   * The tab's session id would not do: `/clear` ends the session and starts another in the same terminal, and this is what says the two belong to the same tab.
+   */
+  token: string;
+  session: SessionSummary;
+  /**
+   * The running process, or null when the tab is COLD — built and listed, with no claude behind it.
+   * Restored tabs start cold and spawn on activation; a null id is why nothing routes to them and why their input is dropped rather than sent nowhere.
+   */
+  terminalId: number | null;
+  /** Guards against a second start while the first is still awaiting its terminal id. */
+  starting: boolean;
+  /**
+   * Spawned, but nothing has come out of the pty yet — the window where the pane would otherwise be black.
+   * MEASURED at 2.3-3.4s for a claude start, which is far too long to show nothing.
+   * Cleared by the first byte of output, deliberately rather than by anything claude-specific: whether claude draws on the alternate screen buffer depends on its renderer (`"tui": "fullscreen"` does, the default does not), so there is no one "the TUI is up" marker to wait for, and a signal that depends on how claude renders would break the moment it changed.
+   */
+  booting: boolean;
+  /** Set while a user-initiated stop is in flight, so its exit cools the tab instead of closing it. */
+  stopping: boolean;
+  /**
+   * Why the last attempt to start this tab was refused, shown in place of the pane until it is tried again.
+   * A refusal is not an exit: the tab never had a process, so nothing arrives on the terminal to explain itself.
+   */
+  failure: string | null;
 }
 
 /** `map` with `key` set to `value`, or without it for `undefined`: a copy when that changes anything, the same map when it does not, so nobody is told for nothing. */
@@ -128,6 +160,7 @@ export const store = createStore<AppState>(
     projectNames: new Map(),
     projectOrder: [],
     activeProject: null,
+    tabs: [],
     activeTab: null,
   },
   {

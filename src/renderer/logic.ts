@@ -146,7 +146,7 @@ export function modelLabel(model: string): string {
 }
 
 // Move `moved` to `targetIndex` within the subsequence of items sharing its group key, leaving items of other groups in their slots. Pure; used to reorder a tab within its own project.
-export function reorderWithinGroup<T>(items: T[], keyOf: (t: T) => string, moved: T, targetIndex: number): T[] {
+export function reorderWithinGroup<T>(items: readonly T[], keyOf: (t: T) => string, moved: T, targetIndex: number): T[] {
   const key = keyOf(moved);
   const group = items.filter((t) => keyOf(t) === key);
   const from = group.indexOf(moved);
