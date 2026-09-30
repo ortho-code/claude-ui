@@ -49,6 +49,24 @@ test('the attention strip lists running sessions in the order you set, and keeps
   expect(await strip(page)).toEqual(expected);
 });
 
+// The strip is how you get back to a running session in another project: a row takes you to its project, its tab and its row.
+test('a strip row jumps to its session in another project: the project, the tab on show, the row', async ({ app, page }) => {
+  await app.boot({ sessions: [loose, elsewhere], projectOrder: [PROJECT, OTHER], activeProject: null, openSessions: [loose.id, elsewhere.id], history: { [loose.id]: [], [elsewhere.id]: [] } });
+  await page.locator('.tab-label', { hasText: elsewhere.title }).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  // Scoped to the other project, where its tab is out of sight.
+  await page.locator('#switcher-current').click();
+  await page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: /^demo$/ }) }).click();
+  await expect(page.locator('.tab-label', { hasText: elsewhere.title })).toHaveCount(0);
+
+  await page.locator('#footer-list .footer-item-jump', { hasText: elsewhere.title }).click();
+  await expect(page.locator('#switcher-name')).toHaveText('other');
+  await expect(page.locator('.tab', { hasText: elsewhere.title })).toHaveClass(/\bactive\b/);
+  await expect(page.locator('.session', { hasText: elsewhere.title })).toHaveClass(/\bactive-session\b/);
+  // Already running: nothing started again.
+  expect(await app.calls('startTerminal')).toHaveLength(1);
+});
+
 // Stopping from the strip is the way to stop a session in another project without leaving the one you are in: it stops, never closes, and the row leaves the strip once nothing runs there.
 test("the strip's stop button stops the session, keeps its tab cold, and the row leaves the strip", async ({ app, page }) => {
   await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });
