@@ -42,6 +42,8 @@ export interface AppState {
   projectOrder: readonly string[];
   /** The project you are looking at, or null for All: the list, the switcher, the tab bar, the pane and the panels' context all honour it. Written through to main by whoever changes it. */
   activeProject: string | null;
+  /** The tab on show, by its token, or null for none: the tab bar, the rows, the pane, the history and the panels' context all follow it. */
+  activeTab: string | null;
 }
 
 /** `map` with `key` set to `value`, or without it for `undefined`: a copy when that changes anything, the same map when it does not, so nobody is told for nothing. */
@@ -126,6 +128,7 @@ export const store = createStore<AppState>(
     projectNames: new Map(),
     projectOrder: [],
     activeProject: null,
+    activeTab: null,
   },
   {
     sessions: sameRows,
