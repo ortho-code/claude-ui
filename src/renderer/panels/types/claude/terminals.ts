@@ -2,7 +2,7 @@ import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { SessionSummary } from '../../../../shared/types';
 import { entityKey, hasVisibleOutput, sessionsByKey, unstartableReason } from '../../../logic';
-import { store, type TabState } from '../../../state/app';
+import { store, type TabState, type View } from '../../../state/app';
 import { clearNudge } from '../../../state/statuses';
 import { tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
@@ -67,6 +67,19 @@ export function setTab(token: string, patch: Partial<Omit<TabState, 'token'>>): 
 /** Whether the tab is the one on show, as a handler asks it. */
 export function isOnShow(token: string): boolean {
   return token === store.get().activeTab;
+}
+
+// Keep open tabs' sessions in sync with the freshly-read listing: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
+// Always adopt the fresh summary (cheap, and keeps a tab's data from going stale); the store tells whoever draws the tabs only when something a tab shows moved, which is the rows' own question (`sameTabs`, on `sameRow`) — a list of fields kept here once compared only the title and first message, and left a mid-session worktree move or a new sibling off the tab until the next unrelated change.
+// A watcher of the listing, which renderer.ts registers before the list's, so the list draws with the tabs' sessions already adopted.
+export function reconcileOpenTabs(view: View<'sessions' | 'tabs'>): void {
+  const byId = new Map(view.sessions.map((s) => [s.id, s]));
+  store.set({
+    tabs: view.tabs.map((tab) => {
+      const fresh = byId.get(tab.session.id);
+      return fresh && fresh !== tab.session ? { ...tab, session: fresh } : tab;
+    }),
+  });
 }
 
 let activationSeq = 0;

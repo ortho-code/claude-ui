@@ -17,6 +17,7 @@ import {
   closeTab,
   createTab,
   persistOpenTabs,
+  reconcileOpenTabs,
   restoreOpenTabs,
   setTab,
   startTab,
@@ -277,18 +278,6 @@ function listFollowsTabs(view: ListView): void {
   else updateSidebarHighlight(view);
 }
 
-// Keep open tabs' sessions in sync with the freshly-read listing: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
-// Always adopt the fresh summary (cheap, and keeps a tab's data from going stale); the store tells whoever draws the tabs only when something a tab shows moved, which is the rows' own question (`sameTabs`, on `sameRow`) — a list of fields kept here once compared only the title and first message, and left a mid-session worktree move or a new sibling off the tab until the next unrelated change.
-function reconcileOpenTabs(view: View<'sessions' | 'tabs'>): void {
-  const byId = new Map(view.sessions.map((s) => [s.id, s]));
-  store.set({
-    tabs: view.tabs.map((tab) => {
-      const fresh = byId.get(tab.session.id);
-      return fresh && fresh !== tab.session ? { ...tab, session: fresh } : tab;
-    }),
-  });
-}
-
 /** The model to show for a session: the one it has switched to if we saw that happen, else the one that last answered. */
 function modelOf(session: SessionSummary, view: View<'switchedModel'>): string {
   return view.switchedModel.get(session.id) ?? session.model;
@@ -391,18 +380,11 @@ type ListView = View<
   | 'footerExpanded'
 >;
 
-/** The listing the date picker and the open tabs' titles last followed, so they follow it again only when it moved rather than on a pin or a note. */
-let followedSessions: View<'sessions'>['sessions'] = [];
 /** The filter the list was last drawn under, so a new one starts the list at its top. */
 let followedFilter: View<'filter'>['filter'] = store.get().filter;
 
-/** The list follows the store; when the listing itself moved, the date picker's first day and the open tabs' titles follow it first. */
+/** The list follows the store. */
 function listChanged(view: ListView): void {
-  if (view.sessions !== followedSessions) {
-    followedSessions = view.sessions;
-    applyDatePickerMinDate(view);
-    reconcileOpenTabs(view);
-  }
   const filtered = view.filter !== followedFilter;
   followedFilter = view.filter;
   renderList(view);
@@ -2057,7 +2039,11 @@ routeTerminals();
 // The tabs are among them: a session with no transcript yet is in its project only through its tab.
 store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptied, { reads: ['activeProject'] });
 
-// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter — and the list follows, with the switcher, the strip, the filter's count and chips and the pane's sentence it draws, and with the date picker and the tabs' titles when it was the listing.
+// The listing moved: the open tabs adopt their sessions' fresh summaries, before the list draws them, and the calendar's first day is the oldest session's.
+store.watch(['sessions'], reconcileOpenTabs, { reads: ['tabs'] });
+store.watch(['sessions'], applyDatePickerMinDate);
+
+// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter — and the list follows, with the switcher, the strip, the filter's count and chips and the pane's sentence it draws.
 // The list paints every dot it draws, but a status change repaints only the dots, below.
 store.watch(
   ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'],
