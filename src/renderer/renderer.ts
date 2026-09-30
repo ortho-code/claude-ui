@@ -387,6 +387,8 @@ type ListView = View<
   | 'activeTab'
   | 'filter'
   | 'folds'
+  | 'filterPanelOpen'
+  | 'footerExpanded'
 >;
 
 /** The listing the date picker and the open tabs' titles last followed, so they follow it again only when it moved rather than on a pin or a note. */
@@ -526,7 +528,7 @@ function applyDatePickerMinDate(view: View<'sessions'>): void {
 }
 
 // Make an active filter obvious: show "N of M" with a clear button and flag the active controls.
-function updateFilterStatus(matches: number, total: number, view: View<'filter'>): void {
+function updateFilterStatus(matches: number, total: number, view: View<'filter' | 'filterPanelOpen'>): void {
   const filtering = isFiltering(view);
   const { filters } = view.filter;
   filterStatus.hidden = !filtering;
@@ -595,8 +597,8 @@ function filterChip(icon: string, text: string, label: string, remove: () => voi
   return chip;
 }
 
-function updateFilterChips(view: View<'filter'>): void {
-  const show = isFiltering(view) && Boolean(filterPanel.hidden);
+function updateFilterChips(view: View<'filter' | 'filterPanelOpen'>): void {
+  const show = isFiltering(view) && !view.filterPanelOpen;
   filterChips.hidden = !show;
   filterStatus.classList.toggle('collapsed', show);
   if (!show) {
@@ -627,19 +629,21 @@ function updateFilterChips(view: View<'filter'>): void {
 // --- View state that survives a restart ---
 // Search, filters, folds, width and scroll are one answer to one question — put the sidebar back the way it was — so they are snapshotted, stored and restored together rather than as a setting each.
 
-/**
- * Show or hide the filter panel. Split out because both the toggle and the restore need it, and the restore must not touch focus: at startup the terminal wants it.
- */
-function setFilterPanel(open: boolean): void {
+/** Show or hide the filter panel. Split out because the restore draws it from what was stored, before the view is in the store, and must not touch focus: at startup the terminal wants it. */
+function drawFilterPanel(open: boolean): void {
   filterPanel.hidden = !open;
   filterToggle.setAttribute('aria-expanded', String(open));
-  // Opening and closing does not re-render, so the chips that stand in for a shut panel follow it here.
-  updateFilterChips(store.get());
+}
+
+/** The panel opened or shut: it follows, with the chips that stand in for it while it is shut. */
+function filterPanelFollows(view: View<'filterPanelOpen' | 'filter'>): void {
+  drawFilterPanel(view.filterPanelOpen);
+  updateFilterChips(view);
 }
 
 /** Open or shut the panel from a click: the toggle, or the row of chips that stands in for it. */
 function toggleFilterPanel(open: boolean): void {
-  setFilterPanel(open);
+  store.set({ filterPanelOpen: open });
   // Opening hands focus to the search box; closing drops focus so the ring doesn't linger.
   if (open) searchInput.focus();
   else filterToggle.blur();
@@ -654,15 +658,15 @@ let uiSaveTimer: number | undefined;
 let lastUiSignature = '';
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
-type StoredView = Pick<AppState, 'filter' | 'folds'>;
+type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'footerExpanded'>;
 
 function uiSnapshot(view: StoredView = store.get()): UiState {
   const { folds } = view;
   return {
     // The search as typed, not the trimmed and lowercased text it matches: what is restored has to be what was typed.
     ...view.filter,
-    filterPanelOpen: !filterPanel.hidden,
-    footerExpanded,
+    filterPanelOpen: view.filterPanelOpen,
+    footerExpanded: view.footerExpanded,
     collapsedProjects: [...folds.projects],
     collapsedGroups: [...folds.groups],
     filterCollapsedProjects: [...folds.filterProjects],
@@ -726,10 +730,11 @@ async function restoreUiState(): Promise<{ scrollTop: number; view: StoredView }
       filterProjects: new Set(underFilter ? state.filterCollapsedProjects : []),
       filterGroups: new Set(underFilter ? state.filterCollapsedGroups : []),
     },
+    // Exactly as it was left, an active filter included. Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
+    filterPanelOpen: state.filterPanelOpen,
+    footerExpanded: state.footerExpanded,
   };
-  // Exactly as it was left, an active filter included. Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
-  setFilterPanel(state.filterPanelOpen);
-  footerExpanded = state.footerExpanded;
+  drawFilterPanel(state.filterPanelOpen);
   // Seed the signature from what was just restored, so an opening render that changed nothing writes nothing.
   lastUiSignature = JSON.stringify(uiSnapshot(view));
   return { scrollTop: state.scrollTop, view };
@@ -754,7 +759,7 @@ function forgetDeletedGroupFolds({ groupState, folds }: View<'groupState' | 'fol
 // --- Project switcher ---
 
 // Update the switcher header + popover from the visible project pool. The pool is every project's tips (see renderList); the switcher is independent of search/project so you can always navigate.
-function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs'>): void {
+function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'footerExpanded'>): void {
   const model = projectsForSwitcher(pool, view.statuses, view.acked, view.projectNames, view.projectOrder);
   const { activeProject } = view;
   const active = activeProject ? model.projects.find((f) => f.repoRoot === activeProject) : null;
@@ -777,9 +782,6 @@ function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' 
   // What the sidebar's rail icon says while it is folded or behind another panel: the same roll-up as the header's badge.
   reportBuiltinStatus('sessions', headerBadge === 'waiting' ? 'wait' : null);
 }
-
-// Seeded from meta at startup (default open — the strip exists to be read), and written back on every toggle so the choice survives a restart.
-let footerExpanded = true;
 
 // Copy to the clipboard with a small confirmation toast; the OS gives no visible cue otherwise.
 async function copyText(text: string, confirmation: string): Promise<void> {
@@ -983,7 +985,8 @@ function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButto
 // Cross-project attention strip in the sidebar footer.
 // The toggle badge is the same overall roll-up as the switcher header; expanded, it lists the nudged SESSIONS grouped under their project (each a row: state dot + session title), click one to jump to it.
 // Muted "all clear" when nothing pending.
-function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs'>): void {
+function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'footerExpanded'>): void {
+  const { footerExpanded } = view;
   const overall = model.all.badge;
   footerBadge.className = overall ? `nudge ${overall}` : 'nudge';
   footerBadge.hidden = !overall;
@@ -1078,10 +1081,9 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
   );
 }
 
+// The strip follows, drawn by its own render (`refreshSwitcher`, told of it).
 footerToggle.addEventListener('click', () => {
-  footerExpanded = !footerExpanded;
-  footerList.hidden = !footerExpanded;
-  footerToggle.setAttribute('aria-expanded', String(footerExpanded));
+  store.set({ footerExpanded: !store.get().footerExpanded });
   persistUi();
 });
 
@@ -1160,7 +1162,7 @@ switcherCurrent.addEventListener('click', () => {
 });
 
 /** What the switcher and the strip draw from the store. */
-type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs'>;
+type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'footerExpanded'>;
 
 // Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
 function refreshSwitcher(view: SwitcherView): void {
@@ -2072,17 +2074,37 @@ store.watch(
   ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'],
   listChanged,
   // The folds are read, never told: a heading's click folds in place without drawing the list, and whoever else folds draws it.
-  { reads: ['statuses', 'acked', 'tabs', 'activeTab', 'folds'] },
+  { reads: ['statuses', 'acked', 'tabs', 'activeTab', 'folds', 'filterPanelOpen', 'footerExpanded'] },
 );
 
 // A tab opened, started, stopped, closed or came on show: the rows' marks, and the list itself when what it draws from the tabs moved.
 store.watch(['tabs', 'activeTab'], listFollowsTabs, {
-  reads: ['sessions', 'statuses', 'acked', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'folds'],
+  reads: [
+    'sessions',
+    'statuses',
+    'acked',
+    'switchedModel',
+    'pinned',
+    'archived',
+    'notes',
+    'pendingDeletes',
+    'groupState',
+    'projectNames',
+    'projectOrder',
+    'activeProject',
+    'filter',
+    'folds',
+    'filterPanelOpen',
+    'footerExpanded',
+  ],
 });
+
+// The filter panel opened or shut: it follows, with the chips that stand in for it while it is shut.
+store.watch(['filterPanelOpen'], filterPanelFollows, { reads: ['filter'] });
 
 // A status or a mark read changed: the dots that differ, the tab bar when one of them has a tab, the switcher's roll-ups and the strip.
 store.watch(['statuses', 'acked'], statusesChanged, {
-  reads: ['sessions', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'],
+  reads: ['sessions', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'footerExpanded'],
 });
 
 // A tab not on show turned waiting or finished: a toast says so.
@@ -2091,8 +2113,8 @@ store.watch(['statuses'], toastAttention, { reads: ['tabs', 'activeTab', 'projec
 // The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes, and every change to a tab or to which one is on show.
 store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'], renderTabBar, { reads: ['sessions', 'statuses', 'acked'] });
 
-// The strip lists what runs, in the bar's order, each row with a stop button in the tab's state.
-store.watch(['tabs'], refreshSwitcher, { reads: ['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject'] });
+// The strip lists what runs, in the bar's order, each row with a stop button in the tab's state; it shows those rows or folds to its line as you left it.
+store.watch(['tabs', 'footerExpanded'], refreshSwitcher, { reads: ['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject'] });
 
 // The terminal area's rail icon waits while a tab on show waits for you.
 store.watch(['activeProject', 'tabs', 'statuses', 'acked'], railStatusFollowsTabs);
@@ -2210,11 +2232,10 @@ settingsToggle.innerHTML = settingsIcon(14);
 filterToggle.innerHTML = filterIcon(14);
 // The switcher's and the attention strip's carets, from the same chevron as every other fold in the app.
 for (const caret of document.querySelectorAll<HTMLElement>('.switcher-chev, .footer-chev')) caret.innerHTML = chevronDown(11);
-// Boolean(): `hidden` is a string-or-boolean these days (it also takes "until-found").
-filterToggle.addEventListener('click', () => toggleFilterPanel(Boolean(filterPanel.hidden)));
+filterToggle.addEventListener('click', () => toggleFilterPanel(!store.get().filterPanelOpen));
 // The row of chips stands in for the shut panel, so a press anywhere on it but a × or Clear opens the panel again.
 filterStatus.addEventListener('click', (event) => {
-  if (filterPanel.hidden && !(event.target as HTMLElement).closest('button')) toggleFilterPanel(true);
+  if (!store.get().filterPanelOpen && !(event.target as HTMLElement).closest('button')) toggleFilterPanel(true);
 });
 datePresets.addEventListener('click', (event) => {
   const preset = (event.target as HTMLElement).dataset.range;

@@ -57,6 +57,10 @@ export interface AppState {
   filter: FilterState;
   /** The list's folded sections, kept for the next launch; the list reads them as it draws, and a heading's click folds in place without drawing it. */
   folds: Folds;
+  /** Whether the filter panel is open, kept for the next launch: shut over a filter, it leaves a row of chips naming what is on. */
+  filterPanelOpen: boolean;
+  /** Whether the attention strip shows its rows or only its line, kept for the next launch. */
+  footerExpanded: boolean;
 }
 
 /** The sections folded away: projects by repo root, groups by their own id. */
@@ -222,6 +226,8 @@ export const store = createStore<AppState>(
     panelData: new Map(),
     filter: noFilter(),
     folds: { projects: new Set(), groups: new Set(), filterProjects: new Set(), filterGroups: new Set() },
+    filterPanelOpen: defaultUi().filterPanelOpen,
+    footerExpanded: defaultUi().footerExpanded,
   },
   {
     sessions: sameRows,
