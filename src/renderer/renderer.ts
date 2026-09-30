@@ -18,7 +18,7 @@ import type { FitAddon } from '@xterm/addon-fit';
 import type { OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
 import {
   sessionsByKey,
-  sameRow,
+  structuralSignature,
   buildProjectTree,
   folderName,
   displayName,
@@ -285,35 +285,42 @@ function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {
   }
 }
 
+/** The tabs as the list last followed them, so a change draws the list again only when what the list draws from them moved. */
+let listedTabs: View<'tabs'>['tabs'] = [];
+
 /**
- * A tab was opened, started, stopped or closed.
- * The open and live filters are questions about the tabs, so with either on the list is filtered again; otherwise only the rows' marks change.
+ * A tab opened, started, stopped, closed or came on show: the rows' marks follow, and the list itself is drawn again only when what it draws from the tabs moved.
+ * The open and live filters ask which sessions have a tab and which of those run, and a session with no transcript yet is in the list only through its tab's stand-in row.
  */
-function tabsChanged(): void {
-  if (showOpenOnly || showLiveOnly) renderList(store.get());
-  else updateSidebarHighlight(store.get());
+function listFollowsTabs(view: ListView): void {
+  const before = listedTabs;
+  listedTabs = view.tabs;
+  const onDisk = new Set(view.sessions.map((s) => s.id));
+  const keys = (tabs: readonly TabState[], running: boolean): string =>
+    tabs
+      .filter((t) => !running || t.terminalId !== null)
+      .map((t) => entityKey(t.session))
+      .sort()
+      .join('\n');
+  const standIns = (tabs: readonly TabState[]): string => structuralSignature(tabs.filter((t) => !onDisk.has(t.session.id)).map((t) => t.session));
+  const moved =
+    (showOpenOnly && keys(before, false) !== keys(view.tabs, false)) ||
+    (showLiveOnly && keys(before, true) !== keys(view.tabs, true)) ||
+    standIns(before) !== standIns(view.tabs);
+  if (moved) renderList(view);
+  else updateSidebarHighlight(view);
 }
 
-// Keep open tabs' titles in sync with the freshly-read session list: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
-function reconcileOpenTabs(view: TabBarView): void {
+// Keep open tabs' sessions in sync with the freshly-read listing: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
+// Always adopt the fresh summary (cheap, and keeps a tab's data from going stale); the store tells whoever draws the tabs only when something a tab shows moved, which is the rows' own question (`sameTabs`, on `sameRow`) — a list of fields kept here once compared only the title and first message, and left a mid-session worktree move or a new sibling off the tab until the next unrelated change.
+function reconcileOpenTabs(view: View<'sessions' | 'tabs'>): void {
   const byId = new Map(view.sessions.map((s) => [s.id, s]));
-  let changed = false;
-  let adopted = false;
-  const tabs: TabState[] = [];
-  for (const tab of view.tabs) {
-    const fresh = byId.get(tab.session.id);
-    if (!fresh || fresh === tab.session) {
-      tabs.push(tab);
-      continue;
-    }
-    // Always adopt the fresh summary (cheap, and keeps a tab's data from going stale), but only rebuild the bar when something the TAB shows actually differs.
-    // That is the rows' own question, whose field list is exhaustive by type: a list kept here once compared only the title and first message, and left a mid-session worktree move or a new sibling off the tab until the next unrelated change.
-    if (!sameRow(fresh, tab.session)) changed = true;
-    adopted = true;
-    tabs.push({ ...tab, session: fresh });
-  }
-  if (adopted) store.set({ tabs });
-  if (changed) renderTabBar(store.get());
+  store.set({
+    tabs: view.tabs.map((tab) => {
+      const fresh = byId.get(tab.session.id);
+      return fresh && fresh !== tab.session ? { ...tab, session: fresh } : tab;
+    }),
+  });
 }
 
 function setStatus(id: string, status: string | undefined): void {
@@ -488,7 +495,6 @@ async function restoreOpenTabs(): Promise<void> {
     }
     // Land where you left off — SELECTED but not started, since nothing is meant to be live after a restart. Without a remembered tab we open on none rather than guessing.
     if (toActivate) activateTab(toActivate, false);
-    else updatePlaceholder(store.get());
   } finally {
     restoring = false;
     persistOpenTabs();
@@ -2232,7 +2238,6 @@ async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<Ta
   if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
   ensureProjectVisible(session.repoRoot);
   await createTab(session, { name: launch.name || undefined, prompt: launch.prompt || undefined });
-  renderList(store.get());
 }
 
 /**
@@ -2387,7 +2392,6 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
   if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
   ensureProjectVisible(session.repoRoot);
   await createTab(session, { name: friendly || undefined, worktree: slug });
-  renderList(store.get());
 }
 
 // Fork an existing session: `claude --session-id <new> --resume <parent> --fork-session` copies its transcript into a new session in the same cwd.
@@ -2414,7 +2418,6 @@ async function forkSession(parent: SessionSummary): Promise<void> {
   const parentGroup = store.get().groupState.groupOf[entityKey(parent)];
   if (parentGroup) await moveSessionToGroup(session, parentGroup);
   await createTab(session, { resumeFrom: parent.id, fork: true, name: trimmed || undefined });
-  renderList(store.get());
 }
 
 /**
@@ -2487,11 +2490,9 @@ async function startTab(token: string, launch: TabLaunch = {}): Promise<void> {
   terminal.startedAt = Date.now();
   // Every way a session begins — new, fork, worktree, resuming a cold tab — funnels through here, so the starting state belongs here rather than at any one call site.
   // Trying again clears what the last attempt said, so a stale reason cannot outlive it.
+  // Before the await, not after: otherwise a cold tab's pane keeps saying "click its tab to resume it" across the spawn round-trip, which is the one thing you have just done, and its button shows the pause only once the process has arrived.
   setTab(token, { starting: true, booting: true, failure: null });
   try {
-    // Before the await, not after: otherwise a cold tab keeps saying "click its tab to resume it" across the spawn round-trip, which is the one thing you have just done.
-    if (isOnShow(token)) updatePlaceholder(store.get());
-    renderTabBar(store.get()); // and for the same reason: the button has to show the pause while the process is on its way, not once it has arrived.
     // Which of the two id flags a start uses is one question: does this session have a transcript?
     // No — the tab's id is one this app minted, so claude is told to CREATE the session under it (claude refuses an id that is already in use, which is exactly the same question).
     // Yes — that id is what there is to resume, and `--session-id` would be refused.
@@ -2527,9 +2528,6 @@ async function startTab(token: string, launch: TabLaunch = {}): Promise<void> {
     // The pty is created at a default size; hand it the real one now that the pane has a real one.
     terminal.fitAddon.fit();
     window.claudeUi.resizeTerminal(terminalId, terminal.term.cols, terminal.term.rows);
-    renderTabBar(store.get());
-    updatePlaceholder(store.get());
-    tabsChanged(); // its row's bar goes from muted to accent now that it is live
   } catch (error) {
     // The main process refuses to launch into a folder that is no longer there rather than starting somewhere else and saying nothing, so this is where the session gets told.
     // It goes on the PLACEHOLDER rather than into the tab's terminal: the tab stays cold, and a cold tab's pane is covered by the placeholder, so anything written to the terminal would be hidden behind it.
@@ -2538,15 +2536,10 @@ async function startTab(token: string, launch: TabLaunch = {}): Promise<void> {
     const refused = (error instanceof Error ? error.message : '').includes('MISSING_CWD:');
     const failure = refused ? (unstartableReason({ ...tab.session, cwdExists: false }) ?? '') : 'This session could not be started.';
     setTab(token, { terminalId: null, booting: false, failure });
-    if (isOnShow(token)) updatePlaceholder(store.get());
     showToast(failure);
   } finally {
+    // However the start ended, the button is handed back, and the strip's with it: its stop button drew the flag, and a repaint by hand made a moment too early once left every freshly started session with a dead one.
     setTab(token, { starting: false });
-    // A start that ends without reaching the render above — a throw, or the early return below — must still hand the button back.
-    if (tabOf(token)) renderTabBar(store.get());
-    // The attention strip lists what is RUNNING, so a new session belongs in it now.
-    // AFTER `starting` is cleared, not before: the strip draws that flag as a disabled stop button, and rendering it a moment early left every freshly started session with a dead button that nothing came back to repaint.
-    refreshSwitcher(store.get());
   }
 }
 
@@ -2556,7 +2549,6 @@ async function createTab(session: SessionSummary, launch: TabLaunch = {}): Promi
   // activateTab can only ever resume, and its `starting` flag would then make the real start a no-op.
   activateTab(token, false);
   persistOpenTabs();
-  tabsChanged();
   await startTab(token, launch);
 }
 
@@ -2573,9 +2565,6 @@ function activateTab(token: string, start = true): void {
   store.set({ activeTab: token });
   // A cold tab's (empty) terminal stays hidden, so the placeholder can explain itself instead of showing a blank black pane.
   for (const other of store.get().tabs) terminalOf(other.token).el.classList.toggle('active', other.token === token && other.terminalId !== null);
-  renderTabBar(store.get());
-  updatePlaceholder(store.get());
-  updateSidebarHighlight(store.get());
   terminal.fitAddon.fit();
   // A cold tab starts the moment you select it — selecting IS starting, with no separate affordance, because that is how activating a tab has always behaved and laziness should show up only as a wait.
   // Fire-and-forget: activateTab is called from click handlers and stays synchronous.
@@ -2585,7 +2574,6 @@ function activateTab(token: string, start = true): void {
     const reason = unstartableReason(tab.session);
     if (reason) {
       setTab(token, { failure: reason });
-      updatePlaceholder(store.get());
       if (start) showToast(reason);
     } else if (start) {
       // No arguments: startTab resumes the tab's session, or — for a tab stopped before it ever wrote a transcript — starts it fresh under that same id, so nothing keyed to it is lost.
@@ -2601,7 +2589,7 @@ function activateTab(token: string, start = true): void {
 
 // Full workspace switch: bring the active terminal in line with the current scope (a project, or All).
 // Keeps the current tab if it's in scope; otherwise activates the scope's most-recent tab, or clears the terminal if the scope has no open tabs.
-// Always re-renders the (filtered) tab bar.
+// The tab bar, the pane and the rows follow the store.
 function switchWorkspaceTerminal(repoRoot: string | null): void {
   const { tabs } = store.get();
   const scoped = repoRoot ? tabs.filter((t) => t.session.repoRoot === repoRoot) : tabs;
@@ -2623,9 +2611,6 @@ function switchWorkspaceTerminal(repoRoot: string | null): void {
     store.set({ activeTab: null });
     for (const terminal of terminals.values()) terminal.el.classList.remove('active');
   }
-  renderTabBar(store.get());
-  updatePlaceholder(store.get());
-  updateSidebarHighlight(store.get());
 }
 
 // Drop a tab from the UI. Idempotent (a user close and the terminal's own exit can both fire). It does not touch the terminal process; callers terminate it when they need to.
@@ -2637,21 +2622,17 @@ function removeTab(token: string): void {
   terminal.term.dispose();
   terminal.el.remove();
   terminals.delete(token);
-  // One change: the tab on show closing hands over to the next one in scope, so the panels are told only where they end up, not of no tab first.
+  // One change: the tab on show closing hands over to the next one in scope, so everyone who draws the tabs — and the panels — is told once, of where it ends up rather than of no tab first.
+  // A LIVE tab leaves the strip here too, not when the pty's exit eventually lands: `closeTab` removes the tab first and kills the process after.
   store.batch(() => {
     store.set({ tabs: store.get().tabs.filter((t) => t.token !== token) });
     if (isOnShow(token)) store.set({ activeTab: null });
-    // Re-establish the active tab within the current workspace scope (or clear); this re-renders too.
+    // Re-establish the active tab within the current workspace scope (or clear).
     switchWorkspaceTerminal(store.get().activeProject);
   });
-  // A session with no transcript yet is in the list only through its tab, so its stand-in row goes with it; otherwise only the rows' marks change.
-  if (store.get().sessions.some((s) => s.id === tab.session.id)) tabsChanged();
-  else renderList(store.get());
   // After the switch, which is what remembers how the tab was left.
   history.forget(tab.session.id);
   persistOpenTabs();
-  // Closing a LIVE tab takes its row out of the strip here, not when the pty's exit eventually lands — `closeTab` removes the tab first and kills the process after, so without this the strip lists a session nothing is running.
-  refreshSwitcher(store.get());
 }
 
 // User-initiated close: terminate the session (claude persists per turn, so its context is on disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
@@ -2664,28 +2645,24 @@ function stopSession(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
   if (tab.terminalId === null || tab.stopping) return;
+  // At once, so the button shows the pause for as long as the exit takes rather than after it — on both buttons, the tab's and the strip's, which follow the same flag.
   setTab(token, { stopping: true });
-  // At once, so the button shows the pause for as long as the exit takes rather than after it.
-  // Both buttons: the session is in the attention strip too, by definition — it has a process — and a pause shown in one place and not the other is two surfaces disagreeing about the same session.
-  renderTabBar(store.get());
-  refreshSwitcher(store.get());
   window.claudeUi.closeTerminal(tab.terminalId); // Ctrl-C twice, then kill
 }
 
 /** Turn a tab that has just lost its process into a cold one. */
 function coolTab(token: string): void {
-  // A stopped tab is not a slow one: the loader must not outlive the process.
-  setTab(token, { terminalId: null, stopping: false, booting: false });
   const terminal = terminalOf(token);
   // Wipe the dead session's output: left in place it reads as a live terminal, and a resume would paint the new session over the old one's tail.
   terminal.term.reset();
   terminal.el.classList.remove('active');
-  // Stopping what you were looking at drops you to the empty screen rather than leaving a selected tab with nothing behind it; the panels lose their tab too, and fall back to the project.
-  if (isOnShow(token)) store.set({ activeTab: null });
-  renderTabBar(store.get());
-  updatePlaceholder(store.get());
-  tabsChanged();
-  refreshSwitcher(store.get()); // drops it from the attention strip now rather than when its SessionEnd lands
+  // One change, which also drops it from the attention strip now rather than when its SessionEnd lands.
+  store.batch(() => {
+    // A stopped tab is not a slow one: the loader must not outlive the process.
+    setTab(token, { terminalId: null, stopping: false, booting: false });
+    // Stopping what you were looking at drops you to the empty screen rather than leaving a selected tab with nothing behind it; the panels lose their tab too, and fall back to the project.
+    if (isOnShow(token)) store.set({ activeTab: null });
+  });
 }
 
 /**
@@ -2913,10 +2890,11 @@ function initTabSortables(): void {
         // Index among the destination's tabs (ignores the project label), mapped onto the tabs array.
         const newIndex = [...evt.to.querySelectorAll<HTMLElement>('.tab')].indexOf(el);
         if (!moved || newIndex < 0) return;
-        store.set({ tabs: reorderWithinGroup(tabs, tabClusterKey, moved, newIndex) });
-        persistOpenTabs();
-        // The strip reads its order from this array, and SortableJS has only moved the TAB's element — nothing else here repaints, so without this the strip keeps the order it was drawn with until something unrelated redraws it.
-        refreshSwitcher(store.get());
+        // The new order redraws the bar and the strip, which reads its order from it too; after the drop has finished, since the bar's redraw destroys this very Sortable.
+        queueMicrotask(() => {
+          store.set({ tabs: reorderWithinGroup(store.get().tabs, tabClusterKey, moved, newIndex) });
+          persistOpenTabs();
+        });
       },
     }),
   );
@@ -2966,6 +2944,23 @@ function updatePlaceholder(view: View<'sessions' | 'activeProject' | 'tabs' | 'a
   // The history, once asked for on such a tab, stands under the same sentence; a tab that is no longer cold takes the pane back.
   if (!standing) history.setStandalone(null);
   else if (history.standing) history.setStandalone(sentence, resumeButton(standing));
+}
+
+/** What the pane last followed from the tabs: the tab on show as it was, and whether there were none on show — its sentence depends on both. */
+let paneTab: TabState | null = null;
+let paneNoTabs = true;
+
+/**
+ * The tab on show changed, or changed state, or the last tab on show came or went: the pane follows.
+ * Another tab starting, printing or stopping leaves it alone: a change to one tab is a new entry for that tab only.
+ */
+function paneFollowsTabs(view: View<'sessions' | 'activeProject' | 'tabs' | 'activeTab'>): void {
+  const shown = tabOnShow(view);
+  const noTabs = visibleTabs(view).length === 0;
+  if (shown === paneTab && noTabs === paneNoTabs) return;
+  paneTab = shown;
+  paneNoTabs = noTabs;
+  updatePlaceholder(view);
 }
 
 /** Resume the tab on show, as a click on it does; unavailable, with the reason, when its folder has gone. */
@@ -3023,7 +3018,8 @@ routeTerminals();
 // Subscribed before start-up sets anything, and told in this order.
 
 // What the switcher's projects are made of changed, and the project on show may have none left: first, so everything after draws All rather than the empty project.
-store.watch(['sessions', 'archived', 'pendingDeletes'], fallBackIfEmptied, { reads: ['activeProject', 'tabs'] });
+// The tabs are among them: a session with no transcript yet is in its project only through its tab.
+store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptied, { reads: ['activeProject'] });
 
 // Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show — and the list follows, with the switcher, the strip and the pane's sentence it draws, and with the date picker and the tabs' titles when it was the listing.
 // The list paints every dot it draws, but a status change repaints only the dots, below.
@@ -3033,13 +3029,24 @@ store.watch(
   { reads: ['statuses', 'acked', 'tabs', 'activeTab'] },
 );
 
+// A tab opened, started, stopped, closed or came on show: the rows' marks, and the list itself when what it draws from the tabs moved.
+store.watch(['tabs', 'activeTab'], listFollowsTabs, {
+  reads: ['sessions', 'statuses', 'acked', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject'],
+});
+
 // A status or a mark read changed: the dots that differ, the tab bar when one of them has a tab, the switcher's roll-ups and the strip.
 store.watch(['statuses', 'acked'], statusesChanged, {
   reads: ['sessions', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'],
 });
 
-// The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes.
-store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject'], renderTabBar, { reads: ['sessions', 'statuses', 'acked', 'tabs', 'activeTab'] });
+// The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes, and every change to a tab or to which one is on show.
+store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'], renderTabBar, { reads: ['sessions', 'statuses', 'acked'] });
+
+// The strip lists what runs, in the bar's order, each row with a stop button in the tab's state; the switcher's claude rail status counts the tabs on show.
+store.watch(['tabs'], refreshSwitcher, { reads: ['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject'] });
+
+// The pane shows the tab on show, or says why there is none.
+store.watch(['tabs', 'activeTab'], paneFollowsTabs, { reads: ['sessions', 'activeProject'] });
 
 // The panels run where you are: in the tab on show's folder, or without one in the project's root, or in nothing in the All view.
 store.watch(['activeProject', 'activeTab'], treeContextChanged);
@@ -3050,11 +3057,7 @@ function onTabData(token: string, data: string): void {
   if (!tab) return;
   terminalOf(token).term.write(data);
   // First VISIBLE output: the pane has something to show, so stop covering it.
-  if (tab.booting && hasVisibleOutput(data)) {
-    setTab(token, { booting: false });
-    if (isOnShow(token)) updatePlaceholder(store.get());
-    renderTabBar(store.get());
-  }
+  if (tab.booting && hasVisibleOutput(data)) setTab(token, { booting: false });
 }
 
 /** How much of what a failed start printed goes into the log: enough for claude's own error and the line before it, and little enough that a resumed session's history, which it draws first, mostly stays out. */
@@ -3087,7 +3090,6 @@ function onTabExit(token: string, exitCode: number): void {
     term.writeln(`\r\n[claude exited immediately (code ${exitCode}) — the session did not start]`);
     // Uncover the pane: this line IS the explanation of the failure, and it is exactly what the loader would otherwise hide.
     setTab(token, { booting: false });
-    if (isOnShow(token)) updatePlaceholder(store.get());
     return;
   }
   removeTab(token);
@@ -3102,6 +3104,7 @@ window.claudeUi.onSessionStatus((id, status, tabToken) => {
     // A CLEARED SESSION IS A NEW SESSION, so it starts from the same blank the "+" button does rather than from its predecessor's row.
     // Carrying the old object forward was the app's own half of the copied-title problem: it kept the title, the first message and the sibling marks of a conversation this session does not have.
     // The folder is all that genuinely survives — it is the same terminal, in the same place.
+    // Everything that draws the tab follows: the bar names the new session, its stand-in row is the open one, and the history on show follows it, since a cleared session has a transcript of its own.
     setTab(owner.token, {
       session: newSession(id, {
         cwd: previous.cwd,
@@ -3121,11 +3124,6 @@ window.claudeUi.onSessionStatus((id, status, tabToken) => {
     // Only the group carries over. A pin and a note are about one CONVERSATION, and that conversation still has its own row to hold them.
     const group = store.get().groupState.groupOf[replaced];
     if (group) void window.claudeUi.moveSessionToGroup(id, group).then(applyGroupState);
-    // The tab's identity is what decides which row is "open" and which session the bar names, and nothing else re-runs that match.
-    reconcileOpenTabs(store.get());
-    renderList(store.get());
-    // The history too: a cleared session is a new one, with a transcript of its own.
-    if (isOnShow(owner.token)) updatePlaceholder(store.get());
   }
   // What claude just did is in the transcript, and the history of the session on show reads it.
   if (tabOnShow(store.get())?.session.id === id) void history.refresh();

@@ -1,5 +1,5 @@
 import type { GroupState, SessionSummary } from '../../shared/types';
-import { structuralSignature } from '../logic';
+import { sameRow, structuralSignature } from '../logic';
 import { createStore } from './store';
 
 /**
@@ -146,6 +146,19 @@ function sameData<T>(a: T, b: T): boolean {
   return a === b || JSON.stringify(a) === JSON.stringify(b);
 }
 
+/**
+ * Whether two lists draw the same tabs: the same tabs in the same order, each in the same state, with a session that draws the same row (`sameRow`, which a tab shows less of).
+ * Every field of a tab but its session is compared as it is, so one added later cannot be missed; a fresh read adopted into every open tab tells nobody unless something a tab shows moved.
+ */
+function sameTabs(a: readonly TabState[], b: readonly TabState[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((tab, i) => {
+    const other = b[i]!;
+    return tab === other || (Object.keys(tab) as (keyof TabState)[]).every((key) => (key === 'session' ? sameRow(tab.session, other.session) : tab[key] === other[key]));
+  });
+}
+
 export const store = createStore<AppState>(
   {
     sessions: [],
@@ -173,5 +186,6 @@ export const store = createStore<AppState>(
     groupState: sameData,
     projectNames: sameEntries,
     projectOrder: sameOrder,
+    tabs: sameTabs,
   },
 );
