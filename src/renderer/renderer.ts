@@ -1,3 +1,5 @@
+// The rules no module has taken yet. Imported first, so the stylesheets the modules below bring in come after it in the bundle.
+import './styles.css';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
