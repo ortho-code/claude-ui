@@ -2,8 +2,8 @@ import { describe, it, expect, afterAll } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Exchange } from '../shared/types';
-import { foldRecord, newFold, readHistory, type HistoryFold } from './transcript';
+import type { Exchange } from '../../../src/shared/types';
+import { foldRecord, newFold, readHistory, type HistoryFold } from '../../../src/main/transcript';
 
 // Records shaped as Claude Code writes them, reduced to the fields the fold reads.
 let n = 0;

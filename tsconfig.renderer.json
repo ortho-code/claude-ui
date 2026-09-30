@@ -6,6 +6,5 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": []
   },
-  "include": ["src/renderer/**/*", "src/shared/**/*"],
-  "exclude": ["src/**/*.test.ts"]
+  "include": ["src/renderer/**/*", "src/shared/**/*"]
 }

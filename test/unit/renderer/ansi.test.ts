@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripAnsi, splitPendingEscape } from './ansi';
+import { stripAnsi, splitPendingEscape } from '../../../src/renderer/ansi';
 
 // Captured from the real tools with colour forced, so the shapes here are what a panel will actually meet.
 const GIT_STATUS = ' \x1b[31mM\x1b[m tracked\n\x1b[31m??\x1b[m untracked\n';

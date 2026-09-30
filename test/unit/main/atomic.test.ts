@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { writeFileAtomic } from './atomic';
+import { writeFileAtomic } from '../../../src/main/atomic';
 
 let dir: string;
 

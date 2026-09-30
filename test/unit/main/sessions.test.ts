@@ -16,7 +16,7 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => testHome };
 });
 
-import { findTranscript, listSessions } from './sessions';
+import { findTranscript, listSessions } from '../../../src/main/sessions';
 
 const projectsDir = path.join(testHome, '.claude', 'projects');
 

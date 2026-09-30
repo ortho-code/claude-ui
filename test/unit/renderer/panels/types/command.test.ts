@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveContext, commandSource, endLabel, runFailed, commandType, RunGate, placement, runKey, runContext } from './command';
+import { resolveContext, commandSource, endLabel, runFailed, commandType, RunGate, placement, runKey, runContext } from '../../../../../src/renderer/panels/types/command';
 
 describe('RunGate', () => {
   /** A gate over a context the test moves by hand, counting the runs it lets through. */

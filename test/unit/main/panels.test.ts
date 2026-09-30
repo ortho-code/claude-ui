@@ -12,8 +12,8 @@ const { handlers, spawned, seq, logged } = vi.hoisted(() => ({
   logged: [] as string[],
 }));
 
-vi.mock('./log', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./log')>()),
+vi.mock('../../../src/main/log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/main/log')>()),
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
@@ -59,8 +59,8 @@ vi.mock('node:child_process', () => ({
   },
 }));
 
-import { registerPanelsIpc, stopAllPanels, panelInvocation, panelEnv, contextEnv } from './panels';
-import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelRunEvent, type PanelRunRequest } from '../shared/panels';
+import { registerPanelsIpc, stopAllPanels, panelInvocation, panelEnv, contextEnv } from '../../../src/main/panels';
+import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelRunEvent, type PanelRunRequest } from '../../../src/shared/panels';
 
 const CONTEXT = { projectRoot: process.cwd(), cwd: process.cwd(), sessionId: 'sess-1' };
 const SHELL = process.env.SHELL ?? '/bin/bash';
@@ -108,7 +108,7 @@ describe('what reaches the shell', () => {
   });
 
   it('gives a panel type’s script exactly the variables docs/panel-types.md names', () => {
-    const doc = readFileSync(new URL('../../docs/panel-types.md', import.meta.url), 'utf8').split('\n');
+    const doc = readFileSync(new URL('../../../docs/panel-types.md', import.meta.url), 'utf8').split('\n');
     const start = doc.indexOf('### Variables');
     const named: string[] = [];
     for (const line of doc.slice(start + 1)) {

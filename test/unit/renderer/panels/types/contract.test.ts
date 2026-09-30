@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { KINDS, MANIFEST_FIELDS, MANIFEST_OPTION_KINDS, OPTION_FIELDS, checkManifest } from './folder';
-import { LIST_FIELDS, TONES, readListDocument } from './listdoc';
+import { KINDS, MANIFEST_FIELDS, MANIFEST_OPTION_KINDS, OPTION_FIELDS, checkManifest } from '../../../../../src/renderer/panels/types/folder';
+import { LIST_FIELDS, TONES, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
 
 // docs/panel-types.md is the contract a type is written against, and these are the checkers that read it: a field one names that the other does not is the drift this holds shut.
-const doc = readFileSync(new URL('../../../../docs/panel-types.md', import.meta.url), 'utf8');
+const doc = readFileSync(new URL('../../../../../docs/panel-types.md', import.meta.url), 'utf8');
 const lines = doc.split('\n');
 
 /** The field names in the first column of the table under `heading`. */

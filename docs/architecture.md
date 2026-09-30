@@ -26,7 +26,7 @@ The standard Electron split, with the renderer locked down:
 - **Renderer** (`src/renderer`) is plain DOM, no framework yet, and talks only to the preload API.
 
 The linter holds the split: a source file importing from another process's folder fails `npm run lint`, and code both sides need goes in `src/shared`.
-Tests are exempt, since a test may assert across the line — the launcher's flags against the reserved list, for one.
+The tests are outside it, under `test/`, since a test may assert across the line — the launcher's flags against the reserved list, for one.
 
 **The window never navigates.** Main refuses any navigation away from the app's own page and any new window (`will-navigate`, `setWindowOpenHandler`), because a page loaded there would get the preload's bridge, and the bridge runs commands.
 Links leave through `shell:openExternal` instead, which accepts only http(s); the app itself never navigates, and `loadFile` is programmatic, which the event does not see.
@@ -60,7 +60,8 @@ The test project turns it off: a test that indexes past the end fails anyway, an
 
 ## The window's checks
 
-`npm test` is the unit tests: vitest, beside the code they test, fast enough to run all the time.
+Every test is under `test/`, so `src/` is only what ships.
+`npm test` is the unit tests: vitest, in `test/unit/`, which mirrors `src/` folder for folder, fast enough to run all the time.
 `npm run test:renderer` checks the window itself: it builds, then Playwright loads the built `dist/renderer` in a headless Chromium, a fresh page per check, with nothing on screen and no main process (`test/renderer/`).
 It is kept out of `npm test` so that one stays fast; CI runs both, and a failed check leaves a trace to download from the run.
 The page is served by answering its requests from `dist/renderer` on a made-up origin rather than from a server, because module scripts do not load from `file://`.

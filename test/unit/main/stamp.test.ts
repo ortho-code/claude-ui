@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { localTimestamp, appendStamped, formatDuration } from './stamp';
+import { localTimestamp, appendStamped, formatDuration } from '../../../src/main/stamp';
 
 // Node re-reads TZ when it is assigned, so each case can pin a zone. Restored afterwards, since the rest of the file must not depend on which case ran last.
 const originalTz = process.env.TZ;

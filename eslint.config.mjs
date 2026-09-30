@@ -4,10 +4,9 @@ import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-// Each process reaches another only through IPC, so a source folder may not import from the folders named here.
+// Each process reaches another only through IPC, so a source folder may not import from the folders named here. The tests, under test/, are outside it on purpose.
 const boundary = (folder, forbidden) => ({
   files: [`src/${folder}/**/*.ts`],
-  ignores: ['**/*.test.ts'],
   rules: {
     'no-restricted-imports': ['error', {
       patterns: [{ group: forbidden.map((other) => `**/${other}/**`), message: 'Processes talk only over IPC; code both sides need goes in src/shared.' }],

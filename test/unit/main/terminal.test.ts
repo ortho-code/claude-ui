@@ -10,8 +10,8 @@ const { handlers, spawned, seq, logged } = vi.hoisted(() => ({
   logged: [] as string[],
 }));
 
-vi.mock('./log', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./log')>()),
+vi.mock('../../../src/main/log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/main/log')>()),
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
@@ -62,7 +62,7 @@ vi.mock('node-pty', () => ({
   },
 }));
 
-import { claudeArgs, describeLaunch, registerTerminalIpc, terminateAll } from './terminal';
+import { claudeArgs, describeLaunch, registerTerminalIpc, terminateAll } from '../../../src/main/terminal';
 
 const SETTINGS = '/home/u/.config/claude-ui/claude-settings.json';
 

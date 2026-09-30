@@ -14,9 +14,9 @@ import {
   type ResolvedGroup,
   type ResolvedNode,
   type ResolvedSplit,
-} from './layout';
-import { commandType, type PanelTypeDecl } from './types/command';
-import type { LayoutReport } from '../../shared/panels';
+} from '../../../../src/renderer/panels/layout';
+import { commandType, type PanelTypeDecl } from '../../../../src/renderer/panels/types/command';
+import type { LayoutReport } from '../../../../src/shared/panels';
 
 // The built-ins' declarations as the validator sees them; their mounts are the tree's business.
 const sessions: PanelTypeDecl = { name: 'sessions', defaultTitle: () => 'Sessions', icon: 'sessions', bare: true, singleton: true };

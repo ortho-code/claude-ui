@@ -21,8 +21,8 @@ vi.mock('electron', () => ({
   shell: { openPath },
 }));
 
-import { registerFolders } from './folders';
-import { configRoot, logsDir } from './paths';
+import { registerFolders } from '../../../src/main/folders';
+import { configRoot, logsDir } from '../../../src/main/paths';
 
 beforeAll(() => registerFolders());
 afterAll(() => rmSync(dataDir, { recursive: true, force: true }));

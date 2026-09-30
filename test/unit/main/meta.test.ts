@@ -10,8 +10,8 @@ vi.mock('electron', () => ({
 
 // What meta.ts says about recovering its file, captured; the log's own helpers are the real ones.
 const { logged } = vi.hoisted(() => ({ logged: [] as string[] }));
-vi.mock('./log', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./log')>()),
+vi.mock('../../../src/main/log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/main/log')>()),
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
   logOnce: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
@@ -47,7 +47,7 @@ import {
   getSettings,
   setSettings,
   recordClear,
-} from './meta';
+} from '../../../src/main/meta';
 
 let dir: string;
 

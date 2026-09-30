@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { INTERVAL_OPTION, isFixedPath, optionProblems, optionsOf, parseDuration, pathChecks, type OptionsDecl } from './options';
-import { commandType } from './types/command';
+import { INTERVAL_OPTION, isFixedPath, optionProblems, optionsOf, parseDuration, pathChecks, type OptionsDecl } from '../../../../src/renderer/panels/options';
+import { commandType } from '../../../../src/renderer/panels/types/command';
 
 const none: OptionsDecl = { name: 'terminal', options: [], exactlyOne: [] };
 

@@ -14,13 +14,13 @@ vi.mock('electron', () => ({
   app: { getPath: () => dataDir, setPath: () => {} },
   ipcMain: { handle: () => {}, on: () => {} },
 }));
-vi.mock('./log', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./log')>()),
+vi.mock('../../../src/main/log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/main/log')>()),
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
-import { forgetSessions, linkSession, readPanelData, registerPanelData } from './paneldata';
-import { panelDataDir } from './paths';
+import { forgetSessions, linkSession, readPanelData, registerPanelData } from '../../../src/main/paneldata';
+import { panelDataDir } from '../../../src/main/paths';
 
 const file = (entryId: string): string => path.join(panelDataDir, `${entryId}.json`);
 const LINK = { key: 'org/repo#1', label: 'Fix the login redirect', href: 'https://github.com/org/repo/pull/1' };

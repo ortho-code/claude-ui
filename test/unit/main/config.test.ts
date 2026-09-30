@@ -15,14 +15,14 @@ vi.mock('electron', () => ({
   app: { getPath: () => dataDir, setPath: () => {} },
   ipcMain: { handle: () => {}, on: () => {} },
 }));
-vi.mock('./log', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./log')>()),
+vi.mock('../../../src/main/log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/main/log')>()),
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
-import { checkPath, noteLayout, readLayout, readTypes, resolvePath } from './config';
-import { configRoot, defaultLayoutFile, scriptsDir, typesDir } from './paths';
-import type { TypeReport } from '../shared/panels';
+import { checkPath, noteLayout, readLayout, readTypes, resolvePath } from '../../../src/main/config';
+import { configRoot, defaultLayoutFile, scriptsDir, typesDir } from '../../../src/main/paths';
+import type { TypeReport } from '../../../src/shared/panels';
 
 const write = (json: unknown): void => writeFileSync(defaultLayoutFile, typeof json === 'string' ? json : JSON.stringify(json));
 

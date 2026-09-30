@@ -8,7 +8,7 @@ import {
   frameOffsetVerdict,
   MIN_WIDTH,
   MIN_HEIGHT,
-} from './bounds';
+} from '../../../src/main/bounds';
 
 const LAPTOP = { x: 0, y: 0, width: 1920, height: 1040 };
 const SECOND = { x: 1920, y: 0, width: 2560, height: 1400 };

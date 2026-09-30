@@ -257,6 +257,7 @@ To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a
 - `src/preload` — the bridge the renderer uses to reach the main process.
 - `src/renderer` — the window UI.
 - `src/shared` — types and pure helpers shared by both sides.
+- `test/` — the tests: unit tests in `test/unit/`, mirroring `src/`, and the window's checks in `test/renderer/`.
 - `docs/` — architecture and design notes.
 
 ## License

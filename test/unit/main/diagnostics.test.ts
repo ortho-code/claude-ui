@@ -11,14 +11,14 @@ vi.mock('electron', () => ({
   app: { on: (event: string, fn: (...args: unknown[]) => void) => appHandlers.set(event, fn) },
   ipcMain: { on: (channel: string, fn: (...args: unknown[]) => void) => ipcHandlers.set(channel, fn) },
 }));
-vi.mock('./log', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./log')>()),
+vi.mock('../../../src/main/log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/main/log')>()),
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
   logCrash: (area: string, message: string) => logged.push(`crash ${area} ${message}`),
 }));
 
-import { describeInstall, logProcessFailures, registerRendererLog, sourceLabel, watchWindow } from './diagnostics';
-import { RENDERER_LINE_MAX } from '../shared/log';
+import { describeInstall, logProcessFailures, registerRendererLog, sourceLabel, watchWindow } from '../../../src/main/diagnostics';
+import { RENDERER_LINE_MAX } from '../../../src/shared/log';
 import type { BrowserWindow } from 'electron';
 
 const facts = { packaged: true, appImage: undefined, execPath: '/opt/Claude UI/claude-ui-app', packageType: null };

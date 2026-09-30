@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderMarkdown } from './markdown';
+import { renderMarkdown } from '../../../../src/renderer/history/markdown';
 
 // A reply is untrusted text: these pin that nothing in one becomes markup, a script, a remote load or a dangerous link.
 describe('renderMarkdown', () => {

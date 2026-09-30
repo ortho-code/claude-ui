@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { SessionSummary } from '../shared/types';
+import type { SessionSummary } from '../../../src/shared/types';
 import {
   projectFor,
   hasVisibleOutput,
@@ -25,7 +25,7 @@ import {
   unstartableReason,
   projectRootExists,
   projectGoneReason,
-} from './logic';
+} from '../../../src/renderer/logic';
 
 function session(over: Partial<SessionSummary> = {}): SessionSummary {
   return {

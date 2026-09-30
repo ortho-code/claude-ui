@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { flexFor, snapshot, dragTo, keptSizes, RAIL, type FlexChild } from './sizes';
+import { flexFor, snapshot, dragTo, keptSizes, RAIL, type FlexChild } from '../../../../src/renderer/panels/sizes';
 
 const child = (id: string, size: FlexChild['size'] = null, extra: Partial<FlexChild> = {}): FlexChild => ({ id, size, min: 120, folded: false, ...extra });
 

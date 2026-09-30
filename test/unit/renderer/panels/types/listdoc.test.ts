@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readListDocument } from './listdoc';
+import { readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
 
 const item = { key: 'org/repo#1', text: 'Fix the login redirect' };
 const doc = (over: Record<string, unknown> = {}): string => JSON.stringify({ version: 1, sections: [{ items: [item] }], ...over });

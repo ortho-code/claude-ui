@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import type { TypeReport } from '../../../shared/panels';
-import { commandType } from './command';
-import { checkManifest, escapes, folderTypes } from './folder';
+import type { TypeReport } from '../../../../../src/shared/panels';
+import { commandType } from '../../../../../src/renderer/panels/types/command';
+import { checkManifest, escapes, folderTypes } from '../../../../../src/renderer/panels/types/folder';
 
 const report = (json: unknown, over: Partial<TypeReport> = {}): TypeReport => ({
   name: 'reviews',

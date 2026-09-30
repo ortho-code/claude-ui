@@ -32,8 +32,8 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => testHome };
 });
 
-import { installStatusHooks, readAllStatuses as getAllStatuses, statusSettingsFile } from './status';
-import { hookScriptPath, statusDir } from './paths';
+import { installStatusHooks, readAllStatuses as getAllStatuses, statusSettingsFile } from '../../../src/main/status';
+import { hookScriptPath, statusDir } from '../../../src/main/paths';
 
 const settingsPath = path.join(testHome, '.claude', 'settings.json');
 const ourCmd = path.join(testHome, '.config', 'claude-ui', 'status-hook.sh');
