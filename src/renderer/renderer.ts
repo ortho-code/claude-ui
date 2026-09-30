@@ -174,6 +174,7 @@ function maybeAttentionToast(id: string, status: string | undefined, prev: strin
 
 // Jump to a tab from a toast: scope to its project if we're viewing a different one, then activate it.
 function jumpToTab(tab: Tab): void {
+  const { activeProject } = store.get();
   if (activeProject !== null && activeProject !== tab.session.repoRoot) {
     selectProject(tab.session.repoRoot);
   }
@@ -194,8 +195,6 @@ let showGoneOnly = false;
 let showSiblingsOnly = false;
 let showNotedOnly = false;
 let showArchivedOnly = false;
-// The project the switcher is scoped to; null = "All" (the grouped overview). Persisted, like the rest of the view state.
-let activeProject: string | null = null;
 // Date filter, as an inclusive [from, to] window in epoch ms; null means unbounded on that side.
 let datePreset = 'any';
 let dateFromMs: number | null = null;
@@ -484,11 +483,20 @@ async function restoreOpenTabs(): Promise<void> {
 
 // --- Sidebar ---
 
-/** A full read of what the list draws from main; `revealed` is a session whose delete just resolved, which stops being hidden in the same change as the re-read. */
-async function renderSessions(showLoading = true, revealed?: string): Promise<void> {
+interface FullRead {
+  /** Show the loading bar while it reads. */
+  showLoading?: boolean;
+  /** A session whose delete just resolved, which stops being hidden in the same change as the re-read. */
+  revealed?: string;
+  /** Start-up's read, which also takes the project you were in: in the same change, so the first draw is already scoped to it rather than drawn for All first. */
+  startUp?: boolean;
+}
+
+/** A full read of what the list draws from main, set in one change. */
+async function renderSessions({ showLoading = true, revealed, startUp = false }: FullRead = {}): Promise<void> {
   if (showLoading) setLoading(true);
   try {
-    const [sessions, pinnedList, archivedList, statusMap, namesMap, noteMap, groupState] = await Promise.all([
+    const [sessions, pinnedList, archivedList, statusMap, namesMap, noteMap, groupState, storedProject] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getPinned(),
       window.claudeUi.getArchived(),
@@ -496,6 +504,7 @@ async function renderSessions(showLoading = true, revealed?: string): Promise<vo
       window.claudeUi.getProjectNames(),
       window.claudeUi.getNotes(),
       window.claudeUi.getGroupState(),
+      startUp ? window.claudeUi.getActiveProject() : null,
     ]);
     // Seed from the RAW list (archived included — the transcript still exists), so a project whose sessions are all archived still holds a slot.
     // Writes only when a root is genuinely new, so the common case costs one read.
@@ -512,6 +521,7 @@ async function renderSessions(showLoading = true, revealed?: string): Promise<vo
       projectOrder,
       // In the same change, so a row whose files are gone never shows for a moment between no longer hiding it and the listing without it.
       ...(revealed === undefined ? {} : { pendingDeletes: withMember(store.get().pendingDeletes, revealed, false) }),
+      ...(startUp ? { activeProject: storedProject } : {}),
     });
   } finally {
     if (showLoading) setLoading(false);
@@ -526,7 +536,7 @@ async function refreshFromDisk(): Promise<void> {
 
 /** Everything the list draws from the store. */
 type ListView = View<
-  'sessions' | 'statuses' | 'acked' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder'
+  'sessions' | 'statuses' | 'acked' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject'
 >;
 
 /** The listing the date picker and the open tabs' titles last followed, so they follow it again only when it moved rather than on a pin or a note. */
@@ -874,8 +884,9 @@ function projectGone(repoRoot: string, view: View<'sessions'>): boolean {
 }
 
 // Update the switcher header + popover from the visible project pool. The pool is every project's tips (see renderList); the switcher is independent of search/project so you can always navigate.
-function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder'>): void {
+function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject'>): void {
   const model = projectsForSwitcher(pool, view.statuses, view.acked, view.projectNames, view.projectOrder);
+  const { activeProject } = view;
   const active = activeProject ? model.projects.find((f) => f.repoRoot === activeProject) : null;
   switcherName.textContent = active ? active.name : 'All';
   // The title keeps "Switch project" as its tooltip; only the mark says why.
@@ -895,7 +906,7 @@ function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' 
   renderFooter(model, pool, view);
   // What the built-ins' rail icons say while they are folded or behind another panel: the same roll-up as the header's badge for the sidebar, and the tabs on show for the terminal area.
   reportBuiltinStatus('sessions', headerBadge === 'waiting' ? 'wait' : null);
-  reportBuiltinStatus('claude', visibleTabs().some((tab) => sessionNudge(tab.session.id, view) === 'waiting') ? 'wait' : null);
+  reportBuiltinStatus('claude', visibleTabs(view).some((tab) => sessionNudge(tab.session.id, view) === 'waiting') ? 'wait' : null);
 }
 
 // Seeded from meta at startup (default open — the strip exists to be read), and written back on every toggle so the choice survives a restart.
@@ -927,6 +938,7 @@ async function copyText(text: string, confirmation: string): Promise<void> {
 
 // Jump to a specific session from outside the list — the footer, a panel's row: scope to its project if needed, then open/focus its tab.
 function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): void {
+  const { activeProject } = store.get();
   if (activeProject !== null && activeProject !== session.repoRoot) selectProject(session.repoRoot);
   void openSession(session, launch);
   // Scope alone isn't enough to SEE it: the row can sit inside a collapsed group or project.
@@ -1262,15 +1274,26 @@ function switcherItem(name: string, repoRoot: string | null, count: number, badg
 }
 
 function selectProject(repoRoot: string | null): void {
-  activeProject = repoRoot;
   // Open a project expanded even if it was collapsed in the All view.
   if (repoRoot) foldedProjects().delete(repoRoot);
   window.claudeUi.setActiveProject(repoRoot);
   closeSwitcher();
-  renderList(store.get());
+  // Full workspace switch: the active terminal moves to this project too, in the same change, so every surface that honours the selection is told once, with the project and its tab together.
+  store.batch(() => {
+    store.set({ activeProject: repoRoot });
+    switchWorkspaceTerminal(repoRoot);
+  });
   container.scrollTop = 0;
-  // Full workspace switch: also move the tab bar + active terminal to this project.
-  switchWorkspaceTerminal(repoRoot);
+}
+
+/**
+ * A project with no sessions left cannot stay selected: fall back to All exactly as picking it does, the tab bar and the tab on show included.
+ * Setting the scope alone once left the bar on the old project's tabs while the list and the switcher said All.
+ * Told on what the switcher's projects are made of, before the list, so the list draws All the first time.
+ */
+function fallBackIfEmptied(view: View<'sessions' | 'archived' | 'pendingDeletes' | 'activeProject'>): void {
+  const { activeProject } = view;
+  if (activeProject !== null && !switcherPool(visibleSessions(view), view).some((s) => s.repoRoot === activeProject)) selectProject(null);
 }
 
 function openSwitcher(): void {
@@ -1314,7 +1337,7 @@ function viewPool(all: SessionSummary[], archivedView: boolean, view: View<'arch
 }
 
 /** What the switcher and the strip draw from the store. */
-type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder'>;
+type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject'>;
 
 // Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
 function refreshSwitcher(view: SwitcherView): void {
@@ -1340,15 +1363,10 @@ function renderList(view: ListView): void {
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions(view);
   currentByKey = new Map(all.map((s) => [entityKey(s), s]));
-  // The switcher lists every project, independent of search/project, so you can always navigate.
+  // The switcher lists every project, independent of search/project, so you can always navigate. A project with none left has already fallen back to All (`fallBackIfEmptied`).
   const pool = switcherPool(all, view);
-  // A project with no sessions left cannot stay selected: fall back to All exactly as picking it does, the tab bar and the tab on show included — which draws the list itself, from the top.
-  // Setting the scope alone left the bar on the old project's tabs while the list and the switcher said All.
-  if (activeProject && !pool.some((s) => s.repoRoot === activeProject)) {
-    selectProject(null);
-    return;
-  }
   renderSwitcher(pool, view);
+  const { activeProject } = view;
 
   const groupNames = filterText ? groupNameByKey(view) : undefined;
   const filtered = all.filter((s) => passesFilters(s, view, groupNames));
@@ -1368,7 +1386,7 @@ function renderList(view: ListView): void {
     container.append(message);
     // Nothing on screen to fold away: this early return would otherwise leave the toggle live with the previous render's sections.
     renderedSections = { projects: [], groups: [] };
-    updateCollapseToggle();
+    updateCollapseToggle(view);
     persistUi();
     return;
   }
@@ -1387,7 +1405,7 @@ function renderList(view: ListView): void {
 
   container.scrollTop = scroll;
   updateSidebarHighlight();
-  updateCollapseToggle();
+  updateCollapseToggle(view);
   syncStickyOffset();
   updatePlaceholder(view); // its wording depends on whether there are sessions at all
   // Every change to a filter or a fold ends here, so this one call covers all of them; the snapshot is compared before it is written, so the renders that change nothing about the view cost nothing.
@@ -1401,37 +1419,38 @@ const EXPAND_ALL_ICON = strokeIcon(14, '<path d="M4 3.75L8 7.25L12 3.75" /><path
 // What the button folds depends on the view.
 // In All it folds the project sections (keyed on projects alone: with every project shut its groups are out of sight anyway, which is why a group toggling on its own needs no refresh call).
 // In a single-project view folding the one project you asked to look at is pointless, so it folds THAT project's groups instead.
-function collapseScope(): { ids: string[]; collapsed: Set<string> } {
+function collapseScope({ activeProject }: View<'activeProject'>): { ids: string[]; collapsed: Set<string> } {
   return activeProject === null
     ? { ids: renderedSections.projects, collapsed: foldedProjects() }
     : { ids: renderedSections.groups, collapsed: foldedGroups() };
 }
 
 // Everything in scope folded away already? Then the button offers the way back instead.
-function allSectionsCollapsed(): boolean {
-  const { ids, collapsed } = collapseScope();
+function allSectionsCollapsed(view: View<'activeProject'>): boolean {
+  const { ids, collapsed } = collapseScope(view);
   return ids.length > 0 && ids.every((id) => collapsed.has(id));
 }
 
-function updateCollapseToggle(): void {
+function updateCollapseToggle(view: View<'activeProject'>): void {
   // Filtering forces every section open (so matches inside a collapsed one are visible), which leaves this nothing to act on.
-  collapseToggle.disabled = isFiltering() || collapseScope().ids.length === 0;
-  const label = allSectionsCollapsed() ? 'Expand all' : 'Collapse all';
-  collapseToggle.innerHTML = allSectionsCollapsed() ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON;
+  collapseToggle.disabled = isFiltering() || collapseScope(view).ids.length === 0;
+  const label = allSectionsCollapsed(view) ? 'Expand all' : 'Collapse all';
+  collapseToggle.innerHTML = allSectionsCollapsed(view) ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON;
   setTooltip(collapseToggle, label);
   collapseToggle.setAttribute('aria-label', label);
 }
 
 // Collapsing takes the groups with it, so expanding a project afterwards shows its group headings rather than dumping every row back at once — two levels of overview instead of one.
 collapseToggle.addEventListener('click', () => {
-  const { ids, collapsed } = collapseScope();
-  const expanding = allSectionsCollapsed();
+  const state = store.get();
+  const { ids, collapsed } = collapseScope(state);
+  const expanding = allSectionsCollapsed(state);
   for (const id of ids) {
     if (expanding) collapsed.delete(id);
     else collapsed.add(id);
   }
   // In the All view a project's groups fold along with it, so expanding one afterwards shows its group headings rather than dumping every row back. In a project view the groups ARE the scope already.
-  if (activeProject === null) {
+  if (state.activeProject === null) {
     if (expanding) foldedGroups().clear();
     else for (const id of renderedSections.groups) foldedGroups().add(id);
   }
@@ -1450,7 +1469,8 @@ function clearList(): void {
 
 // Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order both the sections and their rows via appendChild (which moves an existing node into place).
 // Inside a project the group sections come first, then the rows belonging to no group.
-function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'projectNames'>): void {
+function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'projectNames' | 'activeProject'>): void {
+  const { activeProject } = view;
   const wanted = new Set(desired.map((p) => p.repoRoot));
   for (const [repoRoot, els] of projectSections) {
     if (!wanted.has(repoRoot)) {
@@ -1548,11 +1568,11 @@ settingsToggle.addEventListener('click', () => void openSettings());
 // The ordering moves for a project, minus any that would do nothing — same rule as a group's.
 // The order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen (a filter or an all-archived project can hide neighbours without changing where this one sits).
 function projectMoveItems(repoRoot: string): MenuItem[] {
+  const { activeProject, projectOrder } = store.get();
   // All view only: a project view renders a single heading, so there is nothing to order against.
   if (activeProject !== null) return [];
   // Not while filtering either: a hidden neighbour makes the move land where you can't see it, so "Move up" past a filtered-out project looks like a button that did nothing.
   if (isFiltering()) return [];
-  const { projectOrder } = store.get();
   const at = projectOrder.indexOf(repoRoot);
   const last = projectOrder.length - 1;
   if (at < 0 || last <= 0) return [];
@@ -1773,12 +1793,13 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   // Keep the clicked heading anchored: a sticky heading otherwise snaps between stuck and natural position as its rows appear/disappear, which reads as a jump.
   heading.addEventListener('click', () => {
     // Not collapsible in a single-project view: hiding the one project you're looking at leaves an empty sidebar. The heading is a title there, and updateProjectSection drops its caret to say so.
-    if (activeProject !== null) return;
+    const state = store.get();
+    if (state.activeProject !== null) return;
     const before = heading.getBoundingClientRect().top;
     toggleFold(section, caret, foldedProjects(), name);
     container.scrollTop += heading.getBoundingClientRect().top - before;
     // No render here, so the header button has to be refreshed by hand — otherwise it still reads "Expand all" after one project reopens.
-    updateCollapseToggle();
+    updateCollapseToggle(state);
   });
   section.appendChild(heading);
 
@@ -2000,7 +2021,7 @@ function createSessionRow(key: string): HTMLElement {
       showToast(`Couldn't delete "${title}". It's still here.`);
     } finally {
       // Stop hiding once this delete resolves: on success the re-read finds it gone; on failure the file is still on disk, so the row reappears.
-      await renderSessions(false, key);
+      await renderSessions({ showLoading: false, revealed: key });
     }
   };
   deleteBtn.addEventListener('click', (event) => {
@@ -2161,9 +2182,11 @@ function newSession(id: string, over: Partial<SessionSummary> & Pick<SessionSumm
 }
 
 // Land where a new tab will be visible: stay in its own project, else drop the scope to All.
+// Only the scope: the new tab, which its caller creates next, is the one that comes on show.
 function ensureProjectVisible(repoRoot: string): void {
+  const { activeProject } = store.get();
   if (activeProject !== null && repoRoot !== activeProject) {
-    activeProject = null;
+    store.set({ activeProject: null });
     window.claudeUi.setActiveProject(null);
   }
 }
@@ -2266,7 +2289,7 @@ async function startSessionFromPanel(entryKey: string, request: SessionRequest):
   const known = projectsForSwitcher(switcherPool(visibleSessions(state), state), state.statuses, state.acked, state.projectNames, state.projectOrder).projects.filter((project) => project.rootExists);
   const roots = known.map((project) => project.repoRoot);
   const found = request.dir ? projectFor(roots, request.dir) : null;
-  const preset = found ?? request.dir ?? activeProject ?? roots[0] ?? null;
+  const preset = found ?? request.dir ?? state.activeProject ?? roots[0] ?? null;
   if (preset === null) {
     showToast('There is no project to start a session in yet.');
     return;
@@ -2593,7 +2616,7 @@ function removeTab(tab: Tab): void {
   tabs.splice(index, 1);
   if (activeTab === tab) activeTab = null;
   // Re-establish the active tab within the current workspace scope (or clear); this re-renders too.
-  switchWorkspaceTerminal(activeProject);
+  switchWorkspaceTerminal(store.get().activeProject);
   tabsChanged();
   // After the switch, which is what remembers how the tab was left.
   history.forget(tab.session.id);
@@ -2665,17 +2688,18 @@ function tabClusterKey(tab: Tab, groupOf: Record<string, string> = store.get().g
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups gets an indented row beneath it behind the same rail the sidebar uses.
 // A project view drops the project label (everything shown belongs to it) but keeps the group rows.
 /** The tabs actually on screen: a project view shows only its own. */
-function visibleTabs(): Tab[] {
+function visibleTabs({ activeProject }: View<'activeProject'>): Tab[] {
   return activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
 }
 
 /** What the tab bar draws from the store. */
-type TabBarView = View<'sessions' | 'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder'>;
+type TabBarView = View<'sessions' | 'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject'>;
 
 function renderTabBar(view: TabBarView): void {
   // A tab opened, started, stopped or closed: a panel's rows say whether their sessions run.
   treeSessionsChanged();
-  const shown = visibleTabs();
+  const { activeProject } = view;
+  const shown = visibleTabs(view);
   const { groupOf } = view.groupState;
   // Your project order, the same one the sidebar and the strip use — so all three agree about where a project sits.
   // The bar used to order projects by whichever it met first, which nobody chose and which moved on its own: closing a project's last tab and opening another sent that project to the end.
@@ -2878,7 +2902,7 @@ function showHistory(shown: boolean): void {
   if (history.setShown(shown) && !shown) activeTab?.term.focus();
 }
 
-function updatePlaceholder(view: View<'sessions'>): void {
+function updatePlaceholder(view: View<'sessions' | 'activeProject'>): void {
   // The history follows the tab from here, since every change to what the pane shows passes through this function; a tab switch shows the new tab as you left it, live or in its history.
   history.follow(activeTab?.session.id ?? null);
   // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so without this a restored session would look like a session that had nothing in it.
@@ -2931,7 +2955,8 @@ function openHistory(): void {
 }
 
 /** What the pane says when there is no live claude to show: one sentence, and the next move it names. */
-function paneSentence(cold: boolean, booting: boolean, view: View<'sessions'>): string {
+function paneSentence(cold: boolean, booting: boolean, view: View<'sessions' | 'activeProject'>): string {
+  const { activeProject } = view;
   if (booting) return `Starting “${sessionLabel(activeTab!.session)}”…`;
   // A start that was REFUSED says why, in place of "click its tab to resume it" — which would be telling you to do the thing that just failed.
   if (activeTab?.failure) return activeTab.failure;
@@ -2944,7 +2969,7 @@ function paneSentence(cold: boolean, booting: boolean, view: View<'sessions'>): 
         activeProject !== null && projectGone(activeProject, view)
         ? projectGoneReason(activeProject)
         : // visibleTabs, not tabs: a project view shows only its own, so "pick a tab above" was being offered next to an empty bar whenever the open tabs all belonged to other projects.
-          visibleTabs().length === 0
+          visibleTabs(view).length === 0
           ? 'Pick a session in the sidebar to open it.'
           : 'Pick a tab above, or a session in the sidebar, to resume it.';
 }
@@ -2957,17 +2982,25 @@ routeTerminals();
 // --- What the store tells ---
 // Subscribed before start-up sets anything, and told in this order.
 
-// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place — and the list follows, with the switcher and the strip it draws, and with the date picker and the tabs' titles when it was the listing.
+// What the switcher's projects are made of changed, and the project on show may have none left: first, so everything after draws All rather than the empty project.
+store.watch(['sessions', 'archived', 'pendingDeletes'], fallBackIfEmptied, { reads: ['activeProject'] });
+
+// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show — and the list follows, with the switcher, the strip and the pane's sentence it draws, and with the date picker and the tabs' titles when it was the listing.
 // The list paints every dot it draws, but a status change repaints only the dots, below.
-store.watch(['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder'], listChanged, {
-  reads: ['statuses', 'acked'],
-});
+store.watch(
+  ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject'],
+  listChanged,
+  { reads: ['statuses', 'acked'] },
+);
 
 // A status or a mark read changed: the dots that differ, the tab bar when one of them has a tab, the switcher's roll-ups and the strip.
-store.watch(['statuses', 'acked'], statusesChanged, { reads: ['sessions', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder'] });
+store.watch(['statuses', 'acked'], statusesChanged, { reads: ['sessions', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject'] });
 
-// The tab bar clusters its tabs by group and places its projects by the order, under their names, as the list does: it follows the same changes.
-store.watch(['groupState', 'projectNames', 'projectOrder'], renderTabBar, { reads: ['sessions', 'statuses', 'acked'] });
+// The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes.
+store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject'], renderTabBar, { reads: ['sessions', 'statuses', 'acked'] });
+
+// The panels run where you are: in the tab on show, or the project on show without one. A change of tab still tells them by hand until the tabs are in the store.
+store.watch(['activeProject'], treeContextChanged);
 
 function onTabData(tab: Tab, data: string): void {
   tab.term.write(data);
@@ -3190,7 +3223,7 @@ installTooltips();
 initTree({
   where: () => ({
     tab: activeTab ? { cwd: activeTab.session.cwd, repoRoot: activeTab.session.repoRoot, id: activeTab.session.id } : null,
-    project: activeProject,
+    project: store.get().activeProject,
   }),
   showToast,
   hideToast,
@@ -3203,19 +3236,19 @@ initTree({
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
   void window.claudeUi.getHistoryPins().then((pins) => history.setPins(pins));
-  activeProject = await window.claudeUi.getActiveProject();
   // Before the first render: restoring filters afterwards would draw the whole list and then visibly cut it down.
   const scrollTop = await restoreUiState();
   // Before the rows and the tabs too: placing the layout moves the sidebar and the terminal area into it, and a move is cheapest, and invisible, while they are still empty.
   await loadLayout();
-  await renderSessions();
+  // With the project you were in, which scopes the first draw.
+  await renderSessions({ startUp: true });
   forgetDeletedGroupFolds(store.get());
   await restoreOpenTabs();
   // Again, now that the tabs exist. Two filters — open, and running — are questions about the TABS, and the render above happened while there were none, so a restored "open" filter would otherwise show an empty list next to a full tab bar. It also puts the open marker on the rows, which used to wait for the next render for its own reasons.
   renderList(store.get());
   // Last, because there is nothing to scroll until the rows are on screen. Later renders carry the offset along themselves.
   container.scrollTop = scrollTop;
-  switchWorkspaceTerminal(activeProject);
+  switchWorkspaceTerminal(store.get().activeProject);
   // After the tabs, so a panel's first run is in the restored tab's folder rather than once for the project and again for the tab.
   startPanels();
 })();

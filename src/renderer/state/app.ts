@@ -40,6 +40,8 @@ export interface AppState {
    * Seeded from the recency order the list already had, so switching it on changed nothing on screen; from then on it only moves when you move it.
    */
   projectOrder: readonly string[];
+  /** The project you are looking at, or null for All: the list, the switcher, the tab bar, the pane and the panels' context all honour it. Written through to main by whoever changes it. */
+  activeProject: string | null;
 }
 
 /** `map` with `key` set to `value`, or without it for `undefined`: a copy when that changes anything, the same map when it does not, so nobody is told for nothing. */
@@ -123,6 +125,7 @@ export const store = createStore<AppState>(
     groupState: { groups: [], groupOf: {} },
     projectNames: new Map(),
     projectOrder: [],
+    activeProject: null,
   },
   {
     sessions: sameRows,
