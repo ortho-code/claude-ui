@@ -12,7 +12,7 @@ import { startChrome } from './chrome';
 import { flash } from './flash';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
 import './styles.css';
-import { sameRows, store, type View } from './state/app';
+import { sameRows, store, withEntry, withMember, type View } from './state/app';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
@@ -194,9 +194,6 @@ let notes = new Map<string, string>();
 const projName = (repoRoot: string): string => displayName(repoRoot, projectNames);
 // Conversations whose delete is in flight: hidden from the list until that delete resolves, so a concurrent delete's disk re-read can't briefly resurrect them.
 const pendingDeletes = new Set<string>();
-let statuses = new Map<string, string>();
-// Session ids whose dot the user has marked "read": shown dimmed (no pulse) instead of the live colour. In-memory only, so a restart re-lights everything. Any incoming status event clears it.
-const acked = new Set<string>();
 let filterText = '';
 let showPinnedOnly = false;
 let showOpenOnly = false;
@@ -306,7 +303,7 @@ function tabsChanged(): void {
 }
 
 // Keep open tabs' titles in sync with the freshly-read session list: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
-function reconcileOpenTabs(view: View<'sessions'>): void {
+function reconcileOpenTabs(view: View<'sessions' | 'statuses' | 'acked'>): void {
   const byId = new Map(view.sessions.map((s) => [s.id, s]));
   let changed = false;
   for (const tab of tabs) {
@@ -331,47 +328,48 @@ function reconcileOpenTabs(view: View<'sessions'>): void {
 }
 
 function setStatus(id: string, status: string | undefined): void {
+  const { statuses, acked } = store.get();
   const prev = statuses.get(id);
-  if (status) statuses.set(id, status);
-  else statuses.delete(id);
   // A new status event is fresh activity: drop any "read" mark so the dot re-lights (and, for a new waiting, re-pulses) even if the user had acked the previous state.
-  acked.delete(id);
-  renderStatusDot(id);
-  refreshSwitcher(store.get()); // keep the project roll-up badges live
+  store.set({ statuses: withEntry(statuses, id, status), acked: withMember(acked, id, false) });
   maybeAttentionToast(id, status, prev);
 }
 
-/**
- * Models a session has switched to while the app was watching, by session id.
- *
- * A transcript records which model ANSWERED, never which one was chosen, so `/model` leaves no trace in it until the next reply — and the row went on naming the old model in between.
- * `PostModelSwitch` is the only place that answer exists at the moment it becomes true, so it is kept here and preferred over the transcript's.
- * In memory only: it can never be staler than what is on disk (every switch in this app's sessions lands here), and after a restart the transcript's own last answer is the right source again.
- */
-const switchedModel = new Map<string, string>();
-
 /** The model to show for a session: the one it has switched to if we saw that happen, else the one that last answered. */
-function modelOf(session: SessionSummary): string {
-  return switchedModel.get(session.id) ?? session.model;
+function modelOf(session: SessionSummary, view: View<'switchedModel'>): string {
+  return view.switchedModel.get(session.id) ?? session.model;
 }
 
-// Repaint a session's dot wherever it shows (sidebar row + open tab) from the current status/ack.
-function renderStatusDot(id: string): void {
-  const dot = statusDots.get(id);
-  if (dot) applyStatus(dot, statuses.get(id), acked.has(id));
-  if (tabs.some((t) => t.session.id === id)) renderTabBar(store.get());
+/** What the dots were last painted from, so a change repaints only the dots that differ, as a status event naming one session always has. */
+let paintedStatuses: View<'statuses'>['statuses'] = new Map();
+let paintedAcked: View<'acked'>['acked'] = new Set();
+
+/**
+ * A status or a mark read changed: repaint the dots that differ, wherever they show — a row, and the tab bar when one of them has a tab — and the switcher's roll-ups and the strip.
+ * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
+ */
+function statusesChanged(view: View<'sessions' | 'statuses' | 'acked'>): void {
+  const ids = new Set<string>();
+  for (const id of new Set([...paintedStatuses.keys(), ...view.statuses.keys()])) if (paintedStatuses.get(id) !== view.statuses.get(id)) ids.add(id);
+  for (const id of new Set([...paintedAcked, ...view.acked])) if (paintedAcked.has(id) !== view.acked.has(id)) ids.add(id);
+  paintedStatuses = view.statuses;
+  paintedAcked = view.acked;
+  for (const id of ids) {
+    const dot = statusDots.get(id);
+    if (dot) applyStatus(dot, view.statuses.get(id), view.acked.has(id));
+  }
+  if (tabs.some((t) => ids.has(t.session.id))) renderTabBar(view);
+  refreshSwitcher(view); // keep the project roll-up badges live
 }
 
 // Toggle the "read" mark on a session's dot: mutes a live status (dimmed, no pulse) without closing the tab or replying.
 // Only the attention states are ackable — idle (done) and waiting (needs you).
 // Busy (working) and closed/hollow have nothing to acknowledge, so acking them is a no-op.
 function toggleAck(id: string): void {
+  const { statuses, acked } = store.get();
   const status = statuses.get(id);
   if (status !== 'idle' && status !== 'waiting') return;
-  if (acked.has(id)) acked.delete(id);
-  else acked.add(id);
-  renderStatusDot(id);
-  refreshSwitcher(store.get()); // an acked/un-acked session changes its project's roll-up badge
+  store.set({ acked: withMember(acked, id, !acked.has(id)) });
 }
 
 /**
@@ -518,10 +516,9 @@ async function renderSessions(showLoading = true): Promise<void> {
     archived = new Map(Object.entries(archivedList));
     projectNames = new Map(Object.entries(namesMap));
     notes = new Map(Object.entries(noteMap));
-    statuses = new Map(Object.entries(statusMap));
     // A full read: when what the rows draw is unchanged the store tells nobody, and what was read with it — the pins, the notes, the names — has to reach the list all the same.
     const unchanged = sameRows(store.get().sessions, sessions);
-    store.set({ sessions });
+    store.set({ sessions, statuses: new Map(Object.entries(statusMap)) });
     if (unchanged) sessionsChanged(store.get());
   } finally {
     if (showLoading) setLoading(false);
@@ -535,7 +532,7 @@ async function refreshFromDisk(): Promise<void> {
 }
 
 /** What follows the listing: the date picker's first day, the open tabs' titles, and the list. */
-function sessionsChanged(view: View<'sessions'>): void {
+function sessionsChanged(view: View<'sessions' | 'statuses' | 'acked' | 'switchedModel'>): void {
   applyDatePickerMinDate(view);
   reconcileOpenTabs(view);
   renderList(view);
@@ -866,8 +863,8 @@ function projectGone(repoRoot: string, view: View<'sessions'>): boolean {
 }
 
 // Update the switcher header + popover from the visible project pool. The pool is every project's tips (see renderList); the switcher is independent of search/project so you can always navigate.
-function renderSwitcher(pool: SessionSummary[]): void {
-  const model = projectsForSwitcher(pool, statuses, acked, projectNames, projectOrder);
+function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked'>): void {
+  const model = projectsForSwitcher(pool, view.statuses, view.acked, projectNames, projectOrder);
   const active = activeProject ? model.projects.find((f) => f.repoRoot === activeProject) : null;
   switcherName.textContent = active ? active.name : 'All';
   // The title keeps "Switch project" as its tooltip; only the mark says why.
@@ -884,19 +881,19 @@ function renderSwitcher(pool: SessionSummary[]): void {
     ...model.projects.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeProject, !f.rootExists)),
   );
 
-  renderFooter(model, pool);
+  renderFooter(model, pool, view);
   // What the built-ins' rail icons say while they are folded or behind another panel: the same roll-up as the header's badge for the sidebar, and the tabs on show for the terminal area.
   reportBuiltinStatus('sessions', headerBadge === 'waiting' ? 'wait' : null);
-  reportBuiltinStatus('claude', visibleTabs().some((tab) => sessionNudge(tab.session.id) === 'waiting') ? 'wait' : null);
+  reportBuiltinStatus('claude', visibleTabs().some((tab) => sessionNudge(tab.session.id, view) === 'waiting') ? 'wait' : null);
 }
 
 // Seeded from meta at startup (default open — the strip exists to be read), and written back on every toggle so the choice survives a restart.
 let footerExpanded = true;
 
 // A session's contribution to the roll-up: its live status, but an acked idle/waiting counts as nothing (muted), same rule as the switcher badges.
-function sessionNudge(id: string): NudgeStatus {
-  const st = statuses.get(id);
-  if (st === 'waiting' || st === 'idle') return acked.has(id) ? null : st;
+function sessionNudge(id: string, view: View<'statuses' | 'acked'>): NudgeStatus {
+  const st = view.statuses.get(id);
+  if (st === 'waiting' || st === 'idle') return view.acked.has(id) ? null : st;
   if (st === 'busy') return 'busy';
   return null;
 }
@@ -1116,7 +1113,7 @@ function stripStopButton(session: SessionSummary): HTMLButtonElement {
 // Cross-project attention strip in the sidebar footer.
 // The toggle badge is the same overall roll-up as the switcher header; expanded, it lists the nudged SESSIONS grouped under their project (each a row: state dot + session title), click one to jump to it.
 // Muted "all clear" when nothing pending.
-function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
+function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked'>): void {
   const overall = model.all.badge;
   footerBadge.className = overall ? `nudge ${overall}` : 'nudge';
   footerBadge.hidden = !overall;
@@ -1147,7 +1144,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
   const total = ordered.reduce((n, g) => n + g.items.length, 0);
   // "Needs you" is idle or waiting and NOT already read; busy is work in progress, which wants nothing from you.
   const needing = ordered.reduce(
-    (n, g) => n + g.items.filter((s) => sessionNudge(s.id) === 'idle' || sessionNudge(s.id) === 'waiting').length,
+    (n, g) => n + g.items.filter((s) => sessionNudge(s.id, view) === 'idle' || sessionNudge(s.id, view) === 'waiting').length,
     0,
   );
 
@@ -1185,7 +1182,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[]): void {
         // It IS clickable though, and for the same reason the row is: acking a session anywhere else means going to where that session lives, which costs you the project you are looking at — the exact gap this strip exists to close.
         // The read state has to show either way, or a muted row reads as live — hence the acked modifier, which dims this badge exactly as it dims the dot.
         const dot = document.createElement('span');
-        applyStatus(dot, statuses.get(session.id), acked.has(session.id));
+        applyStatus(dot, view.statuses.get(session.id), view.acked.has(session.id));
         // A muted row stays LISTED: membership is "has a process", and acking says "seen it", not "stop". Only the count above drops it.
         ackOnClick(dot, () => session.id);
         const name = document.createElement('span');
@@ -1302,8 +1299,8 @@ function viewPool(all: SessionSummary[], archivedView: boolean): SessionSummary[
 }
 
 // Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
-function refreshSwitcher(view: View<'sessions'>): void {
-  renderSwitcher(switcherPool(visibleSessions(view)));
+function refreshSwitcher(view: View<'sessions' | 'statuses' | 'acked'>): void {
+  renderSwitcher(switcherPool(visibleSessions(view)), view);
   // A status or a mark read changed the roll-ups here, and the same dots on a panel's rows.
   treeSessionsChanged();
 }
@@ -1311,7 +1308,7 @@ function refreshSwitcher(view: View<'sessions'>): void {
 // Render from the cached session list, applying the current search filter.
 // Keystrokes call this directly so filtering never re-reads disk.
 // Reuses project/row nodes by key so a re-render moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
-function renderList(view: View<'sessions'>): void {
+function renderList(view: View<'sessions' | 'statuses' | 'acked' | 'switchedModel'>): void {
   const scroll = container.scrollTop;
   statusDots.clear();
   // The sessions themselves changed — a title, one appearing on disk: a panel's rows name them too.
@@ -1331,7 +1328,7 @@ function renderList(view: View<'sessions'>): void {
     activeProject = null;
     window.claudeUi.setActiveProject(null);
   }
-  renderSwitcher(pool);
+  renderSwitcher(pool, view);
 
   const groupNames = filterText ? groupNameByKey() : undefined;
   const filtered = all.filter((s) => passesFilters(s, groupNames));
@@ -1365,7 +1362,7 @@ function renderList(view: View<'sessions'>): void {
     projects: tree.map((p) => p.repoRoot),
     groups: tree.flatMap((p) => p.groups.map((g) => g.group.id)),
   };
-  reconcileProjectSections(tree);
+  reconcileProjectSections(tree, view);
   pruneRows(new Set(scoped.map((s) => entityKey(s))));
 
   container.scrollTop = scroll;
@@ -1433,7 +1430,7 @@ function clearList(): void {
 
 // Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order both the sections and their rows via appendChild (which moves an existing node into place).
 // Inside a project the group sections come first, then the rows belonging to no group.
-function reconcileProjectSections(desired: ProjectTree[]): void {
+function reconcileProjectSections(desired: ProjectTree[], view: View<'statuses' | 'acked' | 'switchedModel'>): void {
   const wanted = new Set(desired.map((p) => p.repoRoot));
   for (const [repoRoot, els] of projectSections) {
     if (!wanted.has(repoRoot)) {
@@ -1465,7 +1462,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
     els.label.textContent = projName(project.repoRoot); // keep the heading current (e.g. after a rename)
     // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
     // Filtering forces every section open and reshuffles what is on screen, which leaves the jump nothing to act on: disabled there, like collapse-all, since a control vanishing as you type reads worse than one plainly unavailable.
-    const targets = groupJumpTargets(project, statuses, acked);
+    const targets = groupJumpTargets(project, view.statuses, view.acked);
     jumpTargets.set(project.repoRoot, targets);
     els.groupsBtn.hidden = targets.length < 2;
     els.groupsBtn.disabled = isFiltering();
@@ -1496,7 +1493,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
         : "Empty — start a session with the + above, or move one here from any session's options.";
       for (const session of sessions) {
         const row = getOrCreateRow(entityKey(session));
-        updateRow(row, session);
+        updateRow(row, session, view);
         row.classList.remove('after-groups'); // rows are reused: it may have been a loose row before
         groupEls.members.appendChild(row);
       }
@@ -1506,7 +1503,7 @@ function reconcileProjectSections(desired: ProjectTree[]): void {
     let first = true;
     for (const session of project.loose) {
       const row = getOrCreateRow(entityKey(session));
-      updateRow(row, session);
+      updateRow(row, session, view);
       // Extra breathing room between the last group and the loose rows, but not when there are no groups at all (then this is just the project's first row).
       row.classList.toggle('after-groups', first && project.groups.length > 0);
       first = false;
@@ -2025,11 +2022,11 @@ function createSessionRow(key: string): HTMLElement {
 }
 
 // Refresh a reused row's content for the tip it now shows.
-function updateRow(row: HTMLElement, session: SessionSummary): void {
+function updateRow(row: HTMLElement, session: SessionSummary, view: View<'statuses' | 'acked' | 'switchedModel'>): void {
   row.dataset.sid = session.id;
   const els = rowEls.get(row)!;
 
-  applyStatus(els.dot, statuses.get(session.id), acked.has(session.id));
+  applyStatus(els.dot, view.statuses.get(session.id), view.acked.has(session.id));
   statusDots.set(session.id, els.dot);
 
   els.title.textContent = sessionLabel(session, '(no prompt yet)');
@@ -2073,7 +2070,7 @@ function updateRow(row: HTMLElement, session: SessionSummary): void {
     const ts = archived.get(entityKey(session));
     els.metaText.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
   } else {
-    const model = modelLabel(modelOf(session));
+    const model = modelLabel(modelOf(session, view));
     const when = relativeTime(session.lastActivity);
     els.metaText.textContent = model ? `${when} · ${model}` : when;
   }
@@ -2205,8 +2202,9 @@ function linkedSessions(entryKey: string, itemKey: string): LinkedSession[] {
     .filter(([, link]) => link.key === itemKey)
     .sort(([, a], [, b]) => b.startedAt.localeCompare(a.startedAt))
     .flatMap(([id]) => {
+      const { sessions, statuses, acked } = store.get();
       const tab = tabs.find((t) => t.session.id === id);
-      const session = tab?.session ?? store.get().sessions.find((s) => s.id === id);
+      const session = tab?.session ?? sessions.find((s) => s.id === id);
       if (!session) return [];
       return [{ id, title: session.title, status: statuses.get(id) ?? null, acked: acked.has(id), running: tab !== undefined && tab.terminalId !== null }];
     });
@@ -2245,7 +2243,8 @@ function pickLinkedSession(anchor: HTMLElement, sessions: LinkedSession[]): void
  * When the row already has a session, the dialog offers to continue the latest one instead, which keeps the context the first one built: stopped, it resumes with the prompt; running, it is brought into view and the prompt is not sent.
  */
 async function startSessionFromPanel(entryKey: string, request: SessionRequest): Promise<void> {
-  const known = projectsForSwitcher(switcherPool(visibleSessions(store.get())), statuses, acked, projectNames, projectOrder).projects.filter((project) => project.rootExists);
+  const state = store.get();
+  const known = projectsForSwitcher(switcherPool(visibleSessions(state)), state.statuses, state.acked, projectNames, projectOrder).projects.filter((project) => project.rootExists);
   const roots = known.map((project) => project.repoRoot);
   const found = request.dir ? projectFor(roots, request.dir) : null;
   const preset = found ?? request.dir ?? activeProject ?? roots[0] ?? null;
@@ -2651,7 +2650,7 @@ function visibleTabs(): Tab[] {
   return activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
 }
 
-function renderTabBar(view: View<'sessions'>): void {
+function renderTabBar(view: View<'sessions' | 'statuses' | 'acked'>): void {
   // A tab opened, started, stopped or closed: a panel's rows say whether their sessions run.
   treeSessionsChanged();
   const shown = visibleTabs();
@@ -2686,7 +2685,7 @@ function renderTabBar(view: View<'sessions'>): void {
         label.addEventListener('click', () => revealProjectInSidebar(root));
         row.append(label);
       }
-      row.append(...loose.map(tabElement));
+      row.append(...loose.map((tab) => tabElement(tab, view)));
       children.push(row);
     }
     // Then one row per group that has tabs open, in registry order — the sidebar's order.
@@ -2706,7 +2705,7 @@ function renderTabBar(view: View<'sessions'>): void {
       label.append(icon, document.createTextNode(group.name));
       // The same jump as the heading's group menu: unfold, scroll the group's heading into view, and flash it.
       label.addEventListener('click', () => jumpToGroup(root, group.id));
-      row.append(rail, label, ...groupTabs.map(tabElement));
+      row.append(rail, label, ...groupTabs.map((tab) => tabElement(tab, view)));
       children.push(row);
     }
   }
@@ -2714,7 +2713,7 @@ function renderTabBar(view: View<'sessions'>): void {
   initTabSortables();
 }
 
-function tabElement(tab: Tab): HTMLElement {
+function tabElement(tab: Tab, view: View<'statuses' | 'acked'>): HTMLElement {
   const el = document.createElement('div');
   // 'cold' = restored but never started. Unfilled rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
@@ -2729,7 +2728,7 @@ function tabElement(tab: Tab): HTMLElement {
     .join(' ');
 
   const dot = document.createElement('span');
-  applyStatus(dot, statuses.get(tab.session.id), acked.has(tab.session.id));
+  applyStatus(dot, view.statuses.get(tab.session.id), view.acked.has(tab.session.id));
   // Toggle "read" from the tab too, rather than only from the sidebar row.
   ackOnClick(dot, () => tab.session.id);
 
@@ -2937,7 +2936,14 @@ routeTerminals();
 // Subscribed before start-up sets anything, and told in this order.
 
 // The listing changed in something a row draws: the date picker's first day, the open tabs' titles, and the list follow it.
-store.watch(['sessions'], sessionsChanged);
+// The list paints every dot it draws, but a status change repaints only the dots, below.
+store.watch(['sessions'], sessionsChanged, { reads: ['statuses', 'acked', 'switchedModel'] });
+
+// A session switched model: the row prints it, and nothing on disk has changed to redraw it otherwise.
+store.watch(['switchedModel'], renderList, { reads: ['sessions', 'statuses', 'acked'] });
+
+// A status or a mark read changed: the dots that differ, the tab bar when one of them has a tab, the switcher's roll-ups and the strip.
+store.watch(['statuses', 'acked'], statusesChanged, { reads: ['sessions'] });
 
 function onTabData(tab: Tab, data: string): void {
   tab.term.write(data);
@@ -3026,10 +3032,7 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
 });
 
 window.claudeUi.onSessionModel((id, model) => {
-  if (switchedModel.get(id) === model) return;
-  switchedModel.set(id, model);
-  // The row prints the model, and nothing else is going to redraw it: the session list on disk has not changed, so the usual refresh would see no reason to.
-  renderList(store.get());
+  store.set({ switchedModel: withEntry(store.get().switchedModel, id, model) });
 });
 
 // The sidebar keeps itself current: a transcript created or changed on disk re-renders it.
