@@ -1236,9 +1236,6 @@ h1 {
   font-size: var(--text-meta);
 }
 
-/* Compact tier of the standard control (see .unarchive-btn): same 14px icon, tighter padding, so a
-   tab keeps its density while the close stays a real click target. */
-
 /* A pane with nothing in it names the next action, in the terminal's and in a panel's. */
 .pane-placeholder {
   display: flex;
