@@ -17,15 +17,35 @@ const fixture = {
   groupState: { groups: [{ id: 'g-work', name: 'Work', repoRoot: TARGET }], groupOf: { [grouped.id]: 'g-work' } },
 };
 
-/** The flash's last frame, held there: a jump's wash fades into the element's own background rather than ending on another colour and snapping to its own. */
-const nearFlashEnd = (target: Locator): Promise<string> =>
-  target.evaluate((el) => {
-    const animation = el.getAnimations().find((a) => (a as CSSAnimation).animationName === 'jump-flash');
-    if (!animation) return 'no flash running';
-    animation.pause();
-    animation.currentTime = 899;
-    return getComputedStyle(el).backgroundColor;
-  });
+interface Flash {
+  flashed: boolean;
+  /** The flash's last frame, held there: a jump's wash fades into the element's own background rather than ending on another colour and snapping to its own. */
+  end: string;
+  own: string;
+}
+
+/**
+ * Press `label` and read what its jump flashed — the heading of the section named `name`, a project's or a group's — in ONE step in the page.
+ * The jump is synchronous, and the flash takes its class off by a timer after 900 ms, so reading it in steps of their own raced that timer on a loaded machine (seen as "no flash running"); nothing can run between a click and a read made in one go.
+ */
+const jumpAndRead = (label: Locator, kind: 'project' | 'group', name: string): Promise<Flash | 'no heading' | 'no flash running'> =>
+  label.evaluate(
+    (el, { kind, name }) => {
+      (el as HTMLElement).click();
+      const selector = kind === 'project' ? '.project > .section-heading' : '.group > .section-heading';
+      const heading = [...document.querySelectorAll<HTMLElement>(selector)].find((each) => each.querySelector('.label')?.textContent === name);
+      if (!heading) return 'no heading';
+      const flashed = heading.classList.contains('flash');
+      const animation = heading.getAnimations().find((a) => (a as CSSAnimation).animationName === 'jump-flash');
+      if (!animation) return 'no flash running';
+      animation.pause();
+      animation.currentTime = 899;
+      const end = getComputedStyle(heading).backgroundColor;
+      heading.classList.remove('flash');
+      return { flashed, end, own: getComputedStyle(heading).backgroundColor };
+    },
+    { kind, name },
+  );
 
 const projectHeading = (page: Page, name: string): Locator => page.locator('.project > .section-heading', { has: page.locator('.label', { hasText: new RegExp(`^${name}$`) }) });
 
@@ -33,12 +53,12 @@ test("a project's tab-bar label scrolls the sidebar to its heading and flashes i
   await app.boot(fixture);
   const heading = projectHeading(page, 'target');
   await expect(heading).not.toBeInViewport();
-  const own = await heading.evaluate((el) => getComputedStyle(el).backgroundColor);
 
-  await page.locator('.tab-project-label', { hasText: /^target$/ }).click();
+  const flash = await jumpAndRead(page.locator('.tab-project-label', { hasText: /^target$/ }), 'project', 'target');
+  expect(flash).toEqual(expect.objectContaining({ flashed: true }));
+  const { end, own } = flash as Flash;
+  expect(end).toBe(own);
   await expect(heading).toBeInViewport();
-  await expect(heading).toHaveClass(/\bflash\b/);
-  expect(await nearFlashEnd(heading)).toBe(own);
 });
 
 test("a group's tab-bar label unfolds its project and group, scrolls to the group's heading and flashes it", async ({ app, page }) => {
@@ -46,16 +66,11 @@ test("a group's tab-bar label unfolds its project and group, scrolls to the grou
   const group = page.locator('.group', { has: page.locator('.section-heading .label', { hasText: /^Work$/ }) });
   await expect(group).toBeHidden();
 
-  await page.locator('.tab-group-label', { hasText: /^Work$/ }).click();
-  const heading = group.locator('> .section-heading');
-  await expect(heading).toBeInViewport();
+  const flash = await jumpAndRead(page.locator('.tab-group-label', { hasText: /^Work$/ }), 'group', 'Work');
+  expect(flash).toEqual(expect.objectContaining({ flashed: true }));
+  const { end, own } = flash as Flash;
+  expect(end).toBe(own);
+  await expect(group.locator('> .section-heading')).toBeInViewport();
   await expect(group).not.toHaveClass(/collapsed/);
   await expect(page.locator('.session', { hasText: grouped.title })).toBeVisible();
-  await expect(heading).toHaveClass(/\bflash\b/);
-  const own = await heading.evaluate((el) => {
-    el.classList.remove('flash');
-    return getComputedStyle(el).backgroundColor;
-  });
-  await heading.evaluate((el) => el.classList.add('flash'));
-  expect(await nearFlashEnd(heading)).toBe(own);
 });
