@@ -54,3 +54,20 @@ test('the switcher lists every project with its count, whatever the list is filt
   await expect(page.locator('.switcher-item .switcher-item-name')).toHaveText(['All', 'demo', 'other']);
   await expect(page.locator('.switcher-item .switcher-item-count')).toHaveText(['2', '1', '1']);
 });
+
+test('the switcher shuts on its own button and on a click outside it, choosing nothing', async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [] });
+  const popover = page.locator('#switcher-popover');
+  await page.locator('#switcher-current').click();
+  await expect(popover).toBeVisible();
+  await expect(page.locator('#switcher-current')).toHaveAttribute('aria-expanded', 'true');
+  await page.locator('#switcher-current').click();
+  await expect(popover).toBeHidden();
+
+  await page.locator('#switcher-current').click();
+  await expect(popover).toBeVisible();
+  await page.locator('#term-placeholder').click();
+  await expect(popover).toBeHidden();
+  await expect(page.locator('#switcher-current')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#switcher-name')).toHaveText('All');
+});

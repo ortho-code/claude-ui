@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
+import { defaultUi } from '../../../../../src/shared/defaults';
+import type { UiState } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
-import { expect, test } from '../../../support/harness';
+import { type App, expect, test } from '../../../support/harness';
 
 // The strip lists what is RUNNING, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
 // It keeps still: a session writing a message or waiting moves no row, which recency- or attention-ordering did (6f04c95).
@@ -83,4 +85,36 @@ test("the strip's stop button stops the session, keeps its tab cold, and the row
   await app.emit('onTerminalExit', 1, 0);
   await expect(page.locator('.tab', { hasText: loose.title })).toHaveClass(/\bcold\b/);
   await expect(page.locator('#sidebar-footer')).toBeHidden();
+});
+
+/** Whether the strip was last stored expanded: the view is saved on a debounce, so read with a poll. */
+const savedExpanded = async (app: App): Promise<boolean | undefined> => ((await app.calls('setUiState')).at(-1)?.[0] as UiState | undefined)?.footerExpanded;
+
+// The strip folds to its one line and opens again from that line, and stays the way it was left, across a restart too.
+test('the strip folds from its line and opens again, and the fold is kept', async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });
+  await page.locator('.tab-label', { hasText: loose.title }).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const toggle = page.locator('#footer-toggle');
+  const list = page.locator('#footer-list');
+  await expect(list).toBeVisible();
+
+  await toggle.click();
+  await expect(list).toBeHidden();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect.poll(() => savedExpanded(app)).toBe(false);
+
+  await toggle.click();
+  await expect(list).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect.poll(() => savedExpanded(app)).toBe(true);
+});
+
+test('a strip folded last time comes back folded', async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] }, uiState: { ...defaultUi(), footerExpanded: false } });
+  await page.locator('.tab-label', { hasText: loose.title }).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await expect(page.locator('#sidebar-footer')).toBeVisible();
+  await expect(page.locator('#footer-list')).toBeHidden();
+  await expect(page.locator('#footer-toggle')).toHaveAttribute('aria-expanded', 'false');
 });
