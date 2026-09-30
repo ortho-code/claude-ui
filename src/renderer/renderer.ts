@@ -27,8 +27,8 @@ import {
 } from './panels/types/claude/terminals';
 import { renderTabBar, type TabBarView } from './panels/types/claude/tab-bar';
 import './styles.css';
-import { store, withEntry, withMember, type TabState, type View } from './state/app';
-import { projName, projectGroups, sessionById, sessionNudge, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
+import { noFilter, store, withEntry, withMember, type AppState, type FilterState, type TabState, type View } from './state/app';
+import { isFiltering, projName, projectGroups, searchText, sessionById, sessionNudge, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
 import { setStatus } from './state/statuses';
 import { applyGroupState, moveSessionToGroup } from './state/groups';
 import { ackOnClick, applyStatus } from './statusdot';
@@ -165,19 +165,6 @@ function setLoading(on: boolean): void {
   loadingEl.classList.toggle('active', on);
 }
 
-let filterText = '';
-let showPinnedOnly = false;
-let showOpenOnly = false;
-let showLiveOnly = false;
-let showWorktreeOnly = false;
-let showGoneOnly = false;
-let showSiblingsOnly = false;
-let showNotedOnly = false;
-let showArchivedOnly = false;
-// Date filter, as an inclusive [from, to] window in epoch ms; null means unbounded on that side.
-let datePreset = 'any';
-let dateFromMs: number | null = null;
-let dateToMs: number | null = null;
 // Status dots by tip session id; rebuilt each render (a status event names a session id).
 const statusDots = new Map<string, HTMLElement>();
 // Row elements by entity key (the session id), reused across renders so a re-render moves nodes instead of recreating them — no flicker, no scroll jump, hover/focus kept.
@@ -200,11 +187,11 @@ const filterFoldedProjects = new Set<string>();
 const filterFoldedGroups = new Set<string>();
 
 /** The fold sets in play right now: the transient pair while filtering, the stored pair otherwise. Every read and every write goes through these, so the two can never be mixed up. */
-function foldedProjects(): Set<string> {
-  return isFiltering() ? filterFoldedProjects : collapsedProjects;
+function foldedProjects(view: View<'filter'> = store.get()): Set<string> {
+  return isFiltering(view) ? filterFoldedProjects : collapsedProjects;
 }
-function foldedGroups(): Set<string> {
-  return isFiltering() ? filterFoldedGroups : collapsedGroups;
+function foldedGroups(view: View<'filter'> = store.get()): Set<string> {
+  return isFiltering(view) ? filterFoldedGroups : collapsedGroups;
 }
 interface ProjectSectionEls {
   section: HTMLElement;
@@ -277,9 +264,10 @@ function listFollowsTabs(view: ListView): void {
       .sort()
       .join('\n');
   const standIns = (tabs: readonly TabState[]): string => structuralSignature(tabs.filter((t) => !onDisk.has(t.session.id)).map((t) => t.session));
+  const { open, live } = view.filter.filters;
   const moved =
-    (showOpenOnly && keys(before, false) !== keys(view.tabs, false)) ||
-    (showLiveOnly && keys(before, true) !== keys(view.tabs, true)) ||
+    (open && keys(before, false) !== keys(view.tabs, false)) ||
+    (live && keys(before, true) !== keys(view.tabs, true)) ||
     standIns(before) !== standIns(view.tabs);
   if (moved) renderList(view);
   else updateSidebarHighlight(view);
@@ -331,12 +319,12 @@ interface FullRead {
   showLoading?: boolean;
   /** A session whose delete just resolved, which stops being hidden in the same change as the re-read. */
   revealed?: string;
-  /** Start-up's read, which also takes the project you were in: in the same change, so the first draw is already scoped to it rather than drawn for All first. */
-  startUp?: boolean;
+  /** Start-up's read, which also takes the project you were in and the view you left (`restoreUiState`): in the same change, so the first draw is already scoped and filtered rather than drawn for All, whole, first. */
+  startUp?: StoredView;
 }
 
 /** A full read of what the list draws from main, set in one change. */
-async function renderSessions({ showLoading = true, revealed, startUp = false }: FullRead = {}): Promise<void> {
+async function renderSessions({ showLoading = true, revealed, startUp }: FullRead = {}): Promise<void> {
   if (showLoading) setLoading(true);
   try {
     const [sessions, pinnedList, archivedList, statusMap, namesMap, noteMap, groupState, storedProject] = await Promise.all([
@@ -364,7 +352,7 @@ async function renderSessions({ showLoading = true, revealed, startUp = false }:
       projectOrder,
       // In the same change, so a row whose files are gone never shows for a moment between no longer hiding it and the listing without it.
       ...(revealed === undefined ? {} : { pendingDeletes: withMember(store.get().pendingDeletes, revealed, false) }),
-      ...(startUp ? { activeProject: storedProject } : {}),
+      ...(startUp ? { activeProject: storedProject, ...startUp } : {}),
     });
   } finally {
     if (showLoading) setLoading(false);
@@ -393,10 +381,13 @@ type ListView = View<
   | 'activeProject'
   | 'tabs'
   | 'activeTab'
+  | 'filter'
 >;
 
 /** The listing the date picker and the open tabs' titles last followed, so they follow it again only when it moved rather than on a pin or a note. */
 let followedSessions: View<'sessions'>['sessions'] = [];
+/** The filter the list was last drawn under, so a new one starts the list at its top. */
+let followedFilter: View<'filter'>['filter'] = store.get().filter;
 
 /** The list follows the store; when the listing itself moved, the date picker's first day and the open tabs' titles follow it first. */
 function listChanged(view: ListView): void {
@@ -405,12 +396,11 @@ function listChanged(view: ListView): void {
     applyDatePickerMinDate(view);
     reconcileOpenTabs(view);
   }
+  const filtered = view.filter !== followedFilter;
+  followedFilter = view.filter;
   renderList(view);
-}
-
-// Any filter active? Used to auto-expand projects with matches and to show the filter status.
-function isFiltering(): boolean {
-  return filterText.length > 0 || FILTER_PILLS.some((pill) => pill.get()) || datePreset !== 'any';
+  // A filter change reshapes the list, so it starts at the top rather than at a stale scroll offset.
+  if (filtered) container.scrollTop = 0;
 }
 
 // Session key -> its group's NAME, so typing a group name reaches its sessions.
@@ -426,25 +416,26 @@ function groupNameByKey({ groupState }: View<'groupState'>): Map<string, string>
 }
 
 // Adapt the current filter state to the pure predicate.
-function passesFilters(session: SessionSummary, view: View<'pinned' | 'archived' | 'notes' | 'pendingDeletes' | 'tabs'>, groupNames?: ReadonlyMap<string, string>): boolean {
+function passesFilters(session: SessionSummary, view: View<'pinned' | 'archived' | 'notes' | 'pendingDeletes' | 'tabs' | 'filter'>, groupNames?: ReadonlyMap<string, string>): boolean {
+  const { filters, dateFrom, dateTo } = view.filter;
   return sessionPasses(session, {
     groupNames,
-    text: filterText,
-    pinnedOnly: showPinnedOnly,
-    openOnly: showOpenOnly,
-    open: showOpenOnly ? new Set(view.tabs.map((t) => entityKey(t.session))) : undefined,
-    liveOnly: showLiveOnly,
+    text: searchText(view),
+    pinnedOnly: filters.pinned,
+    openOnly: filters.open,
+    open: filters.open ? new Set(view.tabs.map((t) => entityKey(t.session))) : undefined,
+    liveOnly: filters.live,
     // Built per call rather than hoisted: cheap next to the tab count, and it must reflect the tabs as they are right now, since starting or stopping one changes what this filter shows.
-    live: showLiveOnly
+    live: filters.live
       ? new Set(view.tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)))
       : undefined,
-    worktreeOnly: showWorktreeOnly,
-    goneOnly: showGoneOnly,
-    siblingOnly: showSiblingsOnly,
-    notedOnly: showNotedOnly,
-    archivedOnly: showArchivedOnly,
-    dateFrom: dateFromMs,
-    dateTo: dateToMs,
+    worktreeOnly: filters.worktree,
+    goneOnly: filters.gone,
+    siblingOnly: filters.siblings,
+    notedOnly: filters.noted,
+    archivedOnly: filters.archived,
+    dateFrom,
+    dateTo,
     pinned: view.pinned,
     archived: view.archived,
     notes: view.notes,
@@ -459,30 +450,57 @@ function setDatePopover(open: boolean): void {
   dateCustom.hidden = !open;
 }
 
-// Translate the date presets into the [from, to] window. Presets are rolling from now; custom reads the calendar selection.
-function applyDatePreset(preset: string): void {
-  datePreset = preset;
+/**
+ * Set the filter: the list, its count and its chips follow the store.
+ * A filter that ends takes the folds made under it (`filterFoldedProjects`): they have served their purpose. Every way a filter ends comes here — the last character deleted, a preset back to Any, a chip's ×, Clear.
+ */
+function putFilter(next: FilterState): void {
+  if (!isFiltering({ filter: next })) {
+    filterFoldedProjects.clear();
+    filterFoldedGroups.clear();
+  }
+  store.set({ filter: next });
+}
+
+/** Change part of the filter. */
+function setFilter(patch: Partial<FilterState>): void {
+  putFilter({ ...store.get().filter, ...patch });
+}
+
+/** Turn one pill on or off. */
+function setPill(key: FilterPill['key'], on: boolean): void {
+  const { filters } = store.get().filter;
+  setFilter({ filters: { ...filters, [key]: on } });
+}
+
+/** A date preset's [from, to] window, in epoch ms, null for unbounded on that side: a rolling preset's from now, Custom's from the calendar's selection. */
+function dateWindow(preset: string): Pick<FilterState, 'datePreset' | 'dateFrom' | 'dateTo'> {
+  if (preset === 'custom') return { datePreset: preset, ...customDates() };
+  const range = datePresetRange(preset, Date.now());
+  return { datePreset: preset, dateFrom: range.from, dateTo: range.to };
+}
+
+/** Show a preset as the one chosen. */
+function drawDatePreset(preset: string): void {
   // The persistent range line shows only while Custom is the active preset (open or closed calendar).
   dateRangeLabel.hidden = preset !== 'custom';
   for (const chip of datePresets.querySelectorAll('button')) {
-    chip.classList.toggle('active', (chip as HTMLElement).dataset.range === preset);
+    chip.classList.toggle('active', chip.dataset.range === preset);
   }
-  if (preset === 'custom') {
-    // Custom just selects the mode; the range bar is the one control that opens the calendar.
-    applyCustomDates();
-  } else {
-    setDatePopover(false);
-    const range = datePresetRange(preset, Date.now());
-    dateFromMs = range.from;
-    dateToMs = range.to;
-  }
+  // Custom just selects the mode; the range bar is the one control that opens the calendar.
+  if (preset !== 'custom') setDatePopover(false);
 }
 
-function applyCustomDates(): void {
+function applyDatePreset(preset: string): void {
+  drawDatePreset(preset);
+  setFilter(dateWindow(preset));
+}
+
+/** The calendar's range as whole days, which the range line and the calendar's caption name as it changes. */
+function customDates(): Pick<FilterState, 'dateFrom' | 'dateTo'> {
   const [from, to] = datePicker.selectedDates.slice().sort((a, b) => a.getTime() - b.getTime());
-  dateFromMs = from ? new Date(from).setHours(0, 0, 0, 0) : null;
-  dateToMs = to ? new Date(to).setHours(23, 59, 59, 999) : null;
   updateDateRangeLabel(from, to);
+  return { dateFrom: from ? new Date(from).setHours(0, 0, 0, 0) : null, dateTo: to ? new Date(to).setHours(23, 59, 59, 999) : null };
 }
 
 // Show the picked range in day-month-year, in both the persistent line and the in-calendar caption.
@@ -506,39 +524,44 @@ function applyDatePickerMinDate(view: View<'sessions'>): void {
 }
 
 // Make an active filter obvious: show "N of M" with a clear button and flag the active controls.
-function updateFilterStatus(matches: number, total: number): void {
-  const filtering = isFiltering();
+function updateFilterStatus(matches: number, total: number, view: View<'filter'>): void {
+  const filtering = isFiltering(view);
+  const { filters } = view.filter;
   filterStatus.hidden = !filtering;
-  searchInput.classList.toggle('active', filterText.length > 0);
+  searchInput.classList.toggle('active', searchText(view).length > 0);
   for (const pill of FILTER_PILLS) {
-    pill.button.classList.toggle('active', pill.get());
-    pill.button.setAttribute('aria-pressed', String(pill.get()));
+    pill.button.classList.toggle('active', filters[pill.key]);
+    pill.button.setAttribute('aria-pressed', String(filters[pill.key]));
   }
   // The toggle carries the accent when any filter is on, beside the status line under the panel, so an active filter is visible even with the panel closed.
   filterToggle.classList.toggle('active', filtering);
   // The archived view counts against the archived set, and says so, since that total is not the number the switcher shows.
-  if (filtering) filterCount.textContent = `Showing ${matches} of ${total}${showArchivedOnly ? ' archived' : ''}`;
-  updateFilterChips();
+  if (filtering) filterCount.textContent = `Showing ${matches} of ${total}${filters.archived ? ' archived' : ''}`;
+  updateFilterChips(view);
 }
 
 function clearSearch(): void {
   searchInput.value = '';
-  filterText = '';
+  setFilter({ search: '' });
 }
 
-function clearDateFilter(): void {
+/** Empty the calendar without its own change applying it: whoever clears it says what the filter is now. */
+function clearCalendar(): void {
   suppressPickerSelect = true;
   datePicker.clear();
   suppressPickerSelect = false;
+}
+
+function clearDateFilter(): void {
+  clearCalendar();
   applyDatePreset('any');
 }
 
 function clearFilter(): void {
-  clearSearch();
-  for (const pill of FILTER_PILLS) pill.set(false);
-  clearDateFilter();
-  renderList(store.get());
-  container.scrollTop = 0;
+  searchInput.value = '';
+  clearCalendar();
+  drawDatePreset('any');
+  putFilter(noFilter());
 }
 
 // --- What is on, while the panel is shut ---
@@ -564,25 +587,24 @@ function filterChip(icon: string, text: string, label: string, remove: () => voi
   x.className = 'filter-chip-remove';
   x.innerHTML = closeIcon(10);
   x.setAttribute('aria-label', `Remove: ${label}`);
-  x.addEventListener('click', () => {
-    remove();
-    renderList(store.get());
-    container.scrollTop = 0;
-  });
+  // The list, its count and the chips follow the filter's change.
+  x.addEventListener('click', remove);
   chip.append(x);
   return chip;
 }
 
-function updateFilterChips(): void {
-  const show = isFiltering() && Boolean(filterPanel.hidden);
+function updateFilterChips(view: View<'filter'>): void {
+  const show = isFiltering(view) && Boolean(filterPanel.hidden);
   filterChips.hidden = !show;
   filterStatus.classList.toggle('collapsed', show);
   if (!show) {
     lastChipsSignature = '';
     return;
   }
-  const search = searchInput.value.trim();
-  const pills = FILTER_PILLS.filter((pill) => pill.get());
+  const { datePreset, filters } = view.filter;
+  const search = view.filter.search.trim();
+  const text = searchText(view);
+  const pills = FILTER_PILLS.filter((pill) => filters[pill.key]);
   // The date chip says what the preset button says, or the picked range for Custom, so it reads the same words as the control that set it.
   const dateText =
     datePreset === 'any'
@@ -590,12 +612,12 @@ function updateFilterChips(): void {
       : datePreset === 'custom'
         ? dateRangeLabel.textContent
         : (datePresets.querySelector(`[data-range="${datePreset}"]`)?.textContent ?? datePreset);
-  const signature = JSON.stringify([filterText ? search : '', pills.map((pill) => pill.button.id), dateText]);
+  const signature = JSON.stringify([text ? search : '', pills.map((pill) => pill.button.id), dateText]);
   if (signature === lastChipsSignature) return;
   lastChipsSignature = signature;
   const chips: HTMLElement[] = [];
-  if (filterText) chips.push(filterChip(iconSvg('search', 13), search, `Search: ${search}`, clearSearch));
-  for (const pill of pills) chips.push(filterChip(pill.icon, '', pill.button.getAttribute('aria-label') ?? '', () => pill.set(false)));
+  if (text) chips.push(filterChip(iconSvg('search', 13), search, `Search: ${search}`, clearSearch));
+  for (const pill of pills) chips.push(filterChip(pill.icon, '', pill.button.getAttribute('aria-label') ?? '', () => setPill(pill.key, false)));
   if (dateText) chips.push(filterChip(iconSvg('clock', 13), dateText, `Last active: ${dateText}`, clearDateFilter));
   filterChips.replaceChildren(...chips);
 }
@@ -610,7 +632,7 @@ function setFilterPanel(open: boolean): void {
   filterPanel.hidden = !open;
   filterToggle.setAttribute('aria-expanded', String(open));
   // Opening and closing does not re-render, so the chips that stand in for a shut panel follow it here.
-  updateFilterChips();
+  updateFilterChips(store.get());
 }
 
 /** Open or shut the panel from a click: the toggle, or the row of chips that stands in for it. */
@@ -623,29 +645,19 @@ function toggleFilterPanel(open: boolean): void {
   persistUi();
 }
 
-// Nothing is written until the stored state has been applied, or the first render would snapshot an empty sidebar straight over the real one.
+// Nothing is written until the start-up read has put the stored view back in the store (`startSavingUi`), or a save in between would write an empty sidebar straight over the real one.
 let uiRestored = false;
 let uiSaveTimer: number | undefined;
 // The last snapshot actually sent. Renders happen for reasons that have nothing to do with the view — a transcript growing, a status dot changing — and without this each one would cost a full read-modify-write of meta.json.
 let lastUiSignature = '';
 
-function uiSnapshot(): UiState {
+/** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
+type StoredView = Pick<AppState, 'filter'>;
+
+function uiSnapshot(view: StoredView = store.get()): UiState {
   return {
-    // The raw box contents, not the trimmed and lowercased `filterText`: what is restored has to be what was typed.
-    search: searchInput.value,
-    filters: {
-      pinned: showPinnedOnly,
-      open: showOpenOnly,
-      live: showLiveOnly,
-      worktree: showWorktreeOnly,
-      gone: showGoneOnly,
-      siblings: showSiblingsOnly,
-      noted: showNotedOnly,
-      archived: showArchivedOnly,
-    },
-    datePreset,
-    dateFrom: dateFromMs,
-    dateTo: dateToMs,
+    // The search as typed, not the trimmed and lowercased text it matches: what is restored has to be what was typed.
+    ...view.filter,
     filterPanelOpen: !filterPanel.hidden,
     footerExpanded,
     collapsedProjects: [...collapsedProjects],
@@ -677,49 +689,49 @@ function persistUi(): void {
 }
 
 /**
- * Put the sidebar back the way it was left, and hand back the scroll offset to apply once there is a list to scroll.
+ * Put the sidebar back the way it was left, and hand back what the start-up read sets in the store with the listing (`renderSessions`), and the scroll offset to apply once there is a list to scroll.
  *
- * Runs before the first render on purpose: restoring filters afterwards would draw the full list and then visibly cut it down.
+ * Runs before the first render on purpose, and the view goes into the store in the same change as the listing: restoring filters afterwards would draw the full list and then visibly cut it down.
+ * What is drawn straight from what was stored — the search box, the calendar, the chosen preset, the panel — is put back here, before the layout places the sidebar.
  * A deleted group's fold comes back too, and goes once the groups have been read (`forgetDeletedGroupFolds`).
  */
-async function restoreUiState(): Promise<number> {
+async function restoreUiState(): Promise<{ scrollTop: number; view: StoredView }> {
   const state = await window.claudeUi.getUiState();
   searchInput.value = state.search;
-  filterText = state.search.trim().toLowerCase();
-  showPinnedOnly = state.filters.pinned;
-  showOpenOnly = state.filters.open;
-  showLiveOnly = state.filters.live;
-  showWorktreeOnly = state.filters.worktree;
-  showGoneOnly = state.filters.gone;
-  showSiblingsOnly = state.filters.siblings;
-  showNotedOnly = state.filters.noted;
-  showArchivedOnly = state.filters.archived;
   for (const repoRoot of state.collapsedProjects) collapsedProjects.add(repoRoot);
-  for (const repoRoot of state.filterCollapsedProjects) filterFoldedProjects.add(repoRoot);
   for (const id of state.collapsedGroups) collapsedGroups.add(id);
-  for (const id of state.filterCollapsedGroups) filterFoldedGroups.add(id);
-  // Nothing special is needed for a restore that lands with no filter on: the first render empties these, and stores that.
   // The sidebar's width lived in localStorage, then in `sidebarWidth`; either is adopted once into the layout tree's sizes, so an existing install keeps its sidebar, and the tree owns it from here.
   restoreTreeState(state.panelState, state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth')));
-  // Only a CUSTOM range is restored as stored. The rolling presets are recomputed by applyDatePreset from the current moment, which is the whole point of "last 7 days" still meaning the last 7 days.
+  // Only a CUSTOM range is restored as stored. The rolling presets are worked out again from the current moment, which is the whole point of "last 7 days" still meaning the last 7 days.
   if (state.datePreset === 'custom') {
     const picked = [state.dateFrom, state.dateTo].filter((ms): ms is number => ms !== null).map((ms) => new Date(ms));
     if (picked.length > 0) {
-      // Awaited, because applyDatePreset reads the range back OUT of the picker: the selection has to have landed first.
-      // Flagged rather than the picker's own `silent`, so the calendar still repaints — this only needs onSelect not to re-apply and re-render mid-restore.
+      // Awaited, because the window below reads the range back OUT of the picker: the selection has to have landed first.
+      // Flagged rather than the picker's own `silent`, so the calendar still repaints — this only needs onSelect not to set the filter mid-restore.
       suppressPickerSelect = true;
       await datePicker.selectDate(picked);
       suppressPickerSelect = false;
     }
   }
-  applyDatePreset(state.datePreset);
+  drawDatePreset(state.datePreset);
+  const view: StoredView = { filter: { search: state.search, filters: state.filters, ...dateWindow(state.datePreset) } };
+  // The folds made under a filter apply only while it is on, so a filter stored off leaves them behind.
+  if (isFiltering(view)) {
+    for (const repoRoot of state.filterCollapsedProjects) filterFoldedProjects.add(repoRoot);
+    for (const id of state.filterCollapsedGroups) filterFoldedGroups.add(id);
+  }
   // Exactly as it was left, an active filter included. Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
   setFilterPanel(state.filterPanelOpen);
   footerExpanded = state.footerExpanded;
-  uiRestored = true;
   // Seed the signature from what was just restored, so an opening render that changed nothing writes nothing.
-  lastUiSignature = JSON.stringify(uiSnapshot());
-  return state.scrollTop;
+  lastUiSignature = JSON.stringify(uiSnapshot(view));
+  return { scrollTop: state.scrollTop, view };
+}
+
+/** From the start-up read on, the view in the store is the one you left, so it can be saved; anything asked for meanwhile — the layout dropping a stale split's sizes, say — is written now, if it changed anything. */
+function startSavingUi(): void {
+  uiRestored = true;
+  persistUi();
 }
 
 /**
@@ -813,15 +825,15 @@ async function promptNewGroup(repoRoot: string, sessionId?: string): Promise<voi
   const group = store.get().groupState.groups.find((g) => !known.has(g.id));
   if (!group) return;
   if (renderedSections.groups.includes(group.id)) jumpToGroup(repoRoot, group.id);
-  else if (isFiltering()) showToast(`Group "${group.name}" created. Empty groups are hidden while a filter is on, so it shows once you clear it.`);
+  else if (isFiltering(store.get())) showToast(`Group "${group.name}" created. Empty groups are hidden while a filter is on, so it shows once you clear it.`);
 }
 
 // The four ordering moves for a group, minus any that would be a no-op here: the first group has no "up", the last no "down", and a lone group in a project has nowhere to go at all.
 // So the menu never offers a move that does nothing.
 function groupMoveItems(id: string): MenuItem[] {
   // Same reason as projects: filtering drops groups whose sessions all fell out, so a neighbour can be missing from the screen and the move would appear to do nothing.
-  if (isFiltering()) return [];
   const state = store.get();
+  if (isFiltering(state)) return [];
   const group = state.groupState.groups.find((g) => g.id === id);
   if (!group?.repoRoot) return [];
   const siblings = projectGroups(group.repoRoot, state);
@@ -1154,11 +1166,6 @@ function refreshSwitcher(view: SwitcherView): void {
 function renderList(view: ListView): void {
   const scroll = container.scrollTop;
   statusDots.clear();
-  // The filter is off, so the folds made while it was on have served their purpose and go. Done here rather than where a filter is cleared, because a filter also ends by deleting the last character, by a date preset going back to Any, and by Clear.
-  if (!isFiltering()) {
-    filterFoldedProjects.clear();
-    filterFoldedGroups.clear();
-  }
 
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions(view);
@@ -1168,7 +1175,7 @@ function renderList(view: ListView): void {
   renderSwitcher(pool, view);
   const { activeProject } = view;
 
-  const groupNames = filterText ? groupNameByKey(view) : undefined;
+  const groupNames = searchText(view) ? groupNameByKey(view) : undefined;
   const filtered = all.filter((s) => passesFilters(s, view, groupNames));
   // Project scope applies everywhere, the archived view included.
   // It used to be exempt, from when archived was a rarely-visited global bin — but the scope is an explicit statement of what you are looking at, and one view quietly overriding it reads as a leak.
@@ -1176,7 +1183,7 @@ function renderList(view: ListView): void {
   const inScope = (list: SessionSummary[]): SessionSummary[] => (activeProject ? list.filter((s) => s.repoRoot === activeProject) : list);
   const scoped = inScope(filtered);
   // The total is the set the matches were taken from: the same project scope and the same view, archived or not, before the other filters. So the count only ever compares a set with part of itself, and in the normal view the total is the number the switcher shows.
-  updateFilterStatus(scoped.length, inScope(viewPool(all, showArchivedOnly, view)).length);
+  updateFilterStatus(scoped.length, inScope(viewPool(all, view.filter.filters.archived, view)).length, view);
 
   if (scoped.length === 0) {
     clearList();
@@ -1195,7 +1202,7 @@ function renderList(view: ListView): void {
   // One section per repo, each holding its groups and then the sessions in no group.
   // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
   // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  const tree = buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(), view.projectOrder);
+  const tree = buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder);
   renderedSections = {
     projects: tree.map((p) => p.repoRoot),
     groups: tree.flatMap((p) => p.groups.map((g) => g.group.id)),
@@ -1219,21 +1226,21 @@ const EXPAND_ALL_ICON = strokeIcon(14, '<path d="M4 3.75L8 7.25L12 3.75" /><path
 // What the button folds depends on the view.
 // In All it folds the project sections (keyed on projects alone: with every project shut its groups are out of sight anyway, which is why a group toggling on its own needs no refresh call).
 // In a single-project view folding the one project you asked to look at is pointless, so it folds THAT project's groups instead.
-function collapseScope({ activeProject }: View<'activeProject'>): { ids: string[]; collapsed: Set<string> } {
-  return activeProject === null
-    ? { ids: renderedSections.projects, collapsed: foldedProjects() }
-    : { ids: renderedSections.groups, collapsed: foldedGroups() };
+function collapseScope(view: View<'activeProject' | 'filter'>): { ids: string[]; collapsed: Set<string> } {
+  return view.activeProject === null
+    ? { ids: renderedSections.projects, collapsed: foldedProjects(view) }
+    : { ids: renderedSections.groups, collapsed: foldedGroups(view) };
 }
 
 // Everything in scope folded away already? Then the button offers the way back instead.
-function allSectionsCollapsed(view: View<'activeProject'>): boolean {
+function allSectionsCollapsed(view: View<'activeProject' | 'filter'>): boolean {
   const { ids, collapsed } = collapseScope(view);
   return ids.length > 0 && ids.every((id) => collapsed.has(id));
 }
 
-function updateCollapseToggle(view: View<'activeProject'>): void {
+function updateCollapseToggle(view: View<'activeProject' | 'filter'>): void {
   // Filtering forces every section open (so matches inside a collapsed one are visible), which leaves this nothing to act on.
-  collapseToggle.disabled = isFiltering() || collapseScope(view).ids.length === 0;
+  collapseToggle.disabled = isFiltering(view) || collapseScope(view).ids.length === 0;
   const label = allSectionsCollapsed(view) ? 'Expand all' : 'Collapse all';
   collapseToggle.innerHTML = allSectionsCollapsed(view) ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON;
   setTooltip(collapseToggle, label);
@@ -1292,7 +1299,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
       projectSections.set(project.repoRoot, els);
     }
     // While filtering, force projects open so matches inside a collapsed one are visible; the stored collapse state is left untouched, so it returns when the filter clears.
-    const collapsed = activeProject === null && foldedProjects().has(project.repoRoot);
+    const collapsed = activeProject === null && foldedProjects(view).has(project.repoRoot);
     els.section.classList.toggle('collapsed', collapsed);
     // A project view can't collapse its one project, so it shows no caret and no clickable styling.
     els.section.classList.toggle('no-collapse', activeProject !== null);
@@ -1305,7 +1312,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     const targets = groupJumpTargets(project, view.statuses, view.acked);
     jumpTargets.set(project.repoRoot, targets);
     els.groupsBtn.hidden = targets.length < 2;
-    els.groupsBtn.disabled = isFiltering();
+    els.groupsBtn.disabled = isFiltering(view);
     if (els.addCaret) els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
     // Nothing can be started in a folder that is not there. Disabled rather than hidden: the project still has sessions to read, and a control that vanishes explains nothing — the tooltip does.
     const rootGone = !project.rootExists;
@@ -1316,7 +1323,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     for (const { group, sessions } of project.groups) {
       const groupEls = groupSections.get(group.id) ?? createGroupSection(group.id);
       groupSections.set(group.id, groupEls);
-      const groupCollapsed = foldedGroups().has(group.id);
+      const groupCollapsed = foldedGroups(view).has(group.id);
       groupEls.section.classList.toggle('collapsed', groupCollapsed);
       groupEls.caret.innerHTML = caretIcon(groupCollapsed, 10);
       groupEls.label.textContent = group.name;
@@ -1368,11 +1375,12 @@ settingsToggle.addEventListener('click', () => void openSettings());
 // The ordering moves for a project, minus any that would do nothing — same rule as a group's.
 // The order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen (a filter or an all-archived project can hide neighbours without changing where this one sits).
 function projectMoveItems(repoRoot: string): MenuItem[] {
-  const { activeProject, projectOrder } = store.get();
+  const state = store.get();
+  const { activeProject, projectOrder } = state;
   // All view only: a project view renders a single heading, so there is nothing to order against.
   if (activeProject !== null) return [];
   // Not while filtering either: a hidden neighbour makes the move land where you can't see it, so "Move up" past a filtered-out project looks like a button that did nothing.
-  if (isFiltering()) return [];
+  if (isFiltering(state)) return [];
   const at = projectOrder.indexOf(repoRoot);
   const last = projectOrder.length - 1;
   if (at < 0 || last <= 0) return [];
@@ -1844,7 +1852,7 @@ function createSessionRow(key: string): HTMLElement {
   rowEls.set(item, { dot, title, badge, siblingsBadge, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
-    if (showArchivedOnly) return;
+    if (store.get().filter.filters.archived) return;
     const session = currentByKey.get(key);
     if (!session) return;
     // A session whose folder is gone cannot run anywhere. The row says so in its tooltip, and this answers the click for anyone who tries it anyway rather than opening a tab that could only fail.
@@ -1860,11 +1868,12 @@ function createSessionRow(key: string): HTMLElement {
 
 // Refresh a reused row's content for the tip it now shows.
 /** What a row draws from the store besides the session it shows. */
-type RowView = View<'statuses' | 'acked' | 'switchedModel' | 'pinned' | 'archived' | 'notes'>;
+type RowView = View<'statuses' | 'acked' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter'>;
 
 function updateRow(row: HTMLElement, session: SessionSummary, view: RowView): void {
   row.dataset.sid = session.id;
   const els = rowEls.get(row)!;
+  const archivedView = view.filter.filters.archived;
 
   applyStatus(els.dot, view.statuses.get(session.id), view.acked.has(session.id));
   statusDots.set(session.id, els.dot);
@@ -1906,7 +1915,7 @@ function updateRow(row: HTMLElement, session: SessionSummary, view: RowView): vo
     setTooltip(els.siblingsBadge, `${label} in this session's family — click to list them`);
   }
 
-  if (showArchivedOnly) {
+  if (archivedView) {
     const ts = view.archived.get(entityKey(session));
     els.metaText.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
   } else {
@@ -1920,13 +1929,13 @@ function updateRow(row: HTMLElement, session: SessionSummary, view: RowView): vo
   els.pin.innerHTML = isPinned ? PINNED_ICON : PIN_ICON;
   setTooltip(els.pin, isPinned ? 'Unpin' : 'Pin');
   els.pin.disabled = false;
-  els.pin.hidden = showArchivedOnly;
+  els.pin.hidden = archivedView;
 
   // Unarchive and delete are the archived view's two actions and appear nowhere else.
-  els.unarchiveBtn.hidden = !showArchivedOnly;
-  els.deleteBtn.hidden = !showArchivedOnly;
+  els.unarchiveBtn.hidden = !archivedView;
+  els.deleteBtn.hidden = !archivedView;
   // The kebab (fork, groups, archive) is a normal-view affordance; the archived view is manage-only.
-  els.kebab.hidden = showArchivedOnly;
+  els.kebab.hidden = archivedView;
 }
 
 // --- Tabs ---
@@ -2057,17 +2066,17 @@ routeTerminals();
 // The tabs are among them: a session with no transcript yet is in its project only through its tab.
 store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptied, { reads: ['activeProject'] });
 
-// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show — and the list follows, with the switcher, the strip and the pane's sentence it draws, and with the date picker and the tabs' titles when it was the listing.
+// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter — and the list follows, with the switcher, the strip, the filter's count and chips and the pane's sentence it draws, and with the date picker and the tabs' titles when it was the listing.
 // The list paints every dot it draws, but a status change repaints only the dots, below.
 store.watch(
-  ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject'],
+  ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'],
   listChanged,
   { reads: ['statuses', 'acked', 'tabs', 'activeTab'] },
 );
 
 // A tab opened, started, stopped, closed or came on show: the rows' marks, and the list itself when what it draws from the tabs moved.
 store.watch(['tabs', 'activeTab'], listFollowsTabs, {
-  reads: ['sessions', 'statuses', 'acked', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject'],
+  reads: ['sessions', 'statuses', 'acked', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'],
 });
 
 // A status or a mark read changed: the dots that differ, the tab bar when one of them has a tab, the switcher's roll-ups and the strip.
@@ -2164,46 +2173,36 @@ async function pickFolderAndOpen(): Promise<void> {
   }
 }
 newButton.addEventListener('click', () => void pickFolderAndOpen());
-searchInput.addEventListener('input', () => {
-  filterText = searchInput.value.trim().toLowerCase();
-  renderList(store.get());
-  // A filter change reshapes the list, so start at the top rather than a stale scroll offset.
-  container.scrollTop = 0;
-});
+searchInput.addEventListener('input', () => setFilter({ search: searchInput.value }));
 filterClear.addEventListener('click', clearFilter);
 
 /**
- * The filter pills, once, in the order they sit in the panel: each one's button, its mark and its flag.
- * Everything that asks about the pills as a set reads this — whether any is on, how they are drawn and wired, what Clear resets, which chips stand in for a shut panel — so the chips cannot fall out of step with the panel.
- * The stored view (`uiSnapshot`, `restoreUiState`) and the predicate (`passesFilters`) still name each flag, because each maps it to a key of its own.
+ * The filter pills, once, in the order they sit in the panel: each one's button, its mark and the flag it sets.
+ * Everything that asks about the pills as a set reads this — how they are drawn and wired, which chips stand in for a shut panel — so the chips cannot fall out of step with the panel.
+ * The predicate (`passesFilters`) still names each flag, because it maps each to a criterion of its own.
  */
 interface FilterPill {
   button: HTMLButtonElement;
   icon: string;
-  get: () => boolean;
-  set: (on: boolean) => void;
+  key: keyof FilterState['filters'];
 }
 const FILTER_PILLS: FilterPill[] = [
-  { button: pinnedFilter, icon: PINNED_ICON, get: () => showPinnedOnly, set: (on) => (showPinnedOnly = on) },
-  { button: openFilter, icon: OPEN_ICON, get: () => showOpenOnly, set: (on) => (showOpenOnly = on) },
-  { button: liveFilter, icon: LIVE_ICON, get: () => showLiveOnly, set: (on) => (showLiveOnly = on) },
-  { button: worktreeFilter, icon: WORKTREE_ICON, get: () => showWorktreeOnly, set: (on) => (showWorktreeOnly = on) },
-  { button: siblingFilter, icon: SIBLING_ICON, get: () => showSiblingsOnly, set: (on) => (showSiblingsOnly = on) },
-  { button: noteFilter, icon: NOTE_ICON, get: () => showNotedOnly, set: (on) => (showNotedOnly = on) },
-  { button: archivedFilter, icon: ARCHIVE_ICON, get: () => showArchivedOnly, set: (on) => (showArchivedOnly = on) },
-  { button: goneFilter, icon: folderGoneIcon(13), get: () => showGoneOnly, set: (on) => (showGoneOnly = on) },
+  { button: pinnedFilter, icon: PINNED_ICON, key: 'pinned' },
+  { button: openFilter, icon: OPEN_ICON, key: 'open' },
+  { button: liveFilter, icon: LIVE_ICON, key: 'live' },
+  { button: worktreeFilter, icon: WORKTREE_ICON, key: 'worktree' },
+  { button: siblingFilter, icon: SIBLING_ICON, key: 'siblings' },
+  { button: noteFilter, icon: NOTE_ICON, key: 'noted' },
+  { button: archivedFilter, icon: ARCHIVE_ICON, key: 'archived' },
+  { button: goneFilter, icon: folderGoneIcon(13), key: 'gone' },
 ];
 
 // Each pill shows the same mark the rows use, from the one definition — a glyph would render at a different weight beside them.
 // Icon-only: the words cost the panel an extra line at a 320px sidebar, and every pill carries a tooltip and an aria-label (see panels/types/sessions/index.ts) for what it means.
 for (const pill of FILTER_PILLS) {
   pill.button.innerHTML = pill.icon;
-  // Every filter pill does the same thing: flip its flag, re-render, scroll back to the results' top.
-  pill.button.addEventListener('click', () => {
-    pill.set(!pill.get());
-    renderList(store.get());
-    container.scrollTop = 0;
-  });
+  // Every filter pill does the same thing: flip its flag; the list follows, from its top.
+  pill.button.addEventListener('click', () => setPill(pill.key, !store.get().filter.filters[pill.key]));
 }
 // The header's icons come from here too, rather than inline in the sidebar's markup, so they are drawn through the same helper as the rest.
 settingsToggle.innerHTML = settingsIcon(14);
@@ -2218,10 +2217,7 @@ filterStatus.addEventListener('click', (event) => {
 });
 datePresets.addEventListener('click', (event) => {
   const preset = (event.target as HTMLElement).dataset.range;
-  if (!preset) return;
-  applyDatePreset(preset);
-  renderList(store.get());
-  container.scrollTop = 0;
+  if (preset) applyDatePreset(preset);
 });
 // Dismiss the calendar on an outside press or Escape; the picked range stays applied.
 // Uses mousedown, not click, so it fires before air-datepicker re-renders on a view switch (a click handler would see the just-clicked nav element already detached and wrongly treat it as an outside click).
@@ -2240,9 +2236,7 @@ document.addEventListener('keydown', (event) => {
 // The persistent range line reopens (toggles) the calendar.
 dateRangeLabel.addEventListener('click', () => setDatePopover(!datePopoverOpen));
 function onCustomDateChange(): void {
-  applyCustomDates();
-  renderList(store.get());
-  container.scrollTop = 0;
+  setFilter(customDates());
 }
 // Where the list was scrolled to is remembered, so a scroll of your own is a change to remember too.
 container.addEventListener('scroll', persistUi);
@@ -2294,12 +2288,13 @@ initTree({
 void (async () => {
   void window.claudeUi.getHistoryPins().then((pins) => history.setPins(pins));
   // Before the first render: restoring filters afterwards would draw the whole list and then visibly cut it down.
-  const scrollTop = await restoreUiState();
+  const { scrollTop, view } = await restoreUiState();
   // Before the rows and the tabs too: placing the layout moves the sidebar and the terminal area into it, and a move is cheapest, and invisible, while they are still empty.
   await loadLayout();
-  // With the project you were in, which scopes the first draw.
-  await renderSessions({ startUp: true });
+  // With the project you were in and the view you left, which scope and filter the first draw.
+  await renderSessions({ startUp: view });
   forgetDeletedGroupFolds(store.get());
+  startSavingUi();
   await restoreOpenTabs();
   // Again, now that the tabs exist. Two filters — open, and running — are questions about the TABS, and the render above happened while there were none, so a restored "open" filter would otherwise show an empty list next to a full tab bar. It also puts the open marker on the rows, which used to wait for the next render for its own reasons.
   renderList(store.get());

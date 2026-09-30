@@ -59,6 +59,16 @@ export function projectGone(repoRoot: string, view: View<'sessions' | 'tabs'>): 
   return sessions.length > 0 && !projectRootExists(sessions);
 }
 
+/** What the search matches against: the box's contents, trimmed and in lower case; empty for no search. */
+export function searchText({ filter }: View<'filter'>): string {
+  return filter.search.trim().toLowerCase();
+}
+
+/** Whether any filter is on — the search, a pill, or a date window — which opens every fold and puts the filter's count and chips on screen. */
+export function isFiltering(view: View<'filter'>): boolean {
+  return searchText(view).length > 0 || Object.values(view.filter.filters).some(Boolean) || view.filter.datePreset !== 'any';
+}
+
 /** A session's contribution to the roll-up: its live status, but an acked idle/waiting counts as nothing (muted), same rule as the switcher badges. */
 export function sessionNudge(id: string, view: View<'statuses' | 'acked'>): NudgeStatus {
   const st = view.statuses.get(id);

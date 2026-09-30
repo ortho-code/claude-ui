@@ -1,5 +1,6 @@
+import { defaultUi } from '../../shared/defaults';
 import type { PanelData } from '../../shared/panels';
-import type { GroupState, SessionSummary } from '../../shared/types';
+import type { GroupState, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../logic';
 import { createStore } from './store';
 
@@ -52,6 +53,19 @@ export interface AppState {
    * Read the first time a panel asks, and kept current by main's pushes after every write, a forgotten session's included (panels/links.ts).
    */
   panelData: ReadonlyMap<string, PanelData>;
+  /** The sidebar's filter as it is set: the list, its count and chips, and the folds in play all follow it, and it is kept for the next launch. */
+  filter: FilterState;
+}
+
+/**
+ * The filter, in the shape it is stored in, so the two cannot come apart: the search as typed, the pills, and the date window its preset or the calendar gave (a rolling preset's window is worked out when it is chosen).
+ */
+export type FilterState = Pick<UiState, 'search' | 'filters' | 'datePreset' | 'dateFrom' | 'dateTo'>;
+
+/** No filter at all: what a first run has, and what Clear goes back to. */
+export function noFilter(): FilterState {
+  const { search, filters, datePreset, dateFrom, dateTo } = defaultUi();
+  return { search, filters, datePreset, dateFrom, dateTo };
 }
 
 /** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
@@ -182,6 +196,7 @@ export const store = createStore<AppState>(
     tabs: [],
     activeTab: null,
     panelData: new Map(),
+    filter: noFilter(),
   },
   {
     sessions: sameRows,
@@ -195,5 +210,6 @@ export const store = createStore<AppState>(
     projectOrder: sameOrder,
     tabs: sameTabs,
     panelData: sameEntries,
+    filter: sameData,
   },
 );
