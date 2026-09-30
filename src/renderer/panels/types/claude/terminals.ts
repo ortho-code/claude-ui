@@ -320,8 +320,8 @@ function fitActive(): void {
   window.claudeUi.resizeTerminal(activeTab.terminalId, term.cols, term.rows);
 }
 
-window.addEventListener('resize', fitActive);
-// Re-fit when the terminal area itself changes size (the tab bar wrapping to a new row, a divider dragged, the layout rebuilt), not just on window resize, so the terminal always fills its pane instead of being clipped.
+// Re-fit whenever the terminal area changes size — the window resized, the tab bar wrapping to a new row, a divider dragged, the layout rebuilt — so the terminal always fills its pane instead of being clipped.
+// The window needs no listener of its own: a resize that changes anything a fit reads changes this element's size too.
 new ResizeObserver(() => fitActive()).observe(terminalsEl);
 
 // Drop a tab from the UI. Idempotent (a user close and the terminal's own exit can both fire). It does not touch the terminal process; callers terminate it when they need to.
