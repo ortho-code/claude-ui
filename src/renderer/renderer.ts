@@ -14,10 +14,14 @@ import { HistoryBar } from './panels/types/claude/history/bar';
 import { HistoryView } from './panels/types/claude/history/view';
 import './styles.css';
 import { store, withEntry, withMember, type TabState, type View } from './state/app';
-import { projName, projectGroups, sessionById, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
+import { projName, projectGone, projectGroups, sessionById, sessionNudge, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions, visibleTabs } from './state/views';
+import { clearNudge, setStatus } from './state/statuses';
+import { applyGroupState, moveSessionToGroup } from './state/groups';
+import { ackOnClick, applyStatus } from './statusdot';
+import { newSession, untitledLabel } from './newsession';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
-import type { OrderMove, GroupState, SessionSummary, UiState } from '../shared/types';
+import type { OrderMove, SessionSummary, UiState } from '../shared/types';
 import {
   sessionsByKey,
   structuralSignature,
@@ -35,10 +39,9 @@ import {
   projectsForSwitcher,
   orderAsTabs,
   unstartableReason,
-  projectRootExists,
   projectGoneReason,
   hasVisibleOutput,
-  statusLabel,
+  sessionLabel,
   stopControlState,
   type NudgeStatus,
   type SwitcherModel,
@@ -327,12 +330,6 @@ function reconcileOpenTabs(view: View<'sessions' | 'tabs'>): void {
   });
 }
 
-function setStatus(id: string, status: string | undefined): void {
-  const { statuses, acked } = store.get();
-  // A new status event is fresh activity: drop any "read" mark so the dot re-lights (and, for a new waiting, re-pulses) even if the user had acked the previous state.
-  store.set({ statuses: withEntry(statuses, id, status), acked: withMember(acked, id, false) });
-}
-
 /** The model to show for a session: the one it has switched to if we saw that happen, else the one that last answered. */
 function modelOf(session: SessionSummary, view: View<'switchedModel'>): string {
   return view.switchedModel.get(session.id) ?? session.model;
@@ -358,37 +355,6 @@ function statusesChanged(view: SwitcherView & TabBarView): void {
   }
   if (view.tabs.some((t) => ids.has(t.session.id))) renderTabBar(view);
   refreshSwitcher(view); // keep the project roll-up badges live
-}
-
-// Toggle the "read" mark on a session's dot: mutes a live status (dimmed, no pulse) without closing the tab or replying.
-// Only the attention states are ackable — idle (done) and waiting (needs you).
-// Busy (working) and closed/hollow have nothing to acknowledge, so acking them is a no-op.
-function toggleAck(id: string): void {
-  const { statuses, acked } = store.get();
-  const status = statuses.get(id);
-  if (status !== 'idle' && status !== 'waiting') return;
-  store.set({ acked: withMember(acked, id, !acked.has(id)) });
-}
-
-/**
- * Make a status dot mute its session when clicked, wherever that dot is drawn.
- *
- * The gesture is "click the status dot", and it has to mean the same thing on all three surfaces that draw one — the sidebar row, the tab, and the attention strip — so it is one helper rather than three copies of the same four lines.
- * `stopPropagation` is the load-bearing part: every one of those dots sits inside something clickable that does something else (select the row, switch to the tab, jump to the session), and muting must not also do that.
- * The id arrives as a thunk because the sidebar's rows are REUSED across renders: the row knows its key, and which session that key holds is only true at the moment of the click.
- */
-function ackOnClick(dot: HTMLElement, sessionId: () => string | null): void {
-  dot.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const id = sessionId();
-    if (id) toggleAck(id);
-  });
-}
-
-// You've attended to a session by viewing it, so drop its "needs you" nudge.
-function clearNudge(id: string): void {
-  window.claudeUi.clearStatus(id);
-  setStatus(id, undefined);
 }
 
 /**
@@ -902,12 +868,6 @@ function forgetDeletedGroupFolds({ groupState }: View<'groupState'>): void {
 
 // --- Project switcher ---
 
-// Whether a project is dead, by the rule the session list and the switcher use, for the surfaces that hold only a repo root: the tab bar and the empty pane. A root with no sessions to ask is not called dead.
-function projectGone(repoRoot: string, view: View<'sessions' | 'tabs'>): boolean {
-  const sessions = visibleSessions(view).filter((s) => s.repoRoot === repoRoot);
-  return sessions.length > 0 && !projectRootExists(sessions);
-}
-
 // Update the switcher header + popover from the visible project pool. The pool is every project's tips (see renderList); the switcher is independent of search/project so you can always navigate.
 function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs'>): void {
   const model = projectsForSwitcher(pool, view.statuses, view.acked, view.projectNames, view.projectOrder);
@@ -936,20 +896,6 @@ function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' 
 
 // Seeded from meta at startup (default open — the strip exists to be read), and written back on every toggle so the choice survives a restart.
 let footerExpanded = true;
-
-// A session's contribution to the roll-up: its live status, but an acked idle/waiting counts as nothing (muted), same rule as the switcher badges.
-function sessionNudge(id: string, view: View<'statuses' | 'acked'>): NudgeStatus {
-  const st = view.statuses.get(id);
-  if (st === 'waiting' || st === 'idle') return view.acked.has(id) ? null : st;
-  if (st === 'busy') return 'busy';
-  return null;
-}
-
-// The one place a session's display label is composed: title, else first message, else a fallback (the short id by default).
-// Every surface shows the same name this way, and any sanitization of the underlying fields (command tags, caveat plumbing) lands everywhere at once.
-function sessionLabel(session: SessionSummary, fallback = session.id.slice(0, 8)): string {
-  return session.title || session.firstMessage || fallback;
-}
 
 // Copy to the clipboard with a small confirmation toast; the OS gives no visible cue otherwise.
 async function copyText(text: string, confirmation: string): Promise<void> {
@@ -988,15 +934,7 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   }));
 }
 
-// --- Group actions ------------------------------------------------------------------------------ Every mutation goes through the main process and hands back the whole state, so the renderer never second-guesses what changed — it swaps its copy, and the list, the strip and the tab bar, which all draw groups, follow the store.
-
-function applyGroupState(next: GroupState): void {
-  store.set({ groupState: next });
-}
-
-async function moveSessionToGroup(session: SessionSummary, groupId: string | null): Promise<void> {
-  applyGroupState(await window.claudeUi.moveSessionToGroup(entityKey(session), groupId));
-}
+// --- Group actions ------------------------------------------------------------------------------ Written through main, which hands back the whole state (state/groups.ts).
 
 // Name a new group, create it in the project, and take the list to it.
 // From a row it moves that session in at the same time, so the group is never briefly empty and the user never has to find it again to fill it; from the project heading it starts empty, to be filled from its own "+" or a row's "Move to group".
@@ -2127,11 +2065,6 @@ function updateRow(row: HTMLElement, session: SessionSummary, view: RowView): vo
   els.kebab.hidden = showArchivedOnly;
 }
 
-function applyStatus(dot: HTMLElement, status: string | undefined, isAcked = false): void {
-  dot.className = status ? `nudge single clickable ${status}${isAcked ? ' acked' : ''}` : 'nudge single clickable';
-  setTooltip(dot, statusLabel(status, isAcked));
-}
-
 // --- Tabs ---
 
 /**
@@ -2152,33 +2085,6 @@ async function openSession(session: SessionSummary, launch: Pick<TabLaunch, 'pro
   await createTab(session, launch);
 }
 
-/**
- * A session with no transcript yet, as the SessionSummary defaults plus whatever the caller already knows.
- * One factory, so a SessionSummary field change lands here once instead of in four literals.
- *
- * THE ID IS THE REAL ONE, and the caller says what it is: minted here for a session the app is about to start (handed to claude as `--session-id`), or the id Claude Code reported for a session that replaced another in the same terminal.
- * Either way everything keyed by id — the sidebar row, a group, a pin, a note, the status file — is right from the first paint rather than being moved later.
- * Until claude writes the transcript the session exists only as this object, held by its tab; `visibleSessions` is what puts it in the sidebar in the meantime.
- */
-function newSession(id: string, over: Partial<SessionSummary> & Pick<SessionSummary, 'cwd' | 'repoRoot' | 'title'>): SessionSummary {
-  return {
-    id,
-    conversationId: id,
-    isRepo: false,
-    worktree: '',
-    firstMessage: '',
-    model: '',
-    lastActivity: new Date().toISOString(),
-    isSibling: false,
-    siblingIds: [],
-    postCompactHeads: [],
-    // A session the app is about to start in a folder it just resolved: both are there, or the start would not have been offered.
-    cwdExists: true,
-    repoRootExists: true,
-    ...over,
-  };
-}
-
 // Land where a new tab will be visible: stay in its own project, else drop the scope to All.
 // Only the scope: the new tab, which its caller creates next, is the one that comes on show.
 function ensureProjectVisible(repoRoot: string): void {
@@ -2187,11 +2093,6 @@ function ensureProjectVisible(repoRoot: string): void {
     store.set({ activeProject: null });
     window.claudeUi.setActiveProject(null);
   }
-}
-
-/** What a session with nothing in it yet is called: the folder it runs in. Shared with a session `/clear` has just emptied, which is the same thing. */
-function untitledLabel(cwd: string): string {
-  return `New: ${cwd.split('/').filter(Boolean).pop() ?? cwd}`;
 }
 
 // Start a brand-new claude session in `cwd`, under an id this app mints; the sidebar row is that same session, filled in once claude writes its transcript.
@@ -2556,11 +2457,6 @@ function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.ge
 
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups gets an indented row beneath it behind the same rail the sidebar uses.
 // A project view drops the project label (everything shown belongs to it) but keeps the group rows.
-/** The tabs actually on screen: a project view shows only its own. */
-function visibleTabs({ activeProject, tabs }: View<'activeProject' | 'tabs'>): readonly TabState[] {
-  return activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
-}
-
 /** What the tab bar draws from the store. */
 type TabBarView = View<'sessions' | 'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab'>;
 

@@ -132,6 +132,12 @@ export function folderName(repoRoot: string): string {
   return repoRoot.split('/').filter(Boolean).pop() ?? repoRoot;
 }
 
+// The one place a session's display label is composed: title, else first message, else a fallback (the short id by default).
+// Every surface shows the same name this way, and any sanitization of the underlying fields (command tags, caveat plumbing) lands everywhere at once.
+export function sessionLabel(session: SessionSummary, fallback = session.id.slice(0, 8)): string {
+  return session.title || session.firstMessage || fallback;
+}
+
 // A project's display name: the user's rename override if set, else the folder name.
 // Used everywhere a project is labelled (project headings, tab bar, switcher); the full path stays available on hover.
 export function displayName(repoRoot: string, names?: ReadonlyMap<string, string>): string {

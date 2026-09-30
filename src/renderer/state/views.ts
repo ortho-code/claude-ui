@@ -1,5 +1,5 @@
 import type { SessionGroup, SessionSummary } from '../../shared/types';
-import { displayName, entityKey, inView, sessionsByKey } from '../logic';
+import { displayName, entityKey, inView, projectRootExists, sessionsByKey, type NudgeStatus } from '../logic';
 import { store, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */
@@ -46,4 +46,23 @@ export function switcherPool(all: SessionSummary[], view: View<'archived' | 'pen
 /** The sessions a view holds before any filter, archived or not (see inView). */
 export function viewPool(all: SessionSummary[], archivedView: boolean, view: View<'archived' | 'pendingDeletes'>): SessionSummary[] {
   return all.filter((s) => inView(entityKey(s), archivedView, view.archived, view.pendingDeletes));
+}
+
+/** The tabs actually on screen: a project view shows only its own. */
+export function visibleTabs({ activeProject, tabs }: View<'activeProject' | 'tabs'>): readonly TabState[] {
+  return activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
+}
+
+/** Whether a project is dead, by the rule the session list and the switcher use, for the surfaces that hold only a repo root: the tab bar and the empty pane. A root with no sessions to ask is not called dead. */
+export function projectGone(repoRoot: string, view: View<'sessions' | 'tabs'>): boolean {
+  const sessions = visibleSessions(view).filter((s) => s.repoRoot === repoRoot);
+  return sessions.length > 0 && !projectRootExists(sessions);
+}
+
+/** A session's contribution to the roll-up: its live status, but an acked idle/waiting counts as nothing (muted), same rule as the switcher badges. */
+export function sessionNudge(id: string, view: View<'statuses' | 'acked'>): NudgeStatus {
+  const st = view.statuses.get(id);
+  if (st === 'waiting' || st === 'idle') return view.acked.has(id) ? null : st;
+  if (st === 'busy') return 'busy';
+  return null;
 }
