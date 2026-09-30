@@ -2002,16 +2002,8 @@ h1 {
   height: 11px;
 }
 
-/* A LIST PANEL: a type from the config folder whose script prints a list. Its rows are session-list cards
-   (.list-row beside .session) and its section headings the sidebar's group bar, so what is its own is
-   only the scrolling body, what a row's tone does, and the line a failed run leaves above the list. */
-.list-body {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 0 8px 8px;
-}
-
+/* A list panel's variants of the group heading and the empty-group line it shares with the session list (list.css has the rest).
+   Here rather than there, because each outweighs a shared rule above only by coming after it, at the same specificity, and list.css comes before this file; they join list.css when the shared rules have a stylesheet of their own ahead of it. */
 .list-section h3 {
   margin-top: 8px;
 }
@@ -2019,51 +2011,6 @@ h1 {
 /* What an empty section says, level with the text in the rows it stands in for. */
 .list-empty {
   padding-left: 14px;
-}
-
-/* The sessions a row started, before what it offers: the latest's status dot in the icon box every clickable mark uses, and their count beside it when there are several. */
-.list-row .list-session {
-  gap: 4px;
-}
-
-.list-session-count {
-  font-size: var(--text-meta);
-  line-height: 1;
-}
-
-/* What a row offers, at its end: a plain text button at the meta line's size, so a row with one is no taller than a row without. */
-.list-row .list-action {
-  flex: 0 0 auto;
-  padding: 2px 8px;
-  font-size: var(--text-meta);
-}
-
-/* A row with no link has nothing for a click to do, so no pointer claims one (its hover is .link's only). */
-.list-row:not(.link) {
-  cursor: default;
-}
-
-/* A row's tone, as its script says: the status colours on the row's leading edge, where a session row
-   keeps its accent bar for "open in a tab" — a different mark, since a tone says nothing about tabs.
-   A muted row is dimmed, as a session that cannot start is. */
-.list-row.tone-attention {
-  box-shadow: inset 3px 0 0 var(--waiting);
-}
-
-.list-row.tone-danger {
-  box-shadow: inset 3px 0 0 var(--failed);
-}
-
-.list-row.tone-muted {
-  opacity: 0.6;
-}
-
-/* The last run failed while a good list is up: said above that list, in the failed colour, on the note
-   line's face. Its tooltip quotes what the script wrote on stderr. */
-.list-failed {
-  border-top: 0;
-  border-bottom: 1px solid var(--border);
-  color: var(--failed);
 }
 
 /* Sidebar footer: a collapsible cross-project attention strip pinned below the session list.

@@ -10,6 +10,7 @@ import { listenForRuns } from '../runs';
 import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey, type MountedPanel, type PanelHost, type PanelType } from './command';
 import type { FolderType } from './folder';
 import { readListDocument, type ListDocument, type ListItem, type ListSection } from './listdoc';
+import './list.css';
 
 /**
  * The `list` kind: a type from the config folder whose script prints a list document (listdoc.ts), which the app draws with its own styles.
