@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { defaultUi } from '../../../src/shared/defaults';
 import type { Exchange, UiState } from '../../../src/shared/types';
 import { LAYOUT, runs, withLayout } from '../panels/layout/layout';
-import { HOME, PROJECT, session } from '../support/fixture';
+import { CONFIG_ROOT, HOME, PROJECT, session } from '../support/fixture';
 import { type App, expect, test } from '../support/harness';
 import { snapshot } from './capture';
 
@@ -188,4 +188,65 @@ test('panels: a railed group with output, a shell in a drawer, and a panel that 
   await app.emit('onPanelRun', 'status', token, { kind: 'exit', code: 0, signal: null });
   await expect(page.locator('.panel-rail .rail-item')).toHaveCount(3);
   await snapshot(page, DIR!, 'panels');
+});
+
+// A list panel, a type of the config folder's own: rows in every tone, with and without a link, one that started a session, a section folded and one empty, the count and a note.
+const QUEUE_DIR = `${CONFIG_ROOT}/types/reviews`;
+const reviewed = session({ id: id(20), title: 'Review #1' });
+const queue = {
+  ...withLayout({
+    version: 2,
+    root: {
+      id: 'window',
+      columns: [
+        { id: 'sidebar', size: '320px', panels: [{ id: 'sessions', type: 'sessions' }] },
+        { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] },
+        { id: 'right', size: '360px', panels: [{ id: 'queue', type: 'reviews' }] },
+      ],
+    },
+  }),
+  sessions: [session(), reviewed],
+  statuses: { [reviewed.id]: 'waiting' },
+  paths: { [`${QUEUE_DIR}/list.sh`]: 'executable' as const },
+  panelData: { queue: { sessions: { [reviewed.id]: { key: 'org/repo#1', label: 'Fix the login redirect', href: 'https://example.com/pr/1', startedAt: '2026-09-30T09:00:00.000Z' } }, lastGroup: {} } },
+};
+const LIST = {
+  version: 1,
+  badge: 2,
+  sections: [
+    {
+      empty: 'Nothing waiting on you.',
+      items: [
+        { key: 'org/repo#1', text: 'Fix the login redirect', detail: '#1 · 3d · someone', href: 'https://example.com/pr/1', tone: 'attention', actions: [{ label: 'Review', session: { prompt: '/review 1', name: 'Review #1' } }] },
+        { key: 'org/repo#2', text: 'Failing everywhere', detail: '#2 · 1d', tone: 'danger' },
+        { key: 'org/repo#3', text: 'Parked for now', detail: '#3', href: 'https://example.com/pr/3', tone: 'muted' },
+      ],
+    },
+    { title: 'Blocked', empty: 'Nothing blocked.', items: [] },
+    { title: 'Done', shut: true, items: [{ key: 'org/repo#4', text: 'Merged', href: 'https://example.com/pr/4' }] },
+  ],
+  notes: ['Could not read team membership.'],
+};
+
+/** Boot with the queue panel and let its script print the list. */
+async function bootQueue(app: App, page: Page): Promise<void> {
+  await app.boot({ ...queue, layout: { ...queue.layout, types: [{ name: 'reviews', dir: QUEUE_DIR, status: 'read', error: null, json: { version: 1, kind: 'list', title: 'Reviews', icon: 'eye', run: 'list.sh' } }] } });
+  await expect.poll(() => runs(app, 'queue')).toHaveLength(1);
+  const { token } = (await runs(app, 'queue'))[0];
+  await app.emit('onPanelRun', 'queue', token, { kind: 'output', text: JSON.stringify(LIST) });
+  await app.emit('onPanelRun', 'queue', token, { kind: 'exit', code: 0, signal: null });
+  await expect(page.locator('.list-row')).toHaveCount(3);
+}
+
+test('a list panel: tones, links, a linked session, folded and empty sections, the count and a note', async ({ app, page }) => {
+  await bootQueue(app, page);
+  await snapshot(page, DIR!, 'list');
+});
+
+test("the session dialog a list row opens, offering to continue the row's session", async ({ app, page }) => {
+  await bootQueue(app, page);
+  await page.locator('.list-row .list-action', { hasText: 'Review' }).click();
+  await expect(page.locator('#session-overlay')).toBeVisible();
+  await expect(page.locator('#session-mode')).toBeVisible();
+  await snapshot(page, DIR!, 'session-dialog');
 });
