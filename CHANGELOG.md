@@ -53,6 +53,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - The filter count's total is what you are filtering — the selected project's sessions, and in the archived view its archived ones — instead of every session in every project, archived included.
 - A group's icon in the tab bar is muted again, as it is in the session list.
 - A menu opened near the bottom of the window opens upward, instead of running off the edge.
+- With the open or live filter on, the session list follows your tabs as they open, start, stop and close, instead of waiting for something else to redraw it.
 
 ## 0.3.0 — 2026-08-29
 

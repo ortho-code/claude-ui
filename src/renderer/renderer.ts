@@ -401,6 +401,15 @@ function updateSidebarHighlight(): void {
   }
 }
 
+/**
+ * A tab was opened, started, stopped or closed.
+ * The open and live filters are questions about the tabs, so with either on the list is filtered again; otherwise only the rows' marks change.
+ */
+function tabsChanged(): void {
+  if (showOpenOnly || showLiveOnly) renderList();
+  else updateSidebarHighlight();
+}
+
 // Keep open tabs' titles in sync with the freshly-read session list: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
 function reconcileOpenTabs(): void {
   const byId = new Map(allSessions.map((s) => [s.id, s]));
@@ -2937,7 +2946,7 @@ async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
     window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
     renderTabBar();
     updatePlaceholder();
-    updateSidebarHighlight(); // its row's bar goes from muted to accent now that it is live
+    tabsChanged(); // its row's bar goes from muted to accent now that it is live
   } catch (error) {
     // The main process refuses to launch into a folder that is no longer there rather than starting somewhere else and saying nothing, so this is where the session gets told.
     // It goes on the PLACEHOLDER rather than into the tab's terminal: the tab stays cold, and a cold tab's pane is covered by the placeholder, so anything written to the terminal would be hidden behind it.
@@ -2967,6 +2976,7 @@ async function createTab(session: SessionSummary, launch: TabLaunch = {}): Promi
   // activateTab can only ever resume, and its `starting` flag would then make the real start a no-op.
   activateTab(tab, false);
   persistOpenTabs();
+  tabsChanged();
   await startTab(tab, launch);
 }
 
@@ -3047,6 +3057,7 @@ function removeTab(tab: Tab): void {
   if (activeTab === tab) activeTab = null;
   // Re-establish the active tab within the current workspace scope (or clear); this re-renders too.
   switchWorkspaceTerminal(activeProject);
+  tabsChanged();
   // After the switch, which is what remembers how the tab was left.
   history.forget(tab.session.id);
   persistOpenTabs();
@@ -3083,7 +3094,7 @@ function coolTab(tab: Tab): void {
   if (activeTab === tab) activeTab = null;
   renderTabBar();
   updatePlaceholder();
-  updateSidebarHighlight();
+  tabsChanged();
   refreshSwitcher(); // drops it from the attention strip now rather than when its SessionEnd lands
   treeContextChanged(); // the panels lose their tab too, and fall back to the project
 }
