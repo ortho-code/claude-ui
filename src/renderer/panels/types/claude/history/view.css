@@ -1,0 +1,445 @@
+/* THE HISTORY: the app's own view of a session's requests and claude's replies, over the terminal area.
+   Hidden by visibility, never display, while the live terminal is on show: it stays laid out, so what
+   it draws can be measured, which is how the bar beside it places its marks. */
+.history {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  visibility: hidden;
+  /* The app sets its type per component and the body sets none, so without this the history fell to the browser's 16px and read louder than everything around it. */
+  font-size: var(--text-body);
+}
+
+.history.shown {
+  visibility: visible;
+}
+
+/* Over the live terminal it is a drawer from the bar beside it: it slides in from the right over about two-thirds of the pane, and claude stays in view on the left, dimmed, at its real size, so it never redraws; a click there is the way back.
+   Two-thirds but never narrower than a reply reads at, and the whole pane when the pane is narrower than that.
+   Standing in for a cold tab there is no live view under it, and it takes the whole pane. */
+.history:not(.standalone) {
+  left: clamp(0px, 34%, 100% - 560px);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 18px #00000080;
+  transform: translateX(100%);
+  /* Hidden only once it has slid out, and shown at once when it slides in. */
+  transition:
+    transform 0.16s ease-out,
+    visibility 0s 0.16s;
+}
+
+.history.shown:not(.standalone) {
+  transform: none;
+  transition: transform 0.16s ease-out;
+}
+
+/* What dims claude beside the drawer, and takes the click that closes it.
+   Lighter than a dialog's backdrop: claude is meant to stay readable beside the history, not to be put out of reach. */
+.history-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.16s ease-out,
+    visibility 0s 0.16s;
+}
+
+.history-scrim.shown {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.16s ease-out;
+}
+
+/* While either is on its way out it is still visible, and must not take the click meant for claude. */
+.history:not(.shown),
+.history-scrim:not(.shown) {
+  pointer-events: none;
+}
+
+.history-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 3px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-meta);
+}
+
+.history-title {
+  font-weight: 600;
+  font-size: var(--text-body);
+}
+
+/* All · Pinned: two filter pills side by side, the one on show in the filters' "on" look. */
+.history-show {
+  display: flex;
+  gap: 4px;
+  margin-left: 10px;
+}
+
+.history-show .history-filter {
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.history-head .grow {
+  flex: 1;
+}
+
+/* Positioned, so an exchange's offsetTop is measured from here: that is what goTo scrolls by. */
+/* The terminal's background, face and colour, so the history reads as claude's own view of the session.
+   A step smaller than the terminal on purpose: the browser draws the face heavier than xterm's grid does, and at the terminal's own size the history read louder than claude beside it. */
+.history-scroll {
+  --history-line: 1.3;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 16px 16px;
+  background: var(--terminal-bg);
+  color: var(--terminal-fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: var(--history-line);
+}
+
+/* It takes the focus so its keys work, but it is not a control: the browser's ring around the whole history was the loudest thing on screen. */
+.history-scroll:focus {
+  outline: none;
+}
+
+/* The bar beside it is its scrollbar, with the marks on it; a second, plain one was only a copy. */
+.history-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.history-empty {
+  margin-top: 40px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* The line a history opened on a tab with no claude behind it stands under: the pane's own sentence, with Resume and Close. */
+.history-note {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-meta);
+}
+
+.history-note-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+/* The way out of the history, in its head: labelled, with its key on it. A history standing in for a cold tab has no live view, and closes from its own line instead. */
+.history-leave {
+  margin-left: 6px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-meta);
+}
+
+.history-leave kbd {
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--text-badge);
+}
+
+.history.standalone .history-leave {
+  display: none;
+}
+
+/* THE EXCHANGES, drawn the way claude draws them in the terminal (the scroll area has the terminal's background and type):
+   your request as claude echoes it, `> …` on a tinted band, and each of claude's messages and tool calls behind the dot claude marks them with. */
+.exchange {
+  margin: 0 0 18px;
+}
+
+.exchange-request {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 8px 3px 0;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+/* The `>` hangs in the same gutter as claude's dots, so a request's later lines line up under its text, as claude indents a prompt's following lines, and its text lines up with claude's. */
+.exchange-request-text {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding-left: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Centred where the dots are centred. */
+.exchange-request-text::before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  width: 16px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* A star stands in the gutter in place of the `>` or the dot: hidden until its line is hovered or the star focused, and always shown once pinned.
+   Shown by `inherit`, never `visible`: a closed history is hidden by visibility and slid off past the pane's right edge, and a `visible` star showed through it there, over the next panel's rail. */
+.exchange-pin {
+  visibility: hidden;
+}
+
+.exchange-request-text > .exchange-pin,
+.exchange-text > .exchange-pin {
+  position: absolute;
+  left: -3px;
+  top: 0;
+}
+
+.exchange-request:hover .exchange-pin,
+.exchange.pinned > .exchange-request .exchange-pin,
+.exchange-pin:focus-visible {
+  visibility: inherit;
+}
+
+.exchange-request:hover .exchange-request-text::before,
+.exchange.pinned > .exchange-request .exchange-request-text::before {
+  visibility: hidden;
+}
+
+.exchange-text:hover > .exchange-pin,
+.exchange-text.pinned > .exchange-pin {
+  visibility: inherit;
+}
+
+.exchange-text:hover::before,
+.exchange-text.pinned::before {
+  visibility: hidden;
+}
+
+/* What is pinned, a request or a message, has an accent line in the margin beside it, as its mark on the bar is in the accent.
+   Not an edge inside the request's band, as it was: the star now stands at the band's start, on top of where that edge was. */
+.exchange.pinned > .exchange-request::after,
+.exchange-text.pinned::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+/* The number, the time and any mark, at the band's end: chrome, so the interface's face rather than the terminal's. */
+.exchange-meta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-family: system-ui, sans-serif;
+  font-size: var(--text-small);
+}
+
+.exchange-mark {
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+/* A request no longer in claude's conversation, sent again or rewound past: inactive, so --muted rather than dimmed (opacity is for what is disabled). */
+.exchange.left-behind .exchange-request {
+  background: none;
+  outline: 1px dashed var(--border);
+  outline-offset: -1px;
+}
+
+.exchange.left-behind .exchange-request,
+.exchange.left-behind .exchange-reply {
+  color: var(--muted);
+}
+
+.exchange-reply {
+  padding-top: 8px;
+  overflow-wrap: anywhere;
+}
+
+/* Claude's dot: a message in the text's colour, a tool call in green. Drawn, not a glyph, as every mark in the app is. */
+.exchange-text,
+.exchange-tool {
+  position: relative;
+  margin-bottom: 8px;
+  padding-left: 20px;
+}
+
+.exchange-text::before,
+.exchange-tool::before,
+.exchange-tools-head::before {
+  --dot: 6px;
+  content: '';
+  position: absolute;
+  left: 5px;
+  /* Centred on the first line, whatever the size. */
+  top: calc((var(--history-line) * 1em - var(--dot)) / 2);
+  width: var(--dot);
+  height: var(--dot);
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* A tool call, where it came in the reply, as claude draws one: a green dot, the tool's name in bold, what it acted on in grey. */
+.exchange-tool {
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+
+.exchange-tool::before,
+.exchange-tools-head::before {
+  background: var(--idle);
+}
+
+.exchange-tool-name {
+  color: var(--terminal-fg);
+  font-weight: 600;
+}
+
+/* A run of tool calls folded to one line, as claude folds them: its dot, what the run did in grey, and a chevron; it opens into the calls, indented under the line. */
+.exchange-tools {
+  margin-bottom: 8px;
+}
+
+.exchange-tools-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 0 0 0 20px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+}
+
+.exchange-tools-head:hover {
+  background: none;
+  color: var(--terminal-fg);
+}
+
+.exchange-tools-chevron {
+  display: inline-flex;
+}
+
+.exchange-tools-list {
+  margin-top: 8px;
+  padding-left: 20px;
+}
+
+.exchange-tools-list > .exchange-tool:last-child {
+  margin-bottom: 0;
+}
+
+.exchange-text > :first-child {
+  margin-top: 0;
+}
+
+.exchange-text > :last-child {
+  margin-bottom: 0;
+}
+
+.exchange-text p,
+.exchange-text ul,
+.exchange-text ol,
+.exchange-text pre,
+.exchange-text table,
+.exchange-text blockquote {
+  margin: 0 0 8px;
+}
+
+.exchange-text ul,
+.exchange-text ol {
+  padding-left: 20px;
+}
+
+.exchange-text h1,
+.exchange-text h2,
+.exchange-text h3,
+.exchange-text h4,
+.exchange-text h5,
+.exchange-text h6 {
+  margin: 10px 0 6px;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+/* Claude opens most paragraphs with a bold lead-in; at the default 700 a reply was a wall of bold. */
+.exchange-text strong {
+  font-weight: 600;
+}
+
+/* Everything is already in the terminal's type, so code is told apart by colour and by place: inline in the accent, a block on a panel of its own.
+   A block had a rule down its side at first, which is how a quote is drawn, and a block read as a quote. */
+.exchange-text code {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.exchange-text :not(pre) > code {
+  color: var(--accent);
+}
+
+/* A step lighter than the history's background, and scrolled sideways rather than wrapped, so a line of code stays one line. */
+.exchange-text pre {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  overflow-x: auto;
+  overflow-wrap: normal;
+}
+
+.exchange-text table {
+  border-collapse: collapse;
+}
+
+.exchange-text th,
+.exchange-text td {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+/* A quote: a rule down its side, in the accent's own muted tint so it reads as a mark rather than a border, and its words in italics, as quoted words are set. */
+.exchange-text blockquote {
+  padding: 1px 0 1px 12px;
+  border-left: 3px solid var(--active);
+  color: var(--muted);
+  font-style: italic;
+}
+
+.exchange-text a {
+  color: var(--accent);
+}

@@ -2,6 +2,7 @@ import { relativeTime } from '../../../../logic';
 import { PINNED_ICON, strokeIcon } from '../../../../svg';
 import { setTooltip } from '../../../../tooltip';
 import { dragTop, entryAt, grabAt, wheelSteps, type Band, type Entry, type MarkAt } from './marks';
+import './bar.css';
 
 /** What the bar reads from the history it marks (view.ts). */
 export interface BarSource {
