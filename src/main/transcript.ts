@@ -4,6 +4,7 @@
  */
 
 import { promises as fs } from 'node:fs';
+import { readFrom } from '../shared/history';
 import type { Exchange, HistorySlice, ReplyPart } from '../shared/types';
 import { fsFailure, logOnce } from './log';
 
@@ -281,7 +282,7 @@ async function readOn(file: string, cursor: Cursor, chunkBytes: number): Promise
 
 /**
  * The history of the transcript at `file`, for a caller that holds `known` exchanges of `generation`.
- * The first call reads the whole file; later calls read only what was appended. Only the last exchange ever changes, so the caller's last one is sent again, with everything after it — or, when a rewind has marked earlier ones, everything from the first of those.
+ * The first call reads the whole file; later calls read only what was appended, and where the answer starts is `readFrom`'s rule (src/shared/history.ts).
  */
 export function readHistory(file: string, known: number, generation: number, chunkBytes = CHUNK_BYTES): Promise<HistorySlice> {
   let cursor = cursors.get(file);
@@ -299,8 +300,7 @@ export function readHistory(file: string, known: number, generation: number, chu
   const read = at.queue.then(async () => {
     await readOn(file, at, chunkBytes);
     const total = at.fold.exchanges.length;
-    const tail = generation === at.generation ? Math.max(0, Math.min(known, total) - 1) : 0;
-    const from = Math.min(tail, at.fold.changedFrom ?? tail);
+    const from = readFrom(known, total, generation === at.generation, at.fold.changedFrom);
     at.fold.changedFrom = null;
     const exchanges = at.fold.exchanges.slice(from).map((e) => ({ ...e, parts: e.parts.map((p) => ({ ...p })) }));
     return { generation: at.generation, from, exchanges, total };
