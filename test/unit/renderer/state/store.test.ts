@@ -117,6 +117,25 @@ describe('createStore', () => {
     store.set({ count: 1 });
   });
 
+  it('hands a watcher the slices it reads without being told about them, and does not tell it when those change', () => {
+    const store = fresh();
+    const seen: string[] = [];
+    store.watch(['count'], (view) => seen.push(`${view.count} ${view.name}`), { reads: ['name'] });
+    store.set({ name: 'b' });
+    expect(seen).toEqual([]);
+    store.set({ count: 1 });
+    expect(seen).toEqual(['1 b']);
+    store.watch(
+      ['count'],
+      (view) => {
+        // @ts-expect-error — `items` was neither told nor read, so the compiler still refuses it.
+        expect(view.items).toEqual([]);
+      },
+      { reads: ['name'] },
+    );
+    store.set({ count: 2 });
+  });
+
   it('tells nothing for a batch that throws, and tells what it changed with the next change', () => {
     const store = fresh();
     const views: string[] = [];
