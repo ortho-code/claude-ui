@@ -2412,7 +2412,8 @@ button:focus:not(:focus-visible) {
   color: var(--muted);
 }
 
-/* A star stands in the gutter in place of the `>` or the dot: hidden until its line is hovered or the star focused, and always shown once pinned. */
+/* A star stands in the gutter in place of the `>` or the dot: hidden until its line is hovered or the star focused, and always shown once pinned.
+   Shown by `inherit`, never `visible`: a closed history is hidden by visibility and slid off past the pane's right edge, and a `visible` star showed through it there, over the next panel's rail. */
 .exchange-pin {
   visibility: hidden;
 }
@@ -2427,7 +2428,7 @@ button:focus:not(:focus-visible) {
 .exchange-request:hover .exchange-pin,
 .exchange.pinned > .exchange-request .exchange-pin,
 .exchange-pin:focus-visible {
-  visibility: visible;
+  visibility: inherit;
 }
 
 .exchange-request:hover .exchange-request-text::before,
@@ -2437,7 +2438,7 @@ button:focus:not(:focus-visible) {
 
 .exchange-text:hover > .exchange-pin,
 .exchange-text.pinned > .exchange-pin {
-  visibility: visible;
+  visibility: inherit;
 }
 
 .exchange-text:hover::before,
