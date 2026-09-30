@@ -2,6 +2,8 @@
 import './base.css';
 import { openMenu, type MenuItem } from './menu';
 import { setUnavailable, unavailable } from './unavailable';
+import { hideToast, showToast } from './toast';
+import { showAttentionToast } from './notifications';
 import './styles.css';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
@@ -38,7 +40,7 @@ import { parseLaunchFlags } from '../shared/flags';
 import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { installTooltips, setTooltip } from './tooltip';
-import { caretIcon, chevronIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
+import { caretIcon, chevronIcon, closeIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
 import { listen, runModal } from './modal';
 import { askForSession } from './sessiondialog';
 import type { LinkedSession, SessionRequest } from './panels/types/command';
@@ -112,7 +114,6 @@ const folderGoneIcon = (size: number): string => strokeIcon(size, `${FOLDER_PATH
 // Chevrons, not filled triangles: the collapse-all button already says fold/unfold with a chevron, and a solid triangle would be the only filled shape in an outline icon set.
 const chevronDown = (size: number): string => chevronIcon('down', size);
 const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
-const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4" />');
 // A tab's button ends the session before it removes the tab, so it needs two marks rather than one: the media-stop square for the first press, the cross for the second. Squared off at 6.6 units so it reads at the same weight as the cross's diagonal.
 const stopIcon = (size: number): string => strokeIcon(size, '<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2" />');
 // The window controls, drawn from the same set as everything else rather than as the platform glyphs they imitate — the app has no font-glyph icons anywhere and these should not be the exception.
@@ -197,84 +198,13 @@ const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
 const settingsFolders = document.getElementById('settings-folders')!;
-const toast = document.getElementById('toast')!;
-const toastMessage = document.getElementById('toast-message')!;
-const toastClose = document.getElementById('toast-close') as HTMLButtonElement;
-
-let toastTimer: number | undefined;
-function hideToast(): void {
-  toast.hidden = true;
-  if (toastTimer) clearTimeout(toastTimer);
-}
-/**
- * `sticky` keeps the message up until it is dismissed, for a condition that will not resolve on its own — a missing `claude` CLI is the case it exists for, where three seconds would be gone before the sentence was read.
- */
-function showToast(message: string, sticky = false): void {
-  toastMessage.textContent = message;
-  toast.hidden = false;
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = sticky ? undefined : window.setTimeout(hideToast, 3000);
-}
-toastClose.innerHTML = closeIcon(14);
-toastClose.addEventListener('click', hideToast);
-
-// Stacking attention toasts: a background tab (one you're not viewing) went waiting/idle. Separate from the one-off #toast message bar above.
-const notifications = document.getElementById('notifications')!;
-const NOTIF_TTL = 5000;
-const NOTIF_MAX = 4;
-
-function showAttentionToast(tab: Tab, status: 'waiting' | 'idle'): void {
-  const el = document.createElement('div');
-  el.className = `notif ${status}`;
-  const dot = document.createElement('span');
-  dot.className = `nudge ${status}`;
-  // The dot/edge colour already says waiting vs finished; the text names the tab and its project.
-  const text = document.createElement('span');
-  text.className = 'notif-text';
-  const title = document.createElement('span');
-  title.className = 'notif-title';
-  title.textContent = sessionLabel(tab.session);
-  const proj = document.createElement('span');
-  proj.className = 'notif-proj';
-  proj.textContent = projName(tab.session.repoRoot);
-  text.append(title, proj);
-  const close = document.createElement('button');
-  close.type = 'button';
-  close.className = 'icon-btn notif-close';
-  close.innerHTML = closeIcon(14);
-  close.setAttribute('aria-label', 'Dismiss');
-  el.append(dot, text, close);
-
-  let timer: number | undefined;
-  const dismiss = (): void => {
-    window.clearTimeout(timer);
-    el.remove();
-  };
-  const arm = (): void => {
-    timer = window.setTimeout(dismiss, NOTIF_TTL);
-  };
-  el.addEventListener('mouseenter', () => window.clearTimeout(timer));
-  el.addEventListener('mouseleave', arm);
-  el.addEventListener('click', () => {
-    dismiss();
-    jumpToTab(tab);
-  });
-  close.addEventListener('click', (event) => {
-    event.stopPropagation();
-    dismiss();
-  });
-
-  notifications.prepend(el); // newest on top
-  while (notifications.childElementCount > NOTIF_MAX) notifications.lastElementChild?.remove();
-  arm();
-}
 
 // A real transition into waiting/idle on a tab you're not looking at -> toast it. Never for busy, a cleared status, a no-op repeat, or the tab you're already on.
 function maybeAttentionToast(id: string, status: string | undefined, prev: string | undefined): void {
   if ((status !== 'waiting' && status !== 'idle') || status === prev) return;
   const tab = tabs.find((t) => t.session.id === id);
   if (!tab || tab === activeTab) return;
-  showAttentionToast(tab, status);
+  showAttentionToast({ status, label: sessionLabel(tab.session), project: projName(tab.session.repoRoot), open: () => jumpToTab(tab) });
 }
 
 // Jump to a tab from a toast: scope to its project if we're viewing a different one, then activate it.

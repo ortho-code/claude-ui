@@ -1,0 +1,57 @@
+/* Stacking attention toasts (a background tab went waiting/idle). Separate from the one-off #toast. */
+#notifications {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  pointer-events: none; /* the container is click-through; each toast re-enables itself */
+}
+
+.notif {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 210px;
+  max-width: 280px;
+  padding: 8px 8px 8px 11px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius-surface);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  font-size: var(--text-meta);
+  cursor: pointer;
+}
+
+.notif.waiting {
+  border-left-color: var(--waiting);
+}
+
+.notif.idle {
+  border-left-color: var(--idle);
+}
+
+.notif-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.notif-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notif-proj {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
