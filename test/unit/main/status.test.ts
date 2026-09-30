@@ -147,7 +147,12 @@ describe('the hook script', () => {
     const env: NodeJS.ProcessEnv = { ...process.env, PATH: process.env.PATH, CLAUDE_UI_TAB: TOKEN };
     delete env.CLAUDE_UI;
     if (scoped) env.CLAUDE_UI = '1';
-    execFileSync('bash', [hookScriptPath, status], { input: JSON.stringify(payload), env });
+    try {
+      execFileSync('bash', [hookScriptPath, status], { input: JSON.stringify(payload), env });
+    } catch (error) {
+      // Unscoped, the script's first line exits before anything reads stdin, so the payload can meet a pipe it already closed: the script doing its job, so that and only that is let through.
+      if (scoped || (error as NodeJS.ErrnoException).code !== 'EPIPE') throw error;
+    }
   }
   async function readStatusFile(): Promise<{ status?: string; tab?: string } | null> {
     try {
