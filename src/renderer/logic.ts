@@ -519,8 +519,8 @@ export function statusLabel(status: string | undefined, isAcked = false): string
 }
 
 /**
- * Enough of a tab to know what its stop control should say. The full Tab carries a terminal and an addon; this rule needs neither.
- * Both flags are optional because that is how Tab declares them — absent means "not in that transition", which is the same thing as false and is why every check here is a truthiness test.
+ * Enough of a tab to know what its stop control should say: two of the flags a tab's data carries (`TabState`, in state/app.ts), and nothing of its terminal.
+ * Both are optional, so a caller can name only the one it is about: absent means "not in that transition", which is the same thing as false and is why every check here is a truthiness test.
  */
 export interface StopControlTab {
   /** A process is on its way. */
