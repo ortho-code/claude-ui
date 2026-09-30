@@ -1,0 +1,10 @@
+.term {
+  display: none;
+  height: 100%;
+  /* A stacking context of its own: xterm's layers inside carry z-indexes up to 10, which would otherwise rise above the history lying over the terminal area and take its clicks. */
+  isolation: isolate;
+}
+
+.term.active {
+  display: block;
+}

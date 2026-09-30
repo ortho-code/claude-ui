@@ -1239,17 +1239,6 @@ h1 {
 /* Compact tier of the standard control (see .unarchive-btn): same 14px icon, tighter padding, so a
    tab keeps its density while the close stays a real click target. */
 
-.term {
-  display: none;
-  height: 100%;
-  /* A stacking context of its own: xterm's layers inside carry z-indexes up to 10, which would otherwise rise above the history lying over the terminal area and take its clicks. */
-  isolation: isolate;
-}
-
-.term.active {
-  display: block;
-}
-
 /* A pane with nothing in it names the next action, in the terminal's and in a panel's. */
 .pane-placeholder {
   display: flex;
