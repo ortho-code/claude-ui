@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import type { OrderMove, GroupState, HistoryPin, SessionGroup, UiState, Settings } from '../shared/types';
 import type { PanelState } from '../shared/panels';
-import { defaultUi } from '../shared/defaults';
+import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
 import { appendStamped } from './stamp';
@@ -102,11 +102,6 @@ function metaPath(): string {
 
 function defaults(): Meta {
   return { pinned: [], historyPins: {}, openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: defaultSettings(), notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
-}
-
-/** What the app does before anyone has chosen otherwise: nothing added to the launch line. */
-function defaultSettings(): Settings {
-  return { launchFlags: '' };
 }
 
 /**

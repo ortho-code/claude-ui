@@ -1,4 +1,4 @@
-import { defaultUi } from '../../src/shared/defaults';
+import { defaultSettings, defaultUi } from '../../src/shared/defaults';
 import type { FolderName } from '../../src/shared/folders';
 import type { LayoutReport, PanelData } from '../../src/shared/panels';
 import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, SessionSummary, Settings, UiState, WindowChrome } from '../../src/shared/types';
@@ -71,7 +71,7 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
 /**
  * A first run with one session and no layout file: the default layout, nothing pinned, open or filtered.
  * One session because without one the window drops the stored project, and every panel then says "Pick a project".
- * The `uiState` is main's own first-run state, the one function both use.
+ * The `uiState` and `settings` are main's own first-run state, the functions both use.
  */
 export function defaultFixture(): BridgeFixture {
   const one = session();
@@ -85,7 +85,7 @@ export function defaultFixture(): BridgeFixture {
     activeSessionByProject: {},
     activeProject: one.repoRoot,
     uiState: defaultUi(),
-    settings: { launchFlags: '' },
+    settings: defaultSettings(),
     windowChrome: { own: false, maximized: false, title: 'Claude UI (test)', version: '0.0.0-test', dev: true },
     projectNames: {},
     groupState: { groups: [], groupOf: {} },

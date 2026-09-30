@@ -1,4 +1,12 @@
-import type { UiState } from './types';
+import type { Settings, UiState } from './types';
+
+/**
+ * What the app does before anyone has chosen otherwise: nothing added to the launch line.
+ * Main's, like `defaultUi` below, and shared for the same reason.
+ */
+export function defaultSettings(): Settings {
+  return { launchFlags: '' };
+}
 
 /**
  * An unfiltered, unfolded sidebar at its default width: what a first run gets, and what any field missing from the stored object falls back to.
