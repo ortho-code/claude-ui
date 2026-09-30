@@ -12,12 +12,12 @@ import { startChrome } from './chrome';
 import { flash } from './flash';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
 import './styles.css';
+import { sameRows, store, type View } from './state/app';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
 import {
   sessionsByKey,
-  structuralSignature,
   buildProjectTree,
   folderName,
   displayName,
@@ -197,7 +197,6 @@ const pendingDeletes = new Set<string>();
 let statuses = new Map<string, string>();
 // Session ids whose dot the user has marked "read": shown dimmed (no pulse) instead of the live colour. In-memory only, so a restart re-lights everything. Any incoming status event clears it.
 const acked = new Set<string>();
-let allSessions: SessionSummary[] = [];
 let filterText = '';
 let showPinnedOnly = false;
 let showOpenOnly = false;
@@ -213,8 +212,6 @@ let activeProject: string | null = null;
 let datePreset = 'any';
 let dateFromMs: number | null = null;
 let dateToMs: number | null = null;
-// Structure of the last rendered list, so disk changes that only grow a transcript (new lastActivity) doesn't trigger a rebuild — we re-render only on structural change.
-let lastSignature = '';
 // Status dots by tip session id; rebuilt each render (a status event names a session id).
 const statusDots = new Map<string, HTMLElement>();
 // Row elements by entity key (the session id), reused across renders so a re-render moves nodes instead of recreating them — no flicker, no scroll jump, hover/focus kept.
@@ -304,13 +301,13 @@ function updateSidebarHighlight(): void {
  * The open and live filters are questions about the tabs, so with either on the list is filtered again; otherwise only the rows' marks change.
  */
 function tabsChanged(): void {
-  if (showOpenOnly || showLiveOnly) renderList();
+  if (showOpenOnly || showLiveOnly) renderList(store.get());
   else updateSidebarHighlight();
 }
 
 // Keep open tabs' titles in sync with the freshly-read session list: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
-function reconcileOpenTabs(): void {
-  const byId = new Map(allSessions.map((s) => [s.id, s]));
+function reconcileOpenTabs(view: View<'sessions'>): void {
+  const byId = new Map(view.sessions.map((s) => [s.id, s]));
   let changed = false;
   for (const tab of tabs) {
     const fresh = byId.get(tab.session.id);
@@ -330,7 +327,7 @@ function reconcileOpenTabs(): void {
     tab.session = fresh;
     if (shownDiffers) changed = true;
   }
-  if (changed) renderTabBar();
+  if (changed) renderTabBar(view);
 }
 
 function setStatus(id: string, status: string | undefined): void {
@@ -340,7 +337,7 @@ function setStatus(id: string, status: string | undefined): void {
   // A new status event is fresh activity: drop any "read" mark so the dot re-lights (and, for a new waiting, re-pulses) even if the user had acked the previous state.
   acked.delete(id);
   renderStatusDot(id);
-  refreshSwitcher(); // keep the project roll-up badges live
+  refreshSwitcher(store.get()); // keep the project roll-up badges live
   maybeAttentionToast(id, status, prev);
 }
 
@@ -362,7 +359,7 @@ function modelOf(session: SessionSummary): string {
 function renderStatusDot(id: string): void {
   const dot = statusDots.get(id);
   if (dot) applyStatus(dot, statuses.get(id), acked.has(id));
-  if (tabs.some((t) => t.session.id === id)) renderTabBar();
+  if (tabs.some((t) => t.session.id === id)) renderTabBar(store.get());
 }
 
 // Toggle the "read" mark on a session's dot: mutes a live status (dimmed, no pulse) without closing the tab or replying.
@@ -374,7 +371,7 @@ function toggleAck(id: string): void {
   if (acked.has(id)) acked.delete(id);
   else acked.add(id);
   renderStatusDot(id);
-  refreshSwitcher(); // an acked/un-acked session changes its project's roll-up badge
+  refreshSwitcher(store.get()); // an acked/un-acked session changes its project's roll-up badge
 }
 
 /**
@@ -465,7 +462,7 @@ let shuttingDown = false;
 function persistOpenTabs(): void {
   if (restoring || shuttingDown) return;
   // Persist entity keys (session ids — immutable, so a restart always finds them again). A session with no transcript yet is not in the map; its own id stands in, and restore drops it, which is right — there is nothing on disk to reopen.
-  const idToKey = new Map(allSessions.map((s) => [s.id, entityKey(s)]));
+  const idToKey = new Map(store.get().sessions.map((s) => [s.id, entityKey(s)]));
   window.claudeUi.setOpenSessions(tabs.map((t) => idToKey.get(t.session.id) ?? t.session.id));
 }
 
@@ -493,7 +490,7 @@ async function restoreOpenTabs(): Promise<void> {
     }
     // Land where you left off — SELECTED but not started, since nothing is meant to be live after a restart. Without a remembered tab we open on none rather than guessing.
     if (toActivate) activateTab(toActivate, false);
-    else updatePlaceholder();
+    else updatePlaceholder(store.get());
   } finally {
     restoring = false;
     persistOpenTabs();
@@ -513,36 +510,35 @@ async function renderSessions(showLoading = true): Promise<void> {
       window.claudeUi.getProjectNames(),
       window.claudeUi.getNotes(),
     ]);
-    allSessions = sessions;
     // Seed from the RAW list (archived included — the transcript still exists), so a project whose sessions are all archived still holds a slot.
     // Writes only when a root is genuinely new, so the common case costs one read.
     // Recency order is what seeds the very first run.
     projectOrder = await window.claudeUi.seedProjectOrder([...new Set(sessions.map((s) => s.repoRoot))]);
-    applyDatePickerMinDate();
     pinned = new Set(pinnedList);
     archived = new Map(Object.entries(archivedList));
     projectNames = new Map(Object.entries(namesMap));
     notes = new Map(Object.entries(noteMap));
     statuses = new Map(Object.entries(statusMap));
-    lastSignature = structuralSignature(sessions);
-    reconcileOpenTabs();
-    renderList();
+    // A full read: when what the rows draw is unchanged the store tells nobody, and what was read with it — the pins, the notes, the names — has to reach the list all the same.
+    const unchanged = sameRows(store.get().sessions, sessions);
+    store.set({ sessions });
+    if (unchanged) sessionsChanged(store.get());
   } finally {
     if (showLoading) setLoading(false);
   }
 }
 
-// A disk change fired: re-read sessions but only re-render when the structure actually changed (a new/removed session, a rename, or a new branch becoming the tip).
+// A disk change fired: re-read sessions; the store tells the list and the tabs only when the structure actually changed (a new/removed session, a rename, or a new branch becoming the tip).
 // Statuses and pins arrive on their own channels, so we don't refetch them here.
 async function refreshFromDisk(): Promise<void> {
-  const sessions = await window.claudeUi.listSessions();
-  allSessions = sessions;
-  const signature = structuralSignature(sessions);
-  if (signature === lastSignature) return;
-  lastSignature = signature;
-  applyDatePickerMinDate();
-  reconcileOpenTabs();
-  renderList();
+  store.set({ sessions: await window.claudeUi.listSessions() });
+}
+
+/** What follows the listing: the date picker's first day, the open tabs' titles, and the list. */
+function sessionsChanged(view: View<'sessions'>): void {
+  applyDatePickerMinDate(view);
+  reconcileOpenTabs(view);
+  renderList(view);
 }
 
 // Any filter active? Used to auto-expand projects with matches and to show the filter status.
@@ -634,8 +630,8 @@ function updateDateRangeLabel(from?: Date, to?: Date): void {
 }
 
 // Bound the picker to real data: min = the oldest session's date (max stays today, set at construction). Runs whenever the session set changes; silent so it doesn't fire onSelect.
-function applyDatePickerMinDate(): void {
-  const earliest = allSessions.reduce<number | null>((min, s) => {
+function applyDatePickerMinDate(view: View<'sessions'>): void {
+  const earliest = view.sessions.reduce<number | null>((min, s) => {
     const t = Date.parse(s.lastActivity);
     return min === null || t < min ? t : min;
   }, null);
@@ -674,7 +670,7 @@ function clearFilter(): void {
   clearSearch();
   for (const pill of FILTER_PILLS) pill.set(false);
   clearDateFilter();
-  renderList();
+  renderList(store.get());
   container.scrollTop = 0;
 }
 
@@ -703,7 +699,7 @@ function filterChip(icon: string, text: string, label: string, remove: () => voi
   x.setAttribute('aria-label', `Remove: ${label}`);
   x.addEventListener('click', () => {
     remove();
-    renderList();
+    renderList(store.get());
     container.scrollTop = 0;
   });
   chip.append(x);
@@ -864,8 +860,8 @@ async function restoreUiState(): Promise<number> {
 // --- Project switcher ---
 
 // Whether a project is dead, by the rule the session list and the switcher use, for the surfaces that hold only a repo root: the tab bar and the empty pane. A root with no sessions to ask is not called dead.
-function projectGone(repoRoot: string): boolean {
-  const sessions = visibleSessions().filter((s) => s.repoRoot === repoRoot);
+function projectGone(repoRoot: string, view: View<'sessions'>): boolean {
+  const sessions = visibleSessions(view).filter((s) => s.repoRoot === repoRoot);
   return sessions.length > 0 && !projectRootExists(sessions);
 }
 
@@ -932,8 +928,9 @@ function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'
 
 // A session's siblings (the other members of its family), most recent first. Shared by the count badge and the kebab submenu.
 function siblingsOf(session: SessionSummary): SessionSummary[] {
-  return allSessions
-    .filter((s) => session.siblingIds.includes(s.id))
+  return store
+    .get()
+    .sessions.filter((s) => session.siblingIds.includes(s.id))
     .sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
 }
 
@@ -949,8 +946,8 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
 
 function applyGroupState(next: GroupState): void {
   groupState = next;
-  renderList();
-  renderTabBar(); // the bar clusters by group too, so it has to follow the same change
+  renderList(store.get());
+  renderTabBar(store.get()); // the bar clusters by group too, so it has to follow the same change
 }
 
 // The groups belonging to one project, in registry order.
@@ -1037,7 +1034,7 @@ async function toggleArchiveFor(key: string): Promise<void> {
   if (archived.has(key)) {
     for (const tab of [...tabs]) if (entityKey(tab.session) === key) closeTab(tab);
   }
-  renderList();
+  renderList(store.get());
 }
 
 // The per-session action list — one builder, shared by the row kebab (and any future surface that offers session actions, e.g. a tab context menu).
@@ -1074,7 +1071,7 @@ async function editNote(session: SessionSummary): Promise<void> {
   const text = await promptText('Note', sessionLabel(session), notes.get(key) ?? '', 'Save', undefined, true);
   if (text === null) return; // cancelled: leave whatever was there
   notes = new Map(Object.entries(await window.claudeUi.setNote(key, text)));
-  renderList();
+  renderList(store.get());
 }
 
 // List a session's siblings in the shared popover; click one to jump to it.
@@ -1258,7 +1255,7 @@ function selectProject(repoRoot: string | null): void {
   if (repoRoot) foldedProjects().delete(repoRoot);
   window.claudeUi.setActiveProject(repoRoot);
   closeSwitcher();
-  renderList();
+  renderList(store.get());
   container.scrollTop = 0;
   // Full workspace switch: also move the tab bar + active terminal to this project.
   switchWorkspaceTerminal(repoRoot);
@@ -1287,9 +1284,9 @@ switcherCurrent.addEventListener('click', () => {
 
 // The sessions the sidebar can show: every session on disk, plus the open tabs whose session has not written a transcript yet (so a fresh session appears in its project immediately).
 // A tab's id is the session's real id from the moment it is created, so this adds a row that the transcript later fills in — never a second row beside it.
-function visibleSessions(): SessionSummary[] {
-  const tips = sessionsByKey(allSessions);
-  const knownIds = new Set(allSessions.map((s) => s.id));
+function visibleSessions(view: View<'sessions'>): SessionSummary[] {
+  const tips = sessionsByKey(view.sessions);
+  const knownIds = new Set(view.sessions.map((s) => s.id));
   const pending = tabs.filter((t) => !knownIds.has(t.session.id)).map((t) => t.session);
   return [...pending, ...tips.values()];
 }
@@ -1305,8 +1302,8 @@ function viewPool(all: SessionSummary[], archivedView: boolean): SessionSummary[
 }
 
 // Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
-function refreshSwitcher(): void {
-  renderSwitcher(switcherPool(visibleSessions()));
+function refreshSwitcher(view: View<'sessions'>): void {
+  renderSwitcher(switcherPool(visibleSessions(view)));
   // A status or a mark read changed the roll-ups here, and the same dots on a panel's rows.
   treeSessionsChanged();
 }
@@ -1314,7 +1311,7 @@ function refreshSwitcher(): void {
 // Render from the cached session list, applying the current search filter.
 // Keystrokes call this directly so filtering never re-reads disk.
 // Reuses project/row nodes by key so a re-render moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
-function renderList(): void {
+function renderList(view: View<'sessions'>): void {
   const scroll = container.scrollTop;
   statusDots.clear();
   // The sessions themselves changed — a title, one appearing on disk: a panel's rows name them too.
@@ -1326,7 +1323,7 @@ function renderList(): void {
   }
 
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
-  const all = visibleSessions();
+  const all = visibleSessions(view);
   currentByKey = new Map(all.map((s) => [entityKey(s), s]));
   // The switcher lists every project, independent of search/project, so you can always navigate. If the active project no longer has any sessions, fall back to All (and persist that).
   const pool = switcherPool(all);
@@ -1375,7 +1372,7 @@ function renderList(): void {
   updateSidebarHighlight();
   updateCollapseToggle();
   syncStickyOffset();
-  updatePlaceholder(); // its wording depends on whether there are sessions at all
+  updatePlaceholder(view); // its wording depends on whether there are sessions at all
   // Every change to a filter or a fold ends here, so this one call covers all of them; the snapshot is compared before it is written, so the renders that change nothing about the view cost nothing.
   persistUi();
 }
@@ -1421,7 +1418,7 @@ collapseToggle.addEventListener('click', () => {
     if (expanding) foldedGroups().clear();
     else for (const id of renderedSections.groups) foldedGroups().add(id);
   }
-  renderList();
+  renderList(store.get());
 });
 
 
@@ -1553,8 +1550,8 @@ function projectMoveItems(repoRoot: string): MenuItem[] {
 
 async function moveProjectBy(repoRoot: string, move: OrderMove): Promise<void> {
   projectOrder = await window.claudeUi.moveProject(repoRoot, move);
-  renderList();
-  renderTabBar(); // the bar orders its project rows by this too, so it moves with the list rather than at the next unrelated redraw
+  renderList(store.get());
+  renderTabBar(store.get()); // the bar orders its project rows by this too, so it moves with the list rather than at the next unrelated redraw
 }
 
 async function renameProject(repoRoot: string): Promise<void> {
@@ -1563,18 +1560,18 @@ async function renameProject(repoRoot: string): Promise<void> {
   // Typing the folder name back clears the override rather than storing a redundant one.
   const canonical = name.trim() === folderName(repoRoot) ? '' : name;
   projectNames = new Map(Object.entries(await window.claudeUi.setProjectName(repoRoot, canonical)));
-  renderList();
-  renderTabBar();
+  renderList(store.get());
+  renderTabBar(store.get());
 }
 
 // Reveal a session's row in the sidebar (expanding its project if collapsed), so clicking a tab scrolls to where it lives and shows which project it belongs to.
 function revealSessionInSidebar(session: SessionSummary): void {
   // Its group can be collapsed too, and then the row is hidden even with the project open.
   const groupId = groupState.groupOf[entityKey(session)];
-  if (groupId && foldedGroups().delete(groupId)) renderList();
+  if (groupId && foldedGroups().delete(groupId)) renderList(store.get());
   if (foldedProjects().has(session.repoRoot)) {
     foldedProjects().delete(session.repoRoot);
-    renderList();
+    renderList(store.get());
   }
   const row = sessionRows.get(entityKey(session));
   if (!row) return;
@@ -1593,7 +1590,7 @@ const REVEAL_GAP = 6;
 function revealProjectInSidebar(repoRoot: string): void {
   if (foldedProjects().has(repoRoot)) {
     foldedProjects().delete(repoRoot);
-    renderList();
+    renderList(store.get());
   }
   const els = projectSections.get(repoRoot);
   if (!els) return;
@@ -1620,8 +1617,8 @@ function syncStickyOffset(): void {
 function jumpToGroup(repoRoot: string, groupId: string | null): void {
   const els = projectSections.get(repoRoot);
   if (!els) return;
-  if (foldedProjects().delete(repoRoot)) renderList();
-  if (groupId !== null && foldedGroups().delete(groupId)) renderList();
+  if (foldedProjects().delete(repoRoot)) renderList(store.get());
+  if (groupId !== null && foldedGroups().delete(groupId)) renderList(store.get());
 
   // A group jumps to its heading; the ungrouped remainder has none, so it jumps to its first row — which is the one carrying .after-groups, the class that marks where the loose rows begin.
   const target: HTMLElement | null | undefined =
@@ -1949,7 +1946,7 @@ function createSessionRow(key: string): HTMLElement {
     pin.disabled = true;
     void window.claudeUi.togglePin(key).then((ids) => {
       pinned = new Set(ids);
-      renderList();
+      renderList(store.get());
     });
   });
 
@@ -1978,7 +1975,7 @@ function createSessionRow(key: string): HTMLElement {
     // It stays hidden via pendingDeletes until its files are gone from disk (see renderSessions), so a concurrent delete's re-read can't resurrect it.
     // Only this entity's file goes (entity key = session id); siblings are separate entities.
     pendingDeletes.add(key);
-    renderList();
+    renderList(store.get());
     try {
       // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat it as failed so the row can't stay hidden forever within a session.
       await Promise.race([
@@ -2168,7 +2165,7 @@ async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<Ta
   if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
   ensureProjectVisible(session.repoRoot);
   await createTab(session, { name: launch.name || undefined, prompt: launch.prompt || undefined });
-  renderList();
+  renderList(store.get());
 }
 
 /**
@@ -2209,7 +2206,7 @@ function linkedSessions(entryKey: string, itemKey: string): LinkedSession[] {
     .sort(([, a], [, b]) => b.startedAt.localeCompare(a.startedAt))
     .flatMap(([id]) => {
       const tab = tabs.find((t) => t.session.id === id);
-      const session = tab?.session ?? allSessions.find((s) => s.id === id);
+      const session = tab?.session ?? store.get().sessions.find((s) => s.id === id);
       if (!session) return [];
       return [{ id, title: session.title, status: statuses.get(id) ?? null, acked: acked.has(id), running: tab !== undefined && tab.terminalId !== null }];
     });
@@ -2217,7 +2214,7 @@ function linkedSessions(entryKey: string, itemKey: string): LinkedSession[] {
 
 /** The session behind an id, from its tab or the list; null for one the app no longer has. */
 function sessionById(id: string): SessionSummary | null {
-  return tabs.find((t) => t.session.id === id)?.session ?? allSessions.find((s) => s.id === id) ?? null;
+  return tabs.find((t) => t.session.id === id)?.session ?? store.get().sessions.find((s) => s.id === id) ?? null;
 }
 
 /** Go to a session a panel's row started, as a jump from the attention strip does; one whose folder is gone says so, as its row in the list would. */
@@ -2248,7 +2245,7 @@ function pickLinkedSession(anchor: HTMLElement, sessions: LinkedSession[]): void
  * When the row already has a session, the dialog offers to continue the latest one instead, which keeps the context the first one built: stopped, it resumes with the prompt; running, it is brought into view and the prompt is not sent.
  */
 async function startSessionFromPanel(entryKey: string, request: SessionRequest): Promise<void> {
-  const known = projectsForSwitcher(switcherPool(visibleSessions()), statuses, acked, projectNames, projectOrder).projects.filter((project) => project.rootExists);
+  const known = projectsForSwitcher(switcherPool(visibleSessions(store.get())), statuses, acked, projectNames, projectOrder).projects.filter((project) => project.rootExists);
   const roots = known.map((project) => project.repoRoot);
   const found = request.dir ? projectFor(roots, request.dir) : null;
   const preset = found ?? request.dir ?? activeProject ?? roots[0] ?? null;
@@ -2321,7 +2318,7 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
   if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
   ensureProjectVisible(session.repoRoot);
   await createTab(session, { name: friendly || undefined, worktree: slug });
-  renderList();
+  renderList(store.get());
 }
 
 // Fork an existing session: `claude --session-id <new> --resume <parent> --fork-session` copies its transcript into a new session in the same cwd.
@@ -2348,7 +2345,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
   const parentGroup = groupState.groupOf[entityKey(parent)];
   if (parentGroup) await moveSessionToGroup(session, parentGroup);
   await createTab(session, { resumeFrom: parent.id, fork: true, name: trimmed || undefined });
-  renderList();
+  renderList(store.get());
 }
 
 /**
@@ -2430,13 +2427,13 @@ async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
     tab.booting = true;
     tab.failure = undefined; // trying again clears what the last attempt said, so a stale reason cannot outlive it
     // Before the await, not after: otherwise a cold tab keeps saying "click its tab to resume it" across the spawn round-trip, which is the one thing you have just done.
-    if (tab === activeTab) updatePlaceholder();
-    renderTabBar(); // and for the same reason: the button has to show the pause while the process is on its way, not once it has arrived.
+    if (tab === activeTab) updatePlaceholder(store.get());
+    renderTabBar(store.get()); // and for the same reason: the button has to show the pause while the process is on its way, not once it has arrived.
     // Which of the two id flags a start uses is one question: does this session have a transcript?
     // No — the tab's id is one this app minted, so claude is told to CREATE the session under it (claude refuses an id that is already in use, which is exactly the same question).
     // Yes — that id is what there is to resume, and `--session-id` would be refused.
     // A fork is the one start that does both: it resumes the PARENT and creates the tab's own session.
-    const onDisk = allSessions.some((s) => s.id === tab.session.id);
+    const onDisk = store.get().sessions.some((s) => s.id === tab.session.id);
     tab.terminalId = await window.claudeUi.startTerminal(tab.session.cwd, {
       sessionId: onDisk ? undefined : tab.session.id,
       resumeSessionId: launch.resumeFrom ?? (onDisk ? tab.session.id : undefined),
@@ -2466,8 +2463,8 @@ async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
     // The pty is created at a default size; hand it the real one now that the pane has a real one.
     tab.fitAddon.fit();
     window.claudeUi.resizeTerminal(tab.terminalId, tab.term.cols, tab.term.rows);
-    renderTabBar();
-    updatePlaceholder();
+    renderTabBar(store.get());
+    updatePlaceholder(store.get());
     tabsChanged(); // its row's bar goes from muted to accent now that it is live
   } catch (error) {
     // The main process refuses to launch into a folder that is no longer there rather than starting somewhere else and saying nothing, so this is where the session gets told.
@@ -2480,15 +2477,15 @@ async function startTab(tab: Tab, launch: TabLaunch = {}): Promise<void> {
     tab.failure = refused
       ? (unstartableReason({ ...tab.session, cwdExists: false }) ?? '')
       : 'This session could not be started.';
-    if (tab === activeTab) updatePlaceholder();
+    if (tab === activeTab) updatePlaceholder(store.get());
     showToast(tab.failure);
   } finally {
     tab.starting = false;
     // A start that ends without reaching the render above — a throw, or the early return below — must still hand the button back.
-    if (tabs.includes(tab)) renderTabBar();
+    if (tabs.includes(tab)) renderTabBar(store.get());
     // The attention strip lists what is RUNNING, so a new session belongs in it now.
     // AFTER `starting` is cleared, not before: the strip draws that flag as a disabled stop button, and rendering it a moment early left every freshly started session with a dead button that nothing came back to repaint.
-    refreshSwitcher();
+    refreshSwitcher(store.get());
   }
 }
 
@@ -2512,8 +2509,8 @@ function activateTab(tab: Tab, start = true): void {
   activeTab = tab;
   // A cold tab's (empty) terminal stays hidden, so the placeholder can explain itself instead of showing a blank black pane.
   for (const other of tabs) other.el.classList.toggle('active', other === tab && other.terminalId !== null);
-  renderTabBar();
-  updatePlaceholder();
+  renderTabBar(store.get());
+  updatePlaceholder(store.get());
   updateSidebarHighlight();
   tab.fitAddon.fit();
   // A cold tab starts the moment you select it — selecting IS starting, with no separate affordance, because that is how activating a tab has always behaved and laziness should show up only as a wait.
@@ -2524,7 +2521,7 @@ function activateTab(tab: Tab, start = true): void {
     const reason = unstartableReason(tab.session);
     if (reason) {
       tab.failure = reason;
-      updatePlaceholder();
+      updatePlaceholder(store.get());
       if (start) showToast(reason);
     } else if (start) {
       // No arguments: startTab resumes the tab's session, or — for a tab stopped before it ever wrote a transcript — starts it fresh under that same id, so nothing keyed to it is lost.
@@ -2561,8 +2558,8 @@ function switchWorkspaceTerminal(repoRoot: string | null): void {
     activeTab = null;
     for (const t of tabs) t.el.classList.remove('active');
   }
-  renderTabBar();
-  updatePlaceholder();
+  renderTabBar(store.get());
+  updatePlaceholder(store.get());
   updateSidebarHighlight();
   // With no tab in scope the panels fall back to the project's root, or to nothing in the All view.
   treeContextChanged();
@@ -2584,7 +2581,7 @@ function removeTab(tab: Tab): void {
   history.forget(tab.session.id);
   persistOpenTabs();
   // Closing a LIVE tab takes its row out of the strip here, not when the pty's exit eventually lands — `closeTab` removes the tab first and kills the process after, so without this the strip lists a session nothing is running.
-  refreshSwitcher();
+  refreshSwitcher(store.get());
 }
 
 // User-initiated close: terminate the session (claude persists per turn, so its context is on disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
@@ -2598,8 +2595,8 @@ function stopSession(tab: Tab): void {
   tab.stopping = true;
   // At once, so the button shows the pause for as long as the exit takes rather than after it.
   // Both buttons: the session is in the attention strip too, by definition — it has a process — and a pause shown in one place and not the other is two surfaces disagreeing about the same session.
-  renderTabBar();
-  refreshSwitcher();
+  renderTabBar(store.get());
+  refreshSwitcher(store.get());
   window.claudeUi.closeTerminal(tab.terminalId); // Ctrl-C twice, then kill
 }
 
@@ -2614,10 +2611,10 @@ function coolTab(tab: Tab): void {
   tab.el.classList.remove('active');
   // Stopping what you were looking at drops you to the empty screen rather than leaving a selected tab with nothing behind it.
   if (activeTab === tab) activeTab = null;
-  renderTabBar();
-  updatePlaceholder();
+  renderTabBar(store.get());
+  updatePlaceholder(store.get());
   tabsChanged();
-  refreshSwitcher(); // drops it from the attention strip now rather than when its SessionEnd lands
+  refreshSwitcher(store.get()); // drops it from the attention strip now rather than when its SessionEnd lands
   treeContextChanged(); // the panels lose their tab too, and fall back to the project
 }
 
@@ -2654,7 +2651,7 @@ function visibleTabs(): Tab[] {
   return activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
 }
 
-function renderTabBar(): void {
+function renderTabBar(view: View<'sessions'>): void {
   // A tab opened, started, stopped or closed: a panel's rows say whether their sessions run.
   treeSessionsChanged();
   const shown = visibleTabs();
@@ -2684,7 +2681,7 @@ function renderTabBar(): void {
         name.textContent = projName(root);
         const mark = document.createElement('span');
         mark.className = 'gone-mark';
-        markProjectGone(root, projectGone(root), name, mark, 11, label);
+        markProjectGone(root, projectGone(root, view), name, mark, 11, label);
         label.append(name, mark);
         label.addEventListener('click', () => revealProjectInSidebar(root));
         row.append(label);
@@ -2839,7 +2836,7 @@ function initTabSortables(): void {
         tabs.splice(0, tabs.length, ...reorderWithinGroup(tabs, tabClusterKey, moved, newIndex));
         persistOpenTabs();
         // The strip reads its order from this array, and SortableJS has only moved the TAB's element — nothing else here repaints, so without this the strip keeps the order it was drawn with until something unrelated redraws it.
-        refreshSwitcher();
+        refreshSwitcher(store.get());
       },
     }),
   );
@@ -2860,7 +2857,7 @@ function showHistory(shown: boolean): void {
   if (history.setShown(shown) && !shown) activeTab?.term.focus();
 }
 
-function updatePlaceholder(): void {
+function updatePlaceholder(view: View<'sessions'>): void {
   // The history follows the tab from here, since every change to what the pane shows passes through this function; a tab switch shows the new tab as you left it, live or in its history.
   history.follow(activeTab?.session.id ?? null);
   // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so without this a restored session would look like a session that had nothing in it.
@@ -2869,7 +2866,7 @@ function updatePlaceholder(): void {
   const booting = activeTab?.booting === true;
   placeholder.style.display = activeTab && !cold && !booting ? 'none' : 'flex';
   historyBar.setLive(activeTab !== null && !cold && !booting);
-  const sentence = paneSentence(cold, booting);
+  const sentence = paneSentence(cold, booting, view);
   // A tab on show with no claude behind it — restored, or refused a start — says so, and offers the two things to do about it: resume it, or read what it said.
   const standing = activeTab && cold && !booting ? activeTab : null;
   if (standing) {
@@ -2908,22 +2905,22 @@ function resumeButton(tab: Tab): HTMLButtonElement {
  */
 function openHistory(): void {
   if (!activeTab) return;
-  if (activeTab.terminalId === null && !activeTab.booting) history.setStandalone(paneSentence(true, false), resumeButton(activeTab));
+  if (activeTab.terminalId === null && !activeTab.booting) history.setStandalone(paneSentence(true, false, store.get()), resumeButton(activeTab));
   else showHistory(true);
 }
 
 /** What the pane says when there is no live claude to show: one sentence, and the next move it names. */
-function paneSentence(cold: boolean, booting: boolean): string {
+function paneSentence(cold: boolean, booting: boolean, view: View<'sessions'>): string {
   if (booting) return `Starting “${sessionLabel(activeTab!.session)}”…`;
   // A start that was REFUSED says why, in place of "click its tab to resume it" — which would be telling you to do the thing that just failed.
   if (activeTab?.failure) return activeTab.failure;
   // Four different situations reach this pane, and each has a different next move — one sentence covering all of them tells someone with no sessions to pick one, and someone with no tabs to pick a tab that isn't there.
   return cold
     ? `“${sessionLabel(activeTab!.session)}” isn’t running.`
-    : allSessions.length === 0
+    : view.sessions.length === 0
       ? 'No sessions yet — start one with + New.'
       : // Nothing in a dead project can be opened or resumed, so pointing at its sessions or tabs would send you to a click that is refused.
-        activeProject !== null && projectGone(activeProject)
+        activeProject !== null && projectGone(activeProject, view)
         ? projectGoneReason(activeProject)
         : // visibleTabs, not tabs: a project view shows only its own, so "pick a tab above" was being offered next to an empty bar whenever the open tabs all belonged to other projects.
           visibleTabs().length === 0
@@ -2936,13 +2933,19 @@ function paneSentence(cold: boolean, booting: boolean): string {
 // Output and exits reach a tab through the sink it bound when it started (terminal.ts routes them by terminal id, for tabs and panels alike).
 routeTerminals();
 
+// --- What the store tells ---
+// Subscribed before start-up sets anything, and told in this order.
+
+// The listing changed in something a row draws: the date picker's first day, the open tabs' titles, and the list follow it.
+store.watch(['sessions'], sessionsChanged);
+
 function onTabData(tab: Tab, data: string): void {
   tab.term.write(data);
   // First VISIBLE output: the pane has something to show, so stop covering it.
   if (tab.booting && hasVisibleOutput(data)) {
     tab.booting = false;
-    if (tab === activeTab) updatePlaceholder();
-    renderTabBar();
+    if (tab === activeTab) updatePlaceholder(store.get());
+    renderTabBar(store.get());
   }
 }
 
@@ -2974,7 +2977,7 @@ function onTabExit(tab: Tab, exitCode: number): void {
     tab.term.writeln(`\r\n[claude exited immediately (code ${exitCode}) — the session did not start]`);
     // Uncover the pane: this line IS the explanation of the failure, and it is exactly what the loader would otherwise hide.
     tab.booting = false;
-    if (tab === activeTab) updatePlaceholder();
+    if (tab === activeTab) updatePlaceholder(store.get());
     return;
   }
   removeTab(tab);
@@ -3007,10 +3010,10 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
     const group = groupState.groupOf[replaced];
     if (group) void window.claudeUi.moveSessionToGroup(id, group).then(applyGroupState);
     // The tab's identity is what decides which row is "open" and which session the bar names, and nothing else re-runs that match.
-    reconcileOpenTabs();
-    renderList();
+    reconcileOpenTabs(store.get());
+    renderList(store.get());
     // The history too: a cleared session is a new one, with a transcript of its own.
-    if (owner === activeTab) updatePlaceholder();
+    if (owner === activeTab) updatePlaceholder(store.get());
   }
   // What claude just did is in the transcript, and the history of the session on show reads it.
   if (activeTab?.session.id === id) void history.refresh();
@@ -3019,14 +3022,14 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
   if (status === 'start') return;
   setStatus(id, status);
   // A new session's title isn't on disk immediately; re-read on its status events until it is (this also replaces the tab's own stand-in row with the real one).
-  if (tabs.some((t) => t.session.id === id) && !allSessions.some((s) => s.id === id)) void refreshFromDisk();
+  if (tabs.some((t) => t.session.id === id) && !store.get().sessions.some((s) => s.id === id)) void refreshFromDisk();
 });
 
 window.claudeUi.onSessionModel((id, model) => {
   if (switchedModel.get(id) === model) return;
   switchedModel.set(id, model);
   // The row prints the model, and nothing else is going to redraw it: the session list on disk has not changed, so the usual refresh would see no reason to.
-  renderList();
+  renderList(store.get());
 });
 
 // The sidebar keeps itself current: a transcript created or changed on disk re-renders it.
@@ -3071,7 +3074,7 @@ async function pickFolderAndOpen(): Promise<void> {
 newButton.addEventListener('click', () => void pickFolderAndOpen());
 searchInput.addEventListener('input', () => {
   filterText = searchInput.value.trim().toLowerCase();
-  renderList();
+  renderList(store.get());
   // A filter change reshapes the list, so start at the top rather than a stale scroll offset.
   container.scrollTop = 0;
 });
@@ -3106,7 +3109,7 @@ for (const pill of FILTER_PILLS) {
   // Every filter pill does the same thing: flip its flag, re-render, scroll back to the results' top.
   pill.button.addEventListener('click', () => {
     pill.set(!pill.get());
-    renderList();
+    renderList(store.get());
     container.scrollTop = 0;
   });
 }
@@ -3125,7 +3128,7 @@ datePresets.addEventListener('click', (event) => {
   const preset = (event.target as HTMLElement).dataset.range;
   if (!preset) return;
   applyDatePreset(preset);
-  renderList();
+  renderList(store.get());
   container.scrollTop = 0;
 });
 // Dismiss the calendar on an outside press or Escape; the picked range stays applied.
@@ -3146,7 +3149,7 @@ document.addEventListener('keydown', (event) => {
 dateRangeLabel.addEventListener('click', () => setDatePopover(!datePopoverOpen));
 function onCustomDateChange(): void {
   applyCustomDates();
-  renderList();
+  renderList(store.get());
   container.scrollTop = 0;
 }
 // Where the list was scrolled to is remembered, so a scroll of your own is a change to remember too.
@@ -3182,11 +3185,11 @@ void (async () => {
   await renderSessions();
   await restoreOpenTabs();
   // Again, now that the tabs exist. Two filters — open, and running — are questions about the TABS, and the render above happened while there were none, so a restored "open" filter would otherwise show an empty list next to a full tab bar. It also puts the open marker on the rows, which used to wait for the next render for its own reasons.
-  renderList();
+  renderList(store.get());
   // Last, because there is nothing to scroll until the rows are on screen. Later renders carry the offset along themselves.
   container.scrollTop = scrollTop;
   switchWorkspaceTerminal(activeProject);
   // After the tabs, so a panel's first run is in the restored tab's folder rather than once for the project and again for the tab.
   startPanels();
 })();
-updatePlaceholder();
+updatePlaceholder(store.get());
