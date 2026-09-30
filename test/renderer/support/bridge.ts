@@ -1,4 +1,5 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
+import { createdGroup, movedGroup, movedProject, renamedGroup, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
 import { pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { togglePinned, toggleArchived, withoutSession } from '../../../src/shared/sessionmarks';
 import { withText } from '../../../src/shared/text';
@@ -101,13 +102,14 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     endWindowResize: sent,
     onWindowMaximized: on('onWindowMaximized'),
     getProjectNames: () => answer(fixture.projectNames),
-    setProjectName: unmodelled('setProjectName'),
+    // Where sessions sit is main's own rules too (src/shared/grouping.ts), kept in the fixture the same way; a new group's id is minted here, as main mints it.
+    setProjectName: (repoRoot, name) => answer((fixture.projectNames = withText(fixture.projectNames, repoRoot, name))),
     getGroupState: () => answer(fixture.groupState),
-    createGroup: unmodelled('createGroup'),
-    renameGroup: unmodelled('renameGroup'),
-    deleteGroup: unmodelled('deleteGroup'),
-    moveSessionToGroup: unmodelled('moveSessionToGroup'),
-    moveGroup: unmodelled('moveGroup'),
+    createGroup: (name, repoRoot, sessionId) => answer((fixture.groupState = createdGroup(fixture.groupState, crypto.randomUUID(), name, repoRoot, sessionId))),
+    renameGroup: (id, name) => answer((fixture.groupState = renamedGroup(fixture.groupState, id, name))),
+    deleteGroup: (id) => answer((fixture.groupState = withoutGroup(fixture.groupState, id))),
+    moveSessionToGroup: (sessionId, groupId) => answer((fixture.groupState = withSessionInGroup(fixture.groupState, sessionId, groupId))),
+    moveGroup: (id, move) => answer((fixture.groupState = movedGroup(fixture.groupState, id, move))),
     getProjectOrder: () => answer(fixture.projectOrder),
     // Main's answer only where it has one without deciding anything: every root already has a slot, so the order comes back as it was (`seedProjectOrder` in src/main/meta.ts). Seeding a first order, or putting new roots in front, is main's rule to keep, not a copy's.
     seedProjectOrder: (roots) => {
@@ -115,7 +117,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       const settled = fixture.projectOrder.length > 0 ? roots.every((root) => known.has(root)) : roots.length === 0;
       return settled ? answer(fixture.projectOrder) : unmodelled('seedProjectOrder')();
     },
-    moveProject: unmodelled('moveProject'),
+    moveProject: (repoRoot, move) => answer((fixture.projectOrder = movedProject(fixture.projectOrder, repoRoot, move) ?? fixture.projectOrder)),
     recordClear: unmodelled('recordClear'),
     pickFolder: unmodelled('pickFolder'),
     openExternal: sent,

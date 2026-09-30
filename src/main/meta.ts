@@ -7,6 +7,7 @@ import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
+import { createdGroup, movedGroup, movedProject, renamedGroup, withoutGroup, withSessionInGroup } from '../shared/grouping';
 import { togglePinned, toggleArchived, withoutSession } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
@@ -719,15 +720,13 @@ export function seedProjectOrder(roots: string[]): Promise<string[]> {
   });
 }
 
-// Reorder one project among the others. Unknown roots are ignored: the order is seeded from what's actually on disk, so a root nobody has seen has no slot to move.
+// Reorder one project among the others; a move that goes nowhere writes nothing.
 export function moveProject(repoRoot: string, move: OrderMove): Promise<string[]> {
   return serialize(async () => {
     const meta = await readMeta();
-    const from = meta.projectOrder.indexOf(repoRoot);
-    if (from < 0) return meta.projectOrder;
-    const to = moveTarget(from, meta.projectOrder.length - 1, move);
-    if (to === null) return meta.projectOrder;
-    meta.projectOrder.splice(to, 0, ...meta.projectOrder.splice(from, 1));
+    const moved = movedProject(meta.projectOrder, repoRoot, move);
+    if (!moved) return meta.projectOrder;
+    meta.projectOrder = moved;
     await writeMeta(meta);
     await auditWrite('moveProject', meta);
     return meta.projectOrder;
@@ -738,81 +737,30 @@ export function getGroupState(): Promise<GroupState> {
   return serialize(async () => groupState(await readMeta()));
 }
 
-/**
- * Create a group in a project, optionally moving a session into it in the same step (the row menu's "New group…" creates and moves at once; the project heading's creates it empty).
- * Prepends, so a new group lands at the top of its project.
- * A blank name creates nothing — the caller's dialog can be dismissed empty.
- */
+/** A group change applied: the rule's new state kept, and handed back. */
+function setGroupState(meta: Meta, next: GroupState): GroupState {
+  meta.groups = next.groups;
+  meta.groupOf = next.groupOf;
+  return groupState(meta);
+}
+
+// The rules for each change are in src/shared/grouping.ts.
 export function createGroup(name: string, repoRoot: string | null, sessionId?: string): Promise<GroupState> {
-  return update('createGroup', (meta) => {
-    const trimmed = name.trim();
-    if (!trimmed) return groupState(meta);
-    const group: SessionGroup = { id: randomUUID(), name: trimmed, repoRoot };
-    meta.groups.unshift(group);
-    if (sessionId) meta.groupOf[sessionId] = group.id;
-    return groupState(meta);
-  });
+  return update('createGroup', (meta) => setGroupState(meta, createdGroup(groupState(meta), randomUUID(), name, repoRoot, sessionId)));
 }
 
-// Blank names are ignored rather than applied, so a group can never become nameless.
 export function renameGroup(id: string, name: string): Promise<GroupState> {
-  return update('renameGroup', (meta) => {
-    const group = meta.groups.find((g) => g.id === id);
-    const trimmed = name.trim();
-    if (group && trimmed) group.name = trimmed;
-    return groupState(meta);
-  });
+  return update('renameGroup', (meta) => setGroupState(meta, renamedGroup(groupState(meta), id, name)));
 }
 
-// Delete a group: it leaves the registry and its members go back to sitting under their project. The sessions themselves are never touched — this is display metadata only.
 export function deleteGroup(id: string): Promise<GroupState> {
-  return update('deleteGroup', (meta) => {
-    meta.groups = meta.groups.filter((g) => g.id !== id);
-    for (const [sessionId, groupId] of Object.entries(meta.groupOf)) {
-      if (groupId === id) delete meta.groupOf[sessionId];
-    }
-    return groupState(meta);
-  });
+  return update('deleteGroup', (meta) => setGroupState(meta, withoutGroup(groupState(meta), id)));
 }
 
-// Where an ordering move lands, given the current index and the last one.
-// Returns null when the move would fall off an end or change nothing, so callers can skip the write entirely rather than silently clamping onto a no-op.
-// Shared by groups and projects so both obey identical rules.
-function moveTarget(from: number, last: number, move: OrderMove): number | null {
-  const to = move === 'top' ? 0 : move === 'bottom' ? last : move === 'up' ? from - 1 : from + 1;
-  if (to < 0 || to > last || to === from) return null;
-  return to;
-}
-
-// Reorder a group within ITS OWN project.
-// The registry is one flat array shared by every project, so the project's entries are lifted out by the slots they occupy, reordered, and written back into those same slots — which leaves every other project's position in the array untouched.
 export function moveGroup(id: string, move: OrderMove): Promise<GroupState> {
-  return update('moveGroup', (meta) => {
-    const group = meta.groups.find((g) => g.id === id);
-    if (!group) return groupState(meta);
-    const slots: number[] = [];
-    meta.groups.forEach((g, i) => {
-      if (g.repoRoot === group.repoRoot) slots.push(i);
-    });
-    const from = slots.findIndex((i) => meta.groups[i]!.id === id);
-    const to = moveTarget(from, slots.length - 1, move);
-    if (to === null) return groupState(meta);
-    const segment = slots.map((i) => meta.groups[i]!);
-    segment.splice(to, 0, ...segment.splice(from, 1));
-    slots.forEach((slot, n) => {
-      meta.groups[slot] = segment[n]!;
-    });
-    return groupState(meta);
-  });
+  return update('moveGroup', (meta) => setGroupState(meta, movedGroup(groupState(meta), id, move)));
 }
 
-// Move a session into a group, or out of every group when groupId is null.
-// It is a MOVE: any previous membership is replaced.
-// An unknown group id is ignored rather than stored, so the membership can never name a group that isn't there.
 export function moveSessionToGroup(sessionId: string, groupId: string | null): Promise<GroupState> {
-  return update('moveSessionToGroup', (meta) => {
-    if (groupId === null) delete meta.groupOf[sessionId];
-    else if (meta.groups.some((g) => g.id === groupId)) meta.groupOf[sessionId] = groupId;
-    return groupState(meta);
-  });
+  return update('moveSessionToGroup', (meta) => setGroupState(meta, withSessionInGroup(groupState(meta), sessionId, groupId)));
 }
