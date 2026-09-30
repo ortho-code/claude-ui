@@ -169,7 +169,7 @@ function maybeAttentionToast(id: string, status: string | undefined, prev: strin
   if ((status !== 'waiting' && status !== 'idle') || status === prev) return;
   const tab = tabs.find((t) => t.session.id === id);
   if (!tab || tab === activeTab) return;
-  showAttentionToast({ status, label: sessionLabel(tab.session), project: projName(tab.session.repoRoot), open: () => jumpToTab(tab) });
+  showAttentionToast({ status, label: sessionLabel(tab.session), project: projName(tab.session.repoRoot, store.get()), open: () => jumpToTab(tab) });
 }
 
 // Jump to a tab from a toast: scope to its project if we're viewing a different one, then activate it.
@@ -184,10 +184,7 @@ function setLoading(on: boolean): void {
   loadingEl.classList.toggle('active', on);
 }
 
-let projectNames = new Map<string, string>(); // repoRoot -> user rename override
-// The explicit project order. Seeded from the recency order the list already had, so switching this on changed nothing on screen; from then on it only moves when the user moves it.
-let projectOrder: string[] = [];
-const projName = (repoRoot: string): string => displayName(repoRoot, projectNames);
+const projName = (repoRoot: string, view: View<'projectNames'>): string => displayName(repoRoot, view.projectNames);
 let filterText = '';
 let showPinnedOnly = false;
 let showOpenOnly = false;
@@ -231,10 +228,6 @@ function foldedProjects(): Set<string> {
 function foldedGroups(): Set<string> {
   return isFiltering() ? filterFoldedGroups : collapsedGroups;
 }
-// Every group and who is in one, loaded once at startup and refreshed after any change.
-// A session started inside a group is filed under its real id before claude has even spawned — the app mints that id — so there is no transient membership to hold anywhere: what the UI draws is what meta says, always.
-let groupState: GroupState = { groups: [], groupOf: {} };
-
 interface ProjectSectionEls {
   section: HTMLElement;
   heading: HTMLElement;
@@ -297,7 +290,7 @@ function tabsChanged(): void {
 }
 
 // Keep open tabs' titles in sync with the freshly-read session list: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
-function reconcileOpenTabs(view: View<'sessions' | 'statuses' | 'acked'>): void {
+function reconcileOpenTabs(view: TabBarView): void {
   const byId = new Map(view.sessions.map((s) => [s.id, s]));
   let changed = false;
   for (const tab of tabs) {
@@ -342,7 +335,7 @@ let paintedAcked: View<'acked'>['acked'] = new Set();
  * A status or a mark read changed: repaint the dots that differ, wherever they show — a row, and the tab bar when one of them has a tab — and the switcher's roll-ups and the strip.
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function statusesChanged(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes'>): void {
+function statusesChanged(view: SwitcherView & TabBarView): void {
   const ids = new Set<string>();
   for (const id of new Set([...paintedStatuses.keys(), ...view.statuses.keys()])) if (paintedStatuses.get(id) !== view.statuses.get(id)) ids.add(id);
   for (const id of new Set([...paintedAcked, ...view.acked])) if (paintedAcked.has(id) !== view.acked.has(id)) ids.add(id);
@@ -495,31 +488,31 @@ async function restoreOpenTabs(): Promise<void> {
 async function renderSessions(showLoading = true, revealed?: string): Promise<void> {
   if (showLoading) setLoading(true);
   try {
-    const [sessions, pinnedList, archivedList, statusMap, namesMap, noteMap] = await Promise.all([
+    const [sessions, pinnedList, archivedList, statusMap, namesMap, noteMap, groupState] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getPinned(),
       window.claudeUi.getArchived(),
       window.claudeUi.getAllStatuses(),
       window.claudeUi.getProjectNames(),
       window.claudeUi.getNotes(),
+      window.claudeUi.getGroupState(),
     ]);
     // Seed from the RAW list (archived included — the transcript still exists), so a project whose sessions are all archived still holds a slot.
     // Writes only when a root is genuinely new, so the common case costs one read.
     // Recency order is what seeds the very first run.
-    projectOrder = await window.claudeUi.seedProjectOrder([...new Set(sessions.map((s) => s.repoRoot))]);
-    projectNames = new Map(Object.entries(namesMap));
-    const drawn = listDrawn;
+    const projectOrder = await window.claudeUi.seedProjectOrder([...new Set(sessions.map((s) => s.repoRoot))]);
     store.set({
       sessions,
       statuses: new Map(Object.entries(statusMap)),
       pinned: new Set(pinnedList),
       archived: new Map(Object.entries(archivedList)),
       notes: new Map(Object.entries(noteMap)),
+      groupState,
+      projectNames: new Map(Object.entries(namesMap)),
+      projectOrder,
       // In the same change, so a row whose files are gone never shows for a moment between no longer hiding it and the listing without it.
       ...(revealed === undefined ? {} : { pendingDeletes: withMember(store.get().pendingDeletes, revealed, false) }),
     });
-    // The names and the project order are not in the store yet, so a read that changed only those — or nothing — still draws the list, as every read always has.
-    if (listDrawn === drawn) listChanged(store.get());
   } finally {
     if (showLoading) setLoading(false);
   }
@@ -532,16 +525,15 @@ async function refreshFromDisk(): Promise<void> {
 }
 
 /** Everything the list draws from the store. */
-type ListView = View<'sessions' | 'statuses' | 'acked' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'pendingDeletes'>;
+type ListView = View<
+  'sessions' | 'statuses' | 'acked' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder'
+>;
 
 /** The listing the date picker and the open tabs' titles last followed, so they follow it again only when it moved rather than on a pin or a note. */
 let followedSessions: View<'sessions'>['sessions'] = [];
-/** How often the list has followed the store: a full read (`renderSessions`) draws it by hand when the store did not, since it also reads what the store does not hold yet. */
-let listDrawn = 0;
 
 /** The list follows the store; when the listing itself moved, the date picker's first day and the open tabs' titles follow it first. */
 function listChanged(view: ListView): void {
-  listDrawn++;
   if (view.sessions !== followedSessions) {
     followedSessions = view.sessions;
     applyDatePickerMinDate(view);
@@ -557,7 +549,7 @@ function isFiltering(): boolean {
 
 // Session key -> its group's NAME, so typing a group name reaches its sessions.
 // Built ONCE per filter pass and handed in: passesFilters runs per session, so building it there would be one pass over the membership map per row.
-function groupNameByKey(): Map<string, string> {
+function groupNameByKey({ groupState }: View<'groupState'>): Map<string, string> {
   const byId = new Map(groupState.groups.map((g) => [g.id, g.name]));
   const out = new Map<string, string>();
   for (const [key, id] of Object.entries(groupState.groupOf)) {
@@ -822,7 +814,7 @@ function persistUi(): void {
  * Put the sidebar back the way it was left, and hand back the scroll offset to apply once there is a list to scroll.
  *
  * Runs before the first render on purpose: restoring filters afterwards would draw the full list and then visibly cut it down.
- * Reads `groupState`, so it has to run after that is loaded.
+ * A deleted group's fold comes back too, and goes once the groups have been read (`forgetDeletedGroupFolds`).
  */
 async function restoreUiState(): Promise<number> {
   const state = await window.claudeUi.getUiState();
@@ -838,10 +830,8 @@ async function restoreUiState(): Promise<number> {
   showArchivedOnly = state.filters.archived;
   for (const repoRoot of state.collapsedProjects) collapsedProjects.add(repoRoot);
   for (const repoRoot of state.filterCollapsedProjects) filterFoldedProjects.add(repoRoot);
-  // A project keeps its fold even while it has no sessions to show (same reasoning as projectOrder), but a DELETED group is gone for good, and this is the one moment we know which ids are real.
-  const liveGroups = new Set(groupState.groups.map((g) => g.id));
-  for (const id of state.collapsedGroups) if (liveGroups.has(id)) collapsedGroups.add(id);
-  for (const id of state.filterCollapsedGroups) if (liveGroups.has(id)) filterFoldedGroups.add(id);
+  for (const id of state.collapsedGroups) collapsedGroups.add(id);
+  for (const id of state.filterCollapsedGroups) filterFoldedGroups.add(id);
   // Nothing special is needed for a restore that lands with no filter on: the first render empties these, and stores that.
   // The sidebar's width lived in localStorage, then in `sidebarWidth`; either is adopted once into the layout tree's sizes, so an existing install keeps its sidebar, and the tree owns it from here.
   restoreTreeState(state.panelState, state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth')));
@@ -866,6 +856,15 @@ async function restoreUiState(): Promise<number> {
   return state.scrollTop;
 }
 
+/**
+ * A project keeps its fold even while it has no sessions to show (same reasoning as the project order), but a DELETED group is gone for good.
+ * The folds are restored before the groups are read, so the list's first draw is already the one you left; a fold of a group that is gone draws nothing meanwhile.
+ */
+function forgetDeletedGroupFolds({ groupState }: View<'groupState'>): void {
+  const live = new Set(groupState.groups.map((g) => g.id));
+  for (const folds of [collapsedGroups, filterFoldedGroups]) for (const id of folds) if (!live.has(id)) folds.delete(id);
+}
+
 // --- Project switcher ---
 
 // Whether a project is dead, by the rule the session list and the switcher use, for the surfaces that hold only a repo root: the tab bar and the empty pane. A root with no sessions to ask is not called dead.
@@ -875,8 +874,8 @@ function projectGone(repoRoot: string, view: View<'sessions'>): boolean {
 }
 
 // Update the switcher header + popover from the visible project pool. The pool is every project's tips (see renderList); the switcher is independent of search/project so you can always navigate.
-function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked'>): void {
-  const model = projectsForSwitcher(pool, view.statuses, view.acked, projectNames, projectOrder);
+function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder'>): void {
+  const model = projectsForSwitcher(pool, view.statuses, view.acked, view.projectNames, view.projectOrder);
   const active = activeProject ? model.projects.find((f) => f.repoRoot === activeProject) : null;
   switcherName.textContent = active ? active.name : 'All';
   // The title keeps "Switch project" as its tooltip; only the mark says why.
@@ -951,16 +950,14 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   }));
 }
 
-// --- Group actions ------------------------------------------------------------------------------ Every mutation goes through the main process and hands back the whole state, so the renderer never second-guesses what changed — it swaps its copy and re-renders.
+// --- Group actions ------------------------------------------------------------------------------ Every mutation goes through the main process and hands back the whole state, so the renderer never second-guesses what changed — it swaps its copy, and the list, the strip and the tab bar, which all draw groups, follow the store.
 
 function applyGroupState(next: GroupState): void {
-  groupState = next;
-  renderList(store.get());
-  renderTabBar(store.get()); // the bar clusters by group too, so it has to follow the same change
+  store.set({ groupState: next });
 }
 
 // The groups belonging to one project, in registry order.
-function projectGroups(repoRoot: string): SessionGroup[] {
+function projectGroups(repoRoot: string, { groupState }: View<'groupState'>): SessionGroup[] {
   return groupState.groups.filter((g) => g.repoRoot === repoRoot);
 }
 
@@ -973,11 +970,12 @@ async function moveSessionToGroup(session: SessionSummary, groupId: string | nul
 // A new group lands at the top of its project, which can be well away from the row or heading it was made from, so the jump — unfolding the project if it is folded — and its flash show where it went.
 // A filter hides empty groups, so one made empty under a filter is not drawn, and the toast says where it went instead.
 async function promptNewGroup(repoRoot: string, sessionId?: string): Promise<void> {
-  const name = await promptText('New group', projName(repoRoot), '', 'Create');
+  const name = await promptText('New group', projName(repoRoot, store.get()), '', 'Create');
   if (!name?.trim()) return;
-  const known = new Set(groupState.groups.map((g) => g.id));
+  const known = new Set(store.get().groupState.groups.map((g) => g.id));
   applyGroupState(await window.claudeUi.createGroup(name, repoRoot, sessionId));
-  const group = groupState.groups.find((g) => !known.has(g.id));
+  // The list has drawn the answer by now: the store tells as it is set.
+  const group = store.get().groupState.groups.find((g) => !known.has(g.id));
   if (!group) return;
   if (renderedSections.groups.includes(group.id)) jumpToGroup(repoRoot, group.id);
   else if (isFiltering()) showToast(`Group "${group.name}" created. Empty groups are hidden while a filter is on, so it shows once you clear it.`);
@@ -988,9 +986,10 @@ async function promptNewGroup(repoRoot: string, sessionId?: string): Promise<voi
 function groupMoveItems(id: string): MenuItem[] {
   // Same reason as projects: filtering drops groups whose sessions all fell out, so a neighbour can be missing from the screen and the move would appear to do nothing.
   if (isFiltering()) return [];
-  const group = groupState.groups.find((g) => g.id === id);
+  const state = store.get();
+  const group = state.groupState.groups.find((g) => g.id === id);
   if (!group?.repoRoot) return [];
-  const siblings = projectGroups(group.repoRoot);
+  const siblings = projectGroups(group.repoRoot, state);
   const at = siblings.findIndex((g) => g.id === id);
   const last = siblings.length - 1;
   if (at < 0 || last <= 0) return [];
@@ -1009,24 +1008,26 @@ async function moveGroupById(id: string, move: OrderMove): Promise<void> {
 }
 
 async function renameGroupById(id: string): Promise<void> {
-  const group = groupState.groups.find((g) => g.id === id);
+  const state = store.get();
+  const group = state.groupState.groups.find((g) => g.id === id);
   if (!group) return;
-  const name = await promptText('Rename group', projName(group.repoRoot ?? ''), group.name);
+  const name = await promptText('Rename group', projName(group.repoRoot ?? '', state), group.name);
   if (!name?.trim()) return;
   applyGroupState(await window.claudeUi.renameGroup(id, name));
 }
 
 // No confirmation: nothing is destroyed. The group goes and its members simply sit under the project again — unlike deleting a session, which trashes a transcript.
 async function deleteGroupById(id: string): Promise<void> {
-  const group = groupState.groups.find((g) => g.id === id);
+  const group = store.get().groupState.groups.find((g) => g.id === id);
   applyGroupState(await window.claudeUi.deleteGroup(id));
   if (group) showToast(`Group "${group.name}" deleted. Its sessions are back under the project.`);
 }
 
 // The "Move to group" list: the project's groups with the current one ticked, then the two ways out — back to the project, or into a group that doesn't exist yet.
 function moveToGroupItems(session: SessionSummary): MenuItem[] {
-  const current = groupState.groupOf[entityKey(session)];
-  const items: MenuItem[] = projectGroups(session.repoRoot).map((group) => ({
+  const state = store.get();
+  const current = state.groupState.groupOf[entityKey(session)];
+  const items: MenuItem[] = projectGroups(session.repoRoot, state).map((group) => ({
     label: group.name,
     checked: group.id === current,
     onSelect: () => void moveSessionToGroup(session, group.id),
@@ -1127,7 +1128,7 @@ function stripStopButton(session: SessionSummary): HTMLButtonElement {
 // Cross-project attention strip in the sidebar footer.
 // The toggle badge is the same overall roll-up as the switcher header; expanded, it lists the nudged SESSIONS grouped under their project (each a row: state dot + session title), click one to jump to it.
 // Muted "all clear" when nothing pending.
-function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked'>): void {
+function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder'>): void {
   const overall = model.all.badge;
   footerBadge.className = overall ? `nudge ${overall}` : 'nudge';
   footerBadge.hidden = !overall;
@@ -1145,14 +1146,14 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
       .filter((t) => t.terminalId !== null)
       .flatMap((t) => {
         const session = shown.get(entityKey(t.session));
-        return session ? [{ repoRoot: session.repoRoot, groupId: groupState.groupOf[session.id] ?? '', item: session }] : [];
+        return session ? [{ repoRoot: session.repoRoot, groupId: view.groupState.groupOf[session.id] ?? '', item: session }] : [];
       }),
-    (root) => projectGroups(root).map((g) => g.id),
-    projectOrder,
+    (root) => projectGroups(root, view).map((g) => g.id),
+    view.projectOrder,
   );
   // The strip has no group ROWS — each row carries its group as a chip — so a project's clusters are flattened back into one run, in the order the tab bar would have drawn them.
   const ordered = [...new Map(clusters.map((c) => [c.repoRoot, [] as SessionSummary[]])).keys()].map((repoRoot) => ({
-    name: projName(repoRoot),
+    name: projName(repoRoot, view),
     items: clusters.filter((c) => c.repoRoot === repoRoot).flatMap((c) => c.items),
   }));
   const total = ordered.reduce((n, g) => n + g.items.length, 0);
@@ -1178,7 +1179,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
   footerLabel.textContent = needing > 0 ? `${needing} of ${total} need you` : `${total} live`;
   footerList.hidden = !footerExpanded;
   // Once for the whole strip rather than per row: the membership and the registry have to come from the same read anyway.
-  const { groups, groupOf } = groupState;
+  const { groups, groupOf } = view.groupState;
   footerList.replaceChildren(
     ...ordered.flatMap((project) => {
       const heading = document.createElement('div');
@@ -1312,8 +1313,11 @@ function viewPool(all: SessionSummary[], archivedView: boolean, view: View<'arch
   return all.filter((s) => inView(entityKey(s), archivedView, view.archived, view.pendingDeletes));
 }
 
+/** What the switcher and the strip draw from the store. */
+type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder'>;
+
 // Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
-function refreshSwitcher(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes'>): void {
+function refreshSwitcher(view: SwitcherView): void {
   renderSwitcher(switcherPool(visibleSessions(view), view), view);
   // A status or a mark read changed the roll-ups here, and the same dots on a panel's rows.
   treeSessionsChanged();
@@ -1344,7 +1348,7 @@ function renderList(view: ListView): void {
   }
   renderSwitcher(pool, view);
 
-  const groupNames = filterText ? groupNameByKey() : undefined;
+  const groupNames = filterText ? groupNameByKey(view) : undefined;
   const filtered = all.filter((s) => passesFilters(s, view, groupNames));
   // Project scope applies everywhere, the archived view included.
   // It used to be exempt, from when archived was a rarely-visited global bin — but the scope is an explicit statement of what you are looking at, and one view quietly overriding it reads as a leak.
@@ -1371,7 +1375,7 @@ function renderList(view: ListView): void {
   // One section per repo, each holding its groups and then the sessions in no group.
   // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
   // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  const tree = buildProjectTree(scoped, groupState, view.pinned, isFiltering(), projectOrder);
+  const tree = buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(), view.projectOrder);
   renderedSections = {
     projects: tree.map((p) => p.repoRoot),
     groups: tree.flatMap((p) => p.groups.map((g) => g.group.id)),
@@ -1444,7 +1448,7 @@ function clearList(): void {
 
 // Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order both the sections and their rows via appendChild (which moves an existing node into place).
 // Inside a project the group sections come first, then the rows belonging to no group.
-function reconcileProjectSections(desired: ProjectTree[], view: RowView): void {
+function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'projectNames'>): void {
   const wanted = new Set(desired.map((p) => p.repoRoot));
   for (const [repoRoot, els] of projectSections) {
     if (!wanted.has(repoRoot)) {
@@ -1473,7 +1477,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView): void {
     els.caret.hidden = activeProject !== null;
     els.caret.innerHTML = caretIcon(collapsed, 10);
     els.count.textContent = String(project.count);
-    els.label.textContent = projName(project.repoRoot); // keep the heading current (e.g. after a rename)
+    els.label.textContent = projName(project.repoRoot, view); // keep the heading current (e.g. after a rename)
     // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
     // Filtering forces every section open and reshuffles what is on screen, which leaves the jump nothing to act on: disabled there, like collapse-all, since a control vanishing as you type reads worse than one plainly unavailable.
     const targets = groupJumpTargets(project, view.statuses, view.acked);
@@ -1546,6 +1550,7 @@ function projectMoveItems(repoRoot: string): MenuItem[] {
   if (activeProject !== null) return [];
   // Not while filtering either: a hidden neighbour makes the move land where you can't see it, so "Move up" past a filtered-out project looks like a button that did nothing.
   if (isFiltering()) return [];
+  const { projectOrder } = store.get();
   const at = projectOrder.indexOf(repoRoot);
   const last = projectOrder.length - 1;
   if (at < 0 || last <= 0) return [];
@@ -1559,26 +1564,23 @@ function projectMoveItems(repoRoot: string): MenuItem[] {
   return items;
 }
 
+// The list, the strip and the tab bar place projects by the order, so all three follow the store together rather than the bar at the next unrelated redraw.
 async function moveProjectBy(repoRoot: string, move: OrderMove): Promise<void> {
-  projectOrder = await window.claudeUi.moveProject(repoRoot, move);
-  renderList(store.get());
-  renderTabBar(store.get()); // the bar orders its project rows by this too, so it moves with the list rather than at the next unrelated redraw
+  store.set({ projectOrder: await window.claudeUi.moveProject(repoRoot, move) });
 }
 
 async function renameProject(repoRoot: string): Promise<void> {
-  const name = await promptText('Rename project', repoRoot, projName(repoRoot));
+  const name = await promptText('Rename project', repoRoot, projName(repoRoot, store.get()));
   if (name === null) return;
   // Typing the folder name back clears the override rather than storing a redundant one.
   const canonical = name.trim() === folderName(repoRoot) ? '' : name;
-  projectNames = new Map(Object.entries(await window.claudeUi.setProjectName(repoRoot, canonical)));
-  renderList(store.get());
-  renderTabBar(store.get());
+  store.set({ projectNames: new Map(Object.entries(await window.claudeUi.setProjectName(repoRoot, canonical))) });
 }
 
 // Reveal a session's row in the sidebar (expanding its project if collapsed), so clicking a tab scrolls to where it lives and shows which project it belongs to.
 function revealSessionInSidebar(session: SessionSummary): void {
   // Its group can be collapsed too, and then the row is hidden even with the project open.
-  const groupId = groupState.groupOf[entityKey(session)];
+  const groupId = store.get().groupState.groupOf[entityKey(session)];
   if (groupId && foldedGroups().delete(groupId)) renderList(store.get());
   if (foldedProjects().has(session.repoRoot)) {
     foldedProjects().delete(session.repoRoot);
@@ -1681,14 +1683,13 @@ function toggleFold(section: HTMLElement, caret: HTMLElement, folded: Set<string
   persistUi();
 }
 
-// Build a project section once; contents (count, caret, rows) are updated on later renders.
+// Build a project section once; its contents (name, count, caret, rows) are drawn by reconcileProjectSections, on this render and every later one.
 function createProjectSection(name: string, folderCwd?: string): ProjectSectionEls {
   const section = document.createElement('section');
   section.className = 'project';
 
   const { heading, caret, icon, label, count } = buildHeading('h2', folderIcon(14));
   setTooltip(label, name); // full path on hover
-  label.textContent = projName(name);
   // Jump straight to one of this project's groups instead of scrolling for it.
   // The heading is position:sticky, so this trigger is on screen the whole time you scroll the project — which is what makes a menu enough here, rather than a panel that would cost a line of height per project.
   // reconcileProjectSections hides it below 2 targets and disables it while filtering.
@@ -1799,7 +1800,7 @@ function createGroupSection(id: string): GroupSectionEls {
   add.addEventListener('click', (event) => {
     event.stopPropagation();
     if (unavailable(add)) return;
-    const group = groupState.groups.find((g) => g.id === id);
+    const group = store.get().groupState.groups.find((g) => g.id === id);
     if (group?.repoRoot) void openNewSession(group.repoRoot, id);
   });
   const addCaret = document.createElement('button');
@@ -1810,7 +1811,7 @@ function createGroupSection(id: string): GroupSectionEls {
   addCaret.addEventListener('click', (event) => {
     event.stopPropagation();
     if (unavailable(addCaret)) return;
-    const repoRoot = groupState.groups.find((g) => g.id === id)?.repoRoot;
+    const repoRoot = store.get().groupState.groups.find((g) => g.id === id)?.repoRoot;
     if (!repoRoot) return;
     openMenu(addCaret, [
       { label: 'New session', onSelect: () => void openNewSession(repoRoot, id) },
@@ -2260,7 +2261,7 @@ function pickLinkedSession(anchor: HTMLElement, sessions: LinkedSession[]): void
  */
 async function startSessionFromPanel(entryKey: string, request: SessionRequest): Promise<void> {
   const state = store.get();
-  const known = projectsForSwitcher(switcherPool(visibleSessions(state), state), state.statuses, state.acked, projectNames, projectOrder).projects.filter((project) => project.rootExists);
+  const known = projectsForSwitcher(switcherPool(visibleSessions(state), state), state.statuses, state.acked, state.projectNames, state.projectOrder).projects.filter((project) => project.rootExists);
   const roots = known.map((project) => project.repoRoot);
   const found = request.dir ? projectFor(roots, request.dir) : null;
   const preset = found ?? request.dir ?? activeProject ?? roots[0] ?? null;
@@ -2269,7 +2270,7 @@ async function startSessionFromPanel(entryKey: string, request: SessionRequest):
     return;
   }
   const choices = roots.includes(preset) ? roots : [preset, ...roots];
-  const groupsIn = (root: string): { id: string; name: string }[] => groupState.groups.filter((group) => group.repoRoot === root).map(({ id, name }) => ({ id, name }));
+  const groupsIn = (root: string): { id: string; name: string }[] => projectGroups(root, state).map(({ id, name }) => ({ id, name }));
   const data = await window.claudeUi.getPanelData(entryKey);
   panelData.set(entryKey, data);
   const latest = linkedSessions(entryKey, request.key)[0] ?? null;
@@ -2277,7 +2278,7 @@ async function startSessionFromPanel(entryKey: string, request: SessionRequest):
     from: request.from,
     about: request.label,
     continueIn: latest ? { title: latest.title, running: latest.running } : null,
-    projects: choices.map((root) => ({ root, name: projName(root), groups: groupsIn(root) })),
+    projects: choices.map((root) => ({ root, name: projName(root, state), groups: groupsIn(root) })),
     project: preset,
     // The last group picked from this panel in that project, while it still exists.
     groupFor: (root) => {
@@ -2305,7 +2306,7 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
   const slugify = (value: string): string => value.trim().replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
   const label = await promptText(
     'New worktree session',
-    `Worktree of "${projName(repoRoot)}"`,
+    `Worktree of "${projName(repoRoot, store.get())}"`,
     '',
     'Create',
     // Validate in the dialog so a duplicate name is caught without closing it — claude -w would otherwise silently switch to the existing worktree instead of creating one.
@@ -2357,7 +2358,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
   });
   ensureProjectVisible(session.repoRoot);
   // A fork continues its parent's work, so it belongs wherever the parent was filed — and it shows there immediately, like a new session started from the group's "+".
-  const parentGroup = groupState.groupOf[entityKey(parent)];
+  const parentGroup = store.get().groupState.groupOf[entityKey(parent)];
   if (parentGroup) await moveSessionToGroup(session, parentGroup);
   await createTab(session, { resumeFrom: parent.id, fork: true, name: trimmed || undefined });
   renderList(store.get());
@@ -2655,7 +2656,7 @@ function closeTab(tab: Tab): void {
 }
 
 // The key a tab is grouped and dragged within: its project, plus its group when it has one. A drag stays inside its own cluster because each cluster is its own Sortable container.
-function tabClusterKey(tab: Tab, groupOf: Record<string, string> = groupState.groupOf): string {
+function tabClusterKey(tab: Tab, groupOf: Record<string, string> = store.get().groupState.groupOf): string {
   return `${tab.session.repoRoot}\0${groupOf[tab.session.id] ?? ''}`;
 }
 
@@ -2666,17 +2667,20 @@ function visibleTabs(): Tab[] {
   return activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
 }
 
-function renderTabBar(view: View<'sessions' | 'statuses' | 'acked'>): void {
+/** What the tab bar draws from the store. */
+type TabBarView = View<'sessions' | 'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder'>;
+
+function renderTabBar(view: TabBarView): void {
   // A tab opened, started, stopped or closed: a panel's rows say whether their sessions run.
   treeSessionsChanged();
   const shown = visibleTabs();
-  const groupOf = groupState.groupOf; // computed once; every tab is keyed against it
+  const { groupOf } = view.groupState;
   // Your project order, the same one the sidebar and the strip use — so all three agree about where a project sits.
   // The bar used to order projects by whichever it met first, which nobody chose and which moved on its own: closing a project's last tab and opening another sent that project to the end.
   const clustered = orderAsTabs(
     shown.map((tab) => ({ repoRoot: tab.session.repoRoot, groupId: groupOf[tab.session.id] ?? '', item: tab })),
-    (root) => projectGroups(root).map((g) => g.id),
-    projectOrder,
+    (root) => projectGroups(root, view).map((g) => g.id),
+    view.projectOrder,
   );
   const byCluster = new Map(clustered.map((c) => [`${c.repoRoot}\0${c.groupId}`, c.items]));
   const roots = [...new Set(clustered.map((c) => c.repoRoot))];
@@ -2693,7 +2697,7 @@ function renderTabBar(view: View<'sessions' | 'statuses' | 'acked'>): void {
         const label = document.createElement('span');
         label.className = 'tab-project-label';
         const name = document.createElement('span');
-        name.textContent = projName(root);
+        name.textContent = projName(root, view);
         const mark = document.createElement('span');
         mark.className = 'gone-mark';
         markProjectGone(root, projectGone(root, view), name, mark, 11, label);
@@ -2705,7 +2709,7 @@ function renderTabBar(view: View<'sessions' | 'statuses' | 'acked'>): void {
       children.push(row);
     }
     // Then one row per group that has tabs open, in registry order — the sidebar's order.
-    for (const group of projectGroups(root)) {
+    for (const group of projectGroups(root, view)) {
       const groupTabs = byCluster.get(`${root}\0${group.id}`) ?? [];
       if (groupTabs.length === 0) continue;
       const row = document.createElement('div');
@@ -2729,7 +2733,7 @@ function renderTabBar(view: View<'sessions' | 'statuses' | 'acked'>): void {
   initTabSortables();
 }
 
-function tabElement(tab: Tab, view: View<'statuses' | 'acked'>): HTMLElement {
+function tabElement(tab: Tab, view: View<'statuses' | 'acked' | 'projectNames'>): HTMLElement {
   const el = document.createElement('div');
   // 'cold' = restored but never started. Unfilled rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
@@ -2767,7 +2771,7 @@ function tabElement(tab: Tab, view: View<'statuses' | 'acked'>): HTMLElement {
   label.className = 'tab-label';
   const text = sessionLabel(tab.session);
   label.textContent = text;
-  setTooltip(label, unstartable ?? `${projName(tab.session.repoRoot)} · ${text}`);
+  setTooltip(label, unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}`);
 
   // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind. See closeOrStop.
   const close = document.createElement('button');
@@ -2951,12 +2955,17 @@ routeTerminals();
 // --- What the store tells ---
 // Subscribed before start-up sets anything, and told in this order.
 
-// Something a row draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight — and the list follows, with the date picker and the tabs' titles when it was the listing.
+// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place — and the list follows, with the switcher and the strip it draws, and with the date picker and the tabs' titles when it was the listing.
 // The list paints every dot it draws, but a status change repaints only the dots, below.
-store.watch(['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes'], listChanged, { reads: ['statuses', 'acked'] });
+store.watch(['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder'], listChanged, {
+  reads: ['statuses', 'acked'],
+});
 
 // A status or a mark read changed: the dots that differ, the tab bar when one of them has a tab, the switcher's roll-ups and the strip.
-store.watch(['statuses', 'acked'], statusesChanged, { reads: ['sessions', 'archived', 'pendingDeletes'] });
+store.watch(['statuses', 'acked'], statusesChanged, { reads: ['sessions', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder'] });
+
+// The tab bar clusters its tabs by group and places its projects by the order, under their names, as the list does: it follows the same changes.
+store.watch(['groupState', 'projectNames', 'projectOrder'], renderTabBar, { reads: ['sessions', 'statuses', 'acked'] });
 
 function onTabData(tab: Tab, data: string): void {
   tab.term.write(data);
@@ -3026,7 +3035,7 @@ window.claudeUi.onSessionStatus((id, status, tab) => {
     // A group says where this WORK lives, and clearing a session does not move the work — so the replacement joins the group its predecessor was in, rather than the tab visibly dropping out of its section.
     // The predecessor keeps its own membership: it is still a real session, and still that group's history.
     // Only the group carries over. A pin and a note are about one CONVERSATION, and that conversation still has its own row to hold them.
-    const group = groupState.groupOf[replaced];
+    const group = store.get().groupState.groupOf[replaced];
     if (group) void window.claudeUi.moveSessionToGroup(id, group).then(applyGroupState);
     // The tab's identity is what decides which row is "open" and which session the bar names, and nothing else re-runs that match.
     reconcileOpenTabs(store.get());
@@ -3192,13 +3201,13 @@ initTree({
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
   void window.claudeUi.getHistoryPins().then((pins) => history.setPins(pins));
-  groupState = await window.claudeUi.getGroupState();
   activeProject = await window.claudeUi.getActiveProject();
   // Before the first render: restoring filters afterwards would draw the whole list and then visibly cut it down.
   const scrollTop = await restoreUiState();
   // Before the rows and the tabs too: placing the layout moves the sidebar and the terminal area into it, and a move is cheapest, and invisible, while they are still empty.
   await loadLayout();
   await renderSessions();
+  forgetDeletedGroupFolds(store.get());
   await restoreOpenTabs();
   // Again, now that the tabs exist. Two filters — open, and running — are questions about the TABS, and the render above happened while there were none, so a restored "open" filter would otherwise show an empty list next to a full tab bar. It also puts the open marker on the rows, which used to wait for the next render for its own reasons.
   renderList(store.get());

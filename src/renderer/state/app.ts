@@ -1,4 +1,4 @@
-import type { SessionSummary } from '../../shared/types';
+import type { GroupState, SessionSummary } from '../../shared/types';
 import { structuralSignature } from '../logic';
 import { createStore } from './store';
 
@@ -28,6 +28,18 @@ export interface AppState {
   notes: ReadonlyMap<string, string>;
   /** Sessions whose delete is in flight: hidden from the list until that delete resolves, so a concurrent delete's re-read can't briefly resurrect them. */
   pendingDeletes: ReadonlySet<string>;
+  /**
+   * Every group and who is in one, as main hands it back whole after every change.
+   * A session started inside a group is filed under its real id before claude has even spawned — the app mints that id — so there is no transient membership to hold anywhere: what is drawn is what meta says, always.
+   */
+  groupState: GroupState;
+  /** Repo root -> the name you gave the project; a project without one is called after its folder. */
+  projectNames: ReadonlyMap<string, string>;
+  /**
+   * Every project ever seen, in the order you set: the list, the switcher, the strip and the tab bar all place projects by it.
+   * Seeded from the recency order the list already had, so switching it on changed nothing on screen; from then on it only moves when you move it.
+   */
+  projectOrder: readonly string[];
 }
 
 /** `map` with `key` set to `value`, or without it for `undefined`: a copy when that changes anything, the same map when it does not, so nobody is told for nothing. */
@@ -85,7 +97,42 @@ function sameMembers<T>(a: ReadonlySet<T>, b: ReadonlySet<T>): boolean {
   return true;
 }
 
+/** Whether two lists hold the same items in the same order. */
+function sameOrder<T>(a: readonly T[], b: readonly T[]): boolean {
+  return a === b || (a.length === b.length && a.every((item, i) => item === b[i]));
+}
+
+/**
+ * Whether two answers from main hold the same data, compared as the JSON they crossed as.
+ * Whole rather than field by field, so a field added to the answer cannot be missed; the same data in another key order only tells for nothing.
+ */
+function sameData<T>(a: T, b: T): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
 export const store = createStore<AppState>(
-  { sessions: [], statuses: new Map(), acked: new Set(), switchedModel: new Map(), pinned: new Set(), archived: new Map(), notes: new Map(), pendingDeletes: new Set() },
-  { sessions: sameRows, statuses: sameEntries, pinned: sameMembers, archived: sameEntries, notes: sameEntries, pendingDeletes: sameMembers },
+  {
+    sessions: [],
+    statuses: new Map(),
+    acked: new Set(),
+    switchedModel: new Map(),
+    pinned: new Set(),
+    archived: new Map(),
+    notes: new Map(),
+    pendingDeletes: new Set(),
+    groupState: { groups: [], groupOf: {} },
+    projectNames: new Map(),
+    projectOrder: [],
+  },
+  {
+    sessions: sameRows,
+    statuses: sameEntries,
+    pinned: sameMembers,
+    archived: sameEntries,
+    notes: sameEntries,
+    pendingDeletes: sameMembers,
+    groupState: sameData,
+    projectNames: sameEntries,
+    projectOrder: sameOrder,
+  },
 );
