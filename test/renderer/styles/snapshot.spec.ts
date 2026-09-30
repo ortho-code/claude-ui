@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { defaultUi } from '../../../src/shared/defaults';
 import type { Exchange, UiState } from '../../../src/shared/types';
 import { LAYOUT, runs, withLayout } from '../panels/layout/layout';
-import { CONFIG_ROOT, HOME, PROJECT, session } from '../support/fixture';
+import { type BridgeFixture, CONFIG_ROOT, HOME, PROJECT, session } from '../support/fixture';
 import { type App, expect, test } from '../support/harness';
 import { snapshot } from './capture';
 
@@ -177,6 +177,28 @@ test('the history open over a live claude, with pins, code and a folded run of t
   await page.mouse.move(0, 0);
   await expect(page.locator('.history')).toHaveClass(/\bshown\b/);
   await snapshot(page, DIR!, 'history');
+});
+
+/** A tab restored where you left off: on show, cold, with a history to read. */
+const restored = (): Partial<BridgeFixture> => {
+  const one = session();
+  const exchange: Exchange = { id: 'request-1', time: '2026-09-30T08:00:00.000Z', request: 'Look at the parser', kind: 'typed', replaced: false, rewound: false, parts: [] };
+  return { openSessions: [one.id], activeSession: one.id, history: { [one.id]: [exchange] } };
+};
+
+test("a cold tab on show, with the pane's two ways on", async ({ app, page }) => {
+  await app.boot(restored());
+  await expect(page.locator('.pane-actions button')).toHaveCount(2);
+  await snapshot(page, DIR!, 'cold-tab');
+});
+
+test('the history standing in for a cold tab, under its sentence', async ({ app, page }) => {
+  await app.boot(restored());
+  await page.getByRole('button', { name: 'Show history' }).click();
+  await page.mouse.move(0, 0);
+  await expect(page.locator('.history')).toHaveClass(/\bstandalone\b/);
+  await expect(page.locator('.exchange')).toHaveCount(1);
+  await snapshot(page, DIR!, 'history-standing');
 });
 
 test('panels: a railed group with output, a shell in a drawer, and a panel that cannot run', async ({ app, page }) => {
