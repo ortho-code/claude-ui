@@ -61,6 +61,17 @@ test("a project's tab-bar label scrolls the sidebar to its heading and flashes i
   await expect(heading).toBeInViewport();
 });
 
+test("a tab's click shows where its session lives: its project and group unfolded, its row scrolled into view", async ({ app, page }) => {
+  await app.boot({ ...fixture, history: { [grouped.id]: [] }, uiState: { ...defaultUi(), collapsedProjects: [TARGET], collapsedGroups: ['g-work'] } });
+  const row = page.locator('.session', { hasText: grouped.title });
+  await expect(row).toBeHidden();
+
+  await page.locator('.tab-label', { hasText: grouped.title }).click();
+  await expect(row).toBeVisible();
+  await expect(row).toBeInViewport();
+  await expect(projectHeading(page, 'target').locator('..')).not.toHaveClass(/\bcollapsed\b/);
+});
+
 test("a group's tab-bar label unfolds its project and group, scrolls to the group's heading and flashes it", async ({ app, page }) => {
   await app.boot({ ...fixture, uiState: { ...defaultUi(), collapsedProjects: [TARGET], collapsedGroups: ['g-work'] } });
   const group = page.locator('.group', { has: page.locator('.section-heading .label', { hasText: /^Work$/ }) });
