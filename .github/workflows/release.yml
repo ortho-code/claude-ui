@@ -13,7 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          # The OLDEST Ubuntu the .deb supports, never the newest: node-pty is compiled here and needs the glibc it was built against, so a build on 26.04 (glibc 2.43) does not load its terminal on 24.04 (2.39), while a build on 24.04 runs on both.
+          # So a proposal to move this one forward is a decision to drop 24.04, not an upgrade.
+          - os: ubuntu-24.04
             args: --linux
           - os: macos-latest
             # Apple Silicon only: no one who needs this build has an Intel Mac.
@@ -50,7 +52,8 @@ jobs:
 
   release:
     needs: build
-    runs-on: ubuntu-latest
+    # Builds nothing, so it follows CI's image rather than the Linux build's.
+    runs-on: ubuntu-26.04
     permissions:
       # The only writes this workflow needs, and only in this job.
       contents: write
