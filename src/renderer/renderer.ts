@@ -12,7 +12,7 @@ import { startChrome } from './chrome';
 import { flash } from './flash';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
 import './styles.css';
-import { sameRows, store, withEntry, withMember, type View } from './state/app';
+import { store, withEntry, withMember, type View } from './state/app';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { OrderMove, GroupState, SessionGroup, SessionSummary, UiState } from '../shared/types';
@@ -184,16 +184,10 @@ function setLoading(on: boolean): void {
   loadingEl.classList.toggle('active', on);
 }
 
-let pinned = new Set<string>();
-let archived = new Map<string, number>();
 let projectNames = new Map<string, string>(); // repoRoot -> user rename override
 // The explicit project order. Seeded from the recency order the list already had, so switching this on changed nothing on screen; from then on it only moves when the user moves it.
 let projectOrder: string[] = [];
-// Session id -> note. Only sessions that HAVE one appear here (a blank note deletes its entry).
-let notes = new Map<string, string>();
 const projName = (repoRoot: string): string => displayName(repoRoot, projectNames);
-// Conversations whose delete is in flight: hidden from the list until that delete resolves, so a concurrent delete's disk re-read can't briefly resurrect them.
-const pendingDeletes = new Set<string>();
 let filterText = '';
 let showPinnedOnly = false;
 let showOpenOnly = false;
@@ -348,7 +342,7 @@ let paintedAcked: View<'acked'>['acked'] = new Set();
  * A status or a mark read changed: repaint the dots that differ, wherever they show — a row, and the tab bar when one of them has a tab — and the switcher's roll-ups and the strip.
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function statusesChanged(view: View<'sessions' | 'statuses' | 'acked'>): void {
+function statusesChanged(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes'>): void {
   const ids = new Set<string>();
   for (const id of new Set([...paintedStatuses.keys(), ...view.statuses.keys()])) if (paintedStatuses.get(id) !== view.statuses.get(id)) ids.add(id);
   for (const id of new Set([...paintedAcked, ...view.acked])) if (paintedAcked.has(id) !== view.acked.has(id)) ids.add(id);
@@ -497,7 +491,8 @@ async function restoreOpenTabs(): Promise<void> {
 
 // --- Sidebar ---
 
-async function renderSessions(showLoading = true): Promise<void> {
+/** A full read of what the list draws from main; `revealed` is a session whose delete just resolved, which stops being hidden in the same change as the re-read. */
+async function renderSessions(showLoading = true, revealed?: string): Promise<void> {
   if (showLoading) setLoading(true);
   try {
     const [sessions, pinnedList, archivedList, statusMap, namesMap, noteMap] = await Promise.all([
@@ -512,14 +507,19 @@ async function renderSessions(showLoading = true): Promise<void> {
     // Writes only when a root is genuinely new, so the common case costs one read.
     // Recency order is what seeds the very first run.
     projectOrder = await window.claudeUi.seedProjectOrder([...new Set(sessions.map((s) => s.repoRoot))]);
-    pinned = new Set(pinnedList);
-    archived = new Map(Object.entries(archivedList));
     projectNames = new Map(Object.entries(namesMap));
-    notes = new Map(Object.entries(noteMap));
-    // A full read: when what the rows draw is unchanged the store tells nobody, and what was read with it — the pins, the notes, the names — has to reach the list all the same.
-    const unchanged = sameRows(store.get().sessions, sessions);
-    store.set({ sessions, statuses: new Map(Object.entries(statusMap)) });
-    if (unchanged) sessionsChanged(store.get());
+    const drawn = listDrawn;
+    store.set({
+      sessions,
+      statuses: new Map(Object.entries(statusMap)),
+      pinned: new Set(pinnedList),
+      archived: new Map(Object.entries(archivedList)),
+      notes: new Map(Object.entries(noteMap)),
+      // In the same change, so a row whose files are gone never shows for a moment between no longer hiding it and the listing without it.
+      ...(revealed === undefined ? {} : { pendingDeletes: withMember(store.get().pendingDeletes, revealed, false) }),
+    });
+    // The names and the project order are not in the store yet, so a read that changed only those — or nothing — still draws the list, as every read always has.
+    if (listDrawn === drawn) listChanged(store.get());
   } finally {
     if (showLoading) setLoading(false);
   }
@@ -531,10 +531,22 @@ async function refreshFromDisk(): Promise<void> {
   store.set({ sessions: await window.claudeUi.listSessions() });
 }
 
-/** What follows the listing: the date picker's first day, the open tabs' titles, and the list. */
-function sessionsChanged(view: View<'sessions' | 'statuses' | 'acked' | 'switchedModel'>): void {
-  applyDatePickerMinDate(view);
-  reconcileOpenTabs(view);
+/** Everything the list draws from the store. */
+type ListView = View<'sessions' | 'statuses' | 'acked' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'pendingDeletes'>;
+
+/** The listing the date picker and the open tabs' titles last followed, so they follow it again only when it moved rather than on a pin or a note. */
+let followedSessions: View<'sessions'>['sessions'] = [];
+/** How often the list has followed the store: a full read (`renderSessions`) draws it by hand when the store did not, since it also reads what the store does not hold yet. */
+let listDrawn = 0;
+
+/** The list follows the store; when the listing itself moved, the date picker's first day and the open tabs' titles follow it first. */
+function listChanged(view: ListView): void {
+  listDrawn++;
+  if (view.sessions !== followedSessions) {
+    followedSessions = view.sessions;
+    applyDatePickerMinDate(view);
+    reconcileOpenTabs(view);
+  }
   renderList(view);
 }
 
@@ -556,7 +568,7 @@ function groupNameByKey(): Map<string, string> {
 }
 
 // Adapt the current filter state to the pure predicate.
-function passesFilters(session: SessionSummary, groupNames?: ReadonlyMap<string, string>): boolean {
+function passesFilters(session: SessionSummary, view: View<'pinned' | 'archived' | 'notes' | 'pendingDeletes'>, groupNames?: ReadonlyMap<string, string>): boolean {
   return sessionPasses(session, {
     groupNames,
     text: filterText,
@@ -575,10 +587,10 @@ function passesFilters(session: SessionSummary, groupNames?: ReadonlyMap<string,
     archivedOnly: showArchivedOnly,
     dateFrom: dateFromMs,
     dateTo: dateToMs,
-    pinned,
-    archived,
-    notes,
-    pendingDeletes,
+    pinned: view.pinned,
+    archived: view.archived,
+    notes: view.notes,
+    pendingDeletes: view.pendingDeletes,
   });
 }
 
@@ -1027,11 +1039,14 @@ function moveToGroupItems(session: SessionSummary): MenuItem[] {
 
 // Archive/unarchive one session. Archiving puts it away, so any open tab for it closes too (unarchive leaves tabs alone). Shared by the kebab item and the archived view's row button.
 async function toggleArchiveFor(key: string): Promise<void> {
-  archived = new Map(Object.entries(await window.claudeUi.toggleArchive(key)));
-  if (archived.has(key)) {
-    for (const tab of [...tabs]) if (entityKey(tab.session) === key) closeTab(tab);
-  }
-  renderList(store.get());
+  const archived = new Map(Object.entries(await window.claudeUi.toggleArchive(key)));
+  // One change, told once the tabs are closed, so the list draws with them gone, as it did.
+  store.batch(() => {
+    store.set({ archived });
+    if (archived.has(key)) {
+      for (const tab of [...tabs]) if (entityKey(tab.session) === key) closeTab(tab);
+    }
+  });
 }
 
 // The per-session action list — one builder, shared by the row kebab (and any future surface that offers session actions, e.g. a tab context menu).
@@ -1048,7 +1063,7 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
   if (siblings.length > 0) {
     items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
   }
-  items.push({ label: notes.has(entityKey(session)) ? 'Edit note…' : 'Add note…', onSelect: () => void editNote(session) });
+  items.push({ label: store.get().notes.has(entityKey(session)) ? 'Edit note…' : 'Add note…', onSelect: () => void editNote(session) });
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
   // The short id shows here rather than on the row: this is where you come looking for it, and the item both displays it and copies the full one.
   items.push({
@@ -1065,10 +1080,9 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
 // Open the note editor for a session. Saving a blank note clears it (meta drops the entry), so the same dialog both writes and removes one — there is no separate delete.
 async function editNote(session: SessionSummary): Promise<void> {
   const key = entityKey(session);
-  const text = await promptText('Note', sessionLabel(session), notes.get(key) ?? '', 'Save', undefined, true);
+  const text = await promptText('Note', sessionLabel(session), store.get().notes.get(key) ?? '', 'Save', undefined, true);
   if (text === null) return; // cancelled: leave whatever was there
-  notes = new Map(Object.entries(await window.claudeUi.setNote(key, text)));
-  renderList(store.get());
+  store.set({ notes: new Map(Object.entries(await window.claudeUi.setNote(key, text))) });
 }
 
 // List a session's siblings in the shared popover; click one to jump to it.
@@ -1289,18 +1303,18 @@ function visibleSessions(view: View<'sessions'>): SessionSummary[] {
 }
 
 // The switcher's project pool: every project's tips minus archived/pending-delete, independent of the search text and active project so you can always navigate to any project.
-function switcherPool(all: SessionSummary[]): SessionSummary[] {
-  return viewPool(all, false);
+function switcherPool(all: SessionSummary[], view: View<'archived' | 'pendingDeletes'>): SessionSummary[] {
+  return viewPool(all, false, view);
 }
 
 // The sessions a view holds before any filter, archived or not (see inView).
-function viewPool(all: SessionSummary[], archivedView: boolean): SessionSummary[] {
-  return all.filter((s) => inView(entityKey(s), archivedView, archived, pendingDeletes));
+function viewPool(all: SessionSummary[], archivedView: boolean, view: View<'archived' | 'pendingDeletes'>): SessionSummary[] {
+  return all.filter((s) => inView(entityKey(s), archivedView, view.archived, view.pendingDeletes));
 }
 
 // Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
-function refreshSwitcher(view: View<'sessions' | 'statuses' | 'acked'>): void {
-  renderSwitcher(switcherPool(visibleSessions(view)), view);
+function refreshSwitcher(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes'>): void {
+  renderSwitcher(switcherPool(visibleSessions(view), view), view);
   // A status or a mark read changed the roll-ups here, and the same dots on a panel's rows.
   treeSessionsChanged();
 }
@@ -1308,7 +1322,7 @@ function refreshSwitcher(view: View<'sessions' | 'statuses' | 'acked'>): void {
 // Render from the cached session list, applying the current search filter.
 // Keystrokes call this directly so filtering never re-reads disk.
 // Reuses project/row nodes by key so a re-render moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
-function renderList(view: View<'sessions' | 'statuses' | 'acked' | 'switchedModel'>): void {
+function renderList(view: ListView): void {
   const scroll = container.scrollTop;
   statusDots.clear();
   // The sessions themselves changed — a title, one appearing on disk: a panel's rows name them too.
@@ -1323,7 +1337,7 @@ function renderList(view: View<'sessions' | 'statuses' | 'acked' | 'switchedMode
   const all = visibleSessions(view);
   currentByKey = new Map(all.map((s) => [entityKey(s), s]));
   // The switcher lists every project, independent of search/project, so you can always navigate. If the active project no longer has any sessions, fall back to All (and persist that).
-  const pool = switcherPool(all);
+  const pool = switcherPool(all, view);
   if (activeProject && !pool.some((s) => s.repoRoot === activeProject)) {
     activeProject = null;
     window.claudeUi.setActiveProject(null);
@@ -1331,14 +1345,14 @@ function renderList(view: View<'sessions' | 'statuses' | 'acked' | 'switchedMode
   renderSwitcher(pool, view);
 
   const groupNames = filterText ? groupNameByKey() : undefined;
-  const filtered = all.filter((s) => passesFilters(s, groupNames));
+  const filtered = all.filter((s) => passesFilters(s, view, groupNames));
   // Project scope applies everywhere, the archived view included.
   // It used to be exempt, from when archived was a rarely-visited global bin — but the scope is an explicit statement of what you are looking at, and one view quietly overriding it reads as a leak.
   // Switch to All to find an archived session whose project you have forgotten.
   const inScope = (list: SessionSummary[]): SessionSummary[] => (activeProject ? list.filter((s) => s.repoRoot === activeProject) : list);
   const scoped = inScope(filtered);
   // The total is the set the matches were taken from: the same project scope and the same view, archived or not, before the other filters. So the count only ever compares a set with part of itself, and in the normal view the total is the number the switcher shows.
-  updateFilterStatus(scoped.length, inScope(viewPool(all, showArchivedOnly)).length);
+  updateFilterStatus(scoped.length, inScope(viewPool(all, showArchivedOnly, view)).length);
 
   if (scoped.length === 0) {
     clearList();
@@ -1357,7 +1371,7 @@ function renderList(view: View<'sessions' | 'statuses' | 'acked' | 'switchedMode
   // One section per repo, each holding its groups and then the sessions in no group.
   // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
   // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  const tree = buildProjectTree(scoped, groupState, pinned, isFiltering(), projectOrder);
+  const tree = buildProjectTree(scoped, groupState, view.pinned, isFiltering(), projectOrder);
   renderedSections = {
     projects: tree.map((p) => p.repoRoot),
     groups: tree.flatMap((p) => p.groups.map((g) => g.group.id)),
@@ -1430,7 +1444,7 @@ function clearList(): void {
 
 // Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order both the sections and their rows via appendChild (which moves an existing node into place).
 // Inside a project the group sections come first, then the rows belonging to no group.
-function reconcileProjectSections(desired: ProjectTree[], view: View<'statuses' | 'acked' | 'switchedModel'>): void {
+function reconcileProjectSections(desired: ProjectTree[], view: RowView): void {
   const wanted = new Set(desired.map((p) => p.repoRoot));
   for (const [repoRoot, els] of projectSections) {
     if (!wanted.has(repoRoot)) {
@@ -1942,8 +1956,9 @@ function createSessionRow(key: string): HTMLElement {
     // Disabling it is the pending cue: .pin:disabled dims. (There was a 'loading' class here with no CSS behind it, so it painted nothing.)
     pin.disabled = true;
     void window.claudeUi.togglePin(key).then((ids) => {
-      pinned = new Set(ids);
-      renderList(store.get());
+      store.set({ pinned: new Set(ids) });
+      // The row's redraw re-enables it; this is for an answer that changed nothing, which tells nobody.
+      pin.disabled = false;
     });
   });
 
@@ -1971,8 +1986,7 @@ function createSessionRow(key: string): HTMLElement {
     // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta purge run in the background.
     // It stays hidden via pendingDeletes until its files are gone from disk (see renderSessions), so a concurrent delete's re-read can't resurrect it.
     // Only this entity's file goes (entity key = session id); siblings are separate entities.
-    pendingDeletes.add(key);
-    renderList(store.get());
+    store.set({ pendingDeletes: withMember(store.get().pendingDeletes, key, true) });
     try {
       // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat it as failed so the row can't stay hidden forever within a session.
       await Promise.race([
@@ -1983,8 +1997,7 @@ function createSessionRow(key: string): HTMLElement {
       showToast(`Couldn't delete "${title}". It's still here.`);
     } finally {
       // Stop hiding once this delete resolves: on success the re-read finds it gone; on failure the file is still on disk, so the row reappears.
-      pendingDeletes.delete(key);
-      await renderSessions(false);
+      await renderSessions(false, key);
     }
   };
   deleteBtn.addEventListener('click', (event) => {
@@ -2022,7 +2035,10 @@ function createSessionRow(key: string): HTMLElement {
 }
 
 // Refresh a reused row's content for the tip it now shows.
-function updateRow(row: HTMLElement, session: SessionSummary, view: View<'statuses' | 'acked' | 'switchedModel'>): void {
+/** What a row draws from the store besides the session it shows. */
+type RowView = View<'statuses' | 'acked' | 'switchedModel' | 'pinned' | 'archived' | 'notes'>;
+
+function updateRow(row: HTMLElement, session: SessionSummary, view: RowView): void {
   row.dataset.sid = session.id;
   const els = rowEls.get(row)!;
 
@@ -2046,7 +2062,7 @@ function updateRow(row: HTMLElement, session: SessionSummary, view: View<'status
     els.badge.setAttribute('aria-label', `Linked git worktree: ${session.worktree}`);
   }
 
-  const note = notes.get(entityKey(session));
+  const note = view.notes.get(entityKey(session));
   els.noteBadge.hidden = !note;
   els.noteSep.hidden = !note;
   // Tooltips are one line, so preview the start rather than dumping a long note into it. The tooltip wraps and keeps line breaks now, so it can show a real chunk of the note.
@@ -2067,7 +2083,7 @@ function updateRow(row: HTMLElement, session: SessionSummary, view: View<'status
   }
 
   if (showArchivedOnly) {
-    const ts = archived.get(entityKey(session));
+    const ts = view.archived.get(entityKey(session));
     els.metaText.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
   } else {
     const model = modelLabel(modelOf(session, view));
@@ -2076,7 +2092,7 @@ function updateRow(row: HTMLElement, session: SessionSummary, view: View<'status
   }
 
   // The archived view is a management view: no pinning, and delete replaces it there.
-  const isPinned = pinned.has(entityKey(session));
+  const isPinned = view.pinned.has(entityKey(session));
   els.pin.innerHTML = isPinned ? PINNED_ICON : PIN_ICON;
   setTooltip(els.pin, isPinned ? 'Unpin' : 'Pin');
   els.pin.disabled = false;
@@ -2244,7 +2260,7 @@ function pickLinkedSession(anchor: HTMLElement, sessions: LinkedSession[]): void
  */
 async function startSessionFromPanel(entryKey: string, request: SessionRequest): Promise<void> {
   const state = store.get();
-  const known = projectsForSwitcher(switcherPool(visibleSessions(state)), state.statuses, state.acked, projectNames, projectOrder).projects.filter((project) => project.rootExists);
+  const known = projectsForSwitcher(switcherPool(visibleSessions(state), state), state.statuses, state.acked, projectNames, projectOrder).projects.filter((project) => project.rootExists);
   const roots = known.map((project) => project.repoRoot);
   const found = request.dir ? projectFor(roots, request.dir) : null;
   const preset = found ?? request.dir ?? activeProject ?? roots[0] ?? null;
@@ -2935,15 +2951,12 @@ routeTerminals();
 // --- What the store tells ---
 // Subscribed before start-up sets anything, and told in this order.
 
-// The listing changed in something a row draws: the date picker's first day, the open tabs' titles, and the list follow it.
+// Something a row draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight — and the list follows, with the date picker and the tabs' titles when it was the listing.
 // The list paints every dot it draws, but a status change repaints only the dots, below.
-store.watch(['sessions'], sessionsChanged, { reads: ['statuses', 'acked', 'switchedModel'] });
-
-// A session switched model: the row prints it, and nothing on disk has changed to redraw it otherwise.
-store.watch(['switchedModel'], renderList, { reads: ['sessions', 'statuses', 'acked'] });
+store.watch(['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes'], listChanged, { reads: ['statuses', 'acked'] });
 
 // A status or a mark read changed: the dots that differ, the tab bar when one of them has a tab, the switcher's roll-ups and the strip.
-store.watch(['statuses', 'acked'], statusesChanged, { reads: ['sessions'] });
+store.watch(['statuses', 'acked'], statusesChanged, { reads: ['sessions', 'archived', 'pendingDeletes'] });
 
 function onTabData(tab: Tab, data: string): void {
   tab.term.write(data);

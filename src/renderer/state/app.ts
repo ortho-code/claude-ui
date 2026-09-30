@@ -20,6 +20,14 @@ export interface AppState {
    * In memory only: it can never be staler than what is on disk (every switch in this app's sessions lands here), and after a restart the transcript's own last answer is the right source again.
    */
   switchedModel: ReadonlyMap<string, string>;
+  /** Pinned sessions, by entity key: floated to the top of their section in the list. */
+  pinned: ReadonlySet<string>;
+  /** Archived sessions, by entity key -> when they were archived (epoch ms): out of the normal view, and all the archived view holds. */
+  archived: ReadonlyMap<string, number>;
+  /** Entity key -> its note; a session without one is absent, since a blank note deletes it. */
+  notes: ReadonlyMap<string, string>;
+  /** Sessions whose delete is in flight: hidden from the list until that delete resolves, so a concurrent delete's re-read can't briefly resurrect them. */
+  pendingDeletes: ReadonlySet<string>;
 }
 
 /** `map` with `key` set to `value`, or without it for `undefined`: a copy when that changes anything, the same map when it does not, so nobody is told for nothing. */
@@ -69,4 +77,15 @@ function sameEntries<K, V>(a: ReadonlyMap<K, V>, b: ReadonlyMap<K, V>): boolean 
   return true;
 }
 
-export const store = createStore<AppState>({ sessions: [], statuses: new Map(), acked: new Set(), switchedModel: new Map() }, { sessions: sameRows, statuses: sameEntries });
+/** Whether two sets hold the same members, for the same reason. */
+function sameMembers<T>(a: ReadonlySet<T>, b: ReadonlySet<T>): boolean {
+  if (a === b) return true;
+  if (a.size !== b.size) return false;
+  for (const member of a) if (!b.has(member)) return false;
+  return true;
+}
+
+export const store = createStore<AppState>(
+  { sessions: [], statuses: new Map(), acked: new Set(), switchedModel: new Map(), pinned: new Set(), archived: new Map(), notes: new Map(), pendingDeletes: new Set() },
+  { sessions: sameRows, statuses: sameEntries, pinned: sameMembers, archived: sameEntries, notes: sameEntries, pendingDeletes: sameMembers },
+);
