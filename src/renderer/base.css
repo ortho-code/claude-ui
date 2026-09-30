@@ -1,0 +1,307 @@
+/* What no one module owns, because every module draws with it: the tokens, the reset, the scrollbar, the focus ring, the page, form typography, the button, the icon button and the nudge.
+   Imported first, so every module's own stylesheet comes after it in the bundle. */
+
+:root {
+  --bg: #1e1e2e;
+  --surface: #27273a;
+  --surface-hover: #313147;
+  --terminal-bg: #11111b;
+  --text: #cdd6f4;
+  --muted: #9399b2;
+  --accent: #89b4fa;
+  /* Visible control outline (near-black was invisible on the dark background). */
+  --border: #ffffff2b;
+  /* Accent-tinted "active/selected" surface, clearly distinct from base and from hover. */
+  --active: #3b4360;
+  /* Status colours, shared by the session dots, project badges and attention toasts. */
+  --waiting: #f9e2af;
+  --idle: #a6e3a1;
+  /* A panel's run that did not end well, on its rail icon. */
+  --failed: #f38ba8;
+
+  /* Corner radii, one per KIND of thing rather than one per component — the stylesheet had eight
+     values (1, 4, 5, 6, 7, 8, 10, 12) that no rule explained. Controls are anything you click;
+     surfaces are the things that hold them (rows, cards, panels, popovers, dialogs); pills are fully
+     round, so their radius never needs re-tuning when their height changes. Circles (dots) keep 50%
+     and the 1px tab rail keeps its hairline — neither is a corner. */
+  --radius-control: 5px;
+  --radius-surface: 8px;
+  --radius-pill: 999px;
+
+  /* Type scale. Six steps and no half-steps: the sheet had 11.5 and 12.5 sitting beside 11, 12 and
+     13, which is smaller than the difference between two weights of the same size. 10 stays because
+     the badge pills' ink is tuned around it; 14 stays because dialog titles need a step above body
+     text without jumping to the 16px heading size. */
+  --text-heading: 16px;
+  --text-title: 14px;
+  --text-body: 13px;
+  --text-meta: 12px;
+  --text-small: 11px;
+  --text-badge: 10px;
+
+  /* The terminal's face, and so the face of anything showing what a terminal would have shown (a
+     command panel's output). xterm takes its font as options, so terminal.ts reads these two back
+     rather than holding a second copy of the values. */
+  --font-mono: monospace;
+  --text-mono: 13px;
+  /* The terminal's text: a neutral (hue-less) grey, because claude's selected-item accent is a periwinkle and a neutral foreground makes it pop by HUE (the old lavender-white --text shared its hue and merged); a light near-white for comfortable reading.
+     The history is drawn in it too, so what it shows reads as the terminal's. */
+  --terminal-fg: #d8d8d8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* The hidden attribute must win over any element's own display, so toggling .hidden works. */
+[hidden] {
+  display: none !important;
+}
+
+/*
+  One scrollbar for the whole window, thin and quiet, where Chromium's own is a chunky light bar that reads wrong on the dark theme (and is what xterm 5 shows).
+  Unscoped on purpose: the session list, the terminals, panel output, the project switcher and the live strip all scroll with it, and a scroller added later gets it without joining a list.
+  `height` is the horizontal bar's thickness, which command output needs since it scrolls both ways; the corner where two bars meet stays clear.
+  Chromium ignores all of this on an element that sets `scrollbar-width` or `scrollbar-color`, so neither is used anywhere.
+*/
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ffffff22;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffffff44;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Replace the browser default focus ring with a thin accent highlight that hugs the element. */
+:focus {
+  outline: 1.5px solid var(--accent);
+  outline-offset: 0;
+}
+
+html,
+body {
+  height: 100%;
+  /* The window is a fixed frame; panes scroll internally, so the root itself never scrolls. */
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  /* A column so our own title bar can sit above the app without either overlapping it or overflowing
+     the viewport. With no title bar (macOS) the single child simply takes the whole height. */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Form controls do NOT inherit typography: the UA stylesheet hands every button, input and textarea
+   `font: 400 13.333px Arial`, so dialog buttons, the search box, the rename field, the filter pills
+   and every kebab-menu item were rendering in Arial beside a system-ui interface — at a size that
+   isn't on the scale either. Inherit the family and default the size to body; anything needing a
+   different step overrides it with a token, which every class rule here already outranks. */
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: var(--text-body);
+}
+
+button {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+/* Hover = surface fill + accent outline, app-wide. Borderless buttons (row actions, menu items,
+   closes) have no border to show, so they fall through to their own hover fills. */
+button:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+
+/* THE ICON BUTTON — every control that is a single 14px mark you can click: the kebabs, the pin,
+   the row's archive and delete, the tab close, the toast and notification closes, the header
+   actions, the split buttons' halves.
+   One rule, because these were a dozen near-identical blocks kept in step by hand, with comments
+   that said so ("Match the session-row kebab exactly", "standard control box — see .unarchive-btn").
+   They had already drifted: .pin, #toast-close and .notif-close were missing the transparent border
+   below, so those three grew by 2px when hovered while the rest held still.
+   The transparent border is load-bearing, not decoration: it reserves the space the hover outline
+   would otherwise add. A control that wants a RESTING border takes .composite instead. */
+.icon-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The standard box: 24x20 around a 14px mark. Sidebar, rows, toasts. */
+  padding: 2px 4px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* A control that cannot act says so before it is pressed: no pointer, no hover, dimmed.
+   `.unavailable` goes with `aria-disabled` rather than the `disabled` property, because a natively
+   disabled button emits no mouse events and its tooltip — the only thing that says WHY — never
+   fires. See setUnavailable(). The native `:disabled` is covered too, for the controls that use it. */
+.icon-btn:disabled,
+.unavailable {
+  cursor: default;
+  opacity: 0.4;
+}
+
+/* Denser, for the tab bar, where every pixel is width a tab title loses. */
+.icon-btn.compact {
+  padding: 0 3px;
+}
+
+/* The header actions. Roomier, and unlike every other icon button they wear the ORDINARY button skin
+   — surface fill, resting border, full-strength mark — because they stand beside "+ New" and have to
+   read as its peers rather than as bare marks on the header.
+   Spelled out here rather than inherited from the `button` rule: `.icon-btn` is a class and wins over
+   it, so leaving these out silently stripped their border and left the icon muted once the pointer
+   moved away. */
+.icon-btn.large {
+  padding: 5px 8px;
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Two halves acting as one button need to look like one object before you touch them, so they carry
+   a resting border where a lone icon does not. See "Composite controls" in docs/architecture.md. */
+.icon-btn.composite {
+  border-color: var(--border);
+}
+
+/* One hover for all of them, replacing a thirteen-selector list that a new control had to be
+   remembered into. `:not(:disabled)` covers the two that opt out while inert — the tab close mid
+   transition, and the group-jump button below two targets. */
+.icon-btn:not(:disabled):not(.unavailable):hover,
+.note-badge:hover {
+  background: var(--active);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* THE NUDGE — one mark for a session's state, wherever it is drawn: the session rows, the attention
+   strip, the project switcher, the jump menu, the toasts.
+   The waiting pulse is part of it everywhere, including the rolled-up ones — a mark that pulses on
+   one surface and sits still on another reads as two different states. (The pulse used to be
+   list-only, on the argument that a roll-up should be calmer; it wasn't worth the ambiguity.)
+   It used to be two near-identical classes and they drifted twice: once to two different SIZES, and
+   once to a hollow ring in the list but a 9px hole in the strip for a session with no status yet.
+   Anything about how a nudge looks belongs here, and only here.
+   Hollow when there is no status: a cold session that has not reported has to read as quiet, not as
+   something missing. Every filled state matches its border to its fill so none of them gains a rim. */
+.nudge {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: transparent;
+  /* Transparent, not absent: the states below only set a colour, so the ring has to already be here
+     or a filled dot would be 2px bigger than a hollow one. */
+  border: 1px solid transparent;
+}
+
+/* A mark standing for ONE session is hollow when that session has nothing to report — "here, and
+   quiet". Without it a session that has not reported yet, a cold one just started, left a 9px hole.
+   A ROLL-UP is not marked: a project in the switcher or a group in the jump menu stands for many
+   sessions and has no quiet state of its own, so it carries the strongest nudge underneath it or
+   shows nothing at all. Ringing every one of them just draws a column of empty circles. */
+.nudge.single {
+  border-color: var(--muted);
+}
+
+.nudge.waiting {
+  background: var(--waiting);
+  border-color: var(--waiting);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.nudge.idle {
+  background: var(--idle);
+  border-color: var(--idle);
+}
+
+/* A panel's run that failed: steady, since it waits for nobody, only for being looked at. */
+.nudge.failed {
+  background: var(--failed);
+  border-color: var(--failed);
+}
+
+/* Busy is a spinning two-tone ring rather than a filled dot: "working" reads as motion, and it is
+   unmistakable next to the waiting pulse. 2px on the inherited 9px footprint, so nothing jumps. */
+.nudge.busy {
+  border-width: 2px;
+  border-color: #89b4fa40;
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  animation: spin 1.5s linear infinite;
+}
+
+/* "Read": dim whatever colour it is and stop the pulse — acknowledged, still open. */
+.nudge.acked {
+  opacity: 0.4;
+  animation: none;
+}
+
+/* Where a nudge is a CONTROL rather than decoration — the session row, the tab, and the attention
+   strip — clicking it marks the session read. Everywhere else (the switcher's roll-ups, the footer
+   toggle's badge) the nudge only reports, and the thing around it is what you click, so the pointer
+   and the enlarged hit target would both be lies. */
+.nudge.clickable {
+  cursor: pointer;
+  position: relative;
+}
+
+/* Keeps the 9px mark while giving it a target worth aiming at. */
+.nudge.clickable::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Drop the lingering focus ring left after a MOUSE click on any button (it read as a stray outline,
+   e.g. on + New after cancelling its picker). Keyboard focus still shows a ring via :focus-visible,
+   and inputs are unaffected — this targets buttons only. */
+button:focus:not(:focus-visible) {
+  outline: none;
+}
