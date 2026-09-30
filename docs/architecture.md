@@ -66,7 +66,7 @@ Every test is under `test/`, so `src/` is only what ships.
 It is kept out of `npm test` so that one stays fast; CI runs both, and a failed check leaves a trace to download from the run.
 The page is served by answering its requests from `dist/renderer` on a made-up origin rather than from a server, because module scripts do not load from `file://`.
 
-The checks are filed the way the window is made of panels: a panel type's under `test/renderer/panels/types/<type>/` (the `claude` panel's split into `tab-bar/` and `history/`), the layout tree's under `panels/layout/`, anything that is not a panel under its own name (`settings/`), and what they all use under `support/`.
+The checks are filed the way the window is made of panels: a panel type's under `test/renderer/panels/types/<type>/` (the `claude` panel's split into `terminals/`, `tab-bar/` and `history/`), the layout tree's under `panels/layout/`, anything that is not a panel under its own name (`settings/`), and what they all use under `support/`.
 It is the unit tests' rule too — a test is found where the thing it tests lives — applied to what the checks test, which is the window as its panels draw it rather than one module.
 The `claude` type is drawn by its own modules under `src/renderer/panels/types/claude/` (the tabs' terminals, the pane, the tab bar and the history), though `renderer.ts` still answers what the sidebar asks of it; `sessions` is still drawn by `renderer.ts`, so for now its checks are filed by the type name a layout file uses.
 
