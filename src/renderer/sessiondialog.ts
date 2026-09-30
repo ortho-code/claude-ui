@@ -6,6 +6,46 @@ import { listen, runModal } from './modal';
  * For a row that already started a session, it first offers to continue the latest one, which hides the fields only a new session needs.
  */
 
+// The prompt is worded by askForSession for what happens to it: a new session starts with it, a stopped one resumes with it, and a running one gets none, so there it is hidden.
+// The mode choice is only for a row that already has a session: go on in the latest one, or start another.
+document.body.insertAdjacentHTML(
+  'beforeend',
+  `<div id="session-overlay" class="overlay" hidden>
+    <div id="session-dialog" class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="session-title">
+      <p id="session-title" class="dialog-title">Start a session</p>
+      <p id="session-about" class="dialog-detail"></p>
+      <div id="session-mode" class="dialog-section dialog-choices" role="radiogroup" hidden>
+        <label class="dialog-choice"><input type="radio" name="session-mode" value="continue" /> <span id="session-continue-label"></span></label>
+        <p id="session-continue-note" class="dialog-detail"></p>
+        <label class="dialog-choice"><input type="radio" name="session-mode" value="new" /> New session</label>
+      </div>
+      <div id="session-new">
+        <div class="dialog-section">
+          <label class="dialog-label" for="session-project">Project</label>
+          <select id="session-project" class="dialog-field"></select>
+        </div>
+        <div class="dialog-section">
+          <label class="dialog-label" for="session-group">Group</label>
+          <select id="session-group" class="dialog-field"></select>
+        </div>
+        <div class="dialog-section">
+          <label class="dialog-label" for="session-name">Name</label>
+          <input id="session-name" class="dialog-field" type="text" spellcheck="false" autocomplete="off" />
+        </div>
+      </div>
+      <div id="session-prompt-section" class="dialog-section">
+        <label id="session-prompt-label" class="dialog-label" for="session-prompt">First prompt</label>
+        <p id="session-prompt-hint" class="dialog-detail"></p>
+        <textarea id="session-prompt" class="dialog-field" rows="3" spellcheck="false"></textarea>
+      </div>
+      <div class="dialog-actions">
+        <button id="session-cancel" type="button">Cancel</button>
+        <button id="session-ok" type="button" class="primary">Start</button>
+      </div>
+    </div>
+  </div>`,
+);
+
 export interface ProjectChoice {
   root: string;
   name: string;

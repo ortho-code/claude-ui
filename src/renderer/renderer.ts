@@ -4,6 +4,9 @@ import { openMenu, type MenuItem } from './menu';
 import { setUnavailable, unavailable } from './unavailable';
 import { hideToast, showToast } from './toast';
 import { showAttentionToast } from './notifications';
+import { confirmDelete, promptText } from './dialogs';
+import { askForSession } from './sessiondialog';
+import { openSettings } from './settings';
 import './styles.css';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
@@ -36,13 +39,8 @@ import {
   type NudgeStatus,
   type SwitcherModel,
 } from './logic';
-import { parseLaunchFlags } from '../shared/flags';
-import type { FolderName } from '../shared/folders';
-import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { installTooltips, setTooltip } from './tooltip';
 import { caretIcon, chevronIcon, closeIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
-import { listen, runModal } from './modal';
-import { askForSession } from './sessiondialog';
 import type { LinkedSession, SessionRequest } from './panels/types/command';
 import type { PanelData } from '../shared/panels';
 import { flash } from './flash';
@@ -178,26 +176,7 @@ window.addEventListener(
   },
   true,
 );
-const confirmOverlay = document.getElementById('confirm-overlay')!;
-const confirmMessage = document.getElementById('confirm-message')!;
-const confirmDetail = document.getElementById('confirm-detail')!;
-const confirmOk = document.getElementById('confirm-ok') as HTMLButtonElement;
-const confirmCancel = document.getElementById('confirm-cancel') as HTMLButtonElement;
-const renameOverlay = document.getElementById('rename-overlay')!;
-const renameTitle = document.getElementById('rename-title')!;
-const renamePath = document.getElementById('rename-path')!;
-const renameError = document.getElementById('rename-error')!;
-const renameInput = document.getElementById('rename-input') as HTMLInputElement;
-const renameTextarea = document.getElementById('rename-textarea') as HTMLTextAreaElement;
-const renameOk = document.getElementById('rename-ok') as HTMLButtonElement;
-const renameCancel = document.getElementById('rename-cancel') as HTMLButtonElement;
 const settingsToggle = document.getElementById('settings-toggle') as HTMLButtonElement;
-const settingsOverlay = document.getElementById('settings-overlay')!;
-const settingsFlags = document.getElementById('settings-flags') as HTMLInputElement;
-const settingsError = document.getElementById('settings-error')!;
-const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
-const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
-const settingsFolders = document.getElementById('settings-folders')!;
 
 // A real transition into waiting/idle on a tab you're not looking at -> toast it. Never for busy, a cleared status, a no-op repeat, or the tab you're already on.
 function maybeAttentionToast(id: string, status: string | undefined, prev: string | undefined): void {
@@ -1577,170 +1556,6 @@ function pruneRows(wanted: Set<string>): void {
       sessionRows.delete(key);
     }
   }
-}
-
-// In-app confirm modal (a native dialog flickers under WSLg), run by modal.ts like every modal here.
-// Resolves true on Delete, false on Cancel / Esc.
-// Deliberately NOT dismissable by clicking the backdrop: selecting text inside the dialog and releasing the mouse outside it dispatches the click on the common ancestor of the mousedown and mouseup — the overlay — so an outside-click dismiss threw the dialog away mid-drag.
-
-function confirmDelete(title: string): Promise<boolean> {
-  confirmMessage.textContent = `Delete "${title}"?`;
-  confirmDetail.textContent = 'Its transcript files move to the trash, so you can restore them from there if needed.';
-  // Focus Cancel, not Delete: safer default for a destructive action, and it keeps the accent focus ring off the red button.
-  confirmCancel.focus();
-  return runModal<boolean>(confirmOverlay, false, (finish) => [
-    listen(confirmOk, 'click', () => finish(true)),
-    listen(confirmCancel, 'click', () => finish(false)),
-  ]);
-}
-
-// A small modal text prompt (Promise-resolving): OK/Enter resolves the value, Cancel/Esc resolves null.
-// Shared by project rename, fork naming, and worktree naming; okLabel names the confirm button.
-// An optional async `validate` runs on submit: return an error string to show it inline and keep the dialog open (so the user can fix the value), or null to accept.
-function promptText(
-  title: string,
-  context: string,
-  initialValue: string,
-  okLabel = 'Save',
-  validate?: (value: string) => Promise<string | null> | string | null,
-  // Multiline swaps the single-line input for a textarea (session notes). Same dialog, same skin — only the field and what Enter means differ.
-  multiline = false,
-): Promise<string | null> {
-  renameTitle.textContent = title;
-  renamePath.textContent = context;
-  renamePath.hidden = !context; // no empty context line (e.g. the fork dialog puts it in the title)
-  renameError.hidden = true;
-  renameOk.textContent = okLabel;
-  const field: HTMLInputElement | HTMLTextAreaElement = multiline ? renameTextarea : renameInput;
-  // A union of input|textarea loses addEventListener's keyed overloads (the handler would widen to
-  // Event), so listeners go through the element as an HTMLElement while `field` keeps .value typed.
-  const fieldEl: HTMLElement = field;
-  renameInput.hidden = multiline;
-  renameTextarea.hidden = !multiline;
-  field.value = initialValue;
-  // Shown by runModal; focus has to wait for that, since a hidden field cannot take it.
-  renameOverlay.hidden = false;
-  field.focus();
-  // Select-all suits a short name you're replacing; a note you're editing wants the caret at the end.
-  if (multiline) field.setSelectionRange(initialValue.length, initialValue.length);
-  else field.select();
-  return runModal<string | null>(renameOverlay, null, (finish) => {
-    // Validate before accepting; on an error, show it inline and leave the dialog open.
-    const submit = async (): Promise<void> => {
-      const value = field.value;
-      if (validate) {
-        const error = await validate(value);
-        if (error) {
-          renameError.textContent = error;
-          renameError.hidden = false;
-          return;
-        }
-      }
-      finish(value);
-    };
-    return [
-      listen(renameOk, 'click', () => void submit()),
-      listen(renameCancel, 'click', () => finish(null)),
-      // Enter belongs to the field, since it submits what you typed; Escape is the modal's own and
-      // lives in runModal. In a note Enter is a newline and Ctrl/Cmd+Enter saves, the same habit as
-      // the terminal; a one-line field submits on plain Enter.
-      listen(fieldEl, 'keydown', (event) => {
-        if (event.key !== 'Enter') return;
-        if (!multiline) void submit();
-        else if (event.ctrlKey || event.metaKey) {
-          event.preventDefault();
-          void submit();
-        }
-      }),
-    ];
-  });
-}
-
-/**
- * The app's own folders, as Settings lists them: what each holds, where it is, and a button to open it.
- * Both are read-only here — the config folder is edited by hand, the logs are the app's — so a row only says where the folder is.
- * `detail` is the app's own text, never data, which is what makes it safe as markup.
- */
-const SETTINGS_FOLDERS: { name: FolderName; label: string; detail: string }[] = [
-  {
-    name: 'config',
-    label: 'Config folder',
-    detail: 'Holds <code>layouts/default.json</code>, which lays out the window and its panels, and the scripts it points at.',
-  },
-  {
-    name: 'logs',
-    label: 'Logs',
-    detail: `What the app did, to send along when something goes wrong. It keeps the last ${KEEP_LOG_DATES} days it ran plus the ${KEEP_CRASH_LOGS} newest crash logs, and removes older ones itself. Any of them is safe to delete.`,
-  },
-];
-
-/** One row per folder, built afresh each time Settings opens, from one shape so the rows cannot drift apart. */
-function renderFolderRows(paths: Record<FolderName, string>): void {
-  settingsFolders.replaceChildren(
-    ...SETTINGS_FOLDERS.map(({ name, label, detail }) => {
-      const section = document.createElement('div');
-      section.className = 'dialog-section';
-      const heading = document.createElement('span');
-      heading.className = 'dialog-label';
-      heading.textContent = label;
-      const explanation = document.createElement('p');
-      explanation.className = 'dialog-detail';
-      explanation.innerHTML = detail;
-      const row = document.createElement('div');
-      row.className = 'dialog-row';
-      const where = document.createElement('code');
-      where.className = 'dialog-path';
-      where.textContent = paths[name];
-      const open = document.createElement('button');
-      open.type = 'button';
-      open.textContent = 'Open';
-      open.addEventListener('click', () => window.claudeUi.openFolder(name));
-      row.append(where, open);
-      section.append(heading, explanation, row);
-      return section;
-    }),
-  );
-}
-
-/**
- * The app's own preferences.
- *
- * Shares the overlay skin and `runModal`'s behaviour with the other two dialogs, but is its own form rather than a call to `promptText`: that one is a transient prompt built per call, this is a fixed screen that will grow sections.
- * Saving is validated by the same parser the launcher uses (shared/flags.ts), so what the field accepts and what a session gets can't disagree.
- */
-async function openSettings(): Promise<void> {
-  const stored = await window.claudeUi.getSettings();
-  settingsFlags.value = stored.launchFlags;
-  settingsError.hidden = true;
-  renderFolderRows(await window.claudeUi.getFolders());
-  settingsOverlay.hidden = false;
-  settingsFlags.focus();
-  settingsFlags.select();
-  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- a dialog that returns nothing, so `finish()` takes no argument
-  await runModal<void>(settingsOverlay, undefined, (finish) => {
-    const submit = async (): Promise<void> => {
-      const value = settingsFlags.value.trim();
-      const { error } = parseLaunchFlags(value);
-      if (error) {
-        settingsError.textContent = error;
-        settingsError.hidden = false;
-        return;
-      }
-      await window.claudeUi.setSettings({ ...stored, launchFlags: value });
-      finish();
-    };
-    return [
-      listen(settingsOk, 'click', () => void submit()),
-      listen(settingsCancel, 'click', () => finish()),
-      listen(settingsFlags, 'keydown', (event) => {
-        if (event.key === 'Enter') void submit();
-      }),
-      // Typing is the fix for an error, so clear it as soon as they do rather than leaving a stale complaint under the field.
-      listen(settingsFlags, 'input', () => {
-        settingsError.hidden = true;
-      }),
-    ];
-  });
 }
 
 settingsToggle.addEventListener('click', () => void openSettings());

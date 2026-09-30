@@ -1,3 +1,5 @@
+import './modal.css';
+
 /**
  * Run a modal to completion.
  *

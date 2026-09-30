@@ -1,0 +1,167 @@
+/* THE MODAL — the confirm dialog and the text prompt are the same object with different contents,
+   so they are one set of classes rather than two parallel id blocks that drifted apart by a few
+   pixels of margin each.
+   Deliberately NOT dismissable by clicking the backdrop: selecting text inside the dialog and
+   releasing the mouse outside it dispatches the click on the common ancestor — the overlay — so an
+   outside-click dismiss threw the dialog away mid-drag. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.dialog {
+  width: min(360px, 80vw);
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* A dialog holding a form rather than a question: a flag line is typed left to right and wants to be
+   readable at a glance, which 360px does not give it. */
+.dialog.wide {
+  width: min(520px, 86vw);
+}
+
+/* One labelled setting. The gap belongs to the section so a second one spaces itself. */
+.dialog-section {
+  margin-bottom: 16px;
+}
+
+/* The section owns the gap below it, so its last child must not add a second one — a .dialog-detail
+   carries its own bottom margin for the dialogs where it IS the last thing before the buttons. */
+.dialog-section > :last-child {
+  margin-bottom: 0;
+}
+
+/* A setting's explanation sits between its label and its field, so label, hint and control read as
+   one group: half the gap .dialog-detail uses when it introduces a whole dialog. It goes ABOVE the
+   field rather than below so the inline error is the only thing under it — an error that pushed a
+   permanent explanation down the dialog moved furniture to say one transient thing. */
+.dialog-label + .dialog-detail {
+  margin-bottom: 8px;
+}
+
+.dialog-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+/* Inline validation error under a field (a duplicate worktree name, a flag we set ourselves). */
+.dialog-error {
+  margin: 8px 0 0;
+  font-size: var(--text-meta);
+  color: #f38ba8;
+}
+
+.dialog-title {
+  margin: 0 0 8px;
+  font-size: var(--text-title);
+  font-weight: 600;
+}
+
+.dialog-detail {
+  margin: 0 0 16px;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* A pick-one in a dialog: a line per choice, the radio beside its words, and a choice's own detail indented under it. */
+.dialog-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+
+.dialog-choices .dialog-detail {
+  margin: 0 0 8px 24px;
+}
+
+/* The dialog's text field, single-line or multiline. */
+.dialog-field {
+  width: 100%;
+  padding: 7px 9px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  font-size: var(--text-body);
+}
+
+/* A read-only value with a button beside it (a folder's path and Open). The path is data,
+   so it is monospace, and it may break anywhere rather than push the button out of the dialog. */
+.dialog-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dialog-path {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* THE DECISIVE BUTTON of a dialog: filled, so it is what your eye lands on and nothing else in the
+   dialog competes. Two colours of one shape — .primary confirms, .danger destroys — rather than the
+   two unrelated blocks they were before .primary existed.
+   FILLED RATHER THAN OUTLINED for a specific reason: `button:hover` sets an accent BORDER app-wide,
+   so a resting accent border is indistinguishable from an ordinary button being hovered, which is
+   exactly how the old `#rename-ok` read. A fill cannot be confused with it.
+   The hover is a brightness step rather than another colour: these already carry the strongest
+   colour in the dialog, so darkening what they have keeps one rule for both. */
+.dialog-actions .primary,
+.pane-actions .primary,
+.history-note .primary {
+  --fill: var(--accent);
+  /* Dark text, not white: --accent is a light blue and white on it barely separates. */
+  color: var(--bg);
+}
+
+.dialog-actions .danger {
+  --fill: #c92a2a;
+  color: #fff;
+}
+
+/* Background and border are the SAME colour, at rest and on hover, so the brightness step darkens
+   the whole button and its outline never appears to move.
+   Naming the fill once per colour is what makes that safe: an earlier version set the hover border
+   to `currentColor` — the TEXT colour, not the fill — which put a dark border on the blue button
+   (it read as shrinking by a pixel all round) and a white ring on the red one. */
+.dialog-actions .primary,
+.pane-actions .primary,
+.history-note .primary,
+.dialog-actions .danger {
+  background: var(--fill);
+  border-color: var(--fill);
+}
+
+/* The override has to exist: `button:hover` sets an accent border app-wide, and on a filled button
+   that is an outline in a near-copy of its own colour, or on the red one a clashing blue. */
+.dialog-actions .primary:hover,
+.pane-actions .primary:hover,
+.history-note .primary:hover,
+.dialog-actions .danger:hover {
+  filter: brightness(0.92);
+  border-color: var(--fill);
+}

@@ -1,0 +1,22 @@
+/* Wider than the confirm dialog: it holds a text field rather than a sentence. */
+#rename-dialog {
+  width: min(400px, 80vw);
+}
+
+/* A path can be long and has no spaces to break on. */
+#rename-path {
+  overflow-wrap: anywhere;
+}
+
+/* Room to write, at a fixed height so the dialog does not resize as you type. */
+#rename-textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+}
+
+
+/* The field sits above these, so they need the gap the detail line gives the confirm dialog. */
+#rename-actions {
+  margin-top: 16px;
+}
