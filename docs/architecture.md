@@ -73,7 +73,7 @@ The two built-in types, `sessions` and `claude`, are still drawn by `renderer.ts
 `window.claudeUi` is a stand-in (`test/renderer/support/bridge.ts`) typed as the bridge, `ClaudeUiApi`: a call added, renamed or reshaped fails the type check there, instead of leaving a check passing against an API the app no longer has.
 It answers from a fixture of plain data (`fixture.ts`), by default a first run with one session and no layout file, and records every call, so a check can assert on what the window sent.
 A call it does not model rejects with its own name, and every check fails on anything thrown or logged as an error in the page, so a check that strays onto unmodelled ground fails loudly rather than running on an answer nobody held against main.
-A check that needs such a call models it there, from what main does: where main's answer involves no decision of its own, as a plain answer, and where it does, through main's own function moved into `src/shared` for both (`readFrom` for the history's later reads, `defaultUi` and `defaultSettings` for a first run), so that no rule of main's is kept in two places.
+A check that needs such a call models it there, from what main does: where main's answer involves no decision of its own, as a plain answer, and where it does, through main's own function moved into `src/shared` for both (`readFrom` for the history's later reads, `defaultUi` and `defaultSettings` for a first run, `resolvePathIn` and `pathProblem` for a path option's check, with a table of what is on disk in place of main's look at it), so that no rule of main's is kept in two places.
 
 A check gets no retries: one that passes on a second try is a flake, and a gate that retries it away teaches everybody to ignore it.
 

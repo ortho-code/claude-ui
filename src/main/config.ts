@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import * as path from 'node:path';
 import { configRoot, layoutsDir, scriptsDir, typesDir, defaultLayoutFile } from './paths';
 import type { LayoutReport, PathBase, PathCheck, PathKind, ReadStatus, TypeReport } from '../shared/panels';
+import { pathProblem, resolvePathIn, type Found } from '../shared/pathcheck';
 import { fsFailure, log } from './log';
 
 /**
@@ -14,32 +15,36 @@ import { fsFailure, log } from './log';
  */
 
 /**
- * Where a path option points: `~` and `~/…` under the home directory, so a shared layout file works on another machine; an absolute path as it is; anything else against `base`.
+ * Where a path option points (`resolvePathIn` in src/shared/pathcheck.ts, the rule itself), against this machine's home directory and config folder.
  * The ONE resolver, used by a panel's check and by the run and the shell start that follow it, so the check and the use cannot disagree about which file or folder was meant.
  */
 export function resolvePath(value: string, base: PathBase): string {
-  if (value === '~') return homedir();
-  if (value.startsWith('~/')) return path.join(homedir(), value.slice(2));
-  return path.resolve(base === 'config' ? configRoot : base.dir, value);
+  return resolvePathIn(value, base, homedir(), configRoot);
 }
 
-/** Whether a path option points at what it must, worded in the value as the user wrote it. Asked by the panel whose option it is. */
-export async function checkPath(value: string, base: PathBase, must: PathKind): Promise<PathCheck> {
-  const resolved = resolvePath(value, base);
+/** What is at `resolved`, looked at no further than `must` needs: whether a file may run is only asked of one that has to. */
+async function lookAt(resolved: string, must: PathKind): Promise<Found> {
   let stat;
   try {
     stat = await fs.stat(resolved);
   } catch {
-    return { path: resolved, problem: `${value} not found` };
+    return 'missing';
   }
-  if (must === 'directory') return { path: resolved, problem: stat.isDirectory() ? null : `${value} is not a folder` };
-  if (!stat.isFile()) return { path: resolved, problem: `${value} is not a file` };
+  if (stat.isDirectory()) return 'directory';
+  if (!stat.isFile()) return 'other';
+  if (must === 'directory') return 'file';
   try {
     await fs.access(resolved, constants.X_OK);
+    return 'executable';
   } catch {
-    return { path: resolved, problem: `${value} is not executable` };
+    return 'file';
   }
-  return { path: resolved, problem: null };
+}
+
+/** Whether a path option points at what it must, worded in the value as the user wrote it (`pathProblem`). Asked by the panel whose option it is. */
+export async function checkPath(value: string, base: PathBase, must: PathKind): Promise<PathCheck> {
+  const resolved = resolvePath(value, base);
+  return { path: resolved, problem: pathProblem(value, must, await lookAt(resolved, must)) };
 }
 
 /** One read of a hand-written JSON file, the layout or a type's manifest: never throws, and a file that is not JSON carries the parser's own message and position. */

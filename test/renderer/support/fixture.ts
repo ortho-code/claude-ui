@@ -1,6 +1,7 @@
 import { defaultSettings, defaultUi } from '../../../src/shared/defaults';
 import type { FolderName } from '../../../src/shared/folders';
 import type { LayoutReport, PanelData } from '../../../src/shared/panels';
+import type { Found } from '../../../src/shared/pathcheck';
 import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, SessionSummary, Settings, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
@@ -29,6 +30,8 @@ export interface BridgeFixture {
   layout: LayoutReport;
   folders: Record<FolderName, string>;
   panelData: Record<string, PanelData>;
+  /** What is at each absolute path, as main would find it on disk; a path left out is not there. */
+  paths: Record<string, Found>;
 }
 
 /** One call the window made, as it arrived; a callback argument is recorded as the string `<callback>`. */
@@ -96,5 +99,6 @@ export function defaultFixture(): BridgeFixture {
     layout: { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, status: 'missing', error: null, json: null, types: [] },
     folders: { config: CONFIG_ROOT, logs: `${HOME}/.config/claude-ui/logs` },
     panelData: {},
+    paths: {},
   };
 }

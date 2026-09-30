@@ -1,6 +1,7 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
+import { pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import type { ClaudeUiApi } from '../../../src/shared/types';
-import type { BridgeCall, BridgeEvent, BridgeEventArgs, BridgeFixture } from './fixture';
+import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
 
 /** The stand-in's side for a check: every call the window made, and a way to fire what it subscribed to. */
 export interface BridgeControl {
@@ -121,7 +122,11 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     killTerminal: sent,
     closeTerminal: sent,
     getLayout: () => answer(fixture.layout),
-    checkPath: unmodelled('checkPath'),
+    // Main's two rules, where it points and what is wrong with what is there; what is there is the fixture's table in place of main's look at the disk.
+    checkPath: (value, base, must) => {
+      const resolved = resolvePathIn(value, base, HOME, CONFIG_ROOT);
+      return answer({ path: resolved, problem: pathProblem(value, must, fixture.paths[resolved] ?? 'missing') });
+    },
     onLayoutChanged: on('onLayoutChanged'),
     runPanel: sent,
     stopPanel: sent,
