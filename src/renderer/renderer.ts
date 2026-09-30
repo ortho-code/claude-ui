@@ -288,10 +288,10 @@ let paintedStatuses: View<'statuses'>['statuses'] = new Map();
 let paintedAcked: View<'acked'>['acked'] = new Set();
 
 /**
- * A status or a mark read changed: repaint the dots that differ, wherever they show — a row, and the tab bar when one of them has a tab — and the switcher's roll-ups and the strip.
+ * A status or a mark read changed: repaint the dots that differ, wherever they show — a row, and the tab bar when one of them has a tab.
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function statusesChanged(view: SwitcherView & TabBarView): void {
+function statusesChanged(view: TabBarView): void {
   const ids = new Set<string>();
   for (const id of new Set([...paintedStatuses.keys(), ...view.statuses.keys()])) if (paintedStatuses.get(id) !== view.statuses.get(id)) ids.add(id);
   for (const id of new Set([...paintedAcked, ...view.acked])) if (paintedAcked.has(id) !== view.acked.has(id)) ids.add(id);
@@ -302,7 +302,6 @@ function statusesChanged(view: SwitcherView & TabBarView): void {
     if (dot) applyStatus(dot, view.statuses.get(id), view.acked.has(id));
   }
   if (view.tabs.some((t) => ids.has(t.session.id))) renderTabBar(view);
-  refreshSwitcher(view); // keep the project roll-up badges live
 }
 
 // --- Sidebar ---
@@ -377,7 +376,6 @@ type ListView = View<
   | 'filter'
   | 'folds'
   | 'filterPanelOpen'
-  | 'footerExpanded'
 >;
 
 /** The filter the list was last drawn under, so a new one starts the list at its top. */
@@ -739,7 +737,7 @@ function forgetDeletedGroupFolds({ groupState, folds }: View<'groupState' | 'fol
 // --- Project switcher ---
 
 // Update the switcher header + popover from the visible project pool. The pool is every project's tips (see renderList); the switcher is independent of search/project so you can always navigate.
-function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'footerExpanded'>): void {
+function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' | 'projectNames' | 'projectOrder' | 'activeProject'>): void {
   const model = projectsForSwitcher(pool, view.statuses, view.acked, view.projectNames, view.projectOrder);
   const { activeProject } = view;
   const active = activeProject ? model.projects.find((f) => f.repoRoot === activeProject) : null;
@@ -758,7 +756,6 @@ function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' 
     ...model.projects.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeProject, !f.rootExists)),
   );
 
-  renderFooter(model, pool, view);
   // What the sidebar's rail icon says while it is folded or behind another panel: the same roll-up as the header's badge.
   reportBuiltinStatus('sessions', headerBadge === 'waiting' ? 'wait' : null);
 }
@@ -1061,7 +1058,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
   );
 }
 
-// The strip follows, drawn by its own render (`refreshSwitcher`, told of it).
+// The strip follows, drawn by its own render (`refreshStrip`, told of it).
 footerToggle.addEventListener('click', () => store.set({ footerExpanded: !store.get().footerExpanded }));
 
 function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean, gone: boolean): HTMLElement {
@@ -1138,12 +1135,24 @@ switcherCurrent.addEventListener('click', () => {
   else closeSwitcher();
 });
 
-/** What the switcher and the strip draw from the store. */
-type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'footerExpanded'>;
+/** What the switcher draws from the store. */
+type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs'>;
 
-// Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
+/**
+ * The switcher follows the store: every project's count and roll-up, and the project on show.
+ * It lists every project, independent of the search and the project on show, so you can always navigate; a project with none left has already fallen back to All (`fallBackIfEmptied`).
+ */
 function refreshSwitcher(view: SwitcherView): void {
   renderSwitcher(switcherPool(visibleSessions(view), view), view);
+}
+
+/** What the strip draws from the store. */
+type StripView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'footerExpanded'>;
+
+/** The strip follows the store, its line badged with the same roll-up as the switcher's, from the same pool and the same rule (`projectsForSwitcher`). */
+function refreshStrip(view: StripView): void {
+  const pool = switcherPool(visibleSessions(view), view);
+  renderFooter(projectsForSwitcher(pool, view.statuses, view.acked, view.projectNames, view.projectOrder), pool, view);
 }
 
 // Render from the cached session list, applying the current search filter.
@@ -1156,9 +1165,6 @@ function renderList(view: ListView): void {
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions(view);
   currentByKey = new Map(all.map((s) => [entityKey(s), s]));
-  // The switcher lists every project, independent of search/project, so you can always navigate. A project with none left has already fallen back to All (`fallBackIfEmptied`).
-  const pool = switcherPool(all, view);
-  renderSwitcher(pool, view);
   const { activeProject } = view;
 
   const groupNames = searchText(view) ? groupNameByKey(view) : undefined;
@@ -2043,44 +2049,25 @@ store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptie
 store.watch(['sessions'], reconcileOpenTabs, { reads: ['tabs'] });
 store.watch(['sessions'], applyDatePickerMinDate);
 
-// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter — and the list follows, with the switcher, the strip, the filter's count and chips and the pane's sentence it draws.
+// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter — and the list follows, with the filter's count and chips and the pane's sentence it draws.
 // The list paints every dot it draws, but a status change repaints only the dots, below.
 store.watch(
   ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'],
   listChanged,
   // The folds are read, never told: a heading's click folds in place without drawing the list, and whoever else folds draws it.
-  { reads: ['statuses', 'acked', 'tabs', 'activeTab', 'folds', 'filterPanelOpen', 'footerExpanded'] },
+  { reads: ['statuses', 'acked', 'tabs', 'activeTab', 'folds', 'filterPanelOpen'] },
 );
 
 // A tab opened, started, stopped, closed or came on show: the rows' marks, and the list itself when what it draws from the tabs moved.
 store.watch(['tabs', 'activeTab'], listFollowsTabs, {
-  reads: [
-    'sessions',
-    'statuses',
-    'acked',
-    'switchedModel',
-    'pinned',
-    'archived',
-    'notes',
-    'pendingDeletes',
-    'groupState',
-    'projectNames',
-    'projectOrder',
-    'activeProject',
-    'filter',
-    'folds',
-    'filterPanelOpen',
-    'footerExpanded',
-  ],
+  reads: ['sessions', 'statuses', 'acked', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'folds', 'filterPanelOpen'],
 });
 
 // The filter panel opened or shut: it follows, with the chips that stand in for it while it is shut.
 store.watch(['filterPanelOpen'], filterPanelFollows, { reads: ['filter'] });
 
-// A status or a mark read changed: the dots that differ, the tab bar when one of them has a tab, the switcher's roll-ups and the strip.
-store.watch(['statuses', 'acked'], statusesChanged, {
-  reads: ['sessions', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'footerExpanded'],
-});
+// A status or a mark read changed: the dots that differ, and the tab bar when one of them has a tab.
+store.watch(['statuses', 'acked'], statusesChanged, { reads: ['sessions', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'] });
 
 // A tab not on show turned waiting or finished: a toast says so.
 store.watch(['statuses'], toastAttention, { reads: ['tabs', 'activeTab', 'projectNames'] });
@@ -2088,8 +2075,12 @@ store.watch(['statuses'], toastAttention, { reads: ['tabs', 'activeTab', 'projec
 // The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes, and every change to a tab or to which one is on show.
 store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'], renderTabBar, { reads: ['sessions', 'statuses', 'acked'] });
 
-// The strip lists what runs, in the bar's order, each row with a stop button in the tab's state; it shows those rows or folds to its line as you left it.
-store.watch(['tabs', 'footerExpanded'], refreshSwitcher, { reads: ['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject'] });
+// The switcher counts every project's sessions, rolls up their statuses and names the project on show; the sidebar's rail icon says what its badge says.
+// A session with no transcript yet is in its project only through its tab, so the tabs are among what it counts.
+store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'projectNames', 'projectOrder', 'activeProject', 'tabs'], refreshSwitcher);
+
+// The strip lists what runs, in the bar's order, each row with a stop button in the tab's state, under a line badged with the switcher's roll-up; it shows those rows or folds to its line as you left it.
+store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'footerExpanded'], refreshStrip);
 
 // The terminal area's rail icon waits while a tab on show waits for you.
 store.watch(['activeProject', 'tabs', 'statuses', 'acked'], railStatusFollowsTabs);
