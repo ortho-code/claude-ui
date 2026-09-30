@@ -17,7 +17,8 @@ concurrency:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest, so moving to the next image is a change Renovate proposes rather than one the label makes under us.
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
