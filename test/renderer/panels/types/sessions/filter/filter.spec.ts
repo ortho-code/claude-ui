@@ -51,6 +51,15 @@ test('the row of chips opens the panel again', async ({ app, page }) => {
   await expect(page.locator('#filter-chips')).toBeHidden();
 });
 
+test('a panel left open comes back open, with what was typed in it and no chips', async ({ app, page }) => {
+  await app.boot({ ...fixture, uiState: { ...defaultUi(), search: 'parser', filterPanelOpen: true } });
+  await expect(titles(page)).toHaveText([parser.title, tests.title]);
+  await expect(page.locator('#filter-panel')).toBeVisible();
+  await expect(page.locator('#filter-toggle')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#search')).toHaveValue('parser');
+  await expect(page.locator('#filter-chips')).toBeHidden();
+});
+
 test('a filter left on comes back on, with the panel as it was left', async ({ app, page }) => {
   await app.boot({ ...fixture, uiState: { ...defaultUi(), search: 'parser', filters: { ...defaultUi().filters, pinned: true }, filterPanelOpen: false } });
   await expect(titles(page)).toHaveText([parser.title]);
