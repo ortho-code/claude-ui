@@ -2391,8 +2391,6 @@ function removeTab(token: string): void {
     // Re-establish the active tab within the current workspace scope (or clear).
     switchWorkspaceTerminal(store.get().activeProject);
   });
-  // After the switch, which is what remembers how the tab was left.
-  history.forget(tab.session.id);
   persistOpenTabs();
 }
 
@@ -2703,18 +2701,25 @@ function updatePlaceholder(view: View<'sessions' | 'activeProject' | 'tabs' | 'a
 /** What the pane last followed from the tabs: the tab on show as it was, and whether there were none on show — its sentence depends on both. */
 let paneTab: TabState | null = null;
 let paneNoTabs = true;
+/** The session each open tab held when the pane last looked, by token, so it knows whose history to forget when a tab closes. */
+let paneSessions: ReadonlyMap<string, string> = new Map();
 
 /**
  * The tab on show changed, or changed state, or the last tab on show came or went: the pane follows.
  * Another tab starting, printing or stopping leaves it alone: a change to one tab is a new entry for that tab only.
+ * A tab that closed has its history forgotten, so opening its session again starts with it closed — after the follow, which is what remembers how the tab on show was left.
  */
 function paneFollowsTabs(view: View<'sessions' | 'activeProject' | 'tabs' | 'activeTab'>): void {
   const shown = tabOnShow(view);
   const noTabs = visibleTabs(view).length === 0;
-  if (shown === paneTab && noTabs === paneNoTabs) return;
-  paneTab = shown;
-  paneNoTabs = noTabs;
-  updatePlaceholder(view);
+  const before = paneSessions;
+  paneSessions = new Map(view.tabs.map((t) => [t.token, t.session.id]));
+  if (shown !== paneTab || noTabs !== paneNoTabs) {
+    paneTab = shown;
+    paneNoTabs = noTabs;
+    updatePlaceholder(view);
+  }
+  for (const [token, id] of before) if (!paneSessions.has(token)) history.forget(id);
 }
 
 /** Resume the tab on show, as a click on it does; unavailable, with the reason, when its folder has gone. */
