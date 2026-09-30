@@ -58,6 +58,20 @@ The linter reads it, because a type-aware rule needs a project for every file it
 `noUncheckedIndexedAccess` is on, so an index into an array or a record reads as possibly missing, and the code says why it is not: a check, or a `!` where the lines just before guarantee it.
 The test project turns it off: a test that indexes past the end fails anyway, and the source files it pulls in are checked with it on by the build projects.
 
+## The window's checks
+
+`npm test` is the unit tests: vitest, beside the code they test, fast enough to run all the time.
+`npm run test:renderer` checks the window itself: it builds, then Playwright loads the built `dist/renderer` in a headless Chromium, a fresh page per check, with nothing on screen and no main process (`test/renderer/`).
+It is kept out of `npm test` so that one stays fast; CI runs both, and a failed check leaves a trace to download from the run.
+The page is served by answering its requests from `dist/renderer` on a made-up origin rather than from a server, because module scripts do not load from `file://`.
+
+`window.claudeUi` is a stand-in (`test/renderer/bridge.ts`) typed as the bridge, `ClaudeUiApi`: a call added, renamed or reshaped fails the type check there, instead of leaving a check passing against an API the app no longer has.
+It answers from a fixture of plain data (`fixture.ts`), by default a first run with one session and no layout file, and records every call, so a check can assert on what the window sent.
+A call it does not model rejects with its own name, and every check fails on anything thrown or logged as an error in the page, so a check that strays onto unmodelled ground fails loudly rather than running on an answer nobody held against main.
+A check that needs such a call models it there, from what main does. The stand-in answers only where main's answer involves no decision of its own, so that no rule of main's is kept in two places.
+
+A check gets no retries: one that passes on a second try is a flake, and a gate that retries it away teaches everybody to ignore it.
+
 ## Embedded terminal
 
 `@xterm/xterm` in the renderer, backed by `node-pty` in the main process running the real `claude` binary.

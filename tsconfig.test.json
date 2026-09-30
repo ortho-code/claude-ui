@@ -6,7 +6,8 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"],
     "noEmit": true,
+    "rootDir": ".",
     "noUncheckedIndexedAccess": false
   },
-  "include": ["src/**/*.test.ts", "src/**/*.d.ts"]
+  "include": ["src/**/*.test.ts", "src/**/*.d.ts", "test/**/*.ts", "vitest.config.ts"]
 }

@@ -67,7 +67,7 @@ Next:
 - Context health per session in the list, coloured the way the CLI's own status line colours it.
 - Clickable paths in terminal output, opening the file the session just named in a panel.
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).
-- Playwright end-to-end tests, then split view.
+- End-to-end tests of the built app with a stand-in `claude`, now that the window's own checks run headless; then split view.
 - Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.
 - More panel types (markdown, diff, transcript, config), and layouts per project.
 - Panels opened at will rather than only from the file, such as a second shell, and panels that belong to one project while others stay the same everywhere.
@@ -245,6 +245,8 @@ npm start
 ```
 
 `npm start` builds and launches the app. It runs with `--no-sandbox`, which WSL requires.
+
+`npm test` runs the unit tests, and `npm run test:renderer` checks the window itself in a headless browser, which `npx playwright install --only-shell chromium` fetches the first time.
 
 To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a Mac. Artifacts land in `release/`. Tagging a version builds both on CI and collects them in a draft release.
 
