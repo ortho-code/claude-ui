@@ -1,5 +1,6 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
+import { togglePinned, toggleArchived, withNote, withoutSession } from '../../../src/shared/sessionmarks';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
 
@@ -61,12 +62,22 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     onQuitting: on('onQuitting'),
     onClaudeMissing: on('onClaudeMissing'),
     getPinned: () => answer(fixture.pinned),
-    togglePin: unmodelled('togglePin'),
+    // The marks are main's own rules (src/shared/sessionmarks.ts), kept in the fixture, so a later read answers with what the change left.
+    togglePin: (id) => answer((fixture.pinned = togglePinned(fixture.pinned, id))),
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
     getArchived: () => answer(fixture.archived),
-    toggleArchive: unmodelled('toggleArchive'),
-    deleteSession: unmodelled('deleteSession'),
+    toggleArchive: (id) => answer((fixture.archived = toggleArchived(fixture.archived, id, Date.now()))),
+    // Main moves the transcript to the trash, so the listing no longer has it, and forgets its marks and its status.
+    // What else it forgets (its open tab, the tab to reopen on, its group) the window never reads back while it runs.
+    // A panel row linked to it is forgotten with an event the stand-in does not fire, so that delete is main's to answer, not this.
+    deleteSession: (id) => {
+      if (Object.values(fixture.panelData).some((data) => Object.hasOwn(data.sessions, id))) return unmodelled('deleteSession')();
+      fixture.sessions = fixture.sessions.filter((s) => s.id !== id);
+      Object.assign(fixture, withoutSession(fixture, id));
+      delete fixture.statuses[id];
+      return answer(undefined);
+    },
     getOpenSessions: () => answer(fixture.openSessions),
     setOpenSessions: sent,
     getActiveSession: () => answer(fixture.activeSession),
@@ -75,7 +86,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getActiveProject: () => answer(fixture.activeProject),
     setActiveProject: sent,
     getNotes: () => answer(fixture.notes),
-    setNote: unmodelled('setNote'),
+    setNote: (id, note) => answer((fixture.notes = withNote(fixture.notes, id, note))),
     getUiState: () => answer(fixture.uiState),
     setUiState: sent,
     getSettings: () => answer(fixture.settings),

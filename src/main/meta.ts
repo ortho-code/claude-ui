@@ -7,6 +7,7 @@ import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
+import { togglePinned, toggleArchived, withNote, withoutSession } from '../shared/sessionmarks';
 import { appendStamped } from './stamp';
 import { writeFileAtomic } from './atomic';
 import { errorText, fsFailure, log, logOnce } from './log';
@@ -499,10 +500,7 @@ export function getPinned(): Promise<string[]> {
 
 export function togglePin(id: string): Promise<string[]> {
   return update('togglePin', (meta) => {
-    const pinned = new Set(meta.pinned);
-    if (pinned.has(id)) pinned.delete(id);
-    else pinned.add(id);
-    meta.pinned = [...pinned];
+    meta.pinned = togglePinned(meta.pinned, id);
     return meta.pinned;
   });
 }
@@ -537,8 +535,7 @@ export function getArchived(): Promise<Record<string, number>> {
 
 export function toggleArchive(id: string): Promise<Record<string, number>> {
   return update('toggleArchive', (meta) => {
-    if (id in meta.archived) delete meta.archived[id];
-    else meta.archived[id] = Date.now();
+    meta.archived = toggleArchived(meta.archived, id, Date.now());
     return meta.archived;
   });
 }
@@ -549,15 +546,13 @@ export function toggleArchive(id: string): Promise<Record<string, number>> {
  */
 export function purgeSession(id: string): Promise<void> {
   return update('purgeSession', (meta) => {
-    meta.pinned = meta.pinned.filter((k) => k !== id);
+    ({ pinned: meta.pinned, archived: meta.archived, notes: meta.notes } = withoutSession(meta, id));
     meta.openSessions = meta.openSessions.filter((k) => k !== id);
     if (meta.activeSession === id) meta.activeSession = null;
     meta.activeSessionByProject = Object.fromEntries(
       Object.entries(meta.activeSessionByProject).filter(([, key]) => key !== id),
     );
-    delete meta.archived[id];
     delete meta.groupOf[id];
-    delete meta.notes[id];
   });
 }
 
@@ -624,9 +619,7 @@ export function getNotes(): Promise<Record<string, string>> {
  */
 export function setNote(id: string, note: string): Promise<Record<string, string>> {
   return update('setNote', (meta) => {
-    const trimmed = note.trim();
-    if (trimmed) meta.notes[id] = trimmed;
-    else delete meta.notes[id];
+    meta.notes = withNote(meta.notes, id, note);
     return meta.notes;
   });
 }
