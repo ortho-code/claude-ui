@@ -31,3 +31,14 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      # The window's own checks drive the built renderer in a headless Chromium, the build Playwright's version asks for.
+      # Not cached: Playwright's own advice is that restoring one takes about as long as downloading it, and --with-deps installs the system libraries every run regardless.
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: npm run test:renderer
+      # A failed check keeps a trace of what the window did, which is the only way to see a failure nobody watched.
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: renderer-check-traces
+          path: test-results/
+          retention-days: 7
