@@ -109,7 +109,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     clearStatus: sent,
     // A claude that has started and printed nothing yet: its tab boots until a check fires `onTerminalData` for it.
     startTerminal: () => answer(++terminals),
-    startShell: unmodelled('startShell'),
+    // A shell that has started and printed nothing yet, in the same id space as a claude, as main's are.
+    startShell: () => answer(++terminals),
     onTerminalData: on('onTerminalData'),
     onTerminalExit: on('onTerminalExit'),
     sendTerminalInput: sent,

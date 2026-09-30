@@ -1,0 +1,41 @@
+import { PROJECT } from '../../support/fixture';
+import { expect, test } from '../../support/harness';
+import { LAYOUT, railItem, runs, savedPanels, there, withLayout, withState } from './layout';
+
+test('the rail shows one panel of a group at a time and runs only the one on show, once', async ({ app, page }) => {
+  await app.boot(withLayout(LAYOUT));
+  await expect.poll(() => runs(app, 'status')).toHaveLength(1);
+  expect(await runs(app, 'checks')).toEqual([]);
+  expect((await runs(app, 'status'))[0].context.cwd).toBe(PROJECT);
+
+  await railItem(page, /^Checks/).click();
+  await expect.poll(() => runs(app, 'checks')).toHaveLength(1);
+  expect(await runs(app, 'status')).toHaveLength(1);
+  await expect.poll(async () => (await savedPanels(app))?.active.right).toBe('checks');
+});
+
+test('a command that failed keeps its dot on the rail after you switch away from it', async ({ app, page }) => {
+  await app.boot(withLayout(LAYOUT));
+  await expect.poll(() => runs(app, 'status')).toHaveLength(1);
+  const { token } = (await runs(app, 'status'))[0];
+  expect(await app.emit('onPanelRun', 'status', token, { kind: 'exit', code: 1, signal: null })).toBe(1);
+  const status = railItem(page, /^Status/);
+  await expect(status.locator('.nudge.failed')).toBeVisible();
+
+  await railItem(page, /^Checks/).click();
+  await expect(railItem(page, /^Checks/)).toHaveClass(/\bshown\b/);
+  await expect(status.locator('.nudge.failed')).toBeVisible();
+});
+
+test("the folded sidebar's icon carries the waiting dot while a session waits, and loses it when that session moves on", async ({ app, page }) => {
+  await app.boot({ ...withLayout(LAYOUT), ...withState({ collapsed: ['sidebar'] }) });
+  const sessions = railItem(page, /^Sessions/);
+  await expect(sessions).toBeVisible();
+  await expect(sessions.locator('.nudge.waiting')).toBeHidden();
+
+  // A session in the project that is not on show: the dot is how the folded sidebar says so.
+  expect(await app.emit('onSessionStatus', there.id, 'waiting', '')).toBe(1);
+  await expect(sessions.locator('.nudge.waiting')).toBeVisible();
+  await app.emit('onSessionStatus', there.id, 'idle', '');
+  await expect(sessions.locator('.nudge.waiting')).toBeHidden();
+});
