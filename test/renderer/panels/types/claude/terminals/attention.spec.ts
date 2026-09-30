@@ -18,6 +18,14 @@ const fixture = {
 
 const toasts = (page: Page): Locator => page.locator('#notifications .notif');
 
+test('a status read at launch is not news: a restored tab already waiting is not toasted', async ({ app, page }) => {
+  await app.boot({ ...fixture, statuses: { [there.id]: 'waiting' } });
+  await expect(page.locator('.tab', { hasText: here.title })).toHaveClass(/\bactive\b/);
+  // Read, and drawn: its project's entry in the switcher says it is waiting.
+  await expect(page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: /^other$/ }) }).locator('.nudge')).toHaveClass(/\bwaiting\b/);
+  await expect(toasts(page)).toHaveCount(0);
+});
+
 test('a tab not on show that turns waiting or finished is toasted once, and the toast takes you to it', async ({ app, page }) => {
   await app.boot(fixture);
   const status = async (id: string, state: string): Promise<void> => {
