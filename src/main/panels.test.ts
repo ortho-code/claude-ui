@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { EventEmitter } from 'node:events';
+import { readFileSync } from 'node:fs';
 
 // The IPC handlers panels.ts registers, and every child it spawns, captured so the tests can drive them the way the renderer and the OS do.
 const { handlers, spawned, seq, logged } = vi.hoisted(() => ({
@@ -58,7 +59,7 @@ vi.mock('node:child_process', () => ({
   },
 }));
 
-import { registerPanelsIpc, stopAllPanels, panelInvocation, panelEnv } from './panels';
+import { registerPanelsIpc, stopAllPanels, panelInvocation, panelEnv, contextEnv } from './panels';
 import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelRunEvent, type PanelRunRequest } from '../shared/panels';
 
 const CONTEXT = { projectRoot: process.cwd(), cwd: process.cwd(), sessionId: 'sess-1' };
@@ -104,6 +105,21 @@ describe('what reaches the shell', () => {
     // The marker is what fires the status hooks; a panel that runs `claude -p` must not report as a session.
     expect(env).not.toHaveProperty('CLAUDE_UI');
     expect(env).not.toHaveProperty('COLORTERM');
+  });
+
+  it('gives a panel type’s script exactly the variables docs/panel-types.md names', () => {
+    const doc = readFileSync(new URL('../../docs/panel-types.md', import.meta.url), 'utf8').split('\n');
+    const start = doc.indexOf('### Variables');
+    const named: string[] = [];
+    for (const line of doc.slice(start + 1)) {
+      if (line.startsWith('#')) break;
+      const match = /^\| `([^`]+)` \|/.exec(line);
+      if (match) named.push(match[1]);
+    }
+    expect(start).toBeGreaterThanOrEqual(0);
+    const context = Object.keys(contextEnv({ projectRoot: '/repo', cwd: '/repo', sessionId: 's' }));
+    expect(named.filter((name) => name !== 'CLAUDE_UI_OPTION_<NAME>').sort()).toEqual(context.sort());
+    expect(named).toContain('CLAUDE_UI_OPTION_<NAME>');
   });
 
   it('gives a type’s options as CLAUDE_UI_OPTION_<NAME>, and leaves out a name that cannot make a variable’s', () => {

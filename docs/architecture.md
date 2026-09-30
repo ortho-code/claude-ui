@@ -623,6 +623,9 @@ The same observer covers every later reveal — a switch on the rail, an unfold,
 
 A folder under `types/` is a panel type of the person's own: a `panel.json` manifest and the script it runs.
 It exists so a panel can be shared without being part of the app — the first one is a review queue fed by a task in another repo — and every choice below follows from that.
+The contract itself, field by field, is `docs/panel-types.md`; this section is why it is shaped as it is.
+
+**One list of fields per object, and the document is held to it.** Each checker names the fields it reads in one list (`MANIFEST_FIELDS` and `OPTION_FIELDS` in `types/folder.ts`, `LIST_FIELDS` in `types/listdoc.ts`) and reads a field only through that list (`panels/fields.ts`), so a field it reads that the list lacks is a type error. A test reads the document's tables and its lists of kinds and tones against the same lists, checks its marked examples with the checkers themselves, and holds its table of variables to what the runner sets: a field added on either side alone fails, the way the README's icon list is held to the icon set.
 
 **The folder's name is the type's name**, so the two cannot disagree, and a folder is shared by copying it.
 A folder named like a built-in type, or with a name that cannot be a type's, is not read, and a note under the whole layout says so, since no single entry is where it went wrong.

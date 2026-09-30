@@ -182,49 +182,11 @@ A panel's options are checked by the panel itself, when it appears and before ea
 ### Panel types of your own
 
 A folder under `types/` in the config folder is a panel type, named after the folder, so a type is shared by copying its folder.
-It holds a `panel.json` and the script it runs:
+It holds a `panel.json` saying what the type is, and a script that prints a list, which the app draws: rows with links, sections that fold, a count on the panel's icon kept current on an interval, and buttons that start a Claude session with a prompt you see, and can change, before it starts.
+A row that started a session then shows that session's status and leads back to it.
 
-```json
-{ "version": 1, "kind": "list", "title": "Reviews", "icon": "check", "run": "queue", "interval": "5m", "options": [{ "name": "for", "kind": "text" }] }
-```
+[docs/panel-types.md](docs/panel-types.md) is the whole of it: what goes in the folder, what the script is given and prints, what the app does with it, and an example type to copy.
 
-`kind` is `list`, the one kind so far: the script prints a list, and the app draws it.
-`run` is the script, relative to the type's folder and inside it, and it has to be executable.
-`title` and `icon` are what a panel of the type shows when its entry names none, and `interval` runs it again on its own, every `30s`, `5m` or `1h`, at least every 10 seconds.
-`options` names settings of the type's own; the script gets each as `CLAUDE_UI_OPTION_<NAME>` (so `for` is `CLAUDE_UI_OPTION_FOR`), beside the variables above.
-
-The layout then uses it by name, and its entry can pin the folder the script runs in and override the interval:
-
-```json
-{ "id": "reviews", "type": "reviews", "options": { "cwd": "~/development/scienta", "for": "me", "interval": "10m" } }
-```
-
-The script prints one JSON object on stdout, and nothing else; what it writes on stderr is kept for when it fails.
-
-```json
-{ "version": 1, "badge": 2,
-  "sections": [
-    { "empty": "Nothing waiting on you.", "items": [
-      { "key": "org/repo#1", "text": "Fix the login redirect", "detail": "#1 · 3d · someone", "href": "https://github.com/org/repo/pull/1", "tone": "attention" }
-    ] },
-    { "title": "Blocked", "shut": true, "items": [] }
-  ],
-  "notes": [] }
-```
-
-Each item needs a `key`, unique in the list, and a `text`; `detail` is a second line, `href` an http or https link a click opens in your browser, and `tone` is `normal`, `attention`, `muted` or `danger`.
-An item can also offer `actions`. `{ "label": "Review", "session": { "prompt": "/review 1", "name": "Review #1" } }` puts a Review button on the row, which asks for a Claude session that starts with that prompt: it opens the app's own dialog, where you pick the project (the one the panel runs in comes first) and the group (the one you last picked from that panel), and can change the name and the prompt. Nothing starts until you press Start.
-A row that started a session shows that session's status dot, the same dot the session list draws; pressing it goes to the session, in its project, resuming it when it is not running. With several sessions from one row, the dot carries their count and pressing it offers them all, the latest first.
-Pressing Review again on such a row offers to continue its latest session, which keeps what the first look found: a stopped one is resumed with the prompt, and a running one is brought into view without it, since the app never types into a live session. New session is the other choice.
-The app remembers which session a row started, on this machine only: in `panel-data/`, beside the app's own data and apart from it, never in the config folder.
-A session that is gone — deleted in the app, cleaned up by Claude Code's own transcript retention, or removed by hand — is forgotten there the next time that panel's file is written, and at once when you delete it in the app.
-A section with a `title` has a heading that folds it, and `shut` starts it folded; `empty` is what it says with no items.
-`badge` is a count shown on the panel's icon and beside its title, and `notes` go in the line under the panel.
-A field the app does not know is ignored, so a script written for a later version still shows here.
-
-The panel runs its script when you first show it, on Refresh, when you switch project or tab if its folder moves, and on its interval even while it is out of sight, so the count on its icon stays current.
-A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why, and without one the panel says it is unavailable, quoting the end of what the script wrote on stderr.
-A mistake in `panel.json` is named where each panel of the type would be, and a folder named like a built-in type is not read, with a note saying so.
 A type you were sent runs as you, the way a script in `scripts/` does, so read it before you drop it in; everything a panel does beyond running its script, such as opening a link or starting a session, is something you press.
 
 ## Install a build
