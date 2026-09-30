@@ -221,7 +221,7 @@ or by clicking Done, then **System Settings → Privacy & Security**, scrolling 
 On macOS 15 the old right-click-Open trick no longer works.
 The step repeats for each new version.
 
-**Linux** (Debian, Ubuntu, and Ubuntu under WSL):
+**Linux** (Debian 12 or newer, and Ubuntu 22.04 or newer, under WSL too):
 
 ```bash
 sudo apt install ./claude-ui-<version>-amd64.deb
