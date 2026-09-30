@@ -68,7 +68,7 @@ The page is served by answering its requests from `dist/renderer` on a made-up o
 
 The checks are filed the way the window is made of panels: a panel type's under `test/renderer/panels/types/<type>/` (the `claude` panel's split into `tab-bar/` and `history/`), the layout tree's under `panels/layout/`, anything that is not a panel under its own name (`settings/`), and what they all use under `support/`.
 It is the unit tests' rule too — a test is found where the thing it tests lives — applied to what the checks test, which is the window as its panels draw it rather than one module.
-The two built-in types, `sessions` and `claude`, are still drawn mostly by `renderer.ts` — `claude` has a module of its own under `src/renderer/panels/types/claude/`, which what draws it is moving into, and `sessions` does not yet — so for now their checks are filed by the type names a layout file uses.
+The `claude` type is drawn by its own modules under `src/renderer/panels/types/claude/` (the tabs' terminals, the pane, the tab bar and the history), though `renderer.ts` still answers what the sidebar asks of it; `sessions` is still drawn by `renderer.ts`, so for now its checks are filed by the type name a layout file uses.
 
 `window.claudeUi` is a stand-in (`test/renderer/support/bridge.ts`) typed as the bridge, `ClaudeUiApi`: a call added, renamed or reshaped fails the type check there, instead of leaving a check passing against an API the app no longer has.
 It answers from a fixture of plain data (`fixture.ts`), by default a first run with one session and no layout file, and records every call, so a check can assert on what the window sent.
