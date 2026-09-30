@@ -647,8 +647,6 @@ function toggleFilterPanel(open: boolean): void {
   // Opening hands focus to the search box; closing drops focus so the ring doesn't linger.
   if (open) searchInput.focus();
   else filterToggle.blur();
-  // The only view change that does not re-render, so it needs its own call.
-  persistUi();
 }
 
 // Nothing is written until the start-up read has put the stored view back in the store (`startSavingUi`), or a save in between would write an empty sidebar straight over the real one.
@@ -679,7 +677,7 @@ function uiSnapshot(view: StoredView = store.get()): UiState {
 }
 
 /**
- * Store the view, on a debounce.
+ * Store the view, on a debounce: a watcher of the view's slices, and called by what the store does not hold — the list's scroll, and the layout tree's sizes, folds and picks.
  * Typing in the search box and dragging the scrollbar both change this state continuously, and every write is a read-modify-write of meta.json plus an audit line, so what is wanted is one write per pause rather than one per keystroke.
  */
 function persistUi(): void {
@@ -1082,10 +1080,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
 }
 
 // The strip follows, drawn by its own render (`refreshSwitcher`, told of it).
-footerToggle.addEventListener('click', () => {
-  store.set({ footerExpanded: !store.get().footerExpanded });
-  persistUi();
-});
+footerToggle.addEventListener('click', () => store.set({ footerExpanded: !store.get().footerExpanded }));
 
 function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean, gone: boolean): HTMLElement {
   const btn = document.createElement('button');
@@ -1203,7 +1198,6 @@ function renderList(view: ListView): void {
     // Nothing on screen to fold away: this early return would otherwise leave the toggle live with the previous render's sections.
     renderedSections = { projects: [], groups: [] };
     updateCollapseToggle(view);
-    persistUi();
     return;
   }
   container.querySelector(':scope > .empty-message')?.remove();
@@ -1224,8 +1218,6 @@ function renderList(view: ListView): void {
   updateCollapseToggle(view);
   syncStickyOffset();
   updatePlaceholder(view); // its wording depends on whether there are sessions at all
-  // Every change to a filter or a fold ends here, so this one call covers all of them; the snapshot is compared before it is written, so the renders that change nothing about the view cost nothing.
-  persistUi();
 }
 
 // Chevrons stacked in the direction things will move: up to fold everything away, down to open it again. Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
@@ -1500,10 +1492,8 @@ function buildHeading(
 }
 
 /**
- * Fold or unfold a section: remember it, hide the rows, turn the caret, save.
- *
- * Both toggles deliberately skip renderList — no flicker, no scroll jump — and that render is the one
- * call which would otherwise have persisted the fold, which is why saving happens here instead.
+ * Fold or unfold a section: remember it, hide the rows, turn the caret; saving follows the folds.
+ * Both toggles deliberately skip renderList — no flicker, no scroll jump.
  */
 function toggleFold(section: HTMLElement, caret: HTMLElement, kind: 'projects' | 'groups', key: string): void {
   const state = store.get();
@@ -1512,7 +1502,6 @@ function toggleFold(section: HTMLElement, caret: HTMLElement, kind: 'projects' |
   store.set({ folds: foldsWith(state, kind, [key], collapsed) });
   section.classList.toggle('collapsed', collapsed);
   caret.innerHTML = caretIcon(collapsed, 10);
-  persistUi();
 }
 
 // Build a project section once; its contents (name, count, caret, rows) are drawn by reconcileProjectSections, on this render and every later one.
@@ -2121,6 +2110,9 @@ store.watch(['activeProject', 'tabs', 'statuses', 'acked'], railStatusFollowsTab
 
 // The pane shows the tab on show, or says why there is none.
 store.watch(['tabs', 'activeTab'], paneFollowsTabs, { reads: ['sessions', 'activeProject'] });
+
+// The view you are leaving behind — the filter, the folds, the panel, the strip — is kept for the next launch; the snapshot is compared before it is written, so a change that ends where it began costs nothing.
+store.watch(['filter', 'folds', 'filterPanelOpen', 'footerExpanded'], () => persistUi());
 
 // The panels run where you are: in the tab on show's folder, or without one in the project's root, or in nothing in the All view.
 store.watch(['activeProject', 'activeTab'], treeContextChanged);

@@ -402,6 +402,8 @@ A repaint that reads a slice another watcher keeps current names it as read with
 Telling is synchronous, because some flows render and then measure — unfold a group, then scroll to its heading — and `batch` holds it to the end of a group of changes, so a read of several slices repaints once.
 A slice's equality decides whether its readers are told, never what is stored, and a watcher that changes state while being told is not re-entered: what it changed is told after the round.
 The store holds state and nothing else: a change main keeps is written by the action that makes it, as before, rather than by a watcher that would also write back what start-up had just read.
+The sidebar's view — the filter, the folds, the filter panel and the strip — is the one exception, saved by a watcher of its slices: it is one object written whole, on a debounce, and only when it differs from what was last stored or restored, so what start-up read is never written back.
+It comes back in the start-up read's own change, beside the listing, so the first draw is already the view you left, and saving starts only from there.
 A tab is split along that line: what the surfaces draw of it — its session, its process, where it is in starting and stopping — is the store's, under the tab's token, and its terminal, the xterm and its element, stays with the terminal area under the same token; every step of a tab's life takes the token and reads the tab as it is at that moment.
 
 ## The log
