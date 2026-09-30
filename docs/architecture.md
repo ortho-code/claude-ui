@@ -391,6 +391,15 @@ The session store is never written to: `~/.claude` is read-only as far as this a
 Writes are serialized through one queue and land via a temp file renamed over the target, with the previous good copy kept as a backup, so a crash mid-write can't leave the file half-written.
 Reads are tolerant by design: unknown or malformed entries are dropped rather than trusted, and older field names are still understood, so an older `meta.json` upgrades in place without a migration step.
 
+## The store
+
+The window's shared state goes in one store (`src/renderer/state/store.ts`) that tells its readers when it changes.
+It exists because the same state is drawn by the session list, the switcher, the tab bar, the attention strip and the panels, and a change made in a handler that knew about one of them left the others stale: three such bugs in one day, and then the open and live filters not following the tabs.
+A reader subscribes a repaint to the slices it reads and is handed a view typed as only those, so a repaint that reads a slice it did not subscribe to does not compile; a handler reads the whole state, since a click needs whatever is newest.
+Telling is synchronous, because some flows render and then measure — unfold a group, then scroll to its heading — and `batch` holds it to the end of a group of changes, so a read of several slices repaints once.
+A slice's equality decides whether its readers are told, never what is stored, and a watcher that changes state while being told is not re-entered: what it changed is told after the round.
+The store holds state and nothing else: a change main keeps is written by the action that makes it, as before, rather than by a watcher that would also write back what start-up had just read.
+
 ## The log
 
 An installed build is started from a launcher, so it has no stdout: the log is where what a launch did can be read afterwards, on somebody else's machine.
