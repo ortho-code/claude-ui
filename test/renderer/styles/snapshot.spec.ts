@@ -89,6 +89,8 @@ test('the filter panel open, with a search, a pill and the calendar', async ({ a
   await app.boot({ ...busy, openSessions: [], ...ui({ search: 'a', filters: { ...defaultUi().filters, pinned: true }, datePreset: 'custom', dateFrom: from, dateTo: to, filterPanelOpen: true }) });
   await page.locator('#date-range-label').click();
   await expect(page.locator('#date-custom')).toBeVisible();
+  // Off the button the click left it resting on, whose rounded corner otherwise came out a shade different from one capture to the next.
+  await page.mouse.move(0, 0);
   await snapshot(page, DIR!, 'filter-open');
 });
 
