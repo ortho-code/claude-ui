@@ -52,6 +52,7 @@ Done:
   A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick; it then shows that session's status and leads back to it, and a second press offers to continue it.
 
 Next:
+- The sidebar and the terminal area as panel types like the others, each a module of its own with its own options and documentation.
 - Panel types that draw themselves: a page of your own in a sandboxed frame, fed by its script, asking the app for what it cannot do itself, such as opening a link or starting a session.
 - A list row leading back to a session it did not start, such as the one that opened a PR, found by the branch they share.
 - A panel type marking the sessions its rows started, on their rows and tabs in the session list.
