@@ -330,7 +330,6 @@ function removeTab(token: string): void {
   persistOpenTabs();
 }
 
-// User-initiated close: terminate the session (claude persists per turn, so its context is on disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
 /**
  * End the session but keep its tab, cold and resumable.
  * The opposite of closeTab, and the deliberate counterpart to claude exiting on its own — which still CLOSES the tab, so a finished session does not leave an empty one behind.
@@ -377,6 +376,7 @@ export function closeOrStop(token: string): void {
   closeTab(token);
 }
 
+// User-initiated close: terminate the session (claude persists per turn, so its context is on disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
 export function closeTab(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
