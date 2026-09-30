@@ -53,6 +53,14 @@ Done:
 
 Next:
 - Panel types that draw themselves: a page of your own in a sandboxed frame, fed by its script, asking the app for what it cannot do itself, such as opening a link or starting a session.
+- A list row leading back to a session it did not start, such as the one that opened a PR, found by the branch they share.
+- A panel type marking the sessions its rows started, on their rows and tabs in the session list.
+- Opening every link in a list panel at once, asking first when there are many.
+- A folder of its own for a panel type's script, to keep state between runs, such as an item snoozed for a day.
+- Options of a path kind in a panel type's manifest.
+- A panel's heading set from its layout entry, or by the panel itself.
+- An interval for `command` panels, as list panels have.
+- A Panel data row in Settings: what each panel remembers about the sessions its rows started, whether that panel is still in the layout, and a way to clear it.
 
 - Letting you answer when Claude asks something on its way out — whether to keep a worktree, say — instead of the tab closing over the question.
 - A worktree session keeping its worktree badge after the app restarts.
