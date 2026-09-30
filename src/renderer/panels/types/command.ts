@@ -1,6 +1,7 @@
 import type { PanelContext, PanelRunEvent, PanelSource } from '../../../shared/panels';
 import { PANEL_TIMEOUT_MS } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
+import './command.css';
 import type { IconName } from '../icons';
 import { stripAnsi, splitPendingEscape } from '../../ansi';
 import { CWD_OPTION, checkOptions, isFixedPath, optionsOf, type OptionsDecl } from '../options';

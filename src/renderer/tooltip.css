@@ -1,0 +1,19 @@
+/* Custom tooltip (replaces native title=). One floating element, positioned by tooltip.ts. */
+#tooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 320px;
+  padding: 5px 9px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-surface);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  font-size: var(--text-meta);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  /* Keep a note's line breaks: the default collapses \n into a space. pre-wrap still wraps long
+     lines, so single-line tooltips are unaffected. */
+  white-space: pre-wrap;
+  pointer-events: none;
+}

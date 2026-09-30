@@ -1,4 +1,4 @@
-// The bundle's stylesheets come in the order of these imports: what every module draws with, then the services' own, then the rules no module has taken yet, which build on both.
+// The bundle's stylesheets come in the order of these imports: what every module draws with, then the services' and the panel tree's own, then the rules no module has taken yet, which build on all of them.
 import './base.css';
 import { openMenu, type MenuItem } from './menu';
 import { setUnavailable, unavailable } from './unavailable';
@@ -9,6 +9,8 @@ import { askForSession } from './sessiondialog';
 import { openSettings } from './settings';
 import { markProjectGone } from './projectgone';
 import { startChrome } from './chrome';
+import { flash } from './flash';
+import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
 import './styles.css';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
@@ -45,12 +47,10 @@ import { installTooltips, setTooltip } from './tooltip';
 import { caretIcon, chevronIcon, closeIcon, folderGoneIcon, folderIcon, layersIcon, PIN_ICON, PINNED_ICON, SIBLING_ICON, stopIcon, strokeIcon, WORKTREE_ICON } from './svg';
 import type { LinkedSession, SessionRequest } from './panels/types/command';
 import type { PanelData } from '../shared/panels';
-import { flash } from './flash';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
 import { iconSvg } from './panels/icons';
 import { createTerminal, bindTerminal, routeTerminals, lastLines } from './terminal';
-import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
 import { reportBuiltinStatus } from './panels/types/builtin';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';

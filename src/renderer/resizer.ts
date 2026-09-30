@@ -1,3 +1,5 @@
+import './resizer.css';
+
 /**
  * Drag a divider between two children of a split.
  *

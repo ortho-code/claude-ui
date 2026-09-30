@@ -1,6 +1,7 @@
 import type { LayoutReport, PanelState } from '../../shared/panels';
 import { element } from '../dom';
 import { installSplitResizer } from '../resizer';
+import './tree.css';
 import { chevronIcon, strokeIcon, type Direction } from '../svg';
 import { setTooltip } from '../tooltip';
 import { iconSvg } from './icons';

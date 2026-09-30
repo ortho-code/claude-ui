@@ -1,3 +1,5 @@
+import './flash.css';
+
 // A brief accent wash on whatever you just jumped to. Short jumps move the list barely at all, so without it there is no way to tell the click did anything.
 export function flash(el: HTMLElement): void {
   el.classList.remove('flash'); // restart it if you jump to the same place twice

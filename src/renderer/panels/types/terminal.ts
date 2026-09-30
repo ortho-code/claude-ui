@@ -1,6 +1,7 @@
 import type { PanelContext } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
 import { bindTerminal, createTerminal, unbindTerminal, type TerminalView } from '../../terminal';
+import './terminal.css';
 import { CWD_OPTION, isFixedPath, optionsOf } from '../options';
 import { NO_CONTEXT, prepare, resolveContext, type MountedPanel, type PanelHost, type PanelType } from './command';
 

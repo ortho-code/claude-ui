@@ -1,0 +1,15 @@
+/* Where a jump landed.
+   A short jump moves the list barely at all, so without this there is no way to tell the click did anything.
+   It fades rather than blinks, and an inset ring means it reads the same on a heading as on a session row.
+   There is no end keyframe, so it fades into whatever the element itself has — a project heading's --bg, a group heading's --surface, an open row's accent bar — rather than ending on one colour and snapping to the element's own.
+   Motion is kept for what the eye would otherwise miss: this, and the history's drawer sliding in from the bar it was opened from. */
+@keyframes jump-flash {
+  from {
+    background: var(--active);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+}
+
+.flash {
+  animation: jump-flash 0.9s ease-out;
+}

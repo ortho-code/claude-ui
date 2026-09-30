@@ -1,6 +1,7 @@
 // Custom tooltip: one floating element shown on hover/keyboard-focus of any [data-tooltip].
 // Replaces native title= — those have an OS-dependent delay and look, and can't be styled or hold richer content (e.g. a full path).
 // Delegated from the document so it covers dynamically added rows/tabs without per-element wiring.
+import './tooltip.css';
 
 const SHOW_DELAY = 400; // ms before a hovered tooltip appears.
 const GAP = 8; // px between the target and the tooltip.

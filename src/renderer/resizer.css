@@ -1,0 +1,4 @@
+/* The cursor is set inline by the resizer helper, from the handle being dragged. */
+body.resizing {
+  user-select: none;
+}
