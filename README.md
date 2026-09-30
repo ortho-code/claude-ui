@@ -68,6 +68,7 @@ Next:
 - Clickable paths in terminal output, opening the file the session just named in a panel.
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).
 - End-to-end tests of the built app with a stand-in `claude`, now that the window's own checks run headless; then split view.
+- A Renovate configuration of the repo's own, tuned to its dependencies and workflows rather than left at Renovate's defaults.
 - Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.
 - More panel types (markdown, diff, transcript, config), and layouts per project.
 - Panels opened at will rather than only from the file, such as a second shell, and panels that belong to one project while others stay the same everywhere.
