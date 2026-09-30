@@ -1,6 +1,6 @@
 import type { FolderName } from '../../src/shared/folders';
 import type { LayoutReport, PanelData } from '../../src/shared/panels';
-import type { ClaudeUiApi, GroupState, HistoryPin, SessionSummary, Settings, UiState, WindowChrome } from '../../src/shared/types';
+import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, SessionSummary, Settings, UiState, WindowChrome } from '../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -23,6 +23,8 @@ export interface BridgeFixture {
   projectOrder: string[];
   statuses: Record<string, string>;
   historyPins: Record<string, HistoryPin>;
+  /** Session id -> its transcript's exchanges, as main reads them; a session left out has no history the stand-in can answer for. */
+  history: Record<string, Exchange[]>;
   layout: LayoutReport;
   folders: Record<FolderName, string>;
   panelData: Record<string, PanelData>;
@@ -104,6 +106,7 @@ export function defaultFixture(): BridgeFixture {
     projectOrder: [one.repoRoot],
     statuses: {},
     historyPins: {},
+    history: {},
     layout: { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, status: 'missing', error: null, json: null, types: [] },
     folders: { config: CONFIG_ROOT, logs: `${HOME}/.config/claude-ui/logs` },
     panelData: {},

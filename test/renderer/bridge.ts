@@ -39,9 +39,19 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       listeners.set(name, [...(listeners.get(name) ?? []), callback]);
     };
 
+  // Main's ids for the ptys it starts: a counter, and nothing the window reads into beyond each being its own.
+  let terminals = 0;
+  /** The generation of every fixture transcript's one read: main numbers each read from the start, and the window only ever compares it with the one it holds. */
+  const READ = 1;
+
   const api: ClaudeUiApi = {
     listSessions: () => answer(fixture.sessions),
-    getHistory: unmodelled('getHistory'),
+    // Only the whole read, which is main's answer to a caller holding nothing of this read: every exchange, from 0 (`readHistory` in src/main/transcript.ts).
+    // A later call asks what was appended since, which is main's rule to keep; a fixture transcript never grows, so a check that makes one has something to model.
+    getHistory: (id, _known, generation) =>
+      id in fixture.history && generation !== READ
+        ? answer({ generation: READ, from: 0, exchanges: fixture.history[id], total: fixture.history[id].length })
+        : unmodelled('getHistory')(),
     worktreeExists: unmodelled('worktreeExists'),
     onSessionsChanged: on('onSessionsChanged'),
     onQuitting: on('onQuitting'),
@@ -97,7 +107,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     onSessionStatus: on('onSessionStatus'),
     onSessionModel: on('onSessionModel'),
     clearStatus: sent,
-    startTerminal: unmodelled('startTerminal'),
+    // A claude that has started and printed nothing yet: its tab boots until a check fires `onTerminalData` for it.
+    startTerminal: () => answer(++terminals),
     startShell: unmodelled('startShell'),
     onTerminalData: on('onTerminalData'),
     onTerminalExit: on('onTerminalExit'),
