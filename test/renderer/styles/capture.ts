@@ -11,6 +11,7 @@ import type { Page } from '@playwright/test';
  * A forced state is written as what differs from rest, for the control and what is inside it, and for hover the few ancestors a real pointer hovers with it and that a rule here reads (the split button's one outline, a row's pin, a divider's chevron).
  * Forced through the DevTools protocol rather than by moving the mouse, since a real hover runs the page's own handlers — a submenu opening, a tooltip — and those would change what is captured.
  * Transitions are finished and animations held at their start, and transitions are switched off while states are forced, so a value is never read mid-way; `transition-*` itself is therefore left out of the forced states.
+ * The lines are written sorted, so an element that a module now builds in another place in the page, looking the same, changes nothing here; whether it still paints the same is the picture's to say.
  */
 
 /** What gets its hover and focus captured: what you press or type into, a divider, whose chevrons brighten on hover, and anything the page gives a pointer — the element that gives it, since `cursor` is inherited by everything inside. */
@@ -142,7 +143,7 @@ export async function snapshot(page: Page, dir: string, name: string): Promise<v
   // At rest, before anything is numbered or forced. Playwright plays an endless animation again once the picture is taken, so it is held again after.
   await page.screenshot({ path: path.join(dir, `${name}.png`), animations: 'disabled' });
   await hold();
-  const { lines, targets } = await page.evaluate(install, CONTROLS);
+  const { lines: rest, targets } = await page.evaluate(install, CONTROLS);
   await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; }' });
 
   const cdp = await page.context().newCDPSession(page);
@@ -161,17 +162,18 @@ export async function snapshot(page: Page, dir: string, name: string): Promise<v
     await Promise.all(indices.map((i) => cdp.send('CSS.forcePseudoState', { nodeId: nodeOf.get(i)!, forcedPseudoClasses: classes })));
   };
 
+  const forced: string[] = [];
   for (const target of targets) {
     const chain = [target];
     while (chain.length <= HOVER_UP && parents[chain[0]] >= 0) chain.unshift(parents[chain[0]]);
     await force(chain, ['hover']);
-    lines.push(...(await page.evaluate(changed, { target, state: 'hover' as const, maxInside: MAX_INSIDE, hoverUp: HOVER_UP })));
+    forced.push(...(await page.evaluate(changed, { target, state: 'hover' as const, maxInside: MAX_INSIDE, hoverUp: HOVER_UP })));
     await force(chain, []);
     await force([target], ['focus', 'focus-visible']);
-    lines.push(...(await page.evaluate(changed, { target, state: 'focus' as const, maxInside: MAX_INSIDE, hoverUp: HOVER_UP })));
+    forced.push(...(await page.evaluate(changed, { target, state: 'focus' as const, maxInside: MAX_INSIDE, hoverUp: HOVER_UP })));
     await force([target], []);
   }
   await cdp.detach();
 
-  await writeFile(path.join(dir, `${name}.txt`), `${lines.join('\n')}\n`);
+  await writeFile(path.join(dir, `${name}.txt`), `${[...rest.sort(), ...forced.sort()].join('\n')}\n`);
 }
