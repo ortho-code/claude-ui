@@ -1,4 +1,6 @@
-import { builtinType } from '../builtin';
+import type { View } from '../../../state/app';
+import { sessionNudge, visibleTabs } from '../../../state/views';
+import { builtinType, reportBuiltinStatus } from '../builtin';
 import './index.css';
 
 /**
@@ -23,3 +25,11 @@ export const claudeType = builtinType('claude', document.getElementById('termina
 
 /** Where the tabs' terminals go, under the tab bar. */
 export const terminalsEl = document.getElementById('terminals')!;
+
+/**
+ * What the terminal area's rail icon says while it is folded or behind another panel: waiting while a tab on show waits for you, by the roll-up's rule, so a tab marked read counts as nothing.
+ * A watcher of the tabs and their statuses, which renderer.ts registers with the others.
+ */
+export function railStatusFollowsTabs(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked'>): void {
+  reportBuiltinStatus('claude', visibleTabs(view).some((tab) => sessionNudge(tab.session.id, view) === 'waiting') ? 'wait' : null);
+}

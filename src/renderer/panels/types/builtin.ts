@@ -17,8 +17,8 @@ const hosts = new Map<BuiltinName, PanelHost>();
 const statuses = new Map<BuiltinName, PanelStatus>();
 
 /**
- * The renderer reporting what a built-in's rail icon should say: `sessions` waits while any session anywhere waits for you, `claude` while one of the tabs on show does.
- * The renderer knows that and the surfaces do not, since the surfaces are the renderer's own elements.
+ * What a built-in's rail icon should say, reported by the code that knows: `sessions` waits while any session anywhere waits for you (the switcher's roll-up), `claude` while one of the tabs on show does (its own watcher, claude/index.ts).
+ * Kept here as well as handed on, since a report can arrive before the built-in is mounted.
  */
 export function reportBuiltinStatus(name: BuiltinName, status: PanelStatus): void {
   if (statuses.get(name) === status) return;

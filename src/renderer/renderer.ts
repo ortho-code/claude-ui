@@ -10,6 +10,7 @@ import { markProjectGone } from './projectgone';
 import { startChrome } from './chrome';
 import { flash } from './flash';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
+import { railStatusFollowsTabs } from './panels/types/claude/index';
 import { history, paneFollowsTabs, updatePlaceholder } from './panels/types/claude/pane';
 import {
   activateTab,
@@ -27,7 +28,7 @@ import {
 import { renderTabBar, type TabBarView } from './panels/types/claude/tab-bar';
 import './styles.css';
 import { store, withEntry, withMember, type TabState, type View } from './state/app';
-import { projName, projectGroups, sessionById, sessionNudge, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions, visibleTabs } from './state/views';
+import { projName, projectGroups, sessionById, sessionNudge, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
 import { setStatus } from './state/statuses';
 import { applyGroupState, moveSessionToGroup } from './state/groups';
 import { ackOnClick, applyStatus } from './statusdot';
@@ -753,9 +754,8 @@ function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' 
   );
 
   renderFooter(model, pool, view);
-  // What the built-ins' rail icons say while they are folded or behind another panel: the same roll-up as the header's badge for the sidebar, and the tabs on show for the terminal area.
+  // What the sidebar's rail icon says while it is folded or behind another panel: the same roll-up as the header's badge.
   reportBuiltinStatus('sessions', headerBadge === 'waiting' ? 'wait' : null);
-  reportBuiltinStatus('claude', visibleTabs(view).some((tab) => sessionNudge(tab.session.id, view) === 'waiting') ? 'wait' : null);
 }
 
 // Seeded from meta at startup (default open — the strip exists to be read), and written back on every toggle so the choice survives a restart.
@@ -2081,8 +2081,11 @@ store.watch(['statuses'], toastAttention, { reads: ['tabs', 'activeTab', 'projec
 // The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes, and every change to a tab or to which one is on show.
 store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'], renderTabBar, { reads: ['sessions', 'statuses', 'acked'] });
 
-// The strip lists what runs, in the bar's order, each row with a stop button in the tab's state; the switcher's claude rail status counts the tabs on show.
+// The strip lists what runs, in the bar's order, each row with a stop button in the tab's state.
 store.watch(['tabs'], refreshSwitcher, { reads: ['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject'] });
+
+// The terminal area's rail icon waits while a tab on show waits for you.
+store.watch(['activeProject', 'tabs', 'statuses', 'acked'], railStatusFollowsTabs);
 
 // The pane shows the tab on show, or says why there is none.
 store.watch(['tabs', 'activeTab'], paneFollowsTabs, { reads: ['sessions', 'activeProject'] });
