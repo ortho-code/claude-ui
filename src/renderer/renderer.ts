@@ -1340,11 +1340,13 @@ function renderList(view: ListView): void {
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions(view);
   currentByKey = new Map(all.map((s) => [entityKey(s), s]));
-  // The switcher lists every project, independent of search/project, so you can always navigate. If the active project no longer has any sessions, fall back to All (and persist that).
+  // The switcher lists every project, independent of search/project, so you can always navigate.
   const pool = switcherPool(all, view);
+  // A project with no sessions left cannot stay selected: fall back to All exactly as picking it does, the tab bar and the tab on show included — which draws the list itself, from the top.
+  // Setting the scope alone left the bar on the old project's tabs while the list and the switcher said All.
   if (activeProject && !pool.some((s) => s.repoRoot === activeProject)) {
-    activeProject = null;
-    window.claudeUi.setActiveProject(null);
+    selectProject(null);
+    return;
   }
   renderSwitcher(pool, view);
 
