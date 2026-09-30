@@ -10,15 +10,13 @@ import { markProjectGone } from './projectgone';
 import { startChrome } from './chrome';
 import { flash } from './flash';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
-import { HistoryBar } from './panels/types/claude/history/bar';
-import { HistoryView } from './panels/types/claude/history/view';
 import { terminalsEl } from './panels/types/claude/index';
+import { history, paneFollowsTabs, updatePlaceholder } from './panels/types/claude/pane';
 import {
   activateTab,
   closeOrStop,
   closeTab,
   createTab,
-  isOnShow,
   persistOpenTabs,
   restoreOpenTabs,
   setTab,
@@ -134,45 +132,6 @@ const filterChips = document.getElementById('filter-chips')!;
 const filterClear = document.getElementById('filter-clear') as HTMLButtonElement;
 const loadingEl = document.getElementById('loading')!;
 const tabbar = document.getElementById('tabbar')!;
-const placeholder = document.getElementById('term-placeholder')!;
-// The active tab's history, over the terminal area (history/view.ts): one view, pointed at whichever session the pane shows.
-const history = new HistoryView({
-  getHistory: (id, known, generation) => window.claudeUi.getHistory(id, known, generation),
-  toggleHistoryPin: (id, pin) => window.claudeUi.toggleHistoryPin(id, pin),
-  openExternal: (url) => window.claudeUi.openExternal(url),
-  leave: () => showHistory(false),
-  open: () => openHistory(),
-});
-terminalsEl.append(history.scrim, history.el);
-// Its bar, beside the terminal area: picking an entry on it opens the history there, from live or not.
-const historyBar = new HistoryBar(
-  history,
-  (entry) => {
-    openHistory();
-    history.goTo(entry.k, entry.part);
-  },
-  openHistory,
-);
-document.getElementById('terminal-body')!.append(historyBar.el);
-history.onLayout = () => historyBar.refresh();
-history.onScroll = () => historyBar.moveBand();
-// Ctrl+Shift+↑ / ↓: the previous / next request. From live, ↑ opens the history at your last request and ↓ does nothing; in the history they step, and ↓ past the last request goes back to live.
-// Caught on the window, before xterm, which would otherwise send them to claude as keys. App shortcuts take Ctrl+Shift, since a bare Ctrl+letter belongs to the terminal.
-const terminalPane = document.getElementById('terminal-pane')!;
-window.addEventListener(
-  'keydown',
-  (event) => {
-    const up = event.key === 'ArrowUp';
-    if ((!up && event.key !== 'ArrowDown') || !event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey) return;
-    if (store.get().activeTab === null || !terminalPane.contains(document.activeElement)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (!history.shown) {
-      if (up) historyBar.pickLast();
-    } else if (!history.step(up ? -1 : 1) && !up && !history.standing) showHistory(false);
-  },
-  true,
-);
 const settingsToggle = document.getElementById('settings-toggle') as HTMLButtonElement;
 
 /** The statuses as the toasts last saw them, so only a change of state is news. */
@@ -2301,115 +2260,6 @@ window.addEventListener('blur', () => {
   document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
   document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 });
-
-/**
- * Hand the pane to the history, or back to the live terminal.
- * Only ever on purpose — the bar, its foot arrow, Ctrl+Shift+↑ — and never from the wheel, which scrolls claude's own view: the point is to work in the session, and a scroll that turned into another mode was a surprise.
- */
-function showHistory(shown: boolean): void {
-  const tab = tabOnShow(store.get());
-  if (history.setShown(shown) && !shown && tab) terminalOf(tab.token).term.focus();
-}
-
-function updatePlaceholder(view: View<'sessions' | 'activeProject' | 'tabs' | 'activeTab'>): void {
-  const activeTab = tabOnShow(view);
-  // The history follows the tab from here, since every change to what the pane shows passes through this function; a tab switch shows the new tab as you left it, live or in its history.
-  history.follow(activeTab?.session.id ?? null);
-  // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so without this a restored session would look like a session that had nothing in it.
-  const cold = activeTab !== null && activeTab.terminalId === null;
-  // A booting tab HAS a terminal, but it is still empty: keep the pane covered rather than showing the black rectangle that the wait would otherwise be.
-  const booting = activeTab?.booting === true;
-  placeholder.style.display = activeTab && !cold && !booting ? 'none' : 'flex';
-  historyBar.setLive(activeTab !== null && !cold && !booting);
-  const sentence = paneSentence(cold, booting, view);
-  // A tab on show with no claude behind it — restored, or refused a start — says so, and offers the two things to do about it: resume it, or read what it said.
-  const standing = activeTab && cold && !booting ? activeTab : null;
-  if (standing) {
-    const actions = document.createElement('div');
-    actions.className = 'pane-actions';
-    const show = document.createElement('button');
-    show.type = 'button';
-    show.textContent = 'Show history';
-    show.addEventListener('click', openHistory);
-    actions.append(resumeButton(standing), show);
-    const line = document.createElement('div');
-    line.textContent = sentence;
-    placeholder.replaceChildren(line, actions);
-  } else placeholder.textContent = sentence;
-  // The history, once asked for on such a tab, stands under the same sentence; a tab that is no longer cold takes the pane back.
-  if (!standing) history.setStandalone(null);
-  else if (history.standing) history.setStandalone(sentence, resumeButton(standing));
-}
-
-/** What the pane last followed from the tabs: the tab on show as it was, and whether there were none on show — its sentence depends on both. */
-let paneTab: TabState | null = null;
-let paneNoTabs = true;
-/** The session each open tab held when the pane last looked, by token, so it knows whose history to forget when a tab closes. */
-let paneSessions: ReadonlyMap<string, string> = new Map();
-
-/**
- * The tab on show changed, or changed state, or the last tab on show came or went: the pane follows.
- * Another tab starting, printing or stopping leaves it alone: a change to one tab is a new entry for that tab only.
- * A tab that closed has its history forgotten, so opening its session again starts with it closed — after the follow, which is what remembers how the tab on show was left.
- */
-function paneFollowsTabs(view: View<'sessions' | 'activeProject' | 'tabs' | 'activeTab'>): void {
-  const shown = tabOnShow(view);
-  const noTabs = visibleTabs(view).length === 0;
-  const before = paneSessions;
-  paneSessions = new Map(view.tabs.map((t) => [t.token, t.session.id]));
-  if (shown !== paneTab || noTabs !== paneNoTabs) {
-    paneTab = shown;
-    paneNoTabs = noTabs;
-    updatePlaceholder(view);
-  }
-  for (const [token, id] of before) if (!paneSessions.has(token)) history.forget(id);
-}
-
-/** Resume the tab on show, as a click on it does; unavailable, with the reason, when its folder has gone. */
-function resumeButton(tab: TabState): HTMLButtonElement {
-  const { token } = tab;
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'primary';
-  button.textContent = 'Resume';
-  setUnavailable(button, unstartableReason(tab.session), 'Start claude in this session again');
-  button.addEventListener('click', () => {
-    if (!unavailable(button) && isOnShow(token)) activateTab(token);
-  });
-  return button;
-}
-
-/**
- * Open the history of the tab on show: over its live terminal, or, for a tab with no claude behind it, standing under the sentence the pane says, since there is no live view to go back to.
- * Every way in comes here — the bar, its foot arrow, Ctrl+Shift+↑, a cold tab's "Show history", a tab reopening its history where it was left — so they cannot disagree about which.
- */
-function openHistory(): void {
-  const activeTab = tabOnShow(store.get());
-  if (!activeTab) return;
-  if (activeTab.terminalId === null && !activeTab.booting) history.setStandalone(paneSentence(true, false, store.get()), resumeButton(activeTab));
-  else showHistory(true);
-}
-
-/** What the pane says when there is no live claude to show: one sentence, and the next move it names. */
-function paneSentence(cold: boolean, booting: boolean, view: View<'sessions' | 'activeProject' | 'tabs' | 'activeTab'>): string {
-  const { activeProject } = view;
-  const activeTab = tabOnShow(view);
-  if (booting) return `Starting “${sessionLabel(activeTab!.session)}”…`;
-  // A start that was REFUSED says why, in place of "click its tab to resume it" — which would be telling you to do the thing that just failed.
-  if (activeTab?.failure) return activeTab.failure;
-  // Four different situations reach this pane, and each has a different next move — one sentence covering all of them tells someone with no sessions to pick one, and someone with no tabs to pick a tab that isn't there.
-  return cold
-    ? `“${sessionLabel(activeTab!.session)}” isn’t running.`
-    : view.sessions.length === 0
-      ? 'No sessions yet — start one with + New.'
-      : // Nothing in a dead project can be opened or resumed, so pointing at its sessions or tabs would send you to a click that is refused.
-        activeProject !== null && projectGone(activeProject, view)
-        ? projectGoneReason(activeProject)
-        : // visibleTabs, not tabs: a project view shows only its own, so "pick a tab above" was being offered next to an empty bar whenever the open tabs all belonged to other projects.
-          visibleTabs(view).length === 0
-          ? 'Pick a session in the sidebar to open it.'
-          : 'Pick a tab above, or a session in the sidebar, to resume it.';
-}
 
 // --- Wiring ---
 

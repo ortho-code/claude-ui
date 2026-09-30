@@ -1252,20 +1252,6 @@ h1 {
   text-align: center;
 }
 
-/* The history's own rules are its view's and its bar's (panels/types/claude/history/view.css, bar.css); these two are shared with the pane's cold-tab buttons, and move with the pane. */
-.history-note button,
-.pane-actions button {
-  padding: 3px 12px;
-  font-size: var(--text-meta);
-}
-
-/* A cold tab's two ways on, under its sentence. */
-.pane-actions {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-}
-
 /* A list panel's variants of the group heading and the empty-group line it shares with the session list (list.css has the rest).
    Here rather than there, because each outweighs a shared rule above only by coming after it, at the same specificity, and list.css comes before this file; they join list.css when the shared rules have a stylesheet of their own ahead of it. */
 .list-section h3 {
