@@ -1,3 +1,4 @@
+import { readFrom } from '../../../src/shared/history';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import type { BridgeCall, BridgeEvent, BridgeEventArgs, BridgeFixture } from './fixture';
 
@@ -46,12 +47,13 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
 
   const api: ClaudeUiApi = {
     listSessions: () => answer(fixture.sessions),
-    // Only the whole read, which is main's answer to a caller holding nothing of this read: every exchange, from 0 (`readHistory` in src/main/transcript.ts).
-    // A later call asks what was appended since, which is main's rule to keep; a fixture transcript never grows, so a check that makes one has something to model.
-    getHistory: (id, _known, generation) =>
-      id in fixture.history && generation !== READ
-        ? answer({ generation: READ, from: 0, exchanges: fixture.history[id], total: fixture.history[id].length })
-        : unmodelled('getHistory')(),
+    // Where the answer starts is main's own rule, `readFrom`; a fixture transcript never changes after its one read, so nothing in it is ever marked as changed.
+    getHistory: (id, known, generation) => {
+      if (!(id in fixture.history)) return unmodelled('getHistory')();
+      const exchanges = fixture.history[id];
+      const from = readFrom(known, exchanges.length, generation === READ, null);
+      return answer({ generation: READ, from, exchanges: exchanges.slice(from), total: exchanges.length });
+    },
     worktreeExists: unmodelled('worktreeExists'),
     onSessionsChanged: on('onSessionsChanged'),
     onQuitting: on('onQuitting'),
