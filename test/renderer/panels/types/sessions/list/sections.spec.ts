@@ -84,6 +84,21 @@ test('in All, collapse-all folds every project and its groups with it, and expan
   await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
 });
 
+test('a project folded in All opens when you choose it, and stays open when you go back to All', async ({ app, page }) => {
+  await app.boot({ ...fixture, ...withUi({ collapsedProjects: [OTHER] }) });
+  await expect(project(page, 'other')).toHaveClass(/\bcollapsed\b/);
+  const choose = async (name: string): Promise<void> => {
+    await page.locator('#switcher-current').click();
+    await page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: new RegExp(`^${name}$`) }) }).click();
+  };
+
+  await choose('other');
+  await expect(page.locator('.session', { hasText: elsewhere.title })).toBeVisible();
+  await choose('All');
+  await expect(project(page, 'other')).not.toHaveClass(/\bcollapsed\b/);
+  await expect.poll(async () => (await saved(app))?.collapsedProjects).toEqual([]);
+});
+
 test("in a project, the heading cannot fold and collapse-all folds that project's groups", async ({ app, page }) => {
   await app.boot({ ...fixture, activeProject: PROJECT });
   await expect(project(page, 'demo')).toHaveClass(/\bno-collapse\b/);
