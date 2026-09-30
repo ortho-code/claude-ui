@@ -26,6 +26,25 @@ export const caretIcon = (collapsed: boolean, size: number): string => chevronIc
 /** The cross that closes or removes: a toast, a filter chip, a cold tab, the window. */
 export const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4" />');
 
+// A tab's button ends the session before it removes the tab, so it needs two marks rather than one: the media-stop square for the first press, the cross for the second. Squared off at 6.6 units so it reads at the same weight as the cross's diagonal.
+export const stopIcon = (size: number): string => strokeIcon(size, '<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2" />');
+
+// A group's mark: layers, meaning "several things stacked as one". Muted, never accent — the accent belongs to the project's folder icon one line above it.
+export const layersIcon = (size: number): string => strokeIcon(size, '<path d="M8 2.2 2 5.4l6 3.2 6-3.2-6-3.2Z" /><path d="M2.4 9.2 8 12.2l5.6-3" />');
+
+// A project's mark, and the same folder with a slash through it for one whose directory is not there any more: ONE folder, so swapping the two moves no outline.
+const FOLDER_PATH = '<path d="M2 3.5h4l1.5 1.5H14v7.5H2z" />';
+export const folderIcon = (size: number): string => strokeIcon(size, FOLDER_PATH);
+export const folderGoneIcon = (size: number): string => strokeIcon(size, `${FOLDER_PATH}<line x1="2.8" y1="13.2" x2="13.2" y2="2.8" />`);
+
+// The family/worktree marks.
+// Both used to be font glyphs, and not even from the same font: ⑂ (U+2442) is absent from DejaVu Sans and resolved from FreeMono, a MONOSPACE face, while ⎇ (U+2387) came from DejaVu — which is why they never matched weight and needed hand-tuned font-size corrections.
+// Conventional icons instead: a fork (one session split into a family) and a branch off a trunk (a linked worktree).
+// Asymmetric vs symmetric, so they stay apart at badge size.
+// Both are drawn so their INK is centred on 8,8 and 10 units tall, not merely their viewBox: the first cut centred the boxes while the fork hung 1.25 low and the branch filled 7.5 units against the fork's 11, which read as one mark misaligned and the other too small.
+export const SIBLING_ICON = strokeIcon(11, '<path d="M8 12V8M4 4L8 8L12 4" />');
+export const WORKTREE_ICON = strokeIcon(11, '<path d="M4.5 12V4M4.5 8Q11.5 8 11.5 4" />');
+
 // The pin, as SVG rather than the ★/☆ glyphs: those resolve through system font fallback (DejaVu Sans under WSLg), whose outline star is a hairline that reads far fainter than its --muted colour should.
 // Same star either way — filled for pinned, outlined for not — so the two states differ by ink, not by colour, and both render at a weight we control instead of the font's.
 const STAR_PATH =

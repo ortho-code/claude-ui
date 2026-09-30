@@ -1,0 +1,13 @@
+/* A PROJECT WHOSE FOLDER IS GONE, wherever it is named (markProjectGone): the name and its mark muted.
+   Muted rather than dimmed, because the project is not disabled — it can still be folded, selected, renamed and cleaned up.
+   The second selector only outweighs the heading icon's accent. */
+.project-gone,
+.project h2 .heading-icon.project-gone {
+  color: var(--muted);
+}
+
+.gone-mark {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}

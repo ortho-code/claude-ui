@@ -7,6 +7,7 @@ import { showAttentionToast } from './notifications';
 import { confirmDelete, promptText } from './dialogs';
 import { askForSession } from './sessiondialog';
 import { openSettings } from './settings';
+import { markProjectGone } from './projectgone';
 import './styles.css';
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
@@ -40,7 +41,7 @@ import {
   type SwitcherModel,
 } from './logic';
 import { installTooltips, setTooltip } from './tooltip';
-import { caretIcon, chevronIcon, closeIcon, PIN_ICON, PINNED_ICON, strokeIcon } from './svg';
+import { caretIcon, chevronIcon, closeIcon, folderGoneIcon, folderIcon, layersIcon, PIN_ICON, PINNED_ICON, SIBLING_ICON, stopIcon, strokeIcon, WORKTREE_ICON } from './svg';
 import type { LinkedSession, SessionRequest } from './panels/types/command';
 import type { PanelData } from '../shared/panels';
 import { flash } from './flash';
@@ -98,22 +99,12 @@ const footerBadge = document.getElementById('footer-badge')!;
 const footerLabel = document.getElementById('footer-label')!;
 const footerList = document.getElementById('footer-list')!;
 
-// A group's mark: layers, meaning "several things stacked as one". Muted, never accent — the accent belongs to the project's folder icon one line above it.
-const layersIcon = (size: number): string => strokeIcon(size, '<path d="M8 2.2 2 5.4l6 3.2 6-3.2-6-3.2Z" /><path d="M2.4 9.2 8 12.2l5.6-3" />');
-
-// A project's mark, and the same folder with a slash through it for one whose directory is not there any more: ONE folder, so swapping the two moves no outline.
-const FOLDER_PATH = '<path d="M2 3.5h4l1.5 1.5H14v7.5H2z" />';
-const folderIcon = (size: number): string => strokeIcon(size, FOLDER_PATH);
-const folderGoneIcon = (size: number): string => strokeIcon(size, `${FOLDER_PATH}<line x1="2.8" y1="13.2" x2="13.2" y2="2.8" />`);
-
 // The chrome marks — carets, +, ⋮, ✓, × — as SVG rather than the text glyphs they used to be.
-// Every one of those resolved through system font fallback, which is how ⑂ ended up rendering from a MONOSPACE face beside its neighbours (see the family/worktree marks below).
+// Every one of those resolved through system font fallback, which is how ⑂ ended up rendering from a MONOSPACE face beside its neighbours (see the family and worktree marks in svg.ts).
 // These render the same whatever the system has installed, take their colour from `currentColor` like the other icons, and are drawn through `strokeIcon`, which keeps their weight equal at every size.
 // Chevrons, not filled triangles: the collapse-all button already says fold/unfold with a chevron, and a solid triangle would be the only filled shape in an outline icon set.
 const chevronDown = (size: number): string => chevronIcon('down', size);
 const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
-// A tab's button ends the session before it removes the tab, so it needs two marks rather than one: the media-stop square for the first press, the cross for the second. Squared off at 6.6 units so it reads at the same weight as the cross's diagonal.
-const stopIcon = (size: number): string => strokeIcon(size, '<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2" />');
 // The window controls, drawn from the same set as everything else rather than as the platform glyphs they imitate — the app has no font-glyph icons anywhere and these should not be the exception.
 const minimizeIcon = (size: number): string => strokeIcon(size, '<path d="M3.5 8H12.5" />');
 const maximizeIcon = (size: number): string => strokeIcon(size, '<rect x="3.9" y="3.9" width="8.2" height="8.2" rx="1.4" />');
@@ -876,21 +867,6 @@ async function restoreUiState(): Promise<number> {
 }
 
 // --- Project switcher ---
-
-/**
- * Mark a project whose folder is gone, the same way on every surface that names one — its heading, the switcher's entries and title, the tab bar's project label: the name muted, the crossed-out folder beside it, and why as the tooltip.
- * The heading already has a folder in front of its name, so its `mark` is that slot and `live` is what it holds while the folder is there; everywhere else the mark comes after the name and is empty then, so the names stay aligned.
- * `pathTip` is the element whose tooltip is the project's path while it is alive, and the reason once it is not.
- */
-function markProjectGone(repoRoot: string, gone: boolean, name: HTMLElement, mark: HTMLElement, size: number, pathTip?: HTMLElement, live = ''): void {
-  const reason = gone ? projectGoneReason(repoRoot) : null;
-  name.classList.toggle('project-gone', gone);
-  mark.classList.toggle('project-gone', gone);
-  mark.innerHTML = gone ? folderGoneIcon(size) : live;
-  mark.hidden = !gone && !live;
-  setTooltip(mark, reason);
-  if (pathTip) setTooltip(pathTip, reason ?? repoRoot);
-}
 
 // Whether a project is dead, by the rule the session list and the switcher use, for the surfaces that hold only a repo root: the tab bar and the empty pane. A root with no sessions to ask is not called dead.
 function projectGone(repoRoot: string): boolean {
@@ -1878,15 +1854,8 @@ function getOrCreateRow(key: string): HTMLElement {
   return row;
 }
 
-// The family/worktree marks.
-// Both used to be font glyphs, and not even from the same font: ⑂ (U+2442) is absent from DejaVu Sans and resolved from FreeMono, a MONOSPACE face, while ⎇ (U+2387) came from DejaVu — which is why they never matched weight and needed hand-tuned font-size corrections.
-// Conventional icons instead: a fork (one session split into a family) and a branch off a trunk (a linked worktree).
-// Asymmetric vs symmetric, so they stay apart at badge size.
-// Both are drawn so their INK is centred on 8,8 and 10 units tall, not merely their viewBox: the first cut centred the boxes while the fork hung 1.25 low and the branch filled 7.5 units against the fork's 11, which read as one mark misaligned and the other too small.
 // A note's mark: a page with a line of writing on it.
 const NOTE_ICON = strokeIcon(13, '<path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.5M6.25 8.75h3.5" />');
-const SIBLING_ICON = strokeIcon(11, '<path d="M8 12V8M4 4L8 8L12 4" />');
-const WORKTREE_ICON = strokeIcon(11, '<path d="M4.5 12V4M4.5 8Q11.5 8 11.5 4" />');
 
 
 // The open filter's mark: a window with a title bar — "this one has a tab". Deliberately a SHAPE where running is a DOT, so the pair reads as two different questions rather than two intensities.
