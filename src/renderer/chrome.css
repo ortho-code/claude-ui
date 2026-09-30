@@ -1,0 +1,147 @@
+/* Our title bar, on the platforms where the OS no longer draws one.
+   Note there is NO `-webkit-app-region: drag` anywhere: dragging is done by hand, like resizing.
+   A drag region brings Chromium's own double-click-to-maximize with it, which cannot be turned off
+   (`maximizable: false` does not stop it) and fought our own handler — the window would maximize
+   natively, drawn offset from where it could be clicked, while the app still believed it was not
+   maximized. Owning the gesture outright is what removed the conflict. */
+#titlebar {
+  position: relative; /* the resize strip positions against this */
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 0 0 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+#app-mark {
+  display: block;
+  border-radius: 3px;
+}
+
+/* The version, and the dev marker, which lived in the OS title bar until we stopped having one. */
+#window-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-meta);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#window-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-self: stretch;
+}
+
+/* Full-height, square-ish and unrounded, the way a title bar's controls are everywhere else: they
+   read as part of the window frame rather than as three more buttons in the app's toolbar. */
+#window-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  align-self: stretch;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+#window-controls button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* Close is the one destructive control in the row, and it sits beside two that are not.
+   The same red as the delete button in the confirm dialog, rather than a second one. */
+#window-controls button.danger:hover {
+  background: #c92a2a;
+  color: #fff;
+}
+
+/* The top edge's resize handle. A frameless window has no resize zone there on this compositor, so
+   this thin strip is the whole mechanism — see .plan/plan_window-chrome.md.
+   `no-drag` is LOAD-BEARING, not tidiness: it lies over the title bar, and a drag region swallows the
+   pointerdown before any handler sees it, which is exactly how the first version silently did nothing.
+   6px rather than the 4 the other edges get, because this one is a target you have to find. */
+/* Every edge and corner of the window, ours rather than the compositor's.
+   6px edges and 12px corners: the 4px Chromium gave three of these was a genuinely hard target. */
+.resize-edge {
+  position: fixed;
+  z-index: 60;
+}
+
+/* The top three are positioned against the title bar they sit in, not the viewport. */
+#titlebar .resize-edge {
+  position: absolute;
+  top: 0;
+}
+
+.resize-edge[data-edge='n'] {
+  left: 12px;
+  right: 12px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.resize-edge[data-edge='s'] {
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+/* The side edges start below the title bar, whose own corners cover that stretch. */
+.resize-edge[data-edge='w'],
+.resize-edge[data-edge='e'] {
+  top: 32px;
+  bottom: 12px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.resize-edge[data-edge='w'] {
+  left: 0;
+}
+
+.resize-edge[data-edge='e'] {
+  right: 0;
+}
+
+.resize-edge[data-edge='nw'],
+.resize-edge[data-edge='ne'],
+.resize-edge[data-edge='sw'],
+.resize-edge[data-edge='se'] {
+  width: 12px;
+  height: 12px;
+}
+
+.resize-edge[data-edge='nw'] {
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.resize-edge[data-edge='ne'] {
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.resize-edge[data-edge='sw'] {
+  left: 0;
+  bottom: 0;
+  cursor: nesw-resize;
+}
+
+.resize-edge[data-edge='se'] {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+}
