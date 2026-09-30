@@ -165,13 +165,23 @@ window.addEventListener(
 );
 const settingsToggle = document.getElementById('settings-toggle') as HTMLButtonElement;
 
-// A real transition into waiting/idle on a tab you're not looking at -> toast it. Never for busy, a cleared status, a no-op repeat, or the tab you're already on.
-function maybeAttentionToast(id: string, status: string | undefined, prev: string | undefined): void {
-  if ((status !== 'waiting' && status !== 'idle') || status === prev) return;
-  const tab = tabWith(id);
-  if (!tab || isOnShow(tab.token)) return;
-  const { token } = tab;
-  showAttentionToast({ status, label: sessionLabel(tab.session), project: projName(tab.session.repoRoot, store.get()), open: () => jumpToTab(token) });
+/** The statuses as the toasts last saw them, so only a change of state is news. */
+let toastedStatuses: View<'statuses'>['statuses'] = new Map();
+
+/**
+ * A real transition into waiting/idle on a tab you're not looking at -> toast it. Never for busy, a cleared status, a no-op repeat, or the tab you're already on.
+ * Start-up's read of every status toasts nothing: it lands before the tabs are restored, so no session in it has a tab yet.
+ */
+function toastAttention(view: View<'statuses' | 'tabs' | 'activeTab' | 'projectNames'>): void {
+  const before = toastedStatuses;
+  toastedStatuses = view.statuses;
+  for (const [id, status] of view.statuses) {
+    if ((status !== 'waiting' && status !== 'idle') || status === before.get(id)) continue;
+    const tab = tabWith(id, view);
+    if (!tab || tab.token === view.activeTab) continue;
+    const { token } = tab;
+    showAttentionToast({ status, label: sessionLabel(tab.session), project: projName(tab.session.repoRoot, view), open: () => jumpToTab(token) });
+  }
 }
 
 // Jump to a tab from a toast: scope to its project if we're viewing a different one, then activate it.
@@ -325,10 +335,8 @@ function reconcileOpenTabs(view: View<'sessions' | 'tabs'>): void {
 
 function setStatus(id: string, status: string | undefined): void {
   const { statuses, acked } = store.get();
-  const prev = statuses.get(id);
   // A new status event is fresh activity: drop any "read" mark so the dot re-lights (and, for a new waiting, re-pulses) even if the user had acked the previous state.
   store.set({ statuses: withEntry(statuses, id, status), acked: withMember(acked, id, false) });
-  maybeAttentionToast(id, status, prev);
 }
 
 /** The model to show for a session: the one it has switched to if we saw that happen, else the one that last answered. */
@@ -3038,6 +3046,9 @@ store.watch(['tabs', 'activeTab'], listFollowsTabs, {
 store.watch(['statuses', 'acked'], statusesChanged, {
   reads: ['sessions', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'],
 });
+
+// A tab not on show turned waiting or finished: a toast says so.
+store.watch(['statuses'], toastAttention, { reads: ['tabs', 'activeTab', 'projectNames'] });
 
 // The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes, and every change to a tab or to which one is on show.
 store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'], renderTabBar, { reads: ['sessions', 'statuses', 'acked'] });
