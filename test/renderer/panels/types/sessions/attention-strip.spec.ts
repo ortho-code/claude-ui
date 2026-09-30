@@ -48,3 +48,21 @@ test('the attention strip lists running sessions in the order you set, and keeps
   await expect(page.locator('#footer-label')).toHaveText('3 of 4 need you');
   expect(await strip(page)).toEqual(expected);
 });
+
+// Stopping from the strip is the way to stop a session in another project without leaving the one you are in: it stops, never closes, and the row leaves the strip once nothing runs there.
+test("the strip's stop button stops the session, keeps its tab cold, and the row leaves the strip", async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });
+  await page.locator('.tab-label', { hasText: loose.title }).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const stop = page.locator('#footer-list .footer-item-stop');
+
+  await stop.click();
+  expect(await app.calls('closeTerminal')).toEqual([[1]]);
+  // On its way out, on both of its buttons: the strip's and the tab's.
+  await expect(stop).toBeDisabled();
+  await expect(page.locator('.tab .tab-close')).toBeDisabled();
+
+  await app.emit('onTerminalExit', 1, 0);
+  await expect(page.locator('.tab', { hasText: loose.title })).toHaveClass(/\bcold\b/);
+  await expect(page.locator('#sidebar-footer')).toBeHidden();
+});

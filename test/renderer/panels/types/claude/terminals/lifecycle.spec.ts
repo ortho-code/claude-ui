@@ -78,6 +78,22 @@ test("the tab's button stops the session and keeps the tab cold, and a second pr
   await expect(pane(page)).toHaveText('Pick a session in the sidebar to open it.');
 });
 
+test('Ctrl-C goes to claude, and a second one straight after closes the tab', async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app);
+  // The same moment for both presses, however slow the machine is: "straight after" is a time window.
+  await page.clock.setFixedTime(Date.now());
+
+  await page.keyboard.press('Control+C');
+  expect(await app.calls('sendTerminalInput')).toEqual([[FIRST, '\x03']]);
+  await expect(tab(page, one.title)).toHaveCount(1);
+
+  await page.keyboard.press('Control+C');
+  await expect(tab(page, one.title)).toHaveCount(0);
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST]]);
+  expect(await app.calls('sendTerminalInput')).toEqual([[FIRST, '\x03']]);
+});
+
 test('a tab restored where you left off is selected and not started, and Resume starts it', async ({ app, page }) => {
   await app.boot({ ...fixture, openSessions: [one.id], activeSession: one.id });
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);

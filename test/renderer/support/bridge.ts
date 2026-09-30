@@ -118,7 +118,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       return settled ? answer(fixture.projectOrder) : unmodelled('seedProjectOrder')();
     },
     moveProject: (repoRoot, move) => answer((fixture.projectOrder = movedProject(fixture.projectOrder, repoRoot, move) ?? fixture.projectOrder)),
-    recordClear: unmodelled('recordClear'),
+    // Main writes the pairing to its audit log and answers nothing, deciding nothing (`recordClear` in src/main/meta.ts).
+    recordClear: () => answer(undefined),
     pickFolder: unmodelled('pickFolder'),
     openExternal: sent,
     getAllStatuses: () => answer(fixture.statuses),
