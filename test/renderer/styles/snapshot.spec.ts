@@ -113,6 +113,14 @@ test('the project switcher open', async ({ app, page }) => {
   await snapshot(page, DIR!, 'switcher');
 });
 
+test("the window's own title bar and resize edges, where the app draws its chrome", async ({ app, page }) => {
+  await app.boot({ windowChrome: { own: true, maximized: false, title: 'Claude UI (test)', version: '0.0.0-test', dev: true } });
+  await expect(page.locator('#titlebar')).toBeVisible();
+  // A box of no size of its own, since every handle in it is fixed to the window, so it is shown rather than visible.
+  await expect(page.locator('#resize-edges')).not.toHaveAttribute('hidden');
+  await snapshot(page, DIR!, 'chrome');
+});
+
 test('Settings open', async ({ app, page }) => {
   await app.boot();
   await page.locator('#settings-toggle').click();
