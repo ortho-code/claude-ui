@@ -55,6 +55,25 @@ export interface AppState {
   panelData: ReadonlyMap<string, PanelData>;
   /** The sidebar's filter as it is set: the list, its count and chips, and the folds in play all follow it, and it is kept for the next launch. */
   filter: FilterState;
+  /** The list's folded sections, kept for the next launch; the list reads them as it draws, and a heading's click folds in place without drawing it. */
+  folds: Folds;
+}
+
+/** The sections folded away: projects by repo root, groups by their own id. */
+export interface Folds {
+  projects: ReadonlySet<string>;
+  groups: ReadonlySet<string>;
+  /**
+   * The same two, for while a filter is on — and a separate pair rather than a flag, because they answer a different question.
+   *
+   * Filtering opens the whole tree, so that a match inside something you had folded away is not hidden from you.
+   * Folding from there is a way THROUGH the results — shut a project you have already looked at — rather than a statement about how you like the sidebar arranged.
+   * So these last exactly as long as the filter, and leave the folds you made without a filter untouched underneath.
+   *
+   * They are stored all the same: the filter itself is restored on the next launch, and coming back to the same results without the same view is precisely what remembering the view is for.
+   */
+  filterProjects: ReadonlySet<string>;
+  filterGroups: ReadonlySet<string>;
 }
 
 /**
@@ -166,6 +185,11 @@ function sameData<T>(a: T, b: T): boolean {
   return a === b || JSON.stringify(a) === JSON.stringify(b);
 }
 
+/** Whether two fold states fold the same sections. */
+function sameFolds(a: Folds, b: Folds): boolean {
+  return a === b || (sameMembers(a.projects, b.projects) && sameMembers(a.groups, b.groups) && sameMembers(a.filterProjects, b.filterProjects) && sameMembers(a.filterGroups, b.filterGroups));
+}
+
 /**
  * Whether two lists draw the same tabs: the same tabs in the same order, each in the same state, with a session that draws the same row (`sameRow`, which a tab shows less of).
  * Every field of a tab but its session is compared as it is, so one added later cannot be missed; a fresh read adopted into every open tab tells nobody unless something a tab shows moved.
@@ -197,6 +221,7 @@ export const store = createStore<AppState>(
     activeTab: null,
     panelData: new Map(),
     filter: noFilter(),
+    folds: { projects: new Set(), groups: new Set(), filterProjects: new Set(), filterGroups: new Set() },
   },
   {
     sessions: sameRows,
@@ -211,5 +236,6 @@ export const store = createStore<AppState>(
     tabs: sameTabs,
     panelData: sameEntries,
     filter: sameData,
+    folds: sameFolds,
   },
 );

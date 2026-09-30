@@ -27,7 +27,7 @@ import {
 } from './panels/types/claude/terminals';
 import { renderTabBar, type TabBarView } from './panels/types/claude/tab-bar';
 import './styles.css';
-import { noFilter, store, withEntry, withMember, type AppState, type FilterState, type TabState, type View } from './state/app';
+import { noFilter, store, withEntry, withMember, type AppState, type FilterState, type Folds, type TabState, type View } from './state/app';
 import { isFiltering, projName, projectGroups, searchText, sessionById, sessionNudge, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
 import { setStatus } from './state/statuses';
 import { applyGroupState, moveSessionToGroup } from './state/groups';
@@ -171,27 +171,31 @@ const statusDots = new Map<string, HTMLElement>();
 const sessionRows = new Map<string, HTMLElement>();
 // Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen rather than on everything that has ever existed.
 let renderedSections: { projects: string[]; groups: string[] } = { projects: [], groups: [] };
-const collapsedProjects = new Set<string>();
-// Collapsed custom groups, by group id (projects collapse by repo root, groups by their own id).
-const collapsedGroups = new Set<string>();
-/**
- * The same two, for while a filter is on — and a separate pair rather than a flag, because they answer a different question.
- *
- * Filtering opens the whole tree, so that a match inside something you had folded away is not hidden from you.
- * Folding from there is a way THROUGH the results — shut a project you have already looked at — rather than a statement about how you like the sidebar arranged.
- * So these last exactly as long as the filter, and leave the folds you made without a filter untouched underneath.
- *
- * They are stored all the same: the filter itself is restored on the next launch, and coming back to the same results without the same view is precisely what remembering the view is for.
- */
-const filterFoldedProjects = new Set<string>();
-const filterFoldedGroups = new Set<string>();
-
-/** The fold sets in play right now: the transient pair while filtering, the stored pair otherwise. Every read and every write goes through these, so the two can never be mixed up. */
-function foldedProjects(view: View<'filter'> = store.get()): Set<string> {
-  return isFiltering(view) ? filterFoldedProjects : collapsedProjects;
+/** The fold sets in play right now: the transient pair while filtering, the stored pair otherwise (`Folds`). Every read and every write goes through these, so the two can never be mixed up. */
+function foldedProjects(view: View<'filter' | 'folds'> = store.get()): ReadonlySet<string> {
+  return isFiltering(view) ? view.folds.filterProjects : view.folds.projects;
 }
-function foldedGroups(view: View<'filter'> = store.get()): Set<string> {
-  return isFiltering(view) ? filterFoldedGroups : collapsedGroups;
+function foldedGroups(view: View<'filter' | 'folds'> = store.get()): ReadonlySet<string> {
+  return isFiltering(view) ? view.folds.filterGroups : view.folds.groups;
+}
+
+/** The folds with `keys` of one kind folded, or opened, in the pair in play. */
+function foldsWith(view: View<'filter' | 'folds'>, kind: 'projects' | 'groups', keys: Iterable<string>, folded: boolean): Folds {
+  const field: keyof Folds = !isFiltering(view) ? kind : kind === 'projects' ? 'filterProjects' : 'filterGroups';
+  const next = new Set(view.folds[field]);
+  for (const key of keys) {
+    if (folded) next.add(key);
+    else next.delete(key);
+  }
+  return { ...view.folds, [field]: next };
+}
+
+/** Open a folded project or group, for a reveal or a jump, which draw the list themselves; says whether it was folded. */
+function unfold(kind: 'projects' | 'groups', key: string): boolean {
+  const state = store.get();
+  if (!(kind === 'projects' ? foldedProjects(state) : foldedGroups(state)).has(key)) return false;
+  store.set({ folds: foldsWith(state, kind, [key], false) });
+  return true;
 }
 interface ProjectSectionEls {
   section: HTMLElement;
@@ -382,6 +386,7 @@ type ListView = View<
   | 'tabs'
   | 'activeTab'
   | 'filter'
+  | 'folds'
 >;
 
 /** The listing the date picker and the open tabs' titles last followed, so they follow it again only when it moved rather than on a pin or a note. */
@@ -452,14 +457,11 @@ function setDatePopover(open: boolean): void {
 
 /**
  * Set the filter: the list, its count and its chips follow the store.
- * A filter that ends takes the folds made under it (`filterFoldedProjects`): they have served their purpose. Every way a filter ends comes here — the last character deleted, a preset back to Any, a chip's ×, Clear.
+ * A filter that ends takes the folds made under it (`Folds`), in the same change: they have served their purpose. Every way a filter ends comes here — the last character deleted, a preset back to Any, a chip's ×, Clear.
  */
 function putFilter(next: FilterState): void {
-  if (!isFiltering({ filter: next })) {
-    filterFoldedProjects.clear();
-    filterFoldedGroups.clear();
-  }
-  store.set({ filter: next });
+  const { folds } = store.get();
+  store.set({ filter: next, ...(isFiltering({ filter: next }) ? {} : { folds: { ...folds, filterProjects: new Set(), filterGroups: new Set() } }) });
 }
 
 /** Change part of the filter. */
@@ -652,18 +654,19 @@ let uiSaveTimer: number | undefined;
 let lastUiSignature = '';
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
-type StoredView = Pick<AppState, 'filter'>;
+type StoredView = Pick<AppState, 'filter' | 'folds'>;
 
 function uiSnapshot(view: StoredView = store.get()): UiState {
+  const { folds } = view;
   return {
     // The search as typed, not the trimmed and lowercased text it matches: what is restored has to be what was typed.
     ...view.filter,
     filterPanelOpen: !filterPanel.hidden,
     footerExpanded,
-    collapsedProjects: [...collapsedProjects],
-    collapsedGroups: [...collapsedGroups],
-    filterCollapsedProjects: [...filterFoldedProjects],
-    filterCollapsedGroups: [...filterFoldedGroups],
+    collapsedProjects: [...folds.projects],
+    collapsedGroups: [...folds.groups],
+    filterCollapsedProjects: [...folds.filterProjects],
+    filterCollapsedGroups: [...folds.filterGroups],
     // Adopted into the layout tree's sizes on the first launch that has them, and not written again: the tree owns the sidebar's width now.
     sidebarWidth: null,
     scrollTop: container.scrollTop,
@@ -698,8 +701,6 @@ function persistUi(): void {
 async function restoreUiState(): Promise<{ scrollTop: number; view: StoredView }> {
   const state = await window.claudeUi.getUiState();
   searchInput.value = state.search;
-  for (const repoRoot of state.collapsedProjects) collapsedProjects.add(repoRoot);
-  for (const id of state.collapsedGroups) collapsedGroups.add(id);
   // The sidebar's width lived in localStorage, then in `sidebarWidth`; either is adopted once into the layout tree's sizes, so an existing install keeps its sidebar, and the tree owns it from here.
   restoreTreeState(state.panelState, state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth')));
   // Only a CUSTOM range is restored as stored. The rolling presets are worked out again from the current moment, which is the whole point of "last 7 days" still meaning the last 7 days.
@@ -714,12 +715,18 @@ async function restoreUiState(): Promise<{ scrollTop: number; view: StoredView }
     }
   }
   drawDatePreset(state.datePreset);
-  const view: StoredView = { filter: { search: state.search, filters: state.filters, ...dateWindow(state.datePreset) } };
+  const filter: FilterState = { search: state.search, filters: state.filters, ...dateWindow(state.datePreset) };
   // The folds made under a filter apply only while it is on, so a filter stored off leaves them behind.
-  if (isFiltering(view)) {
-    for (const repoRoot of state.filterCollapsedProjects) filterFoldedProjects.add(repoRoot);
-    for (const id of state.filterCollapsedGroups) filterFoldedGroups.add(id);
-  }
+  const underFilter = isFiltering({ filter });
+  const view: StoredView = {
+    filter,
+    folds: {
+      projects: new Set(state.collapsedProjects),
+      groups: new Set(state.collapsedGroups),
+      filterProjects: new Set(underFilter ? state.filterCollapsedProjects : []),
+      filterGroups: new Set(underFilter ? state.filterCollapsedGroups : []),
+    },
+  };
   // Exactly as it was left, an active filter included. Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
   setFilterPanel(state.filterPanelOpen);
   footerExpanded = state.footerExpanded;
@@ -736,11 +743,12 @@ function startSavingUi(): void {
 
 /**
  * A project keeps its fold even while it has no sessions to show (same reasoning as the project order), but a DELETED group is gone for good.
- * The folds are restored before the groups are read, so the list's first draw is already the one you left; a fold of a group that is gone draws nothing meanwhile.
+ * The folds come back with the groups' first read, so the list's first draw is already the one you left; a fold of a group that is gone draws nothing meanwhile.
  */
-function forgetDeletedGroupFolds({ groupState }: View<'groupState'>): void {
+function forgetDeletedGroupFolds({ groupState, folds }: View<'groupState' | 'folds'>): void {
   const live = new Set(groupState.groups.map((g) => g.id));
-  for (const folds of [collapsedGroups, filterFoldedGroups]) for (const id of folds) if (!live.has(id)) folds.delete(id);
+  const alive = (ids: ReadonlySet<string>): ReadonlySet<string> => new Set([...ids].filter((id) => live.has(id)));
+  store.set({ folds: { ...folds, groups: alive(folds.groups), filterGroups: alive(folds.filterGroups) } });
 }
 
 // --- Project switcher ---
@@ -1109,13 +1117,12 @@ function switcherItem(name: string, repoRoot: string | null, count: number, badg
 }
 
 function selectProject(repoRoot: string | null): void {
-  // Open a project expanded even if it was collapsed in the All view.
-  if (repoRoot) foldedProjects().delete(repoRoot);
   window.claudeUi.setActiveProject(repoRoot);
   closeSwitcher();
   // Full workspace switch: the terminal area moves to this project too, in the same change, so every surface that honours the selection is told once, with the project and its tab together.
   store.batch(() => {
-    store.set({ activeProject: repoRoot });
+    // Open a project expanded even if it was collapsed in the All view.
+    store.set({ activeProject: repoRoot, ...(repoRoot ? { folds: foldsWith(store.get(), 'projects', [repoRoot], false) } : {}) });
     hostOf('sessions').showProject(repoRoot);
   });
   container.scrollTop = 0;
@@ -1226,19 +1233,19 @@ const EXPAND_ALL_ICON = strokeIcon(14, '<path d="M4 3.75L8 7.25L12 3.75" /><path
 // What the button folds depends on the view.
 // In All it folds the project sections (keyed on projects alone: with every project shut its groups are out of sight anyway, which is why a group toggling on its own needs no refresh call).
 // In a single-project view folding the one project you asked to look at is pointless, so it folds THAT project's groups instead.
-function collapseScope(view: View<'activeProject' | 'filter'>): { ids: string[]; collapsed: Set<string> } {
+function collapseScope(view: View<'activeProject' | 'filter' | 'folds'>): { kind: 'projects' | 'groups'; ids: string[]; collapsed: ReadonlySet<string> } {
   return view.activeProject === null
-    ? { ids: renderedSections.projects, collapsed: foldedProjects(view) }
-    : { ids: renderedSections.groups, collapsed: foldedGroups(view) };
+    ? { kind: 'projects', ids: renderedSections.projects, collapsed: foldedProjects(view) }
+    : { kind: 'groups', ids: renderedSections.groups, collapsed: foldedGroups(view) };
 }
 
 // Everything in scope folded away already? Then the button offers the way back instead.
-function allSectionsCollapsed(view: View<'activeProject' | 'filter'>): boolean {
+function allSectionsCollapsed(view: View<'activeProject' | 'filter' | 'folds'>): boolean {
   const { ids, collapsed } = collapseScope(view);
   return ids.length > 0 && ids.every((id) => collapsed.has(id));
 }
 
-function updateCollapseToggle(view: View<'activeProject' | 'filter'>): void {
+function updateCollapseToggle(view: View<'activeProject' | 'filter' | 'folds'>): void {
   // Filtering forces every section open (so matches inside a collapsed one are visible), which leaves this nothing to act on.
   collapseToggle.disabled = isFiltering(view) || collapseScope(view).ids.length === 0;
   const label = allSectionsCollapsed(view) ? 'Expand all' : 'Collapse all';
@@ -1250,17 +1257,15 @@ function updateCollapseToggle(view: View<'activeProject' | 'filter'>): void {
 // Collapsing takes the groups with it, so expanding a project afterwards shows its group headings rather than dumping every row back at once — two levels of overview instead of one.
 collapseToggle.addEventListener('click', () => {
   const state = store.get();
-  const { ids, collapsed } = collapseScope(state);
+  const { kind, ids } = collapseScope(state);
   const expanding = allSectionsCollapsed(state);
-  for (const id of ids) {
-    if (expanding) collapsed.delete(id);
-    else collapsed.add(id);
-  }
+  let folds = foldsWith(state, kind, ids, !expanding);
   // In the All view a project's groups fold along with it, so expanding one afterwards shows its group headings rather than dumping every row back. In a project view the groups ARE the scope already.
   if (state.activeProject === null) {
-    if (expanding) foldedGroups().clear();
-    else for (const id of renderedSections.groups) foldedGroups().add(id);
+    const next = { ...state, folds };
+    folds = expanding ? foldsWith(next, 'groups', foldedGroups(next), false) : foldsWith(next, 'groups', renderedSections.groups, true);
   }
+  store.set({ folds });
   renderList(store.get());
 });
 
@@ -1276,7 +1281,7 @@ function clearList(): void {
 
 // Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order both the sections and their rows via appendChild (which moves an existing node into place).
 // Inside a project the group sections come first, then the rows belonging to no group.
-function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'projectNames' | 'activeProject'>): void {
+function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'projectNames' | 'activeProject' | 'folds'>): void {
   const { activeProject } = view;
   const wanted = new Set(desired.map((p) => p.repoRoot));
   for (const [repoRoot, els] of projectSections) {
@@ -1411,11 +1416,8 @@ async function renameProject(repoRoot: string): Promise<void> {
 function revealSessionInSidebar(session: SessionSummary): void {
   // Its group can be collapsed too, and then the row is hidden even with the project open.
   const groupId = store.get().groupState.groupOf[entityKey(session)];
-  if (groupId && foldedGroups().delete(groupId)) renderList(store.get());
-  if (foldedProjects().has(session.repoRoot)) {
-    foldedProjects().delete(session.repoRoot);
-    renderList(store.get());
-  }
+  if (groupId && unfold('groups', groupId)) renderList(store.get());
+  if (unfold('projects', session.repoRoot)) renderList(store.get());
   const row = sessionRows.get(entityKey(session));
   if (!row) return;
   // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole app).
@@ -1431,10 +1433,7 @@ const REVEAL_GAP = 6;
 
 // Scroll the (All-view) session list to a project's heading — used by the project name in the tab bar, so it links to where that project's sessions live.
 function revealProjectInSidebar(repoRoot: string): void {
-  if (foldedProjects().has(repoRoot)) {
-    foldedProjects().delete(repoRoot);
-    renderList(store.get());
-  }
+  if (unfold('projects', repoRoot)) renderList(store.get());
   const els = projectSections.get(repoRoot);
   if (!els) return;
   container.scrollTop += els.section.getBoundingClientRect().top - container.getBoundingClientRect().top;
@@ -1460,8 +1459,8 @@ function syncStickyOffset(): void {
 function jumpToGroup(repoRoot: string, groupId: string | null): void {
   const els = projectSections.get(repoRoot);
   if (!els) return;
-  if (foldedProjects().delete(repoRoot)) renderList(store.get());
-  if (groupId !== null && foldedGroups().delete(groupId)) renderList(store.get());
+  if (unfold('projects', repoRoot)) renderList(store.get());
+  if (groupId !== null && unfold('groups', groupId)) renderList(store.get());
 
   // A group jumps to its heading; the ungrouped remainder has none, so it jumps to its first row — which is the one carrying .after-groups, the class that marks where the loose rows begin.
   const target: HTMLElement | null | undefined =
@@ -1504,10 +1503,11 @@ function buildHeading(
  * Both toggles deliberately skip renderList — no flicker, no scroll jump — and that render is the one
  * call which would otherwise have persisted the fold, which is why saving happens here instead.
  */
-function toggleFold(section: HTMLElement, caret: HTMLElement, folded: Set<string>, key: string): void {
-  const collapsed = !folded.has(key);
-  if (collapsed) folded.add(key);
-  else folded.delete(key);
+function toggleFold(section: HTMLElement, caret: HTMLElement, kind: 'projects' | 'groups', key: string): void {
+  const state = store.get();
+  const collapsed = !(kind === 'projects' ? foldedProjects(state) : foldedGroups(state)).has(key);
+  // The list reads the folds without being told of them, so this draws nothing but the section.
+  store.set({ folds: foldsWith(state, kind, [key], collapsed) });
   section.classList.toggle('collapsed', collapsed);
   caret.innerHTML = caretIcon(collapsed, 10);
   persistUi();
@@ -1604,7 +1604,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     const state = store.get();
     if (state.activeProject !== null) return;
     const before = heading.getBoundingClientRect().top;
-    toggleFold(section, caret, foldedProjects(), name);
+    toggleFold(section, caret, 'projects', name);
     container.scrollTop += heading.getBoundingClientRect().top - before;
     // No render here, so the header button has to be refreshed by hand — otherwise it still reads "Expand all" after one project reopens.
     updateCollapseToggle(state);
@@ -1667,7 +1667,7 @@ function createGroupSection(id: string): GroupSectionEls {
   });
   heading.append(caret, icon, label, count, split, kebab);
   heading.addEventListener('click', () => {
-    toggleFold(section, caret, foldedGroups(), id);
+    toggleFold(section, caret, 'groups', id);
   });
 
   // The rows live in their own element so the indent and its rail wrap the whole group, which is what shows where a group ends without needing to read the next heading.
@@ -2071,12 +2071,13 @@ store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptie
 store.watch(
   ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'],
   listChanged,
-  { reads: ['statuses', 'acked', 'tabs', 'activeTab'] },
+  // The folds are read, never told: a heading's click folds in place without drawing the list, and whoever else folds draws it.
+  { reads: ['statuses', 'acked', 'tabs', 'activeTab', 'folds'] },
 );
 
 // A tab opened, started, stopped, closed or came on show: the rows' marks, and the list itself when what it draws from the tabs moved.
 store.watch(['tabs', 'activeTab'], listFollowsTabs, {
-  reads: ['sessions', 'statuses', 'acked', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'],
+  reads: ['sessions', 'statuses', 'acked', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'folds'],
 });
 
 // A status or a mark read changed: the dots that differ, the tab bar when one of them has a tab, the switcher's roll-ups and the strip.
