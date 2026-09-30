@@ -1,4 +1,4 @@
-import type { ClaudeUiApi } from '../../src/shared/types';
+import type { ClaudeUiApi } from '../../../src/shared/types';
 import type { BridgeCall, BridgeEvent, BridgeEventArgs, BridgeFixture } from './fixture';
 
 /** The stand-in's side for a check: every call the window made, and a way to fire what it subscribed to. */
@@ -30,7 +30,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
   const unmodelled =
     (name: keyof ClaudeUiApi) =>
     (): Promise<never> =>
-      Promise.reject(new Error(`The renderer checks' stand-in does not model ${name}; model it in test/renderer/bridge.ts against what main does.`));
+      Promise.reject(new Error(`The renderer checks' stand-in does not model ${name}; model it in test/renderer/support/bridge.ts against what main does.`));
   // Recorded, and nothing else: what main does with it reaches the window, if at all, as a later event, which a check fires itself.
   const sent = (): void => {};
   const on =

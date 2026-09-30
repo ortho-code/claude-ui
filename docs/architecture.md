@@ -66,10 +66,14 @@ Every test is under `test/`, so `src/` is only what ships.
 It is kept out of `npm test` so that one stays fast; CI runs both, and a failed check leaves a trace to download from the run.
 The page is served by answering its requests from `dist/renderer` on a made-up origin rather than from a server, because module scripts do not load from `file://`.
 
-`window.claudeUi` is a stand-in (`test/renderer/bridge.ts`) typed as the bridge, `ClaudeUiApi`: a call added, renamed or reshaped fails the type check there, instead of leaving a check passing against an API the app no longer has.
+The checks are filed the way the window is made of panels: a panel type's under `test/renderer/panels/types/<type>/` (the `claude` panel's split into `tab-bar/` and `history/`), the layout tree's under `panels/layout/`, anything that is not a panel under its own name (`settings/`), and what they all use under `support/`.
+It is the unit tests' rule too — a test is found where the thing it tests lives — applied to what the checks test, which is the window as its panels draw it rather than one module.
+The two built-in types, `sessions` and `claude`, are still drawn by `renderer.ts` rather than by modules of their own under `src/renderer/panels/types/`, so for now their checks are filed by the type names a layout file uses.
+
+`window.claudeUi` is a stand-in (`test/renderer/support/bridge.ts`) typed as the bridge, `ClaudeUiApi`: a call added, renamed or reshaped fails the type check there, instead of leaving a check passing against an API the app no longer has.
 It answers from a fixture of plain data (`fixture.ts`), by default a first run with one session and no layout file, and records every call, so a check can assert on what the window sent.
 A call it does not model rejects with its own name, and every check fails on anything thrown or logged as an error in the page, so a check that strays onto unmodelled ground fails loudly rather than running on an answer nobody held against main.
-A check that needs such a call models it there, from what main does. The stand-in answers only where main's answer involves no decision of its own, so that no rule of main's is kept in two places.
+A check that needs such a call models it there, from what main does: where main's answer involves no decision of its own, as a plain answer, and where it does, through main's own function moved into `src/shared` for both (`readFrom` for the history's later reads, `defaultUi` and `defaultSettings` for a first run), so that no rule of main's is kept in two places.
 
 A check gets no retries: one that passes on a second try is a flake, and a gate that retries it away teaches everybody to ignore it.
 

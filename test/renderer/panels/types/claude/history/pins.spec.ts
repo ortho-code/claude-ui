@@ -1,6 +1,6 @@
-import type { Exchange, HistoryPin } from '../../src/shared/types';
-import { session } from './fixture';
-import { expect, test } from './harness';
+import type { Exchange, HistoryPin } from '../../../../../../src/shared/types';
+import { session } from '../../../../support/fixture';
+import { expect, test } from '../../../../support/harness';
 
 const one = session();
 const TIME = '2026-09-30T08:00:00.000Z';

@@ -1,7 +1,7 @@
-import { defaultSettings, defaultUi } from '../../src/shared/defaults';
-import type { FolderName } from '../../src/shared/folders';
-import type { LayoutReport, PanelData } from '../../src/shared/panels';
-import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, SessionSummary, Settings, UiState, WindowChrome } from '../../src/shared/types';
+import { defaultSettings, defaultUi } from '../../../src/shared/defaults';
+import type { FolderName } from '../../../src/shared/folders';
+import type { LayoutReport, PanelData } from '../../../src/shared/panels';
+import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, SessionSummary, Settings, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.

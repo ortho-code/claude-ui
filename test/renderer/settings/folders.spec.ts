@@ -1,4 +1,4 @@
-import { expect, test } from './harness';
+import { expect, test } from '../support/harness';
 
 test('Settings lists each of the app folders once, and each Open names its own folder', async ({ app, page }) => {
   await app.boot({ folders: { config: '/home/tester/.config/claude-ui/config', logs: '/home/tester/.config/claude-ui/logs' } });

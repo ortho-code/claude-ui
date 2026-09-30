@@ -1,9 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
-// The window's own checks: the built renderer in a headless Chromium, with a typed stand-in for the main process (harness.ts). Run by `npm run test:renderer`, which builds first.
+// The window's own checks: the built renderer in a headless Chromium, with a typed stand-in for the main process (support/harness.ts). Run by `npm run test:renderer`, which builds first.
+// Filed as the renderer is: a panel type's checks under panels/types/<type>/, the layout tree's under panels/layout/, anything else by its own name.
 export default defineConfig({
   testDir: '.',
-  testMatch: '*.spec.ts',
+  testMatch: '**/*.spec.ts',
   // At the repo root and gitignored, not under dist/, which electron-builder packs.
   outputDir: '../../test-results',
   forbidOnly: process.env.CI !== undefined,
