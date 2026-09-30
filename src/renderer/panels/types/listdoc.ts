@@ -1,3 +1,5 @@
+import { fieldsOf } from '../fields';
+
 /**
  * The list document a `list` type's script prints on stdout, and its check. Pure, and tested per rule.
  *
@@ -8,6 +10,17 @@
 
 /** The document's `version`: the one shape this build reads. */
 export const LIST_VERSION = 1;
+
+/**
+ * The fields of each object in a list document: the ONE place they are named (see fields.ts), which `docs/panel-types.md` is held to by a test.
+ */
+export const LIST_FIELDS = {
+  document: ['version', 'badge', 'sections', 'notes'],
+  section: ['title', 'shut', 'empty', 'items'],
+  item: ['key', 'text', 'detail', 'href', 'tone', 'actions'],
+  action: ['label', 'session'],
+  session: ['prompt', 'name'],
+} as const;
 
 export const TONES = ['normal', 'attention', 'muted', 'danger'] as const;
 export type Tone = (typeof TONES)[number];
@@ -97,15 +110,18 @@ class Reader {
       this.problems.push(`${at} is not an object.`);
       return null;
     }
-    const label = this.text(raw.label, `${at}.label`, true);
+    const field = fieldsOf(raw, LIST_FIELDS.action);
+    const label = this.text(field('label'), `${at}.label`, true);
     // An action of a kind this build does not have is a later build's, and is left out like any field it does not know.
-    if (raw.session === undefined) return null;
-    if (!isObject(raw.session)) {
+    const session = field('session');
+    if (session === undefined) return null;
+    if (!isObject(session)) {
       this.problems.push(`${at}.session is not an object.`);
       return null;
     }
-    const prompt = this.text(raw.session.prompt, `${at}.session.prompt`, true);
-    const name = this.text(raw.session.name, `${at}.session.name`);
+    const sessionField = fieldsOf(session, LIST_FIELDS.session);
+    const prompt = this.text(sessionField('prompt'), `${at}.session.prompt`, true);
+    const name = this.text(sessionField('name'), `${at}.session.name`);
     return label !== null && prompt !== null ? { label, prompt, name } : null;
   }
 
@@ -114,24 +130,26 @@ class Reader {
       this.problems.push(`${at} is not an object.`);
       return null;
     }
-    const key = this.text(raw.key, `${at}.key`, true);
+    const field = fieldsOf(raw, LIST_FIELDS.item);
+    const key = this.text(field('key'), `${at}.key`, true);
     if (key !== null) {
       if (this.keys.has(key)) this.problems.push(`${at}.key "${key}" is already used by another item.`);
       this.keys.add(key);
     }
-    const text = this.text(raw.text, `${at}.text`, true);
-    const detail = this.text(raw.detail, `${at}.detail`);
-    let href = this.text(raw.href, `${at}.href`);
+    const text = this.text(field('text'), `${at}.text`, true);
+    const detail = this.text(field('detail'), `${at}.detail`);
+    let href = this.text(field('href'), `${at}.href`);
     if (href !== null && !HTTP.test(href)) {
       this.problems.push(`${at}.href "${href}" is not an http or https link.`);
       href = null;
     }
+    const rawTone = field('tone');
     let tone: Tone = 'normal';
-    if (raw.tone !== undefined) {
-      if (TONES.includes(raw.tone as Tone)) tone = raw.tone as Tone;
-      else this.problems.push(`${at}.tone ${JSON.stringify(raw.tone)} is not one of ${TONES.join(', ')}.`);
+    if (rawTone !== undefined) {
+      if (TONES.includes(rawTone as Tone)) tone = rawTone as Tone;
+      else this.problems.push(`${at}.tone ${JSON.stringify(rawTone)} is not one of ${TONES.join(', ')}.`);
     }
-    const actions = this.list(raw.actions, `${at}.actions`, false)
+    const actions = this.list(field('actions'), `${at}.actions`, false)
       .map((action, index) => this.action(action, `${at}.actions[${index}]`))
       .filter((action) => action !== null);
     return key !== null && text !== null ? { key, text, detail, href, tone, actions } : null;
@@ -142,11 +160,12 @@ class Reader {
       this.problems.push(`${at} is not an object.`);
       return null;
     }
-    const title = this.text(raw.title, `${at}.title`);
-    const shut = this.flag(raw.shut, `${at}.shut`);
+    const field = fieldsOf(raw, LIST_FIELDS.section);
+    const title = this.text(field('title'), `${at}.title`);
+    const shut = this.flag(field('shut'), `${at}.shut`);
     if (shut && title === null) this.problems.push(`${at}.shut needs a title, which is what stays when it folds.`);
-    const empty = this.text(raw.empty, `${at}.empty`);
-    const items = this.list(raw.items, `${at}.items`, true)
+    const empty = this.text(field('empty'), `${at}.empty`);
+    const items = this.list(field('items'), `${at}.items`, true)
       .map((item, index) => this.item(item, `${at}.items[${index}]`))
       .filter((item) => item !== null);
     return { title, shut, empty, items };
@@ -165,21 +184,24 @@ export function readListDocument(stdout: string): ListRead {
     return { doc: null, problems: [`What it printed is not JSON: ${(error as Error).message}.`] };
   }
   if (!isObject(json)) return { doc: null, problems: ['What it printed is not a JSON object.'] };
-  if (json.version === undefined) return { doc: null, problems: [`version is missing (this build reads ${LIST_VERSION}).`] };
-  if (json.version !== LIST_VERSION) return { doc: null, problems: [`version ${JSON.stringify(json.version)} is not one this build reads (it reads ${LIST_VERSION}).`] };
+  const field = fieldsOf(json, LIST_FIELDS.document);
+  const version = field('version');
+  if (version === undefined) return { doc: null, problems: [`version is missing (this build reads ${LIST_VERSION}).`] };
+  if (version !== LIST_VERSION) return { doc: null, problems: [`version ${JSON.stringify(version)} is not one this build reads (it reads ${LIST_VERSION}).`] };
 
   const reader = new Reader();
+  const rawBadge = field('badge');
   let badge: number | null = null;
-  if (json.badge !== undefined) {
-    if (typeof json.badge === 'number' && Number.isInteger(json.badge) && json.badge >= 0) badge = json.badge;
+  if (rawBadge !== undefined) {
+    if (typeof rawBadge === 'number' && Number.isInteger(rawBadge) && rawBadge >= 0) badge = rawBadge;
     else reader.problems.push('badge is not a whole number, 0 or more.');
   }
   const sections = reader
-    .list(json.sections, 'sections', true)
+    .list(field('sections'), 'sections', true)
     .map((section, index) => reader.section(section, `sections[${index}]`))
     .filter((section) => section !== null);
   const notes = reader
-    .list(json.notes, 'notes', false)
+    .list(field('notes'), 'notes', false)
     .map((note, index) => reader.text(note, `notes[${index}]`))
     .filter((note) => note !== null);
   if (reader.problems.length > 0) return { doc: null, problems: reader.problems };

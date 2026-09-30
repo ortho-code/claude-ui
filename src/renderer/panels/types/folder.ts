@@ -2,6 +2,7 @@ import { OPTION_NAME, type TypeReport } from '../../../shared/panels';
 import { ICON_NAMES, isIconName, type IconName } from '../icons';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
 import { CWD_OPTION, INTERVAL_OPTION, isFixedPath, valueProblem, type OptionDecl } from '../options';
+import { fieldsOf, unknownFields } from '../fields';
 import type { PanelType } from './command';
 import { mountList } from './list';
 
@@ -21,7 +22,13 @@ export const KINDS = ['list'] as const;
 export type Kind = (typeof KINDS)[number];
 
 /** The option kinds a manifest can declare in this build. */
-const MANIFEST_OPTION_KINDS = ['text'] as const;
+export const MANIFEST_OPTION_KINDS = ['text'] as const;
+
+/**
+ * The fields of `panel.json` and of an option in it: the ONE place they are named (see fields.ts), which `docs/panel-types.md` is held to by a test.
+ */
+export const MANIFEST_FIELDS = ['version', 'kind', 'title', 'icon', 'run', 'interval', 'options'] as const;
+export const OPTION_FIELDS = ['name', 'kind'] as const;
 
 /** What every type of a kind takes without its manifest declaring it. */
 export const KIND_OPTIONS: Record<Kind, OptionDecl[]> = { list: [CWD_OPTION, INTERVAL_OPTION] };
@@ -50,9 +57,6 @@ export interface FolderType {
   notes: string[];
 }
 
-const MANIFEST_FIELDS = new Set(['version', 'kind', 'title', 'icon', 'run', 'interval', 'options']);
-const OPTION_FIELDS = new Set(['name', 'kind']);
-
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** Whether a relative path climbs out of the folder it is relative to, `a/../../b` included. */
@@ -79,7 +83,9 @@ function checkOptionList(raw: unknown, kind: Kind | null): { options: OptionDecl
       problems.push(`options[${index}] is not an object.`);
       return;
     }
-    const { name, kind: optionKind } = entry;
+    const field = fieldsOf(entry, OPTION_FIELDS);
+    const name = field('name');
+    const optionKind = field('kind');
     if (typeof name !== 'string') {
       problems.push(`options[${index}] has no name.`);
       return;
@@ -91,7 +97,7 @@ function checkOptionList(raw: unknown, kind: Kind | null): { options: OptionDecl
     else if (!MANIFEST_OPTION_KINDS.includes(optionKind as (typeof MANIFEST_OPTION_KINDS)[number])) {
       problems.push(`option ${name}: kind ${JSON.stringify(optionKind)} is not one a manifest can declare in this build (it can: ${MANIFEST_OPTION_KINDS.join(', ')}).`);
     }
-    for (const field of Object.keys(entry)) if (!OPTION_FIELDS.has(field)) notes.push(`option ${name}: ${field} is not a field this build reads; it is ignored.`);
+    for (const other of unknownFields(entry, OPTION_FIELDS)) notes.push(`option ${name}: ${other} is not a field this build reads; it is ignored.`);
     options.push({ name, kind: 'text' });
   });
   return { options, problems, notes };
@@ -108,43 +114,49 @@ export function checkManifest(report: TypeReport): FolderType {
 
   const problems: string[] = [];
   const notes: string[] = [];
-  if (json.version === undefined) problems.push(`version is missing (this build reads ${MANIFEST_VERSION}).`);
-  else if (json.version !== MANIFEST_VERSION) problems.push(`version ${JSON.stringify(json.version)} is not one this build reads (it reads ${MANIFEST_VERSION}).`);
+  const field = fieldsOf(json, MANIFEST_FIELDS);
+  const version = field('version');
+  if (version === undefined) problems.push(`version is missing (this build reads ${MANIFEST_VERSION}).`);
+  else if (version !== MANIFEST_VERSION) problems.push(`version ${JSON.stringify(version)} is not one this build reads (it reads ${MANIFEST_VERSION}).`);
 
+  const rawKind = field('kind');
   let kind: Kind | null = null;
-  if (json.kind === undefined) problems.push(`kind is missing (this build has: ${KINDS.join(', ')}).`);
-  else if (!KINDS.includes(json.kind as Kind)) problems.push(`kind ${JSON.stringify(json.kind)} is not a kind this build has (it has: ${KINDS.join(', ')}).`);
-  else kind = json.kind as Kind;
+  if (rawKind === undefined) problems.push(`kind is missing (this build has: ${KINDS.join(', ')}).`);
+  else if (!KINDS.includes(rawKind as Kind)) problems.push(`kind ${JSON.stringify(rawKind)} is not a kind this build has (it has: ${KINDS.join(', ')}).`);
+  else kind = rawKind as Kind;
 
+  const rawTitle = field('title');
   let title: string | null = null;
-  if (json.title !== undefined && typeof json.title !== 'string') problems.push('title is not a string.');
-  else if (typeof json.title === 'string' && json.title.trim() === '') problems.push('title is empty.');
-  else if (typeof json.title === 'string') title = json.title;
+  if (rawTitle !== undefined && typeof rawTitle !== 'string') problems.push('title is not a string.');
+  else if (typeof rawTitle === 'string' && rawTitle.trim() === '') problems.push('title is empty.');
+  else if (typeof rawTitle === 'string') title = rawTitle;
 
   // A wrong icon is cosmetic, as it is on an entry: named, and the kind's own used.
+  const rawIcon = field('icon');
   let icon: IconName | null = null;
-  if (isIconName(json.icon)) icon = json.icon;
-  else if (json.icon !== undefined) {
-    notes.push(`icon ${JSON.stringify(json.icon)} is not an icon this build has (it has: ${ICON_NAMES.join(', ')}); the list icon is used.`);
+  if (isIconName(rawIcon)) icon = rawIcon;
+  else if (rawIcon !== undefined) {
+    notes.push(`icon ${JSON.stringify(rawIcon)} is not an icon this build has (it has: ${ICON_NAMES.join(', ')}); the list icon is used.`);
   }
 
+  const rawRun = field('run');
   let run: string | null = null;
-  if (json.run === undefined) problems.push('run is missing: the script this type runs, relative to its folder.');
-  else if (typeof json.run !== 'string') problems.push('run is not a string.');
-  else if (json.run.trim() === '') problems.push('run is empty.');
+  if (rawRun === undefined) problems.push('run is missing: the script this type runs, relative to its folder.');
+  else if (typeof rawRun !== 'string') problems.push('run is not a string.');
+  else if (rawRun.trim() === '') problems.push('run is empty.');
   // Inside the folder, so a type is whole when its folder is copied and nobody's script is reached through somebody else's type.
-  else if (isFixedPath(json.run) || escapes(json.run)) problems.push(`run ${json.run} is not inside the type’s folder; give a path relative to it.`);
-  else run = json.run;
+  else if (isFixedPath(rawRun) || escapes(rawRun)) problems.push(`run ${rawRun} is not inside the type’s folder; give a path relative to it.`);
+  else run = rawRun;
 
-  const interval = json.interval === undefined ? null : json.interval;
+  const interval = field('interval') ?? null;
   const intervalProblem = interval === null ? null : valueProblem(INTERVAL_OPTION, interval);
   if (intervalProblem) problems.push(intervalProblem);
 
-  const declared = checkOptionList(json.options, kind);
+  const declared = checkOptionList(field('options'), kind);
   problems.push(...declared.problems);
   notes.push(...declared.notes);
 
-  for (const field of Object.keys(json)) if (!MANIFEST_FIELDS.has(field)) notes.push(`${field} is not a field this build reads; it is ignored.`);
+  for (const other of unknownFields(json, MANIFEST_FIELDS)) notes.push(`${other} is not a field this build reads; it is ignored.`);
 
   const named = (lines: string[]): string[] => lines.map((line) => `${at}: ${line}`);
   return {
