@@ -1,5 +1,6 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { createdGroup, movedGroup, movedProject, renamedGroup, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
+import { withLink } from '../../../src/shared/panels';
 import { pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { togglePinned, toggleArchived, withoutSession } from '../../../src/shared/sessionmarks';
 import { withText } from '../../../src/shared/text';
@@ -147,7 +148,13 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     stopPanel: sent,
     onPanelRun: on('onPanelRun'),
     getPanelData: (entryId) => (entryId in fixture.panelData ? answer(fixture.panelData[entryId]) : unmodelled('getPanelData')()),
-    linkPanelSession: unmodelled('linkPanelSession'),
+    // Main records the link and the group it was filed in (`withLink`, src/shared/panels.ts), kept in the fixture, and answers with the panel's data; it pushes the same data too, which the window already has from the answer.
+    // Main also forgets the links of sessions that are gone, which is its look at the disk, so a panel whose data names a session the fixture does not list is main's to answer, not this.
+    linkPanelSession: (entryId, sessionId, link, filed) => {
+      const data = fixture.panelData[entryId] ?? { sessions: {}, lastGroup: {} };
+      if (Object.keys(data.sessions).some((id) => !fixture.sessions.some((s) => s.id === id))) return unmodelled('linkPanelSession')();
+      return answer((fixture.panelData[entryId] = withLink(data, sessionId, link, filed, new Date().toISOString())));
+    },
     onPanelDataChanged: on('onPanelDataChanged'),
     getFolders: () => answer(fixture.folders),
     openFolder: sent,

@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { panelDataDir } from './paths';
 import { writeFileAtomic } from './atomic';
 import { errorText, fsFailure, log } from './log';
-import { ID_PATTERN, type PanelData, type PanelLink } from '../shared/panels';
+import { ID_PATTERN, withLink, type PanelData, type PanelLink } from '../shared/panels';
 
 /**
  * What the app keeps for each panel, a file per entry: the sessions its rows started, and the group last picked for one (`PanelData`).
@@ -134,8 +134,7 @@ export async function linkSession(entryId: string, sessionId: string, link: Omit
   const { data } = await update(
     entryId,
     (current) => {
-      current.sessions[sessionId] = { ...link, startedAt: new Date().toISOString() };
-      current.lastGroup[filed.repoRoot] = filed.groupId;
+      ({ sessions: current.sessions, lastGroup: current.lastGroup } = withLink(current, sessionId, link, filed, new Date().toISOString()));
       return true;
     },
     [sessionId],
