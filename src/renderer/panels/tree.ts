@@ -19,8 +19,8 @@ import {
   type ResolvedSplit,
 } from './layout';
 import { dragTo, flexFor, keptSizes, snapshot, type FlexChild } from './sizes';
-import { sessionsType } from './types/builtin';
 import { claudeType } from './types/claude';
+import { sessionsType } from './types/sessions';
 import { folderTypes } from './types/folder';
 import { linkedSessions, pickSession, startSession } from './links';
 import { commandType, type Asks, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type Where } from './types/command';

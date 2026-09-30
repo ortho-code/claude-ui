@@ -2195,7 +2195,7 @@ const FILTER_PILLS: FilterPill[] = [
 ];
 
 // Each pill shows the same mark the rows use, from the one definition — a glyph would render at a different weight beside them.
-// Icon-only: the words cost the panel an extra line at a 320px sidebar, and every pill carries a tooltip and an aria-label (see index.html) for what it means.
+// Icon-only: the words cost the panel an extra line at a 320px sidebar, and every pill carries a tooltip and an aria-label (see panels/types/sessions/index.ts) for what it means.
 for (const pill of FILTER_PILLS) {
   pill.button.innerHTML = pill.icon;
   // Every filter pill does the same thing: flip its flag, re-render, scroll back to the results' top.
@@ -2205,7 +2205,7 @@ for (const pill of FILTER_PILLS) {
     container.scrollTop = 0;
   });
 }
-// The header's icons come from here too, rather than inline in index.html, so they are drawn through the same helper as the rest.
+// The header's icons come from here too, rather than inline in the sidebar's markup, so they are drawn through the same helper as the rest.
 settingsToggle.innerHTML = settingsIcon(14);
 filterToggle.innerHTML = filterIcon(14);
 // The switcher's and the attention strip's carets, from the same chevron as every other fold in the app.
