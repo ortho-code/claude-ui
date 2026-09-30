@@ -2653,7 +2653,9 @@ function removeTab(token: string): void {
     // Re-establish the active tab within the current workspace scope (or clear); this re-renders too.
     switchWorkspaceTerminal(store.get().activeProject);
   });
-  tabsChanged();
+  // A session with no transcript yet is in the list only through its tab, so its stand-in row goes with it; otherwise only the rows' marks change.
+  if (store.get().sessions.some((s) => s.id === tab.session.id)) tabsChanged();
+  else renderList(store.get());
   // After the switch, which is what remembers how the tab was left.
   history.forget(tab.session.id);
   persistOpenTabs();

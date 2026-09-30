@@ -54,6 +54,24 @@ test("a new session starts under an id the window minted, and its row is in the 
   await expect(page.locator('.session', { hasText: 'New: demo' })).toBeVisible();
 });
 
+test("closing the tab of a session that never wrote anything takes its stand-in row out of the list", async ({ app, page }) => {
+  await app.boot(fixture);
+  await page.locator('.project-add').click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  expect(await app.emit('onTerminalData', FIRST, 'claude is here')).toBe(1);
+  await expect(page.locator('.session', { hasText: 'New: demo' })).toBeVisible();
+
+  // Stopped, then closed: it never wrote a transcript, so its tab was all that put it in the list.
+  const close = tab(page, 'New: demo').locator('.tab-close');
+  await close.click();
+  await app.emit('onTerminalExit', FIRST, 0);
+  await expect(close).toBeEnabled();
+  await close.click();
+  await expect(tab(page, 'New: demo')).toHaveCount(0);
+  await expect(page.locator('.session', { hasText: 'New: demo' })).toHaveCount(0);
+  await expect(page.locator('.session', { hasText: one.title })).toHaveCount(1);
+});
+
 test("the tab's button stops the session and keeps the tab cold, and a second press closes it", async ({ app, page }) => {
   await app.boot(fixture);
   await startLive(page, app);

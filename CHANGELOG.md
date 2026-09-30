@@ -55,6 +55,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - A menu opened near the bottom of the window opens upward, instead of running off the edge.
 - With the open or live filter on, the session list follows your tabs as they open, start, stop and close, instead of waiting for something else to redraw it.
 - When the project you are in has no sessions left, the tab bar goes back to All along with the list and the switcher, instead of staying empty.
+- Closing the tab of a new session that never wrote anything takes its row out of the list, instead of leaving it there until something else redraws the list.
 
 ## 0.3.0 — 2026-08-29
 
