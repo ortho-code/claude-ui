@@ -77,6 +77,11 @@ A check that needs such a call models it there, from what main does: where main'
 
 A check gets no retries: one that passes on a second try is a flake, and a gate that retries it away teaches everybody to ignore it.
 
+**`test/renderer/styles/` is a tool rather than a check, for moving CSS without changing what anything looks like.** It is skipped unless `STYLE_SNAPSHOT` names a folder; then it puts the window in a set of states and writes every element's computed style there, one file per state, at rest and with `:hover` and `:focus-visible` forced on each control, with a picture of each state beside it, so that a capture before a change and one after compare with `diff -r`.
+It exists because a stylesheet split across files is read in another order, and two rules of equal specificity then swap winners with nothing in the CSS's own diff to show it.
+The picture is for what styles cannot say: which of two overlapping elements paints on top, which follows from their order in the page; a picture alone would miss every hover, everything off screen, and which property changed.
+Forced states go through the DevTools protocol rather than the mouse, since a real hover runs the page's handlers, and a submenu opening would change what is captured; two captures of one build are identical, which is what makes an empty diff mean something.
+
 ## Embedded terminal
 
 `@xterm/xterm` in the renderer, backed by `node-pty` in the main process running the real `claude` binary.

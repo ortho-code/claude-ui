@@ -1,0 +1,183 @@
+import type { Page } from '@playwright/test';
+import { defaultUi } from '../../../src/shared/defaults';
+import type { Exchange, UiState } from '../../../src/shared/types';
+import { LAYOUT, runs, withLayout } from '../panels/layout/layout';
+import { HOME, PROJECT, session } from '../support/fixture';
+import { type App, expect, test } from '../support/harness';
+import { snapshot } from './capture';
+
+// NOT A CHECK: a tool, for moving CSS without changing what anything looks like (docs/architecture.md § The window's checks).
+// Skipped unless STYLE_SNAPSHOT names a folder; then each test below puts the window in one state and writes its computed styles there, one file per state.
+// Capture before a change and after it, and `diff -r` the two folders:
+//   STYLE_SNAPSHOT=/tmp/styles-before npm run test:renderer -- styles
+//   STYLE_SNAPSHOT=/tmp/styles-after npm run test:renderer -- styles
+// A state a change needs and this lacks is added here first, in a commit of its own, so the capture before the change has it too.
+const DIR = process.env.STYLE_SNAPSHOT;
+test.skip(!DIR, "Set STYLE_SNAPSHOT to a folder to write the window's computed styles into.");
+// Each state is its own page and its own file, so they run side by side.
+test.describe.configure({ mode: 'parallel' });
+// A fixed clock, so no "3 days ago" grows a character between two captures; and more time than a check gets, since a capture reads every control twice.
+test.beforeEach(async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.clock.setFixedTime(new Date('2026-09-30T12:00:00.000Z'));
+});
+
+const OTHER = `${HOME}/projects/other`;
+const GONE = `${HOME}/projects/gone`;
+const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const cold = session({ id: id(1), title: 'Cold in Alpha' });
+const live = session({ id: id(2), title: 'Live and busy in Alpha' });
+const booting = session({ id: id(3), title: 'Booting' });
+const marked = session({ id: id(4), title: 'Pinned, noted, a worktree', worktree: 'feature-x', isSibling: true, siblingIds: [id(5)] });
+const sibling = session({ id: id(5), title: 'A sibling', isSibling: true, siblingIds: [id(4)] });
+const there = session({ id: id(6), title: 'Over there', cwd: OTHER, repoRoot: OTHER });
+const dead = session({ id: id(7), title: 'In a folder that is gone', cwd: GONE, repoRoot: GONE, cwdExists: false, repoRootExists: false });
+const folded = session({ id: id(8), title: 'In a folded group' });
+const everyone = [cold, live, booting, marked, sibling, there, dead, folded];
+const groups = {
+  groups: [
+    { id: 'g-alpha', name: 'Alpha', repoRoot: PROJECT },
+    { id: 'g-beta', name: 'Beta', repoRoot: PROJECT },
+  ],
+  groupOf: { [cold.id]: 'g-alpha', [live.id]: 'g-alpha', [folded.id]: 'g-beta' },
+};
+const busy = {
+  sessions: everyone,
+  projectOrder: [PROJECT, OTHER, GONE],
+  activeProject: null,
+  pinned: [marked.id],
+  notes: { [marked.id]: 'A note\non two lines' },
+  openSessions: [cold.id, live.id, booting.id, there.id, dead.id],
+  groupState: groups,
+  statuses: { [cold.id]: 'waiting', [live.id]: 'busy', [there.id]: 'idle' },
+  history: Object.fromEntries(everyone.map((s) => [s.id, []])),
+};
+const ui = (over: Partial<UiState>): { uiState: UiState } => ({ uiState: { ...defaultUi(), ...over } });
+
+/** Start the tab of `title` and, unless it is to stay booting, let its claude print. */
+async function start(app: App, page: Page, title: string, pty: number, print = true): Promise<void> {
+  await page.locator('.tab-label', { hasText: title }).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(pty);
+  if (print) expect(await app.emit('onTerminalData', pty, `${title}\r\n`)).toBe(1);
+}
+
+test('first run', async ({ app, page }) => {
+  await app.boot();
+  await expect(page.locator('#sessions .session')).toHaveCount(1);
+  await snapshot(page, DIR!, 'first-run');
+});
+
+test('a busy window: groups, marks, tabs in every state, the strip and both toasts', async ({ app, page }) => {
+  await app.boot({ ...busy, ...ui({ collapsedGroups: ['g-beta'] }) });
+  await start(app, page, live.title, 1);
+  await start(app, page, there.title, 2);
+  await start(app, page, booting.title, 3, false);
+  // A waiting dot marked read, a background tab turning to wait for you (the attention toast), and the toast that stays until dismissed.
+  await page.locator('.session', { hasText: cold.title }).locator('.nudge').click();
+  await app.emit('onSessionStatus', there.id, 'waiting', '');
+  await app.emit('onClaudeMissing');
+  await expect(page.locator('#notifications .notif')).toHaveCount(1);
+  // Held as a pointer resting on it holds it, or it goes after five seconds, in the middle of the capture.
+  await page.locator('#notifications .notif').dispatchEvent('mouseenter');
+  await expect(page.locator('#toast')).toBeVisible();
+  await snapshot(page, DIR!, 'busy');
+});
+
+test('the filter panel open, with a search, a pill and the calendar', async ({ app, page }) => {
+  const from = Date.parse('2026-09-01T00:00:00.000Z');
+  const to = Date.parse('2026-09-30T23:59:59.999Z');
+  await app.boot({ ...busy, openSessions: [], ...ui({ search: 'a', filters: { ...defaultUi().filters, pinned: true }, datePreset: 'custom', dateFrom: from, dateTo: to, filterPanelOpen: true }) });
+  await page.locator('#date-range-label').click();
+  await expect(page.locator('#date-custom')).toBeVisible();
+  await snapshot(page, DIR!, 'filter-open');
+});
+
+test('the filter panel shut over a filter, as chips', async ({ app, page }) => {
+  await app.boot({ ...busy, openSessions: [], ...ui({ search: 'a', filters: { ...defaultUi().filters, pinned: true }, datePreset: '7d', filterPanelOpen: false }) });
+  await expect(page.locator('#filter-chips .filter-chip')).toHaveCount(3);
+  await snapshot(page, DIR!, 'filter-shut');
+});
+
+test("a session's menu with its submenu open", async ({ app, page }) => {
+  await app.boot({ ...busy, openSessions: [] });
+  await page.locator('.session', { hasText: marked.title }).locator('.session-kebab').click();
+  await page.locator('.kebab-menu button', { hasText: 'Move to group' }).click();
+  await expect(page.locator('.kebab-menu.submenu')).toBeVisible();
+  await snapshot(page, DIR!, 'menu');
+});
+
+test('the project switcher open', async ({ app, page }) => {
+  await app.boot({ ...busy, openSessions: [] });
+  await page.locator('#switcher-current').click();
+  await expect(page.locator('#switcher-popover')).toBeVisible();
+  await snapshot(page, DIR!, 'switcher');
+});
+
+test('Settings open', async ({ app, page }) => {
+  await app.boot();
+  await page.locator('#settings-toggle').click();
+  await expect(page.locator('#settings-overlay')).toBeVisible();
+  await snapshot(page, DIR!, 'settings');
+});
+
+test('the text prompt open, renaming a project', async ({ app, page }) => {
+  await app.boot();
+  await page.locator('.project-kebab').click();
+  await page.locator('.kebab-menu button', { hasText: 'Rename…' }).click();
+  await expect(page.locator('#rename-overlay')).toBeVisible();
+  await snapshot(page, DIR!, 'prompt');
+});
+
+test('the confirm dialog open, deleting an archived session', async ({ app, page }) => {
+  const one = session();
+  await app.boot({ archived: { [one.id]: Date.parse('2026-09-29T12:00:00.000Z') }, ...ui({ filters: { ...defaultUi().filters, archived: true } }) });
+  await page.locator('.session .delete-btn').click();
+  await expect(page.locator('#confirm-overlay')).toBeVisible();
+  await snapshot(page, DIR!, 'confirm');
+});
+
+test('the history open over a live claude, with pins, code and a folded run of tools', async ({ app, page }) => {
+  const one = session();
+  const TIME = '2026-09-30T08:00:00.000Z';
+  const exchanges: Exchange[] = [
+    {
+      id: 'request-1',
+      time: TIME,
+      request: 'Look at the parser',
+      kind: 'typed',
+      replaced: false,
+      rewound: false,
+      parts: [
+        { kind: 'text', id: 'message-1', time: TIME, text: 'Reading it now, starting with `parse()`.' },
+        { kind: 'tool', name: 'Read', detail: 'src/parser.ts' },
+        { kind: 'tool', name: 'Bash', detail: 'npm test' },
+        { kind: 'text', id: 'message-2', time: TIME, text: 'Found it:\n\n```ts\nconst x = 1;\n```\n\n> quoted' },
+      ],
+    },
+    { id: 'request-2', time: TIME, request: 'Sent again', kind: 'typed', replaced: true, rewound: false, parts: [] },
+    { id: 'request-3', time: TIME, request: 'The last request', kind: 'typed', replaced: false, rewound: false, parts: [{ kind: 'text', id: 'message-3', time: TIME, text: 'Done.' }] },
+  ];
+  const pinned = { kind: 'reply' as const, session: one.id, text: 'Found it', time: TIME, pinnedAt: 0 };
+  await app.boot({ openSessions: [one.id], activeSession: one.id, history: { [one.id]: exchanges }, historyPins: { 'message-2': pinned, 'request-1': { ...pinned, kind: 'request', text: 'Look at the parser' } } });
+  await page.getByRole('button', { name: 'Resume' }).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await app.emit('onTerminalData', 1, 'Claude Code\r\n');
+  await expect(page.locator('.exchange')).toHaveCount(3);
+  await page.getByRole('button', { name: /^Your last request/ }).click();
+  await page.mouse.move(0, 0);
+  await expect(page.locator('.history')).toHaveClass(/\bshown\b/);
+  await snapshot(page, DIR!, 'history');
+});
+
+test('panels: a railed group with output, a shell in a drawer, and a panel that cannot run', async ({ app, page }) => {
+  const layout = structuredClone(LAYOUT);
+  const right = layout.root.columns[2] as { panels: object[] };
+  right.panels.push({ id: 'broken', type: 'no-such-type' });
+  await app.boot(withLayout(layout));
+  await expect.poll(() => runs(app, 'status')).toHaveLength(1);
+  const { token } = (await runs(app, 'status'))[0];
+  await app.emit('onPanelRun', 'status', token, { kind: 'output', text: ' M src/parser.ts\n?? notes.md\n' });
+  await app.emit('onPanelRun', 'status', token, { kind: 'exit', code: 0, signal: null });
+  await expect(page.locator('.panel-rail .rail-item')).toHaveCount(3);
+  await snapshot(page, DIR!, 'panels');
+});
