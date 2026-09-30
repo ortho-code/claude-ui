@@ -1,3 +1,4 @@
+import { defaultUi } from '../../src/shared/defaults';
 import type { FolderName } from '../../src/shared/folders';
 import type { LayoutReport, PanelData } from '../../src/shared/panels';
 import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, SessionSummary, Settings, UiState, WindowChrome } from '../../src/shared/types';
@@ -70,7 +71,7 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
 /**
  * A first run with one session and no layout file: the default layout, nothing pinned, open or filtered.
  * One session because without one the window drops the stored project, and every panel then says "Pick a project".
- * The `uiState` is main's first-run state (`defaultUi` in src/main/meta.ts), written out again because main's cannot be loaded into a page; the type holds its shape to main's, not its values.
+ * The `uiState` is main's own first-run state, the one function both use.
  */
 export function defaultFixture(): BridgeFixture {
   const one = session();
@@ -83,22 +84,7 @@ export function defaultFixture(): BridgeFixture {
     activeSession: null,
     activeSessionByProject: {},
     activeProject: one.repoRoot,
-    uiState: {
-      search: '',
-      filters: { pinned: false, open: false, live: false, worktree: false, gone: false, siblings: false, noted: false, archived: false },
-      datePreset: 'any',
-      dateFrom: null,
-      dateTo: null,
-      filterPanelOpen: false,
-      footerExpanded: true,
-      collapsedProjects: [],
-      collapsedGroups: [],
-      filterCollapsedProjects: [],
-      filterCollapsedGroups: [],
-      sidebarWidth: null,
-      scrollTop: 0,
-      panelState: { sizes: {}, collapsed: [], active: {} },
-    },
+    uiState: defaultUi(),
     settings: { launchFlags: '' },
     windowChrome: { own: false, maximized: false, title: 'Claude UI (test)', version: '0.0.0-test', dev: true },
     projectNames: {},

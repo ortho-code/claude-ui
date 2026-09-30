@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import type { OrderMove, GroupState, HistoryPin, SessionGroup, UiState, Settings } from '../shared/types';
 import type { PanelState } from '../shared/panels';
+import { defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
 import { appendStamped } from './stamp';
@@ -118,26 +119,6 @@ function normalizeSettings(raw: unknown): Settings {
   const settings = raw as Record<string, unknown>;
   return {
     launchFlags: typeof settings.launchFlags === 'string' ? settings.launchFlags : base.launchFlags,
-  };
-}
-
-/** An unfiltered, unfolded sidebar at its default width: what a first run gets, and what any field missing from the stored object falls back to. */
-function defaultUi(): UiState {
-  return {
-    search: '',
-    filters: { pinned: false, open: false, live: false, worktree: false, gone: false, siblings: false, noted: false, archived: false },
-    datePreset: 'any',
-    dateFrom: null,
-    dateTo: null,
-    filterPanelOpen: false,
-    footerExpanded: true,
-    collapsedProjects: [],
-    collapsedGroups: [],
-    filterCollapsedProjects: [],
-    filterCollapsedGroups: [],
-    sidebarWidth: null,
-    scrollTop: 0,
-    panelState: { sizes: {}, collapsed: [], active: {} },
   };
 }
 
