@@ -1384,8 +1384,6 @@ type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendi
 // Repaint just the switcher (header + popover badges) — used when a status/ack change should update the roll-up badges without re-rendering the whole list.
 function refreshSwitcher(view: SwitcherView): void {
   renderSwitcher(switcherPool(visibleSessions(view), view), view);
-  // A status or a mark read changed the roll-ups here, and the same dots on a panel's rows.
-  treeSessionsChanged();
 }
 
 // Render from the cached session list, applying the current search filter.
@@ -1394,8 +1392,6 @@ function refreshSwitcher(view: SwitcherView): void {
 function renderList(view: ListView): void {
   const scroll = container.scrollTop;
   statusDots.clear();
-  // The sessions themselves changed — a title, one appearing on disk: a panel's rows name them too.
-  treeSessionsChanged();
   // The filter is off, so the folds made while it was on have served their purpose and go. Done here rather than where a filter is cleared, because a filter also ends by deleting the last character, by a date preset going back to Any, and by Clear.
   if (!isFiltering()) {
     filterFoldedProjects.clear();
@@ -2713,8 +2709,6 @@ function visibleTabs({ activeProject, tabs }: View<'activeProject' | 'tabs'>): r
 type TabBarView = View<'sessions' | 'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab'>;
 
 function renderTabBar(view: TabBarView): void {
-  // A tab opened, started, stopped or closed: a panel's rows say whether their sessions run.
-  treeSessionsChanged();
   const { activeProject } = view;
   const shown = visibleTabs(view);
   const { groupOf } = view.groupState;
@@ -3061,6 +3055,9 @@ store.watch(['tabs', 'activeTab'], paneFollowsTabs, { reads: ['sessions', 'activ
 
 // The panels run where you are: in the tab on show's folder, or without one in the project's root, or in nothing in the All view.
 store.watch(['activeProject', 'activeTab'], treeContextChanged);
+
+// A panel's rows mark the sessions they started — each one's title, status dot, mark read, and whether it runs — so the panels hear of every change to those; their own data tells them of itself (`panelDataOf`, `onPanelDataChanged`).
+store.watch(['sessions', 'statuses', 'acked', 'tabs'], treeSessionsChanged);
 
 function onTabData(token: string, data: string): void {
   const tab = tabOf(token);
