@@ -1,3 +1,4 @@
+import type { PanelData } from '../../shared/panels';
 import type { GroupState, SessionSummary } from '../../shared/types';
 import { sameRow, structuralSignature } from '../logic';
 import { createStore } from './store';
@@ -46,6 +47,11 @@ export interface AppState {
   tabs: readonly TabState[];
   /** The tab on show, by its token, or null for none: the tab bar, the rows, the pane, the history and the panels' context all follow it. */
   activeTab: string | null;
+  /**
+   * Each panel's own data as last read, by entry key: the sessions its rows started (main's `panel-data/`), which a row marks and goes back to.
+   * Read the first time a panel asks, and kept current by main's pushes after every write, a forgotten session's included (panels/links.ts).
+   */
+  panelData: ReadonlyMap<string, PanelData>;
 }
 
 /** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
@@ -175,6 +181,7 @@ export const store = createStore<AppState>(
     activeProject: null,
     tabs: [],
     activeTab: null,
+    panelData: new Map(),
   },
   {
     sessions: sameRows,
@@ -187,5 +194,6 @@ export const store = createStore<AppState>(
     projectNames: sameEntries,
     projectOrder: sameOrder,
     tabs: sameTabs,
+    panelData: sameEntries,
   },
 );

@@ -22,7 +22,8 @@ import { dragTo, flexFor, keptSizes, snapshot, type FlexChild } from './sizes';
 import { sessionsType } from './types/builtin';
 import { claudeType } from './types/claude';
 import { folderTypes } from './types/folder';
-import { commandType, type Asks, type LinkedSession, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type SessionRequest, type Where } from './types/command';
+import { linkedSessions, pickSession, startSession } from './links';
+import { commandType, type Asks, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type Where } from './types/command';
 import { terminalType } from './types/terminal';
 
 /**
@@ -40,17 +41,12 @@ const BUILTIN_TYPES: Record<string, PanelType> = { sessions: sessionsType, claud
 /** Every type the layout can place: the built-ins, and the config folder's as of its last read (types/folder.ts). */
 let types = BUILTIN_TYPES;
 
-/** What the tree needs from the renderer: where a panel would run, the toast, the view-state write, starting a session a panel asks for, and the answers to every ask a panel can make (`Asks`), which each panel's host hands on. */
+/** What the tree needs from the renderer: where a panel would run, the toast, the view-state write, and the answers to every ask a panel can make (`Asks`), which each panel's host hands on. A panel's session links are the tree's own (links.ts). */
 export interface TreeHost extends Asks {
   where(): Where;
   showToast(message: string, sticky?: boolean): void;
   hideToast(): void;
   persist(): void;
-  /** A panel's item asks for a session; `entryKey` is the panel's, which the session is remembered under. */
-  startSession(entryKey: string, request: SessionRequest): void;
-  /** The sessions a panel's item started that the app still has, latest first. */
-  linkedSessions(entryKey: string, itemKey: string): LinkedSession[];
-  pickSession(anchor: HTMLElement, sessions: LinkedSession[]): void;
 }
 
 /** A panel's asks, answered by the tree's host: one route for every panel, the built-ins included. */
@@ -551,9 +547,10 @@ function mountedFor(slot: PanelSlot): Mounted {
     },
     setProblems: (problems) => report('problems', problems),
     setNotes: (notes) => report('notes', notes),
-    startSession: (request) => host.startSession(slot.key, request),
-    linkedSessions: (itemKey) => host.linkedSessions(slot.key, itemKey),
-    pickSession: (anchor, sessions) => host.pickSession(anchor, sessions),
+    // The session links are remembered under the panel's own entry key.
+    startSession: (request) => void startSession(slot.key, request, host),
+    linkedSessions: (itemKey) => linkedSessions(slot.key, itemKey),
+    pickSession: (anchor, sessions) => pickSession(anchor, sessions, host),
     ...asksOf(host),
   };
   const panel = type.mount(slot, panelHost);

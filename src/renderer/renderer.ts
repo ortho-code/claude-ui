@@ -5,7 +5,6 @@ import { setUnavailable, unavailable } from './unavailable';
 import { hideToast, showToast } from './toast';
 import { showAttentionToast } from './notifications';
 import { confirmDelete, promptText } from './dialogs';
-import { askForSession } from './sessiondialog';
 import { openSettings } from './settings';
 import { markProjectGone } from './projectgone';
 import { startChrome } from './chrome';
@@ -34,7 +33,6 @@ import {
   sessionPasses,
   datePresetRange,
   projectsForSwitcher,
-  projectFor,
   orderAsTabs,
   unstartableReason,
   projectRootExists,
@@ -47,8 +45,6 @@ import {
 } from './logic';
 import { installTooltips, setTooltip } from './tooltip';
 import { caretIcon, chevronIcon, closeIcon, folderGoneIcon, folderIcon, layersIcon, PIN_ICON, PINNED_ICON, SIBLING_ICON, stopIcon, strokeIcon, WORKTREE_ICON } from './svg';
-import type { LinkedSession, SessionRequest } from './panels/types/command';
-import type { PanelData } from '../shared/panels';
 import { iconSvg } from './panels/icons';
 import { createTerminal, bindTerminal, routeTerminals, lastLines } from './terminal';
 import { hostOf, reportBuiltinStatus } from './panels/types/builtin';
@@ -2208,51 +2204,6 @@ async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<Ta
   await createTab(session, { name: launch.name || undefined, prompt: launch.prompt || undefined });
 }
 
-/**
- * Each panel's own data as last read, by entry key: the sessions its rows started (main's `panel-data/`).
- * Read the first time a panel asks, and kept current by main's pushes after every write, a forgotten session's included.
- */
-const panelData = new Map<string, PanelData>();
-const panelDataAsked = new Set<string>();
-
-function panelDataOf(entryKey: string): PanelData | null {
-  const data = panelData.get(entryKey);
-  if (data) return data;
-  if (!panelDataAsked.has(entryKey)) {
-    panelDataAsked.add(entryKey);
-    void window.claudeUi.getPanelData(entryKey).then((read) => {
-      // A push may have landed first, and is the newer of the two.
-      if (!panelData.has(entryKey)) panelData.set(entryKey, read);
-      treeSessionsChanged();
-    });
-  }
-  return null;
-}
-
-window.claudeUi.onPanelDataChanged((entryKey, data) => {
-  panelData.set(entryKey, data);
-  treeSessionsChanged();
-});
-
-/**
- * The sessions a panel's item started that the app still has, latest first, as the session list would draw them.
- * A link whose session is gone — one main has not yet forgotten — is left out rather than shown as something to go to.
- */
-function linkedSessions(entryKey: string, itemKey: string): LinkedSession[] {
-  const data = panelDataOf(entryKey);
-  if (!data) return [];
-  return Object.entries(data.sessions)
-    .filter(([, link]) => link.key === itemKey)
-    .sort(([, a], [, b]) => b.startedAt.localeCompare(a.startedAt))
-    .flatMap(([id]) => {
-      const { sessions, statuses, acked } = store.get();
-      const tab = tabWith(id);
-      const session = tab?.session ?? sessions.find((s) => s.id === id);
-      if (!session) return [];
-      return [{ id, title: session.title, status: statuses.get(id) ?? null, acked: acked.has(id), running: tab !== undefined && tab.terminalId !== null }];
-    });
-}
-
 /** Go to a session a panel's row started, as a jump from the attention strip does; one whose folder is gone says so, as its row in the list would. */
 function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const session = sessionById(id);
@@ -2263,60 +2214,6 @@ function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): 
     return;
   }
   jumpToSession(session, launch);
-}
-
-/** Several sessions of one row, in the app's own menu, each with its status dot. */
-function pickLinkedSession(anchor: HTMLElement, sessions: LinkedSession[]): void {
-  const dot = (status: string | null): NudgeStatus => (status === 'waiting' || status === 'idle' || status === 'busy' ? status : null);
-  openMenu(
-    anchor,
-    sessions.map((session) => ({ label: session.title, badge: dot(session.status), onSelect: () => openLinkedSession(session.id) })),
-  );
-}
-
-/**
- * A panel's item asks for a session: the app's dialog says where it goes and what it starts with, and nothing starts until Start.
- * The projects offered are the switcher's, in its order and without the ones whose folder is gone, since a session cannot start there; the one the panel's folder is in comes first, and that folder is offered itself when it is in no project yet.
- * The session is remembered by the panel under the id minted here BEFORE its tab exists, so the row can lead back to it from the start; then it starts down the same path as any new session.
- * When the row already has a session, the dialog offers to continue the latest one instead, which keeps the context the first one built: stopped, it resumes with the prompt; running, it is brought into view and the prompt is not sent.
- */
-async function startSessionFromPanel(entryKey: string, request: SessionRequest): Promise<void> {
-  const state = store.get();
-  const known = projectsForSwitcher(switcherPool(visibleSessions(state), state), state.statuses, state.acked, state.projectNames, state.projectOrder).projects.filter((project) => project.rootExists);
-  const roots = known.map((project) => project.repoRoot);
-  const found = request.dir ? projectFor(roots, request.dir) : null;
-  const preset = found ?? request.dir ?? state.activeProject ?? roots[0] ?? null;
-  if (preset === null) {
-    showToast('There is no project to start a session in yet.');
-    return;
-  }
-  const choices = roots.includes(preset) ? roots : [preset, ...roots];
-  const groupsIn = (root: string): { id: string; name: string }[] => projectGroups(root, state).map(({ id, name }) => ({ id, name }));
-  const data = await window.claudeUi.getPanelData(entryKey);
-  panelData.set(entryKey, data);
-  const latest = linkedSessions(entryKey, request.key)[0] ?? null;
-  const answer = await askForSession({
-    from: request.from,
-    about: request.label,
-    continueIn: latest ? { title: latest.title, running: latest.running } : null,
-    projects: choices.map((root) => ({ root, name: projName(root, state), groups: groupsIn(root) })),
-    project: preset,
-    // The last group picked from this panel in that project, while it still exists.
-    groupFor: (root) => {
-      const last = data.lastGroup[root] ?? null;
-      return last !== null && groupsIn(root).some((group) => group.id === last) ? last : null;
-    },
-    name: request.name ?? '',
-    prompt: request.prompt,
-  });
-  if (!answer) return;
-  if (answer.mode === 'continue' && latest) {
-    openLinkedSession(latest.id, { prompt: answer.prompt.trim() || undefined });
-    return;
-  }
-  const id = crypto.randomUUID();
-  panelData.set(entryKey, await window.claudeUi.linkPanelSession(entryKey, id, { key: request.key, label: request.label, href: request.href }, { repoRoot: answer.root, groupId: answer.groupId }));
-  await openNewSession(answer.root, answer.groupId ?? undefined, { name: answer.name.trim(), prompt: answer.prompt.trim() }, id);
 }
 
 // Start a new session in a fresh git worktree of `repoRoot`: `claude -w [name]`.
@@ -3015,8 +2912,8 @@ store.watch(['tabs', 'activeTab'], paneFollowsTabs, { reads: ['sessions', 'activ
 // The panels run where you are: in the tab on show's folder, or without one in the project's root, or in nothing in the All view.
 store.watch(['activeProject', 'activeTab'], treeContextChanged);
 
-// A panel's rows mark the sessions they started — each one's title, status dot, mark read, and whether it runs — so the panels hear of every change to those; their own data tells them of itself (`panelDataOf`, `onPanelDataChanged`).
-store.watch(['sessions', 'statuses', 'acked', 'tabs'], treeSessionsChanged);
+// A panel's rows mark the sessions they started — each one's title, status dot, mark read, and whether it runs — so the panels hear of every change to those, and to which sessions a panel's rows started (its data, panels/links.ts).
+store.watch(['sessions', 'statuses', 'acked', 'tabs', 'panelData'], treeSessionsChanged);
 
 function onTabData(token: string, data: string): void {
   const tab = tabOf(token);
@@ -3245,9 +3142,6 @@ initTree({
   showToast,
   hideToast,
   persist: persistUi,
-  startSession: (entryKey, request) => void startSessionFromPanel(entryKey, request),
-  linkedSessions,
-  pickSession: pickLinkedSession,
   // The asks the terminal area answers.
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
