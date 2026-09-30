@@ -52,7 +52,7 @@ import type { LinkedSession, SessionRequest } from './panels/types/command';
 import type { PanelData } from '../shared/panels';
 import { iconSvg } from './panels/icons';
 import { createTerminal, bindTerminal, routeTerminals, lastLines } from './terminal';
-import { reportBuiltinStatus } from './panels/types/builtin';
+import { hostOf, reportBuiltinStatus } from './panels/types/builtin';
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
 import Sortable from 'sortablejs';
@@ -191,7 +191,7 @@ function jumpToTab(token: string): void {
   if (!tab) return;
   const { activeProject } = store.get();
   if (activeProject !== null && activeProject !== tab.session.repoRoot) {
-    selectProject(tab.session.repoRoot);
+    hostOf('claude').selectProject(tab.session.repoRoot);
   }
   activateTab(token);
 }
@@ -980,11 +980,12 @@ async function copyText(text: string, confirmation: string): Promise<void> {
 // Jump to a specific session from outside the list — the footer, a panel's row: scope to its project if needed, then open/focus its tab.
 function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const { activeProject } = store.get();
-  if (activeProject !== null && activeProject !== session.repoRoot) selectProject(session.repoRoot);
+  const sidebar = hostOf('claude');
+  if (activeProject !== null && activeProject !== session.repoRoot) sidebar.selectProject(session.repoRoot);
   void openSession(session, launch);
   // Scope alone isn't enough to SEE it: the row can sit inside a collapsed group or project.
   // Reveal the same way clicking a tab does — jumping to a sibling filed in another group is exactly the case where scoping to the project still leaves the row hidden.
-  revealSessionInSidebar(session);
+  sidebar.revealSession(session.id);
 }
 
 // A session's siblings (the other members of its family), most recent first. Shared by the count badge and the kebab submenu.
@@ -999,7 +1000,7 @@ function siblingsOf(session: SessionSummary): SessionSummary[] {
 function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   return siblings.map((sibling) => ({
     label: `${sessionLabel(sibling)} · ${relativeTime(sibling.lastActivity)}`,
-    onSelect: () => jumpToSession(sibling),
+    onSelect: () => hostOf('sessions').openSession(sibling.id),
   }));
 }
 
@@ -1098,7 +1099,7 @@ async function toggleArchiveFor(key: string): Promise<void> {
   store.batch(() => {
     store.set({ archived });
     if (archived.has(key)) {
-      for (const tab of store.get().tabs) if (entityKey(tab.session) === key) closeTab(tab.token);
+      hostOf('sessions').closeTabs(key);
     }
   });
 }
@@ -1111,7 +1112,7 @@ function sessionMenuItems(session: SessionSummary): MenuItem[] {
   const items: MenuItem[] = [
     cannotRun
       ? { label: 'Fork this session', disabled: cannotRun }
-      : { label: 'Fork this session', onSelect: () => { void forkSession(session); } },
+      : { label: 'Fork this session', onSelect: () => { void hostOf('sessions').forkSession(session.id); } },
   ];
   const siblings = siblingsOf(session);
   if (siblings.length > 0) {
@@ -1169,11 +1170,10 @@ function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButto
   stop.disabled = disabled;
   setTooltip(stop, tooltip);
   if (!disabled) {
-    const { token } = tab;
     stop.addEventListener('click', (event) => {
       // The row around it jumps to the session; stopping must not also take you there.
       event.stopPropagation();
-      stopSession(token);
+      hostOf('sessions').stopSession(session.id);
     });
   }
   return stop;
@@ -1268,7 +1268,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
           jump.append(chip);
         }
         setTooltip(jump, sessionLabel(session, '') || null);
-        jump.addEventListener('click', () => jumpToSession(session));
+        jump.addEventListener('click', () => hostOf('sessions').openSession(session.id));
         row.append(jump, stripStopButton(session, view));
         return row;
       });
@@ -1320,10 +1320,10 @@ function selectProject(repoRoot: string | null): void {
   if (repoRoot) foldedProjects().delete(repoRoot);
   window.claudeUi.setActiveProject(repoRoot);
   closeSwitcher();
-  // Full workspace switch: the active terminal moves to this project too, in the same change, so every surface that honours the selection is told once, with the project and its tab together.
+  // Full workspace switch: the terminal area moves to this project too, in the same change, so every surface that honours the selection is told once, with the project and its tab together.
   store.batch(() => {
     store.set({ activeProject: repoRoot });
-    switchWorkspaceTerminal(repoRoot);
+    hostOf('sessions').showProject(repoRoot);
   });
   container.scrollTop = 0;
 }
@@ -1789,7 +1789,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     add.addEventListener('click', (event) => {
       event.stopPropagation();
       if (unavailable(add)) return; // aria-disabled still delivers the click, which is the trade for a tooltip that works
-      void openNewSession(folderCwd);
+      void hostOf('sessions').openNewSession(folderCwd);
     });
     const caret = document.createElement('button');
     caret.className = 'icon-btn composite project-add-caret';
@@ -1800,8 +1800,8 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
       event.stopPropagation();
       if (unavailable(caret)) return;
       openMenu(caret, [
-        { label: 'New session', onSelect: () => void openNewSession(folderCwd) },
-        { label: 'New worktree session…', onSelect: () => void openWorktreeSession(folderCwd) },
+        { label: 'New session', onSelect: () => void hostOf('sessions').openNewSession(folderCwd) },
+        { label: 'New worktree session…', onSelect: () => void hostOf('sessions').openWorktreeSession(folderCwd) },
       ]);
     });
     split.append(add, caret);
@@ -1862,7 +1862,7 @@ function createGroupSection(id: string): GroupSectionEls {
     event.stopPropagation();
     if (unavailable(add)) return;
     const group = store.get().groupState.groups.find((g) => g.id === id);
-    if (group?.repoRoot) void openNewSession(group.repoRoot, id);
+    if (group?.repoRoot) void hostOf('sessions').openNewSession(group.repoRoot, id);
   });
   const addCaret = document.createElement('button');
   addCaret.className = 'icon-btn composite group-add-caret';
@@ -1875,8 +1875,8 @@ function createGroupSection(id: string): GroupSectionEls {
     const repoRoot = store.get().groupState.groups.find((g) => g.id === id)?.repoRoot;
     if (!repoRoot) return;
     openMenu(addCaret, [
-      { label: 'New session', onSelect: () => void openNewSession(repoRoot, id) },
-      { label: 'New worktree session…', onSelect: () => void openWorktreeSession(repoRoot, id) },
+      { label: 'New session', onSelect: () => void hostOf('sessions').openNewSession(repoRoot, id) },
+      { label: 'New worktree session…', onSelect: () => void hostOf('sessions').openWorktreeSession(repoRoot, id) },
     ]);
   });
   split.append(add, addCaret);
@@ -2091,7 +2091,7 @@ function createSessionRow(key: string): HTMLElement {
       showToast(reason);
       return;
     }
-    void openSession(session);
+    hostOf('sessions').openTab(session.id);
   });
   return item;
 }
@@ -2236,7 +2236,7 @@ function untitledLabel(cwd: string): string {
 
 // Start a brand-new claude session in `cwd`, under an id this app mints; the sidebar row is that same session, filled in once claude writes its transcript.
 // A panel's row starting one passes a name and a first prompt, and mints the id itself, so it can remember the session before the tab exists.
-async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<TabLaunch, 'name' | 'prompt'> = {}, id = crypto.randomUUID()): Promise<void> {
+async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<TabLaunch, 'name' | 'prompt'> = {}, id: string = crypto.randomUUID()): Promise<void> {
   const session = newSession(id, { cwd, repoRoot: cwd, title: launch.name || untitledLabel(cwd) });
   // Filed BEFORE the tab exists, so the row's first paint is already inside the group. An ordinary membership write: the id is the session's real one, so there is nothing to correct afterwards.
   if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
@@ -2739,7 +2739,7 @@ function renderTabBar(view: TabBarView): void {
         mark.className = 'gone-mark';
         markProjectGone(root, projectGone(root, view), name, mark, 11, label);
         label.append(name, mark);
-        label.addEventListener('click', () => revealProjectInSidebar(root));
+        label.addEventListener('click', () => hostOf('claude').revealProject(root));
         row.append(label);
       }
       row.append(...loose.map((tab) => tabElement(tab, view)));
@@ -2761,7 +2761,7 @@ function renderTabBar(view: TabBarView): void {
       icon.innerHTML = layersIcon(11);
       label.append(icon, document.createTextNode(group.name));
       // The same jump as the heading's group menu: unfold, scroll the group's heading into view, and flash it.
-      label.addEventListener('click', () => jumpToGroup(root, group.id));
+      label.addEventListener('click', () => hostOf('claude').revealGroup(root, group.id));
       row.append(rail, label, ...groupTabs.map((tab) => tabElement(tab, view)));
       children.push(row);
     }
@@ -2845,7 +2845,7 @@ function tabElement(tab: TabState, view: View<'statuses' | 'acked' | 'projectNam
   el.addEventListener('click', () => {
     activateTab(token);
     const shown = tabOf(token);
-    if (shown) revealSessionInSidebar(shown.session);
+    if (shown) hostOf('claude').revealSession(shown.session.id);
   });
   el.addEventListener('mousedown', (event) => {
     if (event.button === 1) {
@@ -3183,7 +3183,7 @@ async function pickFolderAndOpen(): Promise<void> {
   newButton.classList.add('active');
   try {
     const dir = await window.claudeUi.pickFolder();
-    if (dir) void openNewSession(dir);
+    if (dir) void hostOf('sessions').openNewSession(dir);
   } finally {
     newButton.classList.remove('active');
   }
@@ -3288,8 +3288,35 @@ initTree({
   persist: persistUi,
   startSession: (entryKey, request) => void startSessionFromPanel(entryKey, request),
   linkedSessions,
-  openSession: (id) => openLinkedSession(id),
   pickSession: pickLinkedSession,
+  // The asks the terminal area answers.
+  openSession: (id, prompt) => openLinkedSession(id, { prompt }),
+  openTab: (id) => {
+    const session = sessionById(id);
+    if (session) void openSession(session);
+  },
+  openNewSession: (cwd, groupId, launch, id) => openNewSession(cwd, groupId, launch, id),
+  openWorktreeSession: (repoRoot, groupId) => openWorktreeSession(repoRoot, groupId),
+  forkSession: async (id) => {
+    const session = sessionById(id);
+    if (session) await forkSession(session);
+  },
+  stopSession: (id) => {
+    const tab = tabWith(id);
+    if (tab) stopSession(tab.token);
+  },
+  closeTabs: (id) => {
+    for (const tab of store.get().tabs) if (entityKey(tab.session) === id) closeTab(tab.token);
+  },
+  showProject: (repoRoot) => switchWorkspaceTerminal(repoRoot),
+  // The asks the session list answers.
+  selectProject: (repoRoot) => selectProject(repoRoot),
+  revealSession: (id) => {
+    const session = sessionById(id);
+    if (session) revealSessionInSidebar(session);
+  },
+  revealProject: (repoRoot) => revealProjectInSidebar(repoRoot),
+  revealGroup: (repoRoot, groupId) => jumpToGroup(repoRoot, groupId),
 });
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {

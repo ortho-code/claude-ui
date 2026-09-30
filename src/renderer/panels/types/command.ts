@@ -80,8 +80,41 @@ export interface LinkedSession {
   running: boolean;
 }
 
-/** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw — the panel's side of the conversation with the layout. */
-export interface PanelHost {
+/**
+ * What one surface asks another for, through the host every panel is given (docs/architecture.md § The app's own surfaces are panels): each ask is answered by the built-in that owns it, so no surface reaches into another's code.
+ * By session id or project folder, never a tab's token, which is the terminal area's own.
+ */
+export interface Asks {
+  // Answered by the terminal area.
+  /** Go to a session, as a jump from the attention strip does: its project, its tab (resumed when it is not running, with `prompt` as its first when given), its row. */
+  openSession(id: string, prompt?: string): void;
+  /** Open a session's tab, started when it is not running, and nothing else: what a click on its row does, which moves neither the list nor the project. */
+  openTab(id: string): void;
+  /** Start a brand-new session in `cwd`, filed in `groupId` when given, under `id` when the caller minted one to remember it by. */
+  openNewSession(cwd: string, groupId?: string, launch?: { name?: string; prompt?: string }, id?: string): Promise<void>;
+  /** Start a session in a new git worktree of the project, named as the dialog it opens is answered. */
+  openWorktreeSession(repoRoot: string, groupId?: string): Promise<void>;
+  /** Fork a session, named as the dialog it opens is answered, into its parent's group. */
+  forkSession(id: string): Promise<void>;
+  /** End a running session and keep its tab, cold. */
+  stopSession(id: string): void;
+  /** Close every tab a session is open in, ending what runs there. */
+  closeTabs(id: string): void;
+  /** The terminal area's half of selecting a project: the tabs on show and the tab in front follow it. */
+  showProject(repoRoot: string | null): void;
+  // Answered by the session list.
+  /** Select a project, or All for null, as the switcher does. */
+  selectProject(repoRoot: string | null): void;
+  /** Bring a session's row into view, unfolding what hides it. */
+  revealSession(id: string): void;
+  /** Bring a project's heading into view, unfolding it. */
+  revealProject(repoRoot: string): void;
+  /** Bring a group's heading into view, or the project's rows in no group for null, and flash it. */
+  revealGroup(repoRoot: string, groupId: string | null): void;
+}
+
+/** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw — the panel's side of the conversation with the layout — and the asks it can make of the app's surfaces. */
+export interface PanelHost extends Asks {
   where(): Where;
   setBusy(busy: boolean): void;
   /** The header's word on the last run: `exit 3`, `stopped after 30 s`, or '' for a run that ended well. */
@@ -101,8 +134,6 @@ export interface PanelHost {
   startSession(request: SessionRequest): void;
   /** The sessions an item started that the app still has, latest first; empty until the panel's data has been read. */
   linkedSessions(itemKey: string): LinkedSession[];
-  /** Go to a session, as a jump from the attention strip does: its project, its tab (resumed when it is not running), its row. */
-  openSession(id: string): void;
   /** Offer several of an item's sessions in a menu at `anchor`, to go to one. */
   pickSession(anchor: HTMLElement, sessions: LinkedSession[]): void;
 }

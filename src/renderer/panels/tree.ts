@@ -22,7 +22,7 @@ import { dragTo, flexFor, keptSizes, snapshot, type FlexChild } from './sizes';
 import { sessionsType } from './types/builtin';
 import { claudeType } from './types/claude';
 import { folderTypes } from './types/folder';
-import { commandType, type LinkedSession, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type SessionRequest, type Where } from './types/command';
+import { commandType, type Asks, type LinkedSession, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type SessionRequest, type Where } from './types/command';
 import { terminalType } from './types/terminal';
 
 /**
@@ -40,8 +40,8 @@ const BUILTIN_TYPES: Record<string, PanelType> = { sessions: sessionsType, claud
 /** Every type the layout can place: the built-ins, and the config folder's as of its last read (types/folder.ts). */
 let types = BUILTIN_TYPES;
 
-/** What the tree needs from the renderer: where a panel would run, the toast, the view-state write, and starting a session a panel asks for. */
-export interface TreeHost {
+/** What the tree needs from the renderer: where a panel would run, the toast, the view-state write, starting a session a panel asks for, and the answers to every ask a panel can make (`Asks`), which each panel's host hands on. */
+export interface TreeHost extends Asks {
   where(): Where;
   showToast(message: string, sticky?: boolean): void;
   hideToast(): void;
@@ -50,8 +50,25 @@ export interface TreeHost {
   startSession(entryKey: string, request: SessionRequest): void;
   /** The sessions a panel's item started that the app still has, latest first. */
   linkedSessions(entryKey: string, itemKey: string): LinkedSession[];
-  openSession(id: string): void;
   pickSession(anchor: HTMLElement, sessions: LinkedSession[]): void;
+}
+
+/** A panel's asks, answered by the tree's host: one route for every panel, the built-ins included. */
+function asksOf(tree: TreeHost): Asks {
+  return {
+    openSession: (id, prompt) => tree.openSession(id, prompt),
+    openTab: (id) => tree.openTab(id),
+    openNewSession: (cwd, groupId, launch, id) => tree.openNewSession(cwd, groupId, launch, id),
+    openWorktreeSession: (repoRoot, groupId) => tree.openWorktreeSession(repoRoot, groupId),
+    forkSession: (id) => tree.forkSession(id),
+    stopSession: (id) => tree.stopSession(id),
+    closeTabs: (id) => tree.closeTabs(id),
+    showProject: (repoRoot) => tree.showProject(repoRoot),
+    selectProject: (repoRoot) => tree.selectProject(repoRoot),
+    revealSession: (id) => tree.revealSession(id),
+    revealProject: (repoRoot) => tree.revealProject(repoRoot),
+    revealGroup: (repoRoot, groupId) => tree.revealGroup(repoRoot, groupId),
+  };
 }
 
 /** A panel on screen, and the marks it reports through — made once with it, so a rebuilt header or rail shows the same marks rather than orphaning them. */
@@ -536,8 +553,8 @@ function mountedFor(slot: PanelSlot): Mounted {
     setNotes: (notes) => report('notes', notes),
     startSession: (request) => host.startSession(slot.key, request),
     linkedSessions: (itemKey) => host.linkedSessions(slot.key, itemKey),
-    openSession: (id) => host.openSession(id),
     pickSession: (anchor, sessions) => host.pickSession(anchor, sessions),
+    ...asksOf(host),
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());

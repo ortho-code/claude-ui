@@ -26,6 +26,16 @@ export function reportBuiltinStatus(name: BuiltinName, status: PanelStatus): voi
   hosts.get(name)?.setStatus(status);
 }
 
+/**
+ * A built-in's host as of its current mount, which its surface asks the other surface through (`Asks`).
+ * The tree mounts both built-ins as it first draws, at load, before anything in either can ask; a built-in is never left unmounted, since the layout must place it.
+ */
+export function hostOf(name: BuiltinName): PanelHost {
+  const host = hosts.get(name);
+  if (!host) throw new Error(`The ${name} panel was asked for its host before the layout placed it.`);
+  return host;
+}
+
 /** A built-in's type, around the one element it is for the run: every mount puts that element back, so a remount — a new id, an option — keeps whatever runs in it. */
 export function builtinType(name: BuiltinName, el: HTMLElement, title: string, icon: IconName): PanelType {
   const type: PanelType = {
