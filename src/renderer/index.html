@@ -73,18 +73,9 @@
           </button>
         </div>
       </aside>
-      <section id="terminal-pane">
-        <div id="tabbar"></div>
-        <!-- The terminals, with the history's bar beside them (history/bar.ts), which renderer.ts appends. -->
-        <div id="terminal-body">
-          <div id="terminals">
-            <div id="term-placeholder" class="pane-placeholder">Pick a tab above, or a session in the sidebar, to resume it.</div>
-          </div>
-        </div>
-      </section>
     </div>
     <!--
-      #app is drawn by panels/tree.ts from the layout file, and the sidebar and the terminal area above are moved into it as panels before the first paint.
+      #app is drawn by panels/tree.ts from the layout file, and the sidebar above and the terminal area (which its type builds, panels/types/claude/) are moved into it as panels before the first paint.
       One the layout lets go of is parked here, never rebuilt, so whatever runs in it keeps running.
     -->
     <div id="parked" hidden></div>

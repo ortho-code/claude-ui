@@ -1071,15 +1071,6 @@ h1 {
   color: var(--muted);
 }
 
-#terminal-pane {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--terminal-bg);
-}
-
 #tabbar {
   display: flex;
   /* Natural-width tabs that wrap onto new rows when the row fills: all visible, no scrollbar. */
@@ -1247,20 +1238,6 @@ h1 {
 
 /* Compact tier of the standard control (see .unarchive-btn): same 14px icon, tighter padding, so a
    tab keeps its density while the close stays a real click target. */
-
-#terminal-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-}
-
-#terminals {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  padding: 8px;
-}
 
 .term {
   display: none;

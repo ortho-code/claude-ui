@@ -68,7 +68,7 @@ The page is served by answering its requests from `dist/renderer` on a made-up o
 
 The checks are filed the way the window is made of panels: a panel type's under `test/renderer/panels/types/<type>/` (the `claude` panel's split into `tab-bar/` and `history/`), the layout tree's under `panels/layout/`, anything that is not a panel under its own name (`settings/`), and what they all use under `support/`.
 It is the unit tests' rule too — a test is found where the thing it tests lives — applied to what the checks test, which is the window as its panels draw it rather than one module.
-The two built-in types, `sessions` and `claude`, are still drawn by `renderer.ts` rather than by modules of their own under `src/renderer/panels/types/`, so for now their checks are filed by the type names a layout file uses.
+The two built-in types, `sessions` and `claude`, are still drawn mostly by `renderer.ts` — `claude` has a module of its own under `src/renderer/panels/types/claude/`, which what draws it is moving into, and `sessions` does not yet — so for now their checks are filed by the type names a layout file uses.
 
 `window.claudeUi` is a stand-in (`test/renderer/support/bridge.ts`) typed as the bridge, `ClaudeUiApi`: a call added, renamed or reshaped fails the type check there, instead of leaving a check passing against an API the app no longer has.
 It answers from a fixture of plain data (`fixture.ts`), by default a first run with one session and no layout file, and records every call, so a check can assert on what the window sent.
@@ -493,8 +493,9 @@ It goes through the same validator as any file, and a test pins that it resolves
 ### The app's own surfaces are panels
 
 Two built-in types exist: `sessions`, the whole sidebar (switcher, actions, filter, list, attention strip), and `claude`, the terminal area (tab bar and terminals).
-For now they are OPAQUE: each is the element the app has always built, moved into the group that places it and parked in a hidden holder if the layout lets go of it — never rebuilt and never disposed, so a layout change keeps every running session and its xterm exactly as they were.
-Splitting the sidebar into panels of its own is later work, one surface at a time.
+Each is ONE element for the run, moved into the group that places it and parked in a hidden holder if the layout lets go of it — never rebuilt and never disposed, so a layout change keeps every running session and its xterm exactly as they were.
+A change that remounts its entry, a new id or an option, puts that same element back, so a built-in needs no hook of its own for its options: its mount is handed the entry as it now is.
+The terminal area is a type of its own, `src/renderer/panels/types/claude/`, which builds its markup and carries its stylesheets; the sidebar is still the element `index.html` holds, and follows it one surface at a time.
 
 Both must be placed exactly once, and the rule is the validator's rather than the DOM's: **no layout file can produce a window without the terminal.**
 One left out is added — `sessions` as the root's first column, `claude` as its last, wrapping a root that is not columns — with a note saying so; a second copy stands in its place saying where the first one is; `hidden` on one is ignored, with a note.

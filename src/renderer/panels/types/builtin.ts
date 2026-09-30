@@ -3,10 +3,10 @@ import { optionProblems, optionsOf } from '../options';
 import type { MountedPanel, PanelHost, PanelStatus, PanelType } from './command';
 
 /**
- * The app's own surfaces as panels: `sessions` is the whole sidebar (switcher, actions, filter, list, attention strip) and `claude` is the terminal area (tab bar and terminals).
+ * The app's own surfaces as panels: `sessions` is the whole sidebar (switcher, actions, filter, list, attention strip) and `claude` is the terminal area (tab bar and terminals, in types/claude/).
  *
- * OPAQUE, for now: each is the element the app has always built, moved into the group that places it and parked in a hidden holder when the layout lets go of it — never rebuilt and never disposed, so a re-render on a layout change keeps every running session and its xterm exactly as they were.
- * Splitting the sidebar into panels of its own is a later slice, one surface at a time.
+ * Each is ONE element for the run, moved into the group that places it and parked in a hidden holder when the layout lets go of it — never rebuilt and never disposed, so a re-render on a layout change keeps every running session and its xterm exactly as they were.
+ * The sidebar is still the element index.html has always held, until it becomes a type of its own, one surface at a time.
  * Both are `singleton` (the layout must place each exactly once, which the validator enforces) and `bare` (each carries its own top bar, so a group holding only it draws no header).
  */
 
@@ -26,7 +26,8 @@ export function reportBuiltinStatus(name: BuiltinName, status: PanelStatus): voi
   hosts.get(name)?.setStatus(status);
 }
 
-function builtin(name: BuiltinName, elementId: string, title: string, icon: IconName): PanelType {
+/** A built-in's type, around the one element it is for the run: every mount puts that element back, so a remount — a new id, an option — keeps whatever runs in it. */
+export function builtinType(name: BuiltinName, el: HTMLElement, title: string, icon: IconName): PanelType {
   const type: PanelType = {
     name,
     options: [],
@@ -36,7 +37,6 @@ function builtin(name: BuiltinName, elementId: string, title: string, icon: Icon
     singleton: true,
     defaultTitle: () => title,
     mount: (slot, host): MountedPanel => {
-      const el = document.getElementById(elementId)!;
       hosts.set(name, host);
       host.setStatus(statuses.get(name) ?? null);
       // Named as NOTES, never as problems: a built-in cannot be refused, since no file may produce a window without the sidebar or the terminal.
@@ -60,5 +60,4 @@ function builtin(name: BuiltinName, elementId: string, title: string, icon: Icon
   return type;
 }
 
-export const sessionsType = builtin('sessions', 'sidebar', 'Sessions', 'sessions');
-export const claudeType = builtin('claude', 'terminal-pane', 'Claude', 'claude');
+export const sessionsType = builtinType('sessions', document.getElementById('sidebar')!, 'Sessions', 'sessions');
