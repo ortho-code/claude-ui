@@ -30,7 +30,10 @@ export interface BridgeFixture {
   layout: LayoutReport;
   folders: Record<FolderName, string>;
   panelData: Record<string, PanelData>;
-  /** What is at each absolute path, as main would find it on disk; a path left out is not there. */
+  /**
+   * What is at each absolute path, as main would find it on disk.
+   * A path left out is not there, but for the folders the listing names as there and the one the folder picker answers, which are folders unless listed here otherwise: a check makes one vanish while the window runs by setting it to `missing`.
+   */
   paths: Record<string, Found>;
   /** The folder chosen in main's folder dialog; null, as main answers for one cancelled. */
   pickFolder: string | null;

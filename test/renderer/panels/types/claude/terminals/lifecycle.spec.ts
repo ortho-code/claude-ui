@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import { unstartableReason } from '../../../../../../src/renderer/logic';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
@@ -122,6 +123,21 @@ test('a tab restored where you left off is selected and not started, and Resume 
   await pane(page).getByRole('button', { name: 'Resume' }).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await expect(pane(page)).toHaveText(`Starting “${one.title}”…`);
+});
+
+test('a session whose folder went away while the app ran is refused its start: the tab stays cold, and its pane and a toast say why', async ({ app, page }) => {
+  await app.boot(fixture);
+  // Gone from the disk, where the listing read at launch still has it: the one case no gating before the start can see.
+  await page.evaluate((folder) => {
+    window.__claudeUiFixture.paths[folder] = 'missing';
+  }, PROJECT);
+  await row(page, one.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+
+  const reason = unstartableReason({ ...one, cwdExists: false })!;
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+  await expect(pane(page)).toContainText(reason);
+  await expect(page.locator('#toast-message')).toHaveText(reason);
 });
 
 test('the tabs restored at launch are drawn once, not once per tab', async ({ app, page }) => {

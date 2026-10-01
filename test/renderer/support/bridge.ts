@@ -1,7 +1,7 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { createdGroup, movedGroup, movedProject, renamedGroup, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
 import { withLink } from '../../../src/shared/panels';
-import { pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
+import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { togglePinned, toggleArchived, withoutSession } from '../../../src/shared/sessionmarks';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -50,6 +50,10 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     };
   // Recorded, and nothing else: what main does with it reaches the window, if at all, as a later event, which a check fires itself.
   const sent = (): void => {};
+  /** What is at `path`, as main would find it: the fixture's disk (`BridgeFixture.paths`), read when asked, so a check can change it mid-run. One look for every call that asks, as main has one disk. */
+  const onDisk = (path: string): Found =>
+    fixture.paths[path] ??
+    (fixture.sessions.some((s) => (s.cwd === path && s.cwdExists) || (s.repoRoot === path && s.repoRootExists)) || path === fixture.pickFolder ? 'directory' : 'missing');
   const on =
     (name: BridgeEvent) =>
     (callback: (...args: never[]) => void): void => {
@@ -58,6 +62,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
 
   // Main's ids for the ptys it starts: a counter, and nothing the window reads into beyond each being its own.
   let terminals = 0;
+  /** A pty started, claude's or a shell's, or main's refusal of one in a folder that is not there (`refuseMissing`, src/main/terminal.ts), which it makes before anything is spawned. */
+  const start = (cwd: string): Promise<number> => (onDisk(cwd) === 'missing' ? Promise.reject(new Error(`MISSING_CWD:${cwd}`)) : answer(++terminals));
   /** The generation of every fixture transcript's one read: main numbers each read from the start, and the window only ever compares it with the one it holds. */
   const READ = 1;
 
@@ -139,9 +145,9 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     onSessionModel: on('onSessionModel'),
     clearStatus: sent,
     // A claude that has started and printed nothing yet: its tab boots until a check fires `onTerminalData` for it.
-    startTerminal: () => answer(++terminals),
+    startTerminal: (cwd) => start(cwd),
     // A shell that has started and printed nothing yet, in the same id space as a claude, as main's are.
-    startShell: () => answer(++terminals),
+    startShell: (cwd) => start(cwd),
     onTerminalData: on('onTerminalData'),
     onTerminalExit: on('onTerminalExit'),
     sendTerminalInput: sent,
@@ -152,7 +158,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     // Main's two rules, where it points and what is wrong with what is there; what is there is the fixture's table in place of main's look at the disk.
     checkPath: (value, base, must) => {
       const resolved = resolvePathIn(value, base, HOME, CONFIG_ROOT);
-      return answer({ path: resolved, problem: pathProblem(value, must, fixture.paths[resolved] ?? 'missing') });
+      return answer({ path: resolved, problem: pathProblem(value, must, onDisk(resolved)) });
     },
     onLayoutChanged: on('onLayoutChanged'),
     runPanel: sent,
