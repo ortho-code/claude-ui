@@ -53,6 +53,15 @@ export async function chooseProject(page: Page, name: string): Promise<void> {
   await switcherEntry(page, name).click();
 }
 
+/** The attention strip's list of what runs, under its line. */
+export const strip = (page: Page): Locator => page.locator('#footer-list');
+
+/** The name of every session in the strip, in its order. */
+export const stripNames = (page: Page): Locator => strip(page).locator(':scope > .footer-item .footer-item-name');
+
+/** The strip as it reads, top to bottom: each project's name over the names of its sessions. */
+export const stripLines = (page: Page): Locator => strip(page).locator(':scope > .footer-project').or(stripNames(page));
+
 /** Every tab in the tab bar. */
 export const tabs = (page: Page): Locator => page.locator('#tabbar .tab');
 
