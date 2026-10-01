@@ -24,6 +24,8 @@ jobs:
             # Add it back the day someone turns up with an Intel Mac — an arm64 build will not run on one.
             args: --mac --arm64
     runs-on: ${{ matrix.os }}
+    # Several times the longest build seen, so a slow runner still passes while a hung step stops long before GitHub's default of six hours.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -55,6 +57,8 @@ jobs:
     needs: build
     # Builds nothing, so it follows CI's image rather than the Linux build's.
     runs-on: ubuntu-26.04
+    # It only downloads and uploads, in well under a minute.
+    timeout-minutes: 5
     permissions:
       # The only writes this workflow needs, and only in this job.
       contents: write

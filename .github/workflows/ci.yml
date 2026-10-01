@@ -19,6 +19,8 @@ jobs:
   build-test:
     # Pinned, not ubuntu-latest, so moving to the next image is a change Renovate proposes rather than one the label makes under us.
     runs-on: ubuntu-26.04
+    # Several times the longest run seen, so a slow runner still passes while a hung step stops long before GitHub's default of six hours.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -35,6 +37,7 @@ jobs:
       # The window's own checks drive the built renderer in a headless Chromium, the build Playwright's version asks for.
       # Not cached: Playwright's own advice is that restoring one takes about as long as downloading it, and --with-deps installs the system libraries every run regardless.
       - run: npx playwright install --with-deps --only-shell chromium
+      # It builds again, as it does for anyone who runs it: about a second, against CI running another command than people do.
       - id: renderer
         run: npm run test:renderer
       # A failed check keeps a trace of what the window did, which is the only way to see a failure nobody watched.
