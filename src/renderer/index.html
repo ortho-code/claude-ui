@@ -5,7 +5,6 @@
     <!-- img-src spelled out rather than left to default-src: the app mark in the title bar is a real file next to this one, and a file:// page is not reliably its own origin. -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
     <title>claude-ui</title>
-    <link rel="stylesheet" href="./air-datepicker.css" />
     <!-- Every stylesheet a module imports, bundled by esbuild in import order. -->
     <link rel="stylesheet" href="./renderer.css" />
   </head>

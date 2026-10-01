@@ -1,5 +1,6 @@
 import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
+import 'air-datepicker/air-datepicker.css';
 import type { SessionSummary, UiState } from '../../../../shared/types';
 import { datePresetRange, entityKey, sessionPasses } from '../../../logic';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
