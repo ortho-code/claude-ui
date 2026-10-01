@@ -1,6 +1,8 @@
 import { projectsForSwitcher } from '../../../logic';
+import { openSettings } from '../../../settings';
 import { store, type View } from '../../../state/app';
 import { switcherPool, visibleSessions } from '../../../state/views';
+import { strokeIcon } from '../../../svg';
 import { builtinType, hostOf } from '../builtin';
 import type { PanelStatus } from '../command';
 import './index.css';
@@ -8,7 +10,7 @@ import './index.css';
 /**
  * THE SIDEBAR as a panel type: the project switcher and the header's actions over the filter panel, the session list and the attention strip.
  * One element for the run: built once, parked until the layout places it, and put back by every mount (`builtinType`), so a layout change that remounts its entry keeps its scroll, its folds and what is typed in its search.
- * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: the switcher (switcher.ts), the filter (filter.ts), the list (list.ts), the attention strip (attention-strip.ts), and renderer.ts for the header's + New and Settings.
+ * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: the switcher (switcher.ts), the filter (filter.ts), the list (list.ts), the attention strip (attention-strip.ts), and this module for the header's + New and Settings.
  */
 document.getElementById('parked')!.insertAdjacentHTML(
   'beforeend',
@@ -87,3 +89,26 @@ function railStatus(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 
 export function railStatusFollowsSessions(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs'>): void {
   hostOf('sessions').setStatus(railStatus(view));
 }
+
+// The header's two actions that are the type's own; the filter's toggle and collapse-all go with the filter and the list.
+const newButton = document.getElementById('new-session') as HTMLButtonElement;
+
+// Settings as two sliders, each with its knob.
+const settingsIcon = (size: number): string =>
+  strokeIcon(size, '<path d="M2 4.6h8.1M13.1 4.6h.9M2 11.4h2.9M7.9 11.4h6.1" /><circle cx="11.7" cy="4.6" r="1.6" /><circle cx="6.4" cy="11.4" r="1.6" />');
+const settingsToggle = document.getElementById('settings-toggle') as HTMLButtonElement;
+
+async function pickFolderAndOpen(): Promise<void> {
+  // Show an active state while the folder picker is open (it has no persistent menu of its own), matching how the other header buttons look while their panel/menu is up.
+  newButton.classList.add('active');
+  try {
+    const dir = await window.claudeUi.pickFolder();
+    if (dir) void hostOf('sessions').openNewSession(dir);
+  } finally {
+    newButton.classList.remove('active');
+  }
+}
+newButton.addEventListener('click', () => void pickFolderAndOpen());
+// The Settings icon comes from here too, rather than inline in the sidebar's markup, so it is drawn through the same helper as the rest.
+settingsToggle.innerHTML = settingsIcon(14);
+settingsToggle.addEventListener('click', () => void openSettings());

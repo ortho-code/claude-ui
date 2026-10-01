@@ -6,7 +6,7 @@ import './unavailable';
 import { hideToast, showToast } from './toast';
 import './notifications';
 import './dialogs';
-import { openSettings } from './settings';
+import './settings';
 import './projectgone';
 import { startChrome } from './chrome';
 import './flash';
@@ -30,16 +30,7 @@ import { tabOnShow, tabWith } from './state/views';
 import { setStatus } from './state/statuses';
 import type { UiState } from '../shared/types';
 import { installTooltips } from './tooltip';
-import { strokeIcon } from './svg';
 import { routeTerminals } from './terminal';
-import { hostOf } from './panels/types/builtin';
-
-const newButton = document.getElementById('new-session') as HTMLButtonElement;
-
-// Settings as two sliders, each with its knob.
-const settingsIcon = (size: number): string =>
-  strokeIcon(size, '<path d="M2 4.6h8.1M13.1 4.6h.9M2 11.4h2.9M7.9 11.4h6.1" /><circle cx="11.7" cy="4.6" r="1.6" /><circle cx="6.4" cy="11.4" r="1.6" />');
-const settingsToggle = document.getElementById('settings-toggle') as HTMLButtonElement;
 
 // A disk change fired: re-read sessions; the store tells the list and the tabs only when the structure actually changed (a new/removed session, a rename, or a new branch becoming the tip).
 // Statuses and pins arrive on their own channels, so we don't refetch them here.
@@ -104,8 +95,6 @@ function startSavingUi(): void {
   uiRestored = true;
   persistUi();
 }
-
-settingsToggle.addEventListener('click', () => void openSettings());
 
 // --- Wiring ---
 
@@ -205,19 +194,6 @@ window.claudeUi.onClaudeMissing(() => {
   showToast('The claude CLI was not found on your PATH. Install it and restart claude-ui.', true);
 });
 
-async function pickFolderAndOpen(): Promise<void> {
-  // Show an active state while the folder picker is open (it has no persistent menu of its own), matching how the other header buttons look while their panel/menu is up.
-  newButton.classList.add('active');
-  try {
-    const dir = await window.claudeUi.pickFolder();
-    if (dir) void hostOf('sessions').openNewSession(dir);
-  } finally {
-    newButton.classList.remove('active');
-  }
-}
-newButton.addEventListener('click', () => void pickFolderAndOpen());
-// The header's Settings icon comes from here too, rather than inline in the sidebar's markup, so it is drawn through the same helper as the rest.
-settingsToggle.innerHTML = settingsIcon(14);
 // Where the list was scrolled to is remembered, so a scroll of your own is a change to remember too.
 container.addEventListener('scroll', persistUi);
 
