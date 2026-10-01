@@ -1,5 +1,6 @@
 import type { PanelContext } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
+import { folderName } from '../../logic';
 import { bindTerminal, createTerminal, unbindTerminal, type TerminalView } from '../../terminal';
 import './terminal.css';
 import { CWD_OPTION, isFixedPath, optionsOf } from '../options';
@@ -129,6 +130,7 @@ class TerminalPanel implements MountedPanel {
       this.view.term.reset();
     }
     this.starting = true;
+    // The header names the folder the shell is in by its last segment: "claude-ui", or a worktree's name.
     this.host.setEnd(folderName(context.cwd));
     this.host.setStatus(null);
     try {
@@ -175,11 +177,6 @@ class TerminalPanel implements MountedPanel {
     this.view.fitAddon.fit();
     if (this.terminalId !== null) window.claudeUi.resizeTerminal(this.terminalId, this.view.term.cols, this.view.term.rows);
   }
-}
-
-/** The header names the folder the shell is in by its last segment: "claude-ui", or a worktree's name. */
-function folderName(path: string): string {
-  return path.split('/').filter(Boolean).at(-1) ?? path;
 }
 
 export const terminalType: PanelType = {
