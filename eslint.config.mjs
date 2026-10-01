@@ -18,7 +18,9 @@ const boundary = (folder, files, ignores = [], ...more) => ({
   },
 });
 
-// Inside the renderer the patterns are anchored on where each set of files sits, so `../../shared/panels` is never taken for the renderer's `panels/`.
+// Inside the renderer the patterns are anchored on where each set of files sits, so `../../shared/panels` is never taken for the renderer's `panels/`, and end at the folder's name, so an import of the folder itself (its index.ts) is caught too.
+// A path from one built-in reaches the other's folder only by climbing straight into it or by naming it under `types/`, so the two built-ins' patterns take both, however far up the climb goes, and leave a module of the same name elsewhere alone.
+// test/unit/boundaries.test.ts crosses each one.
 const BUILTINS_APART = 'The two built-ins never import each other’s modules: they ask through the host (Asks) and share the store.';
 
 export default defineConfig(
@@ -56,19 +58,19 @@ export default defineConfig(
   // The whole renderer, which the blocks below narrow for their own files; none narrows the start-up, the tree, or the modules directly under panels/types/.
   boundary('renderer', ['src/renderer/**/*.ts']),
   boundary('renderer', ['src/renderer/*.ts'], ['src/renderer/renderer.ts', 'src/renderer/view-saving.ts'], {
-    regex: '^\\./panels/',
+    regex: '^\\./panels(/|$)',
     message: 'A service sits below the panels, which draw on it, so it never imports from panels/.',
   }),
   boundary('renderer', ['src/renderer/state/**/*.ts'], [], {
-    regex: '^\\.\\./panels/',
+    regex: '^\\.\\./panels(/|$)',
     message: 'The store and its views sit below the panels, which read them, so state/ never imports from panels/.',
   }),
   boundary('renderer', ['src/renderer/panels/*.ts'], ['src/renderer/panels/tree.ts'], {
-    regex: '^\\./types/',
+    regex: '^\\./types(/|$)',
     message: 'Only the tree places the panel types; what they share is the contract (contract.ts) and the run code (run.ts).',
   }),
-  boundary('renderer', ['src/renderer/panels/types/claude/**/*.ts'], [], { regex: '^(\\.\\./)+sessions/', message: BUILTINS_APART }),
-  boundary('renderer', ['src/renderer/panels/types/sessions/**/*.ts'], [], { regex: '^(\\.\\./)+claude/', message: BUILTINS_APART }),
+  boundary('renderer', ['src/renderer/panels/types/claude/**/*.ts'], [], { regex: '^(\\.\\./)+sessions(/|$)|(^|/)types/sessions(/|$)', message: BUILTINS_APART }),
+  boundary('renderer', ['src/renderer/panels/types/sessions/**/*.ts'], [], { regex: '^(\\.\\./)+claude(/|$)|(^|/)types/claude(/|$)', message: BUILTINS_APART }),
   {
     files: ['**/*.test.ts'],
     extends: [vitest.configs.recommended],
