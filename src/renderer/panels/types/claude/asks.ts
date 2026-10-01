@@ -18,12 +18,12 @@ import { activateTab, closeTab, createTab, startTab, stopSession, switchWorkspac
 // Jump to a specific session from outside the list — the footer, a panel's row: scope to its project if needed, then open/focus its tab.
 function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const { activeProject } = store.get();
-  const sidebar = hostOf('claude');
-  if (activeProject !== null && activeProject !== session.repoRoot) sidebar.selectProject(session.repoRoot);
+  const host = hostOf('claude');
+  if (activeProject !== null && activeProject !== session.repoRoot) host.selectProject(session.repoRoot);
   void openSession(session, launch);
   // Scope alone isn't enough to SEE it: the row can sit inside a collapsed group or project.
   // Reveal the same way clicking a tab does — jumping to a sibling filed in another group is exactly the case where scoping to the project still leaves the row hidden.
-  sidebar.revealSession(session.id);
+  host.revealSession(session.id);
 }
 
 /**
