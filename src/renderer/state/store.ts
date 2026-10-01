@@ -10,6 +10,7 @@
  * A slice's equality decides whether to TELL, never whether to assign: a value equal to the last is still stored, so `get` always has the newest, and watchers are simply not told.
  * A watcher that sets state while being told is not re-entered: what it changed is told after the current round, to everyone who watches it.
  * A watcher is not called when it subscribes; the first paint is the caller's, at the point in start-up where it belongs.
+ * A watcher that throws does not stop the others being told, and never throws into whoever set the state (`report`).
  *
  * A watcher is also handed `before`: the slices it is told about as they were at its last call, so a repaint that draws only what moved does not keep a copy of its own.
  * A slice that has not changed since by its equality is handed as it is now, so `before.x !== view.x` exactly when `x` changed: an equal new value, stored without telling, is not a change to anyone comparing them.
@@ -38,6 +39,17 @@ export interface Store<S extends object> {
 /** A round of telling that sets state which tells again, this many times over, is a loop between watchers rather than state settling. */
 const MAX_ROUNDS = 100;
 
+/**
+ * A watcher's failure is not the writer's: thrown into it, a repaint that failed would cut short whatever the writer was in the middle of, such as binding a tab to the claude that just started for it.
+ * So each one is thrown again on its own from a microtask, as an uncaught error of the page, which the console, the log and the window's checks all see.
+ */
+function report(error: unknown): void {
+  const failure = error instanceof Error ? error : new Error(String(error));
+  queueMicrotask(() => {
+    throw failure;
+  });
+}
+
 interface Watcher<S> {
   slices: ReadonlySet<keyof S>;
   fn: (view: Readonly<S>, before: Readonly<S>) => void;
@@ -65,10 +77,13 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
   function tell(): void {
     if (telling || depth > 0) return;
     telling = true;
-    let failure: Error | null = null;
     try {
       for (let round = 0; changed.size > 0; round++) {
-        if (round === MAX_ROUNDS) throw new Error(`The store's watchers kept changing ${[...changed].map(String).join(', ')} for ${MAX_ROUNDS} rounds.`);
+        // What is left untold is told with the next change, which will find the same loop and say so again.
+        if (round === MAX_ROUNDS) {
+          report(new Error(`The store's watchers kept changing ${[...changed].map(String).join(', ')} for ${MAX_ROUNDS} rounds.`));
+          break;
+        }
         const told = changed;
         changed = new Set();
         // A copy, so a watcher that unsubscribes another mid-round does not shift the ones still to come.
@@ -77,18 +92,17 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
           const before = {} as S;
           for (const slice of watcher.slices) before[slice] = equal(slice, watcher.seen[slice], state[slice]) ? state[slice] : watcher.seen[slice];
           watcher.seen = snapshot(watcher.slices);
-          // One failing repaint is not a reason to leave the others stale: every watcher is told, and the first failure is thrown after.
+          // One failing repaint is not a reason to leave the others stale: every watcher is told.
           try {
             watcher.fn(state, before);
           } catch (error) {
-            failure ??= error instanceof Error ? error : new Error(String(error));
+            report(error);
           }
         }
       }
     } finally {
       telling = false;
     }
-    if (failure !== null) throw failure;
   }
 
   return {

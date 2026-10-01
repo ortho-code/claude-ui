@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 
 import { createStore } from '../../../../src/renderer/state/store';
 
@@ -9,6 +9,29 @@ interface Shape {
 }
 
 const fresh = (): ReturnType<typeof createStore<Shape>> => createStore<Shape>({ count: 0, name: 'a', items: [] });
+
+/** What the store reports from now on: the microtasks it queues, held here rather than run, where each would be an uncaught error that fails the run. */
+function reports(): (() => void)[] {
+  const queued: (() => void)[] = [];
+  vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((task) => {
+    queued.push(task);
+  });
+  return queued;
+}
+
+/** The message a reported task throws when it runs. */
+function thrown(task: () => void): string {
+  try {
+    task();
+  } catch (error) {
+    return (error as Error).message;
+  }
+  return 'nothing thrown';
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('createStore', () => {
   it('tells the watchers of a slice that changed, and only those, before set returns', () => {
@@ -82,22 +105,29 @@ describe('createStore', () => {
     expect(told).toEqual(['first']);
   });
 
-  it('tells every watcher even when one throws, and throws the first failure after', () => {
+  it('tells every watcher even when one throws, and reports each failure on its own rather than throwing it into the writer', () => {
     const store = fresh();
+    const reported = reports();
     const told: string[] = [];
     store.watch(['count'], () => {
       throw new Error('first failed');
     });
     store.watch(['count'], () => told.push('second'));
-    expect(() => store.set({ count: 1 })).toThrow('first failed');
+    store.watch(['count'], () => {
+      throw new Error('third failed');
+    });
+    expect(() => store.set({ count: 1 })).not.toThrow();
     expect(told).toEqual(['second']);
+    expect(reported.map(thrown)).toEqual(['first failed', 'third failed']);
   });
 
-  it('stops two watchers that keep changing each other, rather than looping', () => {
+  it('stops two watchers that keep changing each other, and reports it rather than looping', () => {
     const store = fresh();
+    const reported = reports();
     store.watch(['count'], (view) => store.set({ name: String(view.count) }));
     store.watch(['name'], (view) => store.set({ count: Number(view.name) + 1 }));
-    expect(() => store.set({ count: 1 })).toThrow(/kept changing/);
+    expect(() => store.set({ count: 1 })).not.toThrow();
+    expect(reported.map(thrown)).toEqual([expect.stringMatching(/kept changing/)]);
   });
 
   it('does not call a watcher when it subscribes', () => {
