@@ -18,3 +18,11 @@
   display: flex;
   gap: 6px;
 }
+
+/* Pressed look while its panel is open, tying the toggle to the panel below it. + New gets the same
+   while its folder picker is open. */
+#filter-toggle[aria-expanded='true'],
+#new-session.active {
+  background: var(--active);
+  border-color: var(--accent);
+}
