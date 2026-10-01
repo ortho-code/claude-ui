@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row } from '../../../../support/window';
+import { row, tab } from '../../../../support/window';
 
 // Deleting is the archived view's, confirmed first (docs/architecture.md § App-side metadata and session groups).
 // The row goes the moment the delete is confirmed and never comes back: it stays hidden while its files are being moved to the trash, and stops being hidden in the same change as the listing that no longer has it.
@@ -74,7 +74,7 @@ const worker = session({ id: '00000000-0000-4000-8000-0000000000c3', title: 'Wor
 test('a status that lands while the read after a delete is out is not put back by it, so nothing is toasted', async ({ app, page }) => {
   // Its tab restored and not on show, idle as main last said.
   await app.boot({ ...fixture, sessions: [kept, gone, worker], openSessions: [worker.id], statuses: { [worker.id]: 'idle' } });
-  const dot = page.locator('.tab', { hasText: worker.title }).locator('.nudge');
+  const dot = tab(page, worker.title).locator('.nudge');
   await expect(dot).toHaveClass(/\bidle\b/);
   await deleteWithListingHeld(app, page);
 

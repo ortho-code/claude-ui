@@ -1,13 +1,11 @@
-import type { Locator, Page } from '@playwright/test';
 import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { tab } from '../../../../support/window';
 
 // What a tab does besides being chosen: its status dot says how its session is, and marks it read; a middle click takes the close button's two steps.
 const one = session({ id: '00000000-0000-4000-8000-0000000000b1', title: 'The one on show' });
 const other = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'The other one' });
 const fixture = { sessions: [one, other], openSessions: [one.id, other.id], activeSession: one.id, history: { [one.id]: [], [other.id]: [] } };
-
-const tab = (page: Page, title: string): Locator => page.locator('.tab', { has: page.locator('.tab-label', { hasText: title }) });
 
 test("a tab's dot follows its session's status, and a click on it marks it read without choosing the tab", async ({ app, page }) => {
   await app.boot(fixture);

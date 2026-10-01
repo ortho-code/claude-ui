@@ -1,7 +1,7 @@
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row } from '../../../../support/window';
+import { row, tab, tabs } from '../../../../support/window';
 
 // The ways the session list starts a session other than a row's own click (docs/architecture.md § Tab lifecycle): a sibling from the siblings menu, a fork from a row's options, and a session in a new worktree from the project's "+".
 const parent = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'The parent', isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000a2'] });
@@ -22,7 +22,7 @@ test("the siblings menu goes to a sibling: its tab opens, resumed, on show", asy
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[, launch]] = await launches(app);
   expect(launch.resumeSessionId).toBe(sibling.id);
-  await expect(page.locator('.tab', { hasText: sibling.title })).toHaveClass(/\bactive\b/);
+  await expect(tab(page, sibling.title)).toHaveClass(/\bactive\b/);
 });
 
 test("a fork from a row's options starts a copy of it under a new id, named as asked, in its parent's group", async ({ app, page }) => {
@@ -40,7 +40,7 @@ test("a fork from a row's options starts a copy of it under a new id, named as a
   expect(launch.sessionId).toMatch(/^[0-9a-f-]{36}$/);
   expect(launch.sessionId).not.toBe(parent.id);
   expect(await app.calls('moveSessionToGroup')).toEqual([[launch.sessionId, 'g-work']]);
-  await expect(page.locator('.tab', { hasText: 'The fork' })).toHaveClass(/\bactive\b/);
+  await expect(tab(page, 'The fork')).toHaveClass(/\bactive\b/);
   const group = page.locator('#sessions .group', { has: page.locator('> .section-heading .label', { hasText: /^Work$/ }) });
   await expect(group.locator('.card-title', { hasText: 'The fork' })).toHaveCount(1);
 });
@@ -58,5 +58,5 @@ test("a new worktree session from the project's \"+\" starts claude in a fresh w
   expect(launch.worktree).toBe('');
   expect(launch.sessionId).toMatch(/^[0-9a-f-]{36}$/);
   expect(launch.resumeSessionId).toBeUndefined();
-  await expect(page.locator('#tabbar .tab.active')).toHaveCount(1);
+  await expect(tabs(page).and(page.locator('.active'))).toHaveCount(1);
 });

@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row } from '../../../../support/window';
+import { row, tab, tabs } from '../../../../support/window';
 
 // A tab's life (docs/architecture.md § Tab lifecycle): selecting it starts it, it boots until claude prints, its button stops the session and keeps the tab cold, a second press closes it; claude ending by itself closes the tab, unless it ended so soon that the start failed.
 const one = session();
@@ -11,7 +11,6 @@ const fixture = { history: { [one.id]: [] } };
 // The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the first claude is 1.
 const FIRST = 1;
 
-const tab = (page: Page, title: string): Locator => page.locator('.tab', { has: page.locator('.tab-label', { hasText: title }) });
 const pane = (page: Page): Locator => page.locator('#term-placeholder');
 
 /** Start the session's row and let claude print, so the tab is live. */
@@ -139,7 +138,7 @@ test('the tabs restored at launch are drawn once, not once per tab', async ({ ap
   await app.boot({ sessions: [one, two, three], openSessions: [one.id, two.id, three.id], activeSession: three.id, history: { [one.id]: [], [two.id]: [], [three.id]: [] } });
   // The restore's last step: the tab you left off in, selected.
   await expect(tab(page, three.title)).toHaveClass(/\bactive\b/);
-  await expect(page.locator('.tab')).toHaveCount(3);
+  await expect(tabs(page)).toHaveCount(3);
   expect(await page.evaluate(() => (window as unknown as { __rowsDrawn: Node[] }).__rowsDrawn.length)).toBe(1);
 });
 

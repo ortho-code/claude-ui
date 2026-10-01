@@ -1,5 +1,6 @@
 import { PROJECT, session } from '../../support/fixture';
 import { expect, test } from '../../support/harness';
+import { tab, tabLabel } from '../../support/window';
 import { LAYOUT, OTHER, railItem, runs, withLayout } from './layout';
 
 test('a change to the layout file keeps a running shell and does not run a command again', async ({ app, page }) => {
@@ -68,13 +69,13 @@ test('the tab on show closing hands the command to the next tab: one run, in its
   await expect.poll(folders).toEqual([PROJECT]);
 
   // b running, then a running and on show.
-  for (const s of [b, a]) await page.locator('.tab-label', { hasText: s.title }).click();
+  for (const s of [b, a]) await tabLabel(page, s.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
   await expect.poll(folders).toEqual([PROJECT, b.cwd, a.cwd]);
 
   // a's claude ending by itself, long after its start, closes its tab, and b comes on show.
   await page.clock.setSystemTime(Date.now() + 60_000);
   expect(await app.emit('onTerminalExit', 2, 0)).toBe(1);
-  await expect(page.locator('.tab', { hasText: b.title })).toHaveClass(/\bactive\b/);
+  await expect(tab(page, b.title)).toHaveClass(/\bactive\b/);
   await expect.poll(folders).toEqual([PROJECT, b.cwd, a.cwd, b.cwd]);
 });

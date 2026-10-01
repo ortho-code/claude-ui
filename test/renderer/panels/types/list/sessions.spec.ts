@@ -4,7 +4,7 @@ import type { TerminalLaunch } from '../../../../../src/shared/types';
 import { CONFIG_ROOT, PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { hoveredAndOpen } from '../../../support/looks';
-import { row } from '../../../support/window';
+import { row, tab, tabLabel } from '../../../support/window';
 import { runs, withLayout } from '../../layout/layout';
 
 // A list panel's row marks the sessions it started with the session list's own dot, in the list's own words (docs/architecture.md § Panels): it follows each session's status, a mark read, and whether it runs, as the session list does.
@@ -73,7 +73,7 @@ test("a row's session mark goes to its session: its tab opens, resumed, on show"
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
   expect(launch.resumeSessionId).toBe(reviewed.id);
-  await expect(page.locator('.tab', { hasText: reviewed.title })).toHaveClass(/\bactive\b/);
+  await expect(tab(page, reviewed.title)).toHaveClass(/\bactive\b/);
 });
 
 test("a row's action starts a session through the app's dialog, remembered under the row from the start", async ({ app, page }) => {
@@ -90,7 +90,7 @@ test("a row's action starts a session through the app's dialog, remembered under
   expect(launch).toMatchObject({ name: 'Review #3', prompt: '/review 3' });
   const [[entry, id, linked, filed]] = (await app.calls('linkPanelSession')) as [string, string, object, object][];
   expect([entry, id, linked, filed]).toEqual(['queue', launch.sessionId, { key: 'org/repo#3', label: 'Speed up the search', href: 'https://example.com/pr/3' }, { repoRoot: PROJECT, groupId: null }]);
-  await expect(page.locator('.tab', { hasText: 'Review #3' })).toHaveClass(/\bactive\b/);
+  await expect(tab(page, 'Review #3')).toHaveClass(/\bactive\b/);
   // The row leads back to it before claude has written anything.
   await expect(mark(page, 'Speed up the search')).toHaveAttribute('aria-label', 'Go to Review #3 · running');
 });
@@ -110,10 +110,10 @@ test("a row's session mark follows its session's status, a mark read, and whethe
 
   // Without a status, whether it runs: its tab started, and stopped again.
   await expect(mark(page, 'Tidy the settings page')).toHaveAttribute('aria-label', `Go to ${quiet.title} · not running`);
-  await page.locator('.tab-label', { hasText: quiet.title }).click();
+  await tabLabel(page, quiet.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await expect(mark(page, 'Tidy the settings page')).toHaveAttribute('aria-label', `Go to ${quiet.title} · running`);
-  await page.locator('.tab', { hasText: quiet.title }).locator('.tab-close').click();
+  await tab(page, quiet.title).locator('.tab-close').click();
   await app.emit('onTerminalExit', 1, 0);
   await expect(mark(page, 'Tidy the settings page')).toHaveAttribute('aria-label', `Go to ${quiet.title} · not running`);
 });

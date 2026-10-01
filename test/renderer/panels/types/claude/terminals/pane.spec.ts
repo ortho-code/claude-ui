@@ -3,7 +3,7 @@ import { projectGoneReason } from '../../../../../../src/renderer/logic';
 import type { Exchange, SessionSummary } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row } from '../../../../support/window';
+import { row, tab, tabs } from '../../../../support/window';
 
 // The empty terminal pane names the next action, and there are four (docs/architecture.md § UI conventions): no sessions at all, no tabs on show in this project, tabs but none selected, and a selected tab that is not running, which the lifecycle's checks cover.
 // It counts the tabs ON SHOW (`visibleTabs`), not every open tab: "pick a tab above" beside an empty bar was the bug that rule fixed.
@@ -18,13 +18,13 @@ test('with no sessions at all, the pane points at + New', async ({ app, page }) 
 
 test('with tabs open and none selected, the pane points at the tabs and the list', async ({ app, page }) => {
   await app.boot({ openSessions: [here.id] });
-  await expect(page.locator('.tab')).toHaveCount(1);
+  await expect(tabs(page)).toHaveCount(1);
   await expect(page.locator('#term-placeholder')).toHaveText('Pick a tab above, or a session in the sidebar, to resume it.');
 });
 
 test("scoped to a project whose tabs are all elsewhere, the pane points at the list, not at another project's tabs", async ({ app, page }) => {
   await app.boot({ sessions: [here, there], projectOrder: [PROJECT, OTHER], activeProject: PROJECT, openSessions: [there.id] });
-  await expect(page.locator('.tab')).toHaveCount(0);
+  await expect(tabs(page)).toHaveCount(0);
   await expect(page.locator('#term-placeholder')).toHaveText('Pick a session in the sidebar to open it.');
 });
 
@@ -81,7 +81,6 @@ const exchange = (id: string, request: string): Exchange => ({
 const history = { [here.id]: [exchange('request-1', 'First request'), exchange('request-2', 'Second request'), exchange('request-3', 'Third request')], [other.id]: [exchange('request-4', 'Its only request')] };
 const both = { sessions: [here, other], openSessions: [here.id, other.id], activeSession: here.id, history };
 
-const tab = (page: Page, title: string): Locator => page.locator('.tab', { has: page.locator('.tab-label', { hasText: title }) });
 const drawer = (page: Page): Locator => page.locator('.history');
 
 /** Select the tab, which starts it, and let its claude print, so it is live; the ptys are numbered in the order they start. */

@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { row } from '../../../../support/window';
+import { row, tabLabel } from '../../../../support/window';
 
 // A tab-bar label is a jump: a project's to its heading, a group's to the group's heading, unfolding on the way, and both flash where they land (4182dd9, e646936).
 const TARGET = `${HOME}/projects/target`;
@@ -67,7 +67,7 @@ test("a tab's click shows where its session lives: its project and group unfolde
   const itsRow = row(page, grouped.title);
   await expect(itsRow).toBeHidden();
 
-  await page.locator('.tab-label', { hasText: grouped.title }).click();
+  await tabLabel(page, grouped.title).click();
   await expect(itsRow).toBeVisible();
   await expect(itsRow).toBeInViewport();
   await expect(projectHeading(page, 'target').locator('..')).not.toHaveClass(/\bcollapsed\b/);

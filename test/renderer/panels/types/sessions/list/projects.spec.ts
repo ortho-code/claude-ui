@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { tabLabel } from '../../../../support/window';
 
 // A project's name and place are yours to set from its heading, and every surface that shows projects follows at once: the list, the switcher and the tab bar (the one-behaviour rule in CLAUDE.md).
 const OTHER = `${HOME}/projects/other`;
@@ -49,7 +50,7 @@ test('renaming a project renames it in the list, the switcher, the tab bar and i
   await expect(headings(page)).toHaveText(['Demo app', 'other']);
   await expect(switcherItems(page)).toHaveText(['Demo app', 'other']);
   await expect(tabBarProjects(page)).toHaveText(['Demo app', 'other']);
-  await expect(page.locator('#tabbar .tab-label', { hasText: inDemo.title })).toHaveAttribute('data-tooltip', `Demo app · ${inDemo.title}`);
+  await expect(tabLabel(page, inDemo.title)).toHaveAttribute('data-tooltip', `Demo app · ${inDemo.title}`);
 
   await projectMenu(page, 'Demo app', 'Rename…');
   await rename('demo');

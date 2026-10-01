@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { tabLabel } from '../../../../support/window';
 
 // Each pill narrows the list to what it names, is shown pressed, and a second press gives the whole list back; which session passes which pill is `sessionPasses`'s, unit-tested on its own, so this holds the wiring.
 const plain = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'A plain one' });
@@ -51,7 +52,7 @@ test('the live pill narrows the list to the sessions running, and a second press
   await expect.poll(() => titles(page)).toEqual([]);
   await page.locator('#live-filter').click();
 
-  await page.locator('.tab-label', { hasText: tabbed.title }).click();
+  await tabLabel(page, tabbed.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await pressAndBack(page, 'live-filter', sorted(tabbed));
 });

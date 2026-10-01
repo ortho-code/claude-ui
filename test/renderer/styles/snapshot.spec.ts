@@ -4,7 +4,7 @@ import type { Exchange, UiState } from '../../../src/shared/types';
 import { LAYOUT, runs, withLayout } from '../panels/layout/layout';
 import { type BridgeFixture, CONFIG_ROOT, HOME, PROJECT, session } from '../support/fixture';
 import { type App, expect, test } from '../support/harness';
-import { row, rows } from '../support/window';
+import { row, rows, tabLabel } from '../support/window';
 import { snapshot } from './capture';
 
 // NOT A CHECK: a tool, for moving CSS without changing what anything looks like (docs/architecture.md § The window's checks).
@@ -57,7 +57,7 @@ const ui = (over: Partial<UiState>): { uiState: UiState } => ({ uiState: { ...de
 
 /** Start the tab of `title` and, unless it is to stay booting, let its claude print. */
 async function start(app: App, page: Page, title: string, pty: number, print = true): Promise<void> {
-  await page.locator('.tab-label', { hasText: title }).click();
+  await tabLabel(page, title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(pty);
   if (print) expect(await app.emit('onTerminalData', pty, `${title}\r\n`)).toBe(1);
 }

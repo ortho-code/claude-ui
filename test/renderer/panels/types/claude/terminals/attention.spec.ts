@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { tab } from '../../../../support/window';
 
 // A tab you are not looking at that turns waiting or finished says so in a toast, naming it and its project; a click on the toast takes you there (docs/architecture.md § Status cues).
 // Never for busy, a repeat of the same state, or the tab on show.
@@ -20,7 +21,7 @@ const toasts = (page: Page): Locator => page.locator('#notifications .notif');
 
 test('a status read at launch is not news: a restored tab already waiting is not toasted', async ({ app, page }) => {
   await app.boot({ ...fixture, statuses: { [there.id]: 'waiting' } });
-  await expect(page.locator('.tab', { hasText: here.title })).toHaveClass(/\bactive\b/);
+  await expect(tab(page, here.title)).toHaveClass(/\bactive\b/);
   // Read, and drawn: its project's entry in the switcher says it is waiting.
   await expect(page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: /^other$/ }) }).locator('.nudge')).toHaveClass(/\bwaiting\b/);
   await expect(toasts(page)).toHaveCount(0);
@@ -31,7 +32,7 @@ test('a tab not on show that turns waiting or finished is toasted once, and the 
   const status = async (id: string, state: string): Promise<void> => {
     expect(await app.emit('onSessionStatus', id, state, '')).toBe(1);
   };
-  await expect(page.locator('.tab', { hasText: here.title })).toHaveClass(/\bactive\b/);
+  await expect(tab(page, here.title)).toHaveClass(/\bactive\b/);
 
   await status(there.id, 'busy');
   await expect(toasts(page)).toHaveCount(0);
@@ -50,7 +51,7 @@ test('a tab not on show that turns waiting or finished is toasted once, and the 
   await toasts(page).first().click();
   await expect(toasts(page)).toHaveCount(0);
   await expect(page.locator('#switcher-name')).toHaveText('other');
-  await expect(page.locator('.tab', { hasText: there.title })).toHaveClass(/\bactive\b/);
+  await expect(tab(page, there.title)).toHaveClass(/\bactive\b/);
 
   // Now the other one is behind you, and finishing is news.
   await status(here.id, 'busy');
