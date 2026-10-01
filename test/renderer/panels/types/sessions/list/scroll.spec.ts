@@ -57,6 +57,20 @@ test('a repaint keeps the scroll, and a new filter starts the list at its top', 
   await expect.poll(() => scrolled(page)).toBe(0);
 });
 
+test('choosing the filter that is already on is not a new filter, so a later repaint keeps the scroll', async ({ app, page }) => {
+  await app.boot(fixture);
+  await expect(page.locator('#sessions .session')).toHaveCount(many.length);
+  await page.locator('#filter-toggle').click();
+  await page.locator('#date-presets [data-range="any"]').click();
+  await scrollTo(page, 400);
+  expect(await scrolled(page)).toBe(400);
+
+  // Something the list draws, and nothing about the filter.
+  expect(await app.emit('onSessionModel', many[0].id, 'claude-sonnet-5-5')).toBe(1);
+  await expect(page.locator('#sessions .session').first().locator('.card-meta')).toContainText('Sonnet 5.5');
+  expect(await scrolled(page)).toBe(400);
+});
+
 test('choosing a project starts the list at its top, and so does going back to All', async ({ app, page }) => {
   await app.boot({ ...twoProjects, activeProject: null });
   await expect(page.locator('#sessions .session')).toHaveCount(many.length + others.length);

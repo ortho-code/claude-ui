@@ -136,6 +136,47 @@ describe('createStore', () => {
     store.set({ count: 2 });
   });
 
+  it('hands a watcher its slices as it last handed them, and the same value where one has not changed by its equality', () => {
+    const store = createStore<Shape>({ count: 0, name: 'a', items: ['x'] }, { items: (a, b) => a.join() === b.join() });
+    const seen: { count: number; countBefore: number; itemsKept: boolean }[] = [];
+    store.watch(['count', 'items'], (view, before) => seen.push({ count: view.count, countBefore: before.count, itemsKept: view.items === before.items }));
+    store.set({ count: 1 });
+    // Equal, so stored without telling; then, to whoever compares, not a change.
+    store.set({ items: ['x'] });
+    store.set({ count: 2 });
+    store.set({ items: ['y'] });
+    expect(seen).toEqual([
+      { count: 1, countBefore: 0, itemsKept: true },
+      { count: 2, countBefore: 1, itemsKept: true },
+      { count: 2, countBefore: 2, itemsKept: false },
+    ]);
+  });
+
+  it('hands each watcher what moved since its own last call, so one told twice in a round is not handed again what it already drew', () => {
+    const store = fresh();
+    const second: string[] = [];
+    store.watch(['count'], (view) => {
+      if (view.count === 1) store.set({ name: 'from first' });
+    });
+    store.watch(['count', 'name'], (view, before) => second.push(`${before.count}→${view.count} ${before.name}→${view.name}`));
+    store.set({ count: 1 });
+    expect(second).toEqual(['0→1 a→from first', '1→1 from first→from first']);
+  });
+
+  it('hands a watcher only the slices it is told about as they were, which the compiler holds it to', () => {
+    const store = fresh();
+    store.watch(
+      ['count'],
+      (_view, before) => {
+        expect(before.count).toBe(0);
+        // @ts-expect-error — `name` is read without being told, so there is no last value of it to hand over.
+        expect(before.name).toBeUndefined();
+      },
+      { reads: ['name'] },
+    );
+    store.set({ count: 1 });
+  });
+
   it('tells nothing for a batch that throws, and tells what it changed with the next change', () => {
     const store = fresh();
     const views: string[] = [];

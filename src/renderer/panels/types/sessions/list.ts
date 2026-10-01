@@ -242,15 +242,9 @@ type ListView = View<
   | 'filterPanelOpen'
 >;
 
-/** The filter and the project the list was last drawn under, so a new one starts the list at its top. */
-let followedFilter: View<'filter'>['filter'] = store.get().filter;
-let followedProject: View<'activeProject'>['activeProject'] = store.get().activeProject;
-
 /** The list follows the store. */
-export function listChanged(view: ListView): void {
-  const reshaped = view.filter !== followedFilter || view.activeProject !== followedProject;
-  followedFilter = view.filter;
-  followedProject = view.activeProject;
+export function listChanged(view: ListView, before: View<'filter' | 'activeProject'>): void {
+  const reshaped = view.filter !== before.filter || view.activeProject !== before.activeProject;
   renderList(view);
   // A new filter or another project reshapes the list, so it starts at the top rather than at a stale scroll offset — whoever chose the project, the switcher or a new tab elsewhere dropping the list to All.
   if (reshaped) container.scrollTop = 0;
