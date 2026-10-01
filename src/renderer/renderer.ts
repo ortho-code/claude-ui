@@ -31,7 +31,7 @@ import { fallBackIfEmptied, refreshSwitcher, selectProject } from './panels/type
 import { refreshStrip } from './panels/types/sessions/attention-strip';
 import { applyDatePickerMinDate, filterPanelFollows, groupNameByKey, passesFilters, restoreFilter, updateFilterStatus } from './panels/types/sessions/filter';
 import './styles.css';
-import { store, withEntry, withMember, type AppState, type TabState, type View } from './state/app';
+import { store, withEntry, withMember, type StoredView, type TabState, type View } from './state/app';
 import { isFiltering, projName, projectGroups, searchText, sessionById, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
 import { setStatus } from './state/statuses';
 import { applyGroupState, moveSessionToGroup } from './state/groups';
@@ -325,9 +325,6 @@ let uiRestored = false;
 let uiSaveTimer: number | undefined;
 // The last snapshot actually sent. Renders happen for reasons that have nothing to do with the view — a transcript growing, a status dot changing — and without this each one would cost a full read-modify-write of meta.json.
 let lastUiSignature = '';
-
-/** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
-type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'footerExpanded'>;
 
 function uiSnapshot(view: StoredView = store.get()): UiState {
   const { folds } = view;

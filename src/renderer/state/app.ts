@@ -91,6 +91,9 @@ export function noFilter(): FilterState {
   return { search, filters, datePreset, dateFrom, dateTo };
 }
 
+/** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
+export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'footerExpanded'>;
+
 /** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
 export interface TabState {
   /**
