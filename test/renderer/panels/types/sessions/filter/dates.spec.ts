@@ -1,7 +1,8 @@
 import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
-import { session } from '../../../../support/fixture';
+import { session, sorted } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { sortedTitles } from '../../../../support/window';
 
 // The date filter narrows the list by when a session was last active: a rolling preset (today, the last 7 or 30 days) or a custom range picked on the calendar, which is the one kept as it was picked; a preset is worked out again from the moment it is restored.
 const NOW = new Date('2026-09-30T12:00:00.000Z');
@@ -12,8 +13,6 @@ const old = session({ id: '00000000-0000-4000-8000-0000000000d4', title: 'Months
 const everyone = [today, days3, days20, old];
 const fixture = { sessions: everyone };
 
-const titles = async (page: Page): Promise<string[]> => (await page.locator('#sessions .session .card-title').allTextContents()).sort();
-const sorted = (...list: { title: string }[]): string[] => list.map((s) => s.title).sort();
 const preset = (page: Page, range: string): Locator => page.locator(`#date-presets [data-range="${range}"]`);
 /** A day on the calendar on show, by its date in September 2026 (month 8, counted from 0). */
 const day = (page: Page, date: number): Locator => page.locator(`#date-range .air-datepicker-cell.-day-[data-year="2026"][data-month="8"][data-date="${date}"]`);
@@ -28,11 +27,11 @@ test('a preset narrows the list to what was active in it, and Any gives it all b
 
   await preset(page, 'today').click();
   await expect(preset(page, 'today')).toHaveClass(/\bactive\b/);
-  await expect.poll(() => titles(page)).toEqual(sorted(today));
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(today));
   await preset(page, '7d').click();
-  await expect.poll(() => titles(page)).toEqual(sorted(today, days3));
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(today, days3));
   await preset(page, '30d').click();
-  await expect.poll(() => titles(page)).toEqual(sorted(today, days3, days20));
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(today, days3, days20));
   await expect(page.locator('#filter-count')).toHaveText('Showing 3 of 4');
 
   // Shut over it, the chip says what the preset's button says.
@@ -41,7 +40,7 @@ test('a preset narrows the list to what was active in it, and Any gives it all b
   await page.locator('#filter-toggle').click();
 
   await preset(page, 'any').click();
-  await expect.poll(() => titles(page)).toEqual(sorted(...everyone));
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(...everyone));
   await expect(page.locator('#filter-status')).toBeHidden();
 });
 
@@ -57,13 +56,13 @@ test('a custom range picked on the calendar narrows the list to it and names it'
 
   await day(page, 9).click();
   await day(page, 11).click();
-  await expect.poll(() => titles(page)).toEqual(sorted(days20));
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(days20));
   await expect(page.locator('#date-range-label')).toHaveText('09-09-2026 – 11-09-2026');
 
   // Dismissed, the range stays applied.
   await page.keyboard.press('Escape');
   await expect(page.locator('#date-custom')).toBeHidden();
-  await expect.poll(() => titles(page)).toEqual(sorted(days20));
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(days20));
 });
 
 test("the calendar starts at the oldest session's day, and follows the listing as it changes", async ({ app, page }) => {
@@ -88,7 +87,7 @@ test('a stored custom range comes back as it was picked', async ({ app, page }) 
   const from = new Date(2026, 8, 9).getTime();
   const to = new Date(2026, 8, 11, 23, 59, 59, 999).getTime();
   await app.boot({ ...fixture, uiState: { ...defaultUi(), datePreset: 'custom', dateFrom: from, dateTo: to } });
-  await expect.poll(() => titles(page)).toEqual(sorted(days20));
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(days20));
   await expect(page.locator('#date-range-label')).toHaveText('09-09-2026 – 11-09-2026');
   await expect(page.locator('#filter-count')).toHaveText('Showing 1 of 4');
 });
@@ -96,5 +95,5 @@ test('a stored custom range comes back as it was picked', async ({ app, page }) 
 test('a stored rolling preset is worked out again from now, not from the range it last stored', async ({ app, page }) => {
   // A range from the epoch would let every session through.
   await app.boot({ ...fixture, uiState: { ...defaultUi(), datePreset: '7d', dateFrom: 0, dateTo: null } });
-  await expect.poll(() => titles(page)).toEqual(sorted(today, days3));
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(today, days3));
 });

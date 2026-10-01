@@ -3,7 +3,7 @@ import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { tabLabel, tabs } from '../../../../support/window';
+import { tabLabel, tabs, titles } from '../../../../support/window';
 
 // Two filters are questions about the TABS rather than the sessions: "open" shows the sessions with a tab, "live" the ones with a claude running. So the list they filter has to follow the tabs as they open, start, stop and close.
 const one = session();
@@ -11,7 +11,6 @@ const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Anothe
 const fixture = { sessions: [one, two], history: { [one.id]: [], [two.id]: [] }, openSessions: [one.id] };
 const withFilter = (filter: 'open' | 'live'): { uiState: UiState } => ({ uiState: { ...defaultUi(), filters: { ...defaultUi().filters, [filter]: true } } });
 
-const titles = (page: Page): Locator => page.locator('#sessions .session .card-title');
 const tabButton = (page: Page): Locator => tabs(page).locator('.tab-close');
 
 test('with "open" on, closing the last tab takes its row out of the list', async ({ app, page }) => {

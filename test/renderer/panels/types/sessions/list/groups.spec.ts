@@ -3,7 +3,7 @@ import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row } from '../../../../support/window';
+import { row, titlesIn } from '../../../../support/window';
 
 // A group is made, renamed, moved and deleted from the list, and the tab bar, which clusters tabs by group, follows every change at once (the one-behaviour rule in CLAUDE.md).
 const OTHER = `${HOME}/projects/other`;
@@ -51,7 +51,7 @@ test('a group made from a row takes the row, and its tab moves into the group\'s
 
   // At the top of its project, holding the row it was made from.
   await expect(listGroups(page)).toHaveText(['Gamma', 'Beta', 'Alpha']);
-  await expect(listGroup(page, 'Gamma').locator('.card-title')).toHaveText([loose.title]);
+  await expect(titlesIn(listGroup(page, 'Gamma'))).toHaveText([loose.title]);
   await expect(tabBarGroups(page)).toHaveText(['Gamma', 'Beta', 'Alpha']);
   await expect(tabBarGroup(page, 'Gamma').locator('.tab-label')).toHaveText([loose.title]);
   expect(await app.calls('createGroup')).toEqual([['Gamma', PROJECT, loose.id]]);

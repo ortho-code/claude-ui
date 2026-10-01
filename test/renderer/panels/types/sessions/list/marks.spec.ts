@@ -1,14 +1,13 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { row, tabLabel } from '../../../../support/window';
+import { row, tabLabel, titles } from '../../../../support/window';
 
 // A session's marks are main's to keep (docs/architecture.md § App-side metadata and session groups): a pin floats its row in its own section, a note rides the row's meta, and archiving puts the session away, closing its tab, until the archived view gives it back.
 const newer = session({ id: '00000000-0000-4000-8000-0000000000b1', title: 'Newer session' });
 const older = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'Older session' });
 const fixture = { sessions: [newer, older], history: { [newer.id]: [], [older.id]: [] } };
 
-const titles = (page: Page): Locator => page.locator('#sessions .session .card-title');
 const menuItem = async (page: Page, title: string, label: string): Promise<void> => {
   await row(page, title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button', { hasText: label }).click();

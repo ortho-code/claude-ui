@@ -73,6 +73,9 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
   };
 }
 
+/** The titles of `sessions`, sorted: what a check expects the list to show, against `sortedTitles`. */
+export const sorted = (...sessions: { title: string }[]): string[] => sessions.map((s) => s.title).sort();
+
 /**
  * A first run with one session and no layout file: the default layout, nothing pinned, open or filtered.
  * One session because without one the window drops the stored project, and every panel then says "Pick a project".

@@ -11,6 +11,15 @@ export const rows = (page: Page): Locator => page.locator('#sessions .session');
 /** The session list's row whose text holds `title`. */
 export const row = (page: Page, title: string): Locator => rows(page).filter({ hasText: title });
 
+/** The titles of the rows inside `scope`, such as one group, in the list's order. */
+export const titlesIn = (scope: Locator): Locator => scope.locator('.session .card-title');
+
+/** Every row's title, in the list's order. */
+export const titles = (page: Page): Locator => titlesIn(page.locator('#sessions'));
+
+/** Every row's title, sorted: what the list shows, for a check that is not about the order. */
+export const sortedTitles = async (page: Page): Promise<string[]> => (await titles(page).allTextContents()).sort();
+
 /** Every tab in the tab bar. */
 export const tabs = (page: Page): Locator => page.locator('#tabbar .tab');
 
