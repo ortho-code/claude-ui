@@ -27,6 +27,9 @@ The standard Electron split, with the renderer locked down:
 
 The linter holds the split: a source file importing from another process's folder fails `npm run lint`, and code both sides need goes in `src/shared`.
 The tests are outside it, under `test/`, since a test may assert across the line — the launcher's flags against the reserved list, for one.
+Inside the renderer it holds four more lines the same way: the two built-ins never import each other's modules, a service never imports from `panels/`, nor does `state/`, and outside `panels/types/` only the tree and the start-up (`renderer.ts`, `view-saving.ts`) import a panel type's module.
+ESLint takes a rule's settings from the last block that matches a file, so each of those blocks repeats the process rule rather than adding to it (`eslint.config.mjs` says so beside them).
+What no lint rule here can hold, a unit test does (`test/unit/imports.test.ts`): no cycle of value imports anywhere in `src/`, read with the compiler's own parser, `import type` aside since it runs nothing.
 
 **The window never navigates.** Main refuses any navigation away from the app's own page and any new window (`will-navigate`, `setWindowOpenHandler`), because a page loaded there would get the preload's bridge, and the bridge runs commands.
 Links leave through `shell:openExternal` instead, which accepts only http(s); the app itself never navigates, and `loadFile` is programmatic, which the event does not see.
