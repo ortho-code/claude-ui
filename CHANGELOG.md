@@ -56,6 +56,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - With the open or live filter on, the session list follows your tabs as they open, start, stop and close, instead of waiting for something else to redraw it.
 - When the project you are in has no sessions left, the tab bar goes back to All along with the list and the switcher, instead of staying empty.
 - Closing the tab of a new session that never wrote anything takes its row out of the list, instead of leaving it there until something else redraws the list.
+- When your last session is gone, the empty terminal area tells you to start one with + New, instead of pointing at a session list with nothing left to pick.
 
 ## 0.3.0 — 2026-08-29
 

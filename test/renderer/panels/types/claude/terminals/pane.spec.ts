@@ -35,6 +35,15 @@ async function listOnDisk(page: Page, app: App, sessions: SessionSummary[]): Pro
   expect(await app.emit('onSessionsChanged')).toBe(1);
 }
 
+test('the pane follows the listing on disk: a first session points at the list, and the last one gone at + New', async ({ app, page }) => {
+  await app.boot({ sessions: [], projectOrder: [], activeProject: null });
+  await expect(page.locator('#term-placeholder')).toHaveText('No sessions yet — start one with + New.');
+  await listOnDisk(page, app, [here]);
+  await expect(page.locator('#term-placeholder')).toHaveText('Pick a session in the sidebar to open it.');
+  await listOnDisk(page, app, []);
+  await expect(page.locator('#term-placeholder')).toHaveText('No sessions yet — start one with + New.');
+});
+
 test('the pane follows the project chosen: one whose tabs are all elsewhere points at the list, and All at the tabs again', async ({ app, page }) => {
   await app.boot({ sessions: [here, there], projectOrder: [PROJECT, OTHER], activeProject: null, openSessions: [there.id] });
   await expect(page.locator('#term-placeholder')).toHaveText('Pick a tab above, or a session in the sidebar, to resume it.');

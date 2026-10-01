@@ -1181,6 +1181,7 @@ function renderList(view: ListView): void {
     // Nothing on screen to fold away: this early return would otherwise leave the toggle live with the previous render's sections.
     renderedSections = { projects: [], groups: [] };
     updateCollapseToggle(view);
+    updatePlaceholder(view);
     return;
   }
   container.querySelector(':scope > .empty-message')?.remove();
