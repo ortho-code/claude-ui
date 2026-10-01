@@ -262,7 +262,7 @@ To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a
 - `src/renderer` — the window UI.
 - `src/renderer/state` — the store the window's surfaces share, and what more than one of them reads from it.
 - `src/renderer/panels` — the layout tree and the panel types: `panels/types/sessions` (the sidebar), `panels/types/claude` (the terminal area), and the others.
-- `src/shared` — types and pure helpers shared by both sides.
+- `src/shared` — types and pure helpers shared by both sides, and main's rules the window's checks answer with.
 - `test/` — the tests: unit tests in `test/unit/`, mirroring `src/`, and the window's checks in `test/renderer/`, filed by the panel they check.
 - `docs/` — architecture and design notes.
 

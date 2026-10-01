@@ -26,6 +26,7 @@ The standard Electron split, with the renderer locked down:
 - **Renderer** (`src/renderer`) is plain DOM, no framework yet, and talks only to the preload API.
 
 The linter holds the split: a source file importing from another process's folder fails `npm run lint`, and code both sides need goes in `src/shared`.
+So does a rule of main's that the window checks' stand-in answers with, so the stand-in runs main's own code rather than a copy of it (§ The window's checks), which is why some modules there are imported by main alone.
 The tests are outside it, under `test/`, since a test may assert across the line — the launcher's flags against the reserved list, for one.
 Inside the renderer it holds four more lines the same way: the two built-ins never import each other's modules, a service never imports from `panels/`, nor does `state/`, and outside `panels/types/` only the tree and the start-up (`renderer.ts`, `view-saving.ts`) import a panel type's module.
 ESLint takes a rule's settings from the last block that matches a file, so each of those blocks repeats the process rule rather than adding to it (`eslint.config.mjs` says so beside them).
@@ -50,6 +51,7 @@ Two TypeScript projects, because the two sides need different module systems:
 
 TypeScript 7 removed the old `moduleResolution: "node"`, so both projects use the newer values above.
 `src/shared` holds types and pure helpers, and each side compiles its own copy, so no module is shared at runtime.
+The renderer's project compiles all of it without Node's types, so a module there that reached for Node fails the build even when the renderer never imports it.
 
 **`typescript` in `package.json` is TypeScript 6, and `tsc` is TypeScript 7.** TypeScript 7 has no JavaScript API yet, and typescript-eslint, which lints with the compiler's own type information, cannot run without one.
 So the `typescript` name holds `@typescript/typescript6`, the package Microsoft publishes for tools in this position, and the compiler the build runs is installed as `@typescript/native`, which is what provides the `tsc` command.
