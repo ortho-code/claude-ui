@@ -10,16 +10,12 @@ import { activateTab, tabOf } from './terminals';
  * A watcher of the statuses (`toastAttention`), which renderer.ts registers with the others.
  */
 
-/** The statuses as the toasts last saw them, so only a change of state is news. */
-let toastedStatuses: View<'statuses'>['statuses'] = new Map();
-
 /**
  * A real transition into waiting/idle on a tab you're not looking at -> toast it. Never for busy, a cleared status, a no-op repeat, or the tab you're already on.
+ * Only a change of state is news: against the statuses as the toasts last saw them (`before`).
  * Start-up's read of every status toasts nothing: it lands before the tabs are restored, so no session in it has a tab yet.
  */
-export function toastAttention(view: View<'statuses' | 'tabs' | 'activeTab' | 'projectNames'>): void {
-  const before = toastedStatuses;
-  toastedStatuses = view.statuses;
+export function toastAttention(view: View<'statuses' | 'tabs' | 'activeTab' | 'projectNames'>, { statuses: before }: View<'statuses'>): void {
   for (const [id, status] of view.statuses) {
     if ((status !== 'waiting' && status !== 'idle') || status === before.get(id)) continue;
     const tab = tabWith(id, view);
