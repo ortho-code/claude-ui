@@ -4,7 +4,7 @@ import type { SessionSummary } from '../../../../shared/types';
 import { entityKey, hasVisibleOutput, sessionsByKey, unstartableReason } from '../../../logic';
 import { newSession, untitledLabel } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
-import { applyGroupState } from '../../../state/groups';
+import { moveSessionToGroupById } from '../../../state/groups';
 import { clearNudge } from '../../../state/statuses';
 import { tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
@@ -443,7 +443,7 @@ export function adoptReplacement(tabToken: string, id: string): void {
     // The predecessor keeps its own membership: it is still a real session, and still that group's history.
     // Only the group carries over. A pin and a note are about one CONVERSATION, and that conversation still has its own row to hold them.
     const group = store.get().groupState.groupOf[replaced];
-    if (group) void window.claudeUi.moveSessionToGroup(id, group).then(applyGroupState);
+    if (group) void moveSessionToGroupById(id, group);
   }
 }
 
