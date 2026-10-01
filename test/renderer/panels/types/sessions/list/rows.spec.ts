@@ -35,3 +35,21 @@ test('a row is marked open, cold and on show as its tab is', async ({ app, page 
   await expect(row(page, one.title)).not.toHaveClass(/\bopen\b/);
   await expect(row(page, one.title)).not.toHaveClass(/\bcold\b/);
 });
+
+test("a row's dot follows its session's status, and a click on it marks it read without opening the session", async ({ app, page }) => {
+  await app.boot(fixture);
+  const dot = row(page, two.title).locator('.nudge');
+  await expect(dot).not.toHaveClass(/\bwaiting\b/);
+
+  expect(await app.emit('onSessionStatus', two.id, 'waiting', '')).toBe(1);
+  await expect(dot).toHaveClass(/\bwaiting\b/);
+  await expect(dot).not.toHaveClass(/\backed\b/);
+
+  // A click that reached the row would open the session in a tab.
+  await dot.click();
+  await expect(dot).toHaveClass(/\backed\b/);
+  await dot.click();
+  await expect(dot).not.toHaveClass(/\backed\b/);
+  await expect(page.locator('.tab')).toHaveCount(0);
+  expect(await app.calls('startTerminal')).toEqual([]);
+});
