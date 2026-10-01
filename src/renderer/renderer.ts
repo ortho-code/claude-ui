@@ -13,7 +13,7 @@ import './flash';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
 import { railStatusFollowsTabs } from './panels/types/claude/index';
 import { history, paneFollows } from './panels/types/claude/pane';
-import { activateTab, persistOpenTabs, reconcileOpenTabs, restoreOpenTabs, setTab, switchWorkspaceTerminal, tabOf } from './panels/types/claude/terminals';
+import { activateTab, adoptReplacement, reconcileOpenTabs, restoreOpenTabs, switchWorkspaceTerminal, tabOf } from './panels/types/claude/terminals';
 import { renderTabBar, tabBarFollowsStatuses } from './panels/types/claude/tab-bar';
 import { railStatusFollowsSessions } from './panels/types/sessions/index';
 import { fallBackIfEmptied, refreshSwitcher } from './panels/types/sessions/switcher';
@@ -27,8 +27,6 @@ import './styles.css';
 import { store, withEntry, type StoredView, type View } from './state/app';
 import { projName, tabOnShow, tabWith } from './state/views';
 import { setStatus } from './state/statuses';
-import { applyGroupState } from './state/groups';
-import { newSession, untitledLabel } from './newsession';
 import type { UiState } from '../shared/types';
 import { sessionLabel } from './logic';
 import { installTooltips } from './tooltip';
@@ -210,36 +208,8 @@ store.watch(['activeProject', 'activeTab'], treeContextChanged);
 store.watch(['sessions', 'statuses', 'acked', 'tabs', 'panelData'], treeSessionsChanged);
 
 window.claudeUi.onSessionStatus((id, status, tabToken) => {
-  // A tab's session can be REPLACED under it: `/clear` ends the session and starts a fresh one in the same terminal, under an id Claude Code chooses rather than one the app passed as `--session-id`.
-  // The token is what ties the two together — without this the tab would keep pointing at the session that just ended, and resuming it later would reopen the wrong history.
-  const owner = tabToken ? tabOf(tabToken) : undefined;
-  if (owner && owner.session.id !== id) {
-    const previous = owner.session;
-    const replaced = previous.id;
-    // A CLEARED SESSION IS A NEW SESSION, so it starts from the same blank the "+" button does rather than from its predecessor's row.
-    // Carrying the old object forward was the app's own half of the copied-title problem: it kept the title, the first message and the sibling marks of a conversation this session does not have.
-    // The folder is all that genuinely survives — it is the same terminal, in the same place.
-    // Everything that draws the tab follows: the bar names the new session, its stand-in row is the open one, and the history on show follows it, since a cleared session has a transcript of its own.
-    setTab(owner.token, {
-      session: newSession(id, {
-        cwd: previous.cwd,
-        repoRoot: previous.repoRoot,
-        isRepo: previous.isRepo,
-        worktree: previous.worktree,
-        title: untitledLabel(previous.cwd),
-      }),
-    });
-    // The stand-in is ours to choose; the TITLE on disk is not, and is left alone.
-    // Claude Code copies the cleared session's name into the new transcript, where nothing distinguishes it from a name somebody chose — so a named session goes on showing that name, exactly as `claude --resume` lists it. Overriding it would mean this app and the CLI disagreeing about what a session is called.
-    // The pairing is recorded because nothing else can observe it: neither transcript points at the other, and the connection exists only in this moment.
-    void window.claudeUi.recordClear(replaced, id, previous.title);
-    persistOpenTabs();
-    // A group says where this WORK lives, and clearing a session does not move the work — so the replacement joins the group its predecessor was in, rather than the tab visibly dropping out of its section.
-    // The predecessor keeps its own membership: it is still a real session, and still that group's history.
-    // Only the group carries over. A pin and a note are about one CONVERSATION, and that conversation still has its own row to hold them.
-    const group = store.get().groupState.groupOf[replaced];
-    if (group) void window.claudeUi.moveSessionToGroup(id, group).then(applyGroupState);
-  }
+  // `/clear` gives a tab a session of Claude Code's choosing, which the tab takes over.
+  if (tabToken) adoptReplacement(tabToken, id);
   // What claude just did is in the transcript, and the history of the session on show reads it.
   if (tabOnShow(store.get())?.session.id === id) void history.refresh();
   // 'start' reports which session a tab is running, not a state it is in — and it fires mid-session on clear and compact, where setting a status would wipe a live one.
