@@ -2,7 +2,7 @@ import type { SessionSummary } from '../../../../shared/types';
 import { projectsForSwitcher, type NudgeStatus } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
-import { foldsWith } from '../../../state/folds';
+import { setProjectOnShow } from '../../../state/project';
 import { switcherPool, visibleSessions } from '../../../state/views';
 import { chevronIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -77,12 +77,10 @@ function switcherItem(name: string, repoRoot: string | null, count: number, badg
 
 /** Select a project, or All with null: what choosing one here does, and the sidebar's answer to the `selectProject` ask. */
 export function selectProject(repoRoot: string | null): void {
-  window.claudeUi.setActiveProject(repoRoot);
   closeSwitcher();
   // Full workspace switch: the terminal area moves to this project too, in the same change, so every surface that honours the selection is told once, with the project and its tab together.
   store.batch(() => {
-    // Open a project expanded even if it was collapsed in the All view.
-    store.set({ activeProject: repoRoot, ...(repoRoot ? { folds: foldsWith(store.get(), 'projects', [repoRoot], false) } : {}) });
+    setProjectOnShow(repoRoot);
     hostOf('sessions').showProject(repoRoot);
   });
 }

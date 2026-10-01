@@ -104,6 +104,8 @@ test('a new session in another project drops the list to All, at its top', async
   await page.locator('#new-session').click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await expect(page.locator('#switcher-name')).toHaveText('All');
+  // And main keeps it, as it keeps a choice made in the switcher.
+  expect(await app.calls('setActiveProject')).toEqual([[null]]);
   await expect.poll(() => scrolled(page)).toBe(0);
 });
 

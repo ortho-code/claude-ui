@@ -4,6 +4,7 @@ import { entityKey, sessionLabel, unstartableReason } from '../../../logic';
 import { newSession, untitledLabel } from '../../../newsession';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
+import { setProjectOnShow } from '../../../state/project';
 import { projName, sessionById, tabWith } from '../../../state/views';
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
@@ -48,10 +49,7 @@ async function openSession(session: SessionSummary, launch: Pick<TabLaunch, 'pro
 // Only the scope: the new tab, which its caller creates next, is the one that comes on show.
 function ensureProjectVisible(repoRoot: string): void {
   const { activeProject } = store.get();
-  if (activeProject !== null && repoRoot !== activeProject) {
-    store.set({ activeProject: null });
-    window.claudeUi.setActiveProject(null);
-  }
+  if (activeProject !== null && repoRoot !== activeProject) setProjectOnShow(null);
 }
 
 // Start a brand-new claude session in `cwd`, under an id this app mints; the sidebar row is that same session, filled in once claude writes its transcript.
