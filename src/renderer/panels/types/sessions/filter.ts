@@ -287,7 +287,7 @@ function drawFilterPanel(open: boolean): void {
   filterToggle.setAttribute('aria-expanded', String(open));
 }
 
-/** The panel opened or shut: it follows, with the chips that stand in for it while it is shut. A watcher renderer.ts registers with the others, as it does `applyDatePickerMinDate`. */
+/** The panel opened or shut: it follows, with the chips that stand in for it while it is shut. A watcher the sidebar registers (watch.ts), as it does `applyDatePickerMinDate`. */
 export function filterPanelFollows(view: View<'filterPanelOpen' | 'filter'>): void {
   drawFilterPanel(view.filterPanelOpen);
   updateFilterChips(view);

@@ -83,7 +83,7 @@ function railStatus(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 
   return switcherModel(view).all.badge === 'waiting' ? 'wait' : null;
 }
 
-/** The rail icon follows the sessions and their statuses: a watcher renderer.ts registers with the others. */
+/** The rail icon follows the sessions and their statuses: a watcher the sidebar registers (watch.ts). */
 export function railStatusFollowsSessions(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs'>): void {
   hostOf('sessions').setStatus(railStatus(view));
 }

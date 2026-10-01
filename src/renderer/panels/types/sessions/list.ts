@@ -36,7 +36,7 @@ import './list.css';
 
 /**
  * The sidebar's session list: a section per project holding its groups and then its loose rows, each row a session's card with its marks and controls; the menus and actions on rows and headings; the folds and collapse-all; and the reveals and jumps other surfaces ask for.
- * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, watchers renderer.ts registers with the others), and reads what it draws from main in one change (`renderSessions`), which start-up and a row's delete both ask for.
+ * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, registered by `watchList` in the sidebar's repaints, watch.ts), and reads what it draws from main in one change (`renderSessions`), which start-up and a row's delete both ask for.
  */
 
 export const container = document.getElementById('sessions')!;
@@ -130,7 +130,7 @@ function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {
  * A tab opened, started, stopped, closed or came on show: the rows' marks follow, and the list itself is drawn again only when what it draws from the tabs moved since it last followed them (`before`).
  * The open and live filters ask which sessions have a tab and which of those run, and a session with no transcript yet is in the list only through its tab's stand-in row.
  */
-export function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
+function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
   const onDisk = new Set(view.sessions.map((s) => s.id));
   const keys = (tabs: readonly TabState[], running: boolean): string =>
     tabs
@@ -157,7 +157,7 @@ function modelOf(session: SessionSummary, view: View<'switchedModel'>): string {
  * A status or a mark read changed: repaint the rows' dots that differ from what they were last painted from (`before`).
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-export function dotsFollowStatuses(view: View<'statuses' | 'acked'>, before: View<'statuses' | 'acked'>): void {
+function dotsFollowStatuses(view: View<'statuses' | 'acked'>, before: View<'statuses' | 'acked'>): void {
   const ids = statusChanges(before, view);
   for (const id of ids) {
     const dot = statusDots.get(id);
@@ -223,29 +223,27 @@ export async function renderSessions({ showLoading = true, revealed, startUp }: 
   }
 }
 
-/** Everything the list draws from the store. */
-type ListView = View<
-  | 'sessions'
-  | 'statuses'
-  | 'acked'
-  | 'switchedModel'
-  | 'pinned'
-  | 'archived'
-  | 'notes'
-  | 'pendingDeletes'
-  | 'groupState'
-  | 'projectNames'
-  | 'projectOrder'
-  | 'activeProject'
-  | 'tabs'
-  | 'activeTab'
-  | 'filter'
-  | 'folds'
-  | 'filterPanelOpen'
->;
+/** What draws the list again: the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter. */
+const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'] as const;
+/** The tabs, which have a watcher of their own (`listFollowsTabs`), since most of a tab's changes move only the rows' marks. */
+const LIST_TABS = ['tabs', 'activeTab'] as const;
+/**
+ * What the list reads and is never told of: a status change repaints only the dots (`dotsFollowStatuses`); the folds, since a heading's click folds in place without drawing the list, and whoever else folds draws it; and whether the filter panel is open.
+ */
+const LIST_QUIET = ['statuses', 'acked', 'folds', 'filterPanelOpen'] as const;
 
-/** The list follows the store. */
-export function listChanged(view: ListView, before: View<'filter' | 'activeProject'>): void {
+/** Everything the list draws from the store. */
+type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (typeof LIST_QUIET)[number]>;
+
+/** The list's watchers, registered in the sidebar's repaints (watch.ts), each slice named once above. */
+export function watchList(): void {
+  store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
+  store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
+  store.watch(['statuses', 'acked'], dotsFollowStatuses);
+}
+
+/** The list follows the store, with the filter's count and chips it draws. */
+function listChanged(view: ListView, before: View<'filter' | 'activeProject'>): void {
   const reshaped = view.filter !== before.filter || view.activeProject !== before.activeProject;
   renderList(view);
   // A new filter or another project reshapes the list, so it starts at the top rather than at a stale scroll offset — whoever chose the project, the switcher or a new tab elsewhere dropping the list to All.

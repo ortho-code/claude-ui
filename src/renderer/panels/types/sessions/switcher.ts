@@ -124,7 +124,7 @@ type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendi
 /**
  * The switcher follows the store: every project's count and roll-up, and the project on show.
  * It lists every project, independent of the search and the project on show, so you can always navigate; a project with none left has already fallen back to All (`fallBackIfEmptied`).
- * A watcher renderer.ts registers with the others, as it does `fallBackIfEmptied`.
+ * A watcher the sidebar registers (watch.ts), as it does `fallBackIfEmptied`.
  */
 export function refreshSwitcher(view: SwitcherView): void {
   renderSwitcher(switcherModel(view), view);

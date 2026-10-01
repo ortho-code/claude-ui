@@ -14,11 +14,8 @@ import { initTree, loadLayout, startPanels, treeContextChanged, treeSessionsChan
 import { history, paneFollows } from './panels/types/claude/pane';
 import { restoreOpenTabs, switchWorkspaceTerminal } from './panels/types/claude/terminals';
 import { claudeWatch } from './panels/types/claude/watch';
-import { railStatusFollowsSessions } from './panels/types/sessions/index';
-import { fallBackIfEmptied, refreshSwitcher } from './panels/types/sessions/switcher';
-import { refreshStrip } from './panels/types/sessions/attention-strip';
-import { applyDatePickerMinDate, filterPanelFollows } from './panels/types/sessions/filter';
-import { container, dotsFollowStatuses, listChanged, listFollowsTabs, renderSessions } from './panels/types/sessions/list';
+import { sessionsWatch } from './panels/types/sessions/watch';
+import { container, renderSessions } from './panels/types/sessions/list';
 import { forgetDeletedGroupFolds } from './panels/types/sessions/stored-view';
 import { claudeAnswers } from './panels/types/claude/asks';
 import { sessionsAnswers } from './panels/types/sessions/asks';
@@ -45,46 +42,11 @@ routeTerminals();
 // --- What the store tells ---
 // Subscribed before start-up sets anything, and told in this order.
 
-// What the switcher's projects are made of changed, and the project on show may have none left.
-// The tabs are among them: a session with no transcript yet is in its project only through its tab.
-store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptied, { reads: ['activeProject'] });
+// Each built-in's own, in blocks (panels/types/*/watch.ts): the rules, which set state as they are told, before any repaint that draws it; no order across the two types matters (measured in 08a6ac4).
+sessionsWatch.rules();
 claudeWatch.rules();
-
-// The listing moved: the calendar's first day is the oldest session's.
-store.watch(['sessions'], applyDatePickerMinDate);
-
-// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter — and the list follows, with the filter's count and chips it draws.
-// The list paints every dot it draws, but a status change repaints only the dots, below.
-store.watch(
-  ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'],
-  listChanged,
-  // The folds are read, never told: a heading's click folds in place without drawing the list, and whoever else folds draws it.
-  { reads: ['statuses', 'acked', 'tabs', 'activeTab', 'folds', 'filterPanelOpen'] },
-);
-
-// A tab opened, started, stopped, closed or came on show: the rows' marks, and the list itself when what it draws from the tabs moved.
-store.watch(['tabs', 'activeTab'], listFollowsTabs, {
-  reads: ['sessions', 'statuses', 'acked', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'folds', 'filterPanelOpen'],
-});
-
-// The filter panel opened or shut: it follows, with the chips that stand in for it while it is shut.
-store.watch(['filterPanelOpen'], filterPanelFollows, { reads: ['filter'] });
-
-// A status or a mark read changed: the rows' dots that differ.
-store.watch(['statuses', 'acked'], dotsFollowStatuses);
-
-// The terminal area's: the toast, the tab bar, its rail icon and the pane (claude/watch.ts).
+sessionsWatch.repaints();
 claudeWatch.repaints();
-
-// The switcher counts every project's sessions, rolls up their statuses and names the project on show.
-// A session with no transcript yet is in its project only through its tab, so the tabs are among what it counts.
-store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'projectNames', 'projectOrder', 'activeProject', 'tabs'], refreshSwitcher);
-
-// The sidebar's rail icon waits while any session anywhere waits for you: the switcher's roll-up, from the same sessions.
-store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'tabs'], railStatusFollowsSessions, { reads: ['projectNames', 'projectOrder'] });
-
-// The strip lists what runs, in the bar's order, each row with a stop button in the tab's state, under a line badged with the switcher's roll-up; it shows those rows or folds to its line as you left it.
-store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'footerExpanded'], refreshStrip);
 
 // The view you are leaving behind — the filter, the folds, the panel, the strip — is kept for the next launch; the snapshot is compared before it is written, so a change that ends where it began costs nothing.
 store.watch(['filter', 'folds', 'filterPanelOpen', 'footerExpanded'], () => persistUi());

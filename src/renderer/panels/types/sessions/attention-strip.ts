@@ -162,7 +162,7 @@ type StripView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingD
 
 /**
  * The strip follows the store, its line badged with the switcher's own roll-up (`switcherModel`) and its rows drawn from the switcher's pool.
- * A watcher renderer.ts registers with the others.
+ * A watcher the sidebar registers (watch.ts).
  */
 export function refreshStrip(view: StripView): void {
   renderFooter(switcherModel(view), switcherPool(view), view);
