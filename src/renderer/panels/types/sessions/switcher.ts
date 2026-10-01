@@ -90,7 +90,7 @@ export function selectProject(repoRoot: string | null): void {
 /**
  * A project with no sessions left cannot stay selected: fall back to All exactly as picking it does, the tab bar and the tab on show included.
  * Setting the scope alone once left the bar on the old project's tabs while the list and the switcher said All.
- * Told on what the switcher's projects are made of, before the list, so the list draws All the first time.
+ * Told on what the switcher's projects are made of.
  */
 export function fallBackIfEmptied(view: View<'sessions' | 'archived' | 'pendingDeletes' | 'activeProject' | 'tabs'>): void {
   const { activeProject } = view;

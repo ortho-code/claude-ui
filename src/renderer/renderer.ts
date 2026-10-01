@@ -45,11 +45,11 @@ routeTerminals();
 // --- What the store tells ---
 // Subscribed before start-up sets anything, and told in this order.
 
-// What the switcher's projects are made of changed, and the project on show may have none left: first, so everything after draws All rather than the empty project.
+// What the switcher's projects are made of changed, and the project on show may have none left.
 // The tabs are among them: a session with no transcript yet is in its project only through its tab.
 store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptied, { reads: ['activeProject'] });
 
-// The listing moved: the open tabs adopt their sessions' fresh summaries, before the list draws them, and the calendar's first day is the oldest session's.
+// The listing moved: the open tabs adopt their sessions' fresh summaries, and the calendar's first day is the oldest session's.
 store.watch(['sessions'], reconcileOpenTabs, { reads: ['tabs'] });
 store.watch(['sessions'], applyDatePickerMinDate);
 
