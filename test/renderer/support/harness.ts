@@ -20,6 +20,9 @@ export interface App {
   calls(name: keyof ClaudeUiApi): Promise<unknown[][]>;
   /** Fire what the window subscribed to as `name`, as main would; answers how many callbacks there were. */
   emit<K extends BridgeEvent>(name: K, ...args: BridgeEventArgs<K>): Promise<number>;
+  /** Hold every answer to `name` until `release(name)`, as main still working on it would (`BridgeControl.hold`). */
+  hold(name: keyof ClaudeUiApi): Promise<void>;
+  release(name: keyof ClaudeUiApi): Promise<void>;
 }
 
 async function serve(route: Route): Promise<void> {
@@ -57,6 +60,8 @@ export const test = base.extend<{ app: App }, { installScript: string }>({
       // Typed on `App`; untyped across into the page, where Playwright's own typing of an argument loses the pairing of an event with its arguments.
       emit: (name, ...args) =>
         page.evaluate(({ event, values }) => (window.__claudeUiTest.emit as (event: string, ...values: unknown[]) => number)(event, ...values), { event: name, values: args }),
+      hold: (name) => page.evaluate((call) => window.__claudeUiTest.hold(call), name),
+      release: (name) => page.evaluate((call) => window.__claudeUiTest.release(call), name),
     };
     await use(app);
 

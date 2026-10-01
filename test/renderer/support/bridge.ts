@@ -12,6 +12,11 @@ export interface BridgeControl {
   calls: BridgeCall[];
   /** Call every callback the window subscribed with `name`; answers how many there were, so a check can tell a fired event from one nobody listens to. */
   emit<K extends BridgeEvent>(name: K, ...args: BridgeEventArgs<K>): number;
+  /**
+   * Hold every answer to `name` from now on until `release(name)`, for a check of what lands while main is still working: each is worked out when it is called, as main answers from what it has at that moment, and handed over on release, in the order they were called.
+   */
+  hold(name: keyof ClaudeUiApi): void;
+  release(name: keyof ClaudeUiApi): void;
 }
 
 declare global {
@@ -161,13 +166,21 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     log: sent,
   };
 
+  /** The answers held back, by call, each waiting to be handed over. */
+  const held = new Map<keyof ClaudeUiApi, (() => void)[]>();
+
   // Every call is written down as it arrives, before it is answered.
   const recorded = Object.fromEntries(
     (Object.entries(api) as [keyof ClaudeUiApi, (...args: unknown[]) => unknown][]).map(([name, call]) => [
       name,
       (...args: unknown[]) => {
         calls.push({ name, args: args.map((arg) => (typeof arg === 'function' ? '<callback>' : structuredClone(arg))) });
-        return call(...args);
+        const waiting = held.get(name);
+        if (!waiting) return call(...args);
+        const answered = Promise.resolve(call(...args));
+        // Handled here as well, so a held refusal is not reported as unhandled while it waits to be handed over.
+        answered.catch(() => undefined);
+        return new Promise((resolve, reject) => waiting.push(() => void answered.then(resolve, reject)));
       },
     ]),
   ) as unknown as ClaudeUiApi;
@@ -178,6 +191,14 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       const found = listeners.get(name) ?? [];
       for (const callback of found) (callback as (...values: unknown[]) => void)(...args);
       return found.length;
+    },
+    hold: (name) => {
+      if (!held.has(name)) held.set(name, []);
+    },
+    release: (name) => {
+      const waiting = held.get(name) ?? [];
+      held.delete(name);
+      for (const handOver of waiting) handOver();
     },
   };
   return { api: recorded, control };
