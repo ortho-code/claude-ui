@@ -2,7 +2,7 @@ import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
 import { withLink } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
-import { togglePinned, toggleArchived, withoutSession } from '../../../src/shared/sessionmarks';
+import { purgedSession, togglePinned, toggleArchived } from '../../../src/shared/sessionmarks';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
@@ -88,13 +88,15 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
     getArchived: () => answer(fixture.archived),
     toggleArchive: (id) => answer((fixture.archived = toggleArchived(fixture.archived, id, Date.now()))),
-    // Main moves the transcript to the trash, so the listing no longer has it, and forgets its marks and its status.
-    // What else it forgets (its open tab, the tab to reopen on, its group) the window never reads back while it runs.
+    // Main moves the transcript to the trash, so the listing no longer has it, forgets its status, and purges it from meta by main's own rule: its marks, its open tab, the tab to reopen on, its group.
     // A panel row linked to it is forgotten with an event the stand-in does not fire, so that delete is main's to answer, not this.
     deleteSession: (id) => {
       if (Object.values(fixture.panelData).some((data) => Object.hasOwn(data.sessions, id))) return unmodelled('deleteSession')();
       fixture.sessions = fixture.sessions.filter((s) => s.id !== id);
-      Object.assign(fixture, withoutSession(fixture, id));
+      // The fixture keeps the membership inside the group state, as main answers it, where meta keeps it beside the registry.
+      const { groupOf, ...rest } = purgedSession({ ...fixture, groupOf: fixture.groupState.groupOf }, id);
+      Object.assign(fixture, rest);
+      fixture.groupState = { ...fixture.groupState, groupOf };
       delete fixture.statuses[id];
       return answer(undefined);
     },

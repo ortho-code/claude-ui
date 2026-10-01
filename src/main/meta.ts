@@ -8,7 +8,7 @@ import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { togglePinned, toggleArchived, withoutSession } from '../shared/sessionmarks';
+import { purgedSession, togglePinned, toggleArchived } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
 import { writeFileAtomic } from './atomic';
@@ -543,18 +543,12 @@ export function toggleArchive(id: string): Promise<Record<string, number>> {
 }
 
 /**
- * Drop a session from all metadata (used when it is deleted).
+ * Drop a session from all metadata (used when it is deleted), by the rule the window's checks answer with too (`purgedSession`, src/shared/sessionmarks.ts).
  * History pins stay: they are keyed by the request or message, which a fork sibling may still carry, and telling which pins nothing opens any more needs every transcript read — a job for a list of every pin, not for a delete.
  */
 export function purgeSession(id: string): Promise<void> {
   return update('purgeSession', (meta) => {
-    ({ pinned: meta.pinned, archived: meta.archived, notes: meta.notes } = withoutSession(meta, id));
-    meta.openSessions = meta.openSessions.filter((k) => k !== id);
-    if (meta.activeSession === id) meta.activeSession = null;
-    meta.activeSessionByProject = Object.fromEntries(
-      Object.entries(meta.activeSessionByProject).filter(([, key]) => key !== id),
-    );
-    delete meta.groupOf[id];
+    Object.assign(meta, purgedSession(meta, id));
   });
 }
 
