@@ -19,7 +19,7 @@ import { railStatusFollowsSessions } from './panels/types/sessions/index';
 import { fallBackIfEmptied, refreshSwitcher } from './panels/types/sessions/switcher';
 import { refreshStrip } from './panels/types/sessions/attention-strip';
 import { applyDatePickerMinDate, filterPanelFollows } from './panels/types/sessions/filter';
-import { container, dotsFollowStatuses, listChanged, listFollowsTabs, renderList, renderSessions } from './panels/types/sessions/list';
+import { container, dotsFollowStatuses, listChanged, listFollowsTabs, renderSessions } from './panels/types/sessions/list';
 import { forgetDeletedGroupFolds } from './panels/types/sessions/stored-view';
 import { claudeAnswers } from './panels/types/claude/asks';
 import { toastAttention } from './panels/types/claude/attention';
@@ -169,9 +169,8 @@ void (async () => {
   await renderSessions({ startUp: view });
   forgetDeletedGroupFolds(store.get());
   startSavingUi();
+  // The list follows the tabs as they come (`listFollowsTabs`): drawn again for a restored "open" or "live" filter, which are questions about the tabs, and its rows marked open otherwise.
   await restoreOpenTabs();
-  // Again, now that the tabs exist. Two filters — open, and running — are questions about the TABS, and the render above happened while there were none, so a restored "open" filter would otherwise show an empty list next to a full tab bar. It also puts the open marker on the rows, which used to wait for the next render for its own reasons.
-  renderList(store.get());
   // Last, because there is nothing to scroll until the rows are on screen. Later renders carry the offset along themselves.
   container.scrollTop = scrollTop;
   switchWorkspaceTerminal(store.get().activeProject);

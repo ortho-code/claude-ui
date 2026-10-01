@@ -423,7 +423,7 @@ function openSiblingsMenu(anchor: HTMLElement, session: SessionSummary): void {
 // Render from the cached session list, applying the current search filter.
 // Keystrokes call this directly so filtering never re-reads disk.
 // Reuses project/row nodes by key so a re-render moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
-export function renderList(view: ListView): void {
+function renderList(view: ListView): void {
   const scroll = container.scrollTop;
   statusDots.clear();
 
