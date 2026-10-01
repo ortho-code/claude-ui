@@ -130,9 +130,10 @@
   color: var(--accent);
 }
 
-/* A menu row that names something countable: dot, label, count. The dot keeps a fixed column so the
-   labels line up whether or not a group has a live nudge, and the count is pushed right. */
-.kebab-menu button.has-count {
+/* A menu row led by a status dot: a session's own, or a countable thing's roll-up with its count after
+   the label. The dot keeps a fixed column so the labels line up whether or not a group has a live
+   nudge, and the count is pushed right. */
+.kebab-menu button.has-dot {
   display: flex;
   align-items: center;
   gap: 8px;

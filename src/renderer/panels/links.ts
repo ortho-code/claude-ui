@@ -1,5 +1,5 @@
 import type { PanelData } from '../../shared/panels';
-import { projectFor, type NudgeStatus } from '../logic';
+import { projectFor } from '../logic';
 import { openMenu } from '../menu';
 import { askForSession } from '../sessiondialog';
 import { showToast } from '../toast';
@@ -54,12 +54,11 @@ export function linkedSessions(entryKey: string, itemKey: string): LinkedSession
     });
 }
 
-/** Several sessions of one row, in the app's own menu, each with its status dot. */
+/** Several sessions of one row, in the app's own menu, each with its own status dot, as the row's mark and the session list draw it. */
 export function pickSession(anchor: HTMLElement, sessions: LinkedSession[], asks: Pick<Asks, 'openSession'>): void {
-  const dot = (status: string | null): NudgeStatus => (status === 'waiting' || status === 'idle' || status === 'busy' ? status : null);
   openMenu(
     anchor,
-    sessions.map((session) => ({ label: session.title, badge: dot(session.status), onSelect: () => asks.openSession(session.id) })),
+    sessions.map((session) => ({ label: session.title, session: { status: session.status, acked: session.acked }, onSelect: () => asks.openSession(session.id) })),
   );
 }
 

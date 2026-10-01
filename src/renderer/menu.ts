@@ -1,5 +1,5 @@
 import type { NudgeStatus } from './logic';
-import { badgeClass } from './statusdot';
+import { badgeClass, sessionDotClass } from './statusdot';
 import { chevronIcon, strokeIcon } from './svg';
 import { setUnavailable } from './unavailable';
 import './menu.css';
@@ -21,6 +21,8 @@ export interface MenuItem {
   count?: number;
   /** A rolled-up status dot ahead of the label, in the column a tick would use. */
   badge?: NudgeStatus;
+  /** An item that IS a session: its own dot ahead of the label, as its row draws it, in place of a roll-up's. */
+  session?: { status: string | null; acked: boolean };
   /** Dims the label — used for "Ungrouped", which is a place rather than a named thing. */
   muted?: boolean;
   /**
@@ -80,20 +82,23 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       menu.append(button);
       continue;
     }
-    // A row that names something countable (a group, say): a status dot leads, the label takes the room it needs and ellipsizes, and the count sits in its own column at the right.
-    if (item.count !== undefined) {
-      button.classList.add('has-count');
+    // A row led by a status dot: a session's own, or the roll-up of something countable (a group, say), whose count then sits in its own column at the right; the label takes the room it needs and ellipsizes.
+    if (item.count !== undefined || item.session) {
+      button.classList.add('has-dot');
       const label = document.createElement('span');
       label.className = 'menu-item-label';
       label.textContent = item.label;
       if (item.muted) label.classList.add('muted');
       const dot = document.createElement('span');
-      dot.className = badgeClass(item.badge ?? null);
-      const count = document.createElement('span');
-      count.className = 'menu-item-count';
-      count.textContent = String(item.count);
+      dot.className = item.session ? sessionDotClass(item.session.status, item.session.acked) : badgeClass(item.badge ?? null);
       button.textContent = '';
-      button.append(dot, label, count);
+      button.append(dot, label);
+      if (item.count !== undefined) {
+        const count = document.createElement('span');
+        count.className = 'menu-item-count';
+        count.textContent = String(item.count);
+        button.append(count);
+      }
     }
     if (item.checked !== undefined) {
       // A fixed-width column, empty when unchecked, so every label in the list still lines up.

@@ -118,6 +118,23 @@ test("a row's session mark follows its session's status, a mark read, and whethe
   await expect(mark(page, 'Tidy the settings page')).toHaveAttribute('aria-label', `Go to ${quiet.title} · not running`);
 });
 
+test("a row's sessions are offered each with its own dot, as the row's mark and the session list draw it", async ({ app, page }) => {
+  await bootQueue(app, page, { [reviewed.id]: link('org/repo#3'), [quiet.id]: link('org/repo#3') });
+  const entryDot = (title: string): Locator => page.locator('.kebab-menu button', { hasText: title }).locator('.nudge');
+  const listDot = (title: string): Locator => row(page, title).locator('.nudge');
+
+  // Waiting, and nothing to report yet: pulsing, and a hollow ring.
+  await mark(page, 'Speed up the search').click();
+  await expect(entryDot(reviewed.title)).toHaveClass('nudge single waiting');
+  await expect(entryDot(quiet.title)).toHaveClass('nudge single');
+
+  // Read, on the session list's own dot: dimmed here too.
+  await listDot(reviewed.title).click();
+  await expect(listDot(reviewed.title)).toHaveClass(/\backed\b/);
+  await mark(page, 'Speed up the search').click();
+  await expect(entryDot(reviewed.title)).toHaveClass('nudge single waiting acked');
+});
+
 test('a row stays lit while the menu its session mark opened is up, as a session row does', async ({ app, page }) => {
   await bootQueue(app, page, { [reviewed.id]: link('org/repo#3'), [quiet.id]: link('org/repo#3') });
   const item = page.locator('.list-row', { hasText: 'Speed up the search' });
