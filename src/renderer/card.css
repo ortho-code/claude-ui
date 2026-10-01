@@ -1,0 +1,155 @@
+/* What the sidebar's session list and a list panel draw alike: the collapsible section heading with its count pill (which a panel header's count wears too), the group's bar, and the card an item in a list sits on.
+   Shared by class rather than by a builder: the sidebar's list and the list panel (panels/types/list.ts) each build their own markup with these classes. */
+
+/* A COLLAPSIBLE SECTION HEADING — the project's and the group's are the same bar with different
+   weight, spacing and sticky layer, so what they share lives here and each keeps only its own
+   differences below. They were two mirrored sets of rules, right down to identical `.label` blocks.
+   Both are sticky: a project pins to the top of the list, a group pins under it. */
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+}
+
+/* :has(.menu-open) alongside :hover, matching .session: a heading whose kebab menu is open stays lit
+   while the pointer is down inside the menu. */
+.section-heading:hover,
+.section-heading:has(.menu-open) {
+  background: var(--surface-hover);
+}
+
+.section-heading .caret {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  width: 10px;
+}
+
+.section-heading .heading-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.section-heading .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A count wears a pill on both headings, so the two say "count" the same way. It is not decoration:
+   as bare text the digits sat 6px from the neighbouring control's border while a kebab's ink floats
+   ~15px inside its box, and the pill's padding puts them where the eye expects. The fill differs
+   because the two bars do — see each heading below. */
+.section-heading .heading-count,
+.panel-count {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 1px 7px;
+  font-size: var(--text-small);
+  font-weight: 400;
+  color: var(--muted);
+  border-radius: var(--radius-pill);
+}
+
+/* A custom group: a sub-section inside a project. Everything about it is the quiet end of a cue the
+   project heading takes loudly — 13px against 16px, a muted layers icon against the accent folder,
+   and a surface fill against an edge-to-edge divider. Its own signal is the indent below it.
+   It sits at the SAME size as the session titles it heads (13px), separated by weight and the fill
+   alone: at 12px it read smaller than its own contents, so it looked like a label on the rows rather
+   than a heading over them. */
+/* The group heading's bar, which a list panel's section heading (.list-section h3) shares: a heading over rows it can fold away, one level below the project's. */
+.group h3,
+.list-section h3 {
+  /* No margin of its own: a sticky element pins its MARGIN box, so a margin-top here would park the
+     heading that far below the project heading and leave a band of scrolling rows showing between
+     the two. The space above a group lives on the .group section instead. */
+  margin: 0;
+  /* The same padding as a session row (.session), so the heading's controls line up vertically with
+     the rows' and the bar doesn't read as tighter than the rows under it. */
+  padding: 7px 14px;
+  background: var(--surface);
+  border-radius: var(--radius-surface); /* a filled bar like .session, so the same corner */
+  font-size: var(--text-body);
+  font-weight: 650;
+}
+
+.group h3 .caret,
+.group h3 .heading-icon,
+.list-section h3 .caret {
+  color: var(--muted);
+}
+
+/* --bg, not --surface: this heading's bar is already --surface. */
+.group h3 .heading-count,
+.list-section h3 .heading-count {
+  background: var(--bg);
+}
+
+/* An empty group persists until deleted, so it explains itself rather than looking broken. */
+.group-empty,
+.list-empty {
+  padding: 8px 0 2px;
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+
+/* A session row, and a list panel's row (.list-row), which is the same card: one look for "an item in a list" wherever the app draws one. */
+.session,
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border-radius: var(--radius-surface);
+  padding: 7px 14px;
+  /* margin-top (not -bottom) so the gap sits above each row: heading->first row, row->row, and
+     last-row->next-heading all become one uniform 8px, with no doubled gap next to a heading. */
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+/* Highlight on hover, and keep it while a menu opened from this row is still up (the menu belongs to
+   the row, even though the pointer has moved onto the dropdown). */
+.session:hover,
+.session:has(.menu-open),
+.list-row.link:hover {
+  background: var(--surface-hover);
+}
+
+.session-content,
+.list-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-title,
+.list-text {
+  margin: 0 0 2px;
+  /* Level with the group heading above it (13px), one step above the 12px meta line below. At 14px
+     it out-sized the heading of its own group; the extra characters per line before the clamp are a
+     bonus at a 320px sidebar. */
+  font-size: var(--text-body);
+  overflow: hidden;
+  /* Wrap up to two lines, then ellipsize, so most titles are fully readable without hovering. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Time and model, with the note mark riding at the end. A flex row so the mark is CENTRED against
+   the text by layout rather than by a guessed offset — the reason it looked off beside the title. */
+.session-meta,
+.list-detail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  min-width: 0;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}

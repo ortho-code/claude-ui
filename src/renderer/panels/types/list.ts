@@ -10,6 +10,8 @@ import { listenForRuns } from '../runs';
 import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey, type MountedPanel, type PanelHost, type PanelType } from './command';
 import type { FolderType } from './folder';
 import { readListDocument, type ListDocument, type ListItem, type ListSection } from './listdoc';
+// Its rows are the session list's cards and its headings the group's bar.
+import '../../card.css';
 import './list.css';
 
 /**

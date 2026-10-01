@@ -1,6 +1,8 @@
 import type { LayoutReport, PanelState } from '../../shared/panels';
 import { element } from '../dom';
 import { installSplitResizer } from '../resizer';
+// A panel header's count wears the section heading's count pill.
+import '../card.css';
 import './tree.css';
 import { chevronIcon, strokeIcon, type Direction } from '../svg';
 import { setTooltip } from '../tooltip';

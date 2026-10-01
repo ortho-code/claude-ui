@@ -8,6 +8,16 @@
   padding: 0 8px 8px;
 }
 
+/* A list panel's variants of the group heading and the empty-group line it shares with the session list (card.css), each outweighing the shared rule only by coming after it, at the same specificity. */
+.list-section h3 {
+  margin-top: 8px;
+}
+
+/* What an empty section says, level with the text in the rows it stands in for. */
+.list-empty {
+  padding-left: 14px;
+}
+
 /* The sessions a row started, before what it offers: the latest's status dot in the icon box every clickable mark uses, and their count beside it when there are several. */
 .list-row .list-session {
   gap: 4px;

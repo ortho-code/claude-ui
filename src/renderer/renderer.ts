@@ -30,6 +30,8 @@ import { renderTabBar, tabBarFollowsStatuses } from './panels/types/claude/tab-b
 import { fallBackIfEmptied, refreshSwitcher, selectProject } from './panels/types/sessions/switcher';
 import { refreshStrip } from './panels/types/sessions/attention-strip';
 import { applyDatePickerMinDate, filterPanelFollows, groupNameByKey, passesFilters, restoreFilter, updateFilterStatus } from './panels/types/sessions/filter';
+// The card and section heading the sidebar's list shares with a list panel.
+import './card.css';
 import './styles.css';
 import { store, withEntry, withMember, type StoredView, type TabState, type View } from './state/app';
 import { isFiltering, projName, projectGroups, searchText, sessionById, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
