@@ -7,7 +7,7 @@ import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { parseLaunchFlags } from '../shared/flags';
-import { createdGroup, movedGroup, movedProject, renamedGroup, withoutGroup, withSessionInGroup } from '../shared/grouping';
+import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
 import { togglePinned, toggleArchived, withoutSession } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
@@ -694,8 +694,8 @@ export function getProjectOrder(): Promise<string[]> {
 }
 
 /**
- * Give every root a slot and return the order.
- * Two cases, deliberately different: an EMPTY order is seeded from `roots` exactly as given (the caller passes them in the order they already appear, so the run that introduces this feature changes nothing on screen); an existing order gets unknown roots at the FRONT, so a project that shows up later is somewhere you'll see it.
+ * Give every root a slot and return the order (`seededOrder`, src/shared/grouping.ts, which the window's checks answer with too).
+ * An EMPTY order is seeded from `roots` exactly as given (the caller passes them in the order they already appear, so the run that introduced this changed nothing on screen); an existing order gets unknown roots at the FRONT, so a project that shows up later is somewhere you'll see it. One rule: every root in front of an empty order is the roots as given.
  *
  * Absent roots are NOT pruned.
  * A project whose sessions are all archived drops out of the list while still existing, and forgetting its slot would make it leap to the top when a session comes back — the opposite of the stable order this exists to provide.
@@ -703,17 +703,9 @@ export function getProjectOrder(): Promise<string[]> {
 export function seedProjectOrder(roots: string[]): Promise<string[]> {
   return serialize(async () => {
     const meta = await readMeta();
-    if (meta.projectOrder.length === 0) {
-      if (roots.length === 0) return meta.projectOrder;
-      meta.projectOrder = [...roots];
-      await writeMeta(meta);
-      await auditWrite('seedProjectOrder', meta);
-      return meta.projectOrder;
-    }
-    const known = new Set(meta.projectOrder);
-    const fresh = roots.filter((r) => !known.has(r));
-    if (fresh.length === 0) return meta.projectOrder; // nothing new: no write at all
-    meta.projectOrder = [...fresh, ...meta.projectOrder];
+    const seeded = seededOrder(meta.projectOrder, roots);
+    if (!seeded) return meta.projectOrder; // nothing new: no write at all
+    meta.projectOrder = seeded;
     await writeMeta(meta);
     await auditWrite('seedProjectOrder', meta);
     return meta.projectOrder;

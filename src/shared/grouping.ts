@@ -17,6 +17,16 @@ export function moveTarget(from: number, last: number, move: OrderMove): number 
   return to;
 }
 
+/**
+ * The project order with every root it has not seen yet put in front, in the order given, or null when every root already has a slot, so nothing is written.
+ * The very first order is the roots as given, the listing's recency order, which is the same rule with nothing seen before.
+ */
+export function seededOrder(order: readonly string[], roots: readonly string[]): string[] | null {
+  const known = new Set(order);
+  const fresh = roots.filter((root) => !known.has(root));
+  return fresh.length === 0 ? null : [...fresh, ...order];
+}
+
 /** The project order with one project moved, or null when it does not move: a root nobody has seen has no slot, since the order is seeded from what is on disk. */
 export function movedProject(order: readonly string[], repoRoot: string, move: OrderMove): string[] | null {
   const from = order.indexOf(repoRoot);

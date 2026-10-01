@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { createdGroup, movedGroup, movedProject, moveTarget, renamedGroup, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
+import { createdGroup, movedGroup, movedProject, moveTarget, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
 import type { GroupState } from '../../../src/shared/types';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time something changes, the given one untouched.
@@ -22,6 +22,17 @@ describe('moveTarget', () => {
     expect(moveTarget(0, 3, 'up')).toBeNull();
     expect(moveTarget(3, 3, 'down')).toBeNull();
     expect(moveTarget(0, 3, 'top')).toBeNull();
+  });
+});
+
+describe('seededOrder', () => {
+  it('starts the order from the roots as given, puts unseen roots in front, and answers null when every root has a slot', () => {
+    expect(seededOrder([], ['/c', '/a'])).toEqual(['/c', '/a']);
+    const order = ['/a', '/b'];
+    expect(seededOrder(order, ['/a', '/new', '/b', '/newer'])).toEqual(['/new', '/newer', '/a', '/b']);
+    expect(seededOrder(order, ['/b'])).toBeNull();
+    expect(seededOrder([], [])).toBeNull();
+    expect(order).toEqual(['/a', '/b']);
   });
 });
 

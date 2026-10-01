@@ -1,5 +1,5 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
-import { createdGroup, movedGroup, movedProject, renamedGroup, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
+import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
 import { withLink } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { togglePinned, toggleArchived, withoutSession } from '../../../src/shared/sessionmarks';
@@ -129,12 +129,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     moveSessionToGroup: (sessionId, groupId) => answer((fixture.groupState = withSessionInGroup(fixture.groupState, sessionId, groupId))),
     moveGroup: (id, move) => answer((fixture.groupState = movedGroup(fixture.groupState, id, move))),
     getProjectOrder: () => answer(fixture.projectOrder),
-    // Main's answer only where it has one without deciding anything: every root already has a slot, so the order comes back as it was (`seedProjectOrder` in src/main/meta.ts). Seeding a first order, or putting new roots in front, is main's rule to keep, not a copy's.
-    seedProjectOrder: (roots) => {
-      const known = new Set(fixture.projectOrder);
-      const settled = fixture.projectOrder.length > 0 ? roots.every((root) => known.has(root)) : roots.length === 0;
-      return settled ? answer(fixture.projectOrder) : unmodelled('seedProjectOrder')();
-    },
+    // Main's own rule (`seededOrder`), so a fixture need not place its projects: the listing's roots seed the order as they seed main's, new ones in front.
+    seedProjectOrder: (roots) => answer((fixture.projectOrder = seededOrder(fixture.projectOrder, roots) ?? fixture.projectOrder)),
     moveProject: (repoRoot, move) => answer((fixture.projectOrder = movedProject(fixture.projectOrder, repoRoot, move) ?? fixture.projectOrder)),
     // Main writes the pairing to its audit log and answers nothing, deciding nothing (`recordClear` in src/main/meta.ts).
     recordClear: () => answer(undefined),
