@@ -1,6 +1,6 @@
 import { ID_PATTERN, LAYOUT_VERSION, type Layout, type LayoutNode, type LayoutReport, type PanelEntry } from '../../shared/panels';
 import { ICON_NAMES, isIconName, type IconName } from './icons';
-import type { PanelTypeDecl } from './types/command';
+import type { PanelTypeDecl } from './contract';
 
 /**
  * From one read of the layout file to the window's tree. Pure: no DOM, no paths, no processes, tested per rule.

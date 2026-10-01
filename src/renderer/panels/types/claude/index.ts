@@ -1,7 +1,7 @@
 import { store, type View } from '../../../state/app';
 import { sessionNudge, visibleTabs } from '../../../state/views';
 import { builtinType, hostOf } from '../builtin';
-import type { PanelStatus } from '../command';
+import type { PanelStatus } from '../../contract';
 import './index.css';
 
 /**

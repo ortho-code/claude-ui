@@ -15,7 +15,8 @@ import {
   type ResolvedNode,
   type ResolvedSplit,
 } from '../../../../src/renderer/panels/layout';
-import { commandType, type PanelTypeDecl } from '../../../../src/renderer/panels/types/command';
+import type { PanelTypeDecl } from '../../../../src/renderer/panels/contract';
+import { commandType } from '../../../../src/renderer/panels/types/command';
 import type { LayoutReport } from '../../../../src/shared/panels';
 
 // The built-ins' declarations as the validator sees them; their mounts are the tree's business.

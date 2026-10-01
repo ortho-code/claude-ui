@@ -1,6 +1,6 @@
 import type { IconName } from '../icons';
 import { optionProblems, optionsOf } from '../options';
-import type { MountedPanel, PanelHost, PanelStatus, PanelType } from './command';
+import type { MountedPanel, PanelHost, PanelStatus, PanelType } from '../contract';
 
 /**
  * The app's own surfaces as panels: `sessions` is the whole sidebar (switcher, actions, filter, list, attention strip, in types/sessions/) and `claude` is the terminal area (tab bar and terminals, in types/claude/).

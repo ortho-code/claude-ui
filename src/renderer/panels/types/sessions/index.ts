@@ -4,7 +4,7 @@ import { store, type View } from '../../../state/app';
 import { switcherPool, visibleSessions } from '../../../state/views';
 import { strokeIcon } from '../../../svg';
 import { builtinType, hostOf } from '../builtin';
-import type { PanelStatus } from '../command';
+import type { PanelStatus } from '../../contract';
 import './index.css';
 
 /**

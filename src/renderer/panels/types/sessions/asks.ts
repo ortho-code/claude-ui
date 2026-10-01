@@ -1,5 +1,5 @@
 import { sessionById } from '../../../state/views';
-import type { Asks } from '../command';
+import type { Asks } from '../../contract';
 import { jumpToGroup, revealProjectInSidebar, revealSessionInSidebar } from './list';
 import { selectProject } from './switcher';
 

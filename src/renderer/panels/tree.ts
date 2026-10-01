@@ -25,7 +25,8 @@ import { claudeType } from './types/claude';
 import { sessionsType } from './types/sessions';
 import { folderTypes } from './types/folder';
 import { linkedSessions, pickSession, startSession } from './links';
-import { commandType, type Asks, type MountedPanel, type PanelHost, type PanelStatus, type PanelType, type Where } from './types/command';
+import type { Asks, MountedPanel, PanelHost, PanelStatus, PanelType, Where } from './contract';
+import { commandType } from './types/command';
 import { terminalType } from './types/terminal';
 
 /**

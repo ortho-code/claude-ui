@@ -3,7 +3,7 @@ import { ICON_NAMES, isIconName, type IconName } from '../icons';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
 import { CWD_OPTION, INTERVAL_OPTION, isFixedPath, valueProblem, type OptionDecl } from '../options';
 import { fieldsOf, unknownFields } from '../fields';
-import type { PanelType } from './command';
+import type { PanelType } from '../contract';
 import { mountList } from './list';
 
 /**

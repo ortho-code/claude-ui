@@ -7,7 +7,7 @@ import { moveSessionToGroup } from '../../../state/groups';
 import { projName, sessionById, tabWith } from '../../../state/views';
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
-import type { Asks } from '../command';
+import type { Asks } from '../../contract';
 import { activateTab, closeTab, createTab, startTab, stopSession, switchWorkspaceTerminal, type TabLaunch } from './terminals';
 
 /**

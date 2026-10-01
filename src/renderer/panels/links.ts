@@ -5,7 +5,7 @@ import { askForSession } from '../sessiondialog';
 import { showToast } from '../toast';
 import { store, withEntry } from '../state/app';
 import { projName, projectGroups, switcherPool, tabWith, visibleSessions } from '../state/views';
-import type { Asks, LinkedSession, SessionRequest } from './types/command';
+import type { Asks, LinkedSession, SessionRequest } from './contract';
 
 /**
  * THE PANELS' SESSION LINKS: the sessions each panel's rows started, which a row marks and goes back to, and the dialog a row's action starts one through.

@@ -4,7 +4,8 @@ import { folderName } from '../../logic';
 import { bindTerminal, createTerminal, unbindTerminal, type TerminalView } from '../../terminal';
 import './terminal.css';
 import { CWD_OPTION, isFixedPath, optionsOf } from '../options';
-import { NO_CONTEXT, prepare, resolveContext, type MountedPanel, type PanelHost, type PanelType } from './command';
+import type { MountedPanel, PanelHost, PanelType } from '../contract';
+import { NO_CONTEXT, prepare, resolveContext } from './command';
 
 /**
  * The `terminal` panel type: a plain shell beside the terminal, in a pty, shown in an xterm.
