@@ -117,15 +117,18 @@ export async function restoreOpenTabs(): Promise<void> {
     // Restore the tabs COLD — no claude process each.
     // Starting them all was costing 20 processes at ~437 MB on this machine, spawned whether or not any was used, plus 20 CLI cold starts on every launch.
     // A tab starts when you select it.
-    let toActivate: string | null = null;
-    for (const key of openKeys) {
-      const session = tips.get(key);
-      if (!session) continue;
-      const token = buildTab(session);
-      if (key === activeKey) toActivate = token;
-    }
-    // Land where you left off — SELECTED but not started, since nothing is meant to be live after a restart. Without a remembered tab we open on none rather than guessing.
-    if (toActivate) activateTab(toActivate, false);
+    // One change for every tab and the one selected, so whoever draws the tabs draws them once rather than once per tab.
+    store.batch(() => {
+      let toActivate: string | null = null;
+      for (const key of openKeys) {
+        const session = tips.get(key);
+        if (!session) continue;
+        const token = buildTab(session);
+        if (key === activeKey) toActivate = token;
+      }
+      // Land where you left off — SELECTED but not started, since nothing is meant to be live after a restart. Without a remembered tab we open on none rather than guessing.
+      if (toActivate) activateTab(toActivate, false);
+    });
   } finally {
     restoring = false;
     persistOpenTabs();

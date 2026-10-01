@@ -124,6 +124,24 @@ test('a tab restored where you left off is selected and not started, and Resume 
   await expect(pane(page)).toHaveText(`Starting “${one.title}”…`);
 });
 
+test('the tabs restored at launch are drawn once, not once per tab', async ({ app, page }) => {
+  const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Second session' });
+  const three = session({ id: '00000000-0000-4000-8000-000000000003', title: 'Third session' });
+  // Counted from before the window's own scripts run: every drawing of the bar builds its rows afresh, and these three share one row.
+  await page.addInitScript(() => {
+    const drawn: Node[] = [];
+    (window as unknown as { __rowsDrawn: Node[] }).__rowsDrawn = drawn;
+    new MutationObserver((records) => {
+      for (const record of records) for (const node of record.addedNodes) if (node instanceof Element && node.matches('.tab-project')) drawn.push(node);
+    }).observe(document, { childList: true, subtree: true });
+  });
+  await app.boot({ sessions: [one, two, three], openSessions: [one.id, two.id, three.id], activeSession: three.id, history: { [one.id]: [], [two.id]: [], [three.id]: [] } });
+  // The restore's last step: the tab you left off in, selected.
+  await expect(tab(page, three.title)).toHaveClass(/\bactive\b/);
+  await expect(page.locator('.tab')).toHaveCount(3);
+  expect(await page.evaluate(() => (window as unknown as { __rowsDrawn: Node[] }).__rowsDrawn.length)).toBe(1);
+});
+
 test('claude ending within moments of its start keeps the tab, uncovered, and logs what it said', async ({ app, page }) => {
   await app.boot(fixture);
   await page.locator('.session', { hasText: one.title }).click();
