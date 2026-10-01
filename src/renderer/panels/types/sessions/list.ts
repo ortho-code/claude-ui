@@ -185,10 +185,15 @@ interface FullRead {
   startUp?: StoredView;
 }
 
-/** A full read of what the list draws from main, set in one change. */
+/**
+ * A full read of what the list draws from main, set in one change.
+ * Start-up's is written whole: nothing can have written those slices before the first draw but a status event from a claude a crashed launch left running, and leaving its statuses out for that one event would cost every other session's, which only this read has.
+ * Any later one is written as of when it asked (`readAt`), so a status, a pin or a listing that landed while it was out is not put back to what it read.
+ */
 export async function renderSessions({ showLoading = true, revealed, startUp }: FullRead = {}): Promise<void> {
   if (showLoading) setLoading(true);
   try {
+    const readAt = store.stamp();
     const [sessions, pinnedList, archivedList, statusMap, namesMap, noteMap, groupState, storedProject] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getPinned(),
@@ -203,18 +208,24 @@ export async function renderSessions({ showLoading = true, revealed, startUp }: 
     // Writes only when a root is genuinely new, so the common case costs one read.
     // Recency order is what seeds the very first run.
     const projectOrder = await window.claudeUi.seedProjectOrder([...new Set(sessions.map((s) => s.repoRoot))]);
-    store.set({
-      sessions,
-      statuses: new Map(Object.entries(statusMap)),
-      pinned: new Set(pinnedList),
-      archived: new Map(Object.entries(archivedList)),
-      notes: new Map(Object.entries(noteMap)),
-      groupState,
-      projectNames: new Map(Object.entries(namesMap)),
-      projectOrder,
+    store.batch(() => {
+      store.set(
+        {
+          sessions,
+          statuses: new Map(Object.entries(statusMap)),
+          pinned: new Set(pinnedList),
+          archived: new Map(Object.entries(archivedList)),
+          notes: new Map(Object.entries(noteMap)),
+          groupState,
+          projectNames: new Map(Object.entries(namesMap)),
+          projectOrder,
+          ...(startUp ? { activeProject: storedProject, ...startUp } : {}),
+        },
+        startUp ? undefined : { readAt },
+      );
       // In the same change, so a row whose files are gone never shows for a moment between no longer hiding it and the listing without it.
-      ...(revealed === undefined ? {} : { pendingDeletes: withMember(store.get().pendingDeletes, revealed, false) }),
-      ...(startUp ? { activeProject: storedProject, ...startUp } : {}),
+      // Whatever listing that is: one that landed while this read was out was asked after the delete too, which is why this one was left out.
+      if (revealed !== undefined) store.set({ pendingDeletes: withMember(store.get().pendingDeletes, revealed, false) });
     });
   } finally {
     if (showLoading) setLoading(false);

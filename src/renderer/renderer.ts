@@ -33,8 +33,10 @@ import { routeTerminals } from './terminal';
 
 // A disk change fired: re-read sessions; the store tells the list and the tabs only when the structure actually changed (a new/removed session, a rename, or a new branch becoming the tip).
 // Statuses and pins arrive on their own channels, so we don't refetch them here.
+// As of when it asked: changes close together send reads that can land out of order, and the listing asked first must not land over one asked after it.
 async function refreshFromDisk(): Promise<void> {
-  store.set({ sessions: await window.claudeUi.listSessions() });
+  const readAt = store.stamp();
+  store.set({ sessions: await window.claudeUi.listSessions() }, { readAt });
 }
 
 // --- Wiring ---

@@ -207,6 +207,36 @@ describe('createStore', () => {
     store.set({ count: 1 });
   });
 
+  it('leaves out of a read every slice written since it asked, and writes the rest, telling only about those', () => {
+    const store = fresh();
+    const told: string[] = [];
+    store.watch(['count'], (view) => told.push(`count ${view.count}`));
+    store.watch(['name'], (view) => told.push(`name ${view.name}`));
+    const readAt = store.stamp();
+    store.set({ count: 5 });
+    store.set({ count: 1, name: 'read' }, { readAt });
+    expect(store.get()).toMatchObject({ count: 5, name: 'read' });
+    expect(told).toEqual(['count 5', 'name read']);
+  });
+
+  it('keeps what a read wrote over it only until a read asked later, or a plain write, comes along', () => {
+    const store = fresh();
+    const first = store.stamp();
+    const second = store.stamp();
+    // The later one lands first, and the earlier one after it is older than what is there.
+    store.set({ name: 'second' }, { readAt: second });
+    store.set({ name: 'first' }, { readAt: first });
+    expect(store.get().name).toBe('second');
+    // The other way round, the later one still wins.
+    const third = store.stamp();
+    const fourth = store.stamp();
+    store.set({ name: 'third' }, { readAt: third });
+    store.set({ name: 'fourth' }, { readAt: fourth });
+    expect(store.get().name).toBe('fourth');
+    store.set({ name: 'now' });
+    expect(store.get().name).toBe('now');
+  });
+
   it('tells nothing for a batch that throws, and tells what it changed with the next change', () => {
     const store = fresh();
     const views: string[] = [];

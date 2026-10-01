@@ -15,15 +15,26 @@
  * A watcher is also handed `before`: the slices it is told about as they were at its last call, so a repaint that draws only what moved does not keep a copy of its own.
  * A slice that has not changed since by its equality is handed as it is now, so `before.x !== view.x` exactly when `x` changed: an equal new value, stored without telling, is not a change to anyone comparing them.
  * Per watcher, from its subscription on, so a watcher told twice in one round sees only what moved since its own last call.
+ *
+ * Every slice also knows how new its value is, so a read from main that lands after something newer does not put the older answer back.
+ * A plain `set` is true now. A read takes a `stamp` before it asks and writes with it as `readAt`: a slice written with anything newer is left as it is, and one it does write is as new as the moment it asked, so a read asked later still wins over it, whichever lands first.
  */
 
 export type Equality<T> = (a: T, b: T) => boolean;
 
+/** A moment in the store's writes, which a read takes before it asks main and writes with after (`Store.stamp`). */
+export type Stamp = number;
+
 export interface Store<S extends object> {
   /** The whole state as it is now, for handlers. */
   get(): Readonly<S>;
-  /** Replace the slices in `patch`, and tell the watchers of those that changed, now or at the end of the batch. */
-  set(patch: Partial<S>): void;
+  /**
+   * Replace the slices in `patch`, and tell the watchers of those that changed, now or at the end of the batch.
+   * With `readAt`, the patch is what was true at that stamp: a slice written with anything newer since is left out.
+   */
+  set(patch: Partial<S>, options?: { readAt: Stamp }): void;
+  /** Now, for a read about to ask main for what it then writes with `readAt`. */
+  stamp(): Stamp;
   /** Run `fn`, telling watchers once at its end about everything it changed. Batches nest; the outermost one tells. One that throws tells nothing, and what it changed is told with the next change. */
   batch(fn: () => void): void;
   /**
@@ -63,6 +74,9 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
   let changed = new Set<keyof S>();
   let depth = 0;
   let telling = false;
+  // The store's clock, which every plain write and every stamp moves on, and the moment each slice's value is as new as; a slice never written is older than any read.
+  let clock: Stamp = 0;
+  const asOf = new Map<keyof S, Stamp>();
 
   const equal = <K extends keyof S>(key: K, a: S[K], b: S[K]): boolean => (equality[key] ?? Object.is)(a, b);
 
@@ -107,8 +121,11 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
 
   return {
     get: () => state,
-    set(patch) {
+    set(patch, options) {
+      const now = options?.readAt ?? ++clock;
       for (const key of Object.keys(patch) as (keyof S)[]) {
+        if ((asOf.get(key) ?? 0) > now) continue;
+        asOf.set(key, now);
         const next = patch[key] as S[keyof S];
         const was = state[key];
         state[key] = next;
@@ -116,6 +133,7 @@ export function createStore<S extends object>(initial: S, equality: { [K in keyo
       }
       tell();
     },
+    stamp: () => ++clock,
     batch(fn) {
       depth++;
       try {
