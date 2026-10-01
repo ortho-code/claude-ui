@@ -1,5 +1,7 @@
-/* Command output wears the terminal's face, since it is what the terminal would have shown. No
-   wrapping (a status line is a line) and it scrolls both ways; a wrap toggle is a later addition. */
+/*
+  Command output wears the terminal's face, since it is what the terminal would have shown.
+  No wrapping (a status line is a line) and it scrolls both ways; a wrap toggle is a later addition.
+*/
 .panel-output {
   flex: 1;
   min-height: 0;
