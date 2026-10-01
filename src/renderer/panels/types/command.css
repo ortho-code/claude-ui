@@ -1,11 +1,3 @@
-/* The body every panel type fills — this one's, a terminal's and a list's — under the tree's header; kept with the type contract (command.ts), which every type implements. */
-.panel-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 /* Command output wears the terminal's face, since it is what the terminal would have shown. No
    wrapping (a status line is a line) and it scrolls both ways; a wrap toggle is a later addition. */
 .panel-output {
