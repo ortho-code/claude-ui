@@ -3,6 +3,7 @@ import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // The list is projects in the order you set, each holding its groups in registry order and then its loose rows, with pins floated inside their own section (docs/architecture.md § App-side metadata and session groups).
 // Folds are kept, and come in two kinds (§ Reopening the way you left it): the ones you made, stored, and the ones made while a filter is on, which last as long as the filter.
@@ -47,7 +48,7 @@ test('folding a project or a group is kept', async ({ app, page }) => {
   await app.boot(fixture);
   await project(page, 'demo').locator('> .section-heading').click();
   await expect(project(page, 'demo')).toHaveClass(/\bcollapsed\b/);
-  await expect(page.locator('.session', { hasText: newer.title })).toBeHidden();
+  await expect(row(page, newer.title)).toBeHidden();
   await expect.poll(async () => (await saved(app))?.collapsedProjects).toEqual([PROJECT]);
 
   await project(page, 'demo').locator('> .section-heading').click();
@@ -93,7 +94,7 @@ test('a project folded in All opens when you choose it, and stays open when you 
   };
 
   await choose('other');
-  await expect(page.locator('.session', { hasText: elsewhere.title })).toBeVisible();
+  await expect(row(page, elsewhere.title)).toBeVisible();
   await choose('All');
   await expect(project(page, 'other')).not.toHaveClass(/\bcollapsed\b/);
   await expect.poll(async () => (await saved(app))?.collapsedProjects).toEqual([]);
@@ -119,7 +120,7 @@ test('a filter opens every fold, a fold made under it lasts as long as the filte
   await page.locator('#search').fill('alpha');
   // Open, so the match inside it is not hidden from you.
   await expect(group(page, 'Alpha')).not.toHaveClass(/\bcollapsed\b/);
-  await expect(page.locator('.session', { hasText: inAlpha.title })).toBeVisible();
+  await expect(row(page, inAlpha.title)).toBeVisible();
 
   // A way through the results, not a statement about the sidebar.
   await project(page, 'demo').locator('> .section-heading').click();

@@ -3,6 +3,7 @@ import { projectGoneReason } from '../../../../../../src/renderer/logic';
 import type { Exchange, SessionSummary } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // The empty terminal pane names the next action, and there are four (docs/architecture.md § UI conventions): no sessions at all, no tabs on show in this project, tabs but none selected, and a selected tab that is not running, which the lifecycle's checks cover.
 // It counts the tabs ON SHOW (`visibleTabs`), not every open tab: "pick a tab above" beside an empty bar was the bug that rule fixed.
@@ -150,7 +151,7 @@ test('each tab keeps its history as it was left: open where it was on one, close
 
 /** Reopen the session's tab from its row and let its claude print; then its history has been read, and would have reopened by now if it was going to. */
 async function reopen(page: Page, app: App, pty: number): Promise<void> {
-  await page.locator('.session', { hasText: here.title }).click();
+  await row(page, here.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(pty);
   expect(await app.emit('onTerminalData', pty, 'claude is here')).toBe(1);
   await expect(page.locator('.history .exchange-request-text').first()).toHaveText('First request');

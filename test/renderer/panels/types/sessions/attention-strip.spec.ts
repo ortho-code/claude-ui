@@ -3,6 +3,7 @@ import { defaultUi } from '../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
+import { row } from '../../../support/window';
 
 // The strip lists what is RUNNING, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
 // It keeps still: a session writing a message or waiting moves no row, which recency- or attention-ordering did (6f04c95).
@@ -64,7 +65,7 @@ test('a strip row jumps to its session in another project: the project, the tab 
   await page.locator('#footer-list .footer-item-jump', { hasText: elsewhere.title }).click();
   await expect(page.locator('#switcher-name')).toHaveText('other');
   await expect(page.locator('.tab', { hasText: elsewhere.title })).toHaveClass(/\bactive\b/);
-  await expect(page.locator('.session', { hasText: elsewhere.title })).toHaveClass(/\bactive-session\b/);
+  await expect(row(page, elsewhere.title)).toHaveClass(/\bactive-session\b/);
   // Already running: nothing started again.
   expect(await app.calls('startTerminal')).toHaveLength(1);
 });

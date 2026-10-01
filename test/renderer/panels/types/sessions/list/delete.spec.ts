@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // Deleting is the archived view's, confirmed first (docs/architecture.md § App-side metadata and session groups).
 // The row goes the moment the delete is confirmed and never comes back: it stays hidden while its files are being moved to the trash, and stops being hidden in the same change as the listing that no longer has it.
@@ -29,7 +30,7 @@ const addedCount = (page: Page): Promise<number> => page.evaluate(() => (window 
 const deleteWithListingHeld = async (app: App, page: Page): Promise<void> => {
   const asked = (await app.calls('getAllStatuses')).length;
   await app.hold('listSessions');
-  await page.locator('.session', { hasText: gone.title }).locator('.delete-btn').click();
+  await row(page, gone.title).locator('.delete-btn').click();
   await page.locator('#confirm-ok').click();
   await expect.poll(async () => (await app.calls('getAllStatuses')).length).toBe(asked + 1);
 };
@@ -43,23 +44,23 @@ const releaseListing = async (app: App): Promise<void> => {
 
 test('cancelling a delete leaves the session where it was', async ({ app, page }) => {
   await app.boot(fixture);
-  await page.locator('.session', { hasText: gone.title }).locator('.delete-btn').click();
+  await row(page, gone.title).locator('.delete-btn').click();
   await expect(page.locator('#confirm-message')).toHaveText(`Delete "${gone.title}"?`);
   await page.locator('#confirm-cancel').click();
   await expect(page.locator('#confirm-overlay')).toBeHidden();
-  await expect(page.locator('.session', { hasText: gone.title })).toHaveCount(1);
+  await expect(row(page, gone.title)).toHaveCount(1);
   expect(await app.calls('deleteSession')).toEqual([]);
 });
 
 test('a confirmed delete takes the row away at once and it never comes back', async ({ app, page }) => {
   await app.boot(fixture);
-  await expect(page.locator('.session', { hasText: gone.title })).toHaveCount(1);
+  await expect(row(page, gone.title)).toHaveCount(1);
   const reads = (await app.calls('listSessions')).length;
-  await page.locator('.session', { hasText: gone.title }).locator('.delete-btn').click();
+  await row(page, gone.title).locator('.delete-btn').click();
   await watchAdded(page, gone.id);
   await page.locator('#confirm-ok').click();
 
-  await expect(page.locator('.session', { hasText: gone.title })).toHaveCount(0);
+  await expect(row(page, gone.title)).toHaveCount(0);
   await expect.poll(() => app.calls('deleteSession')).toEqual([[gone.id]]);
   // The read after the delete is what stops hiding it; everything after it is answered at once, so by the next look the list has been drawn from it.
   await expect.poll(async () => (await app.calls('listSessions')).length).toBe(reads + 1);
@@ -81,7 +82,7 @@ test('a status that lands while the read after a delete is out is not put back b
   expect(await app.emit('onSessionStatus', worker.id, 'busy', '')).toBe(1);
   await expect(dot).toHaveClass(/\bbusy\b/);
   await releaseListing(app);
-  await expect(page.locator('.session', { hasText: gone.title })).toHaveCount(0);
+  await expect(row(page, gone.title)).toHaveCount(0);
   await expect(page.locator('#notifications .notif')).toHaveCount(0);
   await expect(dot).toHaveClass(/\bbusy\b/);
 });
@@ -93,7 +94,7 @@ test('a pin made while the read after a delete is out is not taken back by it', 
   // Out of the archived view, where a row has its pin.
   await page.locator('#filter-toggle').click();
   await page.locator('#archived-filter').click();
-  const pin = page.locator('.session', { hasText: worker.title }).locator('.pin');
+  const pin = row(page, worker.title).locator('.pin');
   await pin.click();
   await expect(pin).toHaveAttribute('data-tooltip', 'Unpin');
   await releaseListing(app);

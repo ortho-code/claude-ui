@@ -4,6 +4,7 @@ import type { TerminalLaunch } from '../../../../../src/shared/types';
 import { CONFIG_ROOT, PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { hoveredAndOpen } from '../../../support/looks';
+import { row } from '../../../support/window';
 import { runs, withLayout } from '../../layout/layout';
 
 // A list panel's row marks the sessions it started with the session list's own dot, in the list's own words (docs/architecture.md § Panels): it follows each session's status, a mark read, and whether it runs, as the session list does.
@@ -104,7 +105,7 @@ test("a row's session mark follows its session's status, a mark read, and whethe
 
   // A mark read, made on the session list's own dot.
   expect(await app.emit('onSessionStatus', reviewed.id, 'idle', '')).toBe(1);
-  await page.locator('.session', { hasText: reviewed.title }).locator('.nudge').click();
+  await row(page, reviewed.title).locator('.nudge').click();
   await expect(mark(page, 'Fix the login redirect').locator('.nudge')).toHaveClass(/\backed\b/);
 
   // Without a status, whether it runs: its tab started, and stopped again.
@@ -119,18 +120,17 @@ test("a row's session mark follows its session's status, a mark read, and whethe
 
 test('a row stays lit while the menu its session mark opened is up, as a session row does', async ({ app, page }) => {
   await bootQueue(app, page, { [reviewed.id]: link('org/repo#3'), [quiet.id]: link('org/repo#3') });
-  const row = page.locator('.list-row', { hasText: 'Speed up the search' });
+  const item = page.locator('.list-row', { hasText: 'Speed up the search' });
   await mark(page, 'Speed up the search').click();
   // On the menu, off the row, so the open menu is all that can be lighting it.
   await page.locator('.kebab-menu button', { hasText: reviewed.title }).hover();
   const lit = await litFill(page);
-  await expect.poll(() => row.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(lit);
+  await expect.poll(() => item.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(lit);
 });
 
 test("a still row's session mark keeps its hover look while its menu is up, which is all that says where the menu came from", async ({ app, page }) => {
   await bootQueue(app, page, { [reviewed.id]: link('org/repo#1'), [quiet.id]: link('org/repo#1') });
-  const row = page.locator('.list-row', { hasText: 'Fix the login redirect' });
-  await expect(row).toHaveClass(/\bstill\b/);
+  await expect(page.locator('.list-row', { hasText: 'Fix the login redirect' })).toHaveClass(/\bstill\b/);
   const { hovered, open } = await hoveredAndOpen(page, mark(page, 'Fix the login redirect'));
   expect(open).toEqual(hovered);
 });

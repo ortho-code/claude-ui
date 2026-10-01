@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { type App, expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 import { here, railItem, withLayout } from '../../../layout/layout';
 
 // The tab on show fills the terminal area, and claude is told its size in columns and rows, whenever the area changes size: the window, a divider, the layout rebuilt.
@@ -29,7 +30,7 @@ const lastSize = async (app: App): Promise<Size> => (await sizes(app)).at(-1)!;
 
 /** Start the session's row and let claude print, so the tab on show is live; the stand-in numbers its ptys from 1. */
 async function goLive(page: Page, app: App): Promise<void> {
-  await page.locator('.session', { hasText: here.title }).click();
+  await row(page, here.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   expect(await app.emit('onTerminalData', 1, 'claude is here')).toBe(1);
   await expect(page.locator('#term-placeholder')).toBeHidden();

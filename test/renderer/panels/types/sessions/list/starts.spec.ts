@@ -1,6 +1,7 @@
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // The ways the session list starts a session other than a row's own click (docs/architecture.md § Tab lifecycle): a sibling from the siblings menu, a fork from a row's options, and a session in a new worktree from the project's "+".
 const parent = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'The parent', isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000a2'] });
@@ -16,7 +17,7 @@ const launches = async (app: App): Promise<[string, TerminalLaunch][]> => (await
 
 test("the siblings menu goes to a sibling: its tab opens, resumed, on show", async ({ app, page }) => {
   await app.boot(fixture);
-  await page.locator('.session', { hasText: parent.title }).locator('.sibling-badge').click();
+  await row(page, parent.title).locator('.sibling-badge').click();
   await page.locator('.kebab-menu button', { hasText: sibling.title }).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[, launch]] = await launches(app);
@@ -26,7 +27,7 @@ test("the siblings menu goes to a sibling: its tab opens, resumed, on show", asy
 
 test("a fork from a row's options starts a copy of it under a new id, named as asked, in its parent's group", async ({ app, page }) => {
   await app.boot(fixture);
-  await page.locator('.session', { hasText: parent.title }).locator('.session-kebab').click();
+  await row(page, parent.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button', { hasText: 'Fork this session' }).click();
   await expect(page.locator('#rename-input')).toHaveValue(parent.title);
   await page.locator('#rename-input').fill('The fork');

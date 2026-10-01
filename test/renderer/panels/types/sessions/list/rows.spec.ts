@@ -1,14 +1,12 @@
-import type { Locator, Page } from '@playwright/test';
 import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // A row says what its session's tab is doing (docs/architecture.md § Tab lifecycle): `open` while it has a tab, `cold` while that tab has no claude behind it, and `active-session` for the tab on show.
 // Accent means a live session, nowhere else, so the cold bar is muted where the live one is accent.
 const one = session();
 const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Another session' });
 const fixture = { sessions: [one, two], history: { [one.id]: [], [two.id]: [] } };
-
-const row = (page: Page, title: string): Locator => page.locator('.session', { hasText: title });
 
 test('a row is marked open, cold and on show as its tab is', async ({ app, page }) => {
   await app.boot({ ...fixture, openSessions: [one.id] });

@@ -3,6 +3,7 @@ import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // A group is made, renamed, moved and deleted from the list, and the tab bar, which clusters tabs by group, follows every change at once (the one-behaviour rule in CLAUDE.md).
 const OTHER = `${HOME}/projects/other`;
@@ -43,7 +44,7 @@ const answerPrompt = async (page: Page, text: string): Promise<void> => {
 
 test('a group made from a row takes the row, and its tab moves into the group\'s row in the tab bar', async ({ app, page }) => {
   await app.boot(fixture);
-  await page.locator('.session', { hasText: loose.title }).locator('.session-kebab').click();
+  await row(page, loose.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button', { hasText: 'Move to group' }).click();
   await page.locator('.kebab-menu.submenu button', { hasText: 'New group…' }).click();
   await answerPrompt(page, 'Gamma');

@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // A project with nothing left to show cannot stay selected: the window falls back to All exactly as picking it does, and every surface that honours the selection follows it there, the tab bar included.
 // Setting the scope alone once left the bar empty while the list and the switcher said All, and the pane pointed at a tab above that was not there.
@@ -23,7 +24,7 @@ test('archiving the last session of the project on show falls back to All in the
   await expect(page.locator('#switcher-name')).toHaveText('demo');
   await expect(tabs(page)).toHaveText([here.title]);
 
-  await page.locator('.session', { hasText: here.title }).locator('.session-kebab').click();
+  await row(page, here.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button', { hasText: 'Archive' }).click();
 
   await expect(page.locator('#switcher-name')).toHaveText('All');

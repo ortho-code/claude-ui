@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // A tab's life (docs/architecture.md § Tab lifecycle): selecting it starts it, it boots until claude prints, its button stops the session and keeps the tab cold, a second press closes it; claude ending by itself closes the tab, unless it ended so soon that the start failed.
 const one = session();
@@ -15,7 +16,7 @@ const pane = (page: Page): Locator => page.locator('#term-placeholder');
 
 /** Start the session's row and let claude print, so the tab is live. */
 async function startLive(page: Page, app: App): Promise<void> {
-  await page.locator('.session', { hasText: one.title }).click();
+  await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   expect(await app.emit('onTerminalData', FIRST, 'claude is here')).toBe(1);
   await expect(pane(page)).toBeHidden();
@@ -23,7 +24,7 @@ async function startLive(page: Page, app: App): Promise<void> {
 
 test('a row starts its session by resuming it, and the pane says it is starting until claude prints', async ({ app, page }) => {
   await app.boot(fixture);
-  await page.locator('.session', { hasText: one.title }).click();
+  await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[cwd, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
   expect(cwd).toBe(PROJECT);
@@ -51,7 +52,7 @@ test("a new session starts under an id the window minted, and its row is in the 
   expect(launch.resumeSessionId).toBeUndefined();
 
   await expect(tab(page, 'New: demo')).toHaveClass(/\bactive\b/);
-  await expect(page.locator('.session', { hasText: 'New: demo' })).toBeVisible();
+  await expect(row(page, 'New: demo')).toBeVisible();
 });
 
 test("closing the tab of a session that never wrote anything takes its stand-in row out of the list", async ({ app, page }) => {
@@ -59,7 +60,7 @@ test("closing the tab of a session that never wrote anything takes its stand-in 
   await page.locator('.project-add').click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   expect(await app.emit('onTerminalData', FIRST, 'claude is here')).toBe(1);
-  await expect(page.locator('.session', { hasText: 'New: demo' })).toBeVisible();
+  await expect(row(page, 'New: demo')).toBeVisible();
 
   // Stopped, then closed: it never wrote a transcript, so its tab was all that put it in the list.
   const close = tab(page, 'New: demo').locator('.tab-close');
@@ -68,8 +69,8 @@ test("closing the tab of a session that never wrote anything takes its stand-in 
   await expect(close).toBeEnabled();
   await close.click();
   await expect(tab(page, 'New: demo')).toHaveCount(0);
-  await expect(page.locator('.session', { hasText: 'New: demo' })).toHaveCount(0);
-  await expect(page.locator('.session', { hasText: one.title })).toHaveCount(1);
+  await expect(row(page, 'New: demo')).toHaveCount(0);
+  await expect(row(page, one.title)).toHaveCount(1);
 });
 
 test("the tab's button stops the session and keeps the tab cold, and a second press closes it", async ({ app, page }) => {
@@ -144,7 +145,7 @@ test('the tabs restored at launch are drawn once, not once per tab', async ({ ap
 
 test('claude ending within moments of its start keeps the tab, uncovered, and logs what it said', async ({ app, page }) => {
   await app.boot(fixture);
-  await page.locator('.session', { hasText: one.title }).click();
+  await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
 
   await app.emit('onTerminalExit', FIRST, 1);

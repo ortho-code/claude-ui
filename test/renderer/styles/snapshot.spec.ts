@@ -4,6 +4,7 @@ import type { Exchange, UiState } from '../../../src/shared/types';
 import { LAYOUT, runs, withLayout } from '../panels/layout/layout';
 import { type BridgeFixture, CONFIG_ROOT, HOME, PROJECT, session } from '../support/fixture';
 import { type App, expect, test } from '../support/harness';
+import { row, rows } from '../support/window';
 import { snapshot } from './capture';
 
 // NOT A CHECK: a tool, for moving CSS without changing what anything looks like (docs/architecture.md § The window's checks).
@@ -63,7 +64,7 @@ async function start(app: App, page: Page, title: string, pty: number, print = t
 
 test('first run', async ({ app, page }) => {
   await app.boot();
-  await expect(page.locator('#sessions .session')).toHaveCount(1);
+  await expect(rows(page)).toHaveCount(1);
   await snapshot(page, DIR!, 'first-run');
 });
 
@@ -73,7 +74,7 @@ test('a busy window: groups, marks, tabs in every state, the strip and both toas
   await start(app, page, there.title, 2);
   await start(app, page, booting.title, 3, false);
   // A waiting dot marked read, a background tab turning to wait for you (the attention toast), and the toast that stays until dismissed.
-  await page.locator('.session', { hasText: cold.title }).locator('.nudge').click();
+  await row(page, cold.title).locator('.nudge').click();
   await app.emit('onSessionStatus', there.id, 'waiting', '');
   await app.emit('onClaudeMissing');
   await expect(page.locator('#notifications .notif')).toHaveCount(1);
@@ -102,7 +103,7 @@ test('the filter panel shut over a filter, as chips', async ({ app, page }) => {
 
 test("a session's menu with its submenu open", async ({ app, page }) => {
   await app.boot({ ...busy, openSessions: [] });
-  await page.locator('.session', { hasText: marked.title }).locator('.session-kebab').click();
+  await row(page, marked.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button', { hasText: 'Move to group' }).click();
   await expect(page.locator('.kebab-menu.submenu')).toBeVisible();
   await snapshot(page, DIR!, 'menu');

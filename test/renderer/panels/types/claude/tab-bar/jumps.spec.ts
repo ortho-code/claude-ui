@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // A tab-bar label is a jump: a project's to its heading, a group's to the group's heading, unfolding on the way, and both flash where they land (4182dd9, e646936).
 const TARGET = `${HOME}/projects/target`;
@@ -63,12 +64,12 @@ test("a project's tab-bar label scrolls the sidebar to its heading and flashes i
 
 test("a tab's click shows where its session lives: its project and group unfolded, its row scrolled into view", async ({ app, page }) => {
   await app.boot({ ...fixture, history: { [grouped.id]: [] }, uiState: { ...defaultUi(), collapsedProjects: [TARGET], collapsedGroups: ['g-work'] } });
-  const row = page.locator('.session', { hasText: grouped.title });
-  await expect(row).toBeHidden();
+  const itsRow = row(page, grouped.title);
+  await expect(itsRow).toBeHidden();
 
   await page.locator('.tab-label', { hasText: grouped.title }).click();
-  await expect(row).toBeVisible();
-  await expect(row).toBeInViewport();
+  await expect(itsRow).toBeVisible();
+  await expect(itsRow).toBeInViewport();
   await expect(projectHeading(page, 'target').locator('..')).not.toHaveClass(/\bcollapsed\b/);
 });
 
@@ -83,5 +84,5 @@ test("a group's tab-bar label unfolds its project and group, scrolls to the grou
   expect(end).toBe(own);
   await expect(group.locator('> .section-heading')).toBeInViewport();
   await expect(group).not.toHaveClass(/collapsed/);
-  await expect(page.locator('.session', { hasText: grouped.title })).toBeVisible();
+  await expect(row(page, grouped.title)).toBeVisible();
 });

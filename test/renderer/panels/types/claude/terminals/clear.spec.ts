@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { row } from '../../../../support/window';
 
 // `/clear` ends a session and starts another in the same terminal, under an id Claude Code picks: the tab, which its token names, takes the new session over (docs/architecture.md § Tab lifecycle).
 // A cleared session is a new one, so it starts as the "+" button's blank, keeps the group its predecessor was in, and the pairing is recorded, since nothing else can observe it.
@@ -14,7 +15,6 @@ const fixture = {
 const FIRST = 1;
 
 const tab = (page: Page): Locator => page.locator('#tabbar .tab');
-const row = (page: Page, title: string): Locator => page.locator('.session', { hasText: title });
 
 test('a session cleared in its tab hands the tab to its successor, which keeps the group, and the pairing is recorded', async ({ app, page }) => {
   await app.boot(fixture);
