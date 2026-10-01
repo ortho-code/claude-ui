@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
-import type { Exchange } from '../../../../../../src/shared/types';
+import { projectGoneReason } from '../../../../../../src/renderer/logic';
+import type { Exchange, SessionSummary } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 
@@ -24,6 +25,34 @@ test("scoped to a project whose tabs are all elsewhere, the pane points at the l
   await app.boot({ sessions: [here, there], projectOrder: [PROJECT, OTHER], activeProject: PROJECT, openSessions: [there.id] });
   await expect(page.locator('.tab')).toHaveCount(0);
   await expect(page.locator('#term-placeholder')).toHaveText('Pick a session in the sidebar to open it.');
+});
+
+/** The listing as main would read it next, and the event that tells the window to read it. */
+async function listOnDisk(page: Page, app: App, sessions: SessionSummary[]): Promise<void> {
+  await page.evaluate((listed) => {
+    window.__claudeUiFixture.sessions = listed;
+  }, sessions);
+  expect(await app.emit('onSessionsChanged')).toBe(1);
+}
+
+test('the pane follows the project chosen: one whose tabs are all elsewhere points at the list, and All at the tabs again', async ({ app, page }) => {
+  await app.boot({ sessions: [here, there], projectOrder: [PROJECT, OTHER], activeProject: null, openSessions: [there.id] });
+  await expect(page.locator('#term-placeholder')).toHaveText('Pick a tab above, or a session in the sidebar, to resume it.');
+  const choose = async (name: string): Promise<void> => {
+    await page.locator('#switcher-current').click();
+    await page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: new RegExp(`^${name}$`) }) }).click();
+  };
+  await choose('demo');
+  await expect(page.locator('#term-placeholder')).toHaveText('Pick a session in the sidebar to open it.');
+  await choose('All');
+  await expect(page.locator('#term-placeholder')).toHaveText('Pick a tab above, or a session in the sidebar, to resume it.');
+});
+
+test("the pane follows the project on show's folder: gone from disk, it says the project cannot run", async ({ app, page }) => {
+  await app.boot({ sessions: [here], activeProject: PROJECT });
+  await expect(page.locator('#term-placeholder')).toHaveText('Pick a session in the sidebar to open it.');
+  await listOnDisk(page, app, [{ ...here, cwdExists: false, repoRootExists: false }]);
+  await expect(page.locator('#term-placeholder')).toHaveText(projectGoneReason(PROJECT));
 });
 
 // The pane hands itself to the tab on show's history and back: by its keys, and per tab, as each was left.
