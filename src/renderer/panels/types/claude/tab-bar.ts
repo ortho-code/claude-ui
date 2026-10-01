@@ -89,13 +89,12 @@ export function renderTabBar(view: TabBarView): void {
   initTabSortables();
 }
 
-/** The statuses and marks read the bar last followed, so a status change draws it only when one of its tabs' sessions is among those that changed. */
-let followedStatuses: View<'statuses' | 'acked'> = { statuses: new Map(), acked: new Set() };
-
-/** A status or a mark read changed: the bar draws again when one of its tabs' dots is among them. A watcher renderer.ts registers with the others. */
-export function tabBarFollowsStatuses(view: TabBarView): void {
-  const ids = statusChanges(followedStatuses, view);
-  followedStatuses = { statuses: view.statuses, acked: view.acked };
+/**
+ * A status or a mark read changed: the bar draws again when one of its tabs' dots is among those that changed since it last followed them (`before`).
+ * A watcher renderer.ts registers with the others.
+ */
+export function tabBarFollowsStatuses(view: TabBarView, before: View<'statuses' | 'acked'>): void {
+  const ids = statusChanges(before, view);
   if (view.tabs.some((t) => ids.has(t.session.id))) renderTabBar(view);
 }
 
