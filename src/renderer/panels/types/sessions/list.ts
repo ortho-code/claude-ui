@@ -126,16 +126,11 @@ function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {
   }
 }
 
-/** The tabs as the list last followed them, so a change draws the list again only when what the list draws from them moved. */
-let listedTabs: View<'tabs'>['tabs'] = [];
-
 /**
- * A tab opened, started, stopped, closed or came on show: the rows' marks follow, and the list itself is drawn again only when what it draws from the tabs moved.
+ * A tab opened, started, stopped, closed or came on show: the rows' marks follow, and the list itself is drawn again only when what it draws from the tabs moved since it last followed them (`before`).
  * The open and live filters ask which sessions have a tab and which of those run, and a session with no transcript yet is in the list only through its tab's stand-in row.
  */
-export function listFollowsTabs(view: ListView): void {
-  const before = listedTabs;
-  listedTabs = view.tabs;
+export function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
   const onDisk = new Set(view.sessions.map((s) => s.id));
   const keys = (tabs: readonly TabState[], running: boolean): string =>
     tabs
