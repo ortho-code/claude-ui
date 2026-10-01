@@ -68,7 +68,7 @@ The page is served by answering its requests from `dist/renderer` on a made-up o
 
 The checks are filed the way the window is made of panels: a panel type's under `test/renderer/panels/types/<type>/` (the `claude` panel's split into `terminals/`, `tab-bar/` and `history/`), the layout tree's under `panels/layout/`, anything that is not a panel under its own name (`settings/`), and what they all use under `support/`.
 It is the unit tests' rule too — a test is found where the thing it tests lives — applied to what the checks test, which is the window as its panels draw it rather than one module.
-The `claude` type is drawn by its own modules under `src/renderer/panels/types/claude/` (the tabs' terminals, the pane, the tab bar and the history), and `sessions` by its own under `src/renderer/panels/types/sessions/` (the switcher, the filter, the list and the attention strip), though `renderer.ts` still answers what the sidebar asks of the terminal area.
+The built-ins are filed the same way, since each is a type drawn by its own modules (§ The app's own surfaces are panels).
 
 `window.claudeUi` is a stand-in (`test/renderer/support/bridge.ts`) typed as the bridge, `ClaudeUiApi`: a call added, renamed or reshaped fails the type check there, instead of leaving a check passing against an API the app no longer has.
 It answers from a fixture of plain data (`fixture.ts`), by default a first run with one session and no layout file, and records every call, so a check can assert on what the window sent.
@@ -402,7 +402,7 @@ A repaint that reads a slice another watcher keeps current names it as read with
 Telling is synchronous, because some flows render and then measure — unfold a group, then scroll to its heading — and `batch` holds it to the end of a group of changes, so a read of several slices repaints once.
 A slice's equality decides whether its readers are told, never what is stored, and a watcher that changes state while being told is not re-entered: what it changed is told after the round.
 The store holds state and nothing else: a change main keeps is written by the action that makes it, as before, rather than by a watcher that would also write back what start-up had just read.
-The sidebar's view — the filter, the folds, the filter panel and the strip — is the one exception, saved by a watcher of its slices: it is one object written whole, on a debounce, and only when it differs from what was last stored or restored, so what start-up read is never written back.
+The sidebar's view — the filter, the folds, the filter panel and the strip — is the one exception, saved by a watcher of its slices: it is one object written whole, on a debounce, and only when it differs from what was last stored or restored, so what start-up read is never written back (`view-saving.ts`, which puts the sidebar's part, `sessions/stored-view.ts`, together with the layout tree's).
 It comes back in the start-up read's own change, beside the listing, so the first draw is already the view you left, and saving starts only from there.
 A tab is split along that line: what the surfaces draw of it — its session, its process, where it is in starting and stopping — is the store's, under the tab's token, and its terminal, the xterm and its element, stays with the terminal area under the same token; every step of a tab's life takes the token and reads the tab as it is at that moment.
 
@@ -499,9 +499,14 @@ It goes through the same validator as any file, and a test pins that it resolves
 Two built-in types exist: `sessions`, the whole sidebar (switcher, actions, filter, list, attention strip), and `claude`, the terminal area (tab bar and terminals).
 Each is ONE element for the run, moved into the group that places it and parked in a hidden holder if the layout lets go of it — never rebuilt and never disposed, so a layout change keeps every running session and its xterm exactly as they were.
 A change that remounts its entry, a new id or an option, puts that same element back, so a built-in needs no hook of its own for its options: its mount is handed the entry as it now is.
-Each is a type of its own, which builds its markup when its module loads: the terminal area in `src/renderer/panels/types/claude/`, which carries its stylesheets, and the sidebar in `src/renderer/panels/types/sessions/`, whose surfaces follow it there one at a time.
+Each is a type of its own, in a folder of its own with its stylesheets: the terminal area in `src/renderer/panels/types/claude/` (the tabs' terminals, the pane, the tab bar, the history and the attention toasts), and the sidebar in `src/renderer/panels/types/sessions/` (the switcher, the filter, the list, the attention strip, and the part of the stored view that is the sidebar's).
+Each builds its markup when its type's module loads rather than on its first mount, because its surfaces read their elements as they load; the tree mounts both as it first draws, so nothing would change if it waited.
+Both are made by one factory (`builtinType`, in `panels/types/builtin.ts`), so the re-attaching mount is written once rather than in each: it puts the element back, and hands the new host the type's rail status as it is now (`railStatus`), since a remount is a new host; after that, a watcher of the type's own hands its host every change.
+Its being a singleton is said there, where the type is, rather than special-cased in the tree, which drives a built-in exactly as it drives any panel.
 The two ask each other through the host every panel is given (`Asks`, in `panels/types/command.ts`), the same route a list panel's row takes to open or start a session: the terminal area answers opening a session or just its tab, starting, forking, stopping and closing sessions, and showing a project's tabs; the session list answers selecting a project and bringing a session, a project or a group into view.
+Each type's answers are one object in its `asks.ts`, which `renderer.ts` hands the tree, and a surface never imports the other type's modules: what they share is the store and these asks.
 An ask names a session by its id or a project by its folder, never a tab by its token, which is the terminal area's own; a built-in reaches its host outside a mount by `hostOf`, and none can ask before the tree has placed both, which it does as it first draws.
+What is left in `renderer.ts` is the start-up: every watcher, registered in the order the store tells them, the bridge's events into the store, the tree, and the order the window comes back in.
 
 Both must be placed exactly once, and the rule is the validator's rather than the DOM's: **no layout file can produce a window without the terminal.**
 One left out is added — `sessions` as the root's first column, `claude` as its last, wrapping a root that is not columns — with a note saying so; a second copy stands in its place saying where the first one is; `hidden` on one is ignored, with a note.
@@ -808,6 +813,11 @@ Parallel rules always drift, and they drift silently: the session mark and the s
 They are now one `.nudge`, with `.nudge.clickable` for the single surface where it is a control rather than a report.
 The practical test: **a comment saying "match X exactly", or "same as Y", is a bug report against the stylesheet.** It means the relationship is being maintained by whoever remembers it. Extract the shared rule and let the difference be a modifier.
 When a variant genuinely differs — a group heading is deliberately lighter than a project heading — that is a modifier on the shared base, not a second copy of it.
+
+**A module's stylesheet sits beside it, and the module imports it.** esbuild bundles every stylesheet a module imports into one `renderer.css`, in import order, each file once, so `index.html` links only that: `xterm.css` and `air-datepicker.css` are imports of the modules that use them too.
+A rule sits beside the one module that draws it; a rule several modules draw sits in a stylesheet of its own beside what owns it — the menu row in `menu.css`, the filter pill in `pill.css`, the card and the section heading in `card.css` — or in `base.css` when nothing does (the tokens, the reset, `.icon-btn`, `.nudge`, the empty pane's sentence), and is never copied into each.
+A stylesheet takes its place in the bundle where it is first imported, so `renderer.ts` imports `base.css` and the services first, ahead of every panel, and a rule that has to beat another of equal specificity sits after it in the same file.
+Moving a rule between files can change which of two such rules wins without anything in the CSS's own diff showing it, so a move is checked with the style capture (§ The window's checks).
 
 **The tab bar's names are jumps into the list.** A project's name scrolls the session list to that project and a group's to that group, and each flashes the heading it lands on: two labels at two levels doing the same thing, drawn from one shape and one hover rule.
 The group's is the function behind the heading's jump menu (`jumpToGroup`), and the project's (`revealProjectInSidebar`) flashes through the same `flash()`.
