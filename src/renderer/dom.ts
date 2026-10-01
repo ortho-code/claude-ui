@@ -7,13 +7,15 @@ export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className
 
 /**
  * One element built from markup the app writes itself, never from data, for a part whose structure reads best as HTML: built detached, by the module that draws it, for whoever assembles the parts to place.
- * Exactly one root, so a part is one thing to place.
+ * Exactly one root, so a part is one thing to place, and of `kind` when given, as `byId` checks it.
  */
-export function fromMarkup(markup: string): HTMLElement {
+export function fromMarkup(markup: string): HTMLElement;
+export function fromMarkup<T extends HTMLElement>(markup: string, kind: abstract new () => T): T;
+export function fromMarkup(markup: string, kind: abstract new () => HTMLElement = HTMLElement): HTMLElement {
   const holder = document.createElement('div');
   holder.innerHTML = markup.trim();
   const root = holder.firstElementChild;
-  if (!(root instanceof HTMLElement) || holder.childElementCount !== 1) throw new Error('fromMarkup takes markup with exactly one root element.');
+  if (!(root instanceof kind) || holder.childElementCount !== 1) throw new Error(`fromMarkup takes markup with exactly one root element, a ${kind.name}.`);
   root.remove();
   return root;
 }

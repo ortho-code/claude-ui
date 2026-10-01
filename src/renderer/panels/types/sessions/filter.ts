@@ -2,14 +2,13 @@ import AirDatepicker from 'air-datepicker';
 import localeEn from 'air-datepicker/locale/en';
 import 'air-datepicker/air-datepicker.css';
 import type { SessionSummary, UiState } from '../../../../shared/types';
+import { byId, fromMarkup } from '../../../dom';
 import { datePresetRange, entityKey, sessionPasses } from '../../../logic';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
 import { isFiltering, searchText } from '../../../state/views';
 import { closeIcon, folderGoneIcon, NOTE_ICON, PINNED_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { iconSvg } from '../../icons';
-// The sidebar's markup, which holds the filter's elements: built before this module reads them.
-import './index';
 // The filter pill its pills and presets wear, shared with the history's All · Pinned.
 import '../../../pill.css';
 import './filter.css';
@@ -19,26 +18,59 @@ import './filter.css';
  * It sets the filter and the panel in the store; the list follows, and hands back the count it drew (`updateFilterStatus`), since only the list knows what matched.
  */
 
-const pinnedFilter = document.getElementById('pinned-filter') as HTMLButtonElement;
-const openFilter = document.getElementById('open-filter') as HTMLButtonElement;
-const liveFilter = document.getElementById('live-filter') as HTMLButtonElement;
-const worktreeFilter = document.getElementById('worktree-filter') as HTMLButtonElement;
-const siblingFilter = document.getElementById('sibling-filter') as HTMLButtonElement;
-const noteFilter = document.getElementById('note-filter') as HTMLButtonElement;
-const archivedFilter = document.getElementById('archived-filter') as HTMLButtonElement;
-const goneFilter = document.getElementById('gone-filter') as HTMLButtonElement;
-const filterToggle = document.getElementById('filter-toggle') as HTMLButtonElement;
-const filterPanel = document.getElementById('filter-panel')!;
-const datePresets = document.getElementById('date-presets')!;
-const dateCustom = document.getElementById('date-custom')!;
-const dateRangeLabel = document.getElementById('date-range-label')!; // persistent line under presets
-const dateRangeCaption = document.getElementById('date-range-caption')!; // same text, inside calendar
+/** The filter's three parts, built here and placed by the sidebar (index.ts): the header's toggle, the panel under the header, and the status line under the panel. */
+export const filterToggle = fromMarkup(`<button id="filter-toggle" class="icon-btn large" data-tooltip="Filter sessions" aria-label="Filter sessions" aria-expanded="false"></button>`, HTMLButtonElement);
+export const filterPanel = fromMarkup(`
+  <div id="filter-panel" hidden>
+    <input id="search" type="search" placeholder="Search sessions…" aria-label="Search sessions" />
+    <div id="filters">
+      <button id="pinned-filter" data-tooltip="Show only pinned sessions" aria-label="Show only pinned sessions" aria-pressed="false"></button>
+      <button id="open-filter" type="button" data-tooltip="Show only sessions with a tab open" aria-label="Show only sessions with a tab open" aria-pressed="false"></button>
+      <button id="live-filter" type="button" data-tooltip="Show only live sessions" aria-label="Show only live sessions" aria-pressed="false"></button>
+      <button id="worktree-filter" type="button" data-tooltip="Show only worktree sessions" aria-label="Show only worktree sessions" aria-pressed="false"></button>
+      <button id="sibling-filter" type="button" data-tooltip="Show only sessions with siblings" aria-label="Show only sessions with siblings" aria-pressed="false"></button>
+      <button id="note-filter" type="button" data-tooltip="Show only sessions with a note" aria-label="Show only sessions with a note" aria-pressed="false"></button>
+      <button id="archived-filter" type="button" data-tooltip="Show archived sessions" aria-label="Show archived sessions" aria-pressed="false"></button>
+      <button id="gone-filter" type="button" data-tooltip="Show only sessions whose folder is gone" aria-label="Show only sessions whose folder is gone" aria-pressed="false"></button>
+      <div id="date-presets">
+        <button type="button" data-range="any" class="active">Any</button>
+        <button type="button" data-range="today">Today</button>
+        <button type="button" data-range="7d">7d</button>
+        <button type="button" data-range="30d">30d</button>
+        <button type="button" data-range="custom">Custom</button>
+      </div>
+    </div>
+    <button type="button" id="date-range-label" hidden>Pick a start and end date</button>
+    <div id="date-custom" hidden>
+      <div id="date-range"></div>
+      <div id="date-range-caption"></div>
+    </div>
+  </div>`);
+export const filterStatus = fromMarkup(`
+  <div id="filter-status" hidden>
+    <div id="filter-chips" hidden></div>
+    <span id="filter-count"></span>
+    <button id="filter-clear" type="button">Clear</button>
+  </div>`);
+
+const pinnedFilter = byId(filterPanel, 'pinned-filter', HTMLButtonElement);
+const openFilter = byId(filterPanel, 'open-filter', HTMLButtonElement);
+const liveFilter = byId(filterPanel, 'live-filter', HTMLButtonElement);
+const worktreeFilter = byId(filterPanel, 'worktree-filter', HTMLButtonElement);
+const siblingFilter = byId(filterPanel, 'sibling-filter', HTMLButtonElement);
+const noteFilter = byId(filterPanel, 'note-filter', HTMLButtonElement);
+const archivedFilter = byId(filterPanel, 'archived-filter', HTMLButtonElement);
+const goneFilter = byId(filterPanel, 'gone-filter', HTMLButtonElement);
+const datePresets = byId(filterPanel, 'date-presets');
+const dateCustom = byId(filterPanel, 'date-custom');
+const dateRangeLabel = byId(filterPanel, 'date-range-label'); // persistent line under presets
+const dateRangeCaption = byId(filterPanel, 'date-range-caption'); // same text, inside calendar
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 // Inline range calendar.
 // Custom-rendered month/year views (click the header to zoom out to a months grid, then a years grid, arrows paging through) and no native <select>, so it behaves under WSLg.
 // Capped at today: sessions are never in the future.
 let suppressPickerSelect = false;
-const datePicker = new AirDatepicker(document.getElementById('date-range')!, {
+const datePicker = new AirDatepicker(byId(filterPanel, 'date-range'), {
   inline: true,
   range: true,
   locale: localeEn,
@@ -47,11 +79,10 @@ const datePicker = new AirDatepicker(document.getElementById('date-range')!, {
     if (!suppressPickerSelect) onCustomDateChange();
   },
 });
-const searchInput = document.getElementById('search') as HTMLInputElement;
-const filterStatus = document.getElementById('filter-status')!;
-const filterCount = document.getElementById('filter-count')!;
-const filterChips = document.getElementById('filter-chips')!;
-const filterClear = document.getElementById('filter-clear') as HTMLButtonElement;
+const searchInput = byId(filterPanel, 'search', HTMLInputElement);
+const filterCount = byId(filterStatus, 'filter-count');
+const filterChips = byId(filterStatus, 'filter-chips');
+const filterClear = byId(filterStatus, 'filter-clear', HTMLButtonElement);
 
 // The filter toggle's mark: a funnel, not the magnifier it used to be. A magnifier promises a search box, which clears when it closes; what this opens is filters, which stay on.
 const filterIcon = (size: number): string => strokeIcon(size, '<path d="M2.5 2.5h11L9.2 7.9v4.4l-2.4 1.2V7.9z" />');

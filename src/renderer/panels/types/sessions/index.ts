@@ -6,12 +6,13 @@ import { builtinType, hostOf } from '../builtin';
 import type { PanelStatus } from '../../contract';
 import './index.css';
 import { switcherEl } from './switcher';
+import { filterPanel, filterStatus, filterToggle } from './filter';
 
 /**
  * THE SIDEBAR as a panel type: the project switcher and the header's actions over the filter panel, the session list and the attention strip.
  * One element for the run: built once, parked until the layout places it, and put back by every mount (`builtinType`), so a layout change that remounts its entry keeps its scroll, its folds and what is typed in its search.
- * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: the filter (filter.ts), the list (list.ts), the attention strip (attention-strip.ts), and this module for the header's + New and Settings.
- * A part that builds its own markup is placed here, where it stands in the sidebar: the switcher (switcher.ts).
+ * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: the list (list.ts), the attention strip (attention-strip.ts), and this module for the header's + New and Settings.
+ * A part that builds its own markup is placed here, where it stands in the sidebar: the switcher (switcher.ts) and the filter (filter.ts).
  */
 document.getElementById('parked')!.insertAdjacentHTML(
   'beforeend',
@@ -20,40 +21,9 @@ document.getElementById('parked')!.insertAdjacentHTML(
       <div class="header-actions">
         <button id="settings-toggle" class="icon-btn large" data-tooltip="Settings" aria-label="Settings" aria-haspopup="dialog"></button>
         <button id="collapse-toggle" class="icon-btn large" data-tooltip="Collapse all" aria-label="Collapse all"></button>
-        <button id="filter-toggle" class="icon-btn large" data-tooltip="Filter sessions" aria-label="Filter sessions" aria-expanded="false"></button>
         <button id="new-session" data-tooltip="New session in a folder…">+ New</button>
       </div>
     </header>
-    <div id="filter-panel" hidden>
-      <input id="search" type="search" placeholder="Search sessions…" aria-label="Search sessions" />
-      <div id="filters">
-        <button id="pinned-filter" data-tooltip="Show only pinned sessions" aria-label="Show only pinned sessions" aria-pressed="false"></button>
-        <button id="open-filter" type="button" data-tooltip="Show only sessions with a tab open" aria-label="Show only sessions with a tab open" aria-pressed="false"></button>
-        <button id="live-filter" type="button" data-tooltip="Show only live sessions" aria-label="Show only live sessions" aria-pressed="false"></button>
-        <button id="worktree-filter" type="button" data-tooltip="Show only worktree sessions" aria-label="Show only worktree sessions" aria-pressed="false"></button>
-        <button id="sibling-filter" type="button" data-tooltip="Show only sessions with siblings" aria-label="Show only sessions with siblings" aria-pressed="false"></button>
-        <button id="note-filter" type="button" data-tooltip="Show only sessions with a note" aria-label="Show only sessions with a note" aria-pressed="false"></button>
-        <button id="archived-filter" type="button" data-tooltip="Show archived sessions" aria-label="Show archived sessions" aria-pressed="false"></button>
-        <button id="gone-filter" type="button" data-tooltip="Show only sessions whose folder is gone" aria-label="Show only sessions whose folder is gone" aria-pressed="false"></button>
-        <div id="date-presets">
-          <button type="button" data-range="any" class="active">Any</button>
-          <button type="button" data-range="today">Today</button>
-          <button type="button" data-range="7d">7d</button>
-          <button type="button" data-range="30d">30d</button>
-          <button type="button" data-range="custom">Custom</button>
-        </div>
-      </div>
-      <button type="button" id="date-range-label" hidden>Pick a start and end date</button>
-      <div id="date-custom" hidden>
-        <div id="date-range"></div>
-        <div id="date-range-caption"></div>
-      </div>
-    </div>
-    <div id="filter-status" hidden>
-      <div id="filter-chips" hidden></div>
-      <span id="filter-count"></span>
-      <button id="filter-clear" type="button">Clear</button>
-    </div>
     <div id="loading"></div>
     <div id="sessions" aria-live="polite"></div>
     <div id="sidebar-footer" hidden>
@@ -67,7 +37,10 @@ document.getElementById('parked')!.insertAdjacentHTML(
   </aside>`,
 );
 // The parts that build their own markup, placed where they stand in the sidebar.
-document.querySelector('#sidebar > header')!.prepend(switcherEl);
+const header = document.querySelector('#sidebar > header')!;
+header.prepend(switcherEl);
+document.getElementById('new-session')!.before(filterToggle);
+header.after(filterPanel, filterStatus);
 
 export const sessionsType = builtinType('sessions', document.getElementById('sidebar')!, 'Sessions', 'sessions', () => railStatus(store.get()));
 
