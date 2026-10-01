@@ -2,10 +2,10 @@ import { projectGoneReason, sessionLabel, unstartableReason } from '../../../log
 import { store, type TabState, type View } from '../../../state/app';
 import { projectGone, tabOnShow, visibleTabs } from '../../../state/views';
 import { setUnavailable, unavailable } from '../../../unavailable';
+import { element, fromMarkup } from '../../../dom';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
-import { terminalsEl } from './index';
-import { activateTab, isOnShow, terminalOf } from './terminals';
+import { activateTab, isOnShow, terminalOf, terminalsEl } from './terminals';
 import './pane.css';
 
 /**
@@ -13,7 +13,8 @@ import './pane.css';
  * The pane follows the store (`paneFollows`): the tabs and the tab on show, and the listing and the project on show, since its sentence depends on whether there are sessions at all and whether the project's folder is still there.
  */
 
-const placeholder = document.getElementById('term-placeholder')!;
+const placeholder = fromMarkup(`<div id="term-placeholder" class="pane-placeholder">Pick a tab above, or a session in the sidebar, to resume it.</div>`);
+terminalsEl.prepend(placeholder);
 // The active tab's history, over the terminal area (history/view.ts): one view, pointed at whichever session the pane shows.
 export const history = new HistoryView({
   getHistory: (id, known, generation) => window.claudeUi.getHistory(id, known, generation),
@@ -32,26 +33,20 @@ const historyBar = new HistoryBar(
   },
   openHistory,
 );
-document.getElementById('terminal-body')!.append(historyBar.el);
 history.onLayout = () => historyBar.refresh();
 history.onScroll = () => historyBar.moveBand();
-// Ctrl+Shift+↑ / ↓: the previous / next request. From live, ↑ opens the history at your last request and ↓ does nothing; in the history they step, and ↓ past the last request goes back to live.
-// Caught on the window, before xterm, which would otherwise send them to claude as keys. App shortcuts take Ctrl+Shift, since a bare Ctrl+letter belongs to the terminal.
-const terminalPane = document.getElementById('terminal-pane')!;
-window.addEventListener(
-  'keydown',
-  (event) => {
-    const up = event.key === 'ArrowUp';
-    if ((!up && event.key !== 'ArrowDown') || !event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey) return;
-    if (store.get().activeTab === null || !terminalPane.contains(document.activeElement)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (!history.shown) {
-      if (up) historyBar.pickLast();
-    } else if (!history.step(up ? -1 : 1) && !up && !history.standing) showHistory(false);
-  },
-  true,
-);
+
+/** The pane, built here and placed by the terminal area (index.ts) under the tab bar: the terminals, with the history over them, and the history's bar beside them. */
+export const paneEl = element('div');
+paneEl.id = 'terminal-body';
+paneEl.append(terminalsEl, historyBar.el);
+
+/** Ctrl+Shift+↑ / ↓, which the terminal area catches (index.ts): the previous / next request. From live, ↑ opens the history at your last request and ↓ does nothing; in the history they step, and ↓ past the last request goes back to live. */
+export function stepHistory(up: boolean): void {
+  if (!history.shown) {
+    if (up) historyBar.pickLast();
+  } else if (!history.step(up ? -1 : 1) && !up && !history.standing) showHistory(false);
+}
 
 /**
  * Hand the pane to the history, or back to the live terminal.

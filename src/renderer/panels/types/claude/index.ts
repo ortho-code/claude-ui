@@ -1,31 +1,38 @@
+import { element } from '../../../dom';
 import { store, type View } from '../../../state/app';
 import { sessionNudge, visibleTabs } from '../../../state/views';
 import { builtinType, hostOf } from '../builtin';
 import type { PanelStatus } from '../../contract';
 import './index.css';
+import { tabbar } from './tab-bar';
+import { paneEl, stepHistory } from './pane';
 
 /**
  * THE TERMINAL AREA as a panel type: the tab bar over the terminals, with the history's bar beside them.
  * One pane for the run: built once, parked until the layout places it, and put back by every mount (`builtinType`), so a layout change that remounts its entry — a new id, an option — keeps a running session and its terminal as they were.
- * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: the tabs' terminals (terminals.ts), the pane (pane.ts) and the tab bar (tab-bar.ts).
+ * Each part builds its own markup as it loads — the tab bar (tab-bar.ts), the pane with the terminals and the history's bar (pane.ts, terminals.ts) — and this module puts them together.
  */
-document.getElementById('parked')!.insertAdjacentHTML(
-  'beforeend',
-  `<section id="terminal-pane">
-    <div id="tabbar"></div>
-    <!-- The terminals, with the history's bar beside them (history/bar.ts), which pane.ts appends. -->
-    <div id="terminal-body">
-      <div id="terminals">
-        <div id="term-placeholder" class="pane-placeholder">Pick a tab above, or a session in the sidebar, to resume it.</div>
-      </div>
-    </div>
-  </section>`,
+const terminalPane = element('section');
+terminalPane.id = 'terminal-pane';
+terminalPane.append(tabbar, paneEl);
+document.getElementById('parked')!.append(terminalPane);
+
+export const claudeType = builtinType('claude', terminalPane, 'Claude', 'claude', () => railStatus(store.get()));
+
+// Ctrl+Shift+↑ / ↓ step through the history (`stepHistory`) while anything in the terminal area has focus, the tab bar included.
+// Caught on the window, before xterm, which would otherwise send them to claude as keys. App shortcuts take Ctrl+Shift, since a bare Ctrl+letter belongs to the terminal.
+window.addEventListener(
+  'keydown',
+  (event) => {
+    const up = event.key === 'ArrowUp';
+    if ((!up && event.key !== 'ArrowDown') || !event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey) return;
+    if (store.get().activeTab === null || !terminalPane.contains(document.activeElement)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    stepHistory(up);
+  },
+  true,
 );
-
-export const claudeType = builtinType('claude', document.getElementById('terminal-pane')!, 'Claude', 'claude', () => railStatus(store.get()));
-
-/** Where the tabs' terminals go, under the tab bar. */
-export const terminalsEl = document.getElementById('terminals')!;
 
 /** What the terminal area's rail icon says while it is folded or behind another panel: waiting while a tab on show waits for you, by the roll-up's rule, so a tab marked read counts as nothing. */
 function railStatus(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked'>): PanelStatus {

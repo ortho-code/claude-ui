@@ -9,8 +9,11 @@ import { clearNudge } from '../../../state/statuses';
 import { tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
-import { terminalsEl } from './index';
+import { fromMarkup } from '../../../dom';
 import './terminals.css';
+
+/** Where the tabs' terminals go: built here, and placed by the pane (pane.ts) under the tab bar. */
+export const terminalsEl = fromMarkup(`<div id="terminals"></div>`);
 
 /**
  * The terminal area's tabs and their life: built cold, started when selected, stopped back to cold or closed, and claude's output and exit while it runs.

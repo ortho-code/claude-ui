@@ -1,4 +1,5 @@
 import Sortable from 'sortablejs';
+import { fromMarkup } from '../../../dom';
 import { orderAsTabs, reorderWithinGroup, sessionLabel, stopControlState, unstartableReason } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
@@ -15,7 +16,8 @@ import './tab-bar.css';
  * It draws from the store (`renderTabBar`, a watcher the terminal area registers, watch.ts), and asks the sidebar to show where a tab's session, project or group lives.
  */
 
-const tabbar = document.getElementById('tabbar')!;
+/** The tab bar, built here and placed by the terminal area (index.ts). */
+export const tabbar = fromMarkup(`<div id="tabbar"></div>`);
 
 // The key a tab is grouped and dragged within: its project, plus its group when it has one. A drag stays inside its own cluster because each cluster is its own Sortable container.
 function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.get().groupState.groupOf): string {
