@@ -51,3 +51,6 @@ const STAR_PATH =
   'M8 2.1 L9.41 6.06 L13.61 6.18 L10.28 8.74 L11.47 12.77 L8 10.4 L4.53 12.77 L5.72 8.74 L2.39 6.18 L6.59 6.06 Z';
 export const PIN_ICON = strokeIcon(14, `<path d="${STAR_PATH}" />`);
 export const PINNED_ICON = strokeIcon(14, `<path d="${STAR_PATH}" fill="currentColor" />`);
+
+// A note's mark: a page with a line of writing on it.
+export const NOTE_ICON = strokeIcon(13, '<path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.5M6.25 8.75h3.5" />');

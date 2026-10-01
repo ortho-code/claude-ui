@@ -55,7 +55,7 @@ import {
   sessionLabel,
 } from './logic';
 import { installTooltips, setTooltip } from './tooltip';
-import { caretIcon, chevronIcon, closeIcon, folderGoneIcon, folderIcon, layersIcon, PIN_ICON, PINNED_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from './svg';
+import { caretIcon, chevronIcon, closeIcon, folderGoneIcon, folderIcon, layersIcon, NOTE_ICON, PIN_ICON, PINNED_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from './svg';
 import { iconSvg } from './panels/icons';
 import { routeTerminals } from './terminal';
 import { hostOf } from './panels/types/builtin';
@@ -1381,10 +1381,6 @@ function getOrCreateRow(key: string): HTMLElement {
   sessionRows.set(key, row);
   return row;
 }
-
-// A note's mark: a page with a line of writing on it.
-const NOTE_ICON = strokeIcon(13, '<path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.5M6.25 8.75h3.5" />');
-
 
 // The open filter's mark: a window with a title bar — "this one has a tab". Deliberately a SHAPE where running is a DOT, so the pair reads as two different questions rather than two intensities.
 const OPEN_ICON = strokeIcon(13, '<rect x="2.6" y="3.4" width="10.8" height="9.2" rx="1.4" /><path d="M2.6 6.4h10.8" />');
