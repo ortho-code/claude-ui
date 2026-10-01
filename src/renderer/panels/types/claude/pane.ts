@@ -10,7 +10,7 @@ import './pane.css';
 
 /**
  * The terminal area's pane: the tab on show's live terminal, its history over it or standing in for it, or the sentence that says why there is neither, with the next move it names.
- * The pane follows the tabs through the store (`paneFollowsTabs`), and the list through `updatePlaceholder`, since its sentence depends on whether there are sessions at all.
+ * The pane follows the store (`paneFollows`): the tabs and the tab on show, and the listing and the project on show, since its sentence depends on whether there are sessions at all and whether the project's folder is still there.
  */
 
 const placeholder = document.getElementById('term-placeholder')!;
@@ -62,17 +62,30 @@ function showHistory(shown: boolean): void {
   if (history.setShown(shown) && !shown && tab) terminalOf(tab.token).term.focus();
 }
 
-export function updatePlaceholder(view: View<'sessions' | 'activeProject' | 'tabs' | 'activeTab'>): void {
+/** What the pane draws from the store. */
+type PaneView = View<'sessions' | 'activeProject' | 'tabs' | 'activeTab'>;
+
+/** The tab on show, and whether it is cold (no claude behind it) or booting (claude on its way, nothing printed yet). */
+function shownTab(view: PaneView): { activeTab: TabState | null; cold: boolean; booting: boolean } {
   const activeTab = tabOnShow(view);
+  return { activeTab, cold: activeTab !== null && activeTab.terminalId === null, booting: activeTab?.booting === true };
+}
+
+/** What the pane last drew: the tab on show as it was, and the sentence it said. */
+let drawnTab: TabState | null = null;
+let drawnSentence: string | null = null;
+
+function updatePlaceholder(view: PaneView): void {
+  const { activeTab, cold, booting } = shownTab(view);
   // The history follows the tab from here, since every change to what the pane shows passes through this function; a tab switch shows the new tab as you left it, live or in its history.
   history.follow(activeTab?.session.id ?? null);
   // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so without this a restored session would look like a session that had nothing in it.
-  const cold = activeTab !== null && activeTab.terminalId === null;
   // A booting tab HAS a terminal, but it is still empty: keep the pane covered rather than showing the black rectangle that the wait would otherwise be.
-  const booting = activeTab?.booting === true;
   placeholder.style.display = activeTab && !cold && !booting ? 'none' : 'flex';
   historyBar.setLive(activeTab !== null && !cold && !booting);
-  const sentence = paneSentence(cold, booting, view);
+  const sentence = paneSentence(view);
+  drawnTab = activeTab;
+  drawnSentence = sentence;
   // A tab on show with no claude behind it — restored, or refused a start — says so, and offers the two things to do about it: resume it, or read what it said.
   const standing = activeTab && cold && !booting ? activeTab : null;
   if (standing) {
@@ -92,27 +105,19 @@ export function updatePlaceholder(view: View<'sessions' | 'activeProject' | 'tab
   else if (history.standing) history.setStandalone(sentence, resumeButton(standing));
 }
 
-/** What the pane last followed from the tabs: the tab on show as it was, and whether there were none on show — its sentence depends on both. */
-let paneTab: TabState | null = null;
-let paneNoTabs = true;
 /** The session each open tab held when the pane last looked, by token, so it knows whose history to forget when a tab closes. */
 let paneSessions: ReadonlyMap<string, string> = new Map();
 
 /**
- * The tab on show changed, or changed state, or the last tab on show came or went: the pane follows.
+ * The tab on show changed, or changed state, or what the pane says without one changed: the pane follows.
  * Another tab starting, printing or stopping leaves it alone: a change to one tab is a new entry for that tab only.
  * A tab that closed has its history forgotten, so opening its session again starts with it closed — after the follow, which is what remembers how the tab on show was left.
+ * A watcher renderer.ts registers with the others, and start-up's first draw, before anything is told.
  */
-export function paneFollowsTabs(view: View<'sessions' | 'activeProject' | 'tabs' | 'activeTab'>): void {
-  const shown = tabOnShow(view);
-  const noTabs = visibleTabs(view).length === 0;
+export function paneFollows(view: PaneView): void {
   const before = paneSessions;
   paneSessions = new Map(view.tabs.map((t) => [t.token, t.session.id]));
-  if (shown !== paneTab || noTabs !== paneNoTabs) {
-    paneTab = shown;
-    paneNoTabs = noTabs;
-    updatePlaceholder(view);
-  }
+  if (tabOnShow(view) !== drawnTab || paneSentence(view) !== drawnSentence) updatePlaceholder(view);
   for (const [token, id] of before) if (!paneSessions.has(token)) history.forget(id);
 }
 
@@ -137,14 +142,14 @@ function resumeButton(tab: TabState): HTMLButtonElement {
 function openHistory(): void {
   const activeTab = tabOnShow(store.get());
   if (!activeTab) return;
-  if (activeTab.terminalId === null && !activeTab.booting) history.setStandalone(paneSentence(true, false, store.get()), resumeButton(activeTab));
+  if (activeTab.terminalId === null && !activeTab.booting) history.setStandalone(paneSentence(store.get()), resumeButton(activeTab));
   else showHistory(true);
 }
 
 /** What the pane says when there is no live claude to show: one sentence, and the next move it names. */
-function paneSentence(cold: boolean, booting: boolean, view: View<'sessions' | 'activeProject' | 'tabs' | 'activeTab'>): string {
+function paneSentence(view: PaneView): string {
   const { activeProject } = view;
-  const activeTab = tabOnShow(view);
+  const { activeTab, cold, booting } = shownTab(view);
   if (booting) return `Starting “${sessionLabel(activeTab!.session)}”…`;
   // A start that was REFUSED says why, in place of "click its tab to resume it" — which would be telling you to do the thing that just failed.
   if (activeTab?.failure) return activeTab.failure;

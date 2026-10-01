@@ -11,7 +11,7 @@ import { startChrome } from './chrome';
 import { flash } from './flash';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
 import { railStatusFollowsTabs } from './panels/types/claude/index';
-import { history, paneFollowsTabs, updatePlaceholder } from './panels/types/claude/pane';
+import { history, paneFollows } from './panels/types/claude/pane';
 import {
   activateTab,
   closeTab,
@@ -1181,7 +1181,6 @@ function renderList(view: ListView): void {
     // Nothing on screen to fold away: this early return would otherwise leave the toggle live with the previous render's sections.
     renderedSections = { projects: [], groups: [] };
     updateCollapseToggle(view);
-    updatePlaceholder(view);
     return;
   }
   container.querySelector(':scope > .empty-message')?.remove();
@@ -1201,7 +1200,6 @@ function renderList(view: ListView): void {
   updateSidebarHighlight(view);
   updateCollapseToggle(view);
   syncStickyOffset();
-  updatePlaceholder(view); // its wording depends on whether there are sessions at all
 }
 
 // Chevrons stacked in the direction things will move: up to fold everything away, down to open it again. Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
@@ -2045,7 +2043,7 @@ store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptie
 store.watch(['sessions'], reconcileOpenTabs, { reads: ['tabs'] });
 store.watch(['sessions'], applyDatePickerMinDate);
 
-// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter — and the list follows, with the filter's count and chips and the pane's sentence it draws.
+// Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter — and the list follows, with the filter's count and chips it draws.
 // The list paints every dot it draws, but a status change repaints only the dots, below.
 store.watch(
   ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'],
@@ -2083,8 +2081,8 @@ store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'gro
 // The terminal area's rail icon waits while a tab on show waits for you.
 store.watch(['activeProject', 'tabs', 'statuses', 'acked'], railStatusFollowsTabs);
 
-// The pane shows the tab on show, or says why there is none.
-store.watch(['tabs', 'activeTab'], paneFollowsTabs, { reads: ['sessions', 'activeProject'] });
+// The pane shows the tab on show, or says why there is none, which turns on the listing and the project on show too.
+store.watch(['sessions', 'activeProject', 'tabs', 'activeTab'], paneFollows);
 
 // The view you are leaving behind — the filter, the folds, the panel, the strip — is kept for the next launch; the snapshot is compared before it is written, so a change that ends where it began costs nothing.
 store.watch(['filter', 'folds', 'filterPanelOpen', 'footerExpanded'], () => persistUi());
@@ -2293,4 +2291,4 @@ void (async () => {
   // After the tabs, so a panel's first run is in the restored tab's folder rather than once for the project and again for the tab.
   startPanels();
 })();
-updatePlaceholder(store.get());
+paneFollows(store.get());
