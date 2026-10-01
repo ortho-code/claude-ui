@@ -2,6 +2,7 @@ import type { NudgeStatus } from './logic';
 import { badgeClass, sessionDotClass } from './statusdot';
 import { chevronIcon, strokeIcon } from './svg';
 import { setUnavailable } from './unavailable';
+import './menu-row.css';
 import './menu.css';
 
 // A small floating kebab menu, generic over its items so the project-heading and session-row kebabs share the open/close/outside-click machinery.
@@ -75,6 +76,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     }
     const button = document.createElement('button');
     button.type = 'button';
+    button.className = 'menu-row';
     button.textContent = item.label;
     if (item.disabled) {
       // Nothing is wired below: it takes no click and opens no submenu, and it carries the reason as its tooltip.
@@ -109,7 +111,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       button.prepend(tick);
     }
     if (item.submenu) {
-      button.className = 'has-submenu';
+      button.className = 'menu-row has-submenu';
       const chev = document.createElement('span');
       chev.className = 'submenu-chev';
       chev.innerHTML = chevronIcon('right', 10);

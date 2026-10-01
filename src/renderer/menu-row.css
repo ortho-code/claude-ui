@@ -1,0 +1,23 @@
+/* MENU ROW — the one shape for a clickable row inside a popover, menu or strip: the project
+   switcher's entries, every kebab-menu item, and the attention strip's sessions, each of which
+   carries `.menu-row` and imports this stylesheet itself. They had three paddings (7px 9px, 6px 9px,
+   5px 8px), two radii and three font sizes between them for what is the same component. Anything
+   specific to one of them stays in its own module's rules.
+   Distinct from a LIST ROW (.card), which is a card in the list body: roomier padding and the
+   surface radius, because it carries two lines and its own controls.
+   One class for all three, so one specificity: base.css's `button:hover` outranks it, as it already
+   outranked the switcher's entries, and each user's own rules say what its hover looks like. */
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-control);
+  text-align: left;
+  color: var(--text);
+  font-size: var(--text-body);
+  cursor: pointer;
+}

@@ -8,6 +8,7 @@ import { badgeClass } from '../../../statusdot';
 import { chevronIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
+import '../../../menu-row.css';
 import './switcher.css';
 
 /**
@@ -57,7 +58,7 @@ function renderSwitcher(model: SwitcherModel, view: View<'activeProject'>): void
 function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean, gone: boolean): HTMLElement {
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = active ? 'switcher-item active' : 'switcher-item';
+  btn.className = active ? 'menu-row switcher-item active' : 'menu-row switcher-item';
   btn.setAttribute('role', 'menuitem');
 
   const label = document.createElement('span');

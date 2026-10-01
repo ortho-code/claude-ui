@@ -7,6 +7,7 @@ import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, stopIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
+import '../../../menu-row.css';
 import './attention-strip.css';
 
 /**
@@ -123,9 +124,9 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
       heading.textContent = project.name;
       const rows = project.items.map((session) => {
         // The row is a DIV holding two buttons rather than one button, because a button cannot contain a button and this row now has two things to do: jump to the session, or stop it.
-        // The row shape (.footer-item, the shared menu-row rule) stays on the wrapper, so hovering anywhere in it still lights the whole row and the strip looks exactly as it did.
+        // The row shape (the menu row, menu-row.css) stays on the wrapper, so hovering anywhere in it still lights the whole row and the strip looks exactly as it did.
         const row = document.createElement('div');
-        row.className = 'footer-item';
+        row.className = 'menu-row footer-item';
         const jump = document.createElement('button');
         jump.type = 'button';
         jump.className = 'footer-item-jump';

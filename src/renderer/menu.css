@@ -1,26 +1,3 @@
-/* MENU ROW — the one shape for a clickable row inside a popover, menu or strip: the project
-   switcher's entries, every kebab-menu item, and the attention strip's sessions. They had three
-   paddings (7px 9px, 6px 9px, 5px 8px), two radii and three font sizes between them for what is the
-   same component. Anything specific to one of them stays in its own rule below.
-   Distinct from a LIST ROW (.session), which is a card in the list body: roomier padding and the
-   surface radius, because it carries two lines and its own controls. */
-.switcher-item,
-.kebab-menu button,
-.footer-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 9px;
-  background: none;
-  border: none;
-  border-radius: var(--radius-control);
-  text-align: left;
-  color: var(--text);
-  font-size: var(--text-body);
-  cursor: pointer;
-}
-
 /* The kebab's dropdown (positioned in JS, fixed). */
 .kebab-menu {
   position: fixed;
@@ -79,7 +56,7 @@
   border-right: 1px solid var(--border);
 }
 
-/* Shape comes from the MENU ROW rule above; nothing here is specific enough to need its own. */
+/* Shape comes from the menu row (menu-row.css); nothing here is specific enough to need its own. */
 
 /* A submenu-parent (.menu-open) holds the hover look while its child list is up, so moving the
    mouse into the submenu doesn't drop it back. */
@@ -92,9 +69,11 @@
    the menu keeps its shape and the tooltip can say why — see MenuItem.disabled. */
 .kebab-menu button.unavailable {
   color: var(--muted);
-  /* `.kebab-menu button` sets the pointer at a higher specificity than `.unavailable` alone, so the
-     hand has to be undone here: an arrow is what says "this will not do anything". */
+  /* The menu row sets the pointer, and base.css's `button:hover` the hover fill, each of which
+     `.unavailable` alone would not outrank, so both are undone here: an arrow and no fill are what say
+     "this will not do anything". */
   cursor: default;
+  background: none;
   opacity: 0.55;
 }
 
