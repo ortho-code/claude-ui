@@ -10,6 +10,8 @@ import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventA
 /** The stand-in's side for a check: every call the window made, and a way to fire what it subscribed to. */
 export interface BridgeControl {
   calls: BridgeCall[];
+  /** Every call that reached what the stand-in does not model, in order: the harness fails a check on any, whether or not the window caught the refusal. */
+  unmodelled: (keyof ClaudeUiApi)[];
   /** Call every callback the window subscribed with `name`; answers how many there were, so a check can tell a fired event from one nobody listens to. */
   emit<K extends BridgeEvent>(name: K, ...args: BridgeEventArgs<K>): number;
   /**
@@ -34,14 +36,18 @@ declare global {
  */
 export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; control: BridgeControl } {
   const calls: BridgeCall[] = [];
+  const unmodelledCalls: (keyof ClaudeUiApi)[] = [];
   const listeners = new Map<BridgeEvent, ((...args: never[]) => void)[]>();
 
   // A copy, as IPC hands one: the window must not be able to reach into the fixture through what it was given.
   const answer = <T>(value: T): Promise<T> => Promise.resolve(structuredClone(value));
   const unmodelled =
     (name: keyof ClaudeUiApi) =>
-    (): Promise<never> =>
-      Promise.reject(new Error(`The renderer checks' stand-in does not model ${name}; model it in test/renderer/support/bridge.ts against what main does.`));
+    (): Promise<never> => {
+      // Written down before refusing, since the window may catch the refusal and say nothing a check would see.
+      unmodelledCalls.push(name);
+      return Promise.reject(new Error(`The renderer checks' stand-in does not model ${name}; model it in test/renderer/support/bridge.ts against what main does.`));
+    };
   // Recorded, and nothing else: what main does with it reaches the window, if at all, as a later event, which a check fires itself.
   const sent = (): void => {};
   const on =
@@ -187,6 +193,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
 
   const control: BridgeControl = {
     calls,
+    unmodelled: unmodelledCalls,
     emit: (name, ...args) => {
       const found = listeners.get(name) ?? [];
       for (const callback of found) (callback as (...values: unknown[]) => void)(...args);

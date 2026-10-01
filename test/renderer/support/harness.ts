@@ -68,12 +68,13 @@ export const test = base.extend<{ app: App }, { installScript: string }>({
     };
     await use(app);
 
-    // Every check also says nothing went wrong on the way: nothing thrown or logged as an error in the page, and nothing the window wrote to the app's own log as one.
-    // The log is only there to read once the window was loaded: a check can fail before it boots.
+    // Every check also says nothing went wrong on the way: nothing thrown or logged as an error in the page, nothing the window wrote to the app's own log as one, and no call the stand-in does not model, even one the window caught and turned into a toast.
+    // The log and the calls are only there to read once the window was loaded: a check can fail before it boots.
     if (page.url().startsWith(ORIGIN)) {
       for (const [level, area, message] of (await app.calls('log')) as [string, string, string][]) {
         if (level === 'error') errors.push(`log (${area}): ${message}`);
       }
+      for (const name of await page.evaluate(() => window.__claudeUiTest.unmodelled)) errors.push(`unmodelled: ${name}, which the stand-in does not model (test/renderer/support/bridge.ts)`);
     }
     expect(errors, 'what went wrong in the window').toEqual([]);
   },
