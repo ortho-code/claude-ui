@@ -9,6 +9,8 @@ on:
     branches:
       - main
   pull_request:
+  # And from release.yml, so a version tag is checked by these same steps before anything is built from it.
+  workflow_call:
 
 # Supersede rather than queue: pushing twice in a minute makes the first run's answer irrelevant, and a cancelled run costs nothing further. Keyed by ref so different branches never cancel each other.
 concurrency:

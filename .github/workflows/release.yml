@@ -7,7 +7,12 @@ on:
       - 'v*'
 
 jobs:
+  # CI's own workflow, from the tagged commit, before anything is built: a tag on a commit that fails a check makes no release, and what "checked" means is written once, in ci.yml.
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: ci
     strategy:
       # Keep going if one platform fails: a working Linux artifact is still worth having while a mac problem is diagnosed, and vice versa.
       fail-fast: false
@@ -34,11 +39,8 @@ jobs:
           cache: 'npm'
       # No ELECTRON_SKIP_BINARY_DOWNLOAD here, unlike ci.yml: packaging needs the real binary.
       - run: npm ci
-      # Linux only: lint reads the source, not the platform, so a macOS run would bill 10x minutes for the same answer.
-      # Failing here still stops the release, which needs every build.
-      - if: runner.os == 'Linux'
-        run: npm run lint
       - run: npm run build
+      # Again, though CI ran them: the mac leg is the only run of them on macOS.
       - run: npm test
       # --publish never: this job only produces files. The release job below decides what happens to them, so a failed upload can never leave a half-published release behind.
       - run: npx electron-builder ${{ matrix.args }} --publish never
