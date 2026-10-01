@@ -1,3 +1,4 @@
+import { byId, fromMarkup } from '../../../dom';
 import type { NudgeStatus, SwitcherModel } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
@@ -7,8 +8,6 @@ import { badgeClass } from '../../../statusdot';
 import { chevronIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
-// The sidebar's markup, which holds the switcher's elements: built before this module reads them.
-import './index';
 import './switcher.css';
 
 /**
@@ -16,12 +15,24 @@ import './switcher.css';
  * Choosing one selects it (`selectProject`): the project on show and its fold in the store, and the terminal area asked to show it; the list follows the store.
  */
 
-const switcherEl = document.getElementById('project-switcher')!;
-const switcherCurrent = document.getElementById('switcher-current') as HTMLButtonElement;
-const switcherName = document.getElementById('switcher-name')!;
-const switcherGone = document.getElementById('switcher-gone')!;
-const switcherBadge = document.getElementById('switcher-badge')!;
-const switcherPopover = document.getElementById('switcher-popover')!;
+/** The switcher, built here and placed by the sidebar (index.ts). */
+export const switcherEl = fromMarkup(`
+  <div id="project-switcher">
+    <button id="switcher-current" type="button" aria-haspopup="true" aria-expanded="false" data-tooltip="Switch project">
+      <span id="switcher-name">All</span>
+      <span id="switcher-gone" class="gone-mark" hidden></span>
+      <span class="switcher-right">
+        <span id="switcher-badge" class="nudge" hidden></span>
+        <span class="switcher-chev" aria-hidden="true"></span>
+      </span>
+    </button>
+    <div id="switcher-popover" role="menu" hidden></div>
+  </div>`);
+const switcherCurrent = byId(switcherEl, 'switcher-current', HTMLButtonElement);
+const switcherName = byId(switcherEl, 'switcher-name');
+const switcherGone = byId(switcherEl, 'switcher-gone');
+const switcherBadge = byId(switcherEl, 'switcher-badge');
+const switcherPopover = byId(switcherEl, 'switcher-popover');
 
 // Update the switcher header + popover from every project's roll-up (`switcherModel`), which is independent of search/project so you can always navigate.
 function renderSwitcher(model: SwitcherModel, view: View<'activeProject'>): void {

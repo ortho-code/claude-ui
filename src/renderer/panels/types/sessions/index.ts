@@ -5,27 +5,18 @@ import { strokeIcon } from '../../../svg';
 import { builtinType, hostOf } from '../builtin';
 import type { PanelStatus } from '../../contract';
 import './index.css';
+import { switcherEl } from './switcher';
 
 /**
  * THE SIDEBAR as a panel type: the project switcher and the header's actions over the filter panel, the session list and the attention strip.
  * One element for the run: built once, parked until the layout places it, and put back by every mount (`builtinType`), so a layout change that remounts its entry keeps its scroll, its folds and what is typed in its search.
- * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: the switcher (switcher.ts), the filter (filter.ts), the list (list.ts), the attention strip (attention-strip.ts), and this module for the header's + New and Settings.
+ * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: the filter (filter.ts), the list (list.ts), the attention strip (attention-strip.ts), and this module for the header's + New and Settings.
+ * A part that builds its own markup is placed here, where it stands in the sidebar: the switcher (switcher.ts).
  */
 document.getElementById('parked')!.insertAdjacentHTML(
   'beforeend',
   `<aside id="sidebar">
     <header>
-      <div id="project-switcher">
-        <button id="switcher-current" type="button" aria-haspopup="true" aria-expanded="false" data-tooltip="Switch project">
-          <span id="switcher-name">All</span>
-          <span id="switcher-gone" class="gone-mark" hidden></span>
-          <span class="switcher-right">
-            <span id="switcher-badge" class="nudge" hidden></span>
-            <span class="switcher-chev" aria-hidden="true"></span>
-          </span>
-        </button>
-        <div id="switcher-popover" role="menu" hidden></div>
-      </div>
       <div class="header-actions">
         <button id="settings-toggle" class="icon-btn large" data-tooltip="Settings" aria-label="Settings" aria-haspopup="dialog"></button>
         <button id="collapse-toggle" class="icon-btn large" data-tooltip="Collapse all" aria-label="Collapse all"></button>
@@ -75,6 +66,8 @@ document.getElementById('parked')!.insertAdjacentHTML(
     </div>
   </aside>`,
 );
+// The parts that build their own markup, placed where they stand in the sidebar.
+document.querySelector('#sidebar > header')!.prepend(switcherEl);
 
 export const sessionsType = builtinType('sessions', document.getElementById('sidebar')!, 'Sessions', 'sessions', () => railStatus(store.get()));
 
