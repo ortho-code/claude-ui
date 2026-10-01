@@ -1,7 +1,6 @@
-import type { Locator, Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { headings, tab, tabLabels } from '../../../../support/window';
+import { chooseProject, headings, switcherEntries, switcherNames, tab, tabLabels } from '../../../../support/window';
 
 // Selecting a project is a statement about what you are looking at, so every surface honours it (docs/architecture.md § UI conventions): the list, the tab bar, and the tab on show, which is the one you were last in there, selected and not started (§ Tab lifecycle).
 const OTHER = `${HOME}/projects/other`;
@@ -16,16 +15,13 @@ const fixture = {
   history: { [here.id]: [], [there.id]: [] },
 };
 
-const entry = (page: Page, name: string): Locator => page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: new RegExp(`^${name}$`) }) });
-
 test("selecting a project scopes the list and the tab bar to it and selects the tab you were last in there, without starting it; All undoes it", async ({ app, page }) => {
   await app.boot(fixture);
   await expect(page.locator('#switcher-name')).toHaveText('All');
   await expect(headings(page)).toHaveText(['demo', 'other']);
   await expect(tabLabels(page)).toHaveText([here.title, there.title]);
 
-  await page.locator('#switcher-current').click();
-  await entry(page, 'other').click();
+  await chooseProject(page, 'other');
   await expect(page.locator('#switcher-popover')).toBeHidden();
   await expect(page.locator('#switcher-name')).toHaveText('other');
   await expect(headings(page)).toHaveText(['other']);
@@ -35,8 +31,7 @@ test("selecting a project scopes the list and the tab bar to it and selects the 
   expect(await app.calls('startTerminal')).toEqual([]);
   expect((await app.calls('setActiveProject')).at(-1)).toEqual([OTHER]);
 
-  await page.locator('#switcher-current').click();
-  await entry(page, 'All').click();
+  await chooseProject(page, 'All');
   await expect(page.locator('#switcher-name')).toHaveText('All');
   await expect(headings(page)).toHaveText(['demo', 'other']);
   await expect(tabLabels(page)).toHaveText([here.title, there.title]);
@@ -50,8 +45,8 @@ test('the switcher lists every project with its count, whatever the list is filt
   await expect(headings(page)).toHaveText(['demo']);
 
   await page.locator('#switcher-current').click();
-  await expect(page.locator('.switcher-item .switcher-item-name')).toHaveText(['All', 'demo', 'other']);
-  await expect(page.locator('.switcher-item .switcher-item-count')).toHaveText(['2', '1', '1']);
+  await expect(switcherNames(page)).toHaveText(['All', 'demo', 'other']);
+  await expect(switcherEntries(page).locator('.switcher-item-count')).toHaveText(['2', '1', '1']);
 });
 
 test('the switcher shuts on its own button and on a click outside it, choosing nothing', async ({ app, page }) => {

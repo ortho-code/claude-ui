@@ -3,7 +3,7 @@ import { defaultUi } from '../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
-import { row, tab, tabLabel, tabs } from '../../../support/window';
+import { chooseProject, row, tab, tabLabel, tabs } from '../../../support/window';
 
 // The strip lists what is RUNNING, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
 // It keeps still: a session writing a message or waiting moves no row, which recency- or attention-ordering did (6f04c95).
@@ -58,8 +58,7 @@ test('a strip row jumps to its session in another project: the project, the tab 
   await tabLabel(page, elsewhere.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   // Scoped to the other project, where its tab is out of sight.
-  await page.locator('#switcher-current').click();
-  await page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: /^demo$/ }) }).click();
+  await chooseProject(page, 'demo');
   await expect(tabLabel(page, elsewhere.title)).toHaveCount(0);
 
   await page.locator('#footer-list .footer-item-jump', { hasText: elsewhere.title }).click();

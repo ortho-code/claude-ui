@@ -38,6 +38,21 @@ export const group = (page: Page, name: string): Locator => page.locator('#sessi
 /** That group's heading. */
 export const groupHeading = (page: Page, name: string): Locator => group(page, name).locator('> .section-heading');
 
+/** Every entry in the project switcher, All first. */
+export const switcherEntries = (page: Page): Locator => page.locator('.switcher-item');
+
+/** The switcher's entry for the project named exactly `name`, or All. */
+export const switcherEntry = (page: Page, name: string): Locator => switcherEntries(page).filter({ has: page.locator('.switcher-item-name', { hasText: new RegExp(`^${name}$`) }) });
+
+/** Every switcher entry's name, in its order. */
+export const switcherNames = (page: Page): Locator => switcherEntries(page).locator('.switcher-item-name');
+
+/** Open the switcher and choose the project named exactly `name`, or All: the one step here that does rather than finds, since four checks took it in the same two lines. */
+export async function chooseProject(page: Page, name: string): Promise<void> {
+  await page.locator('#switcher-current').click();
+  await switcherEntry(page, name).click();
+}
+
 /** Every tab in the tab bar. */
 export const tabs = (page: Page): Locator => page.locator('#tabbar .tab');
 

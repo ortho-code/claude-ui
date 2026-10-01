@@ -1,6 +1,6 @@
 import { PROJECT, session } from '../../support/fixture';
 import { expect, test } from '../../support/harness';
-import { tab, tabLabel } from '../../support/window';
+import { chooseProject, tab, tabLabel } from '../../support/window';
 import { LAYOUT, OTHER, railItem, runs, withLayout } from './layout';
 
 test('a change to the layout file keeps a running shell and does not run a command again', async ({ app, page }) => {
@@ -23,25 +23,21 @@ test('a change to the layout file keeps a running shell and does not run a comma
 test('a hidden command does not run on a project switch, runs once when shown somewhere new, and not at all when shown back where it last ran', async ({ app, page }) => {
   await app.boot(withLayout(LAYOUT));
   const folders = async (entry: string): Promise<string[]> => (await runs(app, entry)).map((run) => run.context.cwd);
-  const switchTo = async (name: string): Promise<void> => {
-    await page.locator('#switcher-current').click();
-    await page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: new RegExp(`^${name}$`) }) }).click();
-  };
   await expect.poll(() => folders('status')).toEqual([PROJECT]);
   await railItem(page, /^Checks/).click();
   await expect.poll(() => folders('checks')).toEqual([PROJECT]);
 
   // Checks on show follows the project; Status behind it stays put.
-  await switchTo('other');
+  await chooseProject(page, 'other');
   await expect.poll(() => folders('checks')).toEqual([PROJECT, OTHER]);
-  await switchTo('demo');
+  await chooseProject(page, 'demo');
   await expect.poll(() => folders('checks')).toEqual([PROJECT, OTHER, PROJECT]);
   expect(await folders('status')).toEqual([PROJECT]);
 
   // Shown in the folder it last ran in: nothing to run again.
   await railItem(page, /^Status/).click();
   await expect(railItem(page, /^Status/)).toHaveClass(/\bshown\b/);
-  await switchTo('other');
+  await chooseProject(page, 'other');
   await expect.poll(() => folders('status')).toEqual([PROJECT, OTHER]);
   // Shown after the project moved while it was hidden: once, in the new folder.
   await railItem(page, /^Checks/).click();

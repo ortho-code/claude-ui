@@ -1,6 +1,6 @@
 import { PROJECT } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { row } from '../../../support/window';
+import { chooseProject, row } from '../../../support/window';
 import { here, railItem, there, withLayout } from '../../layout/layout';
 
 // The terminal area's icon on the rail says a tab on show is waiting for you, while it is behind another panel of its group or folded: a tab in the project on show, or any in All, and not once you have marked it read.
@@ -41,8 +41,7 @@ test("the terminal area's rail icon waits while a tab on show waits for you, and
   await expect(dot).toBeHidden();
 
   // In All, the other project's tab is on show too.
-  await page.locator('#switcher-current').click();
-  await page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: /^All$/ }) }).click();
+  await chooseProject(page, 'All');
   await expect(row(page, there.title)).toHaveCount(1);
   await expect(dot).toBeVisible();
 });

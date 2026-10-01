@@ -3,7 +3,7 @@ import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { group, groupHeading, groupHeadings, headings, project, projectHeading, row, titles } from '../../../../support/window';
+import { chooseProject, group, groupHeading, groupHeadings, headings, project, projectHeading, row, titles } from '../../../../support/window';
 
 // The list is projects in the order you set, each holding its groups in registry order and then its loose rows, with pins floated inside their own section (docs/architecture.md § App-side metadata and session groups).
 // Folds are kept, and come in two kinds (§ Reopening the way you left it): the ones you made, stored, and the ones made while a filter is on, which last as long as the filter.
@@ -85,14 +85,10 @@ test('in All, collapse-all folds every project and its groups with it, and expan
 test('a project folded in All opens when you choose it, and stays open when you go back to All', async ({ app, page }) => {
   await app.boot({ ...fixture, ...withUi({ collapsedProjects: [OTHER] }) });
   await expect(project(page, 'other')).toHaveClass(/\bcollapsed\b/);
-  const choose = async (name: string): Promise<void> => {
-    await page.locator('#switcher-current').click();
-    await page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: new RegExp(`^${name}$`) }) }).click();
-  };
 
-  await choose('other');
+  await chooseProject(page, 'other');
   await expect(row(page, elsewhere.title)).toBeVisible();
-  await choose('All');
+  await chooseProject(page, 'All');
   await expect(project(page, 'other')).not.toHaveClass(/\bcollapsed\b/);
   await expect.poll(async () => (await saved(app))?.collapsedProjects).toEqual([]);
 });

@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { tab } from '../../../../support/window';
+import { switcherEntry, tab } from '../../../../support/window';
 
 // A tab you are not looking at that turns waiting or finished says so in a toast, naming it and its project; a click on the toast takes you there (docs/architecture.md § Status cues).
 // Never for busy, a repeat of the same state, or the tab on show.
@@ -23,7 +23,7 @@ test('a status read at launch is not news: a restored tab already waiting is not
   await app.boot({ ...fixture, statuses: { [there.id]: 'waiting' } });
   await expect(tab(page, here.title)).toHaveClass(/\bactive\b/);
   // Read, and drawn: its project's entry in the switcher says it is waiting.
-  await expect(page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: /^other$/ }) }).locator('.nudge')).toHaveClass(/\bwaiting\b/);
+  await expect(switcherEntry(page, 'other').locator('.nudge')).toHaveClass(/\bwaiting\b/);
   await expect(toasts(page)).toHaveCount(0);
 });
 

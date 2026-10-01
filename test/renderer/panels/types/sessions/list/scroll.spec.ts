@@ -3,7 +3,7 @@ import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { rows } from '../../../../support/window';
+import { chooseProject, rows } from '../../../../support/window';
 
 // The list keeps where you scrolled it, across a repaint and across a restart; a new filter or another project starts it at its top, since the rows it scrolled through are gone.
 const NOW = new Date('2026-09-30T12:00:00.000Z');
@@ -29,10 +29,6 @@ const scrollTo = (page: Page, top: number): Promise<void> =>
     list.scrollTop = to;
   }, top);
 const savedScroll = async (app: App): Promise<number | undefined> => ((await app.calls('setUiState')).at(-1)?.[0] as UiState | undefined)?.scrollTop;
-const choose = async (page: Page, name: string): Promise<void> => {
-  await page.locator('#switcher-current').click();
-  await page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: new RegExp(`^${name}$`) }) }).click();
-};
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(NOW);
@@ -77,12 +73,12 @@ test('choosing a project starts the list at its top, and so does going back to A
   await expect(rows(page)).toHaveCount(many.length + others.length);
   await scrollTo(page, 400);
   expect(await scrolled(page)).toBe(400);
-  await choose(page, 'other');
+  await chooseProject(page, 'other');
   await expect(rows(page)).toHaveCount(others.length);
   await expect.poll(() => scrolled(page)).toBe(0);
   await scrollTo(page, 400);
   expect(await scrolled(page)).toBe(400);
-  await choose(page, 'All');
+  await chooseProject(page, 'All');
   await expect(rows(page)).toHaveCount(many.length + others.length);
   await expect.poll(() => scrolled(page)).toBe(0);
 });

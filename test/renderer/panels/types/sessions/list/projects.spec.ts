@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { headings, projectHeading, tabLabel } from '../../../../support/window';
+import { headings, projectHeading, switcherNames, tabLabel } from '../../../../support/window';
 
 // A project's name and place are yours to set from its heading, and every surface that shows projects follows at once: the list, the switcher and the tab bar (the one-behaviour rule in CLAUDE.md).
 const OTHER = `${HOME}/projects/other`;
@@ -15,7 +15,8 @@ const fixture = {
   history: { [inDemo.id]: [], [inOther.id]: [] },
 };
 
-const switcherItems = (page: Page): Locator => page.locator('.switcher-item:not(:first-child) .switcher-item-name');
+/** The switcher's projects, All left out. */
+const switcherItems = (page: Page): Locator => switcherNames(page).filter({ hasNotText: /^All$/ });
 const tabBarProjects = (page: Page): Locator => page.locator('#tabbar .tab-project-label');
 const projectMenu = async (page: Page, name: string, label: string): Promise<void> => {
   await projectHeading(page, name).locator('.project-kebab').click();

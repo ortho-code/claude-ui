@@ -3,7 +3,7 @@ import { projectGoneReason } from '../../../../../../src/renderer/logic';
 import type { Exchange, SessionSummary } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, tab, tabs } from '../../../../support/window';
+import { chooseProject, row, tab, tabs } from '../../../../support/window';
 
 // The empty terminal pane names the next action, and there are four (docs/architecture.md § UI conventions): no sessions at all, no tabs on show in this project, tabs but none selected, and a selected tab that is not running, which the lifecycle's checks cover.
 // It counts the tabs ON SHOW (`visibleTabs`), not every open tab: "pick a tab above" beside an empty bar was the bug that rule fixed.
@@ -48,13 +48,9 @@ test('the pane follows the listing on disk: a first session points at the list, 
 test('the pane follows the project chosen: one whose tabs are all elsewhere points at the list, and All at the tabs again', async ({ app, page }) => {
   await app.boot({ sessions: [here, there], projectOrder: [PROJECT, OTHER], activeProject: null, openSessions: [there.id] });
   await expect(page.locator('#term-placeholder')).toHaveText('Pick a tab above, or a session in the sidebar, to resume it.');
-  const choose = async (name: string): Promise<void> => {
-    await page.locator('#switcher-current').click();
-    await page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: new RegExp(`^${name}$`) }) }).click();
-  };
-  await choose('demo');
+  await chooseProject(page, 'demo');
   await expect(page.locator('#term-placeholder')).toHaveText('Pick a session in the sidebar to open it.');
-  await choose('All');
+  await chooseProject(page, 'All');
   await expect(page.locator('#term-placeholder')).toHaveText('Pick a tab above, or a session in the sidebar, to resume it.');
 });
 
