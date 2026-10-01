@@ -26,10 +26,10 @@ import {
   tabOf,
   type TabLaunch,
 } from './panels/types/claude/terminals';
-import { renderTabBar, type TabBarView } from './panels/types/claude/tab-bar';
+import { renderTabBar, tabBarFollowsStatuses } from './panels/types/claude/tab-bar';
 import './styles.css';
 import { noFilter, store, withEntry, withMember, type AppState, type FilterState, type Folds, type TabState, type View } from './state/app';
-import { isFiltering, projName, projectGroups, searchText, sessionById, sessionNudge, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
+import { isFiltering, projName, projectGroups, searchText, sessionById, sessionNudge, statusChanges, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
 import { setStatus } from './state/statuses';
 import { applyGroupState, moveSessionToGroup } from './state/groups';
 import { ackOnClick, applyStatus } from './statusdot';
@@ -283,25 +283,20 @@ function modelOf(session: SessionSummary, view: View<'switchedModel'>): string {
   return view.switchedModel.get(session.id) ?? session.model;
 }
 
-/** What the dots were last painted from, so a change repaints only the dots that differ, as a status event naming one session always has. */
-let paintedStatuses: View<'statuses'>['statuses'] = new Map();
-let paintedAcked: View<'acked'>['acked'] = new Set();
+/** What the rows' dots were last painted from, so a change repaints only the dots that differ. */
+let paintedDots: View<'statuses' | 'acked'> = { statuses: new Map(), acked: new Set() };
 
 /**
- * A status or a mark read changed: repaint the dots that differ, wherever they show — a row, and the tab bar when one of them has a tab.
+ * A status or a mark read changed: repaint the rows' dots that differ.
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function statusesChanged(view: TabBarView): void {
-  const ids = new Set<string>();
-  for (const id of new Set([...paintedStatuses.keys(), ...view.statuses.keys()])) if (paintedStatuses.get(id) !== view.statuses.get(id)) ids.add(id);
-  for (const id of new Set([...paintedAcked, ...view.acked])) if (paintedAcked.has(id) !== view.acked.has(id)) ids.add(id);
-  paintedStatuses = view.statuses;
-  paintedAcked = view.acked;
+function dotsFollowStatuses(view: View<'statuses' | 'acked'>): void {
+  const ids = statusChanges(paintedDots, view);
+  paintedDots = { statuses: view.statuses, acked: view.acked };
   for (const id of ids) {
     const dot = statusDots.get(id);
     if (dot) applyStatus(dot, view.statuses.get(id), view.acked.has(id));
   }
-  if (view.tabs.some((t) => ids.has(t.session.id))) renderTabBar(view);
 }
 
 // --- Sidebar ---
@@ -2066,14 +2061,16 @@ store.watch(['tabs', 'activeTab'], listFollowsTabs, {
 // The filter panel opened or shut: it follows, with the chips that stand in for it while it is shut.
 store.watch(['filterPanelOpen'], filterPanelFollows, { reads: ['filter'] });
 
-// A status or a mark read changed: the dots that differ, and the tab bar when one of them has a tab.
-store.watch(['statuses', 'acked'], statusesChanged, { reads: ['sessions', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'] });
+// A status or a mark read changed: the rows' dots that differ.
+store.watch(['statuses', 'acked'], dotsFollowStatuses);
 
 // A tab not on show turned waiting or finished: a toast says so.
 store.watch(['statuses'], toastAttention, { reads: ['tabs', 'activeTab', 'projectNames'] });
 
 // The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes, and every change to a tab or to which one is on show.
 store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'], renderTabBar, { reads: ['sessions', 'statuses', 'acked'] });
+// And a status or a mark read of one of its tabs' sessions.
+store.watch(['statuses', 'acked'], tabBarFollowsStatuses, { reads: ['sessions', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'] });
 
 // The switcher counts every project's sessions, rolls up their statuses and names the project on show; the sidebar's rail icon says what its badge says.
 // A session with no transcript yet is in its project only through its tab, so the tabs are among what it counts.

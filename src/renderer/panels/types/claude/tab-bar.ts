@@ -2,7 +2,7 @@ import Sortable from 'sortablejs';
 import { orderAsTabs, reorderWithinGroup, sessionLabel, stopControlState, unstartableReason } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
-import { projName, projectGone, projectGroups, visibleTabs } from '../../../state/views';
+import { projName, projectGone, projectGroups, statusChanges, visibleTabs } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { closeIcon, layersIcon, SIBLING_ICON, stopIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -87,6 +87,16 @@ export function renderTabBar(view: TabBarView): void {
   }
   tabbar.replaceChildren(...children);
   initTabSortables();
+}
+
+/** The statuses and marks read the bar last followed, so a status change draws it only when one of its tabs' sessions is among those that changed. */
+let followedStatuses: View<'statuses' | 'acked'> = { statuses: new Map(), acked: new Set() };
+
+/** A status or a mark read changed: the bar draws again when one of its tabs' dots is among them. A watcher renderer.ts registers with the others. */
+export function tabBarFollowsStatuses(view: TabBarView): void {
+  const ids = statusChanges(followedStatuses, view);
+  followedStatuses = { statuses: view.statuses, acked: view.acked };
+  if (view.tabs.some((t) => ids.has(t.session.id))) renderTabBar(view);
 }
 
 function tabElement(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames' | 'activeTab'>): HTMLElement {

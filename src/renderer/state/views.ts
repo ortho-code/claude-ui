@@ -69,6 +69,14 @@ export function isFiltering(view: View<'filter'>): boolean {
   return searchText(view).length > 0 || Object.values(view.filter.filters).some(Boolean) || view.filter.datePreset !== 'any';
 }
 
+/** The sessions whose status or read mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has. */
+export function statusChanges(before: View<'statuses' | 'acked'>, after: View<'statuses' | 'acked'>): Set<string> {
+  const ids = new Set<string>();
+  for (const id of new Set([...before.statuses.keys(), ...after.statuses.keys()])) if (before.statuses.get(id) !== after.statuses.get(id)) ids.add(id);
+  for (const id of new Set([...before.acked, ...after.acked])) if (before.acked.has(id) !== after.acked.has(id)) ids.add(id);
+  return ids;
+}
+
 /** A session's contribution to the roll-up: its live status, but an acked idle/waiting counts as nothing (muted), same rule as the switcher badges. */
 export function sessionNudge(id: string, view: View<'statuses' | 'acked'>): NudgeStatus {
   const st = view.statuses.get(id);
