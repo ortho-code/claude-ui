@@ -1,5 +1,5 @@
 import type { SessionGroup, SessionSummary } from '../../shared/types';
-import { displayName, entityKey, inView, projectRootExists, projectsForSwitcher, sessionsByKey, type NudgeStatus, type SwitcherModel } from '../logic';
+import { displayName, entityKey, inView, nudgeOf, projectRootExists, projectsForSwitcher, sessionsByKey, type NudgeStatus, type SwitcherModel } from '../logic';
 import { store, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */
@@ -85,10 +85,7 @@ export function statusChanges(before: View<'statuses' | 'acked'>, after: View<'s
   return ids;
 }
 
-/** A session's contribution to the roll-up: its live status, but an acked idle/waiting counts as nothing (muted), same rule as the switcher badges. */
+/** A session's part in a roll-up (`nudgeOf`), read out of the store. */
 export function sessionNudge(id: string, view: View<'statuses' | 'acked'>): NudgeStatus {
-  const st = view.statuses.get(id);
-  if (st === 'waiting' || st === 'idle') return view.acked.has(id) ? null : st;
-  if (st === 'busy') return 'busy';
-  return null;
+  return nudgeOf(view.statuses.get(id), view.acked.has(id));
 }

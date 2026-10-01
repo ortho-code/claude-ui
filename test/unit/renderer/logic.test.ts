@@ -15,6 +15,7 @@ import {
   datePresetRange,
   sessionPasses,
   inView,
+  nudgeOf,
   projectsForSwitcher,
   modelLabel,
   reorderWithinGroup,
@@ -317,6 +318,23 @@ describe('projectFor', () => {
     expect(projectFor(roots, '/home/u/dev/scienta-old')).toBeNull();
     expect(projectFor(roots, '/tmp')).toBeNull();
     expect(projectFor([], '/home/u/dev/scienta')).toBeNull();
+  });
+});
+
+describe('nudgeOf', () => {
+  it('counts a live status, muted once read, and nothing for a session with none', () => {
+    const table: [string | undefined, unread: string | null, read: string | null][] = [
+      ['waiting', 'waiting', null],
+      ['idle', 'idle', null],
+      // Busy cannot be read (toggleAck), so the mark is never there to mute it.
+      ['busy', 'busy', 'busy'],
+      ['closed', null, null],
+      [undefined, null, null],
+    ];
+    for (const [status, unread, read] of table) {
+      expect(nudgeOf(status, false), `${status} unread`).toBe(unread);
+      expect(nudgeOf(status, true), `${status} read`).toBe(read);
+    }
   });
 });
 

@@ -262,8 +262,17 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
 
 // A project's rolled-up nudge for the switcher: the strongest UNATTENDED status among its sessions, so a project you're not looking at still shows it needs you.
 // Priority waiting > idle > busy; null when nothing needs surfacing.
-// An acked (read) session is muted and contributes nothing.
+// A read session waiting or finished is muted and contributes nothing (`nudgeOf`).
 export type NudgeStatus = 'waiting' | 'idle' | 'busy' | null;
+
+/**
+ * One session's part in a roll-up: its live status, muted to nothing once read; closed, unknown or not reported yet is nothing too.
+ * Only waiting and idle can be read (`toggleAck`), and a new status clears the mark, so the mark mutes only those.
+ */
+export function nudgeOf(status: string | undefined, acked: boolean): NudgeStatus {
+  if (status === 'waiting' || status === 'idle') return acked ? null : status;
+  return status === 'busy' ? 'busy' : null;
+}
 
 export interface SwitcherProject {
   repoRoot: string;
@@ -284,26 +293,8 @@ function rollUpNudge(
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
 ): NudgeStatus {
-  let waiting = false;
-  let idle = false;
-  let busy = false;
-  for (const s of sessions) {
-    if (acked.has(s.id)) continue; // read/muted — contributes nothing
-    switch (statuses.get(s.id)) {
-      case 'waiting':
-        waiting = true;
-        break;
-      case 'idle':
-        idle = true;
-        break;
-      case 'busy':
-        busy = true;
-        break;
-      default:
-        break; // closed, unknown or not reported yet — contributes nothing
-    }
-  }
-  return waiting ? 'waiting' : idle ? 'idle' : busy ? 'busy' : null;
+  const nudges = new Set(sessions.map((s) => nudgeOf(statuses.get(s.id), acked.has(s.id))));
+  return nudges.has('waiting') ? 'waiting' : nudges.has('idle') ? 'idle' : nudges.has('busy') ? 'busy' : null;
 }
 
 /**
