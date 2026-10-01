@@ -3,7 +3,7 @@
  *
  * The text of each state is compared as sorted lines, so an element built in another place that looks the same changes nothing; each line only in one capture is printed, `-` for before and `+` for after.
  * A rename map, `{ "old-class": "new-class" }`, rewrites the before-capture's element keys first, keys only and never values, so a pure rename compares empty: a value of several space-separated names gives a class more than one, and an empty one takes it away.
- * The pictures are compared pixel by pixel, and every pixel that differs is listed, none excused: two captures of one build have been seen to differ by two pixels of `busy.png` (x 122, y 38-39, a shade apart), and that shows here as itself, to be judged rather than hidden.
+ * The pictures are compared pixel by pixel, and every pixel that differs is listed, none excused: two captures of one build have been seen to differ by two pixels of `busy.png` (x 122, y 38-39, a shade apart: the Settings button's corner at a fractional position, which Chromium anti-aliases one shade apart between runs; docs/architecture.md § The window's checks), and that shows here as itself, to be judged rather than hidden.
  * Exits non-zero when anything differs.
  */
 import { readdirSync, readFileSync } from 'node:fs';

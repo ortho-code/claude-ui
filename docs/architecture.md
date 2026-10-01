@@ -92,7 +92,9 @@ It exists because a stylesheet split across files is read in another order, and 
 The picture is for what styles cannot say: which of two overlapping elements paints on top, which follows from their order in the page; a picture alone would miss every hover, everything off screen, and which property changed.
 Forced states go through the DevTools protocol rather than the mouse, since a real hover runs the page's handlers, and a submenu opening would change what is captured; two captures of one build are identical, which is what makes an empty comparison mean something.
 A jump's flash is let end before a state is captured: it takes itself off on a timer the capture cannot hold, so a capture that caught it depended on how fast it ran, and once in about ten it did not.
-The one known exception is two pixels of `busy.png` (x 122, y 38-39) a shade apart, seen in about one capture in six, cause unknown; the comparison lists it, as it lists every pixel that differs, rather than excusing it, and one capture alone is no baseline, so a change is compared against two of the build before it.
+The one known exception is two pixels of `busy.png` (x 122, y 38-39) a shade apart, in between one capture in six and one in three: the anti-aliased bottom-left corner of the Settings button's border, which sits at a fractional position (x 120.6), and which Chromium draws one shade apart from one run to the next.
+It is none of the window's doing: the layout and every computed style are the same either way, no tooltip is up, removing every animation or switching the raster path (`--disable-gpu`, `--disable-gpu-rasterization`) leaves it, and with the button moved to a whole pixel it goes (measured 2026-10-01).
+The comparison lists it, as it lists every pixel that differs, rather than excusing it, and one capture alone is no baseline, so a change is compared against two of the build before it.
 The comparison sorts each state's lines, and takes a map of the classes a change renames (`{ "old": "new" }`), applied to the before-capture's element keys only, so a pure rename compares empty.
 
 ## Embedded terminal
