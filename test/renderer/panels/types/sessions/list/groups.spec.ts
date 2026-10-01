@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
-import { type App, expect, test } from '../../../../support/harness';
+import { expect, test } from '../../../../support/harness';
 import { group, groupHeading, groupHeadings, projectHeading, row, tabBarGroupRow, tabBarGroups, tabBarProjectRow, tabLabelsIn, titlesIn } from '../../../../support/window';
 
 // A group is made, renamed, moved and deleted from the list, and the tab bar, which clusters tabs by group, follows every change at once (the one-behaviour rule in CLAUDE.md).
@@ -84,9 +84,6 @@ test('a stored fold of a group that is gone is forgotten, and the fold of one th
 
   // Any change to the sidebar writes its folds; what it writes no longer names the group that is gone.
   await projectHeading(page, 'other').click();
-  await expect.poll(async () => (await saved(app))?.collapsedGroups).toEqual(['g-alpha']);
+  await expect.poll(async () => (await app.saved())?.collapsedGroups).toEqual(['g-alpha']);
   expect((await app.calls('setUiState')).some(([ui]) => (ui as UiState).collapsedGroups.includes('g-gone'))).toBe(false);
 });
-
-/** What the window last asked main to keep of the sidebar: saved on a debounce, so read with a poll. */
-const saved = async (app: App): Promise<UiState | undefined> => (await app.calls('setUiState')).at(-1)?.[0] as UiState | undefined;

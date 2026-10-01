@@ -1,7 +1,6 @@
 import { defaultUi } from '../../../../../../src/shared/defaults';
-import type { UiState } from '../../../../../../src/shared/types';
 import { session } from '../../../../support/fixture';
-import { type App, expect, test } from '../../../../support/harness';
+import { expect, test } from '../../../../support/harness';
 import { titles } from '../../../../support/window';
 
 // A filter that is on is never out of sight (docs/architecture.md § Reopening the way you left it): the count and Clear sit under the panel, and a panel shut over a filter folds to a row of chips, one per thing that is on, each with its own ×.
@@ -50,20 +49,17 @@ test('the row of chips opens the panel again', async ({ app, page }) => {
   await expect(page.locator('#filter-chips')).toBeHidden();
 });
 
-/** What the window last asked main to keep of the sidebar: saved on a debounce, so read with a poll. */
-const saved = async (app: App): Promise<UiState | undefined> => (await app.calls('setUiState')).at(-1)?.[0] as UiState | undefined;
-
 // With the list already at its top, so a filter's return there moves nothing that would be saved for its own sake.
 test('the filter and the panel are saved as they are set', async ({ app, page }) => {
   await app.boot(fixture);
   await page.locator('#filter-toggle').click();
-  await expect.poll(async () => (await saved(app))?.filterPanelOpen).toBe(true);
+  await expect.poll(async () => (await app.saved())?.filterPanelOpen).toBe(true);
   await page.locator('#search').fill('parser');
-  await expect.poll(async () => (await saved(app))?.search).toBe('parser');
+  await expect.poll(async () => (await app.saved())?.search).toBe('parser');
   await page.locator('#pinned-filter').click();
-  await expect.poll(async () => (await saved(app))?.filters.pinned).toBe(true);
+  await expect.poll(async () => (await app.saved())?.filters.pinned).toBe(true);
   await page.locator('#filter-toggle').click();
-  await expect.poll(async () => (await saved(app))?.filterPanelOpen).toBe(false);
+  await expect.poll(async () => (await app.saved())?.filterPanelOpen).toBe(false);
 });
 
 test('a panel left open comes back open, with what was typed in it and no chips', async ({ app, page }) => {

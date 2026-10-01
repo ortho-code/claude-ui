@@ -1,8 +1,7 @@
 import type { Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
-import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
-import { type App, expect, test } from '../../../../support/harness';
+import { expect, test } from '../../../../support/harness';
 import { chooseProject, rows } from '../../../../support/window';
 
 // The list keeps where you scrolled it, across a repaint and across a restart; a new filter or another project starts it at its top, since the rows it scrolled through are gone.
@@ -28,7 +27,6 @@ const scrollTo = (page: Page, top: number): Promise<void> =>
   page.locator('#sessions').evaluate((list, to) => {
     list.scrollTop = to;
   }, top);
-const savedScroll = async (app: App): Promise<number | undefined> => ((await app.calls('setUiState')).at(-1)?.[0] as UiState | undefined)?.scrollTop;
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(NOW);
@@ -113,7 +111,7 @@ test('where the list was scrolled to is saved', async ({ app, page }) => {
   await app.boot(fixture);
   await expect(rows(page)).toHaveCount(many.length);
   await scrollTo(page, 300);
-  await expect.poll(() => savedScroll(app)).toBe(300);
+  await expect.poll(async () => (await app.saved())?.scrollTop).toBe(300);
 });
 
 test('a scroll stored last time is where the list opens', async ({ app, page }) => {

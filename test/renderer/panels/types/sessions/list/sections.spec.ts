@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
-import { type App, expect, test } from '../../../../support/harness';
+import { expect, test } from '../../../../support/harness';
 import { chooseProject, group, groupHeading, groupHeadings, headings, project, projectHeading, row, titles } from '../../../../support/window';
 
 // The list is projects in the order you set, each holding its groups in registry order and then its loose rows, with pins floated inside their own section (docs/architecture.md § App-side metadata and session groups).
@@ -33,8 +33,6 @@ const withUi = (ui: Partial<UiState>): { uiState: UiState } => ({ uiState: { ...
 
 /** The list as it reads, top to bottom: headings and rows. */
 const list = (page: Page): Locator => headings(page).or(groupHeadings(page)).or(titles(page));
-/** What the window last asked main to keep of the sidebar: saved on a debounce, so read with a poll. */
-const saved = async (app: App): Promise<UiState | undefined> => (await app.calls('setUiState')).at(-1)?.[0] as UiState | undefined;
 
 test('projects sit in the order you set, groups in registry order before the loose rows, and a pin floats in its own section', async ({ app, page }) => {
   await app.boot(fixture);
@@ -46,12 +44,12 @@ test('folding a project or a group is kept', async ({ app, page }) => {
   await projectHeading(page, 'demo').click();
   await expect(project(page, 'demo')).toHaveClass(/\bcollapsed\b/);
   await expect(row(page, newer.title)).toBeHidden();
-  await expect.poll(async () => (await saved(app))?.collapsedProjects).toEqual([PROJECT]);
+  await expect.poll(async () => (await app.saved())?.collapsedProjects).toEqual([PROJECT]);
 
   await projectHeading(page, 'demo').click();
   await groupHeading(page, 'Alpha').click();
   await expect(group(page, 'Alpha')).toHaveClass(/\bcollapsed\b/);
-  await expect.poll(async () => (await saved(app))?.collapsedGroups).toEqual(['g-alpha']);
+  await expect.poll(async () => (await app.saved())?.collapsedGroups).toEqual(['g-alpha']);
 });
 
 test('a fold stored last time is folded at launch', async ({ app, page }) => {
@@ -90,7 +88,7 @@ test('a project folded in All opens when you choose it, and stays open when you 
   await expect(row(page, elsewhere.title)).toBeVisible();
   await chooseProject(page, 'All');
   await expect(project(page, 'other')).not.toHaveClass(/\bcollapsed\b/);
-  await expect.poll(async () => (await saved(app))?.collapsedProjects).toEqual([]);
+  await expect.poll(async () => (await app.saved())?.collapsedProjects).toEqual([]);
 });
 
 test("in a project, the heading cannot fold and collapse-all folds that project's groups", async ({ app, page }) => {
@@ -123,7 +121,7 @@ test('a filter opens every fold, a fold made under it lasts as long as the filte
   await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
   await expect(group(page, 'Alpha')).toHaveClass(/\bcollapsed\b/);
   await expect.poll(async () => {
-    const ui = await saved(app);
+    const ui = await app.saved();
     return [ui?.collapsedProjects, ui?.collapsedGroups, ui?.filterCollapsedProjects];
   }).toEqual([[], ['g-alpha'], []]);
 });

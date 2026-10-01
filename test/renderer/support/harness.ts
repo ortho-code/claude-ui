@@ -2,7 +2,7 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { test as base, expect, type Route } from '@playwright/test';
 import { build } from 'esbuild';
-import type { ClaudeUiApi } from '../../../src/shared/types';
+import type { ClaudeUiApi, UiState } from '../../../src/shared/types';
 import { defaultFixture, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
 
 /** The window as it ships: `npm run build`'s output, which `npm run test:renderer` builds first. */
@@ -18,6 +18,8 @@ export interface App {
   boot(overrides?: Partial<BridgeFixture>): Promise<void>;
   /** The arguments of every call to `name` so far, in order. */
   calls(name: keyof ClaudeUiApi): Promise<unknown[][]>;
+  /** The view the window last asked main to keep (`setUiState`), or nothing before it first has: saved on a debounce, so read with a poll. */
+  saved(): Promise<UiState | undefined>;
   /** Fire what the window subscribed to as `name`, as main would; answers how many callbacks there were. */
   emit<K extends BridgeEvent>(name: K, ...args: BridgeEventArgs<K>): Promise<number>;
   /** Hold every answer to `name` until `release(name)`, as main still working on it would (`BridgeControl.hold`). */
@@ -57,6 +59,7 @@ export const test = base.extend<{ app: App }, { installScript: string }>({
         await page.goto(`${ORIGIN}/index.html`);
       },
       calls: async (name) => (await page.evaluate(() => window.__claudeUiTest.calls)).filter((call) => call.name === name).map((call) => call.args),
+      saved: async () => (await app.calls('setUiState')).at(-1)?.[0] as UiState | undefined,
       // Typed on `App`; untyped across into the page, where Playwright's own typing of an argument loses the pairing of an event with its arguments.
       emit: (name, ...args) =>
         page.evaluate(({ event, values }) => (window.__claudeUiTest.emit as (event: string, ...values: unknown[]) => number)(event, ...values), { event: name, values: args }),

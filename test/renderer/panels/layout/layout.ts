@@ -49,6 +49,6 @@ export const runs = async (app: App, entry: string): Promise<PanelRunRequest[]> 
   (await app.calls('runPanel')).map(([request]) => request as PanelRunRequest).filter((request) => request.entryId === entry);
 
 /** What the window last asked main to keep of the layout: saved on a debounce, so read with a poll. */
-export const savedPanels = async (app: App): Promise<PanelState | undefined> => ((await app.calls('setUiState')).at(-1)?.[0] as UiState | undefined)?.panelState;
+export const savedPanels = async (app: App): Promise<PanelState | undefined> => (await app.saved())?.panelState;
 
 export const railItem = (page: Page, label: RegExp): Locator => page.locator('.panel-rail').getByRole('button', { name: label });

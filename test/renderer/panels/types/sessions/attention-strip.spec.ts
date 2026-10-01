@@ -1,7 +1,6 @@
 import { defaultUi } from '../../../../../src/shared/defaults';
-import type { UiState } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
-import { type App, expect, test } from '../../../support/harness';
+import { expect, test } from '../../../support/harness';
 import { chooseProject, row, strip, stripLines, tab, tabLabel, tabs } from '../../../support/window';
 
 // The strip lists what is RUNNING, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
@@ -82,8 +81,6 @@ test("the strip's stop button stops the session, keeps its tab cold, and the row
   await expect(page.locator('#sidebar-footer')).toBeHidden();
 });
 
-/** Whether the strip was last stored expanded: the view is saved on a debounce, so read with a poll. */
-const savedExpanded = async (app: App): Promise<boolean | undefined> => ((await app.calls('setUiState')).at(-1)?.[0] as UiState | undefined)?.footerExpanded;
 
 // The strip folds to its one line and opens again from that line, and stays the way it was left, across a restart too.
 test('the strip folds from its line and opens again, and the fold is kept', async ({ app, page }) => {
@@ -97,12 +94,12 @@ test('the strip folds from its line and opens again, and the fold is kept', asyn
   await toggle.click();
   await expect(list).toBeHidden();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect.poll(() => savedExpanded(app)).toBe(false);
+  await expect.poll(async () => (await app.saved())?.footerExpanded).toBe(false);
 
   await toggle.click();
   await expect(list).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect.poll(() => savedExpanded(app)).toBe(true);
+  await expect.poll(async () => (await app.saved())?.footerExpanded).toBe(true);
 });
 
 test('a strip folded last time comes back folded', async ({ app, page }) => {
