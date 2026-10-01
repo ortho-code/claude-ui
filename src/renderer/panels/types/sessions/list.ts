@@ -153,16 +153,12 @@ function modelOf(session: SessionSummary, view: View<'switchedModel'>): string {
   return view.switchedModel.get(session.id) ?? session.model;
 }
 
-/** What the rows' dots were last painted from, so a change repaints only the dots that differ. */
-let paintedDots: View<'statuses' | 'acked'> = { statuses: new Map(), acked: new Set() };
-
 /**
- * A status or a mark read changed: repaint the rows' dots that differ.
+ * A status or a mark read changed: repaint the rows' dots that differ from what they were last painted from (`before`).
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-export function dotsFollowStatuses(view: View<'statuses' | 'acked'>): void {
-  const ids = statusChanges(paintedDots, view);
-  paintedDots = { statuses: view.statuses, acked: view.acked };
+export function dotsFollowStatuses(view: View<'statuses' | 'acked'>, before: View<'statuses' | 'acked'>): void {
+  const ids = statusChanges(before, view);
   for (const id of ids) {
     const dot = statusDots.get(id);
     if (dot) applyStatus(dot, view.statuses.get(id), view.acked.has(id));
