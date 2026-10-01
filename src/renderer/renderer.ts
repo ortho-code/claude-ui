@@ -30,7 +30,7 @@ import {
 import { renderTabBar, tabBarFollowsStatuses } from './panels/types/claude/tab-bar';
 import { fallBackIfEmptied, refreshSwitcher, selectProject } from './panels/types/sessions/switcher';
 import { refreshStrip } from './panels/types/sessions/attention-strip';
-import { applyDatePickerMinDate, filterPanelFollows, restoreFilter } from './panels/types/sessions/filter';
+import { applyDatePickerMinDate, filterPanelFollows } from './panels/types/sessions/filter';
 import {
   container,
   dotsFollowStatuses,
@@ -42,9 +42,10 @@ import {
   revealProjectInSidebar,
   revealSessionInSidebar,
 } from './panels/types/sessions/list';
+import { forgetDeletedGroupFolds, restoreSidebar, sidebarSnapshot } from './panels/types/sessions/stored-view';
 import './styles.css';
 import { store, withEntry, type StoredView, type View } from './state/app';
-import { isFiltering, projName, sessionById, tabOnShow, tabWith } from './state/views';
+import { projName, sessionById, tabOnShow, tabWith } from './state/views';
 import { setStatus } from './state/statuses';
 import { applyGroupState, moveSessionToGroup } from './state/groups';
 import { newSession, untitledLabel } from './newsession';
@@ -108,20 +109,12 @@ let uiSaveTimer: number | undefined;
 // The last snapshot actually sent. Renders happen for reasons that have nothing to do with the view — a transcript growing, a status dot changing — and without this each one would cost a full read-modify-write of meta.json.
 let lastUiSignature = '';
 
+/** The view to store: the sidebar's part and the layout tree's, in the one shape `meta.json` keeps. */
 function uiSnapshot(view: StoredView = store.get()): UiState {
-  const { folds } = view;
   return {
-    // The search as typed, not the trimmed and lowercased text it matches: what is restored has to be what was typed.
-    ...view.filter,
-    filterPanelOpen: view.filterPanelOpen,
-    footerExpanded: view.footerExpanded,
-    collapsedProjects: [...folds.projects],
-    collapsedGroups: [...folds.groups],
-    filterCollapsedProjects: [...folds.filterProjects],
-    filterCollapsedGroups: [...folds.filterGroups],
+    ...sidebarSnapshot(view),
     // Adopted into the layout tree's sizes on the first launch that has them, and not written again: the tree owns the sidebar's width now.
     sidebarWidth: null,
-    scrollTop: container.scrollTop,
     panelState: treeState(),
   };
 }
@@ -147,47 +140,22 @@ function persistUi(): void {
  * Put the sidebar back the way it was left, and hand back what the start-up read sets in the store with the listing (`renderSessions`), and the scroll offset to apply once there is a list to scroll.
  *
  * Runs before the first render on purpose, and the view goes into the store in the same change as the listing: restoring filters afterwards would draw the full list and then visibly cut it down.
- * What is drawn straight from what was stored — the search box, the calendar, the chosen preset, the panel — is put back by the filter (`restoreFilter`), before the layout places the sidebar.
- * A deleted group's fold comes back too, and goes once the groups have been read (`forgetDeletedGroupFolds`).
+ * What is drawn straight from what was stored — the search box, the calendar, the chosen preset, the panel — is put back by the sidebar (`restoreSidebar`), before the layout places it; the tree puts back its own part.
  */
 async function restoreUiState(): Promise<{ scrollTop: number; view: StoredView }> {
   const state = await window.claudeUi.getUiState();
   // The sidebar's width lived in localStorage, then in `sidebarWidth`; either is adopted once into the layout tree's sizes, so an existing install keeps its sidebar, and the tree owns it from here.
   restoreTreeState(state.panelState, state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth')));
-  const filter = await restoreFilter(state);
-  // The folds made under a filter apply only while it is on, so a filter stored off leaves them behind.
-  const underFilter = isFiltering({ filter });
-  const view: StoredView = {
-    filter,
-    folds: {
-      projects: new Set(state.collapsedProjects),
-      groups: new Set(state.collapsedGroups),
-      filterProjects: new Set(underFilter ? state.filterCollapsedProjects : []),
-      filterGroups: new Set(underFilter ? state.filterCollapsedGroups : []),
-    },
-    // Exactly as it was left, an active filter included. Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
-    filterPanelOpen: state.filterPanelOpen,
-    footerExpanded: state.footerExpanded,
-  };
+  const restored = await restoreSidebar(state);
   // Seed the signature from what was just restored, so an opening render that changed nothing writes nothing.
-  lastUiSignature = JSON.stringify(uiSnapshot(view));
-  return { scrollTop: state.scrollTop, view };
+  lastUiSignature = JSON.stringify(uiSnapshot(restored.view));
+  return restored;
 }
 
 /** From the start-up read on, the view in the store is the one you left, so it can be saved; anything asked for meanwhile — the layout dropping a stale split's sizes, say — is written now, if it changed anything. */
 function startSavingUi(): void {
   uiRestored = true;
   persistUi();
-}
-
-/**
- * A project keeps its fold even while it has no sessions to show (same reasoning as the project order), but a DELETED group is gone for good.
- * The folds come back with the groups' first read, so the list's first draw is already the one you left; a fold of a group that is gone draws nothing meanwhile.
- */
-function forgetDeletedGroupFolds({ groupState, folds }: View<'groupState' | 'folds'>): void {
-  const live = new Set(groupState.groups.map((g) => g.id));
-  const alive = (ids: ReadonlySet<string>): ReadonlySet<string> => new Set([...ids].filter((id) => live.has(id)));
-  store.set({ folds: { ...folds, groups: alive(folds.groups), filterGroups: alive(folds.filterGroups) } });
 }
 
 // --- Session helpers ---
