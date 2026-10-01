@@ -4,7 +4,7 @@ import './base.css';
 import './menu';
 import './unavailable';
 import { hideToast, showToast } from './toast';
-import { showAttentionToast } from './notifications';
+import './notifications';
 import './dialogs';
 import { openSettings } from './settings';
 import './projectgone';
@@ -13,7 +13,7 @@ import './flash';
 import { initTree, loadLayout, startPanels, restoreTreeState, treeState, treeContextChanged, treeSessionsChanged } from './panels/tree';
 import { railStatusFollowsTabs } from './panels/types/claude/index';
 import { history, paneFollows } from './panels/types/claude/pane';
-import { activateTab, adoptReplacement, reconcileOpenTabs, restoreOpenTabs, switchWorkspaceTerminal, tabOf } from './panels/types/claude/terminals';
+import { adoptReplacement, reconcileOpenTabs, restoreOpenTabs, switchWorkspaceTerminal } from './panels/types/claude/terminals';
 import { renderTabBar, tabBarFollowsStatuses } from './panels/types/claude/tab-bar';
 import { railStatusFollowsSessions } from './panels/types/sessions/index';
 import { fallBackIfEmptied, refreshSwitcher } from './panels/types/sessions/switcher';
@@ -22,13 +22,13 @@ import { applyDatePickerMinDate, filterPanelFollows } from './panels/types/sessi
 import { container, dotsFollowStatuses, listChanged, listFollowsTabs, renderList, renderSessions } from './panels/types/sessions/list';
 import { forgetDeletedGroupFolds, restoreSidebar, sidebarSnapshot } from './panels/types/sessions/stored-view';
 import { claudeAnswers } from './panels/types/claude/asks';
+import { toastAttention } from './panels/types/claude/attention';
 import { sessionsAnswers } from './panels/types/sessions/asks';
 import './styles.css';
-import { store, withEntry, type StoredView, type View } from './state/app';
-import { projName, tabOnShow, tabWith } from './state/views';
+import { store, withEntry, type StoredView } from './state/app';
+import { tabOnShow, tabWith } from './state/views';
 import { setStatus } from './state/statuses';
 import type { UiState } from '../shared/types';
-import { sessionLabel } from './logic';
 import { installTooltips } from './tooltip';
 import { strokeIcon } from './svg';
 import { routeTerminals } from './terminal';
@@ -40,37 +40,6 @@ const newButton = document.getElementById('new-session') as HTMLButtonElement;
 const settingsIcon = (size: number): string =>
   strokeIcon(size, '<path d="M2 4.6h8.1M13.1 4.6h.9M2 11.4h2.9M7.9 11.4h6.1" /><circle cx="11.7" cy="4.6" r="1.6" /><circle cx="6.4" cy="11.4" r="1.6" />');
 const settingsToggle = document.getElementById('settings-toggle') as HTMLButtonElement;
-
-/** The statuses as the toasts last saw them, so only a change of state is news. */
-let toastedStatuses: View<'statuses'>['statuses'] = new Map();
-
-/**
- * A real transition into waiting/idle on a tab you're not looking at -> toast it. Never for busy, a cleared status, a no-op repeat, or the tab you're already on.
- * Start-up's read of every status toasts nothing: it lands before the tabs are restored, so no session in it has a tab yet.
- */
-function toastAttention(view: View<'statuses' | 'tabs' | 'activeTab' | 'projectNames'>): void {
-  const before = toastedStatuses;
-  toastedStatuses = view.statuses;
-  for (const [id, status] of view.statuses) {
-    if ((status !== 'waiting' && status !== 'idle') || status === before.get(id)) continue;
-    const tab = tabWith(id, view);
-    if (!tab || tab.token === view.activeTab) continue;
-    const { token } = tab;
-    showAttentionToast({ status, label: sessionLabel(tab.session), project: projName(tab.session.repoRoot, view), open: () => jumpToTab(token) });
-  }
-}
-
-// Jump to a tab from a toast: scope to its project if we're viewing a different one, then activate it.
-function jumpToTab(token: string): void {
-  const tab = tabOf(token);
-  // Closed since the toast went up: there is nothing left to go to.
-  if (!tab) return;
-  const { activeProject } = store.get();
-  if (activeProject !== null && activeProject !== tab.session.repoRoot) {
-    hostOf('claude').selectProject(tab.session.repoRoot);
-  }
-  activateTab(token);
-}
 
 // A disk change fired: re-read sessions; the store tells the list and the tabs only when the structure actually changed (a new/removed session, a rename, or a new branch becoming the tip).
 // Statuses and pins arrive on their own channels, so we don't refetch them here.
