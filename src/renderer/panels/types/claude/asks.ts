@@ -13,7 +13,7 @@ import { activateTab, closeTab, createTab, startTab, stopSession, switchWorkspac
 
 /**
  * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, close its tabs, and follow the project chosen.
- * renderer.ts hands them to the tree with the sidebar's (sessions/asks.ts), which routes each panel's asks to them.
+ * renderer.ts hands them to the tree with the sidebar's (sessions/asks.ts), and every panel's host carries them as they are.
  */
 
 // Jump to a specific session from outside the list — the footer, a panel's row: scope to its project if needed, then open/focus its tab.

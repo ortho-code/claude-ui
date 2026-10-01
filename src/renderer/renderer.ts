@@ -155,8 +155,7 @@ initTree({
   hideToast,
   persist: persistUi,
   // The asks each panel can make, answered by the terminal area and by the sidebar.
-  ...claudeAnswers,
-  ...sessionsAnswers,
+  asks: { ...claudeAnswers, ...sessionsAnswers },
 });
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {

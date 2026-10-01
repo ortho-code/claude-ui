@@ -45,30 +45,14 @@ const BUILTIN_TYPES: Record<string, PanelType> = { sessions: sessionsType, claud
 /** Every type the layout can place: the built-ins, and the config folder's as of its last read (types/folder.ts). */
 let types = BUILTIN_TYPES;
 
-/** What the tree needs from the renderer: where a panel would run, the toast, the view-state write, and the answers to every ask a panel can make (`Asks`), which each panel's host hands on. A panel's session links are the tree's own (links.ts). */
-export interface TreeHost extends Asks {
+/** What the tree needs from the renderer: where a panel would run, the toast, the view-state write, and the answers to every ask a panel can make (`Asks`), which each panel's host carries as they are. A panel's session links are the tree's own (links.ts). */
+export interface TreeHost {
   where(): Where;
   showToast(message: string, sticky?: boolean): void;
   hideToast(): void;
   persist(): void;
-}
-
-/** A panel's asks, answered by the tree's host: one route for every panel, the built-ins included. */
-function asksOf(tree: TreeHost): Asks {
-  return {
-    openSession: (id, prompt) => tree.openSession(id, prompt),
-    openTab: (id) => tree.openTab(id),
-    openNewSession: (cwd, groupId, launch, id) => tree.openNewSession(cwd, groupId, launch, id),
-    openWorktreeSession: (repoRoot, groupId) => tree.openWorktreeSession(repoRoot, groupId),
-    forkSession: (id) => tree.forkSession(id),
-    stopSession: (id) => tree.stopSession(id),
-    closeTabs: (id) => tree.closeTabs(id),
-    showProject: (repoRoot) => tree.showProject(repoRoot),
-    selectProject: (repoRoot) => tree.selectProject(repoRoot),
-    revealSession: (id) => tree.revealSession(id),
-    revealProject: (repoRoot) => tree.revealProject(repoRoot),
-    revealGroup: (repoRoot, groupId) => tree.revealGroup(repoRoot, groupId),
-  };
+  /** One route for every panel, the built-ins included: a panel's ask IS the answer of the built-in that owns it. */
+  asks: Asks;
 }
 
 /** A panel on screen, and the marks it reports through — made once with it, so a rebuilt header or rail shows the same marks rather than orphaning them. */
@@ -552,10 +536,10 @@ function mountedFor(slot: PanelSlot): Mounted {
     setProblems: (problems) => report('problems', problems),
     setNotes: (notes) => report('notes', notes),
     // The session links are remembered under the panel's own entry key.
-    startSession: (request) => void startSession(slot.key, request, host),
+    startSession: (request) => void startSession(slot.key, request, host.asks),
     linkedSessions: (itemKey) => linkedSessions(slot.key, itemKey),
-    pickSession: (anchor, sessions) => pickSession(anchor, sessions, host),
-    ...asksOf(host),
+    pickSession: (anchor, sessions) => pickSession(anchor, sessions, host.asks),
+    ...host.asks,
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
