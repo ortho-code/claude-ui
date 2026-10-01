@@ -117,10 +117,10 @@
   cursor: default;
 }
 
-/* Highlight on hover, and keep it while a menu opened from a session row is still up (the menu belongs to the row, even though the pointer has moved onto the dropdown).
-   :where() keeps the hover at two classes' weight, so a surface's own fill of equal weight after it, such as .session.active-session, still wins over it. */
+/* Highlight on hover, and keep it while a menu opened from the card is still up (the menu belongs to the card, even though the pointer has moved onto the dropdown); a still card has no hover to keep.
+   :where() keeps both at two classes' weight, so a surface's own fill of equal weight after it, such as .session.active-session, still wins over them. */
 .card:where(:not(.still)):hover,
-.session:has(.menu-open) {
+.card:where(:not(.still)):has(.menu-open) {
   background: var(--surface-hover);
 }
 

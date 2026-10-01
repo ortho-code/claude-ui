@@ -45,9 +45,19 @@ const LIST = {
 
 const mark = (page: Page, text: string): Locator => page.locator('.list-row', { hasText: text }).locator('.list-session');
 
-/** Boot with the queue panel and let its script print the list. */
-async function bootQueue(app: App, page: Page): Promise<void> {
-  await app.boot({ ...fixture, layout: { ...fixture.layout, types: [{ name: 'reviews', dir: QUEUE_DIR, status: 'read', error: null, json: { version: 1, kind: 'list', title: 'Reviews', icon: 'eye', run: 'list.sh' } }] } });
+/** What a lit card is filled with, read off the stylesheet's own token rather than written here. */
+const litFill = (page: Page): Promise<string> =>
+  page.evaluate(() => {
+    const probe = document.body.appendChild(document.createElement('div'));
+    probe.style.background = 'var(--surface-hover)';
+    const fill = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return fill;
+  });
+
+/** Boot with the queue panel, its rows' sessions as given, and let its script print the list. */
+async function bootQueue(app: App, page: Page, links: Record<string, PanelLink> = fixture.panelData.queue.sessions): Promise<void> {
+  await app.boot({ ...fixture, panelData: { queue: { sessions: links, lastGroup: {} } }, layout: { ...fixture.layout, types: [{ name: 'reviews', dir: QUEUE_DIR, status: 'read', error: null, json: { version: 1, kind: 'list', title: 'Reviews', icon: 'eye', run: 'list.sh' } }] } });
   await expect.poll(() => runs(app, 'queue')).toHaveLength(1);
   const { token } = (await runs(app, 'queue'))[0];
   await app.emit('onPanelRun', 'queue', token, { kind: 'output', text: JSON.stringify(LIST) });
@@ -104,4 +114,14 @@ test("a row's session mark follows its session's status, a mark read, and whethe
   await page.locator('.tab', { hasText: quiet.title }).locator('.tab-close').click();
   await app.emit('onTerminalExit', 1, 0);
   await expect(mark(page, 'Tidy the settings page')).toHaveAttribute('aria-label', `Go to ${quiet.title} · not running`);
+});
+
+test('a row stays lit while the menu its session mark opened is up, as a session row does', async ({ app, page }) => {
+  await bootQueue(app, page, { [reviewed.id]: link('org/repo#3'), [quiet.id]: link('org/repo#3') });
+  const row = page.locator('.list-row', { hasText: 'Speed up the search' });
+  await mark(page, 'Speed up the search').click();
+  // On the menu, off the row, so the open menu is all that can be lighting it.
+  await page.locator('.kebab-menu button', { hasText: reviewed.title }).hover();
+  const lit = await litFill(page);
+  await expect.poll(() => row.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(lit);
 });
