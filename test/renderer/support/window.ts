@@ -59,8 +59,36 @@ export const tabs = (page: Page): Locator => page.locator('#tabbar .tab');
 /** The tab whose label holds `title`. */
 export const tab = (page: Page, title: string): Locator => tabs(page).filter({ has: page.locator('.tab-label', { hasText: title }) });
 
+/** The labels of the tabs inside `scope`, such as one row of the bar, in its order. */
+export const tabLabelsIn = (scope: Locator): Locator => scope.locator('.tab .tab-label');
+
 /** Every tab's label, in the bar's order. */
-export const tabLabels = (page: Page): Locator => page.locator('#tabbar .tab-label');
+export const tabLabels = (page: Page): Locator => tabLabelsIn(page.locator('#tabbar'));
 
 /** The tab label that holds `title`: what a click on a tab presses. */
 export const tabLabel = (page: Page, title: string): Locator => tabLabels(page).filter({ hasText: title });
+
+/** Every row of the tab bar, a project's own and one per group with tabs open, in the bar's order. */
+export const tabBarRows = (page: Page): Locator => page.locator('#tabbar > .tab-project');
+
+// The names in the bar, as selectors as well as finders: a row is found by the name it holds, which a filter looks for inside the row, where a finder starting at `#tabbar` finds nothing.
+const PROJECT_NAME = '.tab-project-label';
+const GROUP_NAME = '.tab-group-label';
+
+/** Every project's name in the tab bar, which it shows in All. */
+export const tabBarProjects = (page: Page): Locator => page.locator(`#tabbar ${PROJECT_NAME}`);
+
+/** The tab bar's name for the project named exactly `name`: a jump to its heading. */
+export const tabBarProject = (page: Page, name: string): Locator => tabBarProjects(page).filter({ hasText: new RegExp(`^${name}$`) });
+
+/** That project's own row of the tab bar, holding its tabs that are in no group. */
+export const tabBarProjectRow = (page: Page, name: string): Locator => tabBarRows(page).filter({ has: page.locator(PROJECT_NAME, { hasText: new RegExp(`^${name}$`) }) });
+
+/** Every group's name in the tab bar. */
+export const tabBarGroups = (page: Page): Locator => page.locator(`#tabbar ${GROUP_NAME}`);
+
+/** The tab bar's name for the group named exactly `name`: a jump to its heading. */
+export const tabBarGroup = (page: Page, name: string): Locator => tabBarGroups(page).filter({ hasText: new RegExp(`^${name}$`) });
+
+/** That group's row of the tab bar, holding its tabs. */
+export const tabBarGroupRow = (page: Page, name: string): Locator => tabBarRows(page).filter({ has: page.locator(GROUP_NAME, { hasText: new RegExp(`^${name}$`) }) });

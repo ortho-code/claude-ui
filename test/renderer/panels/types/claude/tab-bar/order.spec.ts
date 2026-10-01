@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { tabBarGroups, tabBarProjects, tabBarRows, tabLabelsIn } from '../../../../support/window';
 
 const OTHER = `${HOME}/projects/other`;
 const loose = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'Loose in demo' });
@@ -36,14 +37,14 @@ test('the tab bar sits projects in the order you set and groups in their registr
     },
   });
 
-  const rows = page.locator('#tabbar > .tab-project');
+  const rows = tabBarRows(page);
   await expect(rows).toHaveCount(4);
   const clusters = await rows.evaluateAll((all) => all.map((row) => (row as HTMLElement).dataset.cluster));
   expect(clusters).toEqual([`${PROJECT}\0`, `${PROJECT}\0g-second`, `${PROJECT}\0g-first`, `${OTHER}\0`]);
-  await expect(rows.nth(0).locator('.tab-label')).toHaveText([loose.title]);
-  await expect(rows.nth(3).locator('.tab-label')).toHaveText([elsewhere.title]);
+  await expect(tabLabelsIn(rows.nth(0))).toHaveText([loose.title]);
+  await expect(tabLabelsIn(rows.nth(3))).toHaveText([elsewhere.title]);
 
   // A live project's label is in the text colour, like its heading in the sidebar; a group's icon is muted beside its name (lost once to a renamed class, 5c7afd7).
-  await expect(page.locator('.tab-project-label').first()).toHaveCSS('color', await token(page, '--text'));
-  await expect(page.locator('.tab-group-label .heading-icon').first()).toHaveCSS('color', await token(page, '--muted'));
+  await expect(tabBarProjects(page).first()).toHaveCSS('color', await token(page, '--text'));
+  await expect(tabBarGroups(page).first().locator('.heading-icon')).toHaveCSS('color', await token(page, '--muted'));
 });

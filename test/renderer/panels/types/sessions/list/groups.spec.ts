@@ -1,9 +1,9 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { group, groupHeading, groupHeadings, projectHeading, row, titlesIn } from '../../../../support/window';
+import { group, groupHeading, groupHeadings, projectHeading, row, tabBarGroupRow, tabBarGroups, tabBarProjectRow, tabLabelsIn, titlesIn } from '../../../../support/window';
 
 // A group is made, renamed, moved and deleted from the list, and the tab bar, which clusters tabs by group, follows every change at once (the one-behaviour rule in CLAUDE.md).
 const OTHER = `${HOME}/projects/other`;
@@ -27,8 +27,6 @@ const fixture = {
   },
 };
 
-const tabBarGroups = (page: Page): Locator => page.locator('#tabbar .tab-group-label');
-const tabBarGroup = (page: Page, name: string): Locator => page.locator('#tabbar .tab-group-row', { has: page.locator('.tab-group-label', { hasText: name }) });
 const groupMenu = async (page: Page, name: string, label: string): Promise<void> => {
   await groupHeading(page, name).locator('.group-kebab').click();
   await page.locator('.kebab-menu button', { hasText: label }).click();
@@ -51,7 +49,7 @@ test('a group made from a row takes the row, and its tab moves into the group\'s
   await expect(groupHeadings(page)).toHaveText(['Gamma', 'Beta', 'Alpha']);
   await expect(titlesIn(group(page, 'Gamma'))).toHaveText([loose.title]);
   await expect(tabBarGroups(page)).toHaveText(['Gamma', 'Beta', 'Alpha']);
-  await expect(tabBarGroup(page, 'Gamma').locator('.tab-label')).toHaveText([loose.title]);
+  await expect(tabLabelsIn(tabBarGroupRow(page, 'Gamma'))).toHaveText([loose.title]);
   expect(await app.calls('createGroup')).toEqual([['Gamma', PROJECT, loose.id]]);
 });
 
@@ -73,8 +71,7 @@ test('moving, renaming and deleting a group shows in the list and the tab bar to
   await groupMenu(page, 'Delta', 'Delete group');
   await expect(groupHeadings(page)).toHaveText(['Beta']);
   await expect(tabBarGroups(page)).toHaveText(['Beta']);
-  const projectRow = page.locator('#tabbar .tab-project:not(.tab-group-row)', { has: page.locator('.tab-project-label', { hasText: /^demo$/ }) });
-  await expect(projectRow.locator('.tab-label')).toHaveText([loose.title, inAlpha.title]);
+  await expect(tabLabelsIn(tabBarProjectRow(page, 'demo'))).toHaveText([loose.title, inAlpha.title]);
   expect(await app.calls('moveGroup')).toEqual([['g-alpha', 'top']]);
   expect(await app.calls('renameGroup')).toEqual([['g-alpha', 'Delta']]);
   expect(await app.calls('deleteGroup')).toEqual([['g-alpha']]);

@@ -2,7 +2,7 @@ import type { Locator } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { group, groupHeading, project, projectHeading, row, tabLabel } from '../../../../support/window';
+import { group, groupHeading, project, projectHeading, row, tabBarGroup, tabBarProject, tabLabel } from '../../../../support/window';
 
 // A tab-bar label is a jump: a project's to its heading, a group's to the group's heading, unfolding on the way, and both flash where they land (4182dd9, e646936).
 const TARGET = `${HOME}/projects/target`;
@@ -53,7 +53,7 @@ test("a project's tab-bar label scrolls the sidebar to its heading and flashes i
   const heading = projectHeading(page, 'target');
   await expect(heading).not.toBeInViewport();
 
-  const flash = await jumpAndRead(page.locator('.tab-project-label', { hasText: /^target$/ }), 'project', 'target');
+  const flash = await jumpAndRead(tabBarProject(page, 'target'), 'project', 'target');
   expect(flash).toEqual(expect.objectContaining({ flashed: true }));
   const { end, own } = flash as Flash;
   expect(end).toBe(own);
@@ -76,7 +76,7 @@ test("a group's tab-bar label unfolds its project and group, scrolls to the grou
   const work = group(page, 'Work');
   await expect(work).toBeHidden();
 
-  const flash = await jumpAndRead(page.locator('.tab-group-label', { hasText: /^Work$/ }), 'group', 'Work');
+  const flash = await jumpAndRead(tabBarGroup(page, 'Work'), 'group', 'Work');
   expect(flash).toEqual(expect.objectContaining({ flashed: true }));
   const { end, own } = flash as Flash;
   expect(end).toBe(own);

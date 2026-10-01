@@ -1,8 +1,7 @@
-import type { Locator, Page } from '@playwright/test';
 import { projectGoneReason, unstartableReason } from '../../../../../src/renderer/logic';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { projectHeading, switcherEntry, tab, tabLabel } from '../../../support/window';
+import { projectHeading, switcherEntry, tab, tabBarProject, tabLabel } from '../../../support/window';
 
 // A project whose folder is gone is marked on every surface that names it, and nothing else about it changes: decisions 1-9 of the dead-project work (4c0e3d3 and the three before it).
 const GONE = `${HOME}/projects/gone`;
@@ -11,7 +10,6 @@ const dead = session({ id: '00000000-0000-4000-8000-00000000000b', title: 'A ses
 // Transcripts with nothing in them: a tab on show has its history read, and neither session's history is what is checked here.
 const both = { sessions: [live, dead], projectOrder: [PROJECT, GONE], history: { [live.id]: [], [dead.id]: [] } };
 
-const tabBarProject = (page: Page, name: string): Locator => page.locator('.tab-project-label', { hasText: new RegExp(`^${name}$`) });
 
 test('in All, a dead project is marked on its heading, its tab-bar label and its switcher entry, and a live one is not', async ({ app, page }) => {
   await app.boot({ ...both, activeProject: null, openSessions: [live.id, dead.id] });
