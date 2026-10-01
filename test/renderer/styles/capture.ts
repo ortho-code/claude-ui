@@ -126,6 +126,8 @@ interface DomNode {
  */
 export async function snapshot(page: Page, dir: string, name: string): Promise<void> {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  // A jump's flash takes itself off 0.9 s after it starts (flash.ts), on a timer the hold below cannot pause, so a capture that caught it would depend on how fast it ran: it is a passing wash, not a look to keep, so it ends first.
+  await page.waitForFunction(() => document.querySelector('.flash') === null);
   // Let a history drawn in slices, and anything else the last step set off, finish.
   await page.waitForTimeout(300);
   const hold = (): Promise<void> =>

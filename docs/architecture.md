@@ -91,6 +91,7 @@ The checks run in one time zone wherever they run, the page and the checks' own 
 It exists because a stylesheet split across files is read in another order, and two rules of equal specificity then swap winners with nothing in the CSS's own diff to show it.
 The picture is for what styles cannot say: which of two overlapping elements paints on top, which follows from their order in the page; a picture alone would miss every hover, everything off screen, and which property changed.
 Forced states go through the DevTools protocol rather than the mouse, since a real hover runs the page's handlers, and a submenu opening would change what is captured; two captures of one build are identical, which is what makes an empty comparison mean something.
+A jump's flash is let end before a state is captured: it takes itself off on a timer the capture cannot hold, so a capture that caught it depended on how fast it ran, and once in about ten it did not.
 The one known exception is two pixels of `busy.png` (x 122, y 38-39) a shade apart, seen in about one capture in six, cause unknown; the comparison lists it, as it lists every pixel that differs, rather than excusing it, and one capture alone is no baseline, so a change is compared against two of the build before it.
 The comparison sorts each state's lines, and takes a map of the classes a change renames (`{ "old": "new" }`), applied to the before-capture's element keys only, so a pure rename compares empty.
 
