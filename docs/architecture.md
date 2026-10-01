@@ -609,7 +609,7 @@ It runs when first shown, on Refresh, and when the context directory changes, wh
 
 ### Where a panel runs: the `cwd` option
 
-Both the `command` and the `terminal` type take a `cwd`, one declaration (`CWD_OPTION` in `options.ts`) and one rule (`placement` in `types/command.ts`, tested), because "where does this panel run" is one question with one answer on both.
+Both the `command` and the `terminal` type take a `cwd`, one declaration (`CWD_OPTION` in `options.ts`) and one rule (`placement` in `panels/run.ts`, tested), because "where does this panel run" is one question with one answer on both.
 Without it, the panel runs in the context directory. An absolute or `~/` value is FIXED: that folder whatever is selected, so it runs with no project at all. A relative value is under the context directory, so `"cwd": "packages/api"` follows the project into its subfolder — and a worktree session's panel into the worktree's copy.
 The folder the run uses is the one main's check resolved, so the run goes exactly where the check looked, and `CLAUDE_UI_CWD` names it; the project and session variables are the selection at the moment of the run, empty when there is none.
 

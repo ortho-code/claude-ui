@@ -8,7 +8,7 @@ import type { PanelSlot } from '../layout';
 import { optionsOf, parseDuration } from '../options';
 import { listenForRuns } from '../runs';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
-import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey } from './command';
+import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey } from '../run';
 import type { FolderType } from './folder';
 import { readListDocument, type ListDocument, type ListItem, type ListSection } from './listdoc';
 // Its rows are the session list's cards and its headings the group's bar.
