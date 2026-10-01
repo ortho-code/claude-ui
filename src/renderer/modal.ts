@@ -1,4 +1,6 @@
 import './modal.css';
+// Its dialogs' Save, Start and Delete.
+import './decisive-button.css';
 
 /**
  * Run a modal to completion.

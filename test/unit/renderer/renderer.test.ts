@@ -17,6 +17,7 @@ const ORDER = [
   'src/renderer/toast.css',
   'src/renderer/notifications.css',
   'src/renderer/modal.css',
+  'src/renderer/decisive-button.css',
   'src/renderer/dialogs.css',
   'src/renderer/projectgone.css',
   'src/renderer/chrome.css',
