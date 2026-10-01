@@ -50,9 +50,10 @@ Done:
   A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
 - Panel types of your own, from a folder in the config folder: a script prints a list and the app draws it, with links, sections that fold, and a count on the panel's icon kept current on an interval. See [Panel types of your own](#panel-types-of-your-own).
   A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick; it then shows that session's status and leads back to it, and a second press offers to continue it.
+- The sidebar and the terminal area are panel types like the others, each drawn by modules of its own.
 
 Next:
-- The sidebar and the terminal area as panel types like the others, each a module of its own with its own options and documentation.
+- Options and documentation for the sidebar and the terminal area, starting with the terminal area's tabs on or off.
 - Panel types that draw themselves: a page of your own in a sandboxed frame, fed by its script, asking the app for what it cannot do itself, such as opening a link or starting a session.
 - A list row leading back to a session it did not start, such as the one that opened a PR, found by the branch they share.
 - A panel type marking the sessions its rows started, on their rows and tabs in the session list.
@@ -259,6 +260,8 @@ To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a
 - `src/main/sessions.ts` — reads and summarizes `~/.claude/projects`.
 - `src/preload` — the bridge the renderer uses to reach the main process.
 - `src/renderer` — the window UI.
+- `src/renderer/state` — the store the window's surfaces share, and what more than one of them reads from it.
+- `src/renderer/panels` — the layout tree and the panel types: `panels/types/sessions` (the sidebar), `panels/types/claude` (the terminal area), and the others.
 - `src/shared` — types and pure helpers shared by both sides.
 - `test/` — the tests: unit tests in `test/unit/`, mirroring `src/`, and the window's checks in `test/renderer/`, filed by the panel they check.
 - `docs/` — architecture and design notes.
