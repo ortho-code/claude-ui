@@ -36,44 +36,6 @@ h1 {
   border: 1.5px solid var(--bg);
 }
 
-/* Filter toggles: dimmed when off, accent-filled when on. */
-/* The filter pills are every direct-child button of #filters (date-preset buttons are nested a level
-   deeper, so they're excluded). Styling by pattern means a new pill needs no CSS change.
-   The history's "Pinned only" is a filter too, and wears the same pill. */
-/* Off = --muted, the same "inactive" cue the rest of the app uses, rather than opacity: a dimmed
-   button fades its border and background too, so an off pill read as disabled instead of unselected. */
-#filters > button,
-.history-filter {
-  flex: 0 0 auto;
-  padding: 5px 8px;
-  font-size: var(--text-meta);
-  color: var(--muted);
-}
-
-/* Every pill except the date presets is icon-only: the same marks the rows use (star, branch, fork,
-   archive box), injected in renderer.ts. Words cost the panel a whole extra line at a 320px sidebar,
-   and each pill keeps its tooltip and aria-label, so the meaning is still one hover away. Icons are
-   13px, matching the pills' 12px text so they don't make the row taller. */
-#filters > button,
-.history-filter {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-}
-
-#filters > button svg,
-.history-filter svg {
-  width: 13px;
-  height: 13px;
-}
-
-/* The accent hover outline and fill come from the base button rule; the pill only brightens. */
-#filters > button:hover,
-.history-filter:hover {
-  color: var(--text);
-}
-
 /* A bordered panel groups the filter controls into one unit that belongs to the 🔍 toggle. */
 #filter-panel {
   position: relative; /* anchor for the floating custom-date popover */
@@ -139,34 +101,6 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-}
-
-#date-presets button {
-  padding: 3px 8px;
-  font-size: var(--text-meta);
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-}
-
-/* Same hover as the filter pills above it. border-color has to be repeated here: this rule's resting
-   `#date-presets button` is specificity 1,0,1 and so outranks `button:hover` at 0,1,1, which is the
-   same trap that silently left the project kebab and the toast close without an outline. */
-#date-presets button:hover {
-  color: var(--text);
-  background: var(--surface-hover);
-  border-color: var(--accent);
-}
-
-/* A filter that is on looks the same wherever it shows: a pill, a date preset, a chip under a shut panel.
-   After both hover rules, which it has to beat at equal specificity so an on pill keeps its fill under the pointer. */
-#filters > button.active,
-#date-presets button.active,
-.history-filter.active,
-.filter-chip {
-  border-color: var(--accent);
-  color: var(--text);
-  background: var(--active);
 }
 
 /* Custom date-range filter (air-datepicker, inline). Floats as a popover over the session list

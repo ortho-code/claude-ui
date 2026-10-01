@@ -4,6 +4,8 @@ import { relativeTime } from '../../../../logic';
 import { chevronIcon, PIN_ICON, PINNED_ICON } from '../../../../svg';
 import { setTooltip } from '../../../../tooltip';
 import { renderMarkdown, routeLinks } from './markdown';
+// The filter pill its All · Pinned wear, shared with the sidebar's filter.
+import '../../../../pill.css';
 import './view.css';
 import type { Band } from './marks';
 import { applySlice, emptyModel, replyBlocks, requestLabel, toolSummary, type HistoryModel } from './model';

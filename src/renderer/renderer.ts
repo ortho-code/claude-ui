@@ -29,6 +29,8 @@ import {
 import { renderTabBar, tabBarFollowsStatuses } from './panels/types/claude/tab-bar';
 import { fallBackIfEmptied, refreshSwitcher, selectProject } from './panels/types/sessions/switcher';
 import { refreshStrip } from './panels/types/sessions/attention-strip';
+// The filter pill the sidebar's filter wears, shared with the history's All · Pinned.
+import './pill.css';
 import './styles.css';
 import { noFilter, store, withEntry, withMember, type AppState, type FilterState, type TabState, type View } from './state/app';
 import { isFiltering, projName, projectGroups, searchText, sessionById, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
