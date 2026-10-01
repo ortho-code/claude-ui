@@ -11,10 +11,9 @@ import './projectgone';
 import { startChrome } from './chrome';
 import './flash';
 import { initTree, loadLayout, startPanels, treeContextChanged, treeSessionsChanged } from './panels/tree';
-import { railStatusFollowsTabs } from './panels/types/claude/index';
 import { history, paneFollows } from './panels/types/claude/pane';
-import { adoptReplacement, reconcileOpenTabs, restoreOpenTabs, switchWorkspaceTerminal } from './panels/types/claude/terminals';
-import { renderTabBar, tabBarFollowsStatuses } from './panels/types/claude/tab-bar';
+import { restoreOpenTabs, switchWorkspaceTerminal } from './panels/types/claude/terminals';
+import { claudeWatch } from './panels/types/claude/watch';
 import { railStatusFollowsSessions } from './panels/types/sessions/index';
 import { fallBackIfEmptied, refreshSwitcher } from './panels/types/sessions/switcher';
 import { refreshStrip } from './panels/types/sessions/attention-strip';
@@ -22,7 +21,6 @@ import { applyDatePickerMinDate, filterPanelFollows } from './panels/types/sessi
 import { container, dotsFollowStatuses, listChanged, listFollowsTabs, renderSessions } from './panels/types/sessions/list';
 import { forgetDeletedGroupFolds } from './panels/types/sessions/stored-view';
 import { claudeAnswers } from './panels/types/claude/asks';
-import { toastAttention } from './panels/types/claude/attention';
 import { sessionsAnswers } from './panels/types/sessions/asks';
 import { persistUi, restoreUiState, startSavingUi } from './view-saving';
 import { store, withEntry } from './state/app';
@@ -50,9 +48,9 @@ routeTerminals();
 // What the switcher's projects are made of changed, and the project on show may have none left.
 // The tabs are among them: a session with no transcript yet is in its project only through its tab.
 store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptied, { reads: ['activeProject'] });
+claudeWatch.rules();
 
-// The listing moved: the open tabs adopt their sessions' fresh summaries, and the calendar's first day is the oldest session's.
-store.watch(['sessions'], reconcileOpenTabs, { reads: ['tabs'] });
+// The listing moved: the calendar's first day is the oldest session's.
 store.watch(['sessions'], applyDatePickerMinDate);
 
 // Something the list draws changed — the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter — and the list follows, with the filter's count and chips it draws.
@@ -75,13 +73,8 @@ store.watch(['filterPanelOpen'], filterPanelFollows, { reads: ['filter'] });
 // A status or a mark read changed: the rows' dots that differ.
 store.watch(['statuses', 'acked'], dotsFollowStatuses);
 
-// A tab not on show turned waiting or finished: a toast says so.
-store.watch(['statuses'], toastAttention, { reads: ['tabs', 'activeTab', 'projectNames'] });
-
-// The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes, and every change to a tab or to which one is on show.
-store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'], renderTabBar, { reads: ['sessions', 'statuses', 'acked'] });
-// And a status or a mark read of one of its tabs' sessions.
-store.watch(['statuses', 'acked'], tabBarFollowsStatuses, { reads: ['sessions', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'] });
+// The terminal area's: the toast, the tab bar, its rail icon and the pane (claude/watch.ts).
+claudeWatch.repaints();
 
 // The switcher counts every project's sessions, rolls up their statuses and names the project on show.
 // A session with no transcript yet is in its project only through its tab, so the tabs are among what it counts.
@@ -93,12 +86,6 @@ store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'tab
 // The strip lists what runs, in the bar's order, each row with a stop button in the tab's state, under a line badged with the switcher's roll-up; it shows those rows or folds to its line as you left it.
 store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'footerExpanded'], refreshStrip);
 
-// The terminal area's rail icon waits while a tab on show waits for you.
-store.watch(['activeProject', 'tabs', 'statuses', 'acked'], railStatusFollowsTabs);
-
-// The pane shows the tab on show, or says why there is none, which turns on the listing and the project on show too.
-store.watch(['sessions', 'activeProject', 'tabs', 'activeTab'], paneFollows);
-
 // The view you are leaving behind — the filter, the folds, the panel, the strip — is kept for the next launch; the snapshot is compared before it is written, so a change that ends where it began costs nothing.
 store.watch(['filter', 'folds', 'filterPanelOpen', 'footerExpanded'], () => persistUi());
 
@@ -109,10 +96,8 @@ store.watch(['activeProject', 'activeTab'], treeContextChanged);
 store.watch(['sessions', 'statuses', 'acked', 'tabs', 'panelData'], treeSessionsChanged);
 
 window.claudeUi.onSessionStatus((id, status, tabToken) => {
-  // `/clear` gives a tab a session of Claude Code's choosing, which the tab takes over.
-  if (tabToken) adoptReplacement(tabToken, id);
-  // What claude just did is in the transcript, and the history of the session on show reads it.
-  if (tabOnShow(store.get())?.session.id === id) void history.refresh();
+  // The terminal area's part first: a cleared session's successor is the tab's, and the history on show reads what was added.
+  claudeWatch.sessionStatus(id, tabToken);
   // 'start' reports which session a tab is running, not a state it is in — and it fires mid-session on clear and compact, where setting a status would wipe a live one.
   // The one SessionStart that does mean a state (a compaction ending) reaches us as 'idle', not as this.
   if (status === 'start') return;
@@ -126,10 +111,10 @@ window.claudeUi.onSessionModel((id, model) => {
 });
 
 // The sidebar keeps itself current: a transcript created or changed on disk re-renders it.
-// So does the history on show, which reads only what was added.
+// So does the history on show.
 window.claudeUi.onSessionsChanged(() => {
   void refreshFromDisk();
-  void history.refresh();
+  claudeWatch.sessionsChanged();
 });
 
 // Without the CLI every tab would open on "command not found", which reads as this app being broken rather than as a missing prerequisite. Say which one, and stay on screen until dismissed.

@@ -73,7 +73,7 @@ export function isOnShow(token: string): boolean {
 
 // Keep open tabs' sessions in sync with the freshly-read listing: a new session's first message / AI title, a rename, or a regenerated AI title all land here on the next read.
 // Always adopt the fresh summary (cheap, and keeps a tab's data from going stale); the store tells whoever draws the tabs only when something a tab shows moved, which is the rows' own question (`sameTabs`, on `sameRow`) — a list of fields kept here once compared only the title and first message, and left a mid-session worktree move or a new sibling off the tab until the next unrelated change.
-// A watcher of the listing, which renderer.ts registers with the others.
+// A watcher of the listing, the terminal area's one rule (watch.ts).
 export function reconcileOpenTabs(view: View<'sessions' | 'tabs'>): void {
   const byId = new Map(view.sessions.map((s) => [s.id, s]));
   store.set({

@@ -32,7 +32,7 @@ function railStatus(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked'>)
   return visibleTabs(view).some((tab) => sessionNudge(tab.session.id, view) === 'waiting') ? 'wait' : null;
 }
 
-/** The rail icon follows the tabs and their statuses: a watcher renderer.ts registers with the others. */
+/** The rail icon follows the tabs and their statuses: a watcher the terminal area registers (watch.ts). */
 export function railStatusFollowsTabs(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked'>): void {
   hostOf('claude').setStatus(railStatus(view));
 }

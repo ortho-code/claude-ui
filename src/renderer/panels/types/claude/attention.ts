@@ -7,7 +7,7 @@ import { activateTab, tabOf } from './terminals';
 
 /**
  * The terminal area's attention toasts: a tab not on show that turns waiting or finished says so in a toast (drawn by notifications.ts), and a click on it goes to that tab.
- * A watcher of the statuses (`toastAttention`), which renderer.ts registers with the others.
+ * A watcher of the statuses (`toastAttention`), which the terminal area registers (watch.ts).
  */
 
 /**

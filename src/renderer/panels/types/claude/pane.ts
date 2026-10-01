@@ -112,7 +112,7 @@ let paneSessions: ReadonlyMap<string, string> = new Map();
  * The tab on show changed, or changed state, or what the pane says without one changed: the pane follows.
  * Another tab starting, printing or stopping leaves it alone: a change to one tab is a new entry for that tab only.
  * A tab that closed has its history forgotten, so opening its session again starts with it closed — after the follow, which is what remembers how the tab on show was left.
- * A watcher renderer.ts registers with the others, and start-up's first draw, before anything is told.
+ * A watcher the terminal area registers (watch.ts), and start-up's first draw, before anything is told.
  */
 export function paneFollows(view: PaneView): void {
   const before = paneSessions;

@@ -12,7 +12,7 @@ import './tab-bar.css';
 
 /**
  * The terminal area's tab bar: a tab per open session, clustered by project and group in the order the sidebar uses, each with its status dot, its marks and its two-step close, and reordered by dragging within its cluster.
- * It draws from the store (`renderTabBar`, a watcher renderer.ts registers in the order the store tells in), and asks the sidebar to show where a tab's session, project or group lives.
+ * It draws from the store (`renderTabBar`, a watcher the terminal area registers, watch.ts), and asks the sidebar to show where a tab's session, project or group lives.
  */
 
 const tabbar = document.getElementById('tabbar')!;
@@ -91,7 +91,7 @@ export function renderTabBar(view: TabBarView): void {
 
 /**
  * A status or a mark read changed: the bar draws again when one of its tabs' dots is among those that changed since it last followed them (`before`).
- * A watcher renderer.ts registers with the others.
+ * A watcher the terminal area registers (watch.ts).
  */
 export function tabBarFollowsStatuses(view: TabBarView, before: View<'statuses' | 'acked'>): void {
   const ids = statusChanges(before, view);
