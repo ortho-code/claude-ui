@@ -37,6 +37,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - A tab whose session's folder is gone is dimmed like its row, with the reason on hover, instead of looking like a tab you can resume.
 - Making a group from a session's options takes the list to the new group at the top of its project, instead of leaving the session to move out of sight.
 - A tab that isn't running says so with a Resume button and a Show history button, instead of asking you to click its tab.
+- Starting a session in another project while you are in a project view takes the session list to All at its top, as choosing All does, instead of keeping the previous project's scroll position.
 
 ### Fixed
 

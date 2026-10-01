@@ -32,6 +32,8 @@ export interface BridgeFixture {
   panelData: Record<string, PanelData>;
   /** What is at each absolute path, as main would find it on disk; a path left out is not there. */
   paths: Record<string, Found>;
+  /** The folder chosen in main's folder dialog; null, as main answers for one cancelled. */
+  pickFolder: string | null;
 }
 
 /** One call the window made, as it arrived; a callback argument is recorded as the string `<callback>`. */
@@ -100,5 +102,6 @@ export function defaultFixture(): BridgeFixture {
     folders: { config: CONFIG_ROOT, logs: `${HOME}/.config/claude-ui/logs` },
     panelData: {},
     paths: {},
+    pickFolder: null,
   };
 }

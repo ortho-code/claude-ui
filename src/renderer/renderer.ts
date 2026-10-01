@@ -373,16 +373,18 @@ type ListView = View<
   | 'filterPanelOpen'
 >;
 
-/** The filter the list was last drawn under, so a new one starts the list at its top. */
+/** The filter and the project the list was last drawn under, so a new one starts the list at its top. */
 let followedFilter: View<'filter'>['filter'] = store.get().filter;
+let followedProject: View<'activeProject'>['activeProject'] = store.get().activeProject;
 
 /** The list follows the store. */
 function listChanged(view: ListView): void {
-  const filtered = view.filter !== followedFilter;
+  const reshaped = view.filter !== followedFilter || view.activeProject !== followedProject;
   followedFilter = view.filter;
+  followedProject = view.activeProject;
   renderList(view);
-  // A filter change reshapes the list, so it starts at the top rather than at a stale scroll offset.
-  if (filtered) container.scrollTop = 0;
+  // A new filter or another project reshapes the list, so it starts at the top rather than at a stale scroll offset — whoever chose the project, the switcher or a new tab elsewhere dropping the list to All.
+  if (reshaped) container.scrollTop = 0;
 }
 
 // Session key -> its group's NAME, so typing a group name reaches its sessions.
@@ -1096,7 +1098,6 @@ function selectProject(repoRoot: string | null): void {
     store.set({ activeProject: repoRoot, ...(repoRoot ? { folds: foldsWith(store.get(), 'projects', [repoRoot], false) } : {}) });
     hostOf('sessions').showProject(repoRoot);
   });
-  container.scrollTop = 0;
 }
 
 /**

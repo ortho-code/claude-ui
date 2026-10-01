@@ -87,6 +87,17 @@ test('a project left with no sessions falls back to All with the list at its top
   await expect.poll(() => scrolled(page)).toBe(0);
 });
 
+test('a new session in another project drops the list to All, at its top', async ({ app, page }) => {
+  await app.boot({ ...twoProjects, activeProject: OTHER, pickFolder: PROJECT });
+  await expect(page.locator('#sessions .session')).toHaveCount(others.length);
+  await scrollTo(page, 400);
+  expect(await scrolled(page)).toBe(400);
+  await page.locator('#new-session').click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await expect(page.locator('#switcher-name')).toHaveText('All');
+  await expect.poll(() => scrolled(page)).toBe(0);
+});
+
 test('where the list was scrolled to is saved', async ({ app, page }) => {
   await app.boot(fixture);
   await expect(page.locator('#sessions .session')).toHaveCount(many.length);
