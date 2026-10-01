@@ -7,7 +7,8 @@ import './card.css';
  * Its look is `card.css`, which this module brings with it.
  */
 
-type HeadingTag = 'h2' | 'h3';
+/** A heading's level: a project's, at the top of the sidebar's list, or the bar one level below it, which a group and a list panel's section wear. */
+type HeadingLevel = 'project' | 'bar';
 
 /** The parts every collapsible section heading has, appended in this order: a caret, an icon when it is given one, an ellipsizing label and a count pill. */
 interface SectionHeading {
@@ -19,12 +20,12 @@ interface SectionHeading {
 
 /**
  * A collapsible section heading, its parts in place: what follows them, what the label and the count say, and what a click does are the caller's.
- * The project's and the group's differ in tag and icon, and a list panel's section has no icon.
+ * The project's and the group's differ in level and icon, and a list panel's section has no icon.
  */
-export function sectionHeading(tag: HeadingTag, iconHtml: string): SectionHeading & { icon: HTMLElement };
-export function sectionHeading(tag: HeadingTag): SectionHeading;
-export function sectionHeading(tag: HeadingTag, iconHtml?: string): SectionHeading & { icon?: HTMLElement } {
-  const heading = element(tag, 'section-heading');
+export function sectionHeading(level: HeadingLevel, iconHtml: string): SectionHeading & { icon: HTMLElement };
+export function sectionHeading(level: HeadingLevel): SectionHeading;
+export function sectionHeading(level: HeadingLevel, iconHtml?: string): SectionHeading & { icon?: HTMLElement } {
+  const heading = level === 'project' ? element('h2', 'section-heading') : element('h3', 'section-heading bar');
   const caret = element('span', 'caret');
   const label = element('span', 'label');
   const count = element('span', 'heading-count');

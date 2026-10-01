@@ -342,7 +342,7 @@ class ListPanel implements MountedPanel {
     const open = title === null || (this.folds.get(title) ?? !section.shut);
     if (title !== null) {
       // The sidebar's collapsible heading, so a heading that folds looks and turns the same everywhere.
-      const { heading, caret, label, count } = sectionHeading('h3');
+      const { heading, caret, label, count } = sectionHeading('bar');
       setFolded(caret, !open);
       label.textContent = title;
       count.textContent = String(section.items.length);
@@ -354,7 +354,7 @@ class ListPanel implements MountedPanel {
     }
     if (!open) return box;
     if (section.items.length === 0 && section.empty !== null) {
-      const empty = element('div', 'list-empty');
+      const empty = element('div', 'section-empty');
       empty.textContent = section.empty;
       box.append(empty);
     }

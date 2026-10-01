@@ -62,37 +62,34 @@
    It sits at the SAME size as the session titles it heads (13px), separated by weight and the fill
    alone: at 12px it read smaller than its own contents, so it looked like a label on the rows rather
    than a heading over them. */
-/* The group heading's bar, which a list panel's section heading (.list-section h3) shares: a heading over rows it can fold away, one level below the project's. */
-.group h3,
-.list-section h3 {
+/* The bar, a heading over rows it can fold away one level below the project's: a group's, and a list panel's section's, built at the heading builder's `bar` level (card.ts).
+   :where() holds it at one class's weight, so the heading's own hover above, and a surface's own variant such as a list panel's margin, still win over it. */
+.section-heading:where(.bar) {
   /* No margin of its own: a sticky element pins its MARGIN box, so a margin-top here would park the
      heading that far below the project heading and leave a band of scrolling rows showing between
      the two. The space above a group lives on the .group section instead. */
   margin: 0;
-  /* The same padding as a session row (.session), so the heading's controls line up vertically with
+  /* The same padding as a card (.card), so the heading's controls line up vertically with
      the rows' and the bar doesn't read as tighter than the rows under it. */
   padding: 7px 14px;
   background: var(--surface);
-  border-radius: var(--radius-surface); /* a filled bar like .session, so the same corner */
+  border-radius: var(--radius-surface); /* a filled bar like .card, so the same corner */
   font-size: var(--text-body);
   font-weight: 650;
 }
 
-.group h3 .caret,
-.group h3 .heading-icon,
-.list-section h3 .caret {
+.section-heading:where(.bar) .caret,
+.section-heading:where(.bar) .heading-icon {
   color: var(--muted);
 }
 
 /* --bg, not --surface: this heading's bar is already --surface. */
-.group h3 .heading-count,
-.list-section h3 .heading-count {
+.section-heading:where(.bar) .heading-count {
   background: var(--bg);
 }
 
-/* An empty group persists until deleted, so it explains itself rather than looking broken. */
-.group-empty,
-.list-empty {
+/* An empty section explains itself rather than looking broken: a group, which persists until deleted, or a list panel's section with nothing in it. */
+.section-empty {
   padding: 8px 0 2px;
   font-size: var(--text-small);
   color: var(--muted);

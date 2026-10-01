@@ -175,8 +175,7 @@
   display: none;
 }
 
-/* The space above a group, which used to sit on the heading's own margin-top — see the note in
-   .group h3 about why a sticky element cannot carry one. */
+/* The space above a group, which used to sit on the heading's own margin-top — see the note on the bar in card.css about why a sticky element cannot carry one. */
 .group {
   margin-top: 14px;
 }

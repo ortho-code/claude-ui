@@ -732,7 +732,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   const section = document.createElement('section');
   section.className = 'project';
 
-  const { heading, caret, icon, label, count } = sectionHeading('h2', folderIcon(14));
+  const { heading, caret, icon, label, count } = sectionHeading('project', folderIcon(14));
   setTooltip(label, name); // full path on hover
   // Jump straight to one of this project's groups instead of scrolling for it.
   // The heading is position:sticky, so this trigger is on screen the whole time you scroll the project — which is what makes a menu enough here, rather than a panel that would cost a line of height per project.
@@ -833,7 +833,7 @@ function createGroupSection(id: string): GroupSectionEls {
   const section = document.createElement('section');
   section.className = 'group';
 
-  const { heading, caret, label, count } = sectionHeading('h3', layersIcon(13));
+  const { heading, caret, label, count } = sectionHeading('bar', layersIcon(13));
   // Start a session already in this group — the group's answer to the project heading's split button, and the same two parts: "+" starts one straight away, the caret offers the worktree variant.
   // reconcileProjectSections shows the caret only when the project is a git repo.
   const split = document.createElement('div');
@@ -888,7 +888,7 @@ function createGroupSection(id: string): GroupSectionEls {
   const members = document.createElement('div');
   members.className = 'group-members';
   const empty = document.createElement('div');
-  empty.className = 'group-empty'; // its text depends on the project's folder, so reconcileProjectSections writes it
+  empty.className = 'section-empty'; // its text depends on the project's folder, so reconcileProjectSections writes it
   members.append(empty);
 
   section.append(heading, members);
