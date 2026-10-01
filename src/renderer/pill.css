@@ -16,7 +16,7 @@
 }
 
 /* Every pill except the date presets is icon-only: the same marks the rows use (star, branch, fork,
-   archive box), injected in renderer.ts. Words cost the panel a whole extra line at a 320px sidebar,
+   archive box), injected by the filter (panels/types/sessions/filter.ts). Words cost the panel a whole extra line at a 320px sidebar,
    and each pill keeps its tooltip and aria-label, so the meaning is still one hover away. Icons are
    13px, matching the pills' 12px text so they don't make the row taller. */
 #filters > button,

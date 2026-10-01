@@ -1,0 +1,277 @@
+/* Filter panel toggle in the header. A corner badge dot (not an accent border, which would
+   look like the focus ring) marks that a filter is active. */
+#filter-toggle {
+  position: relative; /* anchors the active-filter badge dot below */
+}
+
+#filter-toggle.active::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--bg);
+}
+
+/* A bordered panel groups the filter controls into one unit that belongs to the 🔍 toggle. */
+#filter-panel {
+  position: relative; /* anchor for the floating custom-date popover */
+  margin: 8px 16px 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-surface);
+}
+
+#search {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  font-size: var(--text-body);
+}
+
+/* type=search draws a UA clear button: a fixed grey-gradient bitmap that ignores `color`, so it read
+   as a smudge on a dark field. Replace it with the app's own × — the same path closeIcon() draws —
+   as a MASK, which takes `background` and so follows --muted/--text like every other mark. */
+#search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--muted);
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.73" stroke-linecap="round"><path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4"/></svg>')
+    center / contain no-repeat;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.73" stroke-linecap="round"><path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4"/></svg>')
+    center / contain no-repeat;
+  cursor: pointer;
+}
+
+#search::-webkit-search-cancel-button:hover {
+  background: var(--text);
+}
+
+#search::placeholder {
+  color: var(--muted);
+}
+
+/* The search box shows the accent on its own border, so it skips the global outline. */
+#search:focus {
+  outline: none;
+}
+
+#search:focus,
+#search.active {
+  border-color: var(--accent);
+}
+
+#filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+#date-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Custom date-range filter (air-datepicker, inline). Floats as a popover over the session list
+   (absolute + auto top = its in-flow position, lifted out of layout) so opening Custom doesn't push
+   the list down. */
+#date-custom {
+  position: absolute;
+  left: 8px;
+  z-index: 40;
+  margin-top: 6px;
+  padding: 10px;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-surface);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* Attached to the filter panel it belongs to (same notch treatment as the menus); the chip that
+   opens it wraps with the presets, so the notch points at the panel area rather than tracking it. */
+#date-custom::before {
+  content: '';
+  position: absolute;
+  top: -4.5px;
+  left: 20px;
+  width: 8px;
+  height: 8px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+/* Persistent line under the presets: shows the picked range while Custom is active (even with the
+   calendar closed) and reopens the calendar on click. */
+#date-range-label {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 8px;
+  background: none;
+  /* Accent border marks it active, matching the active preset chip (it only shows while Custom is on). */
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* ID specificity would otherwise beat the UA [hidden] rule and keep it visible. */
+#date-range-label[hidden] {
+  display: none;
+}
+
+#date-range-label:hover {
+  background: var(--surface-hover);
+}
+
+/* Same range text, shown at the bottom of the open calendar (non-interactive, secondary). */
+#date-range-caption {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-meta);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Theme air-datepicker to the app palette. Its --adp-* vars are declared on .air-datepicker itself,
+   so overrides must target that element (an ancestor's value would lose to the element's own rule).
+   The calendar sits on our popover surface, so its background and inline border are transparent;
+   in-range fill is a translucent accent, endpoints the solid accent. */
+#date-custom .air-datepicker {
+  --adp-background-color: transparent;
+  --adp-border-color-inline: transparent;
+  --adp-color: var(--text);
+  --adp-color-secondary: var(--muted);
+  --adp-accent-color: var(--accent);
+  --adp-color-current-date: var(--accent);
+  --adp-color-other-month: var(--muted);
+  --adp-color-disabled: var(--muted);
+  --adp-border-color: var(--border);
+  --adp-border-color-inner: var(--border);
+  --adp-day-name-color: var(--muted);
+  --adp-nav-arrow-color: var(--text);
+  --adp-nav-color-secondary: var(--text);
+  /* The nav arrows and month/year title use the generic hover/active vars (defaulted to white). */
+  --adp-background-color-hover: var(--surface-hover);
+  --adp-background-color-active: var(--surface-hover);
+  --adp-cell-background-color-hover: var(--surface-hover);
+  --adp-cell-background-color-selected: var(--accent);
+  --adp-cell-background-color-selected-hover: var(--accent);
+  --adp-cell-background-color-in-range: rgba(137, 180, 250, 0.22); /* var(--accent) at low alpha */
+  --adp-cell-background-color-in-range-hover: rgba(137, 180, 250, 0.32);
+  --adp-cell-border-color-in-range: transparent;
+  --adp-font-size: var(--text-meta);
+}
+
+/* The lib hardcodes white text on selected cells; too faint on our light accent, so use dark text. */
+#date-custom .air-datepicker-cell.-selected- {
+  color: var(--bg);
+}
+
+/* Disabled days (outside min..today) share the other-month colour otherwise, so fade them further
+   and show a not-allowed cursor to read as unselectable. */
+#date-custom .air-datepicker-cell.-disabled- {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Under the filter panel rather than inside it, so closing the panel over a filter leaves the count and the way out on screen: a filtered list otherwise passes for the whole one.
+   Inset like the list rows, which it captions. */
+#filter-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  row-gap: 6px;
+  margin: 0 16px 8px;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+
+/* With the panel shut, the whole row stands in for it and opens it again. */
+#filter-status.collapsed {
+  cursor: pointer;
+}
+
+/* A line of its own above the count, so a long search or several pills wrap among themselves instead of pushing the count and Clear about. */
+#filter-chips {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 4px 2px 7px;
+  /* Width and style only: the colour is the on look's, from the rule shared with the pills. */
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--radius-pill);
+}
+
+/* Pill marks at the size the pills show them. */
+.filter-chip > svg {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+}
+
+.filter-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-chip-remove {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 1px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--muted);
+}
+
+.filter-chip-remove:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+#filter-clear {
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-control);
+  font-size: var(--text-meta);
+  cursor: pointer;
+}
+
+#filter-clear:hover {
+  background: var(--accent);
+  color: var(--surface);
+}
