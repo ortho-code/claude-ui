@@ -1,0 +1,484 @@
+/* Dimmed rather than hidden while filtering: filtering forces every section open, so the action has
+   nothing to do — but a control vanishing as you type reads worse than one plainly unavailable. */
+#collapse-toggle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+#loading {
+  height: 2px;
+  overflow: hidden;
+}
+
+#loading.active::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--accent);
+  animation: loading-slide 1s linear infinite;
+}
+
+@keyframes loading-slide {
+  0% {
+    margin-left: -40%;
+  }
+  100% {
+    margin-left: 100%;
+  }
+}
+
+#sessions {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  /* No top padding: it would sit above the sticky headings and let a row show through there.
+     The headings' own top padding provides the spacing instead. */
+  padding: 0 16px 24px;
+  /* Collapse/expand anchors the clicked heading by hand; the browser's own scroll anchoring
+     would fight that and shift the list, so turn it off here. */
+  overflow-anchor: none;
+}
+
+.project + .project {
+  /* No extra inter-project margin: the heading's own 8px top padding is the whole gap above it,
+     matching the 8px below its divider (the heading's margin-bottom), so a project's top and bottom
+     spacing are even. */
+  margin-top: 0;
+}
+
+.project h2 {
+  font-size: var(--text-heading);
+  font-weight: 700;
+  /* Negative horizontal margins (cancelled by matching padding) let the divider run edge-to-edge
+     across the sidebar, so each project reads as a hard section break. No margin-bottom: the gap below
+     the divider comes from the first session's margin-top, so every gap in the list is a single 8px.
+     Symmetric vertical padding keeps the heading content (incl. the + button) centred. */
+  margin: 0 -16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  /* The top layer of the three the list needs: project heading over group heading (1) over rows.
+     The opaque background masks rows scrolling underneath. */
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
+}
+
+/* Except where it cannot collapse (a single-project view), where a hover cue and a pointer would
+   both claim a click that does nothing. The open-menu cue stays: the kebab still works. */
+.project.no-collapse h2 {
+  cursor: default;
+}
+
+.project.no-collapse h2:not(:has(.menu-open)):hover {
+  background: var(--bg);
+}
+
+.project h2 .heading-icon {
+  color: var(--accent);
+}
+
+.project h2 .heading-count {
+  background: var(--surface);
+}
+
+
+/* A bordered box so it reads as a "new session" action, not part of the collapse chrome. */
+.project h2 .project-add {
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  /* Explicitly zero, not absent: the box is a fixed 22px in border-box, so the UA's default button
+     padding (1px 6px) would leave the icon 8px of content width and squash it. */
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+
+/* Split button: the "+" and a dropdown caret joined into one control. The caret is hidden for
+   non-repo folders (no worktree option), so the "+" keeps its full rounding then. */
+.split-button {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.split-button .project-add-caret {
+  justify-content: center;
+  width: 16px;
+  height: 22px;
+  padding: 0; /* same reason as the "+" above, and tighter here: 16px leaves only 3px */
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+/* Both halves of the project heading's split button fill the same way on hover. They take their own
+   fill rather than the shared .icon-btn one because they already sit on --surface, where --active
+   does not read as a change; the group's halves have no such box and use the shared rule. */
+.project h2 .project-add:not(.unavailable):hover,
+.split-button .project-add-caret:not(.unavailable):hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+/* A SPLIT BUTTON IS ONE CONTROL, so hovering either half outlines the whole of it — and so does one
+   half's menu being open. Keyed on the container and its children rather than on each half's class:
+   this used to be three rules naming .project-add, .project-add-caret, .group-add and
+   .group-add-caret between them, and every state added to a split button had to be written into all
+   of them. An unavailable half is excluded, since an outline reads as "clickable".
+   The per-half fill above still shows which half is about to be clicked.
+   BOTH selectors carry `:not(.unavailable)` for a second reason besides meaning: the halves' own
+   border is painted by rules like `.project h2 .project-add` at three components, so a selector of
+   two would lose to them and the outline would simply not appear. */
+.split-button:hover > :not(.unavailable),
+.split-button:has(.menu-open) > :not(.unavailable) {
+  border-color: var(--accent);
+}
+
+/* A menu trigger shows an active/open state while its dropdown is up — the --active fill plus the
+   accent outline, and the outline stays even when the pointer moves onto the dropdown (it's not
+   hover-driven). Box-sizing is border-box, so adding a border to the borderless kebabs doesn't
+   shift layout. */
+.project-add-caret.menu-open,
+.group-add-caret.menu-open,
+.project-kebab.menu-open,
+.project-groups.menu-open,
+.session-kebab.menu-open {
+  background: var(--active);
+  color: var(--text);
+}
+.project-kebab.menu-open,
+.project-groups.menu-open,
+.session-kebab.menu-open {
+  border-color: var(--accent);
+}
+/* Keep the active fill on the open caret even while hovering it, or the background flips to the hover
+   colour and back as the pointer moves off a menu that is still up.
+   It has to out-specify the per-half hover fill above, which is `.split-button .project-add-caret
+   :not(.unavailable):hover` — four classes — so this carries `:not(.unavailable)` for the fourth and
+   wins by order. An open menu on an unavailable half cannot happen anyway: it does not open one. */
+.split-button .project-add-caret:not(.unavailable).menu-open {
+  background: var(--active);
+}
+
+/* Square the +'s right corners only while the caret sits beside it. */
+.split-button:has(.project-add-caret:not([hidden])) .project-add {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.project.collapsed .session,
+.project.collapsed .group {
+  display: none;
+}
+
+/* The space above a group, which used to sit on the heading's own margin-top — see the note in
+   .group h3 about why a sticky element cannot carry one. */
+.group {
+  margin-top: 14px;
+}
+
+.group h3 {
+  /* Pins UNDER the project heading, so the group you are scrolling through stays named. The offset
+     is the project heading's measured height (list.ts sets the property; the fallback only
+     covers the first paint) — hard-coding it would go stale the moment the type scale moves, which
+     is how revealSessionInSidebar's old 44 went wrong. Sticky is scoped to the .group section, so a
+     heading unpins when its own group scrolls away rather than stacking with the next one. */
+  top: var(--project-heading-height, 39px);
+  /* Above the rows, below the project heading. It has to be a real layer, not 0: a session's status
+     dot is position:relative (for its hit-target halo) and so paints in the positioned layer, in DOM
+     order — which put it over a sticky heading at 0, showing a row's dot through the pinned bar. */
+  z-index: 1;
+}
+
+
+/* The indent says a row is IN the group; the rail draws where the group ends, so several groups
+   stay scannable. Deliberately muted, not accent — a row already uses an inset accent bar for open
+   and for active, and a third accent line here would muddy both. */
+.group-members {
+  margin-left: 3px;
+  padding-left: 14px;
+  border-left: 2px solid #9399b240;
+}
+
+.group.collapsed .group-members {
+  display: none;
+}
+
+/* Break between a project's last group and its ungrouped rows; without it the first loose row reads
+   as another member of the group above. */
+.session.after-groups {
+  margin-top: 16px;
+}
+
+/* The default cursor says the row is not the way in; the controls inside keep their own pointer, since those still work.
+   A tab keeps its pointer: clicking it still selects it, and the pane says why it will not start. */
+.session.unstartable {
+  cursor: default;
+}
+
+.session.unstartable .icon-btn {
+  cursor: pointer;
+}
+
+.session.open {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.session.active-session {
+  background: var(--active);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Open, but nothing running behind it. Same bar in --muted rather than a different mark: the bar
+   already means "this one has a tab", and the colour says whether that tab is live. Three classes,
+   so it also wins over .active-session above — a selected cold tab keeps its fill and loses only the
+   accent edge. */
+.session.open.cold {
+  box-shadow: inset 3px 0 0 var(--muted);
+}
+
+
+
+/* The standard icon-control box: a 14px icon, 2px 4px padding and a transparent 1px border, giving
+   24x20. Every clickable icon in the app is built from this one recipe — only the padding changes
+   for the compact (tab bar) and large (header) tiers, so a control's size is never a per-control
+   decision. The border is transparent rather than absent so a hover/active border can't resize the
+   box. Documented exceptions: the split button's halves (a bordered composite), the note mark (a
+   13px mark inline in a 12px meta line), the 9px status dot, and the decorative chevrons/tick. */
+.unarchive-btn,
+.delete-btn,
+
+/* Every icon control hovers identically: --active fill, accent outline, brighter glyph. One rule
+   rather than per-control ones, because the old behaviour was an accident of SPECIFICITY, not a
+   decision — `button:hover` (0,1,1) sets the accent border app-wide, so controls whose resting rule
+   was more specific (.project h2 .project-kebab at 0,2,2, #toast-close at 1,0,0) silently never got
+   it while .session-kebab (0,1,0) did. Listing them together, each with :hover, beats each one's own
+   resting rule, so the treatment is uniform by construction.
+   --active, not --surface-hover: a hovered session ROW is already --surface-hover, so a button
+   filling to the same colour inside it shows no change at all. --active reads on bg, surface and
+   surface-hover alike. It matches .menu-open, which is fine — an open menu is visible below it. */
+
+.session-kebab {
+  margin-left: -4px; /* row gap 8 - 4 = the 4px trailing-pair gap — see .group-kebab */
+}
+
+/* Same hover fill as the project kebab (the accent border comes from the base button rule). */
+
+/* Keep the open state's fill even while hovering the open kebab — same specificity as the :hover
+   rule above, later in the file, so the held --active look doesn't flip to the hover colour. */
+.session-kebab.menu-open {
+  background: var(--active);
+}
+
+.pin:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Meta and the worktree/sibling marks share one line, which is a whole line saved per badged row.
+   The meta flexes into whatever the marks leave (min-width:0 so it can shrink and ellipsize/stack);
+   the marks never shrink. */
+.session-subline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.session-subline .session-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The text carries the ellipsis now that the paragraph is a flex container. text-box trims its box
+   to cap-height/baseline so flex centres the mark against the text's INK: centring the em box aligns
+   to a box that includes descender space, which leaves the mark reading a touch low. Same fix as
+   .badge-text in the pills. */
+.meta-text {
+  text-box: trim-both cap alphabetic;
+  /* The trim ends the box at the BASELINE, so descenders (g, p, y) paint outside it — and this
+     element needs overflow:hidden for its ellipsis, which clipped them. Symmetric padding gives the
+     clip box room without undoing the trim's purpose: cap-top to baseline still sits centred in the
+     padded box, so the mark beside it stays aligned to the text's ink. 3px is this font's descent
+     at 12px; measured, not guessed. */
+  padding: 3px 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Muted, not accent: the worktree/sibling pills use accent for what the SESSION is, while a note is
+   something you attached. Clickable, hence the pointer and the hover lift. No vertical nudge — it is
+   a flex child of the meta row, so centring is the layout's job, not a magic number's. */
+/* The dot before the note mark. Trimmed like the text beside it so all three sit on one optical
+   line, and it loses the flex gap on its right so "· icon" reads as one unit. */
+.meta-sep {
+  flex: 0 0 auto;
+  text-box: trim-both cap alphabetic;
+  margin-right: -1px;
+}
+
+/* INLINE tier of the icon control: the note mark rides inside the 12px meta line, so it can't take
+   the standard 24x20 box without pushing every noted row taller. It keeps its own smaller box but
+   the same hover language as its neighbours (see the shared hover rule), so it reads as clickable
+   rather than as decoration — it was the only clickable thing in the app with no box at all. */
+.note-badge {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 1px 3px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+
+.worktree-badge,
+.sibling-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  /* Explicit height (border-box), because a flex pill with no text child has no line box for
+     line-height to act on: the wordless worktree pill collapsed to its icon at 12px while the
+     sibling pill, which holds a count, stood at 18px. line-height:1 for the same reason in reverse —
+     it makes a digit's box its own font size, so flex centres it on exactly the icon's centre
+     instead of half a pixel below. */
+  height: 18px;
+  padding: 0 6px;
+  font-size: var(--text-badge);
+  line-height: 1;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* The sibling badge shares the worktree badge's look; it's clickable (opens the sibling list), so
+   it also gets a pointer cursor and a fill on hover to signal that. */
+.sibling-badge {
+  cursor: pointer;
+}
+
+/* Filled on hover, and held filled while its popover is open (.menu-open) so it doesn't drop back
+   when the mouse leaves the badge. */
+.sibling-badge:hover,
+.sibling-badge.menu-open {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* The badge/pill icons (fork, branch) as inline SVG. The pill stays an inline-block so its
+   max-width + ellipsis keep applying to the text beside the icon; this only aligns the icon to the
+   text baseline and sizes it to the 10px pill. No per-glyph size correction any more — the shapes are
+   ours, so they already match. */
+.badge-icon {
+  display: flex;
+}
+
+/* Text inside a badge pill (a sibling count, the model label). A digit's em box carries the font's full ascent and descent, so
+   centring that box leaves the digit's INK riding ~0.7px high next to an icon whose ink is centred in
+   its own viewBox — visible at 10px. text-box-trim cuts the box down to cap-height/baseline, i.e. to
+   the ink itself, so flex centres what you actually see. Font-independent, unlike a hard-coded nudge
+   (the trap .wt-icon's old 0.8em fell into). Chromium-only, which is all this app runs on. */
+.badge-text {
+  text-box: trim-both cap alphabetic;
+}
+
+
+/* 12px, not 10: these icons carry ink across 10 of their 16 viewBox units (62.5%), so 12px renders
+   7.5px of ink — matching the 7.25px ink of the 10px digit beside it. At 10px the icon's 6.25px of
+   ink read as a smaller mark next to a bigger number, which looked like a centring fault. */
+.badge-icon svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
+
+.empty-message {
+  font-size: var(--text-body);
+  color: var(--muted);
+}
+
+/* Per-project kebab on a project heading (rename now, hide later). */
+
+.project h2 .project-groups:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.project h2 .project-kebab {
+  justify-content: center;
+  /* Match the session-row kebab exactly: padding-sized (no fixed box), same padding and same icon
+     size, so the dots have the same room. The split button below is grown to this height to stay
+     inline. */
+  /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
+  margin-left: -2px; /* 6px heading gap - 2 = the 4px trailing-pair gap — see .group-kebab */
+}
+
+
+/* Keep the open/active state while the menu is up. Scoped under `.project h2` to outweigh the base
+   rule above (otherwise its border/background win and the active state doesn't show). */
+.project h2 .project-kebab.menu-open {
+  background: var(--active);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* The group's "+" and ⋮, matching the project heading's pair at the group heading's smaller scale
+   (the heading's own 6px gap does the spacing, as it does on the project heading). */
+/* COMPOSITE controls carry a resting border; single icon controls don't. Two halves that act as one
+   button have to look like one object before you touch them — outlining them only on hover made the
+   pair read as two loose icons that suddenly acquired a box. Single icons need no such help, and a
+   border on each would put two more boxes on every row and heading. The project heading's split
+   button has always worked this way; this is the group's catching up. Fill stays transparent (the
+   heading bar is already --surface), so the border alone does the work until hover. */
+.group h3 .group-add {
+  /* Standard control box, same as .session-kebab — see the recipe there. */
+  border: 1px solid var(--border);
+}
+
+
+/* The dropdown half of the group heading's split button. Narrower than a standard control and with a
+   9px chevron rather than a 14px icon — the same exception the project heading's caret takes, because
+   it modifies the button beside it rather than being a control in its own right. Its left border is
+   dropped so the two halves share one edge. */
+.group h3 .group-add-caret {
+  justify-content: center;
+  width: 14px;
+  height: 20px; /* match the "+" half, which is the standard 24x20 */
+  padding: 0;
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+/* Square the +'s right corners only while the caret sits beside it, so they read as one control. */
+.group h3 .split-button:has(.group-add-caret:not([hidden])) .group-add {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.group h3 .group-kebab {
+  /* The two trailing controls sit 4px apart, here and on the session row and project heading, so the
+     second-from-right control lines up down the whole list. Each row reaches 4 from a different base
+     gap — this heading's is 6px, a session row's is 8 — so the offsets differ; the TOTAL is the rule.
+     4px rather than a roomier gap because every pixel here is width the session title loses. */
+  margin-left: -2px;
+  padding: 2px 4px; /* standard control box — see .unarchive-btn */
+}
+
+.group h3 .group-kebab.menu-open {
+  background: var(--active);
+  border-color: var(--accent);
+  color: var(--text);
+}

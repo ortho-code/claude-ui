@@ -4,7 +4,7 @@ import './index.css';
 /**
  * THE SIDEBAR as a panel type: the project switcher and the header's actions over the filter panel, the session list and the attention strip.
  * One element for the run: built once, parked until the layout places it, and put back by every mount (`builtinType`), so a layout change that remounts its entry keeps its scroll, its folds and what is typed in its search.
- * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: the switcher (switcher.ts), the filter (filter.ts), the attention strip (attention-strip.ts), and renderer.ts for the surfaces that have not moved beside this module yet.
+ * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: the switcher (switcher.ts), the filter (filter.ts), the list (list.ts), the attention strip (attention-strip.ts), and renderer.ts for the header's + New and Settings.
  */
 document.getElementById('parked')!.insertAdjacentHTML(
   'beforeend',
