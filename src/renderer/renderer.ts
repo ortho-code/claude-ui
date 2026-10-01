@@ -28,10 +28,11 @@ import {
 } from './panels/types/claude/terminals';
 import { renderTabBar, tabBarFollowsStatuses } from './panels/types/claude/tab-bar';
 import './styles.css';
-import { noFilter, store, withEntry, withMember, type AppState, type FilterState, type Folds, type TabState, type View } from './state/app';
+import { noFilter, store, withEntry, withMember, type AppState, type FilterState, type TabState, type View } from './state/app';
 import { isFiltering, projName, projectGroups, searchText, sessionById, sessionNudge, statusChanges, switcherPool, tabOnShow, tabWith, viewPool, visibleSessions } from './state/views';
 import { setStatus } from './state/statuses';
 import { applyGroupState, moveSessionToGroup } from './state/groups';
+import { foldedGroups, foldedProjects, foldsWith } from './state/folds';
 import { ackOnClick, applyStatus } from './statusdot';
 import { newSession, untitledLabel } from './newsession';
 import type { OrderMove, SessionSummary, UiState } from '../shared/types';
@@ -172,24 +173,6 @@ const statusDots = new Map<string, HTMLElement>();
 const sessionRows = new Map<string, HTMLElement>();
 // Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen rather than on everything that has ever existed.
 let renderedSections: { projects: string[]; groups: string[] } = { projects: [], groups: [] };
-/** The fold sets in play right now: the transient pair while filtering, the stored pair otherwise (`Folds`). Every read and every write goes through these, so the two can never be mixed up. */
-function foldedProjects(view: View<'filter' | 'folds'> = store.get()): ReadonlySet<string> {
-  return isFiltering(view) ? view.folds.filterProjects : view.folds.projects;
-}
-function foldedGroups(view: View<'filter' | 'folds'> = store.get()): ReadonlySet<string> {
-  return isFiltering(view) ? view.folds.filterGroups : view.folds.groups;
-}
-
-/** The folds with `keys` of one kind folded, or opened, in the pair in play. */
-function foldsWith(view: View<'filter' | 'folds'>, kind: 'projects' | 'groups', keys: Iterable<string>, folded: boolean): Folds {
-  const field: keyof Folds = !isFiltering(view) ? kind : kind === 'projects' ? 'filterProjects' : 'filterGroups';
-  const next = new Set(view.folds[field]);
-  for (const key of keys) {
-    if (folded) next.add(key);
-    else next.delete(key);
-  }
-  return { ...view.folds, [field]: next };
-}
 
 /** Open a folded project or group, for a reveal or a jump, which draw the list themselves; says whether it was folded. */
 function unfold(kind: 'projects' | 'groups', key: string): boolean {
