@@ -2,7 +2,7 @@ import type { SessionSummary } from '../../../../shared/types';
 import { entityKey, orderAsTabs, sessionLabel, stopControlState, type SwitcherModel } from '../../../logic';
 import { store, type View } from '../../../state/app';
 import { projName, projectGroups, sessionNudge, switcherModel, switcherPool, tabWith } from '../../../state/views';
-import { ackOnClick, applyStatus } from '../../../statusdot';
+import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, stopIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
@@ -58,7 +58,7 @@ function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButto
 function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'footerExpanded'>): void {
   const { footerExpanded } = view;
   const overall = model.all.badge;
-  footerBadge.className = overall ? `nudge ${overall}` : 'nudge';
+  footerBadge.className = badgeClass(overall);
   footerBadge.hidden = !overall;
 
   // What is RUNNING, wherever it is running — not what is nudging.

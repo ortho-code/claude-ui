@@ -4,6 +4,7 @@ import { stripAnsi } from '../../ansi';
 import { listCard, sectionHeading, setFolded } from '../../card';
 import { statusLabel } from '../../logic';
 import { element } from '../../dom';
+import { sessionDotClass } from '../../statusdot';
 import { setTooltip } from '../../tooltip';
 import type { PanelSlot } from '../layout';
 import { optionsOf, parseDuration } from '../options';
@@ -320,7 +321,7 @@ class ListPanel implements MountedPanel {
     const latest = sessions[0];
     mark.hidden = latest === undefined;
     if (!latest) return;
-    const dot = element('span', latest.status ? `nudge single ${latest.status}${latest.acked ? ' acked' : ''}` : 'nudge single');
+    const dot = element('span', sessionDotClass(latest.status, latest.acked));
     const parts: HTMLElement[] = [dot];
     if (sessions.length > 1) {
       const count = element('span', 'list-session-count');

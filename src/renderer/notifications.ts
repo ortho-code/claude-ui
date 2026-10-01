@@ -1,3 +1,4 @@
+import { badgeClass } from './statusdot';
 import { closeIcon } from './svg';
 import './notifications.css';
 
@@ -19,7 +20,7 @@ export function showAttentionToast({ status, label, project, open }: Attention):
   const el = document.createElement('div');
   el.className = `notif ${status}`;
   const dot = document.createElement('span');
-  dot.className = `nudge ${status}`;
+  dot.className = badgeClass(status);
   // The dot/edge colour already says waiting vs finished; the text names the tab and its project.
   const text = document.createElement('span');
   text.className = 'notif-text';

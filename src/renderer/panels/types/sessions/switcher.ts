@@ -3,6 +3,7 @@ import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
 import { setProjectOnShow } from '../../../state/project';
 import { switcherModel, switcherPool } from '../../../state/views';
+import { badgeClass } from '../../../statusdot';
 import { chevronIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
@@ -32,7 +33,7 @@ function renderSwitcher(model: SwitcherModel, view: View<'activeProject'>): void
 
   // Header nudge: the overall roll-up across ALL projects (incl. the active one and busy), so any attention is visible at a glance even when scoped to a project or scrolled down a long list.
   const headerBadge = model.all.badge;
-  switcherBadge.className = headerBadge ? `nudge ${headerBadge}` : 'nudge';
+  switcherBadge.className = badgeClass(headerBadge);
   switcherBadge.hidden = !headerBadge;
   setTooltip(switcherBadge, headerBadge ? `A project is ${headerBadge}` : null);
 
@@ -62,7 +63,7 @@ function switcherItem(name: string, repoRoot: string | null, count: number, badg
   }
 
   const dot = document.createElement('span');
-  dot.className = badge ? `nudge ${badge}` : 'nudge';
+  dot.className = badgeClass(badge);
 
   const cnt = document.createElement('span');
   cnt.className = 'switcher-item-count';

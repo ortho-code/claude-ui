@@ -1,6 +1,7 @@
 import type { LayoutReport, PanelState } from '../../shared/panels';
 import { element } from '../dom';
 import { installSplitResizer } from '../resizer';
+import { badgeClass } from '../statusdot';
 // A panel header's count wears the section heading's count pill.
 import '../card.css';
 import './tree.css';
@@ -509,13 +510,13 @@ function mountedFor(slot: PanelSlot): Mounted {
   const existing = mounted.get(slot.key);
   if (existing) return existing;
   const type = types[slot.type!]!;
-  const busy = element('span', 'nudge busy');
+  const busy = element('span', badgeClass('busy'));
   busy.hidden = true;
   const end = element('span', 'panel-end');
   // Per entry, since what the button would do can depend on the options: a terminal pinned to a folder has none.
   const label = type.bare ? null : type.actionLabel ? type.actionLabel(optionsOf(slot.entry)) : 'Refresh';
   const action = label === null ? null : actionButton(label);
-  const badge = element('span', 'nudge');
+  const badge = element('span', badgeClass(null));
   badge.hidden = true;
   const count = element('span', 'panel-count');
   const railCount = element('span', 'rail-count');
@@ -565,7 +566,7 @@ function mountedFor(slot: PanelSlot): Mounted {
 
 /** The rail dot, in the status dot's own states: `waiting` as a session's dot pulses, `failed` for a run that did not end well. */
 function showStatus(badge: HTMLElement, status: PanelStatus): void {
-  badge.className = status === 'wait' ? 'nudge waiting' : status === 'fail' ? 'nudge failed' : 'nudge';
+  badge.className = badgeClass(status === 'wait' ? 'waiting' : status === 'fail' ? 'failed' : null);
   badge.hidden = status === null;
 }
 

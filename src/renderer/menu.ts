@@ -1,4 +1,5 @@
 import type { NudgeStatus } from './logic';
+import { badgeClass } from './statusdot';
 import { chevronIcon, strokeIcon } from './svg';
 import { setUnavailable } from './unavailable';
 import './menu.css';
@@ -87,7 +88,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       label.textContent = item.label;
       if (item.muted) label.classList.add('muted');
       const dot = document.createElement('span');
-      dot.className = `nudge${item.badge ? ` ${item.badge}` : ''}`;
+      dot.className = badgeClass(item.badge ?? null);
       const count = document.createElement('span');
       count.className = 'menu-item-count';
       count.textContent = String(item.count);

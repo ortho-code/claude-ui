@@ -1,11 +1,21 @@
-import { statusLabel } from './logic';
+import { statusLabel, type NudgeStatus } from './logic';
 import { toggleAck } from './state/statuses';
 import { setTooltip } from './tooltip';
 
-/** A session's status dot, as the sidebar row, the tab and the attention strip draw it. */
+/** The status dots: a session's own, as the sidebar row, the tab, the attention strip and a list panel's row draw it, and a roll-up's, which stands for many; how each looks is base.css's `.nudge`. */
+
+/** A session's dot: hollow with nothing to report, dimmed once read, and a control where `clickable` (a click marks it read, `ackOnClick`). */
+export function sessionDotClass(status: string | null | undefined, acked: boolean, clickable = false): string {
+  return `nudge single${clickable ? ' clickable' : ''}${status ? ` ${status}${acked ? ' acked' : ''}` : ''}`;
+}
+
+/** A roll-up's dot, or a panel's: the strongest state under it, or nothing at all, since it has no quiet state of its own. */
+export function badgeClass(badge: NudgeStatus | 'failed'): string {
+  return badge ? `nudge ${badge}` : 'nudge';
+}
 
 export function applyStatus(dot: HTMLElement, status: string | undefined, isAcked = false): void {
-  dot.className = status ? `nudge single clickable ${status}${isAcked ? ' acked' : ''}` : 'nudge single clickable';
+  dot.className = sessionDotClass(status, isAcked, true);
   setTooltip(dot, statusLabel(status, isAcked));
 }
 
