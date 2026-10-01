@@ -1,4 +1,4 @@
-// The bundle's stylesheets come in the order of these imports: what every module draws with, then the services' and the panel tree's own, then the rules no module has taken yet, which build on all of them.
+// The bundle's stylesheets come in the order of these imports: what every module draws with, then the services', then the panel tree's and the panel types' own, each module's beside it.
 import './base.css';
 // The services the sidebar's list draws with are imported here for their stylesheets' place in that order, ahead of every panel.
 import './menu';
@@ -25,7 +25,6 @@ import { claudeAnswers } from './panels/types/claude/asks';
 import { toastAttention } from './panels/types/claude/attention';
 import { sessionsAnswers } from './panels/types/sessions/asks';
 import { persistUi, restoreUiState, startSavingUi } from './view-saving';
-import './styles.css';
 import { store, withEntry } from './state/app';
 import { tabOnShow, tabWith } from './state/views';
 import { setStatus } from './state/statuses';
