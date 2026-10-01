@@ -11,7 +11,7 @@ const docs = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'Write
 const tests = session({ id: '00000000-0000-4000-8000-0000000000b3', title: 'Parser tests' });
 const fixture = { sessions: [parser, docs, tests], pinned: [parser.id] };
 
-const titles = (page: Page): Locator => page.locator('#sessions .session .session-title');
+const titles = (page: Page): Locator => page.locator('#sessions .session .card-title');
 
 test('search and a pill narrow the list and say by how much, a shut panel leaves chips, and Clear undoes it all', async ({ app, page }) => {
   await app.boot(fixture);

@@ -707,7 +707,7 @@ With a good list already there, the list stays under a line saying when the run 
 An empty queue and a broken one otherwise look the same, and one of them is a lie; blanking the list on every failure was the other way, and a bad minute on the network would blank it every time.
 Before the first run has ended it says it is waiting, which is neither state.
 
-**What it looks like is the app's.** A row is a session-list card and a section heading the sidebar's group bar, shared through the same rules rather than restyled; a row's tone is the status colours on its leading edge, where a session row keeps its accent bar for "open in a tab".
+**What it looks like is the app's.** A row is the card a session row is, and a section heading the sidebar's group bar, built by the same builders (`card.ts`) and drawn by the same rules rather than restyled; a row's tone is the status colours on its leading edge, where a session row keeps its accent bar for "open in a tab".
 The count on a rail icon sits inside the button, under the icon on a vertical rail and beside it on a horizontal one: a corner badge was tried first, and at 3x even "9+" covered the whole icon on a 24px button, while the rail clips anything past its 28px.
 The icon's tooltip and label say the count whole.
 
@@ -861,7 +861,7 @@ Filled rather than outlined because `button:hover` sets an accent *border* app-w
 That same app-wide rule is why the hover state has to set the border itself, and it sets it to the fill: background and border are one colour, so the brightness step darkens the whole button and its outline never appears to move.
 Each colour is named once, as a `--fill` custom property, which is what keeps that true — an earlier version reached for `currentColor` instead, i.e. the *text* colour, and hovered to a dark border on the blue button (it read as shrinking) and a white ring on the red one.
 
-**Rows** come in two shapes: a **list row** (`.session`) is a card in the list body — `7px 14px`, surface radius, two lines and its own controls; a **menu row** (switcher entry, kebab-menu item, attention-strip session) is `6px 9px`, control radius, one shared rule for all three.
+**Rows** come in two shapes: a **list row** (`.card`, a session's or a list panel's, built by `listCard`) is a card in the list body — `7px 14px`, surface radius, two lines and its own controls; a **menu row** (switcher entry, kebab-menu item, attention-strip session) is `6px 9px`, control radius, one shared rule for all three.
 
 **Radius and type are tokens** in `:root`.
 Radius is per kind of thing rather than per component: `--radius-control` (anything you click), `--radius-surface` (rows, cards, panels, popovers, dialogs), `--radius-pill` (fully round, so it never needs re-tuning when its height changes); circles keep 50%.

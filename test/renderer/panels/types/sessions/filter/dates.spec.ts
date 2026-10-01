@@ -12,7 +12,7 @@ const old = session({ id: '00000000-0000-4000-8000-0000000000d4', title: 'Months
 const everyone = [today, days3, days20, old];
 const fixture = { sessions: everyone };
 
-const titles = async (page: Page): Promise<string[]> => (await page.locator('#sessions .session .session-title').allTextContents()).sort();
+const titles = async (page: Page): Promise<string[]> => (await page.locator('#sessions .session .card-title').allTextContents()).sort();
 const sorted = (...list: { title: string }[]): string[] => list.map((s) => s.title).sort();
 const preset = (page: Page, range: string): Locator => page.locator(`#date-presets [data-range="${range}"]`);
 /** A day on the calendar on show, by its date in September 2026 (month 8, counted from 0). */

@@ -41,7 +41,7 @@ test("a fork from a row's options starts a copy of it under a new id, named as a
   expect(await app.calls('moveSessionToGroup')).toEqual([[launch.sessionId, 'g-work']]);
   await expect(page.locator('.tab', { hasText: 'The fork' })).toHaveClass(/\bactive\b/);
   const group = page.locator('#sessions .group', { has: page.locator('> .section-heading .label', { hasText: /^Work$/ }) });
-  await expect(group.locator('.session-title', { hasText: 'The fork' })).toHaveCount(1);
+  await expect(group.locator('.card-title', { hasText: 'The fork' })).toHaveCount(1);
 });
 
 test("a new worktree session from the project's \"+\" starts claude in a fresh worktree, named by claude when left blank", async ({ app, page }) => {

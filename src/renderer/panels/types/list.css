@@ -1,6 +1,5 @@
-/* A LIST PANEL: a type from the config folder whose script prints a list. Its rows are session-list cards
-   (.list-row beside .session) and its section headings the sidebar's group bar, so what is its own is
-   only the scrolling body, what a row's tone does, and the line a failed run leaves above the list. */
+/* A LIST PANEL: a type from the config folder whose script prints a list.
+   Its rows are the card a session row is (.card, with .list-row for what is its own) and its section headings the sidebar's group bar, both built by card.ts, so what is its own is only the scrolling body, what a row's tone does, and the line a failed run leaves above the list. */
 .list-body {
   flex: 1;
   min-height: 0;
@@ -33,11 +32,6 @@
   flex: 0 0 auto;
   padding: 2px 8px;
   font-size: var(--text-meta);
-}
-
-/* A row with no link has nothing for a click to do, so no pointer claims one (its hover is .link's only). */
-.list-row:not(.link) {
-  cursor: default;
 }
 
 /* A row's tone, as its script says: the status colours on the row's leading edge, where a session row

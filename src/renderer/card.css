@@ -1,5 +1,5 @@
 /* What the sidebar's session list and a list panel draw alike: the collapsible section heading with its count pill (which a panel header's count wears too), the group's bar, and the card an item in a list sits on.
-   The heading is built in one place, card.ts, which brings this stylesheet with it; the card is still shared by class, the sidebar's list and the list panel (panels/types/list.ts) each building its own markup with these classes. */
+   Both are built in one place, card.ts, which brings this stylesheet with it, so the sidebar's list and the list panel (panels/types/list.ts) draw the same markup. */
 
 /* A COLLAPSIBLE SECTION HEADING — the project's and the group's are the same bar with different
    weight, spacing and sticky layer, so what they share lives here and each keeps only its own
@@ -98,9 +98,8 @@
   color: var(--muted);
 }
 
-/* A session row, and a list panel's row (.list-row), which is the same card: one look for "an item in a list" wherever the app draws one. */
-.session,
-.list-row {
+/* The card an item in a list sits on, a session row (.session) or a list panel's row (.list-row): one look for "an item in a list" wherever the app draws one. */
+.card {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -113,22 +112,24 @@
   cursor: pointer;
 }
 
-/* Highlight on hover, and keep it while a menu opened from this row is still up (the menu belongs to
-   the row, even though the pointer has moved onto the dropdown). */
-.session:hover,
-.session:has(.menu-open),
-.list-row.link:hover {
+/* A card with nothing to press, such as a list panel's row without a link: no pointer claims a click, and no hover lights it (below). */
+.card.still {
+  cursor: default;
+}
+
+/* Highlight on hover, and keep it while a menu opened from a session row is still up (the menu belongs to the row, even though the pointer has moved onto the dropdown).
+   :where() keeps the hover at two classes' weight, so a surface's own fill of equal weight after it, such as .session.active-session, still wins over it. */
+.card:where(:not(.still)):hover,
+.session:has(.menu-open) {
   background: var(--surface-hover);
 }
 
-.session-content,
-.list-content {
+.card-content {
   flex: 1;
   min-width: 0;
 }
 
-.session-title,
-.list-text {
+.card-title {
   margin: 0 0 2px;
   /* Level with the group heading above it (13px), one step above the 12px meta line below. At 14px
      it out-sized the heading of its own group; the extra characters per line before the clamp are a
@@ -143,8 +144,7 @@
 
 /* Time and model, with the note mark riding at the end. A flex row so the mark is CENTRED against
    the text by layout rather than by a guessed offset — the reason it looked off beside the title. */
-.session-meta,
-.list-detail {
+.card-meta {
   display: flex;
   align-items: center;
   gap: 4px;

@@ -47,6 +47,6 @@ test('a confirmed delete takes the row away at once and it never comes back', as
   await expect.poll(() => app.calls('deleteSession')).toEqual([[gone.id]]);
   // The read after the delete is what stops hiding it; everything after it is answered at once, so by the next look the list has been drawn from it.
   await expect.poll(async () => (await app.calls('listSessions')).length).toBe(reads + 1);
-  await expect(page.locator('#sessions .session .session-title')).toHaveText([kept.title]);
+  await expect(page.locator('#sessions .session .card-title')).toHaveText([kept.title]);
   expect(await addedCount(page)).toBe(0);
 });

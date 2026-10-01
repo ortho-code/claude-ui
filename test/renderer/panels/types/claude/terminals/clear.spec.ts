@@ -34,7 +34,7 @@ test('a session cleared in its tab hands the tab to its successor, which keeps t
 
   // Its stand-in row, in the group, is the open one; the cleared session keeps its own row, with no tab.
   const group = page.locator('#sessions .group', { has: page.locator('> .section-heading .label', { hasText: /^Work$/ }) });
-  await expect(group.locator('.session-title')).toHaveText(['New: demo', one.title]);
+  await expect(group.locator('.card-title')).toHaveText(['New: demo', one.title]);
   await expect(row(page, 'New: demo')).toHaveClass(/\bopen\b/);
   await expect(row(page, one.title)).not.toHaveClass(/\bopen\b/);
 });

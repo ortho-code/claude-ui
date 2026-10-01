@@ -32,7 +32,7 @@ const withUi = (ui: Partial<UiState>): { uiState: UiState } => ({ uiState: { ...
 
 /** The list as it reads, top to bottom: headings and rows. */
 const list = (page: Page): Locator =>
-  page.locator('#sessions .project > .section-heading .label, #sessions .group > .section-heading .label, #sessions .session .session-title');
+  page.locator('#sessions .project > .section-heading .label, #sessions .group > .section-heading .label, #sessions .session .card-title');
 const project = (page: Page, name: string): Locator => page.locator('#sessions .project', { has: page.locator('> .section-heading .label', { hasText: new RegExp(`^${name}$`) }) });
 const group = (page: Page, name: string): Locator => page.locator('#sessions .group', { has: page.locator('> .section-heading .label', { hasText: new RegExp(`^${name}$`) }) });
 /** What the window last asked main to keep of the sidebar: saved on a debounce, so read with a poll. */

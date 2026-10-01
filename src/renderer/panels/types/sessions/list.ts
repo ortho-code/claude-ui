@@ -1,6 +1,6 @@
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 // Its rows are the card and its headings the section heading a list panel draws too.
-import { sectionHeading, setFolded } from '../../../card';
+import { listCard, sectionHeading, setFolded } from '../../../card';
 import { confirmDelete, promptText } from '../../../dialogs';
 import { flash } from '../../../flash';
 import {
@@ -926,17 +926,12 @@ const rowEls = new WeakMap<HTMLElement, RowEls>();
 
 // Build a row once. Its click/pin handlers read the live session from `currentByKey` by the entity key (the session id), so a reused row stays correct across re-renders.
 function createSessionRow(key: string): HTMLElement {
-  const item = document.createElement('article');
-  item.className = 'session';
+  const { card: item, content, title, meta } = listCard('session');
   item.dataset.key = key;
 
   const dot = document.createElement('span');
   // Click the dot to toggle "read": mute a done/waiting session without opening or replying to it.
   ackOnClick(dot, () => currentByKey.get(key)?.id ?? null);
-  const content = document.createElement('div');
-  content.className = 'session-content';
-  const title = document.createElement('p');
-  title.className = 'session-title';
   const badge = document.createElement('span');
   badge.className = 'worktree-badge';
   badge.hidden = true;
@@ -949,11 +944,9 @@ function createSessionRow(key: string): HTMLElement {
     const session = currentByKey.get(key);
     if (session) openSiblingsMenu(siblingsBadge, session);
   });
-  // Time and model, plus the note mark riding along at the end of that text.
+  // The card's meta line holds the time and model, plus the note mark riding along at the end of that text.
   // The mark lives HERE rather than beside the title because a sibling box next to a text block has to have its alignment guessed; inside the text row it just centres.
   // The meta is short and single-line, so nothing can clip the mark off the way a two-line title clamp would.
-  const meta = document.createElement('p');
-  meta.className = 'session-meta';
   const metaText = document.createElement('span');
   metaText.className = 'meta-text';
   // The badges used to take a line of their own between title and meta.
@@ -979,7 +972,7 @@ function createSessionRow(key: string): HTMLElement {
   const subline = document.createElement('div');
   subline.className = 'session-subline';
   subline.append(meta, badge, siblingsBadge);
-  content.append(title, subline);
+  content.append(subline);
 
   const pin = document.createElement('button');
   pin.className = 'icon-btn pin';
@@ -1049,7 +1042,8 @@ function createSessionRow(key: string): HTMLElement {
     if (session) openMenu(kebab, sessionMenuItems(session));
   });
 
-  item.append(dot, content, pin, unarchiveBtn, deleteBtn, kebab);
+  item.prepend(dot);
+  item.append(pin, unarchiveBtn, deleteBtn, kebab);
   rowEls.set(item, { dot, title, badge, siblingsBadge, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.

@@ -3,7 +3,7 @@ import { caretIcon } from './svg';
 import './card.css';
 
 /**
- * What the sidebar's session list and a list panel draw alike, built in one place so the two cannot drift: the collapsible section heading.
+ * What the sidebar's session list and a list panel draw alike, built in one place so the two cannot drift: the collapsible section heading, and the card an item in a list sits on.
  * Its look is `card.css`, which this module brings with it.
  */
 
@@ -41,4 +41,27 @@ export function sectionHeading(tag: HeadingTag, iconHtml?: string): SectionHeadi
 /** Turn a heading's caret to say whether its section is folded. */
 export function setFolded(caret: HTMLElement, folded: boolean): void {
   caret.innerHTML = caretIcon(folded, 10);
+}
+
+/** The parts of a card: the title sits in the content and the content in the card; the meta line is made but not placed. */
+interface Card {
+  card: HTMLElement;
+  content: HTMLElement;
+  title: HTMLElement;
+  meta: HTMLElement;
+}
+
+/**
+ * A card, an item in a list, with `modifier` for the surface's own rules (`session`, `list-row`).
+ * The caller places the meta line, under the title or in a line of its own beside marks, and adds whatever else the card holds around the content.
+ * A card is pressed as a whole; one with nothing to press takes `still`, which drops the pointer and the hover.
+ */
+export function listCard(modifier: string): Card {
+  const card = element('article', `card ${modifier}`);
+  const content = element('div', 'card-content');
+  const title = element('p', 'card-title');
+  const meta = element('p', 'card-meta');
+  content.append(title);
+  card.append(content);
+  return { card, content, title, meta };
 }

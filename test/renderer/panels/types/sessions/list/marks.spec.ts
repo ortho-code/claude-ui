@@ -8,7 +8,7 @@ const older = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'Olde
 const fixture = { sessions: [newer, older], history: { [newer.id]: [], [older.id]: [] } };
 
 const row = (page: Page, title: string): Locator => page.locator('.session', { hasText: title });
-const titles = (page: Page): Locator => page.locator('#sessions .session .session-title');
+const titles = (page: Page): Locator => page.locator('#sessions .session .card-title');
 const menuItem = async (page: Page, title: string, label: string): Promise<void> => {
   await row(page, title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button', { hasText: label }).click();
@@ -72,7 +72,7 @@ test('archiving closes the session\'s tab and moves its row to the archived view
   await page.locator('#filter-toggle').click();
   await page.locator('#archived-filter').click();
   await expect(titles(page)).toHaveText([older.title]);
-  await expect(row(page, older.title).locator('.session-meta')).toContainText('archived');
+  await expect(row(page, older.title).locator('.card-meta')).toContainText('archived');
   await expect(row(page, older.title).locator('.unarchive-btn')).toBeVisible();
   await expect(row(page, older.title).locator('.pin')).toBeHidden();
   await expect(row(page, older.title).locator('.session-kebab')).toBeHidden();

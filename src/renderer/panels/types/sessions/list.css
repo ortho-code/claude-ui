@@ -289,7 +289,7 @@
   min-width: 0;
 }
 
-.session-subline .session-meta {
+.session-subline .card-meta {
   flex: 1;
   min-width: 0;
 }

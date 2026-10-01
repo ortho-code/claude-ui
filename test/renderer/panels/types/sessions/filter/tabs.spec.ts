@@ -10,7 +10,7 @@ const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Anothe
 const fixture = { sessions: [one, two], history: { [one.id]: [], [two.id]: [] }, openSessions: [one.id] };
 const withFilter = (filter: 'open' | 'live'): { uiState: UiState } => ({ uiState: { ...defaultUi(), filters: { ...defaultUi().filters, [filter]: true } } });
 
-const titles = (page: Page): Locator => page.locator('#sessions .session .session-title');
+const titles = (page: Page): Locator => page.locator('#sessions .session .card-title');
 const tabButton = (page: Page): Locator => page.locator('.tab .tab-close');
 
 test('with "open" on, closing the last tab takes its row out of the list', async ({ app, page }) => {

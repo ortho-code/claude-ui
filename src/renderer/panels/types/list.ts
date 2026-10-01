@@ -1,7 +1,7 @@
 import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelContext, type PanelRunEvent } from '../../../shared/panels';
 import { stripAnsi } from '../../ansi';
 // Its rows are the session list's cards and its headings the group's bar.
-import { sectionHeading, setFolded } from '../../card';
+import { listCard, sectionHeading, setFolded } from '../../card';
 import { statusLabel } from '../../logic';
 import { element } from '../../dom';
 import { setTooltip } from '../../tooltip';
@@ -364,17 +364,12 @@ class ListPanel implements MountedPanel {
 
   /** A row, as text only: the script may come from anyone, so nothing it prints is ever markup. */
   private drawItem(item: ListItem): HTMLElement {
-    const row = element('div', `list-row tone-${item.tone}`);
-    const content = element('div', 'list-content');
-    const text = element('div', 'list-text');
-    text.textContent = item.text;
-    content.append(text);
+    const { card: row, content, title, meta } = listCard(`list-row tone-${item.tone}`);
+    title.textContent = item.text;
     if (item.detail !== null) {
-      const detail = element('div', 'list-detail');
-      detail.textContent = item.detail;
-      content.append(detail);
+      meta.textContent = item.detail;
+      content.append(meta);
     }
-    row.append(content);
     // The sessions it started, before what it offers, so going back comes before starting again.
     const mark = element('button', 'icon-btn list-session');
     mark.type = 'button';
@@ -402,11 +397,10 @@ class ListPanel implements MountedPanel {
     }
     if (item.href !== null) {
       const href = item.href;
-      row.classList.add('link');
       // Where a click goes, since a shared type's rows are somebody else's links.
       setTooltip(row, href);
       row.addEventListener('click', () => window.claudeUi.openExternal(href));
-    }
+    } else row.classList.add('still');
     return row;
   }
 }

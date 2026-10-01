@@ -50,7 +50,7 @@ test('a group made from a row takes the row, and its tab moves into the group\'s
 
   // At the top of its project, holding the row it was made from.
   await expect(listGroups(page)).toHaveText(['Gamma', 'Beta', 'Alpha']);
-  await expect(listGroup(page, 'Gamma').locator('.session-title')).toHaveText([loose.title]);
+  await expect(listGroup(page, 'Gamma').locator('.card-title')).toHaveText([loose.title]);
   await expect(tabBarGroups(page)).toHaveText(['Gamma', 'Beta', 'Alpha']);
   await expect(tabBarGroup(page, 'Gamma').locator('.tab-label')).toHaveText([loose.title]);
   expect(await app.calls('createGroup')).toEqual([['Gamma', PROJECT, loose.id]]);

@@ -14,7 +14,7 @@ const everyone = [plain, worktree, sibling, itsSibling, noted, gone, tabbed];
 const fixture = { sessions: everyone, notes: { [noted.id]: 'Remember this' }, openSessions: [tabbed.id], history: { [tabbed.id]: [] } };
 
 /** The list's titles, in no particular order: which rows there are is what a pill decides. */
-const titles = async (page: Page): Promise<string[]> => (await page.locator('#sessions .session .session-title').allTextContents()).sort();
+const titles = async (page: Page): Promise<string[]> => (await page.locator('#sessions .session .card-title').allTextContents()).sort();
 const sorted = (...list: { title: string }[]): string[] => list.map((s) => s.title).sort();
 
 /** Press a pill, see the list it leaves, and press it again for the whole list back. */
