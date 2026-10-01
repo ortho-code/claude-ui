@@ -40,7 +40,7 @@ const DENSE = 120;
 export class HistoryBar {
   /** The column the bar takes beside the terminal; its width never changes, so the terminal's never does. */
   readonly el = document.createElement('div');
-  /** What is drawn: the column's width at rest, and wider while pointed at, over the terminal's edge (styles.css). */
+  /** What is drawn: the column's width at rest, and wider while pointed at, over the terminal's edge (bar.css). */
   readonly face = document.createElement('div');
   private readonly area = document.createElement('div');
   private readonly bandEl = document.createElement('div');

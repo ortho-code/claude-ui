@@ -44,7 +44,7 @@ export function createTerminal(container: HTMLElement): TerminalView {
   const term = new Terminal({
     fontFamily: MONO_FAMILY,
     fontSize: MONO_SIZE,
-    // A neutral (hue-less) foreground, and why, are with the token (--terminal-fg in styles.css).
+    // A neutral (hue-less) foreground, and why, are with the token (--terminal-fg in base.css).
     // The select-menu contrast bug (28a); proper per-user terminal colours are item 28.
     theme: { background: TERMINAL_BG, foreground: TERMINAL_FG },
   });
