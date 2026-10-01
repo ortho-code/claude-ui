@@ -1,9 +1,8 @@
-import type { SessionSummary } from '../../../../shared/types';
-import { projectsForSwitcher, type NudgeStatus } from '../../../logic';
+import type { NudgeStatus, SwitcherModel } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
 import { setProjectOnShow } from '../../../state/project';
-import { switcherPool, visibleSessions } from '../../../state/views';
+import { switcherModel, switcherPool } from '../../../state/views';
 import { chevronIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
@@ -23,9 +22,8 @@ const switcherGone = document.getElementById('switcher-gone')!;
 const switcherBadge = document.getElementById('switcher-badge')!;
 const switcherPopover = document.getElementById('switcher-popover')!;
 
-// Update the switcher header + popover from the visible project pool. The pool is every project's tips (see renderList); the switcher is independent of search/project so you can always navigate.
-function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' | 'projectNames' | 'projectOrder' | 'activeProject'>): void {
-  const model = projectsForSwitcher(pool, view.statuses, view.acked, view.projectNames, view.projectOrder);
+// Update the switcher header + popover from every project's roll-up (`switcherModel`), which is independent of search/project so you can always navigate.
+function renderSwitcher(model: SwitcherModel, view: View<'activeProject'>): void {
   const { activeProject } = view;
   const active = activeProject ? model.projects.find((f) => f.repoRoot === activeProject) : null;
   switcherName.textContent = active ? active.name : 'All';
@@ -92,7 +90,7 @@ export function selectProject(repoRoot: string | null): void {
  */
 export function fallBackIfEmptied(view: View<'sessions' | 'archived' | 'pendingDeletes' | 'activeProject' | 'tabs'>): void {
   const { activeProject } = view;
-  if (activeProject !== null && !switcherPool(visibleSessions(view), view).some((s) => s.repoRoot === activeProject)) selectProject(null);
+  if (activeProject !== null && !switcherPool(view).some((s) => s.repoRoot === activeProject)) selectProject(null);
 }
 
 function openSwitcher(): void {
@@ -128,5 +126,5 @@ type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendi
  * A watcher renderer.ts registers with the others, as it does `fallBackIfEmptied`.
  */
 export function refreshSwitcher(view: SwitcherView): void {
-  renderSwitcher(switcherPool(visibleSessions(view), view), view);
+  renderSwitcher(switcherModel(view), view);
 }

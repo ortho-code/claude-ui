@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
-import { entityKey, orderAsTabs, projectsForSwitcher, sessionLabel, stopControlState, type SwitcherModel } from '../../../logic';
+import { entityKey, orderAsTabs, sessionLabel, stopControlState, type SwitcherModel } from '../../../logic';
 import { store, type View } from '../../../state/app';
-import { projName, projectGroups, sessionNudge, switcherPool, tabWith, visibleSessions } from '../../../state/views';
+import { projName, projectGroups, sessionNudge, switcherModel, switcherPool, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { chevronIcon, stopIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -53,7 +53,7 @@ function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButto
 }
 
 // Cross-project attention strip in the sidebar footer.
-// The toggle badge is the same overall roll-up as the switcher header; expanded, it lists the nudged SESSIONS grouped under their project (each a row: state dot + session title), click one to jump to it.
+// The toggle badge is the switcher header's overall roll-up (`switcherModel`); expanded, it lists the nudged SESSIONS grouped under their project (each a row: state dot + session title), click one to jump to it.
 // Muted "all clear" when nothing pending.
 function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'footerExpanded'>): void {
   const { footerExpanded } = view;
@@ -161,10 +161,9 @@ footerToggle.querySelector('.footer-chev')!.innerHTML = chevronIcon('down', 11);
 type StripView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'footerExpanded'>;
 
 /**
- * The strip follows the store, its line badged with the same roll-up as the switcher's, from the same pool and the same rule (`projectsForSwitcher`).
+ * The strip follows the store, its line badged with the switcher's own roll-up (`switcherModel`) and its rows drawn from the switcher's pool.
  * A watcher renderer.ts registers with the others.
  */
 export function refreshStrip(view: StripView): void {
-  const pool = switcherPool(visibleSessions(view), view);
-  renderFooter(projectsForSwitcher(pool, view.statuses, view.acked, view.projectNames, view.projectOrder), pool, view);
+  renderFooter(switcherModel(view), switcherPool(view), view);
 }

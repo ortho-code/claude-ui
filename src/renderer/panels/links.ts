@@ -1,10 +1,10 @@
 import type { PanelData } from '../../shared/panels';
-import { projectFor, projectsForSwitcher, type NudgeStatus } from '../logic';
+import { projectFor, type NudgeStatus } from '../logic';
 import { openMenu } from '../menu';
 import { askForSession } from '../sessiondialog';
 import { showToast } from '../toast';
 import { store, withEntry } from '../state/app';
-import { projName, projectGroups, switcherPool, tabWith, visibleSessions } from '../state/views';
+import { projName, projectGroups, switcherModel, tabWith } from '../state/views';
 import type { Asks, LinkedSession, SessionRequest } from './contract';
 
 /**
@@ -71,7 +71,7 @@ export function pickSession(anchor: HTMLElement, sessions: LinkedSession[], asks
  */
 export async function startSession(entryKey: string, request: SessionRequest, asks: Pick<Asks, 'openSession' | 'openNewSession'>): Promise<void> {
   const state = store.get();
-  const known = projectsForSwitcher(switcherPool(visibleSessions(state), state), state.statuses, state.acked, state.projectNames, state.projectOrder).projects.filter((project) => project.rootExists);
+  const known = switcherModel(state).projects.filter((project) => project.rootExists);
   const roots = known.map((project) => project.repoRoot);
   const found = request.dir ? projectFor(roots, request.dir) : null;
   const preset = found ?? request.dir ?? state.activeProject ?? roots[0] ?? null;
