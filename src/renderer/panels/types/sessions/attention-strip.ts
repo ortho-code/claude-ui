@@ -1,4 +1,5 @@
 import type { SessionSummary } from '../../../../shared/types';
+import { byId, fromMarkup } from '../../../dom';
 import { entityKey, orderAsTabs, sessionLabel, stopControlState, type SwitcherModel } from '../../../logic';
 import { store, type View } from '../../../state/app';
 import { projName, projectGroups, sessionNudge, switcherModel, switcherPool, tabWith } from '../../../state/views';
@@ -6,8 +7,6 @@ import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, stopIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
-// The sidebar's markup, which holds the strip's elements: built before this module reads them.
-import './index';
 import './attention-strip.css';
 
 /**
@@ -15,11 +14,20 @@ import './attention-strip.css';
  * A row jumps to its session, its dot marks it read, and its button stops it, each through the sidebar's host; the fold is the store's (`footerExpanded`).
  */
 
-const sidebarFooter = document.getElementById('sidebar-footer')!;
-const footerToggle = document.getElementById('footer-toggle')!;
-const footerBadge = document.getElementById('footer-badge')!;
-const footerLabel = document.getElementById('footer-label')!;
-const footerList = document.getElementById('footer-list')!;
+/** The strip, built here and placed by the sidebar (index.ts). */
+export const sidebarFooter = fromMarkup(`
+  <div id="sidebar-footer" hidden>
+    <div id="footer-list" hidden></div>
+    <button id="footer-toggle" type="button" aria-expanded="false">
+      <span id="footer-badge" class="nudge" hidden></span>
+      <span id="footer-label"></span>
+      <span class="footer-chev" aria-hidden="true"></span>
+    </button>
+  </div>`);
+const footerToggle = byId(sidebarFooter, 'footer-toggle', HTMLButtonElement);
+const footerBadge = byId(sidebarFooter, 'footer-badge');
+const footerLabel = byId(sidebarFooter, 'footer-label');
+const footerList = byId(sidebarFooter, 'footer-list');
 
 /**
  * The strip row's stop control.

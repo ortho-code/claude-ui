@@ -8,12 +8,13 @@ import './index.css';
 import { switcherEl } from './switcher';
 import { filterPanel, filterStatus, filterToggle } from './filter';
 import { collapseToggle, container, loadingEl } from './list';
+import { sidebarFooter } from './attention-strip';
 
 /**
  * THE SIDEBAR as a panel type: the project switcher and the header's actions over the filter panel, the session list and the attention strip.
  * One element for the run: built once, parked until the layout places it, and put back by every mount (`builtinType`), so a layout change that remounts its entry keeps its scroll, its folds and what is typed in its search.
- * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: the attention strip (attention-strip.ts), and this module for the header's + New and Settings.
- * A part that builds its own markup is placed here, where it stands in the sidebar: the switcher (switcher.ts), the filter (filter.ts) and the list (list.ts).
+ * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: this module for the header's + New and Settings.
+ * A part that builds its own markup is placed here, where it stands in the sidebar: the switcher (switcher.ts), the filter (filter.ts), the list (list.ts) and the attention strip (attention-strip.ts).
  */
 document.getElementById('parked')!.insertAdjacentHTML(
   'beforeend',
@@ -24,21 +25,13 @@ document.getElementById('parked')!.insertAdjacentHTML(
         <button id="new-session" data-tooltip="New session in a folder…">+ New</button>
       </div>
     </header>
-    <div id="sidebar-footer" hidden>
-      <div id="footer-list" hidden></div>
-      <button id="footer-toggle" type="button" aria-expanded="false">
-        <span id="footer-badge" class="nudge" hidden></span>
-        <span id="footer-label"></span>
-        <span class="footer-chev" aria-hidden="true"></span>
-      </button>
-    </div>
   </aside>`,
 );
 // The parts that build their own markup, placed where they stand in the sidebar.
 const header = document.querySelector('#sidebar > header')!;
 header.prepend(switcherEl);
 document.getElementById('new-session')!.before(collapseToggle, filterToggle);
-header.after(filterPanel, filterStatus, loadingEl, container);
+header.after(filterPanel, filterStatus, loadingEl, container, sidebarFooter);
 
 export const sessionsType = builtinType('sessions', document.getElementById('sidebar')!, 'Sessions', 'sessions', () => railStatus(store.get()));
 

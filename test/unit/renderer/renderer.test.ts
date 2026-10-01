@@ -30,6 +30,7 @@ const ORDER = [
   'src/renderer/pill.css',
   'src/renderer/panels/types/sessions/filter.css',
   'src/renderer/panels/types/sessions/list.css',
+  'src/renderer/panels/types/sessions/attention-strip.css',
   'src/renderer/panels/types/list.css',
   'src/renderer/panels/types/command.css',
   'node_modules/@xterm/xterm/css/xterm.css',
@@ -39,7 +40,6 @@ const ORDER = [
   'src/renderer/panels/types/claude/terminals.css',
   'src/renderer/panels/types/claude/pane.css',
   'src/renderer/panels/types/claude/tab-bar.css',
-  'src/renderer/panels/types/sessions/attention-strip.css',
 ];
 
 /** The stylesheets in the bundle, in order, read from the line esbuild writes before each file's rules when it does not minify. */
