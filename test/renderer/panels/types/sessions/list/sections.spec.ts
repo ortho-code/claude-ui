@@ -3,7 +3,7 @@ import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row } from '../../../../support/window';
+import { group, groupHeading, groupHeadings, headings, project, projectHeading, row, titles } from '../../../../support/window';
 
 // The list is projects in the order you set, each holding its groups in registry order and then its loose rows, with pins floated inside their own section (docs/architecture.md § App-side metadata and session groups).
 // Folds are kept, and come in two kinds (§ Reopening the way you left it): the ones you made, stored, and the ones made while a filter is on, which last as long as the filter.
@@ -32,10 +32,7 @@ const fixture = {
 const withUi = (ui: Partial<UiState>): { uiState: UiState } => ({ uiState: { ...defaultUi(), ...ui } });
 
 /** The list as it reads, top to bottom: headings and rows. */
-const list = (page: Page): Locator =>
-  page.locator('#sessions .project > .section-heading .label, #sessions .group > .section-heading .label, #sessions .session .card-title');
-const project = (page: Page, name: string): Locator => page.locator('#sessions .project', { has: page.locator('> .section-heading .label', { hasText: new RegExp(`^${name}$`) }) });
-const group = (page: Page, name: string): Locator => page.locator('#sessions .group', { has: page.locator('> .section-heading .label', { hasText: new RegExp(`^${name}$`) }) });
+const list = (page: Page): Locator => headings(page).or(groupHeadings(page)).or(titles(page));
 /** What the window last asked main to keep of the sidebar: saved on a debounce, so read with a poll. */
 const saved = async (app: App): Promise<UiState | undefined> => (await app.calls('setUiState')).at(-1)?.[0] as UiState | undefined;
 
@@ -46,13 +43,13 @@ test('projects sit in the order you set, groups in registry order before the loo
 
 test('folding a project or a group is kept', async ({ app, page }) => {
   await app.boot(fixture);
-  await project(page, 'demo').locator('> .section-heading').click();
+  await projectHeading(page, 'demo').click();
   await expect(project(page, 'demo')).toHaveClass(/\bcollapsed\b/);
   await expect(row(page, newer.title)).toBeHidden();
   await expect.poll(async () => (await saved(app))?.collapsedProjects).toEqual([PROJECT]);
 
-  await project(page, 'demo').locator('> .section-heading').click();
-  await group(page, 'Alpha').locator('> .section-heading').click();
+  await projectHeading(page, 'demo').click();
+  await groupHeading(page, 'Alpha').click();
   await expect(group(page, 'Alpha')).toHaveClass(/\bcollapsed\b/);
   await expect.poll(async () => (await saved(app))?.collapsedGroups).toEqual(['g-alpha']);
 });
@@ -74,7 +71,7 @@ test('in All, collapse-all folds every project and its groups with it, and expan
   await expect(toggle).toHaveAttribute('aria-label', 'Expand all');
 
   // Opening one project afterwards shows its groups as headings, folded, rather than every row at once.
-  await project(page, 'demo').locator('> .section-heading').click();
+  await projectHeading(page, 'demo').click();
   await expect(group(page, 'Beta')).toHaveClass(/\bcollapsed\b/);
   await expect(group(page, 'Alpha')).toHaveClass(/\bcollapsed\b/);
   await expect(toggle).toHaveAttribute('aria-label', 'Collapse all');
@@ -103,7 +100,7 @@ test('a project folded in All opens when you choose it, and stays open when you 
 test("in a project, the heading cannot fold and collapse-all folds that project's groups", async ({ app, page }) => {
   await app.boot({ ...fixture, activeProject: PROJECT });
   await expect(project(page, 'demo')).toHaveClass(/\bno-collapse\b/);
-  await project(page, 'demo').locator('> .section-heading').click();
+  await projectHeading(page, 'demo').click();
   await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
 
   await page.locator('#collapse-toggle').click();
@@ -123,7 +120,7 @@ test('a filter opens every fold, a fold made under it lasts as long as the filte
   await expect(row(page, inAlpha.title)).toBeVisible();
 
   // A way through the results, not a statement about the sidebar.
-  await project(page, 'demo').locator('> .section-heading').click();
+  await projectHeading(page, 'demo').click();
   await expect(project(page, 'demo')).toHaveClass(/\bcollapsed\b/);
 
   await page.locator('#search').fill('');

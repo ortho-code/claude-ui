@@ -1,7 +1,6 @@
-import type { Locator, Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { row, tabLabels } from '../../../../support/window';
+import { headings, row, tabLabels } from '../../../../support/window';
 
 // A project with nothing left to show cannot stay selected: the window falls back to All exactly as picking it does, and every surface that honours the selection follows it there, the tab bar included.
 // Setting the scope alone once left the bar empty while the list and the switcher said All, and the pane pointed at a tab above that was not there.
@@ -16,7 +15,6 @@ const fixture = {
   history: { [here.id]: [], [there.id]: [] },
 };
 
-const headings = (page: Page): Locator => page.locator('#sessions .project > .section-heading .label');
 
 test('archiving the last session of the project on show falls back to All in the list, the switcher and the tab bar', async ({ app, page }) => {
   await app.boot(fixture);

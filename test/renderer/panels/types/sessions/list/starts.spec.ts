@@ -1,7 +1,7 @@
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, tab, tabs, titlesIn } from '../../../../support/window';
+import { group, row, tab, tabs, titlesIn } from '../../../../support/window';
 
 // The ways the session list starts a session other than a row's own click (docs/architecture.md § Tab lifecycle): a sibling from the siblings menu, a fork from a row's options, and a session in a new worktree from the project's "+".
 const parent = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'The parent', isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000a2'] });
@@ -41,8 +41,7 @@ test("a fork from a row's options starts a copy of it under a new id, named as a
   expect(launch.sessionId).not.toBe(parent.id);
   expect(await app.calls('moveSessionToGroup')).toEqual([[launch.sessionId, 'g-work']]);
   await expect(tab(page, 'The fork')).toHaveClass(/\bactive\b/);
-  const group = page.locator('#sessions .group', { has: page.locator('> .section-heading .label', { hasText: /^Work$/ }) });
-  await expect(titlesIn(group).filter({ hasText: 'The fork' })).toHaveCount(1);
+  await expect(titlesIn(group(page, 'Work')).filter({ hasText: 'The fork' })).toHaveCount(1);
 });
 
 test("a new worktree session from the project's \"+\" starts claude in a fresh worktree, named by claude when left blank", async ({ app, page }) => {

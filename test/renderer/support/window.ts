@@ -20,6 +20,24 @@ export const titles = (page: Page): Locator => titlesIn(page.locator('#sessions'
 /** Every row's title, sorted: what the list shows, for a check that is not about the order. */
 export const sortedTitles = async (page: Page): Promise<string[]> => (await titles(page).allTextContents()).sort();
 
+/** Every project heading's name in the session list, in its order. */
+export const headings = (page: Page): Locator => page.locator('#sessions .project > .section-heading .label');
+
+/** The session list's section for the project named exactly `name`. */
+export const project = (page: Page, name: string): Locator => page.locator('#sessions .project', { has: page.locator('> .section-heading .label', { hasText: new RegExp(`^${name}$`) }) });
+
+/** That project's heading: what folds it, and what a jump to it lands on. */
+export const projectHeading = (page: Page, name: string): Locator => project(page, name).locator('> .section-heading');
+
+/** Every group heading's name in the session list, in its order. */
+export const groupHeadings = (page: Page): Locator => page.locator('#sessions .group > .section-heading .label');
+
+/** The session list's section for the group named exactly `name`. */
+export const group = (page: Page, name: string): Locator => page.locator('#sessions .group', { has: page.locator('> .section-heading .label', { hasText: new RegExp(`^${name}$`) }) });
+
+/** That group's heading. */
+export const groupHeading = (page: Page, name: string): Locator => group(page, name).locator('> .section-heading');
+
 /** Every tab in the tab bar. */
 export const tabs = (page: Page): Locator => page.locator('#tabbar .tab');
 

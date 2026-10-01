@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { tab, tabLabels } from '../../../../support/window';
+import { headings, tab, tabLabels } from '../../../../support/window';
 
 // Selecting a project is a statement about what you are looking at, so every surface honours it (docs/architecture.md § UI conventions): the list, the tab bar, and the tab on show, which is the one you were last in there, selected and not started (§ Tab lifecycle).
 const OTHER = `${HOME}/projects/other`;
@@ -16,7 +16,6 @@ const fixture = {
   history: { [here.id]: [], [there.id]: [] },
 };
 
-const headings = (page: Page): Locator => page.locator('#sessions .project > .section-heading .label');
 const entry = (page: Page, name: string): Locator => page.locator('.switcher-item', { has: page.locator('.switcher-item-name', { hasText: new RegExp(`^${name}$`) }) });
 
 test("selecting a project scopes the list and the tab bar to it and selects the tab you were last in there, without starting it; All undoes it", async ({ app, page }) => {
