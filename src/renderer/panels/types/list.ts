@@ -1,8 +1,9 @@
 import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelContext, type PanelRunEvent } from '../../../shared/panels';
 import { stripAnsi } from '../../ansi';
+// Its rows are the session list's cards and its headings the group's bar.
+import { sectionHeading, setFolded } from '../../card';
 import { statusLabel } from '../../logic';
 import { element } from '../../dom';
-import { caretIcon } from '../../svg';
 import { setTooltip } from '../../tooltip';
 import type { PanelSlot } from '../layout';
 import { optionsOf, parseDuration } from '../options';
@@ -11,8 +12,6 @@ import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey } from '../run';
 import type { FolderType } from './folder';
 import { readListDocument, type ListDocument, type ListItem, type ListSection } from './listdoc';
-// Its rows are the session list's cards and its headings the group's bar.
-import '../../card.css';
 import './list.css';
 
 /**
@@ -343,14 +342,10 @@ class ListPanel implements MountedPanel {
     const open = title === null || (this.folds.get(title) ?? !section.shut);
     if (title !== null) {
       // The sidebar's collapsible heading, so a heading that folds looks and turns the same everywhere.
-      const heading = element('h3', 'section-heading');
-      const caret = element('span', 'caret');
-      caret.innerHTML = caretIcon(!open, 10);
-      const label = element('span', 'label');
+      const { heading, caret, label, count } = sectionHeading('h3');
+      setFolded(caret, !open);
       label.textContent = title;
-      const count = element('span', 'heading-count');
       count.textContent = String(section.items.length);
-      heading.append(caret, label, count);
       heading.addEventListener('click', () => {
         this.folds.set(title, !open);
         this.drawList();

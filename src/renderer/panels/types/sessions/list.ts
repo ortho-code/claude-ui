@@ -1,4 +1,6 @@
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
+// Its rows are the card and its headings the section heading a list panel draws too.
+import { sectionHeading, setFolded } from '../../../card';
 import { confirmDelete, promptText } from '../../../dialogs';
 import { flash } from '../../../flash';
 import {
@@ -22,7 +24,7 @@ import { foldedGroups, foldedProjects, foldsWith } from '../../../state/folds';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
 import { isFiltering, projName, projectGroups, searchText, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../statusdot';
-import { caretIcon, chevronIcon, folderIcon, layersIcon, NOTE_ICON, PIN_ICON, PINNED_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
+import { chevronIcon, folderIcon, layersIcon, NOTE_ICON, PIN_ICON, PINNED_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { showToast } from '../../../toast';
 import { setTooltip } from '../../../tooltip';
 import { setUnavailable, unavailable } from '../../../unavailable';
@@ -30,8 +32,6 @@ import { hostOf } from '../builtin';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 // The sidebar's markup, which holds the list's elements: built before this module reads them.
 import './index';
-// Its rows are the card and its headings the section heading a list panel draws too.
-import '../../../card.css';
 import './list.css';
 
 /**
@@ -550,7 +550,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     // A project view can't collapse its one project, so it shows no caret and no clickable styling.
     els.section.classList.toggle('no-collapse', activeProject !== null);
     els.caret.hidden = activeProject !== null;
-    els.caret.innerHTML = caretIcon(collapsed, 10);
+    setFolded(els.caret, collapsed);
     els.count.textContent = String(project.count);
     els.label.textContent = projName(project.repoRoot, view); // keep the heading current (e.g. after a rename)
     // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
@@ -571,7 +571,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
       groupSections.set(group.id, groupEls);
       const groupCollapsed = foldedGroups(view).has(group.id);
       groupEls.section.classList.toggle('collapsed', groupCollapsed);
-      groupEls.caret.innerHTML = caretIcon(groupCollapsed, 10);
+      setFolded(groupEls.caret, groupCollapsed);
       groupEls.label.textContent = group.name;
       groupEls.count.textContent = String(sessions.length);
       groupEls.addCaret.hidden = !project.isRepo; // worktree option only for git repos
@@ -715,28 +715,6 @@ export function jumpToGroup(repoRoot: string, groupId: string | null): void {
 }
 
 /**
- * The parts every collapsible section heading has: a caret, an icon, an ellipsizing label and a count
- * pill. The project's and the group's differ in tag, icon, and what is appended after these.
- */
-function buildHeading(
-  tag: 'h2' | 'h3',
-  iconHtml: string,
-): { heading: HTMLElement; caret: HTMLElement; icon: HTMLElement; label: HTMLElement; count: HTMLElement } {
-  const heading = document.createElement(tag);
-  heading.className = 'section-heading';
-  const caret = document.createElement('span');
-  caret.className = 'caret';
-  const icon = document.createElement('span');
-  icon.className = 'heading-icon';
-  icon.innerHTML = iconHtml;
-  const label = document.createElement('span');
-  label.className = 'label';
-  const count = document.createElement('span');
-  count.className = 'heading-count';
-  return { heading, caret, icon, label, count };
-}
-
-/**
  * Fold or unfold a section: remember it, hide the rows, turn the caret; saving follows the folds.
  * Both toggles deliberately skip renderList — no flicker, no scroll jump.
  */
@@ -746,7 +724,7 @@ function toggleFold(section: HTMLElement, caret: HTMLElement, kind: 'projects' |
   // The list reads the folds without being told of them, so this draws nothing but the section.
   store.set({ folds: foldsWith(state, kind, [key], collapsed) });
   section.classList.toggle('collapsed', collapsed);
-  caret.innerHTML = caretIcon(collapsed, 10);
+  setFolded(caret, collapsed);
 }
 
 // Build a project section once; its contents (name, count, caret, rows) are drawn by reconcileProjectSections, on this render and every later one.
@@ -754,7 +732,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   const section = document.createElement('section');
   section.className = 'project';
 
-  const { heading, caret, icon, label, count } = buildHeading('h2', folderIcon(14));
+  const { heading, caret, icon, label, count } = sectionHeading('h2', folderIcon(14));
   setTooltip(label, name); // full path on hover
   // Jump straight to one of this project's groups instead of scrolling for it.
   // The heading is position:sticky, so this trigger is on screen the whole time you scroll the project — which is what makes a menu enough here, rather than a panel that would cost a line of height per project.
@@ -781,7 +759,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     }
     openMenu(groupsBtn, items);
   });
-  heading.append(caret, icon, label, count, groupsBtn);
+  heading.append(groupsBtn);
   let addCaret: HTMLElement | undefined;
   let addBtn: HTMLButtonElement | undefined;
   if (folderCwd) {
@@ -855,7 +833,7 @@ function createGroupSection(id: string): GroupSectionEls {
   const section = document.createElement('section');
   section.className = 'group';
 
-  const { heading, caret, icon, label, count } = buildHeading('h3', layersIcon(13));
+  const { heading, caret, label, count } = sectionHeading('h3', layersIcon(13));
   // Start a session already in this group — the group's answer to the project heading's split button, and the same two parts: "+" starts one straight away, the caret offers the worktree variant.
   // reconcileProjectSections shows the caret only when the project is a git repo.
   const split = document.createElement('div');
@@ -901,7 +879,7 @@ function createGroupSection(id: string): GroupSectionEls {
       { label: 'Delete group', onSelect: () => void deleteGroupById(id) },
     ]);
   });
-  heading.append(caret, icon, label, count, split, kebab);
+  heading.append(split, kebab);
   heading.addEventListener('click', () => {
     toggleFold(section, caret, 'groups', id);
   });

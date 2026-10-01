@@ -1,5 +1,5 @@
 /* What the sidebar's session list and a list panel draw alike: the collapsible section heading with its count pill (which a panel header's count wears too), the group's bar, and the card an item in a list sits on.
-   Shared by class rather than by a builder: the sidebar's list and the list panel (panels/types/list.ts) each build their own markup with these classes. */
+   The heading is built in one place, card.ts, which brings this stylesheet with it; the card is still shared by class, the sidebar's list and the list panel (panels/types/list.ts) each building its own markup with these classes. */
 
 /* A COLLAPSIBLE SECTION HEADING — the project's and the group's are the same bar with different
    weight, spacing and sticky layer, so what they share lives here and each keeps only its own
