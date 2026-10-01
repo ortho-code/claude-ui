@@ -1,4 +1,8 @@
-import { builtinType } from '../builtin';
+import { projectsForSwitcher } from '../../../logic';
+import { store, type View } from '../../../state/app';
+import { switcherPool, visibleSessions } from '../../../state/views';
+import { builtinType, hostOf } from '../builtin';
+import type { PanelStatus } from '../command';
 import './index.css';
 
 /**
@@ -71,4 +75,15 @@ document.getElementById('parked')!.insertAdjacentHTML(
   </aside>`,
 );
 
-export const sessionsType = builtinType('sessions', document.getElementById('sidebar')!, 'Sessions', 'sessions');
+export const sessionsType = builtinType('sessions', document.getElementById('sidebar')!, 'Sessions', 'sessions', () => railStatus(store.get()));
+
+/** What the sidebar's rail icon says while it is folded or behind another panel: waiting while any session anywhere waits for you, the same roll-up as the switcher's badge. */
+function railStatus(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs'>): PanelStatus {
+  const { all } = projectsForSwitcher(switcherPool(visibleSessions(view), view), view.statuses, view.acked, view.projectNames, view.projectOrder);
+  return all.badge === 'waiting' ? 'wait' : null;
+}
+
+/** The rail icon follows the sessions and their statuses: a watcher renderer.ts registers with the others. */
+export function railStatusFollowsSessions(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs'>): void {
+  hostOf('sessions').setStatus(railStatus(view));
+}

@@ -28,6 +28,7 @@ import {
   type TabLaunch,
 } from './panels/types/claude/terminals';
 import { renderTabBar, tabBarFollowsStatuses } from './panels/types/claude/tab-bar';
+import { railStatusFollowsSessions } from './panels/types/sessions/index';
 import { fallBackIfEmptied, refreshSwitcher, selectProject } from './panels/types/sessions/switcher';
 import { refreshStrip } from './panels/types/sessions/attention-strip';
 import { applyDatePickerMinDate, filterPanelFollows } from './panels/types/sessions/filter';
@@ -333,9 +334,12 @@ store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tab
 // And a status or a mark read of one of its tabs' sessions.
 store.watch(['statuses', 'acked'], tabBarFollowsStatuses, { reads: ['sessions', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab'] });
 
-// The switcher counts every project's sessions, rolls up their statuses and names the project on show; the sidebar's rail icon says what its badge says.
+// The switcher counts every project's sessions, rolls up their statuses and names the project on show.
 // A session with no transcript yet is in its project only through its tab, so the tabs are among what it counts.
 store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'projectNames', 'projectOrder', 'activeProject', 'tabs'], refreshSwitcher);
+
+// The sidebar's rail icon waits while any session anywhere waits for you: the switcher's roll-up, from the same sessions.
+store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'tabs'], railStatusFollowsSessions, { reads: ['projectNames', 'projectOrder'] });
 
 // The strip lists what runs, in the bar's order, each row with a stop button in the tab's state, under a line badged with the switcher's roll-up; it shows those rows or folds to its line as you left it.
 store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'footerExpanded'], refreshStrip);

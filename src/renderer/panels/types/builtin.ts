@@ -11,19 +11,8 @@ import type { MountedPanel, PanelHost, PanelStatus, PanelType } from './command'
 
 type BuiltinName = 'sessions' | 'claude';
 
-/** The host of each built-in on screen, and the last status the renderer reported for it: a status can arrive before the panel is mounted, and must be there when it is. */
+/** The host of each built-in on screen. */
 const hosts = new Map<BuiltinName, PanelHost>();
-const statuses = new Map<BuiltinName, PanelStatus>();
-
-/**
- * What a built-in's rail icon should say, reported by the code that knows: `sessions` waits while any session anywhere waits for you (the switcher's roll-up), `claude` while one of the tabs on show does (its own watcher, claude/index.ts).
- * Kept here as well as handed on, since a report can arrive before the built-in is mounted.
- */
-export function reportBuiltinStatus(name: BuiltinName, status: PanelStatus): void {
-  if (statuses.get(name) === status) return;
-  statuses.set(name, status);
-  hosts.get(name)?.setStatus(status);
-}
 
 /**
  * A built-in's host as of its current mount, which its surface asks the other surface through (`Asks`).
@@ -35,8 +24,11 @@ export function hostOf(name: BuiltinName): PanelHost {
   return host;
 }
 
-/** A built-in's type, around the one element it is for the run: every mount puts that element back, so a remount — a new id, an option — keeps whatever runs in it. */
-export function builtinType(name: BuiltinName, el: HTMLElement, title: string, icon: IconName): PanelType {
+/**
+ * A built-in's type, around the one element it is for the run: every mount puts that element back, so a remount — a new id, an option — keeps whatever runs in it.
+ * Its rail icon's status is its own to say: a watcher of its own hands each change to its host (`hostOf`), and a mount, which is a new host, takes it as it is now (`railStatus`).
+ */
+export function builtinType(name: BuiltinName, el: HTMLElement, title: string, icon: IconName, railStatus: () => PanelStatus): PanelType {
   const type: PanelType = {
     name,
     options: [],
@@ -47,7 +39,7 @@ export function builtinType(name: BuiltinName, el: HTMLElement, title: string, i
     defaultTitle: () => title,
     mount: (slot, host): MountedPanel => {
       hosts.set(name, host);
-      host.setStatus(statuses.get(name) ?? null);
+      host.setStatus(railStatus());
       // Named as NOTES, never as problems: a built-in cannot be refused, since no file may produce a window without the sidebar or the terminal.
       host.setNotes(optionProblems(optionsOf(slot.entry), type).map((line) => `${slot.key}: ${line}`));
       return {

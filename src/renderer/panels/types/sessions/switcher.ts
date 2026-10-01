@@ -6,7 +6,7 @@ import { foldsWith } from '../../../state/folds';
 import { switcherPool, visibleSessions } from '../../../state/views';
 import { chevronIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
-import { hostOf, reportBuiltinStatus } from '../builtin';
+import { hostOf } from '../builtin';
 // The sidebar's markup, which holds the switcher's elements: built before this module reads them.
 import './index';
 import './switcher.css';
@@ -42,9 +42,6 @@ function renderSwitcher(pool: SessionSummary[], view: View<'statuses' | 'acked' 
     switcherItem('All', null, model.all.count, null, activeProject === null, false),
     ...model.projects.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeProject, !f.rootExists)),
   );
-
-  // What the sidebar's rail icon says while it is folded or behind another panel: the same roll-up as the header's badge.
-  reportBuiltinStatus('sessions', headerBadge === 'waiting' ? 'wait' : null);
 }
 
 function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean, gone: boolean): HTMLElement {
