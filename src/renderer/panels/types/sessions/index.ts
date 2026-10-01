@@ -1,3 +1,4 @@
+import { element, fromMarkup } from '../../../dom';
 import { openSettings } from '../../../settings';
 import { store, type View } from '../../../state/app';
 import { switcherModel } from '../../../state/views';
@@ -13,27 +14,23 @@ import { sidebarFooter } from './attention-strip';
 /**
  * THE SIDEBAR as a panel type: the project switcher and the header's actions over the filter panel, the session list and the attention strip.
  * One element for the run: built once, parked until the layout places it, and put back by every mount (`builtinType`), so a layout change that remounts its entry keeps its scroll, its folds and what is typed in its search.
- * Built when this module loads rather than on its first mount, because the code that draws its elements reads them as it loads: this module for the header's + New and Settings.
- * A part that builds its own markup is placed here, where it stands in the sidebar: the switcher (switcher.ts), the filter (filter.ts), the list (list.ts) and the attention strip (attention-strip.ts).
+ * Each part builds its own markup as it loads — the switcher (switcher.ts), the filter (filter.ts), the list (list.ts), the attention strip (attention-strip.ts) — and this module puts them together, with the header's Settings and + New, which are the type's own.
  */
-document.getElementById('parked')!.insertAdjacentHTML(
-  'beforeend',
-  `<aside id="sidebar">
-    <header>
-      <div class="header-actions">
-        <button id="settings-toggle" class="icon-btn large" data-tooltip="Settings" aria-label="Settings" aria-haspopup="dialog"></button>
-        <button id="new-session" data-tooltip="New session in a folder…">+ New</button>
-      </div>
-    </header>
-  </aside>`,
-);
-// The parts that build their own markup, placed where they stand in the sidebar.
-const header = document.querySelector('#sidebar > header')!;
-header.prepend(switcherEl);
-document.getElementById('new-session')!.before(collapseToggle, filterToggle);
-header.after(filterPanel, filterStatus, loadingEl, container, sidebarFooter);
 
-export const sessionsType = builtinType('sessions', document.getElementById('sidebar')!, 'Sessions', 'sessions', () => railStatus(store.get()));
+// The header's two actions that are the type's own; the filter's toggle and collapse-all go with the filter and the list.
+const settingsToggle = fromMarkup(`<button id="settings-toggle" class="icon-btn large" data-tooltip="Settings" aria-label="Settings" aria-haspopup="dialog"></button>`, HTMLButtonElement);
+const newButton = fromMarkup(`<button id="new-session" data-tooltip="New session in a folder…">+ New</button>`, HTMLButtonElement);
+
+const actions = element('div', 'header-actions');
+actions.append(settingsToggle, collapseToggle, filterToggle, newButton);
+const header = element('header');
+header.append(switcherEl, actions);
+const sidebar = element('aside');
+sidebar.id = 'sidebar';
+sidebar.append(header, filterPanel, filterStatus, loadingEl, container, sidebarFooter);
+document.getElementById('parked')!.append(sidebar);
+
+export const sessionsType = builtinType('sessions', sidebar, 'Sessions', 'sessions', () => railStatus(store.get()));
 
 /** What the sidebar's rail icon says while it is folded or behind another panel: waiting while any session anywhere waits for you, by the switcher's badge (`switcherModel`). */
 function railStatus(view: View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs'>): PanelStatus {
@@ -45,13 +42,9 @@ export function railStatusFollowsSessions(view: View<'sessions' | 'statuses' | '
   hostOf('sessions').setStatus(railStatus(view));
 }
 
-// The header's two actions that are the type's own; the filter's toggle and collapse-all go with the filter and the list.
-const newButton = document.getElementById('new-session') as HTMLButtonElement;
-
 // Settings as two sliders, each with its knob.
 const settingsIcon = (size: number): string =>
   strokeIcon(size, '<path d="M2 4.6h8.1M13.1 4.6h.9M2 11.4h2.9M7.9 11.4h6.1" /><circle cx="11.7" cy="4.6" r="1.6" /><circle cx="6.4" cy="11.4" r="1.6" />');
-const settingsToggle = document.getElementById('settings-toggle') as HTMLButtonElement;
 
 async function pickFolderAndOpen(): Promise<void> {
   // Show an active state while the folder picker is open (it has no persistent menu of its own), matching how the other header buttons look while their panel/menu is up.
