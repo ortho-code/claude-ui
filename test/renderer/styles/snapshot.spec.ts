@@ -9,9 +9,10 @@ import { snapshot } from './capture';
 
 // NOT A CHECK: a tool, for moving CSS without changing what anything looks like (docs/architecture.md § The window's checks).
 // Skipped unless STYLE_SNAPSHOT names a folder; then each test below puts the window in one state and writes its computed styles there, one file per state.
-// Capture before a change and after it, and `diff -r` the two folders:
+// Capture before a change and after it, and compare the two folders, with a map of the classes the change renames if it renames any (compare.ts):
 //   STYLE_SNAPSHOT=/tmp/styles-before npm run test:renderer -- styles
 //   STYLE_SNAPSHOT=/tmp/styles-after npm run test:renderer -- styles
+//   npm run styles:compare -- /tmp/styles-before /tmp/styles-after [renames.json]
 // A state a change needs and this lacks is added here first, in a commit of its own, so the capture before the change has it too.
 const DIR = process.env.STYLE_SNAPSHOT;
 test.skip(!DIR, "Set STYLE_SNAPSHOT to a folder to write the window's computed styles into.");

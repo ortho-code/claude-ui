@@ -122,7 +122,7 @@ interface DomNode {
 
 /**
  * Capture the window as it stands into `<dir>/<name>.txt`, and a picture of it into `<dir>/<name>.png`.
- * The picture is for what computed styles cannot show: which of two overlapping elements paints on top, which follows from their order in the page as much as from any style. Two pictures of one build are the same bytes, so `diff -r` covers them too.
+ * The picture is for what computed styles cannot show: which of two overlapping elements paints on top, which follows from their order in the page as much as from any style. Two pictures of one build are the same bytes but for one known two-pixel exception, which compare.ts lists like any other difference.
  */
 export async function snapshot(page: Page, dir: string, name: string): Promise<void> {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
