@@ -3,6 +3,7 @@ import type { PanelLink } from '../../../../../src/shared/panels';
 import type { TerminalLaunch } from '../../../../../src/shared/types';
 import { CONFIG_ROOT, PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
+import { hoveredAndOpen } from '../../../support/looks';
 import { runs, withLayout } from '../../layout/layout';
 
 // A list panel's row marks the sessions it started with the session list's own dot, in the list's own words (docs/architecture.md § Panels): it follows each session's status, a mark read, and whether it runs, as the session list does.
@@ -124,4 +125,12 @@ test('a row stays lit while the menu its session mark opened is up, as a session
   await page.locator('.kebab-menu button', { hasText: reviewed.title }).hover();
   const lit = await litFill(page);
   await expect.poll(() => row.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(lit);
+});
+
+test("a still row's session mark keeps its hover look while its menu is up, which is all that says where the menu came from", async ({ app, page }) => {
+  await bootQueue(app, page, { [reviewed.id]: link('org/repo#1'), [quiet.id]: link('org/repo#1') });
+  const row = page.locator('.list-row', { hasText: 'Fix the login redirect' });
+  await expect(row).toHaveClass(/\bstill\b/);
+  const { hovered, open } = await hoveredAndOpen(page, mark(page, 'Fix the login redirect'));
+  expect(open).toEqual(hovered);
 });

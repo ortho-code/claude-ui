@@ -813,8 +813,9 @@ Note it counts the tabs actually on screen (`visibleTabs()`, the same helper the
 not every open tab.
 
 Any control that opens a menu or popover keeps its active look (the same fill or outline it shows on hover) for as long as the menu is open, including when the pointer moves off it.
-The shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, so give every such trigger a `.menu-open` style that matches its `:hover`.
-The kebabs, both split-button carets (project and group heading), and the sibling-count badge all follow this.
+The shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, and an icon button takes its open look from the same rule as its hover (`.icon-btn…:is(:hover, .menu-open)` in `base.css`), so the kebabs, the group jump, the carets and a list row's session mark need nothing of their own.
+A trigger that is not an `.icon-btn`, such as the sibling badge, or that sets a hover of its own, such as the project heading's split button, names `.menu-open` beside its `:hover` in that rule.
+The open rules used to be written per trigger, five of them in step by hand, and the one trigger nobody remembered, a list row's session mark, showed nothing at all while its menu was up.
 
 Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an `attach-top`/`attach-bottom`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a small notch on the menu's edge pointing at the trigger's center.
 Anything new that floats near an anchor should go through those helpers so it gets the notch (and the active-state stamping) for free rather than reinventing positioning.

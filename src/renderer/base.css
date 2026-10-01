@@ -195,8 +195,9 @@ button:hover {
 
 /* One hover for all of them, replacing a thirteen-selector list that a new control had to be
    remembered into. `:not(:disabled)` covers the two that opt out while inert — the tab close mid
-   transition, and the group-jump button below two targets. */
-.icon-btn:not(:disabled):not(.unavailable):hover,
+   transition, and the group-jump button below two targets.
+   And the same look while a menu it opened is up (`.menu-open`, stamped by openMenu), so every icon button that opens one keeps its hover look with the pointer gone onto the menu, from this rule alone. */
+.icon-btn:not(:disabled):not(.unavailable):is(:hover, .menu-open),
 .note-badge:hover {
   background: var(--active);
   border-color: var(--accent);

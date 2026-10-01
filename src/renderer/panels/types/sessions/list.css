@@ -138,23 +138,6 @@
   border-color: var(--accent);
 }
 
-/* A menu trigger shows an active/open state while its dropdown is up — the --active fill plus the
-   accent outline, and the outline stays even when the pointer moves onto the dropdown (it's not
-   hover-driven). Box-sizing is border-box, so adding a border to the borderless kebabs doesn't
-   shift layout. */
-.project-add-caret.menu-open,
-.group-add-caret.menu-open,
-.project-kebab.menu-open,
-.project-groups.menu-open,
-.session-kebab.menu-open {
-  background: var(--active);
-  color: var(--text);
-}
-.project-kebab.menu-open,
-.project-groups.menu-open,
-.session-kebab.menu-open {
-  border-color: var(--accent);
-}
 /* Keep the active fill on the open caret even while hovering it, or the background flips to the hover
    colour and back as the pointer moves off a menu that is still up.
    It has to out-specify the per-half hover fill above, which is `.split-button .project-add-caret
@@ -263,14 +246,6 @@
 
 .session-kebab {
   margin-left: -4px; /* row gap 8 - 4 = the 4px trailing-pair gap — see .group-kebab */
-}
-
-/* Same hover fill as the project kebab (the accent border comes from the base button rule). */
-
-/* Keep the open state's fill even while hovering the open kebab — same specificity as the :hover
-   rule above, later in the file, so the held --active look doesn't flip to the hover colour. */
-.session-kebab.menu-open {
-  background: var(--active);
 }
 
 .pin:disabled {
@@ -425,14 +400,6 @@
 }
 
 
-/* Keep the open/active state while the menu is up. Scoped under `.project h2` to outweigh the base
-   rule above (otherwise its border/background win and the active state doesn't show). */
-.project h2 .project-kebab.menu-open {
-  background: var(--active);
-  color: var(--text);
-  border-color: var(--accent);
-}
-
 /* The group's "+" and ⋮, matching the project heading's pair at the group heading's smaller scale
    (the heading's own 6px gap does the spacing, as it does on the project heading). */
 /* COMPOSITE controls carry a resting border; single icon controls don't. Two halves that act as one
@@ -474,10 +441,4 @@
      4px rather than a roomier gap because every pixel here is width the session title loses. */
   margin-left: -2px;
   padding: 2px 4px; /* standard control box — see .unarchive-btn */
-}
-
-.group h3 .group-kebab.menu-open {
-  background: var(--active);
-  border-color: var(--accent);
-  color: var(--text);
 }
