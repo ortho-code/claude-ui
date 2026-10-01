@@ -39,3 +39,18 @@ test("the folded sidebar's icon carries the waiting dot while a session waits, a
   await app.emit('onSessionStatus', there.id, 'idle', '');
   await expect(sessions.locator('.nudge.waiting')).toBeHidden();
 });
+
+test("the folded sidebar's waiting dot outlasts a layout change that remounts its entry", async ({ app, page }) => {
+  await app.boot({ ...withLayout(LAYOUT), ...withState({ collapsed: ['sidebar'] }) });
+  const sessions = railItem(page, /^Sessions/);
+  expect(await app.emit('onSessionStatus', there.id, 'waiting', '')).toBe(1);
+  await expect(sessions.locator('.nudge.waiting')).toBeVisible();
+
+  // A new id is a new entry, mounted afresh with a dot of its own, while nothing it would say has changed.
+  await sessions.locator('.nudge').evaluate((dot) => dot.setAttribute('data-before', ''));
+  const edited = structuredClone(LAYOUT);
+  edited.root.columns[0].panels = [{ id: 'sidebar-panel', type: 'sessions' }];
+  expect(await app.emit('onLayoutChanged', withLayout(edited).layout)).toBe(1);
+  await expect(sessions.locator('.nudge:not([data-before])')).toHaveCount(1);
+  await expect(sessions.locator('.nudge.waiting')).toBeVisible();
+});

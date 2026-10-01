@@ -45,3 +45,19 @@ test("the terminal area's rail icon waits while a tab on show waits for you, and
   await expect(page.locator('.session', { hasText: there.title })).toHaveCount(1);
   await expect(dot).toBeVisible();
 });
+
+test("the terminal area's waiting dot outlasts a layout change that remounts its entry", async ({ app, page }) => {
+  await app.boot(fixture);
+  await railItem(page, /^Status/).click();
+  const claude = railItem(page, /^Claude/);
+  expect(await app.emit('onSessionStatus', here.id, 'waiting', '')).toBe(1);
+  await expect(claude.locator('.nudge.waiting')).toBeVisible();
+
+  // A new id is a new entry, mounted afresh with a dot of its own, while nothing it would say has changed.
+  await claude.locator('.nudge').evaluate((dot) => dot.setAttribute('data-before', ''));
+  const edited = structuredClone(shared);
+  edited.root.columns[1].panels[0] = { id: 'terminal', type: 'claude' };
+  expect(await app.emit('onLayoutChanged', withLayout(edited).layout)).toBe(1);
+  await expect(claude.locator('.nudge:not([data-before])')).toHaveCount(1);
+  await expect(claude.locator('.nudge.waiting')).toBeVisible();
+});
