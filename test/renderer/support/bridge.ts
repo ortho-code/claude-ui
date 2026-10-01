@@ -6,6 +6,7 @@ import { purgedSession, togglePinned, toggleArchived } from '../../../src/shared
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
+import { posix } from './posix';
 
 /** The stand-in's side for a check: every call the window made, and a way to fire what it subscribed to. */
 export interface BridgeControl {
@@ -155,7 +156,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getLayout: () => answer(fixture.layout),
     // Main's two rules, where it points and what is wrong with what is there; what is there is the fixture's table in place of main's look at the disk.
     checkPath: (value, base, must) => {
-      const resolved = resolvePathIn(value, base, HOME, CONFIG_ROOT);
+      const resolved = resolvePathIn(value, base, HOME, CONFIG_ROOT, posix);
       return answer({ path: resolved, problem: pathProblem(value, must, onDisk(resolved)) });
     },
     onLayoutChanged: on('onLayoutChanged'),

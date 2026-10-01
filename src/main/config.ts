@@ -15,11 +15,11 @@ import { fsFailure, log } from './log';
  */
 
 /**
- * Where a path option points (`resolvePathIn` in src/shared/pathcheck.ts, the rule itself), against this machine's home directory and config folder.
+ * Where a path option points (`resolvePathIn` in src/shared/pathcheck.ts, the rule itself), against this machine's home directory and config folder, joined and resolved by Node's own `path`.
  * The ONE resolver, used by a panel's check and by the run and the shell start that follow it, so the check and the use cannot disagree about which file or folder was meant.
  */
 export function resolvePath(value: string, base: PathBase): string {
-  return resolvePathIn(value, base, homedir(), configRoot);
+  return resolvePathIn(value, base, homedir(), configRoot, path);
 }
 
 /** What is at `resolved`, looked at no further than `must` needs: whether a file may run is only asked of one that has to. */
