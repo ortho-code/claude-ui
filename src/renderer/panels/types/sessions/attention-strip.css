@@ -1,0 +1,117 @@
+/* Sidebar footer: a collapsible cross-project attention strip pinned below the session list.
+   Collapsed = a toggle carrying the same rolled-up nudge as the switcher header; expand (upward)
+   to a list of the projects with a nudge, click one to jump. Muted "all clear" when nothing. */
+#sidebar-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+}
+
+#footer-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: var(--text);
+  /* The size of the rows it summarises. A single step down read as a mistake rather than as hierarchy. */
+  font-size: var(--text-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+#footer-toggle:hover {
+  background: var(--surface-hover);
+}
+
+/* No held open state here, deliberately (user, 2026-08-13): the footer list is a PERSISTENT panel,
+   often open for a whole session, so a pressed look is lasting noise — unlike the switcher popover
+   (open briefly to pick) or the filter toggle (a compact button, where it reads fine). */
+
+/* Which group a strip row belongs to, as a chip rather than a heading level: the strip is capped at
+   40vh, so a nested group would cost a row and an indent per group where this costs neither. Muted and
+   shrink-proof — the session name gives up the space, since the chip is short and the name is not. */
+.footer-item-group {
+  flex: 0 0 auto;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+#footer-label {
+  flex: 1;
+}
+
+.footer-chev {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+}
+
+/* Collapsed points up ("opens upward"); expanded flips down. */
+#footer-toggle[aria-expanded='false'] .footer-chev {
+  transform: rotate(180deg);
+}
+
+#footer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px 6px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+/* Shape comes from the MENU ROW rule (menu.css). */
+
+.footer-item:hover {
+  background: var(--surface-hover);
+}
+
+/* The strip row is a wrapper holding two buttons — jump, and stop — because a button cannot contain
+   a button. The wrapper keeps the menu-row shape, so this half only has to give up a button's own
+   box and stretch: the row's padding, hover and radius all still belong to .footer-item. */
+.footer-item-jump {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  /* Without this a long session name refuses to shrink below its content and pushes the stop button
+     out of the row — a flex item's min-width is auto, not 0. */
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Sits at the row's right edge, at the same 4px the trailing controls use everywhere else. */
+.footer-item-stop {
+  margin-left: 4px;
+}
+
+.footer-item-name {
+  /* Takes the slack so the group chip sits at the row's right edge: a column of chips reads as a column, where chips trailing each name at its own width read as ragged. */
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Project heading within the footer attention list. */
+.footer-project {
+  padding: 6px 8px 2px;
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--muted);
+}
