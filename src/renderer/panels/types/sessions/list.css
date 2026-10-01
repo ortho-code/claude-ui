@@ -117,9 +117,10 @@
 
 /* Both halves of the project heading's split button fill the same way on hover. They take their own
    fill rather than the shared .icon-btn one because they already sit on --surface, where --active
-   does not read as a change; the group's halves have no such box and use the shared rule. */
+   does not read as a change; the group's halves have no such box and use the shared rule.
+   The caret keeps the same fill while its menu is up, as every icon button keeps its hover look (base.css), and at four classes' weight, after that rule, it wins over the shared open look too. */
 .project h2 .project-add:not(.unavailable):hover,
-.split-button .project-add-caret:not(.unavailable):hover {
+.split-button .project-add-caret:not(.unavailable):is(:hover, .menu-open) {
   color: var(--text);
   background: var(--surface-hover);
 }
@@ -136,15 +137,6 @@
 .split-button:hover > :not(.unavailable),
 .split-button:has(.menu-open) > :not(.unavailable) {
   border-color: var(--accent);
-}
-
-/* Keep the active fill on the open caret even while hovering it, or the background flips to the hover
-   colour and back as the pointer moves off a menu that is still up.
-   It has to out-specify the per-half hover fill above, which is `.split-button .project-add-caret
-   :not(.unavailable):hover` — four classes — so this carries `:not(.unavailable)` for the fourth and
-   wins by order. An open menu on an unavailable half cannot happen anyway: it does not open one. */
-.split-button .project-add-caret:not(.unavailable).menu-open {
-  background: var(--active);
 }
 
 /* Square the +'s right corners only while the caret sits beside it. */

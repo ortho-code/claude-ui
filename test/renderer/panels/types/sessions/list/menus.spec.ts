@@ -18,6 +18,7 @@ const fixture = {
 for (const [name, trigger] of [
   ["the project's kebab", '.project-kebab'],
   ["the project's group jump", '.project-groups'],
+  ["the project's new-session caret", '.project-add-caret'],
   ["a group's new-session caret", '.group-add-caret'],
   ["a group's kebab", '.group-kebab'],
   ["a session's kebab", '.session-kebab'],

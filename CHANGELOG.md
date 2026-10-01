@@ -58,6 +58,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - When the project you are in has no sessions left, the tab bar goes back to All along with the list and the switcher, instead of staying empty.
 - Closing the tab of a new session that never wrote anything takes its row out of the list, instead of leaving it there until something else redraws the list.
 - When your last session is gone, the empty terminal area tells you to start one with + New, instead of pointing at a session list with nothing left to pick.
+- The project heading's new-session caret keeps its hover look while its menu is open, as every other menu button does, instead of changing colour as you move onto the menu.
 
 ## 0.3.0 — 2026-08-29
 
