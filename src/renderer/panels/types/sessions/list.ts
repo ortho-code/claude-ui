@@ -2,6 +2,7 @@ import type { OrderMove, SessionSummary } from '../../../../shared/types';
 // Its rows are the card and its headings the section heading a list panel draws too.
 import { listCard, sectionHeading, setFolded } from '../../../card';
 import { confirmDelete, promptText } from '../../../dialogs';
+import { fromMarkup } from '../../../dom';
 import { flash } from '../../../flash';
 import {
   structuralSignature,
@@ -30,8 +31,6 @@ import { setTooltip } from '../../../tooltip';
 import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
-// The sidebar's markup, which holds the list's elements: built before this module reads them.
-import './index';
 import './list.css';
 
 /**
@@ -39,8 +38,10 @@ import './list.css';
  * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, registered by `watchList` in the sidebar's repaints, watch.ts), and reads what it draws from main in one change (`renderSessions`), which start-up and a row's delete both ask for.
  */
 
-export const container = document.getElementById('sessions')!;
-const collapseToggle = document.getElementById('collapse-toggle') as HTMLButtonElement;
+/** The list's three parts, built here and placed by the sidebar (index.ts): collapse-all in the header, the loading bar, and the list itself. */
+export const collapseToggle = fromMarkup(`<button id="collapse-toggle" class="icon-btn large" data-tooltip="Collapse all" aria-label="Collapse all"></button>`, HTMLButtonElement);
+export const loadingEl = fromMarkup(`<div id="loading"></div>`);
+export const container = fromMarkup(`<div id="sessions" aria-live="polite"></div>`);
 
 // The chrome marks — carets, +, ⋮, ✓, × — as SVG rather than the text glyphs they used to be.
 // Every one of those resolved through system font fallback, which is how ⑂ ended up rendering from a MONOSPACE face beside its neighbours (see the family and worktree marks in svg.ts).
@@ -53,7 +54,6 @@ const kebabIcon = (size: number): string => {
   const r = ((1.3 * 16) / size).toFixed(2);
   return `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="currentColor"><circle cx="8" cy="3.4" r="${r}" /><circle cx="8" cy="8" r="${r}" /><circle cx="8" cy="12.6" r="${r}" /></svg>`;
 };
-const loadingEl = document.getElementById('loading')!;
 
 function setLoading(on: boolean): void {
   loadingEl.classList.toggle('active', on);
