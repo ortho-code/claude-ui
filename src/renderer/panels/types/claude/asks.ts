@@ -52,14 +52,22 @@ function ensureProjectVisible(repoRoot: string): void {
   if (activeProject !== null && repoRoot !== activeProject) setProjectOnShow(null);
 }
 
+/**
+ * What every new session does once it is made — a fresh one, a worktree one and a fork alike: filed in its group, when it has one; the scope widened so its tab will be on show; and its tab, which brings its row.
+ * Filed BEFORE the tab exists, so the row's first paint is already inside the group.
+ * An ordinary membership write: the id is the session's real one, so there is nothing to correct afterwards.
+ */
+async function startNew(session: SessionSummary, groupId: string | undefined, launch: TabLaunch): Promise<void> {
+  if (groupId) await moveSessionToGroup(session, groupId);
+  ensureProjectVisible(session.repoRoot);
+  await createTab(session, launch);
+}
+
 // Start a brand-new claude session in `cwd`, under an id this app mints; the sidebar row is that same session, filled in once claude writes its transcript.
 // A panel's row starting one passes a name and a first prompt, and mints the id itself, so it can remember the session before the tab exists.
 async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<TabLaunch, 'name' | 'prompt'> = {}, id: string = crypto.randomUUID()): Promise<void> {
   const session = newSession(id, { cwd, repoRoot: cwd, title: launch.name || untitledLabel(cwd) });
-  // Filed BEFORE the tab exists, so the row's first paint is already inside the group. An ordinary membership write: the id is the session's real one, so there is nothing to correct afterwards.
-  if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
-  ensureProjectVisible(session.repoRoot);
-  await createTab(session, { name: launch.name || undefined, prompt: launch.prompt || undefined });
+  await startNew(session, joinGroupId, { name: launch.name || undefined, prompt: launch.prompt || undefined });
 }
 
 /** Go to a session a panel's row started, as a jump from the attention strip does; one whose folder is gone says so, as its row in the list would. */
@@ -76,7 +84,7 @@ function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): 
 
 // Start a new session in a fresh git worktree of `repoRoot`: `claude -w [name]`.
 // Prompts for an optional name (blank -> claude auto-names).
-// Like openNewSession, the tab carries the session's real id from the start; the worktree badge is the only optimistic part, and it reconciles on the next refresh.
+// As for every new session, the tab carries the session's real id from the start; the worktree badge is the only optimistic part, and it reconciles on the next refresh.
 async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Promise<void> {
   // claude's `-w` name must be a slug (letters/digits/dots/underscores/dashes); turn the free-text label into one. A blank slug means auto-name, which can't collide.
   const slugify = (value: string): string => value.trim().replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
@@ -106,10 +114,7 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
     // The name you typed becomes the title (it's also what --name sets); the badge already says it's a worktree, so no prefix. Blank name falls back to a plain new-session label.
     title: friendly || untitledLabel(repoRoot),
   });
-  // Same as openNewSession: filed before the tab exists, so the row never appears loose.
-  if (joinGroupId) await moveSessionToGroup(session, joinGroupId);
-  ensureProjectVisible(session.repoRoot);
-  await createTab(session, { name: friendly || undefined, worktree: slug });
+  await startNew(session, joinGroupId, { name: friendly || undefined, worktree: slug });
 }
 
 // Fork an existing session: `claude --session-id <new> --resume <parent> --fork-session` copies its transcript into a new session in the same cwd.
@@ -131,11 +136,9 @@ async function forkSession(parent: SessionSummary): Promise<void> {
     isSibling: true,
     siblingIds: [parent.id],
   });
-  ensureProjectVisible(session.repoRoot);
   // A fork continues its parent's work, so it belongs wherever the parent was filed — and it shows there immediately, like a new session started from the group's "+".
   const parentGroup = store.get().groupState.groupOf[entityKey(parent)];
-  if (parentGroup) await moveSessionToGroup(session, parentGroup);
-  await createTab(session, { resumeFrom: parent.id, fork: true, name: trimmed || undefined });
+  await startNew(session, parentGroup, { resumeFrom: parent.id, fork: true, name: trimmed || undefined });
 }
 
 /** The asks the terminal area answers. */
