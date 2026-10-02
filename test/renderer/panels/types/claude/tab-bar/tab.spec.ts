@@ -30,11 +30,7 @@ test('a tab follows its session as the listing changes on disk: a new title rena
   await app.boot({ sessions: [one, other], openSessions: [one.id, other.id] });
   await expect(tab(page, other.title)).toHaveCount(1);
   // As claude writing its title into the transcript would leave it, and main listing it again.
-  await page.evaluate((id) => {
-    const listed = window.__claudeUiFixture.sessions;
-    window.__claudeUiFixture.sessions = listed.map((s) => (s.id === id ? { ...s, title: 'Renamed on disk' } : s));
-  }, other.id);
-  expect(await app.emit('onSessionsChanged')).toBe(1);
+  await app.listOnDisk([one, { ...other, title: 'Renamed on disk' }]);
   await expect(tab(page, 'Renamed on disk')).toHaveCount(1);
   await expect(tab(page, other.title)).toHaveCount(0);
 });

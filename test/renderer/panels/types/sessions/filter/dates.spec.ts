@@ -75,10 +75,7 @@ test("the calendar starts at the oldest session's day, and follows the listing a
   await expect(day(page, 10)).not.toHaveClass(/-disabled-/);
 
   const older = session({ id: '00000000-0000-4000-8000-0000000000d5', title: 'Older still', lastActivity: '2026-09-05T12:00:00.000Z' });
-  await page.evaluate((added) => {
-    window.__claudeUiFixture.sessions = [...window.__claudeUiFixture.sessions, added];
-  }, older);
-  expect(await app.emit('onSessionsChanged')).toBe(1);
+  await app.listOnDisk([today, days3, days20, older]);
   await expect(day(page, 9)).not.toHaveClass(/-disabled-/);
   await expect(day(page, 4)).toHaveClass(/-disabled-/);
 });

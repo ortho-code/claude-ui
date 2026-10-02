@@ -2,7 +2,7 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { test as base, expect, type Route } from '@playwright/test';
 import { build } from 'esbuild';
-import type { ClaudeUiApi, UiState } from '../../../src/shared/types';
+import type { ClaudeUiApi, SessionSummary, UiState } from '../../../src/shared/types';
 import { defaultFixture, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
 
 /** The window as it ships: `npm run build`'s output, which `npm run test:renderer` builds first. */
@@ -22,6 +22,8 @@ export interface App {
   saved(): Promise<UiState | undefined>;
   /** Fire what the window subscribed to as `name`, as main would; answers how many callbacks there were. */
   emit<K extends BridgeEvent>(name: K, ...args: BridgeEventArgs<K>): Promise<number>;
+  /** List `sessions` on disk from now on, as main would once a transcript was written, moved or taken away, and tell the window the listing changed. */
+  listOnDisk(sessions: SessionSummary[]): Promise<void>;
   /** Hold every answer to `name` until `release(name)`, as main still working on it would (`BridgeControl.hold`). */
   hold(name: keyof ClaudeUiApi): Promise<void>;
   release(name: keyof ClaudeUiApi): Promise<void>;
@@ -63,6 +65,12 @@ export const test = base.extend<{ app: App }, { installScript: string }>({
       // Typed on `App`; untyped across into the page, where Playwright's own typing of an argument loses the pairing of an event with its arguments.
       emit: (name, ...args) =>
         page.evaluate(({ event, values }) => (window.__claudeUiTest.emit as (event: string, ...values: unknown[]) => number)(event, ...values), { event: name, values: args }),
+      listOnDisk: async (sessions) => {
+        await page.evaluate((listed) => {
+          window.__claudeUiFixture.sessions = listed;
+        }, sessions);
+        expect(await app.emit('onSessionsChanged')).toBe(1);
+      },
       hold: (name) => page.evaluate((call) => window.__claudeUiTest.hold(call), name),
       release: (name) => page.evaluate((call) => window.__claudeUiTest.release(call), name),
     };

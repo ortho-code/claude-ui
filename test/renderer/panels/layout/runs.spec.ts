@@ -110,9 +110,6 @@ test("the tab on show's session found in another folder runs the command beside 
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await expect.poll(() => foldersOf(app)).toEqual([PROJECT, a.cwd]);
 
-  await page.evaluate((listed) => {
-    window.__claudeUiFixture.sessions = listed;
-  }, [moved]);
-  expect(await app.emit('onSessionsChanged')).toBe(1);
+  await app.listOnDisk([moved]);
   await expect.poll(() => foldersOf(app)).toEqual([PROJECT, a.cwd, moved.cwd]);
 });

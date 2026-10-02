@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { projectGoneReason } from '../../../../../../src/renderer/logic';
-import type { Exchange, SessionSummary } from '../../../../../../src/shared/types';
+import type { Exchange } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { chooseProject, row, tab, tabs } from '../../../../support/window';
@@ -28,20 +28,12 @@ test("scoped to a project whose tabs are all elsewhere, the pane points at the l
   await expect(page.locator('#term-placeholder')).toHaveText('Pick a session in the sidebar to open it.');
 });
 
-/** The listing as main would read it next, and the event that tells the window to read it. */
-async function listOnDisk(page: Page, app: App, sessions: SessionSummary[]): Promise<void> {
-  await page.evaluate((listed) => {
-    window.__claudeUiFixture.sessions = listed;
-  }, sessions);
-  expect(await app.emit('onSessionsChanged')).toBe(1);
-}
-
 test('the pane follows the listing on disk: a first session points at the list, and the last one gone at + New', async ({ app, page }) => {
   await app.boot({ sessions: [], projectOrder: [], activeProject: null });
   await expect(page.locator('#term-placeholder')).toHaveText('No sessions yet — start one with + New.');
-  await listOnDisk(page, app, [here]);
+  await app.listOnDisk([here]);
   await expect(page.locator('#term-placeholder')).toHaveText('Pick a session in the sidebar to open it.');
-  await listOnDisk(page, app, []);
+  await app.listOnDisk([]);
   await expect(page.locator('#term-placeholder')).toHaveText('No sessions yet — start one with + New.');
 });
 
@@ -57,7 +49,7 @@ test('the pane follows the project chosen: one whose tabs are all elsewhere poin
 test("the pane follows the project on show's folder: gone from disk, it says the project cannot run", async ({ app, page }) => {
   await app.boot({ sessions: [here], activeProject: PROJECT });
   await expect(page.locator('#term-placeholder')).toHaveText('Pick a session in the sidebar to open it.');
-  await listOnDisk(page, app, [{ ...here, cwdExists: false, repoRootExists: false }]);
+  await app.listOnDisk([{ ...here, cwdExists: false, repoRootExists: false }]);
   await expect(page.locator('#term-placeholder')).toHaveText(projectGoneReason(PROJECT));
 });
 

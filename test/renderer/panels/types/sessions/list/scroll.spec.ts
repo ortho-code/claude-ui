@@ -87,10 +87,7 @@ test('a project left with no sessions falls back to All with the list at its top
   await scrollTo(page, 400);
   expect(await scrolled(page)).toBe(400);
   // As main would list it next, with the other project's transcripts gone.
-  await page.evaluate((listed) => {
-    window.__claudeUiFixture.sessions = listed;
-  }, many);
-  expect(await app.emit('onSessionsChanged')).toBe(1);
+  await app.listOnDisk(many);
   await expect(page.locator('#switcher-name')).toHaveText('All');
   await expect(rows(page)).toHaveCount(many.length);
   await expect.poll(() => scrolled(page)).toBe(0);
