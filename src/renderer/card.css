@@ -15,8 +15,7 @@
   position: sticky;
 }
 
-/* :has(.menu-open) alongside :hover, matching .session: a heading whose kebab menu is open stays lit
-   while the pointer is down inside the menu. */
+/* :has(.menu-open) alongside :hover, as on the card below: a heading whose kebab menu is open stays lit while the pointer is down inside the menu. */
 .section-heading:hover,
 .section-heading:has(.menu-open) {
   background: var(--surface-hover);

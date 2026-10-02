@@ -66,13 +66,8 @@
   color: #fff;
 }
 
-/* The top edge's resize handle. A frameless window has no resize zone there on this compositor, so
-   this thin strip is the whole mechanism — see .plan/plan_window-chrome.md.
-   `no-drag` is LOAD-BEARING, not tidiness: it lies over the title bar, and a drag region swallows the
-   pointerdown before any handler sees it, which is exactly how the first version silently did nothing.
-   6px rather than the 4 the other edges get, because this one is a target you have to find. */
-/* Every edge and corner of the window, ours rather than the compositor's.
-   6px edges and 12px corners: the 4px Chromium gave three of these was a genuinely hard target. */
+/* Every edge and corner of the window, ours rather than the compositor's: a frameless window has no resize zone at its top edge on this compositor, and the 4px Chromium gave the other three was a genuinely hard target.
+   So 6px edges and 12px corners. */
 .resize-edge {
   position: fixed;
   z-index: 60;

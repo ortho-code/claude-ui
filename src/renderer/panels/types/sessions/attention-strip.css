@@ -69,7 +69,7 @@
   overflow-y: auto;
 }
 
-/* Shape comes from the MENU ROW rule (menu.css). */
+/* Shape comes from the MENU ROW rule (menu-row.css). */
 
 .footer-item:hover {
   background: var(--surface-hover);

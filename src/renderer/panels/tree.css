@@ -86,7 +86,7 @@
 }
 
 /*
-  The fold chevron: a thin tab laid along the divider, centred on its line (P12).
+  The fold chevron: a thin tab laid along the divider, centred on its line.
   11px across, so it overhangs each neighbour by 3px, which stays inside their padding and never covers a header's text.
   An icon button, so it takes the one hover every icon control shares; the resting fill and border are what make it read as a tab on a line rather than a loose mark.
   FAINT until the pointer is on its divider, and full then: quieter than always, and easier to find than only on hover — all three were tried.
@@ -183,7 +183,7 @@
 }
 
 /*
-  THE RAIL (P8, P9): the icons of a group's panels, 28px across, the whole of a folded group.
+  THE RAIL: the icons of a group's panels, 28px across, the whole of a folded group.
   Its items are icon buttons in the standard box, so they share every icon control's hover.
 */
 .panel-rail {
