@@ -884,7 +884,7 @@ Filled rather than outlined because `button:hover` sets an accent *border* app-w
 That same app-wide rule is why the hover state has to set the border itself, and it sets it to the fill: background and border are one colour, so the brightness step darkens the whole button and its outline never appears to move.
 Each colour is named once, as a `--fill` custom property, which is what keeps that true — an earlier version reached for `currentColor` instead, i.e. the *text* colour, and hovered to a dark border on the blue button (it read as shrinking) and a white ring on the red one.
 
-**Rows** come in two shapes: a **list row** (`.card`, a session's or a list panel's, built by `listCard`) is a card in the list body — `7px 14px`, surface radius, two lines and its own controls; a **menu row** (switcher entry, kebab-menu item, attention-strip session) is `6px 9px`, control radius, one class for all three (`.menu-row`), which each of them carries and whose stylesheet each of their modules imports.
+**Rows** come in two shapes: a **list row** (`.card`, a session's or a list panel's, built by `listCard`) is a card in the list body — `7px 14px`, surface radius, two lines and its own controls; a **menu row** (switcher entry, kebab-menu item, attention-strip session) is `6px 9px`, control radius, one class and one hover for all three (`.menu-row`), which each of them carries and whose stylesheet each of their modules imports.
 
 **Radius and type are tokens** in `:root`.
 Radius is per kind of thing rather than per component: `--radius-control` (anything you click), `--radius-surface` (rows, cards, panels, popovers, dialogs), `--radius-pill` (fully round, so it never needs re-tuning when its height changes); circles keep 50%.

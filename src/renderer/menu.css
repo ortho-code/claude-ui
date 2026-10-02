@@ -56,14 +56,7 @@
   border-right: 1px solid var(--border);
 }
 
-/* Shape comes from the menu row (menu-row.css); nothing here is specific enough to need its own. */
-
-/* A submenu-parent (.menu-open) holds the hover look while its child list is up, so moving the
-   mouse into the submenu doesn't drop it back. */
-.kebab-menu button:not(.unavailable):hover,
-.kebab-menu button.menu-open {
-  background: var(--surface-hover);
-}
+/* Shape and hover come from the menu row (menu-row.css); nothing here is specific enough to need its own. */
 
 /* An action that is there but cannot be taken: dimmed, no hover, no pointer. It stays in the list so
    the menu keeps its shape and the tooltip can say why — see MenuItem.disabled. */

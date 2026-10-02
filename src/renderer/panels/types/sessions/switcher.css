@@ -94,10 +94,7 @@
   transform: rotate(45deg);
 }
 
-.switcher-item:hover {
-  background: var(--surface-hover);
-}
-
+/* Shape and hover come from the menu row (menu-row.css); the project on show keeps its own fill under the pointer. */
 .switcher-item.active {
   background: var(--active);
 }

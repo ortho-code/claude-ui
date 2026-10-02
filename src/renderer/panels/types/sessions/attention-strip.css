@@ -69,11 +69,7 @@
   overflow-y: auto;
 }
 
-/* Shape comes from the MENU ROW rule (menu-row.css). */
-
-.footer-item:hover {
-  background: var(--surface-hover);
-}
+/* Shape and hover come from the MENU ROW rule (menu-row.css). */
 
 /* The strip row is a wrapper holding two buttons — jump, and stop — because a button cannot contain
    a button. The wrapper keeps the menu-row shape, so this half only has to give up a button's own
