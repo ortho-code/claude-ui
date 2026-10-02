@@ -1,59 +1,8 @@
-/* The kebab's dropdown (positioned in JS, fixed). */
+/* The kebab's dropdown, positioned in JS; its surface and notch are the popover's (popover.css). */
 .kebab-menu {
   position: fixed;
   z-index: 400;
   min-width: 130px;
-  /* Same cap as the switcher popover: a menu is sized by its longest label, and a group can be named
-     anything, so without this one long name makes a menu wider than the sidebar it belongs to. */
-  max-width: 300px;
-  padding: 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-surface);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
-}
-
-/* Every menu/popover reads as ATTACHED to its trigger: a small notch (a rotated square sharing the
-   menu's surface, bordered only on its exposed sides) points at the anchor, bridging the 5px gap.
-   openMenu/openSubmenu set --notch-x/--notch-y so it tracks the trigger's center. */
-.kebab-menu::before {
-  content: '';
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: var(--surface);
-  transform: rotate(45deg);
-}
-
-.kebab-menu.attach-top::before {
-  top: -4.5px;
-  left: var(--notch-x);
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-}
-
-/* Flipped menu (above its trigger, near the bottom of the window): the notch sits on the menu's bottom edge. */
-.kebab-menu.attach-bottom::before {
-  bottom: -4.5px;
-  left: var(--notch-x);
-  border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-}
-
-/* Submenu to the right of its parent item: the notch sits on the menu's left edge. */
-.kebab-menu.attach-right::before {
-  left: -4.5px;
-  top: var(--notch-y);
-  border-bottom: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-}
-
-/* Flipped submenu (left of its parent item): the notch sits on the menu's right edge. */
-.kebab-menu.attach-left::before {
-  right: -4.5px;
-  top: var(--notch-y);
-  border-top: 1px solid var(--border);
-  border-right: 1px solid var(--border);
 }
 
 /* Shape and hover come from the menu row (menu-row.css); nothing here is specific enough to need its own. */

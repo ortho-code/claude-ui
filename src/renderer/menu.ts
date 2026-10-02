@@ -3,6 +3,7 @@ import { badgeClass, sessionDotClass } from './statusdot';
 import { chevronIcon, strokeIcon } from './svg';
 import { setUnavailable } from './unavailable';
 import './menu-row.css';
+import './popover.css';
 import './menu.css';
 
 // A small floating kebab menu, generic over its items so the project-heading and session-row kebabs share the open/close/outside-click machinery.
@@ -137,7 +138,7 @@ function openSubmenu(item: HTMLElement, items: MenuItem[]): void {
   if (openSubmenuOwner === item) return; // already open for this item; don't rebuild/flicker
   closeSubmenu();
   const menu = document.createElement('div');
-  menu.className = 'kebab-menu submenu';
+  menu.className = 'kebab-menu popover submenu';
   fillMenu(menu, items, false);
   document.body.append(menu);
   const r = item.getBoundingClientRect();
@@ -163,7 +164,7 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   }
   closeMenu();
   const menu = document.createElement('div');
-  menu.className = 'kebab-menu';
+  menu.className = 'kebab-menu popover';
   fillMenu(menu, items, true);
   document.body.append(menu);
   const r = anchor.getBoundingClientRect();

@@ -9,6 +9,7 @@ import { chevronIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import '../../../menu-row.css';
+import '../../../popover.css';
 import './switcher.css';
 
 /**
@@ -27,7 +28,7 @@ export const switcherEl = fromMarkup(`
         <span class="switcher-chev" aria-hidden="true"></span>
       </span>
     </button>
-    <div id="switcher-popover" hidden>
+    <div id="switcher-popover" class="popover attach-top" hidden>
       <div id="switcher-list" role="menu"></div>
     </div>
   </div>`);

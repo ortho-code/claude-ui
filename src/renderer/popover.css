@@ -1,0 +1,55 @@
+/* A POPOVER — the surface a menu or popover floats on, attached to what opened it: the kebab menus (menu.ts), the project switcher's list (switcher.ts) and the custom date range (filter.ts), each of which carries `.popover` and one `attach-*` side and imports this stylesheet itself.
+   They were three copies of one fill, border, radius, shadow and notch, kept equal by "same notch treatment" comments.
+   What is one popover's own — where it sits, its layer, a width or padding of its own — stays in its module's rules. */
+.popover {
+  /* A menu is sized by its longest label, and a group or a project can be named anything, so without a cap one long name makes it wider than the sidebar it belongs to. */
+  max-width: 300px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-surface);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* The notch, which reads the popover as ATTACHED to its trigger: a small rotated square sharing the popover's surface, bordered only on its exposed sides, pointing at the trigger across the gap.
+   --notch-x and --notch-y place it along its edge: openMenu and openSubmenu set them to the trigger's centre, and a popover whose trigger does not move sets its own. */
+.popover::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+
+/* Below its trigger: the notch sits on the top edge. */
+.popover.attach-top::before {
+  top: -4.5px;
+  left: var(--notch-x);
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+/* Flipped above its trigger, near the bottom of the window: the notch sits on the bottom edge. */
+.popover.attach-bottom::before {
+  bottom: -4.5px;
+  left: var(--notch-x);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+/* A submenu to the right of its parent item: the notch sits on the left edge. */
+.popover.attach-right::before {
+  left: -4.5px;
+  top: var(--notch-y);
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+/* A submenu flipped to the left of its parent item: the notch sits on the right edge. */
+.popover.attach-left::before {
+  right: -4.5px;
+  top: var(--notch-y);
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}

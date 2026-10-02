@@ -94,25 +94,8 @@
   padding: 10px;
   width: max-content;
   max-width: calc(100% - 16px);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-surface);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
-}
-
-/* Attached to the filter panel it belongs to (same notch treatment as the menus); the chip that
-   opens it wraps with the presets, so the notch points at the panel area rather than tracking it. */
-#date-custom::before {
-  content: '';
-  position: absolute;
-  top: -4.5px;
-  left: 20px;
-  width: 8px;
-  height: 8px;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-  transform: rotate(45deg);
+  /* Attached to the filter panel it belongs to: the chip that opens it wraps with the presets, so the notch points at the panel area rather than tracking it. */
+  --notch-x: 20px;
 }
 
 /* Persistent line under the presets: shows the picked range while Custom is active (even with the

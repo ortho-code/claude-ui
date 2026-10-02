@@ -13,6 +13,7 @@ const ORDER = [
   'src/renderer/base.css',
   'src/renderer/tooltip.css',
   'src/renderer/menu-row.css',
+  'src/renderer/popover.css',
   'src/renderer/menu.css',
   'src/renderer/toast.css',
   'src/renderer/notifications.css',

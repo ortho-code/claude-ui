@@ -64,38 +64,21 @@
   top: 100%;
   left: 0;
   min-width: 240px;
-  max-width: 300px;
   z-index: 30;
   margin-top: 5px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-surface);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  /* The list carries the padding, so that it scrolls with the list. */
+  padding: 0;
+  /* The trigger is the full-width title, so a fixed notch near its left text reads as "at the trigger": 20px from the switcher's edge, which is 19px inside the popover's border. */
+  --notch-x: 19px;
 }
 
-/* The list scrolls inside the popover rather than the popover itself, which would clip a notch standing out of its top edge.
+/* The list scrolls inside the popover rather than the popover itself, which would clip the notch standing out of its top edge.
    Its padding scrolls with it, and its corners follow the popover's inside its border, so a scrollbar sits where the popover's own did. */
 #switcher-list {
   max-height: 318px; /* the popover's 320px cap, inside its 1px border */
   overflow-y: auto;
   padding: 4px;
   border-radius: calc(var(--radius-surface) - 1px);
-}
-
-/* Attached to its trigger like the menus (same notch treatment).
-   The trigger is the full-width title, so a fixed position near its left text reads as "at the trigger": 20px from the switcher's edge, which is 19px inside the popover's border.
-   Measured from inside that border too, so 0.5px below the switcher's bottom edge is 5.5px above the popover's padding. */
-#switcher-popover::before {
-  content: '';
-  position: absolute;
-  top: -5.5px;
-  left: 19px;
-  width: 8px;
-  height: 8px;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-  transform: rotate(45deg);
 }
 
 /* Shape and hover come from the menu row (menu-row.css); the project on show keeps its own fill under the pointer. */

@@ -11,6 +11,7 @@ import { setTooltip } from '../../../tooltip';
 import { iconSvg } from '../../icons';
 // The filter pill its pills and presets wear, shared with the history's All · Pinned.
 import '../../../pill.css';
+import '../../../popover.css';
 import './filter.css';
 
 /**
@@ -41,7 +42,7 @@ export const filterPanel = fromMarkup(`
       </div>
     </div>
     <button type="button" id="date-range-label" hidden>Pick a start and end date</button>
-    <div id="date-custom" hidden>
+    <div id="date-custom" class="popover attach-top" hidden>
       <div id="date-range"></div>
       <div id="date-range-caption"></div>
     </div>
