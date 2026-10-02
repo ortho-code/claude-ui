@@ -52,7 +52,7 @@
   width: 2px;
   /* With the label's own 8px of padding, the group's name sits 9px from the rail. */
   margin-right: 1px;
-  background: #9399b240;
+  background: var(--group-rail);
   border-radius: 1px;
 }
 

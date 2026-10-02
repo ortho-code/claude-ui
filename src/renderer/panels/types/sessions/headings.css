@@ -91,7 +91,7 @@
 .group-members {
   margin-left: 3px;
   padding-left: 14px;
-  border-left: 2px solid #9399b240;
+  border-left: 2px solid var(--group-rail);
 }
 
 /* The dropdown half of the group heading's split button. Narrower than a standard control and with a

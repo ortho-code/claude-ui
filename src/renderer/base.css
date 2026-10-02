@@ -13,6 +13,8 @@
   --border: #ffffff2b;
   /* Accent-tinted "active/selected" surface, clearly distinct from base and from hover. */
   --active: #3b4360;
+  /* A group's rail, beside its rows in the sidebar and its tabs in the tab bar: muted rather than accent, which open and active rows already use for their bars. */
+  --group-rail: color-mix(in srgb, var(--muted) 25%, transparent);
   /* Status colours, shared by the session dots, project badges and attention toasts. */
   --waiting: #f9e2af;
   --idle: #a6e3a1;
