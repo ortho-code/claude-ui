@@ -879,7 +879,7 @@ Each row reaches 4 from a different base gap (a session row's is 8, a heading's 
 
 **Hover** is identical for every icon control — `--active` fill, accent border, `--text` glyph — from one shared rule.
 It uses `--active` rather than `--surface-hover` because a hovered session row is already `--surface-hover`, so a button filling to the same colour inside it would show no change.
-Note that `button:hover` sets the accent border app-wide, so a control whose resting rule is more specific silently opts out of it; that is why the rule lists its selectors explicitly.
+Note that `button:hover` sets the accent border app-wide, so a control whose resting rule is more specific silently opts out of it; that is why the shared rule carries four classes' weight (`.icon-btn:not(:disabled):not(.unavailable):is(:hover, .menu-open)`), more than any icon button's resting rule.
 
 **A dialog's decisive button is filled**, in one of two colours of the same shape: `.primary` confirms (accent fill, dark text — the accent is a light blue, so white on it barely separates) and `.danger` destroys (red fill, white text).
 Filled rather than outlined because `button:hover` sets an accent *border* app-wide, so a resting accent border is indistinguishable from an ordinary button being hovered — which is how the old accent-outlined Save read, and why it was replaced.
@@ -932,7 +932,7 @@ The history bar follows every move of a held pointer on the window instead, and 
 
 **Specificity quietly opts controls out of shared hover rules.** `button:hover` is 0,1,1, so a resting rule like `.project h2 .project-kebab` (0,2,2) or `#toast-close` (1,0,0) beats it and never takes the accent border, while `.session-kebab` (0,1,0) does.
 This produced three separate "why does only this one look different" bugs.
-When a shared appearance matters, list the selectors explicitly with their own `:hover` so each beats its own resting rule, and check with forced pseudo-states rather than by reading the cascade.
+When a shared appearance matters, give the shared rule more weight than every resting rule it covers, and check with forced pseudo-states, as the style capture forces them, rather than by reading the cascade.
 
 **A signature that lists its inputs is a guard nothing can check — so this one is checked by the compiler.** The sidebar re-renders only when `structuralSignature` changes, which keeps a growing transcript from rebuilding the list. Whether such a signature names *every* field the rows draw is a question about the whole render path, so it cannot be asserted cheaply, and getting it wrong does not churn — it **freezes**, leaving a field stale until something else happens to move.
 It had been wrong: `model` was absent while the row printed it, so switching model mid-session showed the old one, and `worktree`/`repoRoot` were covered only by riding along with `cwd`.
