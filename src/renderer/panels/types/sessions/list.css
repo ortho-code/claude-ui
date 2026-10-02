@@ -157,7 +157,7 @@
 
 .group h3 {
   /* Pins UNDER the project heading, so the group you are scrolling through stays named. The offset
-     is the project heading's measured height (list.ts sets the property; the fallback only
+     is the project heading's measured height (reveal.ts sets the property; the fallback only
      covers the first paint) — hard-coding it would go stale the moment the type scale moves, which
      is how revealSession's old 44 went wrong. Sticky is scoped to the .group section, so a
      heading unpins when its own group scrolls away rather than stacking with the next one. */
