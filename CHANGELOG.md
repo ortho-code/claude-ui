@@ -60,6 +60,7 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - When your last session is gone, the empty terminal area tells you to start one with + New, instead of pointing at a session list with nothing left to pick.
 - The project heading's new-session caret keeps its hover look while its menu is open, as every other menu button does, instead of changing colour as you move onto the menu.
 - In a project, once you have folded each of its groups by hand, the collapse-all button offers to expand them, instead of still offering to collapse them.
+- Clicking the notification for a session that is waiting for you or has finished also shows its row in the session list, unfolding its group, as a click in the live strip does.
 
 ## 0.3.0 — 2026-08-29
 

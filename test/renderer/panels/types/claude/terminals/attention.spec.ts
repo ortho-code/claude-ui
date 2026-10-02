@@ -1,7 +1,8 @@
 import type { Locator, Page } from '@playwright/test';
+import { defaultUi } from '../../../../../../src/shared/defaults';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { switcherEntry, tab } from '../../../../support/window';
+import { group, row, switcherEntry, tab } from '../../../../support/window';
 
 // A tab you are not looking at that turns waiting or finished says so in a toast, naming it and its project; a click on the toast takes you there (docs/architecture.md § Status cues).
 // Never for busy, a repeat of the same state, or the tab on show.
@@ -59,4 +60,18 @@ test('a tab not on show that turns waiting or finished is toasted once, and the 
   await expect(toasts(page)).toHaveCount(1);
   await expect(toasts(page).first()).toHaveClass(/\bidle\b/);
   await expect(toasts(page).first().locator('.notif-title')).toHaveText(here.title);
+});
+
+// A toast is a jump like the strip's: the project and the tab are not enough to see the session, when its row is folded away inside a group.
+test("the toast takes you to the session's row too, unfolding the group it is filed in", async ({ app, page }) => {
+  const filed = { groupState: { groups: [{ id: 'g-later', name: 'Later', repoRoot: OTHER }], groupOf: { [there.id]: 'g-later' } } };
+  await app.boot({ ...fixture, ...filed, uiState: { ...defaultUi(), collapsedGroups: ['g-later'] } });
+  await expect(tab(page, here.title)).toHaveClass(/\bactive\b/);
+
+  expect(await app.emit('onSessionStatus', there.id, 'waiting', '')).toBe(1);
+  await toasts(page).first().click();
+  await expect(tab(page, there.title)).toHaveClass(/\bactive\b/);
+  await expect(group(page, 'Later')).not.toHaveClass(/\bcollapsed\b/);
+  await expect(row(page, there.title)).toBeVisible();
+  await expect(row(page, there.title)).toHaveClass(/\bactive-session\b/);
 });

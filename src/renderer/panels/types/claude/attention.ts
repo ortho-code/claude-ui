@@ -1,9 +1,9 @@
 import { sessionLabel } from '../../../logic';
 import { showAttentionToast } from '../../../notifications';
-import { store, type View } from '../../../state/app';
+import type { View } from '../../../state/app';
 import { projName, tabWith } from '../../../state/views';
-import { hostOf } from '../builtin';
-import { activateTab, tabOf } from './terminals';
+import { jumpToSession } from './asks';
+import { tabOf } from './terminals';
 
 /**
  * The terminal area's attention toasts: a tab not on show that turns waiting or finished says so in a toast (drawn by notifications.ts), and a click on it goes to that tab.
@@ -25,14 +25,10 @@ export function toastAttention(view: View<'statuses' | 'tabs' | 'activeTab' | 'p
   }
 }
 
-// Jump to a tab from a toast: scope to its project if we're viewing a different one, then activate it.
+// Jump to a tab from a toast as the strip jumps to a session: its project, its tab, and its row in the list.
 function jumpToTab(token: string): void {
   const tab = tabOf(token);
   // Closed since the toast went up: there is nothing left to go to.
   if (!tab) return;
-  const { activeProject } = store.get();
-  if (activeProject !== null && activeProject !== tab.session.repoRoot) {
-    hostOf('claude').selectProject(tab.session.repoRoot);
-  }
-  activateTab(token);
+  jumpToSession(tab.session);
 }
