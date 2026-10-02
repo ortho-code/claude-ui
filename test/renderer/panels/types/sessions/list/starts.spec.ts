@@ -1,9 +1,9 @@
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { group, row, tab, tabs, titlesIn } from '../../../../support/window';
+import { group, groupHeading, row, tab, tabs, titlesIn } from '../../../../support/window';
 
-// The ways the session list starts a session other than a row's own click (docs/architecture.md § Tab lifecycle): a sibling from the siblings menu, a fork from a row's options, and a session in a new worktree from the project's "+".
+// The ways the session list starts a session other than a row's own click (docs/architecture.md § Tab lifecycle): a sibling from the siblings menu, a fork from a row's options, a session in a new worktree from the project's "+", and either from a group's.
 const parent = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'The parent', isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000a2'] });
 const sibling = session({ id: '00000000-0000-4000-8000-0000000000a2', title: 'Its sibling', isSibling: true, siblingIds: [parent.id], lastActivity: '2026-09-30T07:00:00.000Z' });
 const fixture = {
@@ -58,4 +58,31 @@ test("a new worktree session from the project's \"+\" starts claude in a fresh w
   expect(launch.sessionId).toMatch(/^[0-9a-f-]{36}$/);
   expect(launch.resumeSessionId).toBeUndefined();
   await expect(tabs(page).and(page.locator('.active'))).toHaveCount(1);
+});
+
+test("a group's \"+\" starts a new session in the project's folder, filed in that group", async ({ app, page }) => {
+  await app.boot(fixture);
+  await groupHeading(page, 'Work').locator('.group-add').click();
+
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const [[cwd, launch]] = await launches(app);
+  expect(cwd).toBe(PROJECT);
+  expect(launch.resumeSessionId).toBeUndefined();
+  expect(await app.calls('moveSessionToGroup')).toEqual([[launch.sessionId, 'g-work']]);
+  await expect(titlesIn(group(page, 'Work'))).toHaveCount(2);
+});
+
+test("a group's caret starts a new worktree session filed in that group", async ({ app, page }) => {
+  await app.boot(fixture);
+  await groupHeading(page, 'Work').locator('.group-add-caret').click();
+  await page.locator('.kebab-menu button', { hasText: 'New worktree session…' }).click();
+  await expect(page.locator('#rename-overlay')).toBeVisible();
+  await page.locator('#rename-ok').click();
+
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const [[cwd, launch]] = await launches(app);
+  expect(cwd).toBe(PROJECT);
+  expect(launch.worktree).toBe('');
+  expect(await app.calls('moveSessionToGroup')).toEqual([[launch.sessionId, 'g-work']]);
+  await expect(titlesIn(group(page, 'Work'))).toHaveCount(2);
 });
