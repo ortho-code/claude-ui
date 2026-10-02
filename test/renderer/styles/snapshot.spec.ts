@@ -110,6 +110,13 @@ test("a session's menu with its submenu open", async ({ app, page }) => {
   await snapshot(page, DIR!, 'menu');
 });
 
+test('the menu of a session whose folder is gone, its fork there but unavailable', async ({ app, page }) => {
+  await app.boot({ ...busy, openSessions: [] });
+  await row(page, dead.title).locator('.session-kebab').click();
+  await expect(page.locator('.kebab-menu button.unavailable', { hasText: 'Fork this session' })).toBeVisible();
+  await snapshot(page, DIR!, 'menu-unavailable');
+});
+
 test('the project switcher open', async ({ app, page }) => {
   await app.boot({ ...busy, openSessions: [] });
   await page.locator('#switcher-current').click();
