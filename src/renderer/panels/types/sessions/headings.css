@@ -1,0 +1,160 @@
+.project + .project {
+  /* No extra inter-project margin: the heading's own 8px top padding is the whole gap above it,
+     matching the 8px below its divider (the heading's margin-bottom), so a project's top and bottom
+     spacing are even. */
+  margin-top: 0;
+}
+
+.project h2 {
+  font-size: var(--text-heading);
+  font-weight: 700;
+  /* Negative horizontal margins (cancelled by matching padding) let the divider run edge-to-edge
+     across the sidebar, so each project reads as a hard section break. No margin-bottom: the gap below
+     the divider comes from the first session's margin-top, so every gap in the list is a single 8px.
+     Symmetric vertical padding keeps the heading content (incl. the + button) centred. */
+  margin: 0 -16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  /* The top layer of the three the list needs: project heading over group heading (1) over rows.
+     The opaque background masks rows scrolling underneath. */
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
+}
+
+.project h2 .heading-icon {
+  color: var(--accent);
+}
+
+.project h2 .heading-count {
+  background: var(--surface);
+}
+
+
+/* A bordered box so it reads as a "new session" action, not part of the collapse chrome. */
+.project h2 .project-add {
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  /* Explicitly zero, not absent: the box is a fixed 22px in border-box, so the UA's default button
+     padding (1px 6px) would leave the icon 8px of content width and squash it. */
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+
+.split-button .project-add-caret {
+  justify-content: center;
+  width: 16px;
+  height: 22px;
+  padding: 0; /* same reason as the "+" above, and tighter here: 16px leaves only 3px */
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+/* Both halves of the project heading's split button fill the same way on hover. They take their own
+   fill rather than the shared .icon-btn one because they already sit on --surface, where --active
+   does not read as a change; the group's halves have no such box and use the shared rule.
+   The caret keeps the same fill while its menu is up, as every icon button keeps its hover look (base.css), and at four classes' weight, after that rule, it wins over the shared open look too. */
+.project h2 .project-add:not(.unavailable):hover,
+.split-button .project-add-caret:not(.unavailable):is(:hover, .menu-open) {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+/* Square the +'s right corners only while the caret sits beside it. */
+.split-button:has(.project-add-caret:not([hidden])) .project-add {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* The space above a group, which used to sit on the heading's own margin-top — see the note on the bar in card.css about why a sticky element cannot carry one. */
+.group {
+  margin-top: 14px;
+}
+
+.group h3 {
+  /* Pins UNDER the project heading, so the group you are scrolling through stays named. The offset
+     is the project heading's measured height (reveal.ts sets the property; the fallback only
+     covers the first paint) — hard-coding it would go stale the moment the type scale moves, which
+     is how revealSession's old 44 went wrong. Sticky is scoped to the .group section, so a
+     heading unpins when its own group scrolls away rather than stacking with the next one. */
+  top: var(--project-heading-height, 39px);
+  /* Above the rows, below the project heading. It has to be a real layer, not 0: a session's status
+     dot is position:relative (for its hit-target halo) and so paints in the positioned layer, in DOM
+     order — which put it over a sticky heading at 0, showing a row's dot through the pinned bar. */
+  z-index: 1;
+}
+
+
+/* The indent says a row is IN the group; the rail draws where the group ends, so several groups
+   stay scannable. Deliberately muted, not accent — a row already uses an inset accent bar for open
+   and for active, and a third accent line here would muddy both. */
+.group-members {
+  margin-left: 3px;
+  padding-left: 14px;
+  border-left: 2px solid #9399b240;
+}
+
+/* Per-project kebab on a project heading (rename now, hide later). */
+
+.project h2 .project-groups:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.project h2 .project-kebab {
+  justify-content: center;
+  /* Match the session-row kebab exactly: padding-sized (no fixed box), same padding and same icon
+     size, so the dots have the same room. The split button below is grown to this height to stay
+     inline. */
+  /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
+  margin-left: -2px; /* 6px heading gap - 2 = the 4px trailing-pair gap — see .group-kebab */
+}
+
+
+/* The group's "+" and ⋮, matching the project heading's pair at the group heading's smaller scale
+   (the heading's own 6px gap does the spacing, as it does on the project heading). */
+/* COMPOSITE controls carry a resting border; single icon controls don't. Two halves that act as one
+   button have to look like one object before you touch them — outlining them only on hover made the
+   pair read as two loose icons that suddenly acquired a box. Single icons need no such help, and a
+   border on each would put two more boxes on every row and heading. The project heading's split
+   button has always worked this way; this is the group's catching up. Fill stays transparent (the
+   heading bar is already --surface), so the border alone does the work until hover. */
+.group h3 .group-add {
+  /* Standard control box, same as .session-kebab — see the recipe there. */
+  border: 1px solid var(--border);
+}
+
+
+/* The dropdown half of the group heading's split button. Narrower than a standard control and with a
+   9px chevron rather than a 14px icon — the same exception the project heading's caret takes, because
+   it modifies the button beside it rather than being a control in its own right. Its left border is
+   dropped so the two halves share one edge. */
+.group h3 .group-add-caret {
+  justify-content: center;
+  width: 14px;
+  height: 20px; /* match the "+" half, which is the standard 24x20 */
+  padding: 0;
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+}
+
+/* Square the +'s right corners only while the caret sits beside it, so they read as one control. */
+.group h3 .split-button:has(.group-add-caret:not([hidden])) .group-add {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.group h3 .group-kebab {
+  /* The two trailing controls sit 4px apart, here and on the session row and project heading, so the
+     second-from-right control lines up down the whole list. Each row reaches 4 from a different base
+     gap — this heading's is 6px, a session row's is 8 — so the offsets differ; the TOTAL is the rule.
+     4px rather than a roomier gap because every pixel here is width the session title loses. */
+  margin-left: -2px;
+  padding: 2px 4px; /* standard control box — see .unarchive-btn */
+}

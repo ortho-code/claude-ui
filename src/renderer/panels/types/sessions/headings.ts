@@ -9,6 +9,7 @@ import { kebabButton, newSessionSplit } from './controls';
 import { container, jumpTargets, type GroupSectionEls, type ProjectSectionEls } from './drawn';
 import { toggleFold } from './folding';
 import { revealGroup } from './reveal';
+import './headings.css';
 
 /**
  * THE SESSION LIST'S SECTIONS, each built once with its heading's controls: a project's, with its jump menu, its new-session split button and its options, and a group's, with its own split button and options over the well that holds its rows.
