@@ -8,7 +8,7 @@ import { isFiltering, projName, projectGroups } from '../../../state/views';
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
 import { currentByKey, renderedSections } from './drawn';
-import { renderSessions } from './read';
+import { fullRead } from './read';
 import { jumpToGroup } from './reveal';
 
 /**
@@ -151,7 +151,7 @@ export async function confirmAndDelete(key: string): Promise<void> {
   const title = session ? sessionLabel(session) : key.slice(0, 8);
   if (!(await confirmDelete(title))) return;
   // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta purge run in the background.
-  // It stays hidden via pendingDeletes until its files are gone from disk (see renderSessions), so a concurrent delete's re-read can't resurrect it.
+  // It stays hidden via pendingDeletes until its files are gone from disk (see fullRead), so a concurrent delete's re-read can't resurrect it.
   // Only this entity's file goes (entity key = session id); siblings are separate entities.
   store.set({ pendingDeletes: withMember(store.get().pendingDeletes, key, true) });
   try {
@@ -164,7 +164,7 @@ export async function confirmAndDelete(key: string): Promise<void> {
     showToast(`Couldn't delete "${title}". It's still here.`);
   } finally {
     // Stop hiding once this delete resolves: on success the re-read finds it gone; on failure the file is still on disk, so the row reappears.
-    await renderSessions({ showLoading: false, revealed: key });
+    await fullRead({ showLoading: false, revealed: key });
   }
 }
 

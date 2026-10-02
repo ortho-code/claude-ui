@@ -17,7 +17,7 @@ import './list.css';
 /**
  * The sidebar's session list, drawn: a section per project holding its groups and then its loose rows, each row a session's card, reconciled with what is on screen on every render and kept current by its watchers.
  * Its parts: the sections and their headings (headings.ts), the rows (rows.ts), the menus and the writes they make (actions.ts), the folds and collapse-all (folding.ts), bringing a row or a heading into view (reveal.ts), and what is on screen by key (drawn.ts).
- * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, `foldsFollow`, registered by `watchList` in the sidebar's repaints, watch.ts); what it draws is read from main in one change (`renderSessions`, read.ts).
+ * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, `foldsFollow`, registered by `watchList` in the sidebar's repaints, watch.ts); what it draws is read from main in one change (`fullRead`, read.ts).
  */
 
 function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {

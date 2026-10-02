@@ -27,7 +27,7 @@ interface FullRead {
  * Start-up's is written whole: nothing can have written those slices before the first draw but a status event from a claude a crashed launch left running, and leaving its statuses out for that one event would cost every other session's, which only this read has.
  * Any later one is written as of when it asked (`readAt`), so a status, a pin or a listing that landed while it was out is not put back to what it read.
  */
-export async function renderSessions({ showLoading = true, revealed, startUp }: FullRead = {}): Promise<void> {
+export async function fullRead({ showLoading = true, revealed, startUp }: FullRead = {}): Promise<void> {
   if (showLoading) setLoading(true);
   try {
     const readAt = store.stamp();

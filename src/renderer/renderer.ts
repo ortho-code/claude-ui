@@ -15,7 +15,7 @@ import { history, paneFollows } from './panels/types/claude/pane';
 import { restoreOpenTabs, switchWorkspaceTerminal } from './panels/types/claude/terminals';
 import { claudeWatch } from './panels/types/claude/watch';
 import { sessionsWatch } from './panels/types/sessions/watch';
-import { renderSessions } from './panels/types/sessions/read';
+import { fullRead } from './panels/types/sessions/read';
 import { container } from './panels/types/sessions/drawn';
 import { forgetDeletedGroupFolds } from './panels/types/sessions/stored-view';
 import { claudeAnswers } from './panels/types/claude/asks';
@@ -113,7 +113,7 @@ void (async () => {
   // Before the rows and the tabs too: placing the layout moves the sidebar and the terminal area into it, and a move is cheapest, and invisible, while they are still empty.
   await loadLayout();
   // With the project you were in and the view you left, which scope and filter the first draw.
-  await renderSessions({ startUp: view });
+  await fullRead({ startUp: view });
   forgetDeletedGroupFolds(store.get());
   startSavingUi();
   // The list follows the tabs as they come (`listFollowsTabs`): drawn again for a restored "open" or "live" filter, which are questions about the tabs, and its rows marked open otherwise.

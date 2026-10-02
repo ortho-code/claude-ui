@@ -43,7 +43,7 @@ export function persistUi(): void {
 }
 
 /**
- * Put the sidebar back the way it was left, and hand back what the start-up read sets in the store with the listing (`renderSessions`), and the scroll offset to apply once there is a list to scroll.
+ * Put the sidebar back the way it was left, and hand back what the start-up read sets in the store with the listing (`fullRead`), and the scroll offset to apply once there is a list to scroll.
  *
  * Runs before the first render on purpose, and the view goes into the store in the same change as the listing: restoring filters afterwards would draw the full list and then visibly cut it down.
  * What is drawn straight from what was stored — the search box, the calendar, the chosen preset, the panel — is put back by the sidebar (`restoreSidebar`), before the layout places it; the tree puts back its own part.
