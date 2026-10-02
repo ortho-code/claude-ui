@@ -2,7 +2,6 @@
 import './base.css';
 // The services the sidebar's list draws with are imported here for their stylesheets' place in that order, ahead of every panel.
 import './menu';
-import './unavailable';
 import { hideToast, showToast } from './toast';
 import './notifications';
 import './dialogs';
