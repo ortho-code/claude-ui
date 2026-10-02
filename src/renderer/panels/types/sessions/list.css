@@ -5,19 +5,6 @@
   cursor: default;
 }
 
-#sessions {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  /* No top padding: it would sit above the sticky headings and let a row show through there.
-     The headings' own top padding provides the spacing instead. */
-  padding: 0 16px 24px;
-  /* Collapse/expand anchors the clicked heading by hand; the browser's own scroll anchoring
-     would fight that and shift the list, so turn it off here. */
-  overflow-anchor: none;
-}
-
 .project + .project {
   /* No extra inter-project margin: the heading's own 8px top padding is the whole gap above it,
      matching the 8px below its divider (the heading's margin-bottom), so a project's top and bottom

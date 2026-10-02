@@ -1,6 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup } from '../../../dom';
 import type { GroupJumpTarget } from '../../../logic';
+import './drawn.css';
 
 /**
  * THE SESSION LIST AS DRAWN: its element, which the sidebar places (index.ts), and what is on screen in it by key, which the list's parts share — the draw (list.ts) fills these, the headings, the rows, the folds and the reveals read them.
