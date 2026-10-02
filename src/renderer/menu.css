@@ -7,16 +7,13 @@
 
 /* Shape and hover come from the menu row (menu-row.css); nothing here is specific enough to need its own. */
 
-/* An action that is there but cannot be taken: dimmed, no hover, no pointer. It stays in the list so
-   the menu keeps its shape and the tooltip can say why — see MenuItem.disabled. */
+/* An action that is there but cannot be taken: no hover, no pointer, and dimmed as base.css's `.unavailable` dims every control that cannot act, muted as an icon button already is.
+   It stays in the list so the menu keeps its shape and the tooltip can say why — see MenuItem.disabled. */
 .kebab-menu button.unavailable {
   color: var(--muted);
-  /* The menu row sets the pointer, and base.css's `button:hover` the hover fill, each of which
-     `.unavailable` alone would not outrank, so both are undone here: an arrow and no fill are what say
-     "this will not do anything". */
+  /* The menu row sets the pointer, and base.css's `button:hover` the hover fill, each of which `.unavailable` alone would not outrank, so both are undone here: an arrow and no fill are what say "this will not do anything". */
   cursor: default;
   background: none;
-  opacity: 0.55;
 }
 
 /* A submenu-parent row keeps its label left and pushes the ▸ marker to the right edge. */
