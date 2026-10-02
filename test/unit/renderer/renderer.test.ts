@@ -38,6 +38,7 @@ const ORDER = [
   'node_modules/air-datepicker/air-datepicker.css',
   'src/renderer/panels/types/sessions/filter.css',
   'src/renderer/panels/types/sessions/drawn.css',
+  'src/renderer/panels/types/sessions/folding.css',
   'src/renderer/panels/types/sessions/read.css',
   'src/renderer/panels/types/sessions/attention-strip.css',
   'src/renderer/panels/types/list.css',

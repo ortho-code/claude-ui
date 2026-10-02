@@ -6,6 +6,7 @@ import { isFiltering } from '../../../state/views';
 import { strokeIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { groupSections, projectSections, renderedSections } from './drawn';
+import './folding.css';
 
 /**
  * THE SESSION LIST'S FOLDS: a heading's fold, the reveals' unfold, collapse-all, and the sections on screen folded as the folds say, for each draw and for each change of the folds (`foldsFollow`, which the list registers in `watchList`).

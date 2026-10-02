@@ -1,10 +1,3 @@
-/* Dimmed rather than hidden while filtering: filtering forces every section open, so the action has
-   nothing to do — but a control vanishing as you type reads worse than one plainly unavailable. */
-#collapse-toggle:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
 .project + .project {
   /* No extra inter-project margin: the heading's own 8px top padding is the whole gap above it,
      matching the 8px below its divider (the heading's margin-bottom), so a project's top and bottom
@@ -26,16 +19,6 @@
      The opaque background masks rows scrolling underneath. */
   top: 0;
   z-index: 2;
-  background: var(--bg);
-}
-
-/* Except where it cannot collapse (a single-project view), where a hover cue and a pointer would
-   both claim a click that does nothing. The open-menu cue stays: the kebab still works. */
-.project.no-collapse h2 {
-  cursor: default;
-}
-
-.project.no-collapse h2:not(:has(.menu-open)):hover {
   background: var(--bg);
 }
 
@@ -109,11 +92,6 @@
   border-bottom-right-radius: 0;
 }
 
-.project.collapsed .session,
-.project.collapsed .group {
-  display: none;
-}
-
 /* The space above a group, which used to sit on the heading's own margin-top — see the note on the bar in card.css about why a sticky element cannot carry one. */
 .group {
   margin-top: 14px;
@@ -140,10 +118,6 @@
   margin-left: 3px;
   padding-left: 14px;
   border-left: 2px solid #9399b240;
-}
-
-.group.collapsed .group-members {
-  display: none;
 }
 
 /* Break between a project's last group and its ungrouped rows; without it the first loose row reads
