@@ -79,8 +79,6 @@
 
 /* A submenu-parent row keeps its label left and pushes the ▸ marker to the right edge. */
 .kebab-menu button.has-submenu {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
@@ -91,14 +89,6 @@
   color: var(--muted);
 }
 
-/* A pick-one row (e.g. which group a session is in): the tick keeps its own column so the labels of
-   checked and unchecked items still line up. */
-.kebab-menu button.has-tick {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .menu-tick {
   flex: 0 0 12px;
   /* Centred in its reserved column so the tick doesn't sit hard against the label; the column keeps
@@ -107,15 +97,6 @@
   align-items: center;
   justify-content: center;
   color: var(--accent);
-}
-
-/* A menu row led by a status dot: a session's own, or a countable thing's roll-up with its count after
-   the label. The dot keeps a fixed column so the labels line up whether or not a group has a live
-   nudge, and the count is pushed right. */
-.kebab-menu button.has-dot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .menu-item-label {

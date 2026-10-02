@@ -86,7 +86,6 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     }
     // A row led by a status dot: a session's own, or the roll-up of something countable (a group, say), whose count then sits in its own column at the right; the label takes the room it needs and ellipsizes.
     if (item.count !== undefined || item.session) {
-      button.classList.add('has-dot');
       const label = document.createElement('span');
       label.className = 'menu-item-label';
       label.textContent = item.label;
@@ -107,7 +106,6 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       const tick = document.createElement('span');
       tick.className = 'menu-tick';
       tick.innerHTML = item.checked ? tickIcon(11) : '';
-      button.classList.add('has-tick');
       button.prepend(tick);
     }
     if (item.submenu) {
