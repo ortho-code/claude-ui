@@ -863,9 +863,7 @@ Sizes come from a small set of decisions, not per-component choices. Reach for t
 **Icons** are inline SVG on a 16-unit viewBox, never font glyphs — a glyph resolves through system font fallback, which is how `⑂` once rendered from a monospace face beside its neighbours.
 Ink is centred on (8,8) so flex centring needs no nudge, and stroke width is expressed as the *rendered* px weight (1.3px everywhere) converted to viewBox units per size, so a 9px mark and a 15px one look equally heavy.
 
-**Clickable icons** are 14px, in one of three boxes: **standard** 24×20 (`padding: 2px 4px`) for
-sidebar, row and toast controls; **compact** 22×16 (`0 3px`) where density matters, i.e. the tab bar and a panel's header, whose height is fixed at 28px so a panel with a button and one without sit on the same bar;
-**large** 32×26 (`5px 8px`) for the header actions.
+**Clickable icons** are 14px, in one of three boxes: **standard** 24×20 (`padding: 2px 4px`) for sidebar, row and toast controls; **compact** 22×16 (`0 3px`) where density matters, i.e. the tab bar and a panel's header, whose height is fixed at 28px so a panel with a button and one without sit on the same bar; **large** 32×26 (`5px 8px`) for the header actions.
 Each carries a 1px transparent border so the hover/active outline can't resize the box.
 Documented exceptions: the note mark (inline inside a 12px text line) and the 9px nudge.
 
