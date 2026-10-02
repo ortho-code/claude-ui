@@ -873,7 +873,7 @@ A single icon needs no such help, and bordering each would put two more boxes on
 
 **Trailing controls sit 4px apart** on every row that has them — the session row's pin and kebab (its unarchive and delete in the archived view), the group heading's `+` and kebab, the project heading's split button and kebab — so the second-from-right control lines up down the list, not just the last one.
 Tight rather than roomy because every pixel there is width the session title loses; the controls' own padding keeps their ink well clear.
-Each row reaches 4 from a different base gap (a session row's is 8, a heading's is 6), so the offsets on the kebabs differ — check the total, don't copy the value.
+Each row reaches 4 from a different base gap (a session row's is 8, a heading's is 6), so the one rule, `.pair-end` in `card.css`, works the offset out from the row's own `--row-gap`.
 
 **Hover** is identical for every icon control — `--active` fill, accent border, `--text` glyph — from one shared rule.
 It uses `--active` rather than `--surface-hover` because a hovered session row is already `--surface-hover`, so a button filling to the same colour inside it would show no change.

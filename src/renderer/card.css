@@ -8,7 +8,8 @@
 .section-heading {
   display: flex;
   align-items: center;
-  gap: 6px;
+  --row-gap: 6px;
+  gap: var(--row-gap);
   color: var(--text);
   cursor: pointer;
   user-select: none;
@@ -98,7 +99,8 @@
 .card {
   display: flex;
   align-items: center;
-  gap: 8px;
+  --row-gap: 8px;
+  gap: var(--row-gap);
   background: var(--surface);
   border-radius: var(--radius-surface);
   padding: 7px 14px;
@@ -118,6 +120,12 @@
 .card:where(:not(.still)):hover,
 .card:where(:not(.still)):has(.menu-open) {
   background: var(--surface-hover);
+}
+
+/* The last of a row's two trailing controls — a kebab on a card or a heading, or delete in the archived view — sits 4px after the one before it, whatever the row's own gap (--row-gap, set on the card and the heading above), so the second-from-right control lines up down the whole list.
+   4px rather than a roomier gap because every pixel here is width the session title loses. */
+.pair-end {
+  margin-left: calc(4px - var(--row-gap));
 }
 
 .card-content {

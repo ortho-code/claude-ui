@@ -58,7 +58,7 @@ export function createProjectSection(name: string): ProjectSectionEls {
   });
   heading.append(split);
   // Project options (rename now, hide later).
-  const kebab = kebabButton('project-kebab', 'Project options', () =>
+  const kebab = kebabButton('project-kebab pair-end', 'Project options', () =>
     withMoves(projectMoveItems(name), [
       { label: 'Rename…', onSelect: () => void renameProject(name) },
       { label: 'Copy path', onSelect: () => void copyText(name, 'Path copied.') },
@@ -99,7 +99,7 @@ export function createGroupSection(id: string): GroupSectionEls {
     },
   });
   // Group options.
-  const kebab = kebabButton('group-kebab', 'Group options', () =>
+  const kebab = kebabButton('group-kebab pair-end', 'Group options', () =>
     withMoves(groupMoveItems(id), [
       { label: 'Rename…', onSelect: () => void renameGroupById(id) },
       { label: 'Delete group', onSelect: () => void deleteGroupById(id) },

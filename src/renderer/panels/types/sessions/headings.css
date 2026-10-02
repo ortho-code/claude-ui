@@ -94,11 +94,6 @@
   border-left: 2px solid #9399b240;
 }
 
-/* Per-project kebab on a project heading (rename now, hide later). */
-.project h2 .project-kebab {
-  margin-left: -2px; /* 6px heading gap - 2 = the 4px trailing-pair gap — see .group-kebab */
-}
-
 /* The dropdown half of the group heading's split button. Narrower than a standard control and with a
    9px chevron rather than a 14px icon — the same exception the project heading's caret takes, because
    it modifies the button beside it rather than being a control in its own right. Its left border is
@@ -115,12 +110,4 @@
 .group h3 .split-button:has(.group-add-caret:not([hidden])) .group-add {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
-}
-
-.group h3 .group-kebab {
-  /* The two trailing controls sit 4px apart, here and on the session row and project heading, so the
-     second-from-right control lines up down the whole list. Each row reaches 4 from a different base
-     gap — this heading's is 6px, a session row's is 8 — so the offsets differ; the TOTAL is the rule.
-     4px rather than a roomier gap because every pixel here is width the session title loses. */
-  margin-left: -2px;
 }

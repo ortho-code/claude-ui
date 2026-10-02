@@ -127,7 +127,7 @@ function createSessionRow(key: string): HTMLElement {
 
   // Delete lives only in the archived view (shown/hidden in updateRow); trash-based + confirmed.
   const deleteBtn = document.createElement('button');
-  deleteBtn.className = 'icon-btn delete-btn';
+  deleteBtn.className = 'icon-btn delete-btn pair-end';
   setTooltip(deleteBtn, 'Delete session');
   deleteBtn.hidden = true;
   deleteBtn.innerHTML = strokeIcon(14, '<path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" />');
@@ -137,7 +137,7 @@ function createSessionRow(key: string): HTMLElement {
   });
 
   // Per-session actions menu: fork this session, and (for a family member) list its siblings.
-  const kebab = kebabButton('session-kebab', 'Session options', () => {
+  const kebab = kebabButton('session-kebab pair-end', 'Session options', () => {
     const session = currentByKey.get(key);
     return session ? sessionMenuItems(session) : null;
   });
