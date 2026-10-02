@@ -81,21 +81,11 @@ const appTitle = `Claude UI ${app.getVersion()}${app.isPackaged ? '' : ' — dev
 /**
  * Whether the app draws its own window chrome instead of letting the OS do it.
  *
- * CURRENTLY OFF, on the window it was built for. It works — a title bar of our own, our own maximize,
- * a handle on every edge — but dragging the window is visibly steppy and cannot be made smooth: the
- * gesture is ours, every move is a round trip to the compositor, and handing the drag back to the
- * compositor brings a double-click-to-maximize that misdraws and cannot be suppressed. That trade was
- * not worth it in daily use. The whole investigation, including four failed ways round it, is in
- * `.plan/plan_window-chrome.md`, and the environment findings are in the `wsl` skill.
+ * CURRENTLY OFF, on the window it was built for. It works — a title bar of our own, our own maximize, a handle on every edge — but dragging the window is visibly steppy and cannot be made smooth: the gesture is ours, every move is a round trip to the compositor, and handing the drag back to the compositor brings a double-click-to-maximize that misdraws and cannot be suppressed. That trade was not worth it in daily use. The whole investigation, including four failed ways round it, is in `.plan/plan_window-chrome.md`, and the environment findings are in the `wsl` skill.
  *
- * TO TURN IT BACK ON: `process.platform !== 'darwin'`. Everything hangs off this one flag — the frame,
- * the shadow, whether the native maximize is allowed, our maximize, the title bar the renderer draws,
- * the resize handles, and the frame-offset correction that only a DECORATED window needs.
- * Both paths are live: macOS has always run the OS-chrome side of every one of those branches.
+ * TO TURN IT BACK ON: `process.platform !== 'darwin'`. Everything hangs off this one flag — the frame, the shadow, whether the native maximize is allowed, our maximize, the title bar the renderer draws, the resize handles, and the frame-offset correction that only a DECORATED window needs. Both paths are live: macOS has always run the OS-chrome side of every one of those branches.
  *
- * macOS could never have the frameless side as it stands: `frame: false` there removes the traffic
- * lights and puts nothing in their place, and the mac build is real, published on every version tag.
- * Its variant is `titleBarStyle: 'hiddenInset'`, unbuilt while nobody here can look at a Mac.
+ * macOS could never have the frameless side as it stands: `frame: false` there removes the traffic lights and puts nothing in their place, and the mac build is real, published on every version tag. Its variant is `titleBarStyle: 'hiddenInset'`, unbuilt while nobody here can look at a Mac.
  */
 const OWN_CHROME = false as boolean;
 
@@ -296,15 +286,7 @@ function learnMaximizeInset(): void {
       width: 400,
       height: 300,
       skipTaskbar: true,
-      // A PLAIN window, deliberately, and this is the trap: `show: false` does not stop a maximized
-      // window being mapped, so it paints — but every way of making it not paint also stops it
-      // maximizing, which is the one thing it exists to do.
-      // Measured, each in its own process: plain maximizes; `opacity: 0`, `transparent: true`,
-      // `backgroundColor: '#00000000'` and `focusable: false` each leave it at its original size.
-      // An earlier version set opacity and transparency to kill the white flash and thereby stopped
-      // learning the inset at all, which put maximized windows back over the taskbar — with no error,
-      // because the nonsense measurement was correctly rejected.
-      // So the flash stays, in the app's own colour rather than white.
+      // A PLAIN window, deliberately, and this is the trap: `show: false` does not stop a maximized window being mapped, so it paints — but every way of making it not paint also stops it maximizing, which is the one thing it exists to do. Measured, each in its own process: plain maximizes; `opacity: 0`, `transparent: true`, `backgroundColor: '#00000000'` and `focusable: false` each leave it at its original size. An earlier version set opacity and transparency to kill the white flash and thereby stopped learning the inset at all, which put maximized windows back over the taskbar — with no error, because the nonsense measurement was correctly rejected. So the flash stays, in the app's own colour rather than white.
       backgroundColor: '#1e1e2e',
     });
     probe.maximize();
@@ -322,8 +304,7 @@ function learnMaximizeInset(): void {
       const inset = insetFromProbe(got, display.workArea);
       if (inset) {
         maximizeInsets.set(display.id, inset);
-        // A window maximized before this answer existed is sitting over whatever the inset avoids —
-        // the launch path restores a maximized window well before the probe replies. Re-apply now.
+        // A window maximized before this answer existed is sitting over whatever the inset avoids — the launch path restores a maximized window well before the probe replies. Re-apply now.
         if (mainWindow && !mainWindow.isDestroyed() && maximized) mainWindow.setBounds(maximizedTarget(mainWindow));
       }
     } catch (error) {
@@ -343,8 +324,7 @@ let normalBounds: Electron.Rectangle | null = null;
 /** The rectangle a maximized window should fill on whichever display it is on. */
 function maximizedTarget(win: BrowserWindow): Electron.Rectangle {
   const display = screen.getDisplayMatching(win.getBounds());
-  // An inset measured on one display means nothing on another, so an unknown display gets none —
-  // and asks for one, which corrects this window a moment later if it turns out to need it.
+  // An inset measured on one display means nothing on another, so an unknown display gets none — and asks for one, which corrects this window a moment later if it turns out to need it.
   const known = maximizeInsets.get(display.id);
   if (!known) learnMaximizeInset();
   return maximizedRect(display.workArea, known ?? NO_INSET);
@@ -378,28 +358,16 @@ async function createWindow(): Promise<void> {
     // Undefined leaves placement to the platform, which is what we want both on a first run and when the stored position is no longer on any screen.
     x: placement?.x,
     y: placement?.y,
-    // The floor the resize handles clamp against, via getMinimumSize. Without it that clamp reads
-    // [0, 0] and does nothing: dragging an edge past its opposite collapsed the window to nothing
-    // and left it in the screen corner, recoverable only because placeWindow repairs the stored size
-    // on the next launch.
+    // The floor the resize handles clamp against, via getMinimumSize. Without it that clamp reads [0, 0] and does nothing: dragging an edge past its opposite collapsed the window to nothing and left it in the screen corner, recoverable only because placeWindow repairs the stored size on the next launch.
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
     title: appTitle,
     icon: windowIcon(),
     // The renderer draws the title bar wherever this is frameless. macOS keeps its own — see OWN_CHROME.
     frame: !OWN_CHROME,
-    // NOT cosmetic, and not about the border down the side of the window — that one is weston's 32px
-    // frame and nothing here touches it. Chromium's shadow is what reserves the small margin that
-    // shows up as `getBounds` disagreeing with `getContentBounds`, and with the window sized to fill
-    // the screen that margin insets the PAINT while the input region keeps the full rectangle: the
-    // controls are then drawn in one place and clickable in another.
-    // Removed once on the mistaken grounds that it "did nothing", which was judged against the border
-    // it was never fixing; the mismatch came straight back. Leave it off.
+    // NOT cosmetic, and not about the border down the side of the window — that one is weston's 32px frame and nothing here touches it. Chromium's shadow is what reserves the small margin that shows up as `getBounds` disagreeing with `getContentBounds`, and with the window sized to fill the screen that margin insets the PAINT while the input region keeps the full rectangle: the controls are then drawn in one place and clickable in another. Removed once on the mistaken grounds that it "did nothing", which was judged against the border it was never fixing; the mismatch came straight back. Leave it off.
     hasShadow: !OWN_CHROME,
-    // Refuse the NATIVE maximize outright rather than undoing it after the fact.
-    // Intercepting it — unmaximize, then apply ours — deadlocked the window on a double-click: the
-    // window manager and the app each kept answering the other, and it came back only after some seconds.
-    // With this the double-click has no native meaning, and the renderer's own handler is the only path.
+    // Refuse the NATIVE maximize outright rather than undoing it after the fact. Intercepting it — unmaximize, then apply ours — deadlocked the window on a double-click: the window manager and the app each kept answering the other, and it came back only after some seconds. With this the double-click has no native meaning, and the renderer's own handler is the only path.
     maximizable: !OWN_CHROME,
     backgroundColor: '#1e1e2e',
     webPreferences: {
@@ -538,10 +506,7 @@ ipcMain.on('window:resizeStart', (_event, edge: Edge, pointer?: { x: number; y: 
     const target = unmaximizeUnderPointer(from, restored, pointer);
     mainWindow.setBounds(target);
     mainWindow.webContents.send('window:maximized', false);
-    // The rectangle we ASKED for, not one read back: `getBounds` right after `setBounds` still
-    // reports the old geometry here (the same lag the startup placement had to poll around), so
-    // reading it would base the whole drag on the MAXIMIZED rectangle and throw the window across
-    // the screen until a later frame corrected it. That is the stutter, at its worst.
+    // The rectangle we ASKED for, not one read back: `getBounds` right after `setBounds` still reports the old geometry here (the same lag the startup placement had to poll around), so reading it would base the whole drag on the MAXIMIZED rectangle and throw the window across the screen until a later frame corrected it. That is the stutter, at its worst.
     resizeFrom = { edge, bounds: target };
     return;
   }
@@ -557,8 +522,7 @@ ipcMain.on('window:resizeBy', (_event, dx: number, dy: number) => {
   if (edge === 'move') {
     const at = mainWindow.getPosition();
     if (at[0] === next.x && at[1] === next.y) return; // nothing to ask for; every call is a round trip to the compositor
-    // setPosition rather than setBounds: a move that also states a size makes the window manager
-    // renegotiate the size on every frame of a drag, and it is the size negotiation that lags.
+    // setPosition rather than setBounds: a move that also states a size makes the window manager renegotiate the size on every frame of a drag, and it is the size negotiation that lags.
     mainWindow.setPosition(next.x, next.y);
     return;
   }

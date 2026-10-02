@@ -17,17 +17,14 @@ export interface SessionSummary {
   firstMessage: string;
   /** Latest model id an assistant message reported (e.g. claude-opus-4-…); empty when unknown. */
   model: string;
-  /** Last activity: the timestamp of the last user/assistant message (falls back to file mtime only
-   *  when the transcript has no message timestamp). Ignores background/system appends. */
+  /** Last activity: the timestamp of the last user/assistant message (falls back to file mtime only when the transcript has no message timestamp). Ignores background/system appends. */
   lastActivity: string;
   /** Number of transcript lines (events) in the session. */
-  /** This session belongs to a multi-file family (sessions sharing a conversation, e.g. via
-   *  --fork-session). Members are SIBLINGS — no parent/child direction is derived, because fork direction is not reliably recoverable from transcript data. Each sibling renders as its own row. */
+  /** This session belongs to a multi-file family (sessions sharing a conversation, e.g. via --fork-session). Members are SIBLINGS — no parent/child direction is derived, because fork direction is not reliably recoverable from transcript data. Each sibling renders as its own row. */
   isSibling: boolean;
   /** The other members of this session's family (empty when not a sibling). */
   siblingIds: string[];
-  /** First user/assistant uuid after each compaction boundary. A fork of a compacted session adopts
-   *  one of these as its own conversationId, which is how such a fork is linked into the family. Main-process bookkeeping; the renderer doesn't use it. */
+  /** First user/assistant uuid after each compaction boundary. A fork of a compacted session adopts one of these as its own conversationId, which is how such a fork is linked into the family. Main-process bookkeeping; the renderer doesn't use it. */
   postCompactHeads: string[];
   /** Whether `cwd` is still a directory. A session cannot run anywhere else, so false refuses everything that would start one. */
   cwdExists: boolean;
@@ -291,9 +288,7 @@ export interface ClaudeUiApi {
   toggleMaximizeWindow(): void;
   closeWindow(): void;
   /**
-   * Begin a window gesture: an edge or corner ('n', 'se', …) to resize, or 'move' to drag the window.
-   * Moving is ours rather than a drag region because a drag region brings Chromium's own
-   * double-click-to-maximize, which cannot be suppressed. See `.plan/plan_window-chrome.md`.
+   * Begin a window gesture: an edge or corner ('n', 'se', …) to resize, or 'move' to drag the window. Moving is ours rather than a drag region because a drag region brings Chromium's own double-click-to-maximize, which cannot be suppressed. See `.plan/plan_window-chrome.md`.
    */
   startWindowResize(edge: string, pointer?: { x: number; y: number }): void;
   /** Offset of the gesture from where it started — total, not incremental. */
