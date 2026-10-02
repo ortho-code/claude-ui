@@ -15,7 +15,7 @@ import { history, paneFollows } from './panels/types/claude/pane';
 import { restoreOpenTabs, switchWorkspaceTerminal } from './panels/types/claude/terminals';
 import { claudeWatch } from './panels/types/claude/watch';
 import { sessionsWatch } from './panels/types/sessions/watch';
-import { renderSessions } from './panels/types/sessions/list';
+import { renderSessions } from './panels/types/sessions/read';
 import { container } from './panels/types/sessions/drawn';
 import { forgetDeletedGroupFolds } from './panels/types/sessions/stored-view';
 import { claudeAnswers } from './panels/types/claude/asks';
