@@ -159,8 +159,8 @@
   --adp-cell-background-color-hover: var(--surface-hover);
   --adp-cell-background-color-selected: var(--accent);
   --adp-cell-background-color-selected-hover: var(--accent);
-  --adp-cell-background-color-in-range: rgba(137, 180, 250, 0.22); /* var(--accent) at low alpha */
-  --adp-cell-background-color-in-range-hover: rgba(137, 180, 250, 0.32);
+  --adp-cell-background-color-in-range: color-mix(in srgb, var(--accent) 22%, transparent);
+  --adp-cell-background-color-in-range-hover: color-mix(in srgb, var(--accent) 32%, transparent);
   --adp-cell-border-color-in-range: transparent;
   --adp-font-size: var(--text-meta);
 }

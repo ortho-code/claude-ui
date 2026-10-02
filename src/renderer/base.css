@@ -259,7 +259,7 @@ button:hover {
    unmistakable next to the waiting pulse. 2px on the inherited 9px footprint, so nothing jumps. */
 .nudge.busy {
   border-width: 2px;
-  border-color: #89b4fa40;
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
   border-top-color: var(--accent);
   border-right-color: var(--accent);
   animation: spin 1.5s linear infinite;
