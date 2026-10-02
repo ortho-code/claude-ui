@@ -11,7 +11,7 @@ import { unfold } from './folding';
  */
 
 // Reveal a session's row in the sidebar (expanding its project if collapsed), so clicking a tab scrolls to where it lives and shows which project it belongs to.
-export function revealSessionInSidebar(session: SessionSummary): void {
+export function revealSession(session: SessionSummary): void {
   // Its group can be collapsed too, and then the row is hidden even with the project open.
   const groupId = store.get().groupState.groupOf[entityKey(session)];
   if (groupId) unfold('groups', groupId);
@@ -30,7 +30,7 @@ export function revealSessionInSidebar(session: SessionSummary): void {
 const REVEAL_GAP = 6;
 
 // Scroll the (All-view) session list to a project's heading — used by the project name in the tab bar, so it links to where that project's sessions live.
-export function revealProjectInSidebar(repoRoot: string): void {
+export function revealProject(repoRoot: string): void {
   unfold('projects', repoRoot);
   const els = projectSections.get(repoRoot);
   if (!els) return;
@@ -54,7 +54,7 @@ export function syncStickyOffset(): void {
 
 // Jump to one of a project's groups (or to where its ungrouped sessions start).
 // Expands the target if it is folded — otherwise the jump lands on a heading with nothing under it — and lands it just below the project heading, whose height is MEASURED rather than assumed: it changes with the type scale, and a stale constant would tuck the target under the sticky heading.
-export function jumpToGroup(repoRoot: string, groupId: string | null): void {
+export function revealGroup(repoRoot: string, groupId: string | null): void {
   const els = projectSections.get(repoRoot);
   if (!els) return;
   unfold('projects', repoRoot);

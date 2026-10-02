@@ -1,6 +1,6 @@
 import { sessionById } from '../../../state/views';
 import type { Asks } from '../../contract';
-import { jumpToGroup, revealProjectInSidebar, revealSessionInSidebar } from './reveal';
+import { revealGroup, revealProject, revealSession } from './reveal';
 import { selectProject } from './switcher';
 
 /**
@@ -11,8 +11,8 @@ export const sessionsAnswers: Pick<Asks, 'selectProject' | 'revealSession' | 're
   selectProject: (repoRoot) => selectProject(repoRoot),
   revealSession: (id) => {
     const session = sessionById(id);
-    if (session) revealSessionInSidebar(session);
+    if (session) revealSession(session);
   },
-  revealProject: (repoRoot) => revealProjectInSidebar(repoRoot),
-  revealGroup: (repoRoot, groupId) => jumpToGroup(repoRoot, groupId),
+  revealProject: (repoRoot) => revealProject(repoRoot),
+  revealGroup: (repoRoot, groupId) => revealGroup(repoRoot, groupId),
 };

@@ -9,7 +9,7 @@ import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
 import { currentByKey, renderedSections } from './drawn';
 import { fullRead } from './read';
-import { jumpToGroup } from './reveal';
+import { revealGroup } from './reveal';
 
 /**
  * THE SESSION LIST'S MENUS AND THE WRITES THEY MAKE: a session's options and its pin, archive and delete; a group's and a project's options, their moves and renames, and a new group.
@@ -63,7 +63,7 @@ export async function promptNewGroup(repoRoot: string, sessionId?: string): Prom
   // The list has drawn the answer by now: the store tells as it is set.
   const group = store.get().groupState.groups.find((g) => !known.has(g.id));
   if (!group) return;
-  if (renderedSections.groups.includes(group.id)) jumpToGroup(repoRoot, group.id);
+  if (renderedSections.groups.includes(group.id)) revealGroup(repoRoot, group.id);
   else if (isFiltering(store.get())) showToast(`Group "${group.name}" created. Empty groups are hidden while a filter is on, so it shows once you clear it.`);
 }
 
