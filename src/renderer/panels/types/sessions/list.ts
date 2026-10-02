@@ -83,10 +83,10 @@ interface ProjectSectionEls {
   label: HTMLElement;
   /** Opens the jump-to-a-group menu; hidden below 2 targets, disabled while filtering. */
   groupsBtn: HTMLButtonElement;
-  /** The new-session split-button's dropdown caret (present only for a project with a folder). */
-  addCaret?: HTMLElement;
+  /** The new-session split-button's dropdown caret; hidden unless the project is a git repo. */
+  addCaret: HTMLElement;
   /** The new-session "+" itself, disabled when the project's folder is gone. */
-  addBtn?: HTMLButtonElement;
+  addBtn: HTMLButtonElement;
 }
 // What each project's group menu offers, refreshed on every render so the menu can't name a group that has since been deleted or renamed.
 const jumpTargets = new Map<string, GroupJumpTarget[]>();
@@ -535,7 +535,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
   for (const project of desired) {
     let els = projectSections.get(project.repoRoot);
     if (!els) {
-      els = createProjectSection(project.repoRoot, project.repoRoot);
+      els = createProjectSection(project.repoRoot);
       projectSections.set(project.repoRoot, els);
     }
     // While filtering, force projects open so matches inside a collapsed one are visible; the stored collapse state is left untouched, so it returns when the filter clears.
@@ -553,12 +553,12 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     jumpTargets.set(project.repoRoot, targets);
     els.groupsBtn.hidden = targets.length < 2;
     els.groupsBtn.disabled = isFiltering(view);
-    if (els.addCaret) els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
+    els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
     // Nothing can be started in a folder that is not there. Disabled rather than hidden: the project still has sessions to read, and a control that vanishes explains nothing — the tooltip does.
     const rootGone = !project.rootExists;
     const goneReason = rootGone ? projectGoneReason(project.repoRoot) : null;
-    if (els.addBtn) setUnavailable(els.addBtn, goneReason, 'New session in this project');
-    if (els.addCaret) setUnavailable(els.addCaret, goneReason, 'New session options');
+    setUnavailable(els.addBtn, goneReason, 'New session in this project');
+    setUnavailable(els.addCaret, goneReason, 'New session options');
     markProjectGone(project.repoRoot, rootGone, els.label, els.icon, 14, els.label, folderIcon(14));
     for (const { group, sessions } of project.groups) {
       const groupEls = groupSections.get(group.id) ?? createGroupSection(group.id);
@@ -722,7 +722,7 @@ function toggleFold(section: HTMLElement, caret: HTMLElement, kind: 'projects' |
 }
 
 // Build a project section once; its contents (name, count, caret, rows) are drawn by reconcileProjectSections, on this render and every later one.
-function createProjectSection(name: string, folderCwd?: string): ProjectSectionEls {
+function createProjectSection(name: string): ProjectSectionEls {
   const section = document.createElement('section');
   section.className = 'project';
 
@@ -754,39 +754,33 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
     openMenu(groupsBtn, items);
   });
   heading.append(groupsBtn);
-  let addCaret: HTMLElement | undefined;
-  let addBtn: HTMLButtonElement | undefined;
-  if (folderCwd) {
-    // Split button: the "+" is one-click "New session"; the caret opens a dropdown with worktree options. reconcileProjectSections shows the caret only for git repos.
-    const split = document.createElement('div');
-    split.className = 'split-button';
-    const add = document.createElement('button');
-    add.className = 'icon-btn composite project-add';
-    add.innerHTML = plusIcon(12);
-    setTooltip(add, 'New session in this project');
-    add.addEventListener('click', (event) => {
-      event.stopPropagation();
-      if (unavailable(add)) return; // aria-disabled still delivers the click, which is the trade for a tooltip that works
-      void hostOf('sessions').openNewSession(folderCwd);
-    });
-    const caret = document.createElement('button');
-    caret.className = 'icon-btn composite project-add-caret';
-    caret.innerHTML = chevronDown(9);
-    caret.hidden = true;
-    setTooltip(caret, 'New session options');
-    caret.addEventListener('click', (event) => {
-      event.stopPropagation();
-      if (unavailable(caret)) return;
-      openMenu(caret, [
-        { label: 'New session', onSelect: () => void hostOf('sessions').openNewSession(folderCwd) },
-        { label: 'New worktree session…', onSelect: () => void hostOf('sessions').openWorktreeSession(folderCwd) },
-      ]);
-    });
-    split.append(add, caret);
-    heading.append(split);
-    addCaret = caret;
-    addBtn = add;
-  }
+  // Split button: the "+" is one-click "New session"; the caret opens a dropdown with worktree options. reconcileProjectSections shows the caret only for git repos.
+  const split = document.createElement('div');
+  split.className = 'split-button';
+  const add = document.createElement('button');
+  add.className = 'icon-btn composite project-add';
+  add.innerHTML = plusIcon(12);
+  setTooltip(add, 'New session in this project');
+  add.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (unavailable(add)) return; // aria-disabled still delivers the click, which is the trade for a tooltip that works
+    void hostOf('sessions').openNewSession(name);
+  });
+  const addCaret = document.createElement('button');
+  addCaret.className = 'icon-btn composite project-add-caret';
+  addCaret.innerHTML = chevronDown(9);
+  addCaret.hidden = true;
+  setTooltip(addCaret, 'New session options');
+  addCaret.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (unavailable(addCaret)) return;
+    openMenu(addCaret, [
+      { label: 'New session', onSelect: () => void hostOf('sessions').openNewSession(name) },
+      { label: 'New worktree session…', onSelect: () => void hostOf('sessions').openWorktreeSession(name) },
+    ]);
+  });
+  split.append(add, addCaret);
+  heading.append(split);
   // Project options (rename now, hide later); stopPropagation so it doesn't toggle collapse.
   const kebab = document.createElement('button');
   kebab.className = 'icon-btn project-kebab';
@@ -819,7 +813,7 @@ function createProjectSection(name: string, folderCwd?: string): ProjectSectionE
   });
   section.appendChild(heading);
 
-  return { section, heading, caret, count, icon, label, groupsBtn, addCaret, addBtn };
+  return { section, heading, caret, count, icon, label, groupsBtn, addCaret, addBtn: add };
 }
 
 // Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky) over an indented well that holds its rows. Contents are updated on later renders.
