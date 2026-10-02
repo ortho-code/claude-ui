@@ -8,25 +8,8 @@
   cursor: pointer;
 }
 
-/* The standard icon-control box: a 14px icon, 2px 4px padding and a transparent 1px border, giving
-   24x20. Every clickable icon in the app is built from this one recipe — only the padding changes
-   for the compact (tab bar) and large (header) tiers, so a control's size is never a per-control
-   decision. The border is transparent rather than absent so a hover/active border can't resize the
-   box. Documented exceptions: the split button's halves (a bordered composite), the note mark (a
-   13px mark inline in a 12px meta line), the 9px status dot, and the decorative chevrons/tick. */
 .unarchive-btn,
 .delete-btn,
-
-/* Every icon control hovers identically: --active fill, accent outline, brighter glyph. One rule
-   rather than per-control ones, because the old behaviour was an accident of SPECIFICITY, not a
-   decision — `button:hover` (0,1,1) sets the accent border app-wide, so controls whose resting rule
-   was more specific (.project h2 .project-kebab at 0,2,2, #toast-close at 1,0,0) silently never got
-   it while .session-kebab (0,1,0) did. Listing them together, each with :hover, beats each one's own
-   resting rule, so the treatment is uniform by construction.
-   --active, not --surface-hover: a hovered session ROW is already --surface-hover, so a button
-   filling to the same colour inside it shows no change at all. --active reads on bg, surface and
-   surface-hover alike. It matches .menu-open, which is fine — an open menu is visible below it. */
-
 .session-kebab {
   margin-left: -4px; /* row gap 8 - 4 = the 4px trailing-pair gap — see .group-kebab */
 }

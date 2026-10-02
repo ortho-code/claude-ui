@@ -101,28 +101,8 @@
 
 /* Per-project kebab on a project heading (rename now, hide later). */
 .project h2 .project-kebab {
-  justify-content: center;
-  /* Match the session-row kebab exactly: padding-sized (no fixed box), same padding and same icon
-     size, so the dots have the same room. The split button below is grown to this height to stay
-     inline. */
-  /* Transparent by default so the hover/active accent border doesn't resize the box (no jump). */
   margin-left: -2px; /* 6px heading gap - 2 = the 4px trailing-pair gap — see .group-kebab */
 }
-
-
-/* The group's "+" and ⋮, matching the project heading's pair at the group heading's smaller scale
-   (the heading's own 6px gap does the spacing, as it does on the project heading). */
-/* COMPOSITE controls carry a resting border; single icon controls don't. Two halves that act as one
-   button have to look like one object before you touch them — outlining them only on hover made the
-   pair read as two loose icons that suddenly acquired a box. Single icons need no such help, and a
-   border on each would put two more boxes on every row and heading. The project heading's split
-   button has always worked this way; this is the group's catching up. Fill stays transparent (the
-   heading bar is already --surface), so the border alone does the work until hover. */
-.group h3 .group-add {
-  /* Standard control box, same as .session-kebab — see the recipe there. */
-  border: 1px solid var(--border);
-}
-
 
 /* The dropdown half of the group heading's split button. Narrower than a standard control and with a
    9px chevron rather than a 14px icon — the same exception the project heading's caret takes, because
@@ -150,5 +130,4 @@
      gap — this heading's is 6px, a session row's is 8 — so the offsets differ; the TOTAL is the rule.
      4px rather than a roomier gap because every pixel here is width the session title loses. */
   margin-left: -2px;
-  padding: 2px 4px; /* standard control box — see .unarchive-btn */
 }
