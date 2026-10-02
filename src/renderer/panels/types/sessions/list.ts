@@ -307,26 +307,30 @@ async function promptNewGroup(repoRoot: string, sessionId?: string): Promise<voi
   else if (isFiltering(store.get())) showToast(`Group "${group.name}" created. Empty groups are hidden while a filter is on, so it shows once you clear it.`);
 }
 
-// The four ordering moves for a group, minus any that would be a no-op here: the first group has no "up", the last no "down", and a lone group in a project has nowhere to go at all.
-// So the menu never offers a move that does nothing.
-function groupMoveItems(id: string): MenuItem[] {
-  // Same reason as projects: filtering drops groups whose sessions all fell out, so a neighbour can be missing from the screen and the move would appear to do nothing.
-  const state = store.get();
-  if (isFiltering(state)) return [];
-  const group = state.groupState.groups.find((g) => g.id === id);
-  if (!group?.repoRoot) return [];
-  const siblings = projectGroups(group.repoRoot, state);
-  const at = siblings.findIndex((g) => g.id === id);
-  const last = siblings.length - 1;
+// The four ordering moves for whatever sits at `at` in an order of `count`, minus any that would be a no-op: the first has no "up", the last no "down", and a lone one has nowhere to go at all.
+// So a menu never offers a move that does nothing; a group's and a project's both come from here.
+function orderMoveItems(at: number, count: number, move: (move: OrderMove) => Promise<void>): MenuItem[] {
+  const last = count - 1;
   if (at < 0 || last <= 0) return [];
-  const item = (label: string, move: OrderMove): MenuItem => ({
+  const item = (label: string, to: OrderMove): MenuItem => ({
     label,
-    onSelect: () => void moveGroupById(id, move),
+    onSelect: () => void move(to),
   });
   const items: MenuItem[] = [];
   if (at > 0) items.push(item('Move to top', 'top'), item('Move up', 'up'));
   if (at < last) items.push(item('Move down', 'down'), item('Move to bottom', 'bottom'));
   return items;
+}
+
+// A group's ordering moves, among its project's groups.
+function groupMoveItems(id: string): MenuItem[] {
+  // Not while filtering: filtering drops groups whose sessions all fell out, so a neighbour can be missing from the screen and the move would appear to do nothing.
+  const state = store.get();
+  if (isFiltering(state)) return [];
+  const group = state.groupState.groups.find((g) => g.id === id);
+  if (!group?.repoRoot) return [];
+  const siblings = projectGroups(group.repoRoot, state);
+  return orderMoveItems(siblings.findIndex((g) => g.id === id), siblings.length, (move) => moveGroupById(id, move));
 }
 
 async function moveGroupById(id: string, move: OrderMove): Promise<void> {
@@ -629,7 +633,7 @@ function pruneRows(wanted: Set<string>): void {
   }
 }
 
-// The ordering moves for a project, minus any that would do nothing — same rule as a group's.
+// A project's ordering moves.
 // The order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen (a filter or an all-archived project can hide neighbours without changing where this one sits).
 function projectMoveItems(repoRoot: string): MenuItem[] {
   const state = store.get();
@@ -638,17 +642,7 @@ function projectMoveItems(repoRoot: string): MenuItem[] {
   if (activeProject !== null) return [];
   // Not while filtering either: a hidden neighbour makes the move land where you can't see it, so "Move up" past a filtered-out project looks like a button that did nothing.
   if (isFiltering(state)) return [];
-  const at = projectOrder.indexOf(repoRoot);
-  const last = projectOrder.length - 1;
-  if (at < 0 || last <= 0) return [];
-  const item = (label: string, move: OrderMove): MenuItem => ({
-    label,
-    onSelect: () => void moveProjectBy(repoRoot, move),
-  });
-  const items: MenuItem[] = [];
-  if (at > 0) items.push(item('Move to top', 'top'), item('Move up', 'up'));
-  if (at < last) items.push(item('Move down', 'down'), item('Move to bottom', 'bottom'));
-  return items;
+  return orderMoveItems(projectOrder.indexOf(repoRoot), projectOrder.length, (move) => moveProjectBy(repoRoot, move));
 }
 
 // The list, the strip and the tab bar place projects by the order, so all three follow the store together rather than the bar at the next unrelated redraw.
