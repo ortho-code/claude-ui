@@ -177,7 +177,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-surface);
   background: var(--surface);
-  box-shadow: 0 4px 14px #00000066;
+  box-shadow: var(--shadow-raised);
   font-size: var(--text-meta);
 }
 
