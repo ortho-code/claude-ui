@@ -3,7 +3,7 @@ import { defaultUi } from '../../../../../../src/shared/defaults';
 import type { UiState } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { group, groupHeading, groupHeadings, projectHeading, row, tabBarGroupRow, tabBarGroups, tabBarProjectRow, tabLabelsIn, titlesIn } from '../../../../support/window';
+import { group, groupHeading, groupHeadings, project, projectHeading, row, rows, tabBarGroupRow, tabBarGroups, tabBarProjectRow, tabLabelsIn, titlesIn } from '../../../../support/window';
 
 // A group is made, renamed, moved and deleted from the list, and the tab bar, which clusters tabs by group, follows every change at once (the one-behaviour rule in CLAUDE.md).
 const OTHER = `${HOME}/projects/other`;
@@ -51,6 +51,52 @@ test('a group made from a row takes the row, and its tab moves into the group\'s
   await expect(tabBarGroups(page)).toHaveText(['Gamma', 'Beta', 'Alpha']);
   await expect(tabLabelsIn(tabBarGroupRow(page, 'Gamma'))).toHaveText([loose.title]);
   expect(await app.calls('createGroup')).toEqual([['Gamma', PROJECT, loose.id]]);
+});
+
+// A new group lands at the top of its project, which can be far from the row or heading it was made from, so the list goes to it (docs/architecture.md § App-side metadata and session groups).
+test('a group made from a row far down its project takes the list up to it', async ({ app, page }) => {
+  // Enough rows above the one it is made from that the project's top is out of sight once that row is.
+  const filler = Array.from({ length: 40 }, (_, i) => session({ id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, title: `Filler ${i}` }));
+  const last = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'The last row', lastActivity: '2026-09-29T08:00:00.000Z' });
+  await app.boot({ sessions: [...filler, last] });
+  await row(page, last.title).locator('.session-kebab').click();
+  await expect(rows(page).first()).not.toBeInViewport();
+
+  await page.locator('.kebab-menu button', { hasText: 'Move to group' }).click();
+  await page.locator('.kebab-menu.submenu button', { hasText: 'New group…' }).click();
+  await answerPrompt(page, 'Gamma');
+  await expect(titlesIn(group(page, 'Gamma'))).toHaveText([last.title]);
+  await expect(groupHeading(page, 'Gamma')).toBeInViewport();
+});
+
+test("a group made from a folded project's options unfolds the project to show it", async ({ app, page }) => {
+  await app.boot(fixture);
+  await projectHeading(page, 'demo').click();
+  await expect(project(page, 'demo')).toHaveClass(/\bcollapsed\b/);
+
+  await projectHeading(page, 'demo').locator('.project-kebab').click();
+  await page.locator('.kebab-menu button', { hasText: 'New group…' }).click();
+  await answerPrompt(page, 'Gamma');
+  await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
+  await expect(groupHeadings(page)).toHaveText(['Gamma', 'Beta', 'Alpha']);
+  await expect(groupHeading(page, 'Gamma')).toBeInViewport();
+});
+
+test('a group made empty under a filter is not drawn, and a toast says where it went', async ({ app, page }) => {
+  await app.boot(fixture);
+  await page.locator('#filter-toggle').click();
+  // Matches no row in a group, so no group is drawn.
+  await page.locator('#search').fill('loose');
+  await expect(groupHeadings(page)).toHaveCount(0);
+
+  await projectHeading(page, 'demo').locator('.project-kebab').click();
+  await page.locator('.kebab-menu button', { hasText: 'New group…' }).click();
+  await answerPrompt(page, 'Gamma');
+  await expect(page.locator('#toast-message')).toHaveText('Group "Gamma" created. Empty groups are hidden while a filter is on, so it shows once you clear it.');
+  await expect(groupHeadings(page)).toHaveCount(0);
+
+  await page.locator('#search').fill('');
+  await expect(groupHeadings(page)).toHaveText(['Gamma', 'Beta', 'Alpha']);
 });
 
 test('moving, renaming and deleting a group shows in the list and the tab bar together', async ({ app, page }) => {
