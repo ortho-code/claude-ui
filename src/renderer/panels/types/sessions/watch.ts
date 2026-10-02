@@ -1,5 +1,4 @@
 import { store } from '../../../state/app';
-// In the order the sidebar's stylesheets take in the bundle, which test/unit/renderer/renderer.test.ts pins: the switcher's and the strip's ahead of the filter's and the list's.
 import { railStatusFollowsSessions } from './index';
 import { fallBackIfEmptied, refreshSwitcher } from './switcher';
 import { refreshStrip } from './attention-strip';
