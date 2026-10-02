@@ -1,12 +1,12 @@
 import type { UiState } from '../shared/types';
 import { restoreTreeState, treeState } from './panels/tree';
-import { restoreSidebar, sidebarSnapshot } from './panels/types/sessions/stored-view';
+import { followListScroll, restoreSidebar, sidebarSnapshot } from './panels/types/sessions/stored-view';
 import { store, type StoredView } from './state/app';
 
 /**
  * THE VIEW THAT SURVIVES A RESTART: the sidebar's part (sessions/stored-view.ts) and the layout tree's, saved together in the one shape `meta.json` keeps, and put back together at start-up.
  * Search, filters, folds, width and scroll are one answer to one question — put the window back the way it was — so they are snapshotted, stored and restored together rather than as a setting each.
- * renderer.ts wires it: a watcher of the view's slices, the list's scroll, the tree's own changes, and the start-up order.
+ * renderer.ts wires it: a watcher of the view's slices, the tree's own changes, and the start-up order; the list's scroll it follows itself, from the moment it starts saving.
  */
 
 // Nothing is written until the start-up read has put the stored view back in the store (`startSavingUi`), or a save in between would write an empty sidebar straight over the real one.
@@ -61,5 +61,7 @@ export async function restoreUiState(): Promise<{ scrollTop: number; view: Store
 /** From the start-up read on, the view in the store is the one you left, so it can be saved; anything asked for meanwhile — the layout dropping a stale split's sizes, say — is written now, if it changed anything. */
 export function startSavingUi(): void {
   uiRestored = true;
+  // Where the list was scrolled to is remembered, so a scroll of your own is a change to remember too.
+  followListScroll(persistUi);
   persistUi();
 }

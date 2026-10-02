@@ -15,8 +15,7 @@ import { restoreOpenTabs, switchWorkspaceTerminal } from './panels/types/claude/
 import { claudeWatch } from './panels/types/claude/watch';
 import { sessionsWatch } from './panels/types/sessions/watch';
 import { fullRead } from './panels/types/sessions/read';
-import { container } from './panels/types/sessions/drawn';
-import { forgetDeletedGroupFolds } from './panels/types/sessions/stored-view';
+import { forgetDeletedGroupFolds, restoreListScroll } from './panels/types/sessions/stored-view';
 import { claudeAnswers } from './panels/types/claude/asks';
 import { sessionsAnswers } from './panels/types/sessions/asks';
 import { persistUi, restoreUiState, startSavingUi } from './view-saving';
@@ -84,9 +83,6 @@ window.claudeUi.onClaudeMissing(() => {
   showToast('The claude CLI was not found on your PATH. Install it and restart claude-ui.', true);
 });
 
-// Where the list was scrolled to is remembered, so a scroll of your own is a change to remember too.
-container.addEventListener('scroll', persistUi);
-
 // The window's own title bar, where the app draws its chrome (chrome.ts).
 void startChrome();
 
@@ -118,7 +114,7 @@ void (async () => {
   // The list follows the tabs as they come (`listFollowsTabs`): drawn again for a restored "open" or "live" filter, which are questions about the tabs, and its rows marked open otherwise.
   await restoreOpenTabs();
   // Last, because there is nothing to scroll until the rows are on screen. Later renders carry the offset along themselves.
-  container.scrollTop = scrollTop;
+  restoreListScroll(scrollTop);
   switchWorkspaceTerminal(store.get().activeProject);
   // After the tabs, so a panel's first run is in the restored tab's folder rather than once for the project and again for the tab.
   startPanels();

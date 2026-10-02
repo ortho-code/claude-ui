@@ -48,6 +48,16 @@ export async function restoreSidebar(state: UiState): Promise<{ scrollTop: numbe
   return { scrollTop: state.scrollTop, view };
 }
 
+/** Put the list back where it was scrolled, once start-up has drawn the rows there are to scroll (`restoreSidebar` hands the offset back for that). */
+export function restoreListScroll(scrollTop: number): void {
+  container.scrollTop = scrollTop;
+}
+
+/** Call `persist` on every scroll of the list: the store does not hold the scroll, so nothing else tells the saving it moved. */
+export function followListScroll(persist: () => void): void {
+  container.addEventListener('scroll', persist);
+}
+
 /**
  * A project keeps its fold even while it has no sessions to show (same reasoning as the project order), but a DELETED group is gone for good.
  * The folds come back with the groups' first read, so the list's first draw is already the one you left; a fold of a group that is gone draws nothing meanwhile.
