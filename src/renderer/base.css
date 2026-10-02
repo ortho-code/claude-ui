@@ -18,7 +18,7 @@
   /* Status colours, shared by the session dots, project badges and attention toasts. */
   --waiting: #f9e2af;
   --idle: #a6e3a1;
-  /* A panel's run that did not end well, on its rail icon. */
+  /* Something gone wrong: a panel's run that did not end well (its rail icon, the line above its list), a list row its script marks as danger, and a dialog's inline error. */
   --failed: #f38ba8;
   /* What destroys: a dialog's delete, and the window's close. */
   --danger: #c92a2a;

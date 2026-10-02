@@ -59,7 +59,7 @@
 .dialog-error {
   margin: 8px 0 0;
   font-size: var(--text-meta);
-  color: #f38ba8;
+  color: var(--failed);
 }
 
 .dialog-title {
