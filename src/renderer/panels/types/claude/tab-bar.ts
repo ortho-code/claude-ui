@@ -27,7 +27,7 @@ function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.ge
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups gets an indented row beneath it behind the same rail the sidebar uses.
 // A project view drops the project label (everything shown belongs to it) but keeps the group rows.
 /** What the tab bar draws from the store. */
-export type TabBarView = View<'sessions' | 'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab'>;
+type TabBarView = View<'sessions' | 'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab'>;
 
 export function renderTabBar(view: TabBarView): void {
   const { activeProject } = view;

@@ -151,7 +151,7 @@ const signatures = new WeakMap<SessionSummary[], string>();
  * Whether two listings draw the same rows: their structural signature (`AFFECTS_ROW` in logic.ts), computed once per listing.
  * The sessions slice tells its readers only when this says no, so a transcript merely growing — its `lastActivity` moving — repaints nothing, for every reader alike, while `get` still has the newest listing.
  */
-export function sameRows(a: SessionSummary[], b: SessionSummary[]): boolean {
+function sameRows(a: SessionSummary[], b: SessionSummary[]): boolean {
   const of = (sessions: SessionSummary[]): string => {
     let signature = signatures.get(sessions);
     if (signature === undefined) {

@@ -65,7 +65,7 @@ export function tabOf(token: string): TabState | undefined {
 }
 
 /** Change one tab's data: a new entry in place of the old, so everyone who draws it is told. */
-export function setTab(token: string, patch: Partial<Omit<TabState, 'token'>>): void {
+function setTab(token: string, patch: Partial<Omit<TabState, 'token'>>): void {
   store.set({ tabs: store.get().tabs.map((t) => (t.token === token ? { ...t, ...patch } : t)) });
 }
 
