@@ -162,7 +162,8 @@ test('the confirm dialog open, deleting an archived session', async ({ app, page
   await snapshot(page, DIR!, 'confirm');
 });
 
-test('the history open over a live claude, with pins, code and a folded run of tools', async ({ app, page }) => {
+/** A live claude with a history of three exchanges, pins, code and a folded run of tools, its bar beside the pane. */
+async function liveHistory(app: App, page: Page): Promise<void> {
   const one = session();
   const TIME = '2026-09-30T08:00:00.000Z';
   const exchanges: Exchange[] = [
@@ -189,10 +190,23 @@ test('the history open over a live claude, with pins, code and a folded run of t
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await app.emit('onTerminalData', 1, 'Claude Code\r\n');
   await expect(page.locator('.exchange')).toHaveCount(3);
+}
+
+test('the history open over a live claude, with pins, code and a folded run of tools', async ({ app, page }) => {
+  await liveHistory(app, page);
   await page.getByRole('button', { name: /^Your last request/ }).click();
   await page.mouse.move(0, 0);
   await expect(page.locator('.history')).toHaveClass(/\bshown\b/);
   await snapshot(page, DIR!, 'history');
+});
+
+test("the history bar's loupe, open beside the bar with the pointer half way down it", async ({ app, page }) => {
+  await liveHistory(app, page);
+  const bar = await page.locator('.history-bar-area').boundingBox();
+  if (!bar) throw new Error('the history bar is not laid out');
+  await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
+  await expect(page.locator('.history-loupe')).toBeVisible();
+  await snapshot(page, DIR!, 'loupe');
 });
 
 /** A tab restored where you left off: on show, cold, with a history to read. */
