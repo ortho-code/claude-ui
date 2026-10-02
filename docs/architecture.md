@@ -8,9 +8,7 @@ WSLg shows the window.
 
 Electron needs `--no-sandbox` under WSL; the `start` script passes it.
 
-It runs on **X11 (Xwayland)**, the Electron default here. Do not switch it to Wayland: with `--ozone-platform=wayland` the window paints solid white, with or without
-`app.disableHardwareAcceleration()`, while a bare Electron window with the same flags paints fine —
-so it is something about this window, and it has not been chased down. `--ozone-platform-hint=auto` picks X11 anyway.
+It runs on **X11 (Xwayland)**, the Electron default here. Do not switch it to Wayland: with `--ozone-platform=wayland` the window paints solid white, with or without `app.disableHardwareAcceleration()`, while a bare Electron window with the same flags paints fine — so it is something about this window, and it has not been chased down. `--ozone-platform-hint=auto` picks X11 anyway.
 
 If **every cursor stays an arrow** — no hand over a button, no I-beam over an input — that is WSLg's pointer state stuck, not the app and not Xwayland.
 Nothing in CSS or in Chromium's flags will move it (verified: every control computes `cursor: pointer` correctly).
