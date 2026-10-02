@@ -871,7 +871,7 @@ Documented exceptions: the note mark (inline inside a 12px text line) and the 9p
 The split buttons on the project and group headings are two halves acting as one button, so they need to look like one object before you touch them; outlining them only on hover makes the pair read as two loose icons that suddenly acquire a box.
 A single icon needs no such help, and bordering each would put two more boxes on every row and heading.
 
-**Trailing controls sit 4px apart** on every row that has them — the session row's pin and kebab, the group heading's `+` and kebab, the project heading's split button and kebab — so the second-from-right control lines up down the list, not just the last one.
+**Trailing controls sit 4px apart** on every row that has them — the session row's pin and kebab (its unarchive and delete in the archived view), the group heading's `+` and kebab, the project heading's split button and kebab — so the second-from-right control lines up down the list, not just the last one.
 Tight rather than roomy because every pixel there is width the session title loses; the controls' own padding keeps their ink well clear.
 Each row reaches 4 from a different base gap (a session row's is 8, a heading's is 6), so the offsets on the kebabs differ — check the total, don't copy the value.
 
