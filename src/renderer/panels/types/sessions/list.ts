@@ -11,7 +11,6 @@ import {
   entityKey,
   type ProjectTree,
   groupJumpTargets,
-  type GroupJumpTarget,
   relativeTime,
   modelLabel,
   unstartableReason,
@@ -30,6 +29,7 @@ import { showToast } from '../../../toast';
 import { setTooltip } from '../../../tooltip';
 import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
+import { container, currentByKey, groupSections, jumpTargets, projectSections, renderedSections, sessionRows, statusDots, type GroupSectionEls, type ProjectSectionEls } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import './list.css';
 
@@ -38,10 +38,9 @@ import './list.css';
  * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, `foldsFollow`, registered by `watchList` in the sidebar's repaints, watch.ts), and reads what it draws from main in one change (`renderSessions`), which start-up and a row's delete both ask for.
  */
 
-/** The list's three parts, built here and placed by the sidebar (index.ts): collapse-all in the header, the loading bar, and the list itself. */
+/** Two of the list's parts, built here and placed by the sidebar (index.ts) with the list itself (drawn.ts): collapse-all in the header, and the loading bar. */
 export const collapseToggle = fromMarkup(`<button id="collapse-toggle" class="icon-btn large" data-tooltip="Collapse all" aria-label="Collapse all"></button>`, HTMLButtonElement);
 export const loadingEl = fromMarkup(`<div id="loading"></div>`);
-export const container = fromMarkup(`<div id="sessions" aria-live="polite"></div>`);
 
 // The chrome marks — carets, +, ⋮, ✓, × — as SVG rather than the text glyphs they used to be.
 // Every one of those resolved through system font fallback, which is how ⑂ ended up rendering from a MONOSPACE face beside its neighbours (see the family and worktree marks in svg.ts).
@@ -81,13 +80,6 @@ function setLoading(on: boolean): void {
   loadingEl.classList.toggle('active', on);
 }
 
-// Status dots by tip session id; rebuilt each render (a status event names a session id).
-const statusDots = new Map<string, HTMLElement>();
-// Row elements by entity key (the session id), reused across renders so a re-render moves nodes instead of recreating them — no flicker, no scroll jump, hover/focus kept.
-const sessionRows = new Map<string, HTMLElement>();
-// Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen rather than on everything that has ever existed.
-let renderedSections: { projects: string[]; groups: string[] } = { projects: [], groups: [] };
-
 /**
  * Open a folded project or group, for a reveal or a jump, which then measure where it is.
  * The folds' watcher opens it as it is told (`foldsFollow`), so neither may run inside a batch, which would tell it only afterwards.
@@ -96,46 +88,6 @@ function unfold(kind: 'projects' | 'groups', key: string): void {
   const state = store.get();
   if ((kind === 'projects' ? foldedProjects(state) : foldedGroups(state)).has(key)) store.set({ folds: foldsWith(state, kind, [key], false) });
 }
-interface ProjectSectionEls {
-  section: HTMLElement;
-  heading: HTMLElement;
-  caret: HTMLElement;
-  count: HTMLElement;
-  /** The folder in front of the name, which turns into the crossed-out folder when the project's folder is gone. */
-  icon: HTMLElement;
-  label: HTMLElement;
-  /** Opens the jump-to-a-group menu; hidden below 2 targets, disabled while filtering. */
-  groupsBtn: HTMLButtonElement;
-  /** The new-session split-button's dropdown caret; hidden unless the project is a git repo. */
-  addCaret: HTMLElement;
-  /** The new-session "+" itself, disabled when the project's folder is gone. */
-  addBtn: HTMLButtonElement;
-}
-// What each project's group menu offers, refreshed on every render so the menu can't name a group that has since been deleted or renamed.
-const jumpTargets = new Map<string, GroupJumpTarget[]>();
-// Project sections by repo root, reused across renders (same reason as sessionRows).
-const projectSections = new Map<string, ProjectSectionEls>();
-
-interface GroupSectionEls {
-  section: HTMLElement;
-  /** The h3 itself — what a jump scrolls to and flashes. */
-  heading: HTMLElement;
-  caret: HTMLElement;
-  label: HTMLElement;
-  count: HTMLElement;
-  /** The new-session split-button's dropdown caret; hidden unless the project is a git repo. */
-  addCaret: HTMLElement;
-  /** The new-session "+" itself, disabled when the project's folder is gone. */
-  addBtn: HTMLButtonElement;
-  /** Holds the member rows; the indent and its rail live on this element. */
-  members: HTMLElement;
-  /** Shown instead of rows when the group has no members yet. */
-  empty: HTMLElement;
-}
-// Group sections by group id, reused across renders like the project sections above.
-const groupSections = new Map<string, GroupSectionEls>();
-// The session each row currently shows, by entity key (session id), so a reused row's click/pin handlers act on the live session data of the latest render.
-let currentByKey = new Map<string, SessionSummary>();
 
 function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {
   const shown = tabOnShow(view);
@@ -455,7 +407,8 @@ function renderList(view: ListView): void {
 
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions(view);
-  currentByKey = new Map(all.map((s) => [entityKey(s), s]));
+  currentByKey.clear();
+  for (const s of all) currentByKey.set(entityKey(s), s);
   const { activeProject } = view;
 
   const groupNames = searchText(view) ? groupNameByKey(view) : undefined;
@@ -475,7 +428,8 @@ function renderList(view: ListView): void {
     message.textContent = all.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
     container.append(message);
     // Nothing on screen to fold away: this early return would otherwise leave the toggle live with the previous render's sections.
-    renderedSections = { projects: [], groups: [] };
+    renderedSections.projects = [];
+    renderedSections.groups = [];
     updateCollapseToggle(view);
     return;
   }
@@ -485,10 +439,8 @@ function renderList(view: ListView): void {
   // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
   // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
   const tree = buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder);
-  renderedSections = {
-    projects: tree.map((p) => p.repoRoot),
-    groups: tree.flatMap((p) => p.groups.map((g) => g.group.id)),
-  };
+  renderedSections.projects = tree.map((p) => p.repoRoot);
+  renderedSections.groups = tree.flatMap((p) => p.groups.map((g) => g.group.id));
   reconcileProjectSections(tree, view);
   pruneRows(new Set(scoped.map((s) => entityKey(s))));
 

@@ -2,7 +2,7 @@ import type { UiState } from '../../../../shared/types';
 import { store, type StoredView, type View } from '../../../state/app';
 import { isFiltering } from '../../../state/views';
 import { restoreFilter } from './filter';
-import { container } from './list';
+import { container } from './drawn';
 
 /**
  * The sidebar's part of the view kept for the next launch — the filter, the folds, the panel, the strip and the list's scroll — in the shape `UiState` stores it, and putting it back.
