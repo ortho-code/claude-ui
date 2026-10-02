@@ -117,6 +117,13 @@ test('the menu of a session whose folder is gone, its fork there but unavailable
   await snapshot(page, DIR!, 'menu-unavailable');
 });
 
+test('a tooltip up, over the filter toggle', async ({ app, page }) => {
+  await app.boot({ ...busy, openSessions: [] });
+  await page.locator('#filter-toggle').hover();
+  await expect(page.locator('#tooltip')).toBeVisible();
+  await snapshot(page, DIR!, 'tooltip');
+});
+
 test('the project switcher open', async ({ app, page }) => {
   await app.boot({ ...busy, openSessions: [] });
   await page.locator('#switcher-current').click();
