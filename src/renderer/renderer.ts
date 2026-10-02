@@ -10,6 +10,7 @@ import './projectgone';
 import { startChrome } from './chrome';
 import './flash';
 import { initTree, loadLayout, startPanels, treeContextChanged, treeSessionsChanged } from './panels/tree';
+import { WHERE_SLICES, whereOf } from './panels/run';
 import { history, paneFollows } from './panels/types/claude/pane';
 import { restoreOpenTabs, switchWorkspaceTerminal } from './panels/types/claude/terminals';
 import { claudeWatch } from './panels/types/claude/watch';
@@ -20,7 +21,7 @@ import { claudeAnswers } from './panels/types/claude/asks';
 import { sessionsAnswers } from './panels/types/sessions/asks';
 import { persistUi, restoreUiState, startSavingUi } from './view-saving';
 import { store, withEntry } from './state/app';
-import { tabOnShow, tabWith } from './state/views';
+import { tabWith } from './state/views';
 import { setStatus } from './state/statuses';
 import { installTooltips } from './tooltip';
 import { routeTerminals } from './terminal';
@@ -51,7 +52,8 @@ claudeWatch.repaints();
 store.watch(['filter', 'folds', 'filterPanelOpen', 'footerExpanded'], () => persistUi());
 
 // The panels run where you are: in the tab on show's folder, or without one in the project's root, or in nothing in the All view.
-store.watch(['activeProject', 'activeTab'], treeContextChanged);
+// Told of the slices `whereOf` reads, the tabs among them: a `/clear` or a move into another folder changes the session under the same tab.
+store.watch(WHERE_SLICES, treeContextChanged);
 
 // A panel's rows mark the sessions they started — each one's title, status dot, mark read, and whether it runs — so the panels hear of every change to those, and to which sessions a panel's rows started (its data, panels/links.ts).
 store.watch(['sessions', 'statuses', 'acked', 'tabs', 'panelData'], treeSessionsChanged);
@@ -89,11 +91,7 @@ void startChrome();
 installTooltips();
 // The window's layout, drawn now so the first paint is already the window: the default layout until the file has been read, which the start-up below does before it draws a single row.
 initTree({
-  where: () => {
-    const state = store.get();
-    const tab = tabOnShow(state);
-    return { tab: tab ? { cwd: tab.session.cwd, repoRoot: tab.session.repoRoot, id: tab.session.id } : null, project: state.activeProject };
-  },
+  where: () => whereOf(store.get()),
   showToast,
   hideToast,
   persist: persistUi,

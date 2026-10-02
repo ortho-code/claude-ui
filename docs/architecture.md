@@ -636,7 +636,7 @@ The command runs in the panel's CONTEXT DIRECTORY — the active tab's cwd, else
 That is the one thing that differs between the two forms: a relative path INSIDE a command line is resolved by the shell against that directory, while a relative `script` resolves against the config folder, so the script travels with it.
 The context reaches the command as environment variables only for now (`CLAUDE_UI_PROJECT_ROOT`, `CLAUDE_UI_CWD`, `CLAUDE_UI_SESSION_ID`, `CLAUDE_UI_CONFIG_ROOT`); JSON on stdin joins when a second type wants it.
 With neither a tab nor a project the panel says "Pick a project to run this in." and runs nothing.
-It runs when first shown, on Refresh, and when the context directory changes, which a tab switch, a project switch and stopping the tab you are on all do — but never while hidden (see A layout change keeps panels running).
+It runs when first shown, on Refresh, and when its context changes, which a tab switch, a project switch and stopping the tab you are on all do, and so does the tab's own session changing under it, on a `/clear` or a move into another folder — but never while hidden (see A layout change keeps panels running).
 
 ### Where a panel runs: the `cwd` option
 

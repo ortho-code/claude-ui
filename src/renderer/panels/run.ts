@@ -1,5 +1,7 @@
 import type { PanelContext, PanelRunEvent } from '../../shared/panels';
 import { PANEL_TIMEOUT_MS } from '../../shared/panels';
+import type { View } from '../state/app';
+import { tabOnShow } from '../state/views';
 import type { Where } from './contract';
 import { checkOptions, isFixedPath, type OptionsDecl } from './options';
 
@@ -9,6 +11,18 @@ import { checkOptions, isFixedPath, type OptionsDecl } from './options';
 
 /** Shown in the empty-pane style when there is neither a tab nor a project to run in. */
 export const NO_CONTEXT = 'Pick a project to run this in.';
+
+/** The slices the panels' context is read from, named once: `whereOf` can read only these, and the tree is told of a change to any of them. */
+export const WHERE_SLICES = ['activeProject', 'activeTab', 'tabs'] as const;
+
+/**
+ * Where the panels are: the tab on show's session, or without one the project chosen.
+ * The session is read from the tab itself, since a `/clear` or a move into another folder changes it under the same tab, which is why the tabs are among the slices.
+ */
+export function whereOf(view: View<(typeof WHERE_SLICES)[number]>): Where {
+  const tab = tabOnShow(view);
+  return { tab: tab ? { cwd: tab.session.cwd, repoRoot: tab.session.repoRoot, id: tab.session.id } : null, project: view.activeProject };
+}
 
 /**
  * The panel's CONTEXT DIRECTORY is the active tab's cwd, else the selected project's repo root, so a worktree session's panel reports the worktree.

@@ -1,6 +1,7 @@
+import type { TerminalLaunch } from '../../../../src/shared/types';
 import { PROJECT, session } from '../../support/fixture';
 import { type App, expect, test } from '../../support/harness';
-import { chooseProject, tab, tabLabel } from '../../support/window';
+import { chooseProject, tab, tabLabel, tabLabels } from '../../support/window';
 import { LAYOUT, OTHER, railItem, runs, withLayout } from './layout';
 
 test('a change to the layout file keeps a running shell and does not run a command again', async ({ app, page }) => {
@@ -61,6 +62,9 @@ const besideClaude = {
 /** Where the Status command has run, in order. */
 const foldersOf = async (app: App): Promise<string[]> => (await runs(app, 'status')).map((run) => run.context.cwd);
 
+/** Under which session the Status command has run, in order: none while no tab is on show. */
+const sessionsOf = async (app: App): Promise<string[]> => (await runs(app, 'status')).map((run) => run.context.sessionId);
+
 test('the tab on show closing hands the command to the next tab: one run, in its folder, and none in between', async ({ app, page }) => {
   const a = session({ id: '00000000-0000-4000-8000-0000000000d2', title: 'In a', cwd: `${PROJECT}/a` });
   const b = session({ id: '00000000-0000-4000-8000-0000000000d3', title: 'In b', cwd: `${PROJECT}/b` });
@@ -78,4 +82,37 @@ test('the tab on show closing hands the command to the next tab: one run, in its
   expect(await app.emit('onTerminalExit', 2, 0)).toBe(1);
   await expect(tab(page, b.title)).toHaveClass(/\bactive\b/);
   await expect.poll(folders).toEqual([PROJECT, b.cwd, a.cwd, b.cwd]);
+});
+
+// The tab on show can be given another session under it: a `/clear` hands the same tab to the session claude goes on as, and a refresh can find the tab's session moved to another folder.
+// The command beside it follows, as it does a switch of tab.
+test("a /clear in the tab on show runs the command beside it again, once, under the session it goes on as", async ({ app, page }) => {
+  const a = session({ id: '00000000-0000-4000-8000-0000000000d4', title: 'Cleared' });
+  const next = '00000000-0000-4000-8000-0000000000d5';
+  await app.boot({ ...withLayout(besideClaude), sessions: [a], activeProject: PROJECT, openSessions: [a.id], history: { [a.id]: [], [next]: [] } });
+  await expect.poll(() => sessionsOf(app)).toEqual(['']);
+  await tabLabel(page, a.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await expect.poll(() => sessionsOf(app)).toEqual(['', a.id]);
+
+  const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
+  expect(await app.emit('onTerminalData', 1, 'claude is here')).toBe(1);
+  expect(await app.emit('onSessionStatus', next, 'start', launch.tabToken ?? '')).toBe(1);
+  await expect(tabLabels(page)).toHaveText(['New: demo']);
+  await expect.poll(() => sessionsOf(app)).toEqual(['', a.id, next]);
+});
+
+test("the tab on show's session found in another folder runs the command beside it again, there", async ({ app, page }) => {
+  const a = session({ id: '00000000-0000-4000-8000-0000000000d6', title: 'Moving' });
+  const moved = { ...a, cwd: `${PROJECT}/worktrees/feature`, worktree: 'feature' };
+  await app.boot({ ...withLayout(besideClaude), sessions: [a], activeProject: PROJECT, openSessions: [a.id], history: { [a.id]: [] } });
+  await tabLabel(page, a.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await expect.poll(() => foldersOf(app)).toEqual([PROJECT, a.cwd]);
+
+  await page.evaluate((listed) => {
+    window.__claudeUiFixture.sessions = listed;
+  }, [moved]);
+  expect(await app.emit('onSessionsChanged')).toBe(1);
+  await expect.poll(() => foldersOf(app)).toEqual([PROJECT, a.cwd, moved.cwd]);
 });
