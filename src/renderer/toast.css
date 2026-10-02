@@ -13,6 +13,6 @@
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-surface);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-raised);
   font-size: var(--text-body);
 }

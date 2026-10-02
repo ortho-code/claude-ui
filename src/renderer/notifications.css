@@ -24,7 +24,7 @@
   border: 1px solid var(--border);
   border-left: 3px solid var(--muted);
   border-radius: var(--radius-surface);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-raised);
   font-size: var(--text-meta);
   cursor: pointer;
 }

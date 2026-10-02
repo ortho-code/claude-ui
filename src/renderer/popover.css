@@ -8,7 +8,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-surface);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-raised);
 }
 
 /* The notch, which reads the popover as ATTACHED to its trigger: a small rotated square sharing the popover's surface, bordered only on its exposed sides, pointing at the trigger across the gap.

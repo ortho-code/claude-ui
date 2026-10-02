@@ -24,6 +24,8 @@
   --danger: #c92a2a;
   /* An item dimmed rather than hidden, since it is still there to read: a session or tab whose folder is gone, a list row its script mutes. */
   --dimmed: 0.55;
+  /* The shadow of a small surface floating over the window — a menu or popover, the tooltip, a toast, a notification — so they all stand at one height. */
+  --shadow-raised: 0 10px 26px rgba(0, 0, 0, 0.45);
 
   /* Corner radii, one per KIND of thing rather than one per component — the stylesheet had eight
      values (1, 4, 5, 6, 7, 8, 10, 12) that no rule explained. Controls are anything you click;

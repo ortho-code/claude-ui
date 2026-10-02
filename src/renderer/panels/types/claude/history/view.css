@@ -23,6 +23,7 @@
 .history:not(.standalone) {
   left: clamp(0px, 34%, 100% - 560px);
   border-left: 1px solid var(--border);
+  /* Cast to the left, onto the claude it slides over, rather than below as a floating surface's (--shadow-raised) is. */
   box-shadow: -8px 0 18px #00000080;
   transform: translateX(100%);
   /* Hidden only once it has slid out, and shown at once when it slides in. */

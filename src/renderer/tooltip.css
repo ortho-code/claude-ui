@@ -8,7 +8,7 @@
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-surface);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-raised);
   font-size: var(--text-meta);
   line-height: 1.4;
   overflow-wrap: anywhere;
