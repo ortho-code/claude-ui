@@ -27,13 +27,16 @@ export const switcherEl = fromMarkup(`
         <span class="switcher-chev" aria-hidden="true"></span>
       </span>
     </button>
-    <div id="switcher-popover" role="menu" hidden></div>
+    <div id="switcher-popover" hidden>
+      <div id="switcher-list" role="menu"></div>
+    </div>
   </div>`);
 const switcherCurrent = byId(switcherEl, 'switcher-current', HTMLButtonElement);
 const switcherName = byId(switcherEl, 'switcher-name');
 const switcherGone = byId(switcherEl, 'switcher-gone');
 const switcherBadge = byId(switcherEl, 'switcher-badge');
 const switcherPopover = byId(switcherEl, 'switcher-popover');
+const switcherList = byId(switcherEl, 'switcher-list');
 
 // Update the switcher header + popover from every project's roll-up (`switcherModel`), which is independent of search/project so you can always navigate.
 function renderSwitcher(model: SwitcherModel, view: View<'activeProject'>): void {
@@ -49,7 +52,7 @@ function renderSwitcher(model: SwitcherModel, view: View<'activeProject'>): void
   switcherBadge.hidden = !headerBadge;
   setTooltip(switcherBadge, headerBadge ? `A project is ${headerBadge}` : null);
 
-  switcherPopover.replaceChildren(
+  switcherList.replaceChildren(
     switcherItem('All', null, model.all.count, null, activeProject === null, false),
     ...model.projects.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeProject, !f.rootExists)),
   );
