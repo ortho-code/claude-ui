@@ -1,6 +1,6 @@
 import { sessionById } from '../../../state/views';
 import type { Asks } from '../../contract';
-import { jumpToGroup, revealProjectInSidebar, revealSessionInSidebar } from './list';
+import { jumpToGroup, revealProjectInSidebar, revealSessionInSidebar } from './reveal';
 import { selectProject } from './switcher';
 
 /**
