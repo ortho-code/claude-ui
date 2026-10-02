@@ -270,6 +270,34 @@ async function toggleArchiveFor(key: string): Promise<void> {
   });
 }
 
+// Pin or unpin one session, from its row.
+async function togglePinFor(key: string): Promise<void> {
+  store.set({ pinned: new Set(await window.claudeUi.togglePin(key)) });
+}
+
+// Delete one session to the OS trash, once confirmed, from its row in the archived view.
+async function confirmAndDelete(key: string): Promise<void> {
+  const session = currentByKey.get(key);
+  const title = session ? sessionLabel(session) : key.slice(0, 8);
+  if (!(await confirmDelete(title))) return;
+  // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta purge run in the background.
+  // It stays hidden via pendingDeletes until its files are gone from disk (see renderSessions), so a concurrent delete's re-read can't resurrect it.
+  // Only this entity's file goes (entity key = session id); siblings are separate entities.
+  store.set({ pendingDeletes: withMember(store.get().pendingDeletes, key, true) });
+  try {
+    // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat it as failed so the row can't stay hidden forever within a session.
+    await Promise.race([
+      window.claudeUi.deleteSession(key),
+      new Promise((_resolve, reject) => setTimeout(() => reject(new Error('delete timed out')), 30_000)),
+    ]);
+  } catch {
+    showToast(`Couldn't delete "${title}". It's still here.`);
+  } finally {
+    // Stop hiding once this delete resolves: on success the re-read finds it gone; on failure the file is still on disk, so the row reappears.
+    await renderSessions({ showLoading: false, revealed: key });
+  }
+}
+
 // The per-session action list — one builder, shared by the row kebab (and any future surface that offers session actions, e.g. a tab context menu).
 function sessionMenuItems(session: SessionSummary): MenuItem[] {
   // Forking RUNS claude in the session's folder, so it needs that folder to be there — but the item stays in the list, dimmed and carrying the reason, rather than vanishing.
@@ -721,8 +749,7 @@ function createSessionRow(key: string): HTMLElement {
     if (pin.disabled) return;
     // Disabling it is the pending cue: .pin:disabled dims. (There was a 'loading' class here with no CSS behind it, so it painted nothing.)
     pin.disabled = true;
-    void window.claudeUi.togglePin(key).then((ids) => {
-      store.set({ pinned: new Set(ids) });
+    void togglePinFor(key).then(() => {
       // The row's redraw re-enables it; this is for an answer that changed nothing, which tells nobody.
       pin.disabled = false;
     });
@@ -745,30 +772,9 @@ function createSessionRow(key: string): HTMLElement {
   setTooltip(deleteBtn, 'Delete session');
   deleteBtn.hidden = true;
   deleteBtn.innerHTML = strokeIcon(14, '<path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" />');
-  const confirmAndDelete = async (): Promise<void> => {
-    const session = currentByKey.get(key);
-    const title = session ? sessionLabel(session) : key.slice(0, 8);
-    if (!(await confirmDelete(title))) return;
-    // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta purge run in the background.
-    // It stays hidden via pendingDeletes until its files are gone from disk (see renderSessions), so a concurrent delete's re-read can't resurrect it.
-    // Only this entity's file goes (entity key = session id); siblings are separate entities.
-    store.set({ pendingDeletes: withMember(store.get().pendingDeletes, key, true) });
-    try {
-      // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat it as failed so the row can't stay hidden forever within a session.
-      await Promise.race([
-        window.claudeUi.deleteSession(key),
-        new Promise((_resolve, reject) => setTimeout(() => reject(new Error('delete timed out')), 30_000)),
-      ]);
-    } catch {
-      showToast(`Couldn't delete "${title}". It's still here.`);
-    } finally {
-      // Stop hiding once this delete resolves: on success the re-read finds it gone; on failure the file is still on disk, so the row reappears.
-      await renderSessions({ showLoading: false, revealed: key });
-    }
-  };
   deleteBtn.addEventListener('click', (event) => {
     event.stopPropagation();
-    void confirmAndDelete();
+    void confirmAndDelete(key);
   });
 
   // Per-session actions menu: fork this session, and (for a family member) list its siblings.
