@@ -55,6 +55,28 @@ const kebabIcon = (size: number): string => {
   return `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="currentColor"><circle cx="8" cy="3.4" r="${r}" /><circle cx="8" cy="8" r="${r}" /><circle cx="8" cy="12.6" r="${r}" /></svg>`;
 };
 
+/**
+ * A kebab: the options behind a ⋮, listed afresh at each click by `items`, which answers null when there is nothing to offer.
+ * The click goes no further, so it neither folds a heading nor opens a row.
+ */
+function kebabButton(className: string, tooltip: string, items: () => MenuItem[] | null): HTMLButtonElement {
+  const kebab = document.createElement('button');
+  kebab.className = `icon-btn ${className}`;
+  kebab.innerHTML = kebabIcon(14);
+  setTooltip(kebab, tooltip);
+  kebab.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const menu = items();
+    if (menu) openMenu(kebab, menu);
+  });
+  return kebab;
+}
+
+/** A heading's options: its ordering moves first, above a rule when it has any, then its own. */
+function withMoves(moves: MenuItem[], own: MenuItem[]): MenuItem[] {
+  return [...moves, ...(moves.length > 0 ? [{ label: '', separator: true }] : []), ...own];
+}
+
 function setLoading(on: boolean): void {
   loadingEl.classList.toggle('active', on);
 }
@@ -816,23 +838,15 @@ function createProjectSection(name: string): ProjectSectionEls {
     where: () => ({ repoRoot: name }),
   });
   heading.append(split);
-  // Project options (rename now, hide later); stopPropagation so it doesn't toggle collapse.
-  const kebab = document.createElement('button');
-  kebab.className = 'icon-btn project-kebab';
-  kebab.innerHTML = kebabIcon(14);
-  setTooltip(kebab, 'Project options');
-  kebab.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const moves = projectMoveItems(name);
-    openMenu(kebab, [
-      ...moves,
-      ...(moves.length > 0 ? [{ label: '', separator: true }] : []),
+  // Project options (rename now, hide later).
+  const kebab = kebabButton('project-kebab', 'Project options', () =>
+    withMoves(projectMoveItems(name), [
       { label: 'Rename…', onSelect: () => void renameProject(name) },
       { label: 'Copy path', onSelect: () => void copyText(name, 'Path copied.') },
       { label: '', separator: true },
       { label: 'New group…', onSelect: () => void promptNewGroup(name) },
-    ]);
-  });
+    ]),
+  );
   heading.append(kebab);
   // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker.
   // Keep the clicked heading anchored: a sticky heading otherwise snaps between stuck and natural position as its rows appear/disappear, which reads as a jump.
@@ -865,21 +879,13 @@ function createGroupSection(id: string): GroupSectionEls {
       return repoRoot ? { repoRoot, groupId: id } : null;
     },
   });
-  // Group options, same shape as the project heading's kebab; stopPropagation so it doesn't collapse.
-  const kebab = document.createElement('button');
-  kebab.className = 'icon-btn group-kebab';
-  kebab.innerHTML = kebabIcon(14);
-  setTooltip(kebab, 'Group options');
-  kebab.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const moves = groupMoveItems(id);
-    openMenu(kebab, [
-      ...moves,
-      ...(moves.length > 0 ? [{ label: '', separator: true }] : []),
+  // Group options.
+  const kebab = kebabButton('group-kebab', 'Group options', () =>
+    withMoves(groupMoveItems(id), [
       { label: 'Rename…', onSelect: () => void renameGroupById(id) },
       { label: 'Delete group', onSelect: () => void deleteGroupById(id) },
-    ]);
-  });
+    ]),
+  );
   heading.append(split, kebab);
   heading.addEventListener('click', () => {
     toggleFold('groups', id);
@@ -1033,14 +1039,9 @@ function createSessionRow(key: string): HTMLElement {
   });
 
   // Per-session actions menu: fork this session, and (for a family member) list its siblings.
-  const kebab = document.createElement('button');
-  kebab.className = 'icon-btn session-kebab';
-  kebab.innerHTML = kebabIcon(14);
-  setTooltip(kebab, 'Session options');
-  kebab.addEventListener('click', (event) => {
-    event.stopPropagation();
+  const kebab = kebabButton('session-kebab', 'Session options', () => {
     const session = currentByKey.get(key);
-    if (session) openMenu(kebab, sessionMenuItems(session));
+    return session ? sessionMenuItems(session) : null;
   });
 
   item.prepend(dot);
