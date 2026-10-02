@@ -17,5 +17,5 @@
    Its tab is dimmed by the same rule, so the row and the tab cannot come to disagree, and that is also what tells it apart from a cold tab, which can be resumed. */
 .session.unstartable,
 .tab.unstartable {
-  opacity: 0.55;
+  opacity: var(--dimmed);
 }

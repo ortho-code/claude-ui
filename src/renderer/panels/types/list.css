@@ -46,7 +46,7 @@
 }
 
 .list-row.tone-muted {
-  opacity: 0.6;
+  opacity: var(--dimmed);
 }
 
 /* The last run failed while a good list is up: said above that list, in the failed colour, on the note
