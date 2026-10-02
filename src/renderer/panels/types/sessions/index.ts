@@ -8,7 +8,7 @@ import type { PanelStatus } from '../../contract';
 import './index.css';
 import { switcherEl } from './switcher';
 import { filterPanel, filterStatus, filterToggle } from './filter';
-import { collapseToggle } from './list';
+import { collapseToggle } from './folding';
 import { container } from './drawn';
 import { loadingEl } from './read';
 import { sidebarFooter } from './attention-strip';

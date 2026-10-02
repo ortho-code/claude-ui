@@ -37,11 +37,11 @@ const ORDER = [
   'src/renderer/panels/types/sessions/switcher.css',
   'node_modules/air-datepicker/air-datepicker.css',
   'src/renderer/panels/types/sessions/filter.css',
-  'src/renderer/panels/types/sessions/list.css',
   'src/renderer/panels/types/sessions/attention-strip.css',
   'src/renderer/panels/types/list.css',
   'src/renderer/panels/types/command.css',
   'src/renderer/panels/types/terminal.css',
+  'src/renderer/panels/types/sessions/list.css',
 ];
 
 /** The stylesheets in the bundle, in order, read from the line esbuild writes before each file's rules when it does not minify. */
