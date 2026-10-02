@@ -80,6 +80,30 @@ test('in All, collapse-all folds every project and its groups with it, and expan
   await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
 });
 
+test('in All, collapse-all offers to expand once every project is folded by hand', async ({ app, page }) => {
+  await app.boot(fixture);
+  const toggle = page.locator('#collapse-toggle');
+  await projectHeading(page, 'other').click();
+  await projectHeading(page, 'demo').click();
+  await expect(toggle).toHaveAttribute('aria-label', 'Expand all');
+
+  await toggle.click();
+  await expect(project(page, 'other')).not.toHaveClass(/\bcollapsed\b/);
+  await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
+});
+
+test("in a project, collapse-all offers to expand once every one of its groups is folded by hand", async ({ app, page }) => {
+  await app.boot({ ...fixture, activeProject: PROJECT });
+  const toggle = page.locator('#collapse-toggle');
+  await groupHeading(page, 'Beta').click();
+  await groupHeading(page, 'Alpha').click();
+  await expect(toggle).toHaveAttribute('aria-label', 'Expand all');
+
+  await toggle.click();
+  await expect(group(page, 'Beta')).not.toHaveClass(/\bcollapsed\b/);
+  await expect(group(page, 'Alpha')).not.toHaveClass(/\bcollapsed\b/);
+});
+
 test('a project folded in All opens when you choose it, and stays open when you go back to All', async ({ app, page }) => {
   await app.boot({ ...fixture, ...withUi({ collapsedProjects: [OTHER] }) });
   await expect(project(page, 'other')).toHaveClass(/\bcollapsed\b/);

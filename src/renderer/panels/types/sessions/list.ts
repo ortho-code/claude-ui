@@ -35,7 +35,7 @@ import './list.css';
 
 /**
  * The sidebar's session list: a section per project holding its groups and then its loose rows, each row a session's card with its marks and controls; the menus and actions on rows and headings; the folds and collapse-all; and the reveals and jumps other surfaces ask for.
- * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, registered by `watchList` in the sidebar's repaints, watch.ts), and reads what it draws from main in one change (`renderSessions`), which start-up and a row's delete both ask for.
+ * It follows the store (`listChanged`, `listFollowsTabs`, `dotsFollowStatuses`, `foldsFollow`, registered by `watchList` in the sidebar's repaints, watch.ts), and reads what it draws from main in one change (`renderSessions`), which start-up and a row's delete both ask for.
  */
 
 /** The list's three parts, built here and placed by the sidebar (index.ts): collapse-all in the header, the loading bar, and the list itself. */
@@ -66,12 +66,13 @@ const sessionRows = new Map<string, HTMLElement>();
 // Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen rather than on everything that has ever existed.
 let renderedSections: { projects: string[]; groups: string[] } = { projects: [], groups: [] };
 
-/** Open a folded project or group, for a reveal or a jump, which draw the list themselves; says whether it was folded. */
-function unfold(kind: 'projects' | 'groups', key: string): boolean {
+/**
+ * Open a folded project or group, for a reveal or a jump, which then measure where it is.
+ * The folds' watcher opens it as it is told (`foldsFollow`), so neither may run inside a batch, which would tell it only afterwards.
+ */
+function unfold(kind: 'projects' | 'groups', key: string): void {
   const state = store.get();
-  if (!(kind === 'projects' ? foldedProjects(state) : foldedGroups(state)).has(key)) return false;
-  store.set({ folds: foldsWith(state, kind, [key], false) });
-  return true;
+  if ((kind === 'projects' ? foldedProjects(state) : foldedGroups(state)).has(key)) store.set({ folds: foldsWith(state, kind, [key], false) });
 }
 interface ProjectSectionEls {
   section: HTMLElement;
@@ -165,6 +166,15 @@ function dotsFollowStatuses(view: View<'statuses' | 'acked'>, before: View<'stat
   }
 }
 
+/**
+ * The folds changed: every section on screen folds or opens in place (`applyFolds`), and collapse-all says what it will do now.
+ * Not the list: a fold hides rows that are already drawn, and drawing them all again would cost a heading's click its stillness.
+ */
+function foldsFollow(view: View<'folds' | 'filter' | 'activeProject'>): void {
+  applyFolds(view);
+  updateCollapseToggle(view);
+}
+
 // --- Sidebar ---
 
 interface FullRead {
@@ -228,7 +238,7 @@ const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', '
 /** The tabs, which have a watcher of their own (`listFollowsTabs`), since most of a tab's changes move only the rows' marks. */
 const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
- * What the list reads and is never told of: a status change repaints only the dots (`dotsFollowStatuses`); the folds, since a heading's click folds in place without drawing the list, and whoever else folds draws it; and whether the filter panel is open.
+ * What the list reads and is never told of: a status change repaints only the dots (`dotsFollowStatuses`); a fold only folds what is drawn (`foldsFollow`); and whether the filter panel is open.
  */
 const LIST_QUIET = ['statuses', 'acked', 'folds', 'filterPanelOpen'] as const;
 
@@ -240,6 +250,7 @@ export function watchList(): void {
   store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
   store.watch(['statuses', 'acked'], dotsFollowStatuses);
+  store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject'] });
 }
 
 /** The list follows the store, with the filter's count and chips it draws. */
@@ -466,7 +477,7 @@ const COLLAPSE_ALL_ICON = strokeIcon(14, '<path d="M4 7.25L8 3.75L12 7.25" /><pa
 const EXPAND_ALL_ICON = strokeIcon(14, '<path d="M4 3.75L8 7.25L12 3.75" /><path d="M4 8.75L8 12.25L12 8.75" />');
 
 // What the button folds depends on the view.
-// In All it folds the project sections (keyed on projects alone: with every project shut its groups are out of sight anyway, which is why a group toggling on its own needs no refresh call).
+// In All it folds the project sections (keyed on projects alone: with every project shut its groups are out of sight anyway).
 // In a single-project view folding the one project you asked to look at is pointless, so it folds THAT project's groups instead.
 function collapseScope(view: View<'activeProject' | 'filter' | 'folds'>): { kind: 'projects' | 'groups'; ids: string[]; collapsed: ReadonlySet<string> } {
   return view.activeProject === null
@@ -501,7 +512,6 @@ collapseToggle.addEventListener('click', () => {
     folds = expanding ? foldsWith(next, 'groups', foldedGroups(next), false) : foldsWith(next, 'groups', renderedSections.groups, true);
   }
   store.set({ folds });
-  renderList(store.get());
 });
 
 
@@ -517,7 +527,6 @@ function clearList(): void {
 // Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order both the sections and their rows via appendChild (which moves an existing node into place).
 // Inside a project the group sections come first, then the rows belonging to no group.
 function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'projectNames' | 'activeProject' | 'folds'>): void {
-  const { activeProject } = view;
   const wanted = new Set(desired.map((p) => p.repoRoot));
   for (const [repoRoot, els] of projectSections) {
     if (!wanted.has(repoRoot)) {
@@ -538,13 +547,6 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
       els = createProjectSection(project.repoRoot);
       projectSections.set(project.repoRoot, els);
     }
-    // While filtering, force projects open so matches inside a collapsed one are visible; the stored collapse state is left untouched, so it returns when the filter clears.
-    const collapsed = activeProject === null && foldedProjects(view).has(project.repoRoot);
-    els.section.classList.toggle('collapsed', collapsed);
-    // A project view can't collapse its one project, so it shows no caret and no clickable styling.
-    els.section.classList.toggle('no-collapse', activeProject !== null);
-    els.caret.hidden = activeProject !== null;
-    setFolded(els.caret, collapsed);
     els.count.textContent = String(project.count);
     els.label.textContent = projName(project.repoRoot, view); // keep the heading current (e.g. after a rename)
     // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
@@ -563,9 +565,6 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     for (const { group, sessions } of project.groups) {
       const groupEls = groupSections.get(group.id) ?? createGroupSection(group.id);
       groupSections.set(group.id, groupEls);
-      const groupCollapsed = foldedGroups(view).has(group.id);
-      groupEls.section.classList.toggle('collapsed', groupCollapsed);
-      setFolded(groupEls.caret, groupCollapsed);
       groupEls.label.textContent = group.name;
       groupEls.count.textContent = String(sessions.length);
       groupEls.addCaret.hidden = !project.isRepo; // worktree option only for git repos
@@ -597,6 +596,26 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
       els.section.appendChild(row);
     }
     container.appendChild(els.section);
+  }
+  applyFolds(view);
+}
+
+/** Fold or open every section on screen as the folds in play say: for each draw, and for each change of the folds (`foldsFollow`). */
+function applyFolds(view: View<'folds' | 'filter' | 'activeProject'>): void {
+  const { activeProject } = view;
+  for (const [repoRoot, els] of projectSections) {
+    // While filtering, force projects open so matches inside a collapsed one are visible; the stored collapse state is left untouched, so it returns when the filter clears.
+    const collapsed = activeProject === null && foldedProjects(view).has(repoRoot);
+    els.section.classList.toggle('collapsed', collapsed);
+    // A project view can't collapse its one project, so it shows no caret and no clickable styling.
+    els.section.classList.toggle('no-collapse', activeProject !== null);
+    els.caret.hidden = activeProject !== null;
+    setFolded(els.caret, collapsed);
+  }
+  for (const [id, els] of groupSections) {
+    const collapsed = foldedGroups(view).has(id);
+    els.section.classList.toggle('collapsed', collapsed);
+    setFolded(els.caret, collapsed);
   }
 }
 
@@ -649,8 +668,8 @@ async function renameProject(repoRoot: string): Promise<void> {
 export function revealSessionInSidebar(session: SessionSummary): void {
   // Its group can be collapsed too, and then the row is hidden even with the project open.
   const groupId = store.get().groupState.groupOf[entityKey(session)];
-  if (groupId && unfold('groups', groupId)) renderList(store.get());
-  if (unfold('projects', session.repoRoot)) renderList(store.get());
+  if (groupId) unfold('groups', groupId);
+  unfold('projects', session.repoRoot);
   const row = sessionRows.get(entityKey(session));
   if (!row) return;
   // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole app).
@@ -666,7 +685,7 @@ const REVEAL_GAP = 6;
 
 // Scroll the (All-view) session list to a project's heading — used by the project name in the tab bar, so it links to where that project's sessions live.
 export function revealProjectInSidebar(repoRoot: string): void {
-  if (unfold('projects', repoRoot)) renderList(store.get());
+  unfold('projects', repoRoot);
   const els = projectSections.get(repoRoot);
   if (!els) return;
   container.scrollTop += els.section.getBoundingClientRect().top - container.getBoundingClientRect().top;
@@ -692,8 +711,8 @@ function syncStickyOffset(): void {
 export function jumpToGroup(repoRoot: string, groupId: string | null): void {
   const els = projectSections.get(repoRoot);
   if (!els) return;
-  if (unfold('projects', repoRoot)) renderList(store.get());
-  if (groupId !== null && unfold('groups', groupId)) renderList(store.get());
+  unfold('projects', repoRoot);
+  if (groupId !== null) unfold('groups', groupId);
 
   // A group jumps to its heading; the ungrouped remainder has none, so it jumps to its first row — which is the one carrying .after-groups, the class that marks where the loose rows begin.
   const target: HTMLElement | null | undefined =
@@ -709,16 +728,13 @@ export function jumpToGroup(repoRoot: string, groupId: string | null): void {
 }
 
 /**
- * Fold or unfold a section: remember it, hide the rows, turn the caret; saving follows the folds.
- * Both toggles deliberately skip renderList — no flicker, no scroll jump.
+ * Fold or unfold a section: the folds' watcher hides its rows and turns its caret in place (`foldsFollow`), and saving follows the folds.
+ * Neither heading's click draws the list — no flicker, no scroll jump.
  */
-function toggleFold(section: HTMLElement, caret: HTMLElement, kind: 'projects' | 'groups', key: string): void {
+function toggleFold(kind: 'projects' | 'groups', key: string): void {
   const state = store.get();
   const collapsed = !(kind === 'projects' ? foldedProjects(state) : foldedGroups(state)).has(key);
-  // The list reads the folds without being told of them, so this draws nothing but the section.
   store.set({ folds: foldsWith(state, kind, [key], collapsed) });
-  section.classList.toggle('collapsed', collapsed);
-  setFolded(caret, collapsed);
 }
 
 // Build a project section once; its contents (name, count, caret, rows) are drawn by reconcileProjectSections, on this render and every later one.
@@ -802,14 +818,11 @@ function createProjectSection(name: string): ProjectSectionEls {
   // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker.
   // Keep the clicked heading anchored: a sticky heading otherwise snaps between stuck and natural position as its rows appear/disappear, which reads as a jump.
   heading.addEventListener('click', () => {
-    // Not collapsible in a single-project view: hiding the one project you're looking at leaves an empty sidebar. The heading is a title there, and reconcileProjectSections drops its caret to say so.
-    const state = store.get();
-    if (state.activeProject !== null) return;
+    // Not collapsible in a single-project view: hiding the one project you're looking at leaves an empty sidebar. The heading is a title there, and applyFolds drops its caret to say so.
+    if (store.get().activeProject !== null) return;
     const before = heading.getBoundingClientRect().top;
-    toggleFold(section, caret, 'projects', name);
+    toggleFold('projects', name);
     container.scrollTop += heading.getBoundingClientRect().top - before;
-    // No render here, so the header button has to be refreshed by hand — otherwise it still reads "Expand all" after one project reopens.
-    updateCollapseToggle(state);
   });
   section.appendChild(heading);
 
@@ -869,7 +882,7 @@ function createGroupSection(id: string): GroupSectionEls {
   });
   heading.append(split, kebab);
   heading.addEventListener('click', () => {
-    toggleFold(section, caret, 'groups', id);
+    toggleFold('groups', id);
   });
 
   // The rows live in their own element so the indent and its rail wrap the whole group, which is what shows where a group ends without needing to read the next heading.

@@ -55,7 +55,7 @@ export interface AppState {
   panelData: ReadonlyMap<string, PanelData>;
   /** The sidebar's filter as it is set: the list, its count and chips, and the folds in play all follow it, and it is kept for the next launch. */
   filter: FilterState;
-  /** The list's folded sections, kept for the next launch; the list reads them as it draws, and a heading's click folds in place without drawing it. */
+  /** The list's folded sections, kept for the next launch; the list folds what it has drawn in place as they change, without drawing it again. */
   folds: Folds;
   /** Whether the filter panel is open, kept for the next launch: shut over a filter, it leaves a row of chips naming what is on. */
   filterPanelOpen: boolean;
