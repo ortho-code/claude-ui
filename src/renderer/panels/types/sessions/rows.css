@@ -31,11 +31,6 @@
   margin-left: -4px; /* row gap 8 - 4 = the 4px trailing-pair gap — see .group-kebab */
 }
 
-.pin:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
 /* Meta and the worktree/sibling marks share one line, which is a whole line saved per badged row.
    The meta flexes into whatever the marks leave (min-width:0 so it can shrink and ellipsize/stack);
    the marks never shrink. */

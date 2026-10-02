@@ -1,12 +1,5 @@
-/* Dimmed rather than hidden while filtering: filtering forces every section open, so the action has
-   nothing to do — but a control vanishing as you type reads worse than one plainly unavailable. */
-#collapse-toggle:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* Except where it cannot collapse (a single-project view), where a hover cue and a pointer would
-   both claim a click that does nothing. The open-menu cue stays: the kebab still works. */
+/* A heading that cannot collapse (a single-project view) gives up its hover cue and its pointer, which would both claim a click that does nothing.
+   The open-menu cue stays: the kebab still works. */
 .project.no-collapse h2 {
   cursor: default;
 }

@@ -106,7 +106,7 @@ function createSessionRow(key: string): HTMLElement {
   pin.addEventListener('click', (event) => {
     event.stopPropagation();
     if (pin.disabled) return;
-    // Disabling it is the pending cue: .pin:disabled dims. (There was a 'loading' class here with no CSS behind it, so it painted nothing.)
+    // Disabling it is the pending cue: the icon button's disabled look dims it (base.css). (There was a 'loading' class here with no CSS behind it, so it painted nothing.)
     pin.disabled = true;
     void togglePinFor(key).then(() => {
       // The row's redraw re-enables it; this is for an answer that changed nothing, which tells nobody.

@@ -100,12 +100,6 @@
 }
 
 /* Per-project kebab on a project heading (rename now, hide later). */
-
-.project h2 .project-groups:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
 .project h2 .project-kebab {
   justify-content: center;
   /* Match the session-row kebab exactly: padding-sized (no fixed box), same padding and same icon

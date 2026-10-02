@@ -84,6 +84,7 @@ function allSectionsCollapsed(view: View<'activeProject' | 'filter' | 'folds'>):
 
 export function updateCollapseToggle(view: View<'activeProject' | 'filter' | 'folds'>): void {
   // Filtering forces every section open (so matches inside a collapsed one are visible), which leaves this nothing to act on.
+  // Disabled rather than hidden, since a control vanishing as you type reads worse than one plainly unavailable.
   collapseToggle.disabled = isFiltering(view) || collapseScope(view).ids.length === 0;
   const label = allSectionsCollapsed(view) ? 'Expand all' : 'Collapse all';
   collapseToggle.innerHTML = allSectionsCollapsed(view) ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON;
