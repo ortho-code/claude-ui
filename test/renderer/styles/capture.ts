@@ -130,6 +130,12 @@ export async function snapshot(page: Page, dir: string, name: string): Promise<v
   await page.waitForFunction(() => document.querySelector('.flash') === null);
   // Let a history drawn in slices, and anything else the last step set off, finish.
   await page.waitForTimeout(300);
+  // A tooltip shows 400 ms after the pointer comes to rest on its target and hides on the next move, so a slow run can show and hide one between two steps, leaving behind a hidden #tooltip (tooltip.ts makes it on first show, and keeps its last position) that a fast run never made.
+  // A hidden one draws nothing, so it goes; a shown one is a look to keep, and a state of its own holds one up.
+  await page.evaluate(() => {
+    const tip = document.getElementById('tooltip');
+    if (tip?.hidden) tip.remove();
+  });
   const hold = (): Promise<void> =>
     page.evaluate(() => {
       for (const animation of document.getAnimations()) {
