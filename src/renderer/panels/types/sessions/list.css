@@ -5,29 +5,6 @@
   cursor: default;
 }
 
-#loading {
-  height: 2px;
-  overflow: hidden;
-}
-
-#loading.active::after {
-  content: '';
-  display: block;
-  height: 100%;
-  width: 40%;
-  background: var(--accent);
-  animation: loading-slide 1s linear infinite;
-}
-
-@keyframes loading-slide {
-  0% {
-    margin-left: -40%;
-  }
-  100% {
-    margin-left: 100%;
-  }
-}
-
 #sessions {
   flex: 1;
   min-height: 0;

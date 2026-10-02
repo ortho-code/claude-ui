@@ -1,5 +1,6 @@
 import { fromMarkup } from '../../../dom';
 import { store, withMember, type StoredView } from '../../../state/app';
+import './read.css';
 
 /**
  * THE FULL READ of what the session list draws from main, set in one change, with the loading bar the sidebar shows meanwhile.
