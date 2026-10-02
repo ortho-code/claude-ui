@@ -33,7 +33,6 @@
 
 /* A bordered box so it reads as a "new session" action, not part of the collapse chrome. */
 .project h2 .project-add {
-  justify-content: center;
   width: 22px;
   height: 22px;
   /* Explicitly zero, not absent: the box is a fixed 22px in border-box, so the UA's default button
@@ -44,12 +43,10 @@
 
 
 .split-button .project-add-caret {
-  justify-content: center;
   width: 16px;
   height: 22px;
   padding: 0; /* same reason as the "+" above, and tighter here: 16px leaves only 3px */
   background: var(--surface);
-  border: 1px solid var(--border);
   border-left: none;
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
@@ -108,11 +105,9 @@
    it modifies the button beside it rather than being a control in its own right. Its left border is
    dropped so the two halves share one edge. */
 .group h3 .group-add-caret {
-  justify-content: center;
   width: 14px;
   height: 20px; /* match the "+" half, which is the standard 24x20 */
   padding: 0;
-  border: 1px solid var(--border);
   border-left: none;
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
