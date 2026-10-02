@@ -1,0 +1,20 @@
+/* Split button: the "+" and a dropdown caret joined into one control. The caret is hidden for
+   non-repo folders (no worktree option), so the "+" keeps its full rounding then. */
+.split-button {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+/* A SPLIT BUTTON IS ONE CONTROL, so hovering either half outlines the whole of it — and so does one
+   half's menu being open. Keyed on the container and its children rather than on each half's class:
+   this used to be three rules naming .project-add, .project-add-caret, .group-add and
+   .group-add-caret between them, and every state added to a split button had to be written into all
+   of them. An unavailable half is excluded, since an outline reads as "clickable".
+   The per-half fill the project heading gives its halves still shows which half is about to be clicked.
+   BOTH selectors carry `:not(.unavailable)` for a second reason besides meaning: the halves' own
+   border is painted by rules like `.project h2 .project-add` at three components, so a selector of
+   two would lose to them and the outline would simply not appear. */
+.split-button:hover > :not(.unavailable),
+.split-button:has(.menu-open) > :not(.unavailable) {
+  border-color: var(--accent);
+}

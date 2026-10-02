@@ -3,6 +3,7 @@ import { chevronIcon, strokeIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
+import './controls.css';
 
 /**
  * THE SESSION LIST'S SHARED CONTROLS: the kebab the headings and the rows both carry, the new-session split button a project's heading and a group's both carry, and the marks they wear.
