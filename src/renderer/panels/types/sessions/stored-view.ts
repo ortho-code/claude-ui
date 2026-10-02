@@ -6,7 +6,7 @@ import { container } from './drawn';
 
 /**
  * The sidebar's part of the view kept for the next launch — the filter, the folds, the panel, the strip and the list's scroll — in the shape `UiState` stores it, and putting it back.
- * The window's saving (renderer.ts) composes it with the layout tree's part, so `meta.json` keeps the one shape it has.
+ * The window's saving (view-saving.ts) composes it with the layout tree's part, so `meta.json` keeps the one shape it has.
  */
 
 /** The sidebar's fields of the stored view, as they are now. */
