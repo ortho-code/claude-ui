@@ -20,6 +20,8 @@
   --idle: #a6e3a1;
   /* A panel's run that did not end well, on its rail icon. */
   --failed: #f38ba8;
+  /* What destroys: a dialog's delete, and the window's close. */
+  --danger: #c92a2a;
 
   /* Corner radii, one per KIND of thing rather than one per component — the stylesheet had eight
      values (1, 4, 5, 6, 7, 8, 10, 12) that no rule explained. Controls are anything you click;

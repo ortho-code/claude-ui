@@ -17,7 +17,7 @@
 }
 
 .dialog-actions .danger {
-  --fill: #c92a2a;
+  --fill: var(--danger);
   color: #fff;
 }
 

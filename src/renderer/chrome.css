@@ -59,10 +59,9 @@
   color: var(--text);
 }
 
-/* Close is the one destructive control in the row, and it sits beside two that are not.
-   The same red as the delete button in the confirm dialog, rather than a second one. */
+/* Close is the one destructive control in the row, and it sits beside two that are not, so it takes the danger red a dialog's delete wears. */
 #window-controls button.danger:hover {
-  background: #c92a2a;
+  background: var(--danger);
   color: #fff;
 }
 
