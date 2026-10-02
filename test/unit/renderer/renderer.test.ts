@@ -46,6 +46,7 @@ const ORDER = [
   'src/renderer/panels/types/terminal.css',
   'src/renderer/panels/types/sessions/controls.css',
   'src/renderer/panels/types/sessions/headings.css',
+  'src/renderer/panels/types/sessions/rows.css',
   'src/renderer/panels/types/sessions/list.css',
 ];
 

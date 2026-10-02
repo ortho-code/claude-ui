@@ -11,6 +11,7 @@ import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
 import { kebabButton } from './controls';
 import { currentByKey, sessionRows, statusDots } from './drawn';
+import './rows.css';
 
 /**
  * THE SESSION LIST'S ROWS: a session's card, built once per session with its marks and controls and kept across renders, and brought up to date for the session it shows on every render (list.ts).

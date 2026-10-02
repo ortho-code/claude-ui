@@ -1,0 +1,162 @@
+/* The default cursor says the row is not the way in; the controls inside keep their own pointer, since those still work.
+   A tab keeps its pointer: clicking it still selects it, and the pane says why it will not start. */
+.session.unstartable {
+  cursor: default;
+}
+
+.session.unstartable .icon-btn {
+  cursor: pointer;
+}
+
+/* The standard icon-control box: a 14px icon, 2px 4px padding and a transparent 1px border, giving
+   24x20. Every clickable icon in the app is built from this one recipe — only the padding changes
+   for the compact (tab bar) and large (header) tiers, so a control's size is never a per-control
+   decision. The border is transparent rather than absent so a hover/active border can't resize the
+   box. Documented exceptions: the split button's halves (a bordered composite), the note mark (a
+   13px mark inline in a 12px meta line), the 9px status dot, and the decorative chevrons/tick. */
+.unarchive-btn,
+.delete-btn,
+
+/* Every icon control hovers identically: --active fill, accent outline, brighter glyph. One rule
+   rather than per-control ones, because the old behaviour was an accident of SPECIFICITY, not a
+   decision — `button:hover` (0,1,1) sets the accent border app-wide, so controls whose resting rule
+   was more specific (.project h2 .project-kebab at 0,2,2, #toast-close at 1,0,0) silently never got
+   it while .session-kebab (0,1,0) did. Listing them together, each with :hover, beats each one's own
+   resting rule, so the treatment is uniform by construction.
+   --active, not --surface-hover: a hovered session ROW is already --surface-hover, so a button
+   filling to the same colour inside it shows no change at all. --active reads on bg, surface and
+   surface-hover alike. It matches .menu-open, which is fine — an open menu is visible below it. */
+
+.session-kebab {
+  margin-left: -4px; /* row gap 8 - 4 = the 4px trailing-pair gap — see .group-kebab */
+}
+
+.pin:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Meta and the worktree/sibling marks share one line, which is a whole line saved per badged row.
+   The meta flexes into whatever the marks leave (min-width:0 so it can shrink and ellipsize/stack);
+   the marks never shrink. */
+.session-subline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.session-subline .card-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The text carries the ellipsis now that the paragraph is a flex container. text-box trims its box
+   to cap-height/baseline so flex centres the mark against the text's INK: centring the em box aligns
+   to a box that includes descender space, which leaves the mark reading a touch low. Same fix as
+   .badge-text in the pills. */
+.meta-text {
+  text-box: trim-both cap alphabetic;
+  /* The trim ends the box at the BASELINE, so descenders (g, p, y) paint outside it — and this
+     element needs overflow:hidden for its ellipsis, which clipped them. Symmetric padding gives the
+     clip box room without undoing the trim's purpose: cap-top to baseline still sits centred in the
+     padded box, so the mark beside it stays aligned to the text's ink. 3px is this font's descent
+     at 12px; measured, not guessed. */
+  padding: 3px 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Muted, not accent: the worktree/sibling pills use accent for what the SESSION is, while a note is
+   something you attached. Clickable, hence the pointer and the hover lift. No vertical nudge — it is
+   a flex child of the meta row, so centring is the layout's job, not a magic number's. */
+/* The dot before the note mark. Trimmed like the text beside it so all three sit on one optical
+   line, and it loses the flex gap on its right so "· icon" reads as one unit. */
+.meta-sep {
+  flex: 0 0 auto;
+  text-box: trim-both cap alphabetic;
+  margin-right: -1px;
+}
+
+/* INLINE tier of the icon control: the note mark rides inside the 12px meta line, so it can't take
+   the standard 24x20 box without pushing every noted row taller. It keeps its own smaller box but
+   the same hover language as its neighbours (see the shared hover rule), so it reads as clickable
+   rather than as decoration — it was the only clickable thing in the app with no box at all. */
+.note-badge {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 1px 3px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+
+.worktree-badge,
+.sibling-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  /* Explicit height (border-box), because a flex pill with no text child has no line box for
+     line-height to act on: the wordless worktree pill collapsed to its icon at 12px while the
+     sibling pill, which holds a count, stood at 18px. line-height:1 for the same reason in reverse —
+     it makes a digit's box its own font size, so flex centres it on exactly the icon's centre
+     instead of half a pixel below. */
+  height: 18px;
+  padding: 0 6px;
+  font-size: var(--text-badge);
+  line-height: 1;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* The sibling badge shares the worktree badge's look; it's clickable (opens the sibling list), so
+   it also gets a pointer cursor and a fill on hover to signal that. */
+.sibling-badge {
+  cursor: pointer;
+}
+
+/* Filled on hover, and held filled while its popover is open (.menu-open) so it doesn't drop back
+   when the mouse leaves the badge. */
+.sibling-badge:hover,
+.sibling-badge.menu-open {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* The badge/pill icons (fork, branch) as inline SVG. The pill stays an inline-block so its
+   max-width + ellipsis keep applying to the text beside the icon; this only aligns the icon to the
+   text baseline and sizes it to the 10px pill. No per-glyph size correction any more — the shapes are
+   ours, so they already match. */
+.badge-icon {
+  display: flex;
+}
+
+/* Text inside a badge pill (a sibling count, the model label). A digit's em box carries the font's full ascent and descent, so
+   centring that box leaves the digit's INK riding ~0.7px high next to an icon whose ink is centred in
+   its own viewBox — visible at 10px. text-box-trim cuts the box down to cap-height/baseline, i.e. to
+   the ink itself, so flex centres what you actually see. Font-independent, unlike a hard-coded nudge
+   (the trap .wt-icon's old 0.8em fell into). Chromium-only, which is all this app runs on. */
+.badge-text {
+  text-box: trim-both cap alphabetic;
+}
+
+
+/* 12px, not 10: these icons carry ink across 10 of their 16 viewBox units (62.5%), so 12px renders
+   7.5px of ink — matching the 7.25px ink of the 10px digit beside it. At 10px the icon's 6.25px of
+   ink read as a smaller mark next to a bigger number, which looked like a centring fault. */
+.badge-icon svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
