@@ -802,7 +802,7 @@ function createProjectSection(name: string): ProjectSectionEls {
   // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker.
   // Keep the clicked heading anchored: a sticky heading otherwise snaps between stuck and natural position as its rows appear/disappear, which reads as a jump.
   heading.addEventListener('click', () => {
-    // Not collapsible in a single-project view: hiding the one project you're looking at leaves an empty sidebar. The heading is a title there, and updateProjectSection drops its caret to say so.
+    // Not collapsible in a single-project view: hiding the one project you're looking at leaves an empty sidebar. The heading is a title there, and reconcileProjectSections drops its caret to say so.
     const state = store.get();
     if (state.activeProject !== null) return;
     const before = heading.getBoundingClientRect().top;
