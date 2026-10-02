@@ -81,11 +81,7 @@ export async function startChrome(): Promise<void> {
     windowMaximized = value;
     paintMaximizeButton();
   });
-  // What counts as "the bar" for dragging and double-clicking: the strip and its inert contents (the
-  // mark, the title), but not the controls and not the resize handles along its top.
-  // Testing `event.target === titlebar` instead was a real bug: the title fills the middle of the bar
-  // (flex: 1), so a double-click on the header almost always lands on IT, and the toggle never ran —
-  // the window maximized natively instead, drawn offset and with the app unaware it had happened.
+  // What counts as "the bar" for dragging and double-clicking: the strip and its inert contents (the mark, the title), but not the controls and not the resize handles along its top. Testing `event.target === titlebar` instead was a real bug: the title fills the middle of the bar (flex: 1), so a double-click on the header almost always lands on IT, and the toggle never ran — the window maximized natively instead, drawn offset and with the app unaware it had happened.
   const onBarBackground = (event: Event): boolean => {
     const target = event.target as HTMLElement | null;
     return target !== null && !target.closest('#window-controls') && !target.closest('.resize-edge');
@@ -95,18 +91,11 @@ export async function startChrome(): Promise<void> {
     if (onBarBackground(event)) window.claudeUi.toggleMaximizeWindow();
   });
 
-  // One gesture for moving and for resizing every edge: same pointer capture, same slack, same
-  // frame-throttled reporting, differing only in which edge the main process is told to work on.
-  // They were two near-identical blocks; see CLAUDE.md on one implementation per behaviour.
+  // One gesture for moving and for resizing every edge: same pointer capture, same slack, same frame-throttled reporting, differing only in which edge the main process is told to work on. They were two near-identical blocks; see CLAUDE.md on one implementation per behaviour.
   //
-  // screenX/screenY throughout, never client coordinates: the window itself moves under the gesture,
-  // so anything measured relative to it shifts beneath a pointer that has not moved.
-  // The offset sent is the TOTAL from where the gesture began, which the main process applies to the
-  // bounds it captured then — incremental deltas would each be measured against the previous move's
-  // result and drift.
+  // screenX/screenY throughout, never client coordinates: the window itself moves under the gesture, so anything measured relative to it shifts beneath a pointer that has not moved. The offset sent is the TOTAL from where the gesture began, which the main process applies to the bounds it captured then — incremental deltas would each be measured against the previous move's result and drift.
   //
-  // Nothing starts until the pointer has actually travelled: on the title bar the first thing a drag
-  // does is come out of maximize, so starting on pointerdown made a plain CLICK restore the window.
+  // Nothing starts until the pointer has actually travelled: on the title bar the first thing a drag does is come out of maximize, so starting on pointerdown made a plain CLICK restore the window.
   const GESTURE_SLACK = 4;
 
   function wireWindowGesture(handle: HTMLElement, edge: string, accepts: (event: PointerEvent) => boolean): void {
@@ -119,9 +108,7 @@ export async function startChrome(): Promise<void> {
       let originX = downX;
       let originY = downY;
       let started = false;
-      // One setBounds per frame at most. A pointermove can fire far more often than the compositor
-      // can place a window, and the backlog is what made a drag stutter between positions before
-      // catching up at the end.
+      // One setBounds per frame at most. A pointermove can fire far more often than the compositor can place a window, and the backlog is what made a drag stutter between positions before catching up at the end.
       let pending: { dx: number; dy: number } | null = null;
       let frame = 0;
       const flush = (): void => {
@@ -134,8 +121,7 @@ export async function startChrome(): Promise<void> {
         if (!started) {
           if (Math.abs(moved.screenX - downX) < GESTURE_SLACK && Math.abs(moved.screenY - downY) < GESTURE_SLACK) return;
           started = true;
-          // Measure from HERE, not from the pointerdown: coming out of maximize repositions the
-          // window under the cursor, so the bounds the main process captures belong to this moment.
+          // Measure from HERE, not from the pointerdown: coming out of maximize repositions the window under the cursor, so the bounds the main process captures belong to this moment.
           originX = moved.screenX;
           originY = moved.screenY;
           window.claudeUi.startWindowResize(edge, { x: moved.screenX, y: moved.screenY });
@@ -149,8 +135,7 @@ export async function startChrome(): Promise<void> {
         handle.removeEventListener('pointermove', move);
         handle.removeEventListener('pointerup', up);
         if (!started) return;
-        // The last move may still be queued for the next frame, and dropping it would leave the
-        // window a few pixels from where the gesture ended.
+        // The last move may still be queued for the next frame, and dropping it would leave the window a few pixels from where the gesture ended.
         if (frame) cancelAnimationFrame(frame);
         flush();
         window.claudeUi.endWindowResize();
@@ -162,8 +147,7 @@ export async function startChrome(): Promise<void> {
 
   wireWindowGesture(titlebar, 'move', onBarBackground);
   resizeEdges.hidden = false;
-  // Every edge and corner is ours: Chromium offers a 4px margin on three sides and none at the top,
-  // so a hand-built top edge alone would have behaved unlike its neighbours.
+  // Every edge and corner is ours: Chromium offers a 4px margin on three sides and none at the top, so a hand-built top edge alone would have behaved unlike its neighbours.
   for (const handle of document.querySelectorAll<HTMLElement>('.resize-edge')) {
     wireWindowGesture(handle, handle.dataset.edge ?? '', () => !windowMaximized);
   }

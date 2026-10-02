@@ -75,8 +75,7 @@ export function promptText(
   renameError.hidden = true;
   renameOk.textContent = okLabel;
   const field: HTMLInputElement | HTMLTextAreaElement = multiline ? renameTextarea : renameInput;
-  // A union of input|textarea loses addEventListener's keyed overloads (the handler would widen to
-  // Event), so listeners go through the element as an HTMLElement while `field` keeps .value typed.
+  // A union of input|textarea loses addEventListener's keyed overloads (the handler would widen to Event), so listeners go through the element as an HTMLElement while `field` keeps .value typed.
   const fieldEl: HTMLElement = field;
   renameInput.hidden = multiline;
   renameTextarea.hidden = !multiline;
@@ -104,9 +103,7 @@ export function promptText(
     return [
       listen(renameOk, 'click', () => void submit()),
       listen(renameCancel, 'click', () => finish(null)),
-      // Enter belongs to the field, since it submits what you typed; Escape is the modal's own and
-      // lives in runModal. In a note Enter is a newline and Ctrl/Cmd+Enter saves, the same habit as
-      // the terminal; a one-line field submits on plain Enter.
+      // Enter belongs to the field, since it submits what you typed; Escape is the modal's own and lives in runModal. In a note Enter is a newline and Ctrl/Cmd+Enter saves, the same habit as the terminal; a one-line field submits on plain Enter.
       listen(fieldEl, 'keydown', (event) => {
         if (event.key !== 'Enter') return;
         if (!multiline) void submit();
