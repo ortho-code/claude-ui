@@ -731,6 +731,50 @@ function toggleFold(kind: 'projects' | 'groups', key: string): void {
   store.set({ folds: foldsWith(state, kind, [key], collapsed) });
 }
 
+interface NewSessionSplit {
+  /** The class of the "+" and of the caret, which the heading's stylesheet sizes. */
+  addClass: string;
+  caretClass: string;
+  /** The project heading's "+" is a 12px mark in a filled box, the group's a 14px one in a standard box (list.css). */
+  plusSize: number;
+  tooltip: string;
+  /** Where to start a session at the click: the project's folder, and the group to file it in; null when there is none any more. */
+  where: () => { repoRoot: string; groupId?: string } | null;
+}
+
+// A heading's new-session split button: the "+" is one-click "New session"; the caret opens a dropdown with the worktree variant too. reconcileProjectSections shows the caret only for git repos.
+function newSessionSplit({ addClass, caretClass, plusSize, tooltip, where }: NewSessionSplit): { split: HTMLElement; add: HTMLButtonElement; addCaret: HTMLButtonElement } {
+  const split = document.createElement('div');
+  split.className = 'split-button';
+  const add = document.createElement('button');
+  add.className = `icon-btn composite ${addClass}`;
+  add.innerHTML = plusIcon(plusSize);
+  setTooltip(add, tooltip);
+  add.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (unavailable(add)) return; // aria-disabled still delivers the click, which is the trade for a tooltip that works
+    const at = where();
+    if (at) void hostOf('sessions').openNewSession(at.repoRoot, at.groupId);
+  });
+  const addCaret = document.createElement('button');
+  addCaret.className = `icon-btn composite ${caretClass}`;
+  addCaret.innerHTML = chevronDown(9);
+  addCaret.hidden = true;
+  setTooltip(addCaret, 'New session options');
+  addCaret.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (unavailable(addCaret)) return;
+    const at = where();
+    if (!at) return;
+    openMenu(addCaret, [
+      { label: 'New session', onSelect: () => void hostOf('sessions').openNewSession(at.repoRoot, at.groupId) },
+      { label: 'New worktree session…', onSelect: () => void hostOf('sessions').openWorktreeSession(at.repoRoot, at.groupId) },
+    ]);
+  });
+  split.append(add, addCaret);
+  return { split, add, addCaret };
+}
+
 // Build a project section once; its contents (name, count, caret, rows) are drawn by reconcileProjectSections, on this render and every later one.
 function createProjectSection(name: string): ProjectSectionEls {
   const section = document.createElement('section');
@@ -764,32 +808,13 @@ function createProjectSection(name: string): ProjectSectionEls {
     openMenu(groupsBtn, items);
   });
   heading.append(groupsBtn);
-  // Split button: the "+" is one-click "New session"; the caret opens a dropdown with worktree options. reconcileProjectSections shows the caret only for git repos.
-  const split = document.createElement('div');
-  split.className = 'split-button';
-  const add = document.createElement('button');
-  add.className = 'icon-btn composite project-add';
-  add.innerHTML = plusIcon(12);
-  setTooltip(add, 'New session in this project');
-  add.addEventListener('click', (event) => {
-    event.stopPropagation();
-    if (unavailable(add)) return; // aria-disabled still delivers the click, which is the trade for a tooltip that works
-    void hostOf('sessions').openNewSession(name);
+  const { split, add, addCaret } = newSessionSplit({
+    addClass: 'project-add',
+    caretClass: 'project-add-caret',
+    plusSize: 12,
+    tooltip: 'New session in this project',
+    where: () => ({ repoRoot: name }),
   });
-  const addCaret = document.createElement('button');
-  addCaret.className = 'icon-btn composite project-add-caret';
-  addCaret.innerHTML = chevronDown(9);
-  addCaret.hidden = true;
-  setTooltip(addCaret, 'New session options');
-  addCaret.addEventListener('click', (event) => {
-    event.stopPropagation();
-    if (unavailable(addCaret)) return;
-    openMenu(addCaret, [
-      { label: 'New session', onSelect: () => void hostOf('sessions').openNewSession(name) },
-      { label: 'New worktree session…', onSelect: () => void hostOf('sessions').openWorktreeSession(name) },
-    ]);
-  });
-  split.append(add, addCaret);
   heading.append(split);
   // Project options (rename now, hide later); stopPropagation so it doesn't toggle collapse.
   const kebab = document.createElement('button');
@@ -829,36 +854,17 @@ function createGroupSection(id: string): GroupSectionEls {
   section.className = 'group';
 
   const { heading, caret, label, count } = sectionHeading('bar', layersIcon(13));
-  // Start a session already in this group — the group's answer to the project heading's split button, and the same two parts: "+" starts one straight away, the caret offers the worktree variant.
-  // reconcileProjectSections shows the caret only when the project is a git repo.
-  const split = document.createElement('div');
-  split.className = 'split-button';
-  const add = document.createElement('button');
-  add.className = 'icon-btn composite group-add';
-  add.innerHTML = plusIcon(14);
-  setTooltip(add, 'New session in this group');
-  add.addEventListener('click', (event) => {
-    event.stopPropagation();
-    if (unavailable(add)) return;
-    const group = store.get().groupState.groups.find((g) => g.id === id);
-    if (group?.repoRoot) void hostOf('sessions').openNewSession(group.repoRoot, id);
+  // Start a session already in this group, from a split button like the project heading's.
+  const { split, add, addCaret } = newSessionSplit({
+    addClass: 'group-add',
+    caretClass: 'group-add-caret',
+    plusSize: 14,
+    tooltip: 'New session in this group',
+    where: () => {
+      const repoRoot = store.get().groupState.groups.find((g) => g.id === id)?.repoRoot;
+      return repoRoot ? { repoRoot, groupId: id } : null;
+    },
   });
-  const addCaret = document.createElement('button');
-  addCaret.className = 'icon-btn composite group-add-caret';
-  addCaret.innerHTML = chevronDown(9);
-  addCaret.hidden = true;
-  setTooltip(addCaret, 'New session options');
-  addCaret.addEventListener('click', (event) => {
-    event.stopPropagation();
-    if (unavailable(addCaret)) return;
-    const repoRoot = store.get().groupState.groups.find((g) => g.id === id)?.repoRoot;
-    if (!repoRoot) return;
-    openMenu(addCaret, [
-      { label: 'New session', onSelect: () => void hostOf('sessions').openNewSession(repoRoot, id) },
-      { label: 'New worktree session…', onSelect: () => void hostOf('sessions').openWorktreeSession(repoRoot, id) },
-    ]);
-  });
-  split.append(add, addCaret);
   // Group options, same shape as the project heading's kebab; stopPropagation so it doesn't collapse.
   const kebab = document.createElement('button');
   kebab.className = 'icon-btn group-kebab';
