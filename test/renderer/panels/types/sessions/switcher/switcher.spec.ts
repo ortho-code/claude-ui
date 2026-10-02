@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { chooseProject, headings, switcherEntries, switcherNames, tab, tabLabels } from '../../../../support/window';
@@ -47,6 +48,31 @@ test('the switcher lists every project with its count, whatever the list is filt
   await page.locator('#switcher-current').click();
   await expect(switcherNames(page)).toHaveText(['All', 'demo', 'other']);
   await expect(switcherEntries(page).locator('.switcher-item-count')).toHaveText(['2', '1', '1']);
+});
+
+test('a switcher with more projects than fit scrolls its list inside its 320px cap', async ({ app, page }) => {
+  const many = Array.from({ length: 20 }, (_, n) => {
+    const root = `${HOME}/projects/p${String(n).padStart(2, '0')}`;
+    return session({ id: `00000000-0000-4000-8000-0000000001${String(n).padStart(2, '0')}`, title: `Session ${n}`, cwd: root, repoRoot: root });
+  });
+  await app.boot({ sessions: many, projectOrder: many.map((s) => s.repoRoot), activeProject: null });
+  const popover = page.locator('#switcher-popover');
+  const last = switcherEntries(page).last();
+  const bottomOf = async (element: Locator): Promise<number> => {
+    const box = await element.boundingBox();
+    if (!box) throw new Error('not laid out');
+    return box.y + box.height;
+  };
+  await page.locator('#switcher-current').click();
+  await expect(switcherEntries(page)).toHaveCount(21);
+  const box = await popover.boundingBox();
+  expect(box?.height).toBe(320);
+  expect(await bottomOf(last)).toBeGreaterThan(await bottomOf(popover));
+
+  await switcherEntries(page).first().hover();
+  await page.mouse.wheel(0, 2000);
+  await expect.poll(async () => (await bottomOf(last)) <= (await bottomOf(popover))).toBe(true);
+  await expect(popover).toBeVisible();
 });
 
 test('the switcher shuts on its own button and on a click outside it, choosing nothing', async ({ app, page }) => {
