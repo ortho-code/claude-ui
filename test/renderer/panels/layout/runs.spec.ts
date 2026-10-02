@@ -1,5 +1,5 @@
 import { PROJECT, session } from '../../support/fixture';
-import { expect, test } from '../../support/harness';
+import { type App, expect, test } from '../../support/harness';
 import { chooseProject, tab, tabLabel } from '../../support/window';
 import { LAYOUT, OTHER, railItem, runs, withLayout } from './layout';
 
@@ -45,23 +45,27 @@ test('a hidden command does not run on a project switch, runs once when shown so
   expect(await folders('status')).toEqual([PROJECT, OTHER]);
 });
 
+// A command beside claude and no shell, so the claudes are the only terminals, numbered from 1 in the order they start.
+const besideClaude = {
+  version: 2,
+  root: {
+    id: 'window',
+    columns: [
+      { id: 'sidebar', size: '320px', panels: [{ id: 'sessions', type: 'sessions' }] },
+      { id: 'main', panels: [{ id: 'cli', type: 'claude' }] },
+      { id: 'right', size: '360px', panels: [{ id: 'status', type: 'command', title: 'Status', icon: 'git', options: { command: 'git status --short' } }] },
+    ],
+  },
+};
+
+/** Where the Status command has run, in order. */
+const foldersOf = async (app: App): Promise<string[]> => (await runs(app, 'status')).map((run) => run.context.cwd);
+
 test('the tab on show closing hands the command to the next tab: one run, in its folder, and none in between', async ({ app, page }) => {
   const a = session({ id: '00000000-0000-4000-8000-0000000000d2', title: 'In a', cwd: `${PROJECT}/a` });
   const b = session({ id: '00000000-0000-4000-8000-0000000000d3', title: 'In b', cwd: `${PROJECT}/b` });
-  // No shell, so the claudes are the only terminals, numbered from 1 in the order they start.
-  const layout = {
-    version: 2,
-    root: {
-      id: 'window',
-      columns: [
-        { id: 'sidebar', size: '320px', panels: [{ id: 'sessions', type: 'sessions' }] },
-        { id: 'main', panels: [{ id: 'cli', type: 'claude' }] },
-        { id: 'right', size: '360px', panels: [{ id: 'status', type: 'command', title: 'Status', icon: 'git', options: { command: 'git status --short' } }] },
-      ],
-    },
-  };
-  await app.boot({ ...withLayout(layout), sessions: [a, b], activeProject: PROJECT, openSessions: [a.id, b.id], history: { [a.id]: [], [b.id]: [] } });
-  const folders = async (): Promise<string[]> => (await runs(app, 'status')).map((run) => run.context.cwd);
+  await app.boot({ ...withLayout(besideClaude), sessions: [a, b], activeProject: PROJECT, openSessions: [a.id, b.id], history: { [a.id]: [], [b.id]: [] } });
+  const folders = (): Promise<string[]> => foldersOf(app);
   await expect.poll(folders).toEqual([PROJECT]);
 
   // b running, then a running and on show.
