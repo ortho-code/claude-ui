@@ -40,7 +40,6 @@
      padding (1px 6px) would leave the icon 8px of content width and squash it. */
   padding: 0;
   background: var(--surface);
-  border: 1px solid var(--border);
 }
 
 
