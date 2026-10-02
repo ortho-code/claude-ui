@@ -47,21 +47,18 @@
   text-overflow: ellipsis;
 }
 
-/* Muted, not accent: the worktree/sibling pills use accent for what the SESSION is, while a note is
-   something you attached. Clickable, hence the pointer and the hover lift. No vertical nudge — it is
-   a flex child of the meta row, so centring is the layout's job, not a magic number's. */
-/* The dot before the note mark. Trimmed like the text beside it so all three sit on one optical
-   line, and it loses the flex gap on its right so "· icon" reads as one unit. */
+/* The dot before the note mark.
+   Trimmed like the text beside it so all three sit on one optical line, and it loses the flex gap on its right so "· icon" reads as one unit. */
 .meta-sep {
   flex: 0 0 auto;
   text-box: trim-both cap alphabetic;
   margin-right: -1px;
 }
 
-/* INLINE tier of the icon control: the note mark rides inside the 12px meta line, so it can't take
-   the standard 24x20 box without pushing every noted row taller. It keeps its own smaller box but
-   the same hover language as its neighbours (see the shared hover rule), so it reads as clickable
-   rather than as decoration — it was the only clickable thing in the app with no box at all. */
+/* INLINE tier of the icon control: the note mark rides inside the 12px meta line, so it can't take the standard 24x20 box without pushing every noted row taller.
+   It keeps its own smaller box but the same hover language as its neighbours (see the shared hover rule), so it reads as clickable rather than as decoration — it was the only clickable thing in the app with no box at all.
+   Muted, not accent: the worktree/sibling pills use accent for what the SESSION is, while a note is something you attached.
+   No vertical nudge — it is a flex child of the meta row, so centring is the layout's job, not a magic number's. */
 .note-badge {
   flex: 0 0 auto;
   display: flex;
