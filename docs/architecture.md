@@ -828,8 +828,7 @@ Switch to All to search or browse across projects; that is what All is for.
 
 **The empty terminal pane names the next action**, and it has four to choose from: no sessions at all, sessions but no tabs in this project, tabs but none selected, and a selected tab that isn't running.
 One sentence cannot cover them — it ends up telling someone with no tabs to pick a tab.
-Note it counts the tabs actually on screen (`visibleTabs()`, the same helper the bar renders from),
-not every open tab.
+Note it counts the tabs actually on screen (`visibleTabs()`, the same helper the bar renders from), not every open tab.
 
 Any control that opens a menu or popover keeps its active look (the same fill or outline it shows on hover) for as long as the menu is open, including when the pointer moves off it.
 The shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, and an icon button takes its open look from the same rule as its hover (`.icon-btn…:is(:hover, .menu-open)` in `base.css`), so the kebabs, the group jump, the carets and a list row's session mark need nothing of their own.
