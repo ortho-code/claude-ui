@@ -12,7 +12,8 @@ import { store, type StoredView } from './state/app';
 // Nothing is written until the start-up read has put the stored view back in the store (`startSavingUi`), or a save in between would write an empty sidebar straight over the real one.
 let uiRestored = false;
 let uiSaveTimer: number | undefined;
-// The last snapshot actually sent. Renders happen for reasons that have nothing to do with the view — a transcript growing, a status dot changing — and without this each one would cost a full read-modify-write of meta.json.
+// The last snapshot actually sent.
+// Renders happen for reasons that have nothing to do with the view — a transcript growing, a status dot changing — and without this each one would cost a full read-modify-write of meta.json.
 let lastUiSignature = '';
 
 /** The view to store: the sidebar's part and the layout tree's, in the one shape `meta.json` keeps. */

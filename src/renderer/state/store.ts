@@ -1,10 +1,12 @@
 /**
  * The window's shared state, and who is told when it changes (docs/architecture.md § The store).
  *
- * State is a set of named slices. A setter replaces slices and tells every watcher of a slice that changed, SYNCHRONOUSLY, so a flow that renders and then measures — reveal a row, then scroll to it — reads the DOM it just changed.
+ * State is a set of named slices.
+ * A setter replaces slices and tells every watcher of a slice that changed, SYNCHRONOUSLY, so a flow that renders and then measures — reveal a row, then scroll to it — reads the DOM it just changed.
  * `batch` holds the telling to its end, so a read of seven slices from main repaints once.
  * A watcher names the slices it reads and is handed a view typed as only those, so a repaint that reads a slice it did not subscribe to does not compile: "who repaints when this changes?" answered by the build rather than by whoever remembers.
- * A slice a repaint reads without wanting to be told about it — the session list reads every row's status, and a status change repaints only the dots, through a watcher of their own — is named in `reads`: in the view, and not told. Not being told is then a choice written where the watcher is, rather than a slice read by accident.
+ * A slice a repaint reads without wanting to be told about it — the session list reads every row's status, and a status change repaints only the dots, through a watcher of their own — is named in `reads`: in the view, and not told.
+ * Not being told is then a choice written where the watcher is, rather than a slice read by accident.
  * Handlers read the whole state through `get`, which is what a click needs; only repaints go through views.
  *
  * A slice's equality decides whether to TELL, never whether to assign: a value equal to the last is still stored, so `get` always has the newest, and watchers are simply not told.
@@ -17,7 +19,8 @@
  * Per watcher, from its subscription on, so a watcher told twice in one round sees only what moved since its own last call.
  *
  * Every slice also knows how new its value is, so a read from main that lands after something newer does not put the older answer back.
- * A plain `set` is true now. A read takes a `stamp` before it asks and writes with it as `readAt`: a slice written with anything newer is left as it is, and one it does write is as new as the moment it asked, so a read asked later still wins over it, whichever lands first.
+ * A plain `set` is true now.
+ * A read takes a `stamp` before it asks and writes with it as `readAt`: a slice written with anything newer is left as it is, and one it does write is as new as the moment it asked, so a read asked later still wins over it, whichever lands first.
  */
 
 export type Equality<T> = (a: T, b: T) => boolean;
@@ -35,7 +38,11 @@ export interface Store<S extends object> {
   set(patch: Partial<S>, options?: { readAt: Stamp }): void;
   /** Now, for a read about to ask main for what it then writes with `readAt`. */
   stamp(): Stamp;
-  /** Run `fn`, telling watchers once at its end about everything it changed. Batches nest; the outermost one tells. One that throws tells nothing, and what it changed is told with the next change. */
+  /**
+   * Run `fn`, telling watchers once at its end about everything it changed.
+   * Batches nest; the outermost one tells.
+   * One that throws tells nothing, and what it changed is told with the next change.
+   */
   batch(fn: () => void): void;
   /**
    * Call `fn` whenever one of `slices` changes, with a view of only those slices and the ones it `reads` without being told about them, and with `slices` as they were when it was last called; answers the unsubscribe.

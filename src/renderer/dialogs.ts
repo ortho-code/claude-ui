@@ -66,7 +66,8 @@ export function promptText(
   initialValue: string,
   okLabel = 'Save',
   validate?: (value: string) => Promise<string | null> | string | null,
-  // Multiline swaps the single-line input for a textarea (session notes). Same dialog, same skin — only the field and what Enter means differ.
+  // Multiline swaps the single-line input for a textarea (session notes).
+  // Same dialog, same skin — only the field and what Enter means differ.
   multiline = false,
 ): Promise<string | null> {
   renameTitle.textContent = title;
@@ -103,7 +104,8 @@ export function promptText(
     return [
       listen(renameOk, 'click', () => void submit()),
       listen(renameCancel, 'click', () => finish(null)),
-      // Enter belongs to the field, since it submits what you typed; Escape is the modal's own and lives in runModal. In a note Enter is a newline and Ctrl/Cmd+Enter saves, the same habit as the terminal; a one-line field submits on plain Enter.
+      // Enter belongs to the field, since it submits what you typed; Escape is the modal's own and lives in runModal.
+      // In a note Enter is a newline and Ctrl/Cmd+Enter saves, the same habit as the terminal; a one-line field submits on plain Enter.
       listen(fieldEl, 'keydown', (event) => {
         if (event.key !== 'Enter') return;
         if (!multiline) void submit();

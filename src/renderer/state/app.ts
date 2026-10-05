@@ -13,7 +13,10 @@ export interface AppState {
   sessions: SessionSummary[];
   /** Session id -> its status as its hooks last reported it (busy, idle, waiting, …); a session with none is absent. */
   statuses: ReadonlyMap<string, string>;
-  /** Sessions whose dot you marked read: dimmed, not pulsing. In memory only, so a restart lights everything again; any status event clears a session's mark. */
+  /**
+   * Sessions whose dot you marked read: dimmed, not pulsing.
+   * In memory only, so a restart lights everything again; any status event clears a session's mark.
+   */
   acked: ReadonlySet<string>;
   /**
    * Session id -> the model it switched to while the app was watching.
@@ -42,7 +45,10 @@ export interface AppState {
    * Seeded from the recency order the list already had, so switching it on changed nothing on screen; from then on it only moves when you move it.
    */
   projectOrder: readonly string[];
-  /** The project you are looking at, or null for All: the list, the switcher, the tab bar, the pane and the panels' context all honour it. Written through to main by whoever changes it. */
+  /**
+   * The project you are looking at, or null for All: the list, the switcher, the tab bar, the pane and the panels' context all honour it.
+   * Written through to main by whoever changes it.
+   */
   activeProject: string | null;
   /** The open tabs, in the bar's order, which is yours: the tab bar, the rows' marks, the strip, the open and live filters and the pane all draw them. */
   tabs: readonly TabState[];

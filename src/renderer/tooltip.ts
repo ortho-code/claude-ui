@@ -21,7 +21,8 @@ function ensureTip(): HTMLDivElement {
   return tip;
 }
 
-// Prefer below the target; flip above if it would overflow the bottom. Center on the target horizontally, clamped into the viewport.
+// Prefer below the target; flip above if it would overflow the bottom.
+// Center on the target horizontally, clamped into the viewport.
 function position(el: HTMLDivElement, target: HTMLElement): void {
   const r = target.getBoundingClientRect();
   const tw = el.offsetWidth;
@@ -85,7 +86,8 @@ export function installTooltips(): void {
   window.addEventListener('scroll', hide, true);
 }
 
-// Set or clear an element's tooltip. Empty/undefined removes the attribute so it never shows a blank tip and closest() can fall through to a tooltipped ancestor.
+// Set or clear an element's tooltip.
+// Empty/undefined removes the attribute so it never shows a blank tip and closest() can fall through to a tooltipped ancestor.
 export function setTooltip(el: HTMLElement, text: string | null | undefined): void {
   if (text) el.setAttribute('data-tooltip', text);
   else el.removeAttribute('data-tooltip');

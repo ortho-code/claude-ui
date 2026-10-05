@@ -61,7 +61,10 @@ export function visibleTabs({ activeProject, tabs }: View<'activeProject' | 'tab
   return activeProject ? tabs.filter((t) => t.session.repoRoot === activeProject) : tabs;
 }
 
-/** Whether a project is dead, by the rule the session list and the switcher use, for the surfaces that hold only a repo root: the tab bar and the empty pane. A root with no sessions to ask is not called dead. */
+/**
+ * Whether a project is dead, by the rule the session list and the switcher use, for the surfaces that hold only a repo root: the tab bar and the empty pane.
+ * A root with no sessions to ask is not called dead.
+ */
 export function projectGone(repoRoot: string, view: View<'sessions' | 'tabs'>): boolean {
   const sessions = visibleSessions(view).filter((s) => s.repoRoot === repoRoot);
   return sessions.length > 0 && !projectRootExists(sessions);

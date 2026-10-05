@@ -26,10 +26,12 @@ export const caretIcon = (collapsed: boolean, size: number): string => chevronIc
 /** The cross that closes or removes: a toast, a filter chip, a cold tab, the window. */
 export const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4" />');
 
-// A tab's button ends the session before it removes the tab, so it needs two marks rather than one: the media-stop square for the first press, the cross for the second. Squared off at 6.6 units so it reads at the same weight as the cross's diagonal.
+// A tab's button ends the session before it removes the tab, so it needs two marks rather than one: the media-stop square for the first press, the cross for the second.
+// Squared off at 6.6 units so it reads at the same weight as the cross's diagonal.
 export const stopIcon = (size: number): string => strokeIcon(size, '<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2" />');
 
-// A group's mark: layers, meaning "several things stacked as one". Muted, never accent — the accent belongs to the project's folder icon one line above it.
+// A group's mark: layers, meaning "several things stacked as one".
+// Muted, never accent — the accent belongs to the project's folder icon one line above it.
 export const layersIcon = (size: number): string => strokeIcon(size, '<path d="M8 2.2 2 5.4l6 3.2 6-3.2-6-3.2Z" /><path d="M2.4 9.2 8 12.2l5.6-3" />');
 
 // A project's mark, and the same folder with a slash through it for one whose directory is not there any more: ONE folder, so swapping the two moves no outline.

@@ -80,7 +80,8 @@ window.claudeUi.onSessionsChanged(() => {
   claudeWatch.sessionsChanged();
 });
 
-// Without the CLI every tab would open on "command not found", which reads as this app being broken rather than as a missing prerequisite. Say which one, and stay on screen until dismissed.
+// Without the CLI every tab would open on "command not found", which reads as this app being broken rather than as a missing prerequisite.
+// Say which one, and stay on screen until dismissed.
 window.claudeUi.onClaudeMissing(() => {
   showToast('The claude CLI was not found on your PATH. Install it and restart claude-ui.', true);
 });
@@ -111,7 +112,8 @@ void (async () => {
   startSavingUi();
   // The list follows the tabs as they come (`listFollowsTabs`): drawn again for a restored "open" or "live" filter, which are questions about the tabs, and its rows marked open otherwise.
   await restoreOpenTabs();
-  // Last, because there is nothing to scroll until the rows are on screen. Later renders carry the offset along themselves.
+  // Last, because there is nothing to scroll until the rows are on screen.
+  // Later renders carry the offset along themselves.
   restoreListScroll(scrollTop);
   switchWorkspaceTerminal(store.get().activeProject);
   // After the tabs, so a panel's first run is in the restored tab's folder rather than once for the project and again for the tab.

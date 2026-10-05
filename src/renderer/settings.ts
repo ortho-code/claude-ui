@@ -3,7 +3,8 @@ import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { listen, runModal } from './modal';
 
-// App preferences. One section for now; the shape is per-section so a second one (a read-only view of the user's own Claude config) is an addition rather than a rework.
+// App preferences.
+// One section for now; the shape is per-section so a second one (a read-only view of the user's own Claude config) is an addition rather than a rework.
 // The app's own folders are one row each under it, built from SETTINGS_FOLDERS below.
 document.body.insertAdjacentHTML(
   'beforeend',

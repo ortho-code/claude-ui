@@ -6,7 +6,10 @@ import { isFiltering } from './views';
  * Which of the two pairs in `Folds` is in play is decided here, once, so a read and a write can never take different pairs.
  */
 
-/** The fold sets in play right now: the transient pair while filtering, the stored pair otherwise (`Folds`). Every read and every write goes through these, so the two can never be mixed up. */
+/**
+ * The fold sets in play right now: the transient pair while filtering, the stored pair otherwise (`Folds`).
+ * Every read and every write goes through these, so the two can never be mixed up.
+ */
 export function foldedProjects(view: View<'filter' | 'folds'> = store.get()): ReadonlySet<string> {
   return isFiltering(view) ? view.folds.filterProjects : view.folds.projects;
 }

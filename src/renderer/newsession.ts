@@ -27,7 +27,10 @@ export function newSession(id: string, over: Partial<SessionSummary> & Pick<Sess
   };
 }
 
-/** What a session with nothing in it yet is called: the folder it runs in. Shared with a session `/clear` has just emptied, which is the same thing. */
+/**
+ * What a session with nothing in it yet is called: the folder it runs in.
+ * Shared with a session `/clear` has just emptied, which is the same thing.
+ */
 export function untitledLabel(cwd: string): string {
   return `New: ${cwd.split('/').filter(Boolean).pop() ?? cwd}`;
 }

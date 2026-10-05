@@ -9,7 +9,8 @@ export function entityKey(s: SessionSummary): string {
   return s.id;
 }
 
-// One entry per entity key. Keys are unique per session file today, so this is a plain index; the latest-activity preference only matters if the same id ever appears twice in a listing.
+// One entry per entity key.
+// Keys are unique per session file today, so this is a plain index; the latest-activity preference only matters if the same id ever appears twice in a listing.
 export function sessionsByKey(sessions: SessionSummary[]): Map<string, SessionSummary> {
   const byKey = new Map<string, SessionSummary>();
   for (const s of sessions) {
@@ -45,7 +46,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   repoRootExists: true,
   // A running session rewrites this constantly and no row is drawn from it; including it would make the guard useless.
   lastActivity: false,
-  // Main-process bookkeeping that links a fork of a compacted session into its family. The renderer never reads it.
+  // Main-process bookkeeping that links a fork of a compacted session into its family.
+  // The renderer never reads it.
   postCompactHeads: false,
 };
 
@@ -77,7 +79,8 @@ export function sameRow(a: SessionSummary, b: SessionSummary): boolean {
  * ONE wording for every surface that has to say it — the tooltip on a row you cannot click, the toast when you click its tab anyway, and the pane of a tab you are already sitting on.
  * They answer the same question at three different moments, so they say the same words; three copies of this sentence would drift the first time one of them was reworded.
  *
- * The two cases are worth telling apart. A missing WORKTREE leaves the repo intact and can be cut again at the same path, which is a thing to go and do; a missing PROJECT means the whole checkout is gone and nothing under it can run.
+ * The two cases are worth telling apart.
+ * A missing WORKTREE leaves the repo intact and can be cut again at the same path, which is a thing to go and do; a missing PROJECT means the whole checkout is gone and nothing under it can run.
  */
 export function unstartableReason(session: SessionSummary): string | null {
   if (session.cwdExists) return null;
@@ -158,7 +161,8 @@ export function modelLabel(model: string): string {
   return version ? `${name} ${version}` : name;
 }
 
-// Move `moved` to `targetIndex` within the subsequence of items sharing its group key, leaving items of other groups in their slots. Pure; used to reorder a tab within its own project.
+// Move `moved` to `targetIndex` within the subsequence of items sharing its group key, leaving items of other groups in their slots.
+// Pure; used to reorder a tab within its own project.
 export function reorderWithinGroup<T>(items: readonly T[], keyOf: (t: T) => string, moved: T, targetIndex: number): T[] {
   const key = keyOf(moved);
   const group = items.filter((t) => keyOf(t) === key);
@@ -170,7 +174,8 @@ export function reorderWithinGroup<T>(items: readonly T[], keyOf: (t: T) => stri
   return items.map((t) => (keyOf(t) === key ? group[i++]! : t));
 }
 
-// A short "x min ago" relative time. `now` is injectable for tests.
+// A short "x min ago" relative time.
+// `now` is injectable for tests.
 export function relativeTime(iso: string, now: number = Date.now()): string {
   const seconds = Math.round((now - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return 'just now';
@@ -181,7 +186,8 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
   return `${Math.round(hours / 24)} d ago`;
 }
 
-// The [from, to] window for a date preset, rolling from `now`. 'any' and 'custom' have no preset bounds ('custom' is read from the date inputs by the caller).
+// The [from, to] window for a date preset, rolling from `now`.
+// 'any' and 'custom' have no preset bounds ('custom' is read from the date inputs by the caller).
 export function datePresetRange(preset: string, now: number): { from: number | null; to: number | null } {
   const day = 86_400_000;
   if (preset === 'today') {
@@ -200,7 +206,10 @@ export interface FilterCriteria {
   pinnedOnly: boolean;
   /** Show only sessions with a tab — running or cold. */
   openOnly: boolean;
-  /** Show only LIVE sessions — a claude process behind them. Narrower than openOnly, which counts a cold tab too. */
+  /**
+   * Show only LIVE sessions — a claude process behind them.
+   * Narrower than openOnly, which counts a cold tab too.
+   */
   liveOnly: boolean;
   worktreeOnly: boolean;
   /** Show only sessions that cannot run because their folder is gone — the set worth finding to clean up, or to put a folder back for. */
@@ -208,7 +217,10 @@ export interface FilterCriteria {
   /** Show only members of a multi-session family (siblings). */
   siblingOnly: boolean;
   archivedOnly: boolean;
-  /** Show only sessions carrying a note. Reads `notes`, where an entry exists only when there IS one (a blank note deletes it). */
+  /**
+   * Show only sessions carrying a note.
+   * Reads `notes`, where an entry exists only when there IS one (a blank note deletes it).
+   */
   notedOnly: boolean;
   dateFrom: number | null;
   dateTo: number | null;
@@ -234,7 +246,8 @@ export function inView(key: string, archivedView: boolean, archived: { has(key: 
   return !pendingDeletes.has(key) && archived.has(key) === archivedView;
 }
 
-// Whether a session survives every active filter. Archived sessions are hidden from the normal list and are the only ones shown in the archived view; the toggle flips which set is visible.
+// Whether a session survives every active filter.
+// Archived sessions are hidden from the normal list and are the only ones shown in the archived view; the toggle flips which set is visible.
 export function sessionPasses(session: SessionSummary, c: FilterCriteria): boolean {
   const key = entityKey(session);
   if (!inView(key, c.archivedOnly, c.archived, c.pendingDeletes)) return false;
@@ -344,15 +357,24 @@ export interface GroupedSessions {
 
 export interface ProjectTree {
   repoRoot: string;
-  /** The project's groups in registry order, each with its members. Empty ones are kept. */
+  /**
+   * The project's groups in registry order, each with its members.
+   * Empty ones are kept.
+   */
   groups: GroupedSessions[];
-  /** Sessions in no group. They render directly under the project heading, at full width. */
+  /**
+   * Sessions in no group.
+   * They render directly under the project heading, at full width.
+   */
   loose: SessionSummary[];
   /** Sessions shown under this project, grouped and loose together (the heading's count). */
   count: number;
   /** Whether any session here is in a git repo (gates the worktree option on the "+"). */
   isRepo: boolean;
-  /** Whether the project's own folder is still there. False means nothing new can be started in it — the sessions remain, as history to read or clean up. */
+  /**
+   * Whether the project's own folder is still there.
+   * False means nothing new can be started in it — the sessions remain, as history to read or clean up.
+   */
   rootExists: boolean;
 }
 
@@ -411,13 +433,17 @@ export function buildProjectTree(
  * THE TAB BAR'S ORDER, as clusters: per project, the ungrouped items first and then one run per group in registry order, with each run left exactly as it was handed over.
  *
  * ONE implementation for the tab bar and the attention strip, called identically by both — they draw the same tabs, and a second copy of "project, then group in registry order" is the kind of thing that drifts between the times anyone looks.
- * Projects come from the explicit project order, so the bar, the strip and the sidebar all agree about where a project sits. The bar used to order them by whichever it met first, which nobody chose and which moved on its own.
+ * Projects come from the explicit project order, so the bar, the strip and the sidebar all agree about where a project sits.
+ * The bar used to order them by whichever it met first, which nobody chose and which moved on its own.
  *
- * WHY TAB ORDER AT ALL, for the strip. A list you read while working needs to stay where you last saw it more than it needs to be sorted well, and two earlier answers failed that.
- * Sorting attention-first reshuffled both levels on every status change. Ordering as the SESSION LIST does was closer and still wrong, because the sidebar's within-project order is RECENCY — and every session in the strip is running by definition, so those timestamps are all moving and two rows swap whenever the lower one writes a message.
+ * WHY TAB ORDER AT ALL, for the strip.
+ * A list you read while working needs to stay where you last saw it more than it needs to be sorted well, and two earlier answers failed that.
+ * Sorting attention-first reshuffled both levels on every status change.
+ * Ordering as the SESSION LIST does was closer and still wrong, because the sidebar's within-project order is RECENCY — and every session in the strip is running by definition, so those timestamps are all moving and two rows swap whenever the lower one writes a message.
  * The tabs array cannot move on its own: it changes when you open, close, drag, or regroup a tab.
  *
- * Pins are deliberately NOT floated, unlike the sidebar. A pin says where a session belongs in the LIST; the tab bar has never honoured it, and floating one here would be a second thing able to move a row you were reading.
+ * Pins are deliberately NOT floated, unlike the sidebar.
+ * A pin says where a session belongs in the LIST; the tab bar has never honoured it, and floating one here would be a second thing able to move a row you were reading.
  */
 export function orderAsTabs<T>(
   entries: readonly TabCluster<T>[],
@@ -492,7 +518,8 @@ export function groupJumpTargets(
 }
 
 /**
- * What each status is CALLED. States, phrased as states: a dot answers "what is this session doing", not "what just happened to it".
+ * What each status is CALLED.
+ * States, phrased as states: a dot answers "what is this session doing", not "what just happened to it".
  * `closed` is "Not running" rather than "Stopped" for that reason — it arrives from SessionEnd, which fires whether you stopped the session, claude finished, or the tab closed, so naming the event would be wrong in two of those three cases.
  */
 const STATUS_LABEL: Record<string, string> = {

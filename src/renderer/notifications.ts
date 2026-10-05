@@ -2,7 +2,8 @@ import { badgeClass } from './statusdot';
 import { closeIcon } from './svg';
 import './notifications.css';
 
-// Stacking attention toasts: a background tab (one you're not viewing) went waiting/idle. Separate from the one-off #toast message bar (toast.ts).
+// Stacking attention toasts: a background tab (one you're not viewing) went waiting/idle.
+// Separate from the one-off #toast message bar (toast.ts).
 document.body.insertAdjacentHTML('beforeend', '<div id="notifications"></div>');
 const notifications = document.getElementById('notifications')!;
 const NOTIF_TTL = 5000;

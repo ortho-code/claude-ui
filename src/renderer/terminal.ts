@@ -84,7 +84,10 @@ export function bindTerminal(id: number, sink: TerminalSink): void {
   sinks.set(id, sink);
 }
 
-/** Stop routing `id`: what it still prints, and its exit, go nowhere. For a panel that replaced its shell and does not want the old one's tail. */
+/**
+ * Stop routing `id`: what it still prints, and its exit, go nowhere.
+ * For a panel that replaced its shell and does not want the old one's tail.
+ */
 export function unbindTerminal(id: number): void {
   sinks.delete(id);
 }
