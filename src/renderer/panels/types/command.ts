@@ -5,7 +5,7 @@ import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { stripAnsi, splitPendingEscape } from '../../ansi';
 import { CWD_OPTION, optionsOf } from '../options';
 import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey, type Prepared } from '../run';
-import { listenForRuns } from '../runs';
+import { listenForRuns } from '../run-events';
 
 /**
  * The `command` panel type: runs a command line or a script and shows what it printed.

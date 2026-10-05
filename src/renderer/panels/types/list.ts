@@ -8,7 +8,7 @@ import { sessionDotClass } from '../../statusdot';
 import { setTooltip } from '../../tooltip';
 import type { PanelSlot } from '../layout';
 import { optionsOf, parseDuration } from '../options';
-import { listenForRuns } from '../runs';
+import { listenForRuns } from '../run-events';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey } from '../run';
 import type { FolderType } from './folder';
