@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:renderer": "npm run build && playwright test -c test/renderer",
     "styles:compare": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/renderer/styles/compare.ts",
+    "comments:prove": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/tools/comments-only.ts",
     "lint": "eslint .",
     "rebuild": "electron-rebuild -f -w node-pty",
     "dist:linux": "npm run build && electron-builder --linux",
