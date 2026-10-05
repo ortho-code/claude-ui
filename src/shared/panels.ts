@@ -7,13 +7,15 @@
  */
 
 /**
- * A node's or an entry's id: a slug, lowercase letters, digits, hyphens and underscores, not starting with a hyphen or underscore. What panel state keys on.
+ * A node's or an entry's id: a slug, lowercase letters, digits, hyphens and underscores, not starting with a hyphen or underscore.
+ * What panel state keys on.
  * Here rather than with the layout's other rules because main holds to it too: a panel's own data file is named after its entry's id.
  */
 export const ID_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
 
 /**
- * The layout file's `version`. The one shape this build reads; anything else renders a degraded group saying so.
+ * The layout file's `version`.
+ * The one shape this build reads; anything else renders a degraded group saying so.
  * Version 1 (`sides.right.groups[].panels[]`) is replaced rather than converted: it had one user, and the validator's "version 1 is not one this build reads" is its migration notice.
  */
 export const LAYOUT_VERSION = 2;
@@ -46,9 +48,15 @@ interface LayoutNodeBase {
   size?: number | `${number}px`;
   /** In px along the parent's axis; 120 when absent. */
   min?: number;
-  /** False removes the dividers on this node's edges, so it keeps its share. True when absent. */
+  /**
+   * False removes the dividers on this node's edges, so it keeps its share.
+   * True when absent.
+   */
   resizable?: boolean;
-  /** Whether a group can fold to a rail. False when absent; honoured on groups only in this build. */
+  /**
+   * Whether a group can fold to a rail.
+   * False when absent; honoured on groups only in this build.
+   */
   collapsible?: boolean;
 }
 
@@ -89,7 +97,10 @@ export type PathBase = 'config' | { dir: string };
 /** What a path option must point at. */
 export type PathKind = 'executable' | 'directory';
 
-/** How one path option checked out. Main's, because main has the filesystem; asked by the panel whose option it is. */
+/**
+ * How one path option checked out.
+ * Main's, because main has the filesystem; asked by the panel whose option it is.
+ */
 export interface PathCheck {
   /** The absolute path the value resolved to. */
   path: string;
@@ -117,7 +128,9 @@ export interface TypeReport {
 /**
  * One read of the layout file and of the type folders beside it, before any validation of their shape.
  *
- * `missing`: there is no file, so there is no layout. `unparsable`: the file is there and could not be used, and `error` says why and where — the renderer keeps the last good layout up. `read`: `json` holds whatever the file parsed to.
+ * `missing`: there is no file, so there is no layout.
+ * `unparsable`: the file is there and could not be used, and `error` says why and where — the renderer keeps the last good layout up.
+ * `read`: `json` holds whatever the file parsed to.
  * Read together so the renderer resolves the layout knowing every type at once, and never shows an entry of a type from the folder as unknown for the moment between two reads.
  * Nothing a panel's options point at is checked here: that is the panel's to ask about, when it is mounted and before it runs.
  */
@@ -148,7 +161,9 @@ export interface PanelContext {
 }
 
 /**
- * Where a run's stderr goes. `merged`: into its output, in true arrival order, for a panel that shows what was printed. `apart`: as `stderr` events of its own, for a panel that parses its stdout, which must then be the result and nothing else.
+ * Where a run's stderr goes.
+ * `merged`: into its output, in true arrival order, for a panel that shows what was printed.
+ * `apart`: as `stderr` events of its own, for a panel that parses its stdout, which must then be the result and nothing else.
  */
 export type PanelStderr = 'merged' | 'apart';
 
@@ -219,7 +234,10 @@ export function withLink(data: PanelData, sessionId: string, link: Omit<PanelLin
   return { sessions: { ...data.sessions, [sessionId]: { ...link, startedAt } }, lastGroup: { ...data.lastGroup, [filed.repoRoot]: filed.groupId } };
 }
 
-/** Output beyond this is cut and the process stopped: a panel shows a result, not a log. An `apart` run's stderr counts toward it too. */
+/**
+ * Output beyond this is cut and the process stopped: a panel shows a result, not a log.
+ * An `apart` run's stderr counts toward it too.
+ */
 export const PANEL_OUTPUT_CAP = 1024 * 1024;
 
 /** A run still going after this is stopped: a process that never exits by design is not this panel type. */

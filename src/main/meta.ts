@@ -21,7 +21,10 @@ import { errorText, fsFailure, log, logOnce } from './log';
  */
 interface Meta {
   pinned: string[];
-  /** Requests and claude's messages pinned in a session's history, by their ids. See HistoryPin. */
+  /**
+   * Requests and claude's messages pinned in a session's history, by their ids.
+   * See HistoryPin.
+   */
   historyPins: Record<string, HistoryPin>;
   openSessions: string[];
   /**
@@ -40,18 +43,30 @@ interface Meta {
   activeProject: string | null;
   /** Per-project display-name overrides, keyed by repoRoot; absent = use the folder name. */
   projectNames: Record<string, string>;
-  /** repoRoots in display order. Empty means "never seeded"; the first seed fills it from recency. */
+  /**
+   * repoRoots in display order.
+   * Empty means "never seeded"; the first seed fills it from recency.
+   */
   projectOrder: string[];
-  /** Free-text note per session id. An empty note is deleted, so presence here means there IS one. */
+  /**
+   * Free-text note per session id.
+   * An empty note is deleted, so presence here means there IS one.
+   */
   notes: Record<string, string>;
   /**
    * Size and position of the window as it was last left, or null until it has been.
    * The size stored is always the unmaximized one, with `maximized` recorded beside it, so restoring a maximized window still knows how big to make it when it is un-maximized.
    */
   windowBounds: WindowBounds | null;
-  /** How the sidebar was left: search, filters, folds, width, scroll. See UiState. */
+  /**
+   * How the sidebar was left: search, filters, folds, width, scroll.
+   * See UiState.
+   */
   ui: UiState;
-  /** Deliberate preferences, kept apart from `ui` so resetting one cannot wipe the other. See Settings. */
+  /**
+   * Deliberate preferences, kept apart from `ui` so resetting one cannot wipe the other.
+   * See Settings.
+   */
   settings: Settings;
   /** User-defined session groups, in display order (a new one is prepended). */
   groups: SessionGroup[];
@@ -75,7 +90,10 @@ interface Meta {
   extra: Record<string, unknown>;
 }
 
-/** Every key `normalize` handles. Anything else is preserved through `extra` rather than dropped. */
+/**
+ * Every key `normalize` handles.
+ * Anything else is preserved through `extra` rather than dropped.
+ */
 const KNOWN_KEYS = new Set([
   'pinned',
   'historyPins',
@@ -215,14 +233,16 @@ function parseBounds(raw: unknown): WindowBounds | null {
   const numbers = ['x', 'y', 'width', 'height'].map((key) => b[key]);
   if (!numbers.every((n) => typeof n === 'number' && Number.isFinite(n))) return null;
   const [x, y, width, height] = numbers as [number, number, number, number];
-  // A zero or negative size is damage, not a preference. Placement handles a size that is merely too SMALL by clamping it; this rejects the ones that are not sizes at all.
+  // A zero or negative size is damage, not a preference.
+  // Placement handles a size that is merely too SMALL by clamping it; this rejects the ones that are not sizes at all.
   if (width <= 0 || height <= 0) return null;
   return { x, y, width, height, maximized: b.maximized === true };
 }
 
 // Coerce a parsed blob into a well-formed Meta, tolerating older shapes (throws on non-object input).
 function normalize(parsed: Record<string, unknown>): Meta {
-  // `activeProject` was written as `activeFolder` before the project/folder terminology split; read the old key so an existing meta.json keeps its scope. The next write stores the new name.
+  // `activeProject` was written as `activeFolder` before the project/folder terminology split; read the old key so an existing meta.json keeps its scope.
+  // The next write stores the new name.
   const rawActive = parsed.activeProject ?? parsed.activeFolder;
   // `archived` was once a plain id list; migrate that to the id->timestamp map (0 = unknown).
   const rawArchived = parsed.archived;
@@ -253,7 +273,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // `requestPins` is what the pins were stored as before a reply could be pinned; read, never written.
     historyPins: normalizeHistoryPins(parsed.historyPins ?? parsed.requestPins),
     openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
-    // Same reasoning as projectOrder below: a new defaulted field is not a reinterpretation of what is stored, so no version bump. Absent means "no memory yet" — open on nothing.
+    // Same reasoning as projectOrder below: a new defaulted field is not a reinterpretation of what is stored, so no version bump.
+    // Absent means "no memory yet" — open on nothing.
     activeSession: typeof parsed.activeSession === 'string' ? parsed.activeSession : null,
     activeSessionByProject: Object.fromEntries(
       Object.entries((parsed.activeSessionByProject ?? {}) as Record<string, unknown>).filter(
@@ -275,9 +296,11 @@ function normalize(parsed: Record<string, unknown>): Meta {
     windowBounds: parseBounds(parsed.windowBounds),
     // The strip's open state used to be a key of its own, so an existing file's value is handed in as the fallback: read once from there, written from here on.
     ui: normalizeUi(parsed.ui, parsed.footerExpanded),
-    // Same reasoning as projectOrder: a new defaulted field is not a reinterpretation of what is stored, so no version bump. Absent means nothing was ever chosen.
+    // Same reasoning as projectOrder: a new defaulted field is not a reinterpretation of what is stored, so no version bump.
+    // Absent means nothing was ever chosen.
     settings: normalizeSettings(parsed.settings),
-    // Same reasoning as projectOrder: no version bump for a new defaulted field. Non-string values are dropped so a hand-edited file can't put an object where a note should be.
+    // Same reasoning as projectOrder: no version bump for a new defaulted field.
+    // Non-string values are dropped so a hand-edited file can't put an object where a note should be.
     notes: Object.fromEntries(
       Object.entries((parsed.notes ?? {}) as Record<string, unknown>).filter(
         (entry): entry is [string, string] => typeof entry[1] === 'string',
@@ -287,12 +310,14 @@ function normalize(parsed: Record<string, unknown>): Meta {
     groupOf,
     version: typeof parsed.version === 'number' ? parsed.version : 1,
     appVersion: typeof parsed.appVersion === 'string' ? parsed.appVersion : '',
-    // Anything a newer build wrote that this one has never heard of. Carried through untouched; nothing here is ever read.
+    // Anything a newer build wrote that this one has never heard of.
+    // Carried through untouched; nothing here is ever read.
     extra: Object.fromEntries(Object.entries(parsed).filter(([key]) => !KNOWN_KEYS.has(key))),
   };
 }
 
-// The last known-good copy, kept by writeMeta before each overwrite so a corrupt main file can be recovered instead of silently reset. Returns null when there's no usable backup.
+// The last known-good copy, kept by writeMeta before each overwrite so a corrupt main file can be recovered instead of silently reset.
+// Returns null when there's no usable backup.
 async function readBackup(): Promise<Meta | null> {
   try {
     return normalize(JSON.parse(await fs.readFile(metaPath() + '.bak', 'utf8')) as Record<string, unknown>);
@@ -308,7 +333,8 @@ async function readMeta(): Promise<Meta> {
   } catch (error) {
     // No file yet (first run) or it was moved aside: prefer the last good backup, else defaults.
     const recovered = await readBackup();
-    // A first run — no file and no backup — is not news. Anything else is where "my pins and tabs are gone" starts, so it says which copy the app went on with.
+    // A first run — no file and no backup — is not news.
+    // Anything else is where "my pins and tabs are gone" starts, so it says which copy the app went on with.
     const failure = fsFailure(error);
     if (failure || recovered) {
       logOnce('warn', 'meta', `${metaPath()} ${failure ? `unreadable: ${failure}` : 'is missing'}, ${recovered ? 'using the backup' : 'starting from defaults'}`);
@@ -318,7 +344,8 @@ async function readMeta(): Promise<Meta> {
   try {
     return normalize(JSON.parse(raw) as Record<string, unknown>);
   } catch (error) {
-    // The file exists but won't parse (e.g. a write truncated by a crash). Preserve it for recovery rather than silently resetting, then fall back to the last good backup before defaults.
+    // The file exists but won't parse (e.g. a write truncated by a crash).
+    // Preserve it for recovery rather than silently resetting, then fall back to the last good backup before defaults.
     const kept = `${metaPath()}.corrupt-${Date.now()}.json`;
     let keptLine = `kept as ${path.basename(kept)}`;
     try {
@@ -357,7 +384,8 @@ function compareVersions(a: string, b: string): number {
  */
 async function snapshotOnVersionChange(storedVersion: string): Promise<void> {
   const current = app.getVersion();
-  // No stored version means a file written before this was tracked, or a brand-new one. There is nothing a rollback could want back, so take no copy — just let the stamp below record this build.
+  // No stored version means a file written before this was tracked, or a brand-new one.
+  // There is nothing a rollback could want back, so take no copy — just let the stamp below record this build.
   if (!storedVersion || storedVersion === current) return;
   const direction = compareVersions(current, storedVersion) < 0 ? 'DOWNGRADE' : 'upgrade';
   try {
@@ -389,7 +417,8 @@ async function writeMetaFile(meta: Meta): Promise<void> {
   // This needs no "have I already done it" flag: the stamp below makes the stored version match the running one, so every later write hits the early return inside.
   await snapshotOnVersionChange(meta.appVersion);
   meta.appVersion = app.getVersion();
-  // Keep the current file as the backup only if it's valid, so a corrupt main file can't clobber a good backup. This is the recovery point readMeta falls back to.
+  // Keep the current file as the backup only if it's valid, so a corrupt main file can't clobber a good backup.
+  // This is the recovery point readMeta falls back to.
   try {
     const current = await fs.readFile(file, 'utf8');
     JSON.parse(current); // back up only parseable content
@@ -458,12 +487,14 @@ async function trimAudit(): Promise<void> {
   const { size } = await fs.stat(auditPath()).catch(() => ({ size: 0 }));
   if (size <= AUDIT_MAX_BYTES) return;
   const tail = (await fs.readFile(auditPath())).subarray(-AUDIT_KEEP_BYTES);
-  // The cut lands mid-line, so drop that partial record and start on a whole one. No newline at all means the tail is one oversized line with no complete record in it: keep none of it.
+  // The cut lands mid-line, so drop that partial record and start on a whole one.
+  // No newline at all means the tail is one oversized line with no complete record in it: keep none of it.
   const firstBreak = tail.indexOf(0x0a);
   await fs.writeFile(auditPath(), firstBreak === -1 ? Buffer.alloc(0) : tail.subarray(firstBreak + 1));
 }
 
-// Read-modify-write the meta as one atomic step in the queue. `mutate` returns the value to resolve.
+// Read-modify-write the meta as one atomic step in the queue.
+// `mutate` returns the value to resolve.
 function update<T>(op: string, mutate: (meta: Meta) => T): Promise<T> {
   return serialize(async () => {
     const meta = await readMeta();
@@ -555,7 +586,8 @@ export function purgeSession(id: string): Promise<void> {
 /**
  * Record that `/clear` replaced session `from` with session `to`, which Claude Code started under a copy of `from`'s name.
  *
- * DATA COLLECTION, deliberately and only. Nothing reads it back, and the app's behaviour does not depend on it.
+ * DATA COLLECTION, deliberately and only.
+ * Nothing reads it back, and the app's behaviour does not depend on it.
  * It is here because the pairing is observable exactly once, in this app and nowhere else — nothing in either transcript links the two sessions, and the connection is gone the moment the event passes.
  * Whether a cleared session should be presented as related to its predecessor is an open question; this is the record that will let it be answered from what happened rather than guessed.
  */
@@ -638,7 +670,10 @@ export function getUiState(): Promise<UiState> {
   return serialize(async () => (await readMeta()).ui);
 }
 
-/** Store the sidebar's view state. Normalized on the way in, so a renderer bug cannot write a shape the next launch can't read. */
+/**
+ * Store the sidebar's view state.
+ * Normalized on the way in, so a renderer bug cannot write a shape the next launch can't read.
+ */
 export function setUiState(state: UiState): Promise<void> {
   return update('setUiState', (meta) => {
     meta.ui = normalizeUi(state);
@@ -689,7 +724,8 @@ export function getProjectOrder(): Promise<string[]> {
 
 /**
  * Give every root a slot and return the order (`seededOrder`, src/shared/grouping.ts, which the window's checks answer with too).
- * An EMPTY order is seeded from `roots` exactly as given (the caller passes them in the order they already appear, so the run that introduced this changed nothing on screen); an existing order gets unknown roots at the FRONT, so a project that shows up later is somewhere you'll see it. One rule: every root in front of an empty order is the roots as given.
+ * An EMPTY order is seeded from `roots` exactly as given (the caller passes them in the order they already appear, so the run that introduced this changed nothing on screen); an existing order gets unknown roots at the FRONT, so a project that shows up later is somewhere you'll see it.
+ * One rule: every root in front of an empty order is the roots as given.
  *
  * Absent roots are NOT pruned.
  * A project whose sessions are all archived drops out of the list while still existing, and forgetting its slot would make it leap to the top when a session comes back — the opposite of the stable order this exists to provide.

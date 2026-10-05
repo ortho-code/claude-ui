@@ -78,8 +78,10 @@ export function logGpuStatus(): void {
 /**
  * Everything that ends a process of the app, logged without changing what happens next.
  *
- * `uncaughtExceptionMonitor`, never `uncaughtException`: Electron shows its "A JavaScript error occurred in the main process" dialog only while nobody else listens for the latter (`lib/browser/init.ts`), so a listener here would silently take that dialog away. The monitor sees the error first and does not count as a listener.
- * MEASURED on Electron's own Node: it also sees an unhandled rejection, which Node raises as an uncaught exception, with `origin` saying which it was. Both are kept as crash logs — they reach the user as the same dialog, and Node treats them as the same thing.
+ * `uncaughtExceptionMonitor`, never `uncaughtException`: Electron shows its "A JavaScript error occurred in the main process" dialog only while nobody else listens for the latter (`lib/browser/init.ts`), so a listener here would silently take that dialog away.
+ * The monitor sees the error first and does not count as a listener.
+ * MEASURED on Electron's own Node: it also sees an unhandled rejection, which Node raises as an uncaught exception, with `origin` saying which it was.
+ * Both are kept as crash logs — they reach the user as the same dialog, and Node treats them as the same thing.
  * A renderer or child process that exits cleanly is a line, not a crash; the GPU process dying is one, since it is the first suspect for a window that paints blank.
  */
 export function logProcessFailures(): void {

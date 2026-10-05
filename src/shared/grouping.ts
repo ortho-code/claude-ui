@@ -40,7 +40,8 @@ export function movedProject(order: readonly string[], repoRoot: string, move: O
 
 /**
  * A group created at the top of its project, holding `sessionId` when one is given (a row's "New group…" creates and moves at once; the project heading's creates it empty).
- * The id is the caller's to mint. A blank name creates nothing — the caller's dialog can be dismissed empty.
+ * The id is the caller's to mint.
+ * A blank name creates nothing — the caller's dialog can be dismissed empty.
  */
 export function createdGroup(state: GroupState, id: string, name: string, repoRoot: string | null, sessionId?: string): GroupState {
   const trimmed = name.trim();
@@ -56,7 +57,10 @@ export function renamedGroup(state: GroupState, id: string, name: string): Group
   return { ...state, groups: state.groups.map((g) => (g.id === id ? { ...g, name: trimmed } : g)) };
 }
 
-/** A group deleted: it leaves the registry and its members go back to sitting under their project. The sessions themselves are never touched. */
+/**
+ * A group deleted: it leaves the registry and its members go back to sitting under their project.
+ * The sessions themselves are never touched.
+ */
 export function withoutGroup(state: GroupState, id: string): GroupState {
   return {
     groups: state.groups.filter((g) => g.id !== id),
@@ -89,7 +93,8 @@ export function movedGroup(state: GroupState, id: string, move: OrderMove): Grou
 
 /**
  * A session moved into a group, or out of every group for null.
- * It is a MOVE: any previous membership is replaced. An unknown group id is ignored rather than stored, so the membership can never name a group that isn't there.
+ * It is a MOVE: any previous membership is replaced.
+ * An unknown group id is ignored rather than stored, so the membership can never name a group that isn't there.
  */
 export function withSessionInGroup(state: GroupState, sessionId: string, groupId: string | null): GroupState {
   if (groupId === null) {

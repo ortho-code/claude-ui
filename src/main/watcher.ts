@@ -35,7 +35,8 @@ export function registerSessionsWatcher(getWindow: () => BrowserWindow | null): 
       });
       watchers.set(dir, watcher);
     } catch (error) {
-      // A directory that vanished between readdir and watch is not worth a line. Anything else — the inotify limit (ENOSPC) above all — leaves that project's sessions without live updates, with nothing on screen to say so.
+      // A directory that vanished between readdir and watch is not worth a line.
+      // Anything else — the inotify limit (ENOSPC) above all — leaves that project's sessions without live updates, with nothing on screen to say so.
       const failure = fsFailure(error);
       if (failure) log('warn', 'watch', `cannot watch ${dir}: ${failure}`);
     }

@@ -11,7 +11,8 @@ import * as path from 'node:path';
  * On Linux `appData` is `~/.config`, so this resolves to exactly the directory the app has always used and the pin is a no-op.
  * On macOS it is `~/Library/Application Support`, which gives the status files and the hook script the same home as `meta.json` instead of splitting them between `~/.config` and Library.
  *
- * Import this module before any other path use. `app.setPath` runs on import, and a module that computes a path at load time (status.ts does) would otherwise capture the unpinned value.
+ * Import this module before any other path use.
+ * `app.setPath` runs on import, and a module that computes a path at load time (status.ts does) would otherwise capture the unpinned value.
  */
 app.setPath('userData', path.join(app.getPath('appData'), 'claude-ui'));
 
@@ -32,7 +33,8 @@ export const statusDir = path.join(configDir, 'status');
 export const hookScriptPath = path.join(configDir, 'status-hook.sh');
 
 /**
- * claude-ui-owned settings file, passed to claude via `--settings` (terminal.ts); holds our hooks only. Keeps the status hooks out of the user's ~/.claude/settings.json (which may be tracked).
+ * claude-ui-owned settings file, passed to claude via `--settings` (terminal.ts); holds our hooks only.
+ * Keeps the status hooks out of the user's ~/.claude/settings.json (which may be tracked).
  */
 export const statusSettingsFile = path.join(configDir, 'claude-settings.json');
 
@@ -55,7 +57,10 @@ export const layoutsDir = path.join(configRoot, 'layouts');
 /** Where a `script` belongs; a relative `script` resolves against the config folder, so `scripts/x.sh` travels with it. */
 export const scriptsDir = path.join(configRoot, 'scripts');
 
-/** Panel types of a person's own, a folder each: its `panel.json` and the script it runs. The folder's name is the type's, so a folder is shared by copying it. */
+/**
+ * Panel types of a person's own, a folder each: its `panel.json` and the script it runs.
+ * The folder's name is the type's, so a folder is shared by copying it.
+ */
 export const typesDir = path.join(configRoot, 'types');
 
 export const defaultLayoutFile = path.join(layoutsDir, 'default.json');

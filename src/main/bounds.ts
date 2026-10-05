@@ -5,7 +5,10 @@
  * Pure input, pure output, so the awkward cases are tests instead of a window that opens somewhere you cannot see it.
  */
 
-/** A stored window position. `maximized` is remembered separately from the size, which is always the UNMAXIMIZED one. */
+/**
+ * A stored window position.
+ * `maximized` is remembered separately from the size, which is always the UNMAXIMIZED one.
+ */
 export interface WindowBounds {
   x: number;
   y: number;
@@ -74,7 +77,8 @@ function onScreen(bounds: Rect, workAreas: Rect[]): boolean {
  */
 export function placeWindow(saved: WindowBounds | null, workAreas: Rect[]): Placement | null {
   if (!saved) return null;
-  // No displays reported at all: keep the stored size, place nothing. Not expected, but the alternative is dividing up an empty list.
+  // No displays reported at all: keep the stored size, place nothing.
+  // Not expected, but the alternative is dividing up an empty list.
   const largest = workAreas.reduce<Rect | null>((best, area) => (!best || area.width * area.height > best.width * best.height ? area : best), null);
   const width = Math.max(MIN_WIDTH, largest ? Math.min(saved.width, largest.width) : saved.width);
   const height = Math.max(MIN_HEIGHT, largest ? Math.min(saved.height, largest.height) : saved.height);
@@ -88,7 +92,10 @@ export function placeWindow(saved: WindowBounds | null, workAreas: Rect[]): Plac
   return placement;
 }
 
-/** How much smaller than a display's work area a maximized window has to be. Zero where nothing is reserved. */
+/**
+ * How much smaller than a display's work area a maximized window has to be.
+ * Zero where nothing is reserved.
+ */
 export interface Inset {
   top: number;
   right: number;
@@ -118,7 +125,8 @@ export function maximizedRect(workArea: Rect, inset: Inset = NO_INSET): Rect {
 /**
  * Turn a maximized probe's rectangle into the inset it implies, or null when the answer is not believable.
  *
- * The rejection is the point. The probe lands on whichever display the window manager chose, so measuring it against a different display's work area produces a negative inset — which is not a smaller correction, it is a wrong one, and applying it would push the window off the screen.
+ * The rejection is the point.
+ * The probe lands on whichever display the window manager chose, so measuring it against a different display's work area produces a negative inset — which is not a smaller correction, it is a wrong one, and applying it would push the window off the screen.
  * `workArea` must therefore be the work area of the display the probe LANDED on.
  */
 export function insetFromProbe(probe: Rect, workArea: Rect): Inset | null {
@@ -174,7 +182,10 @@ export function unmaximizeUnderPointer(maximized: Rect, restored: { width: numbe
   };
 }
 
-/** Bigger than any title bar. A larger difference is the window manager placing the window by a policy of its own, or the user already dragging it — not a frame, and not ours to cancel. */
+/**
+ * Bigger than any title bar.
+ * A larger difference is the window manager placing the window by a policy of its own, or the user already dragging it — not a frame, and not ours to cancel.
+ */
 export const MAX_FRAME = 64;
 
 /**

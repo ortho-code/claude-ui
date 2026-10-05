@@ -102,7 +102,8 @@ function parentOf(record: Record<string, unknown>): string | null {
 }
 
 /**
- * Add a request. One that hangs off the same parent as an earlier one went back to before it:
+ * Add a request.
+ * One that hangs off the same parent as an earlier one went back to before it:
  * - the one just before is REPLACED — claude stopped and the request sent again, or edited and resent;
  * - one further back, with every request since following on from it, is REWOUND past, and all of those with it — claude's rewind.
  * A same-parent request further back that the ones since do not all descend from is left unmarked: nothing on the machine this was written on was like that once records written twice were skipped, so there is no case to say what it means.
@@ -211,7 +212,10 @@ interface Cursor {
   /** Changes when the file is read again from the start, so a caller knows that what it holds is stale. */
   generation: number;
   offset: number;
-  /** The bytes after the last newline: a line claude has not finished writing. Bytes rather than text, since a read can end inside a multi-byte character. */
+  /**
+   * The bytes after the last newline: a line claude has not finished writing.
+   * Bytes rather than text, since a read can end inside a multi-byte character.
+   */
   carry: Buffer;
   fold: HistoryFold;
   /** One read at a time per file, so two callers never fold the same bytes twice. */

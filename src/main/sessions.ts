@@ -72,7 +72,8 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
   return info;
 }
 
-// Per-file summary cache keyed by mtime+size, so a disk change only re-reads the files that actually changed instead of all of them every time. In-memory only — a restart rebuilds it.
+// Per-file summary cache keyed by mtime+size, so a disk change only re-reads the files that actually changed instead of all of them every time.
+// In-memory only — a restart rebuilds it.
 const summaryCache = new Map<string, { key: string; summary: SessionSummary | null }>();
 
 // Summarize a file, reusing the cached result while its mtime+size are unchanged.
@@ -107,7 +108,10 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
   return summary;
 }
 
-/** Whether a path is a directory right now. A file sitting where a folder was is as unusable as nothing at all, so it is not enough to ask whether the path exists. */
+/**
+ * Whether a path is a directory right now.
+ * A file sitting where a folder was is as unusable as nothing at all, so it is not enough to ask whether the path exists.
+ */
 async function isDirectory(dir: string): Promise<boolean> {
   try {
     return (await fs.stat(dir)).isDirectory();
@@ -219,7 +223,8 @@ export async function worktreeExists(repoRoot: string, name: string): Promise<bo
 }
 
 /**
- * The transcript file of session `id`: from the last listing when it was in it, else by looking in every project directory. Null when there is none.
+ * The transcript file of session `id`: from the last listing when it was in it, else by looking in every project directory.
+ * Null when there is none.
  * The id arrives from the window, so it has to look like one before it goes anywhere near a path.
  */
 export async function findTranscript(id: string): Promise<string | null> {
@@ -290,11 +295,13 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
     for await (const line of rl) {
       if (!line.trim()) continue;
 
-      // Keep the latest model an assistant message reported. A cheap regex (not a full parse) so it doesn't defeat the early-continue below; assistant lines carry `"model":"claude-…"`.
+      // Keep the latest model an assistant message reported.
+      // A cheap regex (not a full parse) so it doesn't defeat the early-continue below; assistant lines carry `"model":"claude-…"`.
       const modelMatch = line.match(/"model":"(claude-[^"]+)"/);
       if (modelMatch) model = modelMatch[1]!;
 
-      // Last message's timestamp (lastActivity): a cheap regex before the early-continue, so it sees every message line without a full parse. Overwrites, so the final value is the newest message.
+      // Last message's timestamp (lastActivity): a cheap regex before the early-continue, so it sees every message line without a full parse.
+      // Overwrites, so the final value is the newest message.
       if (line.includes('"type":"user"') || line.includes('"type":"assistant"')) {
         const tsMatch = line.match(/"timestamp":"([^"]+)"/);
         if (tsMatch) lastMsgTs = tsMatch[1]!;

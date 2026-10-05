@@ -18,7 +18,8 @@ export const SCOPE_ENV = 'CLAUDE_UI';
  * Per-terminal token, echoed back by the hook so the app can tell WHICH TAB a reported session belongs to.
  *
  * `--session-id` gives a session its identity at birth, and that is the whole of it for a session that runs and ends.
- * This exists for the one thing that flag cannot cover: an id changing MID-LIFE. `/clear` ends the session and starts a fresh one, with an id Claude Code chooses, in the same terminal — without this the tab would go on pointing at the session that just ended.
+ * This exists for the one thing that flag cannot cover: an id changing MID-LIFE.
+ * `/clear` ends the session and starts a fresh one, with an id Claude Code chooses, in the same terminal — without this the tab would go on pointing at the session that just ended.
  */
 export const TAB_ENV = 'CLAUDE_UI_TAB';
 
@@ -40,7 +41,8 @@ const HOOK_EVENTS: [string, string][] = [
   // Ends reset the dot to empty: 'closed' has no color rule, so it renders hollow.
   //
   // EVERY SessionEnd IS AN END FOR THE SESSION IT NAMES, including the `clear` and `resume` reasons that leave the PROCESS running — measured: `/clear` writes a final line to the old transcript and opens a new file under a new id, so the id this event carries is genuinely finished.
-  // That distinction is the whole point: this app tracks SESSIONS, not processes. Declining to write `closed` here was tried on 2026-09-22 and reverted the same day; it left a dead session showing a live dot for good.
+  // That distinction is the whole point: this app tracks SESSIONS, not processes.
+  // Declining to write `closed` here was tried on 2026-09-22 and reverted the same day; it left a dead session showing a live dot for good.
   // What the process does next is the business of `SessionStart` below, which reports the id that succeeded this one.
   ['SessionEnd', 'closed'],
   // Not a state either: it reports WHICH MODEL the session is on from here.
@@ -60,7 +62,8 @@ const HOOK_EVENTS: [string, string][] = [
 /**
  * A hook script Claude runs on each event.
  * It reports only for sessions launched by claude-ui (CLAUDE_UI set), reads what it needs from the JSON on stdin, and writes a status file the app watches.
- * Dependency-free and always exits 0. A hook has about a second before Claude Code moves on, so nothing here may wait on anything.
+ * Dependency-free and always exits 0.
+ * A hook has about a second before Claude Code moves on, so nothing here may wait on anything.
  */
 const HOOK_SCRIPT = `#!/usr/bin/env bash
 # Written by claude-ui. Reports Claude Code session status to the app, only for sessions launched by claude-ui (CLAUDE_UI is set on its terminals).
@@ -212,7 +215,10 @@ export async function clearStatuses(ids: string[]): Promise<void> {
   await Promise.all(files.map((file) => fs.rm(path.join(statusDir, file)).catch(() => {})));
 }
 
-/** Every session's status as the renderer receives it at launch. Exported for the tests that pin what does and does not survive into it. */
+/**
+ * Every session's status as the renderer receives it at launch.
+ * Exported for the tests that pin what does and does not survive into it.
+ */
 export async function readAllStatuses(): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   let files: string[];

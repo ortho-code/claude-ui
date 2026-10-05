@@ -1,4 +1,7 @@
-/** How serious a log line is. The renderer names one when it writes a line of its own, so both sides share the list. */
+/**
+ * How serious a log line is.
+ * The renderer names one when it writes a line of its own, so both sides share the list.
+ */
 export const LOG_LEVELS = ['info', 'warn', 'error'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 

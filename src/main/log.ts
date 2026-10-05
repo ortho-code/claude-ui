@@ -134,7 +134,10 @@ export interface Log {
   writeOnce(level: LogLevel, area: string, message: string): void;
   /** A process of the app died: an error line, and the file it lands in is kept as a crash log once it is finished with. */
   crash(area: string, message: string): void;
-  /** Writes the quit line, which is what tells the next launch this one ended on purpose. Nothing is written after it. */
+  /**
+   * Writes the quit line, which is what tells the next launch this one ended on purpose.
+   * Nothing is written after it.
+   */
   close(): Promise<void>;
   /** Resolves once everything asked for so far has been written. */
   settled(): Promise<void>;
@@ -201,7 +204,8 @@ export function createLog({ dir, header }: LogOptions): Log {
 
   /**
    * The previous launch's last file, checked before this launch makes its own: without the quit line, that launch did not end on purpose — a native crash, a kill, a shutdown, all alike from in here — so it is said so and kept.
-   * Only the newest ordinary file is the previous launch's last. An earlier file of a run that crossed midnight ends with its continues line and is left alone, and so is one whose successor was deleted, since how that run ended is not in it.
+   * Only the newest ordinary file is the previous launch's last.
+   * An earlier file of a run that crossed midnight ends with its continues line and is left alone, and so is one whose successor was deleted, since how that run ended is not in it.
    */
   async function classifyPrevious(): Promise<void> {
     const previous = logNames(await fs.readdir(dir)).find((log) => !log.crash);

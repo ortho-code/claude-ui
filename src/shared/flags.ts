@@ -8,13 +8,15 @@
 /**
  * Flags that cannot be set here, and what to tell someone who tries.
  *
- * The test is one thing only: would this flag break the app's own model of a session? It is NOT a judgement about what is wise to run — `--dangerously-skip-permissions` and friends are deliberately absent, because that is the user's call on their own machine and it does not stop the app working.
+ * The test is one thing only: would this flag break the app's own model of a session?
+ * It is NOT a judgement about what is wise to run — `--dangerously-skip-permissions` and friends are deliberately absent, because that is the user's call on their own machine and it does not stop the app working.
  *
  * Names are checked against `claude --help` (2.1.241) rather than remembered, aliases included, since blocking `--print` while letting `-p` through would be worse than not blocking it at all.
  * `claudeArgs` is the other half of the first group: a test asserts that every flag it emits appears here, so adding one to the launch line without reserving it fails the suite rather than shipping.
  */
 const RESERVED: { names: string[]; because: string }[] = [
-  // Set by claude-ui itself. A second one decides something the app has already decided — which session a tab opens, what it is called, where its hooks come from.
+  // Set by claude-ui itself.
+  // A second one decides something the app has already decided — which session a tab opens, what it is called, where its hooks come from.
   { names: ['--settings'], because: 'claude-ui loads its status hooks through it' },
   { names: ['--resume', '-r'], because: 'claude-ui decides which session a tab resumes' },
   { names: ['--fork-session'], because: 'claude-ui sets it when you fork a session' },
@@ -46,7 +48,10 @@ const RESERVED: { names: string[]; because: string }[] = [
 ];
 
 export interface ParsedFlags {
-  /** The arguments to append to the launch line. Empty when there are none, or when `error` is set. */
+  /**
+   * The arguments to append to the launch line.
+   * Empty when there are none, or when `error` is set.
+   */
   tokens: string[];
   /** A message to show the user, or null when the input is usable. */
   error: string | null;
@@ -118,7 +123,10 @@ export function flagNames(tokens: string[]): string[] {
   return tokens.filter((token) => token.startsWith('-')).map(flagName);
 }
 
-/** Whether a token names a flag claude-ui passes itself, and why it is taken. `--flag=value` is checked by its name. */
+/**
+ * Whether a token names a flag claude-ui passes itself, and why it is taken.
+ * `--flag=value` is checked by its name.
+ */
 function reservationFor(token: string): { names: string[]; because: string } | null {
   if (!token.startsWith('-')) return null;
   const name = flagName(token);

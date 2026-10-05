@@ -34,7 +34,8 @@ import {
  * Both are dealt with by the shape of these lines rather than by filtering text: the shell's own stderr is discarded by the spawn below, the script's first act sends the COMMAND's streams where they belong, and the command is `exec`ed in the shell's place, so nothing is left to say `logout`.
  * MERGED, for a panel that shows what was printed: the command's stderr joins its stdout in the one pipe (`exec 2>&1`), which is also what puts the two streams in true arrival order.
  * APART, for a panel that parses what was printed: the command's stdout and stderr go to pipes of their own, fds 3 and 4, closed again before it runs, and the shell's own stdout is discarded as its stderr is, so nothing an rc file prints can land in front of the result (MEASURED 2026-09-29: rc output on either stream reaches neither pipe).
- * A command LINE is run by a fresh copy of the same shell, so it is parsed as the user typed it; it reaches that shell as `$2`, an argument, never interpolated into either script. A script PATH is `$1`, passed whole: a space in it is nothing to the shell.
+ * A command LINE is run by a fresh copy of the same shell, so it is parsed as the user typed it; it reaches that shell as `$2`, an argument, never interpolated into either script.
+ * A script PATH is `$1`, passed whole: a space in it is nothing to the shell.
  */
 const FIRST: Record<PanelStderr, string> = { merged: 'exec 2>&1; ', apart: 'exec 1>&3 2>&4 3>&- 4>&-; ' };
 const RUN_LINE = 'exec "$1" -c "$2"';
@@ -46,7 +47,10 @@ const STDIO: Record<PanelStderr, StdioOptions> = { merged: ['ignore', 'pipe', 'i
 /** `$0` for the shell: names the process in any error the shell itself prints. */
 const ARG0 = 'claude-ui-panel';
 
-/** The exact spawn for a source. Pure, so a test can pin what reaches the shell. */
+/**
+ * The exact spawn for a source.
+ * Pure, so a test can pin what reaches the shell.
+ */
 export function panelInvocation(source: PanelSource, stderr: PanelStderr = 'merged'): ShellInvocation {
   if ('command' in source) return shellCommand(FIRST[stderr] + RUN_LINE, [loginShell(), source.command], ARG0);
   return shellCommand(FIRST[stderr] + RUN_SCRIPT, [resolvePath(source.script, 'config')], ARG0);
@@ -108,7 +112,10 @@ interface Run {
   started: number;
 }
 
-/** The current run per entry. A superseded run leaves this map at once and lives on only in its own closures until its process is gone. */
+/**
+ * The current run per entry.
+ * A superseded run leaves this map at once and lives on only in its own closures until its process is gone.
+ */
 const runs = new Map<string, Run>();
 /** Every run whose process has not exited, current or superseded: what the quit sweep signals. */
 const live = new Set<Run>();

@@ -22,7 +22,8 @@ let nextId = 1;
  * ONE implementation for all three ways a session stops — the tab's stop button, closing a tab, and the sweep at app quit — because they differ only in whether `claude` is given its own exit path first.
  * They used to differ in more than that, and each sent a single signal and forgot the process: `SIGHUP` by default, which a Node program is entitled to decline, leaving the app certain it had stopped something that was still running.
  *
- * `flush` writes Ctrl-C twice so `claude` exits the way it does in a terminal and writes its transcript. Without it the session is asked to leave at once.
+ * `flush` writes Ctrl-C twice so `claude` exits the way it does in a terminal and writes its transcript.
+ * Without it the session is asked to leave at once.
  * Either way the ask is a `SIGTERM` to the group, and anything still there after the grace period gets `SIGKILL`.
  * Whether it worked is read from `terminals`, which only the pty's own exit removes from — so the escalation is driven by the process actually being gone, not by having sent something.
  */
@@ -77,7 +78,8 @@ function spawnPty(sender: WebContents, what: string, file: string, args: string[
   proc.onData((data) => {
     if (!sender.isDestroyed()) sender.send('terminal:data', id, data);
   });
-  // The pty's own exit is the ONE place a session is recorded as over. Everything that stops one reads this rather than assuming its signal worked.
+  // The pty's own exit is the ONE place a session is recorded as over.
+  // Everything that stops one reads this rather than assuming its signal worked.
   proc.onExit(({ exitCode, signal }) => {
     const asked = ending.has(id);
     terminals.delete(id);
@@ -117,7 +119,10 @@ function refuseMissing(cwd: string): never {
 export interface LaunchOptions extends TerminalLaunch {
   /** claude-ui's own settings file, or null when it has not been written yet. */
   settingsFile: string | null;
-  /** The user's default flags, already parsed (see flags.ts). Appended last. */
+  /**
+   * The user's default flags, already parsed (see flags.ts).
+   * Appended last.
+   */
   extra?: string[];
 }
 
@@ -150,7 +155,8 @@ export function claudeArgs(opts: LaunchOptions): string[] {
     args.push('-w');
     if (opts.worktree) args.push(opts.worktree);
   }
-  // The user's own flags go last, so a repeated flag resolves in their favour on any flag claude takes last-wins. The ones that would break the app are refused before they can be saved, so nothing here can displace what is above.
+  // The user's own flags go last, so a repeated flag resolves in their favour on any flag claude takes last-wins.
+  // The ones that would break the app are refused before they can be saved, so nothing here can displace what is above.
   if (opts.extra) args.push(...opts.extra);
   // The first prompt is the positional argument, after `--` and after everything else: a flag taking several values (`--allowedTools Grep,Glob`) swallows a prompt that follows it without one, and a prompt starting with `-` would read as a flag (both MEASURED 2026-09-29).
   if (opts.prompt) args.push('--', opts.prompt);
@@ -169,8 +175,10 @@ export function registerTerminalIpc(): void {
   // Async only for the settings read: the user's default flags live in meta.json, and a session has to be launched with the flags as they are NOW, not as they were when the app started.
   ipcMain.handle('terminal:start', async (event, cwd: string, launch: TerminalLaunch): Promise<number> => {
     // A DIRECTORY THAT IS NOT THERE IS REFUSED, never quietly swapped for the home directory.
-    // The old fallback did exactly that, and said nothing: a session whose folder had been removed started in `~`, and then wrote its transcript under the HOME project, so it moved in the sidebar as well. The only visible sign was Claude Code asking for workspace trust on a directory nobody had chosen.
-    // HOW OFTEN depends entirely on how somebody works, so it is not worth guessing: on the machine this was written on exactly one resolved directory was missing, because a session that LEAVES a `claude -w` worktree records its original cwd and the reader follows that. Somebody who removes trees while sessions still point INTO them meets it constantly.
+    // The old fallback did exactly that, and said nothing: a session whose folder had been removed started in `~`, and then wrote its transcript under the HOME project, so it moved in the sidebar as well.
+    // The only visible sign was Claude Code asking for workspace trust on a directory nobody had chosen.
+    // HOW OFTEN depends entirely on how somebody works, so it is not worth guessing: on the machine this was written on exactly one resolved directory was missing, because a session that LEAVES a `claude -w` worktree records its original cwd and the reader follows that.
+    // Somebody who removes trees while sessions still point INTO them meets it constantly.
     // Refusing here rather than only in the UI, so nothing can reach a spawn by another route.
     if (!cwd || !existsSync(cwd)) refuseMissing(cwd);
     // Guard on the settings file's existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.

@@ -42,7 +42,10 @@ async function keepAside(file: string, text: string, why: string): Promise<void>
   }
 }
 
-/** Everything the app keeps for a panel; empty for one that has nothing yet. Exported for the tests. */
+/**
+ * Everything the app keeps for a panel; empty for one that has nothing yet.
+ * Exported for the tests.
+ */
 export async function readPanelData(entryId: string): Promise<PanelData> {
   const file = fileOf(entryId);
   if (!file) return empty();
@@ -88,7 +91,8 @@ let existing: Existing = (ids) => Promise.resolve(new Set(ids));
 
 /**
  * Drop the links to sessions that are gone for good, whatever removed them — the app's own delete, Claude Code's transcript retention (`cleanupPeriodDays`), or a hand.
- * Asked on every write rather than on a read, as agreed with the user (2026-09-30), and never by the link's age: a session started long ago may be resumed yesterday. `keep` is a session being linked now, which has neither a transcript nor a tab yet.
+ * Asked on every write rather than on a read, as agreed with the user (2026-09-30), and never by the link's age: a session started long ago may be resumed yesterday.
+ * `keep` is a session being linked now, which has neither a transcript nor a tab yet.
  * A check that fails keeps everything, since a link dropped by mistake cannot be had back.
  */
 async function prune(file: string, data: PanelData, keep: string[]): Promise<void> {
@@ -129,7 +133,10 @@ function update(entryId: string, mutate: (data: PanelData) => boolean, keep: str
   return run;
 }
 
-/** Remember that `sessionId` was started from an item of the panel, and which group it was filed in there. Exported for the tests. */
+/**
+ * Remember that `sessionId` was started from an item of the panel, and which group it was filed in there.
+ * Exported for the tests.
+ */
 export async function linkSession(entryId: string, sessionId: string, link: Omit<PanelLink, 'startedAt'>, filed: { repoRoot: string; groupId: string | null }): Promise<PanelData> {
   const { data } = await update(
     entryId,

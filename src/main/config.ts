@@ -41,7 +41,10 @@ async function lookAt(resolved: string, must: PathKind): Promise<Found> {
   }
 }
 
-/** Whether a path option points at what it must, worded in the value as the user wrote it (`pathProblem`). Asked by the panel whose option it is. */
+/**
+ * Whether a path option points at what it must, worded in the value as the user wrote it (`pathProblem`).
+ * Asked by the panel whose option it is.
+ */
 export async function checkPath(value: string, base: PathBase, must: PathKind): Promise<PathCheck> {
   const resolved = resolvePath(value, base);
   return { path: resolved, problem: pathProblem(value, must, await lookAt(resolved, must)) };
@@ -93,13 +96,19 @@ async function typeFolders(root: string): Promise<{ name: string; dir: string }[
   return found.filter((folder) => folder !== null).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Every type folder's manifest, read as it is. Exported for the tests. */
+/**
+ * Every type folder's manifest, read as it is.
+ * Exported for the tests.
+ */
 export async function readTypes(root = typesDir): Promise<TypeReport[]> {
   const folders = await typeFolders(root);
   return Promise.all(folders.map(async ({ name, dir }) => ({ name, dir, ...(await readJson(path.join(dir, MANIFEST_FILE))) })));
 }
 
-/** One read of the layout file, and of the type folders it may use. Exported for the tests. */
+/**
+ * One read of the layout file, and of the type folders it may use.
+ * Exported for the tests.
+ */
 export async function readLayout(file = defaultLayoutFile, types = typesDir): Promise<LayoutReport> {
   const [layout, typeReports] = await Promise.all([readJson(file), readTypes(types)]);
   return { configRoot, file, ...layout, types: typeReports };
@@ -107,7 +116,8 @@ export async function readLayout(file = defaultLayoutFile, types = typesDir): Pr
 
 /**
  * What the layout file's last read said, as a log line.
- * Only a change is written: the file is read at start-up and on every save, and "read" a hundred times over says nothing. What the file's CONTENTS got wrong is the renderer's to say (panels/layout.ts); this is only whether there was a file to judge.
+ * Only a change is written: the file is read at start-up and on every save, and "read" a hundred times over says nothing.
+ * What the file's CONTENTS got wrong is the renderer's to say (panels/layout.ts); this is only whether there was a file to judge.
  */
 let lastLayoutLine: string | null = null;
 /** The type folders as the last line said them; '' for none, so an install without any says nothing about them. */

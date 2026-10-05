@@ -1,4 +1,5 @@
-// First, and for its side effect: paths.ts pins the userData directory, and must run before any module computes a path from it. See the comment there.
+// First, and for its side effect: paths.ts pins the userData directory, and must run before any module computes a path from it.
+// See the comment there.
 import './paths';
 import { app, BrowserWindow, ipcMain, Menu, dialog, shell, nativeImage, screen } from 'electron';
 import type { NativeImage } from 'electron';
@@ -73,19 +74,27 @@ import type { HistoryPin, HistorySlice, OrderMove, UiState, Settings } from '../
 let mainWindow: BrowserWindow | null = null;
 
 /**
- * Window title, and the app's only always-visible version stamp. See createWindow.
- * The dev suffix matters because the two are otherwise identical: same name, same version, same icon, and the same data directory, so there is nothing on screen to say whether you are looking at the installed app or one started from source. `app.isPackaged` is derived rather than configured, so it cannot drift.
+ * Window title, and the app's only always-visible version stamp.
+ * See createWindow.
+ * The dev suffix matters because the two are otherwise identical: same name, same version, same icon, and the same data directory, so there is nothing on screen to say whether you are looking at the installed app or one started from source.
+ * `app.isPackaged` is derived rather than configured, so it cannot drift.
  */
 const appTitle = `Claude UI ${app.getVersion()}${app.isPackaged ? '' : ' — dev'}`;
 
 /**
  * Whether the app draws its own window chrome instead of letting the OS do it.
  *
- * CURRENTLY OFF, on the window it was built for. It works — a title bar of our own, our own maximize, a handle on every edge — but dragging the window is visibly steppy and cannot be made smooth: the gesture is ours, every move is a round trip to the compositor, and handing the drag back to the compositor brings a double-click-to-maximize that misdraws and cannot be suppressed. That trade was not worth it in daily use. Why, and why each piece is hand-built, is in docs/architecture.md § The window's own chrome.
+ * CURRENTLY OFF, on the window it was built for.
+ * It works — a title bar of our own, our own maximize, a handle on every edge — but dragging the window is visibly steppy and cannot be made smooth: the gesture is ours, every move is a round trip to the compositor, and handing the drag back to the compositor brings a double-click-to-maximize that misdraws and cannot be suppressed.
+ * That trade was not worth it in daily use.
+ * Why, and why each piece is hand-built, is in docs/architecture.md § The window's own chrome.
  *
- * TO TURN IT BACK ON: `process.platform !== 'darwin'`. Everything hangs off this one flag — the frame, the shadow, whether the native maximize is allowed, our maximize, the title bar the renderer draws, the resize handles, and the frame-offset correction that only a DECORATED window needs. Both paths are live: macOS has always run the OS-chrome side of every one of those branches.
+ * TO TURN IT BACK ON: `process.platform !== 'darwin'`.
+ * Everything hangs off this one flag — the frame, the shadow, whether the native maximize is allowed, our maximize, the title bar the renderer draws, the resize handles, and the frame-offset correction that only a DECORATED window needs.
+ * Both paths are live: macOS has always run the OS-chrome side of every one of those branches.
  *
- * macOS could never have the frameless side as it stands: `frame: false` there removes the traffic lights and puts nothing in their place, and the mac build is real, published on every version tag. Its variant is `titleBarStyle: 'hiddenInset'`, unbuilt while nobody here can look at a Mac.
+ * macOS could never have the frameless side as it stands: `frame: false` there removes the traffic lights and puts nothing in their place, and the mac build is real, published on every version tag.
+ * Its variant is `titleBarStyle: 'hiddenInset'`, unbuilt while nobody here can look at a Mac.
  */
 const OWN_CHROME = false as boolean;
 
@@ -99,7 +108,8 @@ const OWN_CHROME = false as boolean;
 // Both were tried and reverted.
 // See docs/architecture.md, including the note on an all-arrow cursor, which looks like an X11 limitation but is WSLg's pointer state stuck.
 
-// Only one claude-ui instance at a time; a second launch focuses the existing window. This may change if we add pop-out / multi-window sessions later.
+// Only one claude-ui instance at a time; a second launch focuses the existing window.
+// This may change if we add pop-out / multi-window sessions later.
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -210,7 +220,10 @@ function trackBounds(win: BrowserWindow): void {
   });
 }
 
-/** How long to wait for the frame to appear before giving up on there being one. Measured at ~250ms here, with a trivial window and with the real one alike, so this is eight times the margin it needs. */
+/**
+ * How long to wait for the frame to appear before giving up on there being one.
+ * Measured at ~250ms here, with a trivial window and with the real one alike, so this is eight times the margin it needs.
+ */
 const FRAME_DEADLINE_MS = 2000;
 
 /**
@@ -235,7 +248,8 @@ function correctFramePlacement(win: BrowserWindow, wanted: { x: number; y: numbe
     const { x, y } = win.getBounds();
     const dx = x - wanted.x;
     const dy = y - wanted.y;
-    // A frame-sized difference is the offset this exists to cancel. Take it and stop.
+    // A frame-sized difference is the offset this exists to cancel.
+    // Take it and stop.
     if (frameOffsetVerdict(dx, dy) === 'correct') {
       win.setPosition(wanted.x - dx, wanted.y - dy);
       return;
@@ -253,7 +267,8 @@ function correctFramePlacement(win: BrowserWindow, wanted: { x: number; y: numbe
  *
  * `maximize()` and `setFullScreen()` both MISDRAW a frameless window under WSLg: the invisible resize margin a frameless window still carries is applied to the pixels but not to the input region, so a control is painted in one place and clicked in another, and anything near the right edge is pushed off-screen while remaining clickable at the true edge.
  * `setBounds` to the work area has neither problem — bounds and content agree, and it lands where it says.
- * So the window never enters the native maximized state at all, and the flag is ours. Why is in docs/architecture.md § The window's own chrome; this is not a preference and should not be "simplified" back to `maximize()`.
+ * So the window never enters the native maximized state at all, and the flag is ours.
+ * Why is in docs/architecture.md § The window's own chrome; this is not a preference and should not be "simplified" back to `maximize()`.
  *
  * The frame offset this file used to cancel by polling (the window manager adding its title bar to every position it was given) went with the frame: it was a property of the decoration, and a frameless window lands exactly where it asks.
  */
@@ -272,7 +287,8 @@ let probing = false;
  * Ask the window manager what a maximized window measures, using a window nobody ever sees.
  *
  * WHICH DISPLAY THE ANSWER IS ABOUT CANNOT BE CHOSEN, so it is recorded per display and learned again when a display turns up that we have no answer for.
- * Measured: a probe positioned onto the second display with `setBounds` — which does move it — still maximizes onto the first, and in a run where another window was being built at the same time it maximized onto the second instead. There is no way to ask the question OF a display; only to see which one answered.
+ * Measured: a probe positioned onto the second display with `setBounds` — which does move it — still maximizes onto the first, and in a run where another window was being built at the same time it maximized onto the second instead.
+ * There is no way to ask the question OF a display; only to see which one answered.
  * Hence the map and the re-probe, rather than a single value: one shot at startup is a coin flip, and losing it silently leaves a maximized window over the taskbar for the whole session.
  */
 function learnMaximizeInset(): void {
@@ -286,7 +302,10 @@ function learnMaximizeInset(): void {
       width: 400,
       height: 300,
       skipTaskbar: true,
-      // A PLAIN window, deliberately, and this is the trap: `show: false` does not stop a maximized window being mapped, so it paints — but every way of making it not paint also stops it maximizing, which is the one thing it exists to do. Measured, each in its own process: plain maximizes; `opacity: 0`, `transparent: true`, `backgroundColor: '#00000000'` and `focusable: false` each leave it at its original size. An earlier version set opacity and transparency to kill the white flash and thereby stopped learning the inset at all, which put maximized windows back over the taskbar — with no error, because the nonsense measurement was correctly rejected. So the flash stays, in the app's own colour rather than white.
+      // A PLAIN window, deliberately, and this is the trap: `show: false` does not stop a maximized window being mapped, so it paints — but every way of making it not paint also stops it maximizing, which is the one thing it exists to do.
+      // Measured, each in its own process: plain maximizes; `opacity: 0`, `transparent: true`, `backgroundColor: '#00000000'` and `focusable: false` each leave it at its original size.
+      // An earlier version set opacity and transparency to kill the white flash and thereby stopped learning the inset at all, which put maximized windows back over the taskbar — with no error, because the nonsense measurement was correctly rejected.
+      // So the flash stays, in the app's own colour rather than white.
       backgroundColor: '#1e1e2e',
     });
     probe.maximize();
@@ -304,7 +323,8 @@ function learnMaximizeInset(): void {
       const inset = insetFromProbe(got, display.workArea);
       if (inset) {
         maximizeInsets.set(display.id, inset);
-        // A window maximized before this answer existed is sitting over whatever the inset avoids — the launch path restores a maximized window well before the probe replies. Re-apply now.
+        // A window maximized before this answer existed is sitting over whatever the inset avoids — the launch path restores a maximized window well before the probe replies.
+        // Re-apply now.
         if (mainWindow && !mainWindow.isDestroyed() && maximized) mainWindow.setBounds(maximizedTarget(mainWindow));
       }
     } catch (error) {
@@ -358,16 +378,22 @@ async function createWindow(): Promise<void> {
     // Undefined leaves placement to the platform, which is what we want both on a first run and when the stored position is no longer on any screen.
     x: placement?.x,
     y: placement?.y,
-    // The floor the resize handles clamp against, via getMinimumSize. Without it that clamp reads [0, 0] and does nothing: dragging an edge past its opposite collapsed the window to nothing and left it in the screen corner, recoverable only because placeWindow repairs the stored size on the next launch.
+    // The floor the resize handles clamp against, via getMinimumSize.
+    // Without it that clamp reads [0, 0] and does nothing: dragging an edge past its opposite collapsed the window to nothing and left it in the screen corner, recoverable only because placeWindow repairs the stored size on the next launch.
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
     title: appTitle,
     icon: windowIcon(),
     // The renderer draws the title bar wherever this is frameless. macOS keeps its own — see OWN_CHROME.
     frame: !OWN_CHROME,
-    // NOT cosmetic, and not about the border down the side of the window — that one is weston's 32px frame and nothing here touches it. Chromium's shadow is what reserves the small margin that shows up as `getBounds` disagreeing with `getContentBounds`, and with the window sized to fill the screen that margin insets the PAINT while the input region keeps the full rectangle: the controls are then drawn in one place and clickable in another. Removed once on the mistaken grounds that it "did nothing", which was judged against the border it was never fixing; the mismatch came straight back. Leave it off.
+    // NOT cosmetic, and not about the border down the side of the window — that one is weston's 32px frame and nothing here touches it.
+    // Chromium's shadow is what reserves the small margin that shows up as `getBounds` disagreeing with `getContentBounds`, and with the window sized to fill the screen that margin insets the PAINT while the input region keeps the full rectangle: the controls are then drawn in one place and clickable in another.
+    // Removed once on the mistaken grounds that it "did nothing", which was judged against the border it was never fixing; the mismatch came straight back.
+    // Leave it off.
     hasShadow: !OWN_CHROME,
-    // Refuse the NATIVE maximize outright rather than undoing it after the fact. Intercepting it — unmaximize, then apply ours — deadlocked the window on a double-click: the window manager and the app each kept answering the other, and it came back only after some seconds. With this the double-click has no native meaning, and the renderer's own handler is the only path.
+    // Refuse the NATIVE maximize outright rather than undoing it after the fact.
+    // Intercepting it — unmaximize, then apply ours — deadlocked the window on a double-click: the window manager and the app each kept answering the other, and it came back only after some seconds.
+    // With this the double-click has no native meaning, and the renderer's own handler is the only path.
     maximizable: !OWN_CHROME,
     backgroundColor: '#1e1e2e',
     webPreferences: {
@@ -388,7 +414,8 @@ async function createWindow(): Promise<void> {
   trackBounds(mainWindow);
   watchWindow(mainWindow);
   // Nothing may take this window anywhere else, or open another: a page loaded here would get the preload's bridge, and the bridge runs commands.
-  // Links leave through `shell:openExternal` instead — the terminal's and the history's. The app never navigates on purpose, and `loadFile` below is programmatic, which this event does not see.
+  // Links leave through `shell:openExternal` instead — the terminal's and the history's.
+  // The app never navigates on purpose, and `loadFile` below is programmatic, which this event does not see.
   mainWindow.webContents.on('will-navigate', (event) => {
     event.preventDefault();
     log('warn', 'window', 'refused a navigation away from the app');
@@ -506,7 +533,8 @@ ipcMain.on('window:resizeStart', (_event, edge: Edge, pointer?: { x: number; y: 
     const target = unmaximizeUnderPointer(from, restored, pointer);
     mainWindow.setBounds(target);
     mainWindow.webContents.send('window:maximized', false);
-    // The rectangle we ASKED for, not one read back: `getBounds` right after `setBounds` still reports the old geometry here (the same lag the startup placement had to poll around), so reading it would base the whole drag on the MAXIMIZED rectangle and throw the window across the screen until a later frame corrected it. That is the stutter, at its worst.
+    // The rectangle we ASKED for, not one read back: `getBounds` right after `setBounds` still reports the old geometry here (the same lag the startup placement had to poll around), so reading it would base the whole drag on the MAXIMIZED rectangle and throw the window across the screen until a later frame corrected it.
+    // That is the stutter, at its worst.
     resizeFrom = { edge, bounds: target };
     return;
   }
@@ -551,7 +579,8 @@ void app.whenReady().then(async () => {
   installAppMenu();
   // Feeds the macOS About item, which the app menu above provides for free.
   app.setAboutPanelOptions({ applicationName: 'Claude UI', applicationVersion: app.getVersion() });
-  // One-time: rewrite pins/open-tabs/archived stored under conversation keys to stable session ids. First-wins over the recency-sorted list, so a family's conversationId maps to its latest member.
+  // One-time: rewrite pins/open-tabs/archived stored under conversation keys to stable session ids.
+  // First-wins over the recency-sorted list, so a family's conversationId maps to its latest member.
   const sessions = await listSessions();
   const conversationToId = new Map<string, string>();
   for (const s of sessions) if (!conversationToId.has(s.conversationId)) conversationToId.set(s.conversationId, s.id);
