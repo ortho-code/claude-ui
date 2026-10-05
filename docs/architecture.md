@@ -68,8 +68,8 @@ The linter reads it, because a type-aware rule needs a project for every file it
 `noUncheckedIndexedAccess` is on, so an index into an array or a record reads as possibly missing, and the code says why it is not: a check, or a `!` where the lines just before guarantee it.
 The test project turns it off: a test that indexes past the end fails anyway, and the source files it pulls in are checked with it on by the build projects.
 
-**Prose is never hard-wrapped**, in a comment or in a doc: no sentence goes on in the next line, so the raw text reads as the rendered one does, and an edit reflows only the line it changes.
-A unit test reads every comment and every doc paragraph git tracks and fails on a wrapped line, naming it (`test/unit/prose.test.ts`); what it does not count as wrapped (a list, a tag, a fence, an indented sample, a comment after code) is spelled out in it.
+**Prose is one sentence per line**, in a comment or in a doc: no sentence goes on in the next line, so the raw text reads as the rendered one does, and no line holds two, so an edit changes only the lines of the sentences it touches.
+A unit test reads every comment and every doc paragraph git tracks and fails on a wrapped line or a line of two sentences, naming it (`test/unit/prose.test.ts`); what it leaves out (a fence, a table, a tag, an indented sample, and for wrapping a list and a comment after code) is spelled out in it.
 A change meant to touch only comments is proved to with `npm run comments:prove [-- <ref>]` (`test/tools/comments-only.ts`): every file changed since the ref, HEAD unless named, must be the same as it was there once its comments are dropped (TypeScript and JavaScript printed back from their parse, CSS with its comments taken out, markdown rendered), and a file of another kind, a new one or a deleted one fails it.
 
 ## The window's checks

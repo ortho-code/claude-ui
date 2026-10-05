@@ -6,9 +6,11 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Prose here is never hard-wrapped: a sentence carried onto the next line makes the raw text wrong where the rendered one looks right, and every later edit reflows lines that did not change.
- * This holds that for every comment in the code and every paragraph of the docs: no line ends in the middle of a sentence that goes on in the next one.
+ * Prose here is one sentence per line: a sentence carried onto the next line makes the raw text wrong where the rendered one looks right, and every later edit reflows lines that did not change.
+ * A paragraph on one line is the same mistake the other way round: an edit to one of its sentences changes the line that holds them all.
+ * This holds both for every comment in the code and every paragraph of the docs: no line ends in the middle of a sentence that goes on in the next one, and no line holds two.
  * It reads prose rather than parsing it, so what it does not call wrapped is spelled out below: a line that ends a sentence, a list item, a tag, a fence, a table, a heading, an indented sample, a section marker, a comment after code.
+ * What it does not read for sentences is spelled out with `crowdedIn`.
  */
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -127,13 +129,78 @@ function wrappedIn(file: string, text: string): string[] {
   return paragraphsOf(file, text).flatMap((paragraph) => wrapped(paragraph).map(({ line, text: words }) => `${file}:${line}: ${words.trim()}`));
 }
 
+/** Abbreviations whose full stop ends no sentence. */
+const ABBREVIATIONS = /\b(e\.g|i\.e|vs|etc|cf|incl)\./g;
+/** Where a sentence may end inside a line: `.`, `?` or `!`, perhaps followed by a closing quote, bracket or emphasis, then a space. */
+const SENTENCE_END = /[.?!]["')*_`]*\s+/g;
+/** What a sentence opens with: a capital, a digit, a quote, a bracket, emphasis or a code span. */
+const OPENS = /[A-Z\d"'(*`[]/;
+
+/**
+ * Whether the text after `end` opens a new sentence.
+ * A lowercase word does too (`macOS`, `xterm`, `text-box`), unless the end closed a quotation, which makes it one inside a sentence (`"… come back?" was`).
+ */
+function opensSentence(end: string, next: string): boolean {
+  return OPENS.test(next) || (/[a-z]/.test(next) && !/["']/.test(end));
+}
+
+/** How many sentences end before a line's last one; code spans, link targets and abbreviations end none. */
+function sentenceEnds(text: string): number {
+  const masked = text
+    .replace(/`[^`]*`/g, (span) => 'x'.repeat(span.length))
+    .replace(/\]\([^)]*\)/g, (target) => 'x'.repeat(target.length))
+    .replace(ABBREVIATIONS, (abbreviation) => `${abbreviation.slice(0, -1)}x`);
+  return [...masked.matchAll(SENTENCE_END)].filter((end) => opensSentence(end[0], text.charAt(end.index + end[0].length))).length;
+}
+
+/** Not read for sentences: a table, a heading, markup, a tag, a fence, a lint directive, a shebang, a section marker (`--- X ---`), code (`{`, `}`). */
+const NOT_SENTENCES = /^\s*(\||#|<|@|```|eslint-|!|\{|\}|-{2,}\s)/;
+/** An indented sample in a comment; in markdown an indented line goes on a list item, so it is read. */
+const SAMPLE = /^ {2,}\S/;
+
+/** Each line of a file holding more than one sentence, as `file:line: text`; a list item is read like any other line. */
+function crowdedIn(file: string, text: string): string[] {
+  const samples = extname(file) !== '.md';
+  return paragraphsOf(file, text).flatMap((paragraph) =>
+    paragraph
+      .filter(({ text: words }) => !NOT_SENTENCES.test(words) && !(samples && SAMPLE.test(words)) && sentenceEnds(words) > 0)
+      .map(({ line, text: words }) => `${file}:${line}: ${words.trim()}`),
+  );
+}
+
+/** Every file git tracks whose kind paragraphsOf reads, so nothing built, installed or ignored, with its text. */
+function trackedProse(): { file: string; text: string }[] {
+  return execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
+    .split('\n')
+    .filter((file) => /\.(ts|mjs|css|md|yml|sh|toml)$/.test(file))
+    .map((file) => ({ file, text: readFileSync(join(root, file), 'utf8') }));
+}
+
 describe('prose', () => {
   it('wraps no sentence across lines, in any comment or doc', () => {
-    // Every file git tracks whose kind paragraphsOf reads, so nothing built, installed or ignored.
-    const files = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
-      .split('\n')
-      .filter((file) => /\.(ts|mjs|css|md|yml|sh|toml)$/.test(file));
-    expect(files.flatMap((file) => wrappedIn(file, readFileSync(join(root, file), 'utf8')))).toEqual([]);
+    expect(trackedProse().flatMap(({ file, text }) => wrappedIn(file, text))).toEqual([]);
+  });
+
+  it('puts no two sentences on one line, in any comment or doc', () => {
+    expect(trackedProse().flatMap(({ file, text }) => crowdedIn(file, text))).toEqual([]);
+  });
+
+  describe('what counts as two sentences on a line', () => {
+    it('a sentence after another, whatever it opens with', () => {
+      expect(crowdedIn('a.ts', '// One sentence. Another.\n')).toEqual(['a.ts:1: One sentence. Another.']);
+      expect(crowdedIn('a.ts', '// It is frameless. macOS keeps its own.\n')).toEqual(['a.ts:1: It is frameless. macOS keeps its own.']);
+      expect(crowdedIn('a.css', '/* A rule. `.x` says why. */\n')).toEqual(['a.css:1: A rule. `.x` says why.']);
+      expect(crowdedIn('a.md', '- An item. Its reason.\n')).toEqual(['a.md:1: - An item. Its reason.']);
+      expect(crowdedIn('a.md', '**A lead-in.** The paragraph.\n')).toEqual(['a.md:1: **A lead-in.** The paragraph.']);
+    });
+
+    it('not an abbreviation, a code span, a quotation, a table or a sample', () => {
+      expect(crowdedIn('a.ts', '// One case, e.g. this one, i.e. a single sentence.\n')).toEqual([]);
+      expect(crowdedIn('a.ts', '// Run `npm test. Then` once.\n')).toEqual([]);
+      expect(crowdedIn('a.md', 'It asked "come back?" and was right.\n')).toEqual([]);
+      expect(crowdedIn('a.md', '| a | One. Two. |\n')).toEqual([]);
+      expect(crowdedIn('a.ts', '// Run it as\n//   npm run a. Then b\n')).toEqual([]);
+    });
   });
 
   describe('what counts as wrapped', () => {
