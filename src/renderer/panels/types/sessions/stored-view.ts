@@ -16,7 +16,7 @@ export function sidebarSnapshot(view: StoredView = store.get()): Omit<UiState, '
     // The search as typed, not the trimmed and lowercased text it matches: what is restored has to be what was typed.
     ...view.filter,
     filterPanelOpen: view.filterPanelOpen,
-    footerExpanded: view.footerExpanded,
+    stripExpanded: view.stripExpanded,
     collapsedProjects: [...folds.projects],
     collapsedGroups: [...folds.groups],
     filterCollapsedProjects: [...folds.filterProjects],
@@ -44,7 +44,7 @@ export async function restoreSidebar(state: UiState): Promise<{ scrollTop: numbe
     // Exactly as it was left, an active filter included.
     // Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
     filterPanelOpen: state.filterPanelOpen,
-    footerExpanded: state.footerExpanded,
+    stripExpanded: state.stripExpanded,
   };
   return { scrollTop: state.scrollTop, view };
 }

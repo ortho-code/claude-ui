@@ -8,27 +8,27 @@ import { chevronIcon, stopIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import '../../../menu-row.css';
-import './attention-strip.css';
+import './live-strip.css';
 
 /**
- * The attention strip, at the foot of the sidebar: every running session, wherever it runs, under a line badged with the switcher's roll-up that folds the rows away.
- * A row jumps to its session, its dot marks it read, and its button stops it, each through the sidebar's host; the fold is the store's (`footerExpanded`).
+ * The live strip, at the foot of the sidebar: every running session, wherever it runs, under a line badged with the switcher's roll-up that folds the rows away.
+ * A row jumps to its session, its dot marks it read, and its button stops it, each through the sidebar's host; the fold is the store's (`stripExpanded`).
  */
 
 /** The strip, built here and placed by the sidebar (index.ts). */
-export const sidebarFooter = fromMarkup(`
-  <div id="sidebar-footer" hidden>
-    <div id="footer-list" hidden></div>
-    <button id="footer-toggle" type="button" aria-expanded="false">
-      <span id="footer-badge" class="nudge" hidden></span>
-      <span id="footer-label"></span>
-      <span class="footer-chev" aria-hidden="true"></span>
+export const liveStrip = fromMarkup(`
+  <div id="live-strip" hidden>
+    <div id="strip-list" hidden></div>
+    <button id="strip-toggle" type="button" aria-expanded="false">
+      <span id="strip-badge" class="nudge" hidden></span>
+      <span id="strip-label"></span>
+      <span class="strip-chev" aria-hidden="true"></span>
     </button>
   </div>`);
-const footerToggle = byId(sidebarFooter, 'footer-toggle', HTMLButtonElement);
-const footerBadge = byId(sidebarFooter, 'footer-badge');
-const footerLabel = byId(sidebarFooter, 'footer-label');
-const footerList = byId(sidebarFooter, 'footer-list');
+const stripToggle = byId(liveStrip, 'strip-toggle', HTMLButtonElement);
+const stripBadge = byId(liveStrip, 'strip-badge');
+const stripLabel = byId(liveStrip, 'strip-label');
+const stripList = byId(liveStrip, 'strip-list');
 
 /**
  * The strip row's stop control.
@@ -43,7 +43,7 @@ const footerList = byId(sidebarFooter, 'footer-list');
 function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButtonElement {
   const stop = document.createElement('button');
   stop.type = 'button';
-  stop.className = 'icon-btn compact footer-item-stop';
+  stop.className = 'icon-btn compact strip-item-stop';
   stop.innerHTML = stopIcon(14);
   const tab = tabWith(session.id, view);
   // No tab at all should not happen — membership is "has a process", and a process belongs to a tab — so it is inert rather than guessed at.
@@ -64,14 +64,14 @@ function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButto
   return stop;
 }
 
-// Cross-project attention strip in the sidebar footer.
+// Cross-project live strip at the foot of the sidebar.
 // The toggle badge is the switcher header's overall roll-up (`switcherModel`); expanded, it lists the nudged SESSIONS grouped under their project (each a row: state dot + session title), click one to jump to it.
 // Muted "all clear" when nothing pending.
-function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'footerExpanded'>): void {
-  const { footerExpanded } = view;
+function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'stripExpanded'>): void {
+  const { stripExpanded } = view;
   const overall = model.all.badge;
-  footerBadge.className = badgeClass(overall);
-  footerBadge.hidden = !overall;
+  stripBadge.className = badgeClass(overall);
+  stripBadge.hidden = !overall;
 
   // What is RUNNING, wherever it is running — not what is nudging.
   // Membership used to be "has a live nudge", which meant marking a dot read deleted the row: muting said "erase this" when it should have said "seen it".
@@ -106,33 +106,33 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
   if (total === 0) {
     // Gone entirely rather than sitting there saying "All clear", which read as odd on a first run — nothing had happened yet for anything to be clear of — and left a caret pointing at a panel that could not open.
     // Absent over inert is what the rest of the sidebar does: the group jump button is dropped below two targets, the filter status hides when nothing is filtering.
-    // The stored footerExpanded is deliberately untouched: this is what there is to show, not a preference, and the strip must come back the way you left it.
-    sidebarFooter.hidden = true;
-    footerList.hidden = true;
-    footerList.replaceChildren();
+    // The stored stripExpanded is deliberately untouched: this is what there is to show, not a preference, and the strip must come back the way you left it.
+    liveStrip.hidden = true;
+    stripList.hidden = true;
+    stripList.replaceChildren();
     return;
   }
 
-  sidebarFooter.hidden = false;
-  footerToggle.setAttribute('aria-expanded', String(footerExpanded));
+  liveStrip.hidden = false;
+  stripToggle.setAttribute('aria-expanded', String(stripExpanded));
   // Counting ATTENTION rather than rows: now that a session stays listed while it runs, a plain row count would report five sessions wanting you when four of them are working away happily.
-  footerLabel.textContent = needing > 0 ? `${needing} of ${total} need you` : `${total} live`;
-  footerList.hidden = !footerExpanded;
+  stripLabel.textContent = needing > 0 ? `${needing} of ${total} need you` : `${total} live`;
+  stripList.hidden = !stripExpanded;
   // Once for the whole strip rather than per row: the membership and the registry have to come from the same read anyway.
   const { groups, groupOf } = view.groupState;
-  footerList.replaceChildren(
+  stripList.replaceChildren(
     ...ordered.flatMap((project) => {
       const heading = document.createElement('div');
-      heading.className = 'footer-project';
+      heading.className = 'strip-project';
       heading.textContent = project.name;
       const rows = project.items.map((session) => {
         // The row is a DIV holding two buttons rather than one button, because a button cannot contain a button and this row now has two things to do: jump to the session, or stop it.
         // The row shape (the menu row, menu-row.css) stays on the wrapper, so hovering anywhere in it still lights the whole row and the strip looks exactly as it did.
         const row = document.createElement('div');
-        row.className = 'menu-row footer-item';
+        row.className = 'menu-row strip-item';
         const jump = document.createElement('button');
         jump.type = 'button';
-        jump.className = 'footer-item-jump';
+        jump.className = 'strip-item-jump';
         // The roll-up badge rather than the sidebar's status dot: that one is 9px and bordered because it is a control in a dense row, where this sits on a row of its own.
         // It IS clickable though, and for the same reason the row is: acking a session anywhere else means going to where that session lives, which costs you the project you are looking at — the exact gap this strip exists to close.
         // The read state has to show either way, or a muted row reads as live — hence the acked modifier, which dims this badge exactly as it dims the dot.
@@ -142,7 +142,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
         // Only the count above drops it.
         ackOnClick(dot, () => session.id);
         const name = document.createElement('span');
-        name.className = 'footer-item-name';
+        name.className = 'strip-item-name';
         name.textContent = sessionLabel(session);
         jump.append(dot, name);
         // The group as a CHIP rather than a third level of headings.
@@ -151,7 +151,7 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
         const groupName = groups.find((g) => g.id === groupOf[entityKey(session)])?.name;
         if (groupName) {
           const chip = document.createElement('span');
-          chip.className = 'footer-item-group';
+          chip.className = 'strip-item-group';
           chip.textContent = groupName;
           jump.append(chip);
         }
@@ -166,18 +166,18 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
 }
 
 // The strip follows, drawn by its own render (`refreshStrip`, told of it).
-footerToggle.addEventListener('click', () => store.set({ footerExpanded: !store.get().footerExpanded }));
+stripToggle.addEventListener('click', () => store.set({ stripExpanded: !store.get().stripExpanded }));
 
 // The caret, from the same chevron as every other fold in the app.
-footerToggle.querySelector('.footer-chev')!.innerHTML = chevronIcon('down', 11);
+stripToggle.querySelector('.strip-chev')!.innerHTML = chevronIcon('down', 11);
 
 /** What the strip draws from the store. */
-type StripView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'footerExpanded'>;
+type StripView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'stripExpanded'>;
 
 /**
  * The strip follows the store, its line badged with the switcher's own roll-up (`switcherModel`) and its rows drawn from the switcher's pool.
  * A watcher the sidebar registers (watch.ts).
  */
 export function refreshStrip(view: StripView): void {
-  renderFooter(switcherModel(view), switcherPool(view), view);
+  renderStrip(switcherModel(view), switcherPool(view), view);
 }

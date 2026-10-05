@@ -149,7 +149,7 @@ function tabElement(tab: TabState, view: View<'statuses' | 'acked' | 'projectNam
   close.className = 'icon-btn compact tab-close';
   // Anything but a settled cold tab: it has a process, or one is on its way, or one is on its way out.
   if (tab.terminalId !== null || tab.starting || tab.stopping) {
-    // Stopping, and its two pauses, are the same rule the attention strip's button follows — see stopControlState.
+    // Stopping, and its two pauses, are the same rule the live strip's button follows — see stopControlState.
     const { disabled, tooltip } = stopControlState(tab);
     close.disabled = disabled;
     close.innerHTML = stopIcon(14);

@@ -31,7 +31,7 @@ Done:
 - Ordering and overview: reorder projects and groups from their kebabs, fold every section away and back from one header button, and attach a note to any session.
 - Pin, archive, and delete (to the OS trash); search plus filters (pinned, open, running, worktree, folder gone, siblings, noted, archived, date range).
   A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
-- Per-session status dots (busy / idle / waiting) driven by Claude Code hooks scoped to app-launched sessions; dots can be marked read, a footer strip surfaces sessions needing attention across projects, and a project switcher scopes the sidebar.
+- Per-session status dots (busy / idle / waiting) driven by Claude Code hooks scoped to app-launched sessions; dots can be marked read, a live strip at the foot of the sidebar lists what is running across projects, and a project switcher scopes the sidebar.
   A session in the strip can be muted or stopped where it is listed, so acting on one in another project doesn't cost you the project you're looking at.
   The strip keeps still: it follows your tabs, clustered by group, so a row only moves when you move a tab.
 - Sessions are followed the way they actually run: stopping one escalates until it has really ended, a `/clear` carries on in the same tab and group as a new session, and a `/model` switch shows at once.

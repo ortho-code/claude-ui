@@ -198,7 +198,7 @@ button:hover {
   color: var(--text);
 }
 
-/* THE NUDGE — one mark for a session's state, wherever it is drawn: the session rows, the attention strip, the project switcher, the jump menu, the toasts.
+/* THE NUDGE — one mark for a session's state, wherever it is drawn: the session rows, the live strip, the project switcher, the jump menu, the toasts.
    The waiting pulse is part of it everywhere, including the rolled-up ones — a mark that pulses on one surface and sits still on another reads as two different states.
    (The pulse used to be list-only, on the argument that a roll-up should be calmer; it wasn't worth the ambiguity.)
    It used to be two near-identical classes and they drifted twice: once to two different SIZES, and once to a hollow ring in the list but a 9px hole in the strip for a session with no status yet.
@@ -256,8 +256,8 @@ button:hover {
   animation: none;
 }
 
-/* Where a nudge is a CONTROL rather than decoration — the session row, the tab, and the attention strip — clicking it marks the session read.
-   Everywhere else (the switcher's roll-ups, the footer toggle's badge) the nudge only reports, and the thing around it is what you click, so the pointer and the enlarged hit target would both be lies. */
+/* Where a nudge is a CONTROL rather than decoration — the session row, the tab, and the live strip — clicking it marks the session read.
+   Everywhere else (the switcher's roll-ups, the strip toggle's badge) the nudge only reports, and the thing around it is what you click, so the pointer and the enlarged hit target would both be lies. */
 .nudge.clickable {
   cursor: pointer;
   position: relative;

@@ -461,42 +461,54 @@ describe('projectOrder', () => {
   });
 });
 
-describe('footerExpanded', () => {
+describe('stripExpanded', () => {
   it('starts expanded, because the strip is meant to be read', async () => {
-    expect((await getUiState()).footerExpanded).toBe(true);
+    expect((await getUiState()).stripExpanded).toBe(true);
   });
 
   it('remembers being closed, and being opened again', async () => {
     const ui = await getUiState();
-    await setUiState({ ...ui, footerExpanded: false });
-    expect((await getUiState()).footerExpanded).toBe(false);
-    await setUiState({ ...ui, footerExpanded: true });
-    expect((await getUiState()).footerExpanded).toBe(true);
+    await setUiState({ ...ui, stripExpanded: false });
+    expect((await getUiState()).stripExpanded).toBe(false);
+    await setUiState({ ...ui, stripExpanded: true });
+    expect((await getUiState()).stripExpanded).toBe(true);
   });
 
   it('takes the default when an older meta.json never mentioned it', async () => {
     await writeMetaFile({ pinned: ['s1'], version: 3 });
-    expect((await getUiState()).footerExpanded).toBe(true);
+    expect((await getUiState()).stripExpanded).toBe(true);
   });
 
   // It used to be a key of its own, so an existing install's setting has to survive the move into `ui`.
   it('adopts the value from the key this used to live under', async () => {
     await writeMetaFile({ footerExpanded: false, version: 3 });
-    expect((await getUiState()).footerExpanded).toBe(false);
+    expect((await getUiState()).stripExpanded).toBe(false);
+  });
+
+  // And it was `footerExpanded` inside `ui` too, before the strip had one name.
+  it('adopts the value from the name it had inside `ui`', async () => {
+    await writeMetaFile({ ui: { footerExpanded: false }, version: 3 });
+    expect((await getUiState()).stripExpanded).toBe(false);
   });
 
   it('prefers what `ui` says over the old key, once both exist', async () => {
-    await writeMetaFile({ footerExpanded: false, ui: { footerExpanded: true }, version: 3 });
-    expect((await getUiState()).footerExpanded).toBe(true);
+    await writeMetaFile({ footerExpanded: false, ui: { stripExpanded: true }, version: 3 });
+    expect((await getUiState()).stripExpanded).toBe(true);
   });
 
-  // The old key is consumed rather than carried along, so it does not linger in the file for ever.
-  it('stops writing the old key back out', async () => {
-    await writeMetaFile({ footerExpanded: false, version: 3 });
-    await setUiState({ ...(await getUiState()), footerExpanded: true });
+  it('prefers the name it has now over the one it had inside `ui`', async () => {
+    await writeMetaFile({ ui: { footerExpanded: false, stripExpanded: true }, version: 3 });
+    expect((await getUiState()).stripExpanded).toBe(true);
+  });
+
+  // The old keys are consumed rather than carried along, so they do not linger in the file for ever.
+  it('stops writing the old keys back out', async () => {
+    await writeMetaFile({ footerExpanded: false, ui: { footerExpanded: false }, version: 3 });
+    await setUiState({ ...(await getUiState()), stripExpanded: true });
     const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
     expect(raw.footerExpanded).toBeUndefined();
-    expect(raw.ui.footerExpanded).toBe(true);
+    expect(raw.ui.footerExpanded).toBeUndefined();
+    expect(raw.ui.stripExpanded).toBe(true);
   });
 });
 
@@ -540,7 +552,7 @@ describe('ui state', () => {
     dateFrom: 1_700_000_000_000,
     dateTo: 1_700_500_000_000,
     filterPanelOpen: true,
-    footerExpanded: false,
+    stripExpanded: false,
     collapsedProjects: ['/home/me/work'],
     collapsedGroups: ['g1'],
     filterCollapsedProjects: ['/home/me/other'],
@@ -562,7 +574,7 @@ describe('ui state', () => {
       dateFrom: null,
       dateTo: null,
       filterPanelOpen: false,
-      footerExpanded: true,
+      stripExpanded: true,
       collapsedProjects: [],
       collapsedGroups: [],
       filterCollapsedProjects: [],

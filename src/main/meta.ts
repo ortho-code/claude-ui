@@ -168,8 +168,8 @@ function normalizePanelState(raw: unknown, px: (value: unknown) => number | null
  */
 function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
   const base = defaultUi();
-  // Even with no `ui` at all: an older file's attention-strip setting is the one value in here worth carrying across.
-  if (typeof legacyFooterExpanded === 'boolean') base.footerExpanded = legacyFooterExpanded;
+  // Even with no `ui` at all: an older file's live-strip setting is the one value in here worth carrying across.
+  if (typeof legacyFooterExpanded === 'boolean') base.stripExpanded = legacyFooterExpanded;
   if (!raw || typeof raw !== 'object') return base;
   const ui = raw as Record<string, unknown>;
   const bool = (value: unknown, fallback: boolean): boolean => (typeof value === 'boolean' ? value : fallback);
@@ -189,7 +189,8 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
     dateFrom: ms(ui.dateFrom),
     dateTo: ms(ui.dateTo),
     filterPanelOpen: bool(ui.filterPanelOpen, base.filterPanelOpen),
-    footerExpanded: bool(ui.footerExpanded, base.footerExpanded),
+    // `stripExpanded` was stored as `footerExpanded` before the strip had one name; read the old key as its fallback so an existing file keeps the strip open or shut.
+    stripExpanded: bool(ui.stripExpanded, bool(ui.footerExpanded, base.stripExpanded)),
     collapsedProjects: strings(ui.collapsedProjects),
     collapsedGroups: strings(ui.collapsedGroups),
     filterCollapsedProjects: strings(ui.filterCollapsedProjects),

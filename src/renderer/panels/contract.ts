@@ -80,7 +80,7 @@ export interface LinkedSession {
  */
 export interface Asks {
   // Answered by the terminal area.
-  /** Go to a session, as a jump from the attention strip does: its project, its tab (resumed when it is not running, with `prompt` as its first when given), its row. */
+  /** Go to a session, as a jump from the live strip does: its project, its tab (resumed when it is not running, with `prompt` as its first when given), its row. */
   openSession(id: string, prompt?: string): void;
   /** Open a session's tab, started when it is not running, and nothing else: what a click on its row does, which moves neither the list nor the project. */
   openTab(id: string): void;

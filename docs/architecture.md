@@ -241,7 +241,7 @@ Scoped to it, the empty pane says the same sentence instead of pointing at sessi
 One rule decides it (`projectRootExists`, which the list's headings and the switcher's model both call), one function says it (`projectGoneReason`, shaped like the session one), and one helper draws it (`markProjectGone`).
 Marking was chosen over hiding: an unmounted drive would make a project you use every day vanish without a word, and a dead project nobody is coming back to already has a way out — delete or archive its sessions, and it leaves the switcher with the last one.
 Nor does it move: a dead project keeps the place you gave it, since a project that sank to the end whenever a drive was unmounted would move a list under the person reading it.
-Group headings, the attention strip and the panels are left alone on purpose: the project heading above a group is sticky, so its mark is on screen the whole time; the strip lists running sessions, which a dead project cannot have; and a panel already refuses a folder that is not there, in words about its own folder.
+Group headings, the live strip and the panels are left alone on purpose: the project heading above a group is sticky, so its mark is on screen the whole time; the strip lists running sessions, which a dead project cannot have; and a panel already refuses a folder that is not there, in words about its own folder.
 
 Two cases no amount of gating can pre-empt — a folder that disappears while the app is running, and a tab you are already sitting on — which is why the refusal still has to explain itself when it happens.
 A tab is kept, cold, rather than closed: the click meant "look at this", and the folder may come back.
@@ -447,7 +447,7 @@ Reads are tolerant by design: unknown or malformed entries are dropped rather th
 ## The store
 
 The window's shared state goes in one store (`src/renderer/state/store.ts`) that tells its readers when it changes.
-It exists because the same state is drawn by the session list, the switcher, the tab bar, the attention strip and the panels, and a change made in a handler that knew about one of them left the others stale: three such bugs in one day, and then the open and live filters not following the tabs.
+It exists because the same state is drawn by the session list, the switcher, the tab bar, the live strip and the panels, and a change made in a handler that knew about one of them left the others stale: three such bugs in one day, and then the open and live filters not following the tabs.
 A reader subscribes a repaint to the slices it reads and is handed a view typed as only those, so a repaint that reads a slice it did not subscribe to does not compile; a handler reads the whole state, since a click needs whatever is newest.
 A repaint that reads a slice another watcher keeps current names it as read without being told — the session list reads every row's status and every section's fold, and a status change repaints only the dots, a fold only the sections — so not being told is a choice written at the subscription rather than a read nobody noticed, and nothing repaints more than it needs to.
 Telling is synchronous, because some flows render and then measure — unfold a group, then scroll to its heading — and `batch` holds it to the end of a group of changes, so a read of several slices repaints once.
@@ -558,10 +558,10 @@ It goes through the same validator as any file, and a test pins that it resolves
 
 ### The app's own surfaces are panels
 
-Two built-in types exist: `sessions`, the whole sidebar (switcher, actions, filter, list, attention strip), and `claude`, the terminal area (tab bar and terminals).
+Two built-in types exist: `sessions`, the whole sidebar (switcher, actions, filter, list, live strip), and `claude`, the terminal area (tab bar and terminals).
 Each is ONE element for the run, moved into the group that places it and parked in a hidden holder if the layout lets go of it — never rebuilt and never disposed, so a layout change keeps every running session and its xterm exactly as they were.
 A change that remounts its entry, a new id or an option, puts that same element back, so a built-in needs no hook of its own for its options: its mount is handed the entry as it now is.
-Each is a type of its own, in a folder of its own with its stylesheets: the terminal area in `src/renderer/panels/types/claude/` (the tabs' terminals, the pane, the tab bar, the history and the attention toasts), and the sidebar in `src/renderer/panels/types/sessions/` (the switcher, the filter, the list, the attention strip, and the part of the stored view that is the sidebar's).
+Each is a type of its own, in a folder of its own with its stylesheets: the terminal area in `src/renderer/panels/types/claude/` (the tabs' terminals, the pane, the tab bar, the history and the attention toasts), and the sidebar in `src/renderer/panels/types/sessions/` (the switcher, the filter, the list, the live strip, and the part of the stored view that is the sidebar's).
 Each builds its markup when its modules load rather than on its first mount, because its surfaces read their elements as they load; the tree mounts both as it first draws, so nothing would change if it waited.
 Each part builds its own as its module loads, through `fromMarkup` and `byId` (`dom.ts`) — in the sidebar the switcher, the filter, the list and the strip, in the terminal area the tab bar, the terminals and the pane — and the type's `index.ts` puts them together, the sidebar's with the header's two buttons that are the type's own, so no part reads an element it did not build, and the imports run one way, from the whole to its parts.
 The sidebar's list is itself several modules, each with its stylesheet, over one that holds what is on screen by key (`drawn.ts`): the draw and its watchers (`list.ts`), the sections and their headings (`headings.ts`), the rows (`rows.ts`), the controls both build (`controls.ts`), the menus and the writes they make (`actions.ts`), the folds and collapse-all (`folding.ts`), bringing something into view (`reveal.ts`), and the full read from main (`read.ts`).
@@ -809,7 +809,7 @@ Start goes down the same path as any new session (`openNewSession`), with the na
 
 **A row leads back to its sessions.**
 The row asks its host for the sessions its item started that the app still has, latest first, and draws the latest's status dot with the session list's own classes, a count beside it when there are several.
-A press goes to the session the way a jump from the attention strip does — its project, its tab, its row — since the session is often in another project than the one on screen; with several, the app's menu offers them, each led by its own dot as the mark draws it, since a menu item that is a session takes a session's dot rather than a roll-up's.
+A press goes to the session the way a jump from the live strip does — its project, its tab, its row — since the session is often in another project than the one on screen; with several, the app's menu offers them, each led by its own dot as the mark draws it, since a menu item that is a session takes a session's dot rather than a roll-up's.
 The marks are repainted IN PLACE whenever the renderer repaints sessions itself (the switcher's roll-ups, the tab bar, the list), batched to once a task, so a status event never rebuilds the list under the pointer.
 A link whose session the app no longer has is simply not drawn, whether or not main has forgotten it yet.
 A second Review on such a row opens the dialog on CONTINUING the latest session, since that session holds what the first look found: stopped, it is resumed with the prompt as its first (`--resume <id> -- <prompt>`, checked against claude in print mode before this was built); running, it is brought into view and the prompt is not sent, which the dialog says before anything happens, because typing into a live session could land mid-turn or on a question and is never the app's to do.
@@ -979,7 +979,7 @@ Filled rather than outlined because `button:hover` sets an accent *border* app-w
 That same app-wide rule is why the hover state has to set the border itself, and it sets it to the fill: background and border are one colour, so the brightness step darkens the whole button and its outline never appears to move.
 Each colour is named once, as a `--fill` custom property, which is what keeps that true — an earlier version reached for `currentColor` instead, i.e. the *text* colour, and hovered to a dark border on the blue button (it read as shrinking) and a white ring on the red one.
 
-**Rows** come in two shapes: a **list row** (`.card`, a session's or a list panel's, built by `listCard`) is a card in the list body — `7px 14px`, surface radius, two lines and its own controls; a **menu row** (switcher entry, kebab-menu item, attention-strip session) is `6px 9px`, control radius, one class and one hover for all three (`.menu-row`), which each of them carries and whose stylesheet each of their modules imports.
+**Rows** come in two shapes: a **list row** (`.card`, a session's or a list panel's, built by `listCard`) is a card in the list body — `7px 14px`, surface radius, two lines and its own controls; a **menu row** (switcher entry, kebab-menu item, live-strip session) is `6px 9px`, control radius, one class and one hover for all three (`.menu-row`), which each of them carries and whose stylesheet each of their modules imports.
 
 **Radius and type are tokens** in `:root`.
 Radius is per kind of thing rather than per component: `--radius-control` (anything you click), `--radius-surface` (rows, cards, panels, popovers, dialogs), `--radius-pill` (fully round, so it never needs re-tuning when its height changes); circles keep 50%.
@@ -1046,11 +1046,11 @@ The general rule this stands for: **where stale is worse than an extra rebuild, 
 
 **Two surfaces can disagree about the same list, because only one of them re-rendered.**
 The session list is assigned before that signature check decides whether to draw, so a transcript merely growing updates the data and skips the render.
-The attention strip is then rebuilt by the next status event, from the newer list, while the sidebar still shows the older one — which is why the strip appears to reorder itself on a dot changing.
+The live strip is then rebuilt by the next status event, from the newer list, while the sidebar still shows the older one — which is why the strip appears to reorder itself on a dot changing.
 Anything that reads the session list off a status event has the same hazard.
 
 **A list you read while working needs to stay still more than it needs to be sorted well.**
-The attention strip has had three orders, and the first two both moved under the reader.
+The live strip has had three orders, and the first two both moved under the reader.
 Sorting attention-first — sessions by urgency, projects by their most urgent session — reshuffled both levels on every status change.
 Ordering it as the *session list* does was closer and still wrong, because the sidebar's own within-project order is **recency**, and every row in this strip is a running session by definition: those timestamps are all moving, so two rows swap whenever the lower one writes a message.
 

@@ -20,7 +20,7 @@ const token = (page: Page, name: string): Promise<string> =>
     return colour;
   }, name);
 
-// The bar used to order projects by whichever it met first; it takes the order the user set, the same one the sidebar and the attention strip use (the one-behaviour rule in CLAUDE.md).
+// The bar used to order projects by whichever it met first; it takes the order the user set, the same one the sidebar and the live strip use (the one-behaviour rule in CLAUDE.md).
 test('the tab bar sits projects in the order you set and groups in their registry order, whatever order the tabs were opened in', async ({ app, page }) => {
   await app.boot({
     sessions: [loose, inFirst, inSecond, elsewhere],

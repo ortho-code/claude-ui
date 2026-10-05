@@ -1,7 +1,7 @@
 import { store } from '../../../state/app';
 import { railStatusFollowsSessions } from './index';
 import { fallBackIfEmptied, refreshSwitcher } from './switcher';
-import { refreshStrip } from './attention-strip';
+import { refreshStrip } from './live-strip';
 import { applyDatePickerMinDate, filterPanelFollows } from './filter';
 import { watchList } from './list';
 
@@ -29,6 +29,6 @@ export const sessionsWatch = {
     // The sidebar's rail icon waits while any session anywhere waits for you: the switcher's roll-up, from the same sessions.
     store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'tabs'], railStatusFollowsSessions, { reads: ['projectNames', 'projectOrder'] });
     // The strip lists what runs, in the bar's order, each row with a stop button in the tab's state, under a line badged with the switcher's roll-up; it shows those rows or folds to its line as you left it.
-    store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'footerExpanded'], refreshStrip);
+    store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'stripExpanded'], refreshStrip);
   },
 };

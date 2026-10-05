@@ -1,12 +1,12 @@
-/* Sidebar footer: a collapsible cross-project attention strip pinned below the session list.
+/* The live strip: a collapsible cross-project strip pinned below the session list.
    Collapsed = a toggle carrying the same rolled-up nudge as the switcher header; expand (upward) to a list of the projects with a nudge, click one to jump.
    Muted "all clear" when nothing. */
-#sidebar-footer {
+#live-strip {
   flex: 0 0 auto;
   border-top: 1px solid var(--border);
 }
 
-#footer-toggle {
+#strip-toggle {
   width: 100%;
   display: flex;
   align-items: center;
@@ -22,15 +22,15 @@
   cursor: pointer;
 }
 
-#footer-toggle:hover {
+#strip-toggle:hover {
   background: var(--surface-hover);
 }
 
-/* No held open state here, deliberately (user, 2026-08-13): the footer list is a PERSISTENT panel, often open for a whole session, so a pressed look is lasting noise — unlike the switcher popover (open briefly to pick) or the filter toggle (a compact button, where it reads fine). */
+/* No held open state here, deliberately (user, 2026-08-13): the strip's list is a PERSISTENT panel, often open for a whole session, so a pressed look is lasting noise — unlike the switcher popover (open briefly to pick) or the filter toggle (a compact button, where it reads fine). */
 
 /* Which group a strip row belongs to, as a chip rather than a heading level: the strip is capped at 40vh, so a nested group would cost a row and an indent per group where this costs neither.
    Muted and shrink-proof — the session name gives up the space, since the chip is short and the name is not. */
-.footer-item-group {
+.strip-item-group {
   flex: 0 0 auto;
   max-width: 40%;
   overflow: hidden;
@@ -43,22 +43,22 @@
   font-size: var(--text-meta);
 }
 
-#footer-label {
+#strip-label {
   flex: 1;
 }
 
-.footer-chev {
+.strip-chev {
   display: flex;
   align-items: center;
   color: var(--muted);
 }
 
 /* Collapsed points up ("opens upward"); expanded flips down. */
-#footer-toggle[aria-expanded='false'] .footer-chev {
+#strip-toggle[aria-expanded='false'] .strip-chev {
   transform: rotate(180deg);
 }
 
-#footer-list {
+#strip-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -70,8 +70,8 @@
 /* Shape and hover come from the MENU ROW rule (menu-row.css). */
 
 /* The strip row is a wrapper holding two buttons — jump, and stop — because a button cannot contain a button.
-   The wrapper keeps the menu-row shape, so this half only has to give up a button's own box and stretch: the row's padding, hover and radius all still belong to .footer-item. */
-.footer-item-jump {
+   The wrapper keeps the menu-row shape, so this half only has to give up a button's own box and stretch: the row's padding, hover and radius all still belong to .strip-item. */
+.strip-item-jump {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -88,11 +88,11 @@
 }
 
 /* Sits at the row's right edge, at the same 4px the trailing controls use everywhere else. */
-.footer-item-stop {
+.strip-item-stop {
   margin-left: 4px;
 }
 
-.footer-item-name {
+.strip-item-name {
   /* Takes the slack so the group chip sits at the row's right edge: a column of chips reads as a column, where chips trailing each name at its own width read as ragged. */
   flex: 1;
   overflow: hidden;
@@ -100,8 +100,8 @@
   white-space: nowrap;
 }
 
-/* Project heading within the footer attention list. */
-.footer-project {
+/* Project heading within the strip's list. */
+.strip-project {
   padding: 6px 8px 2px;
   font-size: var(--text-small);
   font-weight: 600;

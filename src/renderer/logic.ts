@@ -433,7 +433,7 @@ export function buildProjectTree(
 /**
  * THE TAB BAR'S ORDER, as clusters: per project, the ungrouped items first and then one run per group in registry order, with each run left exactly as it was handed over.
  *
- * ONE implementation for the tab bar and the attention strip, called identically by both — they draw the same tabs, and a second copy of "project, then group in registry order" is the kind of thing that drifts between the times anyone looks.
+ * ONE implementation for the tab bar and the live strip, called identically by both — they draw the same tabs, and a second copy of "project, then group in registry order" is the kind of thing that drifts between the times anyone looks.
  * Projects come from the explicit project order, so the bar, the strip and the sidebar all agree about where a project sits.
  * The bar used to order them by whichever it met first, which nobody chose and which moved on its own.
  *
@@ -555,7 +555,7 @@ export interface StopControlTab {
 }
 
 /**
- * What a session's stop control shows, wherever it is drawn — the tab's button and the attention strip's.
+ * What a session's stop control shows, wherever it is drawn — the tab's button and the live strip's.
  *
  * Both ends of a session's life are a pause, for the same reason: neither a tab whose process has not arrived yet nor one whose process is still leaving can be acted on without the UI disagreeing with what is actually running.
  * ONE RULE RATHER THAN TWO, and it is here rather than in the renderer because the two surfaces did come to different conclusions about the same tab the day the strip grew its own copy.

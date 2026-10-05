@@ -16,7 +16,7 @@ import { activateTab, closeTab, createTab, startTab, stopSession, switchWorkspac
  * renderer.ts hands them to the tree with the sidebar's (sessions/asks.ts), and every panel's host carries them as they are.
  */
 
-// Jump to a specific session from outside the list — the footer, a panel's row, an attention toast: scope to its project if needed, then open/focus its tab.
+// Jump to a specific session from outside the list — the live strip, a panel's row, an attention toast: scope to its project if needed, then open/focus its tab.
 export function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const { activeProject } = store.get();
   const host = hostOf('claude');
@@ -70,7 +70,7 @@ async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<Ta
   await startNew(session, joinGroupId, { name: launch.name || undefined, prompt: launch.prompt || undefined });
 }
 
-/** Go to a session a panel's row started, as a jump from the attention strip does; one whose folder is gone says so, as its row in the list would. */
+/** Go to a session a panel's row started, as a jump from the live strip does; one whose folder is gone says so, as its row in the list would. */
 function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const session = sessionById(id);
   if (!session) return;

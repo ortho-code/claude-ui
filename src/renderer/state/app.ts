@@ -65,8 +65,8 @@ export interface AppState {
   folds: Folds;
   /** Whether the filter panel is open, kept for the next launch: shut over a filter, it leaves a row of chips naming what is on. */
   filterPanelOpen: boolean;
-  /** Whether the attention strip shows its rows or only its line, kept for the next launch. */
-  footerExpanded: boolean;
+  /** Whether the live strip shows its rows or only its line, kept for the next launch. */
+  stripExpanded: boolean;
 }
 
 /** The sections folded away: projects by repo root, groups by their own id. */
@@ -98,7 +98,7 @@ export function noFilter(): FilterState {
 }
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
-export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'footerExpanded'>;
+export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'stripExpanded'>;
 
 /** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
 export interface TabState {
@@ -236,7 +236,7 @@ export const store = createStore<AppState>(
     filter: noFilter(),
     folds: { projects: new Set(), groups: new Set(), filterProjects: new Set(), filterGroups: new Set() },
     filterPanelOpen: defaultUi().filterPanelOpen,
-    footerExpanded: defaultUi().footerExpanded,
+    stripExpanded: defaultUi().stripExpanded,
   },
   {
     sessions: sameRows,

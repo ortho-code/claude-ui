@@ -252,10 +252,10 @@ export interface UiState {
    */
   filterPanelOpen: boolean;
   /**
-   * Whether the attention strip in the sidebar footer is expanded.
+   * Whether the live strip at the foot of the sidebar is expanded.
    * Open by default — it is meant to be read.
    */
-  footerExpanded: boolean;
+  stripExpanded: boolean;
   /** Folded-away projects, by repo root. */
   collapsedProjects: string[];
   /** Folded-away groups, by group id. */

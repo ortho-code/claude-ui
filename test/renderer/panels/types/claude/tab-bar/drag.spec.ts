@@ -2,7 +2,7 @@ import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { stripNames, tab, tabLabel, tabLabels } from '../../../../support/window';
 
-// Dragging a tab moves it within its own row, and the order is yours from then on: kept for the next launch, and the one the attention strip lists running sessions in (docs/architecture.md § The attention strip).
+// Dragging a tab moves it within its own row, and the order is yours from then on: kept for the next launch, and the one the live strip lists running sessions in (docs/architecture.md § The live strip).
 const first = session({ id: '00000000-0000-4000-8000-0000000000b1', title: 'First tab' });
 const second = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'Second tab' });
 const fixture = {

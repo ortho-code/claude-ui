@@ -12,7 +12,7 @@ const inSecond = session({ id: '00000000-0000-4000-8000-0000000000e3', title: 'I
 const elsewhere = session({ id: '00000000-0000-4000-8000-0000000000e4', title: 'In other', cwd: OTHER, repoRoot: OTHER });
 const all = [loose, inFirst, inSecond, elsewhere];
 
-test('the attention strip lists running sessions in the order you set, and keeps still while they work', async ({ app, page }) => {
+test('the live strip lists running sessions in the order you set, and keeps still while they work', async ({ app, page }) => {
   await app.boot({
     sessions: all,
     projectOrder: [PROJECT, OTHER],
@@ -29,7 +29,7 @@ test('the attention strip lists running sessions in the order you set, and keeps
     // A tab on show has its history read; what it holds is not what is checked here.
     history: Object.fromEntries(all.map((s) => [s.id, []])),
   });
-  await expect(page.locator('#sidebar-footer')).toBeHidden();
+  await expect(page.locator('#live-strip')).toBeHidden();
 
   // Running is what puts a session in the strip, so start every tab, in the order they were opened.
   for (const s of [elsewhere, inFirst, inSecond, loose]) await tabLabel(page, s.title).click();
@@ -42,7 +42,7 @@ test('the attention strip lists running sessions in the order you set, and keeps
   for (const [s, status] of [[inFirst, 'busy'], [elsewhere, 'waiting'], [loose, 'idle'], [inFirst, 'waiting']] as const) {
     expect(await app.emit('onSessionStatus', s.id, status, '')).toBe(1);
   }
-  await expect(page.locator('#footer-label')).toHaveText('3 of 4 need you');
+  await expect(page.locator('#strip-label')).toHaveText('3 of 4 need you');
   expect(await stripLines(page).allTextContents()).toEqual(expected);
 });
 
@@ -55,7 +55,7 @@ test('a strip row jumps to its session in another project: the project, the tab 
   await chooseProject(page, 'demo');
   await expect(tabLabel(page, elsewhere.title)).toHaveCount(0);
 
-  await strip(page).locator('.footer-item-jump', { hasText: elsewhere.title }).click();
+  await strip(page).locator('.strip-item-jump', { hasText: elsewhere.title }).click();
   await expect(page.locator('#switcher-name')).toHaveText('other');
   await expect(tab(page, elsewhere.title)).toHaveClass(/\bactive\b/);
   await expect(row(page, elsewhere.title)).toHaveClass(/\bactive-session\b/);
@@ -68,7 +68,7 @@ test("the strip's stop button stops the session, keeps its tab cold, and the row
   await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });
   await tabLabel(page, loose.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  const stop = strip(page).locator('.footer-item-stop');
+  const stop = strip(page).locator('.strip-item-stop');
 
   await stop.click();
   expect(await app.calls('closeTerminal')).toEqual([[1]]);
@@ -78,7 +78,7 @@ test("the strip's stop button stops the session, keeps its tab cold, and the row
 
   await app.emit('onTerminalExit', 1, 0);
   await expect(tab(page, loose.title)).toHaveClass(/\bcold\b/);
-  await expect(page.locator('#sidebar-footer')).toBeHidden();
+  await expect(page.locator('#live-strip')).toBeHidden();
 });
 
 
@@ -87,26 +87,26 @@ test('the strip folds from its line and opens again, and the fold is kept', asyn
   await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });
   await tabLabel(page, loose.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  const toggle = page.locator('#footer-toggle');
+  const toggle = page.locator('#strip-toggle');
   const list = strip(page);
   await expect(list).toBeVisible();
 
   await toggle.click();
   await expect(list).toBeHidden();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect.poll(async () => (await app.saved())?.footerExpanded).toBe(false);
+  await expect.poll(async () => (await app.saved())?.stripExpanded).toBe(false);
 
   await toggle.click();
   await expect(list).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect.poll(async () => (await app.saved())?.footerExpanded).toBe(true);
+  await expect.poll(async () => (await app.saved())?.stripExpanded).toBe(true);
 });
 
 test('a strip folded last time comes back folded', async ({ app, page }) => {
-  await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] }, uiState: { ...defaultUi(), footerExpanded: false } });
+  await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] }, uiState: { ...defaultUi(), stripExpanded: false } });
   await tabLabel(page, loose.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  await expect(page.locator('#sidebar-footer')).toBeVisible();
+  await expect(page.locator('#live-strip')).toBeVisible();
   await expect(strip(page)).toBeHidden();
-  await expect(page.locator('#footer-toggle')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#strip-toggle')).toHaveAttribute('aria-expanded', 'false');
 });

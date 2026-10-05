@@ -11,12 +11,12 @@ import { filterPanel, filterStatus, filterToggle } from './filter';
 import { collapseToggle } from './folding';
 import { container } from './drawn';
 import { loadingEl } from './read';
-import { sidebarFooter } from './attention-strip';
+import { liveStrip } from './live-strip';
 
 /**
- * THE SIDEBAR as a panel type: the project switcher and the header's actions over the filter panel, the session list and the attention strip.
+ * THE SIDEBAR as a panel type: the project switcher and the header's actions over the filter panel, the session list and the live strip.
  * One element for the run: built once, parked until the layout places it, and put back by every mount (`builtinType`), so a layout change that remounts its entry keeps its scroll, its folds and what is typed in its search.
- * Each part builds its own markup as it loads — the switcher (switcher.ts), the filter (filter.ts), the list (drawn.ts, with its collapse-all from folding.ts and its loading bar from read.ts), the attention strip (attention-strip.ts) — and this module puts them together, with the header's Settings and + New, which are the type's own.
+ * Each part builds its own markup as it loads — the switcher (switcher.ts), the filter (filter.ts), the list (drawn.ts, with its collapse-all from folding.ts and its loading bar from read.ts), the live strip (live-strip.ts) — and this module puts them together, with the header's Settings and + New, which are the type's own.
  */
 
 // The header's two actions that are the type's own; the filter's toggle and collapse-all go with the filter and the list.
@@ -29,7 +29,7 @@ const header = element('header');
 header.append(switcherEl, actions);
 const sidebar = element('aside');
 sidebar.id = 'sidebar';
-sidebar.append(header, filterPanel, filterStatus, loadingEl, container, sidebarFooter);
+sidebar.append(header, filterPanel, filterStatus, loadingEl, container, liveStrip);
 document.getElementById('parked')!.append(sidebar);
 
 export const sessionsType = builtinType('sessions', sidebar, 'Sessions', 'sessions', () => railStatus(store.get()));

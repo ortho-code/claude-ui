@@ -20,7 +20,7 @@ export function defaultUi(): UiState {
     dateFrom: null,
     dateTo: null,
     filterPanelOpen: false,
-    footerExpanded: true,
+    stripExpanded: true,
     collapsedProjects: [],
     collapsedGroups: [],
     filterCollapsedProjects: [],
