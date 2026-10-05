@@ -4,7 +4,8 @@ A desktop app for running and tracking several Claude Code sessions from one win
 
 ## Why
 
-The existing session managers each miss part of what you want. Claude Code Desktop, Pane, ccmanager, and Claude Squad all put every session in its own git worktree, and none of them combine:
+The existing session managers each miss part of what you want.
+Claude Code Desktop, Pane, ccmanager, and Claude Squad all put every session in its own git worktree, and none of them combine:
 
 - a session list read straight from `~/.claude`,
 - pinning and grouping,
@@ -43,12 +44,16 @@ Done:
 - Settings: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included.
   The flags the app sets for itself are refused there rather than allowed to break a session.
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
-  Panels so far run a command or a script and show its output, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong. See [Panels](#panels).
-- Installable builds for macOS and Linux, built on CI from a version tag. See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
-- A log file per launch and day, so a problem in an installed build can be looked at afterwards; a launch that crashed keeps its log for longer. See [Install a build](#install-a-build) for where it is.
+  Panels so far run a command or a script and show its output, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
+  See [Panels](#panels).
+- Installable builds for macOS and Linux, built on CI from a version tag.
+  See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
+- A log file per launch and day, so a problem in an installed build can be looked at afterwards; a launch that crashed keeps its log for longer.
+  See [Install a build](#install-a-build) for where it is.
 - A history of each session, from its transcript and laid out as claude shows it: every request, message and tool call since the session began, compactions included, with pins for the ones to come back to.
   A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
-- Panel types of your own, from a folder in the config folder: a script prints a list and the app draws it, with links, sections that fold, and a count on the panel's icon kept current on an interval. See [Panel types of your own](#panel-types-of-your-own).
+- Panel types of your own, from a folder in the config folder: a script prints a list and the app draws it, with links, sections that fold, and a count on the panel's icon kept current on an interval.
+  See [Panel types of your own](#panel-types-of-your-own).
   A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick; it then shows that session's status and leads back to it, and a second press offers to continue it.
 - The sidebar and the terminal area are panel types like the others, each drawn by modules of its own.
 
@@ -132,8 +137,10 @@ The panel types:
 
 - `sessions` is the sidebar and `claude` is the terminal area with its tabs.
   Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
-- `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable. `cwd` picks the folder it runs in.
-- `terminal` is a plain shell, the same login shell your sessions run in. `cwd` picks the folder it starts in.
+- `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
+  `cwd` picks the folder it runs in.
+- `terminal` is a plain shell, the same login shell your sessions run in.
+  `cwd` picks the folder it starts in.
 - A folder under `types/` in the config folder is a type of your own, named after the folder; see [Panel types of your own](#panel-types-of-your-own).
 
 This one puts a shell in a drawer under the terminal area and two commands behind icons on the right, and lets the sidebar, the drawer and the right side fold:
@@ -156,7 +163,8 @@ This one puts a shell in a drawer under the terminal area and two commands behin
 ```
 
 A relative `script` resolves against the config folder, so `scripts/` is the place to keep one, and it has to be executable; `~/` works too.
-It never resolves against the project, so switching to a repo cannot run that repo's file in place of yours. To run a project's own script, say so with a command line such as `"command": "./bin/status"`, which runs in the project's folder.
+It never resolves against the project, so switching to a repo cannot run that repo's file in place of yours.
+To run a project's own script, say so with a command line such as `"command": "./bin/status"`, which runs in the project's folder.
 
 The command runs in the active tab's folder, or the selected project's root when no tab is open, and runs again when you switch project or tab or press Refresh.
 While it is out of sight, behind another panel or folded away, it does not run; it runs once when you show it again, if the folder changed meanwhile.
@@ -179,7 +187,9 @@ It gets the same variables, and a `claude` you start in it by hand is not tracke
 
 Either type takes a `cwd` in its `options` to run somewhere other than that folder:
 
-- An absolute path, or one under `~/`, is fixed: the panel runs there whatever is selected, even with no project at all. A command with one does not run again when you switch project or tab, since its folder has not moved; Refresh runs it. A terminal with one has no button, and a key starts a new shell there after the old one exits.
+- An absolute path, or one under `~/`, is fixed: the panel runs there whatever is selected, even with no project at all.
+  A command with one does not run again when you switch project or tab, since its folder has not moved; Refresh runs it.
+  A terminal with one has no button, and a key starts a new shell there after the old one exits.
 - A relative path is under the active tab's folder, or the project's root, so `"cwd": "packages/api"` follows the project into that folder.
 
 ```json
@@ -205,7 +215,8 @@ A type you were sent runs as you, the way a script in `scripts/` does, so read i
 
 The app runs the real `claude` CLI, so **install and sign in to Claude Code first** — without it every session opens on "command not found".
 
-Builds are not published anywhere: ask for the file. The version you are running is in the window title, which is what to quote in a bug report.
+Builds are not published anywhere: ask for the file.
+The version you are running is in the window title, which is what to quote in a bug report.
 
 Send the log along with it: **Settings → Logs → Open** shows the folder, `~/.config/claude-ui/logs/` on Linux and `~/Library/Logs/Claude UI/` on macOS.
 There is a file per launch and day, named for the moment it started, and a launch that crashed or ended without quitting keeps its file as `…-crash.log`.
@@ -231,14 +242,18 @@ The step repeats for each new version.
 sudo apt install ./claude-ui-<version>-amd64.deb
 ```
 
-Use `apt`, not `dpkg -i`: apt pulls in the dependencies the app needs, and `dpkg` fails without them. The same command installs a newer version over an older one, keeping your pins, groups and notes.
+Use `apt`, not `dpkg -i`: apt pulls in the dependencies the app needs, and `dpkg` fails without them.
+The same command installs a newer version over an older one, keeping your pins, groups and notes.
 
-For a non-Debian distribution there is an `.AppImage`: `chmod +x` it and run it. It has no install or upgrade step, so updating means replacing the file yourself.
+For a non-Debian distribution there is an `.AppImage`: `chmod +x` it and run it.
+It has no install or upgrade step, so updating means replacing the file yourself.
 
 ## Run from source
 
-- WSL 2 with WSLg. The app and `claude` both run inside the Linux distribution.
-- Node, managed by [mise](https://mise.jdx.dev). Run `mise install` once.
+- WSL 2 with WSLg.
+  The app and `claude` both run inside the Linux distribution.
+- Node, managed by [mise](https://mise.jdx.dev).
+  Run `mise install` once.
 - A C toolchain for the native terminal module: `sudo apt-get install build-essential`.
 
 ```bash
@@ -248,11 +263,14 @@ npm run rebuild   # build node-pty against Electron's ABI
 npm start
 ```
 
-`npm start` builds and launches the app. It runs with `--no-sandbox`, which WSL requires.
+`npm start` builds and launches the app.
+It runs with `--no-sandbox`, which WSL requires.
 
 `npm test` runs the unit tests, and `npm run test:renderer` checks the window itself in a headless browser, which `npx playwright install --only-shell chromium` fetches the first time.
 
-To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a Mac. Artifacts land in `release/`. Tagging a version runs CI's checks on it, then builds both on CI and publishes them as a release.
+To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a Mac.
+Artifacts land in `release/`.
+Tagging a version runs CI's checks on it, then builds both on CI and publishes them as a release.
 
 ## Project layout
 

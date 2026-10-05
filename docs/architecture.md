@@ -8,7 +8,9 @@ WSLg shows the window.
 
 Electron needs `--no-sandbox` under WSL; the `start` script passes it.
 
-It runs on **X11 (Xwayland)**, the Electron default here. Do not switch it to Wayland: with `--ozone-platform=wayland` the window paints solid white, with or without `app.disableHardwareAcceleration()`, while a bare Electron window with the same flags paints fine — so it is something about this window, and it has not been chased down. `--ozone-platform-hint=auto` picks X11 anyway.
+It runs on **X11 (Xwayland)**, the Electron default here.
+Do not switch it to Wayland: with `--ozone-platform=wayland` the window paints solid white, with or without `app.disableHardwareAcceleration()`, while a bare Electron window with the same flags paints fine — so it is something about this window, and it has not been chased down.
+`--ozone-platform-hint=auto` picks X11 anyway.
 
 If **every cursor stays an arrow** — no hand over a button, no I-beam over an input — that is WSLg's pointer state stuck, not the app and not Xwayland.
 Nothing in CSS or in Chromium's flags will move it (verified: every control computes `cursor: pointer` correctly).
@@ -31,7 +33,8 @@ ESLint takes a rule's settings from the last block that matches a file, so each 
 A unit test crosses every boundary on purpose, from inside every block, through ESLint's own API (`test/unit/boundaries.test.ts`), so a block that drops the process rule, or a pattern that misses a way of spelling a path, fails there rather than letting a crossing through.
 What no lint rule here can hold, a unit test does (`test/unit/imports.test.ts`): no cycle of value imports anywhere in `src/`, read with the compiler's own parser, `import type` aside since it runs nothing.
 
-**The window never navigates.** Main refuses any navigation away from the app's own page and any new window (`will-navigate`, `setWindowOpenHandler`), because a page loaded there would get the preload's bridge, and the bridge runs commands.
+**The window never navigates.**
+Main refuses any navigation away from the app's own page and any new window (`will-navigate`, `setWindowOpenHandler`), because a page loaded there would get the preload's bridge, and the bridge runs commands.
 Links leave through `shell:openExternal` instead, which accepts only http(s); the app itself never navigates, and `loadFile` is programmatic, which the event does not see.
 
 ## Reading sessions
@@ -45,14 +48,17 @@ The renderer groups the results by working directory.
 
 Two TypeScript projects, because the two sides need different module systems:
 
-- `tsconfig.main.json` — main and preload. `NodeNext` module and resolution, emitted as CommonJS (the package has no `"type": "module"`), so `require` and `__dirname` work.
-- `tsconfig.renderer.json` — renderer. `ESNext` module with `bundler` resolution and the DOM libs.
+- `tsconfig.main.json` — main and preload.
+  `NodeNext` module and resolution, emitted as CommonJS (the package has no `"type": "module"`), so `require` and `__dirname` work.
+- `tsconfig.renderer.json` — renderer.
+  `ESNext` module with `bundler` resolution and the DOM libs.
 
 TypeScript 7 removed the old `moduleResolution: "node"`, so both projects use the newer values above.
 `src/shared` holds types and pure helpers, and each side compiles its own copy, so no module is shared at runtime.
 The renderer's project compiles all of it without Node's types, so a module there that reached for Node fails the build even when the renderer never imports it.
 
-**`typescript` in `package.json` is TypeScript 6, and `tsc` is TypeScript 7.** TypeScript 7 has no JavaScript API yet, and typescript-eslint, which lints with the compiler's own type information, cannot run without one.
+**`typescript` in `package.json` is TypeScript 6, and `tsc` is TypeScript 7.**
+TypeScript 7 has no JavaScript API yet, and typescript-eslint, which lints with the compiler's own type information, cannot run without one.
 So the `typescript` name holds `@typescript/typescript6`, the package Microsoft publishes for tools in this position, and the compiler the build runs is installed as `@typescript/native`, which is what provides the `tsc` command.
 The alias goes once typescript-eslint's supported TypeScript range includes 7.
 
@@ -89,7 +95,8 @@ A rule that needs Node is handed what it needs, since the page has no Node: `res
 A check gets no retries: one that passes on a second try is a flake, and a gate that retries it away teaches everybody to ignore it.
 The checks run in one time zone wherever they run, the page and the checks' own code alike (`playwright.config.ts`), since a day is the local day and a check's "today" otherwise fell on two days in some zones; it is not UTC, where local time and UTC are the same and code that reads one for the other could never show.
 
-**`test/renderer/styles/` is a tool rather than a check, for moving CSS without changing what anything looks like.** It is skipped unless `STYLE_SNAPSHOT` names a folder; then it puts the window in a set of states and writes every element's computed style there, one file per state, at rest and with `:hover` and `:focus-visible` forced on each control, with a picture of each state beside it, so that a capture before a change and one after can be compared (`npm run styles:compare -- <before> <after>`).
+**`test/renderer/styles/` is a tool rather than a check, for moving CSS without changing what anything looks like.**
+It is skipped unless `STYLE_SNAPSHOT` names a folder; then it puts the window in a set of states and writes every element's computed style there, one file per state, at rest and with `:hover` and `:focus-visible` forced on each control, with a picture of each state beside it, so that a capture before a change and one after can be compared (`npm run styles:compare -- <before> <after>`).
 It exists because a stylesheet split across files is read in another order, and two rules of equal specificity then swap winners with nothing in the CSS's own diff to show it.
 The picture is for what styles cannot say: which of two overlapping elements paints on top, which follows from their order in the page; a picture alone would miss every hover, everything off screen, and which property changed.
 Forced states go through the DevTools protocol rather than the mouse, since a real hover runs the page's handlers, and a submenu opening would change what is captured; two captures of one build are identical, which is what makes an empty comparison mean something.
@@ -139,15 +146,19 @@ The token names the **terminal**, not the session, which is exactly why the tab'
 `/clear` is "start again here", so the app treats what comes out of it as a session with nothing in it: the folder is all that carries over, and the tab reads `New: <project>` until the session has something of its own, exactly as one started from the "+" does.
 Carrying the previous summary forward instead — which is what the code did at first — gave the new session a title, a first message and sibling marks belonging to a conversation it does not have.
 Its predecessor keeps everything of its own and stays in the list: it is a real session with a real transcript, and still resumable.
-Only the **group** follows the tab across, because a group says where the work lives and clearing does not move the work. A pin and a note are about one conversation, and that conversation still has its row to hold them.
+Only the **group** follows the tab across, because a group says where the work lives and clearing does not move the work.
+A pin and a note are about one conversation, and that conversation still has its row to hold them.
 
 **The title on disk is left exactly as Claude Code writes it**, and that is a deliberate limit on the above.
 Claude Code copies the cleared session's `custom-title` into the new transcript, in the same record a deliberate name is written to and with nothing to tell the two apart — and since a custom title is preferred over a generated one when a row is labelled, a named session goes on wearing the name it was handed.
 The app could tell them apart, since it alone sees the end and the start arrive on one terminal, and an earlier version did exactly that.
-It was removed: `claude --resume` lists that session under the copied name, and an app that showed a different one would put two names on one session. **Staying legible next to the CLI beats being tidier than it.**
+It was removed: `claude --resume` lists that session under the copied name, and an app that showed a different one would put two names on one session.
+**Staying legible next to the CLI beats being tidier than it.**
 In practice the case is narrow — 127 of 710 transcripts here carry a name at all, so clearing an unnamed session already produces a blank one with no help from us.
 
-What is kept is the **pairing**, appended to the audit log: which session became which. Nothing reads it back. It is recorded because it is observable exactly once and nowhere else — neither transcript points at the other — and whether a cleared session should be shown as related to its predecessor is a question better answered later from what happened than guessed at now.
+What is kept is the **pairing**, appended to the audit log: which session became which.
+Nothing reads it back.
+It is recorded because it is observable exactly once and nowhere else — neither transcript points at the other — and whether a cleared session should be shown as related to its predecessor is a question better answered later from what happened than guessed at now.
 
 ### Tab lifecycle: a tab can exist without a process
 
@@ -161,9 +172,13 @@ Activating a tab can only ever **resume** it: the tab's own session is all it kn
 The arguments that apply to a session's first start and to nothing afterwards — `--fork-session`, `--name`, `-w` — belong to the call that creates the tab, so that call selects the tab *without* starting it and starts it itself.
 
 Two exits must stay distinguishable.
-A **user stop** sets a `stopping` flag before the kill, and the exit handler checks it first: that tab is cooled and kept. **Any other exit** closes the tab, which is deliberate — it stops a finished session leaving an empty tab behind.
+A **user stop** sets a `stopping` flag before the kill, and the exit handler checks it first: that tab is cooled and kept.
+**Any other exit** closes the tab, which is deliberate — it stops a finished session leaving an empty tab behind.
 
-That separation is what the tab's button is built on: ending a session and removing a tab are different intents, so one press does not decide both. The first press stops a running session and leaves the tab cold, the second removes it, and a tab that is already cold goes in one. Both ends of a session's life disable the button rather than merely ignore it, for one reason: a tab acted on before its process has arrived, or while that process is still leaving, would leave the bar disagreeing with what is actually running. The mark follows the state, so which press you are on is visible: a stop square while there is a session to end, a cross once there is only a tab.
+That separation is what the tab's button is built on: ending a session and removing a tab are different intents, so one press does not decide both.
+The first press stops a running session and leaves the tab cold, the second removes it, and a tab that is already cold goes in one.
+Both ends of a session's life disable the button rather than merely ignore it, for one reason: a tab acted on before its process has arrived, or while that process is still leaving, would leave the bar disagreeing with what is actually running.
+The mark follows the state, so which press you are on is visible: a stop square while there is a session to end, a cross once there is only a tab.
 A third case sits in between: an exit within 1500ms of launch is treated as a failed start, and the tab is kept with the error visible in its terminal.
 
 The cold state is visible in three places, all reading the same `terminalId === null`: the tab is unfilled rather than dimmed, the session row's left bar and the selected tab's top edge are `--muted` instead of accent, and the terminal pane explains that clicking the tab resumes it.
@@ -178,32 +193,42 @@ The code is in `src/renderer/panels/types/claude/terminals.ts`: each tab's termi
 ### Stopping a session is a signal, and a signal can be declined
 
 Three things end a session — the tab's stop button, closing a tab, and the sweep at app quit — and they are **one function**, differing only in whether `claude` is given its own exit path first.
-They used to be three, each sending a single signal and then forgetting the process: a bare `kill()`, which is `SIGHUP` and which a Node program is entitled to decline. The stop then reported success over a session that was still running.
+They used to be three, each sending a single signal and then forgetting the process: a bare `kill()`, which is `SIGHUP` and which a Node program is entitled to decline.
+The stop then reported success over a session that was still running.
 
 Two things make it work now.
-**The signal goes to the process GROUP**, not to the process the app spawned. That is the part that matters here: the app never talks to `claude` directly, only to a login shell that runs it, with `claude`'s MCP servers below that — so signalling the one process it knows about is the one thing guaranteed not to reach what it means to stop. It is sound because node-pty's child leads its own session, measured rather than assumed: `pid == pgid == sid` for every live session, so the pid doubles as the group id.
-**And it escalates**: `SIGTERM`, then `SIGKILL` for anything still there after the grace period. Whether the first worked is read from the pty's own exit — the one place a session is recorded as over — rather than inferred from having sent something. A session that left politely is never killed afterwards, because by then its pid may belong to somebody else.
+**The signal goes to the process GROUP**, not to the process the app spawned.
+That is the part that matters here: the app never talks to `claude` directly, only to a login shell that runs it, with `claude`'s MCP servers below that — so signalling the one process it knows about is the one thing guaranteed not to reach what it means to stop.
+It is sound because node-pty's child leads its own session, measured rather than assumed: `pid == pgid == sid` for every live session, so the pid doubles as the group id.
+**And it escalates**: `SIGTERM`, then `SIGKILL` for anything still there after the grace period.
+Whether the first worked is read from the pty's own exit — the one place a session is recorded as over — rather than inferred from having sent something.
+A session that left politely is never killed afterwards, because by then its pid may belong to somebody else.
 
 `before-quit` already delays the quit, which is what gives the escalation room to land, so quitting is not a special path.
-Not implemented, and deliberately: their design also sweeps the group once more *after* the leader exits, for a grandchild that changed its own group. Nothing here has been observed needing it, and a `SIGKILL` aimed at a group id that no longer exists is the one version of this that could reach an innocent process.
+Not implemented, and deliberately: their design also sweeps the group once more *after* the leader exits, for a grandchild that changed its own group.
+Nothing here has been observed needing it, and a `SIGKILL` aimed at a group id that no longer exists is the one version of this that could reach an innocent process.
 
 ### A session whose folder is gone
 
 A session cannot run anywhere but its own directory, so when that directory is missing the app **refuses**, in two layers.
 
-The launcher refuses the spawn outright. It used to substitute `$HOME` instead, silently: the session ran somewhere nobody chose, and then wrote its transcript under the home directory's project, so it moved in the sidebar too — the only sign being Claude Code asking for workspace trust on `~`.
+The launcher refuses the spawn outright.
+It used to substitute `$HOME` instead, silently: the session ran somewhere nobody chose, and then wrote its transcript under the home directory's project, so it moved in the sidebar too — the only sign being Claude Code asking for workspace trust on `~`.
 That is the backstop, and it is deliberately below the UI, so nothing can reach a spawn by another route.
 
 Above it, the session list carries two facts per session: whether its **own** directory exists and whether its **project's** does.
-They are separate because a removed worktree leaves its repo perfectly usable, while a removed repo takes its worktrees with it — and the wording differs for the same reason. A missing worktree names the tree to recreate, since `git worktree add` at the same path brings the session back; a missing project has nothing smaller to point at.
+They are separate because a removed worktree leaves its repo perfectly usable, while a removed repo takes its worktrees with it — and the wording differs for the same reason.
+A missing worktree names the tree to recreate, since `git worktree add` at the same path brings the session back; a missing project has nothing smaller to point at.
 Both are re-derived on every listing rather than cached beside the summary: a folder can be removed or put back without the transcript changing, and one stat per distinct path covers hundreds of sessions.
 
-What that buys is a row that says so before you click it. A session whose folder is gone is dimmed and unclickable with the reason in its tooltip, its **Fork** item stays in the kebab but dimmed and inert, and the "+" on a project whose root is gone is unavailable with the same explanation.
+What that buys is a row that says so before you click it.
+A session whose folder is gone is dimmed and unclickable with the reason in its tooltip, its **Fork** item stays in the kebab but dimmed and inert, and the "+" on a project whose root is gone is unavailable with the same explanation.
 Its tab, if it has one, is dimmed by the same rule with the same tooltip, and that is what tells it apart from a cold tab: cold is unfilled and resumes on a click, dimmed will not start at all.
 The tab still selects on a click, since the pane is where the reason is said in full.
 An action that cannot be taken is shown rather than removed: a menu that changes shape has to be re-read, and an item that vanishes looks like it was never there, where a dimmed one answers the question you opened the menu to ask.
 
-**Unavailable is `aria-disabled`, never the `disabled` property**, and the reason is the tooltip: a natively disabled button emits no mouse events in Chromium, so a tooltip delegated from `document` never fires and the only thing explaining the refusal is invisible. `setUnavailable()` marks a control and carries the reason; the click handler refuses with `unavailable()`, which is the trade for a tooltip that works.
+**Unavailable is `aria-disabled`, never the `disabled` property**, and the reason is the tooltip: a natively disabled button emits no mouse events in Chromium, so a tooltip delegated from `document` never fires and the only thing explaining the refusal is invisible.
+`setUnavailable()` marks a control and carries the reason; the click handler refuses with `unavailable()`, which is the trade for a tooltip that works.
 **Management stays**: pin, note, archive and delete all keep working, because cleaning up after a folder that has gone is exactly when you need them.
 One function produces that sentence and the tooltip, the toast and the pane all use it, so they cannot drift.
 
@@ -278,11 +303,13 @@ A typed prompt, one with a pasted image, one sent while a tool ran, one queued w
 Not a request: tool results, meta records (a skill's expanded body, a message from another session), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing (a local command's output, a reminder, a task notification, `!` bash mode), whether it comes as a user record or queued while claude worked — the queued ones were missed at first, and drew 253 task notifications as requests.
 The rule was taken from a scan of 312 transcripts, and the numbers below are from them.
 
-**A slash command counts only once claude answers it.** `/review` and `/learn` are answered, `/model` and `/clear` are not, and nothing in the command line tells them apart — `/learn` usually has no arguments, `/model` usually has one; 265 were answered and 112 not.
+**A slash command counts only once claude answers it.**
+`/review` and `/learn` are answered, `/model` and `/clear` are not, and nothing in the command line tells them apart — `/learn` usually has no arguments, `/model` usually has one; 265 were answered and 112 not.
 So a command waits for an assistant record, across reads of a file claude is still writing, and is dropped if the user sends something else first.
 Leaving slash commands out altogether was the first rule, and it left a session that was one `/review` doing all the work with an empty history.
 
-**A transcript is a tree, and it keeps abandoned attempts.** Stopping claude and sending again, or editing and resending, leaves the first attempt in the file beside the second, both hanging off the same parent record.
+**A transcript is a tree, and it keeps abandoned attempts.**
+Stopping claude and sending again, or editing and resending, leaves the first attempt in the file beside the second, both hanging off the same parent record.
 The history shows it, dimmed and marked "sent again", rather than hiding it, so a stopped attempt's partial reply and a pin on it stay; 268 of them in a later scan, of 353 transcripts, which the numbers for rewinds and records written twice come from too.
 **Claude's rewind leaves the requests it went back past** in the file too: a later request hangs off the same parent as one further back, and every request in between follows on from that one.
 All of them are marked "rewound" and dimmed the same way, since claude's conversation no longer has any of them; 59 requests in 2 sessions, in one of which the request after the rewind says "I rewinded, but one too many".
@@ -300,7 +327,8 @@ Only the last exchange ever changes — claude's reply to it grows — so each r
 A rewind is the one exception: it marks requests the window already holds, so that read hands them back again from the first it went back past.
 The window reads on `sessions:changed` and on the active session's status events.
 
-**Claude Code writes records twice.** After a compaction it writes much of the conversation into the file a second time under the same uuids, with only bookkeeping changed (git branch, version, prompt id; the message itself in 3 of 6,490 copies, in 8 transcripts).
+**Claude Code writes records twice.**
+After a compaction it writes much of the conversation into the file a second time under the same uuids, with only bookkeeping changed (git branch, version, prompt id; the message itself in 3 of 6,490 copies, in 8 transcripts).
 Folded as they came, those copies drew 302 requests, and 763 of claude's messages, twice, and a pin on one lit both.
 The reader folds each uuid once and keeps the first copy.
 
@@ -376,15 +404,19 @@ On startup it writes a hook script and its own settings file to `~/.config/claud
 Five events map straight to a status: `UserPromptSubmit` → busy, `PostToolUse` → busy, `Stop` → idle, `Notification` → waiting, `SessionEnd` → closed.
 Two more are not that simple, and both cost a wrong guess to work out.
 
-**Compaction is work, so it reads as work.** `PreCompact` → busy, and the END of a compaction is a `SessionStart` carrying `source=compact`, which the script rewrites to idle.
+**Compaction is work, so it reads as work.**
+`PreCompact` → busy, and the END of a compaction is a `SessionStart` carrying `source=compact`, which the script rewrites to idle.
 `PostCompact` looks like the obvious end signal and is not used: a probe never observed it firing and could not prove it ever does, while `SessionStart` was observed.
 That follows from what the states mean here — **idle is "finished something, and your input is required to continue", not merely "not busy"** — so a session thinking about its own transcript is busy, and green when it comes back.
 
-**A model switch is neither, so it gets its own file.** A transcript records which model *answered*, never which one was chosen, so `/model` leaves no trace in it until the next reply — and the row went on naming the old model in between.
+**A model switch is neither, so it gets its own file.**
+A transcript records which model *answered*, never which one was chosen, so `/model` leaves no trace in it until the next reply — and the row went on naming the old model in between.
 `PostModelSwitch` is the only place that answer exists at the moment it becomes true; its payload carries `from_model`, `to_model` and `source`, and `to_model` is written to `<id>.model` beside the status rather than into it, because the two answer different questions about the same session.
 The renderer prefers it over the transcript's and keeps it **in memory only**: every switch in a session this app runs lands there, so it can never be staler than the file, and after a restart the transcript's own last answer is the right source again.
 
-**`SessionStart` is mostly identity, not state.** Its session id is what the terminal is running *now*, which is the only way to follow a `/clear` (below). For every source but `compact` the script writes an identity-only marker that the renderer applies to the tab and never shows as a dot, and it refuses to overwrite an existing status file — these files seed the dots at launch, and the event also fires mid-session, where a real status is worth keeping.
+**`SessionStart` is mostly identity, not state.**
+Its session id is what the terminal is running *now*, which is the only way to follow a `/clear` (below).
+For every source but `compact` the script writes an identity-only marker that the renderer applies to the tab and never shows as a dot, and it refuses to overwrite an existing status file — these files seed the dots at launch, and the event also fires mid-session, where a real status is worth keeping.
 For the same reason that marker is dropped when the launch state is read back: identity is answered by the tabs being restored around it, and seeding it would hand the renderer a status no dot has wording for.
 
 **`SessionEnd` ends the session it names, every time — including `clear` and `resume`.**
@@ -392,7 +424,8 @@ Those two leave the *process* running, which makes them look like exceptions, an
 This app tracks **sessions, not processes**: `/clear` writes a last line to the old transcript and opens a new file under a new id, so the id the event carries really is finished, and declining to close it leaves a dead session showing a live dot for good.
 The process's next session arrives separately, as the `SessionStart` above.
 
-The general shape, for any hook added later: **ask what the event means for a SESSION before mapping it to a state.** An event named for a lifecycle is not necessarily about the lifecycle you are tracking.
+The general shape, for any hook added later: **ask what the event means for a SESSION before mapping it to a state.**
+An event named for a lifecycle is not necessarily about the lifecycle you are tracking.
 
 The cleanup of hooks an older version injected into `~/.claude/settings.json` scans every event in that file rather than the ones this version registers, so an entry for an event since dropped is still found.
 A hook also has about a second to answer before Claude Code moves on, so it must never wait on anything: answer, then finish detached.
@@ -442,7 +475,8 @@ A run that crosses midnight starts a new file on its first write of the new date
 One shared file per date was rejected: a crash in the morning and a clean launch in the afternoon would share it, and a file can only be kept whole.
 The folder is read in `paths.ts` below the `userData` pin and nowhere else, because the call creates it as a side effect, and on Linux, made before the pin, it resolves under the product name and leaves a stray `~/.config/Claude UI/logs` behind.
 
-**There is no size cap.** The date roll keeps a file readable and loses nothing within a run.
+**There is no size cap.**
+The date roll keeps a file readable and loses nothing within a run.
 Rejected: cutting the middle out at 2 MB, rolling to part files, trimming the oldest lines as the audit log does (which loses the header, the lines that say what build this was), stopping at the cap (which loses the end, where a crash is), and a hard ceiling as a backstop.
 What bounds the likeliest runaway, an error thrown on every frame, is that identical lines in a row collapse into one line and a count, and the count is written within five seconds, so a crash in the middle of a flood still leaves it.
 A failure met on every pass of something that repeats — a transcript that cannot be read, at every listing — is written once per file instead, since other lines come between the repeats.
@@ -458,7 +492,8 @@ Only the file where it happened is marked, not every file of a run that lasted s
 **Deleting the logs while the app runs is safe**, since Settings invites it.
 Writes go by path, with `O_APPEND` and no `O_CREAT`, so a file that has gone is noticed rather than silently recreated without its header, and the line that noticed starts a new file the way midnight does.
 
-**Uncaught errors are observed, not handled.** The log listens on `uncaughtExceptionMonitor`, never `uncaughtException`: Electron shows its "A JavaScript error occurred in the main process" dialog only while it is the one listener for the latter, so a listener here would take that dialog away in silence.
+**Uncaught errors are observed, not handled.**
+The log listens on `uncaughtExceptionMonitor`, never `uncaughtException`: Electron shows its "A JavaScript error occurred in the main process" dialog only while it is the one listener for the latter, so a listener here would take that dialog away in silence.
 The monitor also receives unhandled rejections, which Node raises as uncaught exceptions, and a test pins that the listener count does not change.
 The window's uncaught errors arrive through `console-message` as `Uncaught …` lines — measured, not assumed — so forwarding its warnings and errors is its crash reporting too.
 
@@ -496,9 +531,11 @@ A node with `rows` or `columns` is a split; a node with `panels` is a **panel gr
 The first shape of the file, one panel beside the terminal, never shipped, so version 1 is refused with a notice rather than converted.
 
 A panel is an ENTRY in a group, not a file of its own: `{ "id": "status", "type": "command", "options": { "command": "git status --short" } }`.
-**The layout reads the layout, and a panel reads its own options.** `id`, `type`, `title`, `hidden` and `icon` are the layout's, and it checks them; `options` is the type's, handed over whole and read by nothing else (see A type owns its options).
+**The layout reads the layout, and a panel reads its own options.**
+`id`, `type`, `title`, `hidden` and `icon` are the layout's, and it checks them; `options` is the type's, handed over whole and read by nothing else (see A type owns its options).
 The nesting is that rule made visible in the file rather than kept as a list of names the layout holds back: a field the layout gains later can never collide with a type's setting, and an unknown key is named by the side that owns it — the layout for the entry (`"tilte"`), the type inside `options` (`"comand"`).
-Entries used to be flat, the shape of Claude Code's statusline and hooks, so that a line could be pasted from one file into another; in practice that saved one line, and it made every future layout field a name no type could use. Grafana's panels, the nearest thing to this file, nest theirs under `options` too, which is where the name comes from.
+Entries used to be flat, the shape of Claude Code's statusline and hooks, so that a line could be pasted from one file into another; in practice that saved one line, and it made every future layout field a name no type could use.
+Grafana's panels, the nearest thing to this file, nest theirs under `options` too, which is where the name comes from.
 Every id, of a node or an entry, is a slug the user writes (lowercase letters, digits, hyphens and underscores) and unique across the whole file, because ids are what the window's state keys on: dragged sizes, folds, the panel picked in a group.
 The app assigns nothing, because it writes nothing.
 
@@ -617,10 +654,13 @@ The layout sees only what it needs to draw and place an entry: the default icon,
 
 **The type checks its own options**, with one checker every type shares (`panels/options.ts`), driven by that declaration: a key it does not know, a missing or doubled exactly-one-of, a value that is not a string or is empty, and what a path points at — the last asked of the main process, which has the filesystem.
 It checks when it is mounted, so a panel behind another already wears `alert` on its rail; before every run or shell start, since a script can go missing between runs; and whenever the config folder changes, which is how a script gaining its executable bit clears without a restart.
-It says what it found through its HOST, the tree's side of a conversation that already carried the busy mark, the run's last word and the rail dot: "cannot run, because …" is drawn with the same problem list the layout's own refusals use, with `alert` on the rail icon, and a note goes on the group's note line. `alert` is "will not start as its options stand"; the red dot is still "a run failed".
+It says what it found through its HOST, the tree's side of a conversation that already carried the busy mark, the run's last word and the rail dot: "cannot run, because …" is drawn with the same problem list the layout's own refusals use, with `alert` on the rail icon, and a note goes on the group's note line.
+`alert` is "will not start as its options stand"; the red dot is still "a run failed".
 A built-in reports what it does not understand as notes, never as problems, because no file may produce a window without the sidebar or the terminal.
 
-It was the other way round at first — main checked every `script` in the file when it read it, so one read named everything — and it moved for two reasons. A path relative to the selected project, which the `cwd` option needs, changes while the app runs, so no read of the file can answer it; and a layout that knows a type's option names is a layout every new option has to touch. The cost is that a missing file is named when the panel checks rather than in the same read as the file's shape: the same place on screen, a moment later.
+It was the other way round at first — main checked every `script` in the file when it read it, so one read named everything — and it moved for two reasons.
+A path relative to the selected project, which the `cwd` option needs, changes while the app runs, so no read of the file can answer it; and a layout that knows a type's option names is a layout every new option has to touch.
+The cost is that a missing file is named when the panel checks rather than in the same read as the file's shape: the same place on screen, a moment later.
 
 The type also owns its panel's body and its run; the tree (`tree.ts`) draws only what is around it — the header, the rail icon and its dot, the dividers, and the problems a panel reports.
 
@@ -631,7 +671,8 @@ It runs something and shows what it printed, and it takes its command in one of 
 `script` is a path to an executable, relative to the config folder, absolute, or under `~/`, passed to the shell as ONE argument with no parsing of the path, so a space in it is nothing.
 The type kept the name `command` for both: a one-liner is not a script and a script is not a command line, and Claude Code's statusline and hooks say `"type": "command"` for either.
 
-A script resolves against the config folder ONLY, never the selected project, deliberately: a project-first lookup would change which code runs, not where — a repo with a file at the same path would silently replace yours, and since a panel runs on show and on a project switch, selecting a freshly cloned repo would run its executable unasked. A project's own script is reachable, explicitly, as `"command": "./bin/status"`, which the shell resolves in the context directory.
+A script resolves against the config folder ONLY, never the selected project, deliberately: a project-first lookup would change which code runs, not where — a repo with a file at the same path would silently replace yours, and since a panel runs on show and on a project switch, selecting a freshly cloned repo would run its executable unasked.
+A project's own script is reachable, explicitly, as `"command": "./bin/status"`, which the shell resolves in the context directory.
 The resolver is one function in main (`resolvePath` in `config.ts`) used by the panel's check and by the run, so the two cannot disagree about which file was meant.
 
 The command runs in the panel's CONTEXT DIRECTORY — the active tab's cwd, else the selected project's repo root — so a worktree session's panel reports the worktree.
@@ -643,58 +684,71 @@ It runs when first shown, on Refresh, and when its context changes, which a tab 
 ### Where a panel runs: the `cwd` option
 
 Both the `command` and the `terminal` type take a `cwd`, one declaration (`CWD_OPTION` in `options.ts`) and one rule (`placement` in `panels/run.ts`, tested), because "where does this panel run" is one question with one answer on both.
-Without it, the panel runs in the context directory. An absolute or `~/` value is FIXED: that folder whatever is selected, so it runs with no project at all. A relative value is under the context directory, so `"cwd": "packages/api"` follows the project into its subfolder — and a worktree session's panel into the worktree's copy.
+Without it, the panel runs in the context directory.
+An absolute or `~/` value is FIXED: that folder whatever is selected, so it runs with no project at all.
+A relative value is under the context directory, so `"cwd": "packages/api"` follows the project into its subfolder — and a worktree session's panel into the worktree's copy.
 The folder the run uses is the one main's check resolved, so the run goes exactly where the check looked, and `CLAUDE_UI_CWD` names it; the project and session variables are the selection at the moment of the run, empty when there is none.
 
 A relative `cwd` resolves against the project and never falls back to the config folder, which was considered: the same file would then run in different places depending on which folders happen to exist, and a typo in one project would silently become a folder in the config directory.
 (`script` is the opposite way round for the reason given under The `command` type: a `cwd` only moves where your command runs, while a project-first `script` would change which code runs.)
 
-**A fixed `command` panel does not run again on a switch**; it runs on first show and on Refresh. It has nothing new to read, and re-running it on every tab click would print the same folder's output again — which is what keying it on the whole context, as before, would have done, since its variables change even when its folder does not.
+**A fixed `command` panel does not run again on a switch**; it runs on first show and on Refresh.
+It has nothing new to read, and re-running it on every tab click would print the same folder's output again — which is what keying it on the whole context, as before, would have done, since its variables change even when its folder does not.
 The run is keyed on where it goes (`runKey`, tested): the whole context without a `cwd`, as it always was; nothing that changes for a fixed one; the folder it lands in for a relative one, so a tab switch within that folder does not re-run it.
 A refresh on a timer, or a script that refreshes itself, is later work, and when it comes it is the answer to "when does a panel run" for every panel, not one for this option.
 
 ### How a command runs
 
-**Through the same shell as a session.** `src/main/shell.ts` holds the one login-shell invocation both use, so `PATH` is identical: the rc files that put mise, direnv and the MCP servers' tools on a session's `PATH` run for a panel too.
+**Through the same shell as a session.**
+`src/main/shell.ts` holds the one login-shell invocation both use, so `PATH` is identical: the rc files that put mise, direnv and the MCP servers' tools on a session's `PATH` run for a panel too.
 The command is a positional parameter of a fixed script of the app's, never interpolated into it.
 
 **Measured: an interactive login bash without a tty prints two lines of job-control noise on stderr before anything runs (`cannot set terminal process group`, `no job control in this shell`), and `logout` on exit if it is still the parent when the command ends.**
 Both are handled by shape rather than by filtering text: the spawn discards the SHELL's stderr, the script's first act is `exec 2>&1` so the COMMAND's stderr joins the one pipe — which is also what puts the two streams in true arrival order — and the command is `exec`ed in the shell's place, so nothing is left to say `logout`.
 Dropping `-i` was the alternative; mise resolves without it on the machine this was written on, but the rc-based setup would be skipped and a panel would no longer see the `PATH` a session sees.
 
-**Non-interactive, spawn and read.** No pty: stdout and stderr in one pipe, output capped at 1 MB and the run at 30 seconds, after which the process is stopped and the panel says so.
+**Non-interactive, spawn and read.**
+No pty: stdout and stderr in one pipe, output capped at 1 MB and the run at 30 seconds, after which the process is stopped and the panel says so.
 A process that never exits by design — a dev server, a watcher — is not this panel type.
 Plain text is asked for with `NO_COLOR=1` and `TERM=dumb`, and escape sequences are stripped on top for the tools that do not listen, with a sequence cut at a chunk boundary held back until the next chunk completes it.
 
-**Stopping is the group.** The child is spawned `detached`, so its pid is a group id, and a stop is the same SIGTERM-then-SIGKILL escalation a session gets, shared from `shell.ts`, reading whether it worked from the child's own exit.
+**Stopping is the group.**
+The child is spawned `detached`, so its pid is a group id, and a stop is the same SIGTERM-then-SIGKILL escalation a session gets, shared from `shell.ts`, reading whether it worked from the child's own exit.
 A re-run stops the run before it, removing the panel from the file stops it, and quitting sweeps every live run down the same path; hiding it does not.
 The end of the OUTPUT (`close`) and the end of the PROCESS (`exit`) are read separately: something the command started can outlive it holding the pipe, and once the leader is gone nothing may be signalled, since its pid may already belong to somebody else.
 
-**`CLAUDE_UI` is deliberately not set.** It is the marker the status hooks fire on, and a panel that happens to run `claude -p` must not report as a session.
+**`CLAUDE_UI` is deliberately not set.**
+It is the marker the status hooks fire on, and a panel that happens to run `claude -p` must not report as a session.
 
-**A run carries a token.** The renderer mints one per run and every event echoes it, so output still in flight from a run just replaced never lands in the new run's body.
+**A run carries a token.**
+The renderer mints one per run and every event echoes it, so output still in flight from a run just replaced never lands in the new run's body.
 
 ### The `terminal` type
 
 A plain shell in a panel: the interactive login shell a session runs `claude` in, with nothing to run, in a pty, shown in an xterm.
 Its one option is `cwd` (see Where a panel runs).
 
-**It stays put.** The shell starts where the panel is placed at the moment it first shows — the context directory, or its `cwd` — and stays there through tab and project switches.
+**It stays put.**
+The shell starts where the panel is placed at the moment it first shows — the context directory, or its `cwd` — and stays there through tab and project switches.
 A shell has state — the command you have running in it — so following the context the way the `command` panel does would kill that command on every switch, and one shell per directory kept alive and swapped like tabs is a lifecycle that belongs with groups and tabs, not here.
 So the header names the folder the shell is in, the button is "Restart here", which kills the shell and starts one in the current context, and the one exception is a panel with no shell because there was nothing to run in, which starts as soon as a context appears.
 The type declares that button's label itself, per entry, so the tree keeps one button and the type says what it does.
-**A terminal with a fixed `cwd` has no button**: it would restart in the same place, so what is left of its purpose is bringing a dead shell back, and a key press does that (below). One whose folder is missing says so in its place, like any panel that cannot run, and looks again whenever it comes back into view and whenever the config folder changes — with no button, being looked at is how a folder that has appeared since gets picked up.
+**A terminal with a fixed `cwd` has no button**: it would restart in the same place, so what is left of its purpose is bringing a dead shell back, and a key press does that (below).
+One whose folder is missing says so in its place, like any panel that cannot run, and looks again whenever it comes back into view and whenever the config folder changes — with no button, being looked at is how a folder that has appeared since gets picked up.
 
-**A shell that exits comes back on a key press.** Its screen stays up with a dimmed line saying it exited and that any key starts a new shell, and the next key does, through the same start the button uses; the key is the ask, so it is not sent on to the new shell.
+**A shell that exits comes back on a key press.**
+Its screen stays up with a dimmed line saying it exited and that any key starts a new shell, and the next key does, through the same start the button uses; the key is the ask, so it is not sent on to the new shell.
 That is what VS Code's terminal does, and it was chosen over a button that appears only once the shell has gone, and over restarting on exit by itself, which would need a guard against a shell that dies at once — a broken rc file, say — starting again forever.
 It exists so that getting a shell back never depends on the button, which a terminal with a fixed `cwd` does not have.
 The header keeps its `exited N`, since that is what shows while the panel is behind another.
 
-**The same pty path as a session.** `terminal.ts` has one spawn for both — the terminals map, the data and exit routing, the stop escalation and the quit sweep — with the claude-specific argument building and the plain-shell start as two callers of it.
+**The same pty path as a session.**
+`terminal.ts` has one spawn for both — the terminals map, the data and exit routing, the stop escalation and the quit sweep — with the claude-specific argument building and the plain-shell start as two callers of it.
 A panel's shell is therefore stopped and swept exactly as a session is, and nothing about it is a second implementation of a process the app runs.
 It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` as a session does, and NOT `CLAUDE_UI=1`: a `claude` started by hand in it must not report as one of the app's sessions.
 
-**One xterm, one router.** The renderer's `terminal.ts` builds every xterm in the window (the font tokens, the neutral foreground, the canvas fallback, clickable links) and routes every terminal's output and exit to whichever sink bound its id, a tab or a panel.
+**One xterm, one router.**
+The renderer's `terminal.ts` builds every xterm in the window (the font tokens, the neutral foreground, the canvas fallback, clickable links) and routes every terminal's output and exit to whichever sink bound its id, a tab or a panel.
 The tab's claude-specific key handling — Ctrl+Enter and Shift+Enter as newline, Ctrl+Z refused, Ctrl+C twice to close — stays with the tab.
 A panel fits its xterm from a `ResizeObserver` on its own box rather than at mount, because it is mounted before the tree has placed it and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
 The same observer covers every later reveal — a switch on the rail, an unfold, a divider reopening a squeezed node — since each gives the box a size again.
@@ -705,58 +759,71 @@ A folder under `types/` is a panel type of the person's own: a `panel.json` mani
 It exists so a panel can be shared without being part of the app — the first one is a review queue fed by a task in another repo — and every choice below follows from that.
 The contract itself, field by field, is `docs/panel-types.md`; this section is why it is shaped as it is.
 
-**One list of fields per object, and the document is held to it.** Each checker names the fields it reads in one list (`MANIFEST_FIELDS` and `OPTION_FIELDS` in `types/folder.ts`, `LIST_FIELDS` in `types/listdoc.ts`) and reads a field only through that list (`panels/fields.ts`), so a field it reads that the list lacks is a type error. A test reads the document's tables and its lists of kinds and tones against the same lists, checks its marked examples with the checkers themselves, and holds its table of variables to what the runner sets: a field added on either side alone fails, the way the README's icon list is held to the icon set.
+**One list of fields per object, and the document is held to it.**
+Each checker names the fields it reads in one list (`MANIFEST_FIELDS` and `OPTION_FIELDS` in `types/folder.ts`, `LIST_FIELDS` in `types/listdoc.ts`) and reads a field only through that list (`panels/fields.ts`), so a field it reads that the list lacks is a type error.
+A test reads the document's tables and its lists of kinds and tones against the same lists, checks its marked examples with the checkers themselves, and holds its table of variables to what the runner sets: a field added on either side alone fails, the way the README's icon list is held to the icon set.
 
 **The folder's name is the type's name**, so the two cannot disagree, and a folder is shared by copying it.
 A folder named like a built-in type, or with a name that cannot be a type's, is not read, and a note under the whole layout says so, since no single entry is where it went wrong.
 Main reads the manifests in the same pass as the layout file and hands them over raw, as it does the layout, so the renderer resolves the layout knowing every type at once and never shows an entry as a type nobody has for the moment between two reads.
 
-**The kind decides the rest.** A manifest names what kind of panel it is, and the kind brings its own options and behaviour; `list` is the one kind so far.
+**The kind decides the rest.**
+A manifest names what kind of panel it is, and the kind brings its own options and behaviour; `list` is the one kind so far.
 So `cwd` and `interval` are the list kind's own, not something every panel takes: a shell has nothing to re-run, so the `terminal` type takes neither, and the `command` type gains `interval` only when it needs one.
 A manifest is checked like the layout file — every mistake named, each prefixed with its file — and a type whose manifest is wrong is still a type, so every entry of it says what is wrong where the panel would be.
 A field the manifest does not know is a note, not a mistake, and the same holds for the list a script prints: both are a contract a shared type is written against, with a `version`, so a field a later version added is ignored here and only a version bump is a break.
 An edit to a manifest mounts that type's panels afresh: the type carries a revision, and the mount signature includes it beside the entry's options.
 
-**The script describes and the app acts.** A list script only prints; opening a row's link is the app's, through the same route every link leaves by, which takes http and https only.
+**The script describes and the app acts.**
+A list script only prints; opening a row's link is the app's, through the same route every link leaves by, which takes http and https only.
 That is the decision the whole shape rests on (2026-09-29): a JavaScript module loaded into the window would hold the bridge to every session, and a sandboxed page would need a message API of its own for the same result, while a script that prints can do nothing beyond running unless the person presses something.
 It is also why nothing a script prints is ever markup: every row is built as text.
 
-**Stdout alone is the list.** A list run asks the runner to keep stderr apart: the script's stdout and stderr go to two pipes of their own, and the login shell's own output is discarded, so nothing an rc file prints can land in front of the document (measured against the real shell).
+**Stdout alone is the list.**
+A list run asks the runner to keep stderr apart: the script's stdout and stderr go to two pipes of their own, and the login shell's own output is discarded, so nothing an rc file prints can land in front of the document (measured against the real shell).
 The `command` type still merges the two, in arrival order, since it shows what was printed.
 Stderr's end is kept as the reason a failure gives: mise, for one, writes the task line there on every run.
 
-**When it runs.** On first being shown, on Refresh, on a context change while shown, as a `command` panel does, and on its interval, which also runs while the panel is hidden or folded: the count on its rail icon is the point of a queue, and a count that stops while you are not looking says something false.
+**When it runs.**
+On first being shown, on Refresh, on a context change while shown, as a `command` panel does, and on its interval, which also runs while the panel is hidden or folded: the count on its rail icon is the point of a queue, and a count that stops while you are not looking says something false.
 The first run of a panel with an interval is when the tree goes live, shown or not.
 The interval is at least ten seconds, so a typo cannot start a script every second.
 
-**Never an empty list for a broken run.** A run that fails, or prints something that is not a list, says so.
+**Never an empty list for a broken run.**
+A run that fails, or prints something that is not a list, says so.
 With a good list already there, the list stays under a line saying when the run failed and why, and that list's count stays beside it; without one the panel says it is unavailable, quoting stderr's last lines.
 An empty queue and a broken one otherwise look the same, and one of them is a lie; blanking the list on every failure was the other way, and a bad minute on the network would blank it every time.
 Before the first run has ended it says it is waiting, which is neither state.
 
-**What it looks like is the app's.** A row is the card a session row is, and a section heading the sidebar's group bar, built by the same builders (`card.ts`) and drawn by the same rules rather than restyled; a row's tone is the status colours on its leading edge, where a session row keeps its accent bar for "open in a tab".
+**What it looks like is the app's.**
+A row is the card a session row is, and a section heading the sidebar's group bar, built by the same builders (`card.ts`) and drawn by the same rules rather than restyled; a row's tone is the status colours on its leading edge, where a session row keeps its accent bar for "open in a tab".
 The count on a rail icon sits inside the button, under the icon on a vertical rail and beside it on a horizontal one: a corner badge was tried first, and at 3x even "9+" covered the whole icon on a 24px button, while the rail clips anything past its 28px.
 The icon's tooltip and label say the count whole.
 
-**A row can ask for a session, and only ask.** A `session` action is a button on the row; pressing it hands the app a request (the item, the prompt, the name, the folder the panel last ran in), and the app opens its own dialog on it: the project, the group, the name and the first prompt, all changeable, and nothing starts before Start.
+**A row can ask for a session, and only ask.**
+A `session` action is a button on the row; pressing it hands the app a request (the item, the prompt, the name, the folder the panel last ran in), and the app opens its own dialog on it: the project, the group, the name and the first prompt, all changeable, and nothing starts before Start.
 That dialog is the trust line for a shared type: a prompt runs with the person's permissions, so what a panel from anyone asks claude to do is always read first.
 The projects offered are the switcher's, in its order and without those whose folder is gone; the one the panel's folder is in comes first, found as the deepest project that folder sits under (`projectFor`), and the folder itself is offered when it is in no project yet.
 The group comes first as the one last picked from that panel in that project, while it still exists; making one is left to the session list, since the app never makes a group nobody asked for.
 Start goes down the same path as any new session (`openNewSession`), with the name as `--name` and the prompt as claude's positional first prompt — placed LAST, after `--` and after the user's own flags, since a flag taking several values swallows a prompt after it and a prompt starting with `-` reads as a flag (both measured against claude before this was built).
 
-**A row leads back to its sessions.** The row asks its host for the sessions its item started that the app still has, latest first, and draws the latest's status dot with the session list's own classes, a count beside it when there are several.
+**A row leads back to its sessions.**
+The row asks its host for the sessions its item started that the app still has, latest first, and draws the latest's status dot with the session list's own classes, a count beside it when there are several.
 A press goes to the session the way a jump from the attention strip does — its project, its tab, its row — since the session is often in another project than the one on screen; with several, the app's menu offers them, each led by its own dot as the mark draws it, since a menu item that is a session takes a session's dot rather than a roll-up's.
 The marks are repainted IN PLACE whenever the renderer repaints sessions itself (the switcher's roll-ups, the tab bar, the list), batched to once a task, so a status event never rebuilds the list under the pointer.
 A link whose session the app no longer has is simply not drawn, whether or not main has forgotten it yet.
 A second Review on such a row opens the dialog on CONTINUING the latest session, since that session holds what the first look found: stopped, it is resumed with the prompt as its first (`--resume <id> -- <prompt>`, checked against claude in print mode before this was built); running, it is brought into view and the prompt is not sent, which the dialog says before anything happens, because typing into a live session could land mid-turn or on a question and is never the app's to do.
 
-**Which session a row started is the panel's data, kept by the app.** One file per entry, `panel-data/<entry id>.json` in the app's data directory, with the sessions its rows started (by session id: the item's key, its text, its link, when) and the group last picked per project.
+**Which session a row started is the panel's data, kept by the app.**
+One file per entry, `panel-data/<entry id>.json` in the app's data directory, with the sessions its rows started (by session id: the item's key, its text, its link, when) and the group last picked per project.
 Not in `meta.json`, so a panel's data cannot damage the app's, and not in the config folder, which is what gets shared while a session id means something only on this machine.
 The app writes it, never the script, which never learns a session id: the id is minted before the tab exists and the link written first, so the row can lead back to the session from the start.
 A file that does not parse, or is of another version, is kept beside itself rather than overwritten, and an entry that is not sound is dropped and logged.
 A link to a session that is gone is forgotten at the file's next write, whatever removed the session — the app's own delete, Claude Code's transcript retention (`cleanupPeriodDays`), or a hand — and at once when the app itself deletes it.
-"Gone" is the app's own measure of a session existing: a transcript on disk, looked at rather than taken from the listing's cache, or a tab holding it, since a session that has sent nothing yet has no transcript and lives only in its tab. The session being linked at that moment has neither yet, so it is kept.
-Not by a link's age, which was the other way considered (2026-09-30): a session started long ago may have been resumed yesterday, and a retention period counts from something the link does not know. A check that fails forgets nothing.
+"Gone" is the app's own measure of a session existing: a transcript on disk, looked at rather than taken from the listing's cache, or a tab holding it, since a session that has sent nothing yet has no transcript and lives only in its tab.
+The session being linked at that moment has neither yet, so it is kept.
+Not by a link's age, which was the other way considered (2026-09-30): a session started long ago may have been resumed yesterday, and a retention period counts from something the link does not know.
+A check that fails forgets nothing.
 
 ### Panel state
 
@@ -767,11 +834,15 @@ A split somebody has dragged goes back to the file's sizes on a double-click on 
 
 ## The window's own chrome — built, and currently switched off
 
-**The app uses the system's window frame today.** What follows is a complete alternative that exists in the code behind a single flag, `OWN_CHROME` in `main.ts`, and is turned off.
+**The app uses the system's window frame today.**
+What follows is a complete alternative that exists in the code behind a single flag, `OWN_CHROME` in `main.ts`, and is turned off.
 
-It works, and it was turned off for one reason: dragging the window is visibly steppy. The gesture is the app's own, so every move is a round trip to the compositor, and it cannot be made smooth — handing the drag back to the compositor is smooth, but brings a double-click-to-maximize that draws the window offset from where it hit-tests and cannot be suppressed. That trade was not worth it in daily use.
+It works, and it was turned off for one reason: dragging the window is visibly steppy.
+The gesture is the app's own, so every move is a round trip to the compositor, and it cannot be made smooth — handing the drag back to the compositor is smooth, but brings a double-click-to-maximize that draws the window offset from where it hit-tests and cannot be suppressed.
+That trade was not worth it in daily use.
 
-Both paths are live rather than one being dead code: macOS has always run the system-chrome side of every branch below, because a frameless window there would have no traffic lights. So this describes what turning the flag back on gives, and why each piece is hand-built rather than borrowed from the OS.
+Both paths are live rather than one being dead code: macOS has always run the system-chrome side of every branch below, because a frameless window there would have no traffic lights.
+So this describes what turning the flag back on gives, and why each piece is hand-built rather than borrowed from the OS.
 
 With it on, the window is frameless and the app draws its own title bar: a strip across the top carrying the app mark, the version, and the minimize / maximize / close buttons.
 macOS is deliberately excluded and keeps its native frame — a Mac window without its traffic lights is one you cannot close, and the variant that would replace them (`titleBarStyle: 'hiddenInset'`, with the sidebar header inset beneath the lights) is not built while nobody can look at a Mac to judge it.
@@ -779,25 +850,36 @@ One flag decides all of it, so the two never disagree: the frame, the buttons, t
 
 Everything the OS would have done for that window, the app does itself, and each piece exists because the compositor's own version is unusable here rather than as a matter of taste.
 
-**Maximize is `setBounds`, never `maximize()`.** The native call paints a frameless window offset from where it hit-tests, so its controls are drawn in one place and clickable in another. The app therefore never enters the native maximized state and keeps the flag itself.
-The rectangle to fill cannot simply be the display's work area, because nothing here publishes one that accounts for the Windows taskbar — so the app asks the window manager the only way it answers, by maximizing a window nobody sees and reading the result back. That answer belongs to whichever display the window manager chose, so it is remembered per display and asked again when an unmeasured one turns up.
+**Maximize is `setBounds`, never `maximize()`.**
+The native call paints a frameless window offset from where it hit-tests, so its controls are drawn in one place and clickable in another.
+The app therefore never enters the native maximized state and keeps the flag itself.
+The rectangle to fill cannot simply be the display's work area, because nothing here publishes one that accounts for the Windows taskbar — so the app asks the window manager the only way it answers, by maximizing a window nobody sees and reading the result back.
+That answer belongs to whichever display the window manager chose, so it is remembered per display and asked again when an unmeasured one turns up.
 
-**Every edge and corner is a handle the app draws.** Chromium leaves a 4px resize margin on three sides and none at the top, so the top edge could not be resized at all and the other three were a hard target; eight handles at 6px, and 12px at the corners, make them uniform. They clamp to the same minimum size the window enforces, which is one constant rather than two.
+**Every edge and corner is a handle the app draws.**
+Chromium leaves a 4px resize margin on three sides and none at the top, so the top edge could not be resized at all and the other three were a hard target; eight handles at 6px, and 12px at the corners, make them uniform.
+They clamp to the same minimum size the window enforces, which is one constant rather than two.
 
-**Dragging the window is the app's too, and it stutters.** That is a chosen trade, not an oversight.
+**Dragging the window is the app's too, and it stutters.**
+That is a chosen trade, not an oversight.
 Handing the drag back to the compositor — a drag region — is smooth, but it brings a double-click-to-maximize that uses the native maximize above, and that cannot be suppressed or intercepted: the decision is made on the first mousedown, and every route around it either deadlocks the window or leaves it drawing offset.
 So the choice is a drag that steps and lands correctly, or a maximized window whose buttons are not where they appear — and since neither is good, the flag is off and the system draws the frame instead.
 The gesture itself is one helper shared by moving and by all eight resize handles: it measures in screen coordinates, because the window moves under the pointer; it reports the total offset from where it began rather than per-move deltas, which would each be measured against the previous move's result; it starts only after a few pixels of travel, so a plain click on the bar of a maximized window does not restore it; and it sends at most one change per animation frame.
 
-Two smaller things follow from having no OS title bar. The version and the "dev" marker live in the app's bar, because the window title was the only place they were shown. And a window manager here wraps every window in a 32px invisible frame of its own, which offers a resize affordance it does not honour — nothing in the app can remove it.
+Two smaller things follow from having no OS title bar.
+The version and the "dev" marker live in the app's bar, because the window title was the only place they were shown.
+And a window manager here wraps every window in a 32px invisible frame of its own, which offers a resize affordance it does not honour — nothing in the app can remove it.
 
 ## Reopening the way you left it
 
 Two things are restored on launch, and each has one rule worth knowing.
 
-The **window's** size and position are stored as the unmaximized rectangle plus a maximized flag, and are checked against the displays that exist at launch rather than replayed blind: the size is a preference and survives a monitor going away (clamped to the screen it opens on), while the position is dropped whole once it no longer lands somewhere reachable — including a window with only a sliver on screen, or one whose title bar sits above the top edge and could not be dragged back. The geometry decision is a pure function, so those cases are tested rather than reproduced by hand.
+The **window's** size and position are stored as the unmaximized rectangle plus a maximized flag, and are checked against the displays that exist at launch rather than replayed blind: the size is a preference and survives a monitor going away (clamped to the screen it opens on), while the position is dropped whole once it no longer lands somewhere reachable — including a window with only a sliver on screen, or one whose title bar sits above the top edge and could not be dragged back.
+The geometry decision is a pure function, so those cases are tested rather than reproduced by hand.
 
-The **sidebar's** view — search text, the filter toggles, the date filter, folded projects and groups, scroll offset — is one object written as a whole (its width belongs to the layout tree now; see Panel state), on a debounce, and only when a snapshot differs from the last one stored; renders happen constantly for reasons that have nothing to do with the view. Rolling date presets are recomputed from the current moment, so "last 7 days" still means the last 7 days; only a custom range is restored literally. The filter panel comes back exactly as it was left, an active filter included — closing it over a filter you meant to keep is a choice to reclaim the space, and the filter icon carries an accent whenever anything is on.
+The **sidebar's** view — search text, the filter toggles, the date filter, folded projects and groups, scroll offset — is one object written as a whole (its width belongs to the layout tree now; see Panel state), on a debounce, and only when a snapshot differs from the last one stored; renders happen constantly for reasons that have nothing to do with the view.
+Rolling date presets are recomputed from the current moment, so "last 7 days" still means the last 7 days; only a custom range is restored literally.
+The filter panel comes back exactly as it was left, an active filter included — closing it over a filter you meant to keep is a choice to reclaim the space, and the filter icon carries an accent whenever anything is on.
 The toggle is a funnel rather than a magnifier, because a magnifier promises a search box, which clears when it closes.
 Clearing on close was the fix first asked for, and it would have made closing the panel disagree with quitting the app, which restores the filter on purpose.
 Closing the panel never hides the filter, though.
@@ -808,7 +890,10 @@ The count's total is the set the matches were taken from: the same project scope
 The archived pill picks that set rather than narrowing it, since the archived view holds only archived sessions and the normal view none, so in the archived view the total is the archived sessions and the count says "archived"; in the normal view it is the number the switcher shows.
 One rule, `inView` in `logic.ts`, decides which set a session is in for the list, the switcher's counts and the total alike.
 
-Folds come in two states, and they are deliberately separate. Filtering opens the whole tree so a match inside a folded section is never hidden, and folding from there is a way through the results — shut a project you have already been through — rather than a statement about how the sidebar should look. So those folds apply only while a filter is on and are dropped the moment one stops, by any route: Clear, the last character of a search, a date preset going back to Any. Both states are stored, because the filter itself is restored, and coming back to the same results without the same view is the thing remembering the view is meant to prevent.
+Folds come in two states, and they are deliberately separate.
+Filtering opens the whole tree so a match inside a folded section is never hidden, and folding from there is a way through the results — shut a project you have already been through — rather than a statement about how the sidebar should look.
+So those folds apply only while a filter is on and are dropped the moment one stops, by any route: Clear, the last character of a search, a date preset going back to Any.
+Both states are stored, because the filter itself is restored, and coming back to the same results without the same view is the thing remembering the view is meant to prevent.
 
 A **group** is a user-made sub-section inside one project.
 Membership is one group per session, so it is stored as a session-id-to-group-id map — a session cannot be in two groups by construction.
@@ -826,7 +911,8 @@ Vocabulary, in code and in the UI: a **folder** is a literal directory path; a *
 A **panel group** is the layout's node of panels and unrelated to either, so the layout always says "panel group" in words meant for people.
 The three are not interchangeable — one project spans several folders, which is why the switcher, the session list and the tab bar all say "project".
 
-**The project scope holds everywhere.** Selecting a project in the switcher is a statement about what you are looking at, so every surface honours it — the list, the tab bar, the placeholder's wording, and the archived view, which used to be exempt and no longer is.
+**The project scope holds everywhere.**
+Selecting a project in the switcher is a statement about what you are looking at, so every surface honours it — the list, the tab bar, the placeholder's wording, and the archived view, which used to be exempt and no longer is.
 Switch to All to search or browse across projects; that is what All is for.
 
 **The empty terminal pane names the next action**, and it has four to choose from: no sessions at all, sessions but no tabs in this project, tabs but none selected, and a selected tab that isn't running.
@@ -841,10 +927,13 @@ The open rules used to be written per trigger, five of them in step by hand, and
 Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an `attach-top`/`attach-bottom`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a small notch on the menu's edge pointing at the trigger's center.
 Anything new that floats near an anchor should go through those helpers so it gets the notch (and the active-state stamping) for free rather than reinventing positioning.
 
-**One appearance, one rule.** Anything drawn on more than one surface is a single class, never parallel rules kept in step by hand.
+**One appearance, one rule.**
+Anything drawn on more than one surface is a single class, never parallel rules kept in step by hand.
 Parallel rules always drift, and they drift silently: the session mark and the strip mark were the same dot in two classes, and they diverged twice — first to two different sizes, worst on the busy arc, where 7px and 9px read as two different marks rather than one state; then to a hollow ring in the list and a 9px hole in the strip for a session that had not reported yet.
 They are now one `.nudge`, with `.nudge.clickable` for the single surface where it is a control rather than a report.
-The practical test: **a comment saying "match X exactly", or "same as Y", is a bug report against the stylesheet.** It means the relationship is being maintained by whoever remembers it. Extract the shared rule and let the difference be a modifier.
+The practical test: **a comment saying "match X exactly", or "same as Y", is a bug report against the stylesheet.**
+It means the relationship is being maintained by whoever remembers it.
+Extract the shared rule and let the difference be a modifier.
 When a variant genuinely differs — a group heading is deliberately lighter than a project heading — that is a modifier on the shared base, not a second copy of it.
 
 **A module's stylesheet sits beside it, and the module imports it.** esbuild bundles every stylesheet a module imports into one `renderer.css`, in import order, each file once, so `index.html` links only that: `xterm.css` and `air-datepicker.css` are imports of the modules that use them too.
@@ -853,14 +942,16 @@ A stylesheet takes its place in the bundle where it is first imported, so `rende
 Moving a rule between files can change which of two such rules wins without anything in the CSS's own diff showing it, so a move is checked with the style capture (§ The window's checks).
 Moving an import can do the same, and the capture runs only when asked, so the order the stylesheets come in is pinned by a unit test (`test/unit/renderer/renderer.test.ts`): an import that moves a stylesheet fails it until the capture has been run before and after and the list updated.
 
-**The tab bar's names are jumps into the list.** A project's name scrolls the session list to that project and a group's to that group, and each flashes the heading it lands on: two labels at two levels doing the same thing, drawn from one shape and one hover rule.
+**The tab bar's names are jumps into the list.**
+A project's name scrolls the session list to that project and a group's to that group, and each flashes the heading it lands on: two labels at two levels doing the same thing, drawn from one shape and one hover rule.
 The group's is the function behind the heading's jump menu (`revealGroup`), and the project's (`revealProject`) flashes through the same `flash()`.
 The flash has no end keyframe, so it fades into whatever the element already has — a project heading's `--bg`, a group heading's `--surface`, an open row's accent bar.
 It used to end on `--surface`, which is right only for a group heading, and on anything else it finished by snapping to the element's own colour; that went unnoticed until a project heading was flashed.
 
 ### Sizes and shapes
 
-Sizes come from a small set of decisions, not per-component choices. Reach for the existing tier before inventing a value; if something genuinely needs its own, say why in a comment next to it.
+Sizes come from a small set of decisions, not per-component choices.
+Reach for the existing tier before inventing a value; if something genuinely needs its own, say why in a comment next to it.
 
 **Icons** are inline SVG on a 16-unit viewBox, never font glyphs — a glyph resolves through system font fallback, which is how `⑂` once rendered from a monospace face beside its neighbours.
 Ink is centred on (8,8) so flex centring needs no nudge, and stroke width is expressed as the *rendered* px weight (1.3px everywhere) converted to viewBox units per size, so a 9px mark and a 15px one look equally heavy.
@@ -895,7 +986,8 @@ Type is six steps — `--text-heading` 16, `--text-title` 14, `--text-body` 13, 
 **Inactive** is `--muted` colour, never `opacity`: dimming fades a control's border and background too, which reads as disabled rather than unselected.
 `opacity` is reserved for genuinely disabled controls.
 
-**Form controls inherit their typography explicitly.** The UA stylesheet gives every `button`, `input` and `textarea` `font: 400 13.333px Arial`, which is neither the interface font nor a size on the scale — so menus, dialog buttons, the search box and the filter pills all rendered in Arial until one rule set `font-family: inherit` and defaulted the size to `--text-body`.
+**Form controls inherit their typography explicitly.**
+The UA stylesheet gives every `button`, `input` and `textarea` `font: 400 13.333px Arial`, which is neither the interface font nor a size on the scale — so menus, dialog buttons, the search box and the filter pills all rendered in Arial until one rule set `font-family: inherit` and defaulted the size to `--text-body`.
 Anything new that is a form control gets that for free; anything that needs a different step overrides with a token.
 
 **A count wears a pill**, on both the project and the group heading.
@@ -903,11 +995,13 @@ It is not decoration: a bare number sits hard against whatever follows it, while
 The pill's own padding puts the digits about where a neighbouring icon's ink falls, which is what makes the spacing look even.
 The group's pill fills with `--bg` because its heading bar is already `--surface`.
 
-**Icon-only controls carry a tooltip and an `aria-label`.** The filter pills are icon-only because words cost the panel an extra line at a 320px sidebar; the meaning has to survive that, so both attributes are mandatory rather than optional there.
+**Icon-only controls carry a tooltip and an `aria-label`.**
+The filter pills are icon-only because words cost the panel an extra line at a 320px sidebar; the meaning has to survive that, so both attributes are mandatory rather than optional there.
 
 ### Traps worth knowing
 
-**A sticky element pins its MARGIN box, not its border box.** The group headings pin below the project heading; while the `h3` still carried its own `margin-top`, it parked exactly that far too low and left a band of scrolling rows visible between the two.
+**A sticky element pins its MARGIN box, not its border box.**
+The group headings pin below the project heading; while the `h3` still carried its own `margin-top`, it parked exactly that far too low and left a band of scrolling rows visible between the two.
 The space above a group lives on the `.group` section instead, so the heading has no margin to offset it.
 The offset itself is the project heading's *measured* height, published as `--project-heading-height` — the same number the jump uses, so the two cannot drift apart, and neither goes stale when the type scale moves.
 
@@ -917,24 +1011,30 @@ Combined with the `overflow: hidden` that any ellipsis needs, it silently clips 
 The fix is symmetric vertical padding: it gives the clip box room while keeping cap-top-to-baseline centred, so a mark beside the text stays aligned to its ink.
 Measure the font's descent rather than guessing the value.
 
-**A hidden pane measures as the default size, not as nothing.** `FitAddon` sizes from the element's own box, and a `.term` is `display: none` until it is the active tab.
+**A hidden pane measures as the default size, not as nothing.**
+`FitAddon` sizes from the element's own box, and a `.term` is `display: none` until it is the active tab.
 Fitting one before revealing it therefore yields xterm's 80×24 default rather than an error — and that default is what the PTY is told, so `claude` draws its entire TUI to 80 columns for the life of the session.
 Reveal, then fit, then resize.
 Every conditionally-visible pane carries this hazard, split view included.
 The whole terminal area is one now: it is hidden while another panel of its group is shown or its group is folded, so the tab fit refuses a terminal area with no size and leaves it to the `ResizeObserver` on it, which fires once the area has a size again.
 
-**xterm's layers carry z-indexes of their own, up to 10.** A `.term` makes no stacking context by default, so those layers competed with the history lying over the terminal area, painted over it and took its clicks.
+**xterm's layers carry z-indexes of their own, up to 10.**
+A `.term` makes no stacking context by default, so those layers competed with the history lying over the terminal area, painted over it and took its clicks.
 Each `.term` is `isolation: isolate` for that reason: nothing inside a terminal can rise above its siblings, whatever number it carries.
 
-**Under WSLg a held mouse button moves as a different pointer.** The press arrives as the mouse, pointer 1, but the moves while the button is down arrive as a pen, pointer 2, and the release as the mouse again (seen in the app's log).
+**Under WSLg a held mouse button moves as a different pointer.**
+The press arrives as the mouse, pointer 1, but the moves while the button is down arrive as a pen, pointer 2, and the release as the mouse again (seen in the app's log).
 So a drag that captures the pressed pointer, or checks each move's `pointerId` against the press, sees no moves at all, and every headless check passes, since synthesized input keeps one pointer.
 The history bar follows every move of a held pointer on the window instead, and ends on any release or on a move with no button down.
 
-**Specificity quietly opts controls out of shared hover rules.** `button:hover` is 0,1,1, so a resting rule like `.project h2 .project-kebab` (0,2,2) or `#toast-close` (1,0,0) beats it and never takes the accent border, while `.session-kebab` (0,1,0) does.
+**Specificity quietly opts controls out of shared hover rules.**
+`button:hover` is 0,1,1, so a resting rule like `.project h2 .project-kebab` (0,2,2) or `#toast-close` (1,0,0) beats it and never takes the accent border, while `.session-kebab` (0,1,0) does.
 This produced three separate "why does only this one look different" bugs.
 When a shared appearance matters, give the shared rule more weight than every resting rule it covers, and check with forced pseudo-states, as the style capture forces them, rather than by reading the cascade.
 
-**A signature that lists its inputs is a guard nothing can check — so this one is checked by the compiler.** The sidebar re-renders only when `structuralSignature` changes, which keeps a growing transcript from rebuilding the list. Whether such a signature names *every* field the rows draw is a question about the whole render path, so it cannot be asserted cheaply, and getting it wrong does not churn — it **freezes**, leaving a field stale until something else happens to move.
+**A signature that lists its inputs is a guard nothing can check — so this one is checked by the compiler.**
+The sidebar re-renders only when `structuralSignature` changes, which keeps a growing transcript from rebuilding the list.
+Whether such a signature names *every* field the rows draw is a question about the whole render path, so it cannot be asserted cheaply, and getting it wrong does not churn — it **freezes**, leaving a field stale until something else happens to move.
 It had been wrong: `model` was absent while the row printed it, so switching model mid-session showed the old one, and `worktree`/`repoRoot` were covered only by riding along with `cwd`.
 
 The shape that fixes it is `AFFECTS_ROW`, a `Record<keyof SessionSummary, boolean>` naming every field with a yes or a no.
@@ -942,17 +1042,22 @@ The annotation is the whole mechanism: adding a field to `SessionSummary` **fail
 Only two are `false`, each with its reason written beside it — `lastActivity`, rewritten on every message of a running session, and `postCompactHeads`, which no row reads.
 The general rule this stands for: **where stale is worse than an extra rebuild, make the exhaustive case the one the compiler enforces**, rather than trusting a list to be complete.
 
-**Two surfaces can disagree about the same list, because only one of them re-rendered.** The session list is assigned before that signature check decides whether to draw, so a transcript merely growing updates the data and skips the render.
+**Two surfaces can disagree about the same list, because only one of them re-rendered.**
+The session list is assigned before that signature check decides whether to draw, so a transcript merely growing updates the data and skips the render.
 The attention strip is then rebuilt by the next status event, from the newer list, while the sidebar still shows the older one — which is why the strip appears to reorder itself on a dot changing.
 Anything that reads the session list off a status event has the same hazard.
 
-**A list you read while working needs to stay still more than it needs to be sorted well.** The attention strip has had three orders, and the first two both moved under the reader.
+**A list you read while working needs to stay still more than it needs to be sorted well.**
+The attention strip has had three orders, and the first two both moved under the reader.
 Sorting attention-first — sessions by urgency, projects by their most urgent session — reshuffled both levels on every status change.
 Ordering it as the *session list* does was closer and still wrong, because the sidebar's own within-project order is **recency**, and every row in this strip is a running session by definition: those timestamps are all moving, so two rows swap whenever the lower one writes a message.
 
-It orders by **tab order** now, which is the only order available here that nothing on disk can touch — it changes when you open, close, drag or regroup a tab, and a drag persists. Projects keep the explicit project order, which is also something you set by dragging, so both levels are yours.
-"Tab order" is not the tabs array, though: the bar draws a project's ungrouped tabs first and then one row per group in registry order, so the strip shares that clustering (`orderAsTabs`) rather than reading the array directly. Both call it identically, which is what keeps them from drifting.
+It orders by **tab order** now, which is the only order available here that nothing on disk can touch — it changes when you open, close, drag or regroup a tab, and a drag persists.
+Projects keep the explicit project order, which is also something you set by dragging, so both levels are yours.
+"Tab order" is not the tabs array, though: the bar draws a project's ungrouped tabs first and then one row per group in registry order, so the strip shares that clustering (`orderAsTabs`) rather than reading the array directly.
+Both call it identically, which is what keeps them from drifting.
 
-**All three surfaces put projects in the same order**, the one you set. The tab bar used to order them by whichever project it met a tab for first — emergent rather than chosen, and it moved on its own: closing a project's last tab and opening another sent that project to the end.
+**All three surfaces put projects in the same order**, the one you set.
+The tab bar used to order them by whichever project it met a tab for first — emergent rather than chosen, and it moved on its own: closing a project's last tab and opening another sent that project to the end.
 Pins are deliberately not floated here, unlike the sidebar: a pin says where a session belongs in the LIST, the tab bar has never honoured it, and floating one would be a second thing able to move a row you were reading.
 The sessions still come from the session list, so a row shows what the sidebar shows; only the order is the tab bar's.

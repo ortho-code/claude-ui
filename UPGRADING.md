@@ -1,6 +1,7 @@
 # Upgrading
 
-What you have to DO when moving between versions. Most releases need nothing and are not listed here — an absent version is one you can install straight over the last.
+What you have to DO when moving between versions.
+Most releases need nothing and are not listed here — an absent version is one you can install straight over the last.
 
 For what actually changed in each release, see [CHANGELOG.md](CHANGELOG.md).
 
