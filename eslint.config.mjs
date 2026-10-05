@@ -4,7 +4,8 @@ import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-// Each process reaches another only through IPC, so a source folder may not import from the folders named here. The tests, under test/, are outside it on purpose.
+// Each process reaches another only through IPC, so a source folder may not import from the folders named here.
+// The tests, under test/, are outside it on purpose.
 const PROCESSES = { main: ['renderer', 'preload'], preload: ['main', 'renderer'], renderer: ['main', 'preload'], shared: ['main', 'preload', 'renderer'] };
 
 // ESLint takes a rule's options from the last block that matches a file, so a block that restricts more repeats its process's pattern rather than adding to it, and no two of the renderer's blocks below cover the same file.

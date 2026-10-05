@@ -11,13 +11,15 @@ directories:
   # NOT the default `dist`: that is where tsc and esbuild already write, and pointing the packager at it would have it destroy its own build inputs mid-build.
   output: release
 
-# `npm run build` has to have run first — these are its outputs, not sources. assets/ is here because main.ts loads the window icon from it at runtime.
+# `npm run build` has to have run first — these are its outputs, not sources.
+# assets/ is here because main.ts loads the window icon from it at runtime.
 files:
   - dist/**
   - assets/**
   - package.json
 
-# Predictable, space-free filenames. The default uses productName, which would put a space in every artifact name.
+# Predictable, space-free filenames.
+# The default uses productName, which would put a space in every artifact name.
 artifactName: ${name}-${version}-${arch}.${ext}
 
 linux:
@@ -61,7 +63,8 @@ linux:
     - --no-sandbox
 
 deb:
-  # Refreshes the icon cache and re-creates the desktop entry after the files are in place, so a WSL user does not have to install twice to get the right icon. See the script for why.
+  # Refreshes the icon cache and re-creates the desktop entry after the files are in place, so a WSL user does not have to install twice to get the right icon.
+  # See the script for why.
   afterInstall: build/deb-after-install.sh
 
 mac:
@@ -76,5 +79,6 @@ mac:
   # Required BECAUSE of ad-hoc signing — see the file for why the app will not start without it.
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  # Notarisation needs an Apple developer account, which this deliberately does not have. Explicit so a missing APPLE_* environment variable never looks like the reason a build behaved oddly.
+  # Notarisation needs an Apple developer account, which this deliberately does not have.
+  # Explicit so a missing APPLE_* environment variable never looks like the reason a build behaved oddly.
   notarize: false

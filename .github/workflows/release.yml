@@ -1,6 +1,7 @@
 name: Release
 
-# Tag-driven, because a release should be a deliberate act rather than a side effect of pushing. `ci.yml` still covers every push and pull request; this only runs for a version tag.
+# Tag-driven, because a release should be a deliberate act rather than a side effect of pushing.
+# `ci.yml` still covers every push and pull request; this only runs for a version tag.
 on:
   push:
     tags:
@@ -42,12 +43,14 @@ jobs:
       - run: npm run build
       # Again, though CI ran them: the mac leg is the only run of them on macOS.
       - run: npm test
-      # --publish never: this job only produces files. The release job below decides what happens to them, so a failed upload can never leave a half-published release behind.
+      # --publish never: this job only produces files.
+      # The release job below decides what happens to them, so a failed upload can never leave a half-published release behind.
       - run: npx electron-builder ${{ matrix.args }} --publish never
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.os }}
-          # Only a handoff to the release job, which attaches its own copies to the release, and the free tier's 500MB of Actions storage fits little more than one release's worth. A day still leaves room to re-run a failed release job.
+          # Only a handoff to the release job, which attaches its own copies to the release, and the free tier's 500MB of Actions storage fits little more than one release's worth.
+          # A day still leaves room to re-run a failed release job.
           retention-days: 1
           if-no-files-found: error
           path: |
@@ -71,7 +74,8 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      # Published, not a draft: a draft is invisible to read-only collaborators, who would see an empty Releases page. The repo is private, so published still means visible only to them.
+      # Published, not a draft: a draft is invisible to read-only collaborators, who would see an empty Releases page.
+      # The repo is private, so published still means visible only to them.
       # The release notes ARE the changelog entry, not a generated commit list: the changelog is written for the people installing this, and a commit list is not.
       # Extracts the section for this tag — everything from its own heading up to the next one.
       - run: |
@@ -81,7 +85,8 @@ jobs:
             found && /^## / { exit }
             found { print }
           ' CHANGELOG.md > notes.md
-          # An empty section means the tag was pushed without writing its entry. Fail rather than publish a release that says nothing about itself.
+          # An empty section means the tag was pushed without writing its entry.
+          # Fail rather than publish a release that says nothing about itself.
           if [ ! -s notes.md ]; then
             echo "CHANGELOG.md has no section for $version" >&2
             exit 1
@@ -90,7 +95,8 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md artifacts/*
         env:
           GH_TOKEN: ${{ github.token }}
-      # The release now holds its own copies, so the handoff artifacts are dead weight against the storage quota. Runs only after a successful release, so a failed one keeps them for a re-run of this job.
+      # The release now holds its own copies, so the handoff artifacts are dead weight against the storage quota.
+      # Runs only after a successful release, so a failed one keeps them for a re-run of this job.
       - run: gh api --paginate "/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[].id' | xargs -r -I{} gh api -X DELETE "/repos/$GITHUB_REPOSITORY/actions/artifacts/{}"
         env:
           GH_TOKEN: ${{ github.token }}

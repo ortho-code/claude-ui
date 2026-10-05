@@ -1,4 +1,5 @@
-// Generates the app icons with no external tools: a rounded accent tile with a terminal chevron. Run: node scripts/make-icon.mjs
+// Generates the app icons with no external tools: a rounded accent tile with a terminal chevron.
+// Run: node scripts/make-icon.mjs
 //
 // Writes TWO things, because the platforms need different shapes:
 //   assets/icon.png — 1024x1024, for macOS and for the BrowserWindow icon.
@@ -67,7 +68,8 @@ function render(size) {
   line(172, 128, 98, 180, 15, FG);
   line(150, 192, 196, 192, 15, FG);
 
-  // Box-filter SSxSS blocks down to one pixel. RGB is averaged weighted by alpha (premultiplied) so the transparent pixels outside the tile, whose RGB is 0, do not darken its edge into a black rim.
+  // Box-filter SSxSS blocks down to one pixel.
+  // RGB is averaged weighted by alpha (premultiplied) so the transparent pixels outside the tile, whose RGB is 0, do not darken its edge into a black rim.
   const out = Buffer.alloc(size * size * 4);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
