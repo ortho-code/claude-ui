@@ -1,4 +1,5 @@
-/* Custom tooltip (replaces native title=). One floating element, positioned by tooltip.ts. */
+/* Custom tooltip (replaces native title=).
+   One floating element, positioned by tooltip.ts. */
 #tooltip {
   position: fixed;
   z-index: 1000;

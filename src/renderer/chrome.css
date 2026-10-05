@@ -1,4 +1,7 @@
-/* Our title bar, on the platforms where the OS no longer draws one. Note there is NO `-webkit-app-region: drag` anywhere: dragging is done by hand, like resizing. A drag region brings Chromium's own double-click-to-maximize with it, which cannot be turned off (`maximizable: false` does not stop it) and fought our own handler — the window would maximize natively, drawn offset from where it could be clicked, while the app still believed it was not maximized. Owning the gesture outright is what removed the conflict. */
+/* Our title bar, on the platforms where the OS no longer draws one.
+   Note there is NO `-webkit-app-region: drag` anywhere: dragging is done by hand, like resizing.
+   A drag region brings Chromium's own double-click-to-maximize with it, which cannot be turned off (`maximizable: false` does not stop it) and fought our own handler — the window would maximize natively, drawn offset from where it could be clicked, while the app still believed it was not maximized.
+   Owning the gesture outright is what removed the conflict. */
 #titlebar {
   position: relative; /* the resize strip positions against this */
   flex: 0 0 auto;

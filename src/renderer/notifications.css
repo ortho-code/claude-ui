@@ -1,4 +1,5 @@
-/* Stacking attention toasts (a background tab went waiting/idle). Separate from the one-off #toast. */
+/* Stacking attention toasts (a background tab went waiting/idle).
+   Separate from the one-off #toast. */
 #notifications {
   position: fixed;
   right: 16px;

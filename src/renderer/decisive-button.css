@@ -1,4 +1,9 @@
-/* THE DECISIVE BUTTON of a dialog: filled, so it is what your eye lands on and nothing else in the dialog competes. Two colours of one shape — .primary confirms, .danger destroys — rather than the two unrelated blocks they were before .primary existed. Imported by each module that draws one: the modal's dialogs (modal.ts), and the pane's Resume (claude/pane.ts), which stands in the pane's actions and in the history's note. FILLED RATHER THAN OUTLINED for a specific reason: `button:hover` sets an accent BORDER app-wide, so a resting accent border is indistinguishable from an ordinary button being hovered, which is exactly how the old `#rename-ok` read. A fill cannot be confused with it. The hover is a brightness step rather than another colour: these already carry the strongest colour in the dialog, so darkening what they have keeps one rule for both. */
+/* THE DECISIVE BUTTON of a dialog: filled, so it is what your eye lands on and nothing else in the dialog competes.
+   Two colours of one shape — .primary confirms, .danger destroys — rather than the two unrelated blocks they were before .primary existed.
+   Imported by each module that draws one: the modal's dialogs (modal.ts), and the pane's Resume (claude/pane.ts), which stands in the pane's actions and in the history's note.
+   FILLED RATHER THAN OUTLINED for a specific reason: `button:hover` sets an accent BORDER app-wide, so a resting accent border is indistinguishable from an ordinary button being hovered, which is exactly how the old `#rename-ok` read.
+   A fill cannot be confused with it.
+   The hover is a brightness step rather than another colour: these already carry the strongest colour in the dialog, so darkening what they have keeps one rule for both. */
 .dialog-actions .primary,
 .pane-actions .primary,
 .history-note .primary {
@@ -12,7 +17,8 @@
   color: #fff;
 }
 
-/* Background and border are the SAME colour, at rest and on hover, so the brightness step darkens the whole button and its outline never appears to move. Naming the fill once per colour is what makes that safe: an earlier version set the hover border to `currentColor` — the TEXT colour, not the fill — which put a dark border on the blue button (it read as shrinking by a pixel all round) and a white ring on the red one. */
+/* Background and border are the SAME colour, at rest and on hover, so the brightness step darkens the whole button and its outline never appears to move.
+   Naming the fill once per colour is what makes that safe: an earlier version set the hover border to `currentColor` — the TEXT colour, not the fill — which put a dark border on the blue button (it read as shrinking by a pixel all round) and a white ring on the red one. */
 .dialog-actions .primary,
 .pane-actions .primary,
 .history-note .primary,

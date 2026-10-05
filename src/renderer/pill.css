@@ -2,7 +2,9 @@
    The date presets' own rules sit here as well, because the "on" look has to come after their hover rule to beat it at equal specificity. */
 
 /* Filter toggles: dimmed when off, accent-filled when on. */
-/* The filter pills are every direct-child button of #filters (date-preset buttons are nested a level deeper, so they're excluded). Styling by pattern means a new pill needs no CSS change. The history's "Pinned only" is a filter too, and wears the same pill. */
+/* The filter pills are every direct-child button of #filters (date-preset buttons are nested a level deeper, so they're excluded).
+   Styling by pattern means a new pill needs no CSS change.
+   The history's "Pinned only" is a filter too, and wears the same pill. */
 /* Off = --muted, the same "inactive" cue the rest of the app uses, rather than opacity: a dimmed button fades its border and background too, so an off pill read as disabled instead of unselected. */
 #filters > button,
 .history-filter {
@@ -12,7 +14,9 @@
   color: var(--muted);
 }
 
-/* Every pill except the date presets is icon-only: the same marks the rows use (star, branch, fork, archive box), injected by the filter (panels/types/sessions/filter.ts). Words cost the panel a whole extra line at a 320px sidebar, and each pill keeps its tooltip and aria-label, so the meaning is still one hover away. Icons are 13px, matching the pills' 12px text so they don't make the row taller. */
+/* Every pill except the date presets is icon-only: the same marks the rows use (star, branch, fork, archive box), injected by the filter (panels/types/sessions/filter.ts).
+   Words cost the panel a whole extra line at a 320px sidebar, and each pill keeps its tooltip and aria-label, so the meaning is still one hover away.
+   Icons are 13px, matching the pills' 12px text so they don't make the row taller. */
 #filters > button,
 .history-filter {
   display: inline-flex;
