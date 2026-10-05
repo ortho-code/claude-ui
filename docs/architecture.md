@@ -62,6 +62,9 @@ The linter reads it, because a type-aware rule needs a project for every file it
 `noUncheckedIndexedAccess` is on, so an index into an array or a record reads as possibly missing, and the code says why it is not: a check, or a `!` where the lines just before guarantee it.
 The test project turns it off: a test that indexes past the end fails anyway, and the source files it pulls in are checked with it on by the build projects.
 
+**Prose is never hard-wrapped**, in a comment or in a doc: no sentence goes on in the next line, so the raw text reads as the rendered one does, and an edit reflows only the line it changes.
+A unit test reads every comment and every doc paragraph git tracks and fails on a wrapped line, naming it (`test/unit/prose.test.ts`); what it does not count as wrapped (a list, a tag, a fence, an indented sample, a comment after code) is spelled out in it.
+
 ## The window's checks
 
 Every test is under `test/`, so `src/` is only what ships.
