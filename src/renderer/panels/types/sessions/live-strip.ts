@@ -64,9 +64,6 @@ function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButto
   return stop;
 }
 
-// Cross-project live strip at the foot of the sidebar.
-// The toggle badge is the switcher header's overall roll-up (`switcherModel`); expanded, it lists the nudged SESSIONS grouped under their project (each a row: state dot + session title), click one to jump to it.
-// Muted "all clear" when nothing pending.
 function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'stripExpanded'>): void {
   const { stripExpanded } = view;
   const overall = model.all.badge;
