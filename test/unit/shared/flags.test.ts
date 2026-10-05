@@ -84,8 +84,7 @@ describe('parseLaunchFlags', () => {
   });
 
   it('does NOT expand anything a shell would', () => {
-    // These reach claude as argv, so they are text. The test pins that, because the day someone
-    // reintroduces a shell string this is what silently changes.
+    // These reach claude as argv, so they are text. The test pins that, because the day someone reintroduces a shell string this is what silently changes.
     expect(ok('--x $HOME')).toEqual(['--x', '$HOME']);
     expect(ok('--x "$(rm -rf /)"')).toEqual(['--x', '$(rm -rf /)']);
     expect(ok('--x *.ts')).toEqual(['--x', '*.ts']);
@@ -176,8 +175,7 @@ describe('parseLaunchFlags', () => {
 
 describe('the reserved list and the launch line', () => {
   it('reserves every flag claude-ui passes itself', () => {
-    // The link between the two lists, since the compiler cannot make one: ask claudeArgs for a
-    // launch with every option set, and require that each flag it emits is refused in the field.
+    // The link between the two lists, since the compiler cannot make one: ask claudeArgs for a launch with every option set, and require that each flag it emits is refused in the field.
     const emitted = claudeArgs({
       settingsFile: '/tmp/claude-settings.json',
       sessionId: 'new-id',

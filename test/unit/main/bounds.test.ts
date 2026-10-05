@@ -104,9 +104,7 @@ describe('insetFromProbe', () => {
     expect(insetFromProbe({ x: 0, y: 0, width: 3440, height: 1440 }, area)).toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
   });
 
-  // The bug this exists for: the probe lands on whichever display the window manager chose, and
-  // measuring it against another display's work area yields a negative inset that would shove the
-  // window off screen. It has to be refused, not applied.
+  // The bug this exists for: the probe lands on whichever display the window manager chose, and measuring it against another display's work area yields a negative inset that would shove the window off screen. It has to be refused, not applied.
   it('refuses an answer from a different display', () => {
     expect(insetFromProbe({ x: 3440, y: 0, width: 2560, height: 1540 }, area)).toBeNull();
   });
@@ -141,8 +139,7 @@ describe('resizeBy', () => {
     });
   }
 
-  // The collapse: with no minimum the clamp did nothing, an edge dragged past its opposite took the
-  // size to zero, and the origin followed it into the corner of the screen.
+  // The collapse: with no minimum the clamp did nothing, an edge dragged past its opposite took the size to zero, and the origin followed it into the corner of the screen.
   it('stops at the minimum instead of collapsing', () => {
     const crushed = resizeBy(start, 'se', -5000, -5000);
     expect(crushed.width).toBe(MIN_WIDTH);
@@ -160,10 +157,7 @@ describe('resizeBy', () => {
     });
   });
 
-  // Every event in a gesture reports its offset from where the gesture BEGAN and is applied to the
-  // rectangle captured then, so replaying the same total lands in the same place however many events
-  // arrive. Feeding each result into the next — what per-event deltas would amount to — drifts, and
-  // that is the failure this shape avoids.
+  // Every event in a gesture reports its offset from where the gesture BEGAN and is applied to the rectangle captured then, so replaying the same total lands in the same place however many events arrive. Feeding each result into the next — what per-event deltas would amount to — drifts, and that is the failure this shape avoids.
   it('applies the total offset, so repeated events do not accumulate', () => {
     const once = resizeBy(start, 'e', 30, 0);
     expect(resizeBy(start, 'e', 30, 0)).toEqual(once);
@@ -202,8 +196,7 @@ describe('frameOffsetVerdict', () => {
     expect(frameOffsetVerdict(6, 27)).toBe('correct');
   });
 
-  // The failure this had once: an unmapped window reads about -32700 on both axes for the first
-  // ~50ms. Treating that as the answer made it give up before the real offset arrived at ~250ms.
+  // The failure this had once: an unmapped window reads about -32700 on both axes for the first ~50ms. Treating that as the answer made it give up before the real offset arrived at ~250ms.
   it('waits through the unmapped reading rather than treating it as an answer', () => {
     expect(frameOffsetVerdict(-32700, -32700)).toBe('wait');
   });

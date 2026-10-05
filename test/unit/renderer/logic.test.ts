@@ -712,8 +712,7 @@ describe('statusLabel', () => {
     expect(statusLabel('busy')).toBe('Busy');
     expect(statusLabel('idle')).toBe('Idle');
     expect(statusLabel('waiting')).toBe('Waiting for you');
-    // Not "Stopped": the status arrives from SessionEnd, which fires whether the session was stopped,
-    // finished on its own, or had its tab closed — so naming the event would be wrong twice over.
+    // Not "Stopped": the status arrives from SessionEnd, which fires whether the session was stopped, finished on its own, or had its tab closed — so naming the event would be wrong twice over.
     expect(statusLabel('closed')).toBe('Not running');
   });
 
@@ -748,8 +747,7 @@ describe('stopControlState', () => {
   });
 
   it('reports ARRIVING when a tab somehow carries both flags', () => {
-    // The precedence is load-bearing and was implicit until this test: a tab that is both is one being
-    // started, and calling it "Stopping…" would tell the user the opposite of what is happening.
+    // The precedence is load-bearing and was implicit until this test: a tab that is both is one being started, and calling it "Stopping…" would tell the user the opposite of what is happening.
     expect(stopControlState({ starting: true, stopping: true })).toEqual({ disabled: true, tooltip: 'Starting…' });
   });
 });
