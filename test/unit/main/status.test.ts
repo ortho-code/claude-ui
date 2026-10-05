@@ -3,7 +3,8 @@ import { promises as fs } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import * as path from 'node:path';
 
-// A temp HOME so installStatusHooks writes into a throwaway ~/.claude and ~/.config. Created in vi.hoisted so it exists before the node:os mock (which closes over it) and before status.ts loads.
+// A temp HOME so installStatusHooks writes into a throwaway ~/.claude and ~/.config.
+// Created in vi.hoisted so it exists before the node:os mock (which closes over it) and before status.ts loads.
 const { testHome } = vi.hoisted(() => {
   const os = require('node:os');
   const fs = require('node:fs');
@@ -142,7 +143,10 @@ describe('the hook script', () => {
 
   const TOKEN = 'tab-token-1';
 
-  /** Run the script as Claude Code would. `scoped` false drops CLAUDE_UI, standing in for a session started in a plain terminal. */
+  /**
+   * Run the script as Claude Code would.
+   * `scoped` false drops CLAUDE_UI, standing in for a session started in a plain terminal.
+   */
   function runHook(status: string, payload: Record<string, unknown>, scoped = true): void {
     const env: NodeJS.ProcessEnv = { ...process.env, PATH: process.env.PATH, CLAUDE_UI_TAB: TOKEN };
     delete env.CLAUDE_UI;
@@ -184,7 +188,8 @@ describe('the hook script', () => {
   });
 
   /**
-   * EVERY reason, `clear` and `resume` included. Those two leave the PROCESS running, which is what made them look like exceptions — but they end the session this event NAMES and start a different one, and this app tracks sessions.
+   * EVERY reason, `clear` and `resume` included.
+   * Those two leave the PROCESS running, which is what made them look like exceptions — but they end the session this event NAMES and start a different one, and this app tracks sessions.
    * Declining to write for them was tried and reverted: it left the finished session showing a live dot for good.
    */
   it.each(['clear', 'resume', 'logout', 'prompt_input_exit', 'other'])(
@@ -208,7 +213,8 @@ describe('the hook script', () => {
     expect((await readStatusFile())?.status).toBe('idle');
   });
 
-  // Every other SessionStart is identity only. Writing it over a real status would hollow a live dot, and the wrong answer would then be seeded at the next launch.
+  // Every other SessionStart is identity only.
+  // Writing it over a real status would hollow a live dot, and the wrong answer would then be seeded at the next launch.
   it.each(['clear', 'resume', 'startup'])('never overwrites a status when SessionStart says %s', async (source) => {
     runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
     runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source });

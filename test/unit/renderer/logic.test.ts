@@ -116,7 +116,8 @@ describe('structuralSignature', () => {
   });
 
   /**
-   * Every field a row is drawn from, one case each. The sidebar is only redrawn when this string moves, so a field missing here is a row that FREEZES — it keeps the old value until something unrelated changes.
+   * Every field a row is drawn from, one case each.
+   * The sidebar is only redrawn when this string moves, so a field missing here is a row that FREEZES — it keeps the old value until something unrelated changes.
    * `model` is the one that was actually missing: switching model mid-session left the old label on the row.
    */
   it.each([
@@ -254,7 +255,8 @@ describe('sessionPasses', () => {
     expect(sessionPasses(session({ id: 's1' }), { ...base, text: 'terminal', groupNames })).toBe(false);
   });
 
-  // The set worth finding: what to clean up, or what to put a folder back for. It asks the row's own question rather than a second rule that could disagree with the dimming.
+  // The set worth finding: what to clean up, or what to put a folder back for.
+  // It asks the row's own question rather than a second rule that could disagree with the dimming.
   it('shows only sessions whose folder is gone when asked', () => {
     const alive = session({ id: 'a' });
     const dead = session({ id: 'b', cwd: '/gone', cwdExists: false });
@@ -657,7 +659,8 @@ describe('orderAsTabs', () => {
     expect(out.map((c) => c.repoRoot)).toEqual(['/early', '/late']);
   });
 
-  // The tab bar passes no project order and gets the order it met them in; the strip passes yours. Same function, one parameter apart.
+  // The tab bar passes no project order and gets the order it met them in; the strip passes yours.
+  // Same function, one parameter apart.
   it('falls back to the order projects first appear', () => {
     const out = orderAsTabs([at('a', '/second'), at('b', '/first')], groups({}));
     expect(out.map((c) => c.repoRoot)).toEqual(['/second', '/first']);
@@ -676,7 +679,8 @@ describe('orderAsTabs', () => {
     expect(flat(out)).toEqual(['loose-1', 'loose-2', 'in-g1', 'in-g2']);
   });
 
-  // Within a run, the caller's order is passed through untouched — no recency, no pins, no urgency. Sorting by any of those is what made rows swap while they were being read.
+  // Within a run, the caller's order is passed through untouched — no recency, no pins, no urgency.
+  // Sorting by any of those is what made rows swap while they were being read.
   it('leaves a run in the order it was handed', () => {
     const out = orderAsTabs([at('c', '/repo'), at('a', '/repo'), at('b', '/repo')], groups({}));
     expect(flat(out)).toEqual(['c', 'a', 'b']);

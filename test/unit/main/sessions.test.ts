@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 
-// A temp HOME whose ~/.claude/projects we fill with fixtures. Created in vi.hoisted so it exists before the node:os mock factory (which closes over it) and before sessions.ts loads.
+// A temp HOME whose ~/.claude/projects we fill with fixtures.
+// Created in vi.hoisted so it exists before the node:os mock factory (which closes over it) and before sessions.ts loads.
 const { testHome } = vi.hoisted(() => {
   const os = require('node:os');
   const fs = require('node:fs');
@@ -89,7 +90,8 @@ beforeAll(async () => {
     ),
   );
 
-  // Case A: a fork of a COMPACTED session adopts a post-compaction head as its conversationId. q's first message uuid equals k's post-compaction head 'khead', so k and q are one family.
+  // Case A: a fork of a COMPACTED session adopts a post-compaction head as its conversationId.
+  // q's first message uuid equals k's post-compaction head 'khead', so k and q are one family.
   // The fork copies the parent's boundary event too, so q also claims 'khead' as its OWN head (the real c74279cd shape) — that self-claim must not break the k<->q link.
   await fs.writeFile(
     path.join(dir, 'q.jsonl'),

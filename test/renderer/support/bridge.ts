@@ -51,7 +51,10 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     };
   // Recorded, and nothing else: what main does with it reaches the window, if at all, as a later event, which a check fires itself.
   const sent = (): void => {};
-  /** What is at `path`, as main would find it: the fixture's disk (`BridgeFixture.paths`), read when asked, so a check can change it mid-run. One look for every call that asks, as main has one disk. */
+  /**
+   * What is at `path`, as main would find it: the fixture's disk (`BridgeFixture.paths`), read when asked, so a check can change it mid-run.
+   * One look for every call that asks, as main has one disk.
+   */
   const onDisk = (path: string): Found =>
     fixture.paths[path] ??
     (fixture.sessions.some((s) => (s.cwd === path && s.cwdExists) || (s.repoRoot === path && s.repoRootExists)) || path === fixture.pickFolder ? 'directory' : 'missing');

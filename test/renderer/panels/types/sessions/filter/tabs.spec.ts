@@ -5,7 +5,8 @@ import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { tabLabel, tabs, titles } from '../../../../support/window';
 
-// Two filters are questions about the TABS rather than the sessions: "open" shows the sessions with a tab, "live" the ones with a claude running. So the list they filter has to follow the tabs as they open, start, stop and close.
+// Two filters are questions about the TABS rather than the sessions: "open" shows the sessions with a tab, "live" the ones with a claude running.
+// So the list they filter has to follow the tabs as they open, start, stop and close.
 const one = session();
 const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Another session' });
 const fixture = { sessions: [one, two], history: { [one.id]: [], [two.id]: [] }, openSessions: [one.id] };

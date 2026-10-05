@@ -84,7 +84,8 @@ describe('parseLaunchFlags', () => {
   });
 
   it('does NOT expand anything a shell would', () => {
-    // These reach claude as argv, so they are text. The test pins that, because the day someone reintroduces a shell string this is what silently changes.
+    // These reach claude as argv, so they are text.
+    // The test pins that, because the day someone reintroduces a shell string this is what silently changes.
     expect(ok('--x $HOME')).toEqual(['--x', '$HOME']);
     expect(ok('--x "$(rm -rf /)"')).toEqual(['--x', '$(rm -rf /)']);
     expect(ok('--x *.ts')).toEqual(['--x', '*.ts']);
@@ -142,7 +143,8 @@ describe('parseLaunchFlags', () => {
   });
 
   it('leaves flags that are merely risky to the person typing them', () => {
-    // The rule is "would this break the app", not "is this wise". Someone's own machine, their call.
+    // The rule is "would this break the app", not "is this wise".
+    // Someone's own machine, their call.
     expect(ok('--dangerously-skip-permissions')).toEqual(['--dangerously-skip-permissions']);
     expect(ok('--permission-mode acceptEdits')).toEqual(['--permission-mode', 'acceptEdits']);
   });

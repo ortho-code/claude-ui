@@ -8,7 +8,8 @@ import { defaultFixture, type BridgeEvent, type BridgeEventArgs, type BridgeFixt
 /** The window as it ships: `npm run build`'s output, which `npm run test:renderer` builds first. */
 const DIST = path.resolve(__dirname, '../../../dist/renderer');
 /**
- * A made-up origin the page is served on, every request answered from DIST: no server and no port. Module scripts do not load from file://.
+ * A made-up origin the page is served on, every request answered from DIST: no server and no port.
+ * Module scripts do not load from file://.
  * HTTPS so the page is a secure context, as the app's own file:// page is: over plain http Chromium withholds `crypto.randomUUID`, and the window mints every new session's id with it.
  */
 const ORIGIN = 'https://claude-ui.test';

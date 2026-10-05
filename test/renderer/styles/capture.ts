@@ -17,7 +17,8 @@ import type { Page } from '@playwright/test';
 /** What gets its hover and focus captured: what you press or type into, a divider, whose chevrons brighten on hover, and anything the page gives a pointer — the element that gives it, since `cursor` is inherited by everything inside. */
 const CONTROLS = 'button, input, textarea, select, a[href], [role="button"], [role="menuitem"], .divider';
 /**
- * How many ancestors are hovered with a control. Every rule here that styles something other than the element hovered reaches from at most two levels up (`.split-button:hover > …`, `.exchange-request:hover .exchange-pin`), and hovering everything up to `body` restyles the whole window for each control.
+ * How many ancestors are hovered with a control.
+ * Every rule here that styles something other than the element hovered reaches from at most two levels up (`.split-button:hover > …`, `.exchange-request:hover .exchange-pin`), and hovering everything up to `body` restyles the whole window for each control.
  * Raise it when a rule reaches further.
  */
 const HOVER_UP = 3;
@@ -44,7 +45,10 @@ declare global {
   }
 }
 
-/** Page side: number every element, key it, capture it at rest, and name the controls. Runs in the page, so it is self-contained. */
+/**
+ * Page side: number every element, key it, capture it at rest, and name the controls.
+ * Runs in the page, so it is self-contained.
+ */
 function install(controls: string): Installed {
   // Sorted, since custom properties come back in a different order from one page load to the next.
   const read = (el: Element, pseudo?: string): Record<string, string> => {
@@ -122,7 +126,8 @@ interface DomNode {
 
 /**
  * Capture the window as it stands into `<dir>/<name>.txt`, and a picture of it into `<dir>/<name>.png`.
- * The picture is for what computed styles cannot show: which of two overlapping elements paints on top, which follows from their order in the page as much as from any style. Two pictures of one build are the same bytes but for one known two-pixel exception, which compare.ts lists like any other difference.
+ * The picture is for what computed styles cannot show: which of two overlapping elements paints on top, which follows from their order in the page as much as from any style.
+ * Two pictures of one build are the same bytes but for one known two-pixel exception, which compare.ts lists like any other difference.
  */
 export async function snapshot(page: Page, dir: string, name: string): Promise<void> {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
@@ -148,7 +153,8 @@ export async function snapshot(page: Page, dir: string, name: string): Promise<v
     });
   await hold();
   await mkdir(dir, { recursive: true });
-  // At rest, before anything is numbered or forced. Playwright plays an endless animation again once the picture is taken, so it is held again after.
+  // At rest, before anything is numbered or forced.
+  // Playwright plays an endless animation again once the picture is taken, so it is held again after.
   await page.screenshot({ path: path.join(dir, `${name}.png`), animations: 'disabled' });
   await hold();
   const { lines: rest, targets } = await page.evaluate(install, CONTROLS);

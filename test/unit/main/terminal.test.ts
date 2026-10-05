@@ -204,7 +204,8 @@ describe('stopping a session', () => {
   });
 
   /**
-   * A folder that is no longer there is REFUSED. It used to be swapped for the home directory in silence, so a session whose worktree had been removed ran in `~` and then wrote its transcript under the home project, moving in the sidebar.
+   * A folder that is no longer there is REFUSED.
+   * It used to be swapped for the home directory in silence, so a session whose worktree had been removed ran in `~` and then wrote its transcript under the home project, moving in the sidebar.
    * `claude -w` removes its own tree when the session ends, so this is the ordinary fate of a worktree session rather than an edge case.
    */
   it.each([['/definitely/not/here'], ['']])('refuses to start in a folder that is not there (%s)', async (cwd) => {

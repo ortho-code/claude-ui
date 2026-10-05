@@ -58,7 +58,8 @@ describe('logProcessFailures', () => {
     }
   });
 
-  // Electron shows its main-process error dialog only while it is the ONE uncaughtException listener. Adding a listener would take the dialog away in silence.
+  // Electron shows its main-process error dialog only while it is the ONE uncaughtException listener.
+  // Adding a listener would take the dialog away in silence.
   it('leaves uncaughtException alone, so Electron still shows its dialog', () => {
     const before = process.listenerCount('uncaughtException');
     logProcessFailures();

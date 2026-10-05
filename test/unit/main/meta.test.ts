@@ -3,7 +3,8 @@ import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-// meta.ts stores its JSON under app.getPath('userData'); point that at a fresh temp dir per test. getVersion feeds the appVersion stamp and the version-change backup, so tests can move it.
+// meta.ts stores its JSON under app.getPath('userData'); point that at a fresh temp dir per test.
+// getVersion feeds the appVersion stamp and the version-change backup, so tests can move it.
 vi.mock('electron', () => ({
   app: { getPath: () => process.env.TEST_USERDATA, getVersion: () => process.env.TEST_APPVERSION ?? '1.0.0' },
 }));
@@ -144,7 +145,8 @@ describe('purgeSession', () => {
 });
 
 describe('recordClear', () => {
-  // Data collection only: nothing reads this back. Nothing in either transcript links a cleared session to its predecessor, so the log is the only account that they are connected.
+  // Data collection only: nothing reads this back.
+  // Nothing in either transcript links a cleared session to its predecessor, so the log is the only account that they are connected.
   it('writes the pairing to the audit log, named or not', async () => {
     await recordClear('old-a', 'new-a', 'Named');
     await recordClear('old-b', 'new-b', '');
@@ -785,7 +787,8 @@ describe('audit log', () => {
   });
 
   it('trims itself once it passes the size cap, and keeps the NEWEST lines', async () => {
-    // Seed well past the 256KB cap. The content does not matter, only that the next real write finds an oversized file; `marker` proves the survivors are the tail, not the head.
+    // Seed well past the 256KB cap.
+    // The content does not matter, only that the next real write finds an oversized file; `marker` proves the survivors are the tail, not the head.
     await fs.writeFile(auditFile(), `${'x'.repeat(300 * 1024)}\nmarker-last\n`);
     await togglePin('s1');
     const text = await fs.readFile(auditFile(), 'utf8');
