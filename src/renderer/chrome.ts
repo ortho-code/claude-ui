@@ -7,7 +7,8 @@ import './chrome.css';
 // Why each piece is hand-built, the native maximize among them, is in docs/architecture.md § The window's own chrome.
 
 // Our title bar, first in the page so it sits above the app. A strip of its own rather than controls folded into the row below, which was tried first: with the tab bar wrapping to two rows there was almost no empty space left to grab, so the window became hard to move.
-// The top three resize handles live INSIDE the bar, not laid over it: no-drag only carves out of a drag region it is a descendant of, so as siblings they were ignored and the top edge never resized. The other five are outside, below, where nothing is draggable.
+// The top three resize handles live INSIDE the bar, positioned against it (chrome.css), and the bar's own drag leaves them to resize (onBarBackground); the other five are outside, below.
+// They went inside for a drag region the bar no longer has, which ignored any handle that was not its descendant.
 document.body.insertAdjacentHTML(
   'afterbegin',
   `<div id="titlebar" hidden>
