@@ -162,13 +162,13 @@ export interface SessionGroup {
   repoRoot: string | null;
 }
 
+/** Where an ordering move sends a group or project: the ends, or one step either way. */
+export type OrderMove = 'top' | 'up' | 'down' | 'bottom';
+
 /**
  * Every group and who is in one.
  * Read and returned whole, so the two halves can never disagree.
  */
-/** Where an ordering move sends a group or project: the ends, or one step either way. */
-export type OrderMove = 'top' | 'up' | 'down' | 'bottom';
-
 export interface GroupState {
   /** The registry, in display order: a new group is prepended, so it lands at the top of its project. */
   groups: SessionGroup[];
