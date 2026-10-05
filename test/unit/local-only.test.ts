@@ -4,7 +4,7 @@ import { linesBreaking, tracked } from './tracked';
 /**
  * Nothing committed points at what only one person's machine has: the plans in `.plan/`, `CLAUDE.local.md`, or a personal skill such as `wsl` or `phpstorm`.
  * Such a pointer reads as a dead end to everybody else, and what it points at is not reviewed with the code.
- * `CLAUDE.md` is the exception: it says where local content goes.
+ * The Claude config is the exception, `CLAUDE.md` and `.claude/`: it says where local content goes.
  */
 const LOCAL_ONLY = /\.plan\b|\b(plan|research|design)_[\w-]+\.(md|html)\b|CLAUDE\.local\.md|\b(wsl|phpstorm)`? skill\b/i;
 
@@ -16,7 +16,7 @@ function pointsLocal(file: string, text: string): string[] {
 describe('local-only content', () => {
   it('is pointed at by nothing committed', () => {
     // This file holds the names it looks for.
-    const committed = tracked(/\.(ts|mjs|js|css|md|yml|yaml|sh|toml|json|html)$/).filter(({ file }) => file !== 'CLAUDE.md' && file !== 'test/unit/local-only.test.ts');
+    const committed = tracked(/\.(ts|mjs|js|css|md|yml|yaml|sh|toml|json|html)$/).filter(({ file }) => file !== 'CLAUDE.md' && !file.startsWith('.claude/') && file !== 'test/unit/local-only.test.ts');
     expect(committed.flatMap(({ file, text }) => pointsLocal(file, text))).toEqual([]);
   });
 
