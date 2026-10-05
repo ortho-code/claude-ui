@@ -81,7 +81,7 @@ const appTitle = `Claude UI ${app.getVersion()}${app.isPackaged ? '' : ' — dev
 /**
  * Whether the app draws its own window chrome instead of letting the OS do it.
  *
- * CURRENTLY OFF, on the window it was built for. It works — a title bar of our own, our own maximize, a handle on every edge — but dragging the window is visibly steppy and cannot be made smooth: the gesture is ours, every move is a round trip to the compositor, and handing the drag back to the compositor brings a double-click-to-maximize that misdraws and cannot be suppressed. That trade was not worth it in daily use. Why, and why each piece is hand-built, is in docs/architecture.md § The window's own chrome, and the environment findings are in the `wsl` skill.
+ * CURRENTLY OFF, on the window it was built for. It works — a title bar of our own, our own maximize, a handle on every edge — but dragging the window is visibly steppy and cannot be made smooth: the gesture is ours, every move is a round trip to the compositor, and handing the drag back to the compositor brings a double-click-to-maximize that misdraws and cannot be suppressed. That trade was not worth it in daily use. Why, and why each piece is hand-built, is in docs/architecture.md § The window's own chrome.
  *
  * TO TURN IT BACK ON: `process.platform !== 'darwin'`. Everything hangs off this one flag — the frame, the shadow, whether the native maximize is allowed, our maximize, the title bar the renderer draws, the resize handles, and the frame-offset correction that only a DECORATED window needs. Both paths are live: macOS has always run the OS-chrome side of every one of those branches.
  *
@@ -253,7 +253,7 @@ function correctFramePlacement(win: BrowserWindow, wanted: { x: number; y: numbe
  *
  * `maximize()` and `setFullScreen()` both MISDRAW a frameless window under WSLg: the invisible resize margin a frameless window still carries is applied to the pixels but not to the input region, so a control is painted in one place and clicked in another, and anything near the right edge is pushed off-screen while remaining clickable at the true edge.
  * `setBounds` to the work area has neither problem — bounds and content agree, and it lands where it says.
- * So the window never enters the native maximized state at all, and the flag is ours. The measurements are in the `wsl` skill; this is not a preference and should not be "simplified" back to `maximize()`.
+ * So the window never enters the native maximized state at all, and the flag is ours. Why is in docs/architecture.md § The window's own chrome; this is not a preference and should not be "simplified" back to `maximize()`.
  *
  * The frame offset this file used to cancel by polling (the window manager adding its title bar to every position it was given) went with the frame: it was a property of the decoration, and a frameless window lands exactly where it asks.
  */

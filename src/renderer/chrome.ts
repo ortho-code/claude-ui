@@ -4,7 +4,7 @@ import './chrome.css';
 
 // ---- The window's own title bar ----
 // Drawn only where there is no OS one. Every piece of it starts hidden, so macOS — which keeps its native frame and traffic lights — simply never turns any of it on.
-// See .plan/plan_window-chrome.md, and the `wsl` skill for why the native maximize cannot be used.
+// Why each piece is hand-built, the native maximize among them, is in docs/architecture.md § The window's own chrome.
 
 // Our title bar, first in the page so it sits above the app. A strip of its own rather than controls folded into the row below, which was tried first: with the tab bar wrapping to two rows there was almost no empty space left to grab, so the window became hard to move.
 // The top three resize handles live INSIDE the bar, not laid over it: no-drag only carves out of a drag region it is a descendant of, so as siblings they were ignored and the top edge never resized. The other five are outside, below, where nothing is draggable.
