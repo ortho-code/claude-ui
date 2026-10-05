@@ -25,13 +25,9 @@
   background: var(--surface-hover);
 }
 
-/* No held open state here, deliberately (user, 2026-08-13): the footer list is a PERSISTENT panel,
-   often open for a whole session, so a pressed look is lasting noise — unlike the switcher popover
-   (open briefly to pick) or the filter toggle (a compact button, where it reads fine). */
+/* No held open state here, deliberately (user, 2026-08-13): the footer list is a PERSISTENT panel, often open for a whole session, so a pressed look is lasting noise — unlike the switcher popover (open briefly to pick) or the filter toggle (a compact button, where it reads fine). */
 
-/* Which group a strip row belongs to, as a chip rather than a heading level: the strip is capped at
-   40vh, so a nested group would cost a row and an indent per group where this costs neither. Muted and
-   shrink-proof — the session name gives up the space, since the chip is short and the name is not. */
+/* Which group a strip row belongs to, as a chip rather than a heading level: the strip is capped at 40vh, so a nested group would cost a row and an indent per group where this costs neither. Muted and shrink-proof — the session name gives up the space, since the chip is short and the name is not. */
 .footer-item-group {
   flex: 0 0 auto;
   max-width: 40%;
@@ -71,16 +67,13 @@
 
 /* Shape and hover come from the MENU ROW rule (menu-row.css). */
 
-/* The strip row is a wrapper holding two buttons — jump, and stop — because a button cannot contain
-   a button. The wrapper keeps the menu-row shape, so this half only has to give up a button's own
-   box and stretch: the row's padding, hover and radius all still belong to .footer-item. */
+/* The strip row is a wrapper holding two buttons — jump, and stop — because a button cannot contain a button. The wrapper keeps the menu-row shape, so this half only has to give up a button's own box and stretch: the row's padding, hover and radius all still belong to .footer-item. */
 .footer-item-jump {
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
-  /* Without this a long session name refuses to shrink below its content and pushes the stop button
-     out of the row — a flex item's min-width is auto, not 0. */
+  /* Without this a long session name refuses to shrink below its content and pushes the stop button out of the row — a flex item's min-width is auto, not 0. */
   min-width: 0;
   padding: 0;
   background: none;

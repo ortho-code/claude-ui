@@ -1,8 +1,6 @@
 #app {
   display: flex;
-  /* Flex rather than height:100%, which would mean 100% of the body PLUS the title bar's height and
-     push the bottom of the terminal below the fold — the same fallout the tab rows once caused.
-     min-height:0 so the panes inside can scroll instead of stretching this. */
+  /* Flex rather than height:100%, which would mean 100% of the body PLUS the title bar's height and push the bottom of the terminal below the fold — the same fallout the tab rows once caused. min-height:0 so the panes inside can scroll instead of stretching this. */
   flex: 1;
   min-height: 0;
 }
@@ -249,11 +247,7 @@
   box-shadow: 0 0 0 2px var(--surface);
 }
 
-/* The group's header: title, the busy mark, the run's last word, Refresh. Body size at the group
-   heading's weight, since it names a section the way a group heading does; the padding is the tab
-   bar's density rather than a row's, because it sits beside the terminal, not in the list.
-   A FIXED height rather than one its content decides: a header with a button stood 5px taller than one without, so switching panels in a group made the bar jump.
-   28px is the compact button's 16px box with 6px either side, the tallest thing the bar holds; the title's 15px line centres in it. */
+/* The group's header: title, the busy mark, the run's last word, Refresh. Body size at the group heading's weight, since it names a section the way a group heading does; the padding is the tab bar's density rather than a row's, because it sits beside the terminal, not in the list. A FIXED height rather than one its content decides: a header with a button stood 5px taller than one without, so switching panels in a group made the bar jump. 28px is the compact button's 16px box with 6px either side, the tallest thing the bar holds; the title's 15px line centres in it. */
 .panel-header {
   display: flex;
   align-items: center;
@@ -301,17 +295,12 @@
   color: var(--muted);
 }
 
-/* A count a panel reports, beside its header's title: the section heading's count pill, on the
-   header's --bg, so it takes the bar's --surface to stand out. */
+/* A count a panel reports, beside its header's title: the section heading's count pill, on the header's --bg, so it takes the bar's --surface to stand out. */
 .panel-count {
   background: var(--surface);
 }
 
-/* The same count on the panel's rail icon: INSIDE the button, under the icon on a vertical rail and
-   beside it on a horizontal one, in the accent, so the button grows by a line and covers nothing.
-   Not a corner badge, which is what was tried first: MEASURED at 3x, on a 24px button even "9+"
-   covered the whole icon, and the rail clips anything past its 28px, so a badge cannot sit further
-   out. The status dot keeps its corner above. */
+/* The same count on the panel's rail icon: INSIDE the button, under the icon on a vertical rail and beside it on a horizontal one, in the accent, so the button grows by a line and covers nothing. Not a corner badge, which is what was tried first: MEASURED at 3x, on a 24px button even "9+" covered the whole icon, and the rail clips anything past its 28px, so a badge cannot sit further out. The status dot keeps its corner above. */
 .rail-item .rail-count {
   font-size: var(--text-badge);
   font-weight: 650;

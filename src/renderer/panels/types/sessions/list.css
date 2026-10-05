@@ -1,5 +1,4 @@
-/* Break between a project's last group and its ungrouped rows; without it the first loose row reads
-   as another member of the group above. */
+/* Break between a project's last group and its ungrouped rows; without it the first loose row reads as another member of the group above. */
 .session.after-groups {
   margin-top: 16px;
 }
@@ -13,10 +12,7 @@
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-/* Open, but nothing running behind it. Same bar in --muted rather than a different mark: the bar
-   already means "this one has a tab", and the colour says whether that tab is live. Three classes,
-   so it also wins over .active-session above — a selected cold tab keeps its fill and loses only the
-   accent edge. */
+/* Open, but nothing running behind it. Same bar in --muted rather than a different mark: the bar already means "this one has a tab", and the colour says whether that tab is live. Three classes, so it also wins over .active-session above — a selected cold tab keeps its fill and loses only the accent edge. */
 .session.open.cold {
   box-shadow: inset 3px 0 0 var(--muted);
 }

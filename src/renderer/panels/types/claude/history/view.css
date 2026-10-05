@@ -1,6 +1,4 @@
-/* THE HISTORY: the app's own view of a session's requests and claude's replies, over the terminal area.
-   Hidden by visibility, never display, while the live terminal is on show: it stays laid out, so what
-   it draws can be measured, which is how the bar beside it places its marks. */
+/* THE HISTORY: the app's own view of a session's requests and claude's replies, over the terminal area. Hidden by visibility, never display, while the live terminal is on show: it stays laid out, so what it draws can be measured, which is how the bar beside it places its marks. */
 .history {
   position: absolute;
   inset: 0;

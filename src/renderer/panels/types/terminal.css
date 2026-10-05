@@ -1,5 +1,4 @@
-/* A shell in a panel: the terminal pane's padding and background, filling the body. xterm sizes itself
-   to this box (the fit addon reads the parent's box minus its padding), so nothing else here is sized. */
+/* A shell in a panel: the terminal pane's padding and background, filling the body. xterm sizes itself to this box (the fit addon reads the parent's box minus its padding), so nothing else here is sized. */
 .panel-terminal {
   flex: 1;
   min-height: 0;

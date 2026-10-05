@@ -6,7 +6,6 @@
   /* No top padding: it would sit above the sticky headings and let a row show through there.
      The headings' own top padding provides the spacing instead. */
   padding: 0 16px 24px;
-  /* Collapse/expand anchors the clicked heading by hand; the browser's own scroll anchoring
-     would fight that and shift the list, so turn it off here. */
+  /* Collapse/expand anchors the clicked heading by hand; the browser's own scroll anchoring would fight that and shift the list, so turn it off here. */
   overflow-anchor: none;
 }

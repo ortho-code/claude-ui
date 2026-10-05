@@ -39,9 +39,7 @@
   background: var(--surface-hover);
 }
 
-/* A group's row of tabs, indented behind the same muted rail the sidebar uses so a group looks the
-   same in both halves of the window. Nothing here is filled: a filled shape beside the filled tabs
-   would read as another tab. */
+/* A group's row of tabs, indented behind the same muted rail the sidebar uses so a group looks the same in both halves of the window. Nothing here is filled: a filled shape beside the filled tabs would read as another tab. */
 .tab-group-row {
   padding-left: 3px;
 }
@@ -71,11 +69,9 @@
 .tab {
   display: flex;
   align-items: center;
-  /* Tight enough to cluster the leading dot + marks; .tab-label adds its own left margin so the
-     title still sits clear of them. */
+  /* Tight enough to cluster the leading dot + marks; .tab-label adds its own left margin so the title still sits clear of them. */
   gap: 4px;
-  /* Natural width (sized to the title), never shrinking; capped so a long title ellipsizes
-     instead of making one huge tab. */
+  /* Natural width (sized to the title), never shrinking; capped so a long title ellipsizes instead of making one huge tab. */
   flex: 0 0 auto;
   max-width: 200px;
   padding: 5px 8px;
@@ -89,10 +85,7 @@
   box-shadow: inset 0 3px 0 var(--accent);
 }
 
-/* Restored but not started. It loses the FILL rather than just dimming its text: every other tab is
-   a filled chip, so an unfilled one reads as "not loaded yet" at a glance, where a slightly greyer
-   label did not. Not badged and not marked — this is a session waiting to be resumed, and clicking
-   it is the whole fix. Hover fills it like any other tab, so it never reads as disabled. */
+/* Restored but not started. It loses the FILL rather than just dimming its text: every other tab is a filled chip, so an unfilled one reads as "not loaded yet" at a glance, where a slightly greyer label did not. Not badged and not marked — this is a session waiting to be resumed, and clicking it is the whole fix. Hover fills it like any other tab, so it never reads as disabled. */
 .tab.cold {
   background: none;
   box-shadow: inset 0 0 0 1px var(--border);
@@ -110,9 +103,7 @@
   color: var(--text);
 }
 
-/* Selected but still cold — the launch state. Keeps the selected EDGE so you can see where you are,
-   but in --muted, matching the session row's left bar: both marks answer "is this one running?", so
-   they have to answer it the same way. The accent is reserved for a live session. */
+/* Selected but still cold — the launch state. Keeps the selected EDGE so you can see where you are, but in --muted, matching the session row's left bar: both marks answer "is this one running?", so they have to answer it the same way. The accent is reserved for a live session. */
 .tab.cold.active {
   background: none;
   box-shadow:
@@ -125,8 +116,7 @@
   background: var(--surface-hover);
 }
 
-/* The leading glyphs (status dot + marks) sit close together as one cluster; the label keeps its
-   breathing room via its own margin, so tightening the icons doesn't crowd the text. */
+/* The leading glyphs (status dot + marks) sit close together as one cluster; the label keeps its breathing room via its own margin, so tightening the icons doesn't crowd the text. */
 .tab-marks {
   flex: 0 0 auto;
   display: flex;
@@ -154,8 +144,7 @@
 .tab-label {
   flex: 1;
   min-width: 0;
-  /* Restores the spacing the smaller .tab gap took away, but only here — so the icons cluster while
-     the title keeps its distance from them. */
+  /* Restores the spacing the smaller .tab gap took away, but only here — so the icons cluster while the title keeps its distance from them. */
   margin-left: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -163,8 +152,7 @@
   font-size: var(--text-meta);
 }
 
-/* SortableJS placeholder marking a dragged tab's drop slot (ghostClass). The floating clone it drags
-   keeps the normal .tab look. */
+/* SortableJS placeholder marking a dragged tab's drop slot (ghostClass). The floating clone it drags keeps the normal .tab look. */
 .tab-ghost {
   opacity: 0.5;
   box-shadow: inset 0 0 0 1px var(--accent);

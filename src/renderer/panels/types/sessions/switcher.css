@@ -1,20 +1,16 @@
-/* Project switcher: current project in the header, a dropdown of all projects below it. No black
-   dividers (they read as muddy doubled lines next to the search panel's own border); separation
-   comes from the surrounding elements' borders and backgrounds. */
+/* Project switcher: current project in the header, a dropdown of all projects below it. No black dividers (they read as muddy doubled lines next to the search panel's own border); separation comes from the surrounding elements' borders and backgrounds. */
 #project-switcher {
   position: relative;
   flex: 1;
   min-width: 0;
 }
 
-/* The switcher is the sidebar's title now (it replaced the static "Sessions"): title-sized, with a
-   chevron and a hover pill so it clearly reads as a clickable dropdown. */
+/* The switcher is the sidebar's title now (it replaced the static "Sessions"): title-sized, with a chevron and a hover pill so it clearly reads as a clickable dropdown. */
 #switcher-current {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* Fill the header up to the actions, so the title doesn't jump as the project name changes and the
-     chevron (with the nudge badge beside it) stays put on the right, near the search button. */
+  /* Fill the header up to the actions, so the title doesn't jump as the project name changes and the chevron (with the nudge badge beside it) stays put on the right, near the search button. */
   width: 100%;
   margin-left: -8px;
   padding: 4px 8px;
@@ -44,8 +40,7 @@
   white-space: nowrap;
 }
 
-/* Badge + chevron pinned to the right of the fixed-width title, so the chevron never moves and the
-   nudge badge always has its spot (it just appears/disappears to the chevron's left). */
+/* Badge + chevron pinned to the right of the fixed-width title, so the chevron never moves and the nudge badge always has its spot (it just appears/disappears to the chevron's left). */
 .switcher-right {
   margin-left: auto;
   display: flex;
