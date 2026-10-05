@@ -1,8 +1,10 @@
 # Changelog
 
-What changed in each release, for people running a build rather than the source. The version you are running is in the window title.
+What changed in each release, for people running a build rather than the source.
+The version you are running is in the window title.
 
-Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](https://keepachangelog.com). Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instead, so this file stays a list of what changed.
+Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](https://keepachangelog.com).
+Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instead, so this file stays a list of what changed.
 
 ## Unreleased
 
@@ -10,15 +12,21 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 
 - A filter for sessions whose folder is gone, next to the other filter pills — the set to clean up, or to put folders back for.
 - A config folder for the files you may edit or share, `config/` inside the app's data directory, holding the layout file `layouts/default.json` and the scripts it points at; the app reads and watches it and never writes to it, and Settings shows where it is with an Open button.
-- A layout that arranges the whole window, from that file: rows and columns of panels with the sidebar and the terminal among them, sized in shares or pixels and resized from dividers, where a double-click puts back the file's sizes. A mistake in the file is named where it is instead of dropped, and no file can leave you without the terminal; without a file, the window is as it was.
-- A `command` panel type: a command line or a script, run in the active tab's folder (or the selected project's) and shown as plain text, run again when you switch project or tab or press Refresh. A `cwd` option runs it in a fixed folder instead, whatever is selected, or in a subfolder of the project.
-- A `terminal` panel type: a plain shell in the folder the panel first showed for. It stays there when you switch tab or project, the header says where it is, and the button restarts it in the current folder. After the shell exits, any key starts a new one. It takes the same `cwd`; with a fixed one it starts there and has no restart button.
+- A layout that arranges the whole window, from that file: rows and columns of panels with the sidebar and the terminal among them, sized in shares or pixels and resized from dividers, where a double-click puts back the file's sizes.
+  A mistake in the file is named where it is instead of dropped, and no file can leave you without the terminal; without a file, the window is as it was.
+- A `command` panel type: a command line or a script, run in the active tab's folder (or the selected project's) and shown as plain text, run again when you switch project or tab or press Refresh.
+  A `cwd` option runs it in a fixed folder instead, whatever is selected, or in a subfolder of the project.
+- A `terminal` panel type: a plain shell in the folder the panel first showed for.
+  It stays there when you switch tab or project, the header says where it is, and the button restarts it in the current folder.
+  After the shell exits, any key starts a new one.
+  It takes the same `cwd`; with a fixed one it starts there and has no restart button.
 - Several panels in one group, switched from a strip of icons whose dot says a command failed or a session is waiting for you; a panel out of sight keeps what it was doing and runs again only once shown.
 - Folding a group of panels to its strip of icons, from a chevron on the divider beside it or by clicking the icon of the panel on show.
 - Clicking a group's name in the tab bar takes the session list to that group, as a project's name already does; either one flashes the heading it lands on.
 - A new, empty group from a project's options; a group used to need a session to start from.
 - A log file, one per launch and day, to send along when something goes wrong: Settings shows its folder with an Open button, and the log of a launch that crashed is kept for longer.
-- A history of each session, laid out as claude shows it: every request with claude's messages and tool calls in order, a run of tool calls folded to one line you can open, from the start of the session and across compactions. It slides in over two-thirds of the terminal from the bar beside it or with Ctrl+Shift+↑, steps with Ctrl+Shift+↑ and ↓, and goes back to claude with Back to live, Esc, or a click on claude beside it; each tab keeps its history open where you left it.
+- A history of each session, laid out as claude shows it: every request with claude's messages and tool calls in order, a run of tool calls folded to one line you can open, from the start of the session and across compactions.
+  It slides in over two-thirds of the terminal from the bar beside it or with Ctrl+Shift+↑, steps with Ctrl+Shift+↑ and ↓, and goes back to claude with Back to live, Esc, or a click on claude beside it; each tab keeps its history open where you left it.
 - A bar beside the terminal marking every request, reply and pin, and lighting what is in view; pressing on it opens the history at that point and holding the button scrolls it with the pointer, and hovering it opens a list that the wheel steps through one entry at a time.
 - Pinning a request or one of claude's messages in the history, with its star; the pin lasts, and shows in both sessions of a fork.
 - Panel types of your own: a folder under `types/` in the config folder, with a `panel.json` and a script that prints a list, is a type of that name, drawn with links, sections that fold and a count on its icon, and run again on an interval even out of sight.
@@ -44,12 +52,18 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - A session you `/clear` stays in the group it was in, instead of the tab dropping out of its section.
 - Compacting a session shows it as busy while it runs and idle when it finishes, instead of leaving the dot on whatever it said before.
 - Entering or leaving a worktree, and gaining a sibling, show up in the session list when they happen instead of waiting for some unrelated change.
-- Stopping a session now ends it. It was asked once, with a signal it was free to ignore, and the session could keep running while the app showed it as stopped — including the sessions left behind when you quit the app.
+- Stopping a session now ends it.
+  It was asked once, with a signal it was free to ignore, and the session could keep running while the app showed it as stopped — including the sessions left behind when you quit the app.
 - Switching model with `/model` updates the model shown in the session list straight away, instead of only once that model had answered something.
-- The live strip keeps still. It follows your tabs now, so a row only moves when you drag, open, close or regroup a tab — rows used to swap places whenever one of them wrote a message. Pinned sessions no longer float to the top of it.
+- The live strip keeps still.
+  It follows your tabs now, so a row only moves when you drag, open, close or regroup a tab — rows used to swap places whenever one of them wrote a message.
+  Pinned sessions no longer float to the top of it.
 - Closing a live session's tab takes it out of the live strip at once, instead of a moment later.
-- The tab bar puts projects in the order you set, like the session list and the live strip. It used to order them by whichever project you happened to open a tab for first, which moved on its own as tabs came and went.
-- A session whose folder no longer exists says so instead of quietly starting in your home directory and moving itself there in the list. Such a session is dimmed and can't be opened or forked, and a project whose folder is gone can't start new sessions — with the reason on hover. Pinning, notes, archiving and deleting still work, and a session comes back to life if you put its folder back (for a worktree, recreate it at the same path).
+- The tab bar puts projects in the order you set, like the session list and the live strip.
+  It used to order them by whichever project you happened to open a tab for first, which moved on its own as tabs came and went.
+- A session whose folder no longer exists says so instead of quietly starting in your home directory and moving itself there in the list.
+  Such a session is dimmed and can't be opened or forked, and a project whose folder is gone can't start new sessions — with the reason on hover.
+  Pinning, notes, archiving and deleting still work, and a session comes back to life if you put its folder back (for a worktree, recreate it at the same path).
 - Screen readers announce the filter button by name; it had none.
 - The filter count's total is what you are filtering — the selected project's sessions, and in the archived view its archived ones — instead of every session in every project, archived included.
 - A group's icon in the tab bar is muted again, as it is in the session list.
@@ -67,7 +81,9 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 ### Added
 
 - A filter for sessions carrying a note.
-- A settings screen, behind the gear in the sidebar header. It holds default launch flags for now: set `--allowedTools Grep,Glob` once instead of typing it per session. Flags the app sets for itself are refused with a reason, and a change applies to sessions started from then on.
+- A settings screen, behind the gear in the sidebar header.
+  It holds default launch flags for now: set `--allowedTools Grep,Glob` once instead of typing it per session.
+  Flags the app sets for itself are refused with a reason, and a change applies to sessions started from then on.
 - Mute or stop a session from the live strip, without leaving the project you are looking at.
 
 ### Changed
@@ -75,9 +91,12 @@ Entries are grouped as Added, Changed and Fixed, following [Keep a Changelog](ht
 - The app reopens the way you left it: the window's size and position, and the sidebar's search, filters, date range, folds, width and scroll offset.
 - The filter panel reopens as you left it, with whatever filter was on still applied.
 - Folding a project or group while a filter is on lasts as long as the filter and leaves your usual folds alone underneath.
-- A tab's button takes two presses: the first stops the session and leaves the tab cold and resumable, the second removes the tab. A cold tab still goes in one press.
-- The strip is gone entirely when nothing is running, rather than saying "All clear" with a caret that could not open. It comes back the way you left it.
-- The live strip lists what is running, wherever it is running, rather than only what is nudging. Marking a dot read no longer removes its row, its label counts what actually wants you ("2 of 5 need you"), and a session in a group carries that group's name.
+- A tab's button takes two presses: the first stops the session and leaves the tab cold and resumable, the second removes the tab.
+  A cold tab still goes in one press.
+- The strip is gone entirely when nothing is running, rather than saying "All clear" with a caret that could not open.
+  It comes back the way you left it.
+- The live strip lists what is running, wherever it is running, rather than only what is nudging.
+  Marking a dot read no longer removes its row, its label counts what actually wants you ("2 of 5 need you"), and a session in a group carries that group's name.
 - The strip follows the sidebar's order — your project order, pins floated — instead of reshuffling itself on every status change.
 - A session with a `claude` behind it is called LIVE, not running — "running" read as a state like busy rather than as the difference between a session and a tab.
 - A session that has just started, before it reports anything, shows as a quiet ring in the strip instead of an empty gap.
@@ -102,8 +121,10 @@ Upgrading on macOS needs one manual step this version only — see [UPGRADING.md
 
 ### Fixed
 
-- Closing a tab works on macOS. The close button was being swallowed by the drag-to-reorder handling, which only misbehaved there.
-- A session no longer stays marked as waiting for you after you answer a permission prompt. It goes back to busy as soon as work resumes, rather than at the end of the turn.
+- Closing a tab works on macOS.
+  The close button was being swallowed by the drag-to-reorder handling, which only misbehaved there.
+- A session no longer stays marked as waiting for you after you answer a permission prompt.
+  It goes back to busy as soon as work resumes, rather than at the end of the turn.
 - The app icon shows correctly on Linux, in the Start menu and the taskbar.
 
 ## 0.1.0 — 2026-08-27
