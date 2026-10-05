@@ -13,8 +13,11 @@ import { describe, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 
-/** A line ends a sentence on `.`, `?`, `!`, `:`, `;` or `)`, perhaps followed by a closing quote, bracket or emphasis (`….**`). */
-const ENDS = /[.?!:;)]["'`)*_]*$/;
+/**
+ * A line ends a sentence on `.`, `?` or `!`, perhaps followed by a closing quote, bracket or emphasis (`….**`, `….)`).
+ * A colon, a semicolon or a closing bracket alone does not: the sentence goes on after it, so a line ending in one before more prose is wrapped.
+ */
+const ENDS = /[.?!]["'`)*_]*$/;
 /** Not prose to begin with: a list item, a tag, a fence or table, markup, a section marker (`--- X ---`), a shebang, a lint directive, an indented sample. */
 const NOT_PROSE = /^\s*([-*+]\s|\d+\.\s|@|```|\||#|<|\{|\}|\[|-{2,}|!|eslint-)|^ {2,}\S/;
 /** What never carries on a sentence from the line before: a blank line, a list item, a tag, a fence or an indented sample. */
@@ -140,6 +143,12 @@ describe('prose', () => {
       expect(wrappedIn('a.ts', '/**\n * A docblock carried\n * on.\n */\nconst a = 1;\n')).toEqual(['a.ts:2: A docblock carried']);
       expect(wrappedIn('a.css', '/* A rule\n   explained. */\n')).toEqual(['a.css:1: A rule']);
       expect(wrappedIn('a.md', 'A paragraph carried\non to the next line.\n')).toEqual(['a.md:1: A paragraph carried']);
+    });
+
+    it('a sentence that goes on after a colon, a semicolon or a bracket at the end of a line', () => {
+      expect(wrappedIn('a.ts', '// One rule, pure and tested:\n// without a cwd, the folder itself.\n')).toEqual(['a.ts:1: One rule, pure and tested:']);
+      expect(wrappedIn('a.css', '/* It can shrink;\n   the marks never do. */\n')).toEqual(['a.css:1: It can shrink;']);
+      expect(wrappedIn('a.md', 'Expand it (upward)\nto a list.\n')).toEqual(['a.md:1: Expand it (upward)']);
     });
 
     it('not one sentence per line, nor a sentence ending in emphasis', () => {
