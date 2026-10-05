@@ -1,9 +1,4 @@
-/* THE MODAL — the confirm dialog and the text prompt are the same object with different contents,
-   so they are one set of classes rather than two parallel id blocks that drifted apart by a few
-   pixels of margin each.
-   Deliberately NOT dismissable by clicking the backdrop: selecting text inside the dialog and
-   releasing the mouse outside it dispatches the click on the common ancestor — the overlay — so an
-   outside-click dismiss threw the dialog away mid-drag. */
+/* THE MODAL — the confirm dialog and the text prompt are the same object with different contents, so they are one set of classes rather than two parallel id blocks that drifted apart by a few pixels of margin each. Deliberately NOT dismissable by clicking the backdrop: selecting text inside the dialog and releasing the mouse outside it dispatches the click on the common ancestor — the overlay — so an outside-click dismiss threw the dialog away mid-drag. */
 .overlay {
   position: fixed;
   inset: 0;
@@ -24,8 +19,7 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
-/* A dialog holding a form rather than a question: a flag line is typed left to right and wants to be
-   readable at a glance, which 360px does not give it. */
+/* A dialog holding a form rather than a question: a flag line is typed left to right and wants to be readable at a glance, which 360px does not give it. */
 .dialog.wide {
   width: min(520px, 86vw);
 }
@@ -35,16 +29,12 @@
   margin-bottom: 16px;
 }
 
-/* The section owns the gap below it, so its last child must not add a second one — a .dialog-detail
-   carries its own bottom margin for the dialogs where it IS the last thing before the buttons. */
+/* The section owns the gap below it, so its last child must not add a second one — a .dialog-detail carries its own bottom margin for the dialogs where it IS the last thing before the buttons. */
 .dialog-section > :last-child {
   margin-bottom: 0;
 }
 
-/* A setting's explanation sits between its label and its field, so label, hint and control read as
-   one group: half the gap .dialog-detail uses when it introduces a whole dialog. It goes ABOVE the
-   field rather than below so the inline error is the only thing under it — an error that pushed a
-   permanent explanation down the dialog moved furniture to say one transient thing. */
+/* A setting's explanation sits between its label and its field, so label, hint and control read as one group: half the gap .dialog-detail uses when it introduces a whole dialog. It goes ABOVE the field rather than below so the inline error is the only thing under it — an error that pushed a permanent explanation down the dialog moved furniture to say one transient thing. */
 .dialog-label + .dialog-detail {
   margin-bottom: 8px;
 }
@@ -106,8 +96,7 @@
   font-size: var(--text-body);
 }
 
-/* A read-only value with a button beside it (a folder's path and Open). The path is data,
-   so it is monospace, and it may break anywhere rather than push the button out of the dialog. */
+/* A read-only value with a button beside it (a folder's path and Open). The path is data, so it is monospace, and it may break anywhere rather than push the button out of the dialog. */
 .dialog-row {
   display: flex;
   align-items: center;

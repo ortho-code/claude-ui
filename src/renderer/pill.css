@@ -2,11 +2,8 @@
    The date presets' own rules sit here as well, because the "on" look has to come after their hover rule to beat it at equal specificity. */
 
 /* Filter toggles: dimmed when off, accent-filled when on. */
-/* The filter pills are every direct-child button of #filters (date-preset buttons are nested a level
-   deeper, so they're excluded). Styling by pattern means a new pill needs no CSS change.
-   The history's "Pinned only" is a filter too, and wears the same pill. */
-/* Off = --muted, the same "inactive" cue the rest of the app uses, rather than opacity: a dimmed
-   button fades its border and background too, so an off pill read as disabled instead of unselected. */
+/* The filter pills are every direct-child button of #filters (date-preset buttons are nested a level deeper, so they're excluded). Styling by pattern means a new pill needs no CSS change. The history's "Pinned only" is a filter too, and wears the same pill. */
+/* Off = --muted, the same "inactive" cue the rest of the app uses, rather than opacity: a dimmed button fades its border and background too, so an off pill read as disabled instead of unselected. */
 #filters > button,
 .history-filter {
   flex: 0 0 auto;
@@ -15,10 +12,7 @@
   color: var(--muted);
 }
 
-/* Every pill except the date presets is icon-only: the same marks the rows use (star, branch, fork,
-   archive box), injected by the filter (panels/types/sessions/filter.ts). Words cost the panel a whole extra line at a 320px sidebar,
-   and each pill keeps its tooltip and aria-label, so the meaning is still one hover away. Icons are
-   13px, matching the pills' 12px text so they don't make the row taller. */
+/* Every pill except the date presets is icon-only: the same marks the rows use (star, branch, fork, archive box), injected by the filter (panels/types/sessions/filter.ts). Words cost the panel a whole extra line at a 320px sidebar, and each pill keeps its tooltip and aria-label, so the meaning is still one hover away. Icons are 13px, matching the pills' 12px text so they don't make the row taller. */
 #filters > button,
 .history-filter {
   display: inline-flex;
@@ -47,9 +41,7 @@
   border-radius: var(--radius-pill);
 }
 
-/* Same hover as the filter pills above it. border-color has to be repeated here: this rule's resting
-   `#date-presets button` is specificity 1,0,1 and so outranks `button:hover` at 0,1,1, which is the
-   same trap that silently left the project kebab and the toast close without an outline. */
+/* Same hover as the filter pills above it. border-color has to be repeated here: this rule's resting `#date-presets button` is specificity 1,0,1 and so outranks `button:hover` at 0,1,1, which is the same trap that silently left the project kebab and the toast close without an outline. */
 #date-presets button:hover {
   color: var(--text);
   background: var(--surface-hover);

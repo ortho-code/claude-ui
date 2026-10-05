@@ -30,8 +30,7 @@
 
 .menu-tick {
   flex: 0 0 12px;
-  /* Centred in its reserved column so the tick doesn't sit hard against the label; the column keeps
-     its width when empty, which is what lines the labels up. */
+  /* Centred in its reserved column so the tick doesn't sit hard against the label; the column keeps its width when empty, which is what lines the labels up. */
   display: flex;
   align-items: center;
   justify-content: center;

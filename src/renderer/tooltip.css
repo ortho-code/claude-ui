@@ -12,8 +12,7 @@
   font-size: var(--text-meta);
   line-height: 1.4;
   overflow-wrap: anywhere;
-  /* Keep a note's line breaks: the default collapses \n into a space. pre-wrap still wraps long
-     lines, so single-line tooltips are unaffected. */
+  /* Keep a note's line breaks: the default collapses \n into a space. pre-wrap still wraps long lines, so single-line tooltips are unaffected. */
   white-space: pre-wrap;
   pointer-events: none;
 }
