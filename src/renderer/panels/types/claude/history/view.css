@@ -166,8 +166,7 @@
   display: none;
 }
 
-/* THE EXCHANGES, drawn the way claude draws them in the terminal (the scroll area has the terminal's background and type):
-   your request as claude echoes it, `> …` on a tinted band, and each of claude's messages and tool calls behind the dot claude marks them with. */
+/* THE EXCHANGES, drawn the way claude draws them in the terminal (the scroll area has the terminal's background and type): your request as claude echoes it, `> …` on a tinted band, and each of claude's messages and tool calls behind the dot claude marks them with. */
 .exchange {
   margin: 0 0 18px;
 }

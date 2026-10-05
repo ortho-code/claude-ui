@@ -35,8 +35,7 @@ export function resolveContext(where: Where): PanelContext | null {
 }
 
 /**
- * WHERE A PANEL RUNS, for either type, from its `cwd` option — one rule, pure and tested:
- * without a `cwd`, the context directory itself; with an absolute or `~` one, that folder whatever is selected (FIXED, needing no context); with a relative one, under the context directory, so it follows the project into a subfolder.
+ * WHERE A PANEL RUNS, for either type, from its `cwd` option — one rule, pure and tested: without a `cwd`, the context directory itself; with an absolute or `~` one, that folder whatever is selected (FIXED, needing no context); with a relative one, under the context directory, so it follows the project into a subfolder.
  * Null when the panel needs a context and there is none: it says "Pick a project" rather than running somewhere nobody chose.
  */
 export type Placement = { kind: 'context' } | { kind: 'fixed'; value: string } | { kind: 'under'; value: string };

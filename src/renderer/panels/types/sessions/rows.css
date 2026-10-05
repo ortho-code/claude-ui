@@ -9,8 +9,7 @@
 }
 
 /* Meta and the worktree/sibling marks share one line, which is a whole line saved per badged row.
-   The meta flexes into whatever the marks leave (min-width:0 so it can shrink and ellipsize/stack);
-   the marks never shrink. */
+   The meta flexes into whatever the marks leave (min-width:0 so it can shrink and ellipsize/stack); the marks never shrink. */
 .session-subline {
   display: flex;
   align-items: center;
