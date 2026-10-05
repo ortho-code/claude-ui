@@ -819,6 +819,7 @@ One file per entry, `panel-data/<entry id>.json` in the app's data directory, wi
 Not in `meta.json`, so a panel's data cannot damage the app's, and not in the config folder, which is what gets shared while a session id means something only on this machine.
 The app writes it, never the script, which never learns a session id: the id is minted before the tab exists and the link written first, so the row can lead back to the session from the start.
 A file that does not parse, or is of another version, is kept beside itself rather than overwritten, and an entry that is not sound is dropped and logged.
+A file's reads and writes go one at a time, the window's reads among them: the window is told of a write once it lands, and a read that overlapped the write could answer with the file as it was before.
 A link to a session that is gone is forgotten at the file's next write, whatever removed the session — the app's own delete, Claude Code's transcript retention (`cleanupPeriodDays`), or a hand — and at once when the app itself deletes it.
 "Gone" is the app's own measure of a session existing: a transcript on disk, looked at rather than taken from the listing's cache, or a tab holding it, since a session that has sent nothing yet has no transcript and lives only in its tab.
 The session being linked at that moment has neither yet, so it is kept.

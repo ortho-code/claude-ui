@@ -110,14 +110,29 @@ async function prune(file: string, data: PanelData, keep: string[]): Promise<voi
   if (gone.length > 0) log('info', 'panel-data', `${file}: forgot ${gone.length} ${gone.length === 1 ? 'session that no longer exists' : 'sessions that no longer exist'}`);
 }
 
-/** One write at a time per file: a read-modify-write that overlapped another would drop its change, and the temp file is one name per target. */
+/**
+ * One job at a time per file, the window's reads among them.
+ * A read-modify-write that overlapped another would drop its change, and the temp file is one name per target.
+ * A read that overlapped a write could answer with the file as it was after the window had been told what it became.
+ */
 const queues = new Map<string, Promise<unknown>>();
+
+/** Run `job` once every job already queued for `file` is done. */
+function inTurn<T>(file: string, job: () => Promise<T>): Promise<T> {
+  const run = (queues.get(file) ?? Promise.resolve()).then(job);
+  // The queue goes on after a failed job; the caller still hears of the failure.
+  queues.set(
+    file,
+    run.catch(() => undefined),
+  );
+  return run;
+}
 
 /** Read a panel's data, change it, and write it back when `mutate` says it changed, forgetting on the way the sessions that are gone; `wrote` says whether it wrote. */
 function update(entryId: string, mutate: (data: PanelData) => boolean, keep: string[] = []): Promise<{ data: PanelData; wrote: boolean }> {
   const file = fileOf(entryId);
   if (!file) return Promise.resolve({ data: empty(), wrote: false });
-  const run = (queues.get(file) ?? Promise.resolve()).then(async () => {
+  return inTurn(file, async () => {
     const data = await readPanelData(entryId);
     if (!mutate(data)) return { data, wrote: false };
     await prune(file, data, keep);
@@ -125,12 +140,12 @@ function update(entryId: string, mutate: (data: PanelData) => boolean, keep: str
     await writeFileAtomic(file, `${JSON.stringify({ version: VERSION, ...data }, null, 2)}\n`);
     return { data, wrote: true };
   });
-  // The queue goes on after a failed write; the caller still hears of the failure.
-  queues.set(
-    file,
-    run.catch(() => undefined),
-  );
-  return run;
+}
+
+/** A panel's data as the window asks for it: in turn with the writes, so never older than one that landed before it. */
+function readForWindow(entryId: string): Promise<PanelData> {
+  const file = fileOf(entryId);
+  return file ? inTurn(file, () => readPanelData(entryId)) : readPanelData(entryId);
 }
 
 /**
@@ -181,7 +196,7 @@ export function registerPanelData(getWindow: () => BrowserWindow | null, session
     const win = getWindow();
     if (win && !win.isDestroyed()) win.webContents.send('panelData:changed', entryId, data);
   };
-  ipcMain.handle('panelData:get', (_event, entryId: string) => readPanelData(entryId));
+  ipcMain.handle('panelData:get', (_event, entryId: string) => readForWindow(entryId));
   ipcMain.handle('panelData:link', async (_event, entryId: string, sessionId: string, link: Omit<PanelLink, 'startedAt'>, filed: { repoRoot: string; groupId: string | null }) => {
     const data = await linkSession(entryId, sessionId, link, filed);
     tell(entryId, data);

@@ -3,16 +3,17 @@ import { promises as fs, rmSync } from 'node:fs';
 import * as path from 'node:path';
 
 // A real folder, so the atomic write and the keeping-aside are exercised on a real filesystem.
-const { dataDir, logged } = vi.hoisted(() => {
+// The bridge's handlers are kept by channel, so a check can ask what the window would.
+const { dataDir, logged, handlers } = vi.hoisted(() => {
   const { mkdtempSync } = require('node:fs') as typeof import('node:fs');
   const { tmpdir } = require('node:os') as typeof import('node:os');
   const { join } = require('node:path') as typeof import('node:path');
-  return { dataDir: mkdtempSync(join(tmpdir(), 'claude-ui-paneldata-')), logged: [] as string[] };
+  return { dataDir: mkdtempSync(join(tmpdir(), 'claude-ui-paneldata-')), logged: [] as string[], handlers: new Map<string, (...args: unknown[]) => unknown>() };
 });
 
 vi.mock('electron', () => ({
   app: { getPath: () => dataDir, setPath: () => {} },
-  ipcMain: { handle: () => {}, on: () => {} },
+  ipcMain: { handle: (channel: string, handler: (...args: unknown[]) => unknown) => handlers.set(channel, handler), on: () => {} },
 }));
 vi.mock('../../../src/main/log', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../src/main/log')>()),
@@ -21,6 +22,7 @@ vi.mock('../../../src/main/log', async (importOriginal) => ({
 
 import { forgetSessions, linkSession, readPanelData, registerPanelData } from '../../../src/main/paneldata';
 import { panelDataDir } from '../../../src/main/paths';
+import type { PanelData } from '../../../src/shared/panels';
 
 const file = (entryId: string): string => path.join(panelDataDir, `${entryId}.json`);
 const LINK = { key: 'org/repo#1', label: 'Fix the login redirect', href: 'https://github.com/org/repo/pull/1' };
@@ -60,6 +62,15 @@ describe('a panel’s own data', () => {
   it('keeps every link when several are written at once', async () => {
     await Promise.all(['s1', 's2', 's3'].map((id) => linkSession('reviews', id, LINK, { repoRoot: '/repo', groupId: null })));
     expect(Object.keys((await readPanelData('reviews')).sessions).sort()).toEqual(['s1', 's2', 's3']);
+  });
+
+  // The window is told of a write once it has landed, so an answer older than that write would put back what the window was just told had changed.
+  it('answers the window’s read, asked while a write is under way, with what the write wrote', async () => {
+    await linkSession('reviews', 's1', LINK, { repoRoot: '/repo', groupId: null });
+    const writing = linkSession('reviews', 's2', LINK, { repoRoot: '/repo', groupId: null });
+    const read = handlers.get('panelData:get')?.(null, 'reviews') as Promise<PanelData>;
+    await writing;
+    expect(Object.keys((await read).sessions).sort()).toEqual(['s1', 's2']);
   });
 
   it('writes nothing for a key that is not an entry’s id', async () => {
