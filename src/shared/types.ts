@@ -19,7 +19,6 @@ export interface SessionSummary {
   model: string;
   /** Last activity: the timestamp of the last user/assistant message (falls back to file mtime only when the transcript has no message timestamp). Ignores background/system appends. */
   lastActivity: string;
-  /** Number of transcript lines (events) in the session. */
   /** This session belongs to a multi-file family (sessions sharing a conversation, e.g. via --fork-session). Members are SIBLINGS — no parent/child direction is derived, because fork direction is not reliably recoverable from transcript data. Each sibling renders as its own row. */
   isSibling: boolean;
   /** The other members of this session's family (empty when not a sibling). */
