@@ -1,9 +1,7 @@
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { extname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { extname } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { tracked } from './tracked';
 
 /**
  * Prose here is one sentence per line: a sentence carried onto the next line makes the raw text wrong where the rendered one looks right, and every later edit reflows lines that did not change.
@@ -12,8 +10,6 @@ import { describe, expect, it } from 'vitest';
  * It reads prose rather than parsing it, so what it does not call wrapped is spelled out below: a line that ends a sentence, a list item, a tag, a fence, a table, a heading, an indented sample, a section marker, a comment after code.
  * What it does not read for sentences is spelled out with `crowdedIn`.
  */
-
-const root = fileURLToPath(new URL('../../', import.meta.url));
 
 /**
  * A line ends a sentence on `.`, `?` or `!`, perhaps followed by a closing quote, bracket or emphasis (`….**`, `….)`).
@@ -168,13 +164,8 @@ function crowdedIn(file: string, text: string): string[] {
   );
 }
 
-/** Every file git tracks whose kind paragraphsOf reads, so nothing built, installed or ignored, with its text. */
-function trackedProse(): { file: string; text: string }[] {
-  return execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
-    .split('\n')
-    .filter((file) => /\.(ts|mjs|css|md|yml|sh|toml)$/.test(file))
-    .map((file) => ({ file, text: readFileSync(join(root, file), 'utf8') }));
-}
+/** Every tracked file whose kind paragraphsOf reads, with its text. */
+const trackedProse = (): { file: string; text: string }[] => tracked(/\.(ts|mjs|css|md|yml|sh|toml)$/);
 
 describe('prose', () => {
   it('wraps no sentence across lines, in any comment or doc', () => {
