@@ -48,7 +48,9 @@ export function placement(cwd: unknown, context: PanelContext | null): Placement
 
 /**
  * What a `command` panel's run is keyed on, so a switch that lands where the last run was does not run it again.
- * Without a `cwd`, the whole context, as it always was. A fixed one never changes, so no switch re-runs it: it has nothing new to read. A relative one changes with the folder it lands in, and a tab switch within that folder does not move it.
+ * Without a `cwd`, the whole context, as it always was.
+ * A fixed one never changes, so no switch re-runs it: it has nothing new to read.
+ * A relative one changes with the folder it lands in, and a tab switch within that folder does not move it.
  */
 export function runKey(cwd: unknown, context: PanelContext | null): string {
   const place = placement(cwd, context);

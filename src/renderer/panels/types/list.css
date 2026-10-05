@@ -34,7 +34,8 @@
   font-size: var(--text-meta);
 }
 
-/* A row's tone, as its script says: the status colours on the row's leading edge, where a session row keeps its accent bar for "open in a tab" — a different mark, since a tone says nothing about tabs. A muted row is dimmed, as a session that cannot start is. */
+/* A row's tone, as its script says: the status colours on the row's leading edge, where a session row keeps its accent bar for "open in a tab" — a different mark, since a tone says nothing about tabs.
+   A muted row is dimmed, as a session that cannot start is. */
 .list-row.tone-attention {
   box-shadow: inset 3px 0 0 var(--waiting);
 }
@@ -47,7 +48,8 @@
   opacity: var(--dimmed);
 }
 
-/* The last run failed while a good list is up: said above that list, in the failed colour, on the note line's face. Its tooltip quotes what the script wrote on stderr. */
+/* The last run failed while a good list is up: said above that list, in the failed colour, on the note line's face.
+   Its tooltip quotes what the script wrote on stderr. */
 .list-failed {
   border-top: 0;
   border-bottom: 1px solid var(--border);

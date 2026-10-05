@@ -3,7 +3,8 @@ import { ICON_NAMES, isIconName, type IconName } from './icons';
 import type { PanelTypeDecl } from './contract';
 
 /**
- * From one read of the layout file to the window's tree. Pure: no DOM, no paths, no processes, tested per rule.
+ * From one read of the layout file to the window's tree.
+ * Pure: no DOM, no paths, no processes, tested per rule.
  *
  * EVERY MISTAKE IS NAMED, in the place of the thing that is wrong, and nothing is guessed or dropped: the file was written by a person, and a layout that quietly shows less than they wrote would send them looking for a bug in the wrong place.
  * A node whose own fields are wrong becomes a DEGRADED group in its place, listing every problem; an entry's problems show in the entry's slot; a problem with the file as a whole shows as one degraded group beside the default layout, so the window stays usable while the file is fixed.
@@ -39,11 +40,20 @@ export interface PanelSlot {
   key: string;
   type: string | null;
   title: string;
-  /** Everything wrong with the entry, one sentence each. Empty means it runs. */
+  /**
+   * Everything wrong with the entry, one sentence each.
+   * Empty means it runs.
+   */
   problems: string[];
-  /** Sentences about the entry that do not stop it running: an icon this build does not have, say. Shown in its group's note line. */
+  /**
+   * Sentences about the entry that do not stop it running: an icon this build does not have, say.
+   * Shown in its group's note line.
+   */
   notes: string[];
-  /** The entry as written, for the type to read its parameters from. Null when the entry was not an object at all. */
+  /**
+   * The entry as written, for the type to read its parameters from.
+   * Null when the entry was not an object at all.
+   */
   entry: PanelEntry | null;
   hidden: boolean;
   /** Its icon on a rail: the entry's own, else its type's, and `alert` for an entry that cannot run. */
@@ -52,10 +62,14 @@ export interface PanelSlot {
 
 interface NodeCommon {
   /**
-   * The node's id when it is usable. Otherwise its position (`#0.2`), and for a node the resolver added itself an `@` name: neither can be a slug, so neither can collide with one.
+   * The node's id when it is usable.
+   * Otherwise its position (`#0.2`), and for a node the resolver added itself an `@` name: neither can be a slug, so neither can collide with one.
    */
   id: string;
-  /** The size as the file gives it, or null for none. `fileWeights` turns a split's shares into flex weights; pixels are the renderer's to hold. */
+  /**
+   * The size as the file gives it, or null for none.
+   * `fileWeights` turns a split's shares into flex weights; pixels are the renderer's to hold.
+   */
   size: NodeSize | null;
   min: number;
   resizable: boolean;
@@ -79,7 +93,10 @@ export interface ResolvedGroup extends NodeCommon {
   collapsible: boolean;
   /** One slot on show and its type carries its own chrome, so the group draws no header. */
   bare: boolean;
-  /** What is wrong with the node itself. Non-empty means the group is DEGRADED: it shows these, and has no slots. */
+  /**
+   * What is wrong with the node itself.
+   * Non-empty means the group is DEGRADED: it shows these, and has no slots.
+   */
   problems: string[];
 }
 
@@ -110,7 +127,10 @@ export const pxOf = (node: { size: NodeSize | null }): number | null => (node.si
 
 export const SLUG_RULE = 'lowercase letters, digits, hyphens and underscores, starting with a letter or digit';
 
-/** The same sentence for a node's id and an entry's, since they share one namespace. Adds a usable id to `seen`; returns the problem or null. */
+/**
+ * The same sentence for a node's id and an entry's, since they share one namespace.
+ * Adds a usable id to `seen`; returns the problem or null.
+ */
 function checkId(raw: Record<string, unknown>, seen: Set<string>): string | null {
   if (raw.id === undefined) return 'id is missing.';
   if (typeof raw.id !== 'string') return 'id is not a string.';
@@ -130,7 +150,8 @@ function doubled(given: string[]): string {
 const ENTRY_FIELDS = new Set(['id', 'type', 'title', 'hidden', 'icon', 'options']);
 
 /**
- * Validate one entry's LAYOUT fields: its id, its type, and how it is drawn. Every problem is collected, not only the first, so one read of the panel says all there is to fix.
+ * Validate one entry's LAYOUT fields: its id, its type, and how it is drawn.
+ * Every problem is collected, not only the first, so one read of the panel says all there is to fix.
  * The entry's `options` are its type's: checked here only for being an object, and by the type itself for everything inside, once it is mounted.
  * `seen` holds every id met so far in the file, nodes included, for the uniqueness rule; `fallbackKey` is what the slot is keyed by when its id is not usable.
  */
@@ -201,8 +222,10 @@ export function fileWeights(sizes: (number | null)[]): { weights: number[]; exha
 
 /**
  * The edge a child of a split folds toward, which is where its rail sits; its chevron is on the divider on the OTHER side, pointing this way (P12).
- * The first child folds to the start and the last to the end, since each has one divider. A middle child folds away from where its space goes: a folded child's space goes to the siblings without a pixel size, so when those are all before it, the rest slides toward it and it ends up at the end — anything else folds to the start.
- * `siblings` are the split's children on screen, which is what "first", "last" and "before" mean. Worked out from the file's sizes and not from which siblings happen to be folded, so a chevron never moves when a neighbour folds.
+ * The first child folds to the start and the last to the end, since each has one divider.
+ * A middle child folds away from where its space goes: a folded child's space goes to the siblings without a pixel size, so when those are all before it, the rest slides toward it and it ends up at the end — anything else folds to the start.
+ * `siblings` are the split's children on screen, which is what "first", "last" and "before" mean.
+ * Worked out from the file's sizes and not from which siblings happen to be folded, so a chevron never moves when a neighbour folds.
  */
 export function foldEdge(siblings: { size: NodeSize | null }[], index: number): 'start' | 'end' {
   if (siblings.length < 2 || index === 0) return 'start';
@@ -216,7 +239,8 @@ export function foldEdge(siblings: { size: NodeSize | null }[], index: number): 
 /**
  * What a mounted panel IS, beyond its key: its type, what that type was built from, and its `options` as written.
  * The tree keeps a panel alive across a layout change while this stays the same, so a new title, icon or place moves it rather than restarting its run or its shell; a changed option mounts it afresh (decision 13), and so does an edit to the manifest of a type from the config folder (`revision`).
- * Nothing here knows a type's options: whatever sits under `options` is what the panel was mounted from. Keys are sorted first, so reordering them in the file restarts nothing.
+ * Nothing here knows a type's options: whatever sits under `options` is what the panel was mounted from.
+ * Keys are sorted first, so reordering them in the file restarts nothing.
  */
 export function mountSignature(slot: PanelSlot, revision: string | null = null): string {
   return JSON.stringify([slot.type, revision, sorted(slot.entry?.options ?? null)]);
@@ -233,7 +257,10 @@ function sorted(value: unknown): unknown {
   );
 }
 
-/** Whether a node takes no room: a group with every slot hidden, or a split of nothing but such groups. A degraded group always shows. */
+/**
+ * Whether a node takes no room: a group with every slot hidden, or a split of nothing but such groups.
+ * A degraded group always shows.
+ */
 export function isEmpty(node: ResolvedNode): boolean {
   if (node.kind === 'group') return node.problems.length === 0 && node.slots.every((slot) => slot.hidden);
   return node.children.every(isEmpty);
@@ -339,7 +366,10 @@ class Resolver {
   }
 }
 
-/** A node that cannot be drawn as written, drawn as a group saying why. Its size, min and resizable are honoured where they are readable, so it sits where the node would have. */
+/**
+ * A node that cannot be drawn as written, drawn as a group saying why.
+ * Its size, min and resizable are honoured where they are readable, so it sits where the node would have.
+ */
 function degraded(id: string, title: string, problems: string[], raw: Record<string, unknown>): ResolvedGroup {
   return {
     kind: 'group',
@@ -358,7 +388,8 @@ function degraded(id: string, title: string, problems: string[], raw: Record<str
 }
 
 /**
- * Say so under every split whose shares leave nothing for its unsized children. Pixel children stand apart: shares divide what they leave.
+ * Say so under every split whose shares leave nothing for its unsized children.
+ * Pixel children stand apart: shares divide what they leave.
  * A pass over the finished tree rather than a check as each split is built, because placing a built-in the file left out adds a child after the fact.
  */
 function noteExhausted(node: ResolvedNode): void {

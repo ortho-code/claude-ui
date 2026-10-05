@@ -1,7 +1,8 @@
 import { fileWeights, pxOf, shareOf, type NodeSize } from './layout';
 
 /**
- * How the children of one split share its length, as CSS flex values. Pure: the tree measures and applies, this decides, tested per rule.
+ * How the children of one split share its length, as CSS flex values.
+ * Pure: the tree measures and applies, this decides, tested per rule.
  *
  * ONE UNIT FOR EVERYTHING: a child's share of the flexible room is its flex-grow weight, and a dragged size is stored in px and used as that same weight, so a drag and the file's proportions mix without conversion and a window resize redistributes by weight on its own.
  * A child sized in PIXELS stands apart: its px are its basis, it never grows, and it gives way only once the others are down to their `min` (P10).

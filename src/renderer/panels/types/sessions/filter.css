@@ -1,4 +1,5 @@
-/* Filter panel toggle in the header. A corner badge dot (not an accent border, which would look like the focus ring) marks that a filter is active. */
+/* Filter panel toggle in the header.
+   A corner badge dot (not an accent border, which would look like the focus ring) marks that a filter is active. */
 #filter-toggle {
   position: relative; /* anchors the active-filter badge dot below */
 }
@@ -34,7 +35,8 @@
   font-size: var(--text-body);
 }
 
-/* type=search draws a UA clear button: a fixed grey-gradient bitmap that ignores `color`, so it read as a smudge on a dark field. Replace it with the app's own × — the same path closeIcon() draws — as a MASK, which takes `background` and so follows --muted/--text like every other mark. */
+/* type=search draws a UA clear button: a fixed grey-gradient bitmap that ignores `color`, so it read as a smudge on a dark field.
+   Replace it with the app's own × — the same path closeIcon() draws — as a MASK, which takes `background` and so follows --muted/--text like every other mark. */
 #search::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
@@ -80,7 +82,8 @@
   gap: 4px;
 }
 
-/* Custom date-range filter (air-datepicker, inline). Floats as a popover over the session list (absolute + auto top = its in-flow position, lifted out of layout) so opening Custom doesn't push the list down. */
+/* Custom date-range filter (air-datepicker, inline).
+   Floats as a popover over the session list (absolute + auto top = its in-flow position, lifted out of layout) so opening Custom doesn't push the list down. */
 #date-custom {
   position: absolute;
   left: 8px;
@@ -129,7 +132,9 @@
   text-align: center;
 }
 
-/* Theme air-datepicker to the app palette. Its --adp-* vars are declared on .air-datepicker itself, so overrides must target that element (an ancestor's value would lose to the element's own rule). The calendar sits on our popover surface, so its background and inline border are transparent; in-range fill is a translucent accent, endpoints the solid accent. */
+/* Theme air-datepicker to the app palette.
+   Its --adp-* vars are declared on .air-datepicker itself, so overrides must target that element (an ancestor's value would lose to the element's own rule).
+   The calendar sits on our popover surface, so its background and inline border are transparent; in-range fill is a translucent accent, endpoints the solid accent. */
 #date-custom .air-datepicker {
   --adp-background-color: transparent;
   --adp-border-color-inline: transparent;

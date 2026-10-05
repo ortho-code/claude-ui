@@ -10,7 +10,8 @@ import { NO_CONTEXT, prepare, resolveContext } from '../run';
 /**
  * The `terminal` panel type: a plain shell beside the terminal, in a pty, shown in an xterm.
  *
- * IT STAYS PUT. The shell starts where the panel is placed at the moment it first shows — the context directory, or its `cwd` under it, or a fixed `cwd` — and stays there through tab and project switches; a shell has state, and a switch must never kill a command running in it.
+ * IT STAYS PUT.
+ * The shell starts where the panel is placed at the moment it first shows — the context directory, or its `cwd` under it, or a fixed `cwd` — and stays there through tab and project switches; a shell has state, and a switch must never kill a command running in it.
  * The header says where it is, and the button restarts it in the current context when that is what you want; a terminal with a fixed `cwd` has no button, since it would restart in the same place.
  * The one exception is a panel with no shell because there was nothing to run in: it starts as soon as a context appears.
  * A shell that EXITS leaves its screen up with a line saying so, and the next key starts a new one, so getting a shell back never depends on a button being there.

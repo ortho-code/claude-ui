@@ -86,7 +86,8 @@ function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): 
 // Prompts for an optional name (blank -> claude auto-names).
 // As for every new session, the tab carries the session's real id from the start; the worktree badge is the only optimistic part, and it reconciles on the next refresh.
 async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Promise<void> {
-  // claude's `-w` name must be a slug (letters/digits/dots/underscores/dashes); turn the free-text label into one. A blank slug means auto-name, which can't collide.
+  // claude's `-w` name must be a slug (letters/digits/dots/underscores/dashes); turn the free-text label into one.
+  // A blank slug means auto-name, which can't collide.
   const slugify = (value: string): string => value.trim().replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
   const label = await promptText(
     'New worktree session',
@@ -111,7 +112,8 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
     isRepo: true,
     // Show the worktree badge right away (optimistic); it reconciles to the real name on refresh.
     worktree: slug || 'new worktree',
-    // The name you typed becomes the title (it's also what --name sets); the badge already says it's a worktree, so no prefix. Blank name falls back to a plain new-session label.
+    // The name you typed becomes the title (it's also what --name sets); the badge already says it's a worktree, so no prefix.
+    // Blank name falls back to a plain new-session label.
     title: friendly || untitledLabel(repoRoot),
   });
   await startNew(session, joinGroupId, { name: friendly || undefined, worktree: slug });
@@ -121,7 +123,8 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
 // The fork's id is minted here like any other new session — claude honours it even while resuming — so the fork is a row of its own from the first paint, not one that arrives later.
 async function forkSession(parent: SessionSummary): Promise<void> {
   const parentTitle = sessionLabel(parent, 'session');
-  // Forks copy the parent's title, so offer a fresh name up front (via claude's --name). Cancel aborts the fork; keeping/clearing the field just inherits the parent title.
+  // Forks copy the parent's title, so offer a fresh name up front (via claude's --name).
+  // Cancel aborts the fork; keeping/clearing the field just inherits the parent title.
   const name = await promptText('Create fork', `Fork from "${parentTitle}"`, parentTitle, 'Fork');
   if (name === null) return;
   const trimmed = name.trim();

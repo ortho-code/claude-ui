@@ -10,8 +10,10 @@ import { mountList } from './list';
  * Panel types of a person's own, from the config folder's `types/`: a folder each, holding a `panel.json` manifest and the script it runs.
  *
  * THE FOLDER'S NAME IS THE TYPE'S NAME, so the two cannot disagree, and a type is shared by copying its folder.
- * THE KIND DECIDES THE REST: a manifest says what kind of panel it is, and the kind brings its own options and behaviour. This build has one, `list`: a script that prints a list the app draws (list.ts).
- * A manifest is checked the way the layout file is (layout.ts): every mistake named, and nothing dropped. A type whose manifest is wrong is still a type, so every entry of it says what is wrong where the panel would be, rather than reading as a type nobody has.
+ * THE KIND DECIDES THE REST: a manifest says what kind of panel it is, and the kind brings its own options and behaviour.
+ * This build has one, `list`: a script that prints a list the app draws (list.ts).
+ * A manifest is checked the way the layout file is (layout.ts): every mistake named, and nothing dropped.
+ * A type whose manifest is wrong is still a type, so every entry of it says what is wrong where the panel would be, rather than reading as a type nobody has.
  * A field this build does not read is NOTED rather than refused, so a manifest written for a later build still runs here, and a typo is still seen.
  */
 
@@ -103,7 +105,10 @@ function checkOptionList(raw: unknown, kind: Kind | null): { options: OptionDecl
   return { options, problems, notes };
 }
 
-/** One type folder's manifest, checked. Pure, and tested per rule. */
+/**
+ * One type folder's manifest, checked.
+ * Pure, and tested per rule.
+ */
 export function checkManifest(report: TypeReport): FolderType {
   const at = `types/${report.name}/panel.json`;
   const folder = { name: report.name, dir: report.dir, manifest: null, notes: [] };

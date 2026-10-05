@@ -1,4 +1,5 @@
-/* Project switcher: current project in the header, a dropdown of all projects below it. No black dividers (they read as muddy doubled lines next to the search panel's own border); separation comes from the surrounding elements' borders and backgrounds. */
+/* Project switcher: current project in the header, a dropdown of all projects below it.
+   No black dividers (they read as muddy doubled lines next to the search panel's own border); separation comes from the surrounding elements' borders and backgrounds. */
 #project-switcher {
   position: relative;
   flex: 1;

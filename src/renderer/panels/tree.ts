@@ -33,7 +33,9 @@ import { terminalType } from './types/terminal';
 /**
  * The window, drawn from the layout tree: nested rows and columns of groups, each group showing one panel, with the app's own sidebar and terminal area as two of the panels.
  *
- * Built from main's report of the layout file and rebuilt whenever that file changes, a group folds, or another panel is picked. A rebuild recreates the splits, dividers, rails and headers, but NEVER a panel: mounted panels are kept by entry key and moved into their new place, so a save that adds a panel restarts nothing else (decision 13). The built-ins are the elements the app has always had, moved in the same way.
+ * Built from main's report of the layout file and rebuilt whenever that file changes, a group folds, or another panel is picked.
+ * A rebuild recreates the splits, dividers, rails and headers, but NEVER a panel: mounted panels are kept by entry key and moved into their new place, so a save that adds a panel restarts nothing else (decision 13).
+ * The built-ins are the elements the app has always had, moved in the same way.
  * Before the first read the tree is the default layout, drawn synchronously at start-up, so the first paint is already the window as it will be without a file.
  * Panels are mounted hidden and not shown until `startPanels`, which the renderer calls once the tabs are restored, so a panel's first run is in the restored tab's folder.
  *
@@ -45,7 +47,10 @@ const BUILTIN_TYPES: Record<string, PanelType> = { sessions: sessionsType, claud
 /** Every type the layout can place: the built-ins, and the config folder's as of its last read (types/folder.ts). */
 let types = BUILTIN_TYPES;
 
-/** What the tree needs from the renderer: where a panel would run, the toast, the view-state write, and the answers to every ask a panel can make (`Asks`), which each panel's host carries as they are. A panel's session links are the tree's own (links.ts). */
+/**
+ * What the tree needs from the renderer: where a panel would run, the toast, the view-state write, and the answers to every ask a panel can make (`Asks`), which each panel's host carries as they are.
+ * A panel's session links are the tree's own (links.ts).
+ */
 export interface TreeHost {
   where(): Where;
   showToast(message: string, sticky?: boolean): void;
@@ -76,7 +81,10 @@ interface Mounted {
   notes: string[];
 }
 
-/** Where a child sits in its split: along which axis, which edge it folds toward, whether it is folded, and how to fold or unfold it — null for a child that cannot. The root has no axis and cannot fold. */
+/**
+ * Where a child sits in its split: along which axis, which edge it folds toward, whether it is folded, and how to fold or unfold it — null for a child that cannot.
+ * The root has no axis and cannot fold.
+ */
 interface Place {
   axis: 'rows' | 'columns' | null;
   edge: 'start' | 'end';
@@ -88,7 +96,10 @@ const REFRESH_ICON = strokeIcon(14, '<path d="M12.8 8.6A4.8 4.8 0 1 1 11.6 4.5" 
 
 let host: TreeHost;
 let app: HTMLElement;
-/** The last report read, whatever it said: the config folder's path is right in every one. Null until the first read. */
+/**
+ * The last report read, whatever it said: the config folder's path is right in every one.
+ * Null until the first read.
+ */
 let report: LayoutReport | null = null;
 /** The tree on screen: the last good read, or the default layout until there is one. */
 let tree: ResolvedNode;
@@ -137,7 +148,10 @@ export function startPanels(): void {
   showPanels();
 }
 
-/** The tab or project changed: let every panel decide whether that moved its context. A hidden one only notes it (RunGate). */
+/**
+ * The tab or project changed: let every panel decide whether that moved its context.
+ * A hidden one only notes it (RunGate).
+ */
 export function treeContextChanged(): void {
   for (const { panel } of mounted.values()) panel.contextChanged();
 }
@@ -260,7 +274,10 @@ function renderNode(node: ResolvedNode, place: Place): HTMLElement {
   return node.kind === 'split' ? renderSplit(node) : renderGroup(node, place);
 }
 
-/** A group that can fold: it asks to, and is not degraded. Whether it has a divider to fold from is the split's to say. */
+/**
+ * A group that can fold: it asks to, and is not degraded.
+ * Whether it has a divider to fold from is the split's to say.
+ */
 const foldable = (node: ResolvedNode): node is ResolvedGroup => node.kind === 'group' && node.collapsible && node.problems.length === 0;
 
 function renderSplit(split: ResolvedSplit): HTMLElement {
@@ -314,7 +331,8 @@ function measure(nodes: HTMLElement[], horizontal: boolean): number[] {
 }
 
 /**
- * The divider between two neighbours. Always there; draggable only when both are resizable and neither is folded, and one that is not says why on hover, so it does not read as broken (P11).
+ * The divider between two neighbours.
+ * Always there; draggable only when both are resizable and neither is folded, and one that is not says why on hover, so it does not read as broken (P11).
  * A double-click on one that drags drops its split's dragged sizes, whichever divider made them, since a split's sizes are kept or dropped whole.
  */
 function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], toggles: Place['toggleFold'][], a: number, b: number): HTMLElement {

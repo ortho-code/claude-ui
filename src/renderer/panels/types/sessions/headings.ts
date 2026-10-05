@@ -70,7 +70,8 @@ export function createProjectSection(name: string): ProjectSectionEls {
   // Toggle in place (CSS hides the rows) so the sidebar doesn't rebuild and flicker.
   // Keep the clicked heading anchored: a sticky heading otherwise snaps between stuck and natural position as its rows appear/disappear, which reads as a jump.
   heading.addEventListener('click', () => {
-    // Not collapsible in a single-project view: hiding the one project you're looking at leaves an empty sidebar. The heading is a title there, and applyFolds drops its caret to say so.
+    // Not collapsible in a single-project view: hiding the one project you're looking at leaves an empty sidebar.
+    // The heading is a title there, and applyFolds drops its caret to say so.
     if (store.get().activeProject !== null) return;
     const before = heading.getBoundingClientRect().top;
     toggleFold('projects', name);
@@ -81,7 +82,8 @@ export function createProjectSection(name: string): ProjectSectionEls {
   return { section, heading, caret, count, icon, label, groupsBtn, addCaret, addBtn: add };
 }
 
-// Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky) over an indented well that holds its rows. Contents are updated on later renders.
+// Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky) over an indented well that holds its rows.
+// Contents are updated on later renders.
 export function createGroupSection(id: string): GroupSectionEls {
   const section = document.createElement('section');
   section.className = 'group';

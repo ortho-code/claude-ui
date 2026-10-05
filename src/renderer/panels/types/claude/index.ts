@@ -20,7 +20,8 @@ document.getElementById('parked')!.append(terminalPane);
 export const claudeType = builtinType('claude', terminalPane, 'Claude', 'claude', () => railStatus(store.get()));
 
 // Ctrl+Shift+↑ / ↓ step through the history (`stepHistory`) while anything in the terminal area has focus, the tab bar included.
-// Caught on the window, before xterm, which would otherwise send them to claude as keys. App shortcuts take Ctrl+Shift, since a bare Ctrl+letter belongs to the terminal.
+// Caught on the window, before xterm, which would otherwise send them to claude as keys.
+// App shortcuts take Ctrl+Shift, since a bare Ctrl+letter belongs to the terminal.
 window.addEventListener(
   'keydown',
   (event) => {

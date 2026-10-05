@@ -39,7 +39,10 @@ interface TabTerminal {
  * A resume needs none of them — the session already exists and carries its own name, worktree and history — which is why they are passed in rather than kept on the tab.
  */
 export interface TabLaunch {
-  /** The session to resume FROM: a fork's parent. A plain resume needs nothing here, since a tab resumes its own session. */
+  /**
+   * The session to resume FROM: a fork's parent.
+   * A plain resume needs nothing here, since a tab resumes its own session.
+   */
   resumeFrom?: string;
   /** Copy the resumed session rather than continue it (`--fork-session`). */
   fork?: boolean;
@@ -100,7 +103,8 @@ let shuttingDown = false;
 
 export function persistOpenTabs(): void {
   if (restoring || shuttingDown) return;
-  // Persist entity keys (session ids — immutable, so a restart always finds them again). A session with no transcript yet is not in the map; its own id stands in, and restore drops it, which is right — there is nothing on disk to reopen.
+  // Persist entity keys (session ids — immutable, so a restart always finds them again).
+  // A session with no transcript yet is not in the map; its own id stands in, and restore drops it, which is right — there is nothing on disk to reopen.
   const idToKey = new Map(store.get().sessions.map((s) => [s.id, entityKey(s)]));
   window.claudeUi.setOpenSessions(store.get().tabs.map((t) => idToKey.get(t.session.id) ?? t.session.id));
 }
@@ -129,7 +133,8 @@ export async function restoreOpenTabs(): Promise<void> {
         const token = buildTab(session);
         if (key === activeKey) toActivate = token;
       }
-      // Land where you left off — SELECTED but not started, since nothing is meant to be live after a restart. Without a remembered tab we open on none rather than guessing.
+      // Land where you left off — SELECTED but not started, since nothing is meant to be live after a restart.
+      // Without a remembered tab we open on none rather than guessing.
       if (toActivate) activateTab(toActivate, false);
     });
   } finally {
@@ -174,7 +179,8 @@ function buildTab(session: SessionSummary): string {
   let lastCtrlC = 0;
   term.onData((data) => {
     // Swallow Ctrl+Z: claude binds it to self-suspend, which strands the tab (no shell prompt to `fg` back from).
-    // You background a session by switching tabs, so suspend has no use here. claude advertises the key, so a silent no-op is confusing — say why.
+    // You background a session by switching tabs, so suspend has no use here.
+    // claude advertises the key, so a silent no-op is confusing — say why.
     if (data === '\x1a') {
       showToast('Ctrl+Z is off here — switch tabs to keep a session running in the background.');
       return;
@@ -345,7 +351,9 @@ function fitActive(): void {
 // The window needs no listener of its own: a resize that changes anything a fit reads changes this element's size too.
 new ResizeObserver(() => fitActive()).observe(terminalsEl);
 
-// Drop a tab from the UI. Idempotent (a user close and the terminal's own exit can both fire). It does not touch the terminal process; callers terminate it when they need to.
+// Drop a tab from the UI.
+// Idempotent (a user close and the terminal's own exit can both fire).
+// It does not touch the terminal process; callers terminate it when they need to.
 function removeTab(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
@@ -398,8 +406,10 @@ function coolTab(token: string): void {
  * The tab button's two steps: end the session first, remove the tab second.
  *
  * A running session and a tab are separate things — a cold tab costs nothing but a line in the bar, and it is restored on the next launch — so one press should not decide both.
- * The first press stops (claude gets its normal exit path and flushes), the tab stays and goes cold; the second removes it. A tab that is already cold goes in one press, since there is nothing live to protect.
- * While a session is arriving or leaving the button does nothing at all: see the disabled state in tabElement. Checked here too, since a middle click reaches this without going through the button.
+ * The first press stops (claude gets its normal exit path and flushes), the tab stays and goes cold; the second removes it.
+ * A tab that is already cold goes in one press, since there is nothing live to protect.
+ * While a session is arriving or leaving the button does nothing at all: see the disabled state in tabElement.
+ * Checked here too, since a middle click reaches this without going through the button.
  */
 export function closeOrStop(token: string): void {
   const tab = tabOf(token);
@@ -411,7 +421,8 @@ export function closeOrStop(token: string): void {
   closeTab(token);
 }
 
-// User-initiated close: terminate the session (claude persists per turn, so its context is on disk) and drop the tab. closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
+// User-initiated close: terminate the session (claude persists per turn, so its context is on disk) and drop the tab.
+// closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
 export function closeTab(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
@@ -441,13 +452,15 @@ export function adoptReplacement(tabToken: string, id: string): void {
       }),
     });
     // The stand-in is ours to choose; the TITLE on disk is not, and is left alone.
-    // Claude Code copies the cleared session's name into the new transcript, where nothing distinguishes it from a name somebody chose — so a named session goes on showing that name, exactly as `claude --resume` lists it. Overriding it would mean this app and the CLI disagreeing about what a session is called.
+    // Claude Code copies the cleared session's name into the new transcript, where nothing distinguishes it from a name somebody chose — so a named session goes on showing that name, exactly as `claude --resume` lists it.
+    // Overriding it would mean this app and the CLI disagreeing about what a session is called.
     // The pairing is recorded because nothing else can observe it: neither transcript points at the other, and the connection exists only in this moment.
     void window.claudeUi.recordClear(replaced, id, previous.title);
     persistOpenTabs();
     // A group says where this WORK lives, and clearing a session does not move the work — so the replacement joins the group its predecessor was in, rather than the tab visibly dropping out of its section.
     // The predecessor keeps its own membership: it is still a real session, and still that group's history.
-    // Only the group carries over. A pin and a note are about one CONVERSATION, and that conversation still has its own row to hold them.
+    // Only the group carries over.
+    // A pin and a note are about one CONVERSATION, and that conversation still has its own row to hold them.
     const group = store.get().groupState.groupOf[replaced];
     if (group) void moveSessionToGroupById(id, group);
   }
@@ -468,7 +481,8 @@ const FAILED_START_LINES = 5;
 function onTabExit(token: string, exitCode: number): void {
   const tab = tabOf(token);
   if (!tab) return; // Already closed by the user.
-  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed. Every other exit keeps today's behaviour below.
+  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed.
+  // Every other exit keeps today's behaviour below.
   if (tab.stopping) {
     coolTab(token);
     return;

@@ -85,16 +85,19 @@ const filterCount = byId(filterStatus, 'filter-count');
 const filterChips = byId(filterStatus, 'filter-chips');
 const filterClear = byId(filterStatus, 'filter-clear', HTMLButtonElement);
 
-// The filter toggle's mark: a funnel, not the magnifier it used to be. A magnifier promises a search box, which clears when it closes; what this opens is filters, which stay on.
+// The filter toggle's mark: a funnel, not the magnifier it used to be.
+// A magnifier promises a search box, which clears when it closes; what this opens is filters, which stay on.
 const filterIcon = (size: number): string => strokeIcon(size, '<path d="M2.5 2.5h11L9.2 7.9v4.4l-2.4 1.2V7.9z" />');
 
-// The open filter's mark: a window with a title bar — "this one has a tab". Deliberately a SHAPE where running is a DOT, so the pair reads as two different questions rather than two intensities.
+// The open filter's mark: a window with a title bar — "this one has a tab".
+// Deliberately a SHAPE where running is a DOT, so the pair reads as two different questions rather than two intensities.
 const OPEN_ICON = strokeIcon(13, '<rect x="2.6" y="3.4" width="10.8" height="9.2" rx="1.4" /><path d="M2.6 6.4h10.8" />');
 
 // The running filter's mark: a filled dot inside a ring — the same "live" language the status dots speak, rather than a play triangle, which would read as "start these".
 const LIVE_ICON = strokeIcon(13, '<circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />');
 
-// The archived filter's mark: a lidded box. Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
+// The archived filter's mark: a lidded box.
+// Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
 const ARCHIVE_ICON = strokeIcon(13, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
 
 // Session key -> its group's NAME, so typing a group name reaches its sessions.
@@ -146,7 +149,8 @@ function setDatePopover(open: boolean): void {
 
 /**
  * Set the filter: the list, its count and its chips follow the store.
- * A filter that ends takes the folds made under it (`Folds`), in the same change: they have served their purpose. Every way a filter ends comes here — the last character deleted, a preset back to Any, a chip's ×, Clear.
+ * A filter that ends takes the folds made under it (`Folds`), in the same change: they have served their purpose.
+ * Every way a filter ends comes here — the last character deleted, a preset back to Any, a chip's ×, Clear.
  */
 function putFilter(next: FilterState): void {
   const { folds } = store.get();
@@ -205,7 +209,8 @@ function updateDateRangeLabel(from?: Date, to?: Date): void {
   dateRangeCaption.textContent = text;
 }
 
-// Bound the picker to real data: min = the oldest session's date (max stays today, set at construction). Runs whenever the session set changes; silent so it doesn't fire onSelect.
+// Bound the picker to real data: min = the oldest session's date (max stays today, set at construction).
+// Runs whenever the session set changes; silent so it doesn't fire onSelect.
 export function applyDatePickerMinDate(view: View<'sessions'>): void {
   const earliest = view.sessions.reduce<number | null>((min, s) => {
     const t = Date.parse(s.lastActivity);
@@ -313,13 +318,19 @@ function updateFilterChips(view: View<'filter' | 'filterPanelOpen'>): void {
   filterChips.replaceChildren(...chips);
 }
 
-/** Show or hide the filter panel. Split out because the restore draws it from what was stored, before the view is in the store, and must not touch focus: at startup the terminal wants it. */
+/**
+ * Show or hide the filter panel.
+ * Split out because the restore draws it from what was stored, before the view is in the store, and must not touch focus: at startup the terminal wants it.
+ */
 function drawFilterPanel(open: boolean): void {
   filterPanel.hidden = !open;
   filterToggle.setAttribute('aria-expanded', String(open));
 }
 
-/** The panel opened or shut: it follows, with the chips that stand in for it while it is shut. A watcher the sidebar registers (watch.ts), as it does `applyDatePickerMinDate`. */
+/**
+ * The panel opened or shut: it follows, with the chips that stand in for it while it is shut.
+ * A watcher the sidebar registers (watch.ts), as it does `applyDatePickerMinDate`.
+ */
 export function filterPanelFollows(view: View<'filterPanelOpen' | 'filter'>): void {
   drawFilterPanel(view.filterPanelOpen);
   updateFilterChips(view);
@@ -339,7 +350,8 @@ function toggleFilterPanel(open: boolean): void {
  */
 export async function restoreFilter(state: UiState): Promise<FilterState> {
   searchInput.value = state.search;
-  // Only a CUSTOM range is restored as stored. The rolling presets are worked out again from the current moment, which is the whole point of "last 7 days" still meaning the last 7 days.
+  // Only a CUSTOM range is restored as stored.
+  // The rolling presets are worked out again from the current moment, which is the whole point of "last 7 days" still meaning the last 7 days.
   if (state.datePreset === 'custom') {
     const picked = [state.dateFrom, state.dateTo].filter((ms): ms is number => ms !== null).map((ms) => new Date(ms));
     if (picked.length > 0) {

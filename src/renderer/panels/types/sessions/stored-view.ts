@@ -41,7 +41,8 @@ export async function restoreSidebar(state: UiState): Promise<{ scrollTop: numbe
       filterProjects: new Set(underFilter ? state.filterCollapsedProjects : []),
       filterGroups: new Set(underFilter ? state.filterCollapsedGroups : []),
     },
-    // Exactly as it was left, an active filter included. Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
+    // Exactly as it was left, an active filter included.
+    // Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
     filterPanelOpen: state.filterPanelOpen,
     footerExpanded: state.footerExpanded,
   };

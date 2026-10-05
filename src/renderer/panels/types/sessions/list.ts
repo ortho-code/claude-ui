@@ -114,7 +114,8 @@ function renderList(view: ListView): void {
   // Switch to All to find an archived session whose project you have forgotten.
   const inScope = (list: SessionSummary[]): SessionSummary[] => (activeProject ? list.filter((s) => s.repoRoot === activeProject) : list);
   const scoped = inScope(filtered);
-  // The total is the set the matches were taken from: the same project scope and the same view, archived or not, before the other filters. So the count only ever compares a set with part of itself, and in the normal view the total is the number the switcher shows.
+  // The total is the set the matches were taken from: the same project scope and the same view, archived or not, before the other filters.
+  // So the count only ever compares a set with part of itself, and in the normal view the total is the number the switcher shows.
   updateFilterStatus(scoped.length, inScope(viewPool(all, view.filter.filters.archived, view)).length, view);
 
   if (scoped.length === 0) {
@@ -187,7 +188,8 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     els.groupsBtn.hidden = targets.length < 2;
     els.groupsBtn.disabled = isFiltering(view);
     els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
-    // Nothing can be started in a folder that is not there. Disabled rather than hidden: the project still has sessions to read, and a control that vanishes explains nothing — the tooltip does.
+    // Nothing can be started in a folder that is not there.
+    // Disabled rather than hidden: the project still has sessions to read, and a control that vanishes explains nothing — the tooltip does.
     const rootGone = !project.rootExists;
     const goneReason = rootGone ? projectGoneReason(project.repoRoot) : null;
     setUnavailable(els.addBtn, goneReason, 'New session in this project');

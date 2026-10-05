@@ -15,7 +15,10 @@ export interface MarkAt {
   reply: number | null;
 }
 
-/** A request's target on the bar, around its tick: this far above it and this far below, where the next request leaves room. About 9px, where it was 5 and hard to hit; its reply has the rest, down to the next request. */
+/**
+ * A request's target on the bar, around its tick: this far above it and this far below, where the next request leaves room.
+ * About 9px, where it was 5 and hard to hit; its reply has the rest, down to the next request.
+ */
 const REQUEST_ABOVE = 4;
 const REQUEST_BELOW = 5;
 

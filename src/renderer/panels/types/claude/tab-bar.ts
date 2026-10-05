@@ -19,7 +19,8 @@ import './tab-bar.css';
 /** The tab bar, built here and placed by the terminal area (index.ts). */
 export const tabbar = fromMarkup(`<div id="tabbar"></div>`);
 
-// The key a tab is grouped and dragged within: its project, plus its group when it has one. A drag stays inside its own cluster because each cluster is its own Sortable container.
+// The key a tab is grouped and dragged within: its project, plus its group when it has one.
+// A drag stays inside its own cluster because each cluster is its own Sortable container.
 function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.get().groupState.groupOf): string {
   return `${tab.session.repoRoot}\0${groupOf[tab.session.id] ?? ''}`;
 }
@@ -103,7 +104,8 @@ export function tabBarFollowsStatuses(view: TabBarView, before: View<'statuses' 
 function tabElement(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames' | 'activeTab'>): HTMLElement {
   const { token } = tab;
   const el = document.createElement('div');
-  // 'cold' = restored but never started. Unfilled rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
+  // 'cold' = restored but never started.
+  // Unfilled rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
   const unstartable = unstartableReason(tab.session);
   el.className = [
@@ -141,7 +143,8 @@ function tabElement(tab: TabState, view: View<'statuses' | 'acked' | 'projectNam
   label.textContent = text;
   setTooltip(label, unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}`);
 
-  // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind. See closeOrStop.
+  // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind.
+  // See closeOrStop.
   const close = document.createElement('button');
   close.className = 'icon-btn compact tab-close';
   // Anything but a settled cold tab: it has a process, or one is on its way, or one is on its way out.
@@ -232,7 +235,8 @@ function initTabSortables(): void {
   );
 }
 
-// Alt-tabbing away mid-drag never delivers a pointerup, so SortableJS can leave a drag stuck. On blur, synthesise the release so it ends cleanly (dropping the tab where it currently is).
+// Alt-tabbing away mid-drag never delivers a pointerup, so SortableJS can leave a drag stuck.
+// On blur, synthesise the release so it ends cleanly (dropping the tab where it currently is).
 window.addEventListener('blur', () => {
   if (!tabDragActive) return;
   document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));

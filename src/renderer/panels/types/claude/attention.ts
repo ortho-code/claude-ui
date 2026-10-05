@@ -11,7 +11,8 @@ import { tabOf } from './terminals';
  */
 
 /**
- * A real transition into waiting/idle on a tab you're not looking at -> toast it. Never for busy, a cleared status, a no-op repeat, or the tab you're already on.
+ * A real transition into waiting/idle on a tab you're not looking at -> toast it.
+ * Never for busy, a cleared status, a no-op repeat, or the tab you're already on.
  * Only a change of state is news: against the statuses as the toasts last saw them (`before`).
  * Start-up's read of every status toasts nothing: it lands before the tabs are restored, so no session in it has a tab yet.
  */

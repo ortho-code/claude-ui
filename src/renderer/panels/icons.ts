@@ -2,7 +2,8 @@
  * The icons a panel can wear on a rail, by name.
  *
  * Drawn on the app's 16-unit grid with the ink centred on (8,8) and stroked in `currentColor`, like every other mark in the app, so they follow the theme and sit level with the controls beside them.
- * The set is fixed in this build: a type names its default, and an entry's `icon` picks another by name. Icons of a person's own, from a file in the config folder, are a later addition that would sit beside these names.
+ * The set is fixed in this build: a type names its default, and an entry's `icon` picks another by name.
+ * Icons of a person's own, from a file in the config folder, are a later addition that would sit beside these names.
  * Pure strings, so the validator can check a name without a DOM.
  */
 

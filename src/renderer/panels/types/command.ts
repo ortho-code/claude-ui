@@ -10,14 +10,18 @@ import { listenForRuns } from '../runs';
 /**
  * The `command` panel type: runs a command line or a script and shows what it printed.
  *
- * A TYPE OWNS ITS OPTIONS: it declares them here, checks them itself (options.ts) when it is mounted and before every run, and tells the tree through its host when it cannot run. The layout never reads them.
+ * A TYPE OWNS ITS OPTIONS: it declares them here, checks them itself (options.ts) when it is mounted and before every run, and tells the tree through its host when it cannot run.
+ * The layout never reads them.
  * The same module owns the panel's body and its run: the tree draws the chrome around it (tree.ts) and asks it to refresh or to follow a context change.
  */
 
 /** Where a command line is cut for a default title: a title is a label, not the whole line. */
 export const TITLE_MAX = 40;
 
-/** What an entry runs, in the form the runner takes. Only for options whose check passed, which is what guarantees exactly one is present. */
+/**
+ * What an entry runs, in the form the runner takes.
+ * Only for options whose check passed, which is what guarantees exactly one is present.
+ */
 export function commandSource(options: Record<string, unknown>): PanelSource {
   return typeof options.script === 'string' ? { script: options.script } : { command: typeof options.command === 'string' ? options.command : '' };
 }
@@ -31,7 +35,10 @@ class CommandPanel implements MountedPanel {
   readonly el = document.createElement('div');
   private readonly output = document.createElement('pre');
   private readonly placeholder = document.createElement('div');
-  /** The current run's token, or null while nothing is running. Every event is checked against it, so a superseded run's tail never lands in the new run's body. */
+  /**
+   * The current run's token, or null while nothing is running.
+   * Every event is checked against it, so a superseded run's tail never lands in the new run's body.
+   */
   private token: string | null = null;
   private pending = '';
   private readonly gate: RunGate;

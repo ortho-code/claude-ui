@@ -1,7 +1,8 @@
 import { fieldsOf } from '../fields';
 
 /**
- * The list document a `list` type's script prints on stdout, and its check. Pure, and tested per rule.
+ * The list document a `list` type's script prints on stdout, and its check.
+ * Pure, and tested per rule.
  *
  * This is half of the contract a shared type is written against (the manifest, types/folder.ts, is the other), so it has a `version`, and the rule every contract here keeps: a field this build does not know is IGNORED, never refused, so a script written for a later build still draws, and a version this build does not read is refused whole.
  * Everything the app draws from it goes in as text, never as markup, and a link has to be http or https: the script may come from anyone.
@@ -25,7 +26,10 @@ export const LIST_FIELDS = {
 export const TONES = ['normal', 'attention', 'muted', 'danger'] as const;
 export type Tone = (typeof TONES)[number];
 
-/** Start a claude session with a prompt, in the project and group the user picks in the app's own dialog. The one action in this version. */
+/**
+ * Start a claude session with a prompt, in the project and group the user picks in the app's own dialog.
+ * The one action in this version.
+ */
 export interface SessionAction {
   label: string;
   prompt: string;

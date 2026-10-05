@@ -15,7 +15,8 @@ import './controls.css';
 // Chevrons, not filled triangles: the collapse-all button already says fold/unfold with a chevron, and a solid triangle would be the only filled shape in an outline icon set.
 const chevronDown = (size: number): string => chevronIcon('down', size);
 const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
-// Dots, so it stays a kebab rather than becoming a dashed line. The radius is in px for the same reason the stroke is: three 2.6px dots whatever the button's size.
+// Dots, so it stays a kebab rather than becoming a dashed line.
+// The radius is in px for the same reason the stroke is: three 2.6px dots whatever the button's size.
 const kebabIcon = (size: number): string => {
   const r = ((1.3 * 16) / size).toFixed(2);
   return `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="currentColor"><circle cx="8" cy="3.4" r="${r}" /><circle cx="8" cy="8" r="${r}" /><circle cx="8" cy="12.6" r="${r}" /></svg>`;
@@ -49,7 +50,8 @@ interface NewSessionSplit {
   where: () => { repoRoot: string; groupId?: string } | null;
 }
 
-// A heading's new-session split button: the "+" is one-click "New session"; the caret opens a dropdown with the worktree variant too. reconcileProjectSections shows the caret only for git repos.
+// A heading's new-session split button: the "+" is one-click "New session"; the caret opens a dropdown with the worktree variant too.
+// reconcileProjectSections shows the caret only for git repos.
 export function newSessionSplit({ addClass, caretClass, plusSize, tooltip, where }: NewSessionSplit): { split: HTMLElement; add: HTMLButtonElement; addCaret: HTMLButtonElement } {
   const split = document.createElement('div');
   split.className = 'split-button';

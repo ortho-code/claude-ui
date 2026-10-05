@@ -30,7 +30,8 @@ export function getOrCreateRow(key: string): HTMLElement {
   return row;
 }
 
-// Take it back out of the box. Archiving has no row icon — it is a kebab item (text) in the normal view; only unarchiving, the archived view's primary action, stays a button on the row.
+// Take it back out of the box.
+// Archiving has no row icon — it is a kebab item (text) in the normal view; only unarchiving, the archived view's primary action, stays a button on the row.
 // Redrawn from its 24-unit original at two-thirds scale, onto the 16-unit grid the helper draws on.
 const UNARCHIVE_ICON = strokeIcon(14, '<path d="M.67 2.67v4h4" /><path d="M2.34 10a6 6 0 1 0 1.42-6.24L.67 6.67" />');
 
@@ -51,7 +52,8 @@ interface RowEls {
 // Each row's child elements, cached so updateRow reads them directly instead of re-querying the DOM every render (same idea as the session summary cache, applied to rendering).
 const rowEls = new WeakMap<HTMLElement, RowEls>();
 
-// Build a row once. Its click/pin handlers read the live session from `currentByKey` by the entity key (the session id), so a reused row stays correct across re-renders.
+// Build a row once.
+// Its click/pin handlers read the live session from `currentByKey` by the entity key (the session id), so a reused row stays correct across re-renders.
 function createSessionRow(key: string): HTMLElement {
   const { card: item, content, title, meta } = listCard('session');
   item.dataset.key = key;
@@ -62,7 +64,8 @@ function createSessionRow(key: string): HTMLElement {
   const badge = document.createElement('span');
   badge.className = 'worktree-badge';
   badge.hidden = true;
-  // A family member's mark: the fork icon plus a count of its siblings, which opens a list of them to jump into. Shown only when session.isSibling (set in updateRow).
+  // A family member's mark: the fork icon plus a count of its siblings, which opens a list of them to jump into.
+  // Shown only when session.isSibling (set in updateRow).
   const siblingsBadge = document.createElement('span');
   siblingsBadge.className = 'sibling-badge';
   siblingsBadge.hidden = true;
@@ -89,7 +92,8 @@ function createSessionRow(key: string): HTMLElement {
     if (session) void editNote(session);
   });
 
-  // A separator before the mark, matching the " · " already between time and model. Hidden with the mark, so a row without a note doesn't end in a dangling dot.
+  // A separator before the mark, matching the " · " already between time and model.
+  // Hidden with the mark, so a row without a note doesn't end in a dangling dot.
   const noteSep = document.createElement('span');
   noteSep.className = 'meta-sep';
   noteSep.textContent = '·';
@@ -106,7 +110,8 @@ function createSessionRow(key: string): HTMLElement {
   pin.addEventListener('click', (event) => {
     event.stopPropagation();
     if (pin.disabled) return;
-    // Disabling it is the pending cue: the icon button's disabled look dims it (base.css). (There was a 'loading' class here with no CSS behind it, so it painted nothing.)
+    // Disabling it is the pending cue: the icon button's disabled look dims it (base.css).
+    // (There was a 'loading' class here with no CSS behind it, so it painted nothing.)
     pin.disabled = true;
     void togglePinFor(key).then(() => {
       // The row's redraw re-enables it; this is for an answer that changed nothing, which tells nobody.
@@ -150,7 +155,8 @@ function createSessionRow(key: string): HTMLElement {
     if (store.get().filter.filters.archived) return;
     const session = currentByKey.get(key);
     if (!session) return;
-    // A session whose folder is gone cannot run anywhere. The row says so in its tooltip, and this answers the click for anyone who tries it anyway rather than opening a tab that could only fail.
+    // A session whose folder is gone cannot run anywhere.
+    // The row says so in its tooltip, and this answers the click for anyone who tries it anyway rather than opening a tab that could only fail.
     const reason = unstartableReason(session);
     if (reason) {
       showToast(reason);
@@ -181,7 +187,8 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
 
   els.badge.hidden = !session.worktree;
   if (session.worktree) {
-    // Icon only — the word "worktree" cost a badge-width of room and the branch icon plus its tooltip already say it. Being wordless, the pill carries its own aria-label.
+    // Icon only — the word "worktree" cost a badge-width of room and the branch icon plus its tooltip already say it.
+    // Being wordless, the pill carries its own aria-label.
     const wtIcon = document.createElement('span');
     wtIcon.className = 'badge-icon';
     wtIcon.innerHTML = WORKTREE_ICON;
@@ -193,7 +200,8 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   const note = view.notes.get(entityKey(session));
   els.noteBadge.hidden = !note;
   els.noteSep.hidden = !note;
-  // Tooltips are one line, so preview the start rather than dumping a long note into it. The tooltip wraps and keeps line breaks now, so it can show a real chunk of the note.
+  // Tooltips are one line, so preview the start rather than dumping a long note into it.
+  // The tooltip wraps and keeps line breaks now, so it can show a real chunk of the note.
   if (note) setTooltip(els.noteBadge, note.length > 400 ? `${note.slice(0, 400)}…` : note);
 
   els.siblingsBadge.hidden = !session.isSibling;

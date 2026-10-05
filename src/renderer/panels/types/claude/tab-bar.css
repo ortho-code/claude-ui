@@ -39,7 +39,8 @@
   background: var(--surface-hover);
 }
 
-/* A group's row of tabs, indented behind the same muted rail the sidebar uses so a group looks the same in both halves of the window. Nothing here is filled: a filled shape beside the filled tabs would read as another tab. */
+/* A group's row of tabs, indented behind the same muted rail the sidebar uses so a group looks the same in both halves of the window.
+   Nothing here is filled: a filled shape beside the filled tabs would read as another tab. */
 .tab-group-row {
   padding-left: 3px;
 }
@@ -85,7 +86,10 @@
   box-shadow: inset 0 3px 0 var(--accent);
 }
 
-/* Restored but not started. It loses the FILL rather than just dimming its text: every other tab is a filled chip, so an unfilled one reads as "not loaded yet" at a glance, where a slightly greyer label did not. Not badged and not marked — this is a session waiting to be resumed, and clicking it is the whole fix. Hover fills it like any other tab, so it never reads as disabled. */
+/* Restored but not started.
+   It loses the FILL rather than just dimming its text: every other tab is a filled chip, so an unfilled one reads as "not loaded yet" at a glance, where a slightly greyer label did not.
+   Not badged and not marked — this is a session waiting to be resumed, and clicking it is the whole fix.
+   Hover fills it like any other tab, so it never reads as disabled. */
 .tab.cold {
   background: none;
   box-shadow: inset 0 0 0 1px var(--border);
@@ -103,7 +107,9 @@
   color: var(--text);
 }
 
-/* Selected but still cold — the launch state. Keeps the selected EDGE so you can see where you are, but in --muted, matching the session row's left bar: both marks answer "is this one running?", so they have to answer it the same way. The accent is reserved for a live session. */
+/* Selected but still cold — the launch state.
+   Keeps the selected EDGE so you can see where you are, but in --muted, matching the session row's left bar: both marks answer "is this one running?", so they have to answer it the same way.
+   The accent is reserved for a live session. */
 .tab.cold.active {
   background: none;
   box-shadow:
@@ -152,7 +158,8 @@
   font-size: var(--text-meta);
 }
 
-/* SortableJS placeholder marking a dragged tab's drop slot (ghostClass). The floating clone it drags keeps the normal .tab look. */
+/* SortableJS placeholder marking a dragged tab's drop slot (ghostClass).
+   The floating clone it drags keeps the normal .tab look. */
 .tab-ghost {
   opacity: 0.5;
   box-shadow: inset 0 0 0 1px var(--accent);

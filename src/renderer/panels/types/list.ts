@@ -18,9 +18,12 @@ import './list.css';
 /**
  * The `list` kind: a type from the config folder whose script prints a list document (listdoc.ts), which the app draws with its own styles.
  *
- * THE SCRIPT DESCRIBES, THE APP ACTS: the script only prints, and what a row does when pressed is the app's, so a type shared from anyone can do nothing a person did not press. A row opens its link in the browser, through the same route every link in the app leaves by, and its `session` action is a button that asks the app for a session, which opens the app's dialog first.
+ * THE SCRIPT DESCRIBES, THE APP ACTS: the script only prints, and what a row does when pressed is the app's, so a type shared from anyone can do nothing a person did not press.
+ * A row opens its link in the browser, through the same route every link in the app leaves by, and its `session` action is a button that asks the app for a session, which opens the app's dialog first.
  * WHEN IT RUNS: on first being shown, on Refresh, on a context change while shown (the command panel's `RunGate`), and on its interval if it has one — the interval also while the panel is hidden or folded, so the count on its rail stays true.
- * NEVER AN EMPTY LIST FOR A BROKEN RUN: a run that fails, or prints something that is not a list, says so. With a good list already on screen, the list stays under a line saying the run failed, when, and why, so a bad minute on the network does not blank a queue; without one, the panel says it is unavailable and why. Before the first run has ended it says it is waiting, which is neither.
+ * NEVER AN EMPTY LIST FOR A BROKEN RUN: a run that fails, or prints something that is not a list, says so.
+ * With a good list already on screen, the list stays under a line saying the run failed, when, and why, so a bad minute on the network does not blank a queue; without one, the panel says it is unavailable and why.
+ * Before the first run has ended it says it is waiting, which is neither.
  */
 
 /** How much of a run's stderr is kept: its end, which is where a script says what went wrong. */
@@ -383,7 +386,8 @@ class ListPanel implements MountedPanel {
     this.sessionMarks.set(item.key, mark);
     this.paintSessions(item.key, mark);
     row.append(mark);
-    // What a row offers, as buttons at its end. Each only ASKS: the app's dialog shows what would start, and nothing does until Start there.
+    // What a row offers, as buttons at its end.
+    // Each only ASKS: the app's dialog shows what would start, and nothing does until Start there.
     for (const action of item.actions) {
       const button = element('button', 'list-action');
       button.type = 'button';

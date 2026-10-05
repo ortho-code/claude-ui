@@ -42,7 +42,10 @@ type Place = { at: number; offset: number } | null;
  */
 export class HistoryView {
   readonly el = document.createElement('section');
-  /** What dims claude beside it while it is open over the live terminal; a click on it closes the history. Goes into the terminal area just before `el`. */
+  /**
+   * What dims claude beside it while it is open over the live terminal; a click on it closes the history.
+   * Goes into the terminal area just before `el`.
+   */
   readonly scrim = document.createElement('div');
   private readonly allButton = document.createElement('button');
   private readonly pinnedButton = document.createElement('button');
@@ -60,7 +63,10 @@ export class HistoryView {
   private pinnedOnly = false;
   private reading = false;
   private readAgain = false;
-  /** Per session, where its history was left open when its tab was left: the exchange at the top and how far into it, or null for the end. A session left with it closed has no entry. */
+  /**
+   * Per session, where its history was left open when its tab was left: the exchange at the top and how far into it, or null for the end.
+   * A session left with it closed has no entry.
+   */
   private readonly left = new Map<string, Place>();
   /** Where to reopen the session followed once its history has been read; undefined when it was left closed, or has been opened or closed since. */
   private reopen: Place | undefined;
@@ -87,7 +93,8 @@ export class HistoryView {
     const title = document.createElement('span');
     title.className = 'history-title';
     title.textContent = 'History';
-    // What is shown, as a labelled switch with the counts on it: all the requests, or only the pinned ones. An unlabelled star did not say it was a filter.
+    // What is shown, as a labelled switch with the counts on it: all the requests, or only the pinned ones.
+    // An unlabelled star did not say it was a filter.
     const show = document.createElement('span');
     show.className = 'history-show';
     for (const [button, pinnedOnly, tooltip] of [
@@ -470,7 +477,10 @@ export class HistoryView {
     this.onLayout?.();
   }
 
-  /** Draw the newest exchanges, back from `end`, until `deadline` (always one). Says where they start. */
+  /**
+   * Draw the newest exchanges, back from `end`, until `deadline` (always one).
+   * Says where they start.
+   */
   private drawTail(end: number, deadline: number): number {
     const fresh: HTMLElement[] = [];
     let k = end;

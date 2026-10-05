@@ -1,4 +1,5 @@
-/* THE HISTORY: the app's own view of a session's requests and claude's replies, over the terminal area. Hidden by visibility, never display, while the live terminal is on show: it stays laid out, so what it draws can be measured, which is how the bar beside it places its marks. */
+/* THE HISTORY: the app's own view of a session's requests and claude's replies, over the terminal area.
+   Hidden by visibility, never display, while the live terminal is on show: it stays laid out, so what it draws can be measured, which is how the bar beside it places its marks. */
 .history {
   position: absolute;
   inset: 0;
@@ -143,7 +144,8 @@
   white-space: pre-line;
 }
 
-/* The way out of the history, in its head: labelled, with its key on it. A history standing in for a cold tab has no live view, and closes from its own line instead. */
+/* The way out of the history, in its head: labelled, with its key on it.
+   A history standing in for a cold tab has no live view, and closes from its own line instead. */
 .history-leave {
   margin-left: 6px;
   padding: 2px 8px;
@@ -283,7 +285,8 @@
   overflow-wrap: anywhere;
 }
 
-/* Claude's dot: a message in the text's colour, a tool call in green. Drawn, not a glyph, as every mark in the app is. */
+/* Claude's dot: a message in the text's colour, a tool call in green.
+   Drawn, not a glyph, as every mark in the app is. */
 .exchange-text,
 .exchange-tool {
   position: relative;

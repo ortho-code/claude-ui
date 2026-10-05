@@ -31,11 +31,14 @@ const DENSE = 120;
  * A request is a tick across it and its reply a thin bar down its middle until the next request — a shape apart, not only a shade — with pins in the accent, a request that was sent again dimmer, the last request in full white, and, in the history, a band for where you are.
  * Its marks are placed from the history's measured heights, so they sit where the history's own scrolling puts things.
  *
- * Hovering opens the LOUPE beside it: the entries around the pointer, in words. At 821 requests the bar has under a pixel each, so the pointer alone picks roughly; the wheel — over the bar, or inside the loupe once the pointer has moved into it — steps one entry at a time, and a click on its row or Enter opens it.
+ * Hovering opens the LOUPE beside it: the entries around the pointer, in words.
+ * At 821 requests the bar has under a pixel each, so the pointer alone picks roughly; the wheel — over the bar, or inside the loupe once the pointer has moved into it — steps one entry at a time, and a click on its row or Enter opens it.
  * The user's words that settled this, after a fisheye was tried and rejected: "when there are a lot of messages you can't reach the correct message".
  *
- * Pressing on it is a scrollbar's: the view goes to that point at once, opening the history if it is closed, and follows the pointer until the button is let go. The rough way to a place, with the loupe for the exact entry.
- * In the user's words: "I want to press the mouse on a point in the sidebar, then the view should already go there. When I keep the mouse down I can drag and the view scrolls with it until I release the mouse button."
+ * Pressing on it is a scrollbar's: the view goes to that point at once, opening the history if it is closed, and follows the pointer until the button is let go.
+ * The rough way to a place, with the loupe for the exact entry.
+ * In the user's words: "I want to press the mouse on a point in the sidebar, then the view should already go there.
+ * When I keep the mouse down I can drag and the view scrolls with it until I release the mouse button."
  */
 export class HistoryBar {
   /** The column the bar takes beside the terminal; its width never changes, so the terminal's never does. */

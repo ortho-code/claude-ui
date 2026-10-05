@@ -33,9 +33,12 @@ const footerList = byId(sidebarFooter, 'footer-list');
 /**
  * The strip row's stop control.
  *
- * WHY IT BELONGS HERE and is not just a shortcut for the tab's button: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab. So stopping a stray session from the strip costs you your place: you go there, stop it, and come back. This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
+ * WHY IT BELONGS HERE and is not just a shortcut for the tab's button: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab.
+ * So stopping a stray session from the strip costs you your place: you go there, stop it, and come back.
+ * This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
  * The membership rule makes it exact: the strip lists what has a PROCESS, which is precisely the set of things that can be stopped — so there is no scoping or filtering to reason about, and no cold-tab case.
- * STOP ONLY, never close: the strip is not a list of tabs. A row leaves it by the session stopping, which is what this already does.
+ * STOP ONLY, never close: the strip is not a list of tabs.
+ * A row leaves it by the session stopping, which is what this already does.
  */
 function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButtonElement {
   const stop = document.createElement('button');
@@ -135,13 +138,15 @@ function renderFooter(model: SwitcherModel, pool: SessionSummary[], view: View<'
         // The read state has to show either way, or a muted row reads as live — hence the acked modifier, which dims this badge exactly as it dims the dot.
         const dot = document.createElement('span');
         applyStatus(dot, view.statuses.get(session.id), view.acked.has(session.id));
-        // A muted row stays LISTED: membership is "has a process", and acking says "seen it", not "stop". Only the count above drops it.
+        // A muted row stays LISTED: membership is "has a process", and acking says "seen it", not "stop".
+        // Only the count above drops it.
         ackOnClick(dot, () => session.id);
         const name = document.createElement('span');
         name.className = 'footer-item-name';
         name.textContent = sessionLabel(session);
         jump.append(dot, name);
-        // The group as a CHIP rather than a third level of headings. The strip is capped at 40vh, where a project -> group -> session nesting costs a heading row and an indent per group, and a chip costs no rows at all.
+        // The group as a CHIP rather than a third level of headings.
+        // The strip is capped at 40vh, where a project -> group -> session nesting costs a heading row and an indent per group, and a chip costs no rows at all.
         // Worth revisiting if several sessions of one group routinely show here together, since the same chip repeated down a run of rows reads as noise where a single heading would not.
         const groupName = groups.find((g) => g.id === groupOf[entityKey(session)])?.name;
         if (groupName) {

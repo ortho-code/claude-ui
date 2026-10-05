@@ -33,7 +33,8 @@ export async function copyText(text: string, confirmation: string): Promise<void
   }
 }
 
-// A session's siblings (the other members of its family), most recent first. Shared by the count badge and the kebab submenu.
+// A session's siblings (the other members of its family), most recent first.
+// Shared by the count badge and the kebab submenu.
 function siblingsOf(session: SessionSummary): SessionSummary[] {
   return store
     .get()
@@ -106,7 +107,8 @@ export async function renameGroupById(id: string): Promise<void> {
   applyGroupState(await window.claudeUi.renameGroup(id, name));
 }
 
-// No confirmation: nothing is destroyed. The group goes and its members simply sit under the project again — unlike deleting a session, which trashes a transcript.
+// No confirmation: nothing is destroyed.
+// The group goes and its members simply sit under the project again — unlike deleting a session, which trashes a transcript.
 export async function deleteGroupById(id: string): Promise<void> {
   const group = store.get().groupState.groups.find((g) => g.id === id);
   applyGroupState(await window.claudeUi.deleteGroup(id));
@@ -128,7 +130,9 @@ function moveToGroupItems(session: SessionSummary): MenuItem[] {
   return items;
 }
 
-// Archive/unarchive one session. Archiving puts it away, so any open tab for it closes too (unarchive leaves tabs alone). Shared by the kebab item and the archived view's row button.
+// Archive/unarchive one session.
+// Archiving puts it away, so any open tab for it closes too (unarchive leaves tabs alone).
+// Shared by the kebab item and the archived view's row button.
 export async function toggleArchiveFor(key: string): Promise<void> {
   const archived = new Map(Object.entries(await window.claudeUi.toggleArchive(key)));
   // One change, told once the tabs are closed, so the list draws with them gone, as it did.
@@ -189,14 +193,16 @@ export function sessionMenuItems(session: SessionSummary): MenuItem[] {
     label: `Copy session id (${session.id.slice(0, 8)})`,
     onSelect: () => void copyText(session.id, 'Session id copied.'),
   });
-  // The state changes sit below a rule, away from the navigate/copy items. Only the normal view offers them: the archived view keeps unarchive on the row and hides the kebab.
+  // The state changes sit below a rule, away from the navigate/copy items.
+  // Only the normal view offers them: the archived view keeps unarchive on the row and hides the kebab.
   items.push({ label: '', separator: true });
   // Stopping lives on the tab's own button, which is where the session you want to stop is: see closeOrStop.
   items.push({ label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
   return items;
 }
 
-// Open the note editor for a session. Saving a blank note clears it (meta drops the entry), so the same dialog both writes and removes one — there is no separate delete.
+// Open the note editor for a session.
+// Saving a blank note clears it (meta drops the entry), so the same dialog both writes and removes one — there is no separate delete.
 export async function editNote(session: SessionSummary): Promise<void> {
   const key = entityKey(session);
   const text = await promptText('Note', sessionLabel(session), store.get().notes.get(key) ?? '', 'Save', undefined, true);

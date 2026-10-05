@@ -22,10 +22,14 @@
   min-width: 0;
 }
 
-/* The text carries the ellipsis now that the paragraph is a flex container. text-box trims its box to cap-height/baseline so flex centres the mark against the text's INK: centring the em box aligns to a box that includes descender space, which leaves the mark reading a touch low. Same fix as .badge-text in the pills. */
+/* The text carries the ellipsis now that the paragraph is a flex container.
+   text-box trims its box to cap-height/baseline so flex centres the mark against the text's INK: centring the em box aligns to a box that includes descender space, which leaves the mark reading a touch low.
+   Same fix as .badge-text in the pills. */
 .meta-text {
   text-box: trim-both cap alphabetic;
-  /* The trim ends the box at the BASELINE, so descenders (g, p, y) paint outside it — and this element needs overflow:hidden for its ellipsis, which clipped them. Symmetric padding gives the clip box room without undoing the trim's purpose: cap-top to baseline still sits centred in the padded box, so the mark beside it stays aligned to the text's ink. 3px is this font's descent at 12px; measured, not guessed. */
+  /* The trim ends the box at the BASELINE, so descenders (g, p, y) paint outside it — and this element needs overflow:hidden for its ellipsis, which clipped them.
+     Symmetric padding gives the clip box room without undoing the trim's purpose: cap-top to baseline still sits centred in the padded box, so the mark beside it stays aligned to the text's ink.
+     3px is this font's descent at 12px; measured, not guessed. */
   padding: 3px 0;
   min-width: 0;
   white-space: nowrap;
@@ -64,7 +68,8 @@
   align-items: center;
   gap: 3px;
   max-width: 100%;
-  /* Explicit height (border-box), because a flex pill with no text child has no line box for line-height to act on: the wordless worktree pill collapsed to its icon at 12px while the sibling pill, which holds a count, stood at 18px. line-height:1 for the same reason in reverse — it makes a digit's box its own font size, so flex centres it on exactly the icon's centre instead of half a pixel below. */
+  /* Explicit height (border-box), because a flex pill with no text child has no line box for line-height to act on: the wordless worktree pill collapsed to its icon at 12px while the sibling pill, which holds a count, stood at 18px.
+     line-height:1 for the same reason in reverse — it makes a digit's box its own font size, so flex centres it on exactly the icon's centre instead of half a pixel below. */
   height: 18px;
   padding: 0 6px;
   font-size: var(--text-badge);
@@ -89,18 +94,25 @@
   color: var(--bg);
 }
 
-/* The badge/pill icons (fork, branch) as inline SVG. The pill stays an inline-block so its max-width + ellipsis keep applying to the text beside the icon; this only aligns the icon to the text baseline and sizes it to the 10px pill. No per-glyph size correction any more — the shapes are ours, so they already match. */
+/* The badge/pill icons (fork, branch) as inline SVG.
+   The pill stays an inline-block so its max-width + ellipsis keep applying to the text beside the icon; this only aligns the icon to the text baseline and sizes it to the 10px pill.
+   No per-glyph size correction any more — the shapes are ours, so they already match. */
 .badge-icon {
   display: flex;
 }
 
-/* Text inside a badge pill (a sibling count, the model label). A digit's em box carries the font's full ascent and descent, so centring that box leaves the digit's INK riding ~0.7px high next to an icon whose ink is centred in its own viewBox — visible at 10px. text-box-trim cuts the box down to cap-height/baseline, i.e. to the ink itself, so flex centres what you actually see. Font-independent, unlike a hard-coded nudge (the trap .wt-icon's old 0.8em fell into). Chromium-only, which is all this app runs on. */
+/* Text inside a badge pill (a sibling count, the model label).
+   A digit's em box carries the font's full ascent and descent, so centring that box leaves the digit's INK riding ~0.7px high next to an icon whose ink is centred in its own viewBox — visible at 10px.
+   text-box-trim cuts the box down to cap-height/baseline, i.e. to the ink itself, so flex centres what you actually see.
+   Font-independent, unlike a hard-coded nudge (the trap .wt-icon's old 0.8em fell into).
+   Chromium-only, which is all this app runs on. */
 .badge-text {
   text-box: trim-both cap alphabetic;
 }
 
 
-/* 12px, not 10: these icons carry ink across 10 of their 16 viewBox units (62.5%), so 12px renders 7.5px of ink — matching the 7.25px ink of the 10px digit beside it. At 10px the icon's 6.25px of ink read as a smaller mark next to a bigger number, which looked like a centring fault. */
+/* 12px, not 10: these icons carry ink across 10 of their 16 viewBox units (62.5%), so 12px renders 7.5px of ink — matching the 7.25px ink of the 10px digit beside it.
+   At 10px the icon's 6.25px of ink read as a smaller mark next to a bigger number, which looked like a centring fault. */
 .badge-icon svg {
   display: block;
   width: 12px;

@@ -3,7 +3,8 @@ import type { PanelEntry, PathBase, PathKind } from '../../shared/panels';
 /**
  * A panel type's own settings, the entry's `options`: declared by the type, checked by the type, read by nobody else.
  *
- * THE LAYOUT READS THE LAYOUT. It checks an entry's `id`, `type`, `title`, `hidden` and `icon` and hands `options` over whole; what is wrong inside them is the type's to say, through its host, when it is mounted and before it runs.
+ * THE LAYOUT READS THE LAYOUT.
+ * It checks an entry's `id`, `type`, `title`, `hidden` and `icon` and hands `options` over whole; what is wrong inside them is the type's to say, through its host, when it is mounted and before it runs.
  * So one checker serves every type, driven by the type's declaration — an option cannot be known to the check and not to the type, and a type can gain one without the layout learning its name.
  * The declaration is also what a form for the file would be built from, if the app ever gets an editor.
  */
@@ -23,8 +24,10 @@ export interface OptionDecl {
 }
 
 /**
- * The folder a `command` or `terminal` panel runs in, when it is not the context directory itself. ONE declaration, used by both types.
- * Absolute or under `~` is FIXED: there, whatever is selected. Relative is under the context directory, so it follows the project into a subfolder.
+ * The folder a `command` or `terminal` panel runs in, when it is not the context directory itself.
+ * ONE declaration, used by both types.
+ * Absolute or under `~` is FIXED: there, whatever is selected.
+ * Relative is under the context directory, so it follows the project into a subfolder.
  */
 export const CWD_OPTION: OptionDecl = { name: 'cwd', kind: 'path', against: 'context', must: 'directory' };
 
@@ -67,7 +70,10 @@ export interface OptionsDecl {
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** An entry's options as written; `{}` when it has none. The layout has already refused an `options` that is not an object. */
+/**
+ * An entry's options as written; `{}` when it has none.
+ * The layout has already refused an `options` that is not an object.
+ */
 export function optionsOf(entry: PanelEntry | null): Record<string, unknown> {
   return isObject(entry?.options) ? entry.options : {};
 }
@@ -133,7 +139,8 @@ export interface PathAsk {
 }
 
 /**
- * The path options an entry gives, with what each resolves against and must be: what main is asked about. Only for options whose shape passed.
+ * The path options an entry gives, with what each resolves against and must be: what main is asked about.
+ * Only for options whose shape passed.
  * `contextDir` is the panel's context directory, or null without one: a relative value against the context then has nothing to be checked against and is left out, since the panel says "Pick a project" for it instead.
  */
 export function pathChecks(options: Record<string, unknown>, decl: OptionsDecl, contextDir: string | null): PathAsk[] {

@@ -63,7 +63,8 @@ export function foldsFollow(view: View<'folds' | 'filter' | 'activeProject'>): v
   updateCollapseToggle(view);
 }
 
-// Chevrons stacked in the direction things will move: up to fold everything away, down to open it again. Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
+// Chevrons stacked in the direction things will move: up to fold everything away, down to open it again.
+// Ink centred on 8,8 like the row icons, so the glyph sits square in its button.
 const COLLAPSE_ALL_ICON = strokeIcon(14, '<path d="M4 7.25L8 3.75L12 7.25" /><path d="M4 12.25L8 8.75L12 12.25" />');
 const EXPAND_ALL_ICON = strokeIcon(14, '<path d="M4 3.75L8 7.25L12 3.75" /><path d="M4 8.75L8 12.25L12 8.75" />');
 
@@ -76,7 +77,8 @@ function collapseScope(view: View<'activeProject' | 'filter' | 'folds'>): { kind
     : { kind: 'groups', ids: renderedSections.groups, collapsed: foldedGroups(view) };
 }
 
-// Everything in scope folded away already? Then the button offers the way back instead.
+// Everything in scope folded away already?
+// Then the button offers the way back instead.
 function allSectionsCollapsed(view: View<'activeProject' | 'filter' | 'folds'>): boolean {
   const { ids, collapsed } = collapseScope(view);
   return ids.length > 0 && ids.every((id) => collapsed.has(id));
@@ -98,7 +100,8 @@ collapseToggle.addEventListener('click', () => {
   const { kind, ids } = collapseScope(state);
   const expanding = allSectionsCollapsed(state);
   let folds = foldsWith(state, kind, ids, !expanding);
-  // In the All view a project's groups fold along with it, so expanding one afterwards shows its group headings rather than dumping every row back. In a project view the groups ARE the scope already.
+  // In the All view a project's groups fold along with it, so expanding one afterwards shows its group headings rather than dumping every row back.
+  // In a project view the groups ARE the scope already.
   if (state.activeProject === null) {
     const next = { ...state, folds };
     folds = expanding ? foldsWith(next, 'groups', foldedGroups(next), false) : foldsWith(next, 'groups', renderedSections.groups, true);

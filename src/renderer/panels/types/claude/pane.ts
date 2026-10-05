@@ -43,7 +43,10 @@ export const paneEl = element('div');
 paneEl.id = 'terminal-body';
 paneEl.append(terminalsEl, historyBar.el);
 
-/** Ctrl+Shift+↑ / ↓, which the terminal area catches (index.ts): the previous / next request. From live, ↑ opens the history at your last request and ↓ does nothing; in the history they step, and ↓ past the last request goes back to live. */
+/**
+ * Ctrl+Shift+↑ / ↓, which the terminal area catches (index.ts): the previous / next request.
+ * From live, ↑ opens the history at your last request and ↓ does nothing; in the history they step, and ↓ past the last request goes back to live.
+ */
 export function stepHistory(up: boolean): void {
   if (!history.shown) {
     if (up) historyBar.pickLast();

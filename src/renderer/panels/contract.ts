@@ -38,7 +38,8 @@ export interface Where {
 }
 
 /**
- * What a panel's icon on a rail says about it, so a panel that is not on show still reports: a session waiting for you, or a run that failed. Null says nothing.
+ * What a panel's icon on a rail says about it, so a panel that is not on show still reports: a session waiting for you, or a run that failed.
+ * Null says nothing.
  */
 export type PanelStatus = 'wait' | 'fail' | null;
 
@@ -114,7 +115,10 @@ export interface PanelHost extends Asks {
   setEnd(label: string): void;
   /** The dot on the panel's rail icon. */
   setStatus(status: PanelStatus): void;
-  /** A count the panel reports, such as how many items wait: on its rail icon and beside its title. Null for none. */
+  /**
+   * A count the panel reports, such as how many items wait: on its rail icon and beside its title.
+   * Null for none.
+   */
   setCount(count: number | null): void;
   /**
    * Why the panel cannot run, one sentence each, or none when it can: the tree draws them in the panel's place, with the same problem list as the layout's own refusals, and puts `alert` on its rail icon.
@@ -146,7 +150,10 @@ export interface MountedPanel {
   setVisible(visible: boolean): void;
   /** Something in the config folder changed: check the options again, since a file or folder they point at may have appeared or changed. */
   recheck(): void;
-  /** A session's status, a tab, or the sessions the panel's items started changed: repaint what the panel draws of them. For the types that draw any. */
+  /**
+   * A session's status, a tab, or the sessions the panel's items started changed: repaint what the panel draws of them.
+   * For the types that draw any.
+   */
   sessionsChanged?(): void;
   /** The panel is leaving the layout: stop its run and forget it. */
   unmount(): void;

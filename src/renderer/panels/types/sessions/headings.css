@@ -6,7 +6,9 @@
 .project h2 {
   font-size: var(--text-heading);
   font-weight: 700;
-  /* Negative horizontal margins (cancelled by matching padding) let the divider run edge-to-edge across the sidebar, so each project reads as a hard section break. No margin-bottom: the gap below the divider comes from the first session's margin-top, so every gap in the list is a single 8px. Symmetric vertical padding keeps the heading content (incl. the + button) centred. */
+  /* Negative horizontal margins (cancelled by matching padding) let the divider run edge-to-edge across the sidebar, so each project reads as a hard section break.
+     No margin-bottom: the gap below the divider comes from the first session's margin-top, so every gap in the list is a single 8px.
+     Symmetric vertical padding keeps the heading content (incl. the + button) centred. */
   margin: 0 -16px;
   padding: 8px 16px;
   border-bottom: 1px solid var(--border);
@@ -45,7 +47,9 @@
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
-/* Both halves of the project heading's split button fill the same way on hover. They take their own fill rather than the shared .icon-btn one because they already sit on --surface, where --active does not read as a change; the group's halves have no such box and use the shared rule. The caret keeps the same fill while its menu is up, as every icon button keeps its hover look (base.css), and at four classes' weight, after that rule, it wins over the shared open look too. */
+/* Both halves of the project heading's split button fill the same way on hover.
+   They take their own fill rather than the shared .icon-btn one because they already sit on --surface, where --active does not read as a change; the group's halves have no such box and use the shared rule.
+   The caret keeps the same fill while its menu is up, as every icon button keeps its hover look (base.css), and at four classes' weight, after that rule, it wins over the shared open look too. */
 .project h2 .project-add:not(.unavailable):hover,
 .split-button .project-add-caret:not(.unavailable):is(:hover, .menu-open) {
   color: var(--text);
@@ -64,21 +68,27 @@
 }
 
 .group h3 {
-  /* Pins UNDER the project heading, so the group you are scrolling through stays named. The offset is the project heading's measured height (reveal.ts sets the property; the fallback only covers the first paint) — hard-coding it would go stale the moment the type scale moves, which is how revealSession's old 44 went wrong. Sticky is scoped to the .group section, so a heading unpins when its own group scrolls away rather than stacking with the next one. */
+  /* Pins UNDER the project heading, so the group you are scrolling through stays named.
+     The offset is the project heading's measured height (reveal.ts sets the property; the fallback only covers the first paint) — hard-coding it would go stale the moment the type scale moves, which is how revealSession's old 44 went wrong.
+     Sticky is scoped to the .group section, so a heading unpins when its own group scrolls away rather than stacking with the next one. */
   top: var(--project-heading-height, 39px);
-  /* Above the rows, below the project heading. It has to be a real layer, not 0: a session's status dot is position:relative (for its hit-target halo) and so paints in the positioned layer, in DOM order — which put it over a sticky heading at 0, showing a row's dot through the pinned bar. */
+  /* Above the rows, below the project heading.
+     It has to be a real layer, not 0: a session's status dot is position:relative (for its hit-target halo) and so paints in the positioned layer, in DOM order — which put it over a sticky heading at 0, showing a row's dot through the pinned bar. */
   z-index: 1;
 }
 
 
-/* The indent says a row is IN the group; the rail draws where the group ends, so several groups stay scannable. Deliberately muted, not accent — a row already uses an inset accent bar for open and for active, and a third accent line here would muddy both. */
+/* The indent says a row is IN the group; the rail draws where the group ends, so several groups stay scannable.
+   Deliberately muted, not accent — a row already uses an inset accent bar for open and for active, and a third accent line here would muddy both. */
 .group-members {
   margin-left: 3px;
   padding-left: 14px;
   border-left: 2px solid var(--group-rail);
 }
 
-/* The dropdown half of the group heading's split button. Narrower than a standard control and with a 9px chevron rather than a 14px icon — the same exception the project heading's caret takes, because it modifies the button beside it rather than being a control in its own right. Its left border is dropped so the two halves share one edge. */
+/* The dropdown half of the group heading's split button.
+   Narrower than a standard control and with a 9px chevron rather than a 14px icon — the same exception the project heading's caret takes, because it modifies the button beside it rather than being a control in its own right.
+   Its left border is dropped so the two halves share one edge. */
 .group h3 .group-add-caret {
   width: 14px;
   height: 20px; /* match the "+" half, which is the standard 24x20 */
