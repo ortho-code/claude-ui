@@ -93,14 +93,18 @@ function hashComments(text: string): Line[][] {
   return groups;
 }
 
-/** Every paragraph of markdown prose, outside fences, tables and headings; a list item keeps its marker, so it is never the tail of the line before. */
+/**
+ * Every paragraph of markdown prose, outside fences, tables, headings and a leading YAML block (a skill's frontmatter, which is data); a list item keeps its marker, so it is never the tail of the line before.
+ */
 function markdownParagraphs(text: string): Line[][] {
   const groups: Line[][] = [];
   let fence = false;
   let run: Line[] | null = null;
-  text.split('\n').forEach((raw, i) => {
+  const lines = text.split('\n');
+  const frontmatter = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
+  lines.forEach((raw, i) => {
     if (/^\s*```/.test(raw)) fence = !fence;
-    if (fence || !raw.trim() || /^\s*(#|\||<|```)/.test(raw)) {
+    if (i <= frontmatter || fence || !raw.trim() || /^\s*(#|\||<|```)/.test(raw)) {
       run = null;
       return;
     }
@@ -219,6 +223,7 @@ describe('prose', () => {
       expect(wrappedIn('a.ts', '/**\n * What it does\n * @param x the thing\n */\nconst a = 1;\n')).toEqual([]);
       expect(wrappedIn('a.ts', '// Run it as\n//   npm run this -- that\n//   npm run the other\n')).toEqual([]);
       expect(wrappedIn('a.md', '```\nsome code\nthat goes on\n```\n')).toEqual([]);
+      expect(wrappedIn('a.md', '---\nname: a-skill\narguments: [base]\n---\n\nThe prose under it.\n')).toEqual([]);
       expect(wrappedIn('a.ts', '// --- A section ---\n// Its first sentence.\n')).toEqual([]);
     });
 
