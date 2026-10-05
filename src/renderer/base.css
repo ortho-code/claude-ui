@@ -44,7 +44,8 @@
   --text-small: 11px;
   --text-badge: 10px;
 
-  /* The terminal's face, and so the face of anything showing what a terminal would have shown (a command panel's output). xterm takes its font as options, so terminal.ts reads these two back rather than holding a second copy of the values. */
+  /* The terminal's face, and so the face of anything showing what a terminal would have shown (a command panel's output).
+     xterm takes its font as options, so terminal.ts reads these two back rather than holding a second copy of the values. */
   --font-mono: monospace;
   --text-mono: 13px;
   /* The terminal's text: a neutral (hue-less) grey, because claude's selected-item accent is a periwinkle and a neutral foreground makes it pop by HUE (the old lavender-white --text shared its hue and merged); a light near-white for comfortable reading.

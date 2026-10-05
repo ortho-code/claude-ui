@@ -1,4 +1,5 @@
-// Pure sidebar logic, kept free of DOM/globals so it can be unit-tested. renderer.ts wires these to its state and the DOM.
+// Pure sidebar logic, kept free of DOM/globals so it can be unit-tested.
+// renderer.ts wires these to its state and the DOM.
 import type { GroupState, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
 

@@ -384,7 +384,8 @@ async function createWindow(): Promise<void> {
     minHeight: MIN_HEIGHT,
     title: appTitle,
     icon: windowIcon(),
-    // The renderer draws the title bar wherever this is frameless. macOS keeps its own — see OWN_CHROME.
+    // The renderer draws the title bar wherever this is frameless.
+    // macOS keeps its own — see OWN_CHROME.
     frame: !OWN_CHROME,
     // NOT cosmetic, and not about the border down the side of the window — that one is weston's 32px frame and nothing here touches it.
     // Chromium's shadow is what reserves the small margin that shows up as `getBounds` disagreeing with `getContentBounds`, and with the window sized to fill the screen that margin insets the PAINT while the input region keeps the full rectangle: the controls are then drawn in one place and clickable in another.
