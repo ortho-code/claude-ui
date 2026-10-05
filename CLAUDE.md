@@ -33,6 +33,9 @@ The roadmap in `README.md` is the source of truth for what is done and what is n
   Keep them as two entries (see `docs/architecture.md` § Build).
 - `npm run lint` is ESLint with type-aware rules, and CI runs it.
   Why each rule is off or tuned is written beside it in `eslint.config.mjs`.
+- Before a commit, `npm run build`, `npm test`, `npm run lint` and `npm run test:renderer` run one after the other, and all pass.
+- A fix to behaviour starts with a check that fails without it: a window check where the window shows the bug, a unit test where main or a pure function does.
+  The check lands with the fix, and an area without checks gets one when it is next touched.
 - `node-pty` (M2) is a native module — rebuild against Electron's ABI after install.
 
 ## Conventions
