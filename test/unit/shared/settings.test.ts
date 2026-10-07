@@ -13,7 +13,15 @@ describe('the settings in force', () => {
     const view = settingsView(noYours, noApps);
     expect(view.launchFlags).toEqual({ value: '', source: 'default', without: '', withoutSource: 'default', problems: [] });
     expect(view.notes).toEqual([]);
-    expect(settingsInForce(view)).toEqual({ launchFlags: '' });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', resumeRunningSessionsOnStartup: true });
+  });
+
+  it('take a choice of either file over the default resume, and leave out one that is no choice', () => {
+    expect(settingsView(yours({ resumeRunningSessionsOnStartup: false }), noApps).resumeRunningSessionsOnStartup).toMatchObject({ value: false, source: 'yours' });
+    expect(settingsView(yours({ resumeRunningSessionsOnStartup: false }), apps({ resumeRunningSessionsOnStartup: true })).resumeRunningSessionsOnStartup).toMatchObject({ value: true, source: 'app', without: false });
+    const view = settingsView(yours({ resumeRunningSessionsOnStartup: 'yes' }), noApps);
+    expect(view.resumeRunningSessionsOnStartup.value).toBe(true);
+    expect(view.resumeRunningSessionsOnStartup.problems).toEqual([{ file: 'settings.json', why: 'It has to be true or false.' }]);
   });
 
   it('take yours over the default, and the app’s over yours', () => {

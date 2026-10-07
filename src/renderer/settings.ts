@@ -1,7 +1,7 @@
 import { parseLaunchFlags } from '../shared/flags';
 import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
-import type { SettingKey, SettingsView } from '../shared/settings';
+import type { SettingKey, SettingViews, SettingsView } from '../shared/settings';
 import type { Settings } from '../shared/types';
 import { listen, runModal } from './modal';
 import { hideToast, showToast } from './toast';
@@ -21,6 +21,11 @@ document.body.insertAdjacentHTML(
         <input id="settings-flags" class="dialog-field" type="text" spellcheck="false" autocomplete="off" placeholder="--allowedTools Grep,Glob" />
         <p id="settings-error" class="dialog-error" hidden></p>
       </div>
+      <div class="dialog-section">
+        <span class="dialog-label">On launch</span>
+        <p class="dialog-detail">Without this, a restored tab waits for a click before its session starts.</p>
+        <label class="dialog-choice"><input id="settings-resume" type="checkbox" /> Resume sessions that were running when the app closed</label>
+      </div>
       <div id="settings-notes" class="dialog-section" hidden>
         <span class="dialog-label">In the settings files</span>
         <div id="settings-notes-list"></div>
@@ -35,6 +40,7 @@ document.body.insertAdjacentHTML(
 );
 const settingsOverlay = document.getElementById('settings-overlay')!;
 const settingsFlags = document.getElementById('settings-flags') as HTMLInputElement;
+const settingsResume = document.getElementById('settings-resume') as HTMLInputElement;
 const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
@@ -103,6 +109,8 @@ function lines(host: HTMLElement, className: string, texts: string[]): void {
 /** How a setting's control shows a value and gives it back. */
 interface Control<T> {
   element: HTMLInputElement;
+  /** Where its lines go when not right after the control itself: a checkbox's go after the label around it. */
+  after?: HTMLElement;
   read(): T;
   write(value: T): void;
 }
@@ -141,7 +149,7 @@ class SettingField<K extends SettingKey> {
   ) {
     // Right after the control, each named after the control's own id, so a line is found by the setting it belongs to.
     const id = control.element.id;
-    control.element.insertAdjacentHTML(
+    (control.after ?? control.element).insertAdjacentHTML(
       'afterend',
       `<p id="${id}-from" class="dialog-under" hidden></p>
         <div id="${id}-yours" class="dialog-row" hidden>
@@ -166,7 +174,8 @@ class SettingField<K extends SettingKey> {
   /** Fill from the settings as they stand: the control, unless it was changed, and under it where its value comes from and what is wrong. */
   render(view: SettingsView): void {
     this.shown = view;
-    const setting = view[this.key];
+    const views: SettingViews = view;
+    const setting = views[this.key];
     if (!this.edited) this.control.write(this.usingYours ? setting.without : setting.value);
     const fromApp = setting.source === 'app' && !this.usingYours;
     this.from.textContent = this.usingYours
@@ -226,8 +235,25 @@ const flagsField = new SettingField(
   },
 );
 
+const resumeField = new SettingField(
+  'resumeRunningSessionsOnStartup',
+  {
+    element: settingsResume,
+    after: settingsResume.closest('label')!,
+    read: () => settingsResume.checked,
+    write: (value) => {
+      settingsResume.checked = value;
+    },
+  },
+  {
+    over: 'the choice in settings.json',
+    refused: (file, why) => `The choice in ${file} is not used: ${why}`,
+    shown: (value) => (value ? 'On' : 'Off'),
+  },
+);
+
 /** Every setting's field. */
-const fields = [flagsField];
+const fields = [flagsField, resumeField];
 
 /** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with a file as a whole. */
 function render(view: SettingsView): void {
@@ -261,7 +287,7 @@ export async function openSettings(): Promise<void> {
         settingsError.hidden = false;
         return;
       }
-      const saved = await window.claudeUi.setSettings({ launchFlags });
+      const saved = await window.claudeUi.setSettings({ launchFlags, resumeRunningSessionsOnStartup: resumeField.value() });
       if (saved.refused !== null) {
         render(saved.view);
         settingsError.textContent = saved.refused;

@@ -12,7 +12,7 @@ import type { Settings } from './types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'resumeRunningSessionsOnStartup'];
 
 /** Where a setting in force came from. */
 export type SettingSource = 'default' | 'yours' | 'app';
@@ -50,7 +50,10 @@ export interface SettingsSaved {
   refused: string | null;
 }
 
-export type SettingsView = { [K in SettingKey]: SettingView<Settings[K]> } & {
+/** Every setting as Settings shows it, by its key. */
+export type SettingViews = { [K in SettingKey]: SettingView<Settings[K]> };
+
+export type SettingsView = SettingViews & {
   /** What is wrong with a file as a whole: one that does not parse, does not hold an object, or names a setting the app does not have. */
   notes: string[];
   /** The two files as read, so the window can say when one does not parse. */
@@ -69,6 +72,7 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
     const { error } = parseLaunchFlags(value);
     return error === null ? { ok: true, value } : { ok: false, why: error };
   },
+  resumeRunningSessionsOnStartup: (value) => (typeof value === 'boolean' ? { ok: true, value } : { ok: false, why: 'It has to be true or false.' }),
 };
 
 /** Whether `value` may be a setting's value, and if not, why: what main refuses to write. */
@@ -89,6 +93,10 @@ function valuesOf(file: SettingsFileRead, notes: string[], problems: Map<Setting
     return {};
   }
   const values: Partial<Settings> = {};
+  // Typed per key: with settings of more than one type, an assignment through a key that could be any of them does not compile.
+  const keep = <K extends SettingKey>(setting: K, value: Settings[K]): void => {
+    values[setting] = value;
+  };
   for (const [key, value] of Object.entries(file.json)) {
     if (!(SETTING_KEYS as string[]).includes(key)) {
       notes.push(`${file.name}: "${key}" is not a setting the app has.`);
@@ -96,7 +104,7 @@ function valuesOf(file: SettingsFileRead, notes: string[], problems: Map<Setting
     }
     const setting = key as SettingKey;
     const checked = CHECKS[setting](value);
-    if (checked.ok) values[setting] = checked.value;
+    if (checked.ok) keep(setting, checked.value);
     else problems.set(setting, [...(problems.get(setting) ?? []), { file: file.name, why: checked.why }]);
   }
   return values;
@@ -116,12 +124,17 @@ export function settingsView(yours: SettingsFileRead, app: SettingsFileRead): Se
     return { value: own ?? without, source: own !== undefined ? 'app' : withoutSource, without, withoutSource, problems: problems.get(key) ?? [] };
   };
   const strip = ({ name, status, error }: SettingsFileRead): Omit<SettingsFileRead, 'json'> => ({ name, status, error });
-  return { launchFlags: viewOf('launchFlags'), notes, files: { yours: strip(yours), app: strip(app) } };
+  return {
+    launchFlags: viewOf('launchFlags'),
+    resumeRunningSessionsOnStartup: viewOf('resumeRunningSessionsOnStartup'),
+    notes,
+    files: { yours: strip(yours), app: strip(app) },
+  };
 }
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value };
+  return { launchFlags: view.launchFlags.value, resumeRunningSessionsOnStartup: view.resumeRunningSessionsOnStartup.value };
 }
 
 /**

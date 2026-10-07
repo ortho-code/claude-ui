@@ -224,6 +224,8 @@ export interface Settings {
    * Stored as text rather than as parsed tokens so the field shows exactly what was entered; it is parsed at launch (and validated before it can be saved).
    */
   launchFlags: string;
+  /** Whether the sessions that were running when the app closed start again in their tabs at the next launch; the other tabs come back without starting either way. */
+  resumeRunningSessionsOnStartup: boolean;
 }
 
 export interface UiState {

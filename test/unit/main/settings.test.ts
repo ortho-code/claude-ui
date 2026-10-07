@@ -45,7 +45,7 @@ describe('reading the settings', () => {
     writeFileSync(appFile, '{ "launchFlags": "--app" }\n');
     const settings = await fresh();
     expect((await settings.readSettings()).launchFlags).toMatchObject({ value: '--app', source: 'app', without: '--mine' });
-    expect(await settings.settingsNow()).toEqual({ launchFlags: '--app' });
+    expect(await settings.settingsNow()).toEqual({ launchFlags: '--app', resumeRunningSessionsOnStartup: true });
   });
 
   it('keeps what a file last read in force while it does not parse, and drops it once the file is gone', async () => {

@@ -173,7 +173,8 @@ It is recorded because it is observable exactly once and nowhere else — neithe
 A tab owns at most one terminal, and `terminalId` is **nullable** — null means the tab is **cold**: it has its row in the bar, its title and its place in the layout, but no `claude` behind it.
 Cold is a first-class state, not an error one.
 
-A tab goes cold in two ways: it is **restored** that way at launch (the app starts nothing on startup — 20 restored tabs used to mean 20 processes at ~437 MB each), or the user **stops** the session with the tab's own button.
+A tab goes cold in two ways: it is **restored** that way at launch, or the user **stops** the session with the tab's own button.
+A launch starts only the restored tabs whose sessions were running when the app closed and whose folders are still there, and only while the setting for it is on (`resumeRunningSessionsOnStartup`, on by default): starting every restored tab used to mean 20 processes at ~437 MB each for 20 tabs, whether or not any was in use.
 It leaves cold by being activated, which starts it immediately; there is no separate "start" affordance, because selecting a tab has always meant "work in this session".
 
 Activating a tab can only ever **resume** it: the tab's own session is all it knows about.
@@ -196,8 +197,11 @@ The cold state is visible in three places, all reading the same `terminalId === 
 Those two marks answer the same question, so they answer it the same way — accent means a live session, nowhere else.
 
 Where you were is remembered twice, in meta: `activeSession` (which tab to open on at launch) and `activeSessionByProject` (which to return to when you switch back to a project).
-The in-memory `activatedSeq` still decides while a project has something running; the stored map only matters when nothing does, which after a restart is always.
-Nothing is meant to be live after a restart, so the remembered tab is *selected* at launch but not started — a deliberately open question, since a tab marked active with no process behind it is arguable.
+The in-memory `activatedSeq` still decides while a project has something running; the stored map only matters when nothing does, which is how a launch begins.
+The remembered tab is *selected* at launch, and starts with the others only if it is one of them — a deliberately open question for one that is not, since a tab marked active with no process behind it is arguable.
+
+What was running is remembered with the open tabs, in the same write: `runningSessions` holds the open tabs that have a process, from the moment it starts until it has gone, so a session still being stopped counts.
+The window stops writing once the app quits, so the exits the quit causes are not recorded, and a launch reads the list before its restore writes the open tabs again; after a crash, the sessions running at the crash come back.
 
 The code is in `src/renderer/panels/types/claude/terminals.ts`: each tab's terminal, its life from built to closed, the workspace switch, the fit of the tab on show to the terminal area, and the open tabs kept for the next launch.
 
@@ -1092,6 +1096,7 @@ Measure the font's descent rather than guessing the value.
 `FitAddon` sizes from the element's own box, and a `.term` is `display: none` until it is the active tab.
 Fitting one before revealing it therefore yields xterm's 80×24 default rather than an error — and that default is what the PTY is told, so `claude` draws its entire TUI to 80 columns for the life of the session.
 Reveal, then fit, then resize.
+A session started out of sight, as a launch starts the ones that were running behind the tab on show, is revealed for the measurement alone and hidden again in the same task, which no paint comes between; with the terminal area itself hidden there is nothing to measure, and it is fitted when it is next selected.
 Every conditionally-visible pane carries this hazard, split view included.
 The whole terminal area is one now: it is hidden while another panel of its group is shown or its group is folded, so the tab fit refuses a terminal area with no size and leaves it to the `ResizeObserver` on it, which fires once the area has a size again.
 

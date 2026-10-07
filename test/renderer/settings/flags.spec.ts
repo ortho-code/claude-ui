@@ -7,6 +7,8 @@ import { CONFIG_ROOT, noLocalLayout, noSettingsFile, settingsFileWith } from '..
 const yours = (json: unknown): SettingsFileRead => settingsFileWith('settings.json', json);
 const apps = (json: unknown): SettingsFileRead => settingsFileWith('settings.local.json', json);
 const noApps = noSettingsFile('settings.local.json');
+/** The one save Settings sent, with these flags: a save sends every setting, the others as they were left, which here is the default. */
+const savedWith = (launchFlags: string): unknown[][] => [[{ launchFlags, resumeRunningSessionsOnStartup: true }]];
 
 interface SettingsDialog {
   dialog: Locator;
@@ -41,7 +43,7 @@ test('flags saved in Settings go to the app’s file, and the field says they we
   await settings.field.fill('--allowedTools Grep');
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '--allowedTools Grep' }]]);
+  expect(await app.calls('setSettings')).toEqual(savedWith('--allowedTools Grep'));
 
   settings = await open(page);
   await expect(settings.field).toHaveValue('--allowedTools Grep');
@@ -62,7 +64,7 @@ test('flags set here over settings.json show its flags, and “Use settings.json
   await expect(settings.use).toBeHidden();
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '--mine' }]]);
+  expect(await app.calls('setSettings')).toEqual(savedWith('--mine'));
 
   // Equal to yours, so the stand-in, by main's rule, took the app's value away rather than copying yours.
   settings = await open(page);
@@ -82,7 +84,7 @@ test('flags set here with none in settings.json go back to none on “Use settin
   await expect(settings.field).toBeFocused();
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '' }]]);
+  expect(await app.calls('setSettings')).toEqual(savedWith(''));
 
   // The default, so the app's value went rather than an empty one taking its place.
   settings = await open(page);
@@ -97,7 +99,7 @@ test('flags are saved without the spaces around them', async ({ app, page }) => 
   await settings.field.fill('  --allowedTools Grep  ');
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '--allowedTools Grep' }]]);
+  expect(await app.calls('setSettings')).toEqual(savedWith('--allowedTools Grep'));
 });
 
 test('the error under the field goes once the field is typed in, or “Use settings.json” is pressed', async ({ app, page }) => {

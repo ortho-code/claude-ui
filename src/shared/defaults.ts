@@ -1,11 +1,11 @@
 import type { Settings, UiState } from './types';
 
 /**
- * What the app does before anyone has chosen otherwise: nothing added to the launch line.
- * Under both settings files (shared/settings.ts), and what meta's `settings` falls back to.
+ * What the app does before anyone has chosen otherwise: nothing added to the launch line, and what was running when it closed started again at launch.
+ * Under both settings files (shared/settings.ts); meta's `settings` falls back to the launch flags here.
  */
 export function defaultSettings(): Settings {
-  return { launchFlags: '' };
+  return { launchFlags: '', resumeRunningSessionsOnStartup: true };
 }
 
 /**

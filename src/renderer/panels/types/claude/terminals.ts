@@ -121,19 +121,25 @@ export function persistOpenTabs(): void {
 
 export async function restoreOpenTabs(): Promise<void> {
   restoring = true;
+  /** The tabs to start once restored: those whose sessions were running when the app closed, when Settings says to. */
+  const resume: string[] = [];
   try {
-    const [sessions, openKeys, activeKey, byProject] = await Promise.all([
+    // The running list is read here, before the write below replaces it with what runs now, which is nothing yet.
+    const [sessions, openKeys, activeKey, byProject, runningKeys, settings] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getOpenSessions(),
       window.claudeUi.getActiveSession(),
       window.claudeUi.getActiveSessionByProject(),
+      window.claudeUi.getRunningSessions(),
+      window.claudeUi.getSettings(),
     ]);
     activeByProject = { ...byProject };
     lastActiveKey = activeKey;
     const tips = sessionsByKey(sessions);
+    const resuming = settings.resumeRunningSessionsOnStartup.value;
     // Restore the tabs COLD — no claude process each.
     // Starting them all was costing 20 processes at ~437 MB on this machine, spawned whether or not any was used, plus 20 CLI cold starts on every launch.
-    // A tab starts when you select it.
+    // A tab starts when you select it, or below if it was running when the app closed: only what was in use costs a process.
     // One change for every tab and the one selected, so whoever draws the tabs draws them once rather than once per tab.
     store.batch(() => {
       let toActivate: string | null = null;
@@ -142,14 +148,21 @@ export async function restoreOpenTabs(): Promise<void> {
         if (!session) continue;
         const token = buildTab(session);
         if (key === activeKey) toActivate = token;
+        if (resuming && runningKeys.includes(key)) resume.push(token);
       }
-      // Land where you left off — SELECTED but not started, since nothing is meant to be live after a restart.
+      // Land where you left off — SELECTED but not started here; it starts below with the others if it was running.
       // Without a remembered tab we open on none rather than guessing.
       if (toActivate) activateTab(toActivate, false);
     });
   } finally {
     restoring = false;
     persistOpenTabs();
+  }
+  // Each in its own tab, the one on show and those out of sight alike.
+  // A tab whose folder has gone stays cold, saying why once selected, rather than putting up a toast per tab at launch.
+  for (const token of resume) {
+    const tab = tabOf(token);
+    if (tab && !unstartableReason(tab.session)) void startTab(token);
   }
 }
 
@@ -255,13 +268,14 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
     bindTerminal(terminalId, { data: (data) => onTabData(token, data), exit: (exitCode) => onTabExit(token, exitCode) });
     // Reveal it BEFORE fitting: `.term` is display:none until `.active`, and FitAddon sizes from the element's own box, so fitting a hidden pane leaves the terminal at xterm's 80x24 default and claude draws its whole TUI at that width.
     // Cold tabs are what exposed this — the pane used to be revealed by activateTab before any of this ran, and now it only reveals a tab that HAS a process.
-    // A tab you switched away from during the await stays hidden and mis-fitted, which activateTab's own fit corrects when you come back to it.
-    if (isOnShow(token)) {
-      terminal.el.classList.add('active');
-      terminal.term.focus();
-    }
+    // One out of sight — switched away from during the await, or started behind another tab, as a launch resumes them — is revealed for the measurement alone and hidden again in the same task, before anything paints, so it draws at the terminal area's width too.
+    // That takes an area with a size: in one that is hidden, folded or behind another panel, the fit does nothing, and the tab keeps xterm's 80x24 until activateTab fits it when it is selected.
+    const onShow = isOnShow(token);
+    terminal.el.classList.add('active');
     // The pty is created at a default size; hand it the real one now that the pane has a real one.
     terminal.fitAddon.fit();
+    if (onShow) terminal.term.focus();
+    else terminal.el.classList.remove('active');
     window.claudeUi.resizeTerminal(terminalId, terminal.term.cols, terminal.term.rows);
   } catch (error) {
     // The main process refuses to launch into a folder that is no longer there rather than starting somewhere else and saying nothing, so this is where the session gets told.
@@ -288,7 +302,7 @@ export async function createTab(session: SessionSummary, launch: TabLaunch = {})
 }
 
 /**
- * `start` is false for the two callers that must not spawn here: a RESTORE, which shows you the tab you left off in without starting it (nothing is meant to be live after a restart), and createTab, which starts the tab itself because only it knows the real arguments.
+ * `start` is false for the two callers that must not spawn here: a RESTORE, which shows you the tab you left off in and starts it, if at all, with the others that were running once every tab is built, and createTab, which starts the tab itself because only it knows the real arguments.
  * Every other selection — a click in the tab bar or the sidebar — starts the tab, and can only resume it.
  */
 export function activateTab(token: string, start = true): void {

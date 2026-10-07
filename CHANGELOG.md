@@ -36,6 +36,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Panel types of your own: a folder under `types/` in the config folder, with a `panel.json` and a script that prints a list, is a type of that name, drawn with links, sections that fold and a count on its icon, and run again on an interval even out of sight.
 - A row of such a panel can start a Claude session with a first prompt, in the project and group you pick in the app's own dialog, which shows what would start before anything does.
 - Such a row then shows its session's status dot and goes to that session when pressed, and pressing its action again offers to continue that session rather than start another.
+- Sessions that were running when the app closed start again in their tabs at the next launch; the other tabs wait for a click, as before.
+  A checkbox in Settings, `resumeRunningSessionsOnStartup` in `settings.json`, is on until you switch it off.
 
 ### Changed
 

@@ -14,6 +14,9 @@ import { goodCopy, writeWithBackups } from './backup';
 import { errorText, fsFailure, log, logOnce } from './log';
 import { inTurn } from './queue';
 
+/** The preferences as kept here before the config folder: the launch flags, the one setting there was. */
+type MetaSettings = Pick<Settings, 'launchFlags'>;
+
 /**
  * UI-only metadata, kept outside ~/.claude so we never touch the session store.
  * `pinned` and `openSessions` hold session ids (the .jsonl file ids).
@@ -72,8 +75,9 @@ interface Meta {
    * Deliberate preferences, kept apart from `ui` so resetting one cannot wipe the other.
    * See Settings.
    * Read once more since they moved into the config folder (`moved`), and never written: an older build still finds them here.
+   * Only the launch flags were ever kept here, so a setting added since has no place in it.
    */
-  settings: Settings;
+  settings: MetaSettings;
   /** What has moved from here into the config folder, by name; see `getMoved`. */
   moved: string[];
   /** User-defined session groups, in display order (a new one is prepended). */
@@ -132,15 +136,15 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: defaultSettings(), moved: [], notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
  * Fill in stored settings field by field, defaulting anything absent or of the wrong type — the same treatment `ui` gets, and for the same reason.
  * Applied on read and on write, so neither an older meta.json nor a renderer bug can produce a shape the launcher then has to guess at.
  */
-function normalizeSettings(raw: unknown): Settings {
-  const base = defaultSettings();
+function normalizeSettings(raw: unknown): MetaSettings {
+  const base = { launchFlags: defaultSettings().launchFlags };
   if (!raw || typeof raw !== 'object') return base;
   const settings = raw as Record<string, unknown>;
   return {
@@ -678,7 +682,7 @@ export function setUiState(state: UiState): Promise<void> {
 }
 
 /** The preferences as kept here before they moved into the config folder: read by that move (settings.ts), and by nothing else. */
-export function getSettings(): Promise<Settings> {
+export function getSettings(): Promise<MetaSettings> {
   return serialize(async () => (await readMeta()).settings);
 }
 
