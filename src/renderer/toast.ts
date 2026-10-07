@@ -14,7 +14,11 @@ const toastMessage = document.getElementById('toast-message')!;
 const toastClose = document.getElementById('toast-close') as HTMLButtonElement;
 
 let toastTimer: number | undefined;
-export function hideToast(): void {
+/**
+ * Take the toast down; given a message, only while that message is the one up, so a condition that clears takes down its own toast and never one that has replaced it since.
+ */
+export function hideToast(message?: string): void {
+  if (message !== undefined && (toast.hidden || toastMessage.textContent !== message)) return;
   toast.hidden = true;
   if (toastTimer) clearTimeout(toastTimer);
 }
@@ -25,7 +29,7 @@ export function showToast(message: string, sticky = false): void {
   toastMessage.textContent = message;
   toast.hidden = false;
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = sticky ? undefined : window.setTimeout(hideToast, 3000);
+  toastTimer = sticky ? undefined : window.setTimeout(() => hideToast(), 3000);
 }
 toastClose.innerHTML = closeIcon(14);
-toastClose.addEventListener('click', hideToast);
+toastClose.addEventListener('click', () => hideToast());

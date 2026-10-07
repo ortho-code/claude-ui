@@ -46,7 +46,8 @@ import {
   getUiState,
   setUiState,
   getSettings,
-  setSettings,
+  getMoved,
+  markMoved,
   recordClear,
 } from '../../../src/main/meta';
 
@@ -664,21 +665,11 @@ describe('ui state', () => {
   });
 });
 
-describe('settings', () => {
-  it('starts empty, and stores what it is given', async () => {
+describe('settings, as kept here before the config folder', () => {
+  it('reads what an older build stored, and the default without', async () => {
     expect(await getSettings()).toEqual({ launchFlags: '' });
-    expect(await setSettings({ launchFlags: '--allowedTools Grep,Glob' })).toEqual({
-      launchFlags: '--allowedTools Grep,Glob',
-    });
+    await writeMetaFile({ version: 3, settings: { launchFlags: '--allowedTools Grep,Glob' } });
     expect(await getSettings()).toEqual({ launchFlags: '--allowedTools Grep,Glob' });
-  });
-
-  it('refuses unusable flags and keeps the last good ones, rather than storing something a launch would choke on', async () => {
-    await setSettings({ launchFlags: '--allowedTools Grep' });
-    // A flag we set ourselves, and an unclosed quote: both are refused by the parser.
-    expect(await setSettings({ launchFlags: '--resume other' })).toEqual({ launchFlags: '--allowedTools Grep' });
-    expect(await setSettings({ launchFlags: '--x "oops' })).toEqual({ launchFlags: '--allowedTools Grep' });
-    expect(await getSettings()).toEqual({ launchFlags: '--allowedTools Grep' });
   });
 
   it('defaults a stored value of the wrong type instead of handing it on', async () => {
@@ -686,10 +677,25 @@ describe('settings', () => {
     expect(await getSettings()).toEqual({ launchFlags: '' });
   });
 
-  it('is untouched by a ui-state write, since the two are stored apart', async () => {
-    await setSettings({ launchFlags: '--allowedTools Grep' });
+  it('keeps them through every other write, so an older build still finds them', async () => {
+    await writeMetaFile({ version: 3, settings: { launchFlags: '--allowedTools Grep' } });
     await setUiState({ ...(await getUiState()), search: 'anything' });
+    await markMoved('launchFlags');
     expect(await getSettings()).toEqual({ launchFlags: '--allowedTools Grep' });
+  });
+});
+
+describe('what has moved into the config folder', () => {
+  it('starts with nothing, and records a move once however often it is made', async () => {
+    expect(await getMoved()).toEqual([]);
+    await markMoved('launchFlags');
+    await markMoved('launchFlags');
+    expect(await getMoved()).toEqual(['launchFlags']);
+  });
+
+  it('drops what is not a name, from a hand-edited file', async () => {
+    await writeMetaFile({ version: 3, moved: ['launchFlags', 42, null] });
+    expect(await getMoved()).toEqual(['launchFlags']);
   });
 });
 

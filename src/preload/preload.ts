@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { ClaudeUiApi } from '../shared/types';
 import type { LayoutReport, PanelData, PanelRunEvent } from '../shared/panels';
+import type { SettingsView } from '../shared/settings';
 
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
@@ -27,8 +28,9 @@ const api: ClaudeUiApi = {
   setNote: (id, note) => ipcRenderer.invoke('meta:setNote', id, note),
   getUiState: () => ipcRenderer.invoke('meta:getUiState'),
   setUiState: (state) => ipcRenderer.send('meta:setUiState', state),
-  getSettings: () => ipcRenderer.invoke('meta:getSettings'),
-  setSettings: (settings) => ipcRenderer.invoke('meta:setSettings', settings),
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  setSettings: (change) => ipcRenderer.invoke('settings:set', change),
+  onSettingsChanged: (callback) => ipcRenderer.on('settings:changed', (_event, view: SettingsView) => callback(view)),
   getWindowChrome: () => ipcRenderer.invoke('window:chrome'),
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   toggleMaximizeWindow: () => ipcRenderer.send('window:toggleMaximize'),

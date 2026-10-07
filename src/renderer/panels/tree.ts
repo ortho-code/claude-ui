@@ -54,7 +54,8 @@ let types = BUILTIN_TYPES;
 export interface TreeHost {
   where(): Where;
   showToast(message: string, sticky?: boolean): void;
-  hideToast(): void;
+  /** Take down the toast `message`, if it is still the one up. */
+  hideToast(message: string): void;
   persist(): void;
   /** One route for every panel, the built-ins included: a panel's ask IS the answer of the built-in that owns it. */
   asks: Asks;
@@ -113,8 +114,8 @@ let collapsed = new Set<string>();
 let active: PanelState['active'] = {};
 /** Whether panels may be shown, which is when they first run. */
 let live = false;
-/** Whether the toast up right now is the tree's, so a good read takes it down without touching anybody else's. */
-let toasted = false;
+/** The toast the tree last put up, so a good read takes down that one and never anybody else's. */
+let toasted: string | null = null;
 /** A render asked for by a panel reporting something new, run once the current task is done so a report made during a render never renders inside it. */
 let renderQueued = false;
 
@@ -203,13 +204,13 @@ function apply(next: LayoutReport): void {
   const view = resolveLayout(next, found.types, found.notes);
   // A file that does not parse keeps the last good layout up: the message names the file and the parser's position, and stays until a read succeeds, because the condition does not clear on its own.
   if (view.kind === 'unparsable') {
-    host.showToast(`${fileName(view.file)}: ${view.message}`, true);
-    toasted = true;
+    toasted = `${fileName(view.file)}: ${view.message}`;
+    host.showToast(toasted, true);
     return;
   }
-  if (toasted) {
-    host.hideToast();
-    toasted = false;
+  if (toasted !== null) {
+    host.hideToast(toasted);
+    toasted = null;
   }
   // Taken with the tree it was resolved against, never apart from it, so a layout kept up over a bad read keeps the types it was drawn with.
   types = found.types;

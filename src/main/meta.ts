@@ -6,7 +6,6 @@ import type { OrderMove, GroupState, HistoryPin, SessionGroup, UiState, Settings
 import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
-import { parseLaunchFlags } from '../shared/flags';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
 import { purgedSession, togglePinned, toggleArchived } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
@@ -67,8 +66,11 @@ interface Meta {
   /**
    * Deliberate preferences, kept apart from `ui` so resetting one cannot wipe the other.
    * See Settings.
+   * Read once more since they moved into the config folder (`moved`), and never written: an older build still finds them here.
    */
   settings: Settings;
+  /** What has moved from here into the config folder, by name; see `getMoved`. */
+  moved: string[];
   /** User-defined session groups, in display order (a new one is prepended). */
   groups: SessionGroup[];
   /** Session id -> group id; a session is in at most one group. */
@@ -111,6 +113,7 @@ const KNOWN_KEYS = new Set([
   'windowBounds',
   'ui',
   'settings',
+  'moved',
   'notes',
   'groups',
   'groupOf',
@@ -123,7 +126,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: defaultSettings(), notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: defaultSettings(), moved: [], notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -301,6 +304,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // Same reasoning as projectOrder: a new defaulted field is not a reinterpretation of what is stored, so no version bump.
     // Absent means nothing was ever chosen.
     settings: normalizeSettings(parsed.settings),
+    // Same reasoning as projectOrder: no version bump for a new defaulted field; absent means nothing has moved yet.
+    moved: Array.isArray(parsed.moved) ? (parsed.moved as unknown[]).filter((name): name is string => typeof name === 'string') : [],
     // Same reasoning as projectOrder: no version bump for a new defaulted field.
     // Non-string values are dropped so a hand-edited file can't put an object where a note should be.
     notes: Object.fromEntries(
@@ -656,21 +661,20 @@ export function setUiState(state: UiState): Promise<void> {
   });
 }
 
+/** The preferences as kept here before they moved into the config folder: read by that move (settings.ts), and by nothing else. */
 export function getSettings(): Promise<Settings> {
   return serialize(async () => (await readMeta()).settings);
 }
 
-/**
- * Store the app's preferences, and resolve to what is actually stored.
- *
- * Unusable launch flags are refused rather than written: the dialog validates before it saves, but this is the side that hands the flags to a real session, so it does not take the renderer's word for it.
- * Refusing leaves the previous value in place, which is why the stored settings come back — the caller can see that its write did not take.
- */
-export function setSettings(settings: Settings): Promise<Settings> {
-  return update('setSettings', (meta) => {
-    const next = normalizeSettings(settings);
-    if (parseLaunchFlags(next.launchFlags).error === null) meta.settings = next;
-    return meta.settings;
+/** What has moved from here into the config folder, by name (`launchFlags`), so each move is made once and a later reset of the app's file there does not bring the old value back. */
+export function getMoved(): Promise<string[]> {
+  return serialize(async () => (await readMeta()).moved);
+}
+
+/** Record that `name` has moved into the config folder; what it moved from stays where it was, so an older build still finds it. */
+export function markMoved(name: string): Promise<void> {
+  return update(`moved ${name}`, (meta) => {
+    if (!meta.moved.includes(name)) meta.moved.push(name);
   });
 }
 

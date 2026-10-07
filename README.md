@@ -43,6 +43,7 @@ Done:
 - Reaching a group without scrolling: a jump list on the project heading.
 - Settings: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included.
   The flags the app sets for itself are refused there rather than allowed to break a session.
+  They are kept in the config folder, over a `settings.json` of your own; see [Settings](#settings).
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
   Panels so far run a command or a script and show its output, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
   See [Panels](#panels).
@@ -98,7 +99,8 @@ It lives in the app's config folder, which Settings shows with an Open button:
 Write `layouts/default.json` there, and the app picks it up as you save.
 Every file in the folder is JSON that may also carry comments (`//` and `/* */`) and trailing commas.
 Without a file — or after you delete or rename yours — the window is the default layout below, so there is always a way back to one that works.
-The app never writes to this folder, so it is yours to edit, version, or hand to a colleague.
+The app writes only the files in the folder whose names end in `.local.json`, which hold what you changed in the app on this machine, such as the flags saved in Settings, and win over the file of yours beside them.
+Every other file is yours and the app never writes it, so it is yours to edit, version, or hand to a colleague; a `.local.json` holds nothing secret and may go along, with this machine's choices in it.
 
 The default layout, as a starting point to copy:
 
@@ -211,6 +213,24 @@ A row that started a session then shows that session's status and leads back to 
 [docs/panel-types.md](docs/panel-types.md) is the whole of it: what goes in the folder, what the script is given and prints, what the app does with it, and an example type to copy.
 
 A type you were sent runs as you, the way a script in `scripts/` does, so read it before you drop it in; everything a panel does beyond running its script, such as opening a link or starting a session, is something you press.
+
+## Settings
+
+What you save in Settings goes into `settings.local.json` in the config folder (see [Panels](#panels) for where it is), which the app writes.
+Settings of your own go in `settings.json` beside it, which the app reads and never writes:
+
+```jsonc
+{
+  // Grep and Glob without asking, in every session
+  "launchFlags": "--allowedTools Grep,Glob"
+}
+```
+
+A value saved in Settings wins over yours; Settings then shows yours under the field, and **Use settings.json** puts it back when you save.
+Saving the same value as yours takes the app's away rather than copying it, so a later edit of your file counts.
+A change to either file counts from the next session you start.
+A `settings.json` you were sent sets flags on every session you start, so read it before you use it.
+A mistake in either file is named in Settings, and a file that does not parse keeps the settings it last read until it does.
 
 ## Install a build
 

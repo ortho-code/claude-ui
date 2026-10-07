@@ -10,7 +10,7 @@ import { readJsonc } from './jsonc';
 import { fsFailure, log } from './log';
 
 /**
- * The config folder: read and watched here, never written.
+ * The config folder: read and watched here, and never written from here; the app's own `.local.json` files in it are written by appfiles.ts alone.
  *
  * A read is TOLERANT the way meta's is not, and for the opposite reason: meta drops what it does not understand because the app wrote it and a past version's field is noise, while this file was written by a person, so what the app does not understand has to be NAMED back to them.
  * So nothing here throws or drops: a missing file is a report saying so, and a file that does not parse is a report saying what is wrong and at which line and column.
@@ -148,6 +148,15 @@ async function readAndNoteLayout(): Promise<LayoutReport> {
   return report;
 }
 
+/** Told of every change the folder's watch pushes for: the paths its events named, or null when one named nothing and it could have been anything. */
+type ConfigChangeListener = (paths: ReadonlySet<string> | null) => void;
+const changeListeners: ConfigChangeListener[] = [];
+
+/** Hear of every change in the config folder that was not only the app's own write, after the same debounce as the layout's report. */
+export function onConfigChange(listener: ConfigChangeListener): void {
+  changeListeners.push(listener);
+}
+
 /**
  * Create the folder, answer reads, and push a fresh report whenever anything in it changes.
  *
@@ -176,6 +185,7 @@ export function registerConfig(getWindow: () => BrowserWindow | null): () => voi
       changed = new Set();
       void (async () => {
         if (paths !== null && paths.size > 0 && (await ownWrites([...paths]))) return;
+        for (const listener of changeListeners) listener(paths);
         const report = await readAndNoteLayout();
         const win = getWindow();
         if (win && !win.isDestroyed()) win.webContents.send('config:changed', report);

@@ -11,8 +11,9 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 ### Added
 
 - A filter for sessions whose folder is gone, next to the other filter pills — the set to clean up, or to put folders back for.
-- A config folder for the files you may edit or share, `config/` inside the app's data directory, holding the layout file `layouts/default.json` and the scripts it points at; the app reads and watches it and never writes to it, and Settings shows where it is with an Open button.
+- A config folder for the files you may edit or share, `config/` inside the app's data directory, holding your `settings.json`, the layout file `layouts/default.json` and the scripts it points at; the app reads and watches it, and Settings shows where it is with an Open button.
   Its files are JSON that may also carry comments and trailing commas.
+  The app writes only its own files there, whose names end in `.local.json`, never one of yours.
 - A layout that arranges the whole window, from that file: rows and columns of panels with the sidebar and the terminal among them, sized in shares or pixels and resized from dividers, where a double-click puts back the file's sizes.
   A mistake in the file is named where it is instead of dropped, and no file can leave you without the terminal; without a file, the window is as it was.
 - A `command` panel type: a command line or a script, run in the active tab's folder (or the selected project's) and shown as plain text, run again when you switch project or tab or press Refresh.
@@ -47,6 +48,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Making a group from a session's options takes the list to the new group at the top of its project, instead of leaving the session to move out of sight.
 - A tab that isn't running says so with a Resume button and a Show history button, instead of asking you to click its tab.
 - Starting a session in another project while you are in a project view takes the session list to All at its top, as choosing All does, instead of keeping the previous project's scroll position.
+- The default launch flags are kept in the config folder, in `settings.local.json`, where Settings saves them and where the ones you had set move by themselves.
+  A `settings.json` of your own beside it can set them too; what Settings saves wins, and Settings shows yours with a button to go back to them.
 
 ### Fixed
 

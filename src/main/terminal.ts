@@ -5,7 +5,7 @@ import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup } from './shell';
 import { contextEnv } from './panels';
 import { flagNames, parseLaunchFlags } from '../shared/flags';
-import { getSettings } from './meta';
+import { settingsNow } from './settings';
 import { log } from './log';
 import { formatDuration } from './stamp';
 import type { TerminalLaunch } from '../shared/types';
@@ -182,8 +182,8 @@ export function registerTerminalIpc(): void {
     // Refusing here rather than only in the UI, so nothing can reach a spawn by another route.
     if (!cwd || !existsSync(cwd)) refuseMissing(cwd);
     // Guard on the settings file's existence in case the app is mid-startup and installStatusHooks() hasn't written it yet.
-    // Stored flags are validated before they are written, so a failure here means a hand-edited meta.json; launch without them rather than refusing to start a session over it.
-    const extra = parseLaunchFlags((await getSettings()).launchFlags).tokens;
+    // Flags either settings file gives are checked when they are read, and a refused value is never in force, so these parse; read per start, so an edit of either file counts from the next session on.
+    const extra = parseLaunchFlags((await settingsNow()).launchFlags).tokens;
     const claudeFlags = claudeArgs({
       ...launch,
       settingsFile: existsSync(statusSettingsFile) ? statusSettingsFile : null,

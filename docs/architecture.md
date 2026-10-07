@@ -89,7 +89,7 @@ The built-ins are filed the same way, since each is a type drawn by its own modu
 It answers from a fixture of plain data (`fixture.ts`), by default a first run with one session and no layout file, and records every call, so a check can assert on what the window sent.
 A call it does not model rejects with its own name, and every check fails on anything thrown or logged as an error in the page, so a check that strays onto unmodelled ground fails loudly rather than running on an answer nobody held against main.
 The stand-in also writes such a call down, and the check fails on it at the end whether or not anything was thrown, since the window catches some refusals and turns them into a toast, as a delete's does; a check of its own, expected to fail, holds that gate (`test/renderer/harness/`).
-A check that needs such a call models it there, from what main does: where main's answer involves no decision of its own, as a plain answer, and where it does, through main's own function moved into `src/shared` for both (`readFrom` for the history's later reads, `defaultUi` and `defaultSettings` for a first run, `resolvePathIn` and `pathProblem` for a path option's check, with a table of what is on disk in place of main's look at it, which counts the folders the listing names and the one the folder picker answers as there unless it says otherwise, and which also answers whether a start's folder is there, refused as main refuses it, `togglePinned`, `toggleArchived` and `withText` for a session's marks and `purgedSession` for all a delete forgets, and `grouping.ts`'s rules and `withText` again for where sessions sit — a project's name, its place and the seeding of it, and its groups — and `withLink` for a session a panel's row started, kept in the fixture so a later read sees the change), so that no rule of main's is kept in two places.
+A check that needs such a call models it there, from what main does: where main's answer involves no decision of its own, as a plain answer, and where it does, through main's own function moved into `src/shared` for both (`readFrom` for the history's later reads, `defaultUi` for a first run, `settingsView`, `settingProblem` and `appFileChanges` for the settings over the fixture's two files, `resolvePathIn` and `pathProblem` for a path option's check, with a table of what is on disk in place of main's look at it, which counts the folders the listing names and the one the folder picker answers as there unless it says otherwise, and which also answers whether a start's folder is there, refused as main refuses it, `togglePinned`, `toggleArchived` and `withText` for a session's marks and `purgedSession` for all a delete forgets, and `grouping.ts`'s rules and `withText` again for where sessions sit — a project's name, its place and the seeding of it, and its groups — and `withLink` for a session a panel's row started, kept in the fixture so a later read sees the change), so that no rule of main's is kept in two places.
 A rule that needs Node is handed what it needs, since the page has no Node: `resolvePathIn` takes the `join` and `resolve` it calls, main hands in Node's `path`, and the stand-in a copy (`support/posix.ts`) that a unit test holds to Node over a fixed table and a few thousand generated paths, so Node decides main's paths and the copy is test code.
 
 A check gets no retries: one that passes on a second try is a flake, and a gate that retries it away teaches everybody to ignore it.
@@ -437,8 +437,9 @@ The main process watches that directory and pushes updates to the renderer, whic
 
 ## App-side metadata and session groups
 
-Everything the app knows that Claude Code doesn't — pins, archived sessions, open tabs, per-project display names, custom groups, the window's geometry, the sidebar's view state, where the layout was left and the app's own preferences — lives in a `meta.json` under the app's own user-data directory.
-Preferences are kept apart from view state, in `settings` rather than `ui`: one is what you chose, the other is where you left off, and neither should be able to reset the other.
+Everything the app knows that Claude Code doesn't — pins, archived sessions, open tabs, per-project display names, custom groups, the window's geometry, the sidebar's view state and where the layout was left — lives in a `meta.json` under the app's own user-data directory.
+The app's own preferences are not there: they are what you chose rather than where you left off, neither should be able to reset the other, and they are yours to edit and share, so they live in the config folder (see The config folder).
+They were kept in `meta.json` as `settings` until then; `moved` records each thing that has moved out, so the move is made once, and the old copy stays where it was for an older build to find.
 The session store is never written to: `~/.claude` is read-only as far as this app is concerned.
 
 Writes are serialized through one queue and land via a temp file renamed over the target, with the previous good copy kept as a backup, so a crash mid-write can't leave the file half-written.
@@ -508,25 +509,42 @@ Per-project and named layouts are the next steps of the same design, and the fil
 
 ### The config folder
 
-Everything a person may edit or share lives in ONE folder, `config/` under the app's data directory, and nothing else does: the layout file at `layouts/default.json`, the scripts it points at under `scripts/`, and panel types of the person's own under `types/`.
+Everything a person may edit or share lives in ONE folder, `config/` under the app's data directory, and nothing else does: the settings in `settings.json`, the layout file at `layouts/default.json`, the scripts it points at under `scripts/`, and panel types of the person's own under `types/`.
 It sits apart from `meta.json` and the status files on purpose.
 Those are machine state the app writes, which nobody should edit and nobody would want to hand a colleague; this folder is the opposite on every count, so "copy this folder" hands over exactly the customisation and none of the state.
 `layouts/` is a directory rather than a single `layout.json` so that named and per-project layouts can be added beside the default instead of by moving it.
 
 Every file in it is JSONC, the format of VS Code's settings: JSON that may also carry comments and trailing commas, so a plain JSON file reads unchanged and a person can say in the file why something is there.
-It is read in one place (`src/main/jsonc.ts`, on `jsonc-parser`), for the layout and every type's manifest alike.
+It is read in one place (`src/main/jsonc.ts`, on `jsonc-parser`), for the settings, the layout and every type's manifest alike.
 That parser reads on past a mistake and hands back what it could make of the rest, which is not what anybody wrote, so any error at all means the file does not parse, and only the first is named, by line and column: the ones after it are mostly its echo.
 What decided it over JSON5 and YAML is that the same parser changes a value in a file as an edit of its text, keeping every comment around it, which was tried before it was chosen; YAML is a much larger format besides, with indentation that means something and words like `no` that read as false.
 
-The app creates the folder, reads it and watches it, and in this version never writes into it.
-That is what keeps an editor, id assignment, normalisation and an atomic-write path out of the slice, and it also settles the trust question for now: a command in a hand-edited file is the user's own, and a trust step arrives with the first thing that lets a command reach the file by another route — the app's own editor.
-A type folder a colleague shared is the other route, and it was decided (2026-09-29) to add no trust step for it: it runs as you, the way a script in `scripts/` does, and what makes that acceptable is that a type can do nothing beyond running its script without being pressed (see Types from the config folder).
+**A file a person writes is theirs, and the app never writes it.**
+Where the app has something to keep in the folder, it goes in a file of its own beside the person's, named like it with `.local.json` (`settings.local.json` beside `settings.json`), and the app's file wins, the way Claude Code's own `settings.local.json` wins over its `settings.json`.
+Two files rather than one the app rewrites: a file somebody has open in an editor is never changed under them, what they wrote is still there to go back to, and a value saved in the app never travels in their file.
+The app's file holds nothing secret, only what was chosen in the app on this machine, so it may be shared too: "yours" and "the app's" say who writes each, not which one leaves the machine.
+Every write goes through one module (`src/main/appfiles.ts`), which refuses any path but a `.local.json` inside the folder, so that rule is held by the code rather than by whoever calls it.
+A write is an edit of the file's text (`jsonc-parser`'s `modify`), never a rewrite of its value, because a person may edit the app's file too: changing a value keeps every comment and the formatting, a key added to an object written on one line spreads that object over several, and a key removed takes a comment at the end of the line before it along — all three measured, and the last two are why a person's file is not edited this way either.
+A file of the app's that a person has left not parsing is not written over: the write is refused, saying where the file goes wrong.
+Each write keeps the previous good copy, and the file as the outgoing version left it the first time a new version writes, in `backups/config/` under the app's data directory rather than in the folder, which holds only what a person writes and the app's own files; which version last wrote each file is kept there beside its copies, since a `.local.json` carries no version of its own.
+
+The settings are the first such pair, read by `src/main/settings.ts` by rules main and the window's checks share (`src/shared/settings.ts`): a setting reads the built-in default, then `settings.json`, then `settings.local.json`, and the last that has it wins.
+Settings saves into the app's file, and a value equal to what would be in force without the app's takes the app's away rather than copying it, so a later edit of `settings.json` is never hidden behind a value that only looked like a choice.
+Where the app's value wins over the person's, Settings shows theirs under the field with a button that goes back to it, the same act as a divider's double-click going back to the layout file's sizes: the app's value wins, and where you would look, it says so.
+A mistake in either file is named in Settings, under the setting it concerns or, for the file as a whole, under the section; the log says what is wrong without a flag's value; and a file that does not parse keeps what it last read in force, as the layout file does, and is toasted until it parses.
+Both files are read afresh whenever asked for, a session's start included, so an edit counts from the next session on.
+The launch flags were kept in `meta.json` before; the first launch that has the folder moves them into `settings.local.json`, once.
+
+A command in a hand-edited file is the user's own, and a trust step arrives with the first thing that lets a command reach a file by another route than their editor, such as an editor in the app.
+A type folder a colleague shared was decided (2026-09-29) to need none: it runs as you, the way a script in `scripts/` does, and what makes that acceptable is that a type can do nothing beyond running its script without being pressed (see Types from the config folder).
+A `settings.json` from somebody else was decided (2026-10-05) to need none either, its launch flags included, though they reach every session you start without a press: what a shared settings file says is for its reader to check, as it is with Claude Code's own, and Settings shows it.
 The settings dialog shows the folder's path with an Open button, which is the whole of the UI for finding it.
 It opens the folder itself (`shell.openPath`) rather than showing it selected in its parent (`showItemInFolder`): a Linux file manager without FileManager1 support, which is what WSLg offers, opens the parent and selects nothing, which reads as the wrong folder.
 
 Directories are watched one by one rather than the folder recursively (recursive watch is unreliable on Linux and WSL, as the session watcher found): the folder, `layouts/`, `scripts/`, `types/`, and each type's own folder.
 An event on the folder itself re-opens the ones below it, because a directory deleted and recreated leaves its old watcher pointing at nothing, and an event on `types/` re-lists the type folders, so one added there is watched from then on.
 `scripts/` is watched so that a script appearing, or gaining its executable bit, clears the panel's error without a restart; that an attribute change reaches a directory watch was measured rather than assumed.
+The events over the watch's debounce are gathered with the paths they name, and when every one was the app's own write to one of its files, as it left it, nothing is pushed (`ownWrites`): the window already has what the app wrote, and a push would have every panel check its options again for nothing.
 
 ### The layout file
 

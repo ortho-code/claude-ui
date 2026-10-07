@@ -3,6 +3,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { withLink } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { purgedSession, togglePinned, toggleArchived } from '../../../src/shared/sessionmarks';
+import { appFileChanges, SETTING_KEYS, settingProblem, settingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
@@ -115,8 +116,23 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     setNote: (id, note) => answer((fixture.notes = withText(fixture.notes, id, note))),
     getUiState: () => answer(fixture.uiState),
     setUiState: sent,
-    getSettings: () => answer(fixture.settings),
-    setSettings: unmodelled('setSettings'),
+    // Main's rules (src/shared/settings.ts) over the fixture's two files in place of main's read of them.
+    getSettings: () => answer(settingsView(fixture.settings.yours, fixture.settings.app)),
+    // Main checks the value and writes what `appFileChanges` says into the app's file; its refusal to write over an app's file that does not parse is main's look at the disk, so that is main's to answer, not this.
+    setSettings: (change) => {
+      const view = settingsView(fixture.settings.yours, fixture.settings.app);
+      const refused = SETTING_KEYS.map((key) => (change[key] === undefined || change[key] === null ? null : settingProblem(key, change[key]))).find((problem) => problem !== null);
+      if (refused) return answer({ view, refused });
+      if (fixture.settings.app.status === 'unparsable') return unmodelled('setSettings')();
+      const json: Record<string, unknown> = { ...(fixture.settings.app.json as Record<string, unknown> | null) };
+      for (const { key, value } of appFileChanges(view, change)) {
+        if (value === undefined) delete json[key];
+        else json[key] = value;
+      }
+      fixture.settings.app = { ...fixture.settings.app, status: 'read', error: null, json };
+      return answer({ view: settingsView(fixture.settings.yours, fixture.settings.app), refused: null });
+    },
+    onSettingsChanged: on('onSettingsChanged'),
     getWindowChrome: () => answer(fixture.windowChrome),
     minimizeWindow: sent,
     toggleMaximizeWindow: sent,

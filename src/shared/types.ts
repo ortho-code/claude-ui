@@ -207,7 +207,7 @@ export interface WindowChrome {
 }
 
 /**
- * Deliberate preferences, kept apart from UiState on purpose.
+ * Deliberate preferences, kept apart from UiState on purpose: in the config folder, in your `settings.json` and the app's `settings.local.json` (shared/settings.ts).
  *
  * UiState is where you LEFT the app — which project, which folds, how far down the list.
  * This is what you CHOSE, and the two are separated so that a future "reset settings" cannot throw away your place in the app, and so that clearing your place cannot silently undo a choice.
@@ -278,6 +278,7 @@ export interface UiState {
 import type { LayoutReport, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind } from './panels';
 import type { FolderName } from './folders';
 import type { LogLevel } from './log';
+import type { SettingsChange, SettingsSaved, SettingsView } from './settings';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;
@@ -331,13 +332,16 @@ export interface ClaudeUiApi {
   /** The sidebar's view state — search, filters, folds, width, scroll — as it was last left. */
   getUiState(): Promise<UiState>;
   setUiState(state: UiState): void;
-  /** The app's own preferences. */
-  getSettings(): Promise<Settings>;
+  /** The app's preferences: each one in force, where it came from, and what is wrong with either file (shared/settings.ts). */
+  getSettings(): Promise<SettingsView>;
   /**
-   * Store the app's preferences; resolves to what was actually stored.
-   * The launch flags are validated here as well as in the dialog: the main process is what hands them to a session, so it is what has to be sure of them.
+   * Change the app's preferences, in the app's own `settings.local.json`; resolves to the settings as they then stand.
+   * Validated here as well as in the dialog: the main process is what hands the flags to a session, so it is what has to be sure of them.
+   * Refused, saying why in `refused`, when a value is not one the setting may hold, or when the app's file does not parse, since the app will not write over it.
    */
-  setSettings(settings: Settings): Promise<Settings>;
+  setSettings(change: SettingsChange): Promise<SettingsSaved>;
+  /** Fires with the settings as they now stand when either settings file changed, other than by the app's own write. */
+  onSettingsChanged(callback: (view: SettingsView) => void): void;
   /**
    * Whether this window has no OS title bar, so the renderer has to draw one, plus the current maximized state.
    * Asked once at startup: it is decided by the platform and cannot change while the app runs.

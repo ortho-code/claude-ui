@@ -2,7 +2,7 @@ import type { Settings, UiState } from './types';
 
 /**
  * What the app does before anyone has chosen otherwise: nothing added to the launch line.
- * Main's, like `defaultUi` below, and shared for the same reason.
+ * Under both settings files (shared/settings.ts), and what meta's `settings` falls back to.
  */
 export function defaultSettings(): Settings {
   return { launchFlags: '' };

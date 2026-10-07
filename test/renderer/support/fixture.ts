@@ -1,8 +1,9 @@
-import { defaultSettings, defaultUi } from '../../../src/shared/defaults';
+import { defaultUi } from '../../../src/shared/defaults';
 import type { FolderName } from '../../../src/shared/folders';
 import type { LayoutReport, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/pathcheck';
-import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, SessionSummary, Settings, UiState, WindowChrome } from '../../../src/shared/types';
+import type { SettingsFileRead } from '../../../src/shared/settings';
+import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -18,7 +19,8 @@ export interface BridgeFixture {
   activeSessionByProject: Record<string, string>;
   activeProject: string | null;
   uiState: UiState;
-  settings: Settings;
+  /** The two settings files as main reads them (shared/settings.ts); a save writes into `app`'s `json`. */
+  settings: { yours: SettingsFileRead; app: SettingsFileRead };
   windowChrome: WindowChrome;
   projectNames: Record<string, string>;
   groupState: GroupState;
@@ -76,13 +78,19 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
   };
 }
 
+/** A settings file that is not there, as main reads one. */
+export const noSettingsFile = (name: string): SettingsFileRead => ({ name, status: 'missing', error: null, json: null });
+
+/** A settings file holding `json`, as main reads one. */
+export const settingsFileWith = (name: string, json: unknown): SettingsFileRead => ({ name, status: 'read', error: null, json });
+
 /** The titles of `sessions`, sorted: what a check expects the list to show, against `sortedTitles`. */
 export const sorted = (...sessions: { title: string }[]): string[] => sessions.map((s) => s.title).sort();
 
 /**
  * A first run with one session and no layout file: the default layout, nothing pinned, open or filtered.
  * One session because without one the window drops the stored project, and every panel then says "Pick a project".
- * The `uiState` and `settings` are main's own first-run state, the functions both use.
+ * The `uiState` is main's own first-run state, the function both use; neither settings file is there.
  */
 export function defaultFixture(): BridgeFixture {
   const one = session();
@@ -96,7 +104,7 @@ export function defaultFixture(): BridgeFixture {
     activeSessionByProject: {},
     activeProject: one.repoRoot,
     uiState: defaultUi(),
-    settings: defaultSettings(),
+    settings: { yours: noSettingsFile('settings.json'), app: noSettingsFile('settings.local.json') },
     windowChrome: { own: false, maximized: false, title: 'Claude UI (test)', version: '0.0.0-test', dev: true },
     projectNames: {},
     groupState: { groups: [], groupOf: {} },

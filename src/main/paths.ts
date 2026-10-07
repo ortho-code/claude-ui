@@ -45,9 +45,9 @@ export const statusSettingsFile = path.join(configDir, 'claude-settings.json');
 export const panelDataDir = path.join(configDir, 'panel-data');
 
 /**
- * The folder for everything a person may EDIT or SHARE — the layout file and the scripts it points at — and nothing else.
+ * The folder for everything a person may EDIT or SHARE — the settings, the layout file and the scripts it points at — and nothing else.
  * One folder apart from `meta.json` and the status files, which are the app's own and never meant for an editor, so "copy this folder" hands a colleague exactly the customisation and none of the machine state.
- * The app creates it, reads it and watches it; in this version it never writes into it.
+ * The app creates it, reads it and watches it, and writes only its own `.local.json` files in it (appfiles.ts), never a file a person writes.
  */
 export const configRoot = path.join(configDir, 'config');
 
@@ -64,6 +64,12 @@ export const scriptsDir = path.join(configRoot, 'scripts');
 export const typesDir = path.join(configRoot, 'types');
 
 export const defaultLayoutFile = path.join(layoutsDir, 'default.json');
+
+/** Your settings, which the app reads and never writes. */
+export const settingsFile = path.join(configRoot, 'settings.json');
+
+/** The app's settings, written from Settings, which win over yours (appfiles.ts, shared/settings.ts). */
+export const settingsLocalFile = path.join(configRoot, 'settings.local.json');
 
 /**
  * The copies of the app's own files in the config folder (appfiles.ts): the previous good one, one per version, and which version last wrote each.

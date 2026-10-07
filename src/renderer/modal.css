@@ -49,11 +49,19 @@
   font-weight: 600;
 }
 
-/* Inline validation error under a field (a duplicate worktree name, a flag we set ourselves). */
-.dialog-error {
+/* A line under a field, set apart by one gap whatever it says: its inline validation error (a duplicate worktree name, a flag we set ourselves), or where its value comes from (Settings). */
+.dialog-error,
+.dialog-under {
   margin: 8px 0 0;
   font-size: var(--text-meta);
+}
+
+.dialog-error {
   color: var(--failed);
+}
+
+.dialog-under {
+  color: var(--muted);
 }
 
 .dialog-title {
