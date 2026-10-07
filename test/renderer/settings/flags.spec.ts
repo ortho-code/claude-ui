@@ -71,6 +71,59 @@ test('flags set here over settings.json show its flags, and “Use settings.json
   await expect(settings.use).toBeHidden();
 });
 
+test('flags set here with none in settings.json go back to none on “Use settings.json”', async ({ app, page }) => {
+  await app.boot({ settings: { yours: noSettingsFile('settings.json'), app: apps({ launchFlags: '--app' }) } });
+  let settings = await open(page);
+  await expect(settings.from).toHaveText('Set here; settings.json sets none.');
+  await expect(settings.yoursValue).toHaveText('');
+
+  await settings.use.click();
+  await expect(settings.field).toHaveValue('');
+  await expect(settings.field).toBeFocused();
+  await settings.save.click();
+  await expect(settings.dialog).toBeHidden();
+  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '' }]]);
+
+  // The default, so the app's value went rather than an empty one taking its place.
+  settings = await open(page);
+  await expect(settings.field).toHaveValue('');
+  await expect(settings.from).toBeHidden();
+  await expect(settings.use).toBeHidden();
+});
+
+test('flags are saved without the spaces around them', async ({ app, page }) => {
+  await app.boot();
+  const settings = await open(page);
+  await settings.field.fill('  --allowedTools Grep  ');
+  await settings.save.click();
+  await expect(settings.dialog).toBeHidden();
+  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '--allowedTools Grep' }]]);
+});
+
+test('the error under the field goes once the field is typed in, or “Use settings.json” is pressed', async ({ app, page }) => {
+  await app.boot({ settings: { yours: yours({ launchFlags: '--mine' }), app: apps({ launchFlags: '--app' }) } });
+  const settings = await open(page);
+  const error = settings.dialog.locator('#settings-error');
+  const refuse = async (): Promise<void> => {
+    await settings.field.fill('--resume other');
+    await settings.save.click();
+    await expect(error).toBeVisible();
+  };
+
+  await refuse();
+  await settings.field.press('End');
+  await settings.field.press('Backspace');
+  await expect(error).toBeHidden();
+
+  await refuse();
+  await settings.use.click();
+  await expect(error).toBeHidden();
+  await expect(settings.field).toHaveValue('--mine');
+  await expect(settings.field).toBeFocused();
+  expect(await app.calls('setSettings')).toEqual([]);
+  await settings.cancel.click();
+});
+
 test('a value a file gives that is refused is named under the field, and a mistake in a file as a whole under the section', async ({ app, page }) => {
   await app.boot({ settings: { yours: yours({ launchFlags: '--session-id x', lanchFlags: 1 }), app: noApps } });
   const settings = await open(page);
