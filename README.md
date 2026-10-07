@@ -57,6 +57,8 @@ Done:
   See [Panel types of your own](#panel-types-of-your-own).
   A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick; it then shows that session's status and leads back to it, and a second press offers to continue it.
 - The sidebar and the terminal area are panel types like the others, each drawn by modules of its own.
+- A config folder that stays yours: the app never writes a file you wrote, and keeps what you change in it — the settings you save, the sizes you drag to, the groups you fold — in `.local.json` files of its own beside yours, in your files' own field names.
+  Every file there may carry comments and trailing commas.
 
 Next:
 - Options and documentation for the sidebar and the terminal area, starting with the terminal area's tabs on or off.
@@ -79,6 +81,7 @@ Next:
 - Visual regression checks: reference pictures of the window, made on CI, which a change to the look updates on purpose.
 - A Renovate configuration of the repo's own, tuned to its dependencies and workflows rather than left at Renovate's defaults.
 - Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.
+- Named layouts, several in `layouts/` with the one in use chosen in settings, and blocks: parts of a layout kept in files of their own and used in it by name, as often as you like.
 - More panel types (markdown, diff, transcript, config), and layouts per project.
 - Panels opened at will rather than only from the file, such as a second shell, and panels that belong to one project while others stay the same everywhere.
 - Minimize-to-tray.
