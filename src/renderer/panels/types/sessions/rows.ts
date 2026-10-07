@@ -1,6 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 // Its rows are the card a list panel draws too.
 import { listCard } from '../../../card';
+import { setMarkup } from '../../../keyed';
 import { entityKey, modelLabel, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import { store, type View } from '../../../state/app';
 import { ackOnClick, applyStatus } from '../../../statusdot';
@@ -22,12 +23,9 @@ function modelOf(session: SessionSummary, view: View<'switchedModel'>): string {
   return view.switchedModel.get(session.id) ?? session.model;
 }
 
-export function getOrCreateRow(key: string): HTMLElement {
-  const existing = sessionRows.get(key);
-  if (existing) return existing;
-  const row = createSessionRow(key);
-  sessionRows.set(key, row);
-  return row;
+/** The row for a session this render draws, built the first time and the same element after that. */
+export function drawRow(key: string): HTMLElement {
+  return sessionRows.draw(key, createSessionRow);
 }
 
 // Take it back out of the box.
@@ -40,6 +38,7 @@ interface RowEls {
   title: HTMLElement;
   badge: HTMLElement;
   siblingsBadge: HTMLElement;
+  siblingCount: HTMLElement;
   noteBadge: HTMLElement;
   noteSep: HTMLElement;
   meta: HTMLElement;
@@ -64,11 +63,23 @@ function createSessionRow(key: string): HTMLElement {
   const badge = document.createElement('span');
   badge.className = 'worktree-badge worktree-mark';
   badge.hidden = true;
+  // Icon only — the word "worktree" cost a badge-width of room and the branch icon plus its tooltip already say it.
+  // Being wordless, the pill carries its own aria-label (set in updateRow).
+  const wtIcon = document.createElement('span');
+  wtIcon.className = 'badge-icon';
+  wtIcon.innerHTML = WORKTREE_ICON;
+  badge.append(wtIcon);
   // A family member's mark: the fork icon plus a count of its siblings, which opens a list of them to jump into.
   // Shown only when session.isSibling (set in updateRow).
   const siblingsBadge = document.createElement('span');
   siblingsBadge.className = 'sibling-badge';
   siblingsBadge.hidden = true;
+  const sibIcon = document.createElement('span');
+  sibIcon.className = 'badge-icon';
+  sibIcon.innerHTML = SIBLING_ICON;
+  const siblingCount = document.createElement('span');
+  siblingCount.className = 'badge-text';
+  siblingsBadge.append(sibIcon, siblingCount);
   siblingsBadge.addEventListener('click', (event) => {
     event.stopPropagation();
     const session = currentByKey.get(key);
@@ -149,7 +160,7 @@ function createSessionRow(key: string): HTMLElement {
 
   item.prepend(dot);
   item.append(pin, unarchiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, siblingsBadge, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, siblingsBadge, siblingCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (store.get().filter.filters.archived) return;
@@ -189,12 +200,6 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   els.badge.hidden = worktree === null;
   els.badge.classList.toggle('left', worktree?.left === true);
   if (worktree) {
-    // Icon only — the word "worktree" cost a badge-width of room and the branch icon plus its tooltip already say it.
-    // Being wordless, the pill carries its own aria-label.
-    const wtIcon = document.createElement('span');
-    wtIcon.className = 'badge-icon';
-    wtIcon.innerHTML = WORKTREE_ICON;
-    els.badge.replaceChildren(wtIcon);
     setTooltip(els.badge, worktree.tooltip);
     els.badge.setAttribute('aria-label', worktree.tooltip);
   }
@@ -209,13 +214,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   els.siblingsBadge.hidden = !session.isSibling;
   if (session.isSibling) {
     const count = session.siblingIds.length;
-    const sibIcon = document.createElement('span');
-    sibIcon.className = 'badge-icon';
-    sibIcon.innerHTML = SIBLING_ICON;
-    const sibCount = document.createElement('span');
-    sibCount.className = 'badge-text';
-    sibCount.textContent = String(count);
-    els.siblingsBadge.replaceChildren(sibIcon, sibCount);
+    els.siblingCount.textContent = String(count);
     const label = count === 1 ? '1 sibling' : `${count} siblings`;
     setTooltip(els.siblingsBadge, `${label} in this session's family — click to list them`);
   }
@@ -231,7 +230,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
 
   // The archived view is a management view: no pinning, and delete replaces it there.
   const isPinned = view.pinned.has(entityKey(session));
-  els.pin.innerHTML = isPinned ? PINNED_ICON : PIN_ICON;
+  setMarkup(els.pin, isPinned ? PINNED_ICON : PIN_ICON);
   setTooltip(els.pin, isPinned ? 'Unpin' : 'Pin');
   els.pin.disabled = false;
   els.pin.hidden = archivedView;

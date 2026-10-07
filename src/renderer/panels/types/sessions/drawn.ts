@@ -1,5 +1,6 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup } from '../../../dom';
+import { Keyed } from '../../../keyed';
 import type { GroupJumpTarget } from '../../../logic';
 import './drawn.css';
 
@@ -13,8 +14,8 @@ export const container = fromMarkup(`<div id="sessions" aria-live="polite"></div
 
 // Status dots by tip session id; rebuilt each render (a status event names a session id).
 export const statusDots = new Map<string, HTMLElement>();
-// Row elements by entity key (the session id), reused across renders so a re-render moves nodes instead of recreating them — no flicker, no scroll jump, hover/focus kept.
-export const sessionRows = new Map<string, HTMLElement>();
+// Row elements by entity key (the session id), kept across renders and left where they are (keyed.ts) — no flicker, no scroll jump, and a press or the focus on a row that keeps its place survives a render.
+export const sessionRows = new Keyed<HTMLElement>((row) => row);
 // Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen rather than on everything that has ever existed.
 // Each render replaces its two lists rather than the object, since a module cannot assign to a binding another module exports.
 export const renderedSections: { projects: string[]; groups: string[] } = { projects: [], groups: [] };
@@ -36,8 +37,8 @@ export interface ProjectSectionEls {
 }
 // What each project's group menu offers, refreshed on every render so the menu can't name a group that has since been deleted or renamed.
 export const jumpTargets = new Map<string, GroupJumpTarget[]>();
-// Project sections by repo root, reused across renders (same reason as sessionRows).
-export const projectSections = new Map<string, ProjectSectionEls>();
+// Project sections by repo root, kept across renders as the rows are.
+export const projectSections = new Keyed<ProjectSectionEls>((els) => els.section);
 
 export interface GroupSectionEls {
   section: HTMLElement;
@@ -55,8 +56,8 @@ export interface GroupSectionEls {
   /** Shown instead of rows when the group has no members yet. */
   empty: HTMLElement;
 }
-// Group sections by group id, reused across renders like the project sections above.
-export const groupSections = new Map<string, GroupSectionEls>();
+// Group sections by group id, kept across renders as the project sections are.
+export const groupSections = new Keyed<GroupSectionEls>((els) => els.section);
 // The session each row currently shows, by entity key (session id), so a reused row's click/pin handlers act on the live session data of the latest render.
 // Refilled by each render rather than replaced, since a module cannot assign to a binding another module exports.
 export const currentByKey = new Map<string, SessionSummary>();

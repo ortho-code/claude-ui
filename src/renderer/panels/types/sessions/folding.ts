@@ -1,5 +1,6 @@
 import { setFolded } from '../../../card';
 import { fromMarkup } from '../../../dom';
+import { setMarkup } from '../../../keyed';
 import { store, type View } from '../../../state/app';
 import { foldedGroups, foldedProjects, foldsWith } from '../../../state/folds';
 import { isFiltering } from '../../../state/views';
@@ -38,7 +39,7 @@ export function toggleFold(kind: 'projects' | 'groups', key: string): void {
 /** Fold or open every section on screen as the folds in play say: for each draw, and for each change of the folds (`foldsFollow`). */
 export function applyFolds(view: View<'folds' | 'filter' | 'activeProject'>): void {
   const { activeProject } = view;
-  for (const [repoRoot, els] of projectSections) {
+  for (const [repoRoot, els] of projectSections.entries()) {
     // While filtering, force projects open so matches inside a collapsed one are visible; the stored collapse state is left untouched, so it returns when the filter clears.
     const collapsed = activeProject === null && foldedProjects(view).has(repoRoot);
     els.section.classList.toggle('collapsed', collapsed);
@@ -47,7 +48,7 @@ export function applyFolds(view: View<'folds' | 'filter' | 'activeProject'>): vo
     els.caret.hidden = activeProject !== null;
     setFolded(els.caret, collapsed);
   }
-  for (const [id, els] of groupSections) {
+  for (const [id, els] of groupSections.entries()) {
     const collapsed = foldedGroups(view).has(id);
     els.section.classList.toggle('collapsed', collapsed);
     setFolded(els.caret, collapsed);
@@ -89,7 +90,8 @@ export function updateCollapseToggle(view: View<'activeProject' | 'filter' | 'fo
   // Disabled rather than hidden, since a control vanishing as you type reads worse than one plainly unavailable.
   collapseToggle.disabled = isFiltering(view) || collapseScope(view).ids.length === 0;
   const label = allSectionsCollapsed(view) ? 'Expand all' : 'Collapse all';
-  collapseToggle.innerHTML = allSectionsCollapsed(view) ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON;
+  // Every draw of the list says it again, so only a change of icon replaces it, which a press on the button is mostly on (keyed.ts).
+  setMarkup(collapseToggle, allSectionsCollapsed(view) ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON);
   setTooltip(collapseToggle, label);
   collapseToggle.setAttribute('aria-label', label);
 }

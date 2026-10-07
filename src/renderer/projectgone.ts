@@ -1,3 +1,4 @@
+import { setMarkup } from './keyed';
 import { projectGoneReason } from './logic';
 import { folderGoneIcon } from './svg';
 import { setTooltip } from './tooltip';
@@ -12,7 +13,8 @@ export function markProjectGone(repoRoot: string, gone: boolean, name: HTMLEleme
   const reason = gone ? projectGoneReason(repoRoot) : null;
   name.classList.toggle('project-gone', gone);
   mark.classList.toggle('project-gone', gone);
-  mark.innerHTML = gone ? folderGoneIcon(size) : live;
+  // Each draw marks it again, so only a change of icon replaces it: a press on the icon is a press on its own element (keyed.ts).
+  setMarkup(mark, gone ? folderGoneIcon(size) : live);
   mark.hidden = !gone && !live;
   setTooltip(mark, reason);
   if (pathTip) setTooltip(pathTip, reason ?? repoRoot);

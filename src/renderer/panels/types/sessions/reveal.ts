@@ -16,11 +16,11 @@ export function revealSession(session: SessionSummary): void {
   const groupId = store.get().groupState.groupOf[entityKey(session)];
   if (groupId) unfold('groups', groupId);
   unfold('projects', session.repoRoot);
-  const row = sessionRows.get(entityKey(session));
+  const row = sessionRows.find(entityKey(session));
   if (!row) return;
   // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole app).
   // Land the row clear of EVERYTHING pinned above it: the project heading always, plus its group's heading when the row sits in a group — that one is sticky too, and a fixed offset for the project heading alone left the row half-hidden behind it.
-  const groupHeading = groupId ? groupSections.get(groupId)?.heading : undefined;
+  const groupHeading = groupId ? groupSections.find(groupId)?.heading : undefined;
   const pinned = stickyOffset + (groupHeading?.getBoundingClientRect().height ?? 0);
   container.scrollTop +=
     row.getBoundingClientRect().top - container.getBoundingClientRect().top - pinned - REVEAL_GAP;
@@ -32,7 +32,7 @@ const REVEAL_GAP = 6;
 // Scroll the (All-view) session list to a project's heading — used by the project name in the tab bar, so it links to where that project's sessions live.
 export function revealProject(repoRoot: string): void {
   unfold('projects', repoRoot);
-  const els = projectSections.get(repoRoot);
+  const els = projectSections.find(repoRoot);
   if (!els) return;
   container.scrollTop += els.section.getBoundingClientRect().top - container.getBoundingClientRect().top;
   // Flashed as a group's heading is after a jump, so the tab bar's project and group labels do the same thing at their own level.
@@ -55,7 +55,7 @@ export function syncStickyOffset(): void {
 // Jump to one of a project's groups (or to where its ungrouped sessions start).
 // Expands the target if it is folded — otherwise the jump lands on a heading with nothing under it — and lands it just below the project heading, whose height is MEASURED rather than assumed: it changes with the type scale, and a stale constant would tuck the target under the sticky heading.
 export function revealGroup(repoRoot: string, groupId: string | null): void {
-  const els = projectSections.get(repoRoot);
+  const els = projectSections.find(repoRoot);
   if (!els) return;
   unfold('projects', repoRoot);
   if (groupId !== null) unfold('groups', groupId);
@@ -63,7 +63,7 @@ export function revealGroup(repoRoot: string, groupId: string | null): void {
   // A group jumps to its heading; the ungrouped remainder has none, so it jumps to its first row — which is the one carrying .after-groups, the class that marks where the loose rows begin.
   const target: HTMLElement | null | undefined =
     groupId !== null
-      ? groupSections.get(groupId)?.heading
+      ? groupSections.find(groupId)?.heading
       : els.section.querySelector<HTMLElement>(':scope > .session.after-groups') ??
         els.section.querySelector<HTMLElement>(':scope > .session');
   if (!target) return;

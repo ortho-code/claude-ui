@@ -1,4 +1,5 @@
 import { element } from './dom';
+import { setMarkup } from './keyed';
 import { caretIcon } from './svg';
 import './card.css';
 
@@ -34,14 +35,14 @@ export function sectionHeading(level: HeadingLevel, iconHtml?: string): SectionH
     return { heading, caret, label, count };
   }
   const icon = element('span', 'heading-icon');
-  icon.innerHTML = iconHtml;
+  setMarkup(icon, iconHtml);
   heading.append(caret, icon, label, count);
   return { heading, caret, icon, label, count };
 }
 
-/** Turn a heading's caret to say whether its section is folded. */
+/** Turn a heading's caret to say whether its section is folded; every draw says it again, so only a turn replaces the icon, which a press on the heading may be on (keyed.ts). */
 export function setFolded(caret: HTMLElement, folded: boolean): void {
-  caret.innerHTML = caretIcon(folded, 10);
+  setMarkup(caret, caretIcon(folded, 10));
 }
 
 /** The parts of a card: the title sits in the content and the content in the card; the meta line is made but not placed. */

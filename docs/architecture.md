@@ -1012,6 +1012,14 @@ It means the relationship is being maintained by whoever remembers it.
 Extract the shared rule and let the difference be a modifier.
 When a variant genuinely differs — a group heading is deliberately lighter than a project heading — that is a modifier on the shared base, not a second copy of it.
 
+**A surface drawn again while it is used keeps its elements.**
+A click is a press and a release on the same element, so a surface that takes the pressed element away between the two produces no click at all, and one that takes out the focused element drops the focus to the page.
+The surfaces that keep their elements are drawn again on events nobody times — the session list when a transcript is written or a model switched — so that press is an everyday one rather than a race.
+So a surface keeps its elements by key and leaves in place what already is, through one helper, `keyed.ts`: `Keyed` holds the elements, built the first time a render draws a key and swept once one no longer does, and `placeChildren` puts them in order, keeping the longest run already in order where it is, so only what really moved is taken out.
+Keeping them is not enough on its own: in Chromium, `appendChild`, `insertBefore` and `replaceChildren` take out even an element already where it belongs, which is how the session list, which had always kept its rows, still lost both.
+The same goes for an icon inside a kept element: setting its markup again replaces the icon's own element, which sits over the middle of an icon button where a press lands, so an icon a render sets is set through `setMarkup`, which leaves the same markup alone.
+A kept element outlives what it was built for, so its handlers look up what they act on by its key when they run, as a session row's read `currentByKey`, never what was current when it was built.
+
 **A module's stylesheet sits beside it, and the module imports it.**
 esbuild bundles every stylesheet a module imports into one `renderer.css`, in import order, each file once, so `index.html` links only that: `xterm.css` and `air-datepicker.css` are imports of the modules that use them too.
 A rule sits beside the one module that draws it; a rule several modules draw sits in a stylesheet of its own beside what owns it — the menu row in `menu-row.css`, the surface and notch every menu and popover floats on in `popover.css`, a dialog's or the pane's decisive button (`.primary`, `.danger`) in `decisive-button.css`, the filter pill in `pill.css`, the card and the section heading in `card.css` — or in `base.css` when nothing does (the tokens, the reset, `.icon-btn`, `.nudge`, the empty pane's sentence), and is never copied into each.

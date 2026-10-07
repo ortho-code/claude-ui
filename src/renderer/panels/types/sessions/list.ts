@@ -1,4 +1,5 @@
 import type { SessionSummary } from '../../../../shared/types';
+import { placeChildren } from '../../../keyed';
 import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, groupJumpTargets, projectGoneReason } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
@@ -11,7 +12,7 @@ import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
 import { createGroupSection, createProjectSection } from './headings';
 import { syncStickyOffset } from './reveal';
-import { getOrCreateRow, updateRow, type RowView } from './rows';
+import { drawRow, updateRow, type RowView } from './rows';
 import './list.css';
 
 /**
@@ -96,7 +97,7 @@ function listChanged(view: ListView, before: View<'filter' | 'activeProject'>): 
 
 // Render from the cached session list, applying the current search filter.
 // Keystrokes call this directly so filtering never re-reads disk.
-// Reuses project/row nodes by key so a re-render moves elements into place instead of rebuilding the sidebar (no flicker, scroll stays put).
+// Keeps project, group and row nodes by key and leaves in place what already is (keyed.ts), so a re-render does not rebuild the sidebar: no flicker, the scroll stays put, and a press or the focus on a row that keeps its place survives it.
 function renderList(view: ListView): void {
   const scroll = container.scrollTop;
   statusDots.clear();
@@ -130,7 +131,6 @@ function renderList(view: ListView): void {
     updateCollapseToggle(view);
     return;
   }
-  container.querySelector(':scope > .empty-message')?.remove();
 
   // One section per repo, each holding its groups and then the sessions in no group.
   // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
@@ -139,7 +139,6 @@ function renderList(view: ListView): void {
   renderedSections.projects = tree.map((p) => p.repoRoot);
   renderedSections.groups = tree.flatMap((p) => p.groups.map((g) => g.group.id));
   reconcileProjectSections(tree, view);
-  pruneRows(new Set(scoped.map((s) => entityKey(s))));
 
   container.scrollTop = scroll;
   updateSidebarHighlight(view);
@@ -156,29 +155,12 @@ function clearList(): void {
   statusDots.clear();
 }
 
-// Bring the project sections in line with `desired`: drop gone ones, create missing ones, and order both the sections and their rows via appendChild (which moves an existing node into place).
+// Bring the project sections in line with `desired`: draw each section, group and row, place them in order, and sweep away what is no longer drawn.
 // Inside a project the group sections come first, then the rows belonging to no group.
 function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'projectNames' | 'activeProject' | 'folds'>): void {
-  const wanted = new Set(desired.map((p) => p.repoRoot));
-  for (const [repoRoot, els] of projectSections) {
-    if (!wanted.has(repoRoot)) {
-      els.section.remove();
-      projectSections.delete(repoRoot);
-    }
-  }
-  const wantedGroups = new Set(desired.flatMap((p) => p.groups.map((g) => g.group.id)));
-  for (const [id, els] of groupSections) {
-    if (!wantedGroups.has(id)) {
-      els.section.remove();
-      groupSections.delete(id);
-    }
-  }
+  const sections: HTMLElement[] = [];
   for (const project of desired) {
-    let els = projectSections.get(project.repoRoot);
-    if (!els) {
-      els = createProjectSection(project.repoRoot);
-      projectSections.set(project.repoRoot, els);
-    }
+    const els = projectSections.draw(project.repoRoot, createProjectSection);
     els.count.textContent = String(project.count);
     els.label.textContent = projName(project.repoRoot, view); // keep the heading current (e.g. after a rename)
     // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
@@ -195,9 +177,9 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     setUnavailable(els.addBtn, goneReason, 'New session in this project');
     setUnavailable(els.addCaret, goneReason, 'New session options');
     markProjectGone(project.repoRoot, rootGone, els.label, els.icon, 14, els.label, folderIcon(14));
+    const groups: HTMLElement[] = [];
     for (const { group, sessions } of project.groups) {
-      const groupEls = groupSections.get(group.id) ?? createGroupSection(group.id);
-      groupSections.set(group.id, groupEls);
+      const groupEls = groupSections.draw(group.id, createGroupSection);
       groupEls.label.textContent = group.name;
       groupEls.count.textContent = String(sessions.length);
       groupEls.addCaret.hidden = !project.isRepo; // worktree option only for git repos
@@ -210,35 +192,30 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
       groupEls.empty.textContent = rootGone
         ? "Empty — move a session here from any session's options."
         : "Empty — start a session with the + above, or move one here from any session's options.";
-      for (const session of sessions) {
-        const row = getOrCreateRow(entityKey(session));
+      const members = sessions.map((session) => {
+        const row = drawRow(entityKey(session));
         updateRow(row, session, view);
         row.classList.remove('after-groups'); // rows are reused: it may have been a loose row before
-        groupEls.members.appendChild(row);
-      }
-      els.section.appendChild(groupEls.section);
+        return row;
+      });
+      placeChildren(groupEls.members, [groupEls.empty, ...members]);
+      groups.push(groupEls.section);
     }
     // Ungrouped sessions sit directly under the project heading, at full width — there is no "Ungrouped" heading, so the indent alone says whether a row is in a group.
-    let first = true;
-    for (const session of project.loose) {
-      const row = getOrCreateRow(entityKey(session));
+    const loose = project.loose.map((session, index) => {
+      const row = drawRow(entityKey(session));
       updateRow(row, session, view);
       // Extra breathing room between the last group and the loose rows, but not when there are no groups at all (then this is just the project's first row).
-      row.classList.toggle('after-groups', first && project.groups.length > 0);
-      first = false;
-      els.section.appendChild(row);
-    }
-    container.appendChild(els.section);
+      row.classList.toggle('after-groups', index === 0 && project.groups.length > 0);
+      return row;
+    });
+    placeChildren(els.section, [els.heading, ...groups, ...loose]);
+    sections.push(els.section);
   }
+  placeChildren(container, sections);
+  // What this render did not draw is gone: a project or a group no longer shown, a session deleted or filtered out.
+  projectSections.sweep();
+  groupSections.sweep();
+  sessionRows.sweep();
   applyFolds(view);
-}
-
-// Remove rows whose entity is no longer shown (deleted, or filtered out by search).
-function pruneRows(wanted: Set<string>): void {
-  for (const [key, row] of sessionRows) {
-    if (!wanted.has(key)) {
-      row.remove();
-      sessionRows.delete(key);
-    }
-  }
 }
