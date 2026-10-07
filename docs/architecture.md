@@ -513,6 +513,11 @@ It sits apart from `meta.json` and the status files on purpose.
 Those are machine state the app writes, which nobody should edit and nobody would want to hand a colleague; this folder is the opposite on every count, so "copy this folder" hands over exactly the customisation and none of the state.
 `layouts/` is a directory rather than a single `layout.json` so that named and per-project layouts can be added beside the default instead of by moving it.
 
+Every file in it is JSONC, the format of VS Code's settings: JSON that may also carry comments and trailing commas, so a plain JSON file reads unchanged and a person can say in the file why something is there.
+It is read in one place (`src/main/jsonc.ts`, on `jsonc-parser`), for the layout and every type's manifest alike.
+That parser reads on past a mistake and hands back what it could make of the rest, which is not what anybody wrote, so any error at all means the file does not parse, and only the first is named, by line and column: the ones after it are mostly its echo.
+What decided it over JSON5 and YAML is that the same parser changes a value in a file as an edit of its text, keeping every comment around it, which was tried before it was chosen; YAML is a much larger format besides, with indentation that means something and words like `no` that read as false.
+
 The app creates the folder, reads it and watches it, and in this version never writes into it.
 That is what keeps an editor, id assignment, normalisation and an atomic-write path out of the slice, and it also settles the trust question for now: a command in a hand-edited file is the user's own, and a trust step arrives with the first thing that lets a command reach the file by another route — the app's own editor.
 A type folder a colleague shared is the other route, and it was decided (2026-09-29) to add no trust step for it: it runs as you, the way a script in `scripts/` does, and what makes that acceptable is that a type can do nothing beyond running its script without being pressed (see Types from the config folder).
@@ -549,7 +554,7 @@ A node whose own fields are wrong — none or several of `rows`, `columns` and `
 An entry's problems show in its slot, and a mistake that is no reason to refuse a panel, such as an icon the app does not have, is a note under the group instead.
 A key the layout does not know on an entry is refused with a sentence saying a type's own settings go under `options`, worded without knowing any type's options — which is also the whole notice for a file from before they were nested.
 A file that cannot be read as a layout at all — not an object, another version, no root — keeps the default window and adds one degraded group beside it saying why, so the window stays usable while the file is fixed.
-A file that does not parse keeps the last good layout up and toasts the file and the parser's position until a read succeeds.
+A file that does not parse keeps the last good layout up and toasts the file, what is wrong and its line and column until a read succeeds.
 The validator (`src/renderer/panels/layout.ts`) is pure and tested per rule, including every refusal, so a validator that accepts everything fails its tests.
 
 **The default layout lives in code, never on disk**: the sidebar at 320px beside the terminal area.

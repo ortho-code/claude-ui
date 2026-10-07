@@ -12,6 +12,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 
 - A filter for sessions whose folder is gone, next to the other filter pills — the set to clean up, or to put folders back for.
 - A config folder for the files you may edit or share, `config/` inside the app's data directory, holding the layout file `layouts/default.json` and the scripts it points at; the app reads and watches it and never writes to it, and Settings shows where it is with an Open button.
+  Its files are JSON that may also carry comments and trailing commas.
 - A layout that arranges the whole window, from that file: rows and columns of panels with the sidebar and the terminal among them, sized in shares or pixels and resized from dividers, where a double-click puts back the file's sizes.
   A mistake in the file is named where it is instead of dropped, and no file can leave you without the terminal; without a file, the window is as it was.
 - A `command` panel type: a command line or a script, run in the active tab's folder (or the selected project's) and shown as plain text, run again when you switch project or tab or press Refresh.

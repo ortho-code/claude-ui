@@ -5,13 +5,14 @@ import * as path from 'node:path';
 import { configRoot, layoutsDir, scriptsDir, typesDir, defaultLayoutFile } from './paths';
 import type { LayoutReport, PathBase, PathCheck, PathKind, ReadStatus, TypeReport } from '../shared/panels';
 import { pathProblem, resolvePathIn, type Found } from '../shared/pathcheck';
+import { readJsonc } from './jsonc';
 import { fsFailure, log } from './log';
 
 /**
  * The config folder: read and watched here, never written.
  *
  * A read is TOLERANT the way meta's is not, and for the opposite reason: meta drops what it does not understand because the app wrote it and a past version's field is noise, while this file was written by a person, so what the app does not understand has to be NAMED back to them.
- * So nothing here throws or drops: a missing file is a report saying so, and a file that is not JSON is a report carrying the parser's own message and position.
+ * So nothing here throws or drops: a missing file is a report saying so, and a file that does not parse is a report saying what is wrong and at which line and column.
  */
 
 /**
@@ -50,7 +51,7 @@ export async function checkPath(value: string, base: PathBase, must: PathKind): 
   return { path: resolved, problem: pathProblem(value, must, await lookAt(resolved, must)) };
 }
 
-/** One read of a hand-written JSON file, the layout or a type's manifest: never throws, and a file that is not JSON carries the parser's own message and position. */
+/** One read of a hand-written file, the layout or a type's manifest, as JSONC (`jsonc.ts`): never throws, and a file that does not parse carries what is wrong and where. */
 async function readJson(file: string): Promise<{ status: ReadStatus; error: string | null; json: unknown }> {
   let text: string;
   try {
@@ -59,12 +60,8 @@ async function readJson(file: string): Promise<{ status: ReadStatus; error: stri
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { status: 'missing', error: null, json: null };
     return { status: 'unparsable', error: (error as Error).message, json: null };
   }
-  try {
-    // A byte-order mark is an editor's doing, not a mistake in the file; JSON.parse refuses it all the same.
-    return { status: 'read', error: null, json: JSON.parse(text.replace(/^\uFEFF/, '')) };
-  } catch (error) {
-    return { status: 'unparsable', error: (error as Error).message, json: null };
-  }
+  const read = readJsonc(text);
+  return read.ok ? { status: 'read', error: null, json: read.json } : { status: 'unparsable', error: read.error, json: null };
 }
 
 /** The manifest a type's folder holds. */

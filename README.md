@@ -96,6 +96,7 @@ It lives in the app's config folder, which Settings shows with an Open button:
 - macOS: `~/Library/Application Support/claude-ui/config/`
 
 Write `layouts/default.json` there, and the app picks it up as you save.
+Every file in the folder is JSON that may also carry comments (`//` and `/* */`) and trailing commas.
 Without a file — or after you delete or rename yours — the window is the default layout below, so there is always a way back to one that works.
 The app never writes to this folder, so it is yours to edit, version, or hand to a colleague.
 
@@ -198,7 +199,7 @@ Either type takes a `cwd` in its `options` to run somewhere other than that fold
 
 The variables tell the panel where it runs: `CLAUDE_UI_CWD` is that folder, and the project and session are the ones selected when it ran or started.
 
-A mistake in the file — an unknown type, a missing id, a size it cannot read, an option the type does not have, a script that is not there or not executable — is named in the place of the thing that is wrong, and a file that does not parse leaves the last good layout up and names the position.
+A mistake in the file — an unknown type, a missing id, a size it cannot read, an option the type does not have, a script that is not there or not executable — is named in the place of the thing that is wrong, and a file that does not parse leaves the last good layout up and says what is wrong and at which line and column.
 A panel's options are checked by the panel itself, when it appears and before each run, so a missing script is named a moment after the rest.
 
 ### Panel types of your own

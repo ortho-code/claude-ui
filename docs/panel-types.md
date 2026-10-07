@@ -24,6 +24,8 @@ A folder named like a built-in type (`sessions`, `claude`, `command`, `terminal`
 
 ### `panel.json`
 
+One JSON object, which may carry comments (`//` and `/* */`) and trailing commas, as every file in the config folder may.
+
 | Field | Meaning |
 |---|---|
 | `version` | Required, `1`: the one shape this version of the app reads. |

@@ -38,12 +38,16 @@ describe('readLayout', () => {
     expect(await readLayout()).toMatchObject({ status: 'missing', error: null, json: null, file: defaultLayoutFile, configRoot });
   });
 
-  it('reports a file that is not JSON with the parser’s own message and position, and does not throw', async () => {
+  it('reports a file that does not parse with what is wrong and where, and does not throw', async () => {
+    write('{\n  "version": 1\n  "sides": {}\n}');
+    expect(await readLayout()).toMatchObject({ status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null });
     write('{\n  "version": 1,\n  "sides": {\n}');
-    const report = await readLayout();
-    expect(report.status).toBe('unparsable');
-    expect(report.error).toMatch(/position \d+/);
-    expect(report.json).toBeNull();
+    expect(await readLayout()).toMatchObject({ status: 'unparsable', error: 'expected a closing } at the end of the file', json: null });
+  });
+
+  it('reads comments and trailing commas', async () => {
+    write('{\n  // the window\n  "version": 2, /* for now */\n  "root": { "id": "w", "panels": [{ "id": "a", "type": "claude" },] },\n}\n');
+    expect(await readLayout()).toMatchObject({ status: 'read', error: null, json: { version: 2, root: { id: 'w', panels: [{ id: 'a', type: 'claude' }] } } });
   });
 
   it('reads past a byte-order mark an editor left', async () => {
@@ -69,7 +73,7 @@ describe('readTypes', () => {
   };
 
   beforeAll(() => {
-    folder('reviews', '{"version": 1, "kind": "list"}');
+    folder('reviews', '{\n  // what the type is\n  "version": 1,\n  "kind": "list",\n}');
     folder('broken', '{"version": 1,');
     folder('empty');
     folder('bom', '﻿{"version": 1}');
@@ -92,10 +96,10 @@ describe('readTypes', () => {
     });
   });
 
-  it('says a folder without a manifest is missing one, and one that is not JSON with the parser’s message', async () => {
+  it('says a folder without a manifest is missing one, and one that does not parse what is wrong and where', async () => {
     const reports = await readTypes();
     expect(reports.find(({ name }) => name === 'empty')).toMatchObject({ status: 'missing', error: null, json: null });
-    expect(reports.find(({ name }) => name === 'broken')).toMatchObject({ status: 'unparsable', json: null });
+    expect(reports.find(({ name }) => name === 'broken')).toMatchObject({ status: 'unparsable', error: 'expected a property name in double quotes at the end of the file', json: null });
     expect(reports.find(({ name }) => name === 'bom')).toMatchObject({ status: 'read', json: { version: 1 } });
   });
 

@@ -108,7 +108,7 @@ export interface PathCheck {
   problem: string | null;
 }
 
-/** How one read of a hand-written JSON file went: not there, there and not JSON (`error` says why and where), or read (`json` is what it parsed to). */
+/** How one read of a hand-written file in the config folder went: not there, there and not parsed (`error` says what is wrong and where), or read (`json` is what it parsed to). */
 export type ReadStatus = 'missing' | 'unparsable' | 'read';
 
 /**
