@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { resolveContext, endLabel, runFailed, RunGate, placement, runKey, runContext } from '../../../../src/renderer/panels/run';
 
 describe('RunGate', () => {
@@ -74,6 +74,75 @@ describe('RunGate', () => {
     expect(state.runs).toHaveLength(2);
     g.setVisible(true);
     expect(state.runs).toHaveLength(3);
+  });
+
+  describe('on an interval', () => {
+    const MINUTE = 60_000;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** A gate ticking every minute, or on no interval with null. */
+    function ticking(ms: number | null = MINUTE) {
+      const state = { context: '/repo', runs: [] as string[] };
+      const g = new RunGate(
+        () => state.context,
+        () => state.runs.push(state.context),
+        () => ms,
+      );
+      return { g, state };
+    }
+
+    it('runs when the tree goes live though hidden, which a panel without one does not', () => {
+      const { g, state } = ticking();
+      g.setVisible(false);
+      expect(state.runs).toEqual(['/repo']);
+      const plain = ticking(null);
+      plain.g.setVisible(false);
+      expect(plain.state.runs).toEqual([]);
+    });
+
+    it('runs again a tick after a run ends, while hidden too, and counts the tick from the end', () => {
+      const { g, state } = ticking();
+      g.setVisible(false);
+      vi.advanceTimersByTime(5 * MINUTE);
+      expect(state.runs).toHaveLength(1);
+      g.ended();
+      vi.advanceTimersByTime(MINUTE - 1);
+      expect(state.runs).toHaveLength(1);
+      vi.advanceTimersByTime(1);
+      expect(state.runs).toHaveLength(2);
+      // Not again until that run has ended.
+      vi.advanceTimersByTime(5 * MINUTE);
+      expect(state.runs).toHaveLength(2);
+    });
+
+    it('sets no tick without an interval, nor once stopped', () => {
+      const plain = ticking(null);
+      plain.g.setVisible(true);
+      plain.g.ended();
+      vi.advanceTimersByTime(60 * MINUTE);
+      expect(plain.state.runs).toHaveLength(1);
+      const { g, state } = ticking();
+      g.setVisible(true);
+      g.ended();
+      g.stop();
+      g.ended();
+      vi.advanceTimersByTime(60 * MINUTE);
+      expect(state.runs).toHaveLength(1);
+    });
+
+    it('runs at once on rerun though hidden, as it would have all along', () => {
+      const { g, state } = ticking();
+      g.setVisible(false);
+      g.rerun();
+      expect(state.runs).toHaveLength(2);
+    });
   });
 });
 

@@ -21,7 +21,7 @@ import './list.css';
  *
  * THE SCRIPT DESCRIBES, THE APP ACTS: the script only prints, and what a row does when pressed is the app's, so a type shared from anyone can do nothing a person did not press.
  * A row opens its link in the browser, through the same route every link in the app leaves by, and its `session` action is a button that asks the app for a session, which opens the app's dialog first.
- * WHEN IT RUNS: on first being shown, on Refresh, on a context change while shown (the command panel's `RunGate`), and on its interval if it has one — the interval also while the panel is hidden or folded, so the count on its rail stays true.
+ * WHEN IT RUNS (`RunGate`): on first being shown, on Refresh, on a context change while shown, and on its interval if it has one — the interval also while the panel is hidden or folded, so the count on its rail stays true.
  * NEVER AN EMPTY LIST FOR A BROKEN RUN: a run that fails, or prints something that is not a list, says so.
  * With a good list already on screen, the list stays under a line saying the run failed, when, and why, so a bad minute on the network does not blank a queue; without one, the panel says it is unavailable and why.
  * Before the first run has ended it says it is waiting, which is neither.
@@ -87,9 +87,6 @@ class ListPanel implements MountedPanel {
   private runnable: boolean | null = null;
   /** Counts the runs asked for, so one whose check is overtaken by a newer ask drops out rather than starting after it. */
   private asked = 0;
-  /** The tree has shown or hidden the panel at least once, which is when panels may run. */
-  private live = false;
-  private timer: ReturnType<typeof setTimeout> | null = null;
   private disposed = false;
 
   constructor(
@@ -107,6 +104,7 @@ class ListPanel implements MountedPanel {
     this.gate = new RunGate(
       () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
       () => void this.run(),
+      () => this.interval(),
     );
     // At once rather than on first show, so a panel behind another already wears `alert` on its rail.
     void this.check();
@@ -121,11 +119,6 @@ class ListPanel implements MountedPanel {
   }
 
   setVisible(visible: boolean): void {
-    // The first call is the tree going live: a panel with an interval runs from here, shown or not, so its count is true from the start.
-    if (!this.live) {
-      this.live = true;
-      if (!visible && this.interval() !== null) this.gate.refresh();
-    }
     const asked = this.asked;
     this.gate.setVisible(visible);
     // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
@@ -139,16 +132,14 @@ class ListPanel implements MountedPanel {
   recheck(): void {
     const was = this.runnable;
     void this.check().then((checked) => {
-      if (!checked || was !== false) return;
-      // A panel that could not run and now can runs again: one with an interval straight away, as it would have, and any other when it is next on show.
-      if (this.live && this.interval() !== null) this.gate.refresh();
-      else this.gate.rerun();
+      // A panel that could not run and now can runs again, when its gate says (`rerun`).
+      if (checked && was === false) this.gate.rerun();
     });
   }
 
   unmount(): void {
     this.disposed = true;
-    this.unschedule();
+    this.gate.stop();
     if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
     this.token = null;
     this.stopListening();
@@ -207,7 +198,7 @@ class ListPanel implements MountedPanel {
       // A panel that cannot run is drawn by the tree as its problems; this is for one that can, with nowhere to run.
       this.noContext = checked !== null;
       this.show();
-      if (checked) this.schedule();
+      if (checked) this.gate.ended();
       return;
     }
     this.noContext = false;
@@ -238,7 +229,7 @@ class ListPanel implements MountedPanel {
         this.token = null;
         this.host.setBusy(false);
         this.ended(event);
-        this.schedule();
+        this.gate.ended();
         return;
     }
   }
@@ -270,21 +261,6 @@ class ListPanel implements MountedPanel {
     // A count stands only beside the list it counts.
     if (!this.good) this.host.setCount(null);
     this.show();
-  }
-
-  private schedule(): void {
-    this.unschedule();
-    const ms = this.interval();
-    if (ms === null || this.disposed || this.runnable === false) return;
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      this.gate.refresh();
-    }, ms);
-  }
-
-  private unschedule(): void {
-    if (this.timer !== null) clearTimeout(this.timer);
-    this.timer = null;
   }
 
   /** Which of the four the panel is showing: nowhere to run, the list (under a failed run's line when the last one failed), unavailable, or waiting for the first run. */

@@ -131,21 +131,33 @@ export function runFailed(event: PanelRunEvent): boolean {
 }
 
 /**
- * WHEN a panel that follows its context runs, apart from what running does: on first being shown, on Refresh, and on a context change — but never while hidden.
- * A change that happens while the panel is hidden is remembered as a difference, not queued as a run: it runs once on reveal, and not at all if the context came back to where the last run was.
- * Pure, so the deferral is tested without a DOM or a process.
+ * WHEN a panel that runs something runs, apart from what running does: on first being shown, on Refresh, on a context change while shown, and on its interval if it has one.
+ * A context change while the panel is hidden is remembered as a difference, not queued as a run: it runs once on reveal, and not at all if the context came back to where the last run was.
+ * An interval runs it while hidden or folded too: from when the tree goes live, shown or not, and then a tick after each run ends, counted from that run's end.
+ * No DOM and no process, and no global but that timer, so the deferral is tested without either.
  */
 export class RunGate {
   private visible = false;
+  /** The tree has shown or hidden the panel at least once: from then on a panel with an interval runs whether shown or not. */
+  private live = false;
   /** The context key of the last run; null until the first, so the first reveal always runs. */
   private last: string | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private stopped = false;
 
   constructor(
     private readonly key: () => string,
     private readonly run: () => void,
+    /** How often the panel runs on its own, in ms, or null for never; asked each time, so it is the panel's options as they are then. */
+    private readonly interval: () => number | null = () => null,
   ) {}
 
   setVisible(visible: boolean): void {
+    // The first call is the tree going live: a panel with an interval runs from here, shown or not, so what it shows is true from the start.
+    if (!this.live) {
+      this.live = true;
+      if (!visible && this.interval() !== null) this.fire();
+    }
     this.visible = visible;
     this.contextChanged();
   }
@@ -158,15 +170,38 @@ export class RunGate {
     this.fire();
   }
 
-  /** Forget the last run, so it runs again now if shown and on reveal if not: for a panel that could not run and now can. */
+  /** Forget the last run, for a panel that could not run and now can: one with an interval runs now once the tree is live, as it would have all along, and any other now if shown and on reveal if not. */
   rerun(): void {
     this.last = null;
-    this.contextChanged();
+    if (this.live && this.interval() !== null) this.fire();
+    else this.contextChanged();
+  }
+
+  /** A run has ended, or found nowhere to run: the next tick is counted from here. */
+  ended(): void {
+    this.unschedule();
+    const ms = this.interval();
+    if (ms === null || this.stopped) return;
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      this.fire();
+    }, ms);
+  }
+
+  /** The panel is gone, and no tick runs it again. */
+  stop(): void {
+    this.stopped = true;
+    this.unschedule();
   }
 
   private fire(): void {
     this.last = this.key();
     this.run();
+  }
+
+  private unschedule(): void {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
   }
 }
 
