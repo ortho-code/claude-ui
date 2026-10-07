@@ -32,6 +32,11 @@ function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.ge
 type TabBarView = View<'sessions' | 'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab'>;
 
 export function renderTabBar(view: TabBarView): void {
+  // The library owns the bar's tabs while one is dragged — it moves them, and puts its copy of the dragged one in its row — so a redraw then would undo the drag under the pointer; the drop draws what was held (`sortableFor`).
+  if (tabDragActive) {
+    drawHeld = true;
+    return;
+  }
   const { activeProject } = view;
   const shown = visibleTabs(view);
   const { groupOf } = view.groupState;
@@ -263,8 +268,10 @@ function drawTab(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames'
 // Drag-to-reorder tabs via SortableJS.
 // One Sortable per row (a project's ungrouped tabs, or one of its groups), so a drag stays inside its own cluster by construction — a tab can't be dragged into another group or project.
 // forceFallback uses pointer-based dragging instead of native HTML5 DnD (flaky under WSLg).
-// Made with its row and destroyed when the row goes (`projectRows`, `groupRows`).
+// Made with its row and destroyed when the row goes (`projectRows`, `groupRows`), so a draw, held while a tab is dragged, never takes one away from under the drag.
 let tabDragActive = false;
+/** A draw was asked for while a tab was being dragged, and is owed once it drops. */
+let drawHeld = false;
 
 function sortableFor(container: HTMLElement): Sortable {
   return Sortable.create(container, {
@@ -290,11 +297,16 @@ function sortableFor(container: HTMLElement): Sortable {
       const moved = tabs.find((t) => t.session.id === el.dataset.sid);
       // Index among the destination's tabs (ignores the project label), mapped onto the tabs array.
       const newIndex = [...evt.to.querySelectorAll<HTMLElement>('.tab')].indexOf(el);
-      if (!moved || newIndex < 0) return;
-      // The new order redraws the bar and the strip, which reads its order from it too; after the drop has finished, so the library is done with the bar.
+      // After the drop has finished: the new order redraws the bar and the strip, which reads its order from it too, and a draw held during the drag is owed now either way.
       queueMicrotask(() => {
-        store.set({ tabs: reorderWithinGroup(store.get().tabs, tabClusterKey, moved, newIndex) });
-        persistOpenTabs();
+        if (moved && newIndex >= 0) {
+          store.set({ tabs: reorderWithinGroup(store.get().tabs, tabClusterKey, moved, newIndex) });
+          persistOpenTabs();
+        }
+        if (drawHeld) {
+          drawHeld = false;
+          renderTabBar(store.get());
+        }
       });
     },
   });

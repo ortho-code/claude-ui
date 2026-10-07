@@ -1020,6 +1020,7 @@ Keeping them is not enough on its own: in Chromium, `appendChild`, `insertBefore
 The same goes for an icon inside a kept element: setting its markup again replaces the icon's own element, which sits over the middle of an icon button where a press lands, so an icon a render sets is set through `setMarkup`, which leaves the same markup alone.
 A kept element outlives what it was built for, so its handlers look up what they act on by its key when they run, as a session row's read `currentByKey`, never what was current when it was built.
 A library bound to a kept element lives as long as the element, and `Keyed`'s `forget` lets it go when the element is swept, as the tab bar's rows destroy their Sortable.
+While such a library moves the elements itself, the surface does not draw: during a tab drag, Sortable moves the dragged tab and puts its copy of it in the row, so the tab bar holds a draw asked for meanwhile and makes it once the tab drops, rather than undoing the drag under the pointer.
 
 **A module's stylesheet sits beside it, and the module imports it.**
 esbuild bundles every stylesheet a module imports into one `renderer.css`, in import order, each file once, so `index.html` links only that: `xterm.css` and `air-datepicker.css` are imports of the modules that use them too.

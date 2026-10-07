@@ -31,3 +31,22 @@ test('a tab dragged before another moves there, in the bar, in what is kept and 
   await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[second.id, first.id], [second.id, first.id]]);
   await expect.poll(() => stripNames(page).allTextContents()).toEqual([second.title, first.title]);
 });
+
+// A status arriving mid-drag is drawn once the tab drops, rather than drawing the bar under the drag and undoing it.
+test('a tab dragged while a status arrives still moves, and the status shows once it drops', async ({ app, page }) => {
+  await app.boot(fixture);
+  for (const s of [first, second]) await tabLabel(page, s.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+
+  const from = (await tab(page, second.title).boundingBox())!;
+  const to = (await tab(page, first.title).boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + 30, to.y + to.height / 2, { steps: 6 });
+  expect(await app.emit('onSessionStatus', first.id, 'busy', '', '')).toBe(1);
+  await page.mouse.move(to.x + 4, to.y + to.height / 2, { steps: 6 });
+  await page.mouse.up();
+
+  await expect(tabLabels(page)).toHaveText([second.title, first.title]);
+  await expect(tab(page, first.title).locator('.nudge')).toHaveClass(/\bbusy\b/);
+});
