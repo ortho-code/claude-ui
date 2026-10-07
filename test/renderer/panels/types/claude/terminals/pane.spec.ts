@@ -11,6 +11,16 @@ const OTHER = `${HOME}/projects/other`;
 const here = session();
 const there = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'Over there', cwd: OTHER, repoRoot: OTHER });
 
+test('a starting session’s terminal stays inside the terminal area, covered by the pane saying it is starting', async ({ app, page }) => {
+  await app.boot({ history: { [here.id]: [] } });
+  await row(page, here.title).click();
+  await expect(page.locator('#term-placeholder')).toHaveText(`Starting “${here.title}”…`);
+  // The terminal is laid out already, fitted before claude starts; in the flow it sat below the pane and hung out of the area over whatever lay under it.
+  const [area, terminal] = await Promise.all([page.locator('#terminals').boundingBox(), page.locator('.term.active').boundingBox()]);
+  expect(terminal!.y + terminal!.height).toBeLessThanOrEqual(area!.y + area!.height + 1);
+  await expect(page.locator('#term-placeholder')).toBeVisible();
+});
+
 test('with no sessions at all, the pane points at + New', async ({ app, page }) => {
   await app.boot({ sessions: [], projectOrder: [], activeProject: null });
   await expect(page.locator('#term-placeholder')).toHaveText('No sessions yet — start one with + New.');

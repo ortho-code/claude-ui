@@ -5,6 +5,16 @@
   font-size: var(--text-meta);
 }
 
+/* The pane's sentence lies OVER the tab's terminal rather than above it, on the terminal area's own background, so it covers a booting tab's empty terminal.
+   That terminal is laid out already, fitted to the area before claude starts; in the flow it sat below the sentence, hanging out of the area over whatever lay under it until the first output took the sentence away.
+   Above the terminal's own stacking context, below the history and its scrim (z-index 2), which lie over both. */
+#term-placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--terminal-bg);
+}
+
 /* A cold tab's two ways on, under its sentence. */
 .pane-actions {
   display: flex;
