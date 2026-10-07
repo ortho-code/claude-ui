@@ -11,7 +11,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { purgedSession, togglePinned, toggleArchived } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
-import { writeFileAtomic } from './atomic';
+import { goodCopy, writeWithBackups } from './backup';
 import { errorText, fsFailure, log, logOnce } from './log';
 
 /**
@@ -321,7 +321,7 @@ function normalize(parsed: Record<string, unknown>): Meta {
 // Returns null when there's no usable backup.
 async function readBackup(): Promise<Meta | null> {
   try {
-    return normalize(JSON.parse(await fs.readFile(metaPath() + '.bak', 'utf8')) as Record<string, unknown>);
+    return normalize(JSON.parse(await fs.readFile(goodCopy(metaPath()), 'utf8')) as Record<string, unknown>);
   } catch {
     return null;
   }
@@ -375,30 +375,10 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-/**
- * Keep a copy of meta.json as the OUTGOING version left it, the first time a different build writes.
- *
- * The existing `.bak` protects against a corrupt write; this protects against a version change, which is a different risk and needs its own copy — a rolling backup is overwritten by the very next write, so by the time anyone notices a new build mishandled something, the pre-upgrade state is long gone.
- * Stamped with the version that wrote it, so `meta.json.0.1.0.bak` is unambiguous.
- *
- * Best-effort throughout: failing to take a backup must never stop the app writing its metadata.
- */
-async function snapshotOnVersionChange(storedVersion: string): Promise<void> {
-  const current = app.getVersion();
-  // No stored version means a file written before this was tracked, or a brand-new one.
-  // There is nothing a rollback could want back, so take no copy — just let the stamp below record this build.
-  if (!storedVersion || storedVersion === current) return;
+/** The audit log's line for a version change, the moment its copy is taken (`writeWithBackups`). */
+async function stampVersionChange(storedVersion: string, current: string): Promise<void> {
   const direction = compareVersions(current, storedVersion) < 0 ? 'DOWNGRADE' : 'upgrade';
-  try {
-    await fs.copyFile(metaPath(), `${metaPath()}.${storedVersion}.bak`);
-  } catch {
-    // No file to copy yet, or an unwritable directory: the stamp still happens.
-  }
-  try {
-    await appendStamped(auditPath(), `===== ${direction} ${storedVersion} -> ${current} =====`);
-  } catch {
-    // ignore
-  }
+  await appendStamped(auditPath(), `===== ${direction} ${storedVersion} -> ${current} =====`);
 }
 
 async function writeMeta(meta: Meta): Promise<void> {
@@ -411,27 +391,28 @@ async function writeMeta(meta: Meta): Promise<void> {
   }
 }
 
+function isJson(text: string): boolean {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function writeMetaFile(meta: Meta): Promise<void> {
   const file = metaPath();
   await fs.mkdir(path.dirname(file), { recursive: true });
-  // Before anything overwrites the previous build's file.
-  // This needs no "have I already done it" flag: the stamp below makes the stored version match the running one, so every later write hits the early return inside.
-  await snapshotOnVersionChange(meta.appVersion);
-  meta.appVersion = app.getVersion();
-  // Keep the current file as the backup only if it's valid, so a corrupt main file can't clobber a good backup.
-  // This is the recovery point readMeta falls back to.
-  try {
-    const current = await fs.readFile(file, 'utf8');
-    JSON.parse(current); // back up only parseable content
-    await fs.writeFile(`${file}.bak`, current);
-  } catch {
-    // No existing file (first write) or it's already corrupt: leave any prior .bak untouched.
-  }
+  // The copies sit beside meta.json: `meta.json.bak` is the recovery point readMeta falls back to, and `meta.json.0.1.0.bak` the file as 0.1.0 left it.
+  // The version copy needs no "have I already done it" flag: setting `appVersion` here makes the stored version match the running one, so every later write finds no change.
+  const outgoing = meta.appVersion;
+  const current = app.getVersion();
+  meta.appVersion = current;
   // `extra` is a container for keys this build does not know, not a key of its own: spread its contents back alongside the known ones.
   // Known keys are written second so they always win, though by construction the two sets cannot overlap.
   const { extra, ...known } = meta;
   // Atomic, so a crash mid-write leaves the live meta.json intact; the queue below is what keeps two writes from sharing the temp file.
-  await writeFileAtomic(file, JSON.stringify({ ...extra, ...known }, null, 2));
+  await writeWithBackups(file, JSON.stringify({ ...extra, ...known }, null, 2), { at: file, isGood: isJson, outgoing, current, onVersionChange: () => stampVersionChange(outgoing, current) });
 }
 
 // Serialize every meta operation.
