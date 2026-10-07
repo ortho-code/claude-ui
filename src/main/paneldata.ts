@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { panelDataDir } from './paths';
 import { writeFileAtomic } from './atomic';
 import { errorText, fsFailure, log } from './log';
+import { inTurn } from './queue';
 import { ID_PATTERN, withLink, type PanelData, type PanelLink } from '../shared/panels';
 
 /**
@@ -108,24 +109,6 @@ async function prune(file: string, data: PanelData, keep: string[]): Promise<voi
   const gone = ids.filter((id) => !alive.has(id));
   for (const id of gone) delete data.sessions[id];
   if (gone.length > 0) log('info', 'panel-data', `${file}: forgot ${gone.length} ${gone.length === 1 ? 'session that no longer exists' : 'sessions that no longer exist'}`);
-}
-
-/**
- * One job at a time per file, the window's reads among them.
- * A read-modify-write that overlapped another would drop its change, and the temp file is one name per target.
- * A read that overlapped a write could answer with the file as it was after the window had been told what it became.
- */
-const queues = new Map<string, Promise<unknown>>();
-
-/** Run `job` once every job already queued for `file` is done. */
-function inTurn<T>(file: string, job: () => Promise<T>): Promise<T> {
-  const run = (queues.get(file) ?? Promise.resolve()).then(job);
-  // The queue goes on after a failed job; the caller still hears of the failure.
-  queues.set(
-    file,
-    run.catch(() => undefined),
-  );
-  return run;
 }
 
 /** Read a panel's data, change it, and write it back when `mutate` says it changed, forgetting on the way the sessions that are gone; `wrote` says whether it wrote. */
