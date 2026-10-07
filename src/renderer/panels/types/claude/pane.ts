@@ -71,6 +71,14 @@ function shownTab(view: PaneView): { activeTab: TabState | null; cold: boolean; 
   return { activeTab, cold: activeTab !== null && activeTab.terminalId === null, booting: activeTab?.booting === true };
 }
 
+/**
+ * A tab whose pane stands in for its terminal: cold, not on its way, and not a failed start, whose terminal holds what claude said before it went.
+ * Such a tab offers Resume and its history under the pane's sentence; any other tab's history opens over its terminal.
+ */
+function standsAlone(tab: TabState): boolean {
+  return tab.terminalId === null && !tab.booting && !tab.startFailed;
+}
+
 /** What the pane last drew: the tab on show as it was, and the sentence it said. */
 let drawnTab: TabState | null = null;
 let drawnSentence: string | null = null;
@@ -81,13 +89,15 @@ function updatePlaceholder(view: PaneView): void {
   history.follow(activeTab?.session.id ?? null);
   // Shown for a COLD selected tab as well as for no tab at all: its terminal exists but is empty, so without this a restored session would look like a session that had nothing in it.
   // A booting tab HAS a terminal, but it is still empty: keep the pane covered rather than showing the black rectangle that the wait would otherwise be.
-  placeholder.style.display = activeTab && !cold && !booting ? 'none' : 'flex';
-  historyBar.setLive(activeTab !== null && !cold && !booting);
+  // A failed start is cold and still uncovered: its terminal holds what claude said before it went, which is the explanation, and its history opens over it as a live one's does.
+  const terminalShown = activeTab !== null && ((!cold && !booting) || activeTab.startFailed);
+  placeholder.style.display = terminalShown ? 'none' : 'flex';
+  historyBar.setLive(terminalShown);
   const sentence = paneSentence(view);
   drawnTab = activeTab;
   drawnSentence = sentence;
   // A tab on show with no claude behind it — restored, or refused a start — says so, and offers the two things to do about it: resume it, or read what it said.
-  const standing = activeTab && cold && !booting ? activeTab : null;
+  const standing = activeTab && standsAlone(activeTab) ? activeTab : null;
   if (standing) {
     const actions = document.createElement('div');
     actions.className = 'pane-actions';
@@ -142,7 +152,7 @@ function resumeButton(tab: TabState): HTMLButtonElement {
 function openHistory(): void {
   const activeTab = tabOnShow(store.get());
   if (!activeTab) return;
-  if (activeTab.terminalId === null && !activeTab.booting) history.setStandalone(paneSentence(store.get()), resumeButton(activeTab));
+  if (standsAlone(activeTab)) history.setStandalone(paneSentence(store.get()), resumeButton(activeTab));
   else showHistory(true);
 }
 

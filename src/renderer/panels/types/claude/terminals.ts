@@ -190,7 +190,7 @@ function buildTab(session: SessionSummary): string {
   });
 
   store.set({
-    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, closing: false, forceable: false, failure: null }],
+    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, closing: false, forceable: false, failure: null, startFailed: false }],
   });
   return token;
 }
@@ -209,7 +209,12 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
   // Every way a session begins — new, fork, worktree, resuming a cold tab — funnels through here, so the starting state belongs here rather than at any one call site.
   // Trying again clears what the last attempt said, so a stale reason cannot outlive it.
   // Before the await, not after: otherwise a cold tab's pane keeps saying "click its tab to resume it" across the spawn round-trip, which is the one thing you have just done, and its button shows the pause only once the process has arrived.
-  setTab(token, { starting: true, booting: true, failure: null });
+  // A failed start's lines are wiped as a stopped session's are, or the new session would paint over them, and its terminal is hidden until this start has a process, as any start's is.
+  if (tab.startFailed) {
+    terminal.term.reset();
+    terminal.el.classList.remove('active');
+  }
+  setTab(token, { starting: true, booting: true, failure: null, startFailed: false });
   try {
     // Which of the two id flags a start uses is one question: does this session have a transcript?
     // No — the tab's id is one this app minted, so claude is told to CREATE the session under it (claude refuses an id that is already in use, which is exactly the same question).
@@ -283,7 +288,7 @@ export function activateTab(token: string, start = true): void {
   terminal.activatedSeq = ++activationSeq;
   store.set({ activeTab: token });
   // A cold tab's (empty) terminal stays hidden, so the placeholder can explain itself instead of showing a blank black pane.
-  for (const other of store.get().tabs) terminalOf(other.token).el.classList.toggle('active', other.token === token && other.terminalId !== null);
+  for (const other of store.get().tabs) terminalOf(other.token).el.classList.toggle('active', other.token === token && (other.terminalId !== null || other.startFailed));
   terminal.fitAddon.fit();
   // A cold tab starts the moment you select it — selecting IS starting, with no separate affordance, because that is how activating a tab has always behaved and laziness should show up only as a wait.
   // Fire-and-forget: activateTab is called from click handlers and stays synchronous.
@@ -292,7 +297,9 @@ export function activateTab(token: string, start = true): void {
     // The tab is KEPT, cold: put the folder back — recreate the worktree at its old path — and the very same tab starts.
     const reason = unstartableReason(tab.session);
     if (reason) {
-      setTab(token, { failure: reason });
+      // The pane says why, so a failed start's lines give way to it.
+      setTab(token, { failure: reason, startFailed: false });
+      terminal.el.classList.remove('active');
       if (start) showToast(reason);
     } else if (start) {
       // No arguments: startTab resumes the tab's session, or — for a tab stopped before it ever wrote a transcript — starts it fresh under that same id, so nothing keyed to it is lost.
@@ -576,8 +583,9 @@ function onTabExit(token: string, exitCode: number): void {
       );
     });
     term.writeln(`\r\n[claude exited immediately (code ${exitCode}) — the session did not start]`);
-    // Uncover the pane: this line IS the explanation of the failure, and it is exactly what the loader would otherwise hide.
-    setTab(token, { booting: false });
+    // Cold, since its process has gone: the button closes it at once, the strip drops it, and selecting it starts it again.
+    // Uncovered all the same: this line IS the explanation of the failure, and it is exactly what the loader or the cold pane would otherwise hide.
+    setTab(token, { terminalId: null, booting: false, startFailed: true });
     return;
   }
   removeTab(token);

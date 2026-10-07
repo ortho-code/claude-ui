@@ -89,6 +89,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Stopping a session, closing its tab or archiving it leaves anything claude asks on its way out in its tab to answer, such as whether to keep a worktree with changes, instead of ending the session over the question.
   The tab stays until claude has gone, and for a session that has not gone a second later the stop button becomes a force stop.
 - Quitting the app, or forcing a stop, gives a session three seconds to finish leaving before it is killed, instead of just over one.
+- A tab whose session failed to start closes with one press of its button, and the live strip no longer lists it as running; selecting it tries the start again, as selecting a stopped tab does.
+  Its button used to send a stop nothing answered, so it never closed the tab.
 
 ## 0.3.0 — 2026-08-29
 

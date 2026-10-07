@@ -101,6 +101,24 @@ function atTop(page: Page): Promise<string> {
   });
 }
 
+// A failed start's terminal stays on show with what claude said before it went, so its history opens over it as a live one's does, not under the pane.
+test("Ctrl+Shift+↑ on a failed start's tab opens the history over its terminal", async ({ app, page }) => {
+  await app.boot({ ...both, openSessions: [here.id] });
+  await tab(page, here.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await app.emit('onTerminalExit', 1, 127);
+  const placeholder = page.locator('#term-placeholder');
+  await expect(placeholder).toBeHidden();
+  await expect(page.locator('.term.active .xterm-helper-textarea')).toBeFocused();
+  await expect(page.locator('.history-bar')).not.toHaveClass(/\bunavailable\b/);
+
+  await page.keyboard.press('Control+Shift+ArrowUp');
+  await expect(drawer(page)).toBeVisible();
+  await expect(placeholder).toBeHidden();
+  // The drawer, not the history standing under the pane's sentence with a Resume button.
+  await expect(page.locator('.history-note-text')).toBeHidden();
+});
+
 test('from live, Ctrl+Shift+↑ opens the history at the last request, the two keys step through it, and ↓ past the last is live again', async ({ app, page }) => {
   await app.boot({ ...both, openSessions: [here.id] });
   await goLive(page, app, here.title, 1);

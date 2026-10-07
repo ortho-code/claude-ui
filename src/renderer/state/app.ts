@@ -135,6 +135,11 @@ export interface TabState {
    * A refusal is not an exit: the tab never had a process, so nothing arrives on the terminal to explain itself.
    */
   failure: string | null;
+  /**
+   * Its last start failed: claude exited within moments of starting, so the tab is cold, and what claude printed before it went stays on show in place of the pane, since those lines are the explanation.
+   * Cleared by the next start.
+   */
+  startFailed: boolean;
 }
 
 /** `map` with `key` set to `value`, or without it for `undefined`: a copy when that changes anything, the same map when it does not, so nobody is told for nothing. */

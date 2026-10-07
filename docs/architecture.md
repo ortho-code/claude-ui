@@ -189,6 +189,8 @@ A session arriving disables the button rather than merely ignoring it, and so do
 A session still there after that second makes the button a force (§ Stopping a session is a request).
 The mark follows the state, so which press you are on is visible: a stop square while there is a session to end, filled once pressing it forces the session out, and a cross once there is only a tab.
 A third case sits in between: an exit within 1500ms of launch is treated as a failed start, and the tab is kept with the error visible in its terminal.
+Its process has gone, so the tab is cold like any other — its button closes it in one press, the live strip drops it, and selecting it starts it again on a wiped terminal, or says on the pane why it cannot — but until then its terminal stays on show in place of the pane and its history opens over it (`startFailed`), since what claude printed is the explanation.
+It used to keep the dead process's id, which main no longer knew, so its stop was ignored and its button never closed it.
 
 The cold state is visible in three places, all reading the same `terminalId === null`: the tab is unfilled rather than dimmed, the session row's left bar and the selected tab's top edge are `--muted` instead of accent, and the terminal pane explains that clicking the tab resumes it.
 Those two marks answer the same question, so they answer it the same way — accent means a live session, nowhere else.

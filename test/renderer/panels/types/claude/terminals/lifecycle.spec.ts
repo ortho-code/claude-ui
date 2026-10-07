@@ -253,6 +253,68 @@ test('claude ending within moments of its start keeps the tab, uncovered, and lo
     .toBe(true);
 });
 
+// The process of a failed start has gone, so the tab is cold for everything that asks: its button closes it in one press, the strip does not list it, and selecting it starts it again; only its terminal stays on show, since what claude printed is the explanation.
+test('a tab whose start failed is cold: its button closes it at once, nothing lists it as running, and selecting it tries again', async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, one.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  expect(await app.emit('onTerminalData', FIRST, 'claude: command not found')).toBe(1);
+  await app.emit('onTerminalExit', FIRST, 127);
+
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+  await expect(pane(page)).toBeHidden();
+  await expect(page.locator('.term.active')).toBeVisible();
+  await expect(page.locator('#live-strip')).toBeHidden();
+  // What the terminal holds is drawn on a canvas rather than into the page, so it is read from the log line, which quotes the last few lines it held.
+  const failures = async (): Promise<string[]> =>
+    (await app.calls('log')).flatMap(([level, area, message]) => (level === 'warn' && area === 'tab' && String(message).includes('did not start') ? [String(message)] : []));
+  await expect.poll(failures).toEqual([expect.stringContaining('claude: command not found')]);
+
+  // Selected again, it starts again, on a terminal wiped of the failed start: the second failure finds nothing printed.
+  await tab(page, one.title).locator('.tab-label').click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  await app.emit('onTerminalExit', FIRST + 1, 127);
+  await expect.poll(async () => (await failures())[1]).toContain('printing nothing');
+
+  await tab(page, one.title).locator('.tab-close').click();
+  await expect(tab(page, one.title)).toHaveCount(0);
+  // Nothing was running, so nothing was asked to end.
+  expect(await app.calls('closeTerminal')).toEqual([]);
+  expect(await app.calls('killTerminal')).toEqual([]);
+});
+
+// A refused start says why on the pane, and a failed start's lines give way to it rather than showing beside it.
+test('a failed start tried again and refused by main says why on the pane, with no terminal beside it', async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, one.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await app.emit('onTerminalExit', FIRST, 127);
+  await expect(pane(page)).toBeHidden();
+
+  // Gone from the disk where the listing still has it: main refuses the start.
+  await page.evaluate((folder) => {
+    window.__claudeUiFixture.paths[folder] = 'missing';
+  }, PROJECT);
+  await tab(page, one.title).locator('.tab-label').click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  await expect(pane(page)).toContainText(unstartableReason({ ...one, cwdExists: false })!);
+  await expect(page.locator('.term.active')).toHaveCount(0);
+});
+
+test('a failed start whose folder the listing has since lost is not tried again, and says why on the pane', async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, one.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await app.emit('onTerminalExit', FIRST, 127);
+  await expect(pane(page)).toBeHidden();
+
+  await app.listOnDisk([{ ...one, cwdExists: false }]);
+  await tab(page, one.title).locator('.tab-label').click();
+  await expect(pane(page)).toContainText(unstartableReason({ ...one, cwdExists: false })!);
+  await expect(page.locator('.term.active')).toHaveCount(0);
+  expect(await app.calls('startTerminal')).toHaveLength(1);
+});
+
 test('claude ending by itself later closes its tab', async ({ app, page }) => {
   await app.boot(fixture);
   await startLive(page, app);
