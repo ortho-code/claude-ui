@@ -1019,6 +1019,11 @@ The group's is the function behind the heading's jump menu (`revealGroup`), and 
 The flash has no end keyframe, so it fades into whatever the element already has — a project heading's `--bg`, a group heading's `--surface`, an open row's accent bar.
 It used to end on `--surface`, which is right only for a group heading, and on anything else it finished by snapping to the element's own colour; that went unnoticed until a project heading was flashed.
 
+**A setting is named for what it turns on.**
+Its key and its label say what happens when it is on, never what stops: `resumeRunningSessionsOnStartup`, not `disableResume`, and never a `no…`, `disable…` or `hide…`.
+So on always reads as yes, and nobody has to undo a negative to know what a box does.
+Something the app does unless you say otherwise is therefore a setting that defaults to on, not an opt-out named for turning it off.
+
 ### Sizes and shapes
 
 Sizes come from a small set of decisions, not per-component choices.
