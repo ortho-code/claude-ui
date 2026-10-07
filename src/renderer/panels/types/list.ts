@@ -66,6 +66,8 @@ class ListPanel implements MountedPanel {
   private readonly stopListening: () => void;
   /** The current run's token, or null while nothing is running; an event under any other is a superseded run's tail. */
   private token: string | null = null;
+  /** The gate's number for the run the token belongs to, told back to the gate when that run ends. */
+  private runNumber = 0;
   private stdout = '';
   private stderr = '';
   /** The last list a run printed, and when; null until one has. */
@@ -103,7 +105,7 @@ class ListPanel implements MountedPanel {
     // Keyed by where the run would go, as a command panel's is, so a fixed `cwd` never re-runs on a switch.
     this.gate = new RunGate(
       () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
-      () => void this.run(),
+      (number) => void this.run(number),
       () => this.interval(),
     );
     // At once rather than on first show, so a panel behind another already wears `alert` on its rail.
@@ -187,7 +189,7 @@ class ListPanel implements MountedPanel {
   }
 
   /** Every run checks first: a script can lose its executable bit, or a folder go, between two runs. */
-  private async run(): Promise<void> {
+  private async run(number: number): Promise<void> {
     const asked = ++this.asked;
     const checked = await this.check();
     if (asked !== this.asked || this.disposed) return;
@@ -198,12 +200,13 @@ class ListPanel implements MountedPanel {
       // A panel that cannot run is drawn by the tree as its problems; this is for one that can, with nowhere to run.
       this.noContext = checked !== null;
       this.show();
-      if (checked) this.gate.ended();
+      if (checked) this.gate.ended(number);
       return;
     }
     this.noContext = false;
     this.lastDir = checked.run.cwd;
     this.token = crypto.randomUUID();
+    this.runNumber = number;
     this.stdout = '';
     this.stderr = '';
     this.host.setBusy(true);
@@ -229,7 +232,7 @@ class ListPanel implements MountedPanel {
         this.token = null;
         this.host.setBusy(false);
         this.ended(event);
-        this.gate.ended();
+        this.gate.ended(this.runNumber);
         return;
     }
   }

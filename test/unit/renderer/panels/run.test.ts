@@ -87,15 +87,19 @@ describe('RunGate', () => {
       vi.useRealTimers();
     });
 
-    /** A gate ticking every minute, or on no interval with null. */
+    /** A gate ticking every minute, or on no interval with null, and `end` for the end of the latest run it let through. */
     function ticking(ms: number | null = MINUTE) {
-      const state = { context: '/repo', runs: [] as string[] };
+      const state = { context: '/repo', runs: [] as string[], numbers: [] as number[] };
       const g = new RunGate(
         () => state.context,
-        () => state.runs.push(state.context),
+        (number) => {
+          state.runs.push(state.context);
+          state.numbers.push(number);
+        },
         () => ms,
       );
-      return { g, state };
+      const end = (): void => g.ended(state.numbers.at(-1)!);
+      return { g, state, end };
     }
 
     it('runs when the tree goes live though hidden, which a panel without one does not', () => {
@@ -108,11 +112,11 @@ describe('RunGate', () => {
     });
 
     it('runs again a tick after a run ends, while hidden too, and counts the tick from the end', () => {
-      const { g, state } = ticking();
+      const { g, state, end } = ticking();
       g.setVisible(false);
       vi.advanceTimersByTime(5 * MINUTE);
       expect(state.runs).toHaveLength(1);
-      g.ended();
+      end();
       vi.advanceTimersByTime(MINUTE - 1);
       expect(state.runs).toHaveLength(1);
       vi.advanceTimersByTime(1);
@@ -125,16 +129,49 @@ describe('RunGate', () => {
     it('sets no tick without an interval, nor once stopped', () => {
       const plain = ticking(null);
       plain.g.setVisible(true);
-      plain.g.ended();
+      plain.end();
       vi.advanceTimersByTime(60 * MINUTE);
       expect(plain.state.runs).toHaveLength(1);
-      const { g, state } = ticking();
+      const { g, state, end } = ticking();
       g.setVisible(true);
-      g.ended();
+      end();
       g.stop();
-      g.ended();
+      end();
       vi.advanceTimersByTime(60 * MINUTE);
       expect(state.runs).toHaveLength(1);
+    });
+
+    it('drops a tick still waiting when a press or a switch runs it, and counts the next from the end after', () => {
+      const { g, state, end } = ticking();
+      g.setVisible(true);
+      end();
+      vi.advanceTimersByTime(MINUTE / 2);
+      g.refresh();
+      vi.advanceTimersByTime(MINUTE);
+      expect(state.runs).toEqual(['/repo', '/repo']);
+      end();
+      vi.advanceTimersByTime(MINUTE / 2);
+      state.context = '/other';
+      g.contextChanged();
+      vi.advanceTimersByTime(MINUTE);
+      expect(state.runs).toEqual(['/repo', '/repo', '/other']);
+      end();
+      vi.advanceTimersByTime(MINUTE);
+      expect(state.runs).toEqual(['/repo', '/repo', '/other', '/other']);
+    });
+
+    it('counts no tick from the end of a run that a later one replaced', () => {
+      const { g, state, end } = ticking();
+      g.setVisible(true);
+      const replaced = state.numbers.at(-1)!;
+      g.refresh();
+      // The replaced run's end arrives after the run that replaced it was let through.
+      g.ended(replaced);
+      vi.advanceTimersByTime(5 * MINUTE);
+      expect(state.runs).toHaveLength(2);
+      end();
+      vi.advanceTimersByTime(MINUTE);
+      expect(state.runs).toHaveLength(3);
     });
 
     it('runs at once on rerun though hidden, as it would have all along', () => {

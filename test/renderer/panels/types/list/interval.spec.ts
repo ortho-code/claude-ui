@@ -59,6 +59,51 @@ test('a list panel with an interval runs when the window goes live though out of
   await expect(railItem(page, /^Reviews/)).not.toHaveClass(/\bshown\b/);
 });
 
+test('a press of Refresh puts off the tick due during its run, to a tick after it ends', async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot(fixture('1m'));
+  await expect.poll(() => runs(app, 'queue')).toHaveLength(1);
+  await finish(app);
+  // On show, in the folder it last ran in: nothing to run.
+  await railItem(page, /^Reviews/).click();
+  await expect(railItem(page, /^Reviews/)).toHaveClass(/\bshown\b/);
+
+  await page.clock.fastForward(MINUTE / 2);
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect.poll(() => runs(app, 'queue')).toHaveLength(2);
+  // Past when the tick was due, with the pressed run still going: the tick does not run over it.
+  await page.clock.fastForward(MINUTE);
+  expect(await runs(app, 'queue')).toHaveLength(2);
+
+  await finish(app);
+  await page.clock.fastForward(MINUTE);
+  await expect.poll(() => runs(app, 'queue')).toHaveLength(3);
+});
+
+test('a run ending while the press that replaces it is still being checked sets no tick over the pressed run', async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot(fixture('1m'));
+  await expect.poll(() => runs(app, 'queue')).toHaveLength(1);
+  await railItem(page, /^Reviews/).click();
+  await expect(railItem(page, /^Reviews/)).toHaveClass(/\bshown\b/);
+
+  // Pressed while the first run is still going; main has not answered the press's check yet when the first run ends.
+  const checked = (await app.calls('checkPath')).length;
+  await app.hold('checkPath');
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect.poll(async () => (await app.calls('checkPath')).length).toBe(checked + 1);
+  await finish(app);
+  await app.release('checkPath');
+  await expect.poll(() => runs(app, 'queue')).toHaveLength(2);
+
+  // The first run's end was for a run the press replaced: no tick from it runs over the pressed run.
+  await page.clock.fastForward(2 * MINUTE);
+  expect(await runs(app, 'queue')).toHaveLength(2);
+  await finish(app);
+  await page.clock.fastForward(MINUTE);
+  await expect.poll(() => runs(app, 'queue')).toHaveLength(3);
+});
+
 test('a list panel without an interval does not run out of sight', async ({ app, page }) => {
   await page.clock.install();
   await app.boot(fixture());

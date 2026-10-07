@@ -133,7 +133,8 @@ export function runFailed(event: PanelRunEvent): boolean {
 /**
  * WHEN a panel that runs something runs, apart from what running does: on first being shown, on Refresh, on a context change while shown, and on its interval if it has one.
  * A context change while the panel is hidden is remembered as a difference, not queued as a run: it runs once on reveal, and not at all if the context came back to where the last run was.
- * An interval runs it while hidden or folded too: from when the tree goes live, shown or not, and then a tick after each run ends, counted from that run's end.
+ * An interval runs it while hidden or folded too: from when the tree goes live, shown or not, and then a tick after the latest run ends or finds nowhere to run, so no tick starts while the latest run is still going.
+ * A run whose check finds the panel cannot run sets no tick: the ticks start again when a later check finds it can (`rerun`).
  * No DOM and no process, and no global but that timer, so the deferral is tested without either.
  */
 export class RunGate {
@@ -142,12 +143,15 @@ export class RunGate {
   private live = false;
   /** The context key of the last run; null until the first, so the first reveal always runs. */
   private last: string | null = null;
+  /** The number of the latest run let through, which `ended` is told back when that run ends or finds nowhere to run. */
+  private latest = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
 
   constructor(
     private readonly key: () => string,
-    private readonly run: () => void,
+    /** Starts a run, numbered so its end can be told apart from the end of a run it replaced. */
+    private readonly run: (number: number) => void,
     /** How often the panel runs on its own, in ms, or null for never; asked each time, so it is the panel's options as they are then. */
     private readonly interval: () => number | null = () => null,
   ) {}
@@ -177,8 +181,12 @@ export class RunGate {
     else this.contextChanged();
   }
 
-  /** A run has ended, or found nowhere to run: the next tick is counted from here. */
-  ended(): void {
+  /**
+   * Run `number` has ended, or found nowhere to run: the next tick is counted from here.
+   * Only the latest run's end counts: a run replaced while its successor is still being checked can end before that one starts, and a tick counted from it could run over the successor.
+   */
+  ended(number: number): void {
+    if (number !== this.latest) return;
     this.unschedule();
     const ms = this.interval();
     if (ms === null || this.stopped) return;
@@ -194,9 +202,11 @@ export class RunGate {
     this.unschedule();
   }
 
+  /** Every run, whatever asked for it, takes the place of a tick still waiting, so a press or a switch is never run over by a tick that was already waiting; the run's own end, or its finding nowhere to run, sets the next, and one whose check finds problems sets none. */
   private fire(): void {
+    this.unschedule();
     this.last = this.key();
-    this.run();
+    this.run(++this.latest);
   }
 
   private unschedule(): void {
