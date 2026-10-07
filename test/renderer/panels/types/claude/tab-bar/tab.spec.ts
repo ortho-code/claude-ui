@@ -2,6 +2,7 @@ import type { Locator } from '@playwright/test';
 import { PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { token } from '../../../../support/looks';
+import { clickAcross } from '../../../../support/press';
 import { tab } from '../../../../support/window';
 
 // What a tab does besides being chosen: its status dot says how its session is, and marks it read; a middle click takes the close button's two steps.
@@ -52,6 +53,28 @@ test("a tab's worktree mark is accent while its session is in the worktree, and 
 
   await app.listOnDisk([one, { ...inside, cwd: PROJECT, worktree: '', leftWorktree: 'feature-x' }, left]);
   await expect(mark(inside.title)).toHaveCSS('color', await token(page, '--muted'));
+});
+
+// The bar is drawn again whenever an open tab's status changes, which can land between a press and its release, or under a button reached with the keyboard: a tab that stays where it is keeps both.
+test('a press on a tab or its button still counts, and a focused button keeps the focus, when a status arrives', async ({ app, page }) => {
+  await app.boot(fixture);
+  // Each a status `one` does not have yet, so each draws the bar again: the same one twice changes nothing.
+  const status = (state: string) => async (): Promise<void> => {
+    expect(await app.emit('onSessionStatus', one.id, state, '', '')).toBe(1);
+    await expect(tab(page, one.title).locator('.nudge')).toHaveClass(new RegExp(`\\b${state}\\b`));
+  };
+
+  const close = tab(page, other.title).locator('.tab-close');
+  await close.focus();
+  await status('busy')();
+  await expect(close).toBeFocused();
+
+  await clickAcross(page, tab(page, other.title).locator('.tab-label'), status('idle'));
+  await expect(tab(page, other.title)).toHaveClass(/\bactive\b/);
+
+  // The button's icon is its own element, over the middle of the button, where a press lands; `one` was never started, so the press closes its tab.
+  await clickAcross(page, tab(page, one.title).locator('.tab-close'), status('waiting'));
+  await expect(tab(page, one.title)).toHaveCount(0);
 });
 
 test('a middle click stops the tab of a running session, and closes it once it is cold', async ({ app, page }) => {

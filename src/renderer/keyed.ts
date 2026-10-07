@@ -3,7 +3,7 @@
  *
  * WHY: a click is a press and a release on the same element, and the keyboard focus sits on one element.
  * A surface drawn again between the two takes the pressed element away, and no click is produced at all; the focus falls to the page.
- * The surfaces that keep their elements here are drawn again on events nobody times — the session list when a transcript is written or a model switched, the live strip and the project switcher whenever a session's status changes — so the press that lands mid-redraw is an everyday one rather than a race.
+ * The surfaces that keep their elements here are drawn again on events nobody times — the session list when a transcript is written or a model switched, the live strip and the project switcher whenever a session's status changes, the tab bar whenever one of its tabs' sessions' does — so the press that lands mid-redraw is an everyday one rather than a race.
  * Building a new element loses both, and so does taking a kept one out and putting it back, which is what `replaceChildren`, `appendChild` and `insertBefore` do in Chromium to an element already in place: `placeChildren` is the half that leaves it there, and `setMarkup` the same for an icon inside it.
  */
 
@@ -11,12 +11,16 @@
  * Elements by key, built the first time a render draws a key and the same element on every render after it, until a render no longer draws it.
  * `E` is whatever a surface keeps for one thing: an element, or an element with its parts; `root` names the element that goes on screen.
  * The builder is handed to `draw` rather than kept here, so where the elements are kept need not import what builds them.
+ * `forget` lets go of whatever a kept thing holds beyond its elements, such as a library bound to it, when it is swept.
  */
 export class Keyed<E> {
   private readonly kept = new Map<string, E>();
   private drawn = new Set<string>();
 
-  constructor(private readonly root: (kept: E) => Element) {}
+  constructor(
+    private readonly root: (kept: E) => Element,
+    private readonly forget?: (kept: E) => void,
+  ) {}
 
   /** What `key` is drawn with: `build` the first time, the same one after that; drawing it keeps it past the next `sweep`. */
   draw(key: string, build: (key: string) => E): E {
@@ -38,6 +42,7 @@ export class Keyed<E> {
   sweep(): void {
     for (const [key, kept] of this.kept) {
       if (this.drawn.has(key)) continue;
+      this.forget?.(kept);
       this.root(kept).remove();
       this.kept.delete(key);
     }

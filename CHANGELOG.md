@@ -94,7 +94,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A tab whose session failed to start closes with one press of its button, and the live strip no longer lists it as running; selecting it tries the start again, as selecting a stopped tab does.
   Its button used to send a stop nothing answered, so it never closed the tab.
 - On macOS, closing the window ends its sessions as quitting does, instead of leaving them running out of any window's reach until the app quit.
-- A click in the session list, the live strip or the project switcher counts when it changes at the same moment, unless the change moves what you clicked, and a button there you reached with the keyboard keeps the focus; both used to be lost.
+- A click in the session list, the live strip, the project switcher or the tab bar counts when it changes at the same moment, unless the change moves what you clicked, and a button there you reached with the keyboard keeps the focus; both used to be lost.
 
 ## 0.3.0 — 2026-08-29
 
