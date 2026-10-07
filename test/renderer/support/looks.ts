@@ -13,6 +13,17 @@ export const lookOf = (control: Locator): Promise<Look> =>
     return { background: style.backgroundColor, border: style.borderTopColor, color: style.color };
   });
 
+/** What a colour token resolves to here, as a computed colour, to hold a rule to the token it names rather than to a value copied out of the stylesheet. */
+export const token = (page: Page, name: string): Promise<string> =>
+  page.evaluate((variable) => {
+    const probe = document.createElement('span');
+    probe.style.color = `var(${variable})`;
+    document.body.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  }, name);
+
 /**
  * A menu's trigger as it looks hovered with its menu shut, and as it looks with its menu up and the pointer on the menu, which the UI conventions hold to be the same look (docs/architecture.md § UI conventions).
  * The menu is shut again after, by the trigger, as a second press does.

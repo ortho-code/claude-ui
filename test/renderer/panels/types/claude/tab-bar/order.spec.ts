@@ -1,6 +1,6 @@
-import type { Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { token } from '../../../../support/looks';
 import { tabBarGroups, tabBarProjects, tabBarRows, tabLabelsIn } from '../../../../support/window';
 
 const OTHER = `${HOME}/projects/other`;
@@ -8,17 +8,6 @@ const loose = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'Loos
 const inFirst = session({ id: '00000000-0000-4000-8000-0000000000a2', title: 'In First' });
 const inSecond = session({ id: '00000000-0000-4000-8000-0000000000a3', title: 'In Second' });
 const elsewhere = session({ id: '00000000-0000-4000-8000-0000000000b1', title: 'In other', cwd: OTHER, repoRoot: OTHER });
-
-/** What a colour token resolves to here, as a computed colour, to hold a rule to the token it names rather than to a value copied out of the stylesheet. */
-const token = (page: Page, name: string): Promise<string> =>
-  page.evaluate((variable) => {
-    const probe = document.createElement('span');
-    probe.style.color = `var(${variable})`;
-    document.body.append(probe);
-    const colour = getComputedStyle(probe).color;
-    probe.remove();
-    return colour;
-  }, name);
 
 // The bar used to order projects by whichever it met first; it takes the order the user set, the same one the sidebar and the live strip use (the one-behaviour rule in CLAUDE.md).
 test('the tab bar sits projects in the order you set and groups in their registry order, whatever order the tabs were opened in', async ({ app, page }) => {
