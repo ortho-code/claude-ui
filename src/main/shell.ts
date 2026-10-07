@@ -49,9 +49,28 @@ export function inheritedEnv(): Record<string, string> {
 /**
  * How long a process gets to leave on its own after being asked, before it is killed outright.
  *
- * Under the app's quit budget: `before-quit` delays the actual quit, so the SIGKILL still lands while the app is alive to send it.
+ * A worktree session left on SIGTERM in 0.75 to 1.52 s across five runs, running its SessionEnd hook on the way in the one run that logged hooks, so this is about twice the slowest seen, where 1.2 s killed the slow end.
+ * The quit waits for it: `before-quit` delays the actual quit until everything has gone or this and a moment more have passed (`untilGone`), so the SIGKILL still lands while the app is alive to send it.
  */
-export const KILL_GRACE_MS = 1200;
+export const KILL_GRACE_MS = 3000;
+
+/** How often `untilGone` looks. */
+const GONE_POLL_MS = 50;
+
+/**
+ * Resolve once `running` says nothing is, or once `budgetMs` has passed, whatever it says then.
+ * For the quit, which waits for what it stopped rather than for a fixed time: claude sessions go in about 1.5 s or less, and a wait long enough for the slowest would hold up every quit.
+ */
+export function untilGone(running: () => boolean, budgetMs: number): Promise<void> {
+  const deadline = Date.now() + budgetMs;
+  return new Promise((resolve) => {
+    const look = (): void => {
+      if (!running() || Date.now() >= deadline) resolve();
+      else setTimeout(look, GONE_POLL_MS);
+    };
+    look();
+  });
+}
 
 /**
  * Signal a whole process GROUP rather than one process.

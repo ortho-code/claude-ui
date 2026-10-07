@@ -256,3 +256,8 @@ export function terminateAll(): void {
   if (terminals.size > 0) log('info', 'terminal', `quitting: stopping ${terminals.size} terminal${terminals.size === 1 ? '' : 's'}`);
   for (const id of [...terminals.keys()]) forceOut(id);
 }
+
+/** How many sessions and shells have not exited yet, for the quit to wait on. */
+export function liveTerminals(): number {
+  return terminals.size;
+}

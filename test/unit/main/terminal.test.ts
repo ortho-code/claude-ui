@@ -233,7 +233,7 @@ describe('stopping a session', () => {
     const { proc, id } = await start();
     handlers.get('terminal:kill')!(null, id);
     expect(signals(proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(KILL_GRACE_MS);
     expect(signals(proc.pid)).toEqual(['SIGTERM', 'SIGTERM', 'SIGKILL', 'SIGKILL']);
   });
 
@@ -242,7 +242,18 @@ describe('stopping a session', () => {
     const { proc, id } = await start();
     handlers.get('terminal:kill')!(null, id);
     proc.exit();
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(KILL_GRACE_MS);
+    expect(signals(proc.pid)).not.toContain('SIGKILL');
+  });
+
+  // A worktree session left on SIGTERM in 0.75 to 1.52 s across five runs, which a 1.2 s grace cut short.
+  it('gives a session as slow to leave as any measured its time before killing it', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:kill')!(null, id);
+    await vi.advanceTimersByTimeAsync(1600);
+    expect(signals(proc.pid)).not.toContain('SIGKILL');
+    proc.exit();
+    await vi.advanceTimersByTimeAsync(KILL_GRACE_MS);
     expect(signals(proc.pid)).not.toContain('SIGKILL');
   });
 
@@ -359,7 +370,7 @@ describe('stopping a session', () => {
     const shell = await startShell();
     handlers.get('terminal:kill')!(null, shell.id);
     expect(signals(shell.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(KILL_GRACE_MS);
     expect(signals(shell.proc.pid)).toContain('SIGKILL');
     const other = await startShell();
     terminateAll();
@@ -373,7 +384,7 @@ describe('stopping a session', () => {
     terminateAll();
     expect(signals(a.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
     expect(signals(b.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(KILL_GRACE_MS);
     expect(signals(a.proc.pid)).toContain('SIGKILL');
     expect(signals(b.proc.pid)).toContain('SIGKILL');
   });
@@ -432,10 +443,10 @@ describe('what a terminal logs', () => {
     const id = (await handlers.get('terminal:start')!({ sender }, process.cwd(), {})) as number;
     const proc = spawned[spawned.length - 1];
     handlers.get('terminal:kill')!(null, id);
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(3500);
     proc.exit(137);
-    expect(lines(id).slice(1)).toEqual([`info terminal ${id} stopping`, `info terminal ${id} ended: code 137, after 2.0 s, as asked`]);
-    expect(logged).toContain(`warn process pid ${proc.pid} still running 1200 ms after SIGTERM, sending SIGKILL`);
+    expect(lines(id).slice(1)).toEqual([`info terminal ${id} stopping`, `info terminal ${id} ended: code 137, after 3.5 s, as asked`]);
+    expect(logged).toContain(`warn process pid ${proc.pid} still running 3000 ms after SIGTERM, sending SIGKILL`);
   });
 
   it('an ask to leave, how many presses it took, and the exit as asked', async () => {

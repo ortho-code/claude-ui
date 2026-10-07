@@ -227,11 +227,14 @@ Two things make it work now.
 **The signal goes to the process GROUP**, not to the process the app spawned.
 That is the part that matters here: the app never talks to `claude` directly, only to a login shell that runs it, with `claude`'s MCP servers below that — so signalling the one process it knows about is the one thing guaranteed not to reach what it means to stop.
 It is sound because node-pty's child leads its own session, measured rather than assumed: `pid == pgid == sid` for every live session, so the pid doubles as the group id.
-**And it escalates**: `SIGTERM`, then `SIGKILL` for anything still there after the grace period.
+**And it escalates**: `SIGTERM`, then `SIGKILL` for anything still there after a 3 s grace.
+A worktree session left on `SIGTERM` in 0.75 to 1.52 s across five runs, and ran its SessionEnd hook on the way in the one run that logged hooks; the 1.2 s grace there was before cut the slow end short.
 Whether the first worked is read from the pty's own exit — the one place a session is recorded as over — rather than inferred from having sent something.
 A session that left politely is never killed afterwards, because by then its pid may belong to somebody else.
 
-`before-quit` already delays the quit, which is what gives the escalation room to land, so quitting is not a special path.
+`before-quit` delays the quit until everything stopped has gone, or the grace and half a second more have passed, which is what gives the escalation room to land, so quitting is not a special path.
+It waits for the exits rather than for a fixed time, so a quit with only claude sessions to wait for is usually over well inside the grace.
+A panel shell holds it to the grace: an interactive bash, zsh or dash ignores `SIGTERM`, so it goes only with the `SIGKILL`.
 Not implemented, and deliberately: their design also sweeps the group once more *after* the leader exits, for a grandchild that changed its own group.
 Nothing here has been observed needing it, and a `SIGKILL` aimed at a group id that no longer exists is the one version of this that could reach an innocent process.
 

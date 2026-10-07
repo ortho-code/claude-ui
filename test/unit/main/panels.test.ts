@@ -61,6 +61,7 @@ vi.mock('node:child_process', () => ({
 
 import { registerPanelsIpc, stopAllPanels, panelInvocation, panelEnv, contextEnv } from '../../../src/main/panels';
 import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelRunEvent, type PanelRunRequest } from '../../../src/shared/panels';
+import { KILL_GRACE_MS } from '../../../src/main/shell';
 
 const CONTEXT = { projectRoot: process.cwd(), cwd: process.cwd(), sessionId: 'sess-1' };
 const SHELL = process.env.SHELL ?? '/bin/bash';
@@ -227,7 +228,7 @@ describe('a run', () => {
     const polite = start({ entryId: 'b' });
     await vi.advanceTimersByTimeAsync(PANEL_TIMEOUT_MS);
     polite.child.end(null, 'SIGTERM');
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(KILL_GRACE_MS);
     expect(signals(stubborn.child.pid)).toEqual(['SIGTERM', 'SIGTERM', 'SIGKILL', 'SIGKILL']);
     // By now that pid may belong to somebody else.
     expect(signals(polite.child.pid)).toEqual(['SIGTERM', 'SIGTERM']);

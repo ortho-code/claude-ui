@@ -87,6 +87,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The badge is muted then, its tooltip says where the session is now, and the worktree filter still finds it.
 - Stopping a session, closing its tab or archiving it leaves anything claude asks on its way out in its tab to answer, such as whether to keep a worktree with changes, instead of ending the session over the question.
   The tab stays until claude has gone, and for a session that has not gone a second later the stop button becomes a force stop.
+- Quitting the app, or forcing a stop, gives a session three seconds to finish leaving before it is killed, instead of just over one.
 
 ## 0.3.0 — 2026-08-29
 

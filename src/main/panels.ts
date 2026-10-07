@@ -267,6 +267,11 @@ export function stopAllPanels(): void {
   for (const current of [...live]) stopRun(current, 'quit');
 }
 
+/** How many runs have not exited yet, for the quit to wait on. */
+export function liveRuns(): number {
+  return live.size;
+}
+
 export function registerPanelsIpc(): void {
   ipcMain.on('panel:run', (event, request: PanelRunRequest) => run(event.sender, request));
   ipcMain.on('panel:stop', (_event, entryId: string) => stop(entryId));

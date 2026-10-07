@@ -8,10 +8,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { findTranscript, listSessions, trashSessions, worktreeExists } from './sessions';
 import { readHistory } from './transcript';
-import { registerTerminalIpc, terminateAll } from './terminal';
+import { liveTerminals, registerTerminalIpc, terminateAll } from './terminal';
+import { KILL_GRACE_MS, untilGone } from './shell';
 import { registerConfig } from './config';
 import { registerFolders } from './folders';
-import { registerPanelsIpc, stopAllPanels } from './panels';
+import { liveRuns, registerPanelsIpc, stopAllPanels } from './panels';
 import { forgetSessions, registerPanelData } from './paneldata';
 import { logsDir } from './paths';
 import { startLog, closeLog, errorText, log } from './log';
@@ -617,8 +618,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// Give claude a moment to flush before the app exits.
+// Give claude its time to leave before the app exits.
 let quitting = false;
+/** How long past the kill grace the quit waits, for a SIGKILL sent at the end of it to land and be seen. */
+const QUIT_MARGIN_MS = 500;
 app.on('before-quit', (event) => {
   if (quitting) return;
   quitting = true;
@@ -627,6 +630,9 @@ app.on('before-quit', (event) => {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:quitting');
   terminateAll();
   stopAllPanels();
+  // Until everything stopped has gone, and never longer than the kill grace and a moment for its SIGKILL: a fixed wait would have to be that long every time, where claude sessions alone have gone within about 1.5 s.
   // The quit line goes last, once everything else has had its budget, because it is what tells the next launch this one ended on purpose.
-  setTimeout(() => void closeLog().then(() => app.quit()), 1500);
+  void untilGone(() => liveTerminals() + liveRuns() > 0, KILL_GRACE_MS + QUIT_MARGIN_MS)
+    .then(() => closeLog())
+    .then(() => app.quit());
 });
