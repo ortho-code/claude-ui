@@ -13,6 +13,7 @@ import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
 import { errorText, fsFailure, log, logOnce } from './log';
+import { inTurn } from './queue';
 
 /**
  * UI-only metadata, kept outside ~/.claude so we never touch the session store.
@@ -415,18 +416,11 @@ async function writeMetaFile(meta: Meta): Promise<void> {
   await writeWithBackups(file, JSON.stringify({ ...extra, ...known }, null, 2), { at: file, isGood: isJson, outgoing, current, onVersionChange: () => stampVersionChange(outgoing, current) });
 }
 
-// Serialize every meta operation.
+// Serialize every meta operation, through main's one queue per file (`inTurn`), the audit log's appends among them.
 // Each op is a read-modify-write; run concurrently they interleave (readMeta then writeMeta, all async) and a stale write can land last and win — which silently drops tab-list changes when several fire close together (restore opening tabs + user open/close).
 // The queue makes each op run to completion before the next starts, so the last logical change wins.
-let opQueue: Promise<unknown> = Promise.resolve();
 function serialize<T>(op: () => Promise<T>): Promise<T> {
-  // Chain after the previous op whether it resolved or rejected, so one failure can't stall the queue.
-  const run = opQueue.then(op, op);
-  opQueue = run.then(
-    () => undefined,
-    () => undefined,
-  );
-  return run;
+  return inTurn(metaPath(), op);
 }
 
 // One line per meta write, appended to meta-audit.log, so a lost tab list or a dropped pin can be traced to the operation and the moment that wrote it.
