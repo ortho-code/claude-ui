@@ -234,7 +234,9 @@ A session that left politely is never killed afterwards, because by then its pid
 
 `before-quit` delays the quit until everything stopped has gone, or the grace and half a second more have passed, which is what gives the escalation room to land, so quitting is not a special path.
 It waits for the exits rather than for a fixed time, so a quit with only claude sessions to wait for is usually over well inside the grace.
-A panel shell holds it to the grace: an interactive bash, zsh or dash ignores `SIGTERM`, so it goes only with the `SIGKILL`.
+A panel's shell is asked with `SIGHUP` rather than `SIGTERM`, the signal a closing terminal sends: an interactive login shell in a pty, bash, zsh and dash alike, was measured still there 5 s after `SIGTERM`, and gone at once after `SIGHUP`, idle or with a command running in it.
+The shell passes the `SIGHUP` on to that command, which sits in a process group of its own, so a command that ignores `SIGHUP` outlives the shell, as it outlived `SIGTERM` before.
+With `SIGTERM` every shell waited out the grace for its `SIGKILL`, and held the quit up for as long.
 Not implemented, and deliberately: their design also sweeps the group once more *after* the leader exits, for a grandchild that changed its own group.
 Nothing here has been observed needing it, and a `SIGKILL` aimed at a group id that no longer exists is the one version of this that could reach an innocent process.
 
@@ -803,7 +805,7 @@ The header keeps its `exited N`, since that is what shows while the panel is beh
 
 **The same pty path as a session.**
 `terminal.ts` has one spawn for both — the terminals map, the data and exit routing, the stop escalation and the quit sweep — with the claude-specific argument building and the plain-shell start as two callers of it.
-A panel's shell is therefore stopped and swept exactly as a session is, and nothing about it is a second implementation of a process the app runs.
+A panel's shell is therefore stopped and swept by the same escalation as a session, asked with `SIGHUP` where a session is asked with `SIGTERM`, since an interactive bash, zsh or dash ignores `SIGTERM` (§ Stopping a session is a request), and nothing about it is a second implementation of a process the app runs.
 It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` as a session does, and NOT `CLAUDE_UI=1`: a `claude` started by hand in it must not report as one of the app's sessions.
 
 **One xterm, one router.**

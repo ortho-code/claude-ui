@@ -18,6 +18,12 @@ const asked = new Set<number>();
 const pressing = new Set<number>();
 /** Sessions being forced out, so a second force cannot restart the escalation behind the first. */
 const forced = new Set<number>();
+/**
+ * The panels' plain shells, which are asked to leave with `SIGHUP` rather than `SIGTERM`.
+ * MEASURED for bash, zsh and dash: an interactive login shell in a pty was still there 5 s after `SIGTERM` to its group, and gone at once after `SIGHUP`, idle or with a command running in it — so with `SIGTERM` every shell waited out the grace for its `SIGKILL`, and held up the quit for as long.
+ * A running command goes because the shell passes the `SIGHUP` on to it, in a process group of its own that the group signal does not reach; one that ignores `SIGHUP` outlives the shell, as it outlived `SIGTERM` before.
+ */
+const shells = new Set<number>();
 let nextId = 1;
 
 /** How far apart the presses of an ask to leave are: inside the window in which claude takes a second Ctrl-C as "exit". */
@@ -51,7 +57,7 @@ function askToLeave(id: number, interrupt: boolean): void {
 }
 
 /**
- * End a session or a shell outright, and make sure it actually ended: `SIGTERM` to the group, and `SIGKILL` for anything still there after the grace period.
+ * End a session or a shell outright, and make sure it actually ended: `SIGTERM` to the group, `SIGHUP` for a panel's shell (`shells`), and `SIGKILL` for anything still there after the grace period.
  *
  * ONE implementation for every way a process here is ended without being asked — a forced stop, a panel shell's stop, and the sweep at app quit.
  * They used to differ, and each sent a single signal and forgot the process: `SIGHUP` by default, which a Node program is entitled to decline, leaving the app certain it had stopped something that was still running.
@@ -63,7 +69,7 @@ function forceOut(id: number): void {
   if (!proc || forced.has(id)) return;
   forced.add(id);
   log('info', 'terminal', `${id} stopping`);
-  terminateGroup(proc.pid, () => terminals.has(id));
+  terminateGroup(proc.pid, () => terminals.has(id), shells.has(id) ? 'SIGHUP' : 'SIGTERM');
 }
 
 /** What anything in a pty gets: the inherited environment, advertising 24-bit colour so claude emits its full TUI styling (e.g. the select-menu highlight) instead of a degraded fallback; the frontend xterm renders truecolor fine. */
@@ -109,6 +115,7 @@ function spawnPty(sender: WebContents, what: string, file: string, args: string[
     asked.delete(id);
     pressing.delete(id);
     forced.delete(id);
+    shells.delete(id);
     // An exit nobody asked for, with a failing code, is the one worth finding again; a stop's code is whatever the signal left.
     const how = `code ${exitCode}${signal ? `, signal ${signal}` : ''}, after ${formatDuration(Date.now() - started)}`;
     log(expected || exitCode === 0 ? 'info' : 'warn', 'terminal', `${id} ended: ${how}${expected ? ', as asked' : ''}`);
@@ -224,12 +231,14 @@ export function registerTerminalIpc(): void {
 
   // A PLAIN SHELL, for a terminal panel: the same interactive login shell a session runs `claude` in, with nothing to run, so the prompt is the user's own.
   // It gets the panel's context in its environment and NOT the session marker: a `claude` started by hand in it must not report as one of the app's sessions.
-  // Same refusal of a missing folder, same pty path, so it is stopped and swept exactly as a session is.
+  // Same refusal of a missing folder, same pty path, so it is stopped and swept by the same escalation as a session, asked with SIGHUP (`shells`).
   // Async like `terminal:start`, so a refusal reaches the renderer as a rejection either way.
   // eslint-disable-next-line @typescript-eslint/require-await -- async for the rejection above, with nothing to await
   ipcMain.handle('terminal:startShell', async (event, cwd: string, context: PanelContext): Promise<number> => {
     if (!cwd || !existsSync(cwd)) refuseMissing(cwd);
-    return spawnPty(event.sender, 'panel shell', loginShell(), ['-l', '-i'], cwd, { ...ptyEnv(), ...contextEnv(context) });
+    const id = spawnPty(event.sender, 'panel shell', loginShell(), ['-l', '-i'], cwd, { ...ptyEnv(), ...contextEnv(context) });
+    shells.add(id);
+    return id;
   });
 
   ipcMain.on('terminal:input', (_event, id: number, data: string) => {

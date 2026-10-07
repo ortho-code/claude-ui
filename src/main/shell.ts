@@ -98,13 +98,14 @@ export function signalGroup(pid: number, signal: NodeJS.Signals): void {
  *
  * `stillRunning` is the caller's own record of the process being alive — the pty's exit or the child's `exit` event is the one place it is recorded as over — so the escalation is driven by the process actually being gone, not by having sent something.
  * A process that left politely is never killed afterwards, because by then its pid may belong to somebody else.
+ * `ask` is the signal that asks: `SIGTERM`, except for an interactive shell, which ignores it (bash, zsh and dash, measured) and leaves on `SIGHUP`, the signal a closing terminal sends.
  */
-export function terminateGroup(pid: number, stillRunning: () => boolean): void {
-  signalGroup(pid, 'SIGTERM');
+export function terminateGroup(pid: number, stillRunning: () => boolean, ask: NodeJS.Signals = 'SIGTERM'): void {
+  signalGroup(pid, ask);
   setTimeout(() => {
     if (!stillRunning()) return;
-    // Worth a line of its own: a process that declines SIGTERM is either stuck or ignoring it, and nothing else would say which one needed killing.
-    log('warn', 'process', `pid ${pid} still running ${KILL_GRACE_MS} ms after SIGTERM, sending SIGKILL`);
+    // Worth a line of its own: a process that declines the ask is either stuck or ignoring it, and nothing else would say which one needed killing.
+    log('warn', 'process', `pid ${pid} still running ${KILL_GRACE_MS} ms after ${ask}, sending SIGKILL`);
     signalGroup(pid, 'SIGKILL');
   }, KILL_GRACE_MS);
 }

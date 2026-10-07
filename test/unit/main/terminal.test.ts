@@ -366,15 +366,18 @@ describe('stopping a session', () => {
     expect(spawned).toHaveLength(0);
   });
 
-  it('stops and sweeps a panel shell exactly as a session', async () => {
+  // An interactive login shell (bash, zsh and dash, measured) ignores SIGTERM and leaves at once on SIGHUP, which is what a closing terminal sends it.
+  it('stops and sweeps a panel shell with SIGHUP, and escalates as it does for a session', async () => {
     const shell = await startShell();
     handlers.get('terminal:kill')!(null, shell.id);
-    expect(signals(shell.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    expect(signals(shell.proc.pid)).toEqual(['SIGHUP', 'SIGHUP']);
     await vi.advanceTimersByTimeAsync(KILL_GRACE_MS);
     expect(signals(shell.proc.pid)).toContain('SIGKILL');
     const other = await startShell();
+    const session = await start();
     terminateAll();
-    expect(signals(other.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+    expect(signals(other.proc.pid)).toEqual(['SIGHUP', 'SIGHUP']);
+    expect(signals(session.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
   });
 
   // Quitting used to be its own path, sending one SIGTERM and clearing the table in the same breath — so the app exited without ever checking.
