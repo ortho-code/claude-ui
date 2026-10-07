@@ -77,10 +77,7 @@
   border-radius: calc(var(--radius-surface) - 1px);
 }
 
-/* Shape and hover come from the menu row (menu-row.css); the project on show keeps its own fill under the pointer. */
-.switcher-item.active {
-  background: var(--active);
-}
+/* Shape, hover and the fill of the entry on show come from the menu row (menu-row.css). */
 
 /* The name takes only its own width, so a dead project's mark sits against it rather than out by the dot; the dot is pushed to the right instead. */
 .switcher-item-name {

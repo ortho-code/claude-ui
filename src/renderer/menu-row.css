@@ -20,7 +20,12 @@
 
 /* One hover for every menu row, and the same look on a submenu's parent (.menu-open) while its list is up, so moving the pointer into the submenu does not drop it back.
    An unavailable row takes none, since a fill says it will do something.
-   :where() keeps it at two classes' weight, so a user's own state of equal weight after it, such as the switcher's .active, still wins over it. */
+   :where() keeps it at two classes' weight, so a state of equal weight after it, such as .active below, still wins over it. */
 .menu-row:where(:not(.unavailable)):is(:hover, .menu-open) {
   background: var(--surface-hover);
+}
+
+/* The row for what is on show, such as the switcher's entry (a project, or All), keeps its own fill under the pointer. */
+.menu-row.active {
+  background: var(--active);
 }
