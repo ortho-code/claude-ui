@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 // Its rows are the card a list panel draws too.
 import { listCard } from '../../../card';
-import { entityKey, modelLabel, relativeTime, sessionLabel, unstartableReason } from '../../../logic';
+import { entityKey, modelLabel, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import { store, type View } from '../../../state/app';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { NOTE_ICON, PIN_ICON, PINNED_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
@@ -62,7 +62,7 @@ function createSessionRow(key: string): HTMLElement {
   // Click the dot to toggle "read": mute a done/waiting session without opening or replying to it.
   ackOnClick(dot, () => currentByKey.get(key)?.id ?? null);
   const badge = document.createElement('span');
-  badge.className = 'worktree-badge';
+  badge.className = 'worktree-badge worktree-mark';
   badge.hidden = true;
   // A family member's mark: the fork icon plus a count of its siblings, which opens a list of them to jump into.
   // Shown only when session.isSibling (set in updateRow).
@@ -185,16 +185,18 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   row.classList.toggle('unstartable', unstartable !== null);
   setTooltip(els.title, unstartable ?? (sessionLabel(session, '') || null));
 
-  els.badge.hidden = !session.worktree;
-  if (session.worktree) {
+  const worktree = worktreeMarkState(session);
+  els.badge.hidden = worktree === null;
+  els.badge.classList.toggle('left', worktree?.left === true);
+  if (worktree) {
     // Icon only — the word "worktree" cost a badge-width of room and the branch icon plus its tooltip already say it.
     // Being wordless, the pill carries its own aria-label.
     const wtIcon = document.createElement('span');
     wtIcon.className = 'badge-icon';
     wtIcon.innerHTML = WORKTREE_ICON;
     els.badge.replaceChildren(wtIcon);
-    setTooltip(els.badge, `Linked git worktree: ${session.worktree}`);
-    els.badge.setAttribute('aria-label', `Linked git worktree: ${session.worktree}`);
+    setTooltip(els.badge, worktree.tooltip);
+    els.badge.setAttribute('aria-label', worktree.tooltip);
   }
 
   const note = view.notes.get(entityKey(session));

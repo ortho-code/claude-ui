@@ -1,6 +1,6 @@
 import Sortable from 'sortablejs';
 import { fromMarkup } from '../../../dom';
-import { orderAsTabs, reorderWithinGroup, sessionLabel, stopControlState, unstartableReason } from '../../../logic';
+import { orderAsTabs, reorderWithinGroup, sessionLabel, stopControlState, unstartableReason, worktreeMarkState } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
 import { projName, projectGone, projectGroups, statusChanges, visibleTabs } from '../../../state/views';
@@ -131,11 +131,12 @@ function tabElement(tab: TabState, view: View<'statuses' | 'acked' | 'projectNam
     setTooltip(siblingMark, `Has ${count} ${count === 1 ? 'sibling' : 'siblings'} in its session family`);
   }
 
-  // A worktree session's tab gets the same branch marker as its sidebar badge.
+  // A worktree session's tab gets the same branch marker as its sidebar badge, from the same rule.
+  const worktree = worktreeMarkState(tab.session);
   const worktreeMark = document.createElement('span');
-  worktreeMark.className = 'tab-worktree';
+  worktreeMark.className = worktree?.left ? 'tab-worktree worktree-mark left' : 'tab-worktree worktree-mark';
   worktreeMark.innerHTML = WORKTREE_ICON;
-  if (tab.session.worktree) setTooltip(worktreeMark, `Linked git worktree: ${tab.session.worktree}`);
+  if (worktree) setTooltip(worktreeMark, worktree.tooltip);
 
   const label = document.createElement('span');
   label.className = 'tab-label';
@@ -164,7 +165,7 @@ function tabElement(tab: TabState, view: View<'statuses' | 'acked' | 'projectNam
   });
 
   el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
-  const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(tab.session.worktree ? [worktreeMark] : [])];
+  const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(worktree ? [worktreeMark] : [])];
   // The marks ride in their own tight cluster rather than sitting at the tab's full gap, so the leading glyphs read as one group.
   // Only added when there ARE marks — an empty wrapper would still consume a gap and shift the label.
   if (marks.length > 0) {

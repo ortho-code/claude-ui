@@ -66,6 +66,7 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
     repoRoot: PROJECT,
     isRepo: true,
     worktree: '',
+    leftWorktree: '',
     title: 'A session',
     firstMessage: 'Hello',
     model: 'claude-opus-5-5',

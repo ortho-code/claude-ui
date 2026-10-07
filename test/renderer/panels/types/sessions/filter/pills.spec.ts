@@ -11,7 +11,8 @@ const itsSibling = session({ id: '00000000-0000-4000-8000-0000000000c4', title: 
 const noted = session({ id: '00000000-0000-4000-8000-0000000000c5', title: 'With a note' });
 const gone = session({ id: '00000000-0000-4000-8000-0000000000c6', title: 'Its folder is gone', cwdExists: false });
 const tabbed = session({ id: '00000000-0000-4000-8000-0000000000c7', title: 'With a tab' });
-const everyone = [plain, worktree, sibling, itsSibling, noted, gone, tabbed];
+const leftWorktree = session({ id: '00000000-0000-4000-8000-0000000000c8', title: 'Left a worktree', leftWorktree: 'feature-y' });
+const everyone = [plain, worktree, sibling, itsSibling, noted, gone, tabbed, leftWorktree];
 const fixture = { sessions: everyone, notes: { [noted.id]: 'Remember this' }, openSessions: [tabbed.id], history: { [tabbed.id]: [] } };
 
 /** Press a pill, see the list it leaves, and press it again for the whole list back. */
@@ -26,7 +27,7 @@ async function pressAndBack(page: Page, pill: string, shows: string[]): Promise<
 }
 
 for (const [pill, name, shows] of [
-  ['worktree-filter', 'worktree', sorted(worktree)],
+  ['worktree-filter', 'worktree', sorted(worktree, leftWorktree)],
   ['sibling-filter', 'siblings', sorted(sibling, itsSibling)],
   ['note-filter', 'note', sorted(noted)],
   ['gone-filter', 'gone', sorted(gone)],

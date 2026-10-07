@@ -27,6 +27,7 @@ import {
   unstartableReason,
   projectRootExists,
   projectGoneReason,
+  worktreeMarkState,
 } from '../../../src/renderer/logic';
 
 function session(over: Partial<SessionSummary> = {}): SessionSummary {
@@ -37,6 +38,7 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     repoRoot: '/repo',
     isRepo: false,
     worktree: '',
+    leftWorktree: '',
     title: 'Title',
     firstMessage: 'first',
     model: '',
@@ -71,6 +73,21 @@ describe('unstartableReason', () => {
 
   it('treats a plain session with no worktree the same way', () => {
     expect(unstartableReason(session({ cwd: '/gone', cwdExists: false }))).toContain('/gone');
+  });
+});
+
+describe('worktreeMarkState', () => {
+  it('marks nothing for a session that never ran in a worktree', () => {
+    expect(worktreeMarkState(session())).toBeNull();
+  });
+
+  it('names the worktree a session is in', () => {
+    expect(worktreeMarkState(session({ worktree: 'wt' }))).toEqual({ left: false, tooltip: 'Linked git worktree: wt' });
+  });
+
+  // The session still did its work there, and the tooltip says where a resume runs now.
+  it('marks a worktree the session has left as left, naming where it is now', () => {
+    expect(worktreeMarkState(session({ cwd: '/repo', leftWorktree: 'wt' }))).toEqual({ left: true, tooltip: 'Ran in linked git worktree: wt; now back in /repo' });
   });
 });
 
@@ -123,6 +140,7 @@ describe('structuralSignature', () => {
   it.each([
     ['model', { model: 'claude-opus-4' }],
     ['worktree', { worktree: 'feature-x' }],
+    ['leftWorktree', { leftWorktree: 'feature-x' }],
     ['repoRoot', { repoRoot: '/elsewhere' }],
     ['isRepo', { isRepo: true }],
     ['cwd', { cwd: '/elsewhere' }],
@@ -297,6 +315,7 @@ describe('sessionPasses', () => {
     expect(sessionPasses(session({ id: 's1' }), { ...base, pinnedOnly: true, pinned: new Set(['s1']) })).toBe(true);
     expect(sessionPasses(session({ worktree: '' }), { ...base, worktreeOnly: true })).toBe(false);
     expect(sessionPasses(session({ worktree: 'wt' }), { ...base, worktreeOnly: true })).toBe(true);
+    expect(sessionPasses(session({ leftWorktree: 'wt' }), { ...base, worktreeOnly: true })).toBe(true);
     expect(sessionPasses(session({ isSibling: false }), { ...base, siblingOnly: true })).toBe(false);
     expect(sessionPasses(session({ isSibling: true, siblingIds: ['p'] }), { ...base, siblingOnly: true })).toBe(true);
     expect(sessionPasses(session({ title: 'Fix the bug' }), { ...base, text: 'BUG' })).toBe(true);

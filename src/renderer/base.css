@@ -1,4 +1,4 @@
-/* What no one module owns, because every module draws with it: the tokens, the reset, the scrollbar, the focus ring, the page, form typography, the button, the icon button and the nudge.
+/* What no one module owns, because several modules draw with it: the tokens, the reset, the scrollbar, the focus ring, the page, form typography, the button, the icon button, the nudge and the worktree mark's left look.
    Imported first, so every module's own stylesheet comes after it in the bundle. */
 
 :root {
@@ -269,6 +269,13 @@ button:hover {
   position: absolute;
   inset: -5px;
   border-radius: 50%;
+}
+
+/* A worktree mark — the session row's badge and the tab's — for a session that ran in a worktree and has since left it.
+   Muted rather than dimmed, since nothing about the session is unavailable; two classes' weight, so it beats each surface's own accent rule wherever either stylesheet lands. */
+.worktree-mark.left {
+  color: var(--muted);
+  border-color: var(--muted);
 }
 
 @keyframes spin {

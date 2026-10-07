@@ -44,6 +44,14 @@ Each `.jsonl` is one session transcript with one JSON event per line.
 For each file it streams the lines to pull the working directory and the first user message without loading the whole file, counts the events, and takes last activity from the file mtime.
 The renderer groups the results by working directory.
 
+**A session's worktree comes from its transcript**: the last of Claude Code's `worktree-state` records, when there is one, says whether the session entered a worktree or left it, and without one the first `cwd` does.
+A session the transcript last puts in a worktree carries the worktree's name (`worktree`), and that is where a resume runs.
+One that ran in a worktree and has since left it carries the name apart (`leftWorktree`), drawn as the same badge, muted, because it still did its work there; a resume runs where it is now.
+Both are named the same way, so a tree removed since is still named under `<repo>/.claude/worktrees/`, where Claude Code cuts them, and goes unnamed, so unbadged, anywhere else.
+The record of leaving does not always say why: in one transcript here it follows an `ExitWorktree` call, in others it is the last line, and the muted badge is true whatever the cause.
+A Bash `cd` into a worktree changes the `cwd` the records carry and nothing else: Claude Code records no worktree session, and a resume runs where the session started, so it counts as neither.
+Counting it was considered and rejected: any record in a worktree would badge a one-off look inside one, and a share of the records would be a threshold nothing can check.
+
 ## Build
 
 Two TypeScript projects, because the two sides need different module systems:

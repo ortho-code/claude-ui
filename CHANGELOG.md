@@ -81,6 +81,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The project heading's new-session caret keeps its hover look while its menu is open, as every other menu button does, instead of changing colour as you move onto the menu.
 - In a project, once you have folded each of its groups by hand, the collapse-all button offers to expand them, instead of still offering to collapse them.
 - Clicking the notification for a session that is waiting for you or has finished also shows its row in the session list, unfolding its group, as a click in the live strip does.
+- A session that has left its worktree keeps its worktree badge, which it used to lose as soon as it left.
+  The badge is muted then, its tooltip says where the session is now, and the worktree filter still finds it.
 
 ## 0.3.0 — 2026-08-29
 

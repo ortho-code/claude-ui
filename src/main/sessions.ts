@@ -89,21 +89,25 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
   const cached = summaryCache.get(file);
   if (cached?.key === key) return cached.summary;
 
-  let summary: SessionSummary | null;
+  let read: SummaryRead | null;
   try {
-    summary = await summarizeFile(file);
+    read = await summarizeFile(file);
   } catch (error) {
     // Gone since the stat is a race; anything else keeps that session out of the list, or stale in it, on every listing.
     const failure = fsFailure(error);
     if (failure) logOnce('warn', 'sessions', `cannot read ${file}: ${failure}`);
     return cached?.summary ?? null;
   }
-  if (summary) {
+  if (read) {
+    const { summary, leftWorktreePath } = read;
     const repo = await resolveRepo(summary.cwd);
     summary.repoRoot = repo.repoRoot;
     summary.worktree = repo.worktree;
     summary.isRepo = repo.isRepo;
+    // Named the way the worktree it is in is named, so the two badges agree; once the tree is removed only the `.claude/worktrees/<name>` fallback still names it.
+    if (!repo.worktree && leftWorktreePath) summary.leftWorktree = (await resolveRepo(leftWorktreePath)).worktree;
   }
+  const summary = read?.summary ?? null;
   summaryCache.set(file, { key, summary });
   return summary;
 }
@@ -270,8 +274,15 @@ async function trashIfExists(target: string): Promise<void> {
   }
 }
 
+/** What one transcript says, before its folders are resolved to a repo. */
+interface SummaryRead {
+  summary: SessionSummary;
+  /** The path of the worktree the session last entered, when it has left it since; '' otherwise. */
+  leftWorktreePath: string;
+}
+
 /** Summarize one transcript without loading the whole file into memory. */
-async function summarizeFile(file: string): Promise<SessionSummary | null> {
+async function summarizeFile(file: string): Promise<SummaryRead | null> {
   const id = path.basename(file, '.jsonl');
   let cwd = '';
   let firstMessage = '';
@@ -286,6 +297,9 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   // The LAST worktree-state wins: entered (a worktreeSession object) puts the session at worktreePath; exited (worktreeSession null) drops it back to the recorded original cwd.
   let worktreeStateCwd: string | null = null;
   let worktreeOriginalCwd = '';
+  // An exit does not undo where the session did its work, so the worktree it last entered is kept through one, and a later enter clears it.
+  let enteredWorktreePath = '';
+  let leftWorktreePath = '';
   // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system append (a Remote Control notice) or a resume bumps mtime without being real activity.
   // Captured with a cheap regex below.
   let lastMsgTs = '';
@@ -336,10 +350,13 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
         const ws = event.worktreeSession as { worktreePath?: unknown; originalCwd?: unknown } | null;
         if (ws && typeof ws.worktreePath === 'string') {
           worktreeStateCwd = ws.worktreePath;
+          enteredWorktreePath = ws.worktreePath;
+          leftWorktreePath = '';
           if (typeof ws.originalCwd === 'string') worktreeOriginalCwd = ws.originalCwd;
         } else {
           // Exited (worktreeSession null carries no path); fall back to the enter event's original cwd.
           worktreeStateCwd = worktreeOriginalCwd || null;
+          leftWorktreePath = enteredWorktreePath;
         }
       }
 
@@ -363,13 +380,14 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
   // The worktree-state override beats the first-latched cwd; resolveRepo then maps a worktree path to its repo + badge through the same path it uses for `claude -w` sessions.
   const resolvedCwd = worktreeStateCwd || cwd || decodeProjectDir(path.basename(path.dirname(file)));
   const lastActivity = lastMsgTs || stat.mtime.toISOString();
-  return {
+  const summary: SessionSummary = {
     id,
     conversationId,
     cwd: resolvedCwd,
     // Filled in by listSessions once the repo is resolved; default to the cwd's own group.
     repoRoot: resolvedCwd,
     worktree: '',
+    leftWorktree: '',
     isRepo: false,
     title: title.slice(0, 200),
     firstMessage: firstMessage.slice(0, 200),
@@ -383,6 +401,7 @@ async function summarizeFile(file: string): Promise<SessionSummary | null> {
     cwdExists: true,
     repoRootExists: true,
   };
+  return { summary, leftWorktreePath };
 }
 
 /** A title field is usable only when it is a non-empty string. */

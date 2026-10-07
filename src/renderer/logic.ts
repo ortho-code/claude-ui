@@ -35,6 +35,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   repoRoot: true,
   isRepo: true,
   worktree: true,
+  // Drawn as the muted worktree mark, and it can change while the app runs, when a session leaves its worktree.
+  leftWorktree: true,
   title: true,
   firstMessage: true,
   // The row prints it, and switching model mid-session used to leave the old one there until something else moved.
@@ -89,6 +91,23 @@ export function unstartableReason(session: SessionSummary): string | null {
     return `The worktree “${session.worktree}” is gone, so this session cannot run. Recreate it at ${session.cwd} to use this session again.`;
   }
   return `This session's folder is gone, so it cannot run: ${session.cwd}`;
+}
+
+/** What a session's worktree mark says, when it has one. */
+export interface WorktreeMarkState {
+  /** The session ran in the worktree and has since left it, so the mark is muted, and a resume runs where the session is now. */
+  left: boolean;
+  tooltip: string;
+}
+
+/**
+ * The worktree mark a session carries, or null when it has none: one rule for the row's badge, the tab's mark and the worktree filter, so the three cannot disagree about which sessions are worktree sessions.
+ * A session that left its worktree keeps a mark because it still did its work there, which is what the mark is for.
+ */
+export function worktreeMarkState(session: SessionSummary): WorktreeMarkState | null {
+  if (session.worktree) return { left: false, tooltip: `Linked git worktree: ${session.worktree}` };
+  if (session.leftWorktree) return { left: true, tooltip: `Ran in linked git worktree: ${session.leftWorktree}; now back in ${session.cwd}` };
+  return null;
 }
 
 /**
@@ -255,7 +274,7 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   if (c.pinnedOnly && !c.pinned.has(key)) return false;
   if (c.openOnly && !c.open?.has(key)) return false;
   if (c.liveOnly && !c.live?.has(key)) return false;
-  if (c.worktreeOnly && !session.worktree) return false;
+  if (c.worktreeOnly && worktreeMarkState(session) === null) return false;
   // The same question the row asks itself, through the same function — a second rule for "is this dead" would be able to disagree with the dimming.
   if (c.goneOnly && unstartableReason(session) === null) return false;
   if (c.siblingOnly && !session.isSibling) return false;

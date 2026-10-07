@@ -128,6 +128,34 @@ beforeAll(async () => {
       { type: 'worktree-state', worktreeSession: null },
     ),
   );
+  // First cwd in the worktree, and left it on its last line: the real 7e47c698 shape, which carries over another session's worktree entry, all 44 of its enters naming the main checkout as their original cwd.
+  await fs.writeFile(
+    path.join(dir, 'w3.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'uw3', cwd: `${testHome}/.claude/worktrees/wtg3`, message: { content: 'work' } },
+      { type: 'worktree-state', worktreeSession: { originalCwd: '/tmp/projW3', worktreePath: `${testHome}/.claude/worktrees/wtg3`, worktreeName: 'wtg3', hookBased: true } },
+      { type: 'relocated', relocatedCwd: '/tmp/projW3' },
+      { type: 'worktree-state', worktreeSession: null },
+    ),
+  );
+  // Left a worktree, then entered one again: in a worktree now, and nothing to say about the one it left.
+  await fs.writeFile(
+    path.join(dir, 'w4.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'uw4', cwd: '/tmp/projW4', message: { content: 'work' } },
+      { type: 'worktree-state', worktreeSession: { originalCwd: '/tmp/projW4', worktreePath: `${testHome}/.claude/worktrees/wtg4a`, worktreeName: 'wtg4a', hookBased: true } },
+      { type: 'worktree-state', worktreeSession: null },
+      { type: 'worktree-state', worktreeSession: { originalCwd: '/tmp/projW4', worktreePath: `${testHome}/.claude/worktrees/wtg4b`, worktreeName: 'wtg4b', hookBased: true } },
+    ),
+  );
+  // A Bash `cd` into a worktree moves the cwd the records carry and nothing else: no worktree-state, the transcript where it was, a resume in the main checkout.
+  await fs.writeFile(
+    path.join(dir, 'w5.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'uw5', cwd: '/tmp/projW5', message: { content: 'work' } },
+      { type: 'user', uuid: 'uw5b', cwd: `${testHome}/.claude/worktrees/wtg5`, message: { content: 'more work' } },
+    ),
+  );
 
   // Slash-command starts: the first message is wrapped in command tags; the row should show the command line the user effectively typed, not the tag soup.
   // Real shapes: with args, and with an empty args tag.
@@ -264,11 +292,39 @@ describe('listSessions', () => {
     expect(w1?.isRepo).toBe(true);
   });
 
-  it('drops a session back to its original cwd after it exited the worktree', async () => {
+  it('drops a session back to its original cwd after it exited the worktree, and keeps the worktree it left', async () => {
     const w2 = (await listSessions()).find((s) => s.id === 'w2');
     expect(w2?.cwd).toBe('/tmp/projW2');
     expect(w2?.worktree).toBe('');
+    expect(w2?.leftWorktree).toBe('wtg2');
     expect(w2?.repoRoot).toBe('/tmp/projW2');
+  });
+
+  it('keeps the worktree a session left, even one whose first cwd was in it', async () => {
+    const w3 = (await listSessions()).find((s) => s.id === 'w3');
+    expect(w3?.cwd).toBe('/tmp/projW3');
+    expect(w3?.repoRoot).toBe('/tmp/projW3');
+    expect(w3?.worktree).toBe('');
+    expect(w3?.leftWorktree).toBe('wtg3');
+  });
+
+  it('says nothing about a worktree left behind once the session is in one again', async () => {
+    const w4 = (await listSessions()).find((s) => s.id === 'w4');
+    expect(w4?.worktree).toBe('wtg4b');
+    expect(w4?.leftWorktree).toBe('');
+  });
+
+  it('counts no worktree for a session that only moved into one with a cd', async () => {
+    const w5 = (await listSessions()).find((s) => s.id === 'w5');
+    expect(w5?.cwd).toBe('/tmp/projW5');
+    expect(w5?.worktree).toBe('');
+    expect(w5?.leftWorktree).toBe('');
+  });
+
+  it('has no worktree left behind for a session still in one, or never in one', async () => {
+    const sessions = await listSessions();
+    expect(sessions.find((s) => s.id === 'w1')?.leftWorktree).toBe('');
+    expect(sessions.find((s) => s.id === 'a')?.leftWorktree).toBe('');
   });
 
   it('uses the cwd as the group root when it is not a git repo', async () => {

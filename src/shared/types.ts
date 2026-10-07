@@ -9,8 +9,14 @@ export interface SessionSummary {
   repoRoot: string;
   /** Whether repoRoot is a git repo (so the project can host worktree sessions). */
   isRepo: boolean;
-  /** Worktree name when the session ran in a linked git worktree; empty otherwise. */
+  /** Worktree name when the session's transcript last puts it in a linked git worktree; empty otherwise. */
   worktree: string;
+  /**
+   * Worktree name when the session ran in a linked git worktree and has since left it; empty otherwise, and always empty while `worktree` is set.
+   * Only a worktree Claude Code recorded the session entering counts: a Bash `cd` into one moves the cwd its records carry, and nothing else.
+   * Named as `worktree` is, so a removed tree goes unnamed unless it sat under `.claude/worktrees/`.
+   */
+  leftWorktree: string;
   /** The session's custom or AI-generated title, empty when it has none. */
   title: string;
   /**

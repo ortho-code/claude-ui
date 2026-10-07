@@ -1,5 +1,7 @@
-import { session } from '../../../../support/fixture';
+import type { Locator } from '@playwright/test';
+import { PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { token } from '../../../../support/looks';
 import { row, tabLabel, tabs } from '../../../../support/window';
 
 // A row says what its session's tab is doing (docs/architecture.md § Tab lifecycle): `open` while it has a tab, `cold` while that tab has no claude behind it, and `active-session` for the tab on show.
@@ -50,4 +52,26 @@ test("a row's dot follows its session's status, and a click on it marks it read 
   await expect(dot).not.toHaveClass(/\backed\b/);
   await expect(tabs(page)).toHaveCount(0);
   expect(await app.calls('startTerminal')).toEqual([]);
+});
+
+// A session that left its worktree still did its work there (docs/architecture.md § Reading sessions), so its badge stays, muted, while a resume runs where it is now.
+test("a row's worktree badge is accent while its session is in the worktree, and muted once the session has left it", async ({ app, page }) => {
+  const inside = session({ id: '00000000-0000-4000-8000-000000000003', title: 'In its worktree', cwd: `${PROJECT}/.claude/worktrees/feature-x`, worktree: 'feature-x' });
+  const left = session({ id: '00000000-0000-4000-8000-000000000004', title: 'Left its worktree', leftWorktree: 'feature-y' });
+  await app.boot({ sessions: [one, inside, left] });
+  const badge = (title: string): Locator => row(page, title).locator('.worktree-badge');
+
+  await expect(badge(inside.title)).toBeVisible();
+  await expect(badge(inside.title)).toHaveAttribute('data-tooltip', 'Linked git worktree: feature-x');
+  await expect(badge(inside.title)).toHaveCSS('color', await token(page, '--accent'));
+  await expect(badge(left.title)).toBeVisible();
+  await expect(badge(left.title)).toHaveAttribute('data-tooltip', `Ran in linked git worktree: feature-y; now back in ${PROJECT}`);
+  await expect(badge(left.title)).toHaveCSS('color', await token(page, '--muted'));
+  await expect(badge(left.title)).toHaveCSS('border-top-color', await token(page, '--muted'));
+  await expect(badge(one.title)).toBeHidden();
+
+  // Leaving a worktree it entered while the app runs, which writes an exit into the session's transcript.
+  await app.listOnDisk([one, { ...inside, cwd: PROJECT, worktree: '', leftWorktree: 'feature-x' }, left]);
+  await expect(badge(inside.title)).toHaveCSS('color', await token(page, '--muted'));
+  await expect(badge(inside.title)).toHaveAttribute('data-tooltip', `Ran in linked git worktree: feature-x; now back in ${PROJECT}`);
 });
