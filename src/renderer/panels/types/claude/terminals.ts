@@ -101,12 +101,22 @@ let restoring = false;
 // Set via onQuitting, below.
 let shuttingDown = false;
 
+/**
+ * The open tabs, and which of them run, for the next launch.
+ * Written when a tab opens, closes or moves, when its process starts, and when its process goes: a stop leaves the tab cold, an exit of its own removes it, and one within its first moments, a failed start, leaves it cold too.
+ * A session still being stopped has its process until claude has gone, so it is written as running until then.
+ */
 export function persistOpenTabs(): void {
   if (restoring || shuttingDown) return;
   // Persist entity keys (session ids — immutable, so a restart always finds them again).
   // A session with no transcript yet is not in the map; its own id stands in, and restore drops it, which is right — there is nothing on disk to reopen.
-  const idToKey = new Map(store.get().sessions.map((s) => [s.id, entityKey(s)]));
-  window.claudeUi.setOpenSessions(store.get().tabs.map((t) => idToKey.get(t.session.id) ?? t.session.id));
+  const { sessions, tabs } = store.get();
+  const idToKey = new Map(sessions.map((s) => [s.id, entityKey(s)]));
+  const keyOf = (tab: TabState): string => idToKey.get(tab.session.id) ?? tab.session.id;
+  window.claudeUi.setOpenSessions(
+    tabs.map(keyOf),
+    tabs.filter((tab) => tab.terminalId !== null).map(keyOf),
+  );
 }
 
 export async function restoreOpenTabs(): Promise<void> {
@@ -240,6 +250,7 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
       return;
     }
     setTab(token, { terminalId });
+    persistOpenTabs();
     // From here its output and exit are this tab's, until the pty's own exit unbinds it.
     bindTerminal(terminalId, { data: (data) => onTabData(token, data), exit: (exitCode) => onTabExit(token, exitCode) });
     // Reveal it BEFORE fitting: `.term` is display:none until `.active`, and FitAddon sizes from the element's own box, so fitting a hidden pane leaves the terminal at xterm's 80x24 default and claude draws its whole TUI at that width.
@@ -466,6 +477,7 @@ function coolTab(token: string): void {
     // Stopping what you were looking at drops you to the empty screen rather than leaving a selected tab with nothing behind it; the panels lose their tab too, and fall back to the project.
     if (isOnShow(token)) store.set({ activeTab: null });
   });
+  persistOpenTabs();
 }
 
 /**
@@ -586,6 +598,7 @@ function onTabExit(token: string, exitCode: number): void {
     // Cold, since its process has gone: the button closes it at once, the strip drops it, and selecting it starts it again.
     // Uncovered all the same: this line IS the explanation of the failure, and it is exactly what the loader or the cold pane would otherwise hide.
     setTab(token, { terminalId: null, booting: false, startFailed: true });
+    persistOpenTabs();
     return;
   }
   removeTab(token);

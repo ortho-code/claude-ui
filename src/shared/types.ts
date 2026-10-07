@@ -320,7 +320,10 @@ export interface ClaudeUiApi {
   deleteSession(id: string): Promise<void>;
   /** Session ids open as tabs, in order, persisted for restore on next launch. */
   getOpenSessions(): Promise<string[]>;
-  setOpenSessions(ids: string[]): void;
+  /** The open tabs, and which of them run, written together. */
+  setOpenSessions(ids: string[], running: string[]): void;
+  /** The open sessions that were running when the open tabs were last written. */
+  getRunningSessions(): Promise<string[]>;
   /** Which open session to reopen on; null means open on no tab. */
   getActiveSession(): Promise<string | null>;
   /** repoRoot -> the session last looked at there, so switching projects returns you where you were. */

@@ -26,6 +26,7 @@ import {
   toggleArchive,
   purgeSession,
   getOpenSessions,
+  getRunningSessions,
   setOpenSessions,
   getActiveProject,
   setActiveProject,
@@ -133,16 +134,33 @@ describe('archive', () => {
 });
 
 describe('purgeSession', () => {
-  it('drops the session from pins, open tabs and archive', async () => {
+  it('drops the session from pins, open tabs, running tabs and archive', async () => {
     await togglePin('conv1');
     await toggleArchive('conv1');
-    await setOpenSessions(['conv1', 'conv2']);
+    await setOpenSessions(['conv1', 'conv2'], ['conv1']);
     await purgeSession('conv1');
     expect(await getPinned()).toEqual([]);
     expect(await getArchived()).toEqual({});
     expect(await getOpenSessions()).toEqual(['conv2']);
+    expect(await getRunningSessions()).toEqual([]);
   });
 
+});
+
+describe('running sessions', () => {
+  it('are written with the open tabs, and only an open one is kept', async () => {
+    await setOpenSessions(['a', 'b'], ['b', 'gone']);
+    expect(await getOpenSessions()).toEqual(['a', 'b']);
+    expect(await getRunningSessions()).toEqual(['b']);
+    expect(await fs.readFile(path.join(dir, 'meta-audit.log'), 'utf8')).toContain('setOpenSessions open=["a","b"] running=["b"]');
+  });
+
+  it('are none in a file written before they were kept, and a value that is no id is dropped', async () => {
+    await writeMetaFile({ version: 3, openSessions: ['a'] });
+    expect(await getRunningSessions()).toEqual([]);
+    await writeMetaFile({ version: 3, openSessions: ['a'], runningSessions: ['a', 7] });
+    expect(await getRunningSessions()).toEqual(['a']);
+  });
 });
 
 describe('recordClear', () => {
@@ -263,15 +281,15 @@ describe('write serialization', () => {
   it('serializes concurrent writes so the last logical change wins (no stale overwrite)', async () => {
     // Fired together, these race in readMeta/writeMeta; without serialization a stale write can win.
     await Promise.all([
-      setOpenSessions(['a']),
-      setOpenSessions(['a', 'b']),
-      setOpenSessions(['a', 'b', 'c']),
+      setOpenSessions(['a'], []),
+      setOpenSessions(['a', 'b'], []),
+      setOpenSessions(['a', 'b', 'c'], []),
     ]);
     expect(await getOpenSessions()).toEqual(['a', 'b', 'c']);
   });
 
   it('does not lose one field when different ops race (read-modify-write stays atomic)', async () => {
-    await Promise.all([togglePin('p1'), setOpenSessions(['o1'])]);
+    await Promise.all([togglePin('p1'), setOpenSessions(['o1'], [])]);
     expect(await getPinned()).toEqual(['p1']);
     expect(await getOpenSessions()).toEqual(['o1']);
   });

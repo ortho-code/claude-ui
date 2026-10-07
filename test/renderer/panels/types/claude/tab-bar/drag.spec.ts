@@ -28,6 +28,6 @@ test('a tab dragged before another moves there, in the bar, in what is kept and 
   await page.mouse.up();
 
   await expect(tabLabels(page)).toHaveText([second.title, first.title]);
-  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[second.id, first.id]]);
+  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[second.id, first.id], [second.id, first.id]]);
   await expect.poll(() => stripNames(page).allTextContents()).toEqual([second.title, first.title]);
 });

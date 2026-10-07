@@ -28,6 +28,11 @@ interface Meta {
   historyPins: Record<string, HistoryPin>;
   openSessions: string[];
   /**
+   * The open sessions that were running when the window last wrote the open tabs: a session is in it from its tab's start until its process has gone, so one still being stopped counts.
+   * The window stops writing once the app quits, so the quit's own exits leave it as it was, and a launch reads what was running when the app closed before its restore writes the open tabs again.
+   */
+  runningSessions: string[];
+  /**
    * Which open session was last looked at, so a restart lands you where you left off.
    * Without it the app opened on whichever tab happened to be LAST in openSessions — harmless while every tab was started at launch, but tabs are restored COLD now, and landing on an arbitrary cold one is worse than landing on none.
    */
@@ -102,6 +107,7 @@ const KNOWN_KEYS = new Set([
   'historyPins',
   'requestPins', // the pre-rename spelling of historyPins; read, never written
   'openSessions',
+  'runningSessions',
   'activeSession',
   'activeSessionByProject',
   'archived',
@@ -126,7 +132,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: defaultSettings(), moved: [], notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: defaultSettings(), moved: [], notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -278,6 +284,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // `requestPins` is what the pins were stored as before a reply could be pinned; read, never written.
     historyPins: normalizeHistoryPins(parsed.historyPins ?? parsed.requestPins),
     openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
+    // Same reasoning as projectOrder below: no version bump for a new defaulted field; absent means nothing was running.
+    runningSessions: Array.isArray(parsed.runningSessions) ? (parsed.runningSessions as unknown[]).filter((id): id is string => typeof id === 'string') : [],
     // Same reasoning as projectOrder below: a new defaulted field is not a reinterpretation of what is stored, so no version bump.
     // Absent means "no memory yet" — open on nothing.
     activeSession: typeof parsed.activeSession === 'string' ? parsed.activeSession : null,
@@ -450,7 +458,7 @@ async function appendAudit(text: string): Promise<void> {
 }
 
 async function auditWrite(op: string, meta: Meta): Promise<void> {
-  await appendAudit(`${op} open=${JSON.stringify(meta.openSessions)} pinned=${JSON.stringify(meta.pinned)}`);
+  await appendAudit(`${op} open=${JSON.stringify(meta.openSessions)} running=${JSON.stringify(meta.runningSessions)} pinned=${JSON.stringify(meta.pinned)}`);
 }
 
 // At the ~150 bytes a typical line costs, this keeps on the order of a thousand writes: enough to read back through several sessions of work.
@@ -580,9 +588,17 @@ export function getOpenSessions(): Promise<string[]> {
   return serialize(async () => (await readMeta()).openSessions);
 }
 
-export function setOpenSessions(ids: string[]): Promise<void> {
+/** The sessions that were running when the open tabs were last written; see `runningSessions`. */
+export function getRunningSessions(): Promise<string[]> {
+  return serialize(async () => (await readMeta()).runningSessions);
+}
+
+/** The open tabs, and which of them run, in one write, so the two lists are never from different moments. */
+export function setOpenSessions(ids: string[], running: string[]): Promise<void> {
   return update('setOpenSessions', (meta) => {
     meta.openSessions = ids;
+    // Only an open tab runs anything.
+    meta.runningSessions = running.filter((id) => ids.includes(id));
     // A tab that is no longer open cannot be the one to reopen on — globally or for its project.
     if (meta.activeSession && !ids.includes(meta.activeSession)) meta.activeSession = null;
     meta.activeSessionByProject = Object.fromEntries(

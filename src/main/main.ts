@@ -26,6 +26,7 @@ import {
   getArchived,
   toggleArchive,
   getOpenSessions,
+  getRunningSessions,
   setOpenSessions,
   getActiveSession,
   getActiveSessionByProject,
@@ -479,8 +480,9 @@ ipcMain.handle('meta:getActiveSessionByProject', () => getActiveSessionByProject
 ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: string) => {
   void setActiveSession(id, repoRoot);
 });
-ipcMain.on('meta:setOpenSessions', (_event, ids: string[]) => {
-  void setOpenSessions(ids);
+ipcMain.handle('meta:getRunningSessions', () => getRunningSessions());
+ipcMain.on('meta:setOpenSessions', (_event, ids: string[], running: string[]) => {
+  void setOpenSessions(ids, running);
 });
 ipcMain.handle('meta:getActiveProject', () => getActiveProject());
 ipcMain.on('meta:setActiveProject', (_event, folder: string | null) => {

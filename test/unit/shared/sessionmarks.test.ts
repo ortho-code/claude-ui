@@ -31,17 +31,18 @@ describe('withoutSession', () => {
 });
 
 describe('purgedSession', () => {
-  it('forgets the session\'s marks, its open tab, its place as the tab on show and its group, and keeps everyone else\'s', () => {
+  it('forgets the session\'s marks, its open tab and its running one, its place as the tab on show and its group, and keeps everyone else\'s', () => {
     const meta = {
       pinned: ['a', 'b'],
       archived: { a: 1 },
       notes: { a: 'x' },
       openSessions: ['a', 'b'],
+      runningSessions: ['a', 'b'],
       activeSession: 'a',
       activeSessionByProject: { '/p': 'a', '/q': 'b' },
       groupOf: { a: 'g1', b: 'g1' },
     };
-    expect(purgedSession(meta, 'a')).toEqual({ pinned: ['b'], archived: {}, notes: {}, openSessions: ['b'], activeSession: null, activeSessionByProject: { '/q': 'b' }, groupOf: { b: 'g1' } });
+    expect(purgedSession(meta, 'a')).toEqual({ pinned: ['b'], archived: {}, notes: {}, openSessions: ['b'], runningSessions: ['b'], activeSession: null, activeSessionByProject: { '/q': 'b' }, groupOf: { b: 'g1' } });
     // Another session on show stays on show.
     expect(purgedSession(meta, 'b').activeSession).toBe('a');
     expect(meta.groupOf).toEqual({ a: 'g1', b: 'g1' });

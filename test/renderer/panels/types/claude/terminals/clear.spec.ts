@@ -27,7 +27,7 @@ test('a session cleared in its tab hands the tab to its successor, which keeps t
   expect(await app.emit('onSessionStatus', next, 'start', token, 'SessionStart')).toBe(1);
   await expect(tabLabels(page)).toHaveText(['New: demo']);
   await expect.poll(() => app.calls('recordClear')).toEqual([[one.id, next, one.title]]);
-  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[next]]);
+  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[next], [next]]);
   await expect.poll(() => app.calls('moveSessionToGroup')).toEqual([[next, 'g-work']]);
 
   // Its stand-in row, in the group, is the open one; the cleared session keeps its own row, with no tab.
