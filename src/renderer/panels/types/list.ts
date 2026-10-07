@@ -87,8 +87,6 @@ class ListPanel implements MountedPanel {
   private readonly items = new Map<string, ListItem>();
   /** Whether the type, the options and the script passed their last check; null until the first has answered. */
   private runnable: boolean | null = null;
-  /** Counts the runs asked for, so one whose check is overtaken by a newer ask drops out rather than starting after it. */
-  private asked = 0;
   private disposed = false;
 
   constructor(
@@ -121,10 +119,9 @@ class ListPanel implements MountedPanel {
   }
 
   setVisible(visible: boolean): void {
-    const asked = this.asked;
-    this.gate.setVisible(visible);
+    const ran = this.gate.setVisible(visible);
     // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
-    if (visible && this.runnable === false && this.asked === asked) this.recheck();
+    if (visible && this.runnable === false && !ran) this.recheck();
   }
 
   sessionsChanged(): void {
@@ -190,9 +187,8 @@ class ListPanel implements MountedPanel {
 
   /** Every run checks first: a script can lose its executable bit, or a folder go, between two runs. */
   private async run(number: number): Promise<void> {
-    const asked = ++this.asked;
     const checked = await this.check();
-    if (asked !== this.asked || this.disposed) return;
+    if (!this.gate.isLatest(number) || this.disposed) return;
     if (!checked?.run) {
       if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
       this.token = null;

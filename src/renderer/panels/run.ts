@@ -143,7 +143,7 @@ export class RunGate {
   private live = false;
   /** The context key of the last run; null until the first, so the first reveal always runs. */
   private last: string | null = null;
-  /** The number of the latest run let through, which `ended` is told back when that run ends or finds nowhere to run. */
+  /** The number of the latest run let through, which `ended` is told back when that run ends or finds nowhere to run, and which `isLatest` answers against. */
   private latest = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
@@ -156,7 +156,9 @@ export class RunGate {
     private readonly interval: () => number | null = () => null,
   ) {}
 
-  setVisible(visible: boolean): void {
+  /** Whether this let a run through. */
+  setVisible(visible: boolean): boolean {
+    const before = this.latest;
     // The first call is the tree going live: a panel with an interval runs from here, shown or not, so what it shows is true from the start.
     if (!this.live) {
       this.live = true;
@@ -164,6 +166,7 @@ export class RunGate {
     }
     this.visible = visible;
     this.contextChanged();
+    return this.latest !== before;
   }
 
   contextChanged(): void {
@@ -186,7 +189,7 @@ export class RunGate {
    * Only the latest run's end counts: a run replaced while its successor is still being checked can end before that one starts, and a tick counted from it could run over the successor.
    */
   ended(number: number): void {
-    if (number !== this.latest) return;
+    if (!this.isLatest(number)) return;
     this.unschedule();
     const ms = this.interval();
     if (ms === null || this.stopped) return;
@@ -194,6 +197,11 @@ export class RunGate {
       this.timer = null;
       this.fire();
     }, ms);
+  }
+
+  /** Whether run `number` is still the latest: a run overtaken before its check answered drops out, so only the latest run starts. */
+  isLatest(number: number): boolean {
+    return number === this.latest;
   }
 
   /** The panel is gone, and no tick runs it again. */

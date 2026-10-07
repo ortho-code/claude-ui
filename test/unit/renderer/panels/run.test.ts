@@ -76,6 +76,25 @@ describe('RunGate', () => {
     expect(state.runs).toHaveLength(3);
   });
 
+  it('says whether showing or hiding the panel let a run through', () => {
+    const { g } = gate();
+    expect(g.setVisible(false)).toBe(false);
+    expect(g.setVisible(true)).toBe(true);
+    expect(g.setVisible(false)).toBe(false);
+    expect(g.setVisible(true)).toBe(false);
+  });
+
+  it('holds only the latest run let through as the latest, so an overtaken one can drop out', () => {
+    const numbers: number[] = [];
+    const g = new RunGate(
+      () => '/repo',
+      (number) => numbers.push(number),
+    );
+    g.refresh();
+    g.refresh();
+    expect(numbers.map((number) => g.isLatest(number))).toEqual([false, true]);
+  });
+
   describe('on an interval', () => {
     const MINUTE = 60_000;
 

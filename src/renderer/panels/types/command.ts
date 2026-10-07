@@ -44,8 +44,6 @@ class CommandPanel implements MountedPanel {
   private readonly gate: RunGate;
   /** Whether the options passed their last check; null until the first has answered. */
   private runnable: boolean | null = null;
-  /** Counts the runs asked for, so one whose check is overtaken by a newer ask drops out rather than starting after it. */
-  private asked = 0;
   private disposed = false;
   private readonly stopListening: () => void;
 
@@ -63,7 +61,7 @@ class CommandPanel implements MountedPanel {
     // Keyed by where the run would go, so a tab or project change that lands on the same place does not run again, and a fixed `cwd` never does.
     this.gate = new RunGate(
       () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
-      () => void this.run(),
+      (number) => void this.run(number),
     );
     // Checked at once rather than on first show, so a panel behind another already wears `alert` on its rail.
     void this.check();
@@ -78,10 +76,9 @@ class CommandPanel implements MountedPanel {
   }
 
   setVisible(visible: boolean): void {
-    const asked = this.asked;
-    this.gate.setVisible(visible);
+    const ran = this.gate.setVisible(visible);
     // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
-    if (visible && this.runnable === false && this.asked === asked) this.recheck();
+    if (visible && this.runnable === false && !ran) this.recheck();
   }
 
   recheck(): void {
@@ -113,10 +110,9 @@ class CommandPanel implements MountedPanel {
   }
 
   /** Every run checks first: a script or a folder can go missing between runs, and the check is what says so in the panel's own words. */
-  private async run(): Promise<void> {
-    const asked = ++this.asked;
+  private async run(number: number): Promise<void> {
     const prepared = await this.prepared();
-    if (asked !== this.asked || !prepared) return;
+    if (!this.gate.isLatest(number) || !prepared) return;
     const runnable = prepared.problems.length === 0;
     const context = prepared.run;
     this.host.setEnd('');
