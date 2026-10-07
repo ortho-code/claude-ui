@@ -42,10 +42,14 @@ function wordError(text: string, error: ParseError): string {
   return `${WORDS[error.error]} ${where(text, error.offset)}`;
 }
 
+/** A file's text without the byte-order mark an editor may have put first: the editor's doing rather than a mistake in the file, and the parser refuses it all the same. */
+export function withoutBom(text: string): string {
+  return text.charCodeAt(0) === BOM ? text.slice(1) : text;
+}
+
 /** A file's text read as JSONC: its value, or the first mistake in it worded with its place. */
 export function readJsonc(text: string): { ok: true; json: unknown } | { ok: false; error: string } {
-  // A byte-order mark is an editor's doing, not a mistake in the file; the parser refuses it all the same.
-  const body = text.charCodeAt(0) === BOM ? text.slice(1) : text;
+  const body = withoutBom(text);
   const errors: ParseError[] = [];
   const json: unknown = parse(body, errors, { allowTrailingComma: true });
   const first = errors[0];

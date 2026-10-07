@@ -66,6 +66,12 @@ export const typesDir = path.join(configRoot, 'types');
 export const defaultLayoutFile = path.join(layoutsDir, 'default.json');
 
 /**
+ * The copies of the app's own files in the config folder (appfiles.ts): the previous good one, one per version, and which version last wrote each.
+ * Outside the config folder, so that folder holds only what a person writes and the app's `.local.json` files, and a checkout of it shows no stray copies.
+ */
+export const configBackupsDir = path.join(configDir, 'backups', 'config');
+
+/**
  * Quote a path for the single shell command string that claude runs a hook through.
  * macOS makes this necessary: `~/Library/Application Support/...` contains a space, so an unquoted path would reach the hook as two arguments and simply not run.
  */

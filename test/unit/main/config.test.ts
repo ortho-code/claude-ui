@@ -12,7 +12,7 @@ const { dataDir, logged } = vi.hoisted(() => {
 });
 
 vi.mock('electron', () => ({
-  app: { getPath: () => dataDir, setPath: () => {} },
+  app: { getPath: () => dataDir, setPath: () => {}, getVersion: () => '0.4.0' },
   ipcMain: { handle: () => {}, on: () => {} },
 }));
 vi.mock('../../../src/main/log', async (importOriginal) => ({
@@ -20,7 +20,9 @@ vi.mock('../../../src/main/log', async (importOriginal) => ({
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
-import { checkPath, noteLayout, readLayout, readTypes, resolvePath } from '../../../src/main/config';
+import type { BrowserWindow } from 'electron';
+import { editAppFile } from '../../../src/main/appfiles';
+import { checkPath, noteLayout, readLayout, readTypes, registerConfig, resolvePath } from '../../../src/main/config';
 import { configRoot, defaultLayoutFile, scriptsDir, typesDir } from '../../../src/main/paths';
 import type { TypeReport } from '../../../src/shared/panels';
 
@@ -192,5 +194,24 @@ describe('noteLayout', () => {
       'warn layout types: reviews, ci (panel.json does not parse: Unexpected end of JSON input), bare (no panel.json)',
       'info layout types: none',
     ]);
+  });
+});
+
+describe('the watch on the config folder', () => {
+  it('pushes nothing for the app’s own write to one of its files, and pushes a person’s edit of the same file', async () => {
+    const sent: unknown[] = [];
+    const window = { isDestroyed: () => false, webContents: { send: (_channel: string, report: unknown) => sent.push(report) } };
+    const stop = registerConfig(() => window as unknown as BrowserWindow);
+    const file = path.join(configRoot, 'settings.local.json');
+    try {
+      await editAppFile(file, [{ path: ['launchFlags'], value: '--a' }]);
+      // A push comes 300 ms after the last event: well past that, there has been none.
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      expect(sent).toEqual([]);
+      writeFileSync(file, '{ "launchFlags": "--edited" }\n');
+      await vi.waitFor(() => expect(sent).toHaveLength(1), { timeout: 3000 });
+    } finally {
+      stop();
+    }
   });
 });

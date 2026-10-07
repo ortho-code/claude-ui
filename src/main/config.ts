@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { configRoot, layoutsDir, scriptsDir, typesDir, defaultLayoutFile } from './paths';
 import type { LayoutReport, PathBase, PathCheck, PathKind, ReadStatus, TypeReport } from '../shared/panels';
 import { pathProblem, resolvePathIn, type Found } from '../shared/pathcheck';
+import { ownWrites } from './appfiles';
 import { readJsonc } from './jsonc';
 import { fsFailure, log } from './log';
 
@@ -152,8 +153,10 @@ async function readAndNoteLayout(): Promise<LayoutReport> {
  *
  * Directories are watched one by one rather than the folder recursively (recursive watch is unreliable on Linux/WSL, as watcher.ts found): the folder itself, `layouts/` for the file, `scripts/` so a script appearing or gaining its executable bit (an attribute change, MEASURED to reach a directory watch) clears its panel's error without a restart, and `types/` with each type's own folder, for its manifest and the script it runs — the report that follows is what tells every panel to check again.
  * Any event on the folder itself re-opens the ones below it, and any event on `types/` re-opens the type folders, because a directory that was deleted and recreated leaves its old watcher pointing at nothing and a folder added there has none yet.
+ * Events are gathered over the debounce with the paths they name, and when every one was the app's own write to one of its files, as it left it, nothing is pushed (`ownWrites`): the window already has what the app wrote, and a push would have every panel check again for nothing.
+ * Answers a way to stop watching, for the tests.
  */
-export function registerConfig(getWindow: () => BrowserWindow | null): void {
+export function registerConfig(getWindow: () => BrowserWindow | null): () => void {
   for (const dir of [configRoot, layoutsDir, scriptsDir, typesDir]) mkdirSync(dir, { recursive: true });
 
   ipcMain.handle('config:getLayout', () => readAndNoteLayout());
@@ -161,24 +164,32 @@ export function registerConfig(getWindow: () => BrowserWindow | null): void {
 
   const watchers = new Map<string, FSWatcher>();
   let timer: NodeJS.Timeout | null = null;
-  const notify = (): void => {
+  // What the events since the last push named; null once one named nothing, which could have been anything.
+  let changed: Set<string> | null = new Set();
+  const notify = (file: string | null): void => {
+    if (file === null) changed = null;
+    else changed?.add(file);
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      void readAndNoteLayout().then((report) => {
+      const paths = changed;
+      changed = new Set();
+      void (async () => {
+        if (paths !== null && paths.size > 0 && (await ownWrites([...paths]))) return;
+        const report = await readAndNoteLayout();
         const win = getWindow();
         if (win && !win.isDestroyed()) win.webContents.send('config:changed', report);
-      });
+      })();
     }, 300);
   };
   const unwatch = (dir: string): void => {
     watchers.get(dir)?.close();
     watchers.delete(dir);
   };
-  const watchDir = (dir: string, onEvent: () => void): void => {
+  const watchDir = (dir: string, onEvent: (file: string | null) => void): void => {
     unwatch(dir);
     try {
-      const watcher = watch(dir, onEvent);
+      const watcher = watch(dir, (_event, name) => onEvent(name === null ? null : path.join(dir, name)));
       // A watched directory going away surfaces here on some platforms; drop the dead watcher so the next root event can re-open it.
       watcher.on('error', (error) => {
         const failure = fsFailure(error);
@@ -203,15 +214,19 @@ export function registerConfig(getWindow: () => BrowserWindow | null): void {
   const watchBelow = (): void => {
     watchDir(layoutsDir, notify);
     watchDir(scriptsDir, notify);
-    watchDir(typesDir, () => {
+    watchDir(typesDir, (file) => {
       watchTypeFolders();
-      notify();
+      notify(file);
     });
     watchTypeFolders();
   };
-  watchDir(configRoot, () => {
+  watchDir(configRoot, (file) => {
     watchBelow();
-    notify();
+    notify(file);
   });
   watchBelow();
+  return () => {
+    if (timer) clearTimeout(timer);
+    for (const dir of [...watchers.keys()]) unwatch(dir);
+  };
 }
