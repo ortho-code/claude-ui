@@ -25,15 +25,20 @@ export interface FlexValue {
   min: number | null;
 }
 
-/** Each child's flex from its size as it stands, the app's over the file's (`withOverrides`). */
+/**
+ * Each child's flex from its size as it stands, the app's over the file's (`withOverrides`).
+ * Grow factors that add up to less than 1 are scaled up to 1: CSS hands out only that fraction of the free room then, so shares that add up to less — 0.3 beside 0.3, or 0.7 with its 0.3 sibling folded — would leave the rest of the split empty.
+ */
 export function flexFor(children: FlexChild[]): FlexValue[] {
   const flexible = children.filter((child) => !child.folded && pxOf(child) === null);
   const weights = fileWeights(flexible.map(shareOf)).weights;
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  const scale = total > 0 && total < 1 ? 1 / total : 1;
   return children.map((child) => {
     if (child.folded) return { flex: `0 0 ${RAIL}px`, min: null };
     const px = pxOf(child);
     if (px !== null) return { flex: `0 1 ${px}px`, min: child.min };
-    return { flex: `${weights[flexible.indexOf(child)]} 1 0px`, min: child.min };
+    return { flex: `${weights[flexible.indexOf(child)]! * scale} 1 0px`, min: child.min };
   });
 }
 

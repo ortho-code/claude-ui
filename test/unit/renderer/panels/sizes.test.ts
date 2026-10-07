@@ -53,6 +53,11 @@ describe('flexFor', () => {
     expect(values[2].flex).toBe('0.3 1 0px');
   });
 
+  it('scales grow factors that add up to less than 1 up to 1, so the children fill the split', () => {
+    expect(flexFor([child('a', { share: 0.3 }), child('b', { share: 0.3 })]).map((v) => v.flex)).toEqual(['0.5 1 0px', '0.5 1 0px']);
+    expect(flexFor([child('top', { share: 0.7 }), child('drawer', { share: 0.3 }, { folded: true })]).map((v) => v.flex)).toEqual(['1 1 0px', `0 0 ${RAIL}px`]);
+  });
+
   it('makes a folded group its rail, with no min, and leaves it out of the shares', () => {
     const values = flexFor([child('claude'), child('drawer', { share: 0.3 }, { folded: true })]);
     expect(values).toEqual([

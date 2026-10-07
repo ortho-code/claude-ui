@@ -39,6 +39,18 @@ test('a fold kept in the app’s file comes back folded, running nothing, and sh
   await expect.poll(() => runs(app, 'checks')).toHaveLength(1);
 });
 
+test('a folded group’s siblings fill the room it leaves, whatever their shares add up to', async ({ app, page }) => {
+  // The terminal area's share and the drawer's add up to 1 until the drawer folds; then the terminal area's 0.7 is all that is left to grow.
+  await app.boot(withLayout(LAYOUT, { claude: { size: 0.7 }, drawer: { folded: true } }));
+  await expect(page.getByRole('button', { name: 'Unfold drawer' })).toBeVisible();
+  const split = page.locator('.split.rows').first();
+  const filled = await split.evaluate((box) => {
+    const children = [...box.children] as HTMLElement[];
+    return { box: box.getBoundingClientRect().height, children: children.reduce((sum, child) => sum + child.getBoundingClientRect().height, 0) };
+  });
+  expect(Math.abs(filled.box - filled.children)).toBeLessThan(1);
+});
+
 test('a group the layout file says is folded starts on its rail, and unfolding it is kept against the file', async ({ app, page }) => {
   const folded = structuredClone(LAYOUT);
   Object.assign(folded.root.columns[2], { folded: true });
