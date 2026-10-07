@@ -4,6 +4,7 @@ import { stripAnsi } from '../../ansi';
 import { listCard, sectionHeading, setFolded } from '../../card';
 import { statusLabel } from '../../logic';
 import { element } from '../../dom';
+import { Keyed, placeChildren } from '../../keyed';
 import { sessionDotClass } from '../../statusdot';
 import { setTooltip } from '../../tooltip';
 import type { PanelSlot } from '../layout';
@@ -12,7 +13,7 @@ import { listenForRuns } from '../run-events';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey } from '../run';
 import type { FolderType } from './folder';
-import { readListDocument, type ListDocument, type ListItem, type ListSection } from './listdoc';
+import { readListDocument, type ListDocument, type ListItem, type ListSection, type SessionAction } from './listdoc';
 import './list.css';
 
 /**
@@ -77,8 +78,11 @@ class ListPanel implements MountedPanel {
   private lastDir: string | null = null;
   /** Sections folded or unfolded by hand, by title, over what the document says. */
   private readonly folds = new Map<string, boolean>();
-  /** Each row's mark for the sessions it started, by item key: repainted in place when a session changes, so a status event never rebuilds the list under the pointer. */
-  private readonly sessionMarks = new Map<string, HTMLButtonElement>();
+  /** The sections on show and their rows by item key, kept from one draw to the next (`drawList`); a row's mark for the sessions it started is repainted in place when a session changes. */
+  private readonly sections = new Keyed<SectionBox>((kept) => kept.box);
+  private readonly rows = new Keyed<ListRow>((kept) => kept.row);
+  /** Each row's item as the last draw left it, which what a press does reads. */
+  private readonly items = new Map<string, ListItem>();
   /** Whether the type, the options and the script passed their last check; null until the first has answered. */
   private runnable: boolean | null = null;
   /** Counts the runs asked for, so one whose check is overtaken by a newer ask drops out rather than starting after it. */
@@ -129,7 +133,7 @@ class ListPanel implements MountedPanel {
   }
 
   sessionsChanged(): void {
-    for (const [key, mark] of this.sessionMarks) this.paintSessions(key, mark);
+    for (const [key, parts] of this.rows.entries()) this.paintSessions(key, parts);
   }
 
   recheck(): void {
@@ -309,29 +313,37 @@ class ListPanel implements MountedPanel {
     }
   }
 
+  /**
+   * Draw the list as the last good run printed it, keeping every section and row it already shows where it is: every run that prints a list and every fold draw it again (a session's status only repaints a row's mark, `sessionsChanged`), and a press on a row, or the focus on its buttons, survives that only while the row stays put (keyed.ts).
+   * Sections are kept by title, or by place for one without a title or with a title used before; rows by their key, unique across the document.
+   */
   private drawList(): void {
     if (!this.good) return;
-    this.sessionMarks.clear();
-    this.body.replaceChildren(...this.good.doc.sections.map((section) => this.drawSection(section)));
+    this.items.clear();
+    const seen = new Set<string>();
+    const boxes = this.good.doc.sections.map((section, at) => {
+      const titled = section.title === null ? null : `title:${section.title}`;
+      const key = titled !== null && !seen.has(titled) ? titled : `at:${at}`;
+      seen.add(key);
+      return this.drawSection(key, section);
+    });
+    placeChildren(this.body, boxes);
+    this.sections.sweep();
+    this.rows.sweep();
   }
 
   /**
    * A row's mark for the sessions it started: hidden without one; the latest's status dot, the same dot the session list draws, and a press goes to it; with several, their count beside the dot, and a press offers them all.
    * Only sessions the app still has: a link whose session is gone shows nothing.
    */
-  private paintSessions(key: string, mark: HTMLButtonElement): void {
+  private paintSessions(key: string, { mark, dot, count }: ListRow): void {
     const sessions = this.host.linkedSessions(key);
     const latest = sessions[0];
     mark.hidden = latest === undefined;
     if (!latest) return;
-    const dot = element('span', sessionDotClass(latest.status, latest.acked));
-    const parts: HTMLElement[] = [dot];
-    if (sessions.length > 1) {
-      const count = element('span', 'list-session-count');
-      count.textContent = String(sessions.length);
-      parts.push(count);
-    }
-    mark.replaceChildren(...parts);
+    dot.className = sessionDotClass(latest.status, latest.acked);
+    count.textContent = String(sessions.length);
+    placeChildren(mark, sessions.length > 1 ? [dot, count] : [dot]);
     // Its state in the session list's own words, so the dot says the same here as there.
     const state = statusLabel(latest.status ?? undefined, latest.acked) ?? (latest.running ? 'running' : 'not running');
     const label = sessions.length > 1 ? `${sessions.length} sessions from this row: pick one` : `Go to ${latest.title} · ${state}`;
@@ -340,74 +352,130 @@ class ListPanel implements MountedPanel {
   }
 
   /** A section: its heading when it has a title, which folds it, then its rows, or what it says when it has none. */
-  private drawSection(section: ListSection): HTMLElement {
-    const box = element('section', 'list-section');
+  private drawSection(key: string, section: ListSection): HTMLElement {
+    const box = this.sections.draw(key, () => this.buildSection());
+    box.section = section;
     const { title } = section;
     const open = title === null || (this.folds.get(title) ?? !section.shut);
+    const children: HTMLElement[] = [];
     if (title !== null) {
-      // The sidebar's collapsible heading, so a heading that folds looks and turns the same everywhere.
-      const { heading, caret, label, count } = sectionHeading('bar');
-      setFolded(caret, !open);
-      label.textContent = title;
-      count.textContent = String(section.items.length);
-      heading.addEventListener('click', () => {
-        this.folds.set(title, !open);
-        this.drawList();
-      });
-      box.append(heading);
+      setFolded(box.caret, !open);
+      box.label.textContent = title;
+      box.count.textContent = String(section.items.length);
+      children.push(box.heading);
     }
-    if (!open) return box;
-    if (section.items.length === 0 && section.empty !== null) {
-      const empty = element('div', 'section-empty');
-      empty.textContent = section.empty;
-      box.append(empty);
+    if (open) {
+      if (section.items.length === 0 && section.empty !== null) {
+        box.empty.textContent = section.empty;
+        children.push(box.empty);
+      }
+      children.push(...section.items.map((item) => this.drawItem(item)));
     }
-    box.append(...section.items.map((item) => this.drawItem(item)));
-    return box;
+    placeChildren(box.box, children);
+    return box.box;
+  }
+
+  /** A section's box and heading, built once; the heading folds the section it heads when pressed, as that section is then. */
+  private buildSection(): SectionBox {
+    // The sidebar's collapsible heading, so a heading that folds looks and turns the same everywhere.
+    const { heading, caret, label, count } = sectionHeading('bar');
+    const parts: SectionBox = { box: element('section', 'list-section'), heading, caret, label, count, empty: element('div', 'section-empty'), section: null };
+    heading.addEventListener('click', () => {
+      const title = parts.section?.title;
+      if (title === undefined || title === null) return;
+      this.folds.set(title, !(this.folds.get(title) ?? !parts.section!.shut));
+      this.drawList();
+    });
+    return parts;
   }
 
   /** A row, as text only: the script may come from anyone, so nothing it prints is ever markup. */
   private drawItem(item: ListItem): HTMLElement {
-    const { card: row, content, title, meta } = listCard(`list-row tone-${item.tone}`);
+    this.items.set(item.key, item);
+    const parts = this.rows.draw(item.key, (key) => this.buildRow(key));
+    const { row, content, title, meta, mark } = parts;
+    row.className = `card list-row tone-${item.tone}${item.href === null ? ' still' : ''}`;
     title.textContent = item.text;
-    if (item.detail !== null) {
-      meta.textContent = item.detail;
-      content.append(meta);
-    }
+    meta.textContent = item.detail ?? '';
+    placeChildren(content, item.detail !== null ? [title, meta] : [title]);
+    this.paintSessions(item.key, parts);
+    // What a row offers, as buttons at its end, each kept by all it says — its label, prompt and name — so a run that changes an action gives it a new button, and a press on the old one comes to nothing rather than asking for the new one.
+    // Each only ASKS: the app's dialog shows what would start, and nothing does until Start there.
+    const said = new Map<string, number>();
+    const buttons = item.actions.map((action) => {
+      const what = JSON.stringify([action.label, action.prompt, action.name]);
+      const again = said.get(what) ?? 0;
+      said.set(what, again + 1);
+      return parts.actions.draw(`${what}#${again}`, () => this.buildAction(item.key, action));
+    });
+    parts.actions.sweep();
+    // Where a click goes, since a shared type's rows are somebody else's links.
+    setTooltip(row, item.href);
     // The sessions it started, before what it offers, so going back comes before starting again.
+    placeChildren(row, [content, mark, ...buttons]);
+    return row;
+  }
+
+  /** A row, built once: what a press does it reads from the row's item as the last draw left it (`items`), since the next run may change it under the same key. */
+  private buildRow(key: string): ListRow {
+    const { card: row, content, title, meta } = listCard('list-row');
     const mark = element('button', 'icon-btn list-session');
     mark.type = 'button';
     mark.addEventListener('click', (event) => {
       event.stopPropagation();
-      const sessions = this.host.linkedSessions(item.key);
+      const sessions = this.host.linkedSessions(key);
       if (sessions.length === 1) this.host.openSession(sessions[0]!.id);
       else if (sessions.length > 1) this.host.pickSession(mark, sessions);
     });
-    this.sessionMarks.set(item.key, mark);
-    this.paintSessions(item.key, mark);
-    row.append(mark);
-    // What a row offers, as buttons at its end.
-    // Each only ASKS: the app's dialog shows what would start, and nothing does until Start there.
-    for (const action of item.actions) {
-      const button = element('button', 'list-action');
-      button.type = 'button';
-      button.textContent = action.label;
-      setTooltip(button, action.prompt);
-      button.addEventListener('click', (event) => {
-        // Its own click, not the row's link.
-        event.stopPropagation();
-        this.host.startSession({ from: this.slot.title, key: item.key, label: item.text, href: item.href, name: action.name, prompt: action.prompt, dir: this.lastDir });
-      });
-      row.append(button);
-    }
-    if (item.href !== null) {
-      const href = item.href;
-      // Where a click goes, since a shared type's rows are somebody else's links.
-      setTooltip(row, href);
-      row.addEventListener('click', () => window.claudeUi.openExternal(href));
-    } else row.classList.add('still');
-    return row;
+    const dot = element('span');
+    const count = element('span', 'list-session-count');
+    row.addEventListener('click', () => {
+      const href = this.items.get(key)?.href;
+      if (href) window.claudeUi.openExternal(href);
+    });
+    return { row, content, title, meta, mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
   }
+
+  /** The button for one of a row's actions, which asks for the session it describes, under the row as the last draw left it. */
+  private buildAction(key: string, action: SessionAction): HTMLButtonElement {
+    const button = element('button', 'list-action');
+    button.type = 'button';
+    button.textContent = action.label;
+    setTooltip(button, action.prompt);
+    button.addEventListener('click', (event) => {
+      // Its own click, not the row's link.
+      event.stopPropagation();
+      const item = this.items.get(key);
+      if (!item) return;
+      this.host.startSession({ from: this.slot.title, key, label: item.text, href: item.href, name: action.name, prompt: action.prompt, dir: this.lastDir });
+    });
+    return button;
+  }
+}
+
+/** A list row and the parts each draw writes. */
+interface ListRow {
+  row: HTMLElement;
+  content: HTMLElement;
+  title: HTMLElement;
+  meta: HTMLElement;
+  /** The mark for the sessions the row started, with its dot and, for several, their count. */
+  mark: HTMLButtonElement;
+  dot: HTMLElement;
+  count: HTMLElement;
+  /** Its action buttons, each kept by all its action says. */
+  actions: Keyed<HTMLButtonElement>;
+}
+
+/** A section's box and heading, and the section it shows now, which a press on the heading folds. */
+interface SectionBox {
+  box: HTMLElement;
+  heading: HTMLElement;
+  caret: HTMLElement;
+  label: HTMLElement;
+  count: HTMLElement;
+  empty: HTMLElement;
+  section: ListSection | null;
 }
 
 /** Mount a panel of a `list` type, or of a type whose manifest is not sound, which says why in its place. */
