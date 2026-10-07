@@ -100,11 +100,11 @@ test("a row's session mark follows its session's status, a mark read, and whethe
 
   // Its status, as it changes.
   await expect(mark(page, 'Fix the login redirect').locator('.nudge')).toHaveClass(/\bwaiting\b/);
-  expect(await app.emit('onSessionStatus', reviewed.id, 'busy', '')).toBe(1);
+  expect(await app.emit('onSessionStatus', reviewed.id, 'busy', '', 'UserPromptSubmit')).toBe(1);
   await expect(mark(page, 'Fix the login redirect').locator('.nudge')).toHaveClass(/\bbusy\b/);
 
   // A mark read, made on the session list's own dot.
-  expect(await app.emit('onSessionStatus', reviewed.id, 'idle', '')).toBe(1);
+  expect(await app.emit('onSessionStatus', reviewed.id, 'idle', '', 'Stop')).toBe(1);
   await row(page, reviewed.title).locator('.nudge').click();
   await expect(mark(page, 'Fix the login redirect').locator('.nudge')).toHaveClass(/\backed\b/);
 

@@ -76,7 +76,7 @@ test('a busy window: groups, marks, tabs in every state, the strip and both toas
   await start(app, page, booting.title, 3, false);
   // A waiting dot marked read, a background tab turning to wait for you (the attention toast), and the toast that stays until dismissed.
   await row(page, cold.title).locator('.nudge').click();
-  await app.emit('onSessionStatus', there.id, 'waiting', '');
+  await app.emit('onSessionStatus', there.id, 'waiting', '', 'Notification');
   await app.emit('onClaudeMissing');
   await expect(page.locator('#notifications .notif')).toHaveCount(1);
   // Held as a pointer resting on it holds it, or it goes after five seconds, in the middle of the capture.

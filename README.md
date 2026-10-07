@@ -22,6 +22,7 @@ Done:
 
 - Session list from `~/.claude`, grouped into collapsible projects, refreshed live as transcripts change on disk.
 - Tabs: several sessions open at once, drag to reorder, and restored on the next launch without starting them — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab.
+  A session that asks something on its way out, such as whether to keep its worktree, is answered in its tab, which stays until claude has gone; one that has not gone a second later can be forced.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
   Sessions sharing a conversation show as siblings (a fork badge with a jump list); worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life, and a session that has since left its worktree keeps the badge, muted.
@@ -72,7 +73,6 @@ Next:
 - An interval for `command` panels, as list panels have.
 - A Panel data row in Settings: what each panel remembers about the sessions its rows started, whether that panel is still in the layout, and a way to clear it.
 
-- Letting you answer when Claude asks something on its way out — whether to keep a worktree, say — instead of the tab closing over the question.
 - Context health per session in the list, coloured the way the CLI's own status line colours it.
 - Clickable paths in terminal output, opening the file the session just named in a panel.
 - Status nudges that survive an app restart; a performance pass (scroll, open, paste).

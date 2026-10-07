@@ -93,7 +93,8 @@ fi
 if [ "$status" = start ] && [ -e "$dir/$sid.json" ]; then
   exit 0
 fi
-printf '{"status":"%s","ts":%s,"tab":"%s"}\\n' "$status" "$(date +%s)" "\${CLAUDE_UI_TAB:-}" > "$dir/$sid.json"
+# The event goes along because one status is several events, and the app asks of one of them in particular: a prompt submitted says a session asked to leave has stayed.
+printf '{"status":"%s","ts":%s,"tab":"%s","event":"%s"}\\n' "$status" "$(date +%s)" "\${CLAUDE_UI_TAB:-}" "$(field hook_event_name)" > "$dir/$sid.json"
 exit 0
 `;
 
@@ -185,7 +186,7 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
     void readStatus(id).then((entry) => {
       if (entry === null) return;
       const win = getWindow();
-      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, entry.status, entry.tab);
+      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, entry.status, entry.tab, entry.event);
     });
   });
 }
@@ -194,6 +195,8 @@ interface StatusEntry {
   status: string;
   /** The terminal that reported it (TAB_ENV), or '' for a session claude-ui is not running. */
   tab: string;
+  /** The hook event that reported it, or '' from a file written before the script named it. */
+  event: string;
 }
 
 async function readStatus(id: string): Promise<StatusEntry | null> {
@@ -201,9 +204,14 @@ async function readStatus(id: string): Promise<StatusEntry | null> {
     const parsed = JSON.parse(await fs.readFile(path.join(statusDir, `${id}.json`), 'utf8')) as {
       status?: unknown;
       tab?: unknown;
+      event?: unknown;
     };
     if (typeof parsed.status !== 'string') return null;
-    return { status: parsed.status, tab: typeof parsed.tab === 'string' ? parsed.tab : '' };
+    return {
+      status: parsed.status,
+      tab: typeof parsed.tab === 'string' ? parsed.tab : '',
+      event: typeof parsed.event === 'string' ? parsed.event : '',
+    };
   } catch {
     return null;
   }

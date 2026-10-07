@@ -30,11 +30,11 @@ test("the terminal area's rail icon waits while a tab on show waits for you, and
   await expect(dot).toBeHidden();
 
   // A tab in another project is not on show here.
-  expect(await app.emit('onSessionStatus', there.id, 'waiting', '')).toBe(1);
+  expect(await app.emit('onSessionStatus', there.id, 'waiting', '', 'Notification')).toBe(1);
   await expect(row(page, there.title)).toHaveCount(0);
   await expect(dot).toBeHidden();
 
-  expect(await app.emit('onSessionStatus', here.id, 'waiting', '')).toBe(1);
+  expect(await app.emit('onSessionStatus', here.id, 'waiting', '', 'Notification')).toBe(1);
   await expect(dot).toBeVisible();
   // Marked read from its row.
   await row(page, here.title).locator('.nudge').click();
@@ -50,7 +50,7 @@ test("the terminal area's waiting dot outlasts a layout change that remounts its
   await app.boot(fixture);
   await railItem(page, /^Status/).click();
   const claude = railItem(page, /^Claude/);
-  expect(await app.emit('onSessionStatus', here.id, 'waiting', '')).toBe(1);
+  expect(await app.emit('onSessionStatus', here.id, 'waiting', '', 'Notification')).toBe(1);
   await expect(claude.locator('.nudge.waiting')).toBeVisible();
 
   // A new id is a new entry, mounted afresh with a dot of its own, while nothing it would say has changed.

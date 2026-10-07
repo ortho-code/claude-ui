@@ -63,6 +63,7 @@ vi.mock('node-pty', () => ({
 }));
 
 import { claudeArgs, describeLaunch, registerTerminalIpc, terminateAll } from '../../../src/main/terminal';
+import { KILL_GRACE_MS } from '../../../src/main/shell';
 
 const SETTINGS = '/home/u/.config/claude-ui/claude-settings.json';
 
@@ -245,26 +246,77 @@ describe('stopping a session', () => {
     expect(signals(proc.pid)).not.toContain('SIGKILL');
   });
 
-  it('lets claude exit on its own first when the tab is closed, then insists', async () => {
+  // Claude may answer an exit with a question, a worktree's keep-or-remove, and waits for the answer: a deadline here would kill the question, and nothing tells asking from slow.
+  it('asks claude to leave with Ctrl-C twice, and then waits however long it takes', async () => {
     const { proc, id } = await start();
-    handlers.get('terminal:close')!(null, id);
-    // Ctrl-C twice is claude's own way out, which is what writes the transcript.
+    handlers.get('terminal:close')!(null, id, false);
     expect(proc.written).toEqual(['\x03']);
     await vi.advanceTimersByTimeAsync(500);
     expect(proc.written).toEqual(['\x03', '\x03']);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(proc.written).toEqual(['\x03', '\x03']);
     expect(signals(proc.pid)).toEqual([]);
-    await vi.advanceTimersByTimeAsync(1400);
+  });
+
+  // Mid-turn, the first Ctrl-C interrupts the turn and only the next two leave.
+  it('presses a third time for a session mid-turn', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:close')!(null, id, true);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(proc.written).toEqual(['\x03', '\x03']);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(proc.written).toEqual(['\x03', '\x03', '\x03']);
+    expect(signals(proc.pid)).toEqual([]);
+  });
+
+  it('writes nothing more once the session has gone', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:close')!(null, id, true);
+    proc.exit();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(proc.written).toEqual(['\x03']);
+  });
+
+  it('forces out a session it has already asked, when told to', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:close')!(null, id, false);
+    await vi.advanceTimersByTimeAsync(5000);
+    handlers.get('terminal:kill')!(null, id);
     expect(signals(proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
-    await vi.advanceTimersByTimeAsync(1300);
+    await vi.advanceTimersByTimeAsync(KILL_GRACE_MS);
     expect(signals(proc.pid)).toContain('SIGKILL');
   });
 
-  it('ignores a second stop rather than starting a second escalation', async () => {
+  it('ignores a second ask while the first is still pressing', async () => {
     const { proc, id } = await start();
-    handlers.get('terminal:close')!(null, id);
-    handlers.get('terminal:close')!(null, id);
+    handlers.get('terminal:close')!(null, id, false);
+    handlers.get('terminal:close')!(null, id, false);
     await vi.advanceTimersByTimeAsync(500);
     expect(proc.written).toEqual(['\x03', '\x03']);
+  });
+
+  // Esc at claude's question on the way out calls the exit off, and the session works on: a later stop is a new ask, and has to press again.
+  it('asks again once the first ask has had its presses', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:close')!(null, id, false);
+    await vi.advanceTimersByTimeAsync(5000);
+    handlers.get('terminal:close')!(null, id, true);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(proc.written).toEqual(['\x03', '\x03', '\x03', '\x03', '\x03']);
+  });
+
+  it('ignores a second force rather than starting a second escalation', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:kill')!(null, id);
+    handlers.get('terminal:kill')!(null, id);
+    expect(signals(proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
+  });
+
+  it('asks nothing of a session it is already forcing out', async () => {
+    const { proc, id } = await start();
+    handlers.get('terminal:kill')!(null, id);
+    handlers.get('terminal:close')!(null, id, false);
+    expect(proc.written).toEqual([]);
   });
 
   /** Start a panel's shell the way the renderer does. */
@@ -384,6 +436,15 @@ describe('what a terminal logs', () => {
     proc.exit(137);
     expect(lines(id).slice(1)).toEqual([`info terminal ${id} stopping`, `info terminal ${id} ended: code 137, after 2.0 s, as asked`]);
     expect(logged).toContain(`warn process pid ${proc.pid} still running 1200 ms after SIGTERM, sending SIGKILL`);
+  });
+
+  it('an ask to leave, how many presses it took, and the exit as asked', async () => {
+    const id = (await handlers.get('terminal:start')!({ sender }, process.cwd(), {})) as number;
+    const proc = spawned[spawned.length - 1];
+    handlers.get('terminal:close')!(null, id, true);
+    await vi.advanceTimersByTimeAsync(4000);
+    proc.exit(0);
+    expect(lines(id).slice(1)).toEqual([`info terminal ${id} asked to leave, Ctrl-C 3 times`, `info terminal ${id} ended: code 0, after 4.0 s, as asked`]);
   });
 
   it('a start refused because its folder is not there', async () => {

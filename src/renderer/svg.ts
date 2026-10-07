@@ -28,7 +28,9 @@ export const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4
 
 // A tab's button ends the session before it removes the tab, so it needs two marks rather than one: the media-stop square for the first press, the cross for the second.
 // Squared off at 6.6 units so it reads at the same weight as the cross's diagonal.
-export const stopIcon = (size: number): string => strokeIcon(size, '<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2" />');
+// Filled, it is the force a stop becomes when the session has not left: the same act, harder.
+export const stopIcon = (size: number, force = false): string =>
+  strokeIcon(size, `<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2"${force ? ' fill="currentColor"' : ''} />`);
 
 // A group's mark: layers, meaning "several things stacked as one".
 // Muted, never accent — the accent belongs to the project's folder icon one line above it.

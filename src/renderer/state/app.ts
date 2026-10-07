@@ -121,8 +121,15 @@ export interface TabState {
    * Cleared by the first byte of output, deliberately rather than by anything claude-specific: whether claude draws on the alternate screen buffer depends on its renderer (`"tui": "fullscreen"` does, the default does not), so there is no one "the TUI is up" marker to wait for, and a signal that depends on how claude renders would break the moment it changed.
    */
   booting: boolean;
-  /** Set while a user-initiated stop is in flight, so its exit cools the tab instead of closing it. */
+  /**
+   * Asked to leave and not yet gone, so its exit cools the tab, or closes it with `closing`, instead of reading as claude ending by itself.
+   * Claude can ask something on its way out and wait for the answer, so this lasts until the exit, however long; a prompt submitted meanwhile means the session stayed, and clears it.
+   */
   stopping: boolean;
+  /** The tab goes when the stop's exit lands, rather than going cold: a close of a live tab waits for claude like a stop, since claude may ask something on its way out. */
+  closing: boolean;
+  /** A stop that has had its moment without the session going: its stop control now forces it out (`stopControlState`). */
+  forceable: boolean;
   /**
    * Why the last attempt to start this tab was refused, shown in place of the pane until it is tried again.
    * A refusal is not an exit: the tab never had a process, so nothing arrives on the terminal to explain itself.

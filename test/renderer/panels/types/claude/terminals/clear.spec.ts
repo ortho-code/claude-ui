@@ -24,7 +24,7 @@ test('a session cleared in its tab hands the tab to its successor, which keeps t
   expect(token).not.toBe('');
   expect(await app.emit('onTerminalData', FIRST, 'claude is here')).toBe(1);
 
-  expect(await app.emit('onSessionStatus', next, 'start', token)).toBe(1);
+  expect(await app.emit('onSessionStatus', next, 'start', token, 'SessionStart')).toBe(1);
   await expect(tabLabels(page)).toHaveText(['New: demo']);
   await expect.poll(() => app.calls('recordClear')).toEqual([[one.id, next, one.title]]);
   await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[next]]);

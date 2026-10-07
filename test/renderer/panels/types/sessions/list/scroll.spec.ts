@@ -39,7 +39,7 @@ test('a repaint keeps the scroll, and a new filter starts the list at its top', 
   expect(await scrolled(page)).toBe(400);
 
   // A status drawn on a row is not a new list.
-  expect(await app.emit('onSessionStatus', many[0].id, 'waiting', '')).toBe(1);
+  expect(await app.emit('onSessionStatus', many[0].id, 'waiting', '', 'Notification')).toBe(1);
   await expect(rows(page).first().locator('.nudge')).toHaveClass(/\bwaiting\b/);
   expect(await scrolled(page)).toBe(400);
 

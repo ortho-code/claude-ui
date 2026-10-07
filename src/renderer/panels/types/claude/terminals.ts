@@ -189,7 +189,9 @@ function buildTab(session: SessionSummary): string {
     if (id !== null) window.claudeUi.sendTerminalInput(id, data);
   });
 
-  store.set({ tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, failure: null }] });
+  store.set({
+    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, closing: false, forceable: false, failure: null }],
+  });
   return token;
 }
 
@@ -224,11 +226,12 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
       prompt: launch.prompt,
       tabToken: token,
     });
-    // Gone while it was still starting: the tab has been removed but the pty has not, so hand it straight back rather than leaving a claude running with nothing pointing at it.
+    // Gone while it was still starting: the tab has been removed but the pty has not, so end it straight away rather than leaving a claude running with nothing pointing at it.
     // The button is disabled throughout the wait, so this is not that route — it is deleting the session, which closes its tab wherever that tab had got to.
+    // Ended outright, not asked: with no tab there is nowhere for anything claude asks on its way out to be answered.
     // It has to be the first thing after the await, since everything below touches a terminal that removeTab has already disposed.
     if (!tabOf(token)) {
-      window.claudeUi.closeTerminal(terminalId);
+      window.claudeUi.killTerminal(terminalId);
       return;
     }
     setTab(token, { terminalId });
@@ -349,13 +352,13 @@ new ResizeObserver(() => fitActive()).observe(terminalsEl);
 function removeTab(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
+  clearForceTimer(token);
   clearNudge(tab.session.id);
   const terminal = terminalOf(token);
   terminal.term.dispose();
   terminal.el.remove();
   terminals.delete(token);
   // One change: the tab on show closing hands over to the next one in scope, so everyone who draws the tabs — and the panels — is told once, of where it ends up rather than of no tab first.
-  // A LIVE tab leaves the strip here too, not when the pty's exit eventually lands: `closeTab` removes the tab first and kills the process after.
   store.batch(() => {
     store.set({ tabs: store.get().tabs.filter((t) => t.token !== token) });
     if (isOnShow(token)) store.set({ activeTab: null });
@@ -366,17 +369,81 @@ function removeTab(token: string): void {
 }
 
 /**
- * End the session but keep its tab, cold and resumable.
+ * How long a stop shows its pause before its control becomes a force.
+ * Past the moment claude takes to put a question on screen — about 0.5 s from its prompt and 0.9 s mid-turn, measured — so a double-click cannot force a session before what it is asking is even there.
+ */
+const FORCE_AFTER_MS = 1000;
+
+/** The pending switch of each stopping tab's control to a force, so a stop that ends or is called off takes its timer with it. */
+const forceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearForceTimer(token: string): void {
+  clearTimeout(forceTimers.get(token));
+  forceTimers.delete(token);
+}
+
+/**
+ * Ask a live tab's claude to leave, and wait for the exit, however long it takes: `closing` says whether the tab goes with it or stays cold.
+ * Claude can answer an exit with a question — a worktree with changes asks whether to keep it — and the tab has to outlive it for it to be answered, so nothing here ends the session itself.
+ * Mid-turn, as the hooks last reported it, claude needs a third Ctrl-C, since the first then only interrupts the turn; any other session gets two, because a third at its prompt would arm claude's own "press again to exit" under its question.
+ * Waiting counts as mid-turn, though claude also reports it for a session idle at its prompt, which then gets the third press as well.
+ */
+function askToLeave(token: string, terminalId: number, closing: boolean): void {
+  const tab = tabOf(token);
+  if (!tab) return;
+  // At once, so the button shows the pause for as long as the exit takes rather than after it — on both buttons, the tab's and the strip's, which follow the same flag.
+  setTab(token, { stopping: true, closing, forceable: false });
+  const status = store.get().statuses.get(tab.session.id);
+  window.claudeUi.closeTerminal(terminalId, status === 'busy' || status === 'waiting');
+  clearForceTimer(token);
+  forceTimers.set(
+    token,
+    setTimeout(() => {
+      forceTimers.delete(token);
+      const now = tabOf(token);
+      if (now?.stopping && now.terminalId === terminalId) setTab(token, { forceable: true });
+    }, FORCE_AFTER_MS),
+  );
+}
+
+/**
+ * End a session that was asked to leave and has not: the stop control's second act, once it has become a force.
+ * Its process group gets `SIGTERM`, and `SIGKILL` after the grace, so whatever claude was asking goes unanswered — for a worktree, the tree is kept.
+ * The control goes back to its pause until the exit lands, which the escalation in main makes sure of.
+ */
+function forceStop(token: string): void {
+  const tab = tabOf(token);
+  if (!tab?.forceable || tab.terminalId === null) return;
+  setTab(token, { forceable: false });
+  window.claudeUi.killTerminal(tab.terminalId);
+}
+
+/**
+ * End the session but keep its tab, cold and resumable; once the stop has had its moment, the same press forces it.
  * The opposite of closeTab, and the deliberate counterpart to claude exiting on its own — which still CLOSES the tab, so a finished session does not leave an empty one behind.
  * `stopping` is what tells those two apart when the exit arrives.
+ * Pressed again during the stop's pause it does nothing: the control is disabled then, and this is the check for the routes that do not go through it.
  */
 export function stopSession(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
-  if (tab.terminalId === null || tab.stopping) return;
-  // At once, so the button shows the pause for as long as the exit takes rather than after it — on both buttons, the tab's and the strip's, which follow the same flag.
-  setTab(token, { stopping: true });
-  window.claudeUi.closeTerminal(tab.terminalId); // Ctrl-C twice, then kill
+  if (tab.terminalId === null || tab.starting) return;
+  if (tab.stopping) {
+    if (tab.forceable) forceStop(token);
+    return;
+  }
+  askToLeave(token, tab.terminalId, false);
+}
+
+/**
+ * A prompt submitted by a session asked to leave: it stayed, so the stop is off and the tab is live again.
+ * Claude's exit can be called off — Esc at a worktree's keep-or-remove question takes it back to its prompt — and only the next prompt says so; until then the tab goes on saying it is stopping.
+ */
+export function stopCalledOff(token: string): void {
+  const tab = tabOf(token);
+  if (!tab?.stopping) return;
+  clearForceTimer(token);
+  setTab(token, { stopping: false, closing: false, forceable: false });
 }
 
 /** Turn a tab that has just lost its process into a cold one. */
@@ -388,7 +455,7 @@ function coolTab(token: string): void {
   // One change, which also drops it from the live strip now rather than when its SessionEnd lands.
   store.batch(() => {
     // A stopped tab is not a slow one: the loader must not outlive the process.
-    setTab(token, { terminalId: null, stopping: false, booting: false });
+    setTab(token, { terminalId: null, stopping: false, closing: false, forceable: false, booting: false });
     // Stopping what you were looking at drops you to the empty screen rather than leaving a selected tab with nothing behind it; the panels lose their tab too, and fall back to the project.
     if (isOnShow(token)) store.set({ activeTab: null });
   });
@@ -400,12 +467,12 @@ function coolTab(token: string): void {
  * A running session and a tab are separate things — a cold tab costs nothing but a line in the bar, and it is restored on the next launch — so one press should not decide both.
  * The first press stops (claude gets its normal exit path and flushes), the tab stays and goes cold; the second removes it.
  * A tab that is already cold goes in one press, since there is nothing live to protect.
- * While a session is arriving or leaving the button does nothing at all: see the disabled state in tabElement.
+ * While a session is arriving, or in the first moment of leaving, the button does nothing at all, and a session that is slow to leave is forced: see stopControlState.
  * Checked here too, since a middle click reaches this without going through the button.
  */
 export function closeOrStop(token: string): void {
   const tab = tabOf(token);
-  if (!tab || tab.stopping || tab.starting) return;
+  if (!tab || tab.starting) return;
   if (tab.terminalId !== null) {
     stopSession(token);
     return;
@@ -413,13 +480,24 @@ export function closeOrStop(token: string): void {
   closeTab(token);
 }
 
-// User-initiated close: terminate the session (claude persists per turn, so its context is on disk) and drop the tab.
-// closeTerminal sends Ctrl-C twice to exit claude cleanly, then kills it.
+/**
+ * Close a tab: at once when it is cold, and for a live one once its claude has gone, asked to leave as a stop asks it.
+ * The tab outlives the session because claude can ask something on its way out, which a tab removed first would make unanswerable: it is kept, stopping, until the exit lands, and goes then.
+ * claude persists per turn, so a session's context is on disk whichever way it ends.
+ */
 export function closeTab(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
-  if (tab.terminalId !== null) window.claudeUi.closeTerminal(tab.terminalId); // nothing to kill when cold
-  removeTab(token);
+  if (tab.terminalId === null) {
+    removeTab(token);
+    return;
+  }
+  // Already leaving: it goes with the exit rather than staying cold.
+  if (tab.stopping) {
+    setTab(token, { closing: true });
+    return;
+  }
+  askToLeave(token, tab.terminalId, true);
 }
 
 /** A status event named the session a tab now runs: when that is another session than the tab's, the tab takes it over. */
@@ -473,10 +551,12 @@ const FAILED_START_LINES = 5;
 function onTabExit(token: string, exitCode: number): void {
   const tab = tabOf(token);
   if (!tab) return; // Already closed by the user.
-  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed.
+  clearForceTimer(token);
+  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed — or, for a close, remove it now that claude has gone.
   // Every other exit keeps today's behaviour below.
   if (tab.stopping) {
-    coolTab(token);
+    if (tab.closing) removeTab(token);
+    else coolTab(token);
     return;
   }
   // A near-instant exit almost always means claude failed to start (bad env, not found, rc error).

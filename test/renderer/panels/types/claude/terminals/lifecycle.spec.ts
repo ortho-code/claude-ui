@@ -79,8 +79,9 @@ test("the tab's button stops the session and keeps the tab cold, and a second pr
   const close = tab(page, one.title).locator('.tab-close');
 
   await close.click();
-  expect(await app.calls('closeTerminal')).toEqual([[FIRST]]);
-  // On its way out: the button does nothing until the session has really ended.
+  // At its prompt, as far as anything has said, so two presses: a third would arm claude's own "press again to exit" under anything it asks.
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
+  // On its way out: the button does nothing while claude takes its moment to go or to ask.
   await expect(close).toBeDisabled();
 
   await app.emit('onTerminalExit', FIRST, 0);
@@ -93,8 +94,83 @@ test("the tab's button stops the session and keeps the tab cold, and a second pr
   await close.click();
   await expect(tab(page, one.title)).toHaveCount(0);
   // Nothing was running, so nothing more to end.
-  expect(await app.calls('closeTerminal')).toEqual([[FIRST]]);
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
   await expect(pane(page)).toHaveText('Pick a session in the sidebar to open it.');
+});
+
+// Claude can answer an exit with a question — a worktree with changes asks whether to keep it — and waits for the answer: nothing tells that from a claude that hangs, so the stop waits and, a moment on, offers to force it.
+test("a stop claude has not answered by leaving stays a stop, its terminal on show, and a moment later the button forces it", async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app);
+  const close = tab(page, one.title).locator('.tab-close');
+
+  await close.click();
+  await expect(close).toBeDisabled();
+  await expect(close).toBeEnabled();
+  await expect(close).toHaveAttribute('data-tooltip', 'Force stop: claude has not left yet — it may be asking you something');
+  // Nothing was ended for it, and what it asks is still on screen to be answered.
+  expect(await app.calls('killTerminal')).toEqual([]);
+  await expect(tab(page, one.title)).toHaveClass(/\bactive\b/);
+  const typing = page.locator('.term.active .xterm-helper-textarea');
+  await typing.focus();
+  await page.keyboard.press('Enter');
+  expect(await app.calls('sendTerminalInput')).toContainEqual([FIRST, '\r']);
+
+  await close.click();
+  expect(await app.calls('killTerminal')).toEqual([[FIRST]]);
+  // Forced once: the button pauses again until the exit lands.
+  await expect(close).toBeDisabled();
+  await app.emit('onTerminalExit', FIRST, 143);
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+});
+
+test('a session mid-turn is pressed a third time, since its first Ctrl-C only interrupts the turn', async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app);
+  await app.emit('onSessionStatus', one.id, 'busy', '', 'PostToolUse');
+
+  await tab(page, one.title).locator('.tab-close').click();
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST, true]]);
+});
+
+// Esc at claude's question on the way out takes it back to its prompt; the next prompt is what says it stayed.
+test('a prompt submitted by a session asked to leave calls the stop off, and a tool call reported meanwhile does not', async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app);
+  const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
+  const token = launch.tabToken!;
+  const close = tab(page, one.title).locator('.tab-close');
+  const dot = tab(page, one.title).locator('.nudge');
+
+  await close.click();
+  await app.emit('onSessionStatus', one.id, 'busy', token, 'PostToolUse');
+  await expect(dot).toHaveClass(/\bbusy\b/);
+  await expect(close).not.toHaveAttribute('data-tooltip', 'Stop session');
+
+  await app.emit('onSessionStatus', one.id, 'busy', token, 'UserPromptSubmit');
+  await expect(close).toHaveAttribute('data-tooltip', 'Stop session');
+  await expect(close).toBeEnabled();
+  // Live again, so the button stops it again, mid-turn now.
+  await close.click();
+  expect(await app.calls('closeTerminal')).toEqual([
+    [FIRST, false],
+    [FIRST, true],
+  ]);
+});
+
+test('a middle click on a tab that has not left forces it, as its button does', async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app);
+  const close = tab(page, one.title).locator('.tab-close');
+
+  await tab(page, one.title).click({ button: 'middle' });
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
+  // During the pause it does nothing, like the button.
+  await tab(page, one.title).click({ button: 'middle' });
+  expect(await app.calls('killTerminal')).toEqual([]);
+  await expect(close).toBeEnabled();
+  await tab(page, one.title).click({ button: 'middle' });
+  expect(await app.calls('killTerminal')).toEqual([[FIRST]]);
 });
 
 // Leaving with Ctrl-C is claude's own, as in a terminal: it exits, or asks what it asks on the way out, and the tab goes with its exit.

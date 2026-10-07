@@ -58,9 +58,9 @@ store.watch(WHERE_SLICES, treeContextChanged);
 // A panel's rows mark the sessions they started — each one's title, status dot, mark read, and whether it runs — so the panels hear of every change to those, and to which sessions a panel's rows started (its data, panels/links.ts).
 store.watch(['sessions', 'statuses', 'acked', 'tabs', 'panelData'], treeSessionsChanged);
 
-window.claudeUi.onSessionStatus((id, status, tabToken) => {
-  // The terminal area's part first: a cleared session's successor is the tab's, and the history on show reads what was added.
-  claudeWatch.sessionStatus(id, tabToken);
+window.claudeUi.onSessionStatus((id, status, tabToken, event) => {
+  // The terminal area's part first: a cleared session's successor is the tab's, a prompt calls off a stop, and the history on show reads what was added.
+  claudeWatch.sessionStatus(id, tabToken, event);
   // 'start' reports which session a tab is running, not a state it is in — and it fires mid-session on clear and compact, where setting a status would wipe a live one.
   // The one SessionStart that does mean a state (a compaction ending) reaches us as 'idle', not as this.
   if (status === 'start') return;

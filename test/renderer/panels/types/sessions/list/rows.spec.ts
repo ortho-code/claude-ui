@@ -41,7 +41,7 @@ test("a row's dot follows its session's status, and a click on it marks it read 
   const dot = row(page, two.title).locator('.nudge');
   await expect(dot).not.toHaveClass(/\bwaiting\b/);
 
-  expect(await app.emit('onSessionStatus', two.id, 'waiting', '')).toBe(1);
+  expect(await app.emit('onSessionStatus', two.id, 'waiting', '', 'Notification')).toBe(1);
   await expect(dot).toHaveClass(/\bwaiting\b/);
   await expect(dot).not.toHaveClass(/\backed\b/);
 

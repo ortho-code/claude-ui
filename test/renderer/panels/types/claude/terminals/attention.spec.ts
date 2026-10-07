@@ -31,7 +31,7 @@ test('a status read at launch is not news: a restored tab already waiting is not
 test('a tab not on show that turns waiting or finished is toasted once, and the toast takes you to it', async ({ app, page }) => {
   await app.boot(fixture);
   const status = async (id: string, state: string): Promise<void> => {
-    expect(await app.emit('onSessionStatus', id, state, '')).toBe(1);
+    expect(await app.emit('onSessionStatus', id, state, '', '')).toBe(1);
   };
   await expect(tab(page, here.title)).toHaveClass(/\bactive\b/);
 
@@ -68,7 +68,7 @@ test("the toast takes you to the session's row too, unfolding the group it is fi
   await app.boot({ ...fixture, ...filed, uiState: { ...defaultUi(), collapsedGroups: ['g-later'] } });
   await expect(tab(page, here.title)).toHaveClass(/\bactive\b/);
 
-  expect(await app.emit('onSessionStatus', there.id, 'waiting', '')).toBe(1);
+  expect(await app.emit('onSessionStatus', there.id, 'waiting', '', 'Notification')).toBe(1);
   await toasts(page).first().click();
   await expect(tab(page, there.title)).toHaveClass(/\bactive\b/);
   await expect(group(page, 'Later')).not.toHaveClass(/\bcollapsed\b/);

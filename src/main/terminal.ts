@@ -12,35 +12,58 @@ import type { TerminalLaunch } from '../shared/types';
 import type { PanelContext } from '../shared/panels';
 
 const terminals = new Map<number, pty.IPty>();
-/** Sessions already on their way out, so a second press cannot restart the escalation behind the first. */
-const ending = new Set<number>();
+/** Sessions asked to leave since they started, so their exit is logged as asked for. */
+const asked = new Set<number>();
+/** Sessions whose ask is still pressing, so a second ask cannot add presses to the first. */
+const pressing = new Set<number>();
+/** Sessions being forced out, so a second force cannot restart the escalation behind the first. */
+const forced = new Set<number>();
 let nextId = 1;
 
+/** How far apart the presses of an ask to leave are: inside the window in which claude takes a second Ctrl-C as "exit". */
+const PRESS_GAP_MS = 400;
+
 /**
- * End a session, and then make sure it actually ended.
+ * Ask a session to leave the way it is left in a terminal, and wait for it to go, however long that takes.
  *
- * ONE implementation for all three ways a session stops — the tab's stop button, closing a tab, and the sweep at app quit — because they differ only in whether `claude` is given its own exit path first.
- * They used to differ in more than that, and each sent a single signal and forgot the process: `SIGHUP` by default, which a Node program is entitled to decline, leaving the app certain it had stopped something that was still running.
- *
- * `flush` writes Ctrl-C twice so `claude` exits the way it does in a terminal and writes its transcript.
- * Without it the session is asked to leave at once.
- * Either way the ask is a `SIGTERM` to the group, and anything still there after the grace period gets `SIGKILL`.
- * Whether it worked is read from `terminals`, which only the pty's own exit removes from — so the escalation is driven by the process actually being gone, not by having sent something.
+ * Ctrl-C twice is claude's own way out from its prompt; mid-turn the first press interrupts the turn instead, so `interrupt` adds one in front.
+ * NO DEADLINE, deliberately: claude can answer an exit with a question — a worktree with changes asks whether to keep it — and waits for the answer (still asking after 15 s, the longest measured), and nothing it sends tells asking from slow.
+ * A timer here once sent `SIGTERM` 1.8 s after the first press, which killed that question, and ended every stop of a session mid-turn, which the two presses alone did not end in either run probed.
+ * So a session that has not gone is the user's to force (`forceOut`).
+ * The presses are bytes written to the pty, which claude reads as keys while it holds the terminal in raw mode.
+ * Only one ask presses at a time, since presses added to a question already on screen would answer it; once they are done, another ask presses again, because Esc at that question calls the exit off and the session works on.
  */
-function endSession(id: number, flush: boolean): void {
+function askToLeave(id: number, interrupt: boolean): void {
   const proc = terminals.get(id);
-  if (!proc || ending.has(id)) return;
-  ending.add(id);
-  const { pid } = proc;
-  log('info', 'terminal', `${id} stopping${flush ? ', Ctrl-C first' : ''}`);
-  const insist = (): void => terminateGroup(pid, () => terminals.has(id));
-  if (!flush) {
-    insist();
-    return;
-  }
+  if (!proc || pressing.has(id) || forced.has(id)) return;
+  asked.add(id);
+  pressing.add(id);
+  const presses = interrupt ? 3 : 2;
+  log('info', 'terminal', `${id} asked to leave, Ctrl-C ${presses} times`);
   proc.write('\x03');
-  setTimeout(() => proc.write('\x03'), 400);
-  setTimeout(insist, 1800);
+  for (let press = 1; press < presses; press++) {
+    setTimeout(() => {
+      // Gone already: a key sent after the exit would reach nothing, or a pty node-pty has closed.
+      if (terminals.has(id)) proc.write('\x03');
+      if (press === presses - 1) pressing.delete(id);
+    }, press * PRESS_GAP_MS);
+  }
+}
+
+/**
+ * End a session or a shell outright, and make sure it actually ended: `SIGTERM` to the group, and `SIGKILL` for anything still there after the grace period.
+ *
+ * ONE implementation for every way a process here is ended without being asked — a forced stop, a panel shell's stop, and the sweep at app quit.
+ * They used to differ, and each sent a single signal and forgot the process: `SIGHUP` by default, which a Node program is entitled to decline, leaving the app certain it had stopped something that was still running.
+ * Whether it worked is read from `terminals`, which only the pty's own exit removes from — so the escalation is driven by the process actually being gone, not by having sent something.
+ * A session already asked to leave can still be forced: that is what forcing is for.
+ */
+function forceOut(id: number): void {
+  const proc = terminals.get(id);
+  if (!proc || forced.has(id)) return;
+  forced.add(id);
+  log('info', 'terminal', `${id} stopping`);
+  terminateGroup(proc.pid, () => terminals.has(id));
 }
 
 /** What anything in a pty gets: the inherited environment, advertising 24-bit colour so claude emits its full TUI styling (e.g. the select-menu highlight) instead of a degraded fallback; the frontend xterm renders truecolor fine. */
@@ -81,12 +104,14 @@ function spawnPty(sender: WebContents, what: string, file: string, args: string[
   // The pty's own exit is the ONE place a session is recorded as over.
   // Everything that stops one reads this rather than assuming its signal worked.
   proc.onExit(({ exitCode, signal }) => {
-    const asked = ending.has(id);
+    const expected = asked.has(id) || forced.has(id);
     terminals.delete(id);
-    ending.delete(id);
+    asked.delete(id);
+    pressing.delete(id);
+    forced.delete(id);
     // An exit nobody asked for, with a failing code, is the one worth finding again; a stop's code is whatever the signal left.
     const how = `code ${exitCode}${signal ? `, signal ${signal}` : ''}, after ${formatDuration(Date.now() - started)}`;
-    log(asked || exitCode === 0 ? 'info' : 'warn', 'terminal', `${id} ended: ${how}${asked ? ', as asked' : ''}`);
+    log(expected || exitCode === 0 ? 'info' : 'warn', 'terminal', `${id} ended: ${how}${expected ? ', as asked' : ''}`);
     if (!sender.isDestroyed()) sender.send('terminal:exit', id, exitCode);
   });
   return id;
@@ -215,18 +240,19 @@ export function registerTerminalIpc(): void {
     terminals.get(id)?.resize(cols, rows);
   });
 
-  // Stop now: the session is being discarded, so there is nothing to flush for.
-  ipcMain.on('terminal:kill', (_event, id: number) => endSession(id, false));
+  // End it now: a forced stop, or a panel shell, which has no exit of its own to be asked through.
+  ipcMain.on('terminal:kill', (_event, id: number) => forceOut(id));
 
-  // Graceful close: give claude its normal exit path (Ctrl-C twice) so it flushes the transcript, then insist.
-  ipcMain.on('terminal:close', (_event, id: number) => endSession(id, true));
+  // Ask claude to leave through its own exit, which is where it asks anything it has to; `interrupt` for a session mid-turn.
+  ipcMain.on('terminal:close', (_event, id: number, interrupt: boolean) => askToLeave(id, interrupt));
 }
 
 /**
  * Stop every live session as the app quits.
- * Down the same path as any other stop, so quitting cannot be the one route that leaves something running — `before-quit` delays the quit itself, which is what gives the escalation room to land.
+ * Forced, not asked: the window is going, so a question claude asked on its way out would have nobody to answer it, and a worktree it would have asked about is kept.
+ * Down the same path as any other forced stop, so quitting cannot be the one route that leaves something running — `before-quit` delays the quit itself, which is what gives the escalation room to land.
  */
 export function terminateAll(): void {
   if (terminals.size > 0) log('info', 'terminal', `quitting: stopping ${terminals.size} terminal${terminals.size === 1 ? '' : 's'}`);
-  for (const id of [...terminals.keys()]) endSession(id, false);
+  for (const id of [...terminals.keys()]) forceOut(id);
 }

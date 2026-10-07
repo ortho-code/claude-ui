@@ -412,9 +412,9 @@ export interface ClaudeUiApi {
   getAllStatuses(): Promise<Record<string, string>>;
   /**
    * Subscribe to live status changes.
-   * `tab` is the reporting terminal's token (empty for a session claude-ui is not running).
+   * `tab` is the reporting terminal's token (empty for a session claude-ui is not running), and `event` the hook event that reported it (empty from a file written before the hook named it).
    */
-  onSessionStatus(callback: (id: string, status: string, tab: string) => void): void;
+  onSessionStatus(callback: (id: string, status: string, tab: string, event: string) => void): void;
   /**
    * Subscribe to a session changing model.
    * Only a live switch arrives here; a session's model at rest comes from its transcript, which records which model answered.
@@ -436,9 +436,13 @@ export interface ClaudeUiApi {
   onTerminalExit(callback: (id: number, exitCode: number) => void): void;
   sendTerminalInput(id: number, data: string): void;
   resizeTerminal(id: number, cols: number, rows: number): void;
+  /** End a session or a shell outright: `SIGTERM` to its group, `SIGKILL` if it is still there after the grace period. */
   killTerminal(id: number): void;
-  /** Close a session, letting claude exit cleanly so it flushes first. */
-  closeTerminal(id: number): void;
+  /**
+   * Ask claude to leave through its own exit, Ctrl-C twice, and three times when `interrupt` says it is mid-turn.
+   * Nothing follows it: claude may ask something on its way out and wait for the answer, so a session that has not gone is ended with `killTerminal`.
+   */
+  closeTerminal(id: number, interrupt: boolean): void;
   /**
    * The layout file as main last read it.
    * Validated in the renderer (panels/layout.ts).

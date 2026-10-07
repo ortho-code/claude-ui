@@ -760,17 +760,27 @@ describe('statusLabel', () => {
 
 describe('stopControlState', () => {
   it('offers to stop a settled session', () => {
-    expect(stopControlState({})).toEqual({ disabled: false, tooltip: 'Stop session' });
-    expect(stopControlState({ starting: false, stopping: false })).toEqual({ disabled: false, tooltip: 'Stop session' });
+    expect(stopControlState({})).toEqual({ disabled: false, tooltip: 'Stop session', force: false });
+    expect(stopControlState({ starting: false, stopping: false })).toEqual({ disabled: false, tooltip: 'Stop session', force: false });
   });
 
   it('refuses both ends of a session lifetime, and says which end it is', () => {
-    expect(stopControlState({ starting: true })).toEqual({ disabled: true, tooltip: 'Starting…' });
-    expect(stopControlState({ stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…' });
+    expect(stopControlState({ starting: true })).toEqual({ disabled: true, tooltip: 'Starting…', force: false });
+    expect(stopControlState({ stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…', force: false });
   });
 
   it('reports ARRIVING when a tab somehow carries both flags', () => {
     // The precedence is load-bearing and was implicit until this test: a tab that is both is one being started, and calling it "Stopping…" would tell the user the opposite of what is happening.
-    expect(stopControlState({ starting: true, stopping: true })).toEqual({ disabled: true, tooltip: 'Starting…' });
+    expect(stopControlState({ starting: true, stopping: true })).toEqual({ disabled: true, tooltip: 'Starting…', force: false });
+  });
+
+  it('offers to force out a session that has not left, and says it may be asking', () => {
+    expect(stopControlState({ stopping: true, forceable: true })).toEqual({
+      disabled: false,
+      tooltip: 'Force stop: claude has not left yet — it may be asking you something',
+      force: true,
+    });
+    // Only a stop can become a force.
+    expect(stopControlState({ forceable: true })).toEqual({ disabled: false, tooltip: 'Stop session', force: false });
   });
 });

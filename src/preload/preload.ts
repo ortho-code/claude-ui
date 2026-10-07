@@ -55,7 +55,7 @@ const api: ClaudeUiApi = {
   openExternal: (url) => ipcRenderer.send('shell:openExternal', url),
   getAllStatuses: () => ipcRenderer.invoke('status:getAll'),
   onSessionStatus: (callback) =>
-    ipcRenderer.on('session:status', (_event, id: string, status: string, tab: string) => callback(id, status, tab)),
+    ipcRenderer.on('session:status', (_event, id: string, status: string, tab: string, event: string) => callback(id, status, tab, event)),
   onSessionModel: (callback) =>
     ipcRenderer.on('session:model', (_event, id: string, model: string) => callback(id, model)),
   clearStatus: (id) => ipcRenderer.send('status:clear', id),
@@ -68,7 +68,7 @@ const api: ClaudeUiApi = {
   sendTerminalInput: (id, data) => ipcRenderer.send('terminal:input', id, data),
   resizeTerminal: (id, cols, rows) => ipcRenderer.send('terminal:resize', id, cols, rows),
   killTerminal: (id) => ipcRenderer.send('terminal:kill', id),
-  closeTerminal: (id) => ipcRenderer.send('terminal:close', id),
+  closeTerminal: (id, interrupt) => ipcRenderer.send('terminal:close', id, interrupt),
   getLayout: () => ipcRenderer.invoke('config:getLayout'),
   checkPath: (value, base, must) => ipcRenderer.invoke('config:checkPath', value, base, must),
   onLayoutChanged: (callback) => ipcRenderer.on('config:changed', (_event, report: LayoutReport) => callback(report)),

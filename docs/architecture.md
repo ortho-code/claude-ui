@@ -180,13 +180,14 @@ Activating a tab can only ever **resume** it: the tab's own session is all it kn
 The arguments that apply to a session's first start and to nothing afterwards — `--fork-session`, `--name`, `-w` — belong to the call that creates the tab, so that call selects the tab *without* starting it and starts it itself.
 
 Two exits must stay distinguishable.
-A **user stop** sets a `stopping` flag before the kill, and the exit handler checks it first: that tab is cooled and kept.
+A **user stop** sets a `stopping` flag before asking claude to leave, and the exit handler checks it first: that tab is cooled and kept, or removed when the stop was a close (`closing`).
 **Any other exit** closes the tab, which is deliberate — it stops a finished session leaving an empty tab behind.
 
 That separation is what the tab's button is built on: ending a session and removing a tab are different intents, so one press does not decide both.
 The first press stops a running session and leaves the tab cold, the second removes it, and a tab that is already cold goes in one.
-Both ends of a session's life disable the button rather than merely ignore it, for one reason: a tab acted on before its process has arrived, or while that process is still leaving, would leave the bar disagreeing with what is actually running.
-The mark follows the state, so which press you are on is visible: a stop square while there is a session to end, a cross once there is only a tab.
+A session arriving disables the button rather than merely ignoring it, and so does one leaving, for its first second and again once it has been forced: a tab acted on before its process has arrived, or in the moment its process takes to go, would leave the bar disagreeing with what is actually running.
+A session still there after that second makes the button a force (§ Stopping a session is a request).
+The mark follows the state, so which press you are on is visible: a stop square while there is a session to end, filled once pressing it forces the session out, and a cross once there is only a tab.
 A third case sits in between: an exit within 1500ms of launch is treated as a failed start, and the tab is kept with the error visible in its terminal.
 
 The cold state is visible in three places, all reading the same `terminalId === null`: the tab is unfilled rather than dimmed, the session row's left bar and the selected tab's top edge are `--muted` instead of accent, and the terminal pane explains that clicking the tab resumes it.
@@ -198,10 +199,28 @@ Nothing is meant to be live after a restart, so the remembered tab is *selected*
 
 The code is in `src/renderer/panels/types/claude/terminals.ts`: each tab's terminal, its life from built to closed, the workspace switch, the fit of the tab on show to the terminal area, and the open tabs kept for the next launch.
 
-### Stopping a session is a signal, and a signal can be declined
+### Stopping a session is a request, and claude may answer it with a question
 
-Three things end a session — the tab's stop button, closing a tab, and the sweep at app quit — and they are **one function**, differing only in whether `claude` is given its own exit path first.
-They used to be three, each sending a single signal and then forgetting the process: a bare `kill()`, which is `SIGHUP` and which a Node program is entitled to decline.
+A stop, from the tab's button or the live strip's, and a close of a live tab ask claude to leave the way it is left in a terminal: Ctrl-C twice, 400 ms apart, from its prompt.
+Mid-turn the first press only interrupts the turn, so a session whose hooks last reported it busy or waiting gets a third, and any other gets two, because a third at its prompt would arm claude's own "Press Ctrl-C again to exit" under anything it asks.
+Waiting is a `Notification`, which claude also sends to a session sitting idle at its prompt, so such a session gets the third press too.
+The presses are bytes written to the pty, which claude reads as keys while it holds the terminal in raw mode.
+
+**Nothing follows them.**
+Claude can answer an exit with a question — a worktree session with uncommitted changes asks whether to keep the tree or remove it — and waits for the answer.
+Nothing it sends tells asking from being slow: every stop probed on claude 2.1.289 printed something after the presses, and in the one run that logged hooks none fired in the 5 s the question was up.
+So the tab stays, stopping, with its terminal kept and answerable in the tab, until the pty exits, however long that takes.
+An earlier version sent `SIGTERM` 1.8 s after the first press, which killed the question and left the tree kept but locked; it also ended every stop of a session mid-turn, which two presses alone did not end in either run probed.
+A close keeps the tab the same way and removes it when the exit lands, since a tab removed first is what made the question unreachable.
+Esc at the question calls claude's exit off, and the next prompt the session submits clears the stop: the status hook names the event that reported each status, and `UserPromptSubmit` is the one only a session that stayed can send once the stop is pressed.
+Until that prompt the tab goes on saying it is stopping.
+A prompt submitted a moment before the stop, whose report arrives after it, calls the stop off just the same, and the exit that follows then closes the tab instead of cooling it.
+
+A session still there a second after the ask can be **forced**: its stop control, disabled for that second so a double-click cannot force before the question is on screen, then sends the process group `SIGTERM`, and `SIGKILL` if it is still there after the grace below.
+Quitting the app forces every session without asking, since a question would have nobody to answer it, and a panel shell's stop forces it too, since a shell has no Ctrl-C exit to be asked through.
+
+Forcing is one function, for all three.
+The stop, the close and the quit used to be three, each sending a single signal and then forgetting the process: a bare `kill()`, which is `SIGHUP` and which a Node program is entitled to decline.
 The stop then reported success over a session that was still running.
 
 Two things make it work now.
@@ -254,7 +273,8 @@ Group headings, the live strip and the panels are left alone on purpose: the pro
 Two cases no amount of gating can pre-empt — a folder that disappears while the app is running, and a tab you are already sitting on — which is why the refusal still has to explain itself when it happens.
 A tab is kept, cold, rather than closed: the click meant "look at this", and the folder may come back.
 
-(`claude -w` also `git worktree lock`s the tree it cuts, and that lock outlives the session, so a later `git worktree remove` refuses until the lock of a dead pid is cleared.)
+`claude -w` also `git worktree lock`s the tree it cuts.
+Answering Keep on the way out releases the lock, but a session ended by `SIGTERM`, or one that leaves without answering, leaves it behind, and a later `git worktree remove` refuses until that lock of a dead pid is cleared.
 
 ## In-session history
 

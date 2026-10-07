@@ -158,7 +158,7 @@ describe('the hook script', () => {
       if (scoped || (error as NodeJS.ErrnoException).code !== 'EPIPE') throw error;
     }
   }
-  async function readStatusFile(): Promise<{ status?: string; tab?: string } | null> {
+  async function readStatusFile(): Promise<{ status?: string; tab?: string; event?: string } | null> {
     try {
       return JSON.parse(await fs.readFile(statusFile, 'utf8'));
     } catch {
@@ -185,6 +185,14 @@ describe('the hook script', () => {
   it('reports which terminal the session is running in', async () => {
     runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
     expect((await readStatusFile())?.tab).toBe(TOKEN);
+  });
+
+  // Busy is several events, and one of them alone — a prompt submitted — says a session asked to leave has stayed.
+  it('names the event that reported the status', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+    expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'UserPromptSubmit' });
+    runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
+    expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'PostToolUse' });
   });
 
   /**

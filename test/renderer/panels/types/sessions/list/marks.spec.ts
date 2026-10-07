@@ -83,3 +83,18 @@ test('archiving closes the session\'s tab and moves its row to the archived view
   await expect(tabLabel(page, older.title)).toHaveCount(0);
   expect(await app.calls('toggleArchive')).toEqual([[older.id], [older.id]]);
 });
+
+// Claude can ask something on its way out, a worktree's keep-or-remove: a tab removed first would leave the question with nowhere to be answered.
+test("archiving a running session keeps its tab until claude has gone, and the tab goes then", async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [older.id] });
+  await tabLabel(page, older.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+
+  await menuItem(page, older.title, 'Archive');
+  await expect(row(page, older.title)).toHaveCount(0);
+  expect(await app.calls('closeTerminal')).toEqual([[1, false]]);
+  await expect(tabLabel(page, older.title)).toHaveCount(1);
+
+  await app.emit('onTerminalExit', 1, 0);
+  await expect(tabLabel(page, older.title)).toHaveCount(0);
+});

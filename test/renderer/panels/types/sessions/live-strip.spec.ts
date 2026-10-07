@@ -40,7 +40,7 @@ test('the live strip lists running sessions in the order you set, and keeps stil
 
   // Work arriving in any order moves nothing.
   for (const [s, status] of [[inFirst, 'busy'], [elsewhere, 'waiting'], [loose, 'idle'], [inFirst, 'waiting']] as const) {
-    expect(await app.emit('onSessionStatus', s.id, status, '')).toBe(1);
+    expect(await app.emit('onSessionStatus', s.id, status, '', '')).toBe(1);
   }
   await expect(page.locator('#strip-label')).toHaveText('3 of 4 need you');
   expect(await stripLines(page).allTextContents()).toEqual(expected);
@@ -71,7 +71,7 @@ test("the strip's stop button stops the session, keeps its tab cold, and the row
   const stop = strip(page).locator('.strip-item-stop');
 
   await stop.click();
-  expect(await app.calls('closeTerminal')).toEqual([[1]]);
+  expect(await app.calls('closeTerminal')).toEqual([[1, false]]);
   // On its way out, on both of its buttons: the strip's and the tab's.
   await expect(stop).toBeDisabled();
   await expect(tabs(page).locator('.tab-close')).toBeDisabled();
@@ -79,6 +79,23 @@ test("the strip's stop button stops the session, keeps its tab cold, and the row
   await app.emit('onTerminalExit', 1, 0);
   await expect(tab(page, loose.title)).toHaveClass(/\bcold\b/);
   await expect(page.locator('#live-strip')).toBeHidden();
+});
+
+// A session asked to leave may be asking something in a tab you are not looking at: the strip keeps it, says so, and forces it when pressed again.
+test("the strip's stop becomes a force when the session has not left, as the tab's does", async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });
+  await tabLabel(page, loose.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const stop = strip(page).locator('.strip-item-stop');
+
+  await stop.click();
+  await expect(stop).toBeEnabled();
+  await expect(stop).toHaveAttribute('data-tooltip', /^Force stop: claude has not left yet/);
+  await expect(tabs(page).locator('.tab-close')).toHaveAttribute('data-tooltip', /^Force stop/);
+  await stop.click();
+  expect(await app.calls('killTerminal')).toEqual([[1]]);
+  await expect(stop).toBeDisabled();
+  await expect(page.locator('#live-strip')).toBeVisible();
 });
 
 

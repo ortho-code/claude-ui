@@ -79,7 +79,7 @@ test('a status that lands while the read after a delete is out is not put back b
   await deleteWithListingHeld(app, page);
 
   // Busy since main answered the read, which still says idle.
-  expect(await app.emit('onSessionStatus', worker.id, 'busy', '')).toBe(1);
+  expect(await app.emit('onSessionStatus', worker.id, 'busy', '', 'UserPromptSubmit')).toBe(1);
   await expect(dot).toHaveClass(/\bbusy\b/);
   await releaseListing(app);
   await expect(row(page, gone.title)).toHaveCount(0);

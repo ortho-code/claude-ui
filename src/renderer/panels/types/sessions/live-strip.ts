@@ -51,7 +51,8 @@ function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButto
     stop.disabled = true;
     return stop;
   }
-  const { disabled, tooltip } = stopControlState(tab);
+  const { disabled, tooltip, force } = stopControlState(tab);
+  stop.innerHTML = stopIcon(14, force);
   stop.disabled = disabled;
   setTooltip(stop, tooltip);
   if (!disabled) {

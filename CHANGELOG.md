@@ -85,6 +85,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Clicking the notification for a session that is waiting for you or has finished also shows its row in the session list, unfolding its group, as a click in the live strip does.
 - A session that has left its worktree keeps its worktree badge, which it used to lose as soon as it left.
   The badge is muted then, its tooltip says where the session is now, and the worktree filter still finds it.
+- Stopping a session, closing its tab or archiving it leaves anything claude asks on its way out in its tab to answer, such as whether to keep a worktree with changes, instead of ending the session over the question.
+  The tab stays until claude has gone, and for a session that has not gone a second later the stop button becomes a force stop.
 
 ## 0.3.0 — 2026-08-29
 
