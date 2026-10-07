@@ -1,5 +1,6 @@
 import { defaultSettings } from './defaults';
 import { parseLaunchFlags } from './flags';
+import { keptOver } from './kept';
 import type { ReadStatus } from './panels';
 import type { Settings } from './types';
 
@@ -130,6 +131,6 @@ export function settingsInForce(view: SettingsView): Settings {
 export function appFileChanges(view: SettingsView, change: SettingsChange): { key: SettingKey; value: Settings[SettingKey] | undefined }[] {
   return SETTING_KEYS.filter((key) => key in change).map((key) => {
     const value = change[key];
-    return { key, value: value === null || value === undefined || value === view[key].without ? undefined : value };
+    return { key, value: value === null || value === undefined ? undefined : (keptOver(value, view[key].without) ?? undefined) };
   });
 }

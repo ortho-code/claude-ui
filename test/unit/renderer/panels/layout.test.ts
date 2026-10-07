@@ -26,7 +26,7 @@ const TYPES = { sessions, claude, command: commandType };
 const FILE = '/home/u/.config/claude-ui/config/layouts/default.json';
 
 function report(json: unknown): LayoutReport {
-  return { configRoot: '/home/u/.config/claude-ui/config', file: FILE, status: 'read', error: null, json, types: [] };
+  return { configRoot: '/home/u/.config/claude-ui/config', file: FILE, status: 'read', error: null, json, types: [], local: { file: '', status: 'missing', error: null, json: null, byApp: false, stateMoved: true } };
 }
 
 /** The two built-ins in their usual places, for a test about something else. */

@@ -2,11 +2,12 @@ import { ipcMain, type BrowserWindow } from 'electron';
 import { promises as fs, constants, mkdirSync, watch, type FSWatcher } from 'node:fs';
 import { homedir } from 'node:os';
 import * as path from 'node:path';
-import { configRoot, layoutsDir, scriptsDir, typesDir, defaultLayoutFile } from './paths';
-import type { LayoutReport, PathBase, PathCheck, PathKind, ReadStatus, TypeReport } from '../shared/panels';
+import { configRoot, layoutsDir, scriptsDir, typesDir, defaultLayoutFile, defaultLocalLayoutFile } from './paths';
+import type { LayoutReport, PathBase, PathCheck, PathKind, TypeReport } from '../shared/panels';
 import { pathProblem, resolvePathIn, type Found } from '../shared/pathcheck';
 import { ownWrites } from './appfiles';
-import { readJsonc } from './jsonc';
+import { readJsoncFile } from './jsonc';
+import { readLocalLayout } from './layoutstate';
 import { fsFailure, log } from './log';
 
 /**
@@ -52,18 +53,6 @@ export async function checkPath(value: string, base: PathBase, must: PathKind): 
   return { path: resolved, problem: pathProblem(value, must, await lookAt(resolved, must)) };
 }
 
-/** One read of a hand-written file, the layout or a type's manifest, as JSONC (`jsonc.ts`): never throws, and a file that does not parse carries what is wrong and where. */
-async function readJson(file: string): Promise<{ status: ReadStatus; error: string | null; json: unknown }> {
-  let text: string;
-  try {
-    text = await fs.readFile(file, 'utf8');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { status: 'missing', error: null, json: null };
-    return { status: 'unparsable', error: (error as Error).message, json: null };
-  }
-  const read = readJsonc(text);
-  return read.ok ? { status: 'read', error: null, json: read.json } : { status: 'unparsable', error: read.error, json: null };
-}
 
 /** The manifest a type's folder holds. */
 export const MANIFEST_FILE = 'panel.json';
@@ -100,16 +89,16 @@ async function typeFolders(root: string): Promise<{ name: string; dir: string }[
  */
 export async function readTypes(root = typesDir): Promise<TypeReport[]> {
   const folders = await typeFolders(root);
-  return Promise.all(folders.map(async ({ name, dir }) => ({ name, dir, ...(await readJson(path.join(dir, MANIFEST_FILE))) })));
+  return Promise.all(folders.map(async ({ name, dir }) => ({ name, dir, ...(await readJsoncFile(path.join(dir, MANIFEST_FILE))) })));
 }
 
 /**
- * One read of the layout file, and of the type folders it may use.
+ * One read of the layout file, of the type folders it may use, and of the app's file beside it.
  * Exported for the tests.
  */
-export async function readLayout(file = defaultLayoutFile, types = typesDir): Promise<LayoutReport> {
-  const [layout, typeReports] = await Promise.all([readJson(file), readTypes(types)]);
-  return { configRoot, file, ...layout, types: typeReports };
+export async function readLayout(file = defaultLayoutFile, types = typesDir, local = defaultLocalLayoutFile): Promise<LayoutReport> {
+  const [layout, typeReports, localRead] = await Promise.all([readJsoncFile(file), readTypes(types), readLocalLayout(local)]);
+  return { configRoot, file, ...layout, types: typeReports, local: localRead };
 }
 
 /**
@@ -120,6 +109,8 @@ export async function readLayout(file = defaultLayoutFile, types = typesDir): Pr
 let lastLayoutLine: string | null = null;
 /** The type folders as the last line said them; '' for none, so an install without any says nothing about them. */
 let lastTypesLine = '';
+/** The app's file beside the layout as the last line said it; '' while it parses. */
+let lastLocalLine = '';
 export function noteLayout(report: LayoutReport): void {
   const line =
     report.status === 'read'
@@ -136,9 +127,15 @@ export function noteLayout(report: LayoutReport): void {
     .map((type) => (type.status === 'read' ? type.name : `${type.name} (${type.status === 'missing' ? `no ${MANIFEST_FILE}` : `${MANIFEST_FILE} does not parse: ${type.error}`})`))
     .join(', ');
   const typesLine = types === '' && lastTypesLine === '' ? '' : `types: ${types || 'none'}`;
-  if (typesLine === lastTypesLine) return;
-  lastTypesLine = typesLine;
-  log(report.types.some((type) => type.status === 'unparsable') ? 'warn' : 'info', 'layout', typesLine);
+  if (typesLine !== lastTypesLine) {
+    lastTypesLine = typesLine;
+    log(report.types.some((type) => type.status === 'unparsable') ? 'warn' : 'info', 'layout', typesLine);
+  }
+  // The app's own file beside it: said only while it does not parse, which is a person's edit the app will not write over.
+  const localLine = report.local.status === 'unparsable' ? `${report.local.file}: does not parse, so this machine's sizes and folds stay as they were and are not saved: ${report.local.error}` : '';
+  if (localLine === lastLocalLine) return;
+  lastLocalLine = localLine;
+  if (localLine !== '') log('warn', 'layout', localLine);
 }
 
 /** A read of the layout file that also notes what it found. */

@@ -1,10 +1,9 @@
 import { ipcMain, type BrowserWindow } from 'electron';
-import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { editAppFile } from './appfiles';
 import { tempOf } from './atomic';
 import { onConfigChange } from './config';
-import { readJsonc } from './jsonc';
+import { readJsoncFile } from './jsonc';
 import { errorText, log } from './log';
 import { getMoved, getSettings as getMetaSettings, markMoved } from './meta';
 import { settingsFile, settingsLocalFile } from './paths';
@@ -23,19 +22,12 @@ const lastGood = new Map<string, unknown>();
 
 async function readSettingsFile(file: string): Promise<SettingsFileRead> {
   const name = path.basename(file);
-  let text: string;
-  try {
-    text = await fs.readFile(file, 'utf8');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return { name, status: 'unparsable', error: errorText(error), json: lastGood.get(file) ?? null };
-    // Gone is a choice, not a mistake: none of its settings count any more.
-    lastGood.delete(file);
-    return { name, status: 'missing', error: null, json: null };
-  }
-  const read = readJsonc(text);
-  if (!read.ok) return { name, status: 'unparsable', error: read.error, json: lastGood.get(file) ?? null };
-  lastGood.set(file, read.json);
-  return { name, status: 'read', error: null, json: read.json };
+  const read = await readJsoncFile(file);
+  if (read.status === 'unparsable') return { name, ...read, json: lastGood.get(file) ?? null };
+  // Gone is a choice, not a mistake: none of its settings count any more.
+  if (read.status === 'missing') lastGood.delete(file);
+  else lastGood.set(file, read.json);
+  return { name, ...read };
 }
 
 /** What the last line said, so only a change is logged. */

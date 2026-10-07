@@ -65,6 +65,9 @@ export const typesDir = path.join(configRoot, 'types');
 
 export const defaultLayoutFile = path.join(layoutsDir, 'default.json');
 
+/** The app's file beside it: this machine's sizes, folds and picks, by node id (layoutstate.ts). */
+export const defaultLocalLayoutFile = path.join(layoutsDir, 'default.local.json');
+
 /** Your settings, which the app reads and never writes. */
 export const settingsFile = path.join(configRoot, 'settings.json');
 

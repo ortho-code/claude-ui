@@ -1,4 +1,6 @@
+import { promises as fs } from 'node:fs';
 import { parse, ParseErrorCode, type ParseError } from 'jsonc-parser';
+import type { ReadStatus } from '../shared/panels';
 
 /**
  * The config folder's one format: JSON with comments and trailing commas (JSONC, the format of VS Code's settings), read here for every file in it.
@@ -54,4 +56,20 @@ export function readJsonc(text: string): { ok: true; json: unknown } | { ok: fal
   const json: unknown = parse(body, errors, { allowTrailingComma: true });
   const first = errors[0];
   return first ? { ok: false, error: wordError(body, first) } : { ok: true, json };
+}
+
+/**
+ * One read of a file in the config folder: never throws, a missing file is `missing` rather than a mistake, and a file that does not parse carries what is wrong and where.
+ * The one read for every file there — the layout, a type's manifest, the settings, the app's own files.
+ */
+export async function readJsoncFile(file: string): Promise<{ status: ReadStatus; error: string | null; json: unknown }> {
+  let text: string;
+  try {
+    text = await fs.readFile(file, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { status: 'missing', error: null, json: null };
+    return { status: 'unparsable', error: (error as Error).message, json: null };
+  }
+  const read = readJsonc(text);
+  return read.ok ? { status: 'read', error: null, json: read.json } : { status: 'unparsable', error: read.error, json: null };
 }

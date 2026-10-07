@@ -43,7 +43,7 @@ interface LayoutNodeBase {
   /**
    * A number is a SHARE of the parent's axis, any positive number; siblings without one share what the shares leave equally.
    * `"320px"` is PIXELS: the node keeps that size when the window resizes, and the shares divide what is left.
-   * Read only while no dragged size is stored for every sibling.
+   * A size dragged to on this machine wins over it (`NodeState`) until a double-click on the divider.
    */
   size?: number | `${number}px`;
   /** In px along the parent's axis; 120 when absent. */
@@ -58,6 +58,11 @@ interface LayoutNodeBase {
    * False when absent; honoured on groups only in this build.
    */
   collapsible?: boolean;
+  /**
+   * Whether a group that can fold starts folded, until it is unfolded.
+   * False when absent.
+   */
+  folded?: boolean;
 }
 
 /**
@@ -75,8 +80,78 @@ export interface Layout {
   root: LayoutNode;
 }
 
+/** A node's size as the file gives it: a share of the parent's axis, or pixels that hold when the window resizes. */
+export type NodeSize = { share: number } | { px: number };
+
+const PX = /^(\d+(?:\.\d+)?)px$/;
+
+/** A positive number is a share, `"<n>px"` is pixels; anything else is not a size: read the same in your layout file, in the app's beside it, and in what the window asks main to write. */
+export function parseSize(value: unknown): NodeSize | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return { share: value };
+  const match = typeof value === 'string' ? PX.exec(value) : null;
+  const px = match ? Number(match[1]) : 0;
+  return px > 0 ? { px } : null;
+}
+
+/** A size as the layout file spells it. */
+export function spelledSize(size: NodeSize): number | `${number}px` {
+  return 'px' in size ? `${size.px}px` : size.share;
+}
+
 /**
- * Where the tree was left, per machine, in `UiState` — never in the layout file, which is what may be shared.
+ * What the app keeps for one node of a layout, in the layout's own field names, in the app's file beside it (`layouts/default.local.json`): this machine's sizes, folds and the panel picked in a group, each winning over the field of that name in your layout file (docs/architecture.md § Panel state).
+ * Every field is one your layout file can carry too, so keeping one for good is moving it there.
+ */
+export interface NodeState {
+  size?: number | `${number}px`;
+  folded?: boolean;
+  active?: string;
+}
+
+export type NodeStateField = keyof NodeState;
+export const NODE_STATE_FIELDS: NodeStateField[] = ['size', 'folded', 'active'];
+
+/** One change the window asks of the app's layout file: a node's field set, or removed with null. */
+export interface NodeStateChange {
+  id: string;
+  field: NodeStateField;
+  value: NodeState[NodeStateField] | null;
+}
+
+/** What is wrong with `value` as a node's `field`, or null when it may be one; checked in the app's file as read and in every change asked of it. */
+export function nodeStateProblem(field: NodeStateField, value: unknown): string | null {
+  if (field === 'size') return parseSize(value) ? null : 'size is not a positive number or a pixel size like "320px".';
+  if (field === 'folded') return typeof value === 'boolean' ? null : 'folded is not true or false.';
+  return typeof value === 'string' && ID_PATTERN.test(value) ? null : 'active is not the id of a panel.';
+}
+
+/** The nodes after `changes`, in order: each field set or removed, and a node left with nothing removed whole, so the file keeps only what is kept. */
+export function withNodeChanges(nodes: Record<string, NodeState>, changes: NodeStateChange[]): Record<string, NodeState> {
+  const next: Record<string, NodeState> = Object.fromEntries(Object.entries(nodes).map(([id, state]) => [id, { ...state }]));
+  for (const { id, field, value } of changes) {
+    const state: Record<string, unknown> = { ...next[id] };
+    if (value === null) delete state[field];
+    else state[field] = value;
+    if (Object.keys(state).length === 0) delete next[id];
+    else next[id] = state;
+  }
+  return next;
+}
+
+/** The app's file beside the layout as main read it, with what the window needs to know about where it came from. */
+export interface LocalLayoutRead {
+  file: string;
+  status: ReadStatus;
+  error: string | null;
+  json: unknown;
+  /** Its text is what the app itself last wrote to it this run, so the window's own state is as new or newer and the read changes nothing it has. */
+  byApp: boolean;
+  /** Whether the tree's state from before the config folder has moved here from `meta.json`; until it has, the window moves it on its first read. */
+  stateMoved: boolean;
+}
+
+/**
+ * Where the tree was left, per machine, in `UiState`: kept there before it moved into the layout's `.local.json` (`NodeState`), and read now only to move it.
  * Everything keys on the file's ids, so an edit that renames a node starts it fresh rather than handing it another node's state.
  */
 export interface PanelState {
@@ -142,6 +217,8 @@ export interface LayoutReport {
   json: unknown;
   /** Every folder under `types/`, by name; empty when there is none. */
   types: TypeReport[];
+  /** The app's file beside the layout, read with it so the window never draws one without the other. */
+  local: LocalLayoutRead;
 }
 
 /** What a `command` panel runs: exactly one of the two, as its options gave it. */

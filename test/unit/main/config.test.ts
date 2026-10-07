@@ -24,7 +24,7 @@ import type { BrowserWindow } from 'electron';
 import { editAppFile } from '../../../src/main/appfiles';
 import { checkPath, noteLayout, readLayout, readTypes, registerConfig, resolvePath } from '../../../src/main/config';
 import { configRoot, defaultLayoutFile, scriptsDir, typesDir } from '../../../src/main/paths';
-import type { TypeReport } from '../../../src/shared/panels';
+import type { LocalLayoutRead, TypeReport } from '../../../src/shared/panels';
 
 const write = (json: unknown): void => writeFileSync(defaultLayoutFile, typeof json === 'string' ? json : JSON.stringify(json));
 
@@ -64,7 +64,7 @@ describe('readLayout', () => {
 
   it('checks nothing a panel’s options point at: that is the panel’s to ask', async () => {
     write({ version: 2, root: { id: 'w', panels: [{ id: 'a', type: 'command', options: { script: 'scripts/missing.sh' } }] } });
-    expect(Object.keys(await readLayout()).sort()).toEqual(['configRoot', 'error', 'file', 'json', 'status', 'types']);
+    expect(Object.keys(await readLayout()).sort()).toEqual(['configRoot', 'error', 'file', 'json', 'local', 'status', 'types']);
   });
 });
 
@@ -165,9 +165,23 @@ describe('checkPath', () => {
 });
 
 describe('noteLayout', () => {
+  const local: LocalLayoutRead = { file: '/cfg/layouts/default.local.json', status: 'missing', error: null, json: null, byApp: false, stateMoved: true };
+
+  it('logs the app’s file beside the layout while it does not parse, once, and nothing once it does', () => {
+    logged.length = 0;
+    const base = { configRoot, file: '/cfg/layouts/default.json', status: 'read' as const, error: null, json: {}, types: [] };
+    const broken = { ...local, status: 'unparsable' as const, error: 'expected a comma at line 2, column 5' };
+    noteLayout({ ...base, local: broken });
+    noteLayout({ ...base, local: broken });
+    noteLayout({ ...base, local });
+    expect(logged.filter((line) => line.includes('default.local.json'))).toEqual([
+      "warn layout /cfg/layouts/default.local.json: does not parse, so this machine's sizes and folds stay as they were and are not saved: expected a comma at line 2, column 5",
+    ]);
+  });
+
   it('logs the layout file only when what a read found changes', () => {
     logged.length = 0;
-    const base = { configRoot, file: '/cfg/layouts/default.json', json: null, types: [] };
+    const base = { configRoot, file: '/cfg/layouts/default.json', json: null, types: [], local };
     noteLayout({ ...base, status: 'missing', error: null });
     noteLayout({ ...base, status: 'missing', error: null });
     noteLayout({ ...base, status: 'unparsable', error: 'Unexpected token } at position 12' });
@@ -182,7 +196,7 @@ describe('noteLayout', () => {
 
   it('logs the type folders when which there are, or whether each could be read, changes', () => {
     logged.length = 0;
-    const base = { configRoot, file: '/cfg/layouts/default.json', status: 'read' as const, error: null, json: {} };
+    const base = { configRoot, file: '/cfg/layouts/default.json', status: 'read' as const, error: null, json: {}, local };
     const type = (name: string, over: Partial<TypeReport> = {}): TypeReport => ({ name, dir: `/cfg/types/${name}`, status: 'read', error: null, json: {}, ...over });
     noteLayout({ ...base, types: [type('reviews')] });
     noteLayout({ ...base, types: [type('reviews', { json: { changed: true } })] });

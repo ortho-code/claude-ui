@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { settingsView, type SettingsFileRead } from '../../../src/shared/settings';
 import { expect, test } from '../support/harness';
-import { CONFIG_ROOT, noSettingsFile, settingsFileWith } from '../support/fixture';
+import { CONFIG_ROOT, noLocalLayout, noSettingsFile, settingsFileWith } from '../support/fixture';
 
 // The launch flags in Settings (docs/architecture.md § The config folder): saved into the app's settings.local.json over your settings.json, with where the value comes from said under the field.
 const yours = (json: unknown): SettingsFileRead => settingsFileWith('settings.json', json);
@@ -100,7 +100,7 @@ test('a settings file that does not parse is toasted from start-up, until a read
 });
 
 test('fixing the layout file leaves up the settings file’s toast that replaced the layout’s', async ({ app, page }) => {
-  const layout = { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, error: null, json: null, types: [] };
+  const layout = { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, error: null, json: null, types: [], local: noLocalLayout() };
   await app.boot({ layout: { ...layout, status: 'unparsable', error: 'expected a value at the end of the file' } });
   await expect(page.locator('#toast-message')).toHaveText('default.json: expected a value at the end of the file');
   await app.emit('onSettingsChanged', settingsView({ name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null }, noApps));

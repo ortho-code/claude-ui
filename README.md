@@ -123,11 +123,24 @@ A node can also have:
 | `min` | The smallest it gets, in pixels; 120 when absent. |
 | `resizable` | `false` fixes its size: the divider beside it cannot be dragged. |
 | `collapsible` | `true` lets a panel group fold to a strip of icons, from the chevron on its divider. |
+| `folded` | `true` starts a group that can fold folded, until you unfold it. |
 | `active` | The panel a group shows first. |
 
-Drag a divider to resize the two nodes beside it, and double-click it to go back to the sizes in the file: once you have dragged a divider, a `size` you change in the file does not move it until you double-click.
+Drag a divider to resize the two nodes beside it, and double-click it to go back to the sizes in the file.
 A panel group that can fold has a faint chevron on its divider, which brightens when you point at the divider.
-The sizes you drag to, the groups you fold and the panel you pick in a group are remembered on this machine, not written to the file.
+The sizes you drag to, the groups you fold and the panel you pick in a group are kept in `layouts/default.local.json` beside your file, which the app writes, by node id, in your file's own field names, and win over yours:
+
+```jsonc
+{
+  "nodes": {
+    "sidebar": { "size": "280px" },
+    "drawer": { "size": 0.25, "folded": true },
+    "right": { "active": "checks" }
+  }
+}
+```
+
+To keep one for good, move its field into your file; a `size` you change in your file counts at once for a node you have not dragged.
 A group with several panels switches between them from a strip of icons on its edge: hovering an icon names the panel, and a dot on it says a command failed or a session is waiting for you.
 Clicking the icon of the panel on show folds a group that can fold, and clicking any icon of a folded group unfolds it on that panel.
 

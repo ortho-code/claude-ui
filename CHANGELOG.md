@@ -16,6 +16,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The app writes only its own files there, whose names end in `.local.json`, never one of yours.
 - A layout that arranges the whole window, from that file: rows and columns of panels with the sidebar and the terminal among them, sized in shares or pixels and resized from dividers, where a double-click puts back the file's sizes.
   A mistake in the file is named where it is instead of dropped, and no file can leave you without the terminal; without a file, the window is as it was.
+  The sizes you drag to, the groups you fold and the panel you pick are kept in `layouts/default.local.json` beside it, in the file's own field names, so keeping one for good is moving it into your file.
 - A `command` panel type: a command line or a script, run in the active tab's folder (or the selected project's) and shown as plain text, run again when you switch project or tab or press Refresh.
   A `cwd` option runs it in a fixed folder instead, whatever is selected, or in a subfolder of the project.
 - A `terminal` panel type: a plain shell in the folder the panel first showed for.
@@ -24,6 +25,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   It takes the same `cwd`; with a fixed one it starts there and has no restart button.
 - Several panels in one group, switched from a strip of icons whose dot says a command failed or a session is waiting for you; a panel out of sight keeps what it was doing and runs again only once shown.
 - Folding a group of panels to its strip of icons, from a chevron on the divider beside it or by clicking the icon of the panel on show.
+  `folded` in the layout file starts a group folded.
 - Clicking a group's name in the tab bar takes the session list to that group, as a project's name already does; either one flashes the heading it lands on.
 - A new, empty group from a project's options; a group used to need a session to start from.
 - A log file, one per launch and day, to send along when something goes wrong: Settings shows its folder with an Open button, and the log of a launch that crashed is kept for longer.

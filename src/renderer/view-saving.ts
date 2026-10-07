@@ -1,13 +1,19 @@
+import type { PanelState } from '../shared/panels';
+import { defaultUi } from '../shared/defaults';
 import type { UiState } from '../shared/types';
-import { restoreTreeState, treeState } from './panels/tree';
+import { holdLegacyState } from './panels/tree';
 import { followListScroll, restoreSidebar, sidebarSnapshot } from './panels/types/sessions/stored-view';
 import { store, type StoredView } from './state/app';
 
 /**
- * THE VIEW THAT SURVIVES A RESTART: the sidebar's part (sessions/stored-view.ts) and the layout tree's, saved together in the one shape `meta.json` keeps, and put back together at start-up.
+ * THE VIEW THAT SURVIVES A RESTART: the sidebar's part (sessions/stored-view.ts), saved in the one shape `meta.json` keeps, and put back at start-up.
  * Search, filters, folds, width and scroll are one answer to one question — put the window back the way it was — so they are snapshotted, stored and restored together rather than as a setting each.
- * renderer.ts wires it: a watcher of the view's slices, the tree's own changes, and the start-up order; the list's scroll it follows itself, from the moment it starts saving.
+ * The layout tree's sizes, folds and picks are not here any more: they are this machine's, in the app's file beside the layout (panels/tree.ts), and what `meta.json` kept of them is handed to the tree to move there once, and written back as it was read, so an older build still finds it.
+ * renderer.ts wires it: a watcher of the view's slices and the start-up order; the list's scroll it follows itself, from the moment it starts saving.
  */
+
+/** The tree's state as `meta.json` held it at start-up, written back unchanged. */
+let heldPanelState: PanelState = defaultUi().panelState;
 
 // Nothing is written until the start-up read has put the stored view back in the store (`startSavingUi`), or a save in between would write an empty sidebar straight over the real one.
 let uiRestored = false;
@@ -22,7 +28,7 @@ function uiSnapshot(view: StoredView = store.get()): UiState {
     ...sidebarSnapshot(view),
     // Adopted into the layout tree's sizes on the first launch that has them, and not written again: the tree owns the sidebar's width now.
     sidebarWidth: null,
-    panelState: treeState(),
+    panelState: heldPanelState,
   };
 }
 
@@ -51,8 +57,9 @@ export function persistUi(): void {
  */
 export async function restoreUiState(): Promise<{ scrollTop: number; view: StoredView }> {
   const state = await window.claudeUi.getUiState();
-  // The sidebar's width lived in localStorage, then in `sidebarWidth`; either is adopted once into the layout tree's sizes, so an existing install keeps its sidebar, and the tree owns it from here.
-  restoreTreeState(state.panelState, state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth')));
+  // The sidebar's width lived in localStorage, then in `sidebarWidth`; either goes with the tree's state into the app's file beside the layout, once, so an existing install keeps its sidebar.
+  heldPanelState = state.panelState;
+  holdLegacyState(state.panelState, state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth')));
   const restored = await restoreSidebar(state);
   // Seed the signature from what was just restored, so an opening render that changed nothing writes nothing.
   lastUiSignature = JSON.stringify(uiSnapshot(restored.view));

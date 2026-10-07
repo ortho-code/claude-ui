@@ -72,6 +72,8 @@ const api: ClaudeUiApi = {
   getLayout: () => ipcRenderer.invoke('config:getLayout'),
   checkPath: (value, base, must) => ipcRenderer.invoke('config:checkPath', value, base, must),
   onLayoutChanged: (callback) => ipcRenderer.on('config:changed', (_event, report: LayoutReport) => callback(report)),
+  setLayoutState: (changes) => ipcRenderer.invoke('config:setLayoutState', changes),
+  moveLayoutState: (nodes) => ipcRenderer.invoke('config:moveLayoutState', nodes),
   runPanel: (request) => ipcRenderer.send('panel:run', request),
   stopPanel: (entryId) => ipcRenderer.send('panel:stop', entryId),
   onPanelRun: (callback) =>

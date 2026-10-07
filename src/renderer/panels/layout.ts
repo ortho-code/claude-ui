@@ -1,4 +1,4 @@
-import { ID_PATTERN, LAYOUT_VERSION, type Layout, type LayoutNode, type LayoutReport, type PanelEntry } from '../../shared/panels';
+import { ID_PATTERN, LAYOUT_VERSION, parseSize, type Layout, type LayoutNode, type LayoutReport, type NodeSize, type PanelEntry } from '../../shared/panels';
 import { ICON_NAMES, isIconName, type IconName } from './icons';
 import type { PanelTypeDecl } from './contract';
 
@@ -31,8 +31,7 @@ export const DEFAULT_LAYOUT: Layout = {
   },
 };
 
-/** A node's size as the file gives it: a share of the parent's axis, or pixels that hold when the window resizes. */
-export type NodeSize = { share: number } | { px: number };
+export { parseSize, type NodeSize };
 
 /** One entry after validation: what to draw in its place. */
 export interface PanelSlot {
@@ -91,6 +90,8 @@ export interface ResolvedGroup extends NodeCommon {
   /** The key of the slot shown until the user picks one: the file's `active`, else the first slot not hidden; null when every slot is hidden. */
   active: string | null;
   collapsible: boolean;
+  /** Whether the group starts folded to its rail, until it is unfolded: the file's `folded`, on a group that may fold. */
+  folded: boolean;
   /** One slot on show and its type carries its own chrome, so the group draws no header. */
   bare: boolean;
   /**
@@ -111,16 +112,6 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isPositive = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0;
-
-const PX = /^(\d+(?:\.\d+)?)px$/;
-
-/** A positive number is a share, `"<n>px"` is pixels; anything else is not a size. */
-export function parseSize(value: unknown): NodeSize | null {
-  if (isPositive(value)) return { share: value };
-  const match = typeof value === 'string' ? PX.exec(value) : null;
-  const px = match ? Number(match[1]) : 0;
-  return px > 0 ? { px } : null;
-}
 
 export const shareOf = (node: { size: NodeSize | null }): number | null => (node.size && 'share' in node.size ? node.size.share : null);
 export const pxOf = (node: { size: NodeSize | null }): number | null => (node.size && 'px' in node.size ? node.size.px : null);
@@ -270,7 +261,7 @@ export function fileName(path: string): string {
   return path.split('/').at(-1) ?? path;
 }
 
-const NODE_FIELDS = new Set(['id', 'size', 'min', 'resizable', 'collapsible', 'active', 'rows', 'columns', 'panels']);
+const NODE_FIELDS = new Set(['id', 'size', 'min', 'resizable', 'collapsible', 'folded', 'active', 'rows', 'columns', 'panels']);
 const SHAPES = ['rows', 'columns', 'panels'] as const;
 const LAYOUT_FIELDS = new Set(['version', 'root']);
 
@@ -309,7 +300,7 @@ class Resolver {
     if (raw.size !== undefined && !size) problems.push('size is not a positive number or a pixel size like "320px".');
     if (raw.min !== undefined && !isPositive(raw.min)) problems.push('min is not a positive number of pixels.');
     if (size && 'px' in size && size.px < min) notes.push(`size ${size.px}px is below min ${min}, so the node starts at ${min}px.`);
-    for (const flag of ['resizable', 'collapsible'] as const) {
+    for (const flag of ['resizable', 'collapsible', 'folded'] as const) {
       if (raw[flag] !== undefined && typeof raw[flag] !== 'boolean') problems.push(`${flag} is not true or false.`);
     }
     if (raw.active !== undefined) {
@@ -322,19 +313,22 @@ class Resolver {
         else if ((target as Record<string, unknown>).hidden === true) problems.push(`active "${raw.active}" is hidden.`);
       }
     }
-    if (shape !== 'panels' && raw.collapsible !== undefined) notes.push('collapsible is not honoured on rows or columns yet; only a group folds.');
+    for (const flag of ['collapsible', 'folded'] as const) {
+      if (shape !== 'panels' && raw[flag] !== undefined) notes.push(`${flag} is not honoured on rows or columns yet; only a group folds.`);
+    }
+    if (shape === 'panels' && raw.folded === true && raw.collapsible !== true) notes.push('folded is ignored on a group that cannot fold; add "collapsible": true to start it folded.');
 
     if (problems.length > 0 || !shape || !Array.isArray(list)) return degraded(id, named, problems, raw);
 
     const common = { id, size, min, resizable: raw.resizable !== false, notes };
-    if (shape === 'panels') return this.group(common, named, list, typeof raw.active === 'string' ? raw.active : null, raw.collapsible === true);
+    if (shape === 'panels') return this.group(common, named, list, typeof raw.active === 'string' ? raw.active : null, raw.collapsible === true, raw.collapsible === true && raw.folded === true);
 
     const word = shape === 'rows' ? 'row' : 'column';
     const children = list.map((child, index) => this.node(child, `${key}.${index}`, `${word} ${index + 1} of ${named}`));
     return { kind: 'split', axis: shape, children, ...common };
   }
 
-  private group(common: NodeCommon, title: string, entries: unknown[], active: string | null, collapsible: boolean): ResolvedGroup {
+  private group(common: NodeCommon, title: string, entries: unknown[], active: string | null, collapsible: boolean, folded: boolean): ResolvedGroup {
     const slots = entries.map((raw, index) => validateEntry(raw, index, this.types, this.seen, `${common.id}/${index}`));
     for (const slot of slots) {
       const type = slot.type ? this.types[slot.type] : null;
@@ -360,6 +354,7 @@ class Resolver {
       slots,
       active: active ?? shown[0]?.key ?? null,
       collapsible,
+      folded,
       bare: only !== null && only.problems.length === 0 && this.types[only.type!]?.bare === true,
       problems: [],
     };
@@ -382,6 +377,7 @@ function degraded(id: string, title: string, problems: string[], raw: Record<str
     slots: [],
     active: null,
     collapsible: false,
+    folded: false,
     bare: false,
     problems,
   };
@@ -436,6 +432,7 @@ function addSingleton(root: ResolvedNode, type: PanelTypeDecl): ResolvedNode {
     slots: [{ key: `@${entry.id}`, type: type.name, title, problems: [], notes: [], entry, hidden: false, icon: type.icon }],
     active: `@${entry.id}`,
     collapsible: home?.node.collapsible === true,
+    folded: home?.node.collapsible === true && home.node.folded === true,
     bare: type.bare === true,
     problems: [],
   };

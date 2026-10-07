@@ -1,6 +1,6 @@
 import { PROJECT } from '../../support/fixture';
 import { expect, test } from '../../support/harness';
-import { LAYOUT, railItem, runs, savedPanels, there, withLayout, withState } from './layout';
+import { keptChanges, LAYOUT, railItem, runs, there, withLayout } from './layout';
 
 test('the rail shows one panel of a group at a time and runs only the one on show, once', async ({ app, page }) => {
   await app.boot(withLayout(LAYOUT));
@@ -11,7 +11,7 @@ test('the rail shows one panel of a group at a time and runs only the one on sho
   await railItem(page, /^Checks/).click();
   await expect.poll(() => runs(app, 'checks')).toHaveLength(1);
   expect(await runs(app, 'status')).toHaveLength(1);
-  await expect.poll(async () => (await savedPanels(app))?.active.right).toBe('checks');
+  await expect.poll(() => keptChanges(app)).toEqual([{ id: 'right', field: 'active', value: 'checks' }]);
 });
 
 test('a command that failed keeps its dot on the rail after you switch away from it', async ({ app, page }) => {
@@ -28,7 +28,7 @@ test('a command that failed keeps its dot on the rail after you switch away from
 });
 
 test("the folded sidebar's icon carries the waiting dot while a session waits, and loses it when that session moves on", async ({ app, page }) => {
-  await app.boot({ ...withLayout(LAYOUT), ...withState({ collapsed: ['sidebar'] }) });
+  await app.boot(withLayout(LAYOUT, { sidebar: { folded: true } }));
   const sessions = railItem(page, /^Sessions/);
   await expect(sessions).toBeVisible();
   await expect(sessions.locator('.nudge.waiting')).toBeHidden();
@@ -41,7 +41,7 @@ test("the folded sidebar's icon carries the waiting dot while a session waits, a
 });
 
 test("the folded sidebar's waiting dot outlasts a layout change that remounts its entry", async ({ app, page }) => {
-  await app.boot({ ...withLayout(LAYOUT), ...withState({ collapsed: ['sidebar'] }) });
+  await app.boot(withLayout(LAYOUT, { sidebar: { folded: true } }));
   const sessions = railItem(page, /^Sessions/);
   expect(await app.emit('onSessionStatus', there.id, 'waiting', '')).toBe(1);
   await expect(sessions.locator('.nudge.waiting')).toBeVisible();
@@ -50,7 +50,8 @@ test("the folded sidebar's waiting dot outlasts a layout change that remounts it
   await sessions.locator('.nudge').evaluate((dot) => dot.setAttribute('data-before', ''));
   const edited = structuredClone(LAYOUT);
   edited.root.columns[0].panels = [{ id: 'sidebar-panel', type: 'sessions' }];
-  expect(await app.emit('onLayoutChanged', withLayout(edited).layout)).toBe(1);
+  // The app's file still holds the fold, as it would on disk; only the layout file was edited.
+  expect(await app.emit('onLayoutChanged', withLayout(edited, { sidebar: { folded: true } }).layout)).toBe(1);
   await expect(sessions.locator('.nudge:not([data-before])')).toHaveCount(1);
   await expect(sessions.locator('.nudge.waiting')).toBeVisible();
 });

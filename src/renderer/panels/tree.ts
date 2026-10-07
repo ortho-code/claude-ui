@@ -1,4 +1,6 @@
-import type { LayoutReport, PanelState } from '../../shared/panels';
+import { keptOver } from '../../shared/kept';
+import { NODE_STATE_FIELDS, parseSize, spelledSize, withNodeChanges, type LayoutReport, type NodeSize, type NodeState, type NodeStateChange, type PanelState } from '../../shared/panels';
+import { idsIn, readNodeState, stateFromPanelState } from './nodestate';
 import { element } from '../dom';
 import { installSplitResizer } from '../resizer';
 import { badgeClass } from '../statusdot';
@@ -10,7 +12,6 @@ import { setTooltip } from '../tooltip';
 import { iconSvg } from './icons';
 import { optionsOf } from './options';
 import {
-  DEFAULT_LAYOUT,
   fileName,
   foldEdge,
   isEmpty,
@@ -21,7 +22,7 @@ import {
   type ResolvedNode,
   type ResolvedSplit,
 } from './layout';
-import { dragTo, flexFor, keptSizes, snapshot, type FlexChild } from './sizes';
+import { dragTargets, flexFor, sizesAfterDrag, withOverrides, type FlexChild } from './sizes';
 import { claudeType } from './types/claude';
 import { sessionsType } from './types/sessions';
 import { folderTypes } from './types/folder';
@@ -48,7 +49,8 @@ const BUILTIN_TYPES: Record<string, PanelType> = { sessions: sessionsType, claud
 let types = BUILTIN_TYPES;
 
 /**
- * What the tree needs from the renderer: where a panel would run, the toast, the view-state write, and the answers to every ask a panel can make (`Asks`), which each panel's host carries as they are.
+ * What the tree needs from the renderer: where a panel would run, the toast, and the answers to every ask a panel can make (`Asks`), which each panel's host carries as they are.
+ * Its own state it keeps itself, in the app's file beside the layout (`keep`).
  * A panel's session links are the tree's own (links.ts).
  */
 export interface TreeHost {
@@ -56,7 +58,6 @@ export interface TreeHost {
   showToast(message: string, sticky?: boolean): void;
   /** Take down the toast `message`, if it is still the one up. */
   hideToast(message: string): void;
-  persist(): void;
   /** One route for every panel, the built-ins included: a panel's ask IS the answer of the built-in that owns it. */
   asks: Asks;
 }
@@ -97,21 +98,27 @@ const REFRESH_ICON = strokeIcon(14, '<path d="M12.8 8.6A4.8 4.8 0 1 1 11.6 4.5" 
 
 let host: TreeHost;
 let app: HTMLElement;
-/**
- * The last report read, whatever it said: the config folder's path is right in every one.
- * Null until the first read.
- */
-let report: LayoutReport | null = null;
 /** The tree on screen: the last good read, or the default layout until there is one. */
 let tree: ResolvedNode;
 const mounted = new Map<string, Mounted>();
 /** The keys of the panels the last render put on show, as opposed to mounted behind another or folded away. */
 let onShow = new Set<string>();
-let sizes: PanelState['sizes'] = {};
-/** Groups folded to their rail, by id. */
-let collapsed = new Set<string>();
-/** The panel picked in each group, by group id; the file's `active` until one is. */
-let active: PanelState['active'] = {};
+/**
+ * This machine's sizes, folds and picks, by node id, as the app's file beside the layout keeps them (nodestate.ts), each over the field of that name in the layout file.
+ * What the window changes it changes here at once and has main keep there (`keep`); a read of that file replaces it only when somebody other than the app wrote it.
+ */
+let nodeState: Record<string, NodeState> = {};
+/** What is wrong with that file: under the node a note is about, and for the file as a whole under the window. */
+let stateNotes: Record<string, string[]> = {};
+let stateFileNotes: string[] = [];
+/** Whether a read of that file has been taken in, which is when an id it holds can be judged against the layout. */
+let stateRead = false;
+/** The tree's state from before, as `meta.json` kept it, until the first read moves it into that file. */
+let legacy: { state: PanelState; sidebarWidth: number | null } | null = null;
+/** The splits whose sizes from that file are set aside, so the log says so once per change rather than at every draw. */
+let setAside = new Set<string>();
+/** The toast that file put up while it does not parse, so a good read takes down that one and never another. */
+let stateToasted: string | null = null;
 /** Whether panels may be shown, which is when they first run. */
 let live = false;
 /** The toast the tree last put up, so a good read takes down that one and never anybody else's. */
@@ -132,7 +139,10 @@ function queueRender(): void {
 export function initTree(treeHost: TreeHost): void {
   host = treeHost;
   app = document.getElementById('app')!;
-  const view = resolveLayout({ configRoot: '', file: '', status: 'missing', error: null, json: null, types: [] }, types);
+  const view = resolveLayout(
+    { configRoot: '', file: '', status: 'missing', error: null, json: null, types: [], local: { file: '', status: 'missing', error: null, json: null, byApp: false, stateMoved: true } },
+    types,
+  );
   if (view.kind === 'tree') tree = view.root;
   render();
   window.claudeUi.onLayoutChanged((next) => apply(next));
@@ -172,34 +182,80 @@ export function treeSessionsChanged(): void {
   });
 }
 
-export function treeState(): PanelState {
-  return { sizes, collapsed: [...collapsed], active: { ...active } };
+/**
+ * The tree's state as `meta.json` kept it before the config folder, held until the first read of the layout moves it into the app's file beside it, once (`takeState`).
+ * `legacySidebarWidth` is the sidebar's width from before the sidebar was a node in the tree, which goes the same way (`stateFromPanelState`).
+ */
+export function holdLegacyState(state: PanelState, legacySidebarWidth: number | null): void {
+  legacy = { state, sidebarWidth: legacySidebarWidth };
 }
 
 /**
- * Put the tree's state back as it was left.
- * `legacySidebarWidth` is the sidebar's width from before the sidebar was a node in the tree: adopted ONCE into the default layout's root split when that split has no sizes yet, so an existing install keeps its sidebar, and never again.
+ * Take in a read of the app's file beside the layout: a toast while it does not parse, and its state in place of the window's unless the app itself wrote what it holds, since the window's own is then as new or newer.
+ * The first read also moves the state `meta.json` kept, if it has not moved yet, worked out against `root` since only the tree knows which node is which; main makes the move once and not over a file that already holds something.
  */
-export function restoreTreeState(state: PanelState, legacySidebarWidth: number | null): void {
-  sizes = { ...state.sizes };
-  collapsed = new Set(state.collapsed);
-  active = { ...state.active };
-  const root = DEFAULT_LAYOUT.root;
-  if (!sizes[root.id] && 'columns' in root) {
-    const sidebar = root.columns[0]!;
-    const main = root.columns[1]!;
-    // A width the sidebar could not have been dragged to is damage, not a preference.
-    const width = legacySidebarWidth ?? 0;
-    const usable = width >= (sidebar.min ?? 0) && width < window.innerWidth;
-    // The terminal's px only weigh it against nothing, as the one child without a pixel size; the rest of the window is the honest number.
-    if (usable) sizes[root.id] = { [sidebar.id]: width, [main.id]: window.innerWidth - width };
+function takeState(local: LayoutReport['local'], root: ResolvedNode): void {
+  const message = local.status === 'unparsable' ? `${fileName(local.file)}: ${local.error ?? 'it could not be read'}` : null;
+  if (message !== stateToasted) {
+    if (stateToasted !== null) host.hideToast(stateToasted);
+    if (message !== null) host.showToast(message, true);
+    stateToasted = message;
   }
-  render();
+  // The window's state stands while the file does not parse; the app will not write over it either (appfiles.ts).
+  if (local.status === 'unparsable') return;
+  if (local.byApp && stateRead) return;
+  const read = readNodeState(local.json, fileName(local.file));
+  nodeState = read.state;
+  stateNotes = read.notes;
+  stateFileNotes = read.fileNotes;
+  stateRead = true;
+  if (local.stateMoved) {
+    legacy = null;
+    return;
+  }
+  const moved = legacy ? stateFromPanelState(root, legacy.state, legacy.sidebarWidth, window.innerWidth) : {};
+  legacy = null;
+  if (Object.keys(nodeState).length === 0) nodeState = moved;
+  void window.claudeUi.moveLayoutState(moved).then(({ refused }) => {
+    if (refused !== null) host.showToast(refused);
+  });
+}
+
+/**
+ * Keep what the window changed: in its own state at once, and in the app's file beside the layout through main.
+ * An id the layout no longer has is dropped on the way, since what was kept for it is only a size, a fold or a pick (decision 4.3); judged only once the file has been read, never against the default layout drawn before it.
+ */
+function keep(changes: NodeStateChange[]): void {
+  const ids = idsIn(tree);
+  const stale = stateRead ? Object.entries(nodeState).flatMap(([id, state]) => (ids.has(id) ? [] : NODE_STATE_FIELDS.filter((field) => state[field] !== undefined).map((field) => ({ id, field, value: null })))) : [];
+  const all = [...stale, ...changes];
+  nodeState = withNodeChanges(nodeState, all);
+  void window.claudeUi.setLayoutState(all).then(({ refused }) => {
+    if (refused !== null) host.showToast(refused);
+  });
+}
+
+/** A group's fold as it stands: the window's, else the file's. */
+const foldedNow = (group: ResolvedGroup): boolean => nodeState[group.id]?.folded ?? group.folded;
+
+/**
+ * A split's children's sizes as they stand, the app's over the file's, unless the guard sets the app's aside (`withOverrides`), which the log says once per change.
+ * `dragging` holds the sizes of a drag under way, over both.
+ */
+function sizesOf(split: ResolvedSplit, visible: ResolvedNode[], dragging: Record<string, NodeSize> = {}): (NodeSize | null)[] {
+  const overrides = Object.fromEntries(split.children.map((child) => [child.id, dragging[child.id] ?? parseSize(nodeState[child.id]?.size) ?? undefined]));
+  const { sizes, dropped } = withOverrides(split.children, overrides);
+  if (dropped !== setAside.has(split.id)) {
+    setAside = new Set(setAside);
+    if (dropped) {
+      setAside.add(split.id);
+      window.claudeUi.log('info', 'layout', `the sizes dragged to in ${split.id} would leave a child without a size no room, so the file's sizes are shown`);
+    } else setAside.delete(split.id);
+  }
+  return visible.map((child) => sizes[split.children.indexOf(child)]!);
 }
 
 function apply(next: LayoutReport): void {
-  // Kept whatever the read found: the folder's path is right in every report, and the settings dialog asks for it.
-  report = next;
   const found = folderTypes(next.types, BUILTIN_TYPES);
   const view = resolveLayout(next, found.types, found.notes);
   // A file that does not parse keeps the last good layout up: the message names the file and the parser's position, and stays until a read succeeds, because the condition does not clear on its own.
@@ -215,6 +271,7 @@ function apply(next: LayoutReport): void {
   // Taken with the tree it was resolved against, never apart from it, so a layout kept up over a bad read keeps the types it was drawn with.
   types = found.types;
   tree = view.root;
+  takeState(next.local, tree);
   render();
   // Something in the config folder changed, which may be a file or folder a panel's options point at: every panel checks again, in its own terms.
   for (const { panel } of mounted.values()) panel.recheck();
@@ -233,7 +290,14 @@ function render(): void {
   const focused = document.activeElement;
   const scrolled = scrollOffsets();
   onShow = new Set();
-  app.replaceChildren(renderNode(tree, { axis: null, edge: 'start', folded: false, toggleFold: null }));
+  const root = renderNode(tree, { axis: null, edge: 'start', folded: false, toggleFold: null });
+  // What is wrong with the app's file as a whole, under the window, as a file-wide problem of the layout's is.
+  if (stateFileNotes.length === 0) app.replaceChildren(root);
+  else {
+    const wrap = element('div', 'split-wrap');
+    wrap.append(root, notesLine(stateFileNotes));
+    app.replaceChildren(wrap);
+  }
   for (const [el, top, left] of scrolled) {
     el.scrollTop = top;
     el.scrollLeft = left;
@@ -284,7 +348,7 @@ const foldable = (node: ResolvedNode): node is ResolvedGroup => node.kind === 'g
 function renderSplit(split: ResolvedSplit): HTMLElement {
   const visible = split.children.filter((child) => !isEmpty(child));
   const edges = visible.map((_, index) => foldEdge(visible, index));
-  const folded = visible.map((child) => foldable(child) && collapsed.has(child.id));
+  const folded = visible.map((child) => foldable(child) && foldedNow(child));
   const box = element('div', `split ${split.axis}`);
   const nodes: HTMLElement[] = [];
   // One fold per child that has a divider to fold from, behind both its chevron and its rail, so the two cannot fold it differently.
@@ -297,26 +361,21 @@ function renderSplit(split: ResolvedSplit): HTMLElement {
     box.append(node);
   });
   applyFlex(split, visible, nodes, folded);
-  if (split.notes.length === 0) return box;
+  const notes = [...split.notes, ...(stateNotes[split.id] ?? [])];
+  if (notes.length === 0) return box;
   const wrap = element('div', 'split-wrap');
-  wrap.append(box, notesLine(split.notes));
+  wrap.append(box, notesLine(notes));
   return wrap;
 }
 
-function flexChildren(visible: ResolvedNode[], folded: boolean[]): FlexChild[] {
-  return visible.map((child, index) => ({ id: child.id, size: child.size, min: child.min, folded: folded[index]! }));
+function flexChildren(visible: ResolvedNode[], folded: boolean[], sizes: (NodeSize | null)[]): FlexChild[] {
+  return visible.map((child, index) => ({ id: child.id, size: sizes[index]!, min: child.min, folded: folded[index]! }));
 }
 
-/** Size a split's children from the file and the dragged sizes (panels/sizes.ts decides; this applies). */
-function applyFlex(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], folded: boolean[]): void {
-  const stored = keptSizes(sizes[split.id], visible.map((child) => child.id));
-  // Dropped whole once its children changed — but only against a tree read from the file: the default layout drawn before the first read would otherwise wipe the sizes of the file's own splits at every start.
-  if (report && !stored && sizes[split.id]) {
-    delete sizes[split.id];
-    host.persist();
-  }
+/** Size a split's children from the file and the app's sizes over it, a drag under way over both (panels/sizes.ts decides; this applies). */
+function applyFlex(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], folded: boolean[], dragging?: Record<string, NodeSize>): void {
   const horizontal = split.axis === 'columns';
-  flexFor(flexChildren(visible, folded), stored).forEach((value, index) => {
+  flexFor(flexChildren(visible, folded, sizesOf(split, visible, dragging))).forEach((value, index) => {
     const style = nodes[index]!.style;
     style.flex = value.flex;
     style.minWidth = horizontal && value.min !== null ? `${value.min}px` : '';
@@ -334,7 +393,7 @@ function measure(nodes: HTMLElement[], horizontal: boolean): number[] {
 /**
  * The divider between two neighbours.
  * Always there; draggable only when both are resizable and neither is folded, and one that is not says why on hover, so it does not read as broken (P11).
- * A double-click on one that drags drops its split's dragged sizes, whichever divider made them, since a split's sizes are kept or dropped whole.
+ * A drag keeps the sizes it ends on, each in its node's own unit (`sizesAfterDrag`), once the button comes up; a double-click on a divider of the split takes every size kept for its children away, which is the file's sizes back.
  */
 function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], toggles: Place['toggleFold'][], a: number, b: number): HTMLElement {
   const handle = element('div', 'divider');
@@ -351,25 +410,32 @@ function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLEleme
   }
   handle.classList.add('drag');
   setTooltip(handle, 'Drag to resize, double-click to reset');
-  // Back to the file's sizes: a split somebody has dragged does not read its children's `size` again, so without this an edit to the file would not move it.
   handle.addEventListener('dblclick', (event) => {
-    if ((event.target instanceof Element && event.target.closest('button')) || !sizes[split.id]) return;
-    delete sizes[split.id];
-    host.persist();
+    if (event.target instanceof Element && event.target.closest('button')) return;
+    const kept = split.children.filter((child) => nodeState[child.id]?.size !== undefined);
+    if (kept.length === 0) return;
+    keep(kept.map((child) => ({ id: child.id, field: 'size', value: null })));
     render();
   });
   const horizontal = split.axis === 'columns';
   let measured: number[] = [];
+  let start: FlexChild[] = [];
+  let dragged: Record<string, NodeSize> | null = null;
   installSplitResizer(handle, {
     axis: horizontal ? 'x' : 'y',
     onStart: () => {
       measured = measure(nodes, horizontal);
+      start = flexChildren(visible, folded, sizesOf(split, visible));
+      dragged = null;
     },
     onMove: (delta) => {
-      sizes[split.id] = dragTo(flexChildren(visible, folded), measured, a, b, delta, sizes[split.id]);
-      applyFlex(split, visible, nodes, folded);
+      dragged = sizesAfterDrag(start, measured, dragTargets(start, measured, a, b, delta), a, b);
+      applyFlex(split, visible, nodes, folded, dragged);
     },
-    onEnd: () => host.persist(),
+    onEnd: () => {
+      if (dragged) keep(Object.entries(dragged).map(([id, size]) => ({ id, field: 'size', value: spelledSize(size) })));
+      dragged = null;
+    },
   });
   return handle;
 }
@@ -400,16 +466,13 @@ function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: Resolv
   }
 }
 
-/** Fold a group to its rail, or unfold it: the one fold, behind the chevron and the rail alike. */
-function toggleFold(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], folded: boolean[], index: number): void {
-  const group = visible[index]!;
-  if (folded[index]) collapsed.delete(group.id);
-  else {
-    // Every sibling's size now, the group's own included, so it unfolds to the size it had and nothing else moves when it does.
-    sizes[split.id] = snapshot(flexChildren(visible, folded), measure(nodes, split.axis === 'columns'), sizes[split.id]);
-    collapsed.add(group.id);
-  }
-  host.persist();
+/**
+ * Fold a group to its rail, or unfold it: the one fold, behind the chevron and the rail alike.
+ * A child's size is its own, kept per node, so it unfolds to the size it had with nothing to take beforehand.
+ */
+function toggleFold(_split: ResolvedSplit, visible: ResolvedNode[], _nodes: HTMLElement[], folded: boolean[], index: number): void {
+  const group = visible[index] as ResolvedGroup;
+  keep([{ id: group.id, field: 'folded', value: keptOver(!folded[index], group.folded) }]);
   render();
 }
 
@@ -418,7 +481,7 @@ function toggleFold(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLEl
  * Every slot is reachable from the rail, so nothing — the terminal included — can be stranded behind another.
  */
 function shownSlot(group: ResolvedGroup, slots: PanelSlot[]): PanelSlot {
-  return slots.find((slot) => slot.key === active[group.id]) ?? slots.find((slot) => slot.key === group.active) ?? slots[0]!;
+  return slots.find((slot) => slot.key === nodeState[group.id]?.active) ?? slots.find((slot) => slot.key === group.active) ?? slots[0]!;
 }
 
 function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
@@ -449,7 +512,7 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   }
   // Shown even while it says it cannot run, so a check that passes later runs it where it stands.
   if (!place.folded && shown.problems.length === 0) onShow.add(shown.key);
-  const notes = [...group.notes, ...slots.flatMap((slot) => [...slot.notes, ...(mounted.get(slot.key)?.notes ?? [])])];
+  const notes = [...group.notes, ...(stateNotes[group.id] ?? []), ...slots.flatMap((slot) => [...slot.notes, ...(mounted.get(slot.key)?.notes ?? [])])];
   if (notes.length > 0) content.append(notesLine(notes));
 
   const rail = switcher(group, slots, shown, place);
@@ -498,9 +561,10 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
         place.toggleFold?.();
         return;
       }
-      active[group.id] = slot.key;
-      collapsed.delete(group.id);
-      host.persist();
+      keep([
+        { id: group.id, field: 'active', value: keptOver(slot.key, group.active) },
+        ...(foldedNow(group) ? [{ id: group.id, field: 'folded' as const, value: keptOver(false, group.folded) }] : []),
+      ]);
       render();
     });
     rail.append(item);

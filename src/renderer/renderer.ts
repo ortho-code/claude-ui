@@ -98,7 +98,6 @@ initTree({
   where: () => whereOf(store.get()),
   showToast,
   hideToast,
-  persist: persistUi,
   // The asks each panel can make, answered by the terminal area and by the sidebar.
   asks: { ...claudeAnswers, ...sessionsAnswers },
 });

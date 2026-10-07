@@ -534,6 +534,7 @@ Where the app's value wins over the person's, Settings shows theirs under the fi
 A mistake in either file is named in Settings, under the setting it concerns or, for the file as a whole, under the section; the log says what is wrong without a flag's value; and a file that does not parse keeps what it last read in force, as the layout file does, and is toasted until it parses.
 Both files are read afresh whenever asked for, a session's start included, so an edit counts from the next session on.
 The launch flags were kept in `meta.json` before; the first launch that has the folder moves them into `settings.local.json`, once.
+The layout's sizes, folds and picks are the other pair, in `layouts/default.local.json` beside the layout (see Panel state).
 
 A command in a hand-edited file is the user's own, and a trust step arrives with the first thing that lets a command reach a file by another route than their editor, such as an editor in the app.
 A type folder a colleague shared was decided (2026-09-29) to need none: it runs as you, the way a script in `scripts/` does, and what makes that acceptable is that a type can do nothing beyond running its script without being pressed (see Types from the config folder).
@@ -616,8 +617,11 @@ A pixel node keeps its size when the window resizes, and the shares divide what 
 When the shares leave nothing, each unsized child is weighted as their average, with a note — a built-in the validator adds lands here, and a terminal squeezed down to its `min` would be no window at all.
 In a narrow window a pixel node gives way once the others are down to their `min`, rather than the window's edge being cut off.
 
-ONE UNIT FOR EVERYTHING: a share is a flex weight, and a dragged size is stored in px and used as that same weight, so a drag and the file's proportions mix without conversion, and a window resize redistributes by weight with no code at all.
-A split's dragged sizes are honoured only while they name every one of its children, and dropped whole when its children change, so a file edit that adds or removes a child falls back to the file's sizes rather than keeping half of each.
+A share is a flex weight, and a size dragged to is kept PER NODE IN ITS OWN UNIT, over the file's: a pixel node's as pixels, a share's — or a node's without a size — as a share, so a share keeps scaling when the window resizes, the fold edges (`foldEdge`), which read pixels against flexible, never move, and keeping one for good is copying the field into the file.
+A drag writes the two nodes beside the divider when that alone puts every flexible child where the drag left it, and every flexible child on show when it does not, which is when a share given to a node without one would change what its unsized siblings get; a lone flexible child takes what is left and is never written (`sizesAfterDrag`).
+Each written share is the child's weight per px of the room it shared before the drag times what it measures now, so the sum holds and a sibling the drag did not touch keeps its place; a sweep over every mix of sizes, both dividers and widths up to 3,440 px checks every drag is reproduced within half a pixel, and shares are written to four places, which stays within that.
+Kept per node, a size survives a sibling the file adds or removes, which takes what the file gives it; the one case that would go wrong — shares written for nodes without one, then a sibling added without one, which would find no share left — is guarded: the app's sizes never make your layout wrong, so where they would raise the note the file alone does not, that split shows the file's sizes, and the log says so (`withOverrides`).
+This reverses the first layout plan's rule that a split's dragged sizes were kept or dropped whole, deliberately: whole, a size written into the app's file by hand did nothing unless every sibling had one.
 The arithmetic lives in `src/renderer/panels/sizes.ts`, pure and tested; `tree.ts` only measures and applies.
 
 ### Dividers and folding
@@ -639,8 +643,9 @@ They first sat one on each side of the line, which put one of them on the header
 The edge is worked out from the file's sizes rather than from which siblings happen to be folded, so a chevron never moves when a neighbour folds (`foldEdge` in layout.ts, tested).
 
 A folded group is its rail, 28px along its parent's axis.
-Folding first stores every sibling's measured size, the folded group's own included, so it unfolds to the size it had and nothing else moves when it does.
-Only panel groups fold; `collapsible` on rows or columns is named as not honoured yet.
+Its size is its own, kept per node, so it unfolds to the size it had with nothing to take beforehand.
+`folded: true` on a group that may fold starts it folded, until it is unfolded; on one that may not, it is a note saying to add `collapsible`.
+Only panel groups fold; `collapsible` and `folded` on rows or columns are named as not honoured yet.
 
 ### Several panels in a group
 
@@ -851,10 +856,16 @@ A check that fails forgets nothing.
 
 ### Panel state
 
-Where the tree was left lives in `UiState.panelState`, per machine, and never in the layout file, which is what may be shared: the dragged sizes per split and child, the folded groups, and the panel picked in each group, all keyed by the file's ids.
-So an edit that renames a node starts it fresh rather than handing it another node's state.
-Only what the user did is stored: the file's `size` is read while a split has no dragged sizes, so changing it still moves a split nobody has dragged.
-A split somebody has dragged goes back to the file's sizes on a double-click on any of its dividers that drags, which drops its dragged sizes whole; without it the only way back was an edit that changes the split's children.
+Where the tree was left lives in the app's file beside the layout, `layouts/default.local.json`, and never in the layout file itself: the sizes dragged to, the folds and the panel picked in each group, per node id, in the layout's own field names (`{ "nodes": { "drawer": { "size": 0.25, "folded": true } } }`), each winning over the field of that name in your file.
+It is the layout's half of the pair the settings make (see The config folder), for the same reasons, and every field in it is one your file can carry, so keeping one for good is moving it there.
+It keys on the file's ids, so an edit that renames a node starts it fresh rather than handing it another node's state.
+Only what differs from your file is kept: a fold back to what the file says, or a pick of the file's `active`, takes the app's away rather than copying it (`keptOver`), and a size you change in the file counts at once for a node you have not dragged.
+A double-click on a divider that drags takes every size kept for that split's children away, which is the file's sizes back.
+The window changes its own state at once and asks main to keep it (`setLayoutState`, `src/main/layoutstate.ts`), which checks every change by the rules the window reads the file by (`nodeStateProblem`, `withNodeChanges` in `src/shared/panels.ts`); an id the layout no longer has is dropped at the next change, since what was kept for it is only a size, a fold or a pick.
+Main reads the file with the layout, in turn with the writes to it, and says whether its text is what the app itself last wrote: if it is, the window's own state is as new or newer and stands; if a person wrote it, the window takes it in.
+A mistake in it is named under the node it is about, or under the window for the file as a whole; one that does not parse is toasted, the window keeps what it has, and nothing is written over it.
+Before the config folder this state was kept in `meta.json` as `UiState.panelState`; the first read moves it, once, worked out by the window against the tree since only it knows which node is which (`stateFromPanelState`), and `moved` in `meta.json` records it so a reset does not bring it back.
+A split's dragged px become pixels for a pixel child and shares of what they shared for the rest, which shows the same, and the sidebar's width from before it was a node goes the same way.
 
 ## The window's own chrome — built, and currently switched off
 

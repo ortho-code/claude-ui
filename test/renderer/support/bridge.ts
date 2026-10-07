@@ -1,6 +1,6 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
-import { withLink } from '../../../src/shared/panels';
+import { nodeStateProblem, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { purgedSession, togglePinned, toggleArchived } from '../../../src/shared/sessionmarks';
 import { appFileChanges, SETTING_KEYS, settingProblem, settingsView } from '../../../src/shared/settings';
@@ -179,6 +179,26 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       return answer({ path: resolved, problem: pathProblem(value, must, onDisk(resolved)) });
     },
     onLayoutChanged: on('onLayoutChanged'),
+    // Main's rules (`nodeStateProblem`, `withNodeChanges`, src/shared/panels.ts) over the fixture's app file; its refusal to write over one that does not parse is main's look at the disk, so that is main's to answer, not this.
+    setLayoutState: (changes) => {
+      const refused = changes.map(({ field, value }) => (value === null ? null : nodeStateProblem(field, value))).find((problem) => problem !== null);
+      if (refused) return answer({ refused });
+      const local = fixture.layout.local;
+      if (local.status === 'unparsable') return unmodelled('setLayoutState')();
+      const nodes = withNodeChanges(((local.json as { nodes?: Record<string, NodeState> } | null)?.nodes ?? {}), changes);
+      fixture.layout.local = { ...local, status: 'read', json: { nodes } };
+      return answer({ refused: null });
+    },
+    // Main moves the state once and not over a file that already holds nodes, recording that it moved.
+    moveLayoutState: (nodes) => {
+      const local = fixture.layout.local;
+      if (!local.stateMoved) {
+        const held = Object.keys((local.json as { nodes?: Record<string, NodeState> } | null)?.nodes ?? {}).length > 0;
+        const writes = !held && Object.keys(nodes).length > 0;
+        fixture.layout.local = writes ? { ...local, status: 'read', json: { nodes }, stateMoved: true } : { ...local, stateMoved: true };
+      }
+      return answer({ refused: null });
+    },
     runPanel: sent,
     stopPanel: sent,
     onPanelRun: on('onPanelRun'),

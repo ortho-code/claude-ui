@@ -4,7 +4,7 @@ import { fileWeights, pxOf, shareOf, type NodeSize } from './layout';
  * How the children of one split share its length, as CSS flex values.
  * Pure: the tree measures and applies, this decides, tested per rule.
  *
- * ONE UNIT FOR EVERYTHING: a child's share of the flexible room is its flex-grow weight, and a dragged size is stored in px and used as that same weight, so a drag and the file's proportions mix without conversion and a window resize redistributes by weight on its own.
+ * A child's share of the flexible room is its flex-grow weight, and a size dragged to is kept in its node's own unit — a share as a share, pixels as pixels — over the file's, per node (`sizesAfterDrag`), so a window resize redistributes by weight on its own and a sibling the file adds later takes what the file gives it.
  * A child sized in PIXELS stands apart: its px are its basis, it never grows, and it gives way only once the others are down to their `min` (P10).
  */
 
@@ -25,35 +25,16 @@ export interface FlexValue {
   min: number | null;
 }
 
-/**
- * Each child's flex from the file's sizes and the dragged ones.
- * `stored` is the split's dragged px per child id, or undefined for none; it is honoured for the flexible children only when it holds EVERY one of them (decision 8), since weights from two sources do not mean anything together.
- */
-export function flexFor(children: FlexChild[], stored: Record<string, number> | undefined): FlexValue[] {
+/** Each child's flex from its size as it stands, the app's over the file's (`withOverrides`). */
+export function flexFor(children: FlexChild[]): FlexValue[] {
   const flexible = children.filter((child) => !child.folded && pxOf(child) === null);
-  const dragged = stored !== undefined && flexible.every((child) => stored[child.id] !== undefined);
-  const file = fileWeights(flexible.map(shareOf)).weights;
+  const weights = fileWeights(flexible.map(shareOf)).weights;
   return children.map((child) => {
     if (child.folded) return { flex: `0 0 ${RAIL}px`, min: null };
     const px = pxOf(child);
-    if (px !== null) return { flex: `0 1 ${stored?.[child.id] ?? px}px`, min: child.min };
-    const weight = dragged ? stored[child.id] : file[flexible.indexOf(child)];
-    return { flex: `${weight} 1 0px`, min: child.min };
+    if (px !== null) return { flex: `0 1 ${px}px`, min: child.min };
+    return { flex: `${weights[flexible.indexOf(child)]} 1 0px`, min: child.min };
   });
-}
-
-/**
- * Every child on show stored at the size it measures now; a folded child keeps what it had stored, which is its size from before it folded.
- * Taken at the start of a drag, so the layout does not jump when the flexible children switch from the file's weights to px, and before a fold, so the group unfolds to the size it had.
- */
-export function snapshot(children: FlexChild[], measured: number[], previous: Record<string, number> = {}): Record<string, number> {
-  const next: Record<string, number> = {};
-  children.forEach((child, index) => {
-    const kept = previous[child.id];
-    if (!child.folded) next[child.id] = measured[index]!;
-    else if (kept !== undefined) next[child.id] = kept;
-  });
-  return next;
 }
 
 /**
@@ -71,17 +52,8 @@ export function dragTargets(children: FlexChild[], measured: number[], a: number
   return measured.map((px, index) => (index === a ? beforePx + moved : index === b ? afterPx - moved : px));
 }
 
-/** The stored sizes after dragging the divider between children `a` and `b` by `delta` px from where the drag started (`dragTargets`). */
-export function dragTo(children: FlexChild[], measured: number[], a: number, b: number, delta: number, previous: Record<string, number> = {}): Record<string, number> {
-  const next = snapshot(children, measured, previous);
-  const targets = dragTargets(children, measured, a, b, delta);
-  next[children[a]!.id] = targets[a]!;
-  next[children[b]!.id] = targets[b]!;
-  return next;
-}
-
 /** A share as the app writes it: four places, which keeps a window of up to 10,000 px within half a pixel and the file readable. */
-const roundShare = (share: number): number => Math.round(share * 10_000) / 10_000;
+export const roundShare = (share: number): number => Math.round(share * 10_000) / 10_000;
 
 /**
  * The size overrides a drag writes, each in its node's own unit, so that the split shows exactly what the drag left on screen (`targets`, from `dragTargets`).

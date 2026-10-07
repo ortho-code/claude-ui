@@ -53,6 +53,7 @@ import {
   setUiState,
 } from './meta';
 import { registerSettings } from './settings';
+import { registerLayoutState } from './layoutstate';
 import {
   placeWindow,
   maximizedRect,
@@ -586,6 +587,7 @@ void app.whenReady().then(async () => {
   registerStatusIpc(() => mainWindow);
   registerSessionsWatcher(() => mainWindow);
   registerConfig(() => mainWindow);
+  registerLayoutState();
   registerSettings(() => mainWindow);
   // A session exists while a tab holds it (one that has sent nothing yet has no transcript), or while its transcript is on disk: looked at, not taken from the listing's cache, which can still name a file Claude Code's retention has since removed.
   registerPanelData(

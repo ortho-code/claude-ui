@@ -275,7 +275,7 @@ export interface UiState {
   panelState: PanelState;
 }
 
-import type { LayoutReport, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind } from './panels';
+import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind } from './panels';
 import type { FolderName } from './folders';
 import type { LogLevel } from './log';
 import type { SettingsChange, SettingsSaved, SettingsView } from './settings';
@@ -442,6 +442,13 @@ export interface ClaudeUiApi {
   checkPath(value: string, base: PathBase, must: PathKind): Promise<PathCheck>;
   /** Fires with a fresh report whenever anything in the config folder changes (debounced). */
   onLayoutChanged(callback: (report: LayoutReport) => void): void;
+  /**
+   * Keep what changed in the window — a size dragged to, a fold, a panel picked — in the app's file beside the layout, by node id.
+   * Refused, saying why in `refused`, for a change that is not one a node can carry, or when that file does not parse, since the app will not write over it.
+   */
+  setLayoutState(changes: NodeStateChange[]): Promise<{ refused: string | null }>;
+  /** Move the tree's state from before the config folder into the app's file beside the layout, once; the window works out what it was, since only it has the tree. */
+  moveLayoutState(nodes: Record<string, NodeState>): Promise<{ refused: string | null }>;
   /**
    * Run a `command` panel's command in its context; a run already going for the entry is stopped first.
    * Output arrives through `onPanelRun`.

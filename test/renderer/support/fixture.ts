@@ -1,6 +1,6 @@
 import { defaultUi } from '../../../src/shared/defaults';
 import type { FolderName } from '../../../src/shared/folders';
-import type { LayoutReport, PanelData } from '../../../src/shared/panels';
+import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/pathcheck';
 import type { SettingsFileRead } from '../../../src/shared/settings';
 import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
@@ -29,6 +29,7 @@ export interface BridgeFixture {
   historyPins: Record<string, HistoryPin>;
   /** Session id -> its transcript's exchanges, as main reads them; a listed session left out has no history the stand-in can answer for, and one the listing does not have has no transcript yet. */
   history: Record<string, Exchange[]>;
+  /** The layout file, and the app's beside it in `local`, which a save of the window's state writes into, as main's does. */
   layout: LayoutReport;
   folders: Record<FolderName, string>;
   panelData: Record<string, PanelData>;
@@ -78,6 +79,12 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
   };
 }
 
+/** The app's file beside the layout as main reads it when there is none, with the tree's state from `meta.json` already moved, so a check that is not about the move makes none. */
+export const noLocalLayout = (): LocalLayoutRead => ({ file: `${CONFIG_ROOT}/layouts/default.local.json`, status: 'missing', error: null, json: null, byApp: false, stateMoved: true });
+
+/** That file holding `nodes`, as a person or an earlier run left it. */
+export const localLayoutWith = (nodes: Record<string, NodeState>): LocalLayoutRead => ({ ...noLocalLayout(), status: 'read', json: { nodes } });
+
 /** A settings file that is not there, as main reads one. */
 export const noSettingsFile = (name: string): SettingsFileRead => ({ name, status: 'missing', error: null, json: null });
 
@@ -112,7 +119,7 @@ export function defaultFixture(): BridgeFixture {
     statuses: {},
     historyPins: {},
     history: {},
-    layout: { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, status: 'missing', error: null, json: null, types: [] },
+    layout: { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, status: 'missing', error: null, json: null, types: [], local: noLocalLayout() },
     folders: { config: CONFIG_ROOT, logs: `${HOME}/.config/claude-ui/logs` },
     panelData: {},
     paths: {},
