@@ -1,7 +1,8 @@
 import { parseLaunchFlags } from '../shared/flags';
 import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
-import type { SettingsView } from '../shared/settings';
+import type { SettingKey, SettingsView } from '../shared/settings';
+import type { Settings } from '../shared/types';
 import { listen, runModal } from './modal';
 import { hideToast, showToast } from './toast';
 
@@ -18,12 +19,6 @@ document.body.insertAdjacentHTML(
         <label class="dialog-label" for="settings-flags">Default launch flags</label>
         <p class="dialog-detail">Added to every session started from now on. Sessions already running keep the flags they started with.</p>
         <input id="settings-flags" class="dialog-field" type="text" spellcheck="false" autocomplete="off" placeholder="--allowedTools Grep,Glob" />
-        <p id="settings-flags-from" class="dialog-under" hidden></p>
-        <div id="settings-flags-yours" class="dialog-row" hidden>
-          <code id="settings-flags-yours-value" class="dialog-path"></code>
-          <button id="settings-flags-use" type="button">Use settings.json</button>
-        </div>
-        <div id="settings-flags-problems"></div>
         <p id="settings-error" class="dialog-error" hidden></p>
       </div>
       <div id="settings-notes" class="dialog-section" hidden>
@@ -44,11 +39,6 @@ const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
 const settingsFolders = document.getElementById('settings-folders')!;
-const flagsFrom = document.getElementById('settings-flags-from')!;
-const flagsYours = document.getElementById('settings-flags-yours')!;
-const flagsYoursValue = document.getElementById('settings-flags-yours-value')!;
-const flagsUse = document.getElementById('settings-flags-use') as HTMLButtonElement;
-const flagsProblems = document.getElementById('settings-flags-problems')!;
 const settingsNotes = document.getElementById('settings-notes')!;
 const settingsNotesList = document.getElementById('settings-notes-list')!;
 
@@ -98,11 +88,6 @@ function renderFolderRows(paths: Record<FolderName, string>): void {
   );
 }
 
-/** Whatever is typed in the field since the dialog last filled it, which a change to the files while it is open must not overwrite. */
-let edited = false;
-/** Whether "Use settings.json" was pressed and not typed over since: the field holds your file's value, and saving takes the app's away. */
-let usingYours = false;
-
 /** Lines of text, each a paragraph of `className`, in place of what `host` held. */
 function lines(host: HTMLElement, className: string, texts: string[]): void {
   host.replaceChildren(
@@ -115,30 +100,138 @@ function lines(host: HTMLElement, className: string, texts: string[]): void {
   );
 }
 
-/** The settings the dialog was last filled from. */
-let shown: SettingsView | null = null;
+/** How a setting's control shows a value and gives it back. */
+interface Control<T> {
+  element: HTMLInputElement;
+  read(): T;
+  write(value: T): void;
+}
 
-/** Fill the dialog from the settings as they stand: the field, unless it was typed in, and under it where its value comes from and what is wrong. */
+/** What a setting's lines say that is its own. */
+interface Words<T> {
+  /** What settings.json gives it, as "Set here, over …:" names it. */
+  over: string;
+  /** A value a file gives it that is not used, and why. */
+  refused(file: string, why: string): string;
+  /** settings.json's value, as the row beside its button shows it. */
+  shown(value: T): string;
+}
+
+/**
+ * One setting in the dialog: its control, and under it where its value comes from, the value it would have without the app's (settings.json's, or the default) with a button back to it, and what is wrong with a value either file gives it.
+ * Every setting is one of these, so each has the same lines behaving the same way.
+ */
+class SettingField<K extends SettingKey> {
+  /** Changed in the control since the dialog last filled it, which a change to the files while it is open must not overwrite. */
+  private edited = false;
+  /** "Use settings.json" pressed and the control not changed since: it holds the value without the app's (settings.json's, or the default), and saving takes the app's away. */
+  private usingYours = false;
+  /** The settings the field was last rendered from, which "Use settings.json" renders it from again. */
+  private shown: SettingsView | null = null;
+  private readonly from: HTMLElement;
+  private readonly yours: HTMLElement;
+  private readonly yoursValue: HTMLElement;
+  private readonly use: HTMLButtonElement;
+  private readonly problems: HTMLElement;
+
+  constructor(
+    private readonly key: K,
+    readonly control: Control<Settings[K]>,
+    private readonly words: Words<Settings[K]>,
+  ) {
+    // Right after the control, each named after the control's own id, so a line is found by the setting it belongs to.
+    const id = control.element.id;
+    control.element.insertAdjacentHTML(
+      'afterend',
+      `<p id="${id}-from" class="dialog-under" hidden></p>
+        <div id="${id}-yours" class="dialog-row" hidden>
+          <code id="${id}-yours-value" class="dialog-path"></code>
+          <button id="${id}-use" type="button">Use settings.json</button>
+        </div>
+        <div id="${id}-problems"></div>`,
+    );
+    this.from = document.getElementById(`${id}-from`)!;
+    this.yours = document.getElementById(`${id}-yours`)!;
+    this.yoursValue = document.getElementById(`${id}-yours-value`)!;
+    this.use = document.getElementById(`${id}-use`) as HTMLButtonElement;
+    this.problems = document.getElementById(`${id}-problems`)!;
+  }
+
+  /** The dialog opened afresh: the control follows the files again. */
+  reset(): void {
+    this.edited = false;
+    this.usingYours = false;
+  }
+
+  /** Fill from the settings as they stand: the control, unless it was changed, and under it where its value comes from and what is wrong. */
+  render(view: SettingsView): void {
+    this.shown = view;
+    const setting = view[this.key];
+    if (!this.edited) this.control.write(this.usingYours ? setting.without : setting.value);
+    const fromApp = setting.source === 'app' && !this.usingYours;
+    this.from.textContent = this.usingYours
+      ? 'From settings.json, once you save.'
+      : fromApp
+        ? setting.withoutSource === 'yours'
+          ? `Set here, over ${this.words.over}:`
+          : 'Set here; settings.json sets none.'
+        : 'From settings.json.';
+    this.from.hidden = setting.source === 'default' && !this.usingYours;
+    this.yours.hidden = !fromApp;
+    this.yoursValue.textContent = setting.withoutSource === 'yours' ? this.words.shown(setting.without) : '';
+    lines(
+      this.problems,
+      'dialog-error',
+      setting.problems.map(({ file, why }) => this.words.refused(file, why)),
+    );
+  }
+
+  /** What saving sends for it. */
+  value(): Settings[K] {
+    return this.control.read();
+  }
+
+  /** While the dialog is up: a change in the control, and "Use settings.json", each telling `changed` too. */
+  listeners(changed: () => void): (() => void)[] {
+    return [
+      listen(this.control.element, 'input', () => {
+        this.edited = true;
+        this.usingYours = false;
+        changed();
+      }),
+      listen(this.use, 'click', () => {
+        this.edited = false;
+        this.usingYours = true;
+        changed();
+        if (this.shown) this.render(this.shown);
+        this.control.element.focus();
+      }),
+    ];
+  }
+}
+
+const flagsField = new SettingField(
+  'launchFlags',
+  {
+    element: settingsFlags,
+    read: () => settingsFlags.value.trim(),
+    write: (value) => {
+      settingsFlags.value = value;
+    },
+  },
+  {
+    over: 'the flags in settings.json',
+    refused: (file, why) => `The flags in ${file} are not used: ${why}`,
+    shown: (value) => value,
+  },
+);
+
+/** Every setting's field. */
+const fields = [flagsField];
+
+/** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with a file as a whole. */
 function render(view: SettingsView): void {
-  shown = view;
-  const flags = view.launchFlags;
-  if (!edited) settingsFlags.value = usingYours ? flags.without : flags.value;
-  const fromApp = flags.source === 'app' && !usingYours;
-  flagsFrom.textContent = usingYours
-    ? 'From settings.json, once you save.'
-    : fromApp
-      ? flags.withoutSource === 'yours'
-        ? 'Set here, over the flags in settings.json:'
-        : 'Set here; settings.json sets none.'
-      : 'From settings.json.';
-  flagsFrom.hidden = flags.source === 'default' && !usingYours;
-  flagsYours.hidden = !fromApp;
-  flagsYoursValue.textContent = flags.withoutSource === 'yours' ? flags.without : '';
-  lines(
-    flagsProblems,
-    'dialog-error',
-    flags.problems.map(({ file, why }) => `The flags in ${file} are not used: ${why}`),
-  );
+  for (const field of fields) field.render(view);
   lines(settingsNotesList, 'dialog-error', view.notes);
   settingsNotes.hidden = view.notes.length === 0;
 }
@@ -151,8 +244,7 @@ function render(view: SettingsView): void {
  * It saves into the app's `settings.local.json`; a value equal to what your `settings.json` gives takes the app's away rather than copying it there (`appFileChanges`), which is all "Use settings.json" needs: it puts your value in the field.
  */
 export async function openSettings(): Promise<void> {
-  edited = false;
-  usingYours = false;
+  for (const field of fields) field.reset();
   render(await window.claudeUi.getSettings());
   settingsError.hidden = true;
   renderFolderRows(await window.claudeUi.getFolders());
@@ -162,14 +254,14 @@ export async function openSettings(): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- a dialog that returns nothing, so `finish()` takes no argument
   await runModal<void>(settingsOverlay, undefined, (finish) => {
     const submit = async (): Promise<void> => {
-      const value = settingsFlags.value.trim();
-      const { error } = parseLaunchFlags(value);
+      const launchFlags = flagsField.value();
+      const { error } = parseLaunchFlags(launchFlags);
       if (error) {
         settingsError.textContent = error;
         settingsError.hidden = false;
         return;
       }
-      const saved = await window.claudeUi.setSettings({ launchFlags: value });
+      const saved = await window.claudeUi.setSettings({ launchFlags });
       if (saved.refused !== null) {
         render(saved.view);
         settingsError.textContent = saved.refused;
@@ -184,19 +276,12 @@ export async function openSettings(): Promise<void> {
       listen(settingsFlags, 'keydown', (event) => {
         if (event.key === 'Enter') void submit();
       }),
-      // Typing is the fix for an error, so clear it as soon as they do rather than leaving a stale complaint under the field.
-      listen(settingsFlags, 'input', () => {
-        settingsError.hidden = true;
-        edited = true;
-        usingYours = false;
-      }),
-      listen(flagsUse, 'click', () => {
-        edited = false;
-        usingYours = true;
-        settingsError.hidden = true;
-        if (shown) render(shown);
-        settingsFlags.focus();
-      }),
+      // A change is the fix for an error, so clear it as soon as one is made rather than leaving a stale complaint under the field.
+      ...fields.flatMap((field) =>
+        field.listeners(() => {
+          settingsError.hidden = true;
+        }),
+      ),
     ];
   });
 }
