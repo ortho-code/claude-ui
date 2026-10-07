@@ -2,7 +2,8 @@ import { defaultUi } from '../../../../../src/shared/defaults';
 import type { SessionSummary } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { chooseProject, row, strip, stripJump, stripLines, stripNames, tab, tabLabel, tabs } from '../../../support/window';
+import { clickAcross } from '../../../support/press';
+import { chooseProject, row, strip, stripJump, stripLines, stripNames, stripRow, tab, tabLabel, tabs } from '../../../support/window';
 
 // The strip lists what is RUNNING, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
 // It keeps still: a session writing a message or waiting moves no row, which recency- or attention-ordering did (6f04c95).
@@ -93,6 +94,31 @@ test('the strip marks the session on show, and the mark follows the tab you pick
   await chooseProject(page, 'third');
   await expect(stripNames(page)).toHaveText([loose.title, elsewhere.title]);
   await expect(strip(page).locator('[aria-current]')).toHaveCount(0);
+});
+
+// A click is a press and a release on the same element, and the strip is drawn again whenever a running session's status changes, which is when it is used: a press that a change lands in the middle of still counts, on either half of the row.
+test('a press on a strip row still counts when a status arrives before the release', async ({ app, page }) => {
+  const other = session({ id: '00000000-0000-4000-8000-0000000000e6', title: 'Other in demo' });
+  await app.boot({ sessions: [loose, other], openSessions: [loose.id, other.id], history: { [loose.id]: [], [other.id]: [] } });
+  for (const s of [loose, other]) await tabLabel(page, s.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  // Each a status the session does not have yet, so each draws the strip again: the same one twice changes nothing.
+  const status = (title: string, id: string, state: string) => async (): Promise<void> => {
+    expect(await app.emit('onSessionStatus', id, state, '', '')).toBe(1);
+    await expect(stripJump(page, title).locator('.nudge')).toHaveClass(new RegExp(`\\b${state}\\b`));
+  };
+
+  // A row reached with the keyboard keeps the focus too.
+  await stripJump(page, other.title).focus();
+  await status(other.title, other.id, 'busy')();
+  await expect(stripJump(page, other.title)).toBeFocused();
+
+  await clickAcross(page, stripJump(page, loose.title), status(loose.title, loose.id, 'busy'));
+  await expect(stripJump(page, loose.title)).toHaveAttribute('aria-current', 'true');
+
+  // Waiting by then, so the stop asks with the extra Ctrl-C a turn needs.
+  await clickAcross(page, stripRow(page, other.title).locator('.strip-item-stop'), status(other.title, other.id, 'waiting'));
+  expect(await app.calls('closeTerminal')).toEqual([[2, true]]);
 });
 
 // Stopping from the strip is the way to stop a session in another project without leaving the one you are in: it stops, never closes, and the row leaves the strip once nothing runs there.

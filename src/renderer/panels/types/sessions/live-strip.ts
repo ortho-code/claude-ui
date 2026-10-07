@@ -1,5 +1,6 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
+import { Keyed, placeChildren, setMarkup } from '../../../keyed';
 import { entityKey, orderAsTabs, sessionLabel, stopControlState, type SwitcherModel } from '../../../logic';
 import { store, type View } from '../../../state/app';
 import { projName, projectGroups, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
@@ -30,39 +31,89 @@ const stripBadge = byId(liveStrip, 'strip-badge');
 const stripLabel = byId(liveStrip, 'strip-label');
 const stripList = byId(liveStrip, 'strip-list');
 
-/**
- * The strip row's stop control.
- *
- * WHY IT BELONGS HERE and is not just a shortcut for the tab's button: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab.
- * So stopping a stray session from the strip costs you your place: you go there, stop it, and come back.
- * This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
- * The membership rule makes it exact: the strip lists what has a PROCESS, which is precisely the set of things that can be stopped — so there is no scoping or filtering to reason about, and no cold-tab case.
- * STOP ONLY, never close: the strip is not a list of tabs.
- * A row leaves it by the session stopping, which is what this already does.
- */
-function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButtonElement {
+/** A strip row and the parts each render writes, built once per session (`buildRow`) and kept while the session runs. */
+interface StripRow {
+  row: HTMLElement;
+  jump: HTMLButtonElement;
+  dot: HTMLElement;
+  name: HTMLElement;
+  chip: HTMLElement;
+  stop: HTMLButtonElement;
+}
+
+/** The rows by session id and the project headings by repo root, kept from one render to the next so a press on a row survives a status arriving mid-click (keyed.ts). */
+const stripRows = new Keyed<StripRow>((kept) => kept.row);
+const stripHeadings = new Keyed<HTMLElement>((heading) => heading);
+
+function buildHeading(): HTMLElement {
+  const heading = document.createElement('div');
+  heading.className = 'strip-project';
+  return heading;
+}
+
+/** A session's row, built once: its handlers act on the session by its id when pressed, and everything they show is written by each render (`updateRow`). */
+function buildRow(id: string): StripRow {
+  // The row is a DIV holding two buttons rather than one button, because a button cannot contain a button and this row now has two things to do: jump to the session, or stop it.
+  // The row shape (the menu row, menu-row.css) stays on the wrapper, so hovering anywhere in it still lights the whole row and the strip looks exactly as it did.
+  const row = document.createElement('div');
+  row.className = 'menu-row strip-item';
+  const jump = document.createElement('button');
+  jump.type = 'button';
+  jump.className = 'strip-item-jump';
+  // The roll-up badge rather than the sidebar's status dot: that one is 9px and bordered because it is a control in a dense row, where this sits on a row of its own.
+  // It IS clickable though, and for the same reason the row is: acking a session anywhere else means going to where that session lives, which costs you the project you are looking at — the exact gap this strip exists to close.
+  // The read state has to show either way, or a muted row reads as live — hence the acked modifier, which dims this badge exactly as it dims the dot.
+  const dot = document.createElement('span');
+  // A muted row stays LISTED: membership is "has a process", and acking says "seen it", not "stop".
+  // Only the count above drops it.
+  ackOnClick(dot, () => id);
+  const name = document.createElement('span');
+  name.className = 'strip-item-name';
+  // The group as a CHIP rather than a third level of headings.
+  // The strip is capped at 40vh, where a project -> group -> session nesting costs a heading row and an indent per group, and a chip costs no rows at all.
+  // Worth revisiting if several sessions of one group routinely show here together, since the same chip repeated down a run of rows reads as noise where a single heading would not.
+  const chip = document.createElement('span');
+  chip.className = 'strip-item-group';
+  jump.append(dot, name, chip);
+  jump.addEventListener('click', () => hostOf('sessions').openSession(id));
+  // The stop control.
+  // WHY IT BELONGS HERE and is not just a shortcut for the tab's button: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab.
+  // So stopping a stray session from the strip costs you your place: you go there, stop it, and come back.
+  // This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
+  // The membership rule makes it exact: the strip lists what has a PROCESS, which is precisely the set of things that can be stopped — so there is no scoping or filtering to reason about, and no cold-tab case.
+  // STOP ONLY, never close: the strip is not a list of tabs.
+  // A row leaves it by the session stopping, which is what this already does.
   const stop = document.createElement('button');
   stop.type = 'button';
   stop.className = 'icon-btn compact strip-item-stop';
-  stop.innerHTML = stopIcon(14);
+  // Pressed only while enabled, which each render decides from the tab as it is then (`updateRow`).
+  stop.addEventListener('click', (event) => {
+    // The row around it jumps to the session; stopping must not also take you there.
+    event.stopPropagation();
+    hostOf('sessions').stopSession(id);
+  });
+  row.append(jump, stop);
+  return { row, jump, dot, name, chip, stop };
+}
+
+/** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its stop control in the tab's state. */
+function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'acked' | 'tabs'>): void {
+  const { row, jump, dot, name, chip, stop } = parts;
+  applyStatus(dot, view.statuses.get(session.id), view.acked.has(session.id));
+  name.textContent = sessionLabel(session);
+  chip.textContent = groupName ?? '';
+  chip.hidden = groupName === undefined;
+  setTooltip(jump, sessionLabel(session, '') || null);
+  // The class is the stylesheet's, the menu row's fill for what is on show, which the switcher's entry on show wears too; the attribute is what a screen reader reads.
+  row.classList.toggle('active', onShow);
+  if (onShow) jump.setAttribute('aria-current', 'true');
+  else jump.removeAttribute('aria-current');
   const tab = tabWith(session.id, view);
   // No tab at all should not happen — membership is "has a process", and a process belongs to a tab — so it is inert rather than guessed at.
-  if (!tab) {
-    stop.disabled = true;
-    return stop;
-  }
-  const { disabled, tooltip, force } = stopControlState(tab);
-  stop.innerHTML = stopIcon(14, force);
+  const { disabled, tooltip, force } = tab ? stopControlState(tab) : { disabled: true, tooltip: null, force: false };
+  setMarkup(stop, stopIcon(14, force));
   stop.disabled = disabled;
   setTooltip(stop, tooltip);
-  if (!disabled) {
-    stop.addEventListener('click', (event) => {
-      // The row around it jumps to the session; stopping must not also take you there.
-      event.stopPropagation();
-      hostOf('sessions').stopSession(session.id);
-    });
-  }
-  return stop;
 }
 
 function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded'>): void {
@@ -91,6 +142,7 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
   );
   // The strip has no group ROWS — each row carries its group as a chip — so a project's clusters are flattened back into one run, in the order the tab bar would have drawn them.
   const ordered = [...new Map(clusters.map((c) => [c.repoRoot, [] as SessionSummary[]])).keys()].map((repoRoot) => ({
+    repoRoot,
     name: projName(repoRoot, view),
     items: clusters.filter((c) => c.repoRoot === repoRoot).flatMap((c) => c.items),
   }));
@@ -107,7 +159,8 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
     // The stored stripExpanded is deliberately untouched: this is what there is to show, not a preference, and the strip must come back the way you left it.
     liveStrip.hidden = true;
     stripList.hidden = true;
-    stripList.replaceChildren();
+    stripRows.clear();
+    stripHeadings.clear();
     return;
   }
 
@@ -120,54 +173,23 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
   const { groups, groupOf } = view.groupState;
   // The session on show, which its row says, as the tab bar marks its tab and the list its row: without it the row you are already in looks like any other, and pressing it seems to do nothing.
   const onShow = tabOnShow(view)?.session.id;
-  stripList.replaceChildren(
-    ...ordered.flatMap((project) => {
-      const heading = document.createElement('div');
-      heading.className = 'strip-project';
+  placeChildren(
+    stripList,
+    ordered.flatMap((project) => {
+      const heading = stripHeadings.draw(project.repoRoot, buildHeading);
       heading.textContent = project.name;
       const rows = project.items.map((session) => {
-        // The row is a DIV holding two buttons rather than one button, because a button cannot contain a button and this row now has two things to do: jump to the session, or stop it.
-        // The row shape (the menu row, menu-row.css) stays on the wrapper, so hovering anywhere in it still lights the whole row and the strip looks exactly as it did.
-        const row = document.createElement('div');
-        row.className = 'menu-row strip-item';
-        const jump = document.createElement('button');
-        jump.type = 'button';
-        jump.className = 'strip-item-jump';
-        // The roll-up badge rather than the sidebar's status dot: that one is 9px and bordered because it is a control in a dense row, where this sits on a row of its own.
-        // It IS clickable though, and for the same reason the row is: acking a session anywhere else means going to where that session lives, which costs you the project you are looking at — the exact gap this strip exists to close.
-        // The read state has to show either way, or a muted row reads as live — hence the acked modifier, which dims this badge exactly as it dims the dot.
-        const dot = document.createElement('span');
-        applyStatus(dot, view.statuses.get(session.id), view.acked.has(session.id));
-        // A muted row stays LISTED: membership is "has a process", and acking says "seen it", not "stop".
-        // Only the count above drops it.
-        ackOnClick(dot, () => session.id);
-        const name = document.createElement('span');
-        name.className = 'strip-item-name';
-        name.textContent = sessionLabel(session);
-        jump.append(dot, name);
-        // The group as a CHIP rather than a third level of headings.
-        // The strip is capped at 40vh, where a project -> group -> session nesting costs a heading row and an indent per group, and a chip costs no rows at all.
-        // Worth revisiting if several sessions of one group routinely show here together, since the same chip repeated down a run of rows reads as noise where a single heading would not.
-        const groupName = groups.find((g) => g.id === groupOf[entityKey(session)])?.name;
-        if (groupName) {
-          const chip = document.createElement('span');
-          chip.className = 'strip-item-group';
-          chip.textContent = groupName;
-          jump.append(chip);
-        }
-        setTooltip(jump, sessionLabel(session, '') || null);
-        // The class is the stylesheet's, the menu row's fill for what is on show, which the switcher's entry on show wears too; the attribute is what a screen reader reads.
-        if (session.id === onShow) {
-          row.classList.add('active');
-          jump.setAttribute('aria-current', 'true');
-        }
-        jump.addEventListener('click', () => hostOf('sessions').openSession(session.id));
-        row.append(jump, stripStopButton(session, view));
-        return row;
+        const parts = stripRows.draw(entityKey(session), buildRow);
+        const groupName = groups.find((g) => g.id === groupOf[entityKey(session)])?.name || undefined;
+        updateRow(parts, session, groupName, session.id === onShow, view);
+        return parts.row;
       });
       return [heading, ...rows];
     }),
   );
+  // What this render did not draw no longer runs as that session (stopped, or cleared into a new one), or left the pool (archived, being deleted), or its project has nothing left here.
+  stripRows.sweep();
+  stripHeadings.sweep();
 }
 
 // The strip follows, drawn by its own render (`refreshStrip`, told of it).

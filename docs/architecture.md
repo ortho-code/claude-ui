@@ -1014,7 +1014,7 @@ When a variant genuinely differs — a group heading is deliberately lighter tha
 
 **A surface drawn again while it is used keeps its elements.**
 A click is a press and a release on the same element, so a surface that takes the pressed element away between the two produces no click at all, and one that takes out the focused element drops the focus to the page.
-The surfaces that keep their elements are drawn again on events nobody times — the session list when a transcript is written or a model switched — so that press is an everyday one rather than a race.
+The surfaces that keep their elements are drawn again on events nobody times — the session list when a transcript is written or a model switched, the live strip whenever a session's status changes — so that press is an everyday one rather than a race.
 So a surface keeps its elements by key and leaves in place what already is, through one helper, `keyed.ts`: `Keyed` holds the elements, built the first time a render draws a key and swept once one no longer does, and `placeChildren` puts them in order, keeping the longest run already in order where it is, so only what really moved is taken out.
 Keeping them is not enough on its own: in Chromium, `appendChild`, `insertBefore` and `replaceChildren` take out even an element already where it belongs, which is how the session list, which had always kept its rows, still lost both.
 The same goes for an icon inside a kept element: setting its markup again replaces the icon's own element, which sits over the middle of an icon button where a press lands, so an icon a render sets is set through `setMarkup`, which leaves the same markup alone.
