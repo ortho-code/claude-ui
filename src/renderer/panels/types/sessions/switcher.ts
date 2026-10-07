@@ -1,4 +1,5 @@
 import { byId, fromMarkup } from '../../../dom';
+import { Keyed, placeChildren } from '../../../keyed';
 import type { NudgeStatus, SwitcherModel } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
@@ -53,40 +54,58 @@ function renderSwitcher(model: SwitcherModel, view: View<'activeProject'>): void
   switcherBadge.hidden = !headerBadge;
   setTooltip(switcherBadge, headerBadge ? `A project is ${headerBadge}` : null);
 
-  switcherList.replaceChildren(
-    switcherItem('All', null, model.all.count, null, activeProject === null, false),
-    ...model.projects.map((f) => switcherItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeProject, !f.rootExists)),
-  );
+  placeChildren(switcherList, [
+    drawItem('All', null, model.all.count, null, activeProject === null, false),
+    ...model.projects.map((f) => drawItem(f.name, f.repoRoot, f.count, f.badge, f.repoRoot === activeProject, !f.rootExists)),
+  ]);
+  items.sweep();
 }
 
-function switcherItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean, gone: boolean): HTMLElement {
+/** An entry and the parts each render writes. */
+interface SwitcherItem {
+  btn: HTMLButtonElement;
+  label: HTMLElement;
+  mark: HTMLElement;
+  dot: HTMLElement;
+  cnt: HTMLElement;
+}
+
+/**
+ * The entries by repo root, All's by the empty key, kept from one render to the next: the switcher is drawn again whenever any session's status changes, and a press on an entry or the focus on it survives that only while the entry stays where it is (keyed.ts).
+ */
+const items = new Keyed<SwitcherItem>((item) => item.btn);
+
+/** An entry, built once: choosing it selects its project, or All for the empty key. */
+function buildItem(key: string): SwitcherItem {
+  const repoRoot = key || null;
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = active ? 'menu-row switcher-item active' : 'menu-row switcher-item';
   btn.setAttribute('role', 'menuitem');
-
   const label = document.createElement('span');
   label.className = 'switcher-item-name';
-  label.textContent = name;
-
-  // The full path on hover, since the row shows only the last segment; a dead project's reason carries the path too.
   const mark = document.createElement('span');
   mark.className = 'gone-mark';
+  const dot = document.createElement('span');
+  const cnt = document.createElement('span');
+  cnt.className = 'switcher-item-count';
+  btn.append(label, mark, dot, cnt);
+  btn.addEventListener('click', () => selectProject(repoRoot));
+  return { btn, label, mark, dot, cnt };
+}
+
+/** Draw a project's entry, or All's with a null `repoRoot`, as it is now. */
+function drawItem(name: string, repoRoot: string | null, count: number, badge: NudgeStatus, active: boolean, gone: boolean): HTMLElement {
+  const { btn, label, mark, dot, cnt } = items.draw(repoRoot ?? '', buildItem);
+  btn.className = active ? 'menu-row switcher-item active' : 'menu-row switcher-item';
+  label.textContent = name;
+  // The full path on hover, since the row shows only the last segment; a dead project's reason carries the path too.
   if (repoRoot) markProjectGone(repoRoot, gone, label, mark, 13, btn);
   else {
     mark.hidden = true;
     setTooltip(btn, 'All projects');
   }
-
-  const dot = document.createElement('span');
   dot.className = badgeClass(badge);
-
-  const cnt = document.createElement('span');
-  cnt.className = 'switcher-item-count';
   cnt.textContent = String(count);
-
-  btn.append(label, mark, dot, cnt);
-  btn.addEventListener('click', () => selectProject(repoRoot));
   return btn;
 }
 
