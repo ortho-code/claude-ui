@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { INTERVAL_OPTION, isFixedPath, optionProblems, optionsOf, parseDuration, pathChecks, type OptionsDecl } from '../../../../src/renderer/panels/options';
+import { INTERVAL_OPTION, intervalOf, isFixedPath, optionProblems, optionsOf, parseDuration, pathChecks, type OptionsDecl } from '../../../../src/renderer/panels/options';
 import { commandType } from '../../../../src/renderer/panels/types/command';
 
 const none: OptionsDecl = { name: 'terminal', options: [], exactlyOne: [] };
@@ -62,6 +62,13 @@ describe('a duration', () => {
     expect(optionProblems({ interval: 'soon' }, every)).toEqual(['interval "soon" is not a duration like 30s, 5m or 1h.']);
     expect(optionProblems({ interval: '5s' }, every)).toEqual(['interval 5s is shorter than the 10s it can be at the least.']);
     expect(optionProblems({ interval: '10s' }, every)).toEqual([]);
+  });
+
+  it("reads an entry's interval over its type's, and neither as none", () => {
+    expect(intervalOf({ interval: '5m' }, '1h')).toBe(300_000);
+    expect(intervalOf({}, '1h')).toBe(3_600_000);
+    expect(intervalOf({})).toBeNull();
+    expect(intervalOf({ interval: 'soon' })).toBeNull();
   });
 });
 

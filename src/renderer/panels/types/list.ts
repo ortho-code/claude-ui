@@ -8,7 +8,7 @@ import { Keyed, placeChildren } from '../../keyed';
 import { sessionDotClass } from '../../statusdot';
 import { setTooltip } from '../../tooltip';
 import type { PanelSlot } from '../layout';
-import { optionsOf, parseDuration } from '../options';
+import { intervalOf, optionsOf } from '../options';
 import { listenForRuns } from '../run-events';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey } from '../run';
@@ -146,9 +146,7 @@ class ListPanel implements MountedPanel {
 
   /** The interval the panel runs on, in ms: the entry's own, else its type's; null for none. */
   private interval(): number | null {
-    const own = optionsOf(this.slot.entry).interval;
-    const value = typeof own === 'string' ? own : (this.folder.manifest?.interval ?? null);
-    return value === null ? null : parseDuration(value);
+    return intervalOf(optionsOf(this.slot.entry), this.folder.manifest?.interval ?? null);
   }
 
   /** The options the type declares, as the entry gives them: what the script gets as `CLAUDE_UI_OPTION_<NAME>`. */

@@ -48,6 +48,12 @@ export function parseDuration(value: string): number | null {
   return ms > 0 ? ms : null;
 }
 
+/** How often an entry's panel runs on its own, in ms: its own `interval`, else `fallback` (a type's default, as the file writes it); null for neither, or for one that is not a duration. */
+export function intervalOf(options: Record<string, unknown>, fallback: string | null = null): number | null {
+  const value = typeof options.interval === 'string' ? options.interval : fallback;
+  return value === null ? null : parseDuration(value);
+}
+
 /** "10s", "5m": a length in ms in the unit the file would write it in. */
 function durationLabel(ms: number): string {
   if (ms % UNIT_MS.h === 0) return `${ms / UNIT_MS.h}h`;
