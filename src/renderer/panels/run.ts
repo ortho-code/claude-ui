@@ -150,8 +150,8 @@ export class RunGate {
 
   constructor(
     private readonly key: () => string,
-    /** Starts a run, numbered so its end can be told apart from the end of a run it replaced. */
-    private readonly run: (number: number) => void,
+    /** Starts a run, numbered so its end can be told apart from the end of a run it replaced; `tick` when the interval's timer fired it. */
+    private readonly run: (number: number, tick: boolean) => void,
     /** How often the panel runs on its own, in ms, or null for never; asked each time, so it is the panel's options as they are then. */
     private readonly interval: () => number | null = () => null,
   ) {}
@@ -195,7 +195,7 @@ export class RunGate {
     if (ms === null || this.stopped) return;
     this.timer = setTimeout(() => {
       this.timer = null;
-      this.fire();
+      this.fire(true);
     }, ms);
   }
 
@@ -211,10 +211,10 @@ export class RunGate {
   }
 
   /** Every run, whatever asked for it, takes the place of a tick still waiting, so a press or a switch is never run over by a tick that was already waiting; the run's own end, or its finding nowhere to run, sets the next, and one whose check finds problems sets none. */
-  private fire(): void {
+  private fire(tick = false): void {
     this.unschedule();
     this.last = this.key();
-    this.run(++this.latest);
+    this.run(++this.latest, tick);
   }
 
   private unschedule(): void {

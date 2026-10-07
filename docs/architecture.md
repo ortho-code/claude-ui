@@ -711,14 +711,15 @@ The signature is whatever sits under `options`, with its keys sorted, so it know
 Moving an element resets its scroll offsets and drops its focus, so a rebuild carries both across.
 
 A panel behind another in its group, or in a folded group, keeps its DOM and its process: hiding stops nothing, and only removal from the file does.
-A `command` panel does not run while hidden; a context change meanwhile is remembered as a difference, and it runs once when shown — and not at all if the context came back to where its last run was (`RunGate`, tested).
+A context change does not run a hidden `command` panel; it is remembered as a difference, and the panel runs once when shown — and not at all if the context came back to where its last run was (`RunGate`, tested).
+One with an `interval` runs on it while hidden all the same (§ The `command` type).
 A `terminal` keeps its shell and refits from its own `ResizeObserver` once it has a size again.
 
 At start-up the default layout is drawn before the first paint, the file is read before a single row is drawn — so the sidebar and terminal area are moved into the tree while they are still empty — and panels are shown only once the tabs are restored, so a panel's first run is in the restored tab's folder.
 
 ### A type owns its options
 
-A panel type is a module under `src/renderer/panels/types/`, and it declares its options in one place: name, kind (`text` or `path`), for a `path` what it resolves against and what it must point at, and which groups of options are exactly-one-of.
+A panel type is a module under `src/renderer/panels/types/`, and it declares its options in one place: name, kind (`text`, `path` or `duration`), for a `path` what it resolves against and what it must point at, for a `duration` the shortest it may be, and which groups of options are exactly-one-of.
 The layout sees only what it needs to draw and place an entry: the default icon, a default title from the options where they give one, whether the type is bare, and whether it is a built-in the layout must place once.
 
 **The type checks its own options**, with one checker every type shares (`panels/options.ts`), driven by that declaration: a key it does not know, a missing or doubled exactly-one-of, a value that is not a string or is empty, and what a path points at — the last asked of the main process, which has the filesystem.
@@ -748,7 +749,24 @@ The command runs in the panel's CONTEXT DIRECTORY — the active tab's cwd, else
 That is the one thing that differs between the two forms: a relative path INSIDE a command line is resolved by the shell against that directory, while a relative `script` resolves against the config folder, so the script travels with it.
 The context reaches the command as environment variables only for now (`CLAUDE_UI_PROJECT_ROOT`, `CLAUDE_UI_CWD`, `CLAUDE_UI_SESSION_ID`, `CLAUDE_UI_CONFIG_ROOT`); JSON on stdin joins when a second type wants it.
 With neither a tab nor a project the panel says "Pick a project to run this in." and runs nothing.
-It runs when first shown, on Refresh, and when its context changes, which a tab switch, a project switch and stopping the tab you are on all do, and so does the tab's own session changing under it, on a `/clear` or a move into another folder — but never while hidden (see A layout change keeps panels running).
+It runs when first shown, on Refresh, and when its context changes, which a tab switch, a project switch and stopping the tab you are on all do, and so does the tab's own session changing under it, on a `/clear` or a move into another folder — but a context change never runs it while hidden (see A layout change keeps panels running).
+It also runs on its `interval`, if it has one.
+
+**An interval runs it out of sight too.**
+`interval` is the list kind's own declaration (`INTERVAL_OPTION`, at least ten seconds), read through the same helper (`intervalOf`), and its timing is the list kind's too, through the same `RunGate`: a tick that long after each run ends, hidden or folded as well, and a first run when the tree first places the panel, shown or not.
+So "does a panel's interval run out of sight" has one answer for both; here it keeps the rail's red dot true, where the list's reason is its count.
+The alternative was a run on show when one is due and none while hidden, which makes an hourly overview late by its own run time each time it is looked at.
+The gate counts the next tick from the end of the latest run it let through, and every run clears a tick still waiting, so no tick starts while the latest run goes; a run whose check finds problems sets no tick, and the ticks start again when a later check finds the panel can run.
+
+**A tick holds what is on show.**
+A run the interval's timer starts writes into a fragment out of sight, and the output on show stays as it was, with the header's word and the dot, until the run ends, with only the busy mark saying a run is going; then the fragment's text takes the output's place, whether the run failed or not.
+The swap fills the same element, so the scroll stays where it was as far as the new output reaches.
+A press and a switch still clear the body and show the run as it prints, as they always did: a press is asked to be watched and a tick is not, and clearing on every tick would empty the panel and send it to the top unasked.
+Holding on a press too is the list's answer, which keeps its list through every run that has somewhere to run; it was not taken, since it changes what Refresh does and nobody asked for that.
+Output a run left hidden, having found nowhere to run or that the panel could not run, is not held: it is from before that, and a tick starts afresh like a press.
+
+**A tick that fails shows what it printed**, as a failed press does: a command's failing output is usually what it has to say, where a list's broken document has nothing to show.
+The list's rule, the last good output kept under a line saying the run failed, was the alternative; keeping the last output only when the app cut a run short (30 s, 1 MB) is the one to take if such stops turn out to be common.
 
 ### Where a panel runs: the `cwd` option
 
@@ -761,10 +779,10 @@ The folder the run uses is the one main's check resolved, so the run goes exactl
 A relative `cwd` resolves against the project and never falls back to the config folder, which was considered: the same file would then run in different places depending on which folders happen to exist, and a typo in one project would silently become a folder in the config directory.
 (`script` is the opposite way round for the reason given under The `command` type: a `cwd` only moves where your command runs, while a project-first `script` would change which code runs.)
 
-**A fixed `command` panel does not run again on a switch**; it runs on first show and on Refresh.
+**A fixed `command` panel does not run again on a switch**; it runs on first show, on Refresh and on its interval.
 It has nothing new to read, and re-running it on every tab click would print the same folder's output again — which is what keying it on the whole context, as before, would have done, since its variables change even when its folder does not.
 The run is keyed on where it goes (`runKey`, tested): the whole context without a `cwd`, as it always was; nothing that changes for a fixed one; the folder it lands in for a relative one, so a tab switch within that folder does not re-run it.
-A refresh on a timer, or a script that refreshes itself, is later work, and when it comes it is the answer to "when does a panel run" for every panel, not one for this option.
+A refresh on a timer is the `interval` option (§ The `command` type), answered for every type that takes it by the one gate, `RunGate`, and not by this option; a script that refreshes itself is still later work.
 
 ### How a command runs
 
@@ -838,7 +856,7 @@ Main reads the manifests in the same pass as the layout file and hands them over
 
 **The kind decides the rest.**
 A manifest names what kind of panel it is, and the kind brings its own options and behaviour; `list` is the one kind so far.
-So `cwd` and `interval` are the list kind's own, not something every panel takes: a shell has nothing to re-run, so the `terminal` type takes neither, and the `command` type gains `interval` only when it needs one.
+So `cwd` and `interval` are the list kind's own, not something every panel takes: a shell has nothing to re-run, so the `terminal` type takes `cwd` alone, while the `command` type takes both, as the same declarations.
 A manifest is checked like the layout file — every mistake named, each prefixed with its file — and a type whose manifest is wrong is still a type, so every entry of it says what is wrong where the panel would be.
 A field the manifest does not know is a note, not a mistake, and the same holds for the list a script prints: both are a contract a shared type is written against, with a `version`, so a field a later version added is ignored here and only a version bump is a break.
 An edit to a manifest mounts that type's panels afresh: the type carries a revision, and the mount signature includes it beside the entry's options.

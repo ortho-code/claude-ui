@@ -27,7 +27,7 @@ describe('optionProblems', () => {
     [{ command: '  ' }, 'command is empty.'],
     [{ script: '' }, 'script is empty.'],
     [{ script: '~me/bin/status' }, 'script ~me/bin/status: only ~ and ~/… are expanded.'],
-    [{ comand: 'ls' }, 'comand is not an option of the command type (it has: command, script, cwd).'],
+    [{ comand: 'ls' }, 'comand is not an option of the command type (it has: command, script, cwd, interval).'],
     [{ command: 'ls', cwd: '' }, 'cwd is empty.'],
     [{ command: 'ls', cwd: 3 }, 'cwd is not a string.'],
     [{ command: 'ls', cwd: '~other/x' }, 'cwd ~other/x: only ~ and ~/… are expanded.'],
@@ -41,7 +41,7 @@ describe('optionProblems', () => {
 
   it('collects every problem, not only the first', () => {
     expect(optionProblems({ comand: 'ls' }, commandType)).toEqual([
-      'comand is not an option of the command type (it has: command, script, cwd).',
+      'comand is not an option of the command type (it has: command, script, cwd, interval).',
       'One of command or script is required.',
     ]);
   });

@@ -193,6 +193,20 @@ describe('RunGate', () => {
       expect(state.runs).toHaveLength(3);
     });
 
+    it('tells a run whether the interval asked for it', () => {
+      const ticks: boolean[] = [];
+      const g = new RunGate(
+        () => '/repo',
+        (_number, tick) => ticks.push(tick),
+        () => MINUTE,
+      );
+      g.setVisible(false);
+      g.ended(1);
+      vi.advanceTimersByTime(MINUTE);
+      g.refresh();
+      expect(ticks).toEqual([false, true, false]);
+    });
+
     it('runs at once on rerun though hidden, as it would have all along', () => {
       const { g, state } = ticking();
       g.setVisible(false);

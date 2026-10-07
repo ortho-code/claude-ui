@@ -3,7 +3,7 @@ import type { PanelSlot } from '../layout';
 import './command.css';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { stripAnsi, splitPendingEscape } from '../../ansi';
-import { CWD_OPTION, optionsOf } from '../options';
+import { CWD_OPTION, INTERVAL_OPTION, intervalOf, optionsOf } from '../options';
 import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey, type Prepared } from '../run';
 import { listenForRuns } from '../run-events';
 
@@ -13,6 +13,8 @@ import { listenForRuns } from '../run-events';
  * A TYPE OWNS ITS OPTIONS: it declares them here, checks them itself (options.ts) when it is mounted and before every run, and tells the tree through its host when it cannot run.
  * The layout never reads them.
  * The same module owns the panel's body and its run: the tree draws the chrome around it (tree.ts) and asks it to refresh or to follow a context change.
+ * WHEN IT RUNS (`RunGate`): on first being shown, on Refresh, on a context change while shown, and on its `interval` if it has one, which also runs it while hidden or folded, as a list panel's does.
+ * A run the interval's timer starts holds the output on show, the header's word and the dot until it ends (`held`); a press or a switch starts the body afresh.
  */
 
 /** Where a command line is cut for a default title: a title is a label, not the whole line. */
@@ -40,6 +42,13 @@ class CommandPanel implements MountedPanel {
    * Every event is checked against it, so a superseded run's tail never lands in the new run's body.
    */
   private token: string | null = null;
+  /** The gate's number for the run the token belongs to, told back to the gate when that run ends. */
+  private runNumber = 0;
+  /**
+   * Where a run the interval's timer started writes, out of sight, while the output on show stays as it was — with the header's word and the dot — until the run ends and this takes its place; null for any other run, which writes straight into the output.
+   * Nobody asked for a tick, so the text under the reader does not move meanwhile, and only the busy mark says a run is going; a press or a switch is seen to start.
+   */
+  private held: DocumentFragment | null = null;
   private pending = '';
   private readonly gate: RunGate;
   /** Whether the options passed their last check; null until the first has answered. */
@@ -61,7 +70,8 @@ class CommandPanel implements MountedPanel {
     // Keyed by where the run would go, so a tab or project change that lands on the same place does not run again, and a fixed `cwd` never does.
     this.gate = new RunGate(
       () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
-      (number) => void this.run(number),
+      (number, tick) => void this.run(number, tick),
+      () => intervalOf(optionsOf(this.slot.entry)),
     );
     // Checked at once rather than on first show, so a panel behind another already wears `alert` on its rail.
     void this.check();
@@ -91,6 +101,7 @@ class CommandPanel implements MountedPanel {
 
   unmount(): void {
     this.disposed = true;
+    this.gate.stop();
     if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
     this.token = null;
     this.stopListening();
@@ -110,25 +121,34 @@ class CommandPanel implements MountedPanel {
   }
 
   /** Every run checks first: a script or a folder can go missing between runs, and the check is what says so in the panel's own words. */
-  private async run(number: number): Promise<void> {
+  private async run(number: number, tick: boolean): Promise<void> {
     const prepared = await this.prepared();
     if (!this.gate.isLatest(number) || !prepared) return;
     const runnable = prepared.problems.length === 0;
     const context = prepared.run;
-    this.host.setEnd('');
-    this.host.setStatus(null);
     if (!runnable || !context) {
+      this.host.setEnd('');
+      this.host.setStatus(null);
       if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
       this.token = null;
+      this.held = null;
       this.host.setBusy(false);
       this.output.hidden = true;
       // A panel that cannot run is drawn by the tree as its problems; the placeholder is for one that can, with nowhere to run.
       this.placeholder.hidden = !runnable;
+      if (runnable) this.gate.ended(number);
       return;
     }
     this.token = crypto.randomUUID();
+    this.runNumber = number;
     this.pending = '';
-    this.output.replaceChildren();
+    // Only output a run left on show is held: one that found nowhere to run, or could not run, hid it, and what it holds is from before that, not to come back.
+    this.held = tick && !this.output.hidden ? document.createDocumentFragment() : null;
+    if (!this.held) {
+      this.host.setEnd('');
+      this.host.setStatus(null);
+      this.output.replaceChildren();
+    }
     this.output.hidden = false;
     this.placeholder.hidden = true;
     this.host.setBusy(true);
@@ -154,6 +174,8 @@ class CommandPanel implements MountedPanel {
       case 'stderr':
         return;
       case 'truncated':
+        // Held, the header waits for the run's end, whose word and dot replace these either way.
+        if (this.held) return;
         this.host.setEnd(endLabel(event));
         this.host.setStatus('fail');
         return;
@@ -161,10 +183,14 @@ class CommandPanel implements MountedPanel {
       case 'stopped':
         this.append(this.pending);
         this.pending = '';
+        // The same element keeps its children's place, so the scroll stays where it was as far as the new output reaches.
+        if (this.held) this.output.replaceChildren(this.held);
+        this.held = null;
         this.token = null;
         this.host.setBusy(false);
         this.host.setEnd(endLabel(event));
         this.host.setStatus(runFailed(event) ? 'fail' : null);
+        this.gate.ended(this.runNumber);
         return;
     }
   }
@@ -172,7 +198,7 @@ class CommandPanel implements MountedPanel {
   private append(text: string): void {
     const clean = stripAnsi(text);
     // A text node per chunk rather than `textContent +=`, which would re-copy everything before it on every chunk.
-    if (clean) this.output.appendChild(document.createTextNode(clean));
+    if (clean) (this.held ?? this.output).appendChild(document.createTextNode(clean));
   }
 }
 
@@ -186,6 +212,7 @@ export const commandType: PanelType = {
     { name: 'command', kind: 'text' },
     { name: 'script', kind: 'path', against: 'config', must: 'executable' },
     CWD_OPTION,
+    INTERVAL_OPTION,
   ],
   exactlyOne: [['command', 'script']],
   icon: 'command',

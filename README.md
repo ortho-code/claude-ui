@@ -46,7 +46,7 @@ Done:
   The flags the app sets for itself are refused there rather than allowed to break a session.
   They are kept in the config folder, over a `settings.json` of your own; see [Settings](#settings).
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
-  Panels so far run a command or a script and show its output, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
+  Panels so far run a command or a script and show its output, again on an interval if you give one, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
   See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag.
   See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
@@ -70,7 +70,6 @@ Next:
 - A folder of its own for a panel type's script, to keep state between runs, such as an item snoozed for a day.
 - Options of a path kind in a panel type's manifest.
 - A panel's heading set from its layout entry, or by the panel itself.
-- An interval for `command` panels, as list panels have.
 - A Panel data row in Settings: what each panel remembers about the sessions its rows started, whether that panel is still in the layout, and a way to clear it.
 
 - Context health per session in the list, coloured the way the CLI's own status line colours it.
@@ -156,7 +155,7 @@ The panel types:
 - `sessions` is the sidebar and `claude` is the terminal area with its tabs.
   Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
 - `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
-  `cwd` picks the folder it runs in.
+  `cwd` picks the folder it runs in, and `interval` how often it runs again on its own.
 - `terminal` is a plain shell, the same login shell your sessions run in.
   `cwd` picks the folder it starts in.
 - A folder under `types/` in the config folder is a type of your own, named after the folder; see [Panel types of your own](#panel-types-of-your-own).
@@ -185,8 +184,17 @@ It never resolves against the project, so switching to a repo cannot run that re
 To run a project's own script, say so with a command line such as `"command": "./bin/status"`, which runs in the project's folder.
 
 The command runs in the active tab's folder, or the selected project's root when no tab is open, and runs again when you switch project or tab or press Refresh.
-While it is out of sight, behind another panel or folded away, it does not run; it runs once when you show it again, if the folder changed meanwhile.
-It sees these variables:
+While it is out of sight, behind another panel or folded away, a switch does not run it; it runs once when you show it again, if the folder changed meanwhile.
+
+An `interval` in its `options`, such as `"5m"` or `"1h"` and at least `"10s"`, also runs it again that long after each run ends, out of sight too, so the dot on its icon stays current; a panel with one runs as soon as it is placed, at launch or when you add it, even out of sight.
+While its output is on show, a run on the interval leaves it, the header's word and the dot as they are until it ends, then shows what it printed, failed or not, so the panel does not empty under you, and stays scrolled where it was as far as the new output reaches.
+Refresh and a switch still clear it, and show the run as it prints.
+
+```json
+{ "id": "overview", "type": "command", "icon": "git", "options": { "script": "scripts/overview.sh", "cwd": "~", "interval": "1h" } }
+```
+
+The command sees these variables:
 
 | Variable | Value |
 |---|---|
@@ -206,7 +214,7 @@ It gets the same variables, and a `claude` you start in it by hand is not tracke
 Either type takes a `cwd` in its `options` to run somewhere other than that folder:
 
 - An absolute path, or one under `~/`, is fixed: the panel runs there whatever is selected, even with no project at all.
-  A command with one does not run again when you switch project or tab, since its folder has not moved; Refresh runs it.
+  A command with one does not run again when you switch project or tab, since its folder has not moved; Refresh runs it, and so does its `interval`.
   A terminal with one has no button, and a key starts a new shell there after the old one exits.
 - A relative path is under the active tab's folder, or the project's root, so `"cwd": "packages/api"` follows the project into that folder.
 

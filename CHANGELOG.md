@@ -19,11 +19,12 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The sizes you drag to, the groups you fold and the panel you pick are kept in `layouts/default.local.json` beside it, in the file's own field names, so keeping one for good is moving it into your file.
 - A `command` panel type: a command line or a script, run in the active tab's folder (or the selected project's) and shown as plain text, run again when you switch project or tab or press Refresh.
   A `cwd` option runs it in a fixed folder instead, whatever is selected, or in a subfolder of the project.
+  An `interval` option runs it again on its own, out of sight too, leaving what it last printed on show until the new run ends.
 - A `terminal` panel type: a plain shell in the folder the panel first showed for.
   It stays there when you switch tab or project, the header says where it is, and the button restarts it in the current folder.
   After the shell exits, any key starts a new one.
   It takes the same `cwd`; with a fixed one it starts there and has no restart button.
-- Several panels in one group, switched from a strip of icons whose dot says a command failed or a session is waiting for you; a panel out of sight keeps what it was doing and runs again only once shown.
+- Several panels in one group, switched from a strip of icons whose dot says a command failed or a session is waiting for you; a panel out of sight keeps what it was doing and runs again only once shown, or on its interval.
 - Folding a group of panels to its strip of icons, from a chevron on the divider beside it or by clicking the icon of the panel on show.
   `folded` in the layout file starts a group folded.
 - Clicking a group's name in the tab bar takes the session list to that group, as a project's name already does; either one flashes the heading it lands on.
