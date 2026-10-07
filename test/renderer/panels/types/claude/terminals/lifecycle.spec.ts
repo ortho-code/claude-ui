@@ -97,20 +97,25 @@ test("the tab's button stops the session and keeps the tab cold, and a second pr
   await expect(pane(page)).toHaveText('Pick a session in the sidebar to open it.');
 });
 
-test('Ctrl-C goes to claude, and a second one straight after closes the tab', async ({ app, page }) => {
+// Leaving with Ctrl-C is claude's own, as in a terminal: it exits, or asks what it asks on the way out, and the tab goes with its exit.
+test('Ctrl-C goes to claude every time, even twice straight after, and claude leaving closes the tab', async ({ app, page }) => {
   await app.boot(fixture);
   await startLive(page, app);
   // The same moment for both presses, however slow the machine is: "straight after" is a time window.
   await page.clock.setFixedTime(Date.now());
 
   await page.keyboard.press('Control+C');
-  expect(await app.calls('sendTerminalInput')).toEqual([[FIRST, '\x03']]);
+  await page.keyboard.press('Control+C');
+  expect(await app.calls('sendTerminalInput')).toEqual([
+    [FIRST, '\x03'],
+    [FIRST, '\x03'],
+  ]);
+  expect(await app.calls('closeTerminal')).toEqual([]);
   await expect(tab(page, one.title)).toHaveCount(1);
 
-  await page.keyboard.press('Control+C');
+  await page.clock.setSystemTime(Date.now() + 60_000);
+  await app.emit('onTerminalExit', FIRST, 0);
   await expect(tab(page, one.title)).toHaveCount(0);
-  expect(await app.calls('closeTerminal')).toEqual([[FIRST]]);
-  expect(await app.calls('sendTerminalInput')).toEqual([[FIRST, '\x03']]);
 });
 
 test('a tab restored where you left off is selected and not started, and Resume starts it', async ({ app, page }) => {

@@ -175,8 +175,8 @@ function buildTab(session: SessionSummary): string {
 
   terminals.set(token, { term, fitAddon, el, startedAt: 0, activatedSeq: 0 });
 
-  // Ctrl-C twice in the terminal closes the tab instead of dropping to the leftover shell.
-  let lastCtrlC = 0;
+  // Ctrl-C goes to claude every time, so leaving with it works as in a terminal: from its prompt claude exits, or first asks what it asks on the way out, and its exit closes the tab; mid-turn the first press interrupts the turn.
+  // The app once caught the second press and closed the tab itself, which spoke over that question, and was there for a shell left behind after claude that no longer is.
   term.onData((data) => {
     // Swallow Ctrl+Z: claude binds it to self-suspend, which strands the tab (no shell prompt to `fg` back from).
     // You background a session by switching tabs, so suspend has no use here.
@@ -184,14 +184,6 @@ function buildTab(session: SessionSummary): string {
     if (data === '\x1a') {
       showToast('Ctrl+Z is off here — switch tabs to keep a session running in the background.');
       return;
-    }
-    if (data === '\x03') {
-      const now = Date.now();
-      if (now - lastCtrlC < 600) {
-        closeTab(token);
-        return;
-      }
-      lastCtrlC = now;
     }
     const id = running();
     if (id !== null) window.claudeUi.sendTerminalInput(id, data);

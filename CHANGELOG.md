@@ -52,6 +52,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Starting a session in another project while you are in a project view takes the session list to All at its top, as choosing All does, instead of keeping the previous project's scroll position.
 - The default launch flags are kept in the config folder, in `settings.local.json`, where Settings saves them and where the ones you had set move by themselves.
   A `settings.json` of your own beside it can set them too; what Settings saves wins, and Settings shows yours with a button to go back to them.
+- Ctrl-C twice in a session's terminal goes to claude, as in any terminal: from its prompt claude exits, or first asks what it has to, and the tab closes when it has gone.
+  The app used to close the tab itself on the second press.
 
 ### Fixed
 
