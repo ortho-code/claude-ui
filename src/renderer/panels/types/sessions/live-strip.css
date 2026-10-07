@@ -87,6 +87,11 @@
   cursor: pointer;
 }
 
+/* base.css's `button:hover` outranks the rule above and would fill this half on its own, which shows on the row on show, whose fill is not the hover's. */
+.strip-item-jump:hover {
+  background: none;
+}
+
 /* Sits at the row's right edge, at the same 4px the trailing controls use everywhere else. */
 .strip-item-stop {
   margin-left: 4px;

@@ -1,11 +1,13 @@
 import { defaultUi } from '../../../../../src/shared/defaults';
+import type { SessionSummary } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { chooseProject, row, strip, stripLines, tab, tabLabel, tabs } from '../../../support/window';
+import { chooseProject, row, strip, stripJump, stripLines, stripNames, tab, tabLabel, tabs } from '../../../support/window';
 
 // The strip lists what is RUNNING, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
 // It keeps still: a session writing a message or waiting moves no row, which recency- or attention-ordering did (6f04c95).
 const OTHER = `${HOME}/projects/other`;
+const THIRD = `${HOME}/projects/third`;
 const loose = session({ id: '00000000-0000-4000-8000-0000000000e1', title: 'Loose in demo' });
 const inFirst = session({ id: '00000000-0000-4000-8000-0000000000e2', title: 'In First' });
 const inSecond = session({ id: '00000000-0000-4000-8000-0000000000e3', title: 'In Second' });
@@ -55,12 +57,42 @@ test('a strip row jumps to its session in another project: the project, the tab 
   await chooseProject(page, 'demo');
   await expect(tabLabel(page, elsewhere.title)).toHaveCount(0);
 
-  await strip(page).locator('.strip-item-jump', { hasText: elsewhere.title }).click();
+  await stripJump(page, elsewhere.title).click();
   await expect(page.locator('#switcher-name')).toHaveText('other');
   await expect(tab(page, elsewhere.title)).toHaveClass(/\bactive\b/);
   await expect(row(page, elsewhere.title)).toHaveClass(/\bactive-session\b/);
   // Already running: nothing started again.
   expect(await app.calls('startTerminal')).toHaveLength(1);
+});
+
+// The strip is cross-project, so the row you are already in looks like any other unless it says so: it is marked, whichever project it sits under, and only while its tab is on show.
+test('the strip marks the session on show, and the mark follows the tab you pick', async ({ app, page }) => {
+  const idle = session({ id: '00000000-0000-4000-8000-0000000000e5', title: 'In third', cwd: THIRD, repoRoot: THIRD });
+  await app.boot({
+    sessions: [loose, elsewhere, idle],
+    projectOrder: [PROJECT, OTHER, THIRD],
+    activeProject: null,
+    openSessions: [loose.id, elsewhere.id],
+    history: { [loose.id]: [], [elsewhere.id]: [] },
+  });
+  for (const s of [loose, elsewhere]) await tabLabel(page, s.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  const marked = async (on: SessionSummary, off: SessionSummary): Promise<void> => {
+    await expect(stripJump(page, on.title)).toHaveAttribute('aria-current', 'true');
+    await expect(stripJump(page, off.title)).not.toHaveAttribute('aria-current');
+  };
+  await marked(elsewhere, loose);
+
+  // A tab picked in the bar moves the mark, and so does a row of the strip.
+  await tabLabel(page, loose.title).click();
+  await marked(loose, elsewhere);
+  await stripJump(page, elsewhere.title).click();
+  await marked(elsewhere, loose);
+
+  // A project with no tab open leaves nothing on show, so nothing in the strip is marked, though both still run.
+  await chooseProject(page, 'third');
+  await expect(stripNames(page)).toHaveText([loose.title, elsewhere.title]);
+  await expect(strip(page).locator('[aria-current]')).toHaveCount(0);
 });
 
 // Stopping from the strip is the way to stop a session in another project without leaving the one you are in: it stops, never closes, and the row leaves the strip once nothing runs there.

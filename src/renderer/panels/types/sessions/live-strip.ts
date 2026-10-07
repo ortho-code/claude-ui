@@ -2,7 +2,7 @@ import type { SessionSummary } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
 import { entityKey, orderAsTabs, sessionLabel, stopControlState, type SwitcherModel } from '../../../logic';
 import { store, type View } from '../../../state/app';
-import { projName, projectGroups, sessionNudge, switcherModel, switcherPool, tabWith } from '../../../state/views';
+import { projName, projectGroups, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, stopIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -12,7 +12,7 @@ import './live-strip.css';
 
 /**
  * The live strip, at the foot of the sidebar: every running session, wherever it runs, under a line badged with the switcher's roll-up that folds the rows away.
- * A row jumps to its session, its dot marks it read, and its button stops it, each through the sidebar's host; the fold is the store's (`stripExpanded`).
+ * A row jumps to its session, its dot marks it read, and its button stops it, each through the sidebar's host; the row of the session on show is marked; the fold is the store's (`stripExpanded`).
  */
 
 /** The strip, built here and placed by the sidebar (index.ts). */
@@ -65,7 +65,7 @@ function stripStopButton(session: SessionSummary, view: View<'tabs'>): HTMLButto
   return stop;
 }
 
-function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'stripExpanded'>): void {
+function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded'>): void {
   const { stripExpanded } = view;
   const overall = model.all.badge;
   stripBadge.className = badgeClass(overall);
@@ -118,6 +118,8 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
   stripList.hidden = !stripExpanded;
   // Once for the whole strip rather than per row: the membership and the registry have to come from the same read anyway.
   const { groups, groupOf } = view.groupState;
+  // The session on show, which its row says, as the tab bar marks its tab and the list its row: without it the row you are already in looks like any other, and pressing it seems to do nothing.
+  const onShow = tabOnShow(view)?.session.id;
   stripList.replaceChildren(
     ...ordered.flatMap((project) => {
       const heading = document.createElement('div');
@@ -154,6 +156,11 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
           jump.append(chip);
         }
         setTooltip(jump, sessionLabel(session, '') || null);
+        // The class is the stylesheet's, the menu row's fill for what is on show, which the switcher's entry on show wears too; the attribute is what a screen reader reads.
+        if (session.id === onShow) {
+          row.classList.add('active');
+          jump.setAttribute('aria-current', 'true');
+        }
         jump.addEventListener('click', () => hostOf('sessions').openSession(session.id));
         row.append(jump, stripStopButton(session, view));
         return row;
@@ -170,7 +177,7 @@ stripToggle.addEventListener('click', () => store.set({ stripExpanded: !store.ge
 stripToggle.querySelector('.strip-chev')!.innerHTML = chevronIcon('down', 11);
 
 /** What the strip draws from the store. */
-type StripView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'stripExpanded'>;
+type StripView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded'>;
 
 /**
  * The strip follows the store, its line badged with the switcher's own roll-up (`switcherModel`) and its rows drawn from the switcher's pool.

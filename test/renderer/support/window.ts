@@ -62,6 +62,9 @@ export const stripNames = (page: Page): Locator => strip(page).locator(':scope >
 /** The strip as it reads, top to bottom: each project's name over the names of its sessions. */
 export const stripLines = (page: Page): Locator => strip(page).locator(':scope > .strip-project').or(stripNames(page));
 
+/** The strip row's half that holds `title` and takes you to its session. */
+export const stripJump = (page: Page, title: string): Locator => strip(page).locator('.strip-item-jump', { hasText: title });
+
 /** Every tab in the tab bar. */
 export const tabs = (page: Page): Locator => page.locator('#tabbar .tab');
 

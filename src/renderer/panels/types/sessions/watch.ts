@@ -28,7 +28,7 @@ export const sessionsWatch = {
     store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'projectNames', 'projectOrder', 'activeProject', 'tabs'], refreshSwitcher);
     // The sidebar's rail icon waits while any session anywhere waits for you: the switcher's roll-up, from the same sessions.
     store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'tabs'], railStatusFollowsSessions, { reads: ['projectNames', 'projectOrder'] });
-    // The strip lists what runs, in the bar's order, each row with a stop button in the tab's state, under a line badged with the switcher's roll-up; it shows those rows or folds to its line as you left it.
-    store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'stripExpanded'], refreshStrip);
+    // The strip lists what runs, in the bar's order, each row with a stop button in the tab's state and the one on show marked, under a line badged with the switcher's roll-up; it shows those rows or folds to its line as you left it.
+    store.watch(['sessions', 'statuses', 'acked', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'activeTab', 'stripExpanded'], refreshStrip);
   },
 };

@@ -1047,6 +1047,7 @@ That same app-wide rule is why the hover state has to set the border itself, and
 Each colour is named once, as a `--fill` custom property, which is what keeps that true — an earlier version reached for `currentColor` instead, i.e. the *text* colour, and hovered to a dark border on the blue button (it read as shrinking) and a white ring on the red one.
 
 **Rows** come in two shapes: a **list row** (`.card`, a session's or a list panel's, built by `listCard`) is a card in the list body — `7px 14px`, surface radius, two lines and its own controls; a **menu row** (switcher entry, kebab-menu item, live-strip session) is `6px 9px`, control radius, one class and one hover for all three (`.menu-row`), which each of them carries and whose stylesheet each of their modules imports.
+The menu row for what is on show, the switcher's entry (a project, or All) and the live strip's session whose tab is on show, wears one fill, `.menu-row.active`, and keeps it under the pointer.
 
 **Radius and type are tokens** in `:root`.
 Radius is per kind of thing rather than per component: `--radius-control` (anything you click), `--radius-surface` (rows, cards, panels, popovers, dialogs), `--radius-pill` (fully round, so it never needs re-tuning when its height changes); circles keep 50%.

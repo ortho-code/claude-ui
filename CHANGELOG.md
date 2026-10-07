@@ -54,6 +54,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A `settings.json` of your own beside it can set them too; what Settings saves wins, and Settings shows yours with a button to go back to them.
 - Ctrl-C twice in a session's terminal goes to claude, as in any terminal: from its prompt claude exits, or first asks what it has to, and the tab closes when it has gone.
   The app used to close the tab itself on the second press.
+- The live strip marks the session whose tab you are looking at, as the tab bar and the session list already do.
 
 ### Fixed
 
