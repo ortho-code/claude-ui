@@ -224,8 +224,10 @@ A prompt submitted a moment before the stop, whose report arrives after it, call
 
 A session still there a second after the ask can be **forced**: its stop control, disabled for that second so a double-click cannot force before the question is on screen, then sends the process group `SIGTERM`, and `SIGKILL` if it is still there after the grace below.
 Quitting the app forces every session without asking, since a question would have nobody to answer it, and a panel shell's stop forces it too, since a shell has no Ctrl-C exit to be asked through.
+Closing the window on macOS, where the app stays without one, forces them the same way: a window opened again from the Dock starts the ones that were running afresh, with resuming on, and would otherwise start them beside the old ones, which no window could reach any more.
+So a window opened again waits, as a quit does, until what the last one ran has gone.
 
-Forcing is one function, for all three.
+Forcing is one function, for every route.
 The stop, the close and the quit used to be three, each sending a single signal and then forgetting the process: a bare `kill()`, which is `SIGHUP` and which a Node program is entitled to decline.
 The stop then reported success over a session that was still running.
 

@@ -93,6 +93,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Quitting the app, or forcing a stop, gives a session three seconds to finish leaving before it is killed, instead of just over one.
 - A tab whose session failed to start closes with one press of its button, and the live strip no longer lists it as running; selecting it tries the start again, as selecting a stopped tab does.
   Its button used to send a stop nothing answered, so it never closed the tab.
+- On macOS, closing the window ends its sessions as quitting does, instead of leaving them running out of any window's reach until the app quit.
 
 ## 0.3.0 — 2026-08-29
 

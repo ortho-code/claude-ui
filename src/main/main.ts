@@ -612,29 +612,60 @@ void app.whenReady().then(async () => {
   learnMaximizeInset();
   await createWindow();
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+    if (BrowserWindow.getAllWindows().length === 0 && !reopening) void reopen();
   });
 });
 
+/** How long past the kill grace a quit, or a window opened again, waits, for a SIGKILL sent at the end of it to land and be seen. */
+const GONE_MARGIN_MS = 500;
+
+/** Until every session and run that was stopped has gone, and never longer than the kill grace and a moment for its SIGKILL. */
+function allGone(): Promise<void> {
+  return untilGone(() => liveTerminals() + liveRuns() > 0, KILL_GRACE_MS + GONE_MARGIN_MS);
+}
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') {
+    app.quit();
+    return;
+  }
+  // macOS keeps the app running with no window, and a window opened again from the Dock starts afresh: its tabs come back from meta, and, with resuming on, the ones that were running start again.
+  // So what ran in the closed window ends here as a quit ends it, rather than running on out of any window's reach until the app quits, beside a second copy the next window starts.
+  // The window has gone by now, so nothing these exits do reaches the open and running tabs it kept in meta: the window opened again finds them as they were.
+  terminateAll('the window closed');
+  stopAllPanels();
 });
+
+/** A window being opened again on macOS, so a second click on the Dock during the wait opens no second one. */
+let reopening = false;
+
+/**
+ * Open a window again on macOS once what the last one ran has gone, as a quit waits for it: the new window starts the sessions that were running afresh, and before then would start each beside the one still on its way out.
+ * Not during a quit, which closes windows rather than opening them.
+ */
+async function reopen(): Promise<void> {
+  reopening = true;
+  try {
+    await allGone();
+    if (!quitting) await createWindow();
+  } finally {
+    reopening = false;
+  }
+}
 
 // Give claude its time to leave before the app exits.
 let quitting = false;
-/** How long past the kill grace the quit waits, for a SIGKILL sent at the end of it to land and be seen. */
-const QUIT_MARGIN_MS = 500;
 app.on('before-quit', (event) => {
   if (quitting) return;
   quitting = true;
   event.preventDefault();
   // Tell the renderer we're shutting down before killing terminals, so the tab-close it triggers for each dying pty doesn't persist an empty open-tabs list over the real one.
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:quitting');
-  terminateAll();
+  terminateAll('quitting');
   stopAllPanels();
   // Until everything stopped has gone, and never longer than the kill grace and a moment for its SIGKILL: a fixed wait would have to be that long every time, where claude sessions alone have gone within about 1.5 s.
   // The quit line goes last, once everything else has had its budget, because it is what tells the next launch this one ended on purpose.
-  void untilGone(() => liveTerminals() + liveRuns() > 0, KILL_GRACE_MS + QUIT_MARGIN_MS)
+  void allGone()
     .then(() => closeLog())
     .then(() => app.quit());
 });

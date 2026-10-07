@@ -375,7 +375,7 @@ describe('stopping a session', () => {
     expect(signals(shell.proc.pid)).toContain('SIGKILL');
     const other = await startShell();
     const session = await start();
-    terminateAll();
+    terminateAll('quitting');
     expect(signals(other.proc.pid)).toEqual(['SIGHUP', 'SIGHUP']);
     expect(signals(session.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
   });
@@ -384,7 +384,10 @@ describe('stopping a session', () => {
   it('takes every session down the same path when the app quits', async () => {
     const a = await start();
     const b = await start();
-    terminateAll();
+    logged.length = 0;
+    terminateAll('quitting');
+    // The table outlives a test, so the count is whatever is still live; the reason is the caller's.
+    expect(logged).toContainEqual(expect.stringMatching(/^info terminal quitting: stopping \d+ terminals?$/));
     expect(signals(a.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
     expect(signals(b.proc.pid)).toEqual(['SIGTERM', 'SIGTERM']);
     await vi.advanceTimersByTimeAsync(KILL_GRACE_MS);

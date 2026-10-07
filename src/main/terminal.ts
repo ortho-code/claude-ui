@@ -257,12 +257,12 @@ export function registerTerminalIpc(): void {
 }
 
 /**
- * Stop every live session as the app quits.
+ * Stop every live session as the app quits, or as its window closes on macOS, where the app stays; `why` is which, for the log.
  * Forced, not asked: the window is going, so a question claude asked on its way out would have nobody to answer it, and a worktree it would have asked about is kept.
  * Down the same path as any other forced stop, so quitting cannot be the one route that leaves something running — `before-quit` delays the quit itself, which is what gives the escalation room to land.
  */
-export function terminateAll(): void {
-  if (terminals.size > 0) log('info', 'terminal', `quitting: stopping ${terminals.size} terminal${terminals.size === 1 ? '' : 's'}`);
+export function terminateAll(why: string): void {
+  if (terminals.size > 0) log('info', 'terminal', `${why}: stopping ${terminals.size} terminal${terminals.size === 1 ? '' : 's'}`);
   for (const id of [...terminals.keys()]) forceOut(id);
 }
 

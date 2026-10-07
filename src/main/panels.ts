@@ -262,7 +262,7 @@ export function stop(entryId: string): void {
   if (current) stopRun(current, 'request');
 }
 
-/** Stop every run that is still going as the app quits, down the same path as any other stop. */
+/** Stop every run that is still going as the app quits, or as its window closes on macOS, down the same path as any other stop. */
 export function stopAllPanels(): void {
   for (const current of [...live]) stopRun(current, 'quit');
 }
