@@ -1089,7 +1089,7 @@ While such a library moves the elements itself, the surface does not draw: durin
 
 **A module's stylesheet sits beside it, and the module imports it.**
 esbuild bundles every stylesheet a module imports into one `renderer.css`, in import order, each file once, so `index.html` links only that: `xterm.css` and `air-datepicker.css` are imports of the modules that use them too.
-A rule sits beside the one module that draws it; a rule several modules draw sits in a stylesheet of its own beside what owns it — the menu row in `menu-row.css`, the surface and notch every menu and popover floats on in `popover.css`, a dialog's or the pane's decisive button (`.primary`, `.danger`) in `decisive-button.css`, the filter pill in `pill.css`, the card and the section heading in `card.css` — or in `base.css` when nothing does (the tokens, the reset, `.icon-btn`, `.nudge`, the empty pane's sentence), and is never copied into each.
+A rule sits beside the one module that draws it; a rule several modules draw sits in a stylesheet of its own beside what owns it — the menu row in `menu-row.css`, the surface and notch every menu and popover floats on in `popover.css`, a dialog's or the pane's decisive button (`.primary`, `.danger`) in `decisive-button.css`, the filter pill in `pill.css`, the card and the section heading in `card.css` — or in `base.css` when nothing does (the tokens, the reset, `.icon-btn`, `.pair-end`, `.nudge`, the empty pane's sentence), and is never copied into each.
 A stylesheet takes its place in the bundle where it is first imported, so `renderer.ts` imports `base.css` and the services first, ahead of every panel, and a rule that has to beat another of equal specificity sits after it in the same file.
 Moving a rule between files can change which of two such rules wins without anything in the CSS's own diff showing it, so a move is checked with the style capture (§ The window's checks).
 Moving an import can do the same, and the capture runs only when asked, so the order the stylesheets come in is pinned by a unit test (`test/unit/renderer/renderer.test.ts`): an import that moves a stylesheet fails it until the capture has been run before and after and the list updated.
@@ -1123,7 +1123,7 @@ A single icon needs no such help, and bordering each would put two more boxes on
 
 **Trailing controls sit 4px apart** on every row that has them — the session row's pin and kebab (its unarchive and delete in the archived view), the group heading's `+` and kebab, the project heading's split button and kebab — so the second-from-right control lines up down the list, not just the last one.
 Tight rather than roomy because every pixel there is width the session title loses; the controls' own padding keeps their ink well clear.
-Each row reaches 4 from a different base gap (a session row's is 8, a heading's is 6), so the one rule, `.pair-end` in `card.css`, works the offset out from the row's own `--row-gap`.
+Each row reaches 4 from a different base gap (a session row's is 8, a heading's is 6), so the one rule, `.pair-end` in `base.css`, works the offset out from the row's own `--row-gap`.
 
 **Hover** is identical for every icon control — `--active` fill, accent border, `--text` glyph — from one shared rule.
 It uses `--active` rather than `--surface-hover` because a hovered session row is already `--surface-hover`, so a button filling to the same colour inside it would show no change.

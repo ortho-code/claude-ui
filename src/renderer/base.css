@@ -188,6 +188,13 @@ button:hover {
   border-color: var(--border);
 }
 
+/* The last of a row's two trailing controls — a kebab on a card or a heading, or delete in the archived view — sits 4px after the one before it, whatever the row's own gap (--row-gap, which the row sets: the card and the heading in card.css), so the second-from-right control lines up down the whole list.
+   4px rather than a roomier gap because every pixel here is width the session title loses.
+   Here rather than with the card, since a row of another kind takes it too. */
+.pair-end {
+  margin-left: calc(4px - var(--row-gap));
+}
+
 /* One hover for all of them, replacing a thirteen-selector list that a new control had to be remembered into.
    `:not(:disabled)` covers the two that opt out while inert — the tab close mid transition, and the group-jump button below two targets.
    And the same look while a menu it opened is up (`.menu-open`, stamped by openMenu), so every icon button that opens one keeps its hover look with the pointer gone onto the menu, from this rule alone. */

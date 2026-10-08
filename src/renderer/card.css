@@ -114,12 +114,6 @@
   background: var(--surface-hover);
 }
 
-/* The last of a row's two trailing controls — a kebab on a card or a heading, or delete in the archived view — sits 4px after the one before it, whatever the row's own gap (--row-gap, set on the card and the heading above), so the second-from-right control lines up down the whole list.
-   4px rather than a roomier gap because every pixel here is width the session title loses. */
-.pair-end {
-  margin-left: calc(4px - var(--row-gap));
-}
-
 .card-content {
   flex: 1;
   min-width: 0;
