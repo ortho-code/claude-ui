@@ -285,6 +285,13 @@ describe('a run', () => {
     expect(events(token)).toEqual([{ kind: 'exit', code: null, signal: null, error: '/definitely/not/here is not there' }]);
   });
 
+  it('reports a spawn Node refuses before there is a process as an exit with the error, and logs it, so the panel is not left busy', () => {
+    const { token } = start({ entryId: 'refused', options: { refuse: 'yes' } });
+    expect(spawned).toHaveLength(0);
+    expect(events(token)).toEqual([{ kind: 'exit', code: null, signal: null, error: 'The argument options.env is invalid' }]);
+    expect(logged).toEqual(['warn panel refused could not run: The argument options.env is invalid']);
+  });
+
   it('reports a spawn that fails as an exit with the error', () => {
     const { child, token } = start();
     child.emit('error', new Error('spawn /bin/bash ENOENT'));
@@ -446,7 +453,7 @@ describe('a run', () => {
     });
 
     it('goes with a run Node refuses to spawn, before there is a run to end', () => {
-      expect(() => start({ options: { refuse: 'yes' } })).toThrow('options.env is invalid');
+      start({ options: { refuse: 'yes' } });
       const file = refused.at(-1)!.env[PANEL_CONTROL_VARIABLE];
       expect(file).toBeTruthy();
       expect(existsSync(file)).toBe(false);

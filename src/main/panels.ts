@@ -248,9 +248,12 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
       stdio: STDIO[stderr],
     });
   } catch (error) {
-    // Refused before there was a run to end, such as a value Node will not put in an environment: the control file goes with it.
+    // Refused before there was a run to end, such as a value Node will not put in an environment: the control file goes with it, and the panel hears it as a run that could not start, as it does an `error` from the spawn, rather than nothing and a busy mark for good.
     if (control !== null) dropControl(request.entryId, control);
-    throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    log('warn', 'panel', `${request.entryId} could not run: ${message}`);
+    tell({ kind: 'exit', code: null, signal: null, error: message });
+    return;
   }
   const current: Run = {
     entryId: request.entryId,
