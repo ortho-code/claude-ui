@@ -37,6 +37,12 @@ export const CWD_OPTION: OptionDecl = { name: 'cwd', kind: 'path', against: 'con
  */
 export const INTERVAL_OPTION: OptionDecl = { name: 'interval', kind: 'duration', atLeast: 10_000 };
 
+/**
+ * The longest a panel's timer can be asked to wait: 24 days, inside the 2^31 − 1 ms a timer holds.
+ * Past that a browser's `setTimeout` wraps the delay and fires at once, so a longer wait would be a run at once, every time.
+ */
+export const LONGEST_DELAY_MS = 576 * 3_600_000;
+
 const DURATION = /^(\d+)(s|m|h)$/;
 const UNIT_MS = { s: 1000, m: 60_000, h: 3_600_000 } as const;
 
@@ -55,7 +61,7 @@ export function intervalOf(options: Record<string, unknown>, fallback: string | 
 }
 
 /** "10s", "5m": a length in ms in the unit the file would write it in. */
-function durationLabel(ms: number): string {
+export function durationLabel(ms: number): string {
   if (ms % UNIT_MS.h === 0) return `${ms / UNIT_MS.h}h`;
   if (ms % UNIT_MS.m === 0) return `${ms / UNIT_MS.m}m`;
   return `${ms / UNIT_MS.s}s`;

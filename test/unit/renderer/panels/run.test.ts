@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { resolveContext, endLabel, runFailed, RunGate, placement, runKey, runContext } from '../../../../src/renderer/panels/run';
+import { resolveContext, endLabel, runFailed, RunGate, placement, readControl, runKey, runContext } from '../../../../src/renderer/panels/run';
 
 describe('RunGate', () => {
   /** A gate over a context the test moves by hand, counting the runs it lets through. */
@@ -193,6 +193,34 @@ describe('RunGate', () => {
       expect(state.runs).toHaveLength(3);
     });
 
+    it('ticks at the delay a run said, for that one tick, with an interval or without', () => {
+      const { g, state } = ticking(60 * MINUTE);
+      g.setVisible(true);
+      g.ended(state.numbers.at(-1)!, MINUTE);
+      vi.advanceTimersByTime(MINUTE);
+      expect(state.runs).toHaveLength(2);
+      // That run said nothing: the interval again.
+      g.ended(state.numbers.at(-1)!);
+      vi.advanceTimersByTime(59 * MINUTE);
+      expect(state.runs).toHaveLength(2);
+      vi.advanceTimersByTime(MINUTE);
+      expect(state.runs).toHaveLength(3);
+
+      const plain = ticking(null);
+      plain.g.setVisible(true);
+      plain.g.ended(plain.state.numbers.at(-1)!, MINUTE);
+      vi.advanceTimersByTime(MINUTE);
+      expect(plain.state.runs).toHaveLength(2);
+    });
+
+    it('sets no tick when a run said off, though it has an interval', () => {
+      const { g, state } = ticking();
+      g.setVisible(true);
+      g.ended(state.numbers.at(-1)!, 'off');
+      vi.advanceTimersByTime(60 * MINUTE);
+      expect(state.runs).toHaveLength(1);
+    });
+
     it('tells a run whether the interval asked for it', () => {
       const ticks: boolean[] = [];
       const g = new RunGate(
@@ -323,5 +351,49 @@ describe('runFailed', () => {
     expect(runFailed({ kind: 'stopped', reason: 'request' })).toBe(false);
     expect(runFailed({ kind: 'stopped', reason: 'quit' })).toBe(false);
     expect(runFailed({ kind: 'output', text: 'x' })).toBe(false);
+  });
+});
+
+describe('readControl', () => {
+  it('says nothing for a run that wrote nothing, or only blank lines', () => {
+    expect(readControl(undefined)).toEqual({ next: null, notes: [] });
+    expect(readControl('\n  \r\n')).toEqual({ next: null, notes: [] });
+  });
+
+  it('reads next as a duration or off, the last line of it winning, with spaces and a CRLF around it', () => {
+    expect(readControl('next=5m\n')).toEqual({ next: 300_000, notes: [] });
+    expect(readControl('next=1h\nnext=30s\n')).toEqual({ next: 30_000, notes: [] });
+    expect(readControl(' next = off \r\n')).toEqual({ next: 'off', notes: [] });
+  });
+
+  it('raises a next shorter than an interval may be to that, and says so', () => {
+    expect(readControl('next=3s')).toEqual({
+      next: 10_000,
+      notes: ['CLAUDE_UI_CONTROL: next 3s is shorter than the 10s it can be at the least, so the next run is in 10s.'],
+    });
+  });
+
+  it('lowers a next longer than a timer can wait to the longest it can, and says so', () => {
+    expect(readControl('next=600h')).toEqual({
+      next: 576 * 3_600_000,
+      notes: ['CLAUDE_UI_CONTROL: next 600h is longer than the 576h it can be at the most, so the next run is in 576h.'],
+    });
+  });
+
+  it('names a next it cannot read, a name it does not know and a line that is not name=value, once each, and acts on none', () => {
+    expect(readControl('next=soon\nlater=1m\nlater=2m\njust words\n=1m\n')).toEqual({
+      next: null,
+      notes: [
+        'CLAUDE_UI_CONTROL: later is not a name this build reads; it is ignored.',
+        'CLAUDE_UI_CONTROL: "just words" is not name=value.',
+        'CLAUDE_UI_CONTROL: "=1m" is not name=value.',
+        'CLAUDE_UI_CONTROL: next "soon" is not a duration like 30s, 5m or 1h, nor off; it is ignored.',
+      ],
+    });
+  });
+
+  it('quotes no more than the start of a long line', () => {
+    const [note] = readControl('x'.repeat(500)).notes;
+    expect(note).toBe(`CLAUDE_UI_CONTROL: "${'x'.repeat(59)}…" is not name=value.`);
   });
 });

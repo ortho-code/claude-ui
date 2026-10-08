@@ -1,9 +1,9 @@
 import type { PanelContext, PanelRunEvent } from '../../shared/panels';
-import { PANEL_TIMEOUT_MS } from '../../shared/panels';
+import { PANEL_CONTROL_VARIABLE, PANEL_TIMEOUT_MS } from '../../shared/panels';
 import type { View } from '../state/app';
 import { tabOnShow } from '../state/views';
 import type { Where } from './contract';
-import { checkOptions, isFixedPath, type OptionsDecl } from './options';
+import { INTERVAL_OPTION, LONGEST_DELAY_MS, checkOptions, durationLabel, isFixedPath, parseDuration, type OptionsDecl } from './options';
 
 /**
  * What the types that run something share — `command`, `terminal`, and the `list` kind behind the config folder's types: where a panel runs, when it runs again, and how a run's end is worded.
@@ -130,10 +130,71 @@ export function runFailed(event: PanelRunEvent): boolean {
   }
 }
 
+/** When a run said its next run is: in ms, `off` for none, or null for nothing said, which leaves it to the interval. */
+export type NextRun = number | 'off' | null;
+
+/** What a run's control file said, as the app reads it: when the next run is, and a note for each thing in it that was not understood. */
+export interface Control {
+  next: NextRun;
+  notes: string[];
+}
+
+/** The names a control file may use. */
+const CONTROL_NAMES: readonly string[] = ['next'];
+
+/** How much of a line a note quotes: enough to find it, and no more of a script's text than that. */
+const QUOTED_MAX = 60;
+
+/**
+ * Read what a run wrote to its control file (`PANEL_CONTROL_VARIABLE`): `name=value` lines, the last `next` winning, blank lines skipped.
+ * `next` is a duration like an interval's, or `off`; one under the interval's 10 s floor is raised to it, as an interval under it is refused, and one past the longest a timer can wait is lowered to that.
+ * Each line that is not `name=value`, each name this build does not read, and a last `next` it cannot read is a note, and none of them changes anything.
+ * Not read: a `next` before the last, and anything past the cap main reads to.
+ * Pure, and tested per rule.
+ */
+export function readControl(text: string | undefined): Control {
+  const notes = new Set<string>();
+  const values = new Map<string, string>();
+  for (const raw of (text ?? '').split('\n')) {
+    const line = raw.replace(/\r$/, '');
+    if (line.trim() === '') continue;
+    const at = line.indexOf('=');
+    const name = at < 0 ? '' : line.slice(0, at).trim();
+    if (name === '') notes.add(`${PANEL_CONTROL_VARIABLE}: "${line.length > QUOTED_MAX ? `${line.slice(0, QUOTED_MAX - 1)}…` : line}" is not name=value.`);
+    else if (!CONTROL_NAMES.includes(name)) notes.add(`${PANEL_CONTROL_VARIABLE}: ${name} is not a name this build reads; it is ignored.`);
+    else values.set(name, line.slice(at + 1).trim());
+  }
+  const next = values.get('next');
+  return { next: next === undefined ? null : readNext(next, notes), notes: [...notes] };
+}
+
+function readNext(value: string, notes: Set<string>): NextRun {
+  if (value === 'off') return 'off';
+  const ms = parseDuration(value);
+  const floor = INTERVAL_OPTION.atLeast!;
+  if (ms === null) {
+    notes.add(`${PANEL_CONTROL_VARIABLE}: next "${value}" is not a duration like 30s, 5m or 1h, nor off; it is ignored.`);
+    return null;
+  }
+  if (ms < floor) {
+    notes.add(`${PANEL_CONTROL_VARIABLE}: next ${value} is shorter than the ${durationLabel(floor)} it can be at the least, so the next run is in ${durationLabel(floor)}.`);
+    return floor;
+  }
+  if (ms > LONGEST_DELAY_MS) {
+    notes.add(`${PANEL_CONTROL_VARIABLE}: next ${value} is longer than the ${durationLabel(LONGEST_DELAY_MS)} it can be at the most, so the next run is in ${durationLabel(LONGEST_DELAY_MS)}.`);
+    return LONGEST_DELAY_MS;
+  }
+  return ms;
+}
+
+/** What a run that wrote nothing said: nothing, which leaves the next run to the interval. */
+export const NO_CONTROL: Control = { next: null, notes: [] };
+
 /**
  * WHEN a panel that runs something runs, apart from what running does: on first being shown, on Refresh, on a context change while shown, and on its interval if it has one.
  * A context change while the panel is hidden is remembered as a difference, not queued as a run: it runs once on reveal, and not at all if the context came back to where the last run was.
  * An interval runs it while hidden or folded too: from when the tree goes live, shown or not, and then a tick after the latest run ends or finds nowhere to run, so no tick starts while the latest run is still going.
+ * A run may say when the next tick is itself (`readControl`): that delay, for that one tick, in place of the interval's, with or without one, or `off` for none.
  * A run whose check finds the panel cannot run sets no tick: the ticks start again when a later check finds it can (`rerun`).
  * No DOM and no process, and no global but that timer, so the deferral is tested without either.
  */
@@ -185,13 +246,13 @@ export class RunGate {
   }
 
   /**
-   * Run `number` has ended, or found nowhere to run: the next tick is counted from here.
+   * Run `number` has ended, or found nowhere to run: the next tick is counted from here, at the delay the run said (`next`), else at the interval, else none.
    * Only the latest run's end counts: a run replaced while its successor is still being checked can end before that one starts, and a tick counted from it could run over the successor.
    */
-  ended(number: number): void {
+  ended(number: number, next: NextRun = null): void {
     if (!this.isLatest(number)) return;
     this.unschedule();
-    const ms = this.interval();
+    const ms = next === null ? this.interval() : next === 'off' ? null : next;
     if (ms === null || this.stopped) return;
     this.timer = setTimeout(() => {
       this.timer = null;

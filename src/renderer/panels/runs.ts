@@ -2,11 +2,11 @@ import type { PanelRunEvent, PanelRunRequest } from '../../shared/panels';
 import type { MountedPanel, PanelHost } from './contract';
 import type { PanelSlot } from './layout';
 import { optionsOf } from './options';
-import { RunGate, resolveContext, runKey } from './run';
+import { NO_CONTROL, RunGate, readControl, resolveContext, runFailed, runKey } from './run';
 import { listenForRuns } from './run-events';
 
 /**
- * A panel's runs, for the types that run a script and show what it gave — `command` and the `list` kind — written once: when it runs (`RunGate`), the check before every run, each run's token and number, and asking main to run and to stop.
+ * A panel's runs, for the types that run a script and show what it gave — `command` and the `list` kind — written once: when it runs (`RunGate`), the check before every run, each run's token and number, asking main to run and to stop, and what a run said in its control file about the next.
  * The panel keeps its body, says through its hooks (`RunHooks`) what each step looks like and what to run, and hands the tree's calls on to this.
  */
 
@@ -52,6 +52,9 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   private disposed = false;
   private readonly gate: RunGate;
   private readonly stopListening: () => void;
+  /** The panel's own notes, and what the last run's control file got wrong, which the group's note line shows together. */
+  private ownNotes: string[] = [];
+  private controlNotes: string[] = [];
 
   constructor(
     private readonly slot: PanelSlot,
@@ -93,6 +96,18 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     });
   }
 
+  /** The panel's own notes, which go to the host beside the last run's control notes rather than in their place. */
+  setNotes(notes: string[]): void {
+    this.ownNotes = notes;
+    this.host.setNotes([...this.ownNotes, ...this.controlNotes]);
+  }
+
+  /** What the latest run's control file got wrong, by the panel's key, beside the panel's own notes; none for a run that had nothing to say. */
+  private setControlNotes(notes: string[]): void {
+    this.controlNotes = notes.map((note) => `${this.slot.key}: ${note}`);
+    this.host.setNotes([...this.ownNotes, ...this.controlNotes]);
+  }
+
   unmount(): void {
     this.disposed = true;
     this.gate.stop();
@@ -119,6 +134,8 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
       if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
       this.token = null;
       this.host.setBusy(false);
+      // An end too, which ran nothing: what an earlier run's control file got wrong is not this one's.
+      this.setControlNotes([]);
       // A panel that cannot run is drawn by the tree as its problems; the panel draws one that can, with nowhere to run.
       this.hooks.idle(runnable);
       if (runnable) this.gate.ended(number);
@@ -140,7 +157,11 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     }
     this.token = null;
     this.host.setBusy(false);
+    // Each end of the current run says afresh what its control file got wrong, so a run that wrote nothing clears what the last one said.
+    // A stop the app asked for itself, the quit's, says nothing about the script, as the list kind already reads it.
+    const control = event.kind === 'stopped' && !runFailed(event) ? NO_CONTROL : readControl(event.control);
+    this.setControlNotes(control.notes);
     this.hooks.ended(event);
-    this.gate.ended(this.runNumber);
+    this.gate.ended(this.runNumber, control.next);
   }
 }

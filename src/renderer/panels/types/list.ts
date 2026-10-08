@@ -96,8 +96,9 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     this.placeholder.textContent = WAITING;
     this.el.append(this.placeholder, this.failedLine, this.body, this.unavailable);
     this.show();
-    host.setNotes(folder.notes);
     this.runs = new PanelRuns(slot, host, () => this.interval(), this);
+    // Through the runs, which put what a run's control file got wrong beside them.
+    this.runs.setNotes(folder.notes);
   }
 
   refresh(): void {
@@ -200,7 +201,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
         this.host.setEnd('');
         this.host.setStatus(null);
         this.host.setCount(read.doc.badge);
-        this.host.setNotes([...this.folder.notes, ...read.doc.notes]);
+        this.runs.setNotes([...this.folder.notes, ...read.doc.notes]);
         this.drawList();
         this.show();
         return;
