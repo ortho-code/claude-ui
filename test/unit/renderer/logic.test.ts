@@ -4,7 +4,7 @@ import {
   projectFor,
   hasVisibleOutput,
   statusLabel,
-  stopControlState,
+  tabButtonState,
   sessionsByKey,
   structuralSignature,
   sameRow,
@@ -763,29 +763,37 @@ describe('statusLabel', () => {
   });
 });
 
-describe('stopControlState', () => {
+describe('tabButtonState', () => {
+  // A running tab's process; any id will do.
+  const LIVE = 7;
+
   it('offers to stop a settled session', () => {
-    expect(stopControlState({})).toEqual({ disabled: false, tooltip: 'Stop session', force: false });
-    expect(stopControlState({ starting: false, stopping: false })).toEqual({ disabled: false, tooltip: 'Stop session', force: false });
+    expect(tabButtonState({ terminalId: LIVE })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop' });
+    expect(tabButtonState({ terminalId: LIVE, starting: false, stopping: false })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop' });
   });
 
   it('refuses both ends of a session lifetime, and says which end it is', () => {
-    expect(stopControlState({ starting: true })).toEqual({ disabled: true, tooltip: 'Starting…', force: false });
-    expect(stopControlState({ stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…', force: false });
+    // A process on its way has no id yet.
+    expect(tabButtonState({ terminalId: null, starting: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop' });
+    expect(tabButtonState({ terminalId: LIVE, stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…', mark: 'stop' });
   });
 
   it('reports ARRIVING when a tab somehow carries both flags', () => {
     // The precedence is load-bearing and was implicit until this test: a tab that is both is one being started, and calling it "Stopping…" would tell the user the opposite of what is happening.
-    expect(stopControlState({ starting: true, stopping: true })).toEqual({ disabled: true, tooltip: 'Starting…', force: false });
+    expect(tabButtonState({ terminalId: null, starting: true, stopping: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop' });
   });
 
   it('offers to force out a session that has not left, and says it may be asking', () => {
-    expect(stopControlState({ stopping: true, forceable: true })).toEqual({
+    expect(tabButtonState({ terminalId: LIVE, stopping: true, forceable: true })).toEqual({
       disabled: false,
       tooltip: 'Force stop: claude has not left yet — it may be asking you something',
-      force: true,
+      mark: 'force',
     });
     // Only a stop can become a force.
-    expect(stopControlState({ forceable: true })).toEqual({ disabled: false, tooltip: 'Stop session', force: false });
+    expect(tabButtonState({ terminalId: LIVE, forceable: true })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop' });
+  });
+
+  it('closes a cold tab, which has nothing to stop', () => {
+    expect(tabButtonState({ terminalId: null })).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close' });
   });
 });

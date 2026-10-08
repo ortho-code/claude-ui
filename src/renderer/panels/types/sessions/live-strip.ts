@@ -1,11 +1,11 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
-import { entityKey, orderAsTabs, sessionLabel, stopControlState, type SwitcherModel } from '../../../logic';
+import { entityKey, orderAsTabs, sessionLabel, tabButtonState, type SwitcherModel } from '../../../logic';
 import { store, type View } from '../../../state/app';
 import { dotStatus, projName, projectGroups, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
-import { chevronIcon, stopIcon } from '../../../svg';
+import { chevronIcon, tabButtonIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import '../../../menu-row.css';
@@ -110,8 +110,8 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   else jump.removeAttribute('aria-current');
   const tab = tabWith(session.id, view);
   // No tab at all should not happen — membership is "has a process", and a process belongs to a tab — so it is inert rather than guessed at.
-  const { disabled, tooltip, force } = tab ? stopControlState(tab) : { disabled: true, tooltip: null, force: false };
-  setMarkup(stop, stopIcon(14, force));
+  const { disabled, tooltip, mark } = tab ? tabButtonState(tab) : { disabled: true, tooltip: null, mark: 'stop' as const };
+  setMarkup(stop, tabButtonIcon(mark, 14));
   stop.disabled = disabled;
   setTooltip(stop, tooltip);
 }

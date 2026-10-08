@@ -1,12 +1,12 @@
 import Sortable from 'sortablejs';
 import { fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
-import { orderAsTabs, reorderWithinGroup, sessionLabel, stopControlState, unstartableReason, worktreeMarkState } from '../../../logic';
+import { orderAsTabs, reorderWithinGroup, sessionLabel, tabButtonState, unstartableReason, worktreeMarkState } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
 import { dotStatus, projName, projectGone, projectGroups, statusChanges, visibleTabs } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../statusdot';
-import { closeIcon, layersIcon, SIBLING_ICON, stopIcon, WORKTREE_ICON } from '../../../svg';
+import { layersIcon, SIBLING_ICON, tabButtonIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { activateTab, closeOrStop, persistOpenTabs, tabOf } from './terminals';
@@ -244,18 +244,11 @@ function drawTab(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames'
   label.textContent = text;
   setTooltip(label, unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}`);
 
-  // Anything but a settled cold tab: it has a process, or one is on its way, or one is on its way out.
-  if (tab.terminalId !== null || tab.starting || tab.stopping) {
-    // Stopping, its two pauses and its force, are the same rule the live strip's button follows — see stopControlState.
-    const { disabled, tooltip, force } = stopControlState(tab);
-    close.disabled = disabled;
-    setMarkup(close, stopIcon(14, force));
-    setTooltip(close, tooltip);
-  } else {
-    close.disabled = false;
-    setMarkup(close, closeIcon(14));
-    setTooltip(close, 'Close tab');
-  }
+  // Stopping, its two pauses and its force, and closing a cold tab: the same rule the live strip's button follows — see tabButtonState.
+  const { disabled, tooltip, mark } = tabButtonState(tab);
+  close.disabled = disabled;
+  setMarkup(close, tabButtonIcon(mark, 14));
+  setTooltip(close, tooltip);
 
   el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
   const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(worktree ? [worktreeMark] : [])];

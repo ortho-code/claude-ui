@@ -533,7 +533,7 @@ function coolTab(token: string): void {
  * A running session and a tab are separate things — a cold tab costs nothing but a line in the bar, and it is restored on the next launch — so one press should not decide both.
  * The first press stops (claude gets its normal exit path and flushes), the tab stays and goes cold; the second removes it.
  * A tab that is already cold goes in one press, since there is nothing live to protect.
- * While a session is arriving, or in the first moment of leaving, the button does nothing at all, and a session that is slow to leave is forced: see stopControlState.
+ * While a session is arriving, or in the first moment of leaving, the button does nothing at all, and a session that is slow to leave is forced: see tabButtonState.
  * Checked here too, since a middle click reaches this without going through the button.
  */
 export function closeOrStop(token: string): void {

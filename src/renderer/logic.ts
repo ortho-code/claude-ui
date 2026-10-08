@@ -573,10 +573,12 @@ export function showsRead(status: string | null | undefined, acked: boolean): bo
 }
 
 /**
- * Enough of a tab to know what its stop control should say: two of the flags a tab's data carries (`TabState`, in state/app.ts), and nothing of its terminal.
- * Both are optional, so a caller can name only the one it is about: absent means "not in that transition", which is the same thing as false and is why every check here is a truthiness test.
+ * Enough of a tab to know what its button should say: whether it has a process, three of the flags a tab's data carries (`TabState`, in state/app.ts), and nothing of its terminal.
+ * The flags are optional, so a caller can name only the one it is about: absent means "not in that transition", which is the same thing as false and is why every check on them is a truthiness test.
  */
-export interface StopControlTab {
+export interface TabButtonTab {
+  /** Its process, or null for a cold tab. */
+  terminalId: number | null;
   /** A process is on its way. */
   starting?: boolean;
   /** A process is on its way out. */
@@ -585,21 +587,25 @@ export interface StopControlTab {
   forceable?: boolean;
 }
 
+/** The mark on a tab's button: the stop square, filled once a press forces the session out, or the cross once there is only a tab to close (`tabButtonIcon`). */
+export type TabButtonMark = 'stop' | 'force' | 'close';
+
 /**
- * What a session's stop control shows, wherever it is drawn — the tab's button and the live strip's.
+ * What a tab's button shows, wherever it is drawn: on the tab, and on the live strip's row for its session.
  *
  * Both ends of a session's life are a pause, for the same reason: neither a tab whose process has not arrived yet nor one whose process is still leaving can be acted on without the UI disagreeing with what is actually running.
  * Except that a session asked to leave may never go: claude can ask something on its way out and wait for the answer, and nothing it sends tells that from a claude that hangs.
- * So after a moment the pause becomes a FORCE, the stop mark filled (`force`), which ends it without asking; the moment is what keeps a double-click from forcing before the question is even on screen.
+ * So after a moment the pause becomes a FORCE, the stop mark filled, which ends it without asking; the moment is what keeps a double-click from forcing before the question is even on screen.
+ * A cold tab has nothing to stop, so the button closes it.
  * ONE RULE RATHER THAN TWO, and it is here rather than in the renderer because the two surfaces did come to different conclusions about the same tab the day the strip grew its own copy.
- * The tab's THIRD state, closing a cold tab, is deliberately not here: the strip has no such case, since it only ever lists sessions that have a process.
  */
-export function stopControlState(tab: StopControlTab): { disabled: boolean; tooltip: string; force: boolean } {
+export function tabButtonState(tab: TabButtonTab): { disabled: boolean; tooltip: string; mark: TabButtonMark } {
   // Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving.
-  if (tab.starting) return { disabled: true, tooltip: 'Starting…', force: false };
-  if (tab.stopping && tab.forceable) return { disabled: false, tooltip: 'Force stop: claude has not left yet — it may be asking you something', force: true };
-  if (tab.stopping) return { disabled: true, tooltip: 'Stopping…', force: false };
-  return { disabled: false, tooltip: 'Stop session', force: false };
+  if (tab.starting) return { disabled: true, tooltip: 'Starting…', mark: 'stop' };
+  if (tab.stopping && tab.forceable) return { disabled: false, tooltip: 'Force stop: claude has not left yet — it may be asking you something', mark: 'force' };
+  if (tab.stopping) return { disabled: true, tooltip: 'Stopping…', mark: 'stop' };
+  if (tab.terminalId === null) return { disabled: false, tooltip: 'Close tab', mark: 'close' };
+  return { disabled: false, tooltip: 'Stop session', mark: 'stop' };
 }
 
 /**

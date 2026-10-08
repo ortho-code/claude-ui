@@ -128,7 +128,7 @@ export interface TabState {
   stopping: boolean;
   /** The tab goes when the stop's exit lands, rather than going cold: a close of a live tab waits for claude like a stop, since claude may ask something on its way out. */
   closing: boolean;
-  /** A stop that has had its moment without the session going: its stop control now forces it out (`stopControlState`). */
+  /** A stop that has had its moment without the session going: its stop control now forces it out (`tabButtonState`). */
   forceable: boolean;
   /**
    * Paused: set aside by you to come back to (`pauseTab`), its claude asked to leave as a stop asks it, and kept for the next launch, which restores the tab paused and never starts it.

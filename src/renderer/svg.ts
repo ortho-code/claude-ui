@@ -1,3 +1,5 @@
+import type { TabButtonMark } from './logic';
+
 /**
  * Every stroked icon in the app, drawn through one helper.
  *
@@ -31,6 +33,9 @@ export const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4
 // Filled, it is the force a stop becomes when the session has not left: the same act, harder.
 export const stopIcon = (size: number, force = false): string =>
   strokeIcon(size, `<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2"${force ? ' fill="currentColor"' : ''} />`);
+
+/** A tab's button's mark, as its rule says it (`tabButtonState`), wherever the button is drawn. */
+export const tabButtonIcon = (mark: TabButtonMark, size: number): string => (mark === 'close' ? closeIcon(size) : stopIcon(size, mark === 'force'));
 
 // A group's mark: layers, meaning "several things stacked as one".
 // Muted, never accent — the accent belongs to the project's folder icon one line above it.
