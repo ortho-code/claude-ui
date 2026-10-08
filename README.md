@@ -23,6 +23,7 @@ Done:
 - Session list from `~/.claude`, grouped into collapsible projects, refreshed live as transcripts change on disk.
 - Tabs: several sessions open at once, drag to reorder, and restored on the next launch, where the sessions that were running come back paused, or start again if you choose, and the rest wait — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab.
   A session that asks something on its way out, such as whether to keep its worktree, is answered in its tab, which stays until claude has gone; one that has not gone a second later can be forced.
+  A tab can be paused, from its kebab or a right-click: claude ends and the tab stays, marked with two bars, to set it aside without keeping it running, and it comes back paused at the next launch until you open it again.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
   Sessions sharing a conversation show as siblings (a fork badge with a jump list); worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life, and a session that has since left its worktree keeps the badge, muted.
@@ -32,8 +33,8 @@ Done:
 - Ordering and overview: reorder projects and groups from their kebabs, fold every section away and back from one header button, and attach a note to any session.
 - Pin, archive, and delete (to the OS trash); search plus filters (pinned, open, running, worktree, folder gone, siblings, noted, archived, date range).
   A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
-- Per-session status dots (busy / idle / waiting) driven by Claude Code hooks scoped to app-launched sessions; dots can be marked read, a live strip at the foot of the sidebar lists what is running across projects, and a project switcher scopes the sidebar.
-  A session in the strip can be muted or stopped where it is listed, so acting on one in another project doesn't cost you the project you're looking at.
+- Per-session status dots (busy / idle / waiting) driven by Claude Code hooks scoped to app-launched sessions; dots can be marked read, a live strip at the foot of the sidebar lists what is running and what is paused across projects, and a project switcher scopes the sidebar.
+  A session in the strip can be muted, stopped, paused or closed where it is listed, from its button or its kebab, so acting on one in another project doesn't cost you the project you're looking at.
   The strip keeps still: it follows your tabs, clustered by group, so a row only moves when you move a tab.
 - Sessions are followed the way they actually run: stopping one escalates until it has really ended, a `/clear` carries on in the same tab and group as a new session, and a `/model` switch shows at once.
 - A session whose folder is gone says so, in its row and on its tab, and refuses to start, instead of starting somewhere nobody chose; pinning, notes, archiving and deleting still work.
