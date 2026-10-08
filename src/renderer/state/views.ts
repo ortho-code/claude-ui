@@ -17,6 +17,20 @@ export function tabWith(sessionId: string, view: View<'tabs'> = store.get()): Ta
   return view.tabs.find((t) => t.session.id === sessionId);
 }
 
+/** Whether a tab rests paused: marked, with no claude behind it; one whose pause is still waiting for claude to leave runs until it has gone. */
+export function isPaused(tab: TabState): boolean {
+  return tab.paused && tab.terminalId === null;
+}
+
+/**
+ * What a session's own dot shows, wherever one stands for one session: `paused` for a session whose tab rests paused, since its last report describes a claude that has gone; otherwise its status as its hooks last reported it.
+ * A roll-up reads the status itself (`sessionNudge`).
+ */
+export function dotStatus(id: string, view: View<'statuses' | 'tabs'>): string | undefined {
+  const tab = tabWith(id, view);
+  return tab && isPaused(tab) ? 'paused' : view.statuses.get(id);
+}
+
 /** The tab on show, from the token the store keeps. */
 export function tabOnShow(view: View<'tabs' | 'activeTab'>): TabState | null {
   return view.activeTab === null ? null : (view.tabs.find((t) => t.token === view.activeTab) ?? null);
@@ -86,6 +100,14 @@ export function statusChanges(before: View<'statuses' | 'acked'>, after: View<'s
   for (const id of new Set([...before.statuses.keys(), ...after.statuses.keys()])) if (before.statuses.get(id) !== after.statuses.get(id)) ids.add(id);
   for (const id of new Set([...before.acked, ...after.acked])) if (before.acked.has(id) !== after.acked.has(id)) ids.add(id);
   return ids;
+}
+
+/** The sessions whose tab came to rest paused or stopped resting so between two readings of the tabs: what a change of the tabs asks a session's dot to repaint (`dotStatus`). */
+export function pausedChanges(before: View<'tabs'>, after: View<'tabs'>): Set<string> {
+  const paused = (view: View<'tabs'>): Set<string> => new Set(view.tabs.filter(isPaused).map((t) => t.session.id));
+  const was = paused(before);
+  const is = paused(after);
+  return new Set([...was, ...is].filter((id) => was.has(id) !== is.has(id)));
 }
 
 /** A session's part in a roll-up (`nudgeOf`), read out of the store. */

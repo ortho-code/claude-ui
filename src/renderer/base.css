@@ -250,6 +250,13 @@ button:hover {
   animation: spin 1.5s linear infinite;
 }
 
+/* Paused: set aside, its claude ended — two bars in the same 9px box rather than a ring, so it reads apart from a session that has simply not reported, in the same muted colour since it wants nothing from you. */
+.nudge.paused {
+  border: none;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 6px, var(--muted) 6px);
+}
+
 /* "Read": dim whatever colour it is and stop the pulse — acknowledged, still open. */
 .nudge.acked {
   opacity: 0.4;

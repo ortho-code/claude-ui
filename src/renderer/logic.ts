@@ -547,6 +547,8 @@ const STATUS_LABEL: Record<string, string> = {
   idle: 'Idle',
   waiting: 'Waiting for you',
   closed: 'Not running',
+  // Not a status a hook reports: what the dot of a session whose tab rests paused shows in place of its last one (`dotStatus`).
+  paused: 'Paused — opening it resumes the session',
 };
 
 /**
@@ -559,7 +561,15 @@ const STATUS_LABEL: Record<string, string> = {
 export function statusLabel(status: string | undefined, isAcked = false): string | null {
   if (!status) return null;
   const label = STATUS_LABEL[status] ?? status;
-  return isAcked ? `${label} (read)` : label;
+  return showsRead(status, isAcked) ? `${label} (read)` : label;
+}
+
+/**
+ * Whether a dot showing `status` shows the session's mark read, by its tooltip and its dimming alike (`sessionDotClass`).
+ * A paused dot never does: it reports no claude, so there is nothing on it to have read, and a mark made before the pause would dim it for nothing.
+ */
+export function showsRead(status: string | null | undefined, acked: boolean): boolean {
+  return acked && status !== 'paused';
 }
 
 /**

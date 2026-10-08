@@ -9,7 +9,7 @@ import { projName, sessionById, tabWith } from '../../../state/views';
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
-import { activateTab, closeTab, createTab, startTab, stopSession, switchWorkspaceTerminal, type TabLaunch } from './terminals';
+import { activateTab, closeTab, createTab, pauseTab, startTab, stopSession, switchWorkspaceTerminal, unpauseTab, type TabLaunch } from './terminals';
 
 /**
  * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, close its tabs, and follow the project chosen.
@@ -145,7 +145,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
 }
 
 /** The asks the terminal area answers. */
-export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'stopSession' | 'closeTabs' | 'showProject'> = {
+export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'stopSession' | 'pauseSession' | 'unpauseSession' | 'closeTabs' | 'showProject'> = {
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
@@ -160,6 +160,14 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
   stopSession: (id) => {
     const tab = tabWith(id);
     if (tab) stopSession(tab.token);
+  },
+  pauseSession: (id) => {
+    const tab = tabWith(id);
+    if (tab) pauseTab(tab.token);
+  },
+  unpauseSession: (id) => {
+    const tab = tabWith(id);
+    if (tab) unpauseTab(tab.token);
   },
   closeTabs: (id) => {
     for (const tab of store.get().tabs) if (entityKey(tab.session) === id) closeTab(tab.token);

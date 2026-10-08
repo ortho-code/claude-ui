@@ -744,6 +744,11 @@ describe('statusLabel', () => {
     expect(statusLabel('idle', false)).toBe('Idle');
   });
 
+  it('names a paused session, and never as read, since it reports no claude to have read', () => {
+    expect(statusLabel('paused')).toBe('Paused — opening it resumes the session');
+    expect(statusLabel('paused', true)).toBe('Paused — opening it resumes the session');
+  });
+
   it('says nothing at all for a session with no status', () => {
     // The hollow dot: no tooltip rather than an empty one, so closest() falls through to whatever it sits in.
     expect(statusLabel(undefined)).toBe(null);

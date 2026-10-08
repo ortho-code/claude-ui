@@ -119,6 +119,15 @@ test("a row's session mark follows its session's status, a mark read, and whethe
   await expect(mark(page, 'Tidy the settings page')).toHaveAttribute('aria-label', `Go to ${quiet.title} · not running`);
 });
 
+test("a row's session mark shows its session paused, as the session list's dot does", async ({ app, page }) => {
+  await bootQueue(app, page);
+  await row(page, quiet.title).locator('.session-kebab').click();
+  await page.locator('.kebab-menu button', { hasText: /^Pause$/ }).click();
+  await expect(row(page, quiet.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
+  await expect(mark(page, 'Tidy the settings page').locator('.nudge')).toHaveClass(/\bpaused\b/);
+  await expect(mark(page, 'Tidy the settings page')).toHaveAttribute('aria-label', `Go to ${quiet.title} · Paused — opening it resumes the session`);
+});
+
 test("a row's sessions are offered each with its own dot, as the row's mark and the session list draw it", async ({ app, page }) => {
   await bootQueue(app, page, { [reviewed.id]: link('org/repo#3'), [quiet.id]: link('org/repo#3') });
   const entryDot = (title: string): Locator => page.locator('.kebab-menu button', { hasText: title }).locator('.nudge');

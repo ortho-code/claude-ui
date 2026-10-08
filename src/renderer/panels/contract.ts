@@ -92,6 +92,10 @@ export interface Asks {
   forkSession(id: string): Promise<void>;
   /** End a running session and keep its tab, cold. */
   stopSession(id: string): void;
+  /** Set a session's tab aside, paused: its claude ended if it runs, the tab marked either way. */
+  pauseSession(id: string): void;
+  /** Take the paused mark off a session's tab. */
+  unpauseSession(id: string): void;
   /** Close every tab a session is open in, ending what runs there. */
   closeTabs(id: string): void;
   /** The terminal area's half of selecting a project: the tabs on show and the tab in front follow it. */

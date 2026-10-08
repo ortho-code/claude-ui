@@ -1,4 +1,4 @@
-import { statusLabel, type NudgeStatus } from './logic';
+import { showsRead, statusLabel, type NudgeStatus } from './logic';
 import { toggleAck } from './state/statuses';
 import { setTooltip } from './tooltip';
 
@@ -6,7 +6,7 @@ import { setTooltip } from './tooltip';
 
 /** A session's dot: hollow with nothing to report, dimmed once read, and a control where `clickable` (a click marks it read, `ackOnClick`). */
 export function sessionDotClass(status: string | null | undefined, acked: boolean, clickable = false): string {
-  return `nudge single${clickable ? ' clickable' : ''}${status ? ` ${status}${acked ? ' acked' : ''}` : ''}`;
+  return `nudge single${clickable ? ' clickable' : ''}${status ? ` ${status}${showsRead(status, acked) ? ' acked' : ''}` : ''}`;
 }
 
 /** A roll-up's dot, or a panel's: the strongest state under it, or nothing at all, since it has no quiet state of its own. */
@@ -14,8 +14,12 @@ export function badgeClass(badge: NudgeStatus | 'failed'): string {
   return badge ? `nudge ${badge}` : 'nudge';
 }
 
+/**
+ * Paint a session's dot as a control, from what it shows (`dotStatus`).
+ * A paused session's dot is not one: there is nothing to mark read, and a click goes to what holds it, which opens the session and so resumes it.
+ */
 export function applyStatus(dot: HTMLElement, status: string | undefined, isAcked = false): void {
-  dot.className = sessionDotClass(status, isAcked, true);
+  dot.className = sessionDotClass(status, isAcked, status !== 'paused');
   setTooltip(dot, statusLabel(status, isAcked));
 }
 
@@ -28,6 +32,8 @@ export function applyStatus(dot: HTMLElement, status: string | undefined, isAcke
  */
 export function ackOnClick(dot: HTMLElement, sessionId: () => string | null): void {
   dot.addEventListener('click', (event) => {
+    // A dot painted as no control, a paused session's, leaves the click to what holds it.
+    if (!dot.classList.contains('clickable')) return;
     event.stopPropagation();
     const id = sessionId();
     if (id) toggleAck(id);

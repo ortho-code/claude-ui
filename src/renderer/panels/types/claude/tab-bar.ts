@@ -4,7 +4,7 @@ import { Keyed, placeChildren, setMarkup } from '../../../keyed';
 import { orderAsTabs, reorderWithinGroup, sessionLabel, stopControlState, unstartableReason, worktreeMarkState } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
-import { projName, projectGone, projectGroups, statusChanges, visibleTabs } from '../../../state/views';
+import { dotStatus, projName, projectGone, projectGroups, statusChanges, visibleTabs } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { closeIcon, layersIcon, SIBLING_ICON, stopIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -212,7 +212,7 @@ function buildTab(token: string): TabEls {
 }
 
 /** Draw a tab as it is now: its state, its dot, its marks, its name, and its button's step. */
-function drawTab(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames' | 'activeTab'>): HTMLElement {
+function drawTab(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames' | 'tabs' | 'activeTab'>): HTMLElement {
   const { el, dot, markGroup, siblingMark, worktreeMark, label, close } = tabEls.draw(tab.token, buildTab);
   // 'cold' = restored but never started.
   // Unfilled rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
@@ -227,7 +227,7 @@ function drawTab(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames'
     .filter(Boolean)
     .join(' ');
 
-  applyStatus(dot, view.statuses.get(tab.session.id), view.acked.has(tab.session.id));
+  applyStatus(dot, dotStatus(tab.session.id, view), view.acked.has(tab.session.id));
 
   // Siblings often share a title, so mark the tab too — keyed on isSibling, the same signal as the sidebar row's badge, so tab and row always agree.
   if (tab.session.isSibling) {

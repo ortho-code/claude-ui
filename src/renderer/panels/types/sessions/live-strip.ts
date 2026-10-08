@@ -3,7 +3,7 @@ import { byId, fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
 import { entityKey, orderAsTabs, sessionLabel, stopControlState, type SwitcherModel } from '../../../logic';
 import { store, type View } from '../../../state/app';
-import { projName, projectGroups, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
+import { dotStatus, projName, projectGroups, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, stopIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -99,7 +99,7 @@ function buildRow(id: string): StripRow {
 /** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its stop control in the tab's state. */
 function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'acked' | 'tabs'>): void {
   const { row, jump, dot, name, chip, stop } = parts;
-  applyStatus(dot, view.statuses.get(session.id), view.acked.has(session.id));
+  applyStatus(dot, dotStatus(session.id, view), view.acked.has(session.id));
   name.textContent = sessionLabel(session);
   chip.textContent = groupName ?? '';
   chip.hidden = groupName === undefined;

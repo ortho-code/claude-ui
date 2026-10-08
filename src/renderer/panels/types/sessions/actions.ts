@@ -4,7 +4,7 @@ import { entityKey, folderName, relativeTime, sessionLabel, unstartableReason } 
 import { openMenu, type MenuItem } from '../../../menu';
 import { store, withMember } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
-import { isFiltering, projName, projectGroups } from '../../../state/views';
+import { isFiltering, projName, projectGroups, tabWith } from '../../../state/views';
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
 import { currentByKey, renderedSections } from './drawn';
@@ -197,6 +197,11 @@ export function sessionMenuItems(session: SessionSummary): MenuItem[] {
   // Only the normal view offers them: the archived view keeps unarchive on the row and hides the kebab.
   items.push({ label: '', separator: true });
   // Stopping lives on the tab's own button, which is where the session you want to stop is: see closeOrStop.
+  // Pausing is the tab's too, and needs one: it marks the tab, and for a running session ends its claude (pauseTab).
+  const tab = tabWith(session.id);
+  if (tab?.paused) items.push({ label: 'Unpause', onSelect: () => hostOf('sessions').unpauseSession(session.id) });
+  else if (tab?.starting) items.push({ label: 'Pause', disabled: 'Starting…' });
+  else if (tab) items.push({ label: 'Pause', onSelect: () => hostOf('sessions').pauseSession(session.id) });
   items.push({ label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
   return items;
 }

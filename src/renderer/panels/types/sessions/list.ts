@@ -3,7 +3,7 @@ import { placeChildren } from '../../../keyed';
 import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, groupJumpTargets, projectGoneReason } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
-import { isFiltering, projName, searchText, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
+import { dotStatus, isFiltering, pausedChanges, projName, searchText, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
@@ -34,7 +34,7 @@ function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {
 }
 
 /**
- * A tab opened, started, stopped, closed or came on show: the rows' marks follow, and the list itself is drawn again only when what it draws from the tabs moved since it last followed them (`before`).
+ * A tab opened, started, stopped, paused, closed or came on show: the rows' marks follow, and the list itself is drawn again only when what it draws from the tabs moved since it last followed them (`before`).
  * The open and live filters ask which sessions have a tab and which of those run, and a session with no transcript yet is in the list only through its tab's stand-in row.
  */
 function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
@@ -52,19 +52,27 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
     (live && keys(before, true) !== keys(view.tabs, true)) ||
     standIns(before) !== standIns(view.tabs);
   if (moved) renderList(view);
-  else updateSidebarHighlight(view);
+  else {
+    updateSidebarHighlight(view);
+    // A tab that came to rest paused, or stopped resting so, changes what its session's dot shows (`dotStatus`).
+    repaintDots(pausedChanges({ tabs: before }, view), view);
+  }
+}
+
+/** Repaint the dots of these sessions' rows, those drawn, from what each shows now. */
+function repaintDots(ids: Set<string>, view: View<'statuses' | 'acked' | 'tabs'>): void {
+  for (const id of ids) {
+    const dot = statusDots.get(id);
+    if (dot) applyStatus(dot, dotStatus(id, view), view.acked.has(id));
+  }
 }
 
 /**
  * A status or a mark read changed: repaint the rows' dots that differ from what they were last painted from (`before`).
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function dotsFollowStatuses(view: View<'statuses' | 'acked'>, before: View<'statuses' | 'acked'>): void {
-  const ids = statusChanges(before, view);
-  for (const id of ids) {
-    const dot = statusDots.get(id);
-    if (dot) applyStatus(dot, view.statuses.get(id), view.acked.has(id));
-  }
+function dotsFollowStatuses(view: View<'statuses' | 'acked' | 'tabs'>, before: View<'statuses' | 'acked'>): void {
+  repaintDots(statusChanges(before, view), view);
 }
 
 /** What draws the list again: the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter. */
@@ -83,7 +91,7 @@ type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (
 export function watchList(): void {
   store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
-  store.watch(['statuses', 'acked'], dotsFollowStatuses);
+  store.watch(['statuses', 'acked'], dotsFollowStatuses, { reads: ['tabs'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject'] });
 }
 

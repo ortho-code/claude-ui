@@ -105,7 +105,7 @@ let shuttingDown = false;
 
 /**
  * The open tabs, which of them run, and which you paused, for the next launch.
- * Written when a tab opens, closes or moves, when its process starts, and when its process goes: a stop leaves the tab cold, an exit of its own removes it, and one within its first moments, a failed start, leaves it cold too.
+ * Written when a tab opens, closes or moves, when it is paused or unpaused, when its process starts, and when its process goes: a stop leaves the tab cold, an exit of its own removes it, and one within its first moments, a failed start, leaves it cold too.
  * A session still being stopped has its process until claude has gone, so it is written as running until then.
  */
 export function persistOpenTabs(): void {
@@ -483,7 +483,29 @@ export function stopCalledOff(token: string): void {
   const tab = tabOf(token);
   if (!tab?.stopping) return;
   clearForceTimer(token);
-  setTab(token, { stopping: false, closing: false, forceable: false });
+  // A pause waiting for claude to leave is called off with it: the session is being worked in.
+  setTab(token, { stopping: false, closing: false, forceable: false, paused: false });
+  if (tab.paused) persistOpenTabs();
+}
+
+/**
+ * Set a tab aside to come back to (`TabState.paused`): a running tab's claude is asked to leave as a stop asks it, and a cold tab is only marked.
+ * NOTHING IS SUSPENDED: the process is ended, not frozen, and opening the tab again resumes the session, reloading its conversation as resuming any cold tab does.
+ * A tab whose process is still arriving is left alone, since there is nothing there yet to ask to leave; its Pause item is unavailable then.
+ */
+export function pauseTab(token: string): void {
+  const tab = tabOf(token);
+  if (!tab || tab.paused || tab.starting) return;
+  setTab(token, { paused: true });
+  persistOpenTabs();
+  if (tab.terminalId !== null && !tab.stopping) askToLeave(token, tab.terminalId, false);
+}
+
+/** Take a tab's paused mark off, and nothing else: a pause still waiting for claude to leave goes on as a stop, and leaves the tab cold. */
+export function unpauseTab(token: string): void {
+  if (!tabOf(token)?.paused) return;
+  setTab(token, { paused: false });
+  persistOpenTabs();
 }
 
 /** Turn a tab that has just lost its process into a cold one. */

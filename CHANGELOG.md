@@ -43,6 +43,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   `next=off` leaves it until something else runs it, and a `command` panel and a type of your own read it alike.
 - A `watch` option, `"watch": "git"`, runs a panel again when the git working tree of its folder changes, looked at every 30 seconds, out of sight too, once a burst of changes has settled.
   A folder in no working tree says so in the panel's place, and when git cannot answer the panel's check it asks again three times, then waits until something looks again, such as Refresh.
+- Pausing a tab, from its session's menu, to set it aside without keeping it running: claude is asked to leave, as a stop asks it, and the tab stays, its dot showing two bars, until you open it again or choose Unpause.
+  A paused tab comes back paused at the next launch and does not start.
 
 ### Changed
 

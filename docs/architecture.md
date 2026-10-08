@@ -196,6 +196,16 @@ It used to keep the dead process's id, which main no longer knew, so its stop wa
 The cold state is visible in three places, all reading the same `terminalId === null`: the tab is unfilled rather than dimmed, the session row's left bar and the selected tab's top edge are `--muted` instead of accent, and the terminal pane explains that clicking the tab resumes it.
 Those two marks answer the same question, so they answer it the same way — accent means a live session, nowhere else.
 
+A cold tab can also be **paused**: set aside to come back to, a mark beside the cold state rather than a fourth state, so everything that reads `terminalId` goes on reading it unchanged (`paused`).
+It exists because a stopped tab and one that came back cold from a restart looked the same, and a pile of the second kind hid the few still in hand.
+Pause and Unpause are in the session row's menu while the session has a tab, Pause unavailable while the tab is starting: pausing a running session asks its claude to leave as a stop does, and the mark is set at once, so a pause still waiting for claude to leave is kept as paused; pausing a cold tab only marks it.
+Nothing is suspended: the process is ended, not frozen, and opening the tab resumes the session as any cold tab's does, reloading its conversation.
+A prompt reported before claude has gone calls the pause off with the stop; one submitted just before the pause can do so too, and the tab then closes at the exit, as it does for a stop.
+An Unpause during that wait lets the stop go on, leaving the tab cold.
+The mark is a state of the session's dot (`dotStatus`), two bars in place of its last report once claude has gone, so every dot that stands for one session reads it from one rule: the tab's, the session row's, the strip's, and a list panel's row mark and session menu items.
+A roll-up, such as a project's in the switcher, and the attention toasts read the status itself, which for a session claude has left is `closed` and nudges nothing.
+A paused dot is no control and never shows the session's mark read, since it reports no claude, and a click on it goes to what holds it, which opens the session and so resumes it, unless its folder has gone.
+
 Where you were is remembered twice, in meta: `activeSession` (which tab to open on at launch) and `activeSessionByProject` (which to return to when you switch back to a project).
 The in-memory `activatedSeq` still decides while a project has something running; the stored map only matters when nothing does, which is how a launch begins.
 The remembered tab is *selected* at launch, and starts with the others only if it is one of them — a deliberately open question for one that is not, since a tab marked active with no process behind it is arguable.
@@ -204,6 +214,7 @@ What was running is remembered with the open tabs, in the same write: `runningSe
 The window stops writing once the app quits, so the exits the quit causes are not recorded, and a launch reads the list before its restore writes the open tabs again; after a crash, the sessions running at the crash come back.
 The tabs you paused are in the same write too, `pausedSessions`: a launch restores them paused and never starts them, even one also kept as running, whose claude had not left yet when the app closed.
 A tab loses the mark when its session's process arrives, and gets it back if that start fails within its first moments; a start that is refused or throws never had a process, so the mark stays.
+The mark is written whenever it changes, with the rest.
 
 The code is in `src/renderer/panels/types/claude/terminals.ts`: each tab's terminal, its life from built to closed, the workspace switch, the fit of the tab on show to the terminal area, and the open tabs kept for the next launch.
 
