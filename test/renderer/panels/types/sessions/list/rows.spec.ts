@@ -1,7 +1,7 @@
 import type { Locator } from '@playwright/test';
 import { PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { token } from '../../../../support/looks';
+import { overrun, token } from '../../../../support/looks';
 import { clickAcross } from '../../../../support/press';
 import { project, projectHeading, row, tabLabel, tabs } from '../../../../support/window';
 
@@ -35,6 +35,12 @@ test('a row is marked open, cold and on show as its tab is', async ({ app, page 
   await tabs(page).locator('.tab-close').click();
   await expect(row(page, one.title)).not.toHaveClass(/\bopen\b/);
   await expect(row(page, one.title)).not.toHaveClass(/\bcold\b/);
+});
+
+test("a row's title with a word longer than its line, such as a link, stays inside the row", async ({ app, page }) => {
+  const linked = session({ id: '00000000-0000-4000-8000-000000000006', title: 'Look at https://github.com/example-organisation/example-repository/pull/12345#discussion_r1234567890' });
+  await app.boot({ sessions: [linked], history: { [linked.id]: [] } });
+  await expect.poll(() => overrun(row(page, 'Look at').locator('.card-title'))).toBe(0);
 });
 
 test("a row's dot follows its session's status, and a click on it marks it read without opening the session", async ({ app, page }) => {

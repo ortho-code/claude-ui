@@ -111,6 +111,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A click in the session list, the live strip, the project switcher, the tab bar or a list panel counts when it changes at the same moment, unless the change moves what you clicked, and a button there you reached with the keyboard keeps the focus; both used to be lost.
 - A tab dragged while the tab bar changes, such as an open tab's session changing status, still moves where you drop it, instead of staying where it was.
 - A session you had to force to stop no longer goes on showing busy or waiting, on its own dot and on its project's in the switcher.
+- A session title with a word too long for its row, such as a link, wraps as the rest of the title does instead of being cut off where the row's buttons begin.
 
 ## 0.3.0 — 2026-08-29
 

@@ -24,6 +24,16 @@ export const token = (page: Page, name: string): Promise<string> =>
     return colour;
   }, name);
 
+/** How far a card's line of text runs past the right edge of the column the card gives its text, in px, clipped or not; 0 when it stays inside. */
+export const overrun = (line: Locator): Promise<number> =>
+  line.evaluate((el) => {
+    const column = el.closest('.card-content')!.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const ink = Math.max(...[...range.getClientRects()].map((rect) => rect.right));
+    return Math.max(0, Math.round(ink - column.right));
+  });
+
 /**
  * A menu's trigger as it looks hovered with its menu shut, and as it looks with its menu up and the pointer on the menu, which the UI conventions hold to be the same look (docs/architecture.md § UI conventions).
  * The menu is shut again after, by the trigger, as a second press does.

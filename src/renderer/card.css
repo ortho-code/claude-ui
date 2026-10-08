@@ -114,9 +114,12 @@
   background: var(--surface-hover);
 }
 
+/* A word longer than its line, such as a link or a path, breaks where it has to rather than running on past the column: under the row's buttons, or cut off at its edge.
+   Nothing else changes, since only a word that cannot fit is broken; a line that never wraps (the session's meta text) keeps its ellipsis. */
 .card-content {
   flex: 1;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .card-title {
