@@ -58,10 +58,14 @@ describe('a duration', () => {
 
   it.each(['5', '5 m', '1.5m', '0s', '-5m', '5d', 'm'])('refuses %j', (value) => expect(parseDuration(value)).toBeNull());
 
-  it('names a value that is not one, and one below the shortest the interval allows', () => {
+  it('names a value that is not one, and one below the shortest or above the longest the interval allows', () => {
     expect(optionProblems({ interval: 'soon' }, every)).toEqual(['interval "soon" is not a duration like 30s, 5m or 1h.']);
     expect(optionProblems({ interval: '5s' }, every)).toEqual(['interval 5s is shorter than the 10s it can be at the least.']);
     expect(optionProblems({ interval: '10s' }, every)).toEqual([]);
+    expect(optionProblems({ interval: '24h' }, every)).toEqual([]);
+    expect(optionProblems({ interval: '25h' }, every)).toEqual(['interval 25h is longer than the 24h it can be at the most.']);
+    // Past what a timer holds, which would wrap and run the panel at once, every time.
+    expect(optionProblems({ interval: '720h' }, every)).toEqual(['interval 720h is longer than the 24h it can be at the most.']);
   });
 
   it("reads an entry's interval over its type's, and neither as none", () => {

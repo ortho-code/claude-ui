@@ -373,10 +373,11 @@ describe('readControl', () => {
     });
   });
 
-  it('lowers a next longer than a timer can wait to the longest it can, and says so', () => {
-    expect(readControl('next=600h')).toEqual({
-      next: 576 * 3_600_000,
-      notes: ['CLAUDE_UI_CONTROL: next 600h is longer than the 576h it can be at the most, so the next run is in 576h.'],
+  it('lowers a next longer than an interval may be to that, and says so', () => {
+    expect(readControl('next=24h')).toEqual({ next: 24 * 3_600_000, notes: [] });
+    expect(readControl('next=25h')).toEqual({
+      next: 24 * 3_600_000,
+      notes: ['CLAUDE_UI_CONTROL: next 25h is longer than the 24h it can be at the most, so the next run is in 24h.'],
     });
   });
 

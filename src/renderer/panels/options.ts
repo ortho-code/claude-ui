@@ -21,6 +21,8 @@ export interface OptionDecl {
   must?: PathKind;
   /** For a `duration`: the shortest it may be, in ms. */
   atLeast?: number;
+  /** For a `duration`: the longest it may be, in ms. */
+  atMost?: number;
 }
 
 /**
@@ -33,15 +35,11 @@ export const CWD_OPTION: OptionDecl = { name: 'cwd', kind: 'path', against: 'con
 
 /**
  * How often a panel runs again on its own, for a type that re-runs at all: ONE declaration, taken by the types that want it and by no other, since a shell has nothing to re-run.
+ * Its bounds are those of every wait a panel's timer takes, a run's own `next` included (`readControl`).
  * Ten seconds at the least, so a typo cannot turn a panel into a script started every second.
+ * A day at the most (the user's choice, 2026-10-08), which also keeps every wait well inside the 2^31 − 1 ms a timer holds: past that a browser's `setTimeout` wraps the delay to a signed 32-bit value, which up to about 49 days turns negative and fires at once, and beyond fires after some shorter, wrong delay.
  */
-export const INTERVAL_OPTION: OptionDecl = { name: 'interval', kind: 'duration', atLeast: 10_000 };
-
-/**
- * The longest a panel's timer can be asked to wait: 24 days, inside the 2^31 − 1 ms a timer holds.
- * Past that a browser's `setTimeout` wraps the delay and fires at once, so a longer wait would be a run at once, every time.
- */
-export const LONGEST_DELAY_MS = 576 * 3_600_000;
+export const INTERVAL_OPTION: OptionDecl = { name: 'interval', kind: 'duration', atLeast: 10_000, atMost: 24 * 3_600_000 };
 
 const DURATION = /^(\d+)(s|m|h)$/;
 const UNIT_MS = { s: 1000, m: 60_000, h: 3_600_000 } as const;
@@ -138,6 +136,7 @@ export function valueProblem(option: OptionDecl, value: unknown): string | null 
     const ms = parseDuration(value);
     if (ms === null) return `${option.name} "${value}" is not a duration like 30s, 5m or 1h.`;
     if (option.atLeast !== undefined && ms < option.atLeast) return `${option.name} ${value} is shorter than the ${durationLabel(option.atLeast)} it can be at the least.`;
+    if (option.atMost !== undefined && ms > option.atMost) return `${option.name} ${value} is longer than the ${durationLabel(option.atMost)} it can be at the most.`;
   }
   return null;
 }

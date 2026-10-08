@@ -3,7 +3,7 @@ import { PANEL_CONTROL_VARIABLE, PANEL_TIMEOUT_MS } from '../../shared/panels';
 import type { View } from '../state/app';
 import { tabOnShow } from '../state/views';
 import type { Where } from './contract';
-import { INTERVAL_OPTION, LONGEST_DELAY_MS, checkOptions, durationLabel, isFixedPath, parseDuration, type OptionsDecl } from './options';
+import { INTERVAL_OPTION, checkOptions, durationLabel, isFixedPath, parseDuration, type OptionsDecl } from './options';
 
 /**
  * What the types that run something share — `command`, `terminal`, and the `list` kind behind the config folder's types: where a panel runs, when it runs again, and how a run's end is worded.
@@ -147,7 +147,7 @@ const QUOTED_MAX = 60;
 
 /**
  * Read what a run wrote to its control file (`PANEL_CONTROL_VARIABLE`): `name=value` lines, the last `next` winning, blank lines skipped.
- * `next` is a duration like an interval's, or `off`; one under the interval's 10 s floor is raised to it, as an interval under it is refused, and one past the longest a timer can wait is lowered to that.
+ * `next` is a duration within an interval's bounds (`INTERVAL_OPTION`), or `off`; one under them is raised to the shortest and one over them lowered to the longest, where an interval outside them is refused.
  * Each line that is not `name=value`, each name this build does not read, and a last `next` it cannot read is a note, and none of them changes anything.
  * Not read: a `next` before the last, and anything past the cap main reads to.
  * Pure, and tested per rule.
@@ -172,6 +172,7 @@ function readNext(value: string, notes: Set<string>): NextRun {
   if (value === 'off') return 'off';
   const ms = parseDuration(value);
   const floor = INTERVAL_OPTION.atLeast!;
+  const ceiling = INTERVAL_OPTION.atMost!;
   if (ms === null) {
     notes.add(`${PANEL_CONTROL_VARIABLE}: next "${value}" is not a duration like 30s, 5m or 1h, nor off; it is ignored.`);
     return null;
@@ -180,9 +181,9 @@ function readNext(value: string, notes: Set<string>): NextRun {
     notes.add(`${PANEL_CONTROL_VARIABLE}: next ${value} is shorter than the ${durationLabel(floor)} it can be at the least, so the next run is in ${durationLabel(floor)}.`);
     return floor;
   }
-  if (ms > LONGEST_DELAY_MS) {
-    notes.add(`${PANEL_CONTROL_VARIABLE}: next ${value} is longer than the ${durationLabel(LONGEST_DELAY_MS)} it can be at the most, so the next run is in ${durationLabel(LONGEST_DELAY_MS)}.`);
-    return LONGEST_DELAY_MS;
+  if (ms > ceiling) {
+    notes.add(`${PANEL_CONTROL_VARIABLE}: next ${value} is longer than the ${durationLabel(ceiling)} it can be at the most, so the next run is in ${durationLabel(ceiling)}.`);
+    return ceiling;
   }
   return ms;
 }

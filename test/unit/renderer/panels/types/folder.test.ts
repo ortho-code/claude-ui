@@ -60,6 +60,7 @@ describe('checkManifest', () => {
     [{ run: 'bin/../../other/queue' }, 'run bin/../../other/queue is not inside the type’s folder; give a path relative to it.'],
     [{ interval: 'often' }, 'interval "often" is not a duration like 30s, 5m or 1h.'],
     [{ interval: '1s' }, 'interval 1s is shorter than the 10s it can be at the least.'],
+    [{ interval: '48h' }, 'interval 48h is longer than the 24h it can be at the most.'],
     [{ options: {} }, 'options is not an array.'],
     [{ options: ['for'] }, 'options[0] is not an object.'],
     [{ options: [{ kind: 'text' }] }, 'options[0] has no name.'],

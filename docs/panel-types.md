@@ -33,7 +33,7 @@ One JSON object, which may carry comments (`//` and `/* */`) and trailing commas
 | `title` | What a panel of the type is called when its layout entry gives no `title`; the entry's id without either. |
 | `icon` | Its icon on a strip of icons, by name from the app's set (see the README's Panels section); `list` without one. |
 | `run` | Required: the script, a path relative to the type's folder and inside it, and executable. |
-| `interval` | How often a panel of the type runs again on its own, as `30s`, `5m` or `1h`, at least `10s`; only on show and on Refresh without one. |
+| `interval` | How often a panel of the type runs again on its own, as `30s`, `5m` or `1h`, from `10s` to `24h`; only on show and on Refresh without one. |
 | `options` | Settings of the type's own, which a layout entry gives under `options` and the script gets as variables. |
 
 `kind` is one of: `list`.

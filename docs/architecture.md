@@ -754,7 +754,7 @@ It also runs on its `interval`, if it has one.
 When it runs, the check before each run, each run's token, and asking main to run and to stop are one piece that this type and the list kind both go through (`PanelRuns` in `panels/runs.ts`, over the `RunGate`), so the two answer them by the same rules; each panel says only what it checks, what it runs, what it draws at each step, and the interval it runs on.
 
 **An interval runs it out of sight too.**
-`interval` is the list kind's own declaration (`INTERVAL_OPTION`, at least ten seconds), read through the same helper (`intervalOf`), and its timing is the list kind's too, through the same `RunGate`: a tick that long after each run ends, hidden or folded as well, and a first run when the tree first places the panel, shown or not.
+`interval` is the list kind's own declaration (`INTERVAL_OPTION`, ten seconds to a day), read through the same helper (`intervalOf`), and its timing is the list kind's too, through the same `RunGate`: a tick that long after each run ends, hidden or folded as well, and a first run when the tree first places the panel, shown or not.
 So "does a panel's interval run out of sight" has one answer for both; here it keeps the rail's red dot true, where the list's reason is its count.
 The alternative was a run on show when one is due and none while hidden, which makes an hourly overview late by its own run time each time it is looked at.
 The gate counts the next tick from the end of the latest run it let through, and every run clears a tick still waiting, so no tick starts while the latest run goes; a run whose check finds problems sets no tick, and the ticks start again when a later check finds the panel can run.
@@ -875,7 +875,7 @@ Stderr's end is kept as the reason a failure gives: mise, for one, writes the ta
 **When it runs.**
 On first being shown, on Refresh, on a context change while shown, as a `command` panel does, and on its interval, all through the same piece (`PanelRuns`, § The `command` type); the interval also runs while the panel is hidden or folded: the count on its rail icon is the point of a queue, and a count that stops while you are not looking says something false.
 The first run of a panel with an interval is when the tree goes live, shown or not.
-The interval is at least ten seconds, so a typo cannot start a script every second.
+The interval is ten seconds to a day: at least ten seconds, so a typo cannot start a script every second, and at most a day, which also keeps every wait well inside what a timer holds — past 2^31 − 1 ms (about 25 days) a browser's `setTimeout` wraps the delay to a signed 32-bit value, which up to about 49 days turns negative and fires at once, and beyond fires after some shorter, wrong delay, so a longer interval ran at the wrong time, mostly at once, every time.
 
 **Never an empty list for a broken run.**
 A run that fails, or prints something that is not a list, says so.

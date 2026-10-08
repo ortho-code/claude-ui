@@ -186,7 +186,7 @@ To run a project's own script, say so with a command line such as `"command": ".
 The command runs in the active tab's folder, or the selected project's root when no tab is open, and runs again when you switch project or tab or press Refresh.
 While it is out of sight, behind another panel or folded away, a switch does not run it; it runs once when you show it again, if the folder changed meanwhile.
 
-An `interval` in its `options`, such as `"5m"` or `"1h"` and at least `"10s"`, also runs it again that long after each run ends, out of sight too, so the dot on its icon stays current; a panel with one runs as soon as it is placed, at launch or when you add it, even out of sight.
+An `interval` in its `options`, such as `"5m"` or `"1h"`, from `"10s"` to `"24h"`, also runs it again that long after each run ends, out of sight too, so the dot on its icon stays current; a panel with one runs as soon as it is placed, at launch or when you add it, even out of sight.
 While its output is on show, a run on the interval leaves it, the header's word and the dot as they are until it ends, then shows what it printed, failed or not, so the panel does not empty under you, and stays scrolled where it was as far as the new output reaches.
 Refresh and a switch still clear it, and show the run as it prints.
 
