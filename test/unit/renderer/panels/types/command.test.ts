@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { INTERVAL_OPTION } from '../../../../../src/renderer/panels/options';
+import { INTERVAL_OPTION, WATCH_OPTION } from '../../../../../src/renderer/panels/options';
 import { commandSource, commandType } from '../../../../../src/renderer/panels/types/command';
+import { KIND_OPTIONS } from '../../../../../src/renderer/panels/types/folder';
 
 describe('commandSource', () => {
   it('takes the one option the entry gave', () => {
@@ -12,11 +13,16 @@ describe('commandSource', () => {
 describe('the declaration', () => {
   it('requires exactly one of command and script', () => {
     expect(commandType.exactlyOne).toEqual([['command', 'script']]);
-    expect(commandType.options.map((option) => option.name)).toEqual(['command', 'script', 'cwd', 'interval']);
+    expect(commandType.options.map((option) => option.name)).toEqual(['command', 'script', 'cwd', 'interval', 'watch']);
   });
 
   it('takes the one interval declaration the list kind takes too, ten seconds at the least', () => {
     expect(commandType.options.find((option) => option.name === 'interval')).toBe(INTERVAL_OPTION);
+  });
+
+  it('takes the one watch declaration the list kind takes too', () => {
+    expect(commandType.options.find((option) => option.name === 'watch')).toBe(WATCH_OPTION);
+    expect(KIND_OPTIONS.list).toContain(WATCH_OPTION);
   });
 
   it('takes the one cwd declaration both types share: a folder, under the context directory when relative', () => {

@@ -153,7 +153,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       window.claudeUi.checkPath(manifest.run, { dir: this.folder.dir }, 'executable'),
     ]);
     const problems = [...prepared.problems, ...(script.problem ? [`types/${this.folder.name}: run ${script.problem}.`] : [])];
-    return { problems, ready: problems.length === 0 && prepared.run ? { context: prepared.run, script: script.path } : null };
+    return { problems, ready: problems.length === 0 && prepared.run ? { context: prepared.run, script: script.path } : null, retry: prepared.retry };
   }
 
   idle(runnable: boolean): void {

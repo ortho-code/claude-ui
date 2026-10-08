@@ -3,7 +3,7 @@ import type { PanelSlot } from '../layout';
 import './command.css';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { stripAnsi, splitPendingEscape } from '../../ansi';
-import { CWD_OPTION, INTERVAL_OPTION, intervalOf, optionsOf } from '../options';
+import { CWD_OPTION, INTERVAL_OPTION, WATCH_OPTION, intervalOf, optionsOf } from '../options';
 import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
 import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
 
@@ -80,8 +80,8 @@ class CommandPanel implements MountedPanel, RunHooks<PanelContext> {
 
   /** The options against the selection as it is now, and where the panel would run. */
   async check(): Promise<Checked<PanelContext>> {
-    const { problems, run } = await prepare(optionsOf(this.slot.entry), commandType, this.host.where());
-    return { problems, ready: run };
+    const { problems, run, retry } = await prepare(optionsOf(this.slot.entry), commandType, this.host.where());
+    return { problems, ready: run, retry };
   }
 
   idle(runnable: boolean): void {
@@ -160,6 +160,7 @@ export const commandType: PanelType = {
     { name: 'script', kind: 'path', against: 'config', must: 'executable' },
     CWD_OPTION,
     INTERVAL_OPTION,
+    WATCH_OPTION,
   ],
   exactlyOne: [['command', 'script']],
   icon: 'command',

@@ -67,6 +67,7 @@ describe('checkManifest', () => {
     [{ options: [{ name: 'For', kind: 'text' }] }, 'option "For" is not lowercase letters, digits and underscores, starting with a letter.'],
     [{ options: [{ name: 'cwd', kind: 'text' }] }, 'option cwd is the list kind’s own; call it something else.'],
     [{ options: [{ name: 'interval', kind: 'text' }] }, 'option interval is the list kind’s own; call it something else.'],
+    [{ options: [{ name: 'watch', kind: 'text' }] }, 'option watch is the list kind’s own; call it something else.'],
     [{ options: [{ name: 'for', kind: 'text' }, { name: 'for', kind: 'text' }] }, 'option for is declared twice.'],
     [{ options: [{ name: 'for' }] }, 'option for has no kind (it can be: text).'],
     [{ options: [{ name: 'repo', kind: 'path' }] }, 'option repo: kind "path" is not one a manifest can declare in this build (it can: text).'],
@@ -112,7 +113,7 @@ describe('folderTypes', () => {
     expect(reviews).toMatchObject({ name: 'reviews', icon: 'check', exactlyOne: [] });
     expect(reviews.defaultTitle({})).toBe('Reviews');
     // The list kind's own options first, then the manifest's.
-    expect(reviews.options.map((option) => option.name)).toEqual(['cwd', 'interval', 'for']);
+    expect(reviews.options.map((option) => option.name)).toEqual(['cwd', 'interval', 'watch', 'for']);
   });
 
   it('keeps a type whose manifest is wrong, so its entries say why where they stand', () => {

@@ -72,11 +72,14 @@ export function runContext(context: PanelContext | null, dir: string): PanelCont
 export interface Prepared {
   problems: string[];
   run: PanelContext | null;
+  /** The problem is git not answering, which it may when asked again (`PanelRuns` does, a few times). */
+  retry?: boolean;
 }
 
 /**
  * The one path both types take before a run or a shell start, and when they check themselves: check the options against the current selection, then place the panel.
  * The folder comes from the check, so the run goes exactly where main looked.
+ * A panel that watches git asks main, once it has a folder, whether that folder is in a git working tree, and cannot run when it is not, or when git cannot say: the option is about that tree, and without one it has nothing to watch.
  */
 export async function prepare(options: Record<string, unknown>, decl: OptionsDecl, where: Where): Promise<Prepared> {
   const context = resolveContext(where);
@@ -84,7 +87,15 @@ export async function prepare(options: Record<string, unknown>, decl: OptionsDec
   if (problems.length > 0) return { problems, run: null };
   const place = placement(options.cwd, context);
   if (!place) return { problems: [], run: null };
-  return { problems: [], run: runContext(context, place.kind === 'context' ? context!.cwd : paths.cwd!) };
+  const run = runContext(context, place.kind === 'context' ? context!.cwd : paths.cwd!);
+  if (options.watch === 'git') {
+    const tree = await window.claudeUi.panelTree(run.cwd);
+    // No working tree is git's definite answer, and stands until the panel is looked at again: a Refresh, a reveal, a change in the config folder, or a switch that runs it.
+    if (tree.kind === 'none') return { problems: [`watch: git, but ${run.cwd} is not in a git working tree; press Refresh once it is.`], run: null };
+    // Git not answering is as much a refusal, since there is no tree to watch, but it may answer when asked again.
+    if (tree.kind === 'failed') return { problems: [`watch: git, but git could not look at ${run.cwd}: ${tree.error.replace(/\.$/, '')}.`], run: null, retry: true };
+  }
+  return { problems: [], run };
 }
 
 /**

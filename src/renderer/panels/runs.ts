@@ -20,7 +20,13 @@ export type RunProgress = Exclude<PanelRunEvent, RunEnd>;
 export interface Checked<Ready> {
   problems: string[];
   ready: Ready | null;
+  /** One of the problems is git not answering, which it may when asked again. */
+  retry?: boolean;
 }
+
+/** How long after a check git did not answer it is asked again, and how many times, before the panel waits for a Refresh. */
+const RETRY_MS = 30_000;
+const RETRIES = 3;
 
 /** A run as the panel asks for it; the entry and the token are added here. */
 export type RunAsk = Omit<PanelRunRequest, 'entryId' | 'token'>;
@@ -55,6 +61,9 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   /** The panel's own notes, and what the last run's control file got wrong, which the group's note line shows together. */
   private ownNotes: string[] = [];
   private controlNotes: string[] = [];
+  /** How many times the check has been asked again since git last failed to answer it, and the next time, if one is waiting. */
+  private retries = 0;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
   /** Whether the tree last said the panel is on show. */
   private shown = false;
 
@@ -90,12 +99,17 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     this.shown = visible;
     const ran = this.gate.setVisible(visible);
     // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
-    if (revealed && this.runnable === false && !ran) this.recheck();
+    if (revealed && this.runnable === false && !ran) this.look(true);
   }
 
   recheck(): void {
+    this.look(true);
+  }
+
+  /** Check the panel again; `fresh` starts git's retries afresh, which the retry timer's own look does not. */
+  private look(fresh: boolean): void {
     const was = this.runnable;
-    void this.check().then((checked) => {
+    void this.check(fresh).then((checked) => {
       // A panel that could not run and now can runs again, when its gate says (`rerun`); one that already could is left alone, since a change elsewhere in the folder is no reason to re-run it.
       if (checked?.problems.length === 0 && was === false) this.gate.rerun();
     });
@@ -115,24 +129,53 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
 
   unmount(): void {
     this.disposed = true;
+    this.stopRetrying();
     this.gate.stop();
     if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
     this.token = null;
     this.stopListening();
   }
 
-  /** Check the panel, and tell the host what is wrong with it; null once the panel is gone. */
-  private async check(): Promise<Checked<Ready> | null> {
+  /**
+   * Check the panel, and tell the host what is wrong with it; null once the panel is gone.
+   * A `fresh` check starts git's retries afresh, so a Refresh, a reveal, a change in the config folder or a switch that runs the panel each gets them all; a run its interval started does not, nor the retry timer's own look.
+   */
+  private async check(fresh = true): Promise<Checked<Ready> | null> {
+    if (fresh) this.stopRetrying();
     const checked = await this.hooks.check();
     if (this.disposed) return null;
     this.runnable = checked.problems.length === 0;
-    this.host.setProblems(checked.problems);
+    this.host.setProblems([...checked.problems, ...this.retrying(checked)]);
     return checked;
+  }
+
+  /**
+   * When git did not answer a check, ask again on a timer, a few times, and say which in the panel's problems; once they are used up, say a Refresh asks again.
+   * Any other answer, a definite one included, ends the retries; one that finds git answering runs the panel as a recheck does (`rerun`): now when it is shown or has an interval, on its next reveal when neither.
+   */
+  private retrying(checked: Checked<Ready>): string[] {
+    if (!checked.retry || checked.problems.length === 0) {
+      this.stopRetrying();
+      return [];
+    }
+    if (this.retries >= RETRIES) return [`Tried ${RETRIES} more times; press Refresh to try again.`];
+    this.retryTimer ??= setTimeout(() => {
+      this.retryTimer = null;
+      this.retries += 1;
+      this.look(false);
+    }, RETRY_MS);
+    return [`Trying again in ${RETRY_MS / 1000} s (retry ${this.retries + 1} of ${RETRIES}).`];
+  }
+
+  private stopRetrying(): void {
+    if (this.retryTimer !== null) clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    this.retries = 0;
   }
 
   /** Every run checks first: a script or a folder can go missing between runs, and the check is what says so in the panel's own words. */
   private async run(number: number, tick: boolean): Promise<void> {
-    const checked = await this.check();
+    const checked = await this.check(!tick);
     if (!this.gate.isLatest(number) || !checked) return;
     const runnable = checked.problems.length === 0;
     if (!runnable || !checked.ready) {

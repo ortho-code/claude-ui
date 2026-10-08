@@ -11,8 +11,8 @@ import type { PanelEntry, PathBase, PathKind } from '../../shared/panels';
 
 export interface OptionDecl {
   name: string;
-  /** `duration` is a whole number and a unit, `30s`, `5m` or `1h`. */
-  kind: 'text' | 'path' | 'duration';
+  /** `duration` is a whole number and a unit, `30s`, `5m` or `1h`; `choice` is one of `values`. */
+  kind: 'text' | 'path' | 'duration' | 'choice';
   /**
    * For a `path`: what a relative value resolves against — the config folder, or the panel's context directory — and what it must point at.
    * Declared beside the option so the check is not something the type has to remember.
@@ -23,6 +23,8 @@ export interface OptionDecl {
   atLeast?: number;
   /** For a `duration`: the longest it may be, in ms. */
   atMost?: number;
+  /** For a `choice`: the values it may be. */
+  values?: readonly string[];
 }
 
 /**
@@ -40,6 +42,13 @@ export const CWD_OPTION: OptionDecl = { name: 'cwd', kind: 'path', against: 'con
  * A day at the most (the user's choice, 2026-10-08), which also keeps every wait well inside the 2^31 − 1 ms a timer holds: past that a browser's `setTimeout` wraps the delay to a signed 32-bit value, which up to about 49 days turns negative and fires at once, and beyond fires after some shorter, wrong delay.
  */
 export const INTERVAL_OPTION: OptionDecl = { name: 'interval', kind: 'duration', atLeast: 10_000, atMost: 24 * 3_600_000 };
+
+/**
+ * What a panel watches: ONE declaration, for the types that re-run, as `interval` is.
+ * `git` alone for now, the git working tree of the folder the panel runs in; a folder in none, or one git cannot answer for, is a problem, which `prepare` names.
+ * Named for what is watched, so another value (a session's turns, say) can join it later.
+ */
+export const WATCH_OPTION: OptionDecl = { name: 'watch', kind: 'choice', values: ['git'] };
 
 const DURATION = /^(\d+)(s|m|h)$/;
 const UNIT_MS = { s: 1000, m: 60_000, h: 3_600_000 } as const;
@@ -138,6 +147,7 @@ export function valueProblem(option: OptionDecl, value: unknown): string | null 
     if (option.atLeast !== undefined && ms < option.atLeast) return `${option.name} ${value} is shorter than the ${durationLabel(option.atLeast)} it can be at the least.`;
     if (option.atMost !== undefined && ms > option.atMost) return `${option.name} ${value} is longer than the ${durationLabel(option.atMost)} it can be at the most.`;
   }
+  if (option.kind === 'choice' && !(option.values ?? []).includes(value)) return `${option.name} "${value}" is not one this build has (it has: ${(option.values ?? []).join(', ')}).`;
   return null;
 }
 
