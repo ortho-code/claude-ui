@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { EventEmitter } from 'node:events';
-import { readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 
 // The IPC handlers panels.ts registers, and every child it spawns, captured so the tests can drive them the way the renderer and the OS do.
-const { handlers, spawned, seq, logged } = vi.hoisted(() => ({
+const { handlers, spawned, refused, seq, logged } = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   spawned: [] as FakeChild[],
+  /** The options of every spawn that threw before there was a child, as Node's own checks of them do. */
+  refused: [] as FakeChild['options'][],
   // Never reset: panels.ts keeps its own map of live runs across tests, and a recycled pid would have one test's signals counted against another's process.
   seq: { pid: 7000 },
   /** Every log line as `level area message`; the log itself is not started in tests. */
@@ -42,6 +44,11 @@ vi.mock('electron', () => ({
 }));
 vi.mock('node:child_process', () => ({
   spawn: (file: string, args: string[], options: FakeChild['options']) => {
+    // A test asks for the refusal through an option, which reaches the environment.
+    if (options.env.CLAUDE_UI_OPTION_REFUSE) {
+      refused.push(options);
+      throw new TypeError('The argument options.env is invalid');
+    }
     const child = new EventEmitter() as FakeChild;
     child.pid = seq.pid++;
     child.file = file;
@@ -60,7 +67,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 import { registerPanelsIpc, stopAllPanels, panelInvocation, panelEnv, contextEnv } from '../../../src/main/panels';
-import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelRunEvent, type PanelRunRequest } from '../../../src/shared/panels';
+import { PANEL_CONTROL_CAP, PANEL_CONTROL_VARIABLE, PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelRunEvent, type PanelRunRequest } from '../../../src/shared/panels';
 import { KILL_GRACE_MS } from '../../../src/main/shell';
 
 const CONTEXT = { projectRoot: process.cwd(), cwd: process.cwd(), sessionId: 'sess-1' };
@@ -168,6 +175,8 @@ describe('a run', () => {
     stopAllPanels();
     kill.mockRestore();
     vi.useRealTimers();
+    // A run a test left going keeps its control file, which is a real file in the system's temp folder.
+    for (const child of spawned) rmSync(child.options.env[PANEL_CONTROL_VARIABLE] ?? '', { force: true, recursive: true });
   });
 
   it('spawns detached in the context directory with the shell’s own stderr discarded', () => {
@@ -366,6 +375,87 @@ describe('a run', () => {
       expect(events(token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null });
       expect(child.stdio[stdout]!.destroy).toHaveBeenCalled();
       expect(child.stdio[stderr]!.destroy).toHaveBeenCalled();
+    });
+  });
+
+  describe('its control file', () => {
+    const controlOf = (child: FakeChild): string => child.options.env[PANEL_CONTROL_VARIABLE];
+
+    it('is a fresh, empty file of the run’s own, named in its environment and readable by the user alone', () => {
+      const first = controlOf(start({ entryId: 'a' }).child);
+      const second = controlOf(start({ entryId: 'b' }).child);
+      expect(first).not.toBe(second);
+      for (const file of [first, second]) {
+        expect(statSync(file).size).toBe(0);
+        expect(statSync(file).mode & 0o777).toBe(0o600);
+      }
+    });
+
+    it('rides on the run’s end as written, and is removed', () => {
+      const { child, token } = start();
+      appendFileSync(controlOf(child), 'next=5m\n');
+      child.end(0);
+      expect(events(token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null, control: 'next=5m\n' });
+      expect(existsSync(controlOf(child))).toBe(false);
+    });
+
+    it('rides on a failed run’s end, and on the end of one the timeout stopped', async () => {
+      const failed = start({ entryId: 'failed' });
+      appendFileSync(controlOf(failed.child), 'next=1m\n');
+      failed.child.end(1);
+      expect(events(failed.token).at(-1)).toEqual({ kind: 'exit', code: 1, signal: null, control: 'next=1m\n' });
+
+      const slow = start({ entryId: 'slow' });
+      appendFileSync(controlOf(slow.child), 'next=off\n');
+      await vi.advanceTimersByTimeAsync(PANEL_TIMEOUT_MS);
+      slow.child.end(null, 'SIGTERM');
+      expect(events(slow.token).at(-1)).toEqual({ kind: 'stopped', reason: 'timeout', control: 'next=off\n' });
+    });
+
+    it('adds nothing to the end when nothing was written, or the script removed it, and leaves no file', () => {
+      const quiet = start({ entryId: 'quiet' });
+      quiet.child.end(0);
+      expect(events(quiet.token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null });
+      expect(existsSync(controlOf(quiet.child))).toBe(false);
+
+      const tidy = start({ entryId: 'tidy' });
+      rmSync(controlOf(tidy.child));
+      tidy.child.end(0);
+      expect(events(tidy.token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null });
+      expect(logged).toEqual([]);
+    });
+
+    it('is read no further than the cap', () => {
+      const { child, token } = start();
+      appendFileSync(controlOf(child), 'x'.repeat(PANEL_CONTROL_CAP + 100));
+      child.end(0);
+      const end = events(token).at(-1);
+      expect(end?.kind === 'exit' ? end.control : undefined).toHaveLength(PANEL_CONTROL_CAP);
+    });
+
+    it('with a folder in its place, ends the run all the same and says so in the log', () => {
+      const { child, token } = start();
+      rmSync(controlOf(child));
+      mkdirSync(controlOf(child));
+      child.end(0);
+      expect(events(token).at(-1)).toEqual({ kind: 'exit', code: 0, signal: null });
+      expect(logged.map((line) => line.replace(/: .*/, ''))).toEqual(['warn panel status control file unreadable', 'warn panel status control file not removed']);
+    });
+
+    it('goes with a run Node refuses to spawn, before there is a run to end', () => {
+      expect(() => start({ options: { refuse: 'yes' } })).toThrow('options.env is invalid');
+      const file = refused.at(-1)!.env[PANEL_CONTROL_VARIABLE];
+      expect(file).toBeTruthy();
+      expect(existsSync(file)).toBe(false);
+    });
+
+    it('is removed for a run a re-run replaced, which says nothing', () => {
+      const first = start();
+      start();
+      appendFileSync(controlOf(first.child), 'next=1m\n');
+      first.child.end(null, 'SIGTERM');
+      expect(events(first.token)).toEqual([]);
+      expect(existsSync(controlOf(first.child))).toBe(false);
     });
   });
 

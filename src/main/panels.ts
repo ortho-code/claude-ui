@@ -1,15 +1,20 @@
 import { ipcMain, type WebContents } from 'electron';
 import { spawn, type ChildProcess, type StdioOptions } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { closeSync, existsSync, openSync, readSync, rmSync, writeFileSync } from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import type { Readable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 import { configRoot } from './paths';
 import { resolvePath } from './config';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup, type ShellInvocation } from './shell';
-import { log } from './log';
+import { fsFailure, log } from './log';
 import { formatDuration } from './stamp';
 import {
   OPTION_NAME,
+  PANEL_CONTROL_CAP,
+  PANEL_CONTROL_VARIABLE,
   PANEL_OUTPUT_CAP,
   PANEL_TIMEOUT_MS,
   type PanelContext,
@@ -110,6 +115,8 @@ interface Run {
   timeout: NodeJS.Timeout;
   /** When it was spawned, for how long a failed run lasted. */
   started: number;
+  /** Its control file, until the run's end reads and removes it; null when it could not be made. */
+  control: string | null;
 }
 
 /**
@@ -139,10 +146,60 @@ function logRunEnd(run: Run, event: PanelRunEvent): void {
   }
 }
 
+/**
+ * A fresh control file for a run: empty, created exclusively and readable by the user alone, since the temp folder can be shared with other users of the machine (`/tmp` on Linux).
+ * Null when it cannot be made, and the run goes ahead without one.
+ * The run's end removes it; a crash, or a quit in the second a run's end can take, leaves it behind, empty or nearly, for the system to clear.
+ */
+function makeControl(entryId: string): string | null {
+  const file = path.join(os.tmpdir(), `claude-ui-control-${randomUUID()}`);
+  try {
+    writeFileSync(file, '', { flag: 'wx', mode: 0o600 });
+    return file;
+  } catch (error) {
+    log('warn', 'panel', `${entryId} runs without a control file: ${fsFailure(error) ?? 'it could not be made'}`);
+    return null;
+  }
+}
+
+/** What the run wrote to its control file, its first bytes up to the cap, or null for nothing; read only once, and removed then, which never throws out of a run's end. */
+function takeControl(run: Run): string | null {
+  const file = run.control;
+  if (file === null) return null;
+  run.control = null;
+  try {
+    const fd = openSync(file, 'r');
+    try {
+      const buffer = Buffer.alloc(PANEL_CONTROL_CAP);
+      const read = readSync(fd, buffer, 0, PANEL_CONTROL_CAP, 0);
+      return read === 0 ? null : buffer.subarray(0, read).toString('utf8');
+    } finally {
+      closeSync(fd);
+    }
+  } catch (error) {
+    // A script that removed its own file has said nothing; anything else is worth a line.
+    const failure = fsFailure(error);
+    if (failure) log('warn', 'panel', `${run.entryId} control file unreadable: ${failure}`);
+    return null;
+  } finally {
+    dropControl(run.entryId, file);
+  }
+}
+
+/** Remove a control file, saying so in the log when it cannot be: a script may have put a folder in its place. */
+function dropControl(entryId: string, file: string): void {
+  try {
+    rmSync(file, { force: true });
+  } catch (error) {
+    log('warn', 'panel', `${entryId} control file not removed: ${fsFailure(error) ?? 'it could not be'}`);
+  }
+}
+
 function finish(run: Run, event: PanelRunEvent): void {
   if (run.finished) return;
   logRunEnd(run, event);
-  emit(run, event);
+  const control = takeControl(run);
+  emit(run, control !== null && (event.kind === 'exit' || event.kind === 'stopped') ? { ...event, control } : event);
   run.finished = true;
   clearTimeout(run.timeout);
   if (runs.get(run.entryId) === run) runs.delete(run.entryId);
@@ -177,13 +234,23 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
   // Anything but `apart` is the one pipe, as every run was before the choice existed.
   const stderr: PanelStderr = request.stderr === 'apart' ? 'apart' : 'merged';
   const { file, args } = panelInvocation(request.source, stderr);
+  const control = makeControl(request.entryId);
+  const env = panelEnv(request.context, request.options);
+  if (control !== null) env[PANEL_CONTROL_VARIABLE] = control;
   // `detached` puts the child in a session of its own, so its pid is a group id the stop can signal (shell.ts).
-  const child = spawn(file, args, {
-    cwd,
-    env: panelEnv(request.context, request.options),
-    detached: true,
-    stdio: STDIO[stderr],
-  });
+  let child: ChildProcess;
+  try {
+    child = spawn(file, args, {
+      cwd,
+      env,
+      detached: true,
+      stdio: STDIO[stderr],
+    });
+  } catch (error) {
+    // Refused before there was a run to end, such as a value Node will not put in an environment: the control file goes with it.
+    if (control !== null) dropControl(request.entryId, control);
+    throw error;
+  }
   const current: Run = {
     entryId: request.entryId,
     token: request.token,
@@ -196,6 +263,7 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
     muted: false,
     timeout: setTimeout(() => stopRun(current, 'timeout'), PANEL_TIMEOUT_MS),
     started: Date.now(),
+    control,
   };
   runs.set(request.entryId, current);
   live.add(current);

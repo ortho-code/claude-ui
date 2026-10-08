@@ -269,6 +269,7 @@ export type PanelStopReason = 'timeout' | 'truncated' | 'rerun' | 'request' | 'q
 
 /**
  * What a run sends the renderer, in order: any number of `output` (and, in an `apart` run, `stderr`), at most one `truncated`, then exactly one of `exit` (it ended by itself, or never started) or `stopped` (the app ended it).
+ * Either end carries `control` when the run wrote to its control file (`PANEL_CONTROL_VARIABLE`): its first `PANEL_CONTROL_CAP` bytes, decoded as UTF-8.
  */
 export type PanelRunEvent =
   | { kind: 'output'; text: string }
@@ -276,8 +277,17 @@ export type PanelRunEvent =
   | { kind: 'stderr'; text: string }
   /** The cap was reached: nothing after this is forwarded, and the process is being stopped. */
   | { kind: 'truncated' }
-  | { kind: 'exit'; code: number | null; signal: string | null; error?: string }
-  | { kind: 'stopped'; reason: PanelStopReason };
+  | { kind: 'exit'; code: number | null; signal: string | null; error?: string; control?: string }
+  | { kind: 'stopped'; reason: PanelStopReason; control?: string };
+
+/**
+ * The variable naming a run's control file: a fresh, empty file the run may write `name=value` lines to, read when it ends, so a script can tell the app something without printing it.
+ * A file rather than a marker in the output, since what a panel prints is often somebody else's text, which could carry the marker: GitHub Actions deprecated `set-output` on stdout in favour of a file for that reason.
+ */
+export const PANEL_CONTROL_VARIABLE = 'CLAUDE_UI_CONTROL';
+
+/** How much of a control file is read: a few lines saying what happens next, not output. */
+export const PANEL_CONTROL_CAP = 4096;
 
 /**
  * A session a panel's row started, as that panel remembers it: which item it was about, what to call it, and where the item's link goes.
