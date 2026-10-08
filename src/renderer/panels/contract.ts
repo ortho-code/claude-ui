@@ -90,8 +90,8 @@ export interface Asks {
   openWorktreeSession(repoRoot: string, groupId?: string): Promise<void>;
   /** Fork a session, named as the dialog it opens is answered, into its parent's group. */
   forkSession(id: string): Promise<void>;
-  /** End a running session and keep its tab, cold. */
-  stopSession(id: string): void;
+  /** Press a session's tab's button, as on the tab: stop a running session, force one that has not left once it may, or close a cold tab. */
+  pressTabButton(id: string): void;
   /** Set a session's tab aside, paused: its claude ended if it runs, the tab marked either way. */
   pauseSession(id: string): void;
   /** Take the paused mark off a session's tab. */

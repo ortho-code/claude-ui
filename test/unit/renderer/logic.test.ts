@@ -4,6 +4,7 @@ import {
   projectFor,
   hasVisibleOutput,
   statusLabel,
+  stripLine,
   tabButtonState,
   sessionsByKey,
   structuralSignature,
@@ -760,6 +761,19 @@ describe('statusLabel', () => {
     // A new hook state should read oddly, not crash — but it SHOULD read oddly, which is the signal to name it here.
     expect(statusLabel('compacting')).toBe('compacting');
     expect(statusLabel('compacting', true)).toBe('compacting (read)');
+  });
+});
+
+describe('stripLine', () => {
+  it('counts what runs, and of those what wants you', () => {
+    expect(stripLine(3, 0, 0)).toBe('3 live');
+    expect(stripLine(3, 2, 0)).toBe('2 of 3 need you');
+  });
+
+  it('adds the paused tabs after what runs, and names them alone when nothing runs', () => {
+    expect(stripLine(3, 0, 2)).toBe('3 live · 2 paused');
+    expect(stripLine(3, 1, 2)).toBe('1 of 3 need you · 2 paused');
+    expect(stripLine(0, 0, 2)).toBe('2 paused');
   });
 });
 

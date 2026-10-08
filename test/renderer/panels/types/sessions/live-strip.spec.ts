@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { defaultUi } from '../../../../../src/shared/defaults';
 import type { SessionSummary } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
@@ -5,7 +6,7 @@ import { expect, test } from '../../../support/harness';
 import { clickAcross } from '../../../support/press';
 import { chooseProject, row, strip, stripJump, stripLines, stripNames, stripRow, tab, tabLabel, tabs } from '../../../support/window';
 
-// The strip lists what is RUNNING, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
+// The strip lists what is RUNNING, and what you paused, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
 // It keeps still: a session writing a message or waiting moves no row, which recency- or attention-ordering did (6f04c95).
 const OTHER = `${HOME}/projects/other`;
 const THIRD = `${HOME}/projects/third`;
@@ -154,6 +155,70 @@ test("the strip's stop becomes a force when the session has not left, as the tab
   expect(await app.calls('killTerminal')).toEqual([[1]]);
   await expect(stop).toBeDisabled();
   await expect(page.locator('#live-strip')).toBeVisible();
+});
+
+// A tab you paused is work in hand, so the strip lists it with what runs: in its own place in tab order, its dot paused, counted apart on the line and never as wanting you.
+test('a paused tab is listed in its place among the running ones, its dot paused, and the line counts it apart', async ({ app, page }) => {
+  await app.boot({
+    sessions: [loose, inFirst, elsewhere],
+    projectOrder: [PROJECT, OTHER],
+    activeProject: null,
+    openSessions: [loose.id, inFirst.id, elsewhere.id],
+    pausedSessions: [inFirst.id],
+    history: { [loose.id]: [], [inFirst.id]: [], [elsewhere.id]: [] },
+  });
+  await expect(page.locator('#strip-label')).toHaveText('1 paused');
+  for (const s of [loose, elsewhere]) await tabLabel(page, s.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+
+  await expect.poll(() => stripLines(page).allTextContents()).toEqual(['demo', loose.title, inFirst.title, 'other', elsewhere.title]);
+  await expect(stripRow(page, inFirst.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
+  await expect(page.locator('#strip-label')).toHaveText('2 live · 1 paused');
+  expect(await app.emit('onSessionStatus', loose.id, 'waiting', '', 'Notification')).toBe(1);
+  await expect(page.locator('#strip-label')).toHaveText('1 of 2 need you · 1 paused');
+});
+
+test('the strip shows at launch with only paused tabs, and its line never counts a paused session as wanting you', async ({ app, page }) => {
+  // A status left from before the pause, as a file can hold one.
+  await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], statuses: { [loose.id]: 'waiting' }, history: { [loose.id]: [] } });
+  await expect(page.locator('#live-strip')).toBeVisible();
+  await expect(stripNames(page)).toHaveText([loose.title]);
+  await expect(page.locator('#strip-label')).toHaveText('1 paused');
+  expect(await app.calls('startTerminal')).toEqual([]);
+});
+
+// The row's button is its tab's: a paused tab has nothing to stop, so it closes, as the tab's own button does.
+test("a paused row's button closes its tab, and the row leaves the strip", async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], history: { [loose.id]: [] } });
+  const button = strip(page).locator('.strip-item-stop');
+  await expect(button).toHaveAttribute('data-tooltip', 'Close tab');
+  await button.click();
+  await expect(tab(page, loose.title)).toHaveCount(0);
+  await expect(page.locator('#live-strip')).toBeHidden();
+  expect(await app.calls('startTerminal')).toEqual([]);
+});
+
+test('a paused row leaves the strip when its tab is unpaused, and a click on it resumes the session', async ({ app, page }) => {
+  await app.boot({ sessions: [loose, inFirst], openSessions: [loose.id, inFirst.id], pausedSessions: [loose.id, inFirst.id], history: { [loose.id]: [], [inFirst.id]: [] } });
+  await row(page, loose.title).locator('.session-kebab').click();
+  await page.locator('.kebab-menu button', { hasText: /^Unpause$/ }).click();
+  await expect(stripNames(page)).toHaveText([inFirst.title]);
+
+  await stripJump(page, inFirst.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  // Running now, and no longer paused: still listed, as what runs.
+  await expect(page.locator('#strip-label')).toHaveText('1 live');
+  await expect(stripRow(page, inFirst.title).locator('.nudge')).not.toHaveClass(/\bpaused\b/);
+});
+
+test("a paused tab's project whose folder is gone is marked on its strip heading, as wherever a project is named", async ({ app, page }) => {
+  const GONE = `${HOME}/projects/gone`;
+  const dead = session({ id: '00000000-0000-4000-8000-0000000000e9', title: 'In a gone folder', cwd: GONE, repoRoot: GONE, cwdExists: false, repoRootExists: false });
+  await app.boot({ sessions: [loose, dead], projectOrder: [PROJECT, GONE], activeProject: null, openSessions: [loose.id, dead.id], pausedSessions: [loose.id, dead.id], history: { [loose.id]: [], [dead.id]: [] } });
+  const heading = (name: string): Locator => strip(page).locator('.strip-project', { hasText: name });
+  await expect(heading('gone').locator('.gone-mark')).toHaveClass(/project-gone/);
+  await expect(heading('gone').locator('.gone-mark')).toBeVisible();
+  await expect(heading('demo').locator('.gone-mark')).toBeHidden();
 });
 
 

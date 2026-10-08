@@ -459,7 +459,7 @@ export function buildProjectTree(
  * WHY TAB ORDER AT ALL, for the strip.
  * A list you read while working needs to stay where you last saw it more than it needs to be sorted well, and two earlier answers failed that.
  * Sorting attention-first reshuffled both levels on every status change.
- * Ordering as the SESSION LIST does was closer and still wrong, because the sidebar's within-project order is RECENCY — and every session in the strip is running by definition, so those timestamps are all moving and two rows swap whenever the lower one writes a message.
+ * Ordering as the SESSION LIST does was closer and still wrong, because the sidebar's within-project order is RECENCY — and most sessions in the strip are running, so those timestamps are all moving and two rows swap whenever the lower one writes a message.
  * The tabs array cannot move on its own: it changes when you open, close, drag, or regroup a tab.
  *
  * Pins are deliberately NOT floated, unlike the sidebar.
@@ -570,6 +570,15 @@ export function statusLabel(status: string | undefined, isAcked = false): string
  */
 export function showsRead(status: string | null | undefined, acked: boolean): boolean {
   return acked && status !== 'paused';
+}
+
+/**
+ * The live strip's line: how many of its sessions run and how many of those want you, then how many tabs are paused.
+ * Counting ATTENTION rather than rows: a plain count of running sessions would report five wanting you when four are working away happily, and a paused one wants nothing.
+ */
+export function stripLine(live: number, needing: number, paused: number): string {
+  const running = needing > 0 ? `${needing} of ${live} need you` : live > 0 ? `${live} live` : '';
+  return [running, paused > 0 ? `${paused} paused` : ''].filter(Boolean).join(' · ');
 }
 
 /**

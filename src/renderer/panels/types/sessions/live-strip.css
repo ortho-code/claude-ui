@@ -105,8 +105,11 @@
   white-space: nowrap;
 }
 
-/* Project heading within the strip's list. */
+/* Project heading within the strip's list, its name followed by the mark of a project whose folder is gone, as the tab bar's project label is. */
 .strip-project {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 6px 8px 2px;
   font-size: var(--text-small);
   font-weight: 600;

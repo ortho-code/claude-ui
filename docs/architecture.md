@@ -206,6 +206,11 @@ The mark is a state of the session's dot (`dotStatus`), two bars in place of its
 A roll-up, such as a project's in the switcher, and the attention toasts read the status itself, which for a session claude has left is `closed` and nudges nothing.
 A paused dot is no control and never shows the session's mark read, since it reports no claude, and a click on it goes to what holds it, which opens the session and so resumes it, unless its folder has gone.
 
+The live strip lists paused tabs beside the running sessions: its membership is a tab with a process or a paused one, since a tab you set aside is work in hand in the same way, and as far out of sight in another project.
+A paused row keeps its place in tab order rather than gathering in a section of its own, so pausing or resuming a session never moves its row, and the strip now comes up at launch whenever a paused tab is restored, where it used to start empty and hidden.
+Its line counts the two apart, `2 of 5 need you · 3 paused`, so "live" stays true of what it counts, and the line never counts a paused session as wanting you, whatever status it still holds.
+A row's button is its tab's button, drawn by the same rule (`tabButtonState`) and pressed through the same function (`closeOrStop`), so on a paused row it closes the tab, as the tab's own button does on a cold tab.
+
 Where you were is remembered twice, in meta: `activeSession` (which tab to open on at launch) and `activeSessionByProject` (which to return to when you switch back to a project).
 The in-memory `activatedSeq` still decides while a project has something running; the stored map only matters when nothing does, which is how a launch begins.
 The remembered tab is *selected* at launch, and starts with the others only if it is one of them — a deliberately open question for one that is not, since a tab marked active with no process behind it is arguable.
@@ -294,7 +299,8 @@ Scoped to it, the empty pane says the same sentence instead of pointing at sessi
 One rule decides it (`projectRootExists`, which the list's headings and the switcher's model both call), one function says it (`projectGoneReason`, shaped like the session one), and one helper draws it (`markProjectGone`).
 Marking was chosen over hiding: an unmounted drive would make a project you use every day vanish without a word, and a dead project nobody is coming back to already has a way out — delete or archive its sessions, and it leaves the switcher with the last one.
 Nor does it move: a dead project keeps the place you gave it, since a project that sank to the end whenever a drive was unmounted would move a list under the person reading it.
-Group headings, the live strip and the panels are left alone on purpose: the project heading above a group is sticky, so its mark is on screen the whole time; the strip lists running sessions, which a dead project cannot have; and a panel already refuses a folder that is not there, in words about its own folder.
+The live strip's project headings are marked too, since a strip row can belong to a dead project: a paused tab's, or a running one whose folder was removed under it.
+Group headings and the panels are left alone on purpose: the project heading above a group is sticky, so its mark is on screen the whole time; and a panel already refuses a folder that is not there, in words about its own folder.
 
 Two cases no amount of gating can pre-empt — a folder that disappears while the app is running, and a tab you are already sitting on — which is why the refusal still has to explain itself when it happens.
 A tab is kept, cold, rather than closed: the click meant "look at this", and the folder may come back.
@@ -1203,7 +1209,7 @@ Anything that reads the session list off a status event has the same hazard.
 **A list you read while working needs to stay still more than it needs to be sorted well.**
 The live strip has had three orders, and the first two both moved under the reader.
 Sorting attention-first — sessions by urgency, projects by their most urgent session — reshuffled both levels on every status change.
-Ordering it as the *session list* does was closer and still wrong, because the sidebar's own within-project order is **recency**, and every row in this strip is a running session by definition: those timestamps are all moving, so two rows swap whenever the lower one writes a message.
+Ordering it as the *session list* does was closer and still wrong, because the sidebar's own within-project order is **recency**, and most rows in this strip are running sessions: those timestamps are all moving, so two rows swap whenever the lower one writes a message.
 
 It orders by **tab order** now, which is the only order available here that nothing on disk can touch — it changes when you open, close, drag or regroup a tab, and a drag persists.
 Projects keep the explicit project order, which is also something you set by dragging, so both levels are yours.
