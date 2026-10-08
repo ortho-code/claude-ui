@@ -324,6 +324,8 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     const { row, content, title, meta, mark } = parts;
     row.className = `card list-row tone-${item.tone}${item.href === null ? ' still' : ''}`;
     title.textContent = item.text;
+    // On the first line alone, so the rest of a row with a link still says where the link goes.
+    setTooltip(title, item.tooltip);
     meta.textContent = item.detail ?? '';
     placeChildren(content, item.detail !== null ? [title, meta] : [title]);
     this.paintSessions(item.key, parts);

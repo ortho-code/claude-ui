@@ -50,6 +50,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Each row of the live strip has its session's menu, the one its row in the session list has, so a session in another project can be paused or unpaused from where you are.
 - Each tab has its session's menu too, from a kebab beside its button or a right-click on the tab.
   Every tab is 12px wider to make room for the kebab, so a long title shows as much as before.
+- A row of a panel type of your own can show a tooltip on its first line, from a `tooltip` the script gives it, such as all of what that line shortens.
 
 ### Changed
 

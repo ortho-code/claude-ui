@@ -18,7 +18,7 @@ export const LIST_VERSION = 1;
 export const LIST_FIELDS = {
   document: ['version', 'badge', 'sections', 'notes'],
   section: ['title', 'shut', 'empty', 'items'],
-  item: ['key', 'text', 'detail', 'href', 'tone', 'actions'],
+  item: ['key', 'text', 'tooltip', 'detail', 'href', 'tone', 'actions'],
   action: ['label', 'session'],
   session: ['prompt', 'name'],
 } as const;
@@ -41,6 +41,8 @@ export interface ListItem {
   /** Unique across the document: what a session started from the row is remembered by. */
   key: string;
   text: string;
+  /** What hovering the row's first line shows, such as all of what the text shortens. */
+  tooltip: string | null;
   detail: string | null;
   /** What a click on the row opens, in the browser. */
   href: string | null;
@@ -141,6 +143,7 @@ class Reader {
       this.keys.add(key);
     }
     const text = this.text(field('text'), `${at}.text`, true);
+    const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
     const detail = this.text(field('detail'), `${at}.detail`);
     let href = this.text(field('href'), `${at}.href`);
     if (href !== null && !HTTP.test(href)) {
@@ -156,7 +159,7 @@ class Reader {
     const actions = this.list(field('actions'), `${at}.actions`, false)
       .map((action, index) => this.action(action, `${at}.actions[${index}]`))
       .filter((action) => action !== null);
-    return key !== null && text !== null ? { key, text, detail, href, tone, actions } : null;
+    return key !== null && text !== null ? { key, text, tooltip, detail, href, tone, actions } : null;
   }
 
   section(raw: unknown, at: string): ListSection | null {

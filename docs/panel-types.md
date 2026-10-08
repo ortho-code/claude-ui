@@ -143,6 +143,7 @@ One JSON object:
 |---|---|
 | `key` | Required, unique in the list: what a session started from the row is remembered by, so keep it the same for the same thing from one run to the next. |
 | `text` | Required: the row's first line. |
+| `tooltip` | What hovering the row's first line shows, such as all of what that line shortens, its line breaks kept. |
 | `detail` | A second line, smaller. |
 | `href` | An http or https link, which a press on the row opens in your browser. |
 | `tone` | How the row is marked. |

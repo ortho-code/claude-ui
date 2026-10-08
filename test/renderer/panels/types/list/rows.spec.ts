@@ -4,7 +4,7 @@ import { type App, expect, test } from '../../../support/harness';
 import { overrun } from '../../../support/looks';
 import { runs, withLayout } from '../../layout/layout';
 
-// What a list row shows of what the script printed: its text and detail stay inside the row, beside its buttons and never under them.
+// What a list row shows of what the script printed: its text and detail stay inside the row, beside its buttons and never under them, and its text shows the tooltip the script gives it.
 const TYPE_DIR = `${CONFIG_ROOT}/types/changes`;
 const fixture = withLayout({
   version: 2,
@@ -26,6 +26,7 @@ const LIST = {
       items: [
         { key: 'a', text: 'FeaturedImageDownloaderTest.php', detail: 'tests/unit/Application/Subscription/ProcessUpdates/Service · modified · +144 −37', actions: [review] },
         { key: 'b', text: 'FeaturedImageDownloaderTestWithAFileNameLongerThanAnyRowIsWide.php', detail: 'src/Domain · modified · +9 −0' },
+        { key: 'c', text: 'FQDN.php', detail: 'modified · +9 −0', tooltip: 'src/Domain/ValueObject/Host/FQDN.php', href: 'https://example.com/FQDN.php' },
       ],
     },
   ],
@@ -37,7 +38,7 @@ async function bootList(app: App, page: Page): Promise<void> {
   const { token } = (await runs(app, 'changes'))[0];
   await app.emit('onPanelRun', 'changes', token, { kind: 'output', text: JSON.stringify(LIST) });
   await app.emit('onPanelRun', 'changes', token, { kind: 'exit', code: 0, signal: null });
-  await expect(page.locator('.list-row')).toHaveCount(2);
+  await expect(page.locator('.list-row')).toHaveCount(3);
 }
 
 test("a row's detail with a word longer than its line stays beside the row's button, not under it", async ({ app, page }) => {
@@ -48,4 +49,13 @@ test("a row's detail with a word longer than its line stays beside the row's but
 test("a row's text with a word longer than its line stays inside the row", async ({ app, page }) => {
   await bootList(app, page);
   await expect.poll(() => overrun(page.locator('.list-row', { hasText: 'LongerThanAnyRowIsWide' }).locator('.card-title'))).toBe(0);
+});
+
+test("a row's text shows its tooltip, and the rest of a row with a link still shows where the link goes", async ({ app, page }) => {
+  await bootList(app, page);
+  const row = page.locator('.list-row', { hasText: 'FQDN.php' });
+  await row.locator('.card-title').hover();
+  await expect(page.locator('#tooltip')).toHaveText('src/Domain/ValueObject/Host/FQDN.php');
+  await row.locator('.card-meta').hover();
+  await expect(page.locator('#tooltip')).toHaveText('https://example.com/FQDN.php');
 });
