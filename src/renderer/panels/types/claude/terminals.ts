@@ -514,6 +514,9 @@ function coolTab(token: string): void {
   // Wipe the dead session's output: left in place it reads as a live terminal, and a resume would paint the new session over the old one's tail.
   terminal.term.reset();
   terminal.el.classList.remove('active');
+  // Its claude has gone, so its last report is forgotten, as closing a tab forgets it: a claude forced out may never report that it ended, and its busy or waiting would go on nudging from every roll-up.
+  // A SessionEnd that does arrive writes `closed`, which draws the same hollow dot as no status.
+  clearNudge(tabOf(token)!.session.id);
   // One change, which also drops it from the live strip now rather than when its SessionEnd lands.
   store.batch(() => {
     // A stopped tab is not a slow one: the loader must not outlive the process.

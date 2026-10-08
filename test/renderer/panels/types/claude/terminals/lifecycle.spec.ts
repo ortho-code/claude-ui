@@ -3,7 +3,7 @@ import { unstartableReason } from '../../../../../../src/renderer/logic';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, tab, tabs } from '../../../../support/window';
+import { row, switcherEntry, tab, tabs } from '../../../../support/window';
 
 // A tab's life (docs/architecture.md § Tab lifecycle): selecting it starts it, it boots until claude prints, its button stops the session and keeps the tab cold, a second press closes it; claude ending by itself closes the tab, unless it ended so soon that the start failed.
 const one = session();
@@ -122,6 +122,27 @@ test("a stop claude has not answered by leaving stays a stop, its terminal on sh
   await expect(close).toBeDisabled();
   await app.emit('onTerminalExit', FIRST, 143);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+});
+
+// A claude forced out may never report that it ended, and its last report would go on nudging: the window knows it has gone, so it forgets the report, as closing a tab does.
+test('a session forced out without reporting its end keeps no status: its dot and its project in the switcher stop nudging', async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app);
+  expect(await app.emit('onSessionStatus', one.id, 'waiting', '', 'Notification')).toBe(1);
+  await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bwaiting\b/);
+  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bwaiting\b/);
+
+  const close = tab(page, one.title).locator('.tab-close');
+  await close.click();
+  await expect(close).toHaveAttribute('data-tooltip', /^Force stop/);
+  await close.click();
+  expect(await app.calls('killTerminal')).toEqual([[FIRST]]);
+  // Gone, and no SessionEnd behind it.
+  await app.emit('onTerminalExit', FIRST, 137);
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+  await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bwaiting\b/);
+  await expect(switcherEntry(page, 'demo').locator('.nudge')).not.toHaveClass(/\bwaiting\b/);
+  expect(await app.calls('clearStatus')).toEqual([[one.id]]);
 });
 
 test('a session mid-turn is pressed a third time, since its first Ctrl-C only interrupts the turn', async ({ app, page }) => {

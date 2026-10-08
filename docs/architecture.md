@@ -489,6 +489,10 @@ The hooks are scoped to claude-ui: it sets `CLAUDE_UI=1` on the terminals it spa
 When it does fire, the script writes `~/.config/claude-ui/status/<id>.json`.
 The main process watches that directory and pushes updates to the renderer, which shows a dot per session: busy, idle, waiting, or hollow (`closed` and unknown states have no color).
 
+A session's status is forgotten, its file removed, when its tab is closed and also when its tab goes cold because its claude has gone.
+The second is for a claude that never reports its end: a `SIGKILL`ed one cannot run its `SessionEnd` hook, and its last busy or waiting went on nudging from the session's dot and from the roll-ups over it, such as its project's in the switcher.
+A `SessionEnd` that does arrive writes `closed`, which draws the same hollow dot as no status at all.
+
 ## App-side metadata and session groups
 
 Everything the app knows that Claude Code doesn't — pins, archived sessions, open tabs, per-project display names, custom groups, the window's geometry, the sidebar's view state and where the layout was left — lives in a `meta.json` under the app's own user-data directory.

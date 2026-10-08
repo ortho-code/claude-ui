@@ -103,6 +103,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - On macOS, closing the window ends its sessions as quitting does, instead of leaving them running out of any window's reach until the app quit.
 - A click in the session list, the live strip, the project switcher, the tab bar or a list panel counts when it changes at the same moment, unless the change moves what you clicked, and a button there you reached with the keyboard keeps the focus; both used to be lost.
 - A tab dragged while the tab bar changes, such as an open tab's session changing status, still moves where you drop it, instead of staying where it was.
+- A session you had to force to stop no longer goes on showing busy or waiting, on its own dot and on its project's in the switcher.
 
 ## 0.3.0 — 2026-08-29
 
