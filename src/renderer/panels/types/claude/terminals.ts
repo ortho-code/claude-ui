@@ -124,7 +124,7 @@ export function persistOpenTabs(): void {
 
 export async function restoreOpenTabs(): Promise<void> {
   restoring = true;
-  /** The tabs to start once restored: those whose sessions were running when the app closed, when Settings says to. */
+  /** The tabs to start once restored: those whose sessions were running when the app closed, when Settings says to start them. */
   const resume: string[] = [];
   try {
     // The running list is read here, before the write below replaces it with what runs now, which is nothing yet.
@@ -140,10 +140,10 @@ export async function restoreOpenTabs(): Promise<void> {
     activeByProject = { ...byProject };
     lastActiveKey = activeKey;
     const tips = sessionsByKey(sessions);
-    const resuming = settings.resumeRunningSessionsOnStartup.value;
+    const atLaunch = settings.runningSessionsAtLaunch.value;
     // Restore the tabs COLD — no claude process each.
     // Starting them all was costing 20 processes at ~437 MB on this machine, spawned whether or not any was used, plus 20 CLI cold starts on every launch.
-    // A tab starts when you select it, or below if it was running when the app closed: only what was in use costs a process.
+    // A tab starts when you select it, or below if it was running when the app closed and Settings says to start it: only what was in use costs a process.
     // One change for every tab and the one selected, so whoever draws the tabs draws them once rather than once per tab.
     store.batch(() => {
       let toActivate: string | null = null;
@@ -151,12 +151,15 @@ export async function restoreOpenTabs(): Promise<void> {
         const session = tips.get(key);
         if (!session) continue;
         // A tab you paused comes back paused and is never started here, even one also kept as running, whose claude had not left yet when the app closed.
-        const paused = pausedKeys.includes(key);
-        const token = buildTab(session, paused);
+        const pausedByYou = pausedKeys.includes(key);
+        const wasRunning = runningKeys.includes(key) && !pausedByYou;
+        // One that was running comes back paused too, unless Settings says to leave it with the others: what was in hand is in the live strip at launch.
+        // One to start is marked as well, so its start clears the mark, and a start that fails, or is not tried because its folder has gone, leaves it there.
+        const token = buildTab(session, pausedByYou || (wasRunning && atLaunch !== 'leave'));
         if (key === activeKey) toActivate = token;
-        if (resuming && runningKeys.includes(key) && !paused) resume.push(token);
+        if (wasRunning && atLaunch === 'start') resume.push(token);
       }
-      // Land where you left off — SELECTED but not started here; it starts below with the others if it was running.
+      // Land where you left off — SELECTED but not started here; it starts below with the others if it was running and Settings says to start them.
       // Without a remembered tab we open on none rather than guessing.
       if (toActivate) activateTab(toActivate, false);
     });

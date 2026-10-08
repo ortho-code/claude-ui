@@ -13,15 +13,22 @@ describe('the settings in force', () => {
     const view = settingsView(noYours, noApps);
     expect(view.launchFlags).toEqual({ value: '', source: 'default', without: '', withoutSource: 'default', problems: [] });
     expect(view.notes).toEqual([]);
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', resumeRunningSessionsOnStartup: true });
+    // What was running when the app closed comes back paused until someone chooses otherwise.
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'pause' });
   });
 
-  it('take a choice of either file over the default resume, and leave out one that is no choice', () => {
-    expect(settingsView(yours({ resumeRunningSessionsOnStartup: false }), noApps).resumeRunningSessionsOnStartup).toMatchObject({ value: false, source: 'yours' });
-    expect(settingsView(yours({ resumeRunningSessionsOnStartup: false }), apps({ resumeRunningSessionsOnStartup: true })).resumeRunningSessionsOnStartup).toMatchObject({ value: true, source: 'app', without: false });
-    const view = settingsView(yours({ resumeRunningSessionsOnStartup: 'yes' }), noApps);
-    expect(view.resumeRunningSessionsOnStartup.value).toBe(true);
-    expect(view.resumeRunningSessionsOnStartup.problems).toEqual([{ file: 'settings.json', why: 'It has to be true or false.' }]);
+  it('take a choice of either file for the sessions running at quit, and leave out one that is no choice', () => {
+    expect(settingsView(yours({ runningSessionsAtLaunch: 'start' }), noApps).runningSessionsAtLaunch).toMatchObject({ value: 'start', source: 'yours' });
+    expect(settingsView(yours({ runningSessionsAtLaunch: 'leave' }), apps({ runningSessionsAtLaunch: 'start' })).runningSessionsAtLaunch).toMatchObject({ value: 'start', source: 'app', without: 'leave' });
+    for (const wrong of ['resume', true, 1, null]) {
+      const view = settingsView(yours({ runningSessionsAtLaunch: wrong }), noApps);
+      expect(view.runningSessionsAtLaunch.value).toBe('pause');
+      expect(view.runningSessionsAtLaunch.problems).toEqual([{ file: 'settings.json', why: 'It has to be one of "start", "pause", "leave".' }]);
+    }
+  });
+
+  it('name the setting it replaced as one the app does not have, rather than reading it', () => {
+    expect(settingsView(yours({ resumeRunningSessionsOnStartup: false }), noApps).notes).toEqual(['settings.json: "resumeRunningSessionsOnStartup" is not a setting the app has.']);
   });
 
   it('take yours over the default, and the app’s over yours', () => {

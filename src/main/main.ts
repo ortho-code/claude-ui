@@ -631,7 +631,7 @@ app.on('window-all-closed', () => {
     app.quit();
     return;
   }
-  // macOS keeps the app running with no window, and a window opened again from the Dock starts afresh: its tabs come back from meta, and, with resuming on, the ones that were running start again.
+  // macOS keeps the app running with no window, and a window opened again from the Dock starts afresh: its tabs come back from meta, and the ones that were running come back as `runningSessionsAtLaunch` says, started again when it says start.
   // So what ran in the closed window ends here as a quit ends it, rather than running on out of any window's reach until the app quits, beside a second copy the next window starts.
   // The window has gone by now, so nothing these exits do reaches the open and running tabs it kept in meta: the window opened again finds them as they were.
   terminateAll('the window closed');
@@ -642,7 +642,7 @@ app.on('window-all-closed', () => {
 let reopening = false;
 
 /**
- * Open a window again on macOS once what the last one ran has gone, as a quit waits for it: the new window starts the sessions that were running afresh, and before then would start each beside the one still on its way out.
+ * Open a window again on macOS once what the last one ran has gone, as a quit waits for it: the new window may start the sessions that were running afresh (`runningSessionsAtLaunch`), and before then would start each beside the one still on its way out.
  * Not during a quit, which closes windows rather than opening them.
  */
 async function reopen(): Promise<void> {

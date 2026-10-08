@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
-import { PROJECT, session } from '../../../../support/fixture';
+import { noSettingsFile, PROJECT, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, switcherEntry, tab } from '../../../../support/window';
 
@@ -115,8 +115,9 @@ test("a paused session's dot is no control: a click on it opens the session, whi
   await expect(tabDot(page, one.title)).not.toHaveClass(/\bpaused\b/);
 });
 
-test('a tab kept as paused comes back paused and is not started at launch, even one that was running when the app closed', async ({ app, page }) => {
-  await app.boot({ sessions: [one, two], openSessions: [one.id, two.id], runningSessions: [one.id, two.id], pausedSessions: [one.id], activeSession: one.id, history });
+test('a tab kept as paused comes back paused and is not started at launch, even one that was running when the app closed and with running ones chosen to start', async ({ app, page }) => {
+  const starting = { yours: settingsFileWith('settings.json', { runningSessionsAtLaunch: 'start' }), app: noSettingsFile('settings.local.json') };
+  await app.boot({ sessions: [one, two], openSessions: [one.id, two.id], runningSessions: [one.id, two.id], pausedSessions: [one.id], activeSession: one.id, history, settings: starting });
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
   expect(launch.resumeSessionId).toBe(two.id);

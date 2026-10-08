@@ -1,11 +1,11 @@
 import type { Settings, UiState } from './types';
 
 /**
- * What the app does before anyone has chosen otherwise: nothing added to the launch line, and what was running when it closed started again at launch.
+ * What the app does before anyone has chosen otherwise: nothing added to the launch line, and what was running when it closed brought back paused at launch, so it costs no process until you open it.
  * Under both settings files (shared/settings.ts); meta's `settings` falls back to the launch flags here.
  */
 export function defaultSettings(): Settings {
-  return { launchFlags: '', resumeRunningSessionsOnStartup: true };
+  return { launchFlags: '', runningSessionsAtLaunch: 'pause' };
 }
 
 /**

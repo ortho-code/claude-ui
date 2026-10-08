@@ -21,7 +21,7 @@ In daily use: the app lists your `~/.claude` sessions grouped by project, runs s
 Done:
 
 - Session list from `~/.claude`, grouped into collapsible projects, refreshed live as transcripts change on disk.
-- Tabs: several sessions open at once, drag to reorder, and restored on the next launch, where the sessions that were running start again and the rest wait — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab.
+- Tabs: several sessions open at once, drag to reorder, and restored on the next launch, where the sessions that were running come back paused, or start again if you choose, and the rest wait — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab.
   A session that asks something on its way out, such as whether to keep its worktree, is answered in its tab, which stays until claude has gone; one that has not gone a second later can be forced.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
@@ -264,15 +264,17 @@ Settings of your own go in `settings.json` beside it, which the app reads and ne
 {
   // Grep and Glob without asking, in every session
   "launchFlags": "--allowedTools Grep,Glob",
-  // Every tab waits for a click at launch, even one that was running when the app closed
-  "resumeRunningSessionsOnStartup": false
+  // The sessions that were running when the app closed start again at launch
+  "runningSessionsAtLaunch": "start"
 }
 ```
 
-There are two settings: `launchFlags`, the default flags for every session the app starts, and `resumeRunningSessionsOnStartup`, whether the sessions that were running when the app closed start again at launch, which is on until you switch it off.
+There are two settings: `launchFlags`, the default flags for every session the app starts, and `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed.
+That is `"pause"` until you choose otherwise, which brings their tabs back paused, in the live strip, without starting them; `"start"` starts them again, and `"leave"` brings their tabs back with the other tabs, waiting for a click.
+A tab you paused comes back paused whichever it is.
 A value saved in Settings wins over yours; Settings then shows yours under the field, and **Use settings.json** puts it back when you save.
 Saving the same value as yours takes the app's away rather than copying it, so a later edit of your file counts.
-A change to either file counts from the next session you start, and for resuming, from the next launch.
+A change to either file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock.
 A `settings.json` you were sent sets flags on every session you start, so read it before you use it.
 A mistake in either file is named in Settings, and a file that does not parse keeps the settings it last read until it does.
 

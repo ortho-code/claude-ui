@@ -8,7 +8,7 @@ const yours = (json: unknown): SettingsFileRead => settingsFileWith('settings.js
 const apps = (json: unknown): SettingsFileRead => settingsFileWith('settings.local.json', json);
 const noApps = noSettingsFile('settings.local.json');
 /** The one save Settings sent, with these flags: a save sends every setting, the others as they were left, which here is the default. */
-const savedWith = (launchFlags: string): unknown[][] => [[{ launchFlags, resumeRunningSessionsOnStartup: true }]];
+const savedWith = (launchFlags: string): unknown[][] => [[{ launchFlags, runningSessionsAtLaunch: 'pause' }]];
 
 interface SettingsDialog {
   dialog: Locator;

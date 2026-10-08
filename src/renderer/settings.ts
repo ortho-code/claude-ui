@@ -1,10 +1,17 @@
 import { parseLaunchFlags } from '../shared/flags';
 import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
-import type { SettingKey, SettingViews, SettingsView } from '../shared/settings';
+import { RUNNING_AT_LAUNCH, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView } from '../shared/settings';
 import type { Settings } from '../shared/types';
 import { listen, runModal } from './modal';
 import { hideToast, showToast } from './toast';
+
+/** Each choice for the sessions that were running when the app closed, in words: the radio's label, and settings.json's value, in these words, under it. */
+const RUNNING_LABELS: Record<RunningAtLaunch, string> = {
+  start: 'Start them again',
+  pause: 'Keep them paused in the live strip',
+  leave: 'Leave them with the other tabs',
+};
 
 // App preferences, from the config folder: your settings.json under the app's settings.local.json, which this dialog writes (shared/settings.ts).
 // One section for now; the shape is per-section so a second one (a read-only view of the user's own Claude config) is an addition rather than a rework.
@@ -22,9 +29,11 @@ document.body.insertAdjacentHTML(
         <p id="settings-error" class="dialog-error" hidden></p>
       </div>
       <div class="dialog-section">
-        <span class="dialog-label">On launch</span>
-        <p class="dialog-detail">Without this, a restored tab waits for a click before its session starts.</p>
-        <label class="dialog-choice"><input id="settings-resume" type="checkbox" /> Resume sessions that were running when the app closed</label>
+        <span id="settings-running-label" class="dialog-label">Sessions running when the app closed</span>
+        <p class="dialog-detail">What the next launch does with them. The other tabs come back waiting for a click, and a tab you paused comes back paused.</p>
+        <div id="settings-running" class="dialog-choices" role="radiogroup" aria-labelledby="settings-running-label">
+          ${RUNNING_AT_LAUNCH.map((choice) => `<label class="dialog-choice"><input type="radio" name="settings-running" value="${choice}" /> ${RUNNING_LABELS[choice]}</label>`).join('')}
+        </div>
       </div>
       <div id="settings-notes" class="dialog-section" hidden>
         <span class="dialog-label">In the settings files</span>
@@ -40,7 +49,8 @@ document.body.insertAdjacentHTML(
 );
 const settingsOverlay = document.getElementById('settings-overlay')!;
 const settingsFlags = document.getElementById('settings-flags') as HTMLInputElement;
-const settingsResume = document.getElementById('settings-resume') as HTMLInputElement;
+const settingsRunning = document.getElementById('settings-running')!;
+const runningChoices = [...settingsRunning.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
 const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
@@ -108,11 +118,12 @@ function lines(host: HTMLElement, className: string, texts: string[]): void {
 
 /** How a setting's control shows a value and gives it back. */
 interface Control<T> {
-  element: HTMLInputElement;
-  /** Where its lines go when not right after the control itself: a checkbox's go after the label around it. */
-  after?: HTMLElement;
+  /** The control, or the group around a pick-one's radios: its id names the setting's lines, and an input event in it, which bubbles up from a radio, is the setting changed. */
+  element: HTMLElement;
   read(): T;
   write(value: T): void;
+  /** Put the focus back on it, as "Use settings.json" does: a pick-one's on the choice it now holds. */
+  focus(): void;
 }
 
 /** What a setting's lines say that is its own. */
@@ -149,7 +160,7 @@ class SettingField<K extends SettingKey> {
   ) {
     // Right after the control, each named after the control's own id, so a line is found by the setting it belongs to.
     const id = control.element.id;
-    (control.after ?? control.element).insertAdjacentHTML(
+    control.element.insertAdjacentHTML(
       'afterend',
       `<p id="${id}-from" class="dialog-under" hidden></p>
         <div id="${id}-yours" class="dialog-row" hidden>
@@ -213,7 +224,7 @@ class SettingField<K extends SettingKey> {
         this.usingYours = true;
         changed();
         if (this.shown) this.render(this.shown);
-        this.control.element.focus();
+        this.control.focus();
       }),
     ];
   }
@@ -227,6 +238,7 @@ const flagsField = new SettingField(
     write: (value) => {
       settingsFlags.value = value;
     },
+    focus: () => settingsFlags.focus(),
   },
   {
     over: 'the flags in settings.json',
@@ -235,25 +247,29 @@ const flagsField = new SettingField(
   },
 );
 
-const resumeField = new SettingField(
-  'resumeRunningSessionsOnStartup',
+/** The radio holding a choice. */
+const runningChoice = (value: RunningAtLaunch): HTMLInputElement => runningChoices.find((input) => input.value === value)!;
+
+const runningField = new SettingField(
+  'runningSessionsAtLaunch',
   {
-    element: settingsResume,
-    after: settingsResume.closest('label')!,
-    read: () => settingsResume.checked,
+    element: settingsRunning,
+    // One radio is always checked: each render writes the value in force, and a click only moves the check.
+    read: () => RUNNING_AT_LAUNCH.find((choice) => runningChoice(choice).checked)!,
     write: (value) => {
-      settingsResume.checked = value;
+      runningChoice(value).checked = true;
     },
+    focus: () => runningChoice(runningField.value()).focus(),
   },
   {
     over: 'the choice in settings.json',
     refused: (file, why) => `The choice in ${file} is not used: ${why}`,
-    shown: (value) => (value ? 'On' : 'Off'),
+    shown: (value) => RUNNING_LABELS[value],
   },
 );
 
 /** Every setting's field. */
-const fields = [flagsField, resumeField];
+const fields = [flagsField, runningField];
 
 /** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with a file as a whole. */
 function render(view: SettingsView): void {
@@ -287,7 +303,7 @@ export async function openSettings(): Promise<void> {
         settingsError.hidden = false;
         return;
       }
-      const saved = await window.claudeUi.setSettings({ launchFlags, resumeRunningSessionsOnStartup: resumeField.value() });
+      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value() });
       if (saved.refused !== null) {
         render(saved.view);
         settingsError.textContent = saved.refused;

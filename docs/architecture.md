@@ -174,7 +174,9 @@ A tab owns at most one terminal, and `terminalId` is **nullable** — null means
 Cold is a first-class state, not an error one.
 
 A tab goes cold in two ways: it is **restored** that way at launch, or the user **stops** the session with the tab's own button.
-A launch starts only the restored tabs whose sessions were running when the app closed and whose folders are still there, and only while the setting for it is on (`resumeRunningSessionsOnStartup`, on by default): starting every restored tab used to mean 20 processes at ~437 MB each for 20 tabs, whether or not any was in use.
+What a launch does with the tabs whose sessions were running when the app closed is a setting, `runningSessionsAtLaunch`: by default it restores them paused, so they cost no process and the live strip lists them; `start` starts those whose folders are still there, and `leave` restores them cold like the rest.
+Starting every restored tab used to mean 20 processes at ~437 MB each for 20 tabs, whether or not any was in use.
+A tab to start is restored paused too, so its start clears the mark, and one whose start fails or whose folder has gone stays in the strip.
 It leaves cold by being activated, which starts it immediately; there is no separate "start" affordance, because selecting a tab has always meant "work in this session".
 
 Activating a tab can only ever **resume** it: the tab's own session is all it knows about.
@@ -246,7 +248,7 @@ A prompt submitted a moment before the stop, whose report arrives after it, call
 
 A session still there a second after the ask can be **forced**: its stop control, disabled for that second so a double-click cannot force before the question is on screen, then sends the process group `SIGTERM`, and `SIGKILL` if it is still there after the grace below.
 Quitting the app forces every session without asking, since a question would have nobody to answer it, and a panel shell's stop forces it too, since a shell has no Ctrl-C exit to be asked through.
-Closing the window on macOS, where the app stays without one, forces them the same way: a window opened again from the Dock starts the ones that were running afresh, with resuming on, and would otherwise start them beside the old ones, which no window could reach any more.
+Closing the window on macOS, where the app stays without one, forces them the same way: a window opened again from the Dock brings back the ones that were running as `runningSessionsAtLaunch` says, starting them afresh when it says start, and were they not forced, a start would put them beside the old ones, which no window could reach any more.
 So a window opened again waits, as a quit does, until what the last one ran has gone.
 
 Forcing is one function, for every route.
@@ -1106,9 +1108,11 @@ The flash has no end keyframe, so it fades into whatever the element already has
 It used to end on `--surface`, which is right only for a group heading, and on anything else it finished by snapping to the element's own colour; that went unnoticed until a project heading was flashed.
 
 **A setting is named for what it turns on.**
-Its key and its label say what happens when it is on, never what stops: `resumeRunningSessionsOnStartup`, not `disableResume`, and never a `no…`, `disable…` or `hide…`.
+Its key and its label say what happens when it is on, never what stops: a key such as `resumeSessions`, not `disableResume`, and never a `no…`, `disable…` or `hide…`.
 So on always reads as yes, and nobody has to undo a negative to know what a box does.
 Something the app does unless you say otherwise is therefore a setting that defaults to on, not an opt-out named for turning it off.
+A setting with more than two choices names each for what it does: `runningSessionsAtLaunch` is `start`, `pause` or `leave`, and none of them is a `no…`.
+It is one setting rather than two dependent boxes, which would allow a combination that means nothing.
 
 ### Sizes and shapes
 

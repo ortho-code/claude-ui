@@ -224,8 +224,11 @@ export interface Settings {
    * Stored as text rather than as parsed tokens so the field shows exactly what was entered; it is parsed at launch (and validated before it can be saved).
    */
   launchFlags: string;
-  /** Whether the sessions that were running when the app closed start again in their tabs at the next launch; the other tabs come back without starting either way. */
-  resumeRunningSessionsOnStartup: boolean;
+  /**
+   * What the next launch does with the sessions that were running when the app closed: start them again in their tabs, bring their tabs back paused, so the live strip lists them, or leave their tabs with the other cold ones.
+   * The other tabs come back without starting whichever it is, and a tab you paused comes back paused.
+   */
+  runningSessionsAtLaunch: RunningAtLaunch;
 }
 
 export interface UiState {
@@ -286,7 +289,7 @@ export interface UiState {
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './folders';
 import type { LogLevel } from './log';
-import type { SettingsChange, SettingsSaved, SettingsView } from './settings';
+import type { RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './settings';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;

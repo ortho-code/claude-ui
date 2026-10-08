@@ -146,7 +146,7 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
   // What is RUNNING, wherever it is running, and what you PAUSED — not what is nudging.
   // Membership used to be "has a live nudge", which meant marking a dot read deleted the row: muting said "erase this" when it should have said "seen it".
   // Running is also the only rule that closes the gap this strip exists for: scoped to one project, a live session in another is invisible in the tab bar (filtered to the active project) and out of scope in the list, and the switcher only ever gets you to a PROJECT, never back to a SESSION.
-  // Paused widens it on purpose: a tab you set aside is work in hand, which the cold tabs that came back from a restart are not, and it is the same gap — a paused tab in another project is as far out of sight as a running one.
+  // Paused widens it on purpose: a tab you set aside, or one that was running when the app closed, is work in hand, which the other cold tabs are not, and it is the same gap — a paused tab in another project is as far out of sight as a running one.
   // That is also what keeps the strip at launch, which used to start with nothing running and so with no strip at all.
   // Nothing is lost by dropping the nudge from the membership: a running session that stopped has reported SessionEnd or had its status forgotten (`coolTab`), so it cannot be nudging; a paused one can still hold a status from before, which is why the line's count leaves paused rows out.
   // IN TAB ORDER, which is the only order here that nothing on disk can move — see orderAsTabs.

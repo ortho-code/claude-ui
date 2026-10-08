@@ -12,7 +12,11 @@ import type { Settings } from './types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'resumeRunningSessionsOnStartup'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch'];
+
+/** The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them. */
+export const RUNNING_AT_LAUNCH = ['start', 'pause', 'leave'] as const;
+export type RunningAtLaunch = (typeof RUNNING_AT_LAUNCH)[number];
 
 /** Where a setting in force came from. */
 export type SettingSource = 'default' | 'yours' | 'app';
@@ -72,7 +76,10 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
     const { error } = parseLaunchFlags(value);
     return error === null ? { ok: true, value } : { ok: false, why: error };
   },
-  resumeRunningSessionsOnStartup: (value) => (typeof value === 'boolean' ? { ok: true, value } : { ok: false, why: 'It has to be true or false.' }),
+  runningSessionsAtLaunch: (value) =>
+    RUNNING_AT_LAUNCH.find((choice) => choice === value) !== undefined
+      ? { ok: true, value: value as RunningAtLaunch }
+      : { ok: false, why: `It has to be one of ${RUNNING_AT_LAUNCH.map((choice) => `"${choice}"`).join(', ')}.` },
 };
 
 /** Whether `value` may be a setting's value, and if not, why: what main refuses to write. */
@@ -126,7 +133,7 @@ export function settingsView(yours: SettingsFileRead, app: SettingsFileRead): Se
   const strip = ({ name, status, error }: SettingsFileRead): Omit<SettingsFileRead, 'json'> => ({ name, status, error });
   return {
     launchFlags: viewOf('launchFlags'),
-    resumeRunningSessionsOnStartup: viewOf('resumeRunningSessionsOnStartup'),
+    runningSessionsAtLaunch: viewOf('runningSessionsAtLaunch'),
     notes,
     files: { yours: strip(yours), app: strip(app) },
   };
@@ -134,7 +141,7 @@ export function settingsView(yours: SettingsFileRead, app: SettingsFileRead): Se
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value, resumeRunningSessionsOnStartup: view.resumeRunningSessionsOnStartup.value };
+  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value };
 }
 
 /**
