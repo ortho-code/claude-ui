@@ -9,9 +9,9 @@ import { sessionDotClass } from '../../statusdot';
 import { setTooltip } from '../../tooltip';
 import type { PanelSlot } from '../layout';
 import { intervalOf, optionsOf } from '../options';
-import { listenForRuns } from '../run-events';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
-import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey } from '../run';
+import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
+import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
 import type { FolderType } from './folder';
 import { readListDocument, type ListDocument, type ListItem, type ListSection, type SessionAction } from './listdoc';
 import './list.css';
@@ -21,7 +21,7 @@ import './list.css';
  *
  * THE SCRIPT DESCRIBES, THE APP ACTS: the script only prints, and what a row does when pressed is the app's, so a type shared from anyone can do nothing a person did not press.
  * A row opens its link in the browser, through the same route every link in the app leaves by, and its `session` action is a button that asks the app for a session, which opens the app's dialog first.
- * WHEN IT RUNS (`RunGate`): on first being shown, on Refresh, on a context change while shown, and on its interval if it has one — the interval also while the panel is hidden or folded, so the count on its rail stays true.
+ * WHEN IT RUNS (`RunGate`, through `PanelRuns`, which a command panel's runs go through too): on first being shown, on Refresh, on a context change while shown, and on its interval if it has one — the interval also while the panel is hidden or folded, so the count on its rail stays true.
  * NEVER AN EMPTY LIST FOR A BROKEN RUN: a run that fails, or prints something that is not a list, says so.
  * With a good list already on screen, the list stays under a line saying the run failed, when, and why, so a bad minute on the network does not blank a queue; without one, the panel says it is unavailable and why.
  * Before the first run has ended it says it is waiting, which is neither.
@@ -56,18 +56,19 @@ function stderrTail(stderr: string): string[] {
 
 const clock = (at: Date): string => at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-class ListPanel implements MountedPanel {
+/** What a list panel runs with: where, and the script where the check found it, so the run starts exactly what was checked. */
+interface ListReady {
+  context: PanelContext;
+  script: string;
+}
+
+class ListPanel implements MountedPanel, RunHooks<ListReady> {
   readonly el = element('div', 'panel-body');
   private readonly placeholder = element('div', 'pane-placeholder');
   private readonly failedLine = element('div', 'panel-note list-failed');
   private readonly body = element('div', 'list-body');
   private readonly unavailable = element('div', 'panel-problems');
-  private readonly gate: RunGate;
-  private readonly stopListening: () => void;
-  /** The current run's token, or null while nothing is running; an event under any other is a superseded run's tail. */
-  private token: string | null = null;
-  /** The gate's number for the run the token belongs to, told back to the gate when that run ends. */
-  private runNumber = 0;
+  private readonly runs: PanelRuns<ListReady>;
   private stdout = '';
   private stderr = '';
   /** The last list a run printed, and when; null until one has. */
@@ -85,9 +86,6 @@ class ListPanel implements MountedPanel {
   private readonly rows = new Keyed<ListRow>((kept) => kept.row);
   /** Each row's item as the last draw left it, which what a press does reads. */
   private readonly items = new Map<string, ListItem>();
-  /** Whether the type, the options and the script passed their last check; null until the first has answered. */
-  private runnable: boolean | null = null;
-  private disposed = false;
 
   constructor(
     private readonly slot: PanelSlot,
@@ -99,29 +97,19 @@ class ListPanel implements MountedPanel {
     this.el.append(this.placeholder, this.failedLine, this.body, this.unavailable);
     this.show();
     host.setNotes(folder.notes);
-    this.stopListening = listenForRuns(slot.key, (token, event) => this.handle(token, event));
-    // Keyed by where the run would go, as a command panel's is, so a fixed `cwd` never re-runs on a switch.
-    this.gate = new RunGate(
-      () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
-      (number) => void this.run(number),
-      () => this.interval(),
-    );
-    // At once rather than on first show, so a panel behind another already wears `alert` on its rail.
-    void this.check();
+    this.runs = new PanelRuns(slot, host, () => this.interval(), this);
   }
 
   refresh(): void {
-    this.gate.refresh();
+    this.runs.refresh();
   }
 
   contextChanged(): void {
-    this.gate.contextChanged();
+    this.runs.contextChanged();
   }
 
   setVisible(visible: boolean): void {
-    const ran = this.gate.setVisible(visible);
-    // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
-    if (visible && this.runnable === false && !ran) this.recheck();
+    this.runs.setVisible(visible);
   }
 
   sessionsChanged(): void {
@@ -129,19 +117,11 @@ class ListPanel implements MountedPanel {
   }
 
   recheck(): void {
-    const was = this.runnable;
-    void this.check().then((checked) => {
-      // A panel that could not run and now can runs again, when its gate says (`rerun`).
-      if (checked && was === false) this.gate.rerun();
-    });
+    this.runs.recheck();
   }
 
   unmount(): void {
-    this.disposed = true;
-    this.gate.stop();
-    if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
-    this.token = null;
-    this.stopListening();
+    this.runs.unmount();
   }
 
   /** The interval the panel runs on, in ms: the entry's own, else its type's; null for none. */
@@ -161,56 +141,37 @@ class ListPanel implements MountedPanel {
   }
 
   /**
-   * What is wrong with the type or the entry, told to the host, and where the panel would run when nothing is.
+   * What is wrong with the type or the entry, and where the panel would run when nothing is.
    * The manifest first, since nothing else can be checked against one that is not sound; then the entry's options and the script together, so one look says all there is to fix.
    */
-  private async check(): Promise<{ run: PanelContext | null; script: string } | null> {
+  async check(): Promise<Checked<ListReady>> {
     const { manifest } = this.folder;
-    if (!manifest) {
-      this.runnable = false;
-      this.host.setProblems(this.folder.problems);
-      return null;
-    }
+    if (!manifest) return { problems: this.folder.problems, ready: null };
     const [prepared, script] = await Promise.all([
       prepare(optionsOf(this.slot.entry), this.type, this.host.where()),
       window.claudeUi.checkPath(manifest.run, { dir: this.folder.dir }, 'executable'),
     ]);
-    if (this.disposed) return null;
     const problems = [...prepared.problems, ...(script.problem ? [`types/${this.folder.name}: run ${script.problem}.`] : [])];
-    this.runnable = problems.length === 0;
-    this.host.setProblems(problems);
-    // The script where the check found it, so the run starts exactly what was checked.
-    return this.runnable ? { run: prepared.run, script: script.path } : null;
+    return { problems, ready: problems.length === 0 && prepared.run ? { context: prepared.run, script: script.path } : null };
   }
 
-  /** Every run checks first: a script can lose its executable bit, or a folder go, between two runs. */
-  private async run(number: number): Promise<void> {
-    const checked = await this.check();
-    if (!this.gate.isLatest(number) || this.disposed) return;
-    if (!checked?.run) {
-      if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
-      this.token = null;
-      this.host.setBusy(false);
-      // A panel that cannot run is drawn by the tree as its problems; this is for one that can, with nowhere to run.
-      this.noContext = checked !== null;
-      this.show();
-      if (checked) this.gate.ended(number);
-      return;
-    }
+  idle(runnable: boolean): void {
+    // A panel that cannot run is drawn by the tree as its problems; this is for one that can, with nowhere to run.
+    this.noContext = runnable;
+    this.show();
+  }
+
+  start({ context, script }: ListReady): RunAsk {
     this.noContext = false;
-    this.lastDir = checked.run.cwd;
-    this.token = crypto.randomUUID();
-    this.runNumber = number;
+    this.lastDir = context.cwd;
     this.stdout = '';
     this.stderr = '';
-    this.host.setBusy(true);
     this.show();
     // Apart: stdout alone is the document, and stderr is kept for the reason a failure gives.
-    window.claudeUi.runPanel({ entryId: this.slot.key, stderr: 'apart', token: this.token, source: { script: checked.script }, context: checked.run, options: this.optionValues() });
+    return { stderr: 'apart', source: { script }, context, options: this.optionValues() };
   }
 
-  private handle(token: string, event: PanelRunEvent): void {
-    if (token !== this.token) return;
+  progress(event: RunProgress): void {
     switch (event.kind) {
       case 'output':
         this.stdout += event.text;
@@ -221,17 +182,10 @@ class ListPanel implements MountedPanel {
       // A stop follows it, and says the same.
       case 'truncated':
         return;
-      case 'exit':
-      case 'stopped':
-        this.token = null;
-        this.host.setBusy(false);
-        this.ended(event);
-        this.gate.ended(this.runNumber);
-        return;
     }
   }
 
-  private ended(event: PanelRunEvent): void {
+  ended(event: RunEnd): void {
     // A stop the app asked for itself — a re-run, a removal, the quit — says nothing about the script.
     if (event.kind === 'stopped' && !runFailed(event)) return;
     const at = new Date();

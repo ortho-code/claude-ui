@@ -1,18 +1,18 @@
-import type { PanelRunEvent, PanelSource } from '../../../shared/panels';
+import type { PanelContext, PanelSource } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
 import './command.css';
 import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { stripAnsi, splitPendingEscape } from '../../ansi';
 import { CWD_OPTION, INTERVAL_OPTION, intervalOf, optionsOf } from '../options';
-import { NO_CONTEXT, RunGate, endLabel, prepare, resolveContext, runFailed, runKey, type Prepared } from '../run';
-import { listenForRuns } from '../run-events';
+import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
+import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
 
 /**
  * The `command` panel type: runs a command line or a script and shows what it printed.
  *
  * A TYPE OWNS ITS OPTIONS: it declares them here, checks them itself (options.ts) when it is mounted and before every run, and tells the tree through its host when it cannot run.
  * The layout never reads them.
- * The same module owns the panel's body and its run: the tree draws the chrome around it (tree.ts) and asks it to refresh or to follow a context change.
+ * The same module owns the panel's body, and its runs through `PanelRuns`, which a list panel's go through too: the tree draws the chrome around it (tree.ts) and asks it to refresh or to follow a context change.
  * WHEN IT RUNS (`RunGate`): on first being shown, on Refresh, on a context change while shown, and on its `interval` if it has one, which also runs it while hidden or folded, as a list panel's does.
  * A run the interval's timer starts holds the output on show, the header's word and the dot until it ends (`held`); a press or a switch starts the body afresh.
  */
@@ -33,28 +33,17 @@ export function commandSource(options: Record<string, unknown>): PanelSource {
  */
 const PENDING_MAX = 4096;
 
-class CommandPanel implements MountedPanel {
+class CommandPanel implements MountedPanel, RunHooks<PanelContext> {
   readonly el = document.createElement('div');
   private readonly output = document.createElement('pre');
   private readonly placeholder = document.createElement('div');
-  /**
-   * The current run's token, or null while nothing is running.
-   * Every event is checked against it, so a superseded run's tail never lands in the new run's body.
-   */
-  private token: string | null = null;
-  /** The gate's number for the run the token belongs to, told back to the gate when that run ends. */
-  private runNumber = 0;
   /**
    * Where a run the interval's timer started writes, out of sight, while the output on show stays as it was — with the header's word and the dot — until the run ends and this takes its place; null for any other run, which writes straight into the output.
    * Nobody asked for a tick, so the text under the reader does not move meanwhile, and only the busy mark says a run is going; a press or a switch is seen to start.
    */
   private held: DocumentFragment | null = null;
   private pending = '';
-  private readonly gate: RunGate;
-  /** Whether the options passed their last check; null until the first has answered. */
-  private runnable: boolean | null = null;
-  private disposed = false;
-  private readonly stopListening: () => void;
+  private readonly runs: PanelRuns<PanelContext>;
 
   constructor(
     private readonly slot: PanelSlot,
@@ -66,81 +55,45 @@ class CommandPanel implements MountedPanel {
     this.placeholder.textContent = NO_CONTEXT;
     this.placeholder.hidden = true;
     this.el.append(this.output, this.placeholder);
-    this.stopListening = listenForRuns(slot.key, (token, event) => this.handle(token, event));
-    // Keyed by where the run would go, so a tab or project change that lands on the same place does not run again, and a fixed `cwd` never does.
-    this.gate = new RunGate(
-      () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
-      (number, tick) => void this.run(number, tick),
-      () => intervalOf(optionsOf(this.slot.entry)),
-    );
-    // Checked at once rather than on first show, so a panel behind another already wears `alert` on its rail.
-    void this.check();
+    this.runs = new PanelRuns(slot, host, () => intervalOf(optionsOf(this.slot.entry)), this);
   }
 
   refresh(): void {
-    this.gate.refresh();
+    this.runs.refresh();
   }
 
   contextChanged(): void {
-    this.gate.contextChanged();
+    this.runs.contextChanged();
   }
 
   setVisible(visible: boolean): void {
-    const ran = this.gate.setVisible(visible);
-    // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
-    if (visible && this.runnable === false && !ran) this.recheck();
+    this.runs.setVisible(visible);
   }
 
   recheck(): void {
-    const was = this.runnable;
-    void this.check().then((ok) => {
-      // A panel that could not run and now can runs again; one that already could is left alone, since a change elsewhere in the folder is no reason to re-run it.
-      if (ok && was === false) this.gate.rerun();
-    });
+    this.runs.recheck();
   }
 
   unmount(): void {
-    this.disposed = true;
-    this.gate.stop();
-    if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
-    this.token = null;
-    this.stopListening();
+    this.runs.unmount();
   }
 
-  /** Check the options against the selection as it is now, tell the host what is wrong with them, and hand back where the panel would run. */
-  private async prepared(): Promise<Prepared | null> {
-    const prepared = await prepare(optionsOf(this.slot.entry), commandType, this.host.where());
-    if (this.disposed) return null;
-    this.runnable = prepared.problems.length === 0;
-    this.host.setProblems(prepared.problems);
-    return prepared;
+  /** The options against the selection as it is now, and where the panel would run. */
+  async check(): Promise<Checked<PanelContext>> {
+    const { problems, run } = await prepare(optionsOf(this.slot.entry), commandType, this.host.where());
+    return { problems, ready: run };
   }
 
-  private async check(): Promise<boolean> {
-    return (await this.prepared())?.problems.length === 0;
+  idle(runnable: boolean): void {
+    this.host.setEnd('');
+    this.host.setStatus(null);
+    this.held = null;
+    this.output.hidden = true;
+    // A panel that cannot run is drawn by the tree as its problems; the placeholder is for one that can, with nowhere to run.
+    this.placeholder.hidden = !runnable;
   }
 
-  /** Every run checks first: a script or a folder can go missing between runs, and the check is what says so in the panel's own words. */
-  private async run(number: number, tick: boolean): Promise<void> {
-    const prepared = await this.prepared();
-    if (!this.gate.isLatest(number) || !prepared) return;
-    const runnable = prepared.problems.length === 0;
-    const context = prepared.run;
-    if (!runnable || !context) {
-      this.host.setEnd('');
-      this.host.setStatus(null);
-      if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
-      this.token = null;
-      this.held = null;
-      this.host.setBusy(false);
-      this.output.hidden = true;
-      // A panel that cannot run is drawn by the tree as its problems; the placeholder is for one that can, with nowhere to run.
-      this.placeholder.hidden = !runnable;
-      if (runnable) this.gate.ended(number);
-      return;
-    }
-    this.token = crypto.randomUUID();
-    this.runNumber = number;
+  start(context: PanelContext, tick: boolean): RunAsk {
     this.pending = '';
     // Only output a run left on show is held: one that found nowhere to run, or could not run, hid it, and what it holds is from before that, not to come back.
     this.held = tick && !this.output.hidden ? document.createDocumentFragment() : null;
@@ -151,13 +104,10 @@ class CommandPanel implements MountedPanel {
     }
     this.output.hidden = false;
     this.placeholder.hidden = true;
-    this.host.setBusy(true);
-    // The runner stops the run before this one itself; the token is what keeps that run's tail out of this body.
-    window.claudeUi.runPanel({ entryId: this.slot.key, stderr: 'merged', token: this.token, source: commandSource(optionsOf(this.slot.entry)), context });
+    return { stderr: 'merged', source: commandSource(optionsOf(this.slot.entry)), context };
   }
 
-  private handle(token: string, event: PanelRunEvent): void {
-    if (token !== this.token) return;
+  progress(event: RunProgress): void {
     switch (event.kind) {
       case 'output': {
         const [text, tail] = splitPendingEscape(this.pending + event.text);
@@ -179,20 +129,17 @@ class CommandPanel implements MountedPanel {
         this.host.setEnd(endLabel(event));
         this.host.setStatus('fail');
         return;
-      case 'exit':
-      case 'stopped':
-        this.append(this.pending);
-        this.pending = '';
-        // The same element keeps its children's place, so the scroll stays where it was as far as the new output reaches.
-        if (this.held) this.output.replaceChildren(this.held);
-        this.held = null;
-        this.token = null;
-        this.host.setBusy(false);
-        this.host.setEnd(endLabel(event));
-        this.host.setStatus(runFailed(event) ? 'fail' : null);
-        this.gate.ended(this.runNumber);
-        return;
     }
+  }
+
+  ended(event: RunEnd): void {
+    this.append(this.pending);
+    this.pending = '';
+    // The same element keeps its children's place, so the scroll stays where it was as far as the new output reaches.
+    if (this.held) this.output.replaceChildren(this.held);
+    this.held = null;
+    this.host.setEnd(endLabel(event));
+    this.host.setStatus(runFailed(event) ? 'fail' : null);
   }
 
   private append(text: string): void {
