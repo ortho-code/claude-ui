@@ -23,6 +23,13 @@
   color: var(--accent);
 }
 
+/* A heading's kebab sits 8px after the new-session button before it, where a session row's sits 4px after its pin (`.pair-end`): that button wears a border, and at 4px the kebab's narrow dots crowded it.
+   So on a group heading the split button's right edge sits 4px left of the rows' pins below it, where it lined up with them. */
+.project-kebab,
+.group-kebab {
+  margin-left: calc(8px - var(--row-gap));
+}
+
 .project h2 .heading-count {
   background: var(--surface);
 }

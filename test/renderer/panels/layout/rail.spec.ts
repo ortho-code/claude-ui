@@ -1,5 +1,6 @@
 import { PROJECT } from '../../support/fixture';
 import { expect, test } from '../../support/harness';
+import { lookOf, token } from '../../support/looks';
 import { keptChanges, LAYOUT, railItem, runs, there, withLayout } from './layout';
 
 test('the rail shows one panel of a group at a time and runs only the one on show, once', async ({ app, page }) => {
@@ -54,4 +55,25 @@ test("the folded sidebar's waiting dot outlasts a layout change that remounts it
   expect(await app.emit('onLayoutChanged', withLayout(edited, { sidebar: { folded: true } }).layout)).toBe(1);
   await expect(sessions.locator('.nudge:not([data-before])')).toHaveCount(1);
   await expect(sessions.locator('.nudge.waiting')).toBeVisible();
+});
+
+// A rail's icons are borderless icon buttons: hovered they only turn accent, and the panel on show keeps the fill that marks it.
+test('a rail icon only turns accent on hover, and the panel on show keeps its fill', async ({ app, page }) => {
+  await app.boot(withLayout(LAYOUT));
+  const shown = railItem(page, /^Status/);
+  const other = railItem(page, /^Checks/);
+  await shown.hover();
+  expect((await lookOf(shown)).background).toBe(await token(page, '--active'));
+  await other.hover();
+  expect(await lookOf(other)).toEqual({ background: 'rgba(0, 0, 0, 0)', border: 'rgba(0, 0, 0, 0)', color: await token(page, '--accent') });
+});
+
+// The panel on show in a group that cannot fold does nothing when pressed, so its hover changes nothing.
+test("the rail's panel on show in a group that cannot fold keeps its look under the pointer", async ({ app, page }) => {
+  const fixed = { version: 2, root: { id: 'window', columns: [{ id: 'sidebar', size: '320px', panels: [{ id: 'sessions', type: 'sessions' }] }, { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] }, { id: 'right', size: '360px', panels: LAYOUT.root.columns[2].panels }] } };
+  await app.boot(withLayout(fixed));
+  const shown = railItem(page, /^Status/);
+  await expect(shown).toHaveClass(/\bno-fold\b/);
+  await shown.hover();
+  expect((await lookOf(shown)).color).toBe(await token(page, '--text'));
 });

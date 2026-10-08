@@ -131,8 +131,9 @@ button {
 }
 
 /* Hover = surface fill + accent outline, app-wide.
-   Borderless buttons (row actions, menu items, closes) have no border to show, so they fall through to their own hover fills. */
-button:hover {
+   Borderless buttons (row actions, menu items, closes) have no border to show, so they fall through to their own hover fills.
+   Not an icon button's: those take their own, by kind (below), and this would otherwise fill and outline a borderless one, and outline one with a resting fill, such as the rail's panel on show. */
+button:where(:not(.icon-btn)):hover {
   background: var(--surface-hover);
   border-color: var(--accent);
 }
@@ -140,8 +141,8 @@ button:hover {
 /* THE ICON BUTTON — every control that is a single 14px mark you can click: the kebabs, the pin, the row's archive and delete, the tab close, the toast and notification closes, the header actions, the split buttons' halves.
    One rule, because these were a dozen near-identical blocks kept in step by hand, with comments that said so ("Match the session-row kebab exactly", "standard control box — see .unarchive-btn").
    They had already drifted: .pin, #toast-close and .notif-close were missing the transparent border below, so those three grew by 2px when hovered while the rest held still.
-   The transparent border is load-bearing, not decoration: it reserves the space the hover outline would otherwise add.
-   A control that wants a RESTING border takes .composite instead. */
+   The transparent border is load-bearing, not decoration: it reserves the space a bordered one's hover outline would otherwise add, and keeps every kind the same size.
+   A control that wants a RESTING border takes .composite, .large, or .framed for one that is neither two halves nor a header action, instead. */
 .icon-btn {
   flex: 0 0 auto;
   display: flex;
@@ -172,6 +173,14 @@ button:hover {
   padding: 0 3px;
 }
 
+/* A kebab hugs its three dots, every kebab alike (`kebabButton`): a 12px box rather than the 24px, or compact 22px, box around a 14px mark, since the dots are 2.6px wide and the rest of the box was empty space that read as a gap to the control beside it.
+   Its height stays its kind's, standard or compact; after the compact rule, which a tab's and a strip row's kebab also carry, so its side padding of 0 wins over compact's. */
+.icon-btn.kebab {
+  width: 12px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 /* The header actions.
    Roomier, and unlike every other icon button they wear the ORDINARY button skin — surface fill, resting border, full-strength mark — because they stand beside "+ New" and have to read as its peers rather than as bare marks on the header.
    Spelled out here rather than inherited from the `button` rule: `.icon-btn` is a class and wins over it, so leaving these out silently stripped their border and left the icon muted once the pointer moved away. */
@@ -188,17 +197,32 @@ button:hover {
   border-color: var(--border);
 }
 
-/* The last of a row's two trailing controls — a kebab on a card or a heading, or delete in the archived view — sits 4px after the one before it, whatever the row's own gap (--row-gap, which the row sets: the card and the heading in card.css), so the second-from-right control lines up down the whole list.
+/* The last of a row's two trailing controls — a session row's kebab, or delete in the archived view — sits 4px after the one before it, whatever the row's own gap (--row-gap, which the row sets: the card and the heading in card.css), so the second-from-right control lines up down the whole list.
    4px rather than a roomier gap because every pixel here is width the session title loses.
-   Here rather than with the card, since a row of another kind takes it too. */
+   A heading's kebab sits further off, after a bordered button (sessions/headings.css). */
 .pair-end {
   margin-left: calc(4px - var(--row-gap));
 }
 
-/* One hover for all of them, replacing a thirteen-selector list that a new control had to be remembered into.
+/* A kebab right against the control after it — the tab's button, on a tab and on the strip's row for it — so the two read as one pair at the row's end, with no gap beside the one the kebab's own box already makes (--row-gap, which the row sets). */
+.icon-btn.kebab.abuts {
+  margin-right: calc(0px - var(--row-gap));
+}
+
+/* One hover for each kind of icon button, replacing a thirteen-selector list that a new control had to be remembered into.
    `:not(:disabled)` covers the two that opt out while inert — the tab close mid transition, and the group-jump button below two targets.
-   And the same look while a menu it opened is up (`.menu-open`, stamped by openMenu), so every icon button that opens one keeps its hover look with the pointer gone onto the menu, from this rule alone. */
-.icon-btn:not(:disabled):not(.unavailable):is(:hover, .menu-open),
+   And the same look while a menu it opened is up (`.menu-open`, stamped by openMenu), so every icon button that opens one keeps its hover look with the pointer gone onto the menu, from these rules alone.
+
+   A BORDERLESS one — every icon button but a framed one: a kebab, the pin, a close or a stop, a row's unarchive and delete, the group jump, a rail's icons — turns its mark accent and nothing else.
+   A fill and an outline needed a box around the mark, and a kebab's box hugs its dots, so on a kebab they ran into whatever sat beside it; without them, controls can sit as close as their marks allow.
+   Accent rather than `--text`: `--text` is the same greyish blue as the resting `--muted`, only lighter, where accent is a saturated blue, so the colour changes, not only the lightness.
+   A FRAMED one, with a resting border — the header actions (`.large`), the split buttons' halves (`.composite`) and the divider's fold chevron (`.framed`) — fills and outlines, its border already saying where it is.
+   :where() keeps both rules at four classes' weight, which a surface's own hover after them can still match and win, as the project heading's caret does (and its +, which outranks them; sessions/headings.css). */
+.icon-btn:where(:not(.composite, .large, .framed)):not(:disabled):not(.unavailable):is(:hover, .menu-open) {
+  color: var(--accent);
+}
+
+.icon-btn:where(.composite, .large, .framed):not(:disabled):not(.unavailable):is(:hover, .menu-open),
 .note-badge:hover {
   background: var(--active);
   border-color: var(--accent);

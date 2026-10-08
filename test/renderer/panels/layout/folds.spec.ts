@@ -1,4 +1,5 @@
 import { expect, test } from '../../support/harness';
+import { lookOf, token } from '../../support/looks';
 import { keptChanges, LAYOUT, railItem, runs, withLayout } from './layout';
 
 test('a chevron folds a group to its rail, and an icon there unfolds it on that panel; both are kept in the app’s file', async ({ app, page }) => {
@@ -59,4 +60,12 @@ test('a group the layout file says is folded starts on its rail, and unfolding i
   await page.getByRole('button', { name: 'Unfold right' }).click();
   await expect(page.getByRole('button', { name: 'Fold right' })).toBeVisible();
   await expect.poll(() => keptChanges(app)).toEqual([{ id: 'right', field: 'folded', value: false }]);
+});
+
+// The fold chevron wears a border at rest, so its hover is a framed icon button's: a fill and an accent outline.
+test('a fold chevron fills and outlines on hover, as a framed icon button does', async ({ app, page }) => {
+  await app.boot(withLayout(LAYOUT));
+  const chevron = page.getByRole('button', { name: 'Fold right' });
+  await chevron.hover();
+  expect(await lookOf(chevron)).toEqual({ background: await token(page, '--active'), border: await token(page, '--accent'), color: await token(page, '--text') });
 });

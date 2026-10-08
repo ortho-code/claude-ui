@@ -6,7 +6,7 @@
 .menu-row {
   display: flex;
   align-items: center;
-  /* Named, as a card's is, so a pair of trailing controls on a row, the live strip's, sits 4px apart by the one rule for that (`.pair-end`). */
+  /* Named, as a card's is, so the live strip row's kebab sits right against the button after it by the one rule for that (`.abuts`). */
   --row-gap: 8px;
   gap: var(--row-gap);
   width: 100%;

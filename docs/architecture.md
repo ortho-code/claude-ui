@@ -192,7 +192,10 @@ A session arriving disables the button rather than merely ignoring it, and so do
 A session still there after that second makes the button a force (§ Stopping a session is a request).
 The mark follows the state, so which press you are on is visible: a stop square while there is a session to end, filled once pressing it forces the session out, and a cross once there is only a tab.
 Everything else about the session is in a kebab beside the button: the session's menu, the one its row in the list has, which the session list hands the tab bar through an ask (`sessionMenu`), since the two built-ins never import each other; a right-click on the tab opens the same menu from the kebab.
-The kebab costs a tab 26px, its 22px and the tab's gap before it, so the cap on a tab's width went from 200px to 226px, and a long title shows as much as it did without one.
+The kebab costs a tab 12px, its own width: it takes the tab's gap before it and sits right against the button after it, so the cap on a tab's width went from 200px to 212px, and a long title shows as much as it did without one.
+Every kebab is 12px wide, hugging its three dots, where a standard icon button is 24px and a compact one 22px: the dots are 2.6px wide, and the rest of the box was empty space that read as a gap between a kebab and the control beside it (`.icon-btn.kebab`, with a mark drawn only as wide as its dots).
+Its hover and its open menu turn the dots accent and nothing else, as every borderless icon button's do (§ UI conventions, Hover), since a fill on the 12px box was a thin sliver and a wider one ran into its neighbours.
+A menu opened from it is placed so its notch can reach the middle of so narrow a trigger (`openMenu`).
 Showing the kebab only on hover or on the tab on show was rejected: the tab would change width under the pointer.
 A third case sits in between: an exit within 1500ms of launch is treated as a failed start, and the tab is kept with the error visible in its terminal.
 Its process has gone, so the tab is cold like any other — its button closes it in one press, the live strip drops it, and selecting it starts it again on a wiped terminal, or says on the pane why it cannot — but until then its terminal stays on show in place of the pane and its history opens over it (`startFailed`), since what claude printed is the explanation.
@@ -1066,8 +1069,8 @@ Switch to All to search or browse across projects; that is what All is for.
 One sentence cannot cover them — it ends up telling someone with no tabs to pick a tab.
 Note it counts the tabs actually on screen (`visibleTabs()`, the same helper the bar renders from), not every open tab.
 
-Any control that opens a menu or popover keeps its active look (the same fill or outline it shows on hover) for as long as the menu is open, including when the pointer moves off it.
-The shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, and an icon button takes its open look from the same rule as its hover (`.icon-btn…:is(:hover, .menu-open)` in `base.css`), so the kebabs, the group jump, the carets and a list row's session mark need nothing of their own.
+Any control that opens a menu or popover keeps its active look (the same look it shows on hover) for as long as the menu is open, including when the pointer moves off it.
+The shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, and an icon button takes its open look from the same rule as its hover (`.icon-btn…:is(:hover, .menu-open)` in `base.css`, one for each kind), so the kebabs, the group jump, the carets and a list row's session mark need nothing of their own.
 A trigger that is not an `.icon-btn`, such as the sibling badge, or that sets a hover of its own, such as the project heading's split button, names `.menu-open` beside its `:hover` in that rule.
 The open rules used to be written per trigger, five of them in step by hand, and the one trigger nobody remembered, a list row's session mark, showed nothing at all while its menu was up.
 A row holding the trigger keeps its own hover look too, the card by `:has(.menu-open)` beside its `:hover` in `card.css`, the live strip's row by the same in the menu row's rule (`menu-row.css`), and a tab by the same in `tab-bar.css`.
@@ -1130,13 +1133,20 @@ Documented exceptions: the note mark (inline inside a 12px text line) and the 9p
 The split buttons on the project and group headings are two halves acting as one button, so they need to look like one object before you touch them; outlining them only on hover makes the pair read as two loose icons that suddenly acquire a box.
 A single icon needs no such help, and bordering each would put two more boxes on every row and heading.
 
-**Trailing controls sit 4px apart** on every row that has them — the session row's pin and kebab (its unarchive and delete in the archived view), the group heading's `+` and kebab, the project heading's split button and kebab — so the second-from-right control lines up down the list, not just the last one; the live strip row's kebab and its tab's button sit 4px apart too.
+**A session row's trailing controls sit 4px apart** — its pin and kebab, or its unarchive and delete in the archived view — so the pins line up down the list, not just the kebabs.
 Tight rather than roomy because every pixel there is width the session title loses; the controls' own padding keeps their ink well clear.
-Each row reaches 4 from a different base gap (a session row's is 8, a heading's is 6, a menu row's 8), so the one rule, `.pair-end` in `base.css`, works the offset out from the row's own `--row-gap`.
+The row's gap is 8, so one rule, `.pair-end` in `base.css`, works the offset out from the row's own `--row-gap`.
+A heading's kebab sits 8px after its new-session button instead, since that button wears a border and the kebab's narrow dots crowded it at 4px, so on a group heading the split button's right edge sits 4px left of the pins below it, where it lined up with them (`headings.css`).
+On a tab and on a live strip row the kebab sits right against the tab's button, the two one pair at the row's end (`.abuts`, from the row's `--row-gap` too).
 
-**Hover** is identical for every icon control — `--active` fill, accent border, `--text` glyph — from one shared rule.
-It uses `--active` rather than `--surface-hover` because a hovered session row is already `--surface-hover`, so a button filling to the same colour inside it would show no change.
-Note that `button:hover` sets the accent border app-wide, so a control whose resting rule is more specific silently opts out of it; that is why the shared rule carries four classes' weight (`.icon-btn:not(:disabled):not(.unavailable):is(:hover, .menu-open)`), more than any icon button's resting rule.
+**Hover** is one rule for each kind of icon control.
+A borderless one — every icon button but a framed one: a kebab, the pin, a close or a stop, a row's unarchive and delete, the group jump, a rail's icons — turns its glyph `--accent` and nothing else, so one with a resting fill, such as the rail's panel on show, keeps it.
+It used to fill and outline as well, which needs a box around the glyph; once a kebab's box hugged its dots, that box ran into the title and the button beside it, and without it controls can sit as close as their marks allow.
+Accent rather than `--text`, which was tried first: `--text` is the same greyish blue as the resting `--muted`, only lighter, where accent is a saturated blue; the accent here is the same "you can press this" as a framed button's accent outline, not the live-session accent of a row's bar or a tab's edge.
+The rail's panel on show in a group that cannot fold does nothing when pressed, so it keeps `--text` under the pointer.
+A framed one, with a resting border — the header actions (`.large`), the split buttons' halves (`.composite`) and the divider's fold chevron (`.framed`) — fills `--active` with an accent border and a `--text` glyph, its border already saying where it is.
+It uses `--active` rather than `--surface-hover` because a hovered session row is already `--surface-hover`, so a button filling to the same colour inside it would show no change; the project heading's `+`, on a filled bar, keeps a fill of its own (`headings.css`).
+The app-wide `button:hover` fill and accent border leave icon buttons alone, which take only these, and both rules carry four classes' weight (`.icon-btn:where(…):not(:disabled):not(.unavailable):is(:hover, .menu-open)`), so a surface's own hover rule of the same weight after them can still win.
 
 **A dialog's decisive button is filled**, in one of two colours of the same shape: `.primary` confirms (accent fill, dark text — the accent is a light blue, so white on it barely separates) and `.danger` destroys (red fill, white text).
 Filled rather than outlined because `button:hover` sets an accent *border* app-wide, so a resting accent border is indistinguishable from an ordinary button being hovered — which is how the old accent-outlined Save read, and why it was replaced.

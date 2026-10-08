@@ -49,7 +49,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Its line counts them apart, such as `2 live · 1 paused`, and a paused row's button closes its tab.
 - Each row of the live strip has its session's menu, the one its row in the session list has, so a session in another project can be paused or unpaused from where you are.
 - Each tab has its session's menu too, from a kebab beside its button or a right-click on the tab.
-  Every tab is 26px wider to make room for the kebab, so a long title shows as much as before.
+  Every tab is 12px wider to make room for the kebab, so a long title shows as much as before.
 
 ### Changed
 
@@ -69,6 +69,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Ctrl-C twice in a session's terminal goes to claude, as in any terminal: from its prompt claude exits, or first asks what it has to, and the tab closes when it has gone.
   The app used to close the tab itself on the second press.
 - The live strip marks the session whose tab you are looking at, as the tab bar and the session list already do.
+- Every kebab is narrower, its box hugging its three dots, so its dots sit closer to the control beside it; a session row's title, outside the archived view, gets 12px more room.
+- A borderless icon button, such as a kebab, the pin or a tab's close, turns accent blue on hover instead of filling with an outline; a bordered one, such as the + beside a project, fills as before.
 
 ### Fixed
 

@@ -70,12 +70,14 @@
 .tab {
   display: flex;
   align-items: center;
-  /* Tight enough to cluster the leading dot + marks; .tab-label adds its own left margin so the title still sits clear of them. */
-  gap: 4px;
+  /* Tight enough to cluster the leading dot + marks; .tab-label adds its own left margin so the title still sits clear of them.
+     Named, so the kebab can sit right against the button after it (`.abuts`). */
+  --row-gap: 4px;
+  gap: var(--row-gap);
   /* Natural width (sized to the title), never shrinking; capped so a long title ellipsizes instead of making one huge tab.
-     The cap is the old 200px plus the kebab's 26px, its 22px and the gap before it, so a title shows as much as it did without one. */
+     The cap is the old 200px plus the kebab's 12px, which takes the gap before it and gives back the one after, so a title shows as much as it did without one. */
   flex: 0 0 auto;
-  max-width: 226px;
+  max-width: 212px;
   padding: 5px 8px;
   background: var(--surface);
   border-radius: var(--radius-surface) var(--radius-surface) 0 0;

@@ -41,7 +41,7 @@
 }
 
 /* A count wears a pill on both headings, so the two say "count" the same way.
-   It is not decoration: as bare text the digits sat 6px from the neighbouring control's border while a kebab's ink floats ~15px inside its box, and the pill's padding puts them where the eye expects.
+   It is not decoration: as bare text the digits sat 6px from the neighbouring control's border while a control's ink floats well inside its box, and the pill's padding puts them where the eye expects.
    The fill differs because the two bars do — see each heading below. */
 .section-heading .heading-count,
 .panel-count {

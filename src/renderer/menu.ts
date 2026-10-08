@@ -13,9 +13,12 @@ import './menu.css';
 const tickIcon = (size: number): string => strokeIcon(size, '<path d="M3.5 8.4L6.6 11.5L12.5 4.9" />', 1.5);
 // Dots, so it stays a kebab rather than becoming a dashed line.
 // The radius is in px for the same reason the stroke is: three 2.6px dots whatever the button's size.
+// Drawn only as wide as the dots, a viewBox cut to them, so the button around it can hug them (`.icon-btn.kebab`): a 14px-square mark left its box mostly empty, and that emptiness read as a gap to whatever sat beside the kebab.
+// Not clipped at that edge, so the dots' anti-aliased rims still show.
 const kebabIcon = (size: number): string => {
-  const r = ((1.3 * 16) / size).toFixed(2);
-  return `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="currentColor"><circle cx="8" cy="3.4" r="${r}" /><circle cx="8" cy="8" r="${r}" /><circle cx="8" cy="12.6" r="${r}" /></svg>`;
+  const r = (1.3 * 16) / size;
+  const box = `${(8 - r).toFixed(2)} 0 ${(2 * r).toFixed(2)} 16`;
+  return `<svg viewBox="${box}" width="${((2 * r * size) / 16).toFixed(2)}" height="${size}" overflow="visible" fill="currentColor"><circle cx="8" cy="3.4" r="${r.toFixed(2)}" /><circle cx="8" cy="8" r="${r.toFixed(2)}" /><circle cx="8" cy="12.6" r="${r.toFixed(2)}" /></svg>`;
 };
 
 export interface MenuItem {
@@ -140,6 +143,19 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
   }
 }
 
+/** How far from the end of its edge a popover's notch may start, clear of the rounded corner there (popover.css). */
+const NOTCH_CLEAR_END = 18;
+
+/** Half the notch's box: 8px and the 1px border on its exposed side, in each direction (popover.css), so its centre. */
+const NOTCH_HALF = 4.5;
+
+/**
+ * Where a popover's notch goes along an edge to point at `centre`: measured from the edge's start, as the notch is placed, inside the popover's border, and less half its box; clamped clear of the rounded corners at either end of the edge's `length`.
+ */
+function notchAt(centre: number, start: number, border: number, length: number): number {
+  return Math.max(10, Math.min(centre - start - border - NOTCH_HALF, length - NOTCH_CLEAR_END));
+}
+
 // Open a child list beside its parent item; prefer the right, flip left when it would overflow.
 function openSubmenu(item: HTMLElement, items: MenuItem[]): void {
   if (openSubmenuOwner === item) return; // already open for this item; don't rebuild/flicker
@@ -156,7 +172,7 @@ function openSubmenu(item: HTMLElement, items: MenuItem[]): void {
   menu.style.top = `${top}px`;
   menu.style.left = `${Math.max(8, left)}px`;
   // The notch points at the parent item's vertical center, clamped clear of the rounded corners.
-  const notchY = Math.max(10, Math.min(r.top + r.height / 2 - top - 4, menu.offsetHeight - 18));
+  const notchY = notchAt(r.top + r.height / 2, top, parseFloat(getComputedStyle(menu).borderTopWidth), menu.offsetHeight);
   menu.style.setProperty('--notch-y', `${notchY}px`);
   openSubmenuEl = menu;
   openSubmenuOwner = item;
@@ -180,10 +196,14 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   const flipped = menu.offsetHeight > roomBelow && r.top - 5 - 8 > roomBelow;
   menu.classList.add(flipped ? 'attach-bottom' : 'attach-top');
   menu.style.top = `${flipped ? Math.max(8, r.top - 5 - menu.offsetHeight) : r.bottom + 5}px`;
-  const left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8));
+  // Its right edge at the trigger's, or far enough past a narrow trigger's centre for the notch to reach it: the notch keeps clear of the menu's right corner (`notchAt`), so under a kebab, which hugs its dots, a menu flush with it pointed about 6px short of them.
+  const centre = r.left + r.width / 2;
+  const border = parseFloat(getComputedStyle(menu).borderLeftWidth);
+  const reach = centre + NOTCH_CLEAR_END - NOTCH_HALF - border;
+  const left = Math.max(8, Math.min(Math.max(r.right, reach) - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8));
   menu.style.left = `${left}px`;
   // The notch points at the anchor's horizontal center, clamped clear of the rounded corners.
-  const notchX = Math.max(10, Math.min(r.left + r.width / 2 - left - 4, menu.offsetWidth - 18));
+  const notchX = notchAt(centre, left, border, menu.offsetWidth);
   menu.style.setProperty('--notch-x', `${notchX}px`);
   openMenuEl = menu;
   openMenuAnchor = anchor;
@@ -198,7 +218,7 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
  */
 export function kebabButton(className: string, tooltip: string, items: () => MenuItem[] | null): HTMLButtonElement {
   const kebab = document.createElement('button');
-  kebab.className = `icon-btn ${className}`;
+  kebab.className = `icon-btn kebab ${className}`;
   kebab.innerHTML = kebabIcon(14);
   setTooltip(kebab, tooltip);
   kebab.addEventListener('click', (event) => {

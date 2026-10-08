@@ -227,13 +227,13 @@ test("a strip row's kebab opens its session's menu, and pausing from it keeps th
   await expect(page.locator('#strip-label')).toHaveText('1 paused');
 });
 
-test("a strip row not on show keeps its hover look while its menu is up, and its kebab and button sit 4px apart, as a list row's pair does", async ({ app, page }) => {
+test("a strip row not on show keeps its hover look while its menu is up, and its kebab sits right against its button, as on the tab", async ({ app, page }) => {
   await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], history: { [loose.id]: [] } });
   const stripItem = stripRow(page, loose.title);
   const kebab = stripItem.locator('.strip-item-kebab');
   const kebabBox = (await kebab.boundingBox())!;
   const buttonBox = (await stripItem.locator('.strip-item-stop').boundingBox())!;
-  expect(Math.round(buttonBox.x - (kebabBox.x + kebabBox.width))).toBe(4);
+  expect(Math.round(buttonBox.x - (kebabBox.x + kebabBox.width))).toBe(0);
 
   await kebab.click();
   await page.locator('.kebab-menu button').first().hover();

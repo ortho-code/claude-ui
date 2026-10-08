@@ -453,7 +453,7 @@ function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: Resolv
   for (const index of riders) {
     const group = visible[index]!;
     const toward: Direction = horizontal ? (edges[index] === 'start' ? 'left' : 'right') : edges[index] === 'start' ? 'up' : 'down';
-    const chevron = element('button', `icon-btn chev ${index === a ? 'before' : 'after'}${riders.length === 2 ? ' shared' : ''}`);
+    const chevron = element('button', `icon-btn framed chev ${index === a ? 'before' : 'after'}${riders.length === 2 ? ' shared' : ''}`);
     chevron.type = 'button';
     chevron.innerHTML = chevronIcon(folded[index] ? OPPOSITE[toward] : toward, 10);
     const label = `${folded[index] ? 'Unfold' : 'Fold'} ${group.id}`;

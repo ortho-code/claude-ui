@@ -37,8 +37,11 @@ test('a tab keeps its hover look while its menu is up', async ({ app, page }) =>
   expect(await lookOf(tabEl)).toEqual(hovered);
 });
 
-test("a tab with a long title is capped at 226px, the old 200px and its kebab's 26px", async ({ app, page }) => {
+test("a tab with a long title is capped at 212px, the old 200px and its kebab's 12px, which sits right against the tab's button", async ({ app, page }) => {
   await app.boot({ sessions: [long], openSessions: [long.id], history });
   const box = (await tab(page, long.title).boundingBox())!;
-  expect(Math.round(box.width)).toBe(226);
+  expect(Math.round(box.width)).toBe(212);
+  const kebab = (await tab(page, long.title).locator('.tab-kebab').boundingBox())!;
+  const button = (await tab(page, long.title).locator('.tab-close').boundingBox())!;
+  expect(Math.round(button.x - (kebab.x + kebab.width))).toBe(0);
 });

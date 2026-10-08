@@ -92,7 +92,7 @@
   background: none;
 }
 
-/* The first of the row's two trailing controls, 4px further from the jump half than the row's gap; the tab's button after it sits 4px on (`.pair-end`), as a list row's pair does. */
+/* The first of the row's two trailing controls, 4px further from the jump half than the row's gap; the tab's button after it sits right against it (`.abuts`), as on the tab. */
 .strip-item-kebab {
   margin-left: 4px;
 }

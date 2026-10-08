@@ -100,13 +100,13 @@ function buildRow(id: string): StripRow {
   // A row leaves the strip by its session stopping without a pause, its tab being unpaused or closed, which is what this does to a paused one, or its session leaving the pool.
   // The session's own menu beside it, the one its row in the list has, Pause and Unpause with it: everything but the button, which stays in sight.
   // Listed afresh at each click, for the session as it is then.
-  const kebab = kebabButton('compact strip-item-kebab', 'Session options', () => {
+  const kebab = kebabButton('compact strip-item-kebab abuts', 'Session options', () => {
     const session = sessionById(id);
     return session ? sessionMenuItems(session) : null;
   });
   const stop = document.createElement('button');
   stop.type = 'button';
-  stop.className = 'icon-btn compact strip-item-stop pair-end';
+  stop.className = 'icon-btn compact strip-item-stop';
   // Pressed only while enabled, which each render decides from the tab as it is then (`updateRow`).
   stop.addEventListener('click', (event) => {
     // The row around it jumps to the session; pressing the button must not also take you there.

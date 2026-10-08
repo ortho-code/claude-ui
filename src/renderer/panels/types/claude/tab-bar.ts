@@ -196,7 +196,7 @@ function buildTab(token: string): TabEls {
     const tab = tabOf(token);
     return tab ? hostOf('claude').sessionMenu(tab.session.id) : null;
   };
-  const kebab = kebabButton('compact tab-kebab', 'Session options', menu);
+  const kebab = kebabButton('compact tab-kebab abuts', 'Session options', menu);
   // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind.
   // See closeOrStop.
   const close = document.createElement('button');
