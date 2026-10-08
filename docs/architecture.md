@@ -189,6 +189,9 @@ The first press stops a running session and leaves the tab cold, the second remo
 A session arriving disables the button rather than merely ignoring it, and so does one leaving, for its first second and again once it has been forced: a tab acted on before its process has arrived, or in the moment its process takes to go, would leave the bar disagreeing with what is actually running.
 A session still there after that second makes the button a force (§ Stopping a session is a request).
 The mark follows the state, so which press you are on is visible: a stop square while there is a session to end, filled once pressing it forces the session out, and a cross once there is only a tab.
+Everything else about the session is in a kebab beside the button: the session's menu, the one its row in the list has, which the session list hands the tab bar through an ask (`sessionMenu`), since the two built-ins never import each other; a right-click on the tab opens the same menu from the kebab.
+The kebab costs a tab 26px, its 22px and the tab's gap before it, so the cap on a tab's width went from 200px to 226px, and a long title shows as much as it did without one.
+Showing the kebab only on hover or on the tab on show was rejected: the tab would change width under the pointer.
 A third case sits in between: an exit within 1500ms of launch is treated as a failed start, and the tab is kept with the error visible in its terminal.
 Its process has gone, so the tab is cold like any other — its button closes it in one press, the live strip drops it, and selecting it starts it again on a wiped terminal, or says on the pane why it cannot — but until then its terminal stays on show in place of the pane and its history opens over it (`startFailed`), since what claude printed is the explanation.
 It used to keep the dead process's id, which main no longer knew, so its stop was ignored and its button never closed it.
@@ -1065,7 +1068,7 @@ Any control that opens a menu or popover keeps its active look (the same fill or
 The shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, and an icon button takes its open look from the same rule as its hover (`.icon-btn…:is(:hover, .menu-open)` in `base.css`), so the kebabs, the group jump, the carets and a list row's session mark need nothing of their own.
 A trigger that is not an `.icon-btn`, such as the sibling badge, or that sets a hover of its own, such as the project heading's split button, names `.menu-open` beside its `:hover` in that rule.
 The open rules used to be written per trigger, five of them in step by hand, and the one trigger nobody remembered, a list row's session mark, showed nothing at all while its menu was up.
-A row holding the trigger keeps its own hover look too, the card by `:has(.menu-open)` beside its `:hover` in `card.css`, and the live strip's row by the same in the menu row's rule (`menu-row.css`).
+A row holding the trigger keeps its own hover look too, the card by `:has(.menu-open)` beside its `:hover` in `card.css`, the live strip's row by the same in the menu row's rule (`menu-row.css`), and a tab by the same in `tab-bar.css`.
 
 Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an `attach-top`/`attach-bottom`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a small notch on the menu's edge pointing at the trigger's center.
 Anything new that floats near an anchor should go through those helpers so it gets the notch (and the active-state stamping) for free rather than reinventing positioning.

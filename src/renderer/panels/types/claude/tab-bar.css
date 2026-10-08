@@ -72,9 +72,10 @@
   align-items: center;
   /* Tight enough to cluster the leading dot + marks; .tab-label adds its own left margin so the title still sits clear of them. */
   gap: 4px;
-  /* Natural width (sized to the title), never shrinking; capped so a long title ellipsizes instead of making one huge tab. */
+  /* Natural width (sized to the title), never shrinking; capped so a long title ellipsizes instead of making one huge tab.
+     The cap is the old 200px plus the kebab's 26px, its 22px and the gap before it, so a title shows as much as it did without one. */
   flex: 0 0 auto;
-  max-width: 200px;
+  max-width: 226px;
   padding: 5px 8px;
   background: var(--surface);
   border-radius: var(--radius-surface) var(--radius-surface) 0 0;
@@ -99,11 +100,11 @@
   color: var(--muted);
 }
 
-.tab.cold:hover {
+.tab.cold:is(:hover, :has(.menu-open)) {
   background: var(--surface);
 }
 
-.tab.cold:hover .tab-label {
+.tab.cold:is(:hover, :has(.menu-open)) .tab-label {
   color: var(--text);
 }
 
@@ -117,8 +118,8 @@
     inset 0 0 0 1px var(--border);
 }
 
-/* Hover cue on inactive tabs (the active one keeps its accent styling). */
-.tab:not(.active):hover {
+/* Hover cue on inactive tabs (the active one keeps its accent styling), kept while the tab's menu is up, as a list row keeps it. */
+.tab:not(.active):is(:hover, :has(.menu-open)) {
   background: var(--surface-hover);
 }
 

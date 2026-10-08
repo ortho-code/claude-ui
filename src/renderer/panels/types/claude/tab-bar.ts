@@ -2,6 +2,7 @@ import Sortable from 'sortablejs';
 import { fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
 import { orderAsTabs, reorderWithinGroup, sessionLabel, tabButtonState, unstartableReason, worktreeMarkState } from '../../../logic';
+import { kebabButton, openMenu, type MenuItem } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
 import { dotStatus, projName, projectGone, projectGroups, statusChanges, visibleTabs } from '../../../state/views';
@@ -116,6 +117,7 @@ interface TabEls {
   siblingMark: HTMLElement;
   worktreeMark: HTMLElement;
   label: HTMLElement;
+  kebab: HTMLButtonElement;
   close: HTMLButtonElement;
 }
 
@@ -188,6 +190,13 @@ function buildTab(token: string): TabEls {
   worktreeMark.innerHTML = WORKTREE_ICON;
   const label = document.createElement('span');
   label.className = 'tab-label';
+  // The session's own menu, the one its row in the list has, Pause and Unpause with it: everything but the button beside it, which stays in sight.
+  // The session list answers it (`sessionMenu`), for the session the tab holds at the click.
+  const menu = (): MenuItem[] | null => {
+    const tab = tabOf(token);
+    return tab ? hostOf('claude').sessionMenu(tab.session.id) : null;
+  };
+  const kebab = kebabButton('compact tab-kebab', 'Session options', menu);
   // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind.
   // See closeOrStop.
   const close = document.createElement('button');
@@ -201,6 +210,12 @@ function buildTab(token: string): TabEls {
     const shown = tabOf(token);
     if (shown) hostOf('claude').revealSession(shown.session.id);
   });
+  // A right-click on the tab opens the same menu, from its kebab, so the menu sits where it always does.
+  el.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    const items = menu();
+    if (items) openMenu(kebab, items);
+  });
   el.addEventListener('mousedown', (event) => {
     if (event.button === 1) {
       event.preventDefault();
@@ -208,12 +223,12 @@ function buildTab(token: string): TabEls {
       closeOrStop(token);
     }
   });
-  return { el, dot, markGroup, siblingMark, worktreeMark, label, close };
+  return { el, dot, markGroup, siblingMark, worktreeMark, label, kebab, close };
 }
 
 /** Draw a tab as it is now: its state, its dot, its marks, its name, and its button's step. */
 function drawTab(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames' | 'tabs' | 'activeTab'>): HTMLElement {
-  const { el, dot, markGroup, siblingMark, worktreeMark, label, close } = tabEls.draw(tab.token, buildTab);
+  const { el, dot, markGroup, siblingMark, worktreeMark, label, kebab, close } = tabEls.draw(tab.token, buildTab);
   // 'cold' = restored but never started.
   // Unfilled rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
@@ -254,7 +269,7 @@ function drawTab(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames'
   const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(worktree ? [worktreeMark] : [])];
   placeChildren(markGroup, marks);
   // The mark cluster is placed only when there ARE marks — an empty wrapper would still consume a gap and shift the label.
-  placeChildren(el, marks.length > 0 ? [dot, markGroup, label, close] : [dot, label, close]);
+  placeChildren(el, marks.length > 0 ? [dot, markGroup, label, kebab, close] : [dot, label, kebab, close]);
   return el;
 }
 
@@ -269,11 +284,11 @@ let drawHeld = false;
 function sortableFor(container: HTMLElement): Sortable {
   return Sortable.create(container, {
     draggable: '.tab', // never the project label
-    // The close button is not a drag handle.
-    // Without this, a mousedown on it starts a potential drag, and `forceFallback` then calls preventDefault to take over pointer handling — after which Chromium on macOS never synthesises the click, so closing a tab silently did nothing there.
+    // The tab's buttons, its close and its kebab, are not drag handles.
+    // Without this, a mousedown on one starts a potential drag, and `forceFallback` then calls preventDefault to take over pointer handling — after which Chromium on macOS never synthesises the click, so closing a tab silently did nothing there.
     // It survived on Linux, which is why this only appeared once the app reached a Mac.
     // preventOnFilter: false is the half that matters: the default (true) still preventDefaults on the filtered element, which is the very thing that swallows the click.
-    filter: '.tab-close',
+    filter: '.tab-close, .tab-kebab',
     preventOnFilter: false,
     forceFallback: true,
     animation: 0,

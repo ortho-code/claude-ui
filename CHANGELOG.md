@@ -48,6 +48,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The live strip lists paused tabs beside the running sessions, in their place in tab order, so it also comes up at launch when a paused tab comes back.
   Its line counts them apart, such as `2 live · 1 paused`, and a paused row's button closes its tab.
 - Each row of the live strip has its session's menu, the one its row in the session list has, so a session in another project can be paused or unpaused from where you are.
+- Each tab has its session's menu too, from a kebab beside its button or a right-click on the tab.
+  Every tab is 26px wider to make room for the kebab, so a long title shows as much as before.
 
 ### Changed
 

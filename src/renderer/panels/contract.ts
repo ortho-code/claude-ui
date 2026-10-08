@@ -1,3 +1,4 @@
+import type { MenuItem } from '../menu';
 import type { IconName } from './icons';
 import type { PanelSlot } from './layout';
 import type { OptionsDecl } from './options';
@@ -109,6 +110,8 @@ export interface Asks {
   revealProject(repoRoot: string): void;
   /** Bring a group's heading into view, or the project's rows in no group for null, and flash it. */
   revealGroup(repoRoot: string, groupId: string | null): void;
+  /** A session's menu, as its row's kebab lists it, for another surface to open: null for a session the app no longer has. */
+  sessionMenu(id: string): MenuItem[] | null;
 }
 
 /** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw — the panel's side of the conversation with the layout — and the asks it can make of the app's surfaces. */
