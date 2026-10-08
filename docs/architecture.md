@@ -198,7 +198,7 @@ Those two marks answer the same question, so they answer it the same way — acc
 
 A cold tab can also be **paused**: set aside to come back to, a mark beside the cold state rather than a fourth state, so everything that reads `terminalId` goes on reading it unchanged (`paused`).
 It exists because a stopped tab and one that came back cold from a restart looked the same, and a pile of the second kind hid the few still in hand.
-Pause and Unpause are in the session row's menu while the session has a tab, Pause unavailable while the tab is starting: pausing a running session asks its claude to leave as a stop does, and the mark is set at once, so a pause still waiting for claude to leave is kept as paused; pausing a cold tab only marks it.
+Pause and Unpause are in the session row's menu while the session has a tab, Pause unavailable while the tab is starting: pausing a running session asks its claude to leave as a stop does, and the mark is set at once, so a pause still waiting for claude to leave is kept as paused; pausing a cold tab only marks it, and forgets any status it still held.
 Nothing is suspended: the process is ended, not frozen, and opening the tab resumes the session as any cold tab's does, reloading its conversation.
 A prompt reported before claude has gone calls the pause off with the stop; one submitted just before the pause can do so too, and the tab then closes at the exit, as it does for a stop.
 An Unpause during that wait lets the stop go on, leaving the tab cold.
@@ -495,7 +495,7 @@ The hooks are scoped to claude-ui: it sets `CLAUDE_UI=1` on the terminals it spa
 When it does fire, the script writes `~/.config/claude-ui/status/<id>.json`.
 The main process watches that directory and pushes updates to the renderer, which shows a dot per session: busy, idle, waiting, or hollow (`closed` and unknown states have no color).
 
-A session's status is forgotten, its file removed, when its tab is closed and also when its tab goes cold because its claude has gone.
+A session's status is forgotten, its file removed, when its tab is closed, when its tab goes cold because its claude has gone, and when a cold tab is paused, so a paused session never nudges from a status a file kept.
 The second is for a claude that never reports its end: a `SIGKILL`ed one cannot run its `SessionEnd` hook, and its last busy or waiting went on nudging from the session's dot and from the roll-ups over it, such as its project's in the switcher.
 A `SessionEnd` that does arrive writes `closed`, which draws the same hollow dot as no status at all.
 

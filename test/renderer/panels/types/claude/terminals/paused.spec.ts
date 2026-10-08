@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, tab } from '../../../../support/window';
+import { row, switcherEntry, tab } from '../../../../support/window';
 
 // Pausing sets a tab aside from its session's menu: a running session's claude is asked to leave, and a cold tab is only marked; the session's own dots then show it paused.
 // A tab you paused is kept as paused with the open tabs, comes back paused at the next launch without starting, and loses the mark only when its session runs again or you unpause it.
@@ -51,6 +51,17 @@ test('pausing a cold tab only marks it, and starts nothing', async ({ app, page 
   await expect(rowDot(page, one.title)).toHaveClass(/\bpaused\b/);
   await expect.poll(() => lastKept(app)).toEqual([[one.id], [], [one.id]]);
   expect(await app.calls('startTerminal')).toEqual([]);
+});
+
+// A cold tab can come back from a restart with a status left in its file; paused, it would go on nudging from every roll-up while its own dots show the pause.
+test('pausing a cold tab forgets the status it still held, so nothing nudges for it', async ({ app, page }) => {
+  await app.boot({ sessions: [one], openSessions: [one.id], statuses: { [one.id]: 'waiting' }, history });
+  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bwaiting\b/);
+  await fromMenu(page, one.title, 'Pause');
+  await expect(tabDot(page, one.title)).toHaveClass(/\bpaused\b/);
+  await expect(switcherEntry(page, 'demo').locator('.nudge')).not.toHaveClass(/\bwaiting\b/);
+  await expect(page.locator('#strip-badge')).toBeHidden();
+  expect(await app.calls('clearStatus')).toEqual([[one.id]]);
 });
 
 test('unpausing takes the mark off and leaves the tab cold', async ({ app, page }) => {

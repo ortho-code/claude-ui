@@ -499,6 +499,8 @@ export function pauseTab(token: string): void {
   setTab(token, { paused: true });
   persistOpenTabs();
   if (tab.terminalId !== null && !tab.stopping) askToLeave(token, tab.terminalId, false);
+  // A cold tab forgets whatever status it still holds, as one that goes cold does (`coolTab`): one restored from a file could say waiting, and a paused session nudges nothing.
+  else if (tab.terminalId === null) clearNudge(tab.session.id);
 }
 
 /** Take a tab's paused mark off, and nothing else: a pause still waiting for claude to leave goes on as a stop, and leaves the tab cold. */
