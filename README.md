@@ -46,7 +46,7 @@ Done:
   The flags the app sets for itself are refused there rather than allowed to break a session.
   They are kept in the config folder, over a `settings.json` of your own; see [Settings](#settings).
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
-  Panels so far run a command or a script and show its output, again on an interval if you give one, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
+  Panels so far run a command or a script and show its output, again on an interval, when the script says, or when the git working tree of their folder changes, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
   See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag.
   See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
@@ -155,7 +155,7 @@ The panel types:
 - `sessions` is the sidebar and `claude` is the terminal area with its tabs.
   Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
 - `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
-  `cwd` picks the folder it runs in, and `interval` how often it runs again on its own.
+  `cwd` picks the folder it runs in, `interval` how often it runs again on its own, and `watch` whether it runs again when that folder's git working tree changes.
 - `terminal` is a plain shell, the same login shell your sessions run in.
   `cwd` picks the folder it starts in.
 - A folder under `types/` in the config folder is a type of your own, named after the folder; see [Panel types of your own](#panel-types-of-your-own).
@@ -201,6 +201,14 @@ It is held to an interval's `10s` to `24h`, a `next` outside them running at the
 ```sh
 # Every minute while the working tree has changes, every hour once it is clean.
 if [ -n "$(git status --porcelain)" ]; then echo "next=1m"; else echo "next=1h"; fi >> "${CLAUDE_UI_CONTROL:-/dev/null}"
+```
+
+`"watch": "git"` runs it again when the git working tree of the folder it runs in changes: an edit, a new file, a stage, a commit or a checkout there, and not what git ignores.
+The app asks git about it every 30 seconds between runs, out of sight too, and runs the panel once the tree has stayed the same for one of those looks, so claude writing ten files is one run; what changes while a run goes, the run's own writes included, runs nothing, and a switch of tab or project is a switch, not a change.
+A folder that is not in a git working tree says so in the panel's place, and a press of Refresh looks again; when git cannot answer the panel's check, the panel says why and asks again every 30 seconds, three times, then stops asking until something looks again, such as Refresh.
+
+```json
+{ "id": "status", "type": "command", "icon": "git", "options": { "command": "git status --short", "watch": "git" } }
 ```
 
 The command sees these variables:

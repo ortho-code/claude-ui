@@ -719,7 +719,7 @@ At start-up the default layout is drawn before the first paint, the file is read
 
 ### A type owns its options
 
-A panel type is a module under `src/renderer/panels/types/`, and it declares its options in one place: name, kind (`text`, `path` or `duration`), for a `path` what it resolves against and what it must point at, for a `duration` the shortest it may be, and which groups of options are exactly-one-of.
+A panel type is a module under `src/renderer/panels/types/`, and it declares its options in one place: name, kind (`text`, `path`, `duration` or `choice`), for a `path` what it resolves against and what it must point at, for a `duration` the shortest and longest it may be, for a `choice` the values it may be, and which groups of options are exactly-one-of.
 The layout sees only what it needs to draw and place an entry: the default icon, a default title from the options where they give one, whether the type is bare, and whether it is a built-in the layout must place once.
 
 **The type checks its own options**, with one checker every type shares (`panels/options.ts`), driven by that declaration: a key it does not know, a missing or doubled exactly-one-of, a value that is not a string or is empty, and what a path points at — the last asked of the main process, which has the filesystem.
@@ -777,6 +777,18 @@ A line, a name or a last `next` the app cannot read is a note on the group's not
 A run the app stopped itself as it quit says nothing, as the list kind already reads such a stop.
 It is a file and not a marker in the output because what a panel prints is often somebody else's text, a PR title or a log line, which could carry the marker; GitHub Actions deprecated `set-output` on stdout in favour of such a file for that reason.
 The file is made in the system's temp folder, exclusively and readable by the user alone, since on Linux that folder is shared with every user, and removed when the run's end has been read; a crash, or a quit in the second a run's end can take, leaves it there, empty or nearly.
+
+**`watch: git` runs it again when its working tree changes.**
+The working tree is git's view of the folder the panel runs in and everything under it, asked of git rather than watched file by file: one watch per directory, skipping a fixed list of heavy folders, measured 44,287 watches and 160 MB on a large repository, and Node's recursive watch takes one per file and per directory, past the system's limit there unfiltered; `git --no-optional-locks status --porcelain=v2 --branch --untracked-files=all` there took 0.07 s.
+Main gives a fingerprint of it (`src/main/gitstate.ts`): what `git --no-optional-locks status --porcelain=v2 --untracked-files=all` lists under the folder, the size and time of each listed path, so a second edit of a file already changed counts, and the folder's own tree at `HEAD`, so a commit or a checkout counts only when it changes that folder, where `--branch` would have counted one anywhere.
+`--no-optional-locks` keeps the look from refreshing the index, which a plain `git status` writes after a change while holding its lock, where the person's own git could fail on it; ignored files never count, by git's own rules.
+`PanelRuns` looks 30 seconds after its last look answered, from when the tree goes live and out of sight too, as an interval's tick runs, through the panel's own check, so the folder is the one it would run in now; not while a run goes, nor while the panel cannot run, and what such a look finds wrong it keeps to itself, for the next run's check to say.
+A change runs the panel once the next look finds the same fingerprint, so a burst of writes with no run between is one run, 30 to 60 seconds after the last; it is unasked, and holds what is on show as a tick's run does.
+The fingerprint to compare against is taken when a run ends, and no look counts while one goes, so what a run writes itself runs nothing, and nor does what anyone else changes meanwhile; it is kept per run by number, so the end of a run a newer one replaced neither counts nor sets it.
+It is for the folder last seen, and a look in another folder takes that one's fingerprint and runs nothing: a switch is a switch, which the gate answers as it always did, and not a change.
+A folder in no working tree is a problem that stops the panel, since the option has nothing to watch there, with a word that Refresh looks again; git not answering the panel's check is one too, in git's own words, but it may answer later, so the panel asks again every 30 seconds, three times, saying which, and then stops asking until something looks again.
+Only a look that is not a timer's starts those retries afresh — the panel's mount, Refresh, a reveal, a push from the config folder, a switch that runs the panel — and not an interval's tick, a change's run or a retry's own look, nor the redraws the tree makes, which is why a panel that cannot run looks again on coming into view and not on every redraw.
+The alternatives were a watch of the folder (above), a run when a session in it ends its turn, which misses an editor's edits, and looking only while shown, which would leave the rail's dot stale; the period was the person's choice, 30 seconds over 2.
 
 ### Where a panel runs: the `cwd` option
 
@@ -866,7 +878,7 @@ Main reads the manifests in the same pass as the layout file and hands them over
 
 **The kind decides the rest.**
 A manifest names what kind of panel it is, and the kind brings its own options and behaviour; `list` is the one kind so far.
-So `cwd` and `interval` are the list kind's own, not something every panel takes: a shell has nothing to re-run, so the `terminal` type takes `cwd` alone, while the `command` type takes both, as the same declarations.
+So `cwd`, `interval` and `watch` are the list kind's own, not something every panel takes: a shell has nothing to re-run, so the `terminal` type takes `cwd` alone, while the `command` type takes all three, as the same declarations.
 A manifest is checked like the layout file — every mistake named, each prefixed with its file — and a type whose manifest is wrong is still a type, so every entry of it says what is wrong where the panel would be.
 A field the manifest does not know is a note, not a mistake, and the same holds for the list a script prints: both are a contract a shared type is written against, with a `version`, so a field a later version added is ignored here and only a version bump is a break.
 An edit to a manifest mounts that type's panels afresh: the type carries a revision, and the mount signature includes it beside the entry's options.
@@ -885,6 +897,7 @@ Stderr's end is kept as the reason a failure gives: mise, for one, writes the ta
 On first being shown, on Refresh, on a context change while shown, as a `command` panel does, and on its interval, all through the same piece (`PanelRuns`, § The `command` type); the interval also runs while the panel is hidden or folded: the count on its rail icon is the point of a queue, and a count that stops while you are not looking says something false.
 The first run of a panel with an interval is when the tree goes live, shown or not.
 A run may say when it runs next through its control file, as a `command` panel's may (§ The `command` type); what the file gets wrong sits on the note line beside the type's notes and the list's own.
+`watch: git` runs it again when its working tree changes, as it does a `command` panel (§ The `command` type).
 The interval is ten seconds to a day: at least ten seconds, so a typo cannot start a script every second, and at most a day, which also keeps every wait well inside what a timer holds — past 2^31 − 1 ms (about 25 days) a browser's `setTimeout` wraps the delay to a signed 32-bit value, which up to about 49 days turns negative and fires at once, and beyond fires after some shorter, wrong delay, so a longer interval ran at the wrong time, mostly at once, every time.
 
 **Never an empty list for a broken run.**

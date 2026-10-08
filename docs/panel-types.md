@@ -43,7 +43,7 @@ A `list` type's script prints a list, and the app draws it.
 
 | Field | Meaning |
 |---|---|
-| `name` | Lowercase letters, digits and underscores, starting with a letter; the script gets it as `CLAUDE_UI_OPTION_<NAME>`. `cwd` and `interval` are the kind's own and cannot be declared. |
+| `name` | Lowercase letters, digits and underscores, starting with a letter; the script gets it as `CLAUDE_UI_OPTION_<NAME>`. `cwd`, `interval` and `watch` are the kind's own and cannot be declared. |
 | `kind` | What the value is. |
 
 An option's `kind` is one of: `text`.
@@ -61,6 +61,7 @@ The layout file uses the type by its name, and its entry's `options` take the ty
 
 `cwd` is where the script runs: without one, the active tab's folder, or the selected project's root when no tab is open; an absolute path or one under `~/` is fixed, whatever is selected; a relative one is under that same folder, so it follows the project.
 `interval` overrides the manifest's.
+`"watch": "git"` runs the panel again when the git working tree of the folder it runs in changes, as a `command` panel's does (see the README's Panels section).
 
 ## What the script is given
 
@@ -172,7 +173,7 @@ A field the app does not know is ignored, so a script written for a later versio
 
 ## What the app does with it
 
-A panel runs its script when it is first shown, on Refresh, when you switch project or tab if its folder moves with them, and on its `interval` or when its last run said (`next`, above), either of which also runs while it is out of sight so the count on its icon stays current.
+A panel runs its script when it is first shown, on Refresh, when you switch project or tab if its folder moves with them, and on its `interval`, when its last run said (`next`, above), or when the tree it watches changes, any of which also runs while it is out of sight so the count on its icon stays current.
 A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why; without one, the panel says it is unavailable, quoting stderr.
 Before the first run has ended it says it is waiting.
 

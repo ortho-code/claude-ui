@@ -41,6 +41,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A checkbox in Settings, `resumeRunningSessionsOnStartup` in `settings.json`, is on until you switch it off.
 - A panel's run can say when it runs next: a line such as `next=5m` in the file `CLAUDE_UI_CONTROL` names runs it again that long after, from `10s` to `24h`, in place of its `interval` or without one.
   `next=off` leaves it until something else runs it, and a `command` panel and a type of your own read it alike.
+- A `watch` option, `"watch": "git"`, runs a panel again when the git working tree of its folder changes, looked at every 30 seconds, out of sight too, once a burst of changes has settled.
+  A folder in no working tree says so in the panel's place, and when git cannot answer the panel's check it asks again three times, then waits until something looks again, such as Refresh.
 
 ### Changed
 
