@@ -89,6 +89,36 @@ test('a command panel that cannot run looks again when it is shown, and runs onc
   await expect(problems(page)).toBeHidden();
 });
 
+test('a command panel that cannot run is not looked at again when the window redraws, only when it comes back into view', async ({ app, page }) => {
+  // Status refused on its own in the right-hand group, and two more panels in another, whose rail redraws the window.
+  const both = withLayout({
+    version: 2,
+    root: {
+      id: 'window',
+      columns: [
+        { id: 'sidebar', size: '320px', panels: [{ id: 'sessions', type: 'sessions' }] },
+        { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] },
+        {
+          id: 'left',
+          size: '300px',
+          panels: [
+            { id: 'one', type: 'command', title: 'One', icon: 'book', options: { command: 'true' } },
+            { id: 'two', type: 'command', title: 'Two', icon: 'bug', options: { command: 'true' } },
+          ],
+        },
+        { id: 'right', size: '360px', panels: [{ id: 'status', type: 'command', title: 'Status', icon: 'git', options: { script: 'scripts/status.sh' } }] },
+      ],
+    },
+  });
+  await app.boot(both);
+  await expect(problems(page)).toHaveText('scripts/status.sh not found.');
+  const checked = (await app.calls('checkPath')).length;
+
+  await railItem(page, /^Two/).click();
+  await expect(railItem(page, /^Two/)).toHaveClass(/\bshown\b/);
+  expect((await app.calls('checkPath')).length).toBe(checked);
+});
+
 test('a command panel with nowhere to run says so, and runs once a project is picked', async ({ app, page }) => {
   await app.boot({ ...withScript(), activeProject: null });
   const pick = page.getByText('Pick a project to run this in.');

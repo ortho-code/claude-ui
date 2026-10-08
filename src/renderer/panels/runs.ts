@@ -55,6 +55,8 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   /** The panel's own notes, and what the last run's control file got wrong, which the group's note line shows together. */
   private ownNotes: string[] = [];
   private controlNotes: string[] = [];
+  /** Whether the tree last said the panel is on show. */
+  private shown = false;
 
   constructor(
     private readonly slot: PanelSlot,
@@ -83,9 +85,12 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   }
 
   setVisible(visible: boolean): void {
+    // The tree calls this on every redraw, with the panel's visibility as it is, so a reveal is a change from hidden; a redraw is no reason to look at the panel again.
+    const revealed = visible && !this.shown;
+    this.shown = visible;
     const ran = this.gate.setVisible(visible);
     // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
-    if (visible && this.runnable === false && !ran) this.recheck();
+    if (revealed && this.runnable === false && !ran) this.recheck();
   }
 
   recheck(): void {
