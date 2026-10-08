@@ -139,8 +139,8 @@ export interface Control {
   notes: string[];
 }
 
-/** The names a control file may use. */
-const CONTROL_NAMES: readonly string[] = ['next'];
+/** The names a control file may use, which `docs/panel-types.md` lists and a test holds it to. */
+export const CONTROL_NAMES: readonly string[] = ['next'];
 
 /** How much of a line a note quotes: enough to find it, and no more of a script's text than that. */
 const QUOTED_MAX = 60;

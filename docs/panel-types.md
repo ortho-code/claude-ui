@@ -75,12 +75,31 @@ It runs through your login shell, the same one your sessions run in, so `PATH` i
 | `CLAUDE_UI_SESSION_ID` | the active tab's session, empty without one |
 | `CLAUDE_UI_CONFIG_ROOT` | the config folder |
 | `CLAUDE_UI_OPTION_<NAME>` | each option the entry gives, by its name in capitals |
+| `CLAUDE_UI_CONTROL` | a file of the run's own, to say when it runs next (below); unset in the rare run whose file could not be made, which the log names |
 
 `CLAUDE_UI` itself is not set, so a `claude -p` the script runs is not taken for one of the app's sessions.
 
 What it prints on stdout is the list, and nothing else may be there: what your shell's startup files print never reaches it.
 What it writes on stderr is kept, and its last lines are what a failure quotes.
 A run that exits other than 0 has failed; so has one still going after 30 seconds, which is stopped, and one printing more than 1 MB in all.
+
+### Saying when it runs next
+
+`CLAUDE_UI_CONTROL` names a file of the run's own, empty when it starts, which the script may write `name=value` lines to; the app reads it when the run ends.
+A file rather than a line in what it prints, since that is often somebody else's text, which could carry such a line.
+
+| Name | Meaning |
+|---|---|
+| `next` | When the panel runs again on its own, counted from this run's end: a duration from `10s` to `24h`, as an `interval` is, for that one run in place of the interval, or without one; or `off`, for no run on its own until something else runs it. |
+
+```sh
+# Every minute while the working tree has changes, every hour once it is clean.
+if [ -n "$(git status --porcelain)" ]; then echo "next=1m"; else echo "next=1h"; fi >> "${CLAUDE_UI_CONTROL:-/dev/null}"
+```
+
+A run that writes nothing leaves the next run to the `interval`.
+A `next` under `10s` runs at `10s` and one over `24h` at `24h`, each with a note (`0s`, as in an `interval`, is not a duration); a line that is not `name=value`, a name the app does not read and a last `next` it cannot read are each a note on the group's note line, and none of them is acted on.
+Only the last `next` counts, and only the file's first 4 KB is read: an earlier `next` and anything past that are not.
 
 ## What the script prints
 
@@ -153,7 +172,7 @@ A field the app does not know is ignored, so a script written for a later versio
 
 ## What the app does with it
 
-A panel runs its script when it is first shown, on Refresh, when you switch project or tab if its folder moves with them, and on its `interval`, which also runs while it is out of sight so the count on its icon stays current.
+A panel runs its script when it is first shown, on Refresh, when you switch project or tab if its folder moves with them, and on its `interval` or when its last run said (`next`, above), either of which also runs while it is out of sight so the count on its icon stays current.
 A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why; without one, the panel says it is unavailable, quoting stderr.
 Before the first run has ended it says it is waiting.
 

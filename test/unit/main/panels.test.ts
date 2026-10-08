@@ -125,8 +125,9 @@ describe('what reaches the shell', () => {
       if (match) named.push(match[1]);
     }
     expect(start).toBeGreaterThanOrEqual(0);
-    const context = Object.keys(contextEnv({ projectRoot: '/repo', cwd: '/repo', sessionId: 's' }));
-    expect(named.filter((name) => name !== 'CLAUDE_UI_OPTION_<NAME>').sort()).toEqual(context.sort());
+    // The context, and the run's own control file beside it.
+    const run = [...Object.keys(contextEnv({ projectRoot: '/repo', cwd: '/repo', sessionId: 's' })), PANEL_CONTROL_VARIABLE];
+    expect(named.filter((name) => name !== 'CLAUDE_UI_OPTION_<NAME>').sort()).toEqual(run.sort());
     expect(named).toContain('CLAUDE_UI_OPTION_<NAME>');
   });
 

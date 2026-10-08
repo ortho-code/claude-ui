@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { KINDS, MANIFEST_FIELDS, MANIFEST_OPTION_KINDS, OPTION_FIELDS, checkManifest } from '../../../../../src/renderer/panels/types/folder';
 import { LIST_FIELDS, TONES, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
+import { CONTROL_NAMES } from '../../../../../src/renderer/panels/run';
 
 // docs/panel-types.md is the contract a type is written against, and these are the checkers that read it: a field one names that the other does not is the drift this holds shut.
 const doc = readFileSync(new URL('../../../../../docs/panel-types.md', import.meta.url), 'utf8');
@@ -45,6 +46,10 @@ describe('docs/panel-types.md', () => {
   it('names every field of panel.json and of an option in it, and no other', () => {
     expect(sorted(tableFields('### `panel.json`'))).toEqual(sorted(MANIFEST_FIELDS));
     expect(sorted(tableFields('### An option'))).toEqual(sorted(OPTION_FIELDS));
+  });
+
+  it('names every name a control file may use, and no other', () => {
+    expect(sorted(tableFields('### Saying when it runs next'))).toEqual(sorted(CONTROL_NAMES));
   });
 
   it('names every kind, and every kind an option can be', () => {

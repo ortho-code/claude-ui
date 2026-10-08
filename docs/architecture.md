@@ -769,6 +769,15 @@ Output a run left hidden, having found nowhere to run or that the panel could no
 **A tick that fails shows what it printed**, as a failed press does: a command's failing output is usually what it has to say, where a list's broken document has nothing to show.
 The list's rule, the last good output kept under a line saying the run failed, was the alternative; keeping the last output only when the app cut a run short (30 s, 1 MB) is the one to take if such stops turn out to be common.
 
+**A run can say when it runs next.**
+Every run that starts gets a file of its own, named in `CLAUDE_UI_CONTROL`, unless the file cannot be made, which the log names; the run may write `name=value` lines to it; main hands the file's first 4 KB over on the run's end, as written, and the window reads it (`readControl`, tested), so what a run may say has its rules in one place, beside the one duration parser.
+`next` is the delay for the next run only, in place of the interval or without one, or `off` for none; a run that says nothing leaves the next run to the interval, so a script that stops saying it never leaves behind an interval the file does not show.
+It is held to the interval's own bounds, ten seconds to a day, read from the one declaration (`INTERVAL_OPTION`): a `next` outside them runs at the bound it crossed, with a note, where an interval outside them is refused, since the layout file is fixed by editing it and a run's word is gone by the next run; `0s` is no duration in either.
+A line, a name or a last `next` the app cannot read is a note on the group's note line, beside the panel's own notes; every run's end replaces those notes with what that run's file got wrong, and a run that cannot run or finds nowhere to run clears them.
+A run the app stopped itself as it quit says nothing, as the list kind already reads such a stop.
+It is a file and not a marker in the output because what a panel prints is often somebody else's text, a PR title or a log line, which could carry the marker; GitHub Actions deprecated `set-output` on stdout in favour of such a file for that reason.
+The file is made in the system's temp folder, exclusively and readable by the user alone, since on Linux that folder is shared with every user, and removed when the run's end has been read; a crash, or a quit in the second a run's end can take, leaves it there, empty or nearly.
+
 ### Where a panel runs: the `cwd` option
 
 Both the `command` and the `terminal` type take a `cwd`, one declaration (`CWD_OPTION` in `options.ts`) and one rule (`placement` in `panels/run.ts`, tested), because "where does this panel run" is one question with one answer on both.
@@ -783,7 +792,7 @@ A relative `cwd` resolves against the project and never falls back to the config
 **A fixed `command` panel does not run again on a switch**; it runs on first show, on Refresh and on its interval.
 It has nothing new to read, and re-running it on every tab click would print the same folder's output again — which is what keying it on the whole context, as before, would have done, since its variables change even when its folder does not.
 The run is keyed on where it goes (`runKey`, tested): the whole context without a `cwd`, as it always was; nothing that changes for a fixed one; the folder it lands in for a relative one, so a tab switch within that folder does not re-run it.
-A refresh on a timer is the `interval` option (§ The `command` type), answered for every type that takes it by the one gate, `RunGate`, and not by this option; a script that refreshes itself is still later work.
+A refresh on a timer is the `interval` option (§ The `command` type), answered for every type that takes it by the one gate, `RunGate`, and not by this option; so is a run's own word on when it runs next, through its control file.
 
 ### How a command runs
 
@@ -875,6 +884,7 @@ Stderr's end is kept as the reason a failure gives: mise, for one, writes the ta
 **When it runs.**
 On first being shown, on Refresh, on a context change while shown, as a `command` panel does, and on its interval, all through the same piece (`PanelRuns`, § The `command` type); the interval also runs while the panel is hidden or folded: the count on its rail icon is the point of a queue, and a count that stops while you are not looking says something false.
 The first run of a panel with an interval is when the tree goes live, shown or not.
+A run may say when it runs next through its control file, as a `command` panel's may (§ The `command` type); what the file gets wrong sits on the note line beside the type's notes and the list's own.
 The interval is ten seconds to a day: at least ten seconds, so a typo cannot start a script every second, and at most a day, which also keeps every wait well inside what a timer holds — past 2^31 − 1 ms (about 25 days) a browser's `setTimeout` wraps the delay to a signed 32-bit value, which up to about 49 days turns negative and fires at once, and beyond fires after some shorter, wrong delay, so a longer interval ran at the wrong time, mostly at once, every time.
 
 **Never an empty list for a broken run.**

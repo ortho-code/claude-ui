@@ -39,6 +39,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Such a row then shows its session's status dot and goes to that session when pressed, and pressing its action again offers to continue that session rather than start another.
 - Sessions that were running when the app closed start again in their tabs at the next launch; the other tabs wait for a click, as before.
   A checkbox in Settings, `resumeRunningSessionsOnStartup` in `settings.json`, is on until you switch it off.
+- A panel's run can say when it runs next: a line such as `next=5m` in the file `CLAUDE_UI_CONTROL` names runs it again that long after, from `10s` to `24h`, in place of its `interval` or without one.
+  `next=off` leaves it until something else runs it, and a `command` panel and a type of your own read it alike.
 
 ### Changed
 

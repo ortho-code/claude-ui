@@ -194,6 +194,15 @@ Refresh and a switch still clear it, and show the run as it prints.
 { "id": "overview", "type": "command", "icon": "git", "options": { "script": "scripts/overview.sh", "cwd": "~", "interval": "1h" } }
 ```
 
+A run can also say when it runs next, which suits a script that knows when its answer will change better than a fixed interval does.
+`CLAUDE_UI_CONTROL` names a file of the run's own, and a line `next=5m` written to it runs the panel again five minutes after the run ends, for that once, in place of the `interval` or without one; `next=off` leaves it until something else runs it.
+It is held to an interval's `10s` to `24h`, a `next` outside them running at the bound it crosses, it runs out of sight as an interval's run does, and a line, a name or a last `next` the app cannot read is a note on the group's note line.
+
+```sh
+# Every minute while the working tree has changes, every hour once it is clean.
+if [ -n "$(git status --porcelain)" ]; then echo "next=1m"; else echo "next=1h"; fi >> "${CLAUDE_UI_CONTROL:-/dev/null}"
+```
+
 The command sees these variables:
 
 | Variable | Value |
@@ -202,6 +211,7 @@ The command sees these variables:
 | `CLAUDE_UI_CWD` | the folder the command runs in |
 | `CLAUDE_UI_SESSION_ID` | the active tab's session, empty without one |
 | `CLAUDE_UI_CONFIG_ROOT` | the config folder |
+| `CLAUDE_UI_CONTROL` | a file of the run's own, read when it ends: `next=…` there says when it runs next; unset in the rare run whose file could not be made, which the log names |
 
 Output is shown as plain text (`NO_COLOR` and `TERM=dumb` are set, and escape codes are stripped), a non-zero exit shows as `exit N`, a run still going after 30 seconds is stopped, and output is cut at 1 MB.
 
