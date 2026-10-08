@@ -36,6 +36,19 @@ test('a list panel watching git in a folder in no working tree says so, and does
   expect(await runs(app, 'queue')).toEqual([]);
 });
 
+test('a change in the watched tree runs a list panel again, by the rule a command panel follows', async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot(fixture({ [PROJECT]: 'clean' }));
+  await expect.poll(() => runs(app, 'queue')).toHaveLength(1);
+  const { token } = (await runs(app, 'queue')).at(-1)!;
+  await app.emit('onPanelRun', 'queue', token, { kind: 'exit', code: 0, signal: null });
+
+  await page.evaluate((dir) => void (window.__claudeUiFixture.trees[dir] = 'edited'), PROJECT);
+  await page.clock.fastForward(30_000);
+  await page.clock.fastForward(30_000);
+  await expect.poll(() => runs(app, 'queue')).toHaveLength(2);
+});
+
 test('a list panel watching git in a working tree runs as any other does', async ({ app, page }) => {
   await app.boot(fixture({ [PROJECT]: 'clean' }));
   await expect.poll(() => runs(app, 'queue')).toHaveLength(1);

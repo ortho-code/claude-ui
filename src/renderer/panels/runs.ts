@@ -1,12 +1,12 @@
 import type { PanelRunEvent, PanelRunRequest } from '../../shared/panels';
 import type { MountedPanel, PanelHost } from './contract';
 import type { PanelSlot } from './layout';
-import { optionsOf } from './options';
-import { NO_CONTROL, RunGate, readControl, resolveContext, runFailed, runKey } from './run';
+import { optionsOf, watchesGit } from './options';
+import { NO_CONTROL, RunGate, readControl, resolveContext, runFailed, runKey, type Watched } from './run';
 import { listenForRuns } from './run-events';
 
 /**
- * A panel's runs, for the types that run a script and show what it gave — `command` and the `list` kind — written once: when it runs (`RunGate`), the check before every run, each run's token and number, asking main to run and to stop, and what a run said in its control file about the next.
+ * A panel's runs, for the types that run a script and show what it gave — `command` and the `list` kind — written once: when it runs (`RunGate`), the check before every run, each run's token and number, asking main to run and to stop, what a run said in its control file about the next, and, for a panel that watches git, a run when its working tree changes.
  * The panel keeps its body, says through its hooks (`RunHooks`) what each step looks like and what to run, and hands the tree's calls on to this.
  */
 
@@ -22,10 +22,16 @@ export interface Checked<Ready> {
   ready: Ready | null;
   /** One of the problems is git not answering, which it may when asked again. */
   retry?: boolean;
+  /** For a panel that watches git whose options and folder pass: the folder and its working tree's fingerprint; a list panel's script may still fail. */
+  watched?: Watched;
 }
 
-/** How long after a check git did not answer it is asked again, and how many times, before the panel waits for a Refresh. */
-const RETRY_MS = 30_000;
+/**
+ * How often git is asked about a panel's working tree: for a change, while the panel watches one, and again after a check it did not answer, the retries.
+ * One period for both, which the retry's own message names.
+ */
+const POLL_MS = 30_000;
+/** How many times a check git did not answer is asked again, before the panel waits for a Refresh. */
 const RETRIES = 3;
 
 /** A run as the panel asks for it; the entry and the token are added here. */
@@ -66,6 +72,21 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   /** Whether the tree last said the panel is on show. */
   private shown = false;
+  /** The tree has shown or hidden the panel at least once: a panel that watches git is asked about from then on, shown or not. */
+  private live = false;
+  /**
+   * The number of the latest run, from its start until its end has been looked at (`rebase`), or null for none going: what a run changes itself is no change, so no look counts meanwhile.
+   * By number, so the end of a run a newer one replaced neither clears it nor sets the baseline.
+   */
+  private activeRun: number | null = null;
+  /**
+   * The watched tree as the latest run left it, for the folder last seen: a fingerprint that differs from this, in the same folder, is a change.
+   * Another folder replaces it and is no change: a switch is the gate's to answer, as any context change is.
+   */
+  private baseline: Watched | null = null;
+  /** A changed fingerprint seen once, waiting for the next poll to find it again: a run only once the tree has been still for one poll, so a burst of writes is one run. */
+  private pending: string | null = null;
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly slot: PanelSlot,
@@ -97,6 +118,10 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     // The tree calls this on every redraw, with the panel's visibility as it is, so a reveal is a change from hidden; a redraw is no reason to look at the panel again.
     const revealed = visible && !this.shown;
     this.shown = visible;
+    if (!this.live) {
+      this.live = true;
+      this.schedulePoll();
+    }
     const ran = this.gate.setVisible(visible);
     // Coming back into view while it could not run is a look at it, so it looks again — unless showing it just asked for a run, which checks first anyway.
     if (revealed && this.runnable === false && !ran) this.look(true);
@@ -130,6 +155,8 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   unmount(): void {
     this.disposed = true;
     this.stopRetrying();
+    if (this.pollTimer !== null) clearTimeout(this.pollTimer);
+    this.pollTimer = null;
     this.gate.stop();
     if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
     this.token = null;
@@ -163,8 +190,8 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
       this.retryTimer = null;
       this.retries += 1;
       this.look(false);
-    }, RETRY_MS);
-    return [`Trying again in ${RETRY_MS / 1000} s (retry ${this.retries + 1} of ${RETRIES}).`];
+    }, POLL_MS);
+    return [`Trying again in ${POLL_MS / 1000} s (retry ${this.retries + 1} of ${RETRIES}).`];
   }
 
   private stopRetrying(): void {
@@ -173,14 +200,68 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     this.retries = 0;
   }
 
+  /** The next look at the watched tree, for a panel whose options watch git as they are then. */
+  private schedulePoll(): void {
+    if (this.disposed || !watchesGit(optionsOf(this.slot.entry))) return;
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      void this.poll().then(() => this.schedulePoll());
+    }, POLL_MS);
+  }
+
+  /**
+   * Look at the watched tree, shown or not, through the panel's own check so the folder is the one it would run in now, without saying anything it finds: a problem waits for the next run's check, and git not answering says nothing either way.
+   * Not while a run goes, nor for a panel that cannot run, which is waiting on its own check.
+   */
+  private async poll(): Promise<void> {
+    if (this.activeRun !== null || this.runnable !== true) return;
+    const checked = await this.hooks.check();
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- a run can start during the await, which TypeScript's narrowing does not see
+    if (this.disposed || this.activeRun !== null || !checked.watched) return;
+    this.compare(checked.watched);
+  }
+
+  /** A fingerprint against the baseline: the same is no change; another folder becomes its own baseline; a change runs the panel once a second poll finds the same. */
+  private compare(watched: Watched): void {
+    if (this.baseline?.dir !== watched.dir) {
+      this.baseline = watched;
+      this.pending = null;
+      return;
+    }
+    if (watched.fingerprint === this.baseline.fingerprint) {
+      this.pending = null;
+      return;
+    }
+    if (watched.fingerprint !== this.pending) {
+      this.pending = watched.fingerprint;
+      return;
+    }
+    this.pending = null;
+    this.gate.changed();
+  }
+
+  /**
+   * Run `number` has ended: when it is still the latest, the tree as it left it is the baseline, so what the run changed itself is no change, and looks count again.
+   * Git not answering then leaves no baseline, so the next look takes the tree as it is rather than count the run's own writes as a change.
+   */
+  private async rebase(number: number): Promise<void> {
+    const checked = watchesGit(optionsOf(this.slot.entry)) ? await this.hooks.check() : null;
+    if (this.disposed || this.activeRun !== number) return;
+    this.baseline = checked?.watched ?? null;
+    this.pending = null;
+    this.activeRun = null;
+  }
+
   /** Every run checks first: a script or a folder can go missing between runs, and the check is what says so in the panel's own words. */
   private async run(number: number, tick: boolean): Promise<void> {
+    this.activeRun = number;
     const checked = await this.check(!tick);
     if (!this.gate.isLatest(number) || !checked) return;
     const runnable = checked.problems.length === 0;
     if (!runnable || !checked.ready) {
       if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
       this.token = null;
+      this.activeRun = null;
       this.host.setBusy(false);
       // An end too, which ran nothing: what an earlier run's control file got wrong is not this one's.
       this.setControlNotes([]);
@@ -211,5 +292,6 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     this.setControlNotes(control.notes);
     this.hooks.ended(event);
     this.gate.ended(this.runNumber, control.next);
+    void this.rebase(this.runNumber);
   }
 }

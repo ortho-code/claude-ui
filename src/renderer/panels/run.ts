@@ -3,7 +3,7 @@ import { PANEL_CONTROL_VARIABLE, PANEL_TIMEOUT_MS } from '../../shared/panels';
 import type { View } from '../state/app';
 import { tabOnShow } from '../state/views';
 import type { Where } from './contract';
-import { INTERVAL_OPTION, checkOptions, durationLabel, isFixedPath, parseDuration, type OptionsDecl } from './options';
+import { INTERVAL_OPTION, checkOptions, durationLabel, isFixedPath, parseDuration, watchesGit, type OptionsDecl } from './options';
 
 /**
  * What the types that run something share — `command`, `terminal`, and the `list` kind behind the config folder's types: where a panel runs, when it runs again, and how a run's end is worded.
@@ -74,6 +74,14 @@ export interface Prepared {
   run: PanelContext | null;
   /** The problem is git not answering, which it may when asked again (`PanelRuns` does, a few times). */
   retry?: boolean;
+  /** For a panel that watches git whose options and folder pass: the folder it runs in, and its working tree's fingerprint as the check found it. */
+  watched?: Watched;
+}
+
+/** A watched folder and its git working tree's fingerprint at one moment. */
+export interface Watched {
+  dir: string;
+  fingerprint: string;
 }
 
 /**
@@ -88,12 +96,13 @@ export async function prepare(options: Record<string, unknown>, decl: OptionsDec
   const place = placement(options.cwd, context);
   if (!place) return { problems: [], run: null };
   const run = runContext(context, place.kind === 'context' ? context!.cwd : paths.cwd!);
-  if (options.watch === 'git') {
+  if (watchesGit(options)) {
     const tree = await window.claudeUi.panelTree(run.cwd);
     // No working tree is git's definite answer, and stands until the panel is looked at again: a Refresh, a reveal, a change in the config folder, or a switch that runs it.
     if (tree.kind === 'none') return { problems: [`watch: git, but ${run.cwd} is not in a git working tree; press Refresh once it is.`], run: null };
     // Git not answering is as much a refusal, since there is no tree to watch, but it may answer when asked again.
     if (tree.kind === 'failed') return { problems: [`watch: git, but git could not look at ${run.cwd}: ${tree.error.replace(/\.$/, '')}.`], run: null, retry: true };
+    return { problems: [], run, watched: { dir: run.cwd, fingerprint: tree.fingerprint } };
   }
   return { problems: [], run };
 }
@@ -270,6 +279,11 @@ export class RunGate {
       this.timer = null;
       this.fire(true);
     }, ms);
+  }
+
+  /** What the panel watches has changed: run it, unasked, as a tick does, out of sight too. */
+  changed(): void {
+    if (!this.stopped) this.fire(true);
   }
 
   /** Whether run `number` is still the latest: a run overtaken before its check answered drops out, so only the latest run starts. */

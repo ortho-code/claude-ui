@@ -50,6 +50,11 @@ export const INTERVAL_OPTION: OptionDecl = { name: 'interval', kind: 'duration',
  */
 export const WATCH_OPTION: OptionDecl = { name: 'watch', kind: 'choice', values: ['git'] };
 
+/** Whether an entry's options watch its git working tree: the one reading of `watch: git`, for the check and for the poll. */
+export function watchesGit(options: Record<string, unknown>): boolean {
+  return options.watch === 'git';
+}
+
 const DURATION = /^(\d+)(s|m|h)$/;
 const UNIT_MS = { s: 1000, m: 60_000, h: 3_600_000 } as const;
 
