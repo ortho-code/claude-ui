@@ -6,7 +6,7 @@ import type { Settings } from '../shared/types';
 import { listen, runModal } from './modal';
 import { hideToast, showToast } from './toast';
 
-/** Each choice for the sessions that were running when the app closed, in words: the radio's label, and settings.json's value, in these words, under it. */
+/** Each choice for the sessions that were running when the app closed, in words: the dropdown's option, and settings.json's value, in these words, under it. */
 const RUNNING_LABELS: Record<RunningAtLaunch, string> = {
   start: 'Start them again',
   pause: 'Keep them paused in the live strip',
@@ -29,11 +29,11 @@ document.body.insertAdjacentHTML(
         <p id="settings-error" class="dialog-error" hidden></p>
       </div>
       <div class="dialog-section">
-        <span id="settings-running-label" class="dialog-label">Sessions running when the app closed</span>
+        <label class="dialog-label" for="settings-running">Sessions running when the app closed</label>
         <p class="dialog-detail">What the next launch does with them. The other tabs come back waiting for a click, and a tab you paused comes back paused.</p>
-        <div id="settings-running" class="dialog-choices" role="radiogroup" aria-labelledby="settings-running-label">
-          ${RUNNING_AT_LAUNCH.map((choice) => `<label class="dialog-choice"><input type="radio" name="settings-running" value="${choice}" /> ${RUNNING_LABELS[choice]}</label>`).join('')}
-        </div>
+        <select id="settings-running" class="dialog-field">
+          ${RUNNING_AT_LAUNCH.map((choice) => `<option value="${choice}">${RUNNING_LABELS[choice]}</option>`).join('')}
+        </select>
       </div>
       <div id="settings-notes" class="dialog-section" hidden>
         <span class="dialog-label">In the settings files</span>
@@ -49,8 +49,7 @@ document.body.insertAdjacentHTML(
 );
 const settingsOverlay = document.getElementById('settings-overlay')!;
 const settingsFlags = document.getElementById('settings-flags') as HTMLInputElement;
-const settingsRunning = document.getElementById('settings-running')!;
-const runningChoices = [...settingsRunning.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+const settingsRunning = document.getElementById('settings-running') as HTMLSelectElement;
 const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
@@ -118,12 +117,10 @@ function lines(host: HTMLElement, className: string, texts: string[]): void {
 
 /** How a setting's control shows a value and gives it back. */
 interface Control<T> {
-  /** The control, or the group around a pick-one's radios: its id names the setting's lines, and an input event in it, which bubbles up from a radio, is the setting changed. */
-  element: HTMLElement;
+  /** The field or the dropdown: its id names the setting's lines, and an input event on it is the setting changed. */
+  element: HTMLInputElement | HTMLSelectElement;
   read(): T;
   write(value: T): void;
-  /** Put the focus back on it, as "Use settings.json" does: a pick-one's on the choice it now holds. */
-  focus(): void;
 }
 
 /** What a setting's lines say that is its own. */
@@ -224,7 +221,7 @@ class SettingField<K extends SettingKey> {
         this.usingYours = true;
         changed();
         if (this.shown) this.render(this.shown);
-        this.control.focus();
+        this.control.element.focus();
       }),
     ];
   }
@@ -238,7 +235,6 @@ const flagsField = new SettingField(
     write: (value) => {
       settingsFlags.value = value;
     },
-    focus: () => settingsFlags.focus(),
   },
   {
     over: 'the flags in settings.json',
@@ -247,19 +243,15 @@ const flagsField = new SettingField(
   },
 );
 
-/** The radio holding a choice. */
-const runningChoice = (value: RunningAtLaunch): HTMLInputElement => runningChoices.find((input) => input.value === value)!;
-
 const runningField = new SettingField(
   'runningSessionsAtLaunch',
   {
     element: settingsRunning,
-    // One radio is always checked: each render writes the value in force, and a click only moves the check.
-    read: () => RUNNING_AT_LAUNCH.find((choice) => runningChoice(choice).checked)!,
+    // Its options are the choices themselves, so what it holds is always one of them.
+    read: () => settingsRunning.value as RunningAtLaunch,
     write: (value) => {
-      runningChoice(value).checked = true;
+      settingsRunning.value = value;
     },
-    focus: () => runningChoice(runningField.value()).focus(),
   },
   {
     over: 'the choice in settings.json',
