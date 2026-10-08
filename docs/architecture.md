@@ -210,6 +210,7 @@ The live strip lists paused tabs beside the running sessions: its membership is 
 A paused row keeps its place in tab order rather than gathering in a section of its own, so pausing or resuming a session never moves its row, and the strip now comes up at launch whenever a paused tab is restored, where it used to start empty and hidden.
 Its line counts the two apart, `2 of 5 need you · 3 paused`, so "live" stays true of what it counts, and the line never counts a paused session as wanting you, whatever status it still holds.
 A row's button is its tab's button, drawn by the same rule (`tabButtonState`) and pressed through the same function (`closeOrStop`), so on a paused row it closes the tab, as the tab's own button does on a cold tab.
+Beside it, a kebab opens the session's menu, the one its row in the list has (`sessionMenuItems`), so a session in another project can be paused, unpaused, noted, filed or archived without going there; Fork and a sibling take you to the tab they open.
 
 Where you were is remembered twice, in meta: `activeSession` (which tab to open on at launch) and `activeSessionByProject` (which to return to when you switch back to a project).
 The in-memory `activatedSeq` still decides while a project has something running; the stored map only matters when nothing does, which is how a launch begins.
@@ -1064,6 +1065,7 @@ Any control that opens a menu or popover keeps its active look (the same fill or
 The shared `openMenu` helper stamps `.menu-open` on the trigger while its menu is up, and an icon button takes its open look from the same rule as its hover (`.icon-btn…:is(:hover, .menu-open)` in `base.css`), so the kebabs, the group jump, the carets and a list row's session mark need nothing of their own.
 A trigger that is not an `.icon-btn`, such as the sibling badge, or that sets a hover of its own, such as the project heading's split button, names `.menu-open` beside its `:hover` in that rule.
 The open rules used to be written per trigger, five of them in step by hand, and the one trigger nobody remembered, a list row's session mark, showed nothing at all while its menu was up.
+A row holding the trigger keeps its own hover look too, the card by `:has(.menu-open)` beside its `:hover` in `card.css`, and the live strip's row by the same in the menu row's rule (`menu-row.css`).
 
 Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an `attach-top`/`attach-bottom`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a small notch on the menu's edge pointing at the trigger's center.
 Anything new that floats near an anchor should go through those helpers so it gets the notch (and the active-state stamping) for free rather than reinventing positioning.
@@ -1121,9 +1123,9 @@ Documented exceptions: the note mark (inline inside a 12px text line) and the 9p
 The split buttons on the project and group headings are two halves acting as one button, so they need to look like one object before you touch them; outlining them only on hover makes the pair read as two loose icons that suddenly acquire a box.
 A single icon needs no such help, and bordering each would put two more boxes on every row and heading.
 
-**Trailing controls sit 4px apart** on every row that has them — the session row's pin and kebab (its unarchive and delete in the archived view), the group heading's `+` and kebab, the project heading's split button and kebab — so the second-from-right control lines up down the list, not just the last one.
+**Trailing controls sit 4px apart** on every row that has them — the session row's pin and kebab (its unarchive and delete in the archived view), the group heading's `+` and kebab, the project heading's split button and kebab — so the second-from-right control lines up down the list, not just the last one; the live strip row's kebab and its tab's button sit 4px apart too.
 Tight rather than roomy because every pixel there is width the session title loses; the controls' own padding keeps their ink well clear.
-Each row reaches 4 from a different base gap (a session row's is 8, a heading's is 6), so the one rule, `.pair-end` in `base.css`, works the offset out from the row's own `--row-gap`.
+Each row reaches 4 from a different base gap (a session row's is 8, a heading's is 6, a menu row's 8), so the one rule, `.pair-end` in `base.css`, works the offset out from the row's own `--row-gap`.
 
 **Hover** is identical for every icon control — `--active` fill, accent border, `--text` glyph — from one shared rule.
 It uses `--active` rather than `--surface-hover` because a hovered session row is already `--surface-hover`, so a button filling to the same colour inside it would show no change.

@@ -6,7 +6,9 @@
 .menu-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* Named, as a card's is, so a pair of trailing controls on a row, the live strip's, sits 4px apart by the one rule for that (`.pair-end`). */
+  --row-gap: 8px;
+  gap: var(--row-gap);
   width: 100%;
   padding: 6px 9px;
   background: none;
@@ -18,10 +20,10 @@
   cursor: pointer;
 }
 
-/* One hover for every menu row, and the same look on a submenu's parent (.menu-open) while its list is up, so moving the pointer into the submenu does not drop it back.
+/* One hover for every menu row, and the same look on a submenu's parent (.menu-open) while its list is up, so moving the pointer into the submenu does not drop it back, and on a row holding a kebab whose menu is up, the live strip's, as a list row keeps its look.
    An unavailable row takes none, since a fill says it will do something.
    :where() keeps it at two classes' weight, so a state of equal weight after it, such as .active below, still wins over it. */
-.menu-row:where(:not(.unavailable)):is(:hover, .menu-open) {
+.menu-row:where(:not(.unavailable)):is(:hover, .menu-open, :has(.menu-open)) {
   background: var(--surface-hover);
 }
 

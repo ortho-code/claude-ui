@@ -69,7 +69,7 @@
 
 /* Shape and hover come from the MENU ROW rule (menu-row.css). */
 
-/* The strip row is a wrapper holding two buttons — jump, and stop — because a button cannot contain a button.
+/* The strip row is a wrapper holding buttons — jump, the session's menu, and its tab's button — because a button cannot contain a button.
    The wrapper keeps the menu-row shape, so this half only has to give up a button's own box and stretch: the row's padding, hover and radius all still belong to .strip-item. */
 .strip-item-jump {
   display: flex;
@@ -92,8 +92,8 @@
   background: none;
 }
 
-/* Sits at the row's right edge, at the same 4px the trailing controls use everywhere else. */
-.strip-item-stop {
+/* The first of the row's two trailing controls, 4px further from the jump half than the row's gap; the tab's button after it sits 4px on (`.pair-end`), as a list row's pair does. */
+.strip-item-kebab {
   margin-left: 4px;
 }
 

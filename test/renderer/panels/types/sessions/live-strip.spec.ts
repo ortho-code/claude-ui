@@ -3,6 +3,7 @@ import { defaultUi } from '../../../../../src/shared/defaults';
 import type { SessionSummary } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
+import { lookOf, token } from '../../../support/looks';
 import { clickAcross } from '../../../support/press';
 import { chooseProject, row, strip, stripJump, stripLines, stripNames, stripRow, tab, tabLabel, tabs } from '../../../support/window';
 
@@ -209,6 +210,34 @@ test('a paused row leaves the strip when its tab is unpaused, and a click on it 
   // Running now, and no longer paused: still listed, as what runs.
   await expect(page.locator('#strip-label')).toHaveText('1 live');
   await expect(stripRow(page, inFirst.title).locator('.nudge')).not.toHaveClass(/\bpaused\b/);
+});
+
+// A row's kebab holds its session's menu, the session row's own, so a session in another project is managed from here, Pause included.
+test("a strip row's kebab opens its session's menu, and pausing from it keeps the row, paused", async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });
+  await tabLabel(page, loose.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+
+  await stripRow(page, loose.title).locator('.strip-item-kebab').click();
+  await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
+  await page.locator('.kebab-menu button', { hasText: /^Pause$/ }).click();
+  expect(await app.calls('closeTerminal')).toEqual([[1, false]]);
+  await app.emit('onTerminalExit', 1, 0);
+  await expect(stripRow(page, loose.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
+  await expect(page.locator('#strip-label')).toHaveText('1 paused');
+});
+
+test("a strip row not on show keeps its hover look while its menu is up, and its kebab and button sit 4px apart, as a list row's pair does", async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], history: { [loose.id]: [] } });
+  const stripItem = stripRow(page, loose.title);
+  const kebab = stripItem.locator('.strip-item-kebab');
+  const kebabBox = (await kebab.boundingBox())!;
+  const buttonBox = (await stripItem.locator('.strip-item-stop').boundingBox())!;
+  expect(Math.round(buttonBox.x - (kebabBox.x + kebabBox.width))).toBe(4);
+
+  await kebab.click();
+  await page.locator('.kebab-menu button').first().hover();
+  expect((await lookOf(stripItem)).background).toBe(await token(page, '--surface-hover'));
 });
 
 test("a paused tab's project whose folder is gone is marked on its strip heading, as wherever a project is named", async ({ app, page }) => {

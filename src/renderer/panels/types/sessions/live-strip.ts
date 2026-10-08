@@ -2,13 +2,15 @@ import type { SessionSummary } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
 import { entityKey, orderAsTabs, sessionLabel, stripLine, tabButtonState, type SwitcherModel } from '../../../logic';
+import { kebabButton } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
-import { dotStatus, isPaused, projectGone, projName, projectGroups, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
+import { dotStatus, isPaused, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, tabButtonIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
+import { sessionMenuItems } from './actions';
 import '../../../menu-row.css';
 import './live-strip.css';
 
@@ -66,7 +68,7 @@ function buildHeading(): StripHeading {
 
 /** A session's row, built once: its handlers act on the session by its id when pressed, and everything they show is written by each render (`updateRow`). */
 function buildRow(id: string): StripRow {
-  // The row is a DIV holding two buttons rather than one button, because a button cannot contain a button and this row now has two things to do: jump to the session, or stop it.
+  // The row is a DIV holding buttons rather than one button, because a button cannot contain a button and this row has three things to do: jump to the session, open its menu, or press its tab's button.
   // The row shape (the menu row, menu-row.css) stays on the wrapper, so hovering anywhere in it still lights the whole row and the strip looks exactly as it did.
   const row = document.createElement('div');
   row.className = 'menu-row strip-item';
@@ -96,16 +98,22 @@ function buildRow(id: string): StripRow {
   // This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
   // It IS the tab's button, pressed from here: one rule draws both (`tabButtonState`) and one press acts for both (`closeOrStop`, through the ask), so it stops a running session, forces one that has not left, and closes a paused tab.
   // A row leaves the strip by its session stopping without a pause, its tab being unpaused or closed, which is what this does to a paused one, or its session leaving the pool.
+  // The session's own menu beside it, the one its row in the list has, Pause and Unpause with it: everything but the button, which stays in sight.
+  // Listed afresh at each click, for the session as it is then.
+  const kebab = kebabButton('compact strip-item-kebab', 'Session options', () => {
+    const session = sessionById(id);
+    return session ? sessionMenuItems(session) : null;
+  });
   const stop = document.createElement('button');
   stop.type = 'button';
-  stop.className = 'icon-btn compact strip-item-stop';
+  stop.className = 'icon-btn compact strip-item-stop pair-end';
   // Pressed only while enabled, which each render decides from the tab as it is then (`updateRow`).
   stop.addEventListener('click', (event) => {
     // The row around it jumps to the session; pressing the button must not also take you there.
     event.stopPropagation();
     hostOf('sessions').pressTabButton(id);
   });
-  row.append(jump, stop);
+  row.append(jump, kebab, stop);
   return { row, jump, dot, name, chip, stop };
 }
 
