@@ -290,6 +290,11 @@ export const PANEL_CONTROL_VARIABLE = 'CLAUDE_UI_CONTROL';
 export const PANEL_CONTROL_CAP = 4096;
 
 /**
+ * What main found of the git working tree at a folder, for a panel that follows its changes: a fingerprint, which differs whenever what git reports there does; `none` outside a working tree; `failed` when git could not say, which says nothing either way.
+ */
+export type WorkingTree = { kind: 'tree'; fingerprint: string } | { kind: 'none' } | { kind: 'failed'; error: string };
+
+/**
  * A session a panel's row started, as that panel remembers it: which item it was about, what to call it, and where the item's link goes.
  * Written by the APP when the session starts, never by the panel's script, which never learns a session id.
  */

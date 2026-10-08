@@ -41,6 +41,11 @@ export interface BridgeFixture {
   paths: Record<string, Found>;
   /** The folder chosen in main's folder dialog; null, as main answers for one cancelled. */
   pickFolder: string | null;
+  /**
+   * The fingerprint of the git working tree at each folder, as main's look at it would give it (src/main/gitstate.ts); a folder left out is in no working tree.
+   * A check changes one while the window runs to make a change in that tree.
+   */
+  trees: Record<string, string>;
 }
 
 /** One call the window made, as it arrived; a callback argument is recorded as the string `<callback>`. */
@@ -127,5 +132,6 @@ export function defaultFixture(): BridgeFixture {
     panelData: {},
     paths: {},
     pickFolder: null,
+    trees: {},
   };
 }

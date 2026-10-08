@@ -203,6 +203,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     runPanel: sent,
     stopPanel: sent,
     onPanelRun: on('onPanelRun'),
+    // Main's look at the folder's git working tree is the fixture's table in its place, read when asked, so a check can change a tree mid-run; a folder left out answers `none`, the fixture's convention, and git failing is not modelled.
+    panelTree: (dir) => answer(dir in fixture.trees ? { kind: 'tree' as const, fingerprint: fixture.trees[dir] } : { kind: 'none' as const }),
     getPanelData: (entryId) => (entryId in fixture.panelData ? answer(fixture.panelData[entryId]) : unmodelled('getPanelData')()),
     // Main records the link and the group it was filed in (`withLink`, src/shared/panels.ts), kept in the fixture, and answers with the panel's data; it pushes the same data too, which the window already has from the answer.
     // Main also forgets the links of sessions that are gone, which is its look at the disk, so a panel whose data names a session the fixture does not list is main's to answer, not this.

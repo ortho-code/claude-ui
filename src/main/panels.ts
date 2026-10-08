@@ -8,6 +8,7 @@ import type { Readable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 import { configRoot } from './paths';
 import { resolvePath } from './config';
+import { workingTree } from './gitstate';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup, type ShellInvocation } from './shell';
 import { fsFailure, log } from './log';
 import { formatDuration } from './stamp';
@@ -343,4 +344,5 @@ export function liveRuns(): number {
 export function registerPanelsIpc(): void {
   ipcMain.on('panel:run', (event, request: PanelRunRequest) => run(event.sender, request));
   ipcMain.on('panel:stop', (_event, entryId: string) => stop(entryId));
+  ipcMain.handle('panel:tree', (_event, dir: string) => workingTree(dir));
 }

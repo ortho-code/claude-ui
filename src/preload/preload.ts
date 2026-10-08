@@ -81,6 +81,7 @@ const api: ClaudeUiApi = {
     ipcRenderer.on('panel:run', (_event, entryId: string, token: string, event: PanelRunEvent) =>
       callback(entryId, token, event),
     ),
+  panelTree: (dir) => ipcRenderer.invoke('panel:tree', dir),
   getPanelData: (entryId) => ipcRenderer.invoke('panelData:get', entryId),
   linkPanelSession: (entryId, sessionId, link, filed) => ipcRenderer.invoke('panelData:link', entryId, sessionId, link, filed),
   onPanelDataChanged: (callback) => ipcRenderer.on('panelData:changed', (_event, entryId: string, data: PanelData) => callback(entryId, data)),

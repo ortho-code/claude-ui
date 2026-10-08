@@ -43,6 +43,8 @@ vi.mock('electron', () => ({
   shell: { openPath: async () => '' },
 }));
 vi.mock('node:child_process', () => ({
+  // For the working tree's git, which these tests never ask about: gitstate.test.ts runs it against a real repository.
+  execFile: vi.fn(),
   spawn: (file: string, args: string[], options: FakeChild['options']) => {
     // A test asks for the refusal through an option, which reaches the environment.
     if (options.env.CLAUDE_UI_OPTION_REFUSE) {

@@ -283,7 +283,7 @@ export interface UiState {
   panelState: PanelState;
 }
 
-import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind } from './panels';
+import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './folders';
 import type { LogLevel } from './log';
 import type { SettingsChange, SettingsSaved, SettingsView } from './settings';
@@ -476,6 +476,8 @@ export interface ClaudeUiApi {
    * `token` is the one the run was requested with, so a superseded run's tail can be told apart.
    */
   onPanelRun(callback: (entryId: string, token: string, event: PanelRunEvent) => void): void;
+  /** The git working tree at `dir`, as a fingerprint of what git reports there, for a panel that runs again when it changes (src/main/gitstate.ts). */
+  panelTree(dir: string): Promise<WorkingTree>;
   /** What the app keeps for a panel: the sessions its rows started, and the group last picked for one. */
   getPanelData(entryId: string): Promise<PanelData>;
   /** Remember a session a panel's row is starting, and the group it was filed in; answers with the panel's data as written. */
