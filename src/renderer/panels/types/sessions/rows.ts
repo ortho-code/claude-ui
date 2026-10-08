@@ -3,6 +3,7 @@ import type { SessionSummary } from '../../../../shared/types';
 import { listCard } from '../../../card';
 import { setMarkup } from '../../../keyed';
 import { entityKey, modelLabel, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
+import { kebabButton } from '../../../menu';
 import { store, type View } from '../../../state/app';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { NOTE_ICON, PIN_ICON, PINNED_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
@@ -10,7 +11,6 @@ import { showToast } from '../../../toast';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
-import { kebabButton } from './controls';
 import { currentByKey, sessionRows, statusDots } from './drawn';
 import './rows.css';
 

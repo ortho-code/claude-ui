@@ -1,4 +1,4 @@
-import { openMenu, type MenuItem } from '../../../menu';
+import { openMenu } from '../../../menu';
 import { chevronIcon, strokeIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { unavailable } from '../../../unavailable';
@@ -6,7 +6,8 @@ import { hostOf } from '../builtin';
 import './controls.css';
 
 /**
- * THE SESSION LIST'S SHARED CONTROLS: the kebab the headings and the rows both carry, the new-session split button a project's heading and a group's both carry, and the marks they wear.
+ * THE SESSION LIST'S SHARED CONTROLS: the new-session split button a project's heading and a group's both carry, and the marks it wears.
+ * The kebab the headings and the rows carry is the menu's own (`kebabButton`, menu.ts).
  */
 
 // The chrome marks — carets, +, ⋮, ✓, × — as SVG rather than the text glyphs they used to be.
@@ -15,29 +16,6 @@ import './controls.css';
 // Chevrons, not filled triangles: the collapse-all button already says fold/unfold with a chevron, and a solid triangle would be the only filled shape in an outline icon set.
 const chevronDown = (size: number): string => chevronIcon('down', size);
 const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
-// Dots, so it stays a kebab rather than becoming a dashed line.
-// The radius is in px for the same reason the stroke is: three 2.6px dots whatever the button's size.
-const kebabIcon = (size: number): string => {
-  const r = ((1.3 * 16) / size).toFixed(2);
-  return `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="currentColor"><circle cx="8" cy="3.4" r="${r}" /><circle cx="8" cy="8" r="${r}" /><circle cx="8" cy="12.6" r="${r}" /></svg>`;
-};
-
-/**
- * A kebab: the options behind a ⋮, listed afresh at each click by `items`, which answers null when there is nothing to offer.
- * The click goes no further, so it neither folds a heading nor opens a row.
- */
-export function kebabButton(className: string, tooltip: string, items: () => MenuItem[] | null): HTMLButtonElement {
-  const kebab = document.createElement('button');
-  kebab.className = `icon-btn ${className}`;
-  kebab.innerHTML = kebabIcon(14);
-  setTooltip(kebab, tooltip);
-  kebab.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const menu = items();
-    if (menu) openMenu(kebab, menu);
-  });
-  return kebab;
-}
 
 interface NewSessionSplit {
   /** The class of the "+" and of the caret, which the heading's stylesheet sizes. */

@@ -1,11 +1,11 @@
 // Its headings are the section heading a list panel draws too.
 import { sectionHeading } from '../../../card';
-import { openMenu, type MenuItem } from '../../../menu';
+import { kebabButton, openMenu, type MenuItem } from '../../../menu';
 import { store } from '../../../state/app';
 import { folderIcon, layersIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { copyText, deleteGroupById, groupMoveItems, projectMoveItems, promptNewGroup, renameGroupById, renameProject, withMoves } from './actions';
-import { kebabButton, newSessionSplit } from './controls';
+import { newSessionSplit } from './controls';
 import { container, jumpTargets, type GroupSectionEls, type ProjectSectionEls } from './drawn';
 import { toggleFold } from './folding';
 import { revealGroup } from './reveal';

@@ -1,6 +1,7 @@
 import type { NudgeStatus } from './logic';
 import { badgeClass, sessionDotClass } from './statusdot';
 import { chevronIcon, strokeIcon } from './svg';
+import { setTooltip } from './tooltip';
 import { setUnavailable } from './unavailable';
 import './menu-row.css';
 import './popover.css';
@@ -10,6 +11,12 @@ import './menu.css';
 // An item may carry a `submenu`: it then opens a child list on hover (one level deep) instead of running an action.
 
 const tickIcon = (size: number): string => strokeIcon(size, '<path d="M3.5 8.4L6.6 11.5L12.5 4.9" />', 1.5);
+// Dots, so it stays a kebab rather than becoming a dashed line.
+// The radius is in px for the same reason the stroke is: three 2.6px dots whatever the button's size.
+const kebabIcon = (size: number): string => {
+  const r = ((1.3 * 16) / size).toFixed(2);
+  return `<svg viewBox="0 0 16 16" width="${size}" height="${size}" fill="currentColor"><circle cx="8" cy="3.4" r="${r}" /><circle cx="8" cy="8" r="${r}" /><circle cx="8" cy="12.6" r="${r}" /></svg>`;
+};
 
 export interface MenuItem {
   label: string;
@@ -183,4 +190,21 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   anchor.classList.add('menu-open'); // trigger shows an open/active state while its menu is up
   // Defer so the click that opened it doesn't immediately close it.
   setTimeout(() => document.addEventListener('click', onMenuOutside, true));
+}
+
+/**
+ * A kebab: the options behind a ⋮, listed afresh at each click by `items`, which answers null when there is nothing to offer.
+ * The click goes no further, so it neither folds a heading nor opens a row.
+ */
+export function kebabButton(className: string, tooltip: string, items: () => MenuItem[] | null): HTMLButtonElement {
+  const kebab = document.createElement('button');
+  kebab.className = `icon-btn ${className}`;
+  kebab.innerHTML = kebabIcon(14);
+  setTooltip(kebab, tooltip);
+  kebab.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const menu = items();
+    if (menu) openMenu(kebab, menu);
+  });
+  return kebab;
 }
