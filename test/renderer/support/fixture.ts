@@ -16,6 +16,7 @@ export interface BridgeFixture {
   notes: Record<string, string>;
   openSessions: string[];
   runningSessions: string[];
+  pausedSessions: string[];
   activeSession: string | null;
   activeSessionByProject: Record<string, string>;
   activeProject: string | null;
@@ -115,6 +116,7 @@ export function defaultFixture(): BridgeFixture {
     notes: {},
     openSessions: [],
     runningSessions: [],
+    pausedSessions: [],
     activeSession: null,
     activeSessionByProject: {},
     activeProject: one.repoRoot,

@@ -108,6 +108,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getOpenSessions: () => answer(fixture.openSessions),
     setOpenSessions: sent,
     getRunningSessions: () => answer(fixture.runningSessions),
+    getPausedSessions: () => answer(fixture.pausedSessions),
     getActiveSession: () => answer(fixture.activeSession),
     getActiveSessionByProject: () => answer(fixture.activeSessionByProject),
     setActiveSession: sent,

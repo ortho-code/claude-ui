@@ -35,10 +35,11 @@ export function withoutSession(marks: Readonly<SessionMarks>, id: string): Sessi
   return { pinned: marks.pinned.filter((key) => key !== id), archived, notes };
 }
 
-/** What else meta holds about a session, as `meta.json` holds it: the tabs open and which of them run, the one on show overall and per project, and who is in which group. */
+/** What else meta holds about a session, as `meta.json` holds it: the tabs open, which of them run and which you paused, the one on show overall and per project, and who is in which group. */
 export interface SessionPlaces {
   openSessions: string[];
   runningSessions: string[];
+  pausedSessions: string[];
   activeSession: string | null;
   activeSessionByProject: Record<string, string>;
   groupOf: Record<string, string>;
@@ -52,6 +53,7 @@ export function purgedSession(meta: Readonly<SessionMarks & SessionPlaces>, id: 
     ...withoutSession(meta, id),
     openSessions: meta.openSessions.filter((key) => key !== id),
     runningSessions: meta.runningSessions.filter((key) => key !== id),
+    pausedSessions: meta.pausedSessions.filter((key) => key !== id),
     activeSession: meta.activeSession === id ? null : meta.activeSession,
     activeSessionByProject: Object.fromEntries(Object.entries(meta.activeSessionByProject).filter(([, key]) => key !== id)),
     groupOf,

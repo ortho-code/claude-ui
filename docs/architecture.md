@@ -202,6 +202,8 @@ The remembered tab is *selected* at launch, and starts with the others only if i
 
 What was running is remembered with the open tabs, in the same write: `runningSessions` holds the open tabs that have a process, from the moment it starts until it has gone, so a session still being stopped counts.
 The window stops writing once the app quits, so the exits the quit causes are not recorded, and a launch reads the list before its restore writes the open tabs again; after a crash, the sessions running at the crash come back.
+The tabs you paused are in the same write too, `pausedSessions`: a launch restores them paused and never starts them, even one also kept as running, whose claude had not left yet when the app closed.
+A tab loses the mark when its session's process arrives, and gets it back if that start fails within its first moments; a start that is refused or throws never had a process, so the mark stays.
 
 The code is in `src/renderer/panels/types/claude/terminals.ts`: each tab's terminal, its life from built to closed, the workspace switch, the fit of the tab on show to the terminal area, and the open tabs kept for the next launch.
 

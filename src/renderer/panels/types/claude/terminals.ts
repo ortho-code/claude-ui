@@ -32,6 +32,8 @@ interface TabTerminal {
   startedAt: number;
   // Bumped on each activation, so a workspace switch can restore a project's most-recent tab.
   activatedSeq: number;
+  // Whether the tab was paused when its process arrived, which clears the mark, so a start that fails within its first moments gives it back.
+  pausedAtStart: boolean;
 }
 
 /**
@@ -102,7 +104,7 @@ let restoring = false;
 let shuttingDown = false;
 
 /**
- * The open tabs, and which of them run, for the next launch.
+ * The open tabs, which of them run, and which you paused, for the next launch.
  * Written when a tab opens, closes or moves, when its process starts, and when its process goes: a stop leaves the tab cold, an exit of its own removes it, and one within its first moments, a failed start, leaves it cold too.
  * A session still being stopped has its process until claude has gone, so it is written as running until then.
  */
@@ -116,6 +118,7 @@ export function persistOpenTabs(): void {
   window.claudeUi.setOpenSessions(
     tabs.map(keyOf),
     tabs.filter((tab) => tab.terminalId !== null).map(keyOf),
+    tabs.filter((tab) => tab.paused).map(keyOf),
   );
 }
 
@@ -125,12 +128,13 @@ export async function restoreOpenTabs(): Promise<void> {
   const resume: string[] = [];
   try {
     // The running list is read here, before the write below replaces it with what runs now, which is nothing yet.
-    const [sessions, openKeys, activeKey, byProject, runningKeys, settings] = await Promise.all([
+    const [sessions, openKeys, activeKey, byProject, runningKeys, pausedKeys, settings] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getOpenSessions(),
       window.claudeUi.getActiveSession(),
       window.claudeUi.getActiveSessionByProject(),
       window.claudeUi.getRunningSessions(),
+      window.claudeUi.getPausedSessions(),
       window.claudeUi.getSettings(),
     ]);
     activeByProject = { ...byProject };
@@ -146,9 +150,11 @@ export async function restoreOpenTabs(): Promise<void> {
       for (const key of openKeys) {
         const session = tips.get(key);
         if (!session) continue;
-        const token = buildTab(session);
+        // A tab you paused comes back paused and is never started here, even one also kept as running, whose claude had not left yet when the app closed.
+        const paused = pausedKeys.includes(key);
+        const token = buildTab(session, paused);
         if (key === activeKey) toActivate = token;
-        if (resuming && runningKeys.includes(key)) resume.push(token);
+        if (resuming && runningKeys.includes(key) && !paused) resume.push(token);
       }
       // Land where you left off — SELECTED but not started here; it starts below with the others if it was running.
       // Without a remembered tab we open on none rather than guessing.
@@ -171,7 +177,7 @@ export async function restoreOpenTabs(): Promise<void> {
  * `terminalId` stays null until startTab fills it in, which is what lets tabs be restored cold — 20 restored tabs used to mean 20 `claude --resume` processes at ~437 MB each, spawned whether or not you looked at any of them.
  * The xterm instance stays eager on purpose: an empty one costs almost nothing next to a process, and keeping it non-null confines this to the handful of places that use terminalId.
  */
-function buildTab(session: SessionSummary): string {
+function buildTab(session: SessionSummary, paused = false): string {
   const token = crypto.randomUUID();
 
   const el = document.createElement('div');
@@ -196,7 +202,7 @@ function buildTab(session: SessionSummary): string {
     return true;
   });
 
-  terminals.set(token, { term, fitAddon, el, startedAt: 0, activatedSeq: 0 });
+  terminals.set(token, { term, fitAddon, el, startedAt: 0, activatedSeq: 0, pausedAtStart: false });
 
   // Ctrl-C goes to claude every time, so leaving with it works as in a terminal: from its prompt claude exits, or first asks what it asks on the way out, and its exit closes the tab; mid-turn the first press interrupts the turn.
   // The app once caught the second press and closed the tab itself, which spoke over that question, and was there for a shell left behind after claude that no longer is.
@@ -213,7 +219,7 @@ function buildTab(session: SessionSummary): string {
   });
 
   store.set({
-    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, closing: false, forceable: false, failure: null, startFailed: false }],
+    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, closing: false, forceable: false, paused, failure: null, startFailed: false }],
   });
   return token;
 }
@@ -262,7 +268,9 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
       window.claudeUi.killTerminal(terminalId);
       return;
     }
-    setTab(token, { terminalId });
+    // Its session runs again, so it is no longer set aside; the mark comes back if this start fails within its first moments (`onTabExit`).
+    terminal.pausedAtStart = tabOf(token)!.paused;
+    setTab(token, { terminalId, paused: false });
     persistOpenTabs();
     // From here its output and exit are this tab's, until the pty's own exit unbinds it.
     bindTerminal(terminalId, { data: (data) => onTabData(token, data), exit: (exitCode) => onTabExit(token, exitCode) });
@@ -595,7 +603,7 @@ function onTabExit(token: string, exitCode: number): void {
   // A near-instant exit almost always means claude failed to start (bad env, not found, rc error).
   // Keep the tab so the error stays visible instead of flashing away.
   // Otherwise claude exited normally, so close the tab — no leftover shell.
-  const { term, startedAt } = terminalOf(token);
+  const { term, startedAt, pausedAtStart } = terminalOf(token);
   const ran = Date.now() - startedAt;
   if (ran < 1500) {
     // What it said before it went, for the log: main records the exit, only the terminal has the words.
@@ -611,7 +619,8 @@ function onTabExit(token: string, exitCode: number): void {
     term.writeln(`\r\n[claude exited immediately (code ${exitCode}) — the session did not start]`);
     // Cold, since its process has gone: the button closes it at once, the strip drops it, and selecting it starts it again.
     // Uncovered all the same: this line IS the explanation of the failure, and it is exactly what the loader or the cold pane would otherwise hide.
-    setTab(token, { terminalId: null, booting: false, startFailed: true });
+    // A tab you paused is still set aside: its session never ran again.
+    setTab(token, { terminalId: null, booting: false, startFailed: true, paused: pausedAtStart });
     persistOpenTabs();
     return;
   }

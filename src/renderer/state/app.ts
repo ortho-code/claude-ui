@@ -131,6 +131,11 @@ export interface TabState {
   /** A stop that has had its moment without the session going: its stop control now forces it out (`stopControlState`). */
   forceable: boolean;
   /**
+   * Paused: set aside to come back to, and kept for the next launch, which restores the tab paused and never starts it.
+   * The mark stays until its session's process arrives; a start that fails within its first moments gives it back, and one that is refused or throws never clears it.
+   */
+  paused: boolean;
+  /**
    * Why the last attempt to start this tab was refused, shown in place of the pane until it is tried again.
    * A refusal is not an exit: the tab never had a process, so nothing arrives on the terminal to explain itself.
    */
