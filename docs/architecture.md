@@ -751,6 +751,7 @@ The context reaches the command as environment variables only for now (`CLAUDE_U
 With neither a tab nor a project the panel says "Pick a project to run this in." and runs nothing.
 It runs when first shown, on Refresh, and when its context changes, which a tab switch, a project switch and stopping the tab you are on all do, and so does the tab's own session changing under it, on a `/clear` or a move into another folder — but a context change never runs it while hidden (see A layout change keeps panels running).
 It also runs on its `interval`, if it has one.
+When it runs, the check before each run, each run's token, and asking main to run and to stop are one piece that this type and the list kind both go through (`PanelRuns` in `panels/runs.ts`, over the `RunGate`), so the two answer them by the same rules; each panel says only what it checks, what it runs, what it draws at each step, and the interval it runs on.
 
 **An interval runs it out of sight too.**
 `interval` is the list kind's own declaration (`INTERVAL_OPTION`, at least ten seconds), read through the same helper (`intervalOf`), and its timing is the list kind's too, through the same `RunGate`: a tick that long after each run ends, hidden or folded as well, and a first run when the tree first places the panel, shown or not.
@@ -872,7 +873,7 @@ The `command` type still merges the two, in arrival order, since it shows what w
 Stderr's end is kept as the reason a failure gives: mise, for one, writes the task line there on every run.
 
 **When it runs.**
-On first being shown, on Refresh, on a context change while shown, as a `command` panel does, and on its interval, which also runs while the panel is hidden or folded: the count on its rail icon is the point of a queue, and a count that stops while you are not looking says something false.
+On first being shown, on Refresh, on a context change while shown, as a `command` panel does, and on its interval, all through the same piece (`PanelRuns`, § The `command` type); the interval also runs while the panel is hidden or folded: the count on its rail icon is the point of a queue, and a count that stops while you are not looking says something false.
 The first run of a panel with an interval is when the tree goes live, shown or not.
 The interval is at least ten seconds, so a typo cannot start a script every second.
 
