@@ -86,6 +86,12 @@ if [ "$status" = model ]; then
   [ -n "$to" ] && printf '%s' "$to" > "$dir/$sid.model"
   exit 0
 fi
+# A subagent's events carry the session's own id, told apart by agent_id.
+# Once the session's turn has ended, a subagent still at work runs in the background, and its tool calls are not the session working again.
+# Waiting still goes through: it needs you, whoever asks.
+if [ "$status" = busy ] && [ -n "$(field agent_id)" ] && grep -qE '"status":"(idle|background)"' "$dir/$sid.json" 2>/dev/null; then
+  exit 0
+fi
 # A minute at its prompt without input (its default), claude sends an idle notice even while a shell it started still runs (measured), and by its source a monitor too.
 # It is not waiting for you then: that work's end starts a turn of its own, and the notice a minute after that turn is the one that says waiting.
 # Every other notification, a permission prompt or a question, needs you and goes through.

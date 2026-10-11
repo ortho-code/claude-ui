@@ -354,4 +354,35 @@ describe('the hook script', () => {
       expect((await readStatusFile())?.background).toEqual(['subagent']);
     });
   });
+
+  /**
+   * Hooks fired inside a subagent carry the session's own id, told apart by `agent_id` (measured on claude 2.1.289).
+   * Once the session's turn has ended, a subagent still at work is a background one, and its tool calls are not the session working again.
+   */
+  describe('an event from inside a subagent', () => {
+    const fromSubagent = { agent_id: 'a4f90cdffb4a6bcc9', agent_type: 'general-purpose' };
+
+    it.each([
+      ['idle', {}],
+      ['background', { background_tasks: [{ id: 'a4f90cdffb4a6bcc9', type: 'subagent', status: 'running', description: 'a subagent' }] }],
+    ])('never writes busy over %s', async (status, extra) => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', ...extra });
+      runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse', tool_name: 'Bash', ...fromSubagent });
+      expect((await readStatusFile())?.status).toBe(status);
+    });
+
+    // A foreground subagent runs inside the session's turn, so approving its prompt is the session working again, as it is for the session's own.
+    it('writes busy over waiting', async () => {
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification' });
+      runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse', tool_name: 'Bash', ...fromSubagent });
+      expect((await readStatusFile())?.status).toBe('busy');
+    });
+
+    // Waiting is the one state that needs you, so it is never held back, whoever asks.
+    it('still writes waiting over a finished turn', async () => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ id: 'a4f90cdffb4a6bcc9', type: 'subagent', status: 'running', description: 'a subagent' }] });
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', ...fromSubagent });
+      expect((await readStatusFile())?.status).toBe('waiting');
+    });
+  });
 });

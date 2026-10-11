@@ -489,6 +489,11 @@ The same notice a minute after the work's own turn has ended is the one that say
 Every other notification, a permission prompt or a question, still writes waiting over it.
 Its dot is busy's spinning ring around a small core of idle's green: the turn is done, and work goes on.
 
+**A subagent's events arrive as the session's, and once its turn has ended they are not the session working.**
+Hooks fired inside a subagent carry the session's own id, told apart by `agent_id`, so a background subagent's tool call wrote busy over a finished session, and the dot went idle, busy and idle again with nobody doing anything.
+The script never writes busy for such an event over idle or background.
+Waiting still goes through, since a question must never be held back, and a foreground subagent is unaffected, since its session is busy or waiting for as long as it runs.
+
 Two more events are not that simple, and both cost a wrong guess to work out.
 
 **Compaction is work, so it reads as work.**
