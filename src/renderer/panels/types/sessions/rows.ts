@@ -5,7 +5,6 @@ import { setMarkup } from '../../../keyed';
 import { entityKey, modelLabel, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import { kebabButton } from '../../../menu';
 import { store, type View } from '../../../state/app';
-import { dotStatus } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { NOTE_ICON, PIN_ICON, PINNED_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { showToast } from '../../../toast';
@@ -188,7 +187,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   const els = rowEls.get(row)!;
   const archivedView = view.filter.filters.archived;
 
-  applyStatus(els.dot, dotStatus(session.id, view), view.acked.has(session.id));
+  applyStatus(els.dot, session.id, view);
   statusDots.set(session.id, els.dot);
 
   els.title.textContent = sessionLabel(session, '(no prompt yet)');

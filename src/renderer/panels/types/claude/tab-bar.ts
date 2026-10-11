@@ -5,7 +5,7 @@ import { orderAsTabs, reorderWithinGroup, sessionLabel, tabButtonState, unstarta
 import { kebabButton, openMenu, type MenuItem } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
-import { dotStatus, projName, projectGone, projectGroups, statusChanges, visibleTabs } from '../../../state/views';
+import { projName, projectGone, projectGroups, statusChanges, visibleTabs } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { layersIcon, SIBLING_ICON, tabButtonIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -242,7 +242,7 @@ function drawTab(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames'
     .filter(Boolean)
     .join(' ');
 
-  applyStatus(dot, dotStatus(tab.session.id, view), view.acked.has(tab.session.id));
+  applyStatus(dot, tab.session.id, view);
 
   // Siblings often share a title, so mark the tab too — keyed on isSibling, the same signal as the sidebar row's badge, so tab and row always agree.
   if (tab.session.isSibling) {

@@ -3,7 +3,7 @@ import { placeChildren } from '../../../keyed';
 import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, groupJumpTargets, projectGoneReason } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
-import { dotStatus, isFiltering, pausedChanges, projName, searchText, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
+import { isFiltering, pausedChanges, projName, searchText, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
@@ -63,7 +63,7 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
 function repaintDots(ids: Set<string>, view: View<'statuses' | 'acked' | 'tabs'>): void {
   for (const id of ids) {
     const dot = statusDots.get(id);
-    if (dot) applyStatus(dot, dotStatus(id, view), view.acked.has(id));
+    if (dot) applyStatus(dot, id, view);
   }
 }
 

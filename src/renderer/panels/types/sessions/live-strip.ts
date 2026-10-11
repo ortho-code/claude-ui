@@ -5,7 +5,7 @@ import { entityKey, orderAsTabs, sessionLabel, stripLine, tabButtonState, type S
 import { kebabButton } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
-import { dotStatus, isPaused, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
+import { isPaused, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, tabButtonIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -120,7 +120,7 @@ function buildRow(id: string): StripRow {
 /** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its tab's button in the tab's state. */
 function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'acked' | 'tabs'>): void {
   const { row, jump, dot, name, chip, stop } = parts;
-  applyStatus(dot, dotStatus(session.id, view), view.acked.has(session.id));
+  applyStatus(dot, session.id, view);
   name.textContent = sessionLabel(session);
   chip.textContent = groupName ?? '';
   chip.hidden = groupName === undefined;

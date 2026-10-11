@@ -1,5 +1,7 @@
 import { showsRead, statusLabel, type NudgeStatus } from './logic';
+import type { View } from './state/app';
 import { toggleAck } from './state/statuses';
+import { dotStatus } from './state/views';
 import { setTooltip } from './tooltip';
 
 /** The status dots: a session's own, as the sidebar row, the tab, the live strip and a list panel's row draw it, and a roll-up's, which stands for many; how each looks is base.css's `.nudge`. */
@@ -15,10 +17,12 @@ export function badgeClass(badge: NudgeStatus | 'failed'): string {
 }
 
 /**
- * Paint a session's dot as a control, from what it shows (`dotStatus`).
+ * Paint a session's dot as a control, from what it shows (`dotStatus`) and whether it is marked read, on every surface that draws one as a control.
  * A paused session's dot is not one: there is nothing to mark read, and a click goes to what holds it, which opens the session and so resumes it.
  */
-export function applyStatus(dot: HTMLElement, status: string | undefined, isAcked = false): void {
+export function applyStatus(dot: HTMLElement, id: string, view: View<'statuses' | 'acked' | 'tabs'>): void {
+  const status = dotStatus(id, view);
+  const isAcked = view.acked.has(id);
   dot.className = sessionDotClass(status, isAcked, status !== 'paused');
   setTooltip(dot, statusLabel(status, isAcked));
 }
