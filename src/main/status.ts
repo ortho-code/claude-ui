@@ -30,6 +30,8 @@ export const TAB_ENV = 'CLAUDE_UI_TAB';
  */
 const HOOK_EVENTS: [string, string][] = [
   ['UserPromptSubmit', 'busy'],
+  // Idle, or `background` while work the turn started still runs: its payload lists that work (`background_tasks`, measured on claude 2.1.289), and the script reads it.
+  // For a shell, a monitor and a subagent (measured), the work's end starts a turn of its own, so the next `Stop` brings the list up to date without anything else to hook.
   ['Stop', 'idle'],
   ['Notification', 'waiting'],
   // Also busy, and the reason is the gap it closes.
@@ -84,6 +86,20 @@ if [ "$status" = model ]; then
   [ -n "$to" ] && printf '%s' "$to" > "$dir/$sid.model"
   exit 0
 fi
+# A minute at its prompt without input (its default), claude sends an idle notice even while a shell it started still runs (measured), and by its source a monitor too.
+# It is not waiting for you then: that work's end starts a turn of its own, and the notice a minute after that turn is the one that says waiting.
+# Every other notification, a permission prompt or a question, needs you and goes through.
+if [ "$status" = waiting ] && [ "$(field notification_type)" = idle_prompt ] && grep -q '"status":"background"' "$dir/$sid.json" 2>/dev/null; then
+  exit 0
+fi
+# Stop lists the work still running behind the turn it ends, and while any runs the session has not finished: it reports background in idle's place, with the type claude gives each piece of work.
+# Only a "type" key can match, never one inside a string, whose quotes arrive escaped; Stop's own fields have none, so each match is one entry of the list.
+extra=''
+if [ "$status" = idle ] && printf '%s' "$input" | grep -qE '"background_tasks"[[:space:]]*:[[:space:]]*\\[[[:space:]]*\\{'; then
+  status=background
+  types="$(printf '%s' "$input" | grep -oE '"type"[[:space:]]*:[[:space:]]*"[A-Za-z0-9 _.-]+"' | sed -E 's/.*("[^"]+")$/\\1/' | paste -sd, -)"
+  extra=",\\"background\\":[$types]"
+fi
 # The end of a compaction, which is the only SessionStart that means a state rather than an identity.
 if [ "$status" = start ] && [ "$(field source)" = compact ]; then
   status=idle
@@ -94,7 +110,7 @@ if [ "$status" = start ] && [ -e "$dir/$sid.json" ]; then
   exit 0
 fi
 # The event goes along because one status is several events, and the app asks of one of them in particular: a prompt submitted says a session asked to leave has stayed.
-printf '{"status":"%s","ts":%s,"tab":"%s","event":"%s"}\\n' "$status" "$(date +%s)" "\${CLAUDE_UI_TAB:-}" "$(field hook_event_name)" > "$dir/$sid.json"
+printf '{"status":"%s","ts":%s,"tab":"%s","event":"%s"%s}\\n' "$status" "$(date +%s)" "\${CLAUDE_UI_TAB:-}" "$(field hook_event_name)" "$extra" > "$dir/$sid.json"
 exit 0
 `;
 
@@ -186,7 +202,7 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
     void readStatus(id).then((entry) => {
       if (entry === null) return;
       const win = getWindow();
-      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, entry.status, entry.tab, entry.event);
+      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, entry.status, entry.tab, entry.event, entry.background);
     });
   });
 }
@@ -197,6 +213,8 @@ interface StatusEntry {
   tab: string;
   /** The hook event that reported it, or '' from a file written before the script named it. */
   event: string;
+  /** For `background`, the type claude gives each piece of work still running, as many as the script could read; absent for any other status. */
+  background?: string[];
 }
 
 async function readStatus(id: string): Promise<StatusEntry | null> {
@@ -205,12 +223,14 @@ async function readStatus(id: string): Promise<StatusEntry | null> {
       status?: unknown;
       tab?: unknown;
       event?: unknown;
+      background?: unknown;
     };
     if (typeof parsed.status !== 'string') return null;
     return {
       status: parsed.status,
       tab: typeof parsed.tab === 'string' ? parsed.tab : '',
       event: typeof parsed.event === 'string' ? parsed.event : '',
+      ...(Array.isArray(parsed.background) ? { background: parsed.background.filter((type): type is string => typeof type === 'string') } : {}),
     };
   } catch {
     return null;

@@ -60,7 +60,7 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
 }
 
 /** Repaint the dots of these sessions' rows, those drawn, from what each shows now. */
-function repaintDots(ids: Set<string>, view: View<'statuses' | 'acked' | 'tabs'>): void {
+function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs'>): void {
   for (const id of ids) {
     const dot = statusDots.get(id);
     if (dot) applyStatus(dot, id, view);
@@ -68,10 +68,10 @@ function repaintDots(ids: Set<string>, view: View<'statuses' | 'acked' | 'tabs'>
 }
 
 /**
- * A status or a mark read changed: repaint the rows' dots that differ from what they were last painted from (`before`).
+ * A status, the work behind one, or a mark read changed: repaint the rows' dots that differ from what they were last painted from (`before`).
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function dotsFollowStatuses(view: View<'statuses' | 'acked' | 'tabs'>, before: View<'statuses' | 'acked'>): void {
+function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs'>, before: View<'statuses' | 'backgroundTasks' | 'acked'>): void {
   repaintDots(statusChanges(before, view), view);
 }
 
@@ -82,7 +82,7 @@ const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
  * What the list reads and is never told of: a status change repaints only the dots (`dotsFollowStatuses`); a fold only folds what is drawn (`foldsFollow`); and whether the filter panel is open.
  */
-const LIST_QUIET = ['statuses', 'acked', 'folds', 'filterPanelOpen'] as const;
+const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'folds', 'filterPanelOpen'] as const;
 
 /** Everything the list draws from the store. */
 type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (typeof LIST_QUIET)[number]>;
@@ -91,7 +91,7 @@ type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (
 export function watchList(): void {
   store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
-  store.watch(['statuses', 'acked'], dotsFollowStatuses, { reads: ['tabs'] });
+  store.watch(['statuses', 'backgroundTasks', 'acked'], dotsFollowStatuses, { reads: ['tabs'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject'] });
 }
 

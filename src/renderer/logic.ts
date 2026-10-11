@@ -301,10 +301,11 @@ export type NudgeStatus = 'waiting' | 'idle' | 'busy' | null;
 /**
  * One session's part in a roll-up: its live status, muted to nothing once read; closed, unknown or not reported yet is nothing too.
  * Only waiting and idle can be read (`toggleAck`), and a new status clears the mark, so the mark mutes only those.
+ * Work still running behind a finished turn (`background`) is working, so it rolls up as busy: a roll-up must not carry a "finished" that is not true yet.
  */
 export function nudgeOf(status: string | undefined, acked: boolean): NudgeStatus {
   if (status === 'waiting' || status === 'idle') return acked ? null : status;
-  return status === 'busy' ? 'busy' : null;
+  return status === 'busy' || status === 'background' ? 'busy' : null;
 }
 
 export interface SwitcherProject {
@@ -545,6 +546,8 @@ export function groupJumpTargets(
 const STATUS_LABEL: Record<string, string> = {
   busy: 'Busy',
   idle: 'Idle',
+  // The turn has ended and claude's prompt is open, but work it started still runs.
+  background: 'Working in the background',
   waiting: 'Waiting for you',
   closed: 'Not running',
   // Not a status a hook reports: what the dot of a session whose tab rests paused shows in place of its last one (`dotStatus`).
@@ -557,11 +560,20 @@ const STATUS_LABEL: Record<string, string> = {
  *
  * It still falls back to the raw value, deliberately: a state this table has not been taught reads oddly rather than vanishing, which is the signal to name it.
  * That only works while everything reaching here is MEANT to be a state — the identity marker `start` is not, and is filtered out where it is read rather than hidden here.
+ *
+ * `background` also says what still runs, from the type claude gives each piece of work (`background`), counted per type: "2 shells, 1 subagent".
  */
-export function statusLabel(status: string | undefined, isAcked = false): string | null {
+export function statusLabel(status: string | undefined, isAcked = false, background: readonly string[] = []): string | null {
   if (!status) return null;
-  const label = STATUS_LABEL[status] ?? status;
+  const label = status === 'background' && background.length > 0 ? `${STATUS_LABEL.background}: ${countedTypes(background)}` : (STATUS_LABEL[status] ?? status);
   return showsRead(status, isAcked) ? `${label} (read)` : label;
+}
+
+/** "2 shells, 1 subagent": each type once, in the order it first appears, with how many there are. */
+function countedTypes(types: readonly string[]): string {
+  const counts = new Map<string, number>();
+  for (const type of types) counts.set(type, (counts.get(type) ?? 0) + 1);
+  return [...counts].map(([type, n]) => `${n} ${type}${n === 1 ? '' : 's'}`).join(', ');
 }
 
 /**

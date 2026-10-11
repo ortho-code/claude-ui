@@ -418,13 +418,14 @@ export interface ClaudeUiApi {
   pickFolder(): Promise<string | null>;
   /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */
   openExternal(url: string): void;
-  /** Current status per session id (busy | idle | waiting). */
+  /** Current status per session id (busy | idle | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
   /**
    * Subscribe to live status changes.
    * `tab` is the reporting terminal's token (empty for a session claude-ui is not running), and `event` the hook event that reported it (empty from a file written before the hook named it).
+   * `background` comes with that status alone: the type claude gives each piece of work still running behind the finished turn, such as `shell` or `subagent`.
    */
-  onSessionStatus(callback: (id: string, status: string, tab: string, event: string) => void): void;
+  onSessionStatus(callback: (id: string, status: string, tab: string, event: string, background?: string[]) => void): void;
   /**
    * Subscribe to a session changing model.
    * Only a live switch arrives here; a session's model at rest comes from its transcript, which records which model answered.

@@ -470,8 +470,26 @@ Rejected from the same mock: a popover from the tab bar (no scrollbar), a panel 
 Rather than parse terminal output to guess a session's state, the app drives status from Claude Code hooks.
 On startup it writes a hook script and its own settings file to `~/.config/claude-ui/`, and passes that file to `claude --settings`, whose hooks merge with the user's own — so claude-ui never writes into `~/.claude/settings.json` (an earlier version did, and still strips those entries when it finds them).
 
-Five events map straight to a status: `UserPromptSubmit` → busy, `PostToolUse` → busy, `Stop` → idle, `Notification` → waiting, `SessionEnd` → closed.
-Two more are not that simple, and both cost a wrong guess to work out.
+Five events map straight to a status: `UserPromptSubmit` → busy, `PostToolUse` → busy, `Stop` → idle (or background, below), `Notification` → waiting, `SessionEnd` → closed.
+
+**A turn that ends with work still running has not finished, so it reads as `background`.**
+`Stop` carries the work the turn started that still runs, such as a backgrounded shell, a monitor or a subagent sent off in the background, as `background_tasks`, and while that list holds anything the script writes `background` instead of `idle`.
+For a backgrounded shell, a monitor and a background subagent, the work's end made claude start a turn of its own, which ended in a `Stop` with the list up to date, so nothing else needs hooking (measured on claude 2.1.289, one probe each).
+It takes idle's place and no other's: busy already promises more output and waiting must always win, so it can never hide a session that needs you, which is why it is a state and not a mark of its own beside the dot.
+To the roll-ups it is busy, with no "finished" to carry and nothing to mark read, while stopping it sends the two presses an idle session gets, since claude's prompt is open.
+With a background shell running, claude answered those presses with a question, exit and stop the work or stay, rather than leaving (measured once; claude's own code leaves some kinds of work out of that question, and a worktree session asks about its worktree instead), and the tab stays up for it as for any question on the way out.
+Work you stop yourself, from claude's own task list, started no turn and fired no hook at all (measured with a background shell), so the dot stays on background until claude's next turn or its exit.
+The dot's tooltip names the work by the type claude gives each piece (`shell`, `subagent`, …), counted per type, as in "2 shells, 1 subagent"; a monitor that watches a shell command arrives as a `shell`.
+The script reads those from the `type` keys, which in `Stop` only the list's entries have, and a claude too old to send the list reads idle, as before.
+The launch read passes on the status alone, so a `background` read back at launch says no more than that.
+Scheduled wakeups (`session_crons`, from `/loop` and the like) are not counted: nothing runs until they fire, and counting them would keep a looping session from ever showing finished.
+Claude's idle notice does not end it either.
+A minute at its prompt without input (claude's default, which its own config can change), claude sends `Notification` with `notification_type: "idle_prompt"` ("Claude is waiting for your input"), and it does so while a shell it started still runs; the script writes nothing for that notice over `background`.
+The same notice a minute after the work's own turn has ended is the one that says waiting, as for any finished session (both measured on claude 2.1.289, with a background shell).
+Every other notification, a permission prompt or a question, still writes waiting over it.
+Its dot is busy's spinning ring around a small core of idle's green: the turn is done, and work goes on.
+
+Two more events are not that simple, and both cost a wrong guess to work out.
 
 **Compaction is work, so it reads as work.**
 `PreCompact` → busy, and the END of a compaction is a `SessionStart` carrying `source=compact`, which the script rewrites to idle.
@@ -502,7 +520,7 @@ The script is covered by tests that run it the way Claude Code does — argument
 
 The hooks are scoped to claude-ui: it sets `CLAUDE_UI=1` on the terminals it spawns, and the hook script no-ops unless that variable is set, so sessions run in a plain terminal are left untouched.
 When it does fire, the script writes `~/.config/claude-ui/status/<id>.json`.
-The main process watches that directory and pushes updates to the renderer, which shows a dot per session: busy, idle, waiting, or hollow (`closed` and unknown states have no color).
+The main process watches that directory and pushes updates to the renderer, which shows a dot per session: busy, idle, working in the background, waiting, or hollow (`closed` and unknown states have no color).
 
 A session's status is forgotten, its file removed, when its tab is closed, when its tab goes cold because its claude has gone, and when a cold tab is paused, so a paused session never nudges from a status a file kept.
 The second is for a claude that never reports its end: a `SIGKILL`ed one cannot run its `SessionEnd` hook, and its last busy or waiting went on nudging from the session's dot and from the roll-ups over it, such as its project's in the switcher.

@@ -69,6 +69,8 @@ export interface LinkedSession {
   title: string;
   /** The status dot's state, as the session list draws it; null for a session with nothing to report. */
   status: string | null;
+  /** For a `background` status, what still runs behind its finished turn, by the type claude gives each piece of work; empty when nothing is known. */
+  background: readonly string[];
   /** Its dot marked read. */
   acked: boolean;
   /** A tab holds it with its process live. */

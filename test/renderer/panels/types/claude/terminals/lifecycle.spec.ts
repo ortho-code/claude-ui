@@ -154,6 +154,16 @@ test('a session mid-turn is pressed a third time, since its first Ctrl-C only in
   expect(await app.calls('closeTerminal')).toEqual([[FIRST, true]]);
 });
 
+// Its turn has ended and its prompt is open, so a third press would only arm claude's own "press again to exit".
+test('a session working in the background is pressed twice, as one at its prompt is', async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app);
+  await app.emit('onSessionStatus', one.id, 'background', '', 'Stop', ['shell']);
+
+  await tab(page, one.title).locator('.tab-close').click();
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
+});
+
 // Esc at claude's question on the way out takes it back to its prompt; the next prompt is what says it stayed.
 test('a prompt submitted by a session asked to leave calls the stop off, and a tool call reported meanwhile does not', async ({ app, page }) => {
   await app.boot(fixture);

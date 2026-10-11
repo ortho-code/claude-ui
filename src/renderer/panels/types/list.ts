@@ -273,7 +273,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     count.textContent = String(sessions.length);
     placeChildren(mark, sessions.length > 1 ? [dot, count] : [dot]);
     // Its state in the session list's own words, so the dot says the same here as there.
-    const state = statusLabel(latest.status ?? undefined, latest.acked) ?? (latest.running ? 'running' : 'not running');
+    const state = statusLabel(latest.status ?? undefined, latest.acked, latest.background) ?? (latest.running ? 'running' : 'not running');
     const label = sessions.length > 1 ? `${sessions.length} sessions from this row: pick one` : `Go to ${latest.title} · ${state}`;
     mark.setAttribute('aria-label', label);
     setTooltip(mark, label);

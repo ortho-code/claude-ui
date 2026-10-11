@@ -118,7 +118,7 @@ function buildRow(id: string): StripRow {
 }
 
 /** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its tab's button in the tab's state. */
-function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'acked' | 'tabs'>): void {
+function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs'>): void {
   const { row, jump, dot, name, chip, stop } = parts;
   applyStatus(dot, session.id, view);
   name.textContent = sessionLabel(session);
@@ -137,7 +137,7 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   setTooltip(stop, tooltip);
 }
 
-function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded'>): void {
+function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' |'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded'>): void {
   const { stripExpanded } = view;
   const overall = model.all.badge;
   stripBadge.className = badgeClass(overall);
@@ -224,7 +224,7 @@ stripToggle.addEventListener('click', () => store.set({ stripExpanded: !store.ge
 stripToggle.querySelector('.strip-chev')!.innerHTML = chevronIcon('down', 11);
 
 /** What the strip draws from the store. */
-type StripView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded'>;
+type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' |'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded'>;
 
 /**
  * The strip follows the store, its line badged with the switcher's own roll-up (`switcherModel`) and its rows drawn from the switcher's pool.

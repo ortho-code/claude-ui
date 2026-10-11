@@ -30,7 +30,7 @@ function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.ge
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups gets an indented row beneath it behind the same rail the sidebar uses.
 // A project view drops the project label (everything shown belongs to it) but keeps the group rows.
 /** What the tab bar draws from the store. */
-type TabBarView = View<'sessions' | 'statuses' | 'acked' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab'>;
+type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' |'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab'>;
 
 export function renderTabBar(view: TabBarView): void {
   // The library owns the bar's tabs while one is dragged — it moves them, and puts its copy of the dragged one in its row — so a redraw then would undo the drag under the pointer; the drop draws what was held (`sortableFor`).
@@ -85,7 +85,7 @@ export function renderTabBar(view: TabBarView): void {
  * A status or a mark read changed: the bar draws again when one of its tabs' dots is among those that changed since it last followed them (`before`).
  * A watcher the terminal area registers (watch.ts).
  */
-export function tabBarFollowsStatuses(view: TabBarView, before: View<'statuses' | 'acked'>): void {
+export function tabBarFollowsStatuses(view: TabBarView, before: View<'statuses' | 'backgroundTasks' | 'acked'>): void {
   const ids = statusChanges(before, view);
   if (view.tabs.some((t) => ids.has(t.session.id))) renderTabBar(view);
 }
@@ -227,7 +227,7 @@ function buildTab(token: string): TabEls {
 }
 
 /** Draw a tab as it is now: its state, its dot, its marks, its name, and its button's step. */
-function drawTab(tab: TabState, view: View<'statuses' | 'acked' | 'projectNames' | 'tabs' | 'activeTab'>): HTMLElement {
+function drawTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'projectNames' | 'tabs' | 'activeTab'>): HTMLElement {
   const { el, dot, markGroup, siblingMark, worktreeMark, label, kebab, close } = tabEls.draw(tab.token, buildTab);
   // 'cold' = restored but never started.
   // Unfilled rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.

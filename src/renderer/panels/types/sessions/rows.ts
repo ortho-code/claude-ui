@@ -180,7 +180,7 @@ function createSessionRow(key: string): HTMLElement {
 
 // Refresh a reused row's content for the tip it now shows.
 /** What a row draws from the store besides the session it shows. */
-export type RowView = View<'statuses' | 'acked' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs'>;
+export type RowView = View<'statuses' | 'backgroundTasks' | 'acked' |'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs'>;
 
 export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView): void {
   row.dataset.sid = session.id;

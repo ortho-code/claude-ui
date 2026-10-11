@@ -43,7 +43,7 @@ export function linkedSessions(entryKey: string, itemKey: string): LinkedSession
   const data = panelDataOf(entryKey);
   if (!data) return [];
   const view = store.get();
-  const { sessions, acked } = view;
+  const { sessions, acked, backgroundTasks } = view;
   return Object.entries(data.sessions)
     .filter(([, link]) => link.key === itemKey)
     .sort(([, a], [, b]) => b.startedAt.localeCompare(a.startedAt))
@@ -51,7 +51,16 @@ export function linkedSessions(entryKey: string, itemKey: string): LinkedSession
       const tab = tabWith(id);
       const session = tab?.session ?? sessions.find((s) => s.id === id);
       if (!session) return [];
-      return [{ id, title: session.title, status: dotStatus(id, view) ?? null, acked: acked.has(id), running: tab !== undefined && tab.terminalId !== null }];
+      return [
+        {
+          id,
+          title: session.title,
+          status: dotStatus(id, view) ?? null,
+          background: backgroundTasks.get(id) ?? [],
+          acked: acked.has(id),
+          running: tab !== undefined && tab.terminalId !== null,
+        },
+      ];
     });
 }
 

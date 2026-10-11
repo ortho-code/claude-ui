@@ -350,6 +350,8 @@ describe('nudgeOf', () => {
       ['idle', 'idle', null],
       // Busy cannot be read (toggleAck), so the mark is never there to mute it.
       ['busy', 'busy', 'busy'],
+      // Work still running is working, whatever the turn did: nothing to read, and no "finished" for a roll-up to carry.
+      ['background', 'busy', 'busy'],
       ['closed', null, null],
       [undefined, null, null],
     ];
@@ -761,6 +763,23 @@ describe('statusLabel', () => {
     // A new hook state should read oddly, not crash — but it SHOULD read oddly, which is the signal to name it here.
     expect(statusLabel('compacting')).toBe('compacting');
     expect(statusLabel('compacting', true)).toBe('compacting (read)');
+  });
+
+  // Counted per type, each type in the order claude listed it first.
+  it('names the work still running behind a finished turn, counted by type', () => {
+    expect(statusLabel('background', false, ['shell'])).toBe('Working in the background: 1 shell');
+    expect(statusLabel('background', false, ['shell', 'subagent', 'shell'])).toBe('Working in the background: 2 shells, 1 subagent');
+    expect(statusLabel('background', false, ['MCP task', 'MCP task'])).toBe('Working in the background: 2 MCP tasks');
+  });
+
+  // A status read back at launch, or work of a type the script could not read, says only what is known.
+  it('says no more than that for background work it was told nothing about', () => {
+    expect(statusLabel('background')).toBe('Working in the background');
+    expect(statusLabel('background', false, [])).toBe('Working in the background');
+  });
+
+  it('names the work only for background', () => {
+    expect(statusLabel('busy', false, ['shell'])).toBe('Busy');
   });
 });
 

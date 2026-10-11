@@ -11,8 +11,13 @@ import { createStore } from './store';
 export interface AppState {
   /** Every session the listing read from disk, the tips of families included, as main lists them. */
   sessions: SessionSummary[];
-  /** Session id -> its status as its hooks last reported it (busy, idle, waiting, …); a session with none is absent. */
+  /** Session id -> its status as its hooks last reported it (busy, idle, background, waiting, …); a session with none is absent. */
   statuses: ReadonlyMap<string, string>;
+  /**
+   * Session id -> what still runs behind its finished turn, by the type claude gives each piece of work (`shell`, `subagent`, …): set and cleared with each status event, kept for `background` and dropped with any other.
+   * The launch read passes on statuses alone, so a `background` read back at launch has no entry: what ran is not known, and the dot says no more than that.
+   */
+  backgroundTasks: ReadonlyMap<string, readonly string[]>;
   /**
    * Sessions whose dot you marked read: dimmed, not pulsing.
    * In memory only, so a restart lights everything again; any status event clears a session's mark.
@@ -188,11 +193,14 @@ function sameRows(a: SessionSummary[], b: SessionSummary[]): boolean {
   return of(a) === of(b);
 }
 
-/** Whether two maps hold the same entries: a map read afresh from main is a new object even when nothing in it moved. */
-function sameEntries<K, V>(a: ReadonlyMap<K, V>, b: ReadonlyMap<K, V>): boolean {
+/**
+ * Whether two maps hold the same entries: a map read afresh from main is a new object even when nothing in it moved.
+ * Values are compared by `same`, which a map of lists sets to `sameOrder`, since each status event hands over a new list.
+ */
+function sameEntries<K, V>(a: ReadonlyMap<K, V>, b: ReadonlyMap<K, V>, same: (x: V, y: V) => boolean = Object.is): boolean {
   if (a === b) return true;
   if (a.size !== b.size) return false;
-  for (const [key, value] of a) if (b.get(key) !== value || !b.has(key)) return false;
+  for (const [key, value] of a) if (!b.has(key) || !same(value, b.get(key)!)) return false;
   return true;
 }
 
@@ -205,7 +213,7 @@ function sameMembers<T>(a: ReadonlySet<T>, b: ReadonlySet<T>): boolean {
 }
 
 /** Whether two lists hold the same items in the same order. */
-function sameOrder<T>(a: readonly T[], b: readonly T[]): boolean {
+export function sameOrder<T>(a: readonly T[], b: readonly T[]): boolean {
   return a === b || (a.length === b.length && a.every((item, i) => item === b[i]));
 }
 
@@ -239,6 +247,7 @@ export const store = createStore<AppState>(
   {
     sessions: [],
     statuses: new Map(),
+    backgroundTasks: new Map(),
     acked: new Set(),
     switchedModel: new Map(),
     pinned: new Set(),
@@ -260,6 +269,7 @@ export const store = createStore<AppState>(
   {
     sessions: sameRows,
     statuses: sameEntries,
+    backgroundTasks: (a, b) => sameEntries(a, b, sameOrder),
     pinned: sameMembers,
     archived: sameEntries,
     notes: sameEntries,

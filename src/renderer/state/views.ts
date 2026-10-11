@@ -1,6 +1,6 @@
 import type { SessionGroup, SessionSummary } from '../../shared/types';
 import { displayName, entityKey, inView, nudgeOf, projectRootExists, projectsForSwitcher, sessionsByKey, type NudgeStatus, type SwitcherModel } from '../logic';
-import { store, type TabState, type View } from './app';
+import { sameOrder, store, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */
 
@@ -94,10 +94,11 @@ export function isFiltering(view: View<'filter'>): boolean {
   return searchText(view).length > 0 || Object.values(view.filter.filters).some(Boolean) || view.filter.datePreset !== 'any';
 }
 
-/** The sessions whose status or read mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has. */
-export function statusChanges(before: View<'statuses' | 'acked'>, after: View<'statuses' | 'acked'>): Set<string> {
+/** The sessions whose status, background work or read mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has. */
+export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'acked'>, after: View<'statuses' | 'backgroundTasks' | 'acked'>): Set<string> {
   const ids = new Set<string>();
   for (const id of new Set([...before.statuses.keys(), ...after.statuses.keys()])) if (before.statuses.get(id) !== after.statuses.get(id)) ids.add(id);
+  for (const id of new Set([...before.backgroundTasks.keys(), ...after.backgroundTasks.keys()])) if (!sameOrder(before.backgroundTasks.get(id) ?? [], after.backgroundTasks.get(id) ?? [])) ids.add(id);
   for (const id of new Set([...before.acked, ...after.acked])) if (before.acked.has(id) !== after.acked.has(id)) ids.add(id);
   return ids;
 }

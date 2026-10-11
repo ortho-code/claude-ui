@@ -158,7 +158,7 @@ describe('the hook script', () => {
       if (scoped || (error as NodeJS.ErrnoException).code !== 'EPIPE') throw error;
     }
   }
-  async function readStatusFile(): Promise<{ status?: string; tab?: string; event?: string } | null> {
+  async function readStatusFile(): Promise<{ status?: string; tab?: string; event?: string; background?: string[] } | null> {
     try {
       return JSON.parse(await fs.readFile(statusFile, 'utf8'));
     } catch {
@@ -271,5 +271,87 @@ describe('the hook script', () => {
   it('ignores a source on an event that is not a SessionStart', async () => {
     runHook('waiting', { session_id: SID, hook_event_name: 'Notification', source: 'compact' });
     expect((await readStatusFile())?.status).toBe('waiting');
+  });
+
+  /**
+   * `Stop` lists the work still running behind the turn it ends (`background_tasks`), in the shape claude 2.1.289 was measured to send it.
+   * Work still running means the session has not finished, so the dot says so in idle's place.
+   */
+  describe('a turn that ends with work still running behind it', () => {
+    const task = (type: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({
+      id: `task-${type}`,
+      type,
+      status: 'running',
+      description: `a ${type}`,
+      ...extra,
+    });
+    const stop = (extra: Record<string, unknown>): Record<string, unknown> => ({
+      session_id: SID,
+      hook_event_name: 'Stop',
+      stop_hook_active: false,
+      last_assistant_message: 'Started.',
+      ...extra,
+    });
+
+    it('reports background in place of idle, naming what runs', async () => {
+      runHook('idle', stop({ background_tasks: [task('shell', { command: 'sleep 20' }), task('subagent', { agent_type: 'general-purpose' })], session_crons: [] }));
+      expect(await readStatusFile()).toMatchObject({ status: 'background', event: 'Stop', background: ['shell', 'subagent'] });
+    });
+
+    // Read back at launch as the state it is; what ran comes only with a status event.
+    it('is read back at launch as background', async () => {
+      runHook('idle', stop({ background_tasks: [task('shell')] }));
+      expect(await getAllStatuses()).toHaveProperty(SID, 'background');
+    });
+
+    it('names a type of work it has not heard of as claude labels it', async () => {
+      runHook('idle', stop({ background_tasks: [task('MCP task', { server: 'github', tool: 'watch' })] }));
+      expect(await readStatusFile()).toMatchObject({ status: 'background', background: ['MCP task'] });
+    });
+
+    // An empty list says nothing runs, and a claude too old to send the list says nothing at all, which is no reason to claim anything runs.
+    it.each([
+      ['an empty list', { background_tasks: [], session_crons: [] }],
+      ['no list at all', {}],
+    ])('reports idle for %s', async (_case, extra) => {
+      runHook('idle', stop(extra));
+      const written = await readStatusFile();
+      expect(written?.status).toBe('idle');
+      expect(written).not.toHaveProperty('background');
+    });
+
+    // A `/loop` or a scheduled wakeup will start a turn LATER; nothing is running meanwhile, and counting it would keep a looping session from ever showing finished.
+    it('does not count a scheduled wakeup as running', async () => {
+      runHook('idle', stop({ background_tasks: [], session_crons: [{ id: 'cron-1', schedule: '*/5 * * * *', recurring: true, prompt: 'check the build' }] }));
+      expect((await readStatusFile())?.status).toBe('idle');
+    });
+
+    /**
+     * A minute at its prompt without input makes claude send an idle notice, `idle_prompt`, whether or not a shell still runs (measured on claude 2.1.289); by its source the same goes for a monitor, while claude itself holds the notice back for a background subagent.
+     * While work runs, claude is not waiting for you: that work's end starts a turn of its own, and the same notice a minute after THAT turn is the real one.
+     */
+    it("keeps background through claude's idle notice, and lets the one after the work has ended say waiting", async () => {
+      runHook('idle', stop({ background_tasks: [task('shell')] }));
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' });
+      expect((await readStatusFile())?.status).toBe('background');
+
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: '<task-notification>' });
+      runHook('idle', stop({ background_tasks: [] }));
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' });
+      expect((await readStatusFile())?.status).toBe('waiting');
+    });
+
+    // Only the idle notice is held back: a permission prompt, a question, anything else claude notifies, needs you.
+    it.each(['permission_prompt', 'elicitation_dialog', 'agent_needs_input', undefined])('still says waiting over background for a %s notification', async (type) => {
+      runHook('idle', stop({ background_tasks: [task('shell')] }));
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', ...(type ? { notification_type: type } : {}) });
+      expect((await readStatusFile())?.status).toBe('waiting');
+    });
+
+    // The turn's own words are a string, so a `"type"` inside them arrives escaped and must not count as a task.
+    it('counts nothing out of the words the turn ended on', async () => {
+      runHook('idle', stop({ last_assistant_message: 'The payload had "type":"shell" in it.', background_tasks: [task('subagent')] }));
+      expect((await readStatusFile())?.background).toEqual(['subagent']);
+    });
   });
 });

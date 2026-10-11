@@ -20,11 +20,11 @@ export function badgeClass(badge: NudgeStatus | 'failed'): string {
  * Paint a session's dot as a control, from what it shows (`dotStatus`) and whether it is marked read, on every surface that draws one as a control.
  * A paused session's dot is not one: there is nothing to mark read, and a click goes to what holds it, which opens the session and so resumes it.
  */
-export function applyStatus(dot: HTMLElement, id: string, view: View<'statuses' | 'acked' | 'tabs'>): void {
+export function applyStatus(dot: HTMLElement, id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs'>): void {
   const status = dotStatus(id, view);
   const isAcked = view.acked.has(id);
   dot.className = sessionDotClass(status, isAcked, status !== 'paused');
-  setTooltip(dot, statusLabel(status, isAcked));
+  setTooltip(dot, statusLabel(status, isAcked, view.backgroundTasks.get(id)));
 }
 
 /**

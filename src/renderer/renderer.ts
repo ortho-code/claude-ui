@@ -55,16 +55,16 @@ store.watch(['filter', 'folds', 'filterPanelOpen', 'stripExpanded'], () => persi
 // Told of the slices `whereOf` reads, the tabs among them: a `/clear` or a move into another folder changes the session under the same tab.
 store.watch(WHERE_SLICES, treeContextChanged);
 
-// A panel's rows mark the sessions they started — each one's title, status dot, mark read, and whether it runs — so the panels hear of every change to those, and to which sessions a panel's rows started (its data, panels/links.ts).
-store.watch(['sessions', 'statuses', 'acked', 'tabs', 'panelData'], treeSessionsChanged);
+// A panel's rows mark the sessions they started — each one's title, status dot and the work behind it, mark read, and whether it runs — so the panels hear of every change to those, and to which sessions a panel's rows started (its data, panels/links.ts).
+store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'tabs', 'panelData'], treeSessionsChanged);
 
-window.claudeUi.onSessionStatus((id, status, tabToken, event) => {
+window.claudeUi.onSessionStatus((id, status, tabToken, event, background) => {
   // The terminal area's part first: a cleared session's successor is the tab's, a prompt calls off a stop, and the history on show reads what was added.
   claudeWatch.sessionStatus(id, tabToken, event);
   // 'start' reports which session a tab is running, not a state it is in — and it fires mid-session on clear and compact, where setting a status would wipe a live one.
   // The one SessionStart that does mean a state (a compaction ending) reaches us as 'idle', not as this.
   if (status === 'start') return;
-  setStatus(id, status);
+  setStatus(id, status, background);
   // A new session's title isn't on disk immediately; re-read on its status events until it is (this also replaces the tab's own stand-in row with the real one).
   if (tabWith(id) && !store.get().sessions.some((s) => s.id === id)) void refreshFromDisk();
 });

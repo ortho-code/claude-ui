@@ -272,13 +272,23 @@ button:where(:not(.icon-btn)):hover {
 }
 
 /* Busy is a spinning two-tone ring rather than a filled dot: "working" reads as motion, and it is unmistakable next to the waiting pulse.
-   2px on the inherited 9px footprint, so nothing jumps. */
-.nudge.busy {
+   2px on the inherited 9px footprint, so nothing jumps.
+   Background work spins the same ring, since it is work too. */
+.nudge.busy,
+.nudge.background {
   border-width: 2px;
   border-color: color-mix(in srgb, var(--accent) 25%, transparent);
   border-top-color: var(--accent);
   border-right-color: var(--accent);
   animation: spin 1.5s linear infinite;
+}
+
+/* Working in the background: the turn has ended, so idle's green sits inside the ring, and work it started still runs, so the ring still spins.
+   The green is a 3px core, kept off the ring by a 1px gap, so at 9px it reads as a dot inside a spinner rather than a green ring. */
+.nudge.background {
+  padding: 1px;
+  background: var(--idle);
+  background-clip: content-box;
 }
 
 /* Paused: set aside, its claude ended — two bars in the same 9px box rather than a ring, so it reads apart from a session that has simply not reported, in the same muted colour since it wants nothing from you. */
