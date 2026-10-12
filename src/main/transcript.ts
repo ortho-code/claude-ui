@@ -43,6 +43,16 @@ export function extractUserText(event: Record<string, unknown>): string {
   return '';
 }
 
+/**
+ * The record claude writes when Ctrl+C or Esc interrupts a turn, a user record saying exactly one of these: the first during a tool or at its permission prompt, the second while claude was writing (both measured on claude 2.1.289).
+ * No hook reports an interrupt, so this record is the only sign of one.
+ */
+const INTERRUPT_MARKERS = new Set(['[Request interrupted by user for tool use]', '[Request interrupted by user]']);
+
+export function isInterruptMarker(record: Record<string, unknown>): boolean {
+  return record.type === 'user' && INTERRUPT_MARKERS.has(extractUserText(record));
+}
+
 // --- Reading what was appended ---
 
 /** Where a read of one transcript has got to, for a reader that reads only what was appended since. */
@@ -302,7 +312,7 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
     fold.pending = { exchange: exchangeOf(record, commandLabel(text), 'command'), parent: parentOf(record) };
     return;
   }
-  if (PLUMBING.test(text) || text.startsWith('[Request interrupted')) return;
+  if (PLUMBING.test(text) || isInterruptMarker(record)) return;
   fold.pending = null;
   const busy = carriesToolResult(record) || record.promptSource === 'queued';
   push(fold, exchangeOf(record, text, busy ? 'busy' : 'typed'), parentOf(record));

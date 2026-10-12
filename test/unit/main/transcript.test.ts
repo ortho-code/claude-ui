@@ -98,6 +98,7 @@ describe('what counts as a request', () => {
     ['a meta record', typed('Another Claude session sent a message', { isMeta: true })],
     ['a compaction summary', typed('This session is being continued from a previous conversation', { isCompactSummary: true })],
     ['an interruption', userList([text('[Request interrupted by user]')])],
+    ['an interruption during a tool', userList([text('[Request interrupted by user for tool use]')])],
     ['a task notification', typed('<task-notification> <task-id>x</task-id>')],
     ['a task notification queued while claude worked', queued('<task-notification>\n<task-id>x</task-id>')],
     ["a subagent's hand-back queued while claude worked", queued('<agent-message from="a3f8">\n[Subagent hand-back] The report.', { isMeta: true, origin: { kind: 'peer', from: 'a3f8', handback: true } })],
