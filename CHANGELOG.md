@@ -116,6 +116,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session you had to force to stop no longer goes on showing busy or waiting, on its own dot and on its project's in the switcher.
 - A session title with a word too long for its row, such as a link, wraps as the rest of the title does instead of being cut off where the row's buttons begin.
 - A subagent still working after its session's turn has ended no longer turns the finished session's dot back to busy.
+- A session's dot no longer stays busy after Ctrl+C or Esc interrupts its turn, or waiting after Esc turns down a permission prompt: it shows finished, or working in the background while work from an earlier turn, or a shell, a monitor or a subagent the interrupted turn started, still runs.
+- A session's dot no longer stays on working in the background after you stop a shell or a monitor from claude's own task list.
 
 ## 0.3.0 — 2026-08-29
 

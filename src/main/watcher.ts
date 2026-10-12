@@ -10,8 +10,9 @@ const projectsDir = path.join(os.homedir(), '.claude', 'projects');
  * Watch ~/.claude/projects and tell the renderer when session transcripts change, so the sidebar updates without a manual refresh.
  * Recursive watch is unreliable on Linux/WSL, so we watch the root (new project folders) plus each project subdirectory (new/changed .jsonl) and add a watcher whenever a new folder appears.
  * Changes are debounced into one notification.
+ * `onTranscript` hears of each changed transcript at once, by its path.
  */
-export function registerSessionsWatcher(getWindow: () => BrowserWindow | null): void {
+export function registerSessionsWatcher(getWindow: () => BrowserWindow | null, onTranscript: (file: string) => void): void {
   mkdirSync(projectsDir, { recursive: true });
   const watchers = new Map<string, FSWatcher>();
   let timer: NodeJS.Timeout | null = null;
@@ -28,9 +29,10 @@ export function registerSessionsWatcher(getWindow: () => BrowserWindow | null): 
   const watchDir = (dir: string, isRoot: boolean): void => {
     if (watchers.has(dir)) return;
     try {
-      const watcher = watch(dir, () => {
+      const watcher = watch(dir, (_event, filename) => {
         // A new project folder may have appeared under the root; start watching it too.
         if (isRoot) void watchProjectDirs();
+        else if (filename?.endsWith('.jsonl')) onTranscript(path.join(dir, filename));
         notify();
       });
       watchers.set(dir, watcher);

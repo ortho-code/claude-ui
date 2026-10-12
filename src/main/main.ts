@@ -71,6 +71,7 @@ import {
 import type { Edge, Inset } from './bounds';
 import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
+import { transcriptChanged } from './transcriptends';
 import { NO_TRANSCRIPT } from '../shared/history';
 import type { HistoryPin, HistorySlice, OrderMove, UiState } from '../shared/types';
 
@@ -590,7 +591,8 @@ void app.whenReady().then(async () => {
   await migrateToSessionKeys(conversationToId);
   await installStatusHooks();
   registerStatusIpc(() => mainWindow);
-  registerSessionsWatcher(() => mainWindow);
+  // A transcript is also where an interrupt, and work stopped from claude's task list, are written, which no hook reports.
+  registerSessionsWatcher(() => mainWindow, (file) => void transcriptChanged(file));
   registerConfig(() => mainWindow);
   registerLayoutState();
   registerSettings(() => mainWindow);

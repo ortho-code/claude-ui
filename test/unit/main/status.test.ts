@@ -32,7 +32,7 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => testHome };
 });
 
-import { installStatusHooks, readAllStatuses as getAllStatuses, statusSettingsFile } from '../../../src/main/status';
+import { installStatusHooks, readAllStatuses as getAllStatuses, readReport, reportEnd, statusSettingsFile } from '../../../src/main/status';
 import { statusDir } from '../../../src/main/paths';
 import { runHook, TOKEN } from './hookscript';
 
@@ -335,6 +335,80 @@ describe('the hook script', () => {
     it('counts nothing out of the words the turn ended on', async () => {
       runHook('idle', stop({ last_assistant_message: 'The payload had "type":"shell" in it.', background_tasks: [task('subagent')] }));
       expect((await readStatusFile())?.background).toEqual(['subagent']);
+    });
+  });
+
+  /**
+   * What the last Stop left running is kept beside the status, for the reader of the transcript that ends what no hook ends (transcriptends.ts).
+   * It is that Stop's own payload, so it survives the busy of the next turn, which is when an interrupt needs it.
+   */
+  describe('what the last Stop left running', () => {
+    const stopFile = path.join(statusDir, `${SID}.stop`);
+    const shell = { id: 'bh9w6pqmt', type: 'shell', status: 'running', description: 'Background sleep command', command: 'sleep 100' };
+
+    beforeEach(async () => {
+      await fs.rm(stopFile, { force: true });
+    });
+
+    it('is kept through the turns after it until the next Stop', async () => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [shell], session_crons: [] });
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'permission_prompt' });
+      expect(await readReport(SID)).toMatchObject({ status: 'waiting', tab: TOKEN, running: [{ id: 'bh9w6pqmt', type: 'shell' }] });
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [] });
+      expect((await readReport(SID))?.running).toEqual([]);
+    });
+
+    // A new process has nothing running behind it yet; a compaction leaves what ran running.
+    it.each(['startup', 'resume', 'clear'])('is nothing after a SessionStart that says %s', async (source) => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [shell] });
+      runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source });
+      expect((await readReport(SID))?.running).toEqual([]);
+    });
+
+    it('is kept through a compaction', async () => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [shell] });
+      runHook('busy', { session_id: SID, hook_event_name: 'PreCompact' });
+      runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'compact' });
+      expect((await readReport(SID))?.running).toEqual([{ id: 'bh9w6pqmt', type: 'shell' }]);
+    });
+
+    // Without a Stop file nothing is known to run, and nothing the transcript says was started counts as running since.
+    it('is nothing, from never, when no Stop has been kept', async () => {
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+      expect(await readReport(SID)).toMatchObject({ status: 'busy', running: [], runningAt: Infinity });
+    });
+
+    it('is no report at all for a session with no status', async () => {
+      expect(await readReport(SID)).toBe(null);
+    });
+  });
+
+  /** An end no hook reports goes through the script, as a Stop would: the script stays the one writer of the status files. */
+  describe('reporting an end no hook reports', () => {
+    it('writes idle when nothing is left running, naming the report', async () => {
+      runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
+      await reportEnd(SID, TOKEN, 'transcript:interrupt', [], Infinity);
+      expect(await readStatusFile()).toMatchObject({ status: 'idle', tab: TOKEN, event: 'transcript:interrupt' });
+    });
+
+    it('writes background naming what still runs, and keeps it as the last Stop would', async () => {
+      runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
+      await reportEnd(SID, TOKEN, 'transcript:interrupt', [{ id: 'bh9w6pqmt', type: 'shell' }], 1760000000000);
+      expect(await readStatusFile()).toMatchObject({ status: 'background', background: ['shell'] });
+      expect(await readReport(SID)).toMatchObject({ running: [{ id: 'bh9w6pqmt', type: 'shell' }] });
+    });
+
+    // The list is the Stop's, less what had ended, so it is as old as that Stop: work ending after it still counts as ended.
+    it('keeps the time of the Stop its list was taken from', async () => {
+      await reportEnd(SID, TOKEN, 'transcript:interrupt', [{ id: 'bh9w6pqmt', type: 'shell' }], 1760000000000);
+      expect((await readReport(SID))?.runningAt).toBe(1760000000000);
+    });
+
+    it('starts a list of its own when no Stop came before it', async () => {
+      const before = Date.now();
+      await reportEnd(SID, TOKEN, 'transcript:interrupt', [], Infinity);
+      expect((await readReport(SID))?.runningAt).toBeGreaterThanOrEqual(before - 1000);
     });
   });
 

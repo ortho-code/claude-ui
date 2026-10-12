@@ -1,6 +1,6 @@
 /**
  * Reading the records of a session transcript (`~/.claude/projects/<dir>/<id>.jsonl`, one JSON record per line).
- * What a record says is decided here once, for every reader of the transcript: the session list's summary, and the history of a session's requests.
+ * What a record says is decided here once, for every reader of the transcript: the session list's summary, the history of a session's requests, and the ends of a turn no hook reports (transcriptends.ts).
  */
 
 import { promises as fs } from 'node:fs';
@@ -51,6 +51,38 @@ const INTERRUPT_MARKERS = new Set(['[Request interrupted by user for tool use]',
 
 export function isInterruptMarker(record: Record<string, unknown>): boolean {
   return record.type === 'user' && INTERRUPT_MARKERS.has(extractUserText(record));
+}
+
+/** The statuses claude's notice of a piece of background work gives an end, out of the four its own instructions name; `blocked`, the fourth, does not say the work has ended, so it is not counted. */
+const ENDED_TASK = new Set(['completed', 'failed', 'killed']);
+
+/**
+ * The id of the background work a record says has ended, or null.
+ * Claude queues a `<task-notification>` naming the work's id and how it ended, and for work stopped from its task list that queued notice is all there is: no turn starts and no hook fires (measured on claude 2.1.289 for a shell and a monitor; a subagent stopped that way starts a turn).
+ * The id is the one `Stop` lists the work under.
+ */
+export function endedTaskId(record: Record<string, unknown>): string | null {
+  if (record.type !== 'queue-operation' || record.operation !== 'enqueue' || typeof record.content !== 'string') return null;
+  if (!record.content.startsWith('<task-notification>')) return null;
+  const id = /<task-id>([^<]+)<\/task-id>/.exec(record.content)?.[1];
+  const status = /<status>([^<]+)<\/status>/.exec(record.content)?.[1];
+  return id && status && ENDED_TASK.has(status) ? id : null;
+}
+
+/**
+ * The background work a record says was started, by the id and the type `Stop` lists it under, or null.
+ * Three kinds are read, each from its tool result in the shape claude 2.1.289 was measured to write, and named as its `Stop` named it: a shell (`backgroundTaskId`), a subagent sent off in the background (`isAsync` and `status: "async_launched"`, its id `agentId`), and a monitor on a command (`taskId` with `timeoutMs` and `persistent`, listed as a `shell`).
+ * Other tools' results carry a `taskId` too, a workflow's and a remote agent's among them, which is why a monitor is known by all three of its fields; no other kind was measured, so none is read.
+ * A monitor on a websocket writes the same result, by claude's source, and its `Stop` calls it a `monitor`: it is read as a shell, so only the tooltip's count of it is off, since the result alone cannot tell the two apart.
+ */
+export function startedTask(record: Record<string, unknown>): { id: string; type: string } | null {
+  if (record.type !== 'user') return null;
+  const result = record.toolUseResult as Record<string, unknown> | null | undefined;
+  if (!result || typeof result !== 'object') return null;
+  if (typeof result.backgroundTaskId === 'string') return { id: result.backgroundTaskId, type: 'shell' };
+  if (result.isAsync === true && result.status === 'async_launched' && typeof result.agentId === 'string') return { id: result.agentId, type: 'subagent' };
+  if (typeof result.taskId === 'string' && typeof result.timeoutMs === 'number' && typeof result.persistent === 'boolean') return { id: result.taskId, type: 'shell' };
+  return null;
 }
 
 // --- Reading what was appended ---

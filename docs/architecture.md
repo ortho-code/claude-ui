@@ -479,7 +479,7 @@ Rejected from the same mock: a popover from the tab bar (no scrollbar), a panel 
 
 ## Status cues
 
-Rather than parse terminal output to guess a session's state, the app drives status from Claude Code hooks.
+Rather than parse terminal output to guess a session's state, the app drives status from Claude Code hooks, and reads the transcript only for the two ends no hook reports (below).
 On startup it writes a hook script and its own settings file to `~/.config/claude-ui/`, and passes that file to `claude --settings`, whose hooks merge with the user's own — so claude-ui never writes into `~/.claude/settings.json` (an earlier version did, and still strips those entries when it finds them).
 
 Five events map straight to a status: `UserPromptSubmit` → busy, `PostToolUse` → busy, `Stop` → idle (or background, below), `Notification` → waiting, `SessionEnd` → closed.
@@ -490,7 +490,7 @@ For a backgrounded shell, a monitor and a background subagent, the work's end ma
 It takes idle's place and no other's: busy already promises more output and waiting must always win, so it can never hide a session that needs you, which is why it is a state and not a mark of its own beside the dot.
 To the roll-ups it is busy, with no "finished" to carry and nothing to mark read, while stopping it sends the two presses an idle session gets, since claude's prompt is open.
 With a background shell running, claude answered those presses with a question, exit and stop the work or stay, rather than leaving (measured once; claude's own code leaves some kinds of work out of that question, and a worktree session asks about its worktree instead), and the tab stays up for it as for any question on the way out.
-Work you stop yourself, from claude's own task list, started no turn and fired no hook at all (measured with a background shell), so the dot stays on background until claude's next turn or its exit.
+Work you stop yourself, from claude's own task list, started no turn and fired no hook at all (measured with a background shell and a monitor; a subagent stopped that way started a turn, whose `Stop` ended it as above), so the transcript ends it (below).
 The dot's tooltip names the work by the type claude gives each piece (`shell`, `subagent`, …), counted per type, as in "2 shells, 1 subagent"; a monitor that watches a shell command arrives as a `shell`.
 The script reads those from the `type` keys, which in `Stop` only the list's entries have, and a claude too old to send the list reads idle, as before.
 The launch read passes on the status alone, so a `background` read back at launch says no more than that.
@@ -505,6 +505,21 @@ Its dot is busy's spinning ring around a small core of idle's green: the turn is
 Hooks fired inside a subagent carry the session's own id, told apart by `agent_id`, so a background subagent's tool call wrote busy over a finished session, and the dot went idle, busy and idle again with nobody doing anything.
 The script never writes busy for such an event over idle or background.
 Waiting still goes through, since a question must never be held back, and a foreground subagent is unaffected, since its session is busy or waiting for as long as it runs.
+
+**An interrupt, and work stopped from claude's task list, fire no hook, so the transcript ends them.**
+Ctrl+C or Esc interrupting a turn during a tool or while claude writes fired nothing, nor did Esc at a permission prompt (measured once), nor a shell or a monitor stopped from `/tasks` (all on claude 2.1.289), so the dot stayed busy, waiting or background until claude's next turn.
+Both are written to the transcript: an interrupt as a user record saying exactly `[Request interrupted by user]` or `[Request interrupted by user for tool use]`, and the end of a piece of work as a queued `<task-notification>` naming its id and how it ended, `killed`, `completed` or `failed`.
+**The transcript may end a state the hooks started, and never start one**; everything else is the hooks' alone.
+So the main process reads each transcript whose session has a status, all of it the first time and then only what was added, and ends the turn as a `Stop` would when an interrupt was written after a busy or a waiting, and ends background once all the work its `Stop` listed has an end.
+To know what still runs after an interrupt, the script keeps each `Stop`'s payload beside the status, as `<id>.stop`, since the next turn's busy overwrites the status itself; a fresh start keeps `{}`, and a compaction keeps what was there.
+Work that `Stop` listed, and a shell, a monitor or a subagent the interrupted turn sent off in the background (each one's tool result carries the id `Stop` would list it under), still run unless an end was written for them after that `Stop`: background work survives an interrupt, and its end starts a turn of its own (measured with shells, and taken to hold for the other two), so the session reads background until then.
+An end written before the `Stop` does not count, since claude can reuse an id, as for a subagent resumed after it finished; a list the app reports itself keeps the time of the `Stop` it was taken from, so work stopped while the app was reporting it still counts as ended.
+Any other kind of work started in the interrupted turn itself is not counted, since none was measured, and the session reads idle until that work's own turn; a monitor is known by its whole result, since other tools' results, a workflow's among them, carry a task id too, and one on a websocket, whose result is the same, is counted as a shell where its `Stop` would say monitor.
+A finished shell and a subagent stopped from `/tasks` each started a turn of their own, its `UserPromptSubmit` 85 to 136 ms after the notice (three measured), so every end, an interrupt's too, waits a second for a hook to answer it, and is reported only if none has written the status meanwhile.
+The end goes through the hook script, run as for a `Stop` with the work still listed, so the script stays the one writer of the status files and the end reads exactly as a Stop's would; the file names `transcript:interrupt` or `transcript:task-end` as the event.
+A waiting written after the interrupt is taken as a question claude asked since, and stands; whether claude still sends a prompt's notice, about six seconds late, after Esc has dismissed the prompt is not measured, and such a notice would leave waiting until the next hook.
+A hook that writes between the last read of the status and the script's write is overwritten, a busy until its next tool call or its `Stop`, a waiting until the next hook.
+Claude's idle notice did not follow an interrupt during a tool or while it wrote in the 80 seconds watched after each of three (measured on claude 2.1.289), so the idle such an interrupt leaves stays idle; after Esc at a permission prompt only 11 seconds were watched.
 
 Two more events are not that simple, and both cost a wrong guess to work out.
 

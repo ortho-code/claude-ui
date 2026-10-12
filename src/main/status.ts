@@ -1,10 +1,11 @@
 import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
+import { spawn } from 'node:child_process';
 import { promises as fs, watch, mkdirSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { statusDir, hookScriptPath, statusSettingsFile, shellQuote } from './paths';
-import { fsFailure, log } from './log';
+import { errorText, fsFailure, log } from './log';
 import { writeFileAtomic } from './atomic';
 
 const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
@@ -98,6 +99,14 @@ fi
 if [ "$status" = waiting ] && [ "$(field notification_type)" = idle_prompt ] && grep -q '"status":"background"' "$dir/$sid.json" 2>/dev/null; then
   exit 0
 fi
+# What runs behind the session, kept for the app beside its status: the payload of the last Stop, which lists that work, or nothing from a fresh start.
+# The app reads it when the transcript shows a turn ending with no hook to say so (an interrupt), or work ending without a turn (stopped from claude's task list).
+# A compaction is the same claude going on, so its SessionStart keeps what the last Stop said.
+if [ "$status" = idle ]; then
+  printf '%s' "$input" > "$dir/$sid.stop"
+elif [ "$status" = start ] && [ "$(field source)" != compact ]; then
+  printf '{}' > "$dir/$sid.stop"
+fi
 # Stop lists the work still running behind the turn it ends, and while any runs the session has not finished: it reports background in idle's place, with the type claude gives each piece of work.
 # Only a "type" key can match, never one inside a string, whose quotes arrive escaped; Stop's own fields have none, so each match is one entry of the list.
 extra=''
@@ -184,8 +193,9 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
   mkdirSync(statusDir, { recursive: true });
 
   ipcMain.handle('status:getAll', () => readAllStatuses());
+  // Only once its claude has gone, so what its last Stop left running goes too.
   ipcMain.on('status:clear', (_event, id: string) => {
-    void fs.rm(path.join(statusDir, `${id}.json`)).catch(() => {});
+    for (const file of [`${id}.json`, `${id}.stop`]) void fs.rm(path.join(statusDir, file)).catch(() => {});
   });
 
   watch(statusDir, (_event, filename) => {
@@ -243,9 +253,81 @@ async function readStatus(id: string): Promise<StatusEntry | null> {
   }
 }
 
+/** A piece of background work as `Stop` lists it, reduced to what the app reads. */
+export interface Work {
+  id: string;
+  /** What claude calls it, such as `shell` or `subagent`. */
+  type: string;
+}
+
+/** What the hooks last reported of a session, with when, for a reader that ends what no hook ends. */
+export interface Report {
+  status: string;
+  /** When the status was written, in ms since the epoch. */
+  at: number;
+  tab: string;
+  /** The work the last Stop listed as still running, or none from a fresh start. */
+  running: Work[];
+  /** When that Stop was, in ms since the epoch; never, for a session with no Stop file, so nothing found after it counts as running. */
+  runningAt: number;
+}
+
+/** The last report of a session, or null for one with no status: one claude-ui is not running. */
+export async function readReport(id: string): Promise<Report | null> {
+  const entry = await readStatus(id);
+  if (!entry) return null;
+  const at = await mtimeOf(path.join(statusDir, `${id}.json`));
+  if (at === null) return null;
+  const stopFile = path.join(statusDir, `${id}.stop`);
+  let running: Work[] = [];
+  let runningAt = Infinity;
+  try {
+    const stop = JSON.parse(await fs.readFile(stopFile, 'utf8')) as { background_tasks?: unknown; listed_at?: unknown };
+    // An end the app reported carries the time of the Stop its list came from, since the list is that Stop's, less what had ended; a Stop's own is when it was written.
+    runningAt = typeof stop.listed_at === 'number' ? stop.listed_at : ((await mtimeOf(stopFile)) ?? Infinity);
+    if (Array.isArray(stop.background_tasks)) {
+      running = (stop.background_tasks as ({ id?: unknown; type?: unknown } | null)[]).flatMap((work) =>
+        typeof work?.id === 'string' && typeof work.type === 'string' ? [{ id: work.id, type: work.type }] : [],
+      );
+    }
+  } catch {
+    // No Stop file, or one that does not parse: nothing is known to run, and nothing the transcript says was started counts as running since.
+  }
+  return { status: entry.status, at, tab: entry.tab, running, runningAt };
+}
+
+async function mtimeOf(file: string): Promise<number | null> {
+  try {
+    return (await fs.stat(file)).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Report the end of a turn, or of work behind it, that no hook reports, by running the hook script as a Stop would, with `running` as the work still listed.
+ * The script stays the one writer of the status files, so the end reads exactly as a Stop's would: idle, or background naming that work.
+ * `event` is what the status file names as having reported it.
+ * `listedAt` is when the Stop that `running` was taken from was written, kept with it so that work ending after that Stop still counts as ended, even before this report is written.
+ */
+export function reportEnd(id: string, tab: string, event: string, running: Work[], listedAt: number): Promise<void> {
+  return new Promise((resolve) => {
+    const child = spawn(hookScriptPath, ['idle'], { env: { ...process.env, [SCOPE_ENV]: '1', [TAB_ENV]: tab }, stdio: ['pipe', 'ignore', 'ignore'] });
+    child.stdin.on('error', () => {});
+    child.on('error', (error) => {
+      log('warn', 'status', `could not report ${event} for ${id}: ${errorText(error)}`);
+      resolve();
+    });
+    child.on('close', () => resolve());
+    // Without a Stop to take it from, the report is the first list, as a Stop's would be.
+    const listed = Number.isFinite(listedAt) ? { listed_at: listedAt } : {};
+    child.stdin.end(JSON.stringify({ session_id: id, hook_event_name: event, background_tasks: running, ...listed }));
+  });
+}
+
 /** Remove everything this directory holds for the given session ids (used when a conversation is deleted). */
 export async function clearStatuses(ids: string[]): Promise<void> {
-  const files = ids.flatMap((id) => [`${id}.json`, `${id}.model`]);
+  const files = ids.flatMap((id) => [`${id}.json`, `${id}.model`, `${id}.stop`]);
   await Promise.all(files.map((file) => fs.rm(path.join(statusDir, file)).catch(() => {})));
 }
 

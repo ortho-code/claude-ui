@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Exchange } from '../../../src/shared/types';
-import { foldRecord, newFold, readHistory, type HistoryFold } from '../../../src/main/transcript';
+import { endedTaskId, foldRecord, isInterruptMarker, newFold, readHistory, startedTask, type HistoryFold } from '../../../src/main/transcript';
 
 // Records shaped as Claude Code writes them, reduced to the fields the fold reads.
 let n = 0;
@@ -118,6 +118,69 @@ describe('what counts as a request', () => {
   it('an interruption keeps the reply written so far on its request', () => {
     const f = fold(typed('long job'), answer(text('Starting.')), userList([text('[Request interrupted by user]')]));
     expect(f.exchanges.map(replyText)).toEqual(['Starting.']);
+  });
+});
+
+/** The records that end a turn, or the work behind it, without a hook: shaped as claude 2.1.289 wrote them in a live session, reduced to the fields read. */
+describe('what a record says about the work behind a turn', () => {
+  const notice = (status: string, operation = 'enqueue') => ({
+    type: 'queue-operation',
+    operation,
+    timestamp: '2026-10-12T11:50:31.168Z',
+    content: `<task-notification>\n<task-id>bh9w6pqmt</task-id>\n<tool-use-id>toolu_01</tool-use-id>\n<status>${status}</status>\n<summary>Task "Background sleep command" was stopped by the user</summary>\n</task-notification>`,
+  });
+
+  it.each(['[Request interrupted by user]', '[Request interrupted by user for tool use]'])('reads %s as an interrupt', (marker) => {
+    expect(isInterruptMarker(userList([text(marker)]))).toBe(true);
+  });
+
+  it.each([
+    ['a prompt that quotes the marker', typed('what does [Request interrupted by user] mean?')],
+    ['the marker in a reply', answer(text('[Request interrupted by user]'))],
+    ['the tool result an interrupt leaves', userList([{ type: 'tool_result', content: "The user doesn't want to proceed with this tool use." }])],
+  ])('reads %s as no interrupt', (_name, record) => {
+    expect(isInterruptMarker(record)).toBe(false);
+  });
+
+  it.each(['killed', 'completed', 'failed'])('reads a notice that work was %s as its end', (status) => {
+    expect(endedTaskId(notice(status))).toBe('bh9w6pqmt');
+  });
+
+  it.each([
+    ['work that is blocked', notice('blocked')],
+    ['the notice taken off the queue', notice('killed', 'dequeue')],
+    ['a prompt queued while claude worked', { type: 'queue-operation', operation: 'enqueue', content: 'and then <task-id>x</task-id> <status>killed</status>' }],
+  ])('reads %s as no end', (_name, record) => {
+    expect(endedTaskId(record)).toBe(null);
+  });
+
+  it('reads a background shell from its tool result', () => {
+    const started = userList([{ type: 'tool_result', content: 'Command running in background with ID: bh9w6pqmt.' }], { toolUseResult: { stdout: '', stderr: '', interrupted: false, backgroundTaskId: 'bh9w6pqmt' } });
+    expect(startedTask(started)).toEqual({ id: 'bh9w6pqmt', type: 'shell' });
+  });
+
+  it('reads a subagent sent off in the background from its tool result', () => {
+    const started = userList([{ type: 'tool_result', content: [{ type: 'text', text: 'Async agent launched successfully.' }] }], {
+      toolUseResult: { isAsync: true, status: 'async_launched', agentId: 'a9f387eb22d2413de', description: 'Run sleep command in background', prompt: 'Run this…', outputFile: '/tmp/a.output', canReadOutputFile: true, resolvedModel: 'claude-haiku' },
+    });
+    expect(startedTask(started)).toEqual({ id: 'a9f387eb22d2413de', type: 'subagent' });
+  });
+
+  // Stop lists a monitor as a shell (measured), and the tooltip counts it with them.
+  it('reads a monitor from its tool result, as a shell', () => {
+    const started = userList([{ type: 'tool_result', content: 'Monitor started (task bpod0ow0d, expires in 5m 10s unless the source ends first)' }], { toolUseResult: { taskId: 'bpod0ow0d', timeoutMs: 310000, persistent: false } });
+    expect(startedTask(started)).toEqual({ id: 'bpod0ow0d', type: 'shell' });
+  });
+
+  it.each([
+    ['a foreground tool', { stdout: 'ok', stderr: '', interrupted: false }],
+    ['an agent result not marked asynchronous', { status: 'completed', agentId: 'a1' }],
+    // These two from the shapes in claude 2.1.289's source, never run: both carry a task id, neither is a kind that was measured.
+    ['a workflow', { status: 'async_launched', taskId: 'w1', taskType: 'local_workflow', workflowName: 'review' }],
+    ['a remote agent', { status: 'remote_launched', taskId: 'r1', sessionUrl: 'https://claude.ai/code/r1', description: 'a review', prompt: 'review it', outputFile: '/tmp/r1.output' }],
+    ['a tool the user turned down', 'User rejected tool use'],
+  ])('reads %s as nothing started', (_name, toolUseResult) => {
+    expect(startedTask(userList([{ type: 'tool_result', content: 'ok' }], { toolUseResult }))).toBe(null);
   });
 });
 
