@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Exchange, ReplyPart } from '../../../../../../../src/shared/types';
-import { applySlice, emptyModel, replyBlocks, requestLabel, toolSummary } from '../../../../../../../src/renderer/panels/types/claude/history/model';
+import { applySlice, emptyModel, replyBlocks, reportLine, requestLabel, toolSummary } from '../../../../../../../src/renderer/panels/types/claude/history/model';
 
 const ex = (request: string, reply = ''): Exchange => ({ id: request, time: '', request, kind: 'typed', replaced: false, rewound: false, parts: reply ? [{ kind: 'text', id: `${request}-reply`, time: '', text: reply }] : [] });
 
@@ -29,7 +29,9 @@ describe('applySlice', () => {
 describe('replyBlocks', () => {
   const text = (id: string): ReplyPart => ({ kind: 'text', id, time: '', text: id });
   const tool = (name: string, detail = ''): ReplyPart => ({ kind: 'tool', name, detail });
-  const shape = (parts: ReplyPart[]): string[] => replyBlocks(parts).map((b) => (b.kind === 'text' ? b.part.id : b.kind === 'tool' ? b.part.name : `${b.at}:[${b.parts.map((p) => p.name).join(',')}]`));
+  const report = (agent: string): ReplyPart => ({ kind: 'report', agent, text: 'The report.' });
+  const shape = (parts: ReplyPart[]): string[] =>
+    replyBlocks(parts).map((b) => (b.kind === 'text' ? b.part.id : b.kind === 'tool' ? b.part.name : b.kind === 'report' ? `${b.at}:${b.part.agent}` : `${b.at}:[${b.parts.map((p) => p.name).join(',')}]`));
 
   it('folds a run of two or more tool calls between messages, keyed by where it starts', () => {
     expect(shape([text('a'), tool('Bash'), tool('Read'), tool('Bash'), text('b')])).toEqual(['a', '1:[Bash,Read,Bash]', 'b']);
@@ -41,6 +43,17 @@ describe('replyBlocks', () => {
 
   it('keeps an edit on its own line, ending the run before it', () => {
     expect(shape([tool('Read'), tool('Bash'), tool('Edit'), tool('Bash'), tool('Write'), tool('Bash'), tool('Read')])).toEqual(['0:[Read,Bash]', 'Edit', 'Bash', 'Write', '5:[Bash,Read]']);
+  });
+
+  it("folds a subagent's report to a line of its own, keyed by where it stands, ending the run before it", () => {
+    expect(shape([tool('Read'), tool('Agent'), report('claim-checker'), tool('Agent'), text('b')])).toEqual(['0:[Read,Agent]', '2:claim-checker', 'Agent', 'b']);
+  });
+});
+
+describe('reportLine', () => {
+  it('names the agent that reported, and a subagent when the transcript names none', () => {
+    expect(reportLine({ kind: 'report', agent: 'claim-checker', text: '' })).toBe('claim-checker reported');
+    expect(reportLine({ kind: 'report', agent: null, text: '' })).toBe('A subagent reported');
   });
 });
 

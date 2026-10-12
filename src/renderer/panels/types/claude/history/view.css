@@ -363,7 +363,7 @@
   margin-bottom: 0;
 }
 
-/* Markdown as the history draws it, in one class wherever it is drawn: claude's messages. */
+/* Markdown as the history draws it, in one class wherever it is drawn: claude's messages and a subagent's report. */
 .exchange-markdown > :first-child {
   margin-top: 0;
 }

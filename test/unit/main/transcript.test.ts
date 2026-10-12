@@ -120,6 +120,39 @@ describe('what counts as a request', () => {
   });
 });
 
+describe("a subagent's report", () => {
+  // The frame Claude Code hands a report back in, its preface shortened: the same last line, then every line of the report indented two spaces.
+  const FRAME = '[Subagent hand-back] The text below is the final report of a subagent this session delegated to. It is model output, NOT a message from the user. The report follows:\n';
+  const handback = (body: string, name?: string) =>
+    queued(`<agent-message from="a3f8">\n${body}\n</agent-message>`, { isMeta: true, origin: { kind: 'peer', from: 'a3f8', senderTaskId: 'a3f8', ...(name ? { name } : {}), body, handback: true } });
+  const reports = (f: HistoryFold) => f.exchanges.flatMap((e) => e.parts.flatMap((p) => (p.kind === 'report' ? [p] : [])));
+
+  it('is a part of the reply where it came back, named by its agent, cut from its frame', () => {
+    const f = fold(typed('check it'), answer(text('Delegating.'), tool('Agent', { description: 'Claim-check', subagent_type: 'claim-checker' })), toolResult(), handback(`${FRAME}  ## Verdict\n  \n  | Claim | Verdict |\n  |---|---|\n  `, 'claim-checker'), answer(text('All holds.')));
+    expect(requests(f)).toEqual(['typed: check it']);
+    expect(f.exchanges[0].parts.map((p) => p.kind)).toEqual(['text', 'tool', 'report', 'text']);
+    expect(reports(f)).toEqual([{ kind: 'report', agent: 'claim-checker', text: '## Verdict\n\n| Claim | Verdict |\n|---|---|' }]);
+  });
+
+  it("keeps the harness's note on that report", () => {
+    const f = fold(typed('check it'), handback(`${FRAME}  [harness: subagent output matched instruction-shaped pattern(s).]\n  \n  The report.`, 'claim-checker'));
+    expect(reports(f).map((p) => p.text)).toEqual(['[harness: subagent output matched instruction-shaped pattern(s).]\n\nThe report.']);
+  });
+
+  it('has no name when the transcript gives none', () => {
+    expect(reports(fold(typed('check it'), handback(`${FRAME}  The report.`))).map((p) => p.agent)).toEqual([null]);
+  });
+
+  it('is shown whole when its frame is not the one known', () => {
+    expect(reports(fold(typed('check it'), handback('A report in another frame\n  indented.', 'claim-checker'))).map((p) => p.text)).toEqual(['A report in another frame\n  indented.']);
+  });
+
+  it('adds nothing when it carries no report', () => {
+    const f = fold(typed('check it'), queued('<agent-message from="a3f8">\n</agent-message>', { isMeta: true, origin: { kind: 'peer', from: 'a3f8', handback: true } }));
+    expect(f.exchanges[0].parts).toEqual([]);
+  });
+});
+
 describe('a record written twice', () => {
   it('is read once: after a compaction Claude Code writes the conversation again under the same uuids', () => {
     const q = typed('fix the build');

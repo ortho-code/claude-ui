@@ -30,3 +30,27 @@ test('a run of tool calls folds to one line, closed, that opens into its calls a
   await expect(run.head).toHaveAttribute('aria-expanded', 'false');
   await expect(run.body).toBeHidden();
 });
+
+test("a subagent's report folds to one line naming its agent, closed, that opens into the report as markdown", async ({ app, page }) => {
+  const parts: Exchange['parts'] = [
+    { kind: 'tool', name: 'Agent', detail: 'Claim-check' },
+    { kind: 'report', agent: 'claim-checker', text: '## Verdict\n\n| Claim | Verdict |\n|---|---|\n| one | holds |' },
+    { kind: 'tool', name: 'Agent', detail: 'Look again' },
+    { kind: 'report', agent: null, text: 'Nothing new.' },
+  ];
+  await app.boot({ openSessions: [one.id], activeSession: one.id, history: { [one.id]: [exchange(parts)] } });
+  await page.getByRole('button', { name: 'Show history' }).click();
+  const named = historyFold(page, 'claim-checker reported');
+  const nameless = historyFold(page, 'A subagent reported');
+
+  await expect(named.head).toHaveAttribute('aria-expanded', 'false');
+  await expect(named.body).toBeHidden();
+  await expect(nameless.head).toHaveAttribute('aria-expanded', 'false');
+  await expect(nameless.body).toBeHidden();
+
+  await named.head.click();
+  await expect(named.body).toBeVisible();
+  await expect(named.body.getByRole('heading', { name: 'Verdict' })).toBeVisible();
+  await expect(named.body.getByRole('cell', { name: 'holds' })).toBeVisible();
+  await expect(nameless.body).toBeHidden();
+});

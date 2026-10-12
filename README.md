@@ -53,7 +53,7 @@ Done:
   See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
 - A log file per launch and day, so a problem in an installed build can be looked at afterwards; a launch that crashed keeps its log for longer.
   See [Install a build](#install-a-build) for where it is.
-- A history of each session, from its transcript and laid out as claude shows it: every request, message and tool call since the session began, compactions included, with pins for the ones to come back to.
+- A history of each session, from its transcript and laid out as claude shows it: every request, message, tool call and subagent's report since the session began, compactions included, with pins for the ones to come back to.
   A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
 - Panel types of your own, from a folder in the config folder: a script prints a list and the app draws it, with links, sections that fold, and a count on the panel's icon kept current on an interval.
   See [Panel types of your own](#panel-types-of-your-own).

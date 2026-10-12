@@ -81,15 +81,16 @@ export interface Exchange {
    * Shown, dimmed, as a request sent again is, and for the same reasons.
    */
   rewound: boolean;
-  /** Claude's reply, piece by piece in the order it was written: its messages, and the tool calls between them. */
+  /** Claude's reply, piece by piece in the order it was written: its messages, the tool calls between them, and subagents' reports, where each came back. */
   parts: ReplyPart[];
 }
 
 /**
- * One piece of a reply: a message from claude (markdown), or a tool call — the tool's name and, on one line, the input that says what it acted on (empty when none does).
+ * One piece of a reply: a message from claude (markdown), a tool call — the tool's name and, on one line, the input that says what it acted on (empty when none does) — or a subagent's report.
  * A message carries an id, its assistant record's uuid and its place among that record's messages, which is what a pin on it keys on and which a fork copies too.
+ * A report is the subagent's markdown cut from the frame Claude Code hands it back in, with the agent's name, null where the transcript gives none.
  */
-export type ReplyPart = { kind: 'text'; id: string; time: string; text: string } | { kind: 'tool'; name: string; detail: string };
+export type ReplyPart = { kind: 'text'; id: string; time: string; text: string } | { kind: 'tool'; name: string; detail: string } | { kind: 'report'; agent: string | null; text: string };
 
 /**
  * A request or one of claude's messages, pinned in the history and stored in meta.json under its id (`Exchange.id`, or a message's `id`).

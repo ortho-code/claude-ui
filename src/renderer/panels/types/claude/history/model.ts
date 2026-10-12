@@ -2,9 +2,13 @@ import type { Exchange, HistorySlice, ReplyPart } from '../../../../../shared/ty
 
 type TextPart = Extract<ReplyPart, { kind: 'text' }>;
 type ToolPart = Extract<ReplyPart, { kind: 'tool' }>;
+type ReportPart = Extract<ReplyPart, { kind: 'report' }>;
 
-/** What a reply is drawn as: each of claude's messages, a tool call standing alone, and a run of tool calls folded to one line, keyed by where the run starts in the reply. */
-export type ReplyBlock = { kind: 'text'; part: TextPart } | { kind: 'tool'; part: ToolPart } | { kind: 'tools'; at: number; parts: ToolPart[] };
+/**
+ * What a reply is drawn as: each of claude's messages, a tool call standing alone, a run of tool calls folded to one line, and a subagent's report folded to one line.
+ * A folded line is keyed by where it starts in the reply.
+ */
+export type ReplyBlock = { kind: 'text'; part: TextPart } | { kind: 'tool'; part: ToolPart } | { kind: 'tools'; at: number; parts: ToolPart[] } | { kind: 'report'; at: number; part: ReportPart };
 
 /** The tools that change files: each keeps its own line, as claude shows an edit apart from the reading and running around it. */
 const EDITS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
@@ -12,7 +16,8 @@ const EDITS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 /**
  * A reply as it is drawn: two or more tool calls in a row, between claude's messages, fold to one line; a lone one stays itself, since its own line says more than a count of one.
  * An edit is never folded and ends a run, so the changes to files stay in view.
- * A run's key is the index of its first call, which stays put while the last exchange grows.
+ * A subagent's report is folded on its own and ends a run, as a message does.
+ * A run's key is the index of its first call, and a report's its own index, which stay put while the last exchange grows.
  */
 export function replyBlocks(parts: readonly ReplyPart[]): ReplyBlock[] {
   const blocks: ReplyBlock[] = [];
@@ -30,10 +35,16 @@ export function replyBlocks(parts: readonly ReplyPart[]): ReplyBlock[] {
       return;
     }
     flush();
-    blocks.push(part.kind === 'text' ? { kind: 'text', part } : { kind: 'tool', part });
+    if (part.kind === 'report') blocks.push({ kind: 'report', at: index, part });
+    else blocks.push(part.kind === 'text' ? { kind: 'text', part } : { kind: 'tool', part });
   });
   flush();
   return blocks;
+}
+
+/** A subagent's report's line: "claim-checker reported", or "A subagent reported" where the transcript gives no name. */
+export function reportLine(part: ReportPart): string {
+  return `${part.agent ?? 'A subagent'} reported`;
 }
 
 /** How a folded run names what its tools did, in claude's words where claude's are known; tools that share a phrase share a count. */

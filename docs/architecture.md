@@ -371,6 +371,7 @@ A stopped tab still drops you to the empty screen; reopening it resumes claude, 
 A typed prompt, one with a pasted image, one sent while a tool ran, one queued while claude was working — a `queued_command` attachment, which is not a user record at all — and a slash command claude answered.
 Not a request: tool results, meta records (a skill's expanded body, a message from another session, a subagent's hand-back), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing (a local command's output, a reminder, a task notification, `!` bash mode), whether it comes as a user record or queued while claude worked — the queued ones were missed at first, and drew 253 task notifications as requests.
 A subagent's hand-back is queued too, marked meta on its attachment and wrapped in a tag with an attribute (`<agent-message from="…">`), which the plumbing rule at first did not take for a tag: 149 of them, in 41 of 445 transcripts, showed as requests until a queued record was held to its meta mark as a user record is, and a tag to its name whatever attributes follow.
+Its report is drawn in the reply instead, where it came back (§ What it looks like).
 The rule was taken from a scan of 312 transcripts, and the numbers below are from them.
 
 **A slash command counts only once claude answers it.**
@@ -416,6 +417,13 @@ That is a fold in place, where the first version's count was one for the whole r
 A lone call stays its own line, since its line says more than a count of one, and an edit (Edit, Write, MultiEdit, NotebookEdit) is never folded and ends a run, so the changes to files stay in view, as claude shows them apart.
 The line uses claude's words where they are known ("ran N shell commands", "read N files") and plain ones otherwise; claude also folds edits to its scratch files into the line, which is not copied, since telling a scratch file from a project file would be a guess from its path.
 Measured on two sessions, of 906 and 54 requests: 417 runs fold, and 1,202 calls stand alone.
+**A subagent's report is folded to one line too**, "claim-checker reported", where it came back in the reply, and it ends a run as a message does; it opens into the report as markdown, drawn by the same rules as claude's messages.
+Where it came back is not always beside the Agent call that started it: of the 151 reports on the machine this was written on, 57 follow their call, 42 follow another report, from agents started side by side, 50 follow some other tool call claude made meanwhile, and 2 open a reply; a few came back after a new request, and sit in that request's reply.
+Folded, since a report runs to several kilobytes (0.5 to 21 KB as drawn, about 5 KB in the middle) and open it would outweigh claude's own reply.
+The report is cut from the frame Claude Code hands it back in, a preface ending in "The report follows:" and then the report with every line indented two spaces, the same in all 151; a report without that line is shown whole rather than cut where the frame is guessed to end.
+A note Claude Code puts on a report itself, that it "matched instruction-shaped pattern(s)", stays, since it is about that report, and so do the tags it escapes as `<\`.
+The agent's name is in every one of those records written by claude 2.1.286 or later, and in none written before; a report without it reads "A subagent reported", rather than having its name traced back through the Agent call's result.
+A report has no star: pinning one waits for a list of pins across sessions, which is what would make a pinned report worth having.
 The dot is drawn in CSS rather than claude's `⏺` glyph, since the app draws no mark from a font.
 Code is told apart by colour and by place: inline in the accent, a block on a panel of its own, a step lighter than the history and scrolled sideways rather than wrapped.
 A block had a rule down its side at first, which is how a quote is drawn, and a block read as a quote; a quote keeps the rule, in the accent's muted tint, with its words in italics.

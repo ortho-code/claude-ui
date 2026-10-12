@@ -8,7 +8,7 @@ import { renderMarkdown, routeLinks } from './markdown';
 import '../../../../pill.css';
 import './view.css';
 import type { Band } from './marks';
-import { applySlice, emptyModel, replyBlocks, requestLabel, toolSummary, type HistoryModel } from './model';
+import { applySlice, emptyModel, replyBlocks, reportLine, requestLabel, toolSummary, type HistoryModel } from './model';
 
 /** What the history needs from the rest of the window. */
 export interface HistoryHost {
@@ -286,9 +286,15 @@ export class HistoryView {
   describe(k: number): { number: number; time: string; request: string; reply: string | null; pinned: boolean; replyPinned: boolean } | null {
     const exchange = this.model.exchanges[k];
     if (!exchange) return null;
-    // The reply's first message, as a line; a reply that is only tool calls so far is named by its first one.
+    // The reply's first message, as a line; a reply with no message yet is named by its first part, a tool call or a report.
     const first = exchange.parts.find((part) => part.kind === 'text') ?? exchange.parts[0];
-    const reply = !first ? null : first.kind === 'text' ? requestLabel(first.text.replace(/^\s*(#{1,6}|>|[-*+])\s+/gm, '')) : `${first.name}${first.detail ? `(${first.detail})` : ''}`;
+    const reply = !first
+      ? null
+      : first.kind === 'text'
+        ? requestLabel(first.text.replace(/^\s*(#{1,6}|>|[-*+])\s+/gm, ''))
+        : first.kind === 'tool'
+          ? `${first.name}${first.detail ? `(${first.detail})` : ''}`
+          : reportLine(first);
     return { number: k + 1, time: exchange.time, request: requestLabel(exchange.request), reply, pinned: exchange.id in this.pins, replyPinned: this.pinnedMessages(exchange) > 0 };
   }
 
@@ -569,7 +575,7 @@ export class HistoryView {
     meta.append(when);
     request.append(text, meta);
 
-    // The reply as claude wrote it: each message its own block, the tool calls where they came between them, a run of them folded to one line.
+    // The reply as claude wrote it: each message its own block, the tool calls where they came between them, a run of them folded to one line, and a subagent's report folded to one line where it came back.
     const reply = document.createElement('div');
     reply.className = 'exchange-reply';
     for (const block of replyBlocks(exchange.parts)) {
@@ -588,10 +594,16 @@ export class HistoryView {
         piece.prepend(star);
         reply.append(piece);
       } else if (block.kind === 'tool') reply.append(toolLine(block.part));
-      else {
+      else if (block.kind === 'tools') {
         const list = document.createElement('div');
         list.append(...block.parts.map(toolLine));
         reply.append(this.fold(`${exchange.id}:${block.at}`, 'tools', toolSummary(block.parts), list, ['Show each tool call', 'Fold the tool calls']));
+      } else {
+        const report = document.createElement('div');
+        report.className = 'exchange-markdown';
+        // As safe as a message: a report is a subagent's words, rendered by the same rules (markdown.ts).
+        report.innerHTML = renderMarkdown(block.part.text);
+        reply.append(this.fold(`${exchange.id}:${block.at}`, 'report', reportLine(block.part), report, ['Show the report', 'Fold the report']));
       }
     }
 
@@ -601,7 +613,7 @@ export class HistoryView {
   }
 
   /**
-   * A line of the reply that opens into `body`, as claude folds one, closed until opened: a run of tool calls, "Ran 4 shell commands, read 1 file", opening into the calls.
+   * A line of the reply that opens into `body`, as claude folds one, closed until opened: a run of tool calls, "Ran 4 shell commands, read 1 file", opening into the calls, or a subagent's report, "claim-checker reported", opening into the report.
    * `kind` names what is folded, for the stylesheet; the tooltips say what a press does, shut and open.
    * Kept open or closed by `key` while the last exchange is drawn again as claude's reply grows.
    */

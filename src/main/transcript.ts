@@ -85,6 +85,20 @@ function toolPart(part: { name?: unknown; input?: unknown }): ReplyPart {
   return { kind: 'tool', name, detail: first.length > 120 ? `${first.slice(0, 119)}…` : first };
 }
 
+/** Where the frame Claude Code hands a subagent's report back in ends: a preface, this line, then the report with every line indented two spaces. */
+const REPORT_FOLLOWS = 'The report follows:\n';
+
+/** A subagent's report as it reads, cut from its frame; a body without the frame's marker is kept whole rather than cut where the frame is guessed to end. */
+function reportText(body: string): string {
+  const at = body.indexOf(REPORT_FOLLOWS);
+  if (at < 0) return body.trimEnd();
+  const lines = body.slice(at + REPORT_FOLLOWS.length).split('\n');
+  return lines
+    .map((line) => (line.startsWith('  ') ? line.slice(2) : line))
+    .join('\n')
+    .trimEnd();
+}
+
 function exchangeOf(record: Record<string, unknown>, request: string, kind: Exchange['kind']): Exchange {
   return {
     id: typeof record.uuid === 'string' ? record.uuid : '',
@@ -152,7 +166,7 @@ function carriesToolResult(record: Record<string, unknown>): boolean {
 /**
  * Fold one transcript record into the history.
  * A request is what the user sent: a typed prompt (with or without a pasted image), one sent while a tool ran, one queued while claude worked (a `queued_command` attachment, which is not a user record at all), and a slash command claude answered.
- * Not a request: tool results, meta records (a skill's expanded body, a message from another session, a subagent's hand-back), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing.
+ * Not a request: tool results, meta records (a skill's expanded body, a message from another session, a subagent's hand-back, whose report is a part of the reply instead), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing.
  * The rule and the counts behind it are in docs/architecture.md, In-session history.
  */
 export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): void {
@@ -163,11 +177,19 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
   }
   if (record.isSidechain === true) return;
   if (record.type === 'attachment') {
-    const attachment = record.attachment as { type?: unknown; prompt?: unknown; isMeta?: unknown } | undefined;
+    const attachment = record.attachment as { type?: unknown; prompt?: unknown; isMeta?: unknown; origin?: { handback?: unknown; name?: unknown; body?: unknown } } | undefined;
     if (attachment?.type !== 'queued_command' || typeof attachment.prompt !== 'string' || !attachment.prompt.trim()) return;
     // Queued means claude was working, so a command still waiting is the thing it was working on.
     promote(fold);
-    // Claude Code's own records are queued the same way — a task notification, a subagent's hand-back — and are no more a request here than when they come as a user record.
+    // A subagent's report is part of claude's reply, where it came back; before the first request there is nothing for it to be a reply to.
+    const origin = attachment.isMeta === true && attachment.origin?.handback === true ? attachment.origin : undefined;
+    if (origin) {
+      const last = fold.exchanges[fold.exchanges.length - 1];
+      const name = typeof origin.name === 'string' ? origin.name.trim() : '';
+      if (last && typeof origin.body === 'string' && origin.body.trim()) last.parts.push({ kind: 'report', agent: name || null, text: reportText(origin.body) });
+      return;
+    }
+    // Claude Code's own records are queued the same way — a task notification, anything else it marks meta — and are no more a request here than when they come as a user record.
     if (attachment.isMeta === true || PLUMBING.test(attachment.prompt.trim())) return;
     push(fold, exchangeOf(record, attachment.prompt.trim(), 'busy'), parentOf(record));
     return;
