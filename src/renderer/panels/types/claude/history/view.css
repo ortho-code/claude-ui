@@ -296,7 +296,7 @@
 
 .exchange-text::before,
 .exchange-tool::before,
-.exchange-tools-head::before {
+.exchange-fold-head::before {
   --dot: 6px;
   content: '';
   position: absolute;
@@ -316,7 +316,7 @@
 }
 
 .exchange-tool::before,
-.exchange-tools-head::before {
+.exchange-fold.tools > .exchange-fold-head::before {
   background: var(--idle);
 }
 
@@ -325,12 +325,12 @@
   font-weight: 600;
 }
 
-/* A run of tool calls folded to one line, as claude folds them: its dot, what the run did in grey, and a chevron; it opens into the calls, indented under the line. */
-.exchange-tools {
+/* A line of the reply folded over more, as claude folds a run of tool calls: its dot, what it holds in grey, and a chevron; it opens into what it holds, indented under the line. */
+.exchange-fold {
   margin-bottom: 8px;
 }
 
-.exchange-tools-head {
+.exchange-fold-head {
   position: relative;
   display: flex;
   align-items: center;
@@ -345,21 +345,21 @@
   text-align: left;
 }
 
-.exchange-tools-head:hover {
+.exchange-fold-head:hover {
   background: none;
   color: var(--terminal-fg);
 }
 
-.exchange-tools-chevron {
+.exchange-fold-chevron {
   display: inline-flex;
 }
 
-.exchange-tools-list {
+.exchange-fold-body {
   margin-top: 8px;
   padding-left: 20px;
 }
 
-.exchange-tools-list > .exchange-tool:last-child {
+.exchange-fold-body > .exchange-tool:last-child {
   margin-bottom: 0;
 }
 

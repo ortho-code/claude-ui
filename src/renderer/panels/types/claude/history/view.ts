@@ -70,8 +70,8 @@ export class HistoryView {
   private readonly left = new Map<string, Place>();
   /** Where to reopen the session followed once its history has been read; undefined when it was left closed, or has been opened or closed since. */
   private reopen: Place | undefined;
-  /** The folded runs of tool calls opened by hand, by exchange and where the run starts. */
-  private readonly openRuns = new Set<string>();
+  /** The folded lines opened by hand, by exchange and the place in its reply's parts where the line starts. */
+  private readonly openFolds = new Set<string>();
   /** Drawn in slices (see draw): the exchanges before `drawnTo` and from `tailFrom` on are drawn, the ones between still to come. */
   private drawnTo = 0;
   private tailFrom = 0;
@@ -588,7 +588,11 @@ export class HistoryView {
         piece.prepend(star);
         reply.append(piece);
       } else if (block.kind === 'tool') reply.append(toolLine(block.part));
-      else reply.append(this.toolRun(`${exchange.id}:${block.at}`, block.parts));
+      else {
+        const list = document.createElement('div');
+        list.append(...block.parts.map(toolLine));
+        reply.append(this.fold(`${exchange.id}:${block.at}`, 'tools', toolSummary(block.parts), list, ['Show each tool call', 'Fold the tool calls']));
+      }
     }
 
     node.append(request, reply);
@@ -597,38 +601,37 @@ export class HistoryView {
   }
 
   /**
-   * A run of tool calls as one line, "Ran 4 shell commands, read 1 file", that opens into the calls, as claude folds them; closed until opened.
+   * A line of the reply that opens into `body`, as claude folds one, closed until opened: a run of tool calls, "Ran 4 shell commands, read 1 file", opening into the calls.
+   * `kind` names what is folded, for the stylesheet; the tooltips say what a press does, shut and open.
    * Kept open or closed by `key` while the last exchange is drawn again as claude's reply grows.
    */
-  private toolRun(key: string, parts: Extract<ReplyPart, { kind: 'tool' }>[]): HTMLElement {
-    const run = document.createElement('div');
-    run.className = 'exchange-tools';
+  private fold(key: string, kind: string, line: string, body: HTMLElement, [shut, open]: [string, string]): HTMLElement {
+    const fold = document.createElement('div');
+    fold.className = `exchange-fold ${kind}`;
     const head = document.createElement('button');
     head.type = 'button';
-    head.className = 'exchange-tools-head';
+    head.className = 'exchange-fold-head';
     const label = document.createElement('span');
-    label.textContent = toolSummary(parts);
+    label.textContent = line;
     const chevron = document.createElement('span');
-    chevron.className = 'exchange-tools-chevron';
+    chevron.className = 'exchange-fold-chevron';
     head.append(label, chevron);
-    const list = document.createElement('div');
-    list.className = 'exchange-tools-list';
-    list.append(...parts.map(toolLine));
+    body.classList.add('exchange-fold-body');
     const draw = (): void => {
-      const open = this.openRuns.has(key);
-      run.classList.toggle('open', open);
-      list.hidden = !open;
-      head.setAttribute('aria-expanded', String(open));
-      chevron.innerHTML = chevronIcon(open ? 'down' : 'right', 12);
-      setTooltip(head, open ? 'Fold the tool calls' : 'Show each tool call');
+      const opened = this.openFolds.has(key);
+      fold.classList.toggle('open', opened);
+      body.hidden = !opened;
+      head.setAttribute('aria-expanded', String(opened));
+      chevron.innerHTML = chevronIcon(opened ? 'down' : 'right', 12);
+      setTooltip(head, opened ? open : shut);
     };
     head.addEventListener('click', () => {
-      if (!this.openRuns.delete(key)) this.openRuns.add(key);
+      if (!this.openFolds.delete(key)) this.openFolds.add(key);
       draw();
     });
     draw();
-    run.append(head, list);
-    return run;
+    fold.append(head, body);
+    return fold;
   }
 
   /** Draw the stars of an exchange: its request's and each of claude's messages'. */

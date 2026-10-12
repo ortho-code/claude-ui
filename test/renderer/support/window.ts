@@ -107,3 +107,9 @@ export const tabBarGroup = (page: Page, name: string): Locator => tabBarGroups(p
 
 /** That group's row of the tab bar, holding its tabs. */
 export const tabBarGroupRow = (page: Page, name: string): Locator => tabBarRows(page).filter({ has: page.locator(GROUP_NAME, { hasText: new RegExp(`^${name}$`) }) });
+
+/** A line of the history that opens into more, found by its line reading exactly `label`: the line itself, which is what opens and folds it, and what it opens into. */
+export const historyFold = (page: Page, label: string): { head: Locator; body: Locator } => {
+  const fold = page.locator('.exchange-fold', { has: page.locator('> .exchange-fold-head', { hasText: new RegExp(`^${label}$`) }) });
+  return { head: fold.locator('> .exchange-fold-head'), body: fold.locator('> .exchange-fold-body') };
+};
