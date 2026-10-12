@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import * as path from 'node:path';
 
 // A temp HOME so installStatusHooks writes into a throwaway ~/.claude and ~/.config.
@@ -34,7 +33,8 @@ vi.mock('node:os', async (importOriginal) => {
 });
 
 import { installStatusHooks, readAllStatuses as getAllStatuses, statusSettingsFile } from '../../../src/main/status';
-import { hookScriptPath, statusDir } from '../../../src/main/paths';
+import { statusDir } from '../../../src/main/paths';
+import { runHook, TOKEN } from './hookscript';
 
 const settingsPath = path.join(testHome, '.claude', 'settings.json');
 const ourCmd = path.join(testHome, '.config', 'claude-ui', 'status-hook.sh');
@@ -141,23 +141,6 @@ describe('the hook script', () => {
   const SID = '0a945f9c-209b-4758-bf8e-30474af5826c';
   const statusFile = path.join(statusDir, `${SID}.json`);
 
-  const TOKEN = 'tab-token-1';
-
-  /**
-   * Run the script as Claude Code would.
-   * `scoped` false drops CLAUDE_UI, standing in for a session started in a plain terminal.
-   */
-  function runHook(status: string, payload: Record<string, unknown>, scoped = true): void {
-    const env: NodeJS.ProcessEnv = { ...process.env, PATH: process.env.PATH, CLAUDE_UI_TAB: TOKEN };
-    delete env.CLAUDE_UI;
-    if (scoped) env.CLAUDE_UI = '1';
-    try {
-      execFileSync('bash', [hookScriptPath, status], { input: JSON.stringify(payload), env });
-    } catch (error) {
-      // Unscoped, the script's first line exits before anything reads stdin, so the payload can meet a pipe it already closed: the script doing its job, so that and only that is let through.
-      if (scoped || (error as NodeJS.ErrnoException).code !== 'EPIPE') throw error;
-    }
-  }
   async function readStatusFile(): Promise<{ status?: string; tab?: string; event?: string; background?: string[] } | null> {
     try {
       return JSON.parse(await fs.readFile(statusFile, 'utf8'));
