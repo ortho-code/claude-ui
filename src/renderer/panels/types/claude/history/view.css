@@ -363,57 +363,58 @@
   margin-bottom: 0;
 }
 
-.exchange-text > :first-child {
+/* Markdown as the history draws it, in one class wherever it is drawn: claude's messages. */
+.exchange-markdown > :first-child {
   margin-top: 0;
 }
 
-.exchange-text > :last-child {
+.exchange-markdown > :last-child {
   margin-bottom: 0;
 }
 
-.exchange-text p,
-.exchange-text ul,
-.exchange-text ol,
-.exchange-text pre,
-.exchange-text table,
-.exchange-text blockquote {
+.exchange-markdown p,
+.exchange-markdown ul,
+.exchange-markdown ol,
+.exchange-markdown pre,
+.exchange-markdown table,
+.exchange-markdown blockquote {
   margin: 0 0 8px;
 }
 
-.exchange-text ul,
-.exchange-text ol {
+.exchange-markdown ul,
+.exchange-markdown ol {
   padding-left: 20px;
 }
 
-.exchange-text h1,
-.exchange-text h2,
-.exchange-text h3,
-.exchange-text h4,
-.exchange-text h5,
-.exchange-text h6 {
+.exchange-markdown h1,
+.exchange-markdown h2,
+.exchange-markdown h3,
+.exchange-markdown h4,
+.exchange-markdown h5,
+.exchange-markdown h6 {
   margin: 10px 0 6px;
   font-size: inherit;
   font-weight: 600;
 }
 
 /* Claude opens most paragraphs with a bold lead-in; at the default 700 a reply was a wall of bold. */
-.exchange-text strong {
+.exchange-markdown strong {
   font-weight: 600;
 }
 
 /* Everything is already in the terminal's type, so code is told apart by colour and by place: inline in the accent, a block on a panel of its own.
    A block had a rule down its side at first, which is how a quote is drawn, and a block read as a quote. */
-.exchange-text code {
+.exchange-markdown code {
   font-family: inherit;
   font-size: inherit;
 }
 
-.exchange-text :not(pre) > code {
+.exchange-markdown :not(pre) > code {
   color: var(--accent);
 }
 
 /* A step lighter than the history's background, and scrolled sideways rather than wrapped, so a line of code stays one line. */
-.exchange-text pre {
+.exchange-markdown pre {
   padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
@@ -422,25 +423,25 @@
   overflow-wrap: normal;
 }
 
-.exchange-text table {
+.exchange-markdown table {
   border-collapse: collapse;
 }
 
-.exchange-text th,
-.exchange-text td {
+.exchange-markdown th,
+.exchange-markdown td {
   padding: 2px 8px;
   border: 1px solid var(--border);
   text-align: left;
 }
 
 /* A quote: a rule down its side, in the accent's own muted tint so it reads as a mark rather than a border, and its words in italics, as quoted words are set. */
-.exchange-text blockquote {
+.exchange-markdown blockquote {
   padding: 1px 0 1px 12px;
   border-left: 3px solid var(--active);
   color: var(--muted);
   font-style: italic;
 }
 
-.exchange-text a {
+.exchange-markdown a {
   color: var(--accent);
 }

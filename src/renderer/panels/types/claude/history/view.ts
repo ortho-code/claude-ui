@@ -576,7 +576,7 @@ export class HistoryView {
       if (block.kind === 'text') {
         const part = block.part;
         const piece = document.createElement('div');
-        piece.className = 'exchange-text';
+        piece.className = 'exchange-text exchange-markdown';
         piece.dataset.id = part.id;
         // Safe to hand to innerHTML: raw HTML in a reply comes out as text, and dangerous links not at all (markdown.ts).
         piece.innerHTML = renderMarkdown(part.text);
