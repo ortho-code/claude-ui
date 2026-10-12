@@ -425,6 +425,9 @@ A note Claude Code puts on a report itself, that it "matched instruction-shaped 
 The agent's name is in every one of those records written by claude 2.1.286 or later, and in none written before; a report without it reads "A subagent reported", rather than having its name traced back through the Agent call's result.
 A report has no star: pinning one waits for a list of pins across sessions, which is what would make a pinned report worth having.
 The dot is drawn in CSS rather than claude's `⏺` glyph, since the app draws no mark from a font.
+**A line break in claude's text, or in a subagent's report, is a line break**, as it is in the request above it, which keeps its own with `white-space: pre-wrap`.
+CommonMark's default joins the lines of a paragraph, which suits prose wrapped at a fixed width and ran a reply written a sentence to a line into one block, so the markdown is rendered with `breaks: true`: a line break inside a paragraph, a list item or a quote becomes a `<br>`, and `#` headings, code blocks and tables come out as they did.
+A `<br>` in the markup rather than `white-space: pre-line` on the message, since a stylesheet cannot tell a line break in the text from the newlines markdown-it writes between tags, which `pre-line` turns into blank lines.
 Code is told apart by colour and by place: inline in the accent, a block on a panel of its own, a step lighter than the history and scrolled sideways rather than wrapped.
 A block had a rule down its side at first, which is how a quote is drawn, and a block read as a quote; a quote keeps the rule, in the accent's muted tint, with its words in italics.
 The history has no scrollbar of its own: the bar beside it is its scrollbar.
