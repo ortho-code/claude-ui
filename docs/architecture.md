@@ -369,7 +369,8 @@ A stopped tab still drops you to the empty screen; reopening it resumes claude, 
 ### What counts as a request
 
 A typed prompt, one with a pasted image, one sent while a tool ran, one queued while claude was working — a `queued_command` attachment, which is not a user record at all — and a slash command claude answered.
-Not a request: tool results, meta records (a skill's expanded body, a message from another session), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing (a local command's output, a reminder, a task notification, `!` bash mode), whether it comes as a user record or queued while claude worked — the queued ones were missed at first, and drew 253 task notifications as requests.
+Not a request: tool results, meta records (a skill's expanded body, a message from another session, a subagent's hand-back), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing (a local command's output, a reminder, a task notification, `!` bash mode), whether it comes as a user record or queued while claude worked — the queued ones were missed at first, and drew 253 task notifications as requests.
+A subagent's hand-back is queued too, marked meta on its attachment and wrapped in a tag with an attribute (`<agent-message from="…">`), which the plumbing rule at first did not take for a tag: 149 of them, in 41 of 445 transcripts, showed as requests until a queued record was held to its meta mark as a user record is, and a tag to its name whatever attributes follow.
 The rule was taken from a scan of 312 transcripts, and the numbers below are from them.
 
 **A slash command counts only once claude answers it.**

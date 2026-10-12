@@ -15,7 +15,7 @@ const answer = (...parts: unknown[]) => ({ type: 'assistant', uuid: uuid(), time
 const text = (t: string) => ({ type: 'text', text: t });
 const tool = (name: string, input: Record<string, unknown>) => ({ type: 'tool_use', name, input });
 const command = (name: string, args = '') => typed(`<command-message>${name.slice(1)}</command-message>\n<command-name>${name}</command-name>\n<command-args>${args}</command-args>`);
-const queued = (prompt: string) => ({ type: 'attachment', uuid: uuid(), timestamp: '2026-09-29T10:01:00Z', attachment: { type: 'queued_command', prompt, source_uuid: 'not-a-record' } });
+const queued = (prompt: string, extra: Record<string, unknown> = {}) => ({ type: 'attachment', uuid: uuid(), timestamp: '2026-09-29T10:01:00Z', attachment: { type: 'queued_command', prompt, source_uuid: 'not-a-record', ...extra } });
 
 function fold(...records: Record<string, unknown>[]): HistoryFold {
   const f = newFold();
@@ -100,6 +100,9 @@ describe('what counts as a request', () => {
     ['an interruption', userList([text('[Request interrupted by user]')])],
     ['a task notification', typed('<task-notification> <task-id>x</task-id>')],
     ['a task notification queued while claude worked', queued('<task-notification>\n<task-id>x</task-id>')],
+    ["a subagent's hand-back queued while claude worked", queued('<agent-message from="a3f8">\n[Subagent hand-back] The report.', { isMeta: true, origin: { kind: 'peer', from: 'a3f8', handback: true } })],
+    ['a queued record Claude Code marks meta, whatever it says', queued('The report.', { isMeta: true })],
+    ['plumbing whose tag carries attributes', typed('<agent-message from="a3f8">\nThe report.')],
     ['a local command caveat', typed('<local-command-caveat>Caveat: …</local-command-caveat>')],
     ['bash mode', typed('<bash-input>ls</bash-input>')],
     ['a sidechain record', typed('from a subagent', { isSidechain: true })],
