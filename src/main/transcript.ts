@@ -43,6 +43,85 @@ export function extractUserText(event: Record<string, unknown>): string {
   return '';
 }
 
+// --- Reading what was appended ---
+
+/** Where a read of one transcript has got to, for a reader that reads only what was appended since. */
+export interface TranscriptCursor {
+  offset: number;
+  /**
+   * The bytes after the last newline: a line claude has not finished writing.
+   * Bytes rather than text, since a read can end inside a multi-byte character.
+   */
+  carry: Buffer;
+}
+
+/** How much is read at a time, so a 50 MB transcript is read in pieces with the main process handed back between them. */
+const CHUNK_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Read what was appended to the transcript at `file` since the cursor, handing each record to `onRecord`.
+ * A file shorter than what was already read is not the same file any more, so the cursor goes back to the start, after `onRestart` has dropped whatever the reader built from the old one.
+ * `scope` names the reader in the log.
+ */
+export async function readAppended(
+  file: string,
+  cursor: TranscriptCursor,
+  onRecord: (record: Record<string, unknown>) => void,
+  onRestart: () => void,
+  scope: string,
+  chunkBytes = CHUNK_BYTES,
+): Promise<void> {
+  let handle;
+  try {
+    handle = await fs.open(file, 'r');
+  } catch (error) {
+    const failure = fsFailure(error);
+    if (failure) logOnce('warn', scope, `cannot read ${file}: ${failure}`);
+    return;
+  }
+  try {
+    const { size } = await handle.stat();
+    if (size < cursor.offset) {
+      cursor.offset = 0;
+      cursor.carry = Buffer.alloc(0);
+      onRestart();
+    }
+    while (cursor.offset < size) {
+      const chunk = Buffer.alloc(Math.min(chunkBytes, size - cursor.offset));
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, cursor.offset);
+      if (bytesRead === 0) break;
+      cursor.offset += bytesRead;
+      const bytes = cursor.carry.length > 0 ? Buffer.concat([cursor.carry, chunk.subarray(0, bytesRead)]) : chunk.subarray(0, bytesRead);
+      const end = bytes.lastIndexOf(0x0a);
+      if (end < 0) {
+        cursor.carry = Buffer.from(bytes);
+        continue;
+      }
+      // A newline byte never occurs inside a multi-byte UTF-8 character, so cutting at the last one leaves whole characters on both sides.
+      for (const line of bytes.subarray(0, end).toString('utf8').split('\n')) {
+        const record = parseRecord(line);
+        if (record) onRecord(record);
+      }
+      cursor.carry = Buffer.from(bytes.subarray(end + 1));
+    }
+  } catch (error) {
+    logOnce('warn', scope, `cannot read ${file}: ${fsFailure(error) ?? 'it disappeared while being read'}`);
+  } finally {
+    await handle.close();
+  }
+}
+
+function parseRecord(line: string): Record<string, unknown> | null {
+  if (!line.trim()) return null;
+  let record: unknown;
+  try {
+    record = JSON.parse(line);
+  } catch {
+    return null;
+  }
+  return record !== null && typeof record === 'object' ? (record as Record<string, unknown>) : null;
+}
+
 // --- The history: a session's requests and what came back ---
 
 /**
@@ -230,15 +309,9 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
 }
 
 /** Where the history of one transcript has been read to. */
-interface Cursor {
+interface Cursor extends TranscriptCursor {
   /** Changes when the file is read again from the start, so a caller knows that what it holds is stale. */
   generation: number;
-  offset: number;
-  /**
-   * The bytes after the last newline: a line claude has not finished writing.
-   * Bytes rather than text, since a read can end inside a multi-byte character.
-   */
-  carry: Buffer;
   fold: HistoryFold;
   /** One read at a time per file, so two callers never fold the same bytes twice. */
   queue: Promise<unknown>;
@@ -249,9 +322,6 @@ const cursors = new Map<string, Cursor>();
 const MAX_CURSORS = 16;
 let generations = 0;
 
-/** How much is read at a time, so a 50 MB transcript is read in pieces with the main process handed back between them. */
-const CHUNK_BYTES = 4 * 1024 * 1024;
-
 function restart(cursor: Cursor): void {
   cursor.generation = ++generations;
   cursor.offset = 0;
@@ -259,51 +329,9 @@ function restart(cursor: Cursor): void {
   cursor.fold = newFold();
 }
 
-function foldLine(fold: HistoryFold, line: string): void {
-  if (!line.trim()) return;
-  let record: unknown;
-  try {
-    record = JSON.parse(line);
-  } catch {
-    return;
-  }
-  if (record !== null && typeof record === 'object') foldRecord(fold, record as Record<string, unknown>);
-}
-
 /** Read what was appended to the file since the cursor's offset, or the whole file again when it shrank. */
-async function readOn(file: string, cursor: Cursor, chunkBytes: number): Promise<void> {
-  let handle;
-  try {
-    handle = await fs.open(file, 'r');
-  } catch (error) {
-    const failure = fsFailure(error);
-    if (failure) logOnce('warn', 'history', `cannot read ${file}: ${failure}`);
-    return;
-  }
-  try {
-    const { size } = await handle.stat();
-    // Shorter than what was already read means it is not the same file any more.
-    if (size < cursor.offset) restart(cursor);
-    while (cursor.offset < size) {
-      const chunk = Buffer.alloc(Math.min(chunkBytes, size - cursor.offset));
-      const { bytesRead } = await handle.read(chunk, 0, chunk.length, cursor.offset);
-      if (bytesRead === 0) break;
-      cursor.offset += bytesRead;
-      const bytes = cursor.carry.length > 0 ? Buffer.concat([cursor.carry, chunk.subarray(0, bytesRead)]) : chunk.subarray(0, bytesRead);
-      const end = bytes.lastIndexOf(0x0a);
-      if (end < 0) {
-        cursor.carry = Buffer.from(bytes);
-        continue;
-      }
-      // A newline byte never occurs inside a multi-byte UTF-8 character, so cutting at the last one leaves whole characters on both sides.
-      for (const line of bytes.subarray(0, end).toString('utf8').split('\n')) foldLine(cursor.fold, line);
-      cursor.carry = Buffer.from(bytes.subarray(end + 1));
-    }
-  } catch (error) {
-    logOnce('warn', 'history', `cannot read ${file}: ${fsFailure(error) ?? 'it disappeared while being read'}`);
-  } finally {
-    await handle.close();
-  }
+function readOn(file: string, cursor: Cursor, chunkBytes: number): Promise<void> {
+  return readAppended(file, cursor, (record) => foldRecord(cursor.fold, record), () => restart(cursor), 'history', chunkBytes);
 }
 
 /**
