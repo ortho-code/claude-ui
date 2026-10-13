@@ -236,7 +236,7 @@ The code is in `src/renderer/panels/types/claude/terminals.ts`: each tab's termi
 
 A stop, from the tab's button or the live strip's, and a close of a live tab ask claude to leave the way it is left in a terminal: Ctrl-C twice, 400 ms apart, from its prompt.
 Mid-turn the first press only interrupts the turn, so a session whose hooks last reported it busy or waiting gets a third, and any other gets two, because a third at its prompt would arm claude's own "Press Ctrl-C again to exit" under anything it asks.
-Waiting is a `Notification`, which claude also sends to a session sitting idle at its prompt, so such a session gets the third press too.
+Waiting is a permission prompt, or a `Notification`, which claude also sends to a session sitting idle at its prompt, so such a session gets the third press too.
 The presses are bytes written to the pty, which claude reads as keys while it holds the terminal in raw mode.
 
 **Nothing follows them.**
@@ -482,7 +482,16 @@ Rejected from the same mock: a popover from the tab bar (no scrollbar), a panel 
 Rather than parse terminal output to guess a session's state, the app drives status from Claude Code hooks, and reads the transcript only for the two ends no hook reports (below).
 On startup it writes a hook script and its own settings file to `~/.config/claude-ui/`, and passes that file to `claude --settings`, whose hooks merge with the user's own — so claude-ui never writes into `~/.claude/settings.json` (an earlier version did, and still strips those entries when it finds them).
 
-Five events map straight to a status: `UserPromptSubmit` → busy, `PostToolUse` → busy, `Stop` → idle (or background, below), `Notification` → waiting, `SessionEnd` → closed.
+Seven events map straight to a status: `UserPromptSubmit` → busy, `PostToolUse` → busy, `PreCompact` → busy (compaction, below), `Stop` → idle (or background, below), `Notification` → waiting, `PermissionRequest` → waiting, `SessionEnd` → closed.
+
+**A permission prompt is waiting from the moment claude asks.**
+Claude sends a prompt's `Notification` about six seconds after the prompt appears, and none at all once it is answered sooner, so for a prompt within a turn the dot used to say busy for those six seconds, and throughout a prompt answered quickly.
+By claude's source the six seconds count from the later of the prompt appearing and the last key pressed at it.
+That notice is the same question again, so the script writes nothing for it over the waiting a `PermissionRequest` wrote, which keeps a dot marked read meanwhile marked read.
+`PermissionRequest` fires as the prompt appears, and fired for no call claude let through without asking (measured on claude 2.1.289: four prompts, and seventeen calls in default mode and three in auto mode that needed none), so it does not flash the dot to waiting on an ordinary tool call; another `PermissionRequest` hook that answers the request itself would, until the tool has run, or, if that hook turns it down, until the next hook (by claude's source).
+Approving the prompt is the tool running, `PostToolUse` → busy, and turning it down without a word, with Esc or from its menu, is an interrupt in the transcript (below), which ends the turn (both measured).
+Turning it down with feedback, which a Bash prompt takes as its No amended with Tab (a WebFetch prompt has no such field), does not interrupt the turn: claude writes the refusal with the feedback and carries on, and no hook fires, so the dot says waiting until its next tool has run or the turn ends (measured: 1.0 s when claude answered at once, 7.9 s when it thought first).
+Esc at a background subagent's prompt refuses its call without an interrupt; in the one run, the subagent then finished on its own, and its end started a turn of the session's two seconds after the Esc.
 
 **A turn that ends with work still running has not finished, so it reads as `background`.**
 `Stop` carries the work the turn started that still runs, such as a backgrounded shell, a monitor or a subagent sent off in the background, as `background_tasks`, and while that list holds anything the script writes `background` instead of `idle`.

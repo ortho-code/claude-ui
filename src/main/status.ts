@@ -35,6 +35,10 @@ const HOOK_EVENTS: [string, string][] = [
   // For a shell, a monitor and a subagent (measured), the work's end starts a turn of its own, so the next `Stop` brings the list up to date without anything else to hook.
   ['Stop', 'idle'],
   ['Notification', 'waiting'],
+  // Also waiting, and the reason is how soon.
+  // Claude sends a permission prompt's `Notification` about six seconds after the prompt appears (by its source, six seconds after the later of that and the last key pressed at it), and none at all once it is answered sooner; `PermissionRequest` fires as the prompt appears (measured on claude 2.1.289, four prompts: the notice 6.0 s after it for the two left open, and none for the two answered about a second after it).
+  // It fired for no call that was let through without a prompt (measured: seventeen in default mode, three in auto mode), so it does not flash the dot to waiting for a call nobody is asked about, unless another `PermissionRequest` hook answers the request itself (by claude's source), when the dot says waiting until the tool has run, or, if that hook turns it down, until the next hook.
+  ['PermissionRequest', 'waiting'],
   // Also busy, and the reason is the gap it closes.
   // A permission prompt arrives as `Notification`, so the dot goes waiting; approving it is not a `UserPromptSubmit`, so before this NOTHING fired between the approval and the end of the turn, and the dot sat on waiting while the session worked.
   // Measured on a live session: 34 seconds of work showing "needs you".
@@ -97,6 +101,11 @@ fi
 # It is not waiting for you then: that work's end starts a turn of its own, and the notice a minute after that turn is the one that says waiting.
 # Every other notification, a permission prompt or a question, needs you and goes through.
 if [ "$status" = waiting ] && [ "$(field notification_type)" = idle_prompt ] && grep -q '"status":"background"' "$dir/$sid.json" 2>/dev/null; then
+  exit 0
+fi
+# A permission prompt's own notice comes about six seconds after its PermissionRequest wrote waiting, for the same question.
+# Writing it again would only take a read mark off a dot muted meanwhile.
+if [ "$status" = waiting ] && [ "$(field notification_type)" = permission_prompt ] && grep -q '"event":"PermissionRequest"' "$dir/$sid.json" 2>/dev/null; then
   exit 0
 fi
 # What runs behind the session, kept for the app beside its status: the payload of the last Stop, which lists that work, or nothing from a fresh start.

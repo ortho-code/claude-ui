@@ -59,6 +59,7 @@ describe('installStatusHooks', () => {
     const tool = JSON.parse(await fs.readFile(statusSettingsFile, 'utf8'));
     expect(Object.keys(tool.hooks).sort()).toEqual([
       'Notification',
+      'PermissionRequest',
       'PostModelSwitch',
       'PostToolUse',
       'PreCompact',
@@ -71,6 +72,8 @@ describe('installStatusHooks', () => {
     expect(tool.hooks.PostToolUse[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
     // The script path is single-quoted: on macOS it lives under "Application Support" and an unquoted space would split it into two arguments.
     expect(tool.hooks.UserPromptSubmit[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
+    // A permission prompt is waiting from the moment claude asks, not from its notice six seconds later.
+    expect(tool.hooks.PermissionRequest[0].hooks[0].command).toBe(`'${ourCmd}' waiting`);
     // Compaction is work: busy while it runs, and its END arrives as a SessionStart the script turns into idle.
     expect(tool.hooks.PreCompact[0].hooks[0].command).toBe(`'${ourCmd}' busy`);
     expect(tool.hooks.SessionStart[0].hooks[0].command).toBe(`'${ourCmd}' start`);
@@ -250,6 +253,27 @@ describe('the hook script', () => {
     await expect(fs.access(path.join(statusDir, `${SID}.model`))).rejects.toThrow();
   });
 
+  // The payload claude 2.1.289 sends as a permission prompt appears, reduced to what matters here.
+  it('writes waiting when claude asks for permission, naming the event', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
+    runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'WebFetch', tool_input: { url: 'https://example.com' }, permission_mode: 'default', permission_suggestions: [] });
+    expect(await readStatusFile()).toMatchObject({ status: 'waiting', event: 'PermissionRequest' });
+  });
+
+  // The prompt's own notice, about six seconds later (measured), asks nothing new, and writing it would take a read mark off.
+  it("writes nothing for a permission prompt's notice over the waiting its request wrote", async () => {
+    runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'WebFetch' });
+    runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'permission_prompt', message: 'Claude needs your permission' });
+    expect(await readStatusFile()).toMatchObject({ status: 'waiting', event: 'PermissionRequest' });
+  });
+
+  // A claude that sends no PermissionRequest leaves the notice as the only word of the prompt.
+  it("still writes waiting for a permission prompt's notice over busy", async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
+    runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'permission_prompt', message: 'Claude needs your permission' });
+    expect(await readStatusFile()).toMatchObject({ status: 'waiting', event: 'Notification' });
+  });
+
   // `source` belongs to SessionStart alone: one riding along on any other event must not rewrite its status.
   it('ignores a source on an event that is not a SessionStart', async () => {
     runHook('waiting', { session_id: SID, hook_event_name: 'Notification', source: 'compact' });
@@ -328,6 +352,12 @@ describe('the hook script', () => {
     it.each(['permission_prompt', 'elicitation_dialog', 'agent_needs_input', undefined])('still says waiting over background for a %s notification', async (type) => {
       runHook('idle', stop({ background_tasks: [task('shell')] }));
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', ...(type ? { notification_type: type } : {}) });
+      expect((await readStatusFile())?.status).toBe('waiting');
+    });
+
+    it('says waiting over background when claude asks for permission', async () => {
+      runHook('idle', stop({ background_tasks: [task('shell')] }));
+      runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'WebFetch' });
       expect((await readStatusFile())?.status).toBe('waiting');
     });
 
