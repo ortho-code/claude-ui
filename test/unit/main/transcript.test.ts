@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Exchange } from '../../../src/shared/types';
-import { endedTaskId, foldRecord, isInterruptMarker, newFold, readHistory, startedTask, type HistoryFold } from '../../../src/main/transcript';
+import { endedTaskId, foldRecord, isInterruptMarker, isRefusal, newFold, readHistory, startedTask, type HistoryFold } from '../../../src/main/transcript';
 
 // Records shaped as Claude Code writes them, reduced to the fields the fold reads.
 let n = 0;
@@ -140,6 +140,22 @@ describe('what a record says about the work behind a turn', () => {
     ['the tool result an interrupt leaves', userList([{ type: 'tool_result', content: "The user doesn't want to proceed with this tool use." }])],
   ])('reads %s as no interrupt', (_name, record) => {
     expect(isInterruptMarker(record)).toBe(false);
+  });
+
+  // Both forms measured: without feedback (an interrupt follows) and with it (claude carries on).
+  it.each([
+    ['without feedback', "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed."],
+    ['with feedback', "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). To tell you how to proceed, the user said: Do not run anything."],
+  ])('reads a tool call turned down %s as a refusal', (_name, content) => {
+    expect(isRefusal(userList([{ type: 'tool_result', is_error: true, content }]))).toBe(true);
+  });
+
+  it.each([
+    ['a tool that failed', userList([{ type: 'tool_result', is_error: true, content: 'Exit code 1' }])],
+    ['a subagent denied permission, in its own transcript', userList([{ type: 'tool_result', is_error: true, content: 'Permission for this tool use was denied.' }])],
+    ['a prompt that quotes the words', typed("The user doesn't want to proceed with this tool use.")],
+  ])('reads %s as no refusal', (_name, record) => {
+    expect(isRefusal(record)).toBe(false);
   });
 
   it.each(['killed', 'completed', 'failed'])('reads a notice that work was %s as its end', (status) => {

@@ -53,6 +53,19 @@ export function isInterruptMarker(record: Record<string, unknown>): boolean {
   return record.type === 'user' && INTERRUPT_MARKERS.has(extractUserText(record));
 }
 
+/**
+ * The words a refused tool call's result starts with, written when a permission prompt of the session's own is turned down, with feedback or without (measured on claude 2.1.289); a subagent's prompt gets other words, in its own transcript.
+ * Without feedback an interrupt marker follows and the turn ends; with feedback none does, and claude carries on.
+ * By claude's source the same words are written for a running tool you interrupt, which the marker follows too.
+ */
+const REFUSAL = "The user doesn't want to proceed with this tool use.";
+
+export function isRefusal(record: Record<string, unknown>): boolean {
+  if (record.type !== 'user') return false;
+  const content = (record.message as { content?: unknown } | undefined)?.content;
+  return Array.isArray(content) && (content as ({ type?: unknown; content?: unknown } | null)[]).some((block) => block?.type === 'tool_result' && typeof block.content === 'string' && block.content.startsWith(REFUSAL));
+}
+
 /** The statuses claude's notice of a piece of background work gives an end, out of the four its own instructions name; `blocked`, the fourth, does not say the work has ended, so it is not counted. */
 const ENDED_TASK = new Set(['completed', 'failed', 'killed']);
 

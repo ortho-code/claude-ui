@@ -91,6 +91,9 @@ if [ "$status" = model ]; then
   [ -n "$to" ] && printf '%s' "$to" > "$dir/$sid.model"
   exit 0
 fi
+# An end the app reports from the transcript names the statuses it ends and the second the status it read was written; it is checked against the file at the last moment, below.
+expect="$(field claude_ui_expect)"
+expect_ts="$(field claude_ui_expect_ts)"
 # A subagent's events carry the session's own id, told apart by agent_id.
 # Once the session's turn has ended, a subagent still at work runs in the background, and its tool calls are not the session working again.
 # Waiting still goes through: it needs you, whoever asks.
@@ -111,8 +114,10 @@ fi
 # What runs behind the session, kept for the app beside its status: the payload of the last Stop, which lists that work, or nothing from a fresh start.
 # The app reads it when the transcript shows a turn ending with no hook to say so (an interrupt), or work ending without a turn (stopped from claude's task list).
 # A compaction is the same claude going on, so its SessionStart keeps what the last Stop said.
+# A Stop's is written with its status, below, so an end the app reports and the script then drops leaves it as it was.
+keep_stop=''
 if [ "$status" = idle ]; then
-  printf '%s' "$input" > "$dir/$sid.stop"
+  keep_stop=1
 elif [ "$status" = start ] && [ "$(field source)" != compact ]; then
   printf '{}' > "$dir/$sid.stop"
 fi
@@ -134,7 +139,17 @@ if [ "$status" = start ] && [ -e "$dir/$sid.json" ]; then
   exit 0
 fi
 # The event goes along because one status is several events, and the app asks of one of them in particular: a prompt submitted says a session asked to leave has stayed.
-printf '{"status":"%s","ts":%s,"tab":"%s","event":"%s"%s}\\n' "$status" "$(date +%s)" "\${CLAUDE_UI_TAB:-}" "$(field hook_event_name)" "$extra" > "$dir/$sid.json"
+printf -v line '{"status":"%s","ts":%s,"tab":"%s","event":"%s"%s}' "$status" "$(date +%s)" "\${CLAUDE_UI_TAB:-}" "$(field hook_event_name)" "$extra"
+# An end the app reports stands only over the status it read, of the same second: one a hook has written since, a Stop above all, keeps its word.
+# Last, and with builtins only, so a hook has the fewest instants to land between this look and the write.
+if [ -n "$expect" ]; then
+  current=''
+  { read -r current < "$dir/$sid.json"; } 2>/dev/null
+  pattern="\\"status\\":\\"($expect)\\",\\"ts\\":$expect_ts,"
+  [[ $current =~ $pattern ]] || exit 0
+fi
+[ -n "$keep_stop" ] && printf '%s' "$input" > "$dir/$sid.stop"
+printf '%s\\n' "$line" > "$dir/$sid.json"
 exit 0
 `;
 
@@ -234,6 +249,8 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
 
 interface StatusEntry {
   status: string;
+  /** The second the script wrote it, as the script stamps it; null from a file without one. */
+  ts: number | null;
   /** The terminal that reported it (TAB_ENV), or '' for a session claude-ui is not running. */
   tab: string;
   /** The hook event that reported it, or '' from a file written before the script named it. */
@@ -246,6 +263,7 @@ async function readStatus(id: string): Promise<StatusEntry | null> {
   try {
     const parsed = JSON.parse(await fs.readFile(path.join(statusDir, `${id}.json`), 'utf8')) as {
       status?: unknown;
+      ts?: unknown;
       tab?: unknown;
       event?: unknown;
       background?: unknown;
@@ -253,6 +271,7 @@ async function readStatus(id: string): Promise<StatusEntry | null> {
     if (typeof parsed.status !== 'string') return null;
     return {
       status: parsed.status,
+      ts: Number.isInteger(parsed.ts) ? (parsed.ts as number) : null,
       tab: typeof parsed.tab === 'string' ? parsed.tab : '',
       event: typeof parsed.event === 'string' ? parsed.event : '',
       ...(Array.isArray(parsed.background) ? { background: parsed.background.filter((type): type is string => typeof type === 'string') } : {}),
@@ -274,6 +293,8 @@ export interface Report {
   status: string;
   /** When the status was written, in ms since the epoch. */
   at: number;
+  /** The second the script stamped it with, which an end reported in a hook's place names so the script can tell it from a status written since; null without one. */
+  ts: number | null;
   tab: string;
   /** The work the last Stop listed as still running, or none from a fresh start. */
   running: Work[];
@@ -302,7 +323,7 @@ export async function readReport(id: string): Promise<Report | null> {
   } catch {
     // No Stop file, or one that does not parse: nothing is known to run, and nothing the transcript says was started counts as running since.
   }
-  return { status: entry.status, at, tab: entry.tab, running, runningAt };
+  return { status: entry.status, at, ts: entry.ts, tab: entry.tab, running, runningAt };
 }
 
 async function mtimeOf(file: string): Promise<number | null> {
@@ -313,24 +334,36 @@ async function mtimeOf(file: string): Promise<number | null> {
   }
 }
 
+/** An end of a state that no hook reports, as the app reports it in the hook's place. */
+export interface Ending {
+  /** What the status file names as having reported it. */
+  event: string;
+  /** Idle as a Stop writes it, so background while `running` holds anything; or busy, for a turn that goes on. */
+  status: 'idle' | 'busy';
+  /** For idle, the work still listed as running. */
+  running: Work[];
+  /** The statuses it ends: the script writes it only over one of these, stamped as the report it read was. */
+  ends: readonly string[];
+}
+
 /**
- * Report the end of a turn, or of work behind it, that no hook reports, by running the hook script as a Stop would, with `running` as the work still listed.
- * The script stays the one writer of the status files, so the end reads exactly as a Stop's would: idle, or background naming that work.
- * `event` is what the status file names as having reported it.
- * `listedAt` is when the Stop that `running` was taken from was written, kept with it so that work ending after that Stop still counts as ended, even before this report is written.
+ * Report an end that no hook reports by running the hook script as the hook would have, so the script stays the one writer of the status files: an idle reads exactly as a Stop's would, idle or background naming that work.
+ * `report` is the one the end was read from: the script writes only over that status of that second, and keeps with the work still running the time of the Stop it was taken from, so that work ending after that Stop still counts as ended, even before this report is written.
  */
-export function reportEnd(id: string, tab: string, event: string, running: Work[], listedAt: number): Promise<void> {
+export function reportEnd(id: string, report: Report, ending: Ending): Promise<void> {
+  const { tab, ts, runningAt: listedAt } = report;
   return new Promise((resolve) => {
-    const child = spawn(hookScriptPath, ['idle'], { env: { ...process.env, [SCOPE_ENV]: '1', [TAB_ENV]: tab }, stdio: ['pipe', 'ignore', 'ignore'] });
+    const child = spawn(hookScriptPath, [ending.status], { env: { ...process.env, [SCOPE_ENV]: '1', [TAB_ENV]: tab }, stdio: ['pipe', 'ignore', 'ignore'] });
     child.stdin.on('error', () => {});
     child.on('error', (error) => {
-      log('warn', 'status', `could not report ${event} for ${id}: ${errorText(error)}`);
+      log('warn', 'status', `could not report ${ending.event} for ${id}: ${errorText(error)}`);
       resolve();
     });
     child.on('close', () => resolve());
     // Without a Stop to take it from, the report is the first list, as a Stop's would be.
     const listed = Number.isFinite(listedAt) ? { listed_at: listedAt } : {};
-    child.stdin.end(JSON.stringify({ session_id: id, hook_event_name: event, background_tasks: running, ...listed }));
+    const stop = ending.status === 'idle' ? { background_tasks: ending.running, ...listed } : {};
+    child.stdin.end(JSON.stringify({ session_id: id, hook_event_name: ending.event, claude_ui_expect: ending.ends.join('|'), claude_ui_expect_ts: String(ts ?? ''), ...stop }));
   });
 }
 

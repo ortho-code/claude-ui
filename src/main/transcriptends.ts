@@ -1,17 +1,18 @@
 import * as path from 'node:path';
 import { errorText, log } from './log';
-import { readReport, reportEnd, type Report, type Work } from './status';
-import { endedTaskId, isInterruptMarker, readAppended, startedTask, type TranscriptCursor } from './transcript';
+import { readReport, reportEnd, type Ending, type Report, type Work } from './status';
+import { endedTaskId, isInterruptMarker, isRefusal, readAppended, startedTask, type TranscriptCursor } from './transcript';
 
 /**
- * The ends no hook reports, read from a session's transcript: a turn interrupted by Ctrl+C or Esc, and a shell or a monitor stopped from claude's task list.
- * None of them fired any hook (measured on claude 2.1.289), so the dot stayed busy, waiting or background until claude's next turn.
- * The transcript may END a state the hooks started and never start one: everything else is the hooks' alone.
+ * The ends no hook reports, read from a session's transcript: a turn interrupted by Ctrl+C or Esc, a shell or a monitor stopped from claude's task list, and a permission prompt turned down with feedback, after which claude carries on.
+ * None of them fired any hook (measured on claude 2.1.289), so the dot stayed busy, waiting or background until claude's next turn or its next tool.
+ * The transcript may END a state the hooks started, with idle, background or, for a prompt turned down with feedback, busy, and never start one from nothing: everything else is the hooks' alone.
  */
 
 /** The names the status file gives these reports, as it names the hook event behind any other; not claude's, so none can be mistaken for one. */
 export const INTERRUPT_EVENT = 'transcript:interrupt';
 export const TASK_END_EVENT = 'transcript:task-end';
+export const REFUSAL_EVENT = 'transcript:refusal';
 
 /**
  * How long an end the transcript shows, an interrupt's too, waits for a hook to answer it first.
@@ -24,6 +25,8 @@ const SETTLE_MS = 1000;
 export interface Facts {
   /** When the newest interrupt was written, in ms since the epoch; 0 for none. */
   interruptedAt: number;
+  /** When the newest refusal of a tool call was written, in ms since the epoch; 0 for none. */
+  refusedAt: number;
   /** When the transcript last said a piece of background work ended, by its id, in ms since the epoch; an id can end more than once, as a subagent resumed after it finished does. */
   ended: Map<string, number>;
   /** The background work it has said was started, with when, in ms since the epoch. */
@@ -31,7 +34,7 @@ export interface Facts {
 }
 
 export function newFacts(): Facts {
-  return { interruptedAt: 0, ended: new Map(), started: [] };
+  return { interruptedAt: 0, refusedAt: 0, ended: new Map(), started: [] };
 }
 
 /** Add what one transcript record says to the facts; a record with no time to place it by says nothing. */
@@ -40,6 +43,10 @@ export function readFact(facts: Facts, record: Record<string, unknown>): void {
   if (Number.isNaN(at)) return;
   if (isInterruptMarker(record)) {
     facts.interruptedAt = Math.max(facts.interruptedAt, at);
+    return;
+  }
+  if (isRefusal(record)) {
+    facts.refusedAt = Math.max(facts.refusedAt, at);
     return;
   }
   const ended = endedTaskId(record);
@@ -58,16 +65,20 @@ export function readFact(facts: Facts, record: Record<string, unknown>): void {
  * A waiting written after the interrupt is taken as a question claude asked since, and stands.
  * Background ends a piece of work at a time: whatever the last Stop listed that has ended since comes off the list, and with nothing left the session is idle.
  * Only an end written after that Stop counts, since one written before it is an earlier end of an id the Stop lists as running again.
+ * A refusal written after a waiting, with no interrupt after it, is a prompt turned down with feedback: the question is answered and the turn goes on, so the session is busy.
  */
-export function unhookedEnd(report: Report, facts: Facts): { event: string; running: Work[] } | null {
+export function unhookedEnd(report: Report, facts: Facts): Ending | null {
   const runs = (work: Work): boolean => !((facts.ended.get(work.id) ?? -Infinity) >= report.runningAt);
   if ((report.status === 'busy' || report.status === 'waiting') && facts.interruptedAt > report.at) {
     const listed = new Set(report.running.map((work) => work.id));
     const since = facts.started.filter((work) => work.at >= report.runningAt && !listed.has(work.id)).map(({ id, type }) => ({ id, type }));
-    return { event: INTERRUPT_EVENT, running: [...report.running, ...since].filter(runs) };
+    return { event: INTERRUPT_EVENT, status: 'idle', running: [...report.running, ...since].filter(runs), ends: ['busy', 'waiting'] };
+  }
+  if (report.status === 'waiting' && facts.refusedAt > report.at && facts.refusedAt > facts.interruptedAt) {
+    return { event: REFUSAL_EVENT, status: 'busy', running: [], ends: ['waiting'] };
   }
   if (report.status === 'background' && !report.running.every(runs)) {
-    return { event: TASK_END_EVENT, running: report.running.filter(runs) };
+    return { event: TASK_END_EVENT, status: 'idle', running: report.running.filter(runs), ends: ['background'] };
   }
   return null;
 }
@@ -115,7 +126,31 @@ async function readOn(file: string, read: Read, settleMs: number): Promise<void>
     if (!read.waiting) reads.delete(file);
     return;
   }
-  await readAppended(
+  await readOnTo(file, read);
+  // The report again, now the transcript has been read: a prompt submitted meanwhile has written busy after the interrupt, and that busy stands.
+  const report = await readReport(id);
+  if (!report || !unhookedEnd(report, read.facts)) return;
+  await new Promise((resolve) => setTimeout(resolve, settleMs));
+  // Both again after the wait: a hook may have answered, and what claude wrote meanwhile may change the end, as the interrupt that follows a refusal without feedback does.
+  await readOnTo(file, read);
+  const settled = await readReport(id);
+  if (settled?.at !== report.at) return;
+  const end = unhookedEnd(settled, read.facts);
+  if (!end) return;
+  // The script writes it only over the status read here, of the same second, checking at the last instant before its write; one rewritten as the same status within that second, such as a prompt's busy over busy, is still overwritten.
+  log('info', 'status', `${id}: ${ENDED[end.event] ?? end.event}, from its transcript; ${end.running.length} still running`);
+  await reportEnd(id, settled, end);
+}
+
+/** What the log says of each end. */
+const ENDED: Record<string, string> = {
+  [INTERRUPT_EVENT]: 'interrupted',
+  [TASK_END_EVENT]: 'background work ended',
+  [REFUSAL_EVENT]: 'a prompt turned down with feedback, the turn going on',
+};
+
+function readOnTo(file: string, read: Read): Promise<void> {
+  return readAppended(
     file,
     read.cursor,
     (record) => readFact(read.facts, record),
@@ -124,14 +159,4 @@ async function readOn(file: string, read: Read, settleMs: number): Promise<void>
     },
     'status',
   );
-  // The report again, now the transcript has been read: a prompt submitted meanwhile has written busy after the interrupt, and that busy stands.
-  const report = await readReport(id);
-  if (!report) return;
-  const end = unhookedEnd(report, read.facts);
-  if (!end) return;
-  await new Promise((resolve) => setTimeout(resolve, settleMs));
-  if ((await readReport(id))?.at !== report.at) return;
-  // What is left is the moment between that read and the script's write, in which a hook's write is overwritten: a busy until its next tool call or its Stop, a waiting until the next hook.
-  log('info', 'status', `${id}: ${end.event === INTERRUPT_EVENT ? 'interrupted' : 'background work ended'}, from its transcript; ${end.running.length} still running`);
-  await reportEnd(id, report.tab, end.event, end.running, report.runningAt);
 }

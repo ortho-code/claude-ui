@@ -32,7 +32,7 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => testHome };
 });
 
-import { installStatusHooks, readAllStatuses as getAllStatuses, readReport, reportEnd, statusSettingsFile } from '../../../src/main/status';
+import { installStatusHooks, readAllStatuses as getAllStatuses, readReport, reportEnd, statusSettingsFile, type Ending, type Report, type Work } from '../../../src/main/status';
 import { statusDir } from '../../../src/main/paths';
 import { runHook, TOKEN } from './hookscript';
 
@@ -414,31 +414,85 @@ describe('the hook script', () => {
     });
   });
 
-  /** An end no hook reports goes through the script, as a Stop would: the script stays the one writer of the status files. */
+  /** An end no hook reports goes through the script, as the hook would have: the script stays the one writer of the status files. */
   describe('reporting an end no hook reports', () => {
+    const shell = { id: 'bh9w6pqmt', type: 'shell' };
+    const interrupt = (running: Work[] = []): Ending => ({ event: 'transcript:interrupt', status: 'idle', running, ends: ['busy', 'waiting'] });
+    const refusal: Ending = { event: 'transcript:refusal', status: 'busy', running: [], ends: ['waiting'] };
+    const taskEnd: Ending = { event: 'transcript:task-end', status: 'idle', running: [], ends: ['background'] };
+    /** The report the reader would have read: the status file as it is now. */
+    const current = async (): Promise<Report> => (await readReport(SID))!;
+
+    beforeEach(async () => {
+      await fs.rm(path.join(statusDir, `${SID}.stop`), { force: true });
+    });
+
     it('writes idle when nothing is left running, naming the report', async () => {
       runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
-      await reportEnd(SID, TOKEN, 'transcript:interrupt', [], Infinity);
+      await reportEnd(SID, await current(), interrupt());
       expect(await readStatusFile()).toMatchObject({ status: 'idle', tab: TOKEN, event: 'transcript:interrupt' });
     });
 
     it('writes background naming what still runs, and keeps it as the last Stop would', async () => {
       runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
-      await reportEnd(SID, TOKEN, 'transcript:interrupt', [{ id: 'bh9w6pqmt', type: 'shell' }], 1760000000000);
+      await reportEnd(SID, await current(), interrupt([shell]));
       expect(await readStatusFile()).toMatchObject({ status: 'background', background: ['shell'] });
-      expect(await readReport(SID)).toMatchObject({ running: [{ id: 'bh9w6pqmt', type: 'shell' }] });
+      expect(await readReport(SID)).toMatchObject({ running: [shell] });
     });
 
     // The list is the Stop's, less what had ended, so it is as old as that Stop: work ending after it still counts as ended.
     it('keeps the time of the Stop its list was taken from', async () => {
-      await reportEnd(SID, TOKEN, 'transcript:interrupt', [{ id: 'bh9w6pqmt', type: 'shell' }], 1760000000000);
+      runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
+      await reportEnd(SID, { ...(await current()), runningAt: 1760000000000 }, interrupt([shell]));
       expect((await readReport(SID))?.runningAt).toBe(1760000000000);
     });
 
     it('starts a list of its own when no Stop came before it', async () => {
+      runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse' });
       const before = Date.now();
-      await reportEnd(SID, TOKEN, 'transcript:interrupt', [], Infinity);
+      await reportEnd(SID, await current(), interrupt());
       expect((await readReport(SID))?.runningAt).toBeGreaterThanOrEqual(before - 1000);
+    });
+
+    it('writes busy for a turn that goes on, and keeps what the last Stop left running', async () => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running' }] });
+      runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'Bash' });
+      await reportEnd(SID, await current(), refusal);
+      expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'transcript:refusal' });
+      expect((await readReport(SID))?.running).toEqual([shell]);
+    });
+
+    // A hook that wrote between the reader's last look and this report has the newer word: a turn's Stop must never be overwritten with busy.
+    it.each([
+      ['a refusal over the idle of a Stop', refusal, 'idle'],
+      ['an interrupt over a background', interrupt(), 'background'],
+      ['an end of background work over busy', taskEnd, 'busy'],
+    ])('writes nothing for %s', async (_case, ending, status) => {
+      runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'Bash' });
+      const read = await current();
+      if (status === 'idle') runHook('idle', { session_id: SID, hook_event_name: 'Stop' });
+      if (status === 'background') runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running' }] });
+      if (status === 'busy') runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+      const before = await fs.readFile(statusFile, 'utf8');
+      await reportEnd(SID, read, ending);
+      expect(await fs.readFile(statusFile, 'utf8')).toBe(before);
+    });
+
+    // A new prompt's waiting, written after the reader read the one a refusal answered, is not the waiting the refusal ends.
+    it('writes nothing over the same status written in another second', async () => {
+      runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'Bash' });
+      const read = await current();
+      const before = await fs.readFile(statusFile, 'utf8');
+      await reportEnd(SID, { ...read, ts: read.ts! - 1 }, refusal);
+      expect(await fs.readFile(statusFile, 'utf8')).toBe(before);
+    });
+
+    it('writes nothing for a session with no status', async () => {
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+      const read = await current();
+      await fs.rm(statusFile);
+      await reportEnd(SID, read, interrupt());
+      expect(await readStatusFile()).toBe(null);
     });
   });
 
