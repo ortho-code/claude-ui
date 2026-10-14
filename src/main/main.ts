@@ -1,7 +1,7 @@
 // First, and for its side effect: paths.ts pins the userData directory, and must run before any module computes a path from it.
 // See the comment there.
 import './paths';
-import { app, BrowserWindow, ipcMain, Menu, dialog, shell, nativeImage, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, shell, nativeImage, screen } from 'electron';
 import type { NativeImage } from 'electron';
 import { execFile } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -471,10 +471,6 @@ ipcMain.handle('sessions:delete', async (_event, id: string) => {
   await clearStatuses([id]);
   // A row that started it would otherwise lead back to a session that is gone.
   await forgetSessions([id]);
-});
-ipcMain.handle('dialog:pickFolder', async (): Promise<string | null> => {
-  const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
-  return result.canceled ? null : (result.filePaths[0] ?? null);
 });
 ipcMain.handle('meta:getOpenSessions', () => getOpenSessions());
 ipcMain.handle('meta:getActiveSession', () => getActiveSession());

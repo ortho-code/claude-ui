@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { existsSync, rmSync } from 'node:fs';
 
-const { dataDir, handlers, openPath } = vi.hoisted(() => {
+const { dataDir, handlers, openPath, showOpenDialog } = vi.hoisted(() => {
   const { mkdtempSync } = require('node:fs') as typeof import('node:fs');
   const { tmpdir } = require('node:os') as typeof import('node:os');
   const { join } = require('node:path') as typeof import('node:path');
@@ -9,6 +9,7 @@ const { dataDir, handlers, openPath } = vi.hoisted(() => {
     dataDir: mkdtempSync(join(tmpdir(), 'claude-ui-folders-')),
     handlers: new Map<string, (...args: unknown[]) => unknown>(),
     openPath: vi.fn(async () => ''),
+    showOpenDialog: vi.fn(async () => ({ canceled: false, filePaths: ['/picked'] })),
   };
 });
 
@@ -19,6 +20,7 @@ vi.mock('electron', () => ({
     on: (channel: string, fn: (...args: unknown[]) => unknown) => handlers.set(channel, fn),
   },
   shell: { openPath },
+  dialog: { showOpenDialog },
 }));
 
 import { registerFolders } from '../../../src/main/folders';
@@ -50,5 +52,18 @@ describe('the folders Settings shows', () => {
     openPath.mockClear();
     for (const name of ['/etc', 'constructor', '__proto__', 'toString']) handlers.get('folder:open')!(null, name);
     expect(openPath).not.toHaveBeenCalled();
+  });
+});
+
+describe('the folder picker', () => {
+  it('asks for a folder and answers the one picked', async () => {
+    showOpenDialog.mockClear();
+    expect(await handlers.get('dialog:pickFolder')!()).toBe('/picked');
+    expect(showOpenDialog).toHaveBeenCalledWith({ properties: expect.arrayContaining(['openDirectory']) });
+  });
+
+  it('answers nothing when it is cancelled', async () => {
+    showOpenDialog.mockResolvedValueOnce({ canceled: true, filePaths: [] });
+    expect(await handlers.get('dialog:pickFolder')!()).toBeNull();
   });
 });
