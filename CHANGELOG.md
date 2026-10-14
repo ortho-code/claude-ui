@@ -55,6 +55,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   It shows finished once that work has finished on its own and claude has answered it, and says it is waiting for you only a minute after that, rather than a minute after the turn that started the work.
 - A `positive` tone for a row of a panel type of your own, which marks its leading edge green.
 - A row of a panel type of your own can carry a short mark before its text, `lead`, coloured by a tone of its own, and a short text at the end of its first line, `trail`, such as a count.
+- A list of a panel type of your own can be compact, with `"compact": true` in what its script prints: its rows lose the card around each, and a row's text keeps to one line.
 
 ### Changed
 

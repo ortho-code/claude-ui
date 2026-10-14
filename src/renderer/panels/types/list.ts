@@ -247,6 +247,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
    */
   private drawList(): void {
     if (!this.good) return;
+    this.body.classList.toggle('compact', this.good.doc.compact);
     this.items.clear();
     const seen = new Set<string>();
     const boxes = this.good.doc.sections.map((section, at) => {

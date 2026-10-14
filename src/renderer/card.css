@@ -88,13 +88,14 @@
   color: var(--muted);
 }
 
-/* The card an item in a list sits on, a session row (.session) or a list panel's row (.list-row): one look for "an item in a list" wherever the app draws one. */
+/* The card an item in a list sits on, a session row (.session) or a list panel's row (.list-row): one look for "an item in a list" wherever the app draws one.
+   Its resting fill is `--card-fill` when a list sets one, as a compact list panel does (list.css), so the hover below still lights it without a second hover rule. */
 .card {
   display: flex;
   align-items: center;
   --row-gap: 8px;
   gap: var(--row-gap);
-  background: var(--surface);
+  background: var(--card-fill, var(--surface));
   border-radius: var(--radius-surface);
   padding: 7px 14px;
   /* margin-top (not -bottom) so the gap sits above each row: heading->first row, row->row, and last-row->next-heading all become one uniform 8px, with no doubled gap next to a heading. */

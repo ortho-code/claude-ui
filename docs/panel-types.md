@@ -125,6 +125,7 @@ One JSON object:
 |---|---|
 | `version` | Required, `1`. |
 | `badge` | A count on the panel's icon and beside its title: a whole number, 0 or more. |
+| `compact` | `true` draws the rows without the card around each, for a list scanned many rows at a time; a row's text is then cut short to one line, so put the rest in its `tooltip`, and leave out `detail`, which still adds a second line. |
 | `sections` | Required: the sections, in order. |
 | `notes` | Sentences for the line under the panel. |
 

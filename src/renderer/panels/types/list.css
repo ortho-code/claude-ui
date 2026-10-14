@@ -1,5 +1,5 @@
 /* A LIST PANEL: a type from the config folder whose script prints a list.
-   Its rows are the card a session row is (.card, with .list-row for what is its own) and its section headings the sidebar's group bar, both built by card.ts, so what is its own is only the scrolling body, a row's first line, what a row's tone does, and the line a failed run leaves above the list. */
+   Its rows are the card a session row is (.card, with .list-row for what is its own) and its section headings the sidebar's group bar, both built by card.ts, so what is its own is only the scrolling body, a row's first line, what a row's tone does, the compact shape, and the line a failed run leaves above the list. */
 .list-body {
   flex: 1;
   min-height: 0;
@@ -15,6 +15,28 @@
 /* What an empty section says, level with the text in the rows it stands in for. */
 .list-section .section-empty {
   padding-left: 14px;
+}
+
+/* A COMPACT LIST, one its script marks `compact`: a row sits on the panel's own background, with no gap between rows, and its text keeps to one line, for a list scanned many rows at a time, such as changed files; a `detail` still adds a second line.
+   Its own row shape, not the card and not the menu row, which it resembles but which is a choice in a menu or a strip, where this is an item in a list (docs/architecture.md § UI conventions).
+   The text keeps to one line, cut short, so a script puts the rest in the row's tooltip; a link still lights the row under the pointer, through the card's own hover.
+   14px on the right, the section heading's own, so a trail ends under the heading's count. */
+.list-body.compact .list-row {
+  --card-fill: transparent;
+  margin-top: 0;
+  padding: 3px 14px 3px 8px;
+  border-radius: var(--radius-control);
+}
+
+.list-body.compact .section-heading + .list-row {
+  margin-top: 2px;
+}
+
+.list-body.compact .card-title {
+  display: block;
+  margin: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* The sessions a row started, before what it offers: the latest's status dot in the icon box every clickable mark uses, and their count beside it when there are several. */

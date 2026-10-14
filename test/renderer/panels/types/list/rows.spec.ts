@@ -133,6 +133,27 @@ test("a row's tooltip shows over the whole of its first line, its lead and trail
   }
 });
 
+/** FILES as a compact list, with a row that has a link. */
+const COMPACT = { ...FILES, compact: true, sections: [{ items: [...FILES.sections[0].items, { key: 'l', lead: 'M', text: 'linked.md', trail: '+1 −0', href: 'https://example.com/linked.md' }] }] };
+
+test('a compact list draws a row without a detail as one line, without the card around it or the gap between rows', async ({ app, page }) => {
+  await bootList(app, page, COMPACT);
+  const [short, long] = [row(page, 'FQDN.php'), row(page, 'LongerThanAnyRowIsWide')];
+  expect(await short.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+  expect((await boxOf(long)).top).toBe((await boxOf(short)).bottom);
+  // A text too long for its line is cut short on that one line, and its trail stays whole beside it.
+  expect((await boxOf(long.locator('.card-title'))).bottom - (await boxOf(long.locator('.card-title'))).top).toBe((await boxOf(short.locator('.card-title'))).bottom - (await boxOf(short.locator('.card-title'))).top);
+  expect(await long.locator('.card-title').evaluate((el) => getComputedStyle(el).textOverflow)).toBe('ellipsis');
+  await expect.poll(() => overrun(long.locator('.list-trail'))).toBe(0);
+});
+
+test('a compact row with a link still lights under the pointer', async ({ app, page }) => {
+  await bootList(app, page, COMPACT);
+  const linked = row(page, 'linked.md');
+  await linked.hover();
+  await expect.poll(() => linked.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await token(page, '--surface-hover'));
+});
+
 test("a row's detail with a word longer than its line stays beside the row's button, not under it", async ({ app, page }) => {
   await bootList(app, page);
   await expect.poll(() => overrun(row(page, 'FeaturedImageDownloaderTest.php').locator('.card-meta'))).toBe(0);

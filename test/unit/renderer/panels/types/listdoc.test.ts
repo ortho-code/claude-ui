@@ -11,6 +11,7 @@ describe('readListDocument', () => {
       JSON.stringify({
         version: 1,
         badge: 3,
+        compact: true,
         sections: [
           {
             empty: 'Nothing waiting on you.',
@@ -37,6 +38,7 @@ describe('readListDocument', () => {
     expect(read).toEqual({
       doc: {
         badge: 3,
+        compact: true,
         sections: [
           {
             title: null,
@@ -68,6 +70,7 @@ describe('readListDocument', () => {
   it('needs only a version, sections, and a key and text per item', () => {
     expect(readListDocument(doc()).doc).toEqual({
       badge: null,
+      compact: false,
       sections: [{ title: null, shut: false, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', trail: null, tooltip: null, detail: null, href: null, tone: 'normal', actions: [] }] }],
       notes: [],
     });
@@ -92,6 +95,7 @@ describe('readListDocument', () => {
     [{ sections: {} }, 'sections is not an array.'],
     [{ badge: -1 }, 'badge is not a whole number, 0 or more.'],
     [{ badge: 1.5 }, 'badge is not a whole number, 0 or more.'],
+    [{ compact: 'yes' }, 'compact is not true or false.'],
     [{ notes: [3] }, 'notes[0] is not a string.'],
     [{ sections: [3] }, 'sections[0] is not an object.'],
     [{ sections: [{}] }, 'sections[0].items is missing.'],
