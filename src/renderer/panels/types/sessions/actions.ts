@@ -1,3 +1,4 @@
+import { prReference } from '../../../../shared/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDelete, promptText } from '../../../dialogs';
 import { entityKey, folderName, relativeTime, sessionLabel, unstartableReason } from '../../../logic';
@@ -54,7 +55,7 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
 // Shared by the PR mark and the kebab submenu.
 function prMenuItems(session: SessionSummary): MenuItem[] {
   return session.prs.map((pr) => ({
-    label: `${pr.repository}#${pr.number}`,
+    label: prReference(pr),
     onSelect: () => window.claudeUi.openExternal(pr.url),
   }));
 }

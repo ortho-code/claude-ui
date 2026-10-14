@@ -277,6 +277,14 @@ describe('sessionPasses', () => {
     expect(sessionPasses(s, { ...base, text: 'terminal' })).toBe(false);
   });
 
+  it("matches a session's PRs by their reference, so a PR's number finds the session that linked it", () => {
+    const bare = { title: 'Untitled', firstMessage: '', cwd: '/repo' };
+    const linked = session({ ...bare, prs: [{ repository: 'ScientaNL/scienta', number: 35996, url: 'https://github.com/ScientaNL/scienta/pull/35996' }] });
+    expect(sessionPasses(linked, { ...base, text: '35996' })).toBe(true);
+    expect(sessionPasses(linked, { ...base, text: 'scienta#35996' })).toBe(true);
+    expect(sessionPasses(session(bare), { ...base, text: '35996' })).toBe(false);
+  });
+
   it("matches a group name only on that group's own members", () => {
     const groupNames = new Map([['other', 'Terminal work']]);
     expect(sessionPasses(session({ id: 's1' }), { ...base, text: 'terminal', groupNames })).toBe(false);

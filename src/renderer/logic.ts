@@ -1,5 +1,6 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested.
 // renderer.ts wires these to its state and the DOM.
+import { prReference } from '../shared/prs';
 import type { GroupState, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
 
@@ -298,7 +299,9 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   const note = c.notes?.get(key) ?? '';
   // The group name matches every session in that group, which is what makes typing one a way to reach it — the group headings themselves are not searchable, only the rows under them.
   const group = c.groupNames?.get(key) ?? '';
-  return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id} ${note} ${group}`
+  // A PR by the reference its menus show, so its number finds the session that linked it.
+  const prs = session.prs.map(prReference).join(' ');
+  return `${session.title} ${session.firstMessage} ${session.cwd} ${session.id} ${note} ${group} ${prs}`
     .toLowerCase()
     .includes(c.text.toLowerCase());
 }
