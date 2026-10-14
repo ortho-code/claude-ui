@@ -455,6 +455,17 @@ describe('projectsForSwitcher', () => {
     expect(model.projects).toEqual([]);
     expect(model.all).toEqual({ count: 0, badge: null });
   });
+
+  // The list keeps the same project (buildProjectTree), so the two agree on which projects there are and where each sits.
+  it('lists a project whose sessions are all archived at none, in its place, its folder answered by those sessions', () => {
+    const archived = new Map([['/x/gone', [session({ id: 'g', repoRoot: '/x/gone', repoRootExists: false, cwdExists: false })]]]);
+    const model = projectsForSwitcher([s('a1', '/x/alpha')], new Map([['g', 'waiting']]), new Set(), undefined, ['/x/gone', '/x/alpha'], archived);
+    expect(model.projects.map((f) => [f.name, f.count, f.badge, f.rootExists])).toEqual([
+      ['gone', 0, null, false],
+      ['alpha', 1, null, true],
+    ]);
+    expect(model.all.count).toBe(1);
+  });
 });
 
 describe('modelLabel', () => {
@@ -582,6 +593,18 @@ describe('buildProjectTree', () => {
       ['/alpha', false],
       ['/beta', true],
     ]);
+  });
+
+  it('keeps a project whose sessions are all archived in its place, with no rows, its groups, and how many it has archived', () => {
+    const archived = [session({ id: 'x', conversationId: 'x', repoRoot: '/kept', isRepo: true }), session({ id: 'y', conversationId: 'y', repoRoot: '/kept', isRepo: true })];
+    const state = { groups: [group('g1', 'Kept group', '/kept')], groupOf: { x: 'g1' } };
+    const tree = buildProjectTree([s('a', '/alpha')], state, none, false, ['/kept', '/alpha'], new Map([['/kept', archived]]));
+    expect(tree.map((p) => [p.repoRoot, p.count, p.archived, p.isRepo, p.rootExists])).toEqual([
+      ['/kept', 0, 2, true, true],
+      ['/alpha', 1, 0, false, true],
+    ]);
+    expect(tree[0].groups.map((g) => [g.group.name, g.sessions])).toEqual([['Kept group', []]]);
+    expect(tree[0].loose).toEqual([]);
   });
 });
 

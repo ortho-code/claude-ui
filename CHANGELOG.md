@@ -89,6 +89,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The live strip marks the session whose tab you are looking at, as the tab bar and the session list already do.
 - Every kebab is narrower, its box hugging its three dots, so its dots sit closer to the control beside it; a session row's title, outside the archived view, gets 12px more room.
 - A borderless icon button, such as a kebab, the pin or a tab's close, turns accent blue on hover instead of filling with an outline; a bordered one, such as the + beside a project, fills as before.
+- A project whose sessions are all archived stays in the session list and the project switcher, saying so under its name, instead of disappearing, and archiving the last session of the project you are in keeps you there.
+  Deleting its sessions takes it away.
 
 ### Fixed
 

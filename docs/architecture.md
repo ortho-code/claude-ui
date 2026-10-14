@@ -585,8 +585,14 @@ The app's own preferences are not there: they are what you chose rather than whe
 They were kept in `meta.json` as `settings` until then; `moved` records each thing that has moved out, so the move is made once, and the old copy stays where it was for an older build to find.
 The session store is never written to: `~/.claude` is read-only as far as this app is concerned.
 
+A project is listed while it has a session that is not being deleted, archived ones included.
+One whose sessions are all archived stays in the session list and the switcher, counted at none, with a line under its heading saying so and its groups and its `+` with it, so work can start there again; one rule finds such projects for both, and for the fall back to All (`archivedOnlyProjects`).
+Deleting its sessions is what takes it away, and the project on show then falls back to All.
+A filter leaves it out, as it leaves out any project with no match, and the archived view lists it with its sessions.
+Keeping every project the app has ever known, with sessions on disk or not, was weighed and left for later: it needs a look at whether each folder is still there, and a way to remove a project, or the list would only ever grow.
+
 A project gets its place in the project order, in front, at the next full read of the sessions (at launch, or after a session is deleted), and keeps it, since no write takes a place away (`seedProjectOrder`).
-So the order holds projects the unfiltered list does not show, those whose sessions are all archived, being deleted or deleted, and roots a session no longer resolves to, and a move from a project's options steps over them: it passes the next project on screen and leaves the rest in their slots (`movedProject`).
+So the order holds projects the unfiltered list does not show, those whose sessions are being deleted or deleted, and roots a session no longer resolves to, and a move from a project's options steps over them: it passes the next project on screen and leaves the rest in their slots (`movedProject`).
 Moving one slot at a time, a project put in front of such a root swapped with it on its first move down, and looked like nothing happened.
 A project that turns up while the app runs is drawn last, with no place until the next full read, so until then it offers no move, and the project above it no move down.
 

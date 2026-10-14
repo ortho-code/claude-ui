@@ -244,7 +244,7 @@ export function openPrsMenu(anchor: HTMLElement, session: SessionSummary): void 
 }
 
 // A project's ordering moves, among the projects on screen.
-// The order holds projects the list does not show, such as one whose sessions are all archived or deleted, so a move steps over those and the ends are the ends of what is on screen (`movedProject`): moving a slot at a time, a project put in front of such a one swapped with it and seemed not to move.
+// The order holds projects the list does not show, such as one whose sessions are all deleted, so a move steps over those and the ends are the ends of what is on screen (`movedProject`): moving a slot at a time, a project put in front of such a one swapped with it and seemed not to move.
 export function projectMoveItems(repoRoot: string): MenuItem[] {
   const state = store.get();
   // All view only: a project view renders a single heading, so there is nothing to order against.

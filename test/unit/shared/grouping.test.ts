@@ -47,7 +47,7 @@ describe('movedProject', () => {
   });
 
   it('moves past the next project shown, stepping over the ones not shown, which keep their slots', () => {
-    // /x and /y are shown nowhere, such as a project whose sessions were all deleted and one whose sessions are all archived.
+    // /x and /y are shown nowhere, such as a project whose sessions were all deleted and one whose sessions are being deleted.
     const order = ['/a', '/x', '/b', '/y', '/c'];
     const shown = ['/a', '/b', '/c'];
     expect(movedProject(order, '/a', 'down', shown)).toEqual(['/x', '/b', '/a', '/y', '/c']);

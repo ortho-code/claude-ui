@@ -58,11 +58,30 @@ export function switcherPool(view: View<'sessions' | 'tabs' | 'archived' | 'pend
 }
 
 /**
- * Every project in the switcher's pool, counted and rolled up in the list's order, and all of them together: the one roll-up the switcher, the strip's line, the sidebar's rail icon and a panel's session dialog read.
+ * The projects whose sessions on disk are all archived, each with those sessions: such a project stays listed, empty and saying so, until its sessions are deleted.
+ * One rule for the session list, the switcher and the fall back to All, so no surface lists a project another has dropped.
+ */
+export function archivedOnlyProjects(view: View<'sessions' | 'tabs' | 'archived' | 'pendingDeletes'>): Map<string, SessionSummary[]> {
+  const all = visibleSessions(view);
+  const shown = new Set(viewPool(all, false, view).map((s) => s.repoRoot));
+  const kept = new Map<string, SessionSummary[]>();
+  for (const session of viewPool(all, true, view)) {
+    if (!shown.has(session.repoRoot)) kept.set(session.repoRoot, [...(kept.get(session.repoRoot) ?? []), session]);
+  }
+  return kept;
+}
+
+/** Every project the switcher lists: one with a session in view, or one whose sessions are all archived. */
+export function listedProjects(view: View<'sessions' | 'tabs' | 'archived' | 'pendingDeletes'>): Set<string> {
+  return new Set([...switcherPool(view).map((s) => s.repoRoot), ...archivedOnlyProjects(view).keys()]);
+}
+
+/**
+ * Every project in the switcher's pool, counted and rolled up in the list's order, with those whose sessions are all archived counted at none, and all of them together: the one roll-up the switcher, the strip's line, the sidebar's rail icon and a panel's session dialog read.
  * Worked out for each reader rather than kept, since it costs well under a millisecond (0.07 ms at 382 sessions, measured).
  */
 export function switcherModel(view: View<'sessions' | 'tabs' | 'archived' | 'pendingDeletes' | 'statuses' | 'acked' | 'projectNames' | 'projectOrder'>): SwitcherModel {
-  return projectsForSwitcher(switcherPool(view), view.statuses, view.acked, view.projectNames, view.projectOrder);
+  return projectsForSwitcher(switcherPool(view), view.statuses, view.acked, view.projectNames, view.projectOrder, archivedOnlyProjects(view));
 }
 
 /** The sessions a view holds before any filter, archived or not (see inView). */

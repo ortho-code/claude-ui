@@ -9,7 +9,8 @@
 }
 
 .project.collapsed .session,
-.project.collapsed .group {
+.project.collapsed .group,
+.project.collapsed > .section-empty {
   display: none;
 }
 

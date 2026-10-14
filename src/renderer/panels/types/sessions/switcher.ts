@@ -4,7 +4,7 @@ import type { NudgeStatus, SwitcherModel } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
 import { setProjectOnShow } from '../../../state/project';
-import { switcherModel, switcherPool } from '../../../state/views';
+import { listedProjects, switcherModel } from '../../../state/views';
 import { badgeClass } from '../../../statusdot';
 import { chevronIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -120,13 +120,14 @@ export function selectProject(repoRoot: string | null): void {
 }
 
 /**
- * A project with no sessions left cannot stay selected: fall back to All exactly as picking it does, the tab bar and the tab on show included.
+ * A project the switcher no longer lists — no session left, archived ones included — cannot stay selected: fall back to All exactly as picking it does, the tab bar and the tab on show included.
+ * One whose sessions are all archived is still listed, so archiving the last of them leaves you where you are.
  * Setting the scope alone once left the bar on the old project's tabs while the list and the switcher said All.
  * Told on what the switcher's projects are made of.
  */
 export function fallBackIfEmptied(view: View<'sessions' | 'archived' | 'pendingDeletes' | 'activeProject' | 'tabs'>): void {
   const { activeProject } = view;
-  if (activeProject !== null && !switcherPool(view).some((s) => s.repoRoot === activeProject)) selectProject(null);
+  if (activeProject !== null && !listedProjects(view).has(activeProject)) selectProject(null);
 }
 
 function openSwitcher(): void {
@@ -158,7 +159,7 @@ type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendi
 
 /**
  * The switcher follows the store: every project's count and roll-up, and the project on show.
- * It lists every project, independent of the search and the project on show, so you can always navigate; a project with none left has already fallen back to All (`fallBackIfEmptied`).
+ * It lists every project, independent of the search and the project on show, so you can always navigate, a project whose sessions are all archived among them; a project with none left has already fallen back to All (`fallBackIfEmptied`).
  * A watcher the sidebar registers (watch.ts), as it does `fallBackIfEmptied`.
  */
 export function refreshSwitcher(view: SwitcherView): void {

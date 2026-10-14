@@ -3,7 +3,7 @@ import { placeChildren } from '../../../keyed';
 import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, groupJumpTargets, projectGoneReason } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
-import { isFiltering, pausedChanges, projName, searchText, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
+import { archivedOnlyProjects, isFiltering, pausedChanges, projName, searchText, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
@@ -126,8 +126,10 @@ function renderList(view: ListView): void {
   // The total is the set the matches were taken from: the same project scope and the same view, archived or not, before the other filters.
   // So the count only ever compares a set with part of itself, and in the normal view the total is the number the switcher shows.
   updateFilterStatus(scoped.length, inScope(viewPool(all, view.filter.filters.archived, view)).length, view);
+  // A project whose sessions are all archived stays, empty and saying so, as it does in the switcher; a filter leaves it out, as it leaves out any project with no match, and the archived view lists it with its sessions.
+  const archivedOnly = new Map(isFiltering(view) ? [] : [...archivedOnlyProjects(view)].filter(([repoRoot]) => !activeProject || repoRoot === activeProject));
 
-  if (scoped.length === 0) {
+  if (scoped.length === 0 && archivedOnly.size === 0) {
     clearList();
     const message = document.createElement('div');
     message.className = 'empty-message';
@@ -143,7 +145,7 @@ function renderList(view: ListView): void {
   // One section per repo, each holding its groups and then the sessions in no group.
   // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
   // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  const tree = buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder);
+  const tree = buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder, archivedOnly);
   renderedSections.projects = tree.map((p) => p.repoRoot);
   renderedSections.groups = tree.flatMap((p) => p.groups.map((g) => g.group.id));
   reconcileProjectSections(tree, view);
@@ -217,7 +219,9 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
       row.classList.toggle('after-groups', index === 0 && project.groups.length > 0);
       return row;
     });
-    placeChildren(els.section, [els.heading, ...groups, ...loose]);
+    // Its groups stay with it, so they can be filled again; the line goes above them, under the heading it explains.
+    els.archivedLine.textContent = project.archived === 1 ? 'Its only session is archived.' : `All ${project.archived} sessions here are archived.`;
+    placeChildren(els.section, [els.heading, ...(project.archived > 0 ? [els.archivedLine] : []), ...groups, ...loose]);
     sections.push(els.section);
   }
   placeChildren(container, sections);

@@ -16,13 +16,17 @@ const fixture = {
 };
 
 
-test('archiving the last session of the project on show falls back to All in the list, the switcher and the tab bar', async ({ app, page }) => {
+// Archiving keeps a project, its sessions still on disk (list/archived-projects.spec.ts); deleting them is what leaves it nothing.
+test('the project on show losing its last session from disk falls back to All in the list, the switcher and the tab bar', async ({ app, page }) => {
   await app.boot(fixture);
   await expect(page.locator('#switcher-name')).toHaveText('demo');
   await expect(tabLabels(page)).toHaveText([here.title]);
 
   await row(page, here.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button', { hasText: 'Archive' }).click();
+  await expect(page.locator('#switcher-name')).toHaveText('demo');
+  // As main would list it next, with the archived transcript gone to the trash.
+  await app.listOnDisk([there]);
 
   await expect(page.locator('#switcher-name')).toHaveText('All');
   await expect(headings(page)).toHaveText(['other']);

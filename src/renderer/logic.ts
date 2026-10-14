@@ -357,6 +357,25 @@ export function projectFor(roots: readonly string[], dir: string): string | null
   return best;
 }
 
+/** A project as the switcher and the session list draw it: the sessions shown under it, and when there are none because every one is archived, those. */
+interface ProjectEntry {
+  shown: SessionSummary[];
+  archived: SessionSummary[];
+}
+
+/**
+ * The projects to draw, in the order you set: one per root among `sessions`, and one, with nothing shown, per root in `archivedOnly` (`archivedOnlyProjects`).
+ * The ONE place the switcher and the session list take their projects from, so the two never disagree about which projects there are or where each sits.
+ */
+function projectEntries(sessions: SessionSummary[], archivedOnly: ReadonlyMap<string, SessionSummary[]>, projectOrder: readonly string[]): [string, ProjectEntry][] {
+  const entries: [string, ProjectEntry][] = groupByRepo(sessions).map(([repoRoot, shown]) => [repoRoot, { shown, archived: [] }]);
+  for (const [repoRoot, archived] of archivedOnly) entries.push([repoRoot, { shown: [], archived }]);
+  return orderProjects(entries, projectOrder);
+}
+
+/** The sessions that answer for a project's folder: those shown, or its archived ones when none is, which sit in the same folder. */
+const folderWitnesses = ({ shown, archived }: ProjectEntry): SessionSummary[] => (shown.length > 0 ? shown : archived);
+
 // Build the project-switcher model from the VISIBLE tips (one per conversation, already filtered to what the sidebar shows).
 // Projects order by recency: the input is recency-sorted, so a project takes the position of its most-recent session (first appearance).
 // Per project: session count + the rolled-up nudge badge; plus an "All" aggregate over everything passed.
@@ -366,14 +385,15 @@ export function projectsForSwitcher(
   acked: ReadonlySet<string>,
   names?: ReadonlyMap<string, string>,
   projectOrder: readonly string[] = [],
+  archivedOnly: ReadonlyMap<string, SessionSummary[]> = new Map(),
 ): SwitcherModel {
   // Same order as the sidebar sections: the switcher is the compact view of the same list, so the two must never disagree about where a project sits.
-  const projects = orderProjects(groupByRepo(sessions), projectOrder).map(([repoRoot, list]) => ({
+  const projects = projectEntries(sessions, archivedOnly, projectOrder).map(([repoRoot, entry]) => ({
     repoRoot,
     name: displayName(repoRoot, names),
-    count: list.length,
-    badge: rollUpNudge(list, statuses, acked),
-    rootExists: projectRootExists(list),
+    count: entry.shown.length,
+    badge: rollUpNudge(entry.shown, statuses, acked),
+    rootExists: projectRootExists(folderWitnesses(entry)),
   }));
   return {
     all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked) },
@@ -410,6 +430,8 @@ export interface ProjectTree {
    * False means nothing new can be started in it — the sessions remain, as history to read or clean up.
    */
   rootExists: boolean;
+  /** How many sessions it has archived when every one it has is, and so none is shown: the project stays, saying so; 0 for a project with any shown. */
+  archived: number;
 }
 
 // Pinned sessions rise to the front, everything else keeps the order it came in (callers pass a recency-sorted list).
@@ -426,6 +448,7 @@ function pinnedFirst(sessions: SessionSummary[], pinned: ReadonlySet<string>): S
  * Projects keep the order they appear in `sessions` (recency, since the caller sorts that way); inside a project the groups come first in registry order, then the ungrouped remainder.
  *
  * `hideEmptyGroups` is for filtering: a group whose sessions were all filtered out is noise in a search, but an empty group must stay visible normally — that is how a freshly created one is seen.
+ * A root in `archivedOnly` is a project with no rows, its `archived` saying how many sessions it has archived (`archivedOnlyProjects`).
  */
 export function buildProjectTree(
   sessions: SessionSummary[],
@@ -433,6 +456,7 @@ export function buildProjectTree(
   pinned: ReadonlySet<string>,
   hideEmptyGroups = false,
   projectOrder: readonly string[] = [],
+  archivedOnly: ReadonlyMap<string, SessionSummary[]> = new Map(),
 ): ProjectTree[] {
   const groupsByProject = new Map<string, SessionGroup[]>();
   for (const group of state.groups) {
@@ -443,8 +467,8 @@ export function buildProjectTree(
     groupsByProject.set(group.repoRoot, list);
   }
 
-  return orderProjects(groupByRepo(sessions), projectOrder).map(([repoRoot, list]) => {
-    const ordered = pinnedFirst(list, pinned);
+  return projectEntries(sessions, archivedOnly, projectOrder).map(([repoRoot, entry]) => {
+    const ordered = pinnedFirst(entry.shown, pinned);
     const projectGroups = groupsByProject.get(repoRoot) ?? [];
     const ids = new Set(projectGroups.map((g) => g.id));
     const groups = projectGroups
@@ -457,8 +481,9 @@ export function buildProjectTree(
       groups,
       loose,
       count: ordered.length,
-      isRepo: ordered.some((s) => s.isRepo),
-      rootExists: projectRootExists(ordered),
+      isRepo: folderWitnesses(entry).some((s) => s.isRepo),
+      rootExists: projectRootExists(folderWitnesses(entry)),
+      archived: entry.shown.length > 0 ? 0 : entry.archived.length,
     };
   });
 }

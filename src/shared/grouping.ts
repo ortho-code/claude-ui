@@ -29,7 +29,7 @@ export function seededOrder(order: readonly string[], roots: readonly string[]):
 
 /**
  * The project order with one project moved among the `shown` ones, the projects on screen, or null when it does not move: a root nobody has seen has no slot, since the order is seeded from what is on disk.
- * The order holds roots the list does not show, such as one whose sessions are all archived or deleted, and a move steps over those, leaving them in their slots: a step always passes one project you can see, where moving a slot at a time swapped with one you could not and looked like nothing happened.
+ * The order holds roots the list does not show, such as one whose sessions are all deleted, and a move steps over those, leaving them in their slots: a step always passes one project you can see, where moving a slot at a time swapped with one you could not and looked like nothing happened.
  */
 export function movedProject(order: readonly string[], repoRoot: string, move: OrderMove, shown: readonly string[]): string[] | null {
   if (!order.includes(repoRoot)) return null;
