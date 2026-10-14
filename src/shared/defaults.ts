@@ -15,7 +15,7 @@ export function defaultSettings(): Settings {
 export function defaultUi(): UiState {
   return {
     search: '',
-    filters: { pinned: false, open: false, live: false, worktree: false, gone: false, siblings: false, noted: false, archived: false },
+    filters: { pinned: false, open: false, live: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
     datePreset: 'any',
     dateFrom: null,
     dateTo: null,

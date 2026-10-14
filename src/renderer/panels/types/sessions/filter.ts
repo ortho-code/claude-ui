@@ -6,7 +6,7 @@ import { byId, fromMarkup } from '../../../dom';
 import { datePresetRange, entityKey, sessionPasses } from '../../../logic';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
 import { isFiltering, searchText } from '../../../state/views';
-import { closeIcon, folderGoneIcon, NOTE_ICON, PINNED_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
+import { closeIcon, folderGoneIcon, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { iconSvg } from '../../icons';
 // The filter pill its pills and presets wear, shared with the history's All · Pinned.
@@ -30,6 +30,7 @@ export const filterPanel = fromMarkup(`
       <button id="live-filter" type="button" data-tooltip="Show only live sessions" aria-label="Show only live sessions" aria-pressed="false"></button>
       <button id="worktree-filter" type="button" data-tooltip="Show only worktree sessions" aria-label="Show only worktree sessions" aria-pressed="false"></button>
       <button id="sibling-filter" type="button" data-tooltip="Show only sessions with siblings" aria-label="Show only sessions with siblings" aria-pressed="false"></button>
+      <button id="pr-filter" type="button" data-tooltip="Show only sessions with a PR" aria-label="Show only sessions with a PR" aria-pressed="false"></button>
       <button id="note-filter" type="button" data-tooltip="Show only sessions with a note" aria-label="Show only sessions with a note" aria-pressed="false"></button>
       <button id="archived-filter" type="button" data-tooltip="Show archived sessions" aria-label="Show archived sessions" aria-pressed="false"></button>
       <button id="gone-filter" type="button" data-tooltip="Show only sessions whose folder is gone" aria-label="Show only sessions whose folder is gone" aria-pressed="false"></button>
@@ -59,6 +60,7 @@ const openFilter = byId(filterPanel, 'open-filter', HTMLButtonElement);
 const liveFilter = byId(filterPanel, 'live-filter', HTMLButtonElement);
 const worktreeFilter = byId(filterPanel, 'worktree-filter', HTMLButtonElement);
 const siblingFilter = byId(filterPanel, 'sibling-filter', HTMLButtonElement);
+const prFilter = byId(filterPanel, 'pr-filter', HTMLButtonElement);
 const noteFilter = byId(filterPanel, 'note-filter', HTMLButtonElement);
 const archivedFilter = byId(filterPanel, 'archived-filter', HTMLButtonElement);
 const goneFilter = byId(filterPanel, 'gone-filter', HTMLButtonElement);
@@ -129,6 +131,7 @@ export function passesFilters(session: SessionSummary, view: View<'pinned' | 'ar
     worktreeOnly: filters.worktree,
     goneOnly: filters.gone,
     siblingOnly: filters.siblings,
+    prsOnly: filters.prs,
     notedOnly: filters.noted,
     archivedOnly: filters.archived,
     dateFrom,
@@ -386,6 +389,7 @@ const FILTER_PILLS: FilterPill[] = [
   { button: liveFilter, icon: LIVE_ICON, key: 'live' },
   { button: worktreeFilter, icon: WORKTREE_ICON, key: 'worktree' },
   { button: siblingFilter, icon: SIBLING_ICON, key: 'siblings' },
+  { button: prFilter, icon: PR_ICON, key: 'prs' },
   { button: noteFilter, icon: NOTE_ICON, key: 'noted' },
   { button: archivedFilter, icon: ARCHIVE_ICON, key: 'archived' },
   { button: goneFilter, icon: folderGoneIcon(13), key: 'gone' },

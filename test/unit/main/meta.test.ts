@@ -583,7 +583,7 @@ describe('windowBounds', () => {
 describe('ui state', () => {
   const view = {
     search: 'psalm',
-    filters: { pinned: true, open: false, live: false, worktree: false, gone: false, siblings: false, noted: false, archived: false },
+    filters: { pinned: true, open: false, live: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
     datePreset: 'custom',
     dateFrom: 1_700_000_000_000,
     dateTo: 1_700_500_000_000,
@@ -605,7 +605,7 @@ describe('ui state', () => {
   it('starts unfiltered, unfolded and at the default width', async () => {
     expect(await getUiState()).toEqual({
       search: '',
-      filters: { pinned: false, open: false, live: false, worktree: false, gone: false, siblings: false, noted: false, archived: false },
+      filters: { pinned: false, open: false, live: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
       datePreset: 'any',
       dateFrom: null,
       dateTo: null,
@@ -868,5 +868,15 @@ describe('the live filter, renamed from running', () => {
     const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
     expect(raw.ui.filters.running).toBeUndefined();
     expect(raw.ui.filters.live).toBe(true);
+  });
+});
+
+describe('the PR filter, added after filters were first stored', () => {
+  it('reads as off from a file stored before it, keeping the pills that file has on', async () => {
+    await writeMetaFile({ ui: { filters: { pinned: true, siblings: true } }, version: 3 });
+    const { filters } = await getUiState();
+    expect(filters.prs).toBe(false);
+    expect(filters.pinned).toBe(true);
+    expect(filters.siblings).toBe(true);
   });
 });

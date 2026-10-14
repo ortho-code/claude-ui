@@ -241,6 +241,7 @@ describe('sessionPasses', () => {
     worktreeOnly: false,
     goneOnly: false,
     siblingOnly: false,
+    prsOnly: false,
     notedOnly: false,
     archivedOnly: false,
     dateFrom: null,
@@ -326,6 +327,8 @@ describe('sessionPasses', () => {
     expect(sessionPasses(session({ leftWorktree: 'wt' }), { ...base, worktreeOnly: true })).toBe(true);
     expect(sessionPasses(session({ isSibling: false }), { ...base, siblingOnly: true })).toBe(false);
     expect(sessionPasses(session({ isSibling: true, siblingIds: ['p'] }), { ...base, siblingOnly: true })).toBe(true);
+    expect(sessionPasses(session({ prs: [] }), { ...base, prsOnly: true })).toBe(false);
+    expect(sessionPasses(session({ prs: [{ repository: 'o/r', number: 1, url: 'https://github.com/o/r/pull/1' }] }), { ...base, prsOnly: true })).toBe(true);
     expect(sessionPasses(session({ title: 'Fix the bug' }), { ...base, text: 'BUG' })).toBe(true);
     expect(sessionPasses(session({ title: 'Fix the bug' }), { ...base, text: 'perf' })).toBe(false);
     const activity = Date.parse('2026-07-28T10:00:00.000Z');

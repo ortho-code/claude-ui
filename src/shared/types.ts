@@ -258,6 +258,8 @@ export interface UiState {
     /** Sessions whose folder is gone. */
     gone: boolean;
     siblings: boolean;
+    /** Sessions whose transcript links a PR. */
+    prs: boolean;
     noted: boolean;
     archived: boolean;
   };

@@ -243,6 +243,8 @@ export interface FilterCriteria {
   goneOnly: boolean;
   /** Show only members of a multi-session family (siblings). */
   siblingOnly: boolean;
+  /** Show only sessions whose transcript links a PR. */
+  prsOnly: boolean;
   archivedOnly: boolean;
   /**
    * Show only sessions carrying a note.
@@ -285,6 +287,7 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   // The same question the row asks itself, through the same function — a second rule for "is this dead" would be able to disagree with the dimming.
   if (c.goneOnly && unstartableReason(session) === null) return false;
   if (c.siblingOnly && !session.isSibling) return false;
+  if (c.prsOnly && session.prs.length === 0) return false;
   if (c.notedOnly && !c.notes?.has(key)) return false;
   if (c.dateFrom !== null || c.dateTo !== null) {
     const activity = new Date(session.lastActivity).getTime();
