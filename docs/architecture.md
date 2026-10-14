@@ -1032,7 +1032,10 @@ The count on a rail icon sits inside the button, under the icon on a vertical ra
 The icon's tooltip and label say the count whole.
 
 **A row can ask for a session, and only ask.**
-A `session` action is a button on the row; pressing it hands the app a request (the item, the prompt, the name, the folder the panel last ran in), and the app opens its own dialog on it: the project, the group, the name and the first prompt, all changeable, and nothing starts before Start.
+A `session` action is a button on the row, or an item of its menu; pressing it hands the app a request (the item, the prompt, the name, the folder the panel last ran in), and the app opens its own dialog on it: the project, the group, the name and the first prompt, all changeable, and nothing starts before Start.
+A row shows its first actions as buttons, as many as the list's `buttons` says, 1 without one, and the rest in a menu behind the app's own kebab, last on the row, as a session row's kebab is (2026-10-14).
+Two buttons already took about half of a story row in the 360px column it was seen in, which replaced the rule first planned, one or two as buttons and a kebab only past that (2026-10-08); and the list says how many, which that rule had turned down so that two lists could not make one row look different, since a type may want its rows otherwise; a row does not say it for itself yet.
+The kebab lists its items afresh at each press from the row as the last good run left it, and an item asks for its action only if the row still offers it when chosen, by all it says, as a button is kept by all it says, so a menu left open across a run never asks for an action the run took away.
 That dialog is the trust line for a shared type: a prompt runs with the person's permissions, so what a panel from anyone asks claude to do is always read first.
 The projects offered are the switcher's, in its order and without those whose folder is gone; the one the panel's folder is in comes first, found as the deepest project that folder sits under (`projectFor`), and the folder itself is offered when it is in no project yet.
 The group comes first as the one last picked from that panel in that project, while it still exists; making one is left to the session list, since the app never makes a group nobody asked for.
