@@ -48,17 +48,22 @@ export function railStatusFollowsSessions(view: View<'sessions' | 'statuses' | '
 const settingsIcon = (size: number): string =>
   strokeIcon(size, '<path d="M2 4.6h8.1M13.1 4.6h.9M2 11.4h2.9M7.9 11.4h6.1" /><circle cx="11.7" cy="4.6" r="1.6" /><circle cx="6.4" cy="11.4" r="1.6" />');
 
-async function pickFolderAndOpen(): Promise<void> {
-  // Show an active state while the folder picker is open (it has no persistent menu of its own), matching how the other header buttons look while their panel/menu is up.
-  newButton.classList.add('active');
+// A header button shows what it opened as open, from the press until that closes: the folder picker, which is no element of the window, or the Settings dialog, which no markup ties to the button.
+// `.active` is the look index.css gives an open header button, as the filter's panel gives its own.
+async function heldOpen(button: HTMLElement, open: () => Promise<void>): Promise<void> {
+  button.classList.add('active');
   try {
-    const dir = await window.claudeUi.pickFolder();
-    if (dir) void hostOf('sessions').openNewSession(dir);
+    await open();
   } finally {
-    newButton.classList.remove('active');
+    button.classList.remove('active');
   }
 }
-newButton.addEventListener('click', () => void pickFolderAndOpen());
+
+async function pickFolderAndOpen(): Promise<void> {
+  const dir = await window.claudeUi.pickFolder();
+  if (dir) void hostOf('sessions').openNewSession(dir);
+}
+newButton.addEventListener('click', () => void heldOpen(newButton, pickFolderAndOpen));
 // The Settings icon comes from here too, rather than inline in the sidebar's markup, so it is drawn through the same helper as the rest.
 settingsToggle.innerHTML = settingsIcon(14);
-settingsToggle.addEventListener('click', () => void openSettings());
+settingsToggle.addEventListener('click', () => void heldOpen(settingsToggle, openSettings));

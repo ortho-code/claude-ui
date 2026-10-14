@@ -138,8 +138,10 @@ button {
 
 /* Hover = surface fill + accent outline, app-wide.
    Borderless buttons (row actions, menu items, closes) have no border to show, so they fall through to their own hover fills.
-   Not an icon button's: those take their own, by kind (below), and this would otherwise fill and outline a borderless one, and outline one with a resting fill, such as the rail's panel on show. */
-button:where(:not(.icon-btn)):hover {
+   Not an icon button's: those take their own, by kind (below), and this would otherwise fill and outline a borderless one, and outline one with a resting fill, such as the rail's panel on show.
+   Except the header actions (`.icon-btn.large`), which wear the ordinary button's skin beside "+ New" and so take its hover too, so that the four hover alike; their selector carries the icon buttons' four classes' weight (below), or `.icon-btn.large`'s resting fill would win over this one. */
+button:where(:not(.icon-btn)):hover,
+.icon-btn:where(.large):not(:disabled):not(.unavailable):is(:hover, .menu-open) {
   background: var(--surface-hover);
   border-color: var(--accent);
 }
@@ -222,13 +224,14 @@ button:where(:not(.icon-btn)):hover {
    A BORDERLESS one — every icon button but a framed one: a kebab, the pin, a close or a stop, a row's unarchive and delete, the group jump, a rail's icons — turns its mark accent and nothing else.
    A fill and an outline needed a box around the mark, and a kebab's box hugs its dots, so on a kebab they ran into whatever sat beside it; without them, controls can sit as close as their marks allow.
    Accent rather than `--text`: `--text` is the same greyish blue as the resting `--muted`, only lighter, where accent is a saturated blue, so the colour changes, not only the lightness.
-   A FRAMED one, with a resting border — the header actions (`.large`), the split buttons' halves (`.composite`) and the divider's fold chevron (`.framed`) — fills and outlines, its border already saying where it is.
+   A FRAMED one, with a resting border — the split buttons' halves (`.composite`) and the divider's fold chevron (`.framed`) — fills and outlines, its border already saying where it is.
+   The header actions (`.large`) wear a resting border too, but hover as the ordinary button beside them does (above), to `--surface-hover`, a smaller step than this, so that `--active` can say what a header button opened is up: the filter's panel or the Settings dialog, and + New's picker beside them (sessions/index.css).
    :where() keeps both rules at four classes' weight, which a surface's own hover after them can still match and win, as the project heading's caret does (and its +, which outranks them; sessions/headings.css). */
 .icon-btn:where(:not(.composite, .large, .framed)):not(:disabled):not(.unavailable):is(:hover, .menu-open) {
   color: var(--accent);
 }
 
-.icon-btn:where(.composite, .large, .framed):not(:disabled):not(.unavailable):is(:hover, .menu-open),
+.icon-btn:where(.composite, .framed):not(:disabled):not(.unavailable):is(:hover, .menu-open),
 .note-badge:hover {
   background: var(--active);
   border-color: var(--accent);

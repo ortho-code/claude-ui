@@ -19,9 +19,12 @@
   gap: 6px;
 }
 
-/* Pressed look while its panel is open, tying the toggle to the panel below it. + New gets the same while its folder picker is open. */
+/* Pressed look while its panel is open, tying the toggle to the panel below it. + New gets the same while its folder picker is open, and Settings while its dialog is.
+   A stronger fill than the header's hover, `--active` over its `--surface-hover` (base.css), and it outranks the hover, so the filter's holds under the pointer and open never looks like hovered.
+   The filter's own `.active` says a filter is on (filter.css), not that its panel is open, so the filter is read by `aria-expanded` here and only + New and Settings by `.active` (`heldOpen`, sessions/index.ts). */
 #filter-toggle[aria-expanded='true'],
-#new-session.active {
+#new-session.active,
+#settings-toggle.active {
   background: var(--active);
   border-color: var(--accent);
 }
