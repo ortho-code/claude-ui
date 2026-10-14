@@ -3,7 +3,7 @@ import { setTooltip } from './tooltip';
 /**
  * Mark a control unavailable, carrying the reason, or available again when `reason` is null.
  *
- * `aria-disabled` rather than the `disabled` PROPERTY, and that is the whole point: a natively disabled button emits no mouse events in Chromium, so the tooltip delegated from `document` never fires and the one thing that says WHY is invisible.
+ * `aria-disabled` rather than the `disabled` PROPERTY, so that the reason reaches the keyboard as well as the pointer: a natively disabled button takes no focus, and the tooltip, which shows on `:focus-visible` as well as on hover, is then the pointer's alone.
  * The click is refused by the handler instead, which `unavailable()` answers for.
  */
 export function setUnavailable(control: HTMLElement, reason: string | null, tooltipWhenAvailable?: string): void {

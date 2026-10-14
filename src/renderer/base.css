@@ -167,7 +167,7 @@ button:where(:not(.icon-btn)):hover,
 }
 
 /* A control that cannot act says so before it is pressed: no pointer, no hover, dimmed.
-   `.unavailable` goes with `aria-disabled` rather than the `disabled` property, because a natively disabled button emits no mouse events and its tooltip — the only thing that says WHY — never fires.
+   `.unavailable` goes with `aria-disabled` rather than the `disabled` property, because a natively disabled button takes no focus, so its tooltip — the only thing that says WHY — never reaches the keyboard.
    See setUnavailable().
    The native `:disabled` is covered too, for the pin while its toggle is saved, which has no reason to give. */
 .icon-btn:disabled,

@@ -301,7 +301,8 @@ Its tab, if it has one, is dimmed by the same rule with the same tooltip, and th
 The tab still selects on a click, since the pane is where the reason is said in full.
 An action that cannot be taken is shown rather than removed: a menu that changes shape has to be re-read, and an item that vanishes looks like it was never there, where a dimmed one answers the question you opened the menu to ask.
 
-**Unavailable is `aria-disabled`, never the `disabled` property**, and the reason is the tooltip: a natively disabled button emits no mouse events in Chromium, so a tooltip delegated from `document` never fires and the only thing explaining the refusal is invisible.
+**Unavailable is `aria-disabled`, never the `disabled` property**, and the reason is the tooltip: a natively disabled button takes no focus, so the tooltip, which shows on keyboard focus as well as on hover, could explain the refusal to the pointer only.
+It once had a second reason, that Chromium sent a disabled button no mouse events at all, so its tooltip never showed even on hover; Chromium has sent it every mouse event but click, mousedown and mouseup since Chrome 109, in early 2023.
 `setUnavailable()` marks a control and carries the reason; the click handler refuses with `unavailable()`, which is the trade for a tooltip that works.
 The one `disabled` left is a row's pin for the moment its toggle is saved, which has no reason to give.
 **Management stays**: pin, note, archive and delete all keep working, because cleaning up after a folder that has gone is exactly when you need them.
