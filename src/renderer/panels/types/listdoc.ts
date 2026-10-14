@@ -18,7 +18,7 @@ export const LIST_VERSION = 1;
 export const LIST_FIELDS = {
   document: ['version', 'badge', 'sections', 'notes'],
   section: ['title', 'shut', 'empty', 'items'],
-  item: ['key', 'text', 'tooltip', 'detail', 'href', 'tone', 'actions'],
+  item: ['key', 'lead', 'leadTone', 'text', 'trail', 'tooltip', 'detail', 'href', 'tone', 'actions'],
   action: ['label', 'session'],
   session: ['prompt', 'name'],
 } as const;
@@ -40,7 +40,13 @@ export interface SessionAction {
 export interface ListItem {
   /** Unique across the document: what a session started from the row is remembered by. */
   key: string;
+  /** A short mark before the text, in a column of its own, such as a letter for a kind. */
+  lead: string | null;
+  /** The lead's colour, in the words a row's tone uses. */
+  leadTone: Tone;
   text: string;
+  /** A short text at the end of the first line, such as a count, which the text gives way to. */
+  trail: string | null;
   /** What hovering the row's first line shows, such as all of what the text shortens. */
   tooltip: string | null;
   detail: string | null;
@@ -93,6 +99,14 @@ class Reader {
     return value;
   }
 
+  /** A tone, a row's or its lead's: `normal` when absent, and a problem when it is not one of the tones. */
+  tone(value: unknown, at: string): Tone {
+    if (value === undefined) return 'normal';
+    if (TONES.includes(value as Tone)) return value as Tone;
+    this.problems.push(`${at} ${JSON.stringify(value)} is not one of ${TONES.join(', ')}.`);
+    return 'normal';
+  }
+
   flag(value: unknown, at: string): boolean {
     if (value === undefined) return false;
     if (typeof value !== 'boolean') this.problems.push(`${at} is not true or false.`);
@@ -142,7 +156,10 @@ class Reader {
       if (this.keys.has(key)) this.problems.push(`${at}.key "${key}" is already used by another item.`);
       this.keys.add(key);
     }
+    const lead = this.text(field('lead'), `${at}.lead`);
+    const leadTone = this.tone(field('leadTone'), `${at}.leadTone`);
     const text = this.text(field('text'), `${at}.text`, true);
+    const trail = this.text(field('trail'), `${at}.trail`);
     const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
     const detail = this.text(field('detail'), `${at}.detail`);
     let href = this.text(field('href'), `${at}.href`);
@@ -150,16 +167,11 @@ class Reader {
       this.problems.push(`${at}.href "${href}" is not an http or https link.`);
       href = null;
     }
-    const rawTone = field('tone');
-    let tone: Tone = 'normal';
-    if (rawTone !== undefined) {
-      if (TONES.includes(rawTone as Tone)) tone = rawTone as Tone;
-      else this.problems.push(`${at}.tone ${JSON.stringify(rawTone)} is not one of ${TONES.join(', ')}.`);
-    }
+    const tone = this.tone(field('tone'), `${at}.tone`);
     const actions = this.list(field('actions'), `${at}.actions`, false)
       .map((action, index) => this.action(action, `${at}.actions[${index}]`))
       .filter((action) => action !== null);
-    return key !== null && text !== null ? { key, text, tooltip, detail, href, tone, actions } : null;
+    return key !== null && text !== null ? { key, lead, leadTone, text, trail, tooltip, detail, href, tone, actions } : null;
   }
 
   section(raw: unknown, at: string): ListSection | null {

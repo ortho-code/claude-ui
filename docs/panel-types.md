@@ -142,7 +142,10 @@ One JSON object:
 | Field | Meaning |
 |---|---|
 | `key` | Required, unique in the list: what a session started from the row is remembered by, so keep it the same for the same thing from one run to the next. |
+| `lead` | A short mark before the text, such as a letter for a kind of thing, in a column of its own so the texts after marks of one length line up. |
+| `leadTone` | The lead's colour, from the same words as `tone`: the colour a tone puts on a row's edge, the grey of the second line for `normal`, and dimmed for `muted`. |
 | `text` | Required: the row's first line. |
+| `trail` | A short text at the end of the first line, such as a count, which the text gives way to. |
 | `tooltip` | What hovering the row's first line shows, such as all of what that line shortens, its line breaks kept. |
 | `detail` | A second line, smaller. |
 | `href` | An http or https link, which a press on the row opens in your browser. |

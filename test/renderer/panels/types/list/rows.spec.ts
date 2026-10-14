@@ -55,6 +55,84 @@ test("a row's tone marks its leading edge in the status colours, and a normal ro
   expect(await edgeOf(row(page, 'A normal row'))).toBe('none');
 });
 
+/** A one-line list of changed files, each with a lead mark and a trailing count, as the `changes` type prints it. */
+const FILES = {
+  version: 1,
+  sections: [
+    {
+      items: [
+        { key: 'm', lead: 'M', leadTone: 'attention', text: 'FQDN.php', trail: '+9 −0', tooltip: 'src/Domain/ValueObject/Host/FQDN.php\nmodified' },
+        { key: 'a', lead: 'A', leadTone: 'positive', text: 'FeaturedImageDownloaderTestWithAFileNameLongerThanAnyRowIsWide.php', trail: '+144 −37' },
+        { key: 'u', lead: 'U', text: 'composer.lock', tone: 'danger', actions: [{ label: 'Resolve', session: { prompt: 'Resolve it.' } }] },
+        { key: 'd', lead: 'D', leadTone: 'danger', text: 'LegacyHost.php', trail: '+0 −52' },
+      ],
+    },
+  ],
+};
+
+/** Where an element sits, in px. */
+const boxOf = async (target: Locator): Promise<{ left: number; right: number; top: number; bottom: number }> => {
+  const box = (await target.boundingBox())!;
+  return { left: box.x, right: box.x + box.width, top: box.y, bottom: box.y + box.height };
+};
+
+test("a row's lead sits in a column of its own before its text, so the texts line up, and its trail at the end of its first line", async ({ app, page }) => {
+  await bootList(app, page, FILES);
+  const [modified, deleted] = [row(page, 'FQDN.php'), row(page, 'LegacyHost.php')];
+  const [lead, title, trail, content] = await Promise.all(['.list-lead', '.card-title', '.list-trail', '.card-content'].map((part) => boxOf(modified.locator(part))));
+  expect(lead.right).toBeLessThanOrEqual(title.left);
+  expect(Math.round(trail.right)).toBe(Math.round(content.right));
+  expect(trail.top).toBeLessThan(title.bottom);
+  expect((await boxOf(deleted.locator('.card-title'))).left).toBe(title.left);
+});
+
+test("a row's long text gives way to its trail, which stays whole on the first line", async ({ app, page }) => {
+  await bootList(app, page, FILES);
+  const long = row(page, 'LongerThanAnyRowIsWide');
+  await expect.poll(() => overrun(long.locator('.list-trail'))).toBe(0);
+  await expect.poll(() => overrun(long.locator('.card-title'))).toBe(0);
+  const [title, trail] = await Promise.all([boxOf(long.locator('.card-title')), boxOf(long.locator('.list-trail'))]);
+  expect(title.right).toBeLessThanOrEqual(trail.left);
+  expect(trail.top).toBeLessThan(title.top + 16);
+});
+
+test("a row's lead takes its tone's colour, the meta line's grey without one, never its row's", async ({ app, page }) => {
+  await bootList(app, page, FILES);
+  const colourOf = (text: string): Promise<string> => row(page, text).locator('.list-lead').evaluate((el) => getComputedStyle(el).color);
+  expect(await colourOf('FQDN.php')).toBe(await token(page, '--waiting'));
+  expect(await colourOf('LongerThanAnyRowIsWide')).toBe(await token(page, '--idle'));
+  expect(await colourOf('LegacyHost.php')).toBe(await token(page, '--failed'));
+  // A danger row whose lead has no tone of its own: the edge is red, the lead grey.
+  expect(await edgeOf(row(page, 'composer.lock'))).toBe(await token(page, '--failed'));
+  expect(await colourOf('composer.lock')).toBe(await token(page, '--muted'));
+});
+
+test("a row's text keeps to two lines beside its lead and trail, as a session title does", async ({ app, page }) => {
+  const words = 'Fix the login redirect after a session times out, and again after the refresh token expires, on every browser';
+  await bootList(app, page, { version: 1, sections: [{ items: [{ key: 'long', lead: 'M', text: words, trail: '+1 −1' }] }] });
+  // The lines in view, counted by where the text's own boxes start, and whether more was cut off below them.
+  const lines = await row(page, 'Fix the login')
+    .locator('.card-title')
+    .evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const bottom = el.getBoundingClientRect().bottom;
+      const tops = new Set([...range.getClientRects()].filter((rect) => rect.top < bottom - 1).map((rect) => Math.round(rect.top)));
+      return { shown: tops.size, cut: el.scrollHeight > el.clientHeight };
+    });
+  expect(lines).toEqual({ shown: 2, cut: true });
+});
+
+test("a row's tooltip shows over the whole of its first line, its lead and trail too", async ({ app, page }) => {
+  await bootList(app, page, FILES);
+  for (const part of ['.list-lead', '.list-trail']) {
+    await row(page, 'FQDN.php').locator(part).hover();
+    await expect(page.locator('#tooltip')).toHaveText('src/Domain/ValueObject/Host/FQDN.php\nmodified');
+    await page.mouse.move(0, 0);
+    await expect(page.locator('#tooltip')).toBeHidden();
+  }
+});
+
 test("a row's detail with a word longer than its line stays beside the row's button, not under it", async ({ app, page }) => {
   await bootList(app, page);
   await expect.poll(() => overrun(row(page, 'FeaturedImageDownloaderTest.php').locator('.card-meta'))).toBe(0);

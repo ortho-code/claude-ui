@@ -1,5 +1,5 @@
 /* A LIST PANEL: a type from the config folder whose script prints a list.
-   Its rows are the card a session row is (.card, with .list-row for what is its own) and its section headings the sidebar's group bar, both built by card.ts, so what is its own is only the scrolling body, what a row's tone does, and the line a failed run leaves above the list. */
+   Its rows are the card a session row is (.card, with .list-row for what is its own) and its section headings the sidebar's group bar, both built by card.ts, so what is its own is only the scrolling body, a row's first line, what a row's tone does, and the line a failed run leaves above the list. */
 .list-body {
   flex: 1;
   min-height: 0;
@@ -34,7 +34,41 @@
   font-size: var(--text-meta);
 }
 
-/* A tone's colour, the status colour it borrows, named once here for everything a script tones. */
+/* A row's first line: its lead, its text, and its trail at the end, which the text gives way to; the baseline lines the three up whatever their sizes. */
+.list-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.list-line .card-title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A lead, such as a kind's letter: monospaced, so leads of one length make one column and the texts after them line up.
+   The meta line's grey, or its own tone's colour (below), never its row's: the reset keeps it from inheriting that, and sits before the tones so a tone of its own still wins. */
+.list-lead {
+  --tone: initial;
+  flex: 0 0 auto;
+  min-width: 1ch;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  text-align: center;
+  color: var(--tone, var(--muted));
+}
+
+/* A trail, such as a count, at the meta line's size and grey, with digits of one width so counts line up down the list. */
+.list-trail {
+  flex: 0 0 auto;
+  font-size: var(--text-meta);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A tone's colour, the status colour it borrows, named once here for everything a script tones: a row's leading edge and a lead's mark. */
 .tone-attention {
   --tone: var(--waiting);
 }
@@ -49,12 +83,13 @@
 
 /* A row's tone, as its script says: its colour on the row's leading edge, where a session row keeps its accent bar for "open in a tab" — a different mark, since a tone says nothing about tabs; a tone without a colour leaves no edge.
    No fallback on purpose: without a colour the declaration is invalid, so the row has no shadow at all rather than a transparent one, which shifted a dimmed row's corner pixels by a shade in the style capture (measured once, 2026-10-13).
-   A muted row is dimmed, as a session that cannot start is. */
+   A muted row is dimmed, as a session that cannot start is, and so is a muted lead. */
 .list-row {
   box-shadow: inset 3px 0 0 var(--tone);
 }
 
-.list-row.tone-muted {
+.list-row.tone-muted,
+.list-lead.tone-muted {
   opacity: var(--dimmed);
 }
 

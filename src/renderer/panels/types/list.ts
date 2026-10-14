@@ -321,13 +321,17 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   private drawItem(item: ListItem): HTMLElement {
     this.items.set(item.key, item);
     const parts = this.rows.draw(item.key, (key) => this.buildRow(key));
-    const { row, content, title, meta, mark } = parts;
+    const { row, content, line, lead, title, trail, meta, mark } = parts;
     row.className = `card list-row tone-${item.tone}${item.href === null ? ' still' : ''}`;
+    lead.className = `list-lead tone-${item.leadTone}`;
+    lead.textContent = item.lead ?? '';
     title.textContent = item.text;
+    trail.textContent = item.trail ?? '';
+    placeChildren(line, [...(item.lead !== null ? [lead] : []), title, ...(item.trail !== null ? [trail] : [])]);
     // On the first line alone, so the rest of a row with a link still says where the link goes.
-    setTooltip(title, item.tooltip);
+    setTooltip(line, item.tooltip);
     meta.textContent = item.detail ?? '';
-    placeChildren(content, item.detail !== null ? [title, meta] : [title]);
+    placeChildren(content, item.detail !== null ? [line, meta] : [line]);
     this.paintSessions(item.key, parts);
     // What a row offers, as buttons at its end, each kept by all it says — its label, prompt and name — so a run that changes an action gives it a new button, and a press on the old one comes to nothing rather than asking for the new one.
     // Each only ASKS: the app's dialog shows what would start, and nothing does until Start there.
@@ -349,6 +353,8 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   /** A row, built once: what a press does it reads from the row's item as the last draw left it (`items`), since the next run may change it under the same key. */
   private buildRow(key: string): ListRow {
     const { card: row, content, title, meta } = listCard('list-row');
+    // The first line: the lead, the text and the trail, which the text gives way to.
+    const line = element('div', 'list-line');
     const mark = element('button', 'icon-btn list-session');
     mark.type = 'button';
     mark.addEventListener('click', (event) => {
@@ -363,7 +369,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       const href = this.items.get(key)?.href;
       if (href) window.claudeUi.openExternal(href);
     });
-    return { row, content, title, meta, mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
+    return { row, content, line, lead: element('span'), title, trail: element('span', 'list-trail'), meta, mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
   }
 
   /** The button for one of a row's actions, which asks for the session it describes, under the row as the last draw left it. */
@@ -387,7 +393,11 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
 interface ListRow {
   row: HTMLElement;
   content: HTMLElement;
+  /** The first line, holding the lead, the title and the trail. */
+  line: HTMLElement;
+  lead: HTMLElement;
   title: HTMLElement;
+  trail: HTMLElement;
   meta: HTMLElement;
   /** The mark for the sessions the row started, with its dot and, for several, their count. */
   mark: HTMLButtonElement;

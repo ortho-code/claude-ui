@@ -17,7 +17,10 @@ describe('readListDocument', () => {
             items: [
               {
                 key: 'org/repo#1',
+                lead: 'PR',
+                leadTone: 'positive',
                 text: 'Fix the login redirect',
+                trail: '+12 −3',
                 tooltip: 'Fix the login redirect after a session times out',
                 detail: '#1 · 31h · someone',
                 href: 'https://github.com/org/repo/pull/1',
@@ -42,7 +45,10 @@ describe('readListDocument', () => {
             items: [
               {
                 key: 'org/repo#1',
+                lead: 'PR',
+                leadTone: 'positive',
                 text: 'Fix the login redirect',
+                trail: '+12 −3',
                 tooltip: 'Fix the login redirect after a session times out',
                 detail: '#1 · 31h · someone',
                 href: 'https://github.com/org/repo/pull/1',
@@ -62,7 +68,7 @@ describe('readListDocument', () => {
   it('needs only a version, sections, and a key and text per item', () => {
     expect(readListDocument(doc()).doc).toEqual({
       badge: null,
-      sections: [{ title: null, shut: false, empty: null, items: [{ ...item, tooltip: null, detail: null, href: null, tone: 'normal', actions: [] }] }],
+      sections: [{ title: null, shut: false, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', trail: null, tooltip: null, detail: null, href: null, tone: 'normal', actions: [] }] }],
       notes: [],
     });
   });
@@ -96,6 +102,9 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ key: ' ', text: 'x' }] }] }, 'sections[0].items[0].key is empty.'],
     [{ sections: [{ items: [item] }, { items: [item] }] }, 'sections[1].items[0].key "org/repo#1" is already used by another item.'],
     [{ sections: [{ items: [{ ...item, tooltip: 3 }] }] }, 'sections[0].items[0].tooltip is not a string.'],
+    [{ sections: [{ items: [{ ...item, lead: 3 }] }] }, 'sections[0].items[0].lead is not a string.'],
+    [{ sections: [{ items: [{ ...item, trail: 3 }] }] }, 'sections[0].items[0].trail is not a string.'],
+    [{ sections: [{ items: [{ ...item, leadTone: 'loud' }] }] }, 'sections[0].items[0].leadTone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, href: 'file:///etc/passwd' }] }] }, 'sections[0].items[0].href "file:///etc/passwd" is not an http or https link.'],
     [{ sections: [{ items: [{ ...item, tone: 'loud' }] }] }, 'sections[0].items[0].tone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, actions: [{ session: { prompt: 'x' } }] }] }] }, 'sections[0].items[0].actions[0].label is missing.'],
