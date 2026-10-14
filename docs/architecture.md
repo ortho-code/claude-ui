@@ -985,7 +985,7 @@ A field the manifest does not know is a note, not a mistake, and the same holds 
 An edit to a manifest mounts that type's panels afresh: the type carries a revision, and the mount signature includes it beside the entry's options.
 
 **The script describes and the app acts.**
-A list script only prints; opening a row's link is the app's, through the same route every link leaves by, which takes http and https only.
+A list script only prints; opening a row's link, or a link in its detail, is the app's, through the same route every link leaves by, which takes http and https only.
 That is the decision the whole shape rests on (2026-09-29): a JavaScript module loaded into the window would hold the bridge to every session, and a sandboxed page would need a message API of its own for the same result, while a script that prints can do nothing beyond running unless the person presses something.
 It is also why nothing a script prints is ever markup: every row is built as text.
 
@@ -1011,6 +1011,13 @@ Before the first run has ended it says it is waiting, which is neither state.
 That is the default rather than a limit: a type is to be able to overrule it in a later version, and until then it chooses from the words the contract offers, such as a row's `tone`.
 A row is the card a session row is, and a section heading the sidebar's group bar, built by the same builders (`card.ts`) and drawn by the same rules rather than restyled; a row's tone is the status colours on its leading edge, where a session row keeps its accent bar for "open in a tab".
 A row's first line can carry a lead before its text and a trail after it, which the text gives way to; a lead is coloured by a tone of its own, from the same words and the same one map of tone to colour (`list.css`) as the row's edge, so a mark on a row never grows a palette of its own, and it never takes its row's tone, which would put a coloured edge on every row whose mark is coloured.
+A row's `detail` is lines of parts rather than a string, so that a part can be a link of its own, and so that the separator between parts is the app's to draw rather than characters inside the script's text.
+The list names the separator once, ` · ` without one, and a row may name its own, which a row it holds does not take, so a list says it once for every level.
+There is no string form beside it: panel types had not shipped when it changed (2026-10-14), so nothing written for the string had to keep working, and a second way to write the line would have been the one that puts the separator back in the text.
+Among the other ways weighed were a `links` field drawn after `detail`, which kept the separators in the text and put links at the end of the line only, markup inside `detail`, which nothing here ever draws, and a line break written as `\n` in a string, which leaves the lines implicit.
+A part's tone comes from the same map as a lead's, and its colour never reads its row's: only a part whose own tone has a colour sets one, which otherwise leaves a link its accent.
+A link in a detail line is an `<a>` sent to the browser by the helper the history's links use (`routeLinks`, `external-links.ts`), and the row's own click leaves a press on it alone; hovering one always shows where it goes, under its tooltip when it has one, since a shared type's links are somebody else's.
+Each line, and each part and separator in it, is kept by its place (`keyed.ts`), and a part by whether it links too, so a press on a part survives a run that changes what the line says.
 A row can hold rows (`children`), drawn after it a step further in, as siblings in its section rather than inside it, so a row stays the same element by its key wherever it sits, and a run that changes only its level, leaving its place among the section's rows, does not lose a press on it; it folds them from a chevron, or from a press anywhere on it when it has no link, and its folds are kept by key, in memory, while the panel stays mounted, as a section's are by title.
 A section's count counts the rows that hold none, since a row holding rows only groups them.
 A list can name `views`, the ways its script prints it, and with two or more the panel's header draws a switch between them beside Refresh: the first header control besides the one button that a type asks the tree to draw (`PanelHost.setViews`), as it draws the count, so a type that is not bare still builds no header chrome of its own.

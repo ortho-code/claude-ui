@@ -63,6 +63,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A section of a panel type of your own can show a tooltip on its heading, from a `tooltip` the script gives it, such as all of what its title shortens.
 - A session's PRs, as Claude Code links them in its transcript: a mark on the session's row counts them and lists them, the session's options list them too, on its row, its tab and the live strip, and each opens its page in the browser.
   A filter shows only the sessions that link one, and searching for a PR's number finds the session that linked it.
+- A row of a panel type of your own can have several lines under its first, `detail`, each made of parts with a separator between them, ` · ` unless the list or the row names another.
+  A part can be a link of its own, which opens in the browser instead of the row's, show a tooltip, and take a tone.
 
 ### Changed
 
