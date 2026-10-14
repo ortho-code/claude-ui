@@ -34,14 +34,24 @@
   font-size: var(--text-meta);
 }
 
-/* A row's tone, as its script says: the status colours on the row's leading edge, where a session row keeps its accent bar for "open in a tab" — a different mark, since a tone says nothing about tabs.
-   A muted row is dimmed, as a session that cannot start is. */
-.list-row.tone-attention {
-  box-shadow: inset 3px 0 0 var(--waiting);
+/* A tone's colour, the status colour it borrows, named once here for everything a script tones. */
+.tone-attention {
+  --tone: var(--waiting);
 }
 
-.list-row.tone-danger {
-  box-shadow: inset 3px 0 0 var(--failed);
+.tone-positive {
+  --tone: var(--idle);
+}
+
+.tone-danger {
+  --tone: var(--failed);
+}
+
+/* A row's tone, as its script says: its colour on the row's leading edge, where a session row keeps its accent bar for "open in a tab" — a different mark, since a tone says nothing about tabs; a tone without a colour leaves no edge.
+   No fallback on purpose: without a colour the declaration is invalid, so the row has no shadow at all rather than a transparent one, which shifted a dimmed row's corner pixels by a shade in the style capture (measured once, 2026-10-13).
+   A muted row is dimmed, as a session that cannot start is. */
+.list-row {
+  box-shadow: inset 3px 0 0 var(--tone);
 }
 
 .list-row.tone-muted {

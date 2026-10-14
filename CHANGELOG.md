@@ -53,6 +53,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A row of a panel type of your own can show a tooltip on its first line, from a `tooltip` the script gives it, such as all of what that line shortens.
 - A session whose turn has ended while work it started still runs, such as a shell, a monitor or a subagent left in the background, says so on its dot instead of showing finished, and the dot's tooltip names that work, as in "Working in the background: 1 shell".
   It shows finished once that work has finished on its own and claude has answered it, and says it is waiting for you only a minute after that, rather than a minute after the turn that started the work.
+- A `positive` tone for a row of a panel type of your own, which marks its leading edge green.
 
 ### Changed
 

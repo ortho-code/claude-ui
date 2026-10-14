@@ -23,7 +23,7 @@ export const LIST_FIELDS = {
   session: ['prompt', 'name'],
 } as const;
 
-export const TONES = ['normal', 'attention', 'muted', 'danger'] as const;
+export const TONES = ['normal', 'attention', 'positive', 'muted', 'danger'] as const;
 export type Tone = (typeof TONES)[number];
 
 /**

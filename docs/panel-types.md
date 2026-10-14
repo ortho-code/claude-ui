@@ -149,8 +149,8 @@ One JSON object:
 | `tone` | How the row is marked. |
 | `actions` | What the row offers, as buttons at its end. |
 
-`tone` is one of: `normal`, `attention`, `muted`, `danger`.
-`attention` and `danger` mark the row's leading edge in the waiting and failed colours, and `muted` dims it.
+`tone` is one of: `normal`, `attention`, `positive`, `muted`, `danger`.
+`attention`, `positive` and `danger` mark the row's leading edge in the waiting, idle and failed colours (yellow, green and red), and `muted` dims it.
 
 ### An action
 
