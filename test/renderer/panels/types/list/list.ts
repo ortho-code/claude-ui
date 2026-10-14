@@ -27,8 +27,13 @@ export interface PrintedList {
 
 export interface PrintedItem {
   key: string;
+  shut?: boolean;
+  children?: PrintedItem[];
   [field: string]: unknown;
 }
+
+/** The rows a list draws: every item of a section that is not shut, and the items under one that is not shut. */
+const drawn = (items: PrintedItem[]): number => items.reduce((count, item) => count + 1 + (item.shut ? 0 : drawn(item.children ?? [])), 0);
 
 /** Boot with the panel, let its script print `list`, and wait for its rows. */
 export async function bootList(app: App, page: Page, list: PrintedList): Promise<void> {
@@ -37,7 +42,7 @@ export async function bootList(app: App, page: Page, list: PrintedList): Promise
   const { token: run } = (await runs(app, 'changes'))[0];
   await app.emit('onPanelRun', 'changes', run, { kind: 'output', text: JSON.stringify(list) });
   await app.emit('onPanelRun', 'changes', run, { kind: 'exit', code: 0, signal: null });
-  await expect(page.locator('.list-row')).toHaveCount(list.sections.reduce((count, { items }) => count + items.length, 0));
+  await expect(page.locator('.list-row')).toHaveCount(list.sections.reduce((count, { items, shut }) => count + (shut === true ? 0 : drawn(items)), 0));
 }
 
 /** The row whose text holds `text`. */

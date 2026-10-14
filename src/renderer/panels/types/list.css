@@ -17,6 +17,19 @@
   padding-left: 14px;
 }
 
+/* A row held by other rows sits a step further in for each of them (`--depth`, set per row): a step is a chevron and the gap after it, 12px and 8px, so a row's first mark sits under whatever follows the chevron of the row holding it: its lead, or its text when it has none.
+   A card moves whole; a compact row moves only what it holds (below), so its hover still spans the panel. */
+.list-row {
+  --indent: calc(var(--depth, 0) * 20px);
+  margin-left: var(--indent);
+}
+
+/* The chevron of a row holding rows: the section heading's caret, centred on the line rather than sat on the text's baseline, in a box no wider than its mark and its border, so a step in is a chevron and a gap. */
+.list-row .icon-btn.list-fold {
+  align-self: center;
+  padding: 0;
+}
+
 /* A COMPACT LIST, one its script marks `compact`: a row sits on the panel's own background, with no gap between rows, and its text keeps to one line, for a list scanned many rows at a time, such as changed files; a `detail` still adds a second line.
    Its own row shape, not the card and not the menu row, which it resembles but which is a choice in a menu or a strip, where this is an item in a list (docs/architecture.md § UI conventions).
    The text keeps to one line, cut short, so a script puts the rest in the row's tooltip; a link still lights the row under the pointer, through the card's own hover.
@@ -24,7 +37,8 @@
 .list-body.compact .list-row {
   --card-fill: transparent;
   margin-top: 0;
-  padding: 3px 14px 3px 8px;
+  margin-left: 0;
+  padding: 3px 14px 3px calc(8px + var(--indent));
   border-radius: var(--radius-control);
 }
 

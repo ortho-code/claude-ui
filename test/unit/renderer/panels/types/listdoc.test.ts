@@ -58,6 +58,8 @@ describe('readListDocument', () => {
                 href: 'https://github.com/org/repo/pull/1',
                 tone: 'attention',
                 actions: [{ label: 'Review', prompt: '/review 1', name: 'Review #1' }],
+                children: [],
+                shut: false,
               },
             ],
           },
@@ -73,9 +75,18 @@ describe('readListDocument', () => {
     expect(readListDocument(doc()).doc).toEqual({
       badge: null,
       compact: false,
-      sections: [{ title: null, shut: false, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: null, href: null, tone: 'normal', actions: [] }] }],
+      sections: [{ title: null, shut: false, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: null, href: null, tone: 'normal', actions: [], children: [], shut: false }] }],
       notes: [],
     });
+  });
+
+  it('reads the rows a row holds, at any depth, with its keys unique across every level', () => {
+    const folder = { key: 'src', text: 'src', shut: true, children: [{ key: 'src/a', text: 'a' }, { key: 'src/lib', text: 'lib', children: [{ key: 'src/lib/b', text: 'b' }] }] };
+    const [read] = readListDocument(doc({ sections: [{ items: [folder] }] })).doc!.sections[0].items;
+    expect(read.shut).toBe(true);
+    expect(read.children.map(({ key }) => key)).toEqual(['src/a', 'src/lib']);
+    expect(read.children[1].children.map(({ key, children }) => [key, children])).toEqual([['src/lib/b', []]]);
+    expect(problems(doc({ sections: [{ items: [{ ...item, children: [item] }] }] }))).toEqual(['sections[0].items[0].children[0].key "org/repo#1" is already used by another item.']);
   });
 
   it('ignores what this build does not know: fields, and an action of a kind it does not have', () => {
@@ -112,6 +123,10 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ ...item, trail: 3 }] }] }, 'sections[0].items[0].trail is not a string.'],
     [{ sections: [{ items: [{ ...item, leadTone: 'loud' }] }] }, 'sections[0].items[0].leadTone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, cut: 'middle' }] }] }, 'sections[0].items[0].cut "middle" is not one of end, start.'],
+    [{ sections: [{ items: [{ ...item, children: {} }] }] }, 'sections[0].items[0].children is not an array.'],
+    [{ sections: [{ items: [{ ...item, children: [{ key: 'child' }] }] }] }, 'sections[0].items[0].children[0].text is missing.'],
+    [{ sections: [{ items: [{ ...item, shut: true }] }] }, 'sections[0].items[0].shut needs children, which are what it folds.'],
+    [{ sections: [{ items: [{ ...item, shut: true, children: [] }] }] }, 'sections[0].items[0].shut needs children, which are what it folds.'],
     [{ sections: [{ items: [{ ...item, href: 'file:///etc/passwd' }] }] }, 'sections[0].items[0].href "file:///etc/passwd" is not an http or https link.'],
     [{ sections: [{ items: [{ ...item, tone: 'loud' }] }] }, 'sections[0].items[0].tone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, actions: [{ session: { prompt: 'x' } }] }] }] }, 'sections[0].items[0].actions[0].label is missing.'],

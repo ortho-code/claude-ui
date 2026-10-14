@@ -18,7 +18,7 @@ export const LIST_VERSION = 1;
 export const LIST_FIELDS = {
   document: ['version', 'badge', 'compact', 'sections', 'notes'],
   section: ['title', 'shut', 'empty', 'items'],
-  item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'href', 'tone', 'actions'],
+  item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'href', 'tone', 'actions', 'children', 'shut'],
   action: ['label', 'session'],
   session: ['prompt', 'name'],
 } as const;
@@ -60,6 +60,10 @@ export interface ListItem {
   href: string | null;
   tone: Tone;
   actions: SessionAction[];
+  /** The rows under this one, which it folds away and back; empty for a row that holds none. */
+  children: ListItem[];
+  /** Starts folded; only a row with children can fold, since they are what it folds. */
+  shut: boolean;
 }
 
 export interface ListSection {
@@ -180,7 +184,13 @@ class Reader {
     const actions = this.list(field('actions'), `${at}.actions`, false)
       .map((action, index) => this.action(action, `${at}.actions[${index}]`))
       .filter((action) => action !== null);
-    return key !== null && text !== null ? { key, lead, leadTone, text, cut, trail, tooltip, detail, href, tone, actions } : null;
+    // Rows under this one, read as rows are, so a key is unique across every level and a mistake is named by its whole path.
+    const children = this.list(field('children'), `${at}.children`, false)
+      .map((child, index) => this.item(child, `${at}.children[${index}]`))
+      .filter((child) => child !== null);
+    const shut = this.flag(field('shut'), `${at}.shut`);
+    if (shut && children.length === 0) this.problems.push(`${at}.shut needs children, which are what it folds.`);
+    return key !== null && text !== null ? { key, lead, leadTone, text, cut, trail, tooltip, detail, href, tone, actions, children, shut } : null;
   }
 
   section(raw: unknown, at: string): ListSection | null {

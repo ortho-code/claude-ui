@@ -153,6 +153,8 @@ One JSON object:
 | `href` | An http or https link, which a press on the row opens in your browser. |
 | `tone` | How the row is marked. |
 | `actions` | What the row offers, as buttons at its end. |
+| `children` | Rows under this one, as items, drawn a step further in, which it folds away and back from a chevron, or from a press anywhere on it when it has no `href`; a section's count counts the rows that hold none. |
+| `shut` | `true` starts the row folded; only a row with `children` can fold. |
 
 `tone` is one of: `normal`, `attention`, `positive`, `muted`, `danger`.
 `attention`, `positive` and `danger` mark the row's leading edge in the waiting, idle and failed colours (yellow, green and red), and `muted` dims it.

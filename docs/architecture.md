@@ -1002,6 +1002,8 @@ Before the first run has ended it says it is waiting, which is neither state.
 **What it looks like is the app's.**
 A row is the card a session row is, and a section heading the sidebar's group bar, built by the same builders (`card.ts`) and drawn by the same rules rather than restyled; a row's tone is the status colours on its leading edge, where a session row keeps its accent bar for "open in a tab".
 A row's first line can carry a lead before its text and a trail after it, which the text gives way to; a lead is coloured by a tone of its own, from the same words and the same one map of tone to colour (`list.css`) as the row's edge, so a mark on a row never grows a palette of its own, and it never takes its row's tone, which would put a coloured edge on every row whose mark is coloured.
+A row can hold rows (`children`), drawn after it a step further in, as siblings in its section rather than inside it, so a row stays the same element by its key wherever it sits, and a run that changes only its level, leaving its place among the section's rows, does not lose a press on it; it folds them from a chevron, or from a press anywhere on it when it has no link, and its folds are kept by key, in memory, while the panel stays mounted, as a section's are by title.
+A section's count counts the rows that hold none, since a row holding rows only groups them.
 The count on a rail icon sits inside the button, under the icon on a vertical rail and beside it on a horizontal one: a corner badge was tried first, and at 3x even "9+" covered the whole icon on a 24px button, while the rail clips anything past its 28px.
 The icon's tooltip and label say the count whole.
 

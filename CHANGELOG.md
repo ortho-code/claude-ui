@@ -57,6 +57,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A row of a panel type of your own can carry a short mark before its text, `lead`, coloured by a tone of its own, and a short text at the end of its first line, `trail`, such as a count.
 - A list of a panel type of your own can be compact, with `"compact": true` in what its script prints: its rows lose the card around each, and a row's text keeps to one line.
 - A row of a panel type of your own can have its text cut short at its start, with `"cut": "start"`, so a long path keeps its end, such as its file name, in view; such a row keeps to one line.
+- A row of a panel type of your own can hold rows of its own, `children`, which it folds away and back from a chevron, as a file tree folds a folder; a section's count counts the rows that hold none.
 
 ### Changed
 

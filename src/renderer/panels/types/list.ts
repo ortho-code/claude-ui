@@ -56,6 +56,9 @@ function stderrTail(stderr: string): string[] {
 
 const clock = (at: Date): string => at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+/** How many rows a section lists, for its count: the rows that hold none, since a row holding rows only groups them. */
+const listed = (items: ListItem[]): number => items.reduce((count, item) => count + (item.children.length > 0 ? listed(item.children) : 1), 0);
+
 /** What a list panel runs with: where, and the script where the check found it, so the run starts exactly what was checked. */
 interface ListReady {
   context: PanelContext;
@@ -81,6 +84,8 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   private lastDir: string | null = null;
   /** Sections folded or unfolded by hand, by title, over what the document says. */
   private readonly folds = new Map<string, boolean>();
+  /** Rows holding rows, folded or unfolded by hand, by key, over what the document says, as a section's are by title. */
+  private readonly rowFolds = new Map<string, boolean>();
   /** The sections on show and their rows by item key, kept from one draw to the next (`drawList`); a row's mark for the sessions it started is repainted in place when a session changes. */
   private readonly sections = new Keyed<SectionBox>((kept) => kept.box);
   private readonly rows = new Keyed<ListRow>((kept) => kept.row);
@@ -290,7 +295,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     if (title !== null) {
       setFolded(box.caret, !open);
       box.label.textContent = title;
-      box.count.textContent = String(section.items.length);
+      box.count.textContent = String(listed(section.items));
       children.push(box.heading);
     }
     if (open) {
@@ -298,10 +303,28 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
         box.empty.textContent = section.empty;
         children.push(box.empty);
       }
-      children.push(...section.items.map((item) => this.drawItem(item)));
+      children.push(...this.drawItems(section.items, 0));
     }
     placeChildren(box.box, children);
     return box.box;
+  }
+
+  /** Rows, each followed by the rows it holds while it is open, one level further in; all of them siblings in the section, so a row is drawn and kept by its key wherever it sits. */
+  private drawItems(items: ListItem[], depth: number): HTMLElement[] {
+    return items.flatMap((item) => [this.drawItem(item, depth), ...(this.isOpen(item) ? this.drawItems(item.children, depth + 1) : [])]);
+  }
+
+  /** Whether a row shows the rows it holds: as folded by hand, else as the document says; a row holding none has nothing to fold. */
+  private isOpen(item: ListItem): boolean {
+    return item.children.length > 0 && (this.rowFolds.get(item.key) ?? !item.shut);
+  }
+
+  /** Fold a row holding rows, or unfold it, as it is now. */
+  private toggleRow(key: string): void {
+    const item = this.items.get(key);
+    if (!item || item.children.length === 0) return;
+    this.rowFolds.set(key, !this.isOpen(item));
+    this.drawList();
   }
 
   /** A section's box and heading, built once; the heading folds the section it heads when pressed, as that section is then. */
@@ -318,18 +341,30 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     return parts;
   }
 
-  /** A row, as text only: the script may come from anyone, so nothing it prints is ever markup. */
-  private drawItem(item: ListItem): HTMLElement {
+  /**
+   * A row, as text only: the script may come from anyone, so nothing it prints is ever markup.
+   * `depth` is how many rows hold it, which sets it that many steps in.
+   */
+  private drawItem(item: ListItem, depth: number): HTMLElement {
     this.items.set(item.key, item);
     const parts = this.rows.draw(item.key, (key) => this.buildRow(key));
-    const { row, content, line, lead, title, text, trail, meta, mark } = parts;
-    row.className = `card list-row tone-${item.tone}${item.href === null ? ' still' : ''}`;
+    const { row, content, line, fold, lead, title, text, trail, meta, mark } = parts;
+    const holds = item.children.length > 0;
+    // Pressable when it has a link to open or rows to fold.
+    row.className = `card list-row tone-${item.tone}${item.href === null && !holds ? ' still' : ''}`;
+    row.style.setProperty('--depth', String(depth));
+    if (holds) {
+      const open = this.isOpen(item);
+      setFolded(fold, !open);
+      fold.setAttribute('aria-expanded', String(open));
+      fold.setAttribute('aria-label', open ? `Fold ${item.text}` : `Unfold ${item.text}`);
+    }
     lead.className = `list-lead tone-${item.leadTone}`;
     lead.textContent = item.lead ?? '';
     text.textContent = item.text;
     title.classList.toggle('cut-start', item.cut === 'start');
     trail.textContent = item.trail ?? '';
-    placeChildren(line, [...(item.lead !== null ? [lead] : []), title, ...(item.trail !== null ? [trail] : [])]);
+    placeChildren(line, [...(holds ? [fold] : []), ...(item.lead !== null ? [lead] : []), title, ...(item.trail !== null ? [trail] : [])]);
     // On the first line alone, so the rest of a row with a link still says where the link goes.
     setTooltip(line, item.tooltip);
     meta.textContent = item.detail ?? '';
@@ -370,11 +405,20 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     });
     const dot = element('span');
     const count = element('span', 'list-session-count');
+    // The chevron of a row holding rows: the section heading's own caret, in a button of its own so it folds from the keyboard too.
+    const fold = element('button', 'icon-btn compact list-fold');
+    fold.type = 'button';
+    fold.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.toggleRow(key);
+    });
+    // A row's link wins a press on it; a row without one that holds rows folds them.
     row.addEventListener('click', () => {
       const href = this.items.get(key)?.href;
       if (href) window.claudeUi.openExternal(href);
+      else this.toggleRow(key);
     });
-    return { row, content, line, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
+    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
   }
 
   /** The button for one of a row's actions, which asks for the session it describes, under the row as the last draw left it. */
@@ -398,8 +442,10 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
 interface ListRow {
   row: HTMLElement;
   content: HTMLElement;
-  /** The first line, holding the lead, the title and the trail. */
+  /** The first line, holding the chevron, the lead, the title and the trail. */
   line: HTMLElement;
+  /** The chevron of a row holding rows, which folds them. */
+  fold: HTMLButtonElement;
   lead: HTMLElement;
   title: HTMLElement;
   /** The text itself, inside the title. */
