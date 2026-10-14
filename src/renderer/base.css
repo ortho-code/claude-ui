@@ -1,4 +1,4 @@
-/* What no one module owns, because several modules draw with it: the tokens, the reset, the scrollbar, the focus ring, the page, form typography, the button, the icon button, the nudge and the worktree mark's left look.
+/* What no one module owns, because several modules draw with it: the tokens, the reset, the scrollbar, the focus ring, the page, the link, form typography, the button, the icon button, the nudge and the worktree mark's left look.
    Imported first, so every module's own stylesheet comes after it in the bundle. */
 
 :root {
@@ -109,6 +109,12 @@ body {
      With no title bar (macOS) the single child simply takes the whole height. */
   display: flex;
   flex-direction: column;
+}
+
+/* Every `<a>` the window draws, in the accent; the browser's own underline stays, so it reads as something to press.
+   Here rather than beside the module that draws one, so a link looks the same in every module that does. */
+a {
+  color: var(--accent);
 }
 
 /* Form controls do NOT inherit typography: the UA stylesheet hands every button, input and textarea `font: 400 13.333px Arial`, so dialog buttons, the search box, the rename field, the filter pills and every kebab-menu item were rendering in Arial beside a system-ui interface — at a size that isn't on the scale either.

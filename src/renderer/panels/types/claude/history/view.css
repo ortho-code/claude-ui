@@ -441,7 +441,3 @@
   color: var(--muted);
   font-style: italic;
 }
-
-.exchange-markdown a {
-  color: var(--accent);
-}
