@@ -476,23 +476,30 @@ describe('projectOrder', () => {
   });
 
   it('moves a project to either end and one step at a time', async () => {
-    await seedProjectOrder(['/a', '/b', '/c']);
-    expect(await moveProject('/c', 'top')).toEqual(['/c', '/a', '/b']);
-    expect(await moveProject('/c', 'down')).toEqual(['/a', '/c', '/b']);
-    expect(await moveProject('/c', 'up')).toEqual(['/c', '/a', '/b']);
-    expect(await moveProject('/c', 'bottom')).toEqual(['/a', '/b', '/c']);
+    const all = ['/a', '/b', '/c'];
+    await seedProjectOrder(all);
+    expect(await moveProject('/c', 'top', all)).toEqual(['/c', '/a', '/b']);
+    expect(await moveProject('/c', 'down', all)).toEqual(['/a', '/c', '/b']);
+    expect(await moveProject('/c', 'up', all)).toEqual(['/c', '/a', '/b']);
+    expect(await moveProject('/c', 'bottom', all)).toEqual(['/a', '/b', '/c']);
+  });
+
+  it('moves among the projects shown, stepping over the rest', async () => {
+    await seedProjectOrder(['/a', '/gone', '/b']);
+    expect(await moveProject('/a', 'down', ['/a', '/b'])).toEqual(['/gone', '/b', '/a']);
   });
 
   it('ignores a move off either end and an unseen project', async () => {
-    await seedProjectOrder(['/a', '/b']);
-    expect(await moveProject('/a', 'up')).toEqual(['/a', '/b']);
-    expect(await moveProject('/b', 'down')).toEqual(['/a', '/b']);
-    expect(await moveProject('/nope', 'top')).toEqual(['/a', '/b']);
+    const all = ['/a', '/b'];
+    await seedProjectOrder(all);
+    expect(await moveProject('/a', 'up', all)).toEqual(['/a', '/b']);
+    expect(await moveProject('/b', 'down', all)).toEqual(['/a', '/b']);
+    expect(await moveProject('/nope', 'top', all)).toEqual(['/a', '/b']);
   });
 
   it('survives a reload', async () => {
     await seedProjectOrder(['/a', '/b']);
-    await moveProject('/b', 'top');
+    await moveProject('/b', 'top', ['/a', '/b']);
     expect(await getProjectOrder()).toEqual(['/b', '/a']);
   });
 });

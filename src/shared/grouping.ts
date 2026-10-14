@@ -27,14 +27,21 @@ export function seededOrder(order: readonly string[], roots: readonly string[]):
   return fresh.length === 0 ? null : [...fresh, ...order];
 }
 
-/** The project order with one project moved, or null when it does not move: a root nobody has seen has no slot, since the order is seeded from what is on disk. */
-export function movedProject(order: readonly string[], repoRoot: string, move: OrderMove): string[] | null {
-  const from = order.indexOf(repoRoot);
-  if (from < 0) return null;
-  const to = moveTarget(from, order.length - 1, move);
-  if (to === null) return null;
-  const next = [...order];
-  next.splice(to, 0, ...next.splice(from, 1));
+/**
+ * The project order with one project moved among the `shown` ones, the projects on screen, or null when it does not move: a root nobody has seen has no slot, since the order is seeded from what is on disk.
+ * The order holds roots the list does not show, such as one whose sessions are all archived or deleted, and a move steps over those, leaving them in their slots: a step always passes one project you can see, where moving a slot at a time swapped with one you could not and looked like nothing happened.
+ */
+export function movedProject(order: readonly string[], repoRoot: string, move: OrderMove, shown: readonly string[]): string[] | null {
+  if (!order.includes(repoRoot)) return null;
+  const onScreen = new Set(shown);
+  const visible = order.filter((root) => root === repoRoot || onScreen.has(root));
+  const from = visible.indexOf(repoRoot);
+  const to = moveTarget(from, visible.length - 1, move);
+  const passed = to === null ? undefined : visible[to];
+  if (to === null || passed === undefined) return null;
+  const next = order.filter((root) => root !== repoRoot);
+  const at = next.indexOf(passed);
+  next.splice(to < from ? at : at + 1, 0, repoRoot);
   return next;
 }
 

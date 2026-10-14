@@ -138,6 +138,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - On macOS, the folder picker behind + New shows hidden folders as well.
 - Every ⋮ button has a name a screen reader says, the one its tooltip shows, such as "Session options".
 - The point on a menu's edge no longer cuts into the item beside it when that item is highlighted, such as All in the project switcher.
+- Moving a project up or down always passes the next project in the list, where a new project's first move down sometimes did nothing.
 
 ## 0.3.0 — 2026-08-29
 

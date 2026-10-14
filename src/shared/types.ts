@@ -423,8 +423,8 @@ export interface ClaudeUiApi {
    * Unknown roots go to the front (a new project should be noticed); the very first call seeds the order from `roots` as given, so nothing jumps on the run that introduces this.
    */
   seedProjectOrder(roots: string[]): Promise<string[]>;
-  /** Reorder one project among the others. */
-  moveProject(repoRoot: string, move: OrderMove): Promise<string[]>;
+  /** Reorder one project among the `shown` ones, the projects on screen, stepping over the rest (`movedProject`, src/shared/grouping.ts). */
+  moveProject(repoRoot: string, move: OrderMove, shown: string[]): Promise<string[]>;
   /**
    * Note, for the record, that `/clear` replaced session `from` with session `to`.
    * Data collection: nothing reads it back.

@@ -243,21 +243,23 @@ export function openPrsMenu(anchor: HTMLElement, session: SessionSummary): void 
   openMenu(anchor, prMenuItems(session));
 }
 
-// A project's ordering moves.
-// The order spans every project ever seen, so the ends are the ends of THAT list, not of what's on screen (a filter or an all-archived project can hide neighbours without changing where this one sits).
+// A project's ordering moves, among the projects on screen.
+// The order holds projects the list does not show, such as one whose sessions are all archived or deleted, so a move steps over those and the ends are the ends of what is on screen (`movedProject`): moving a slot at a time, a project put in front of such a one swapped with it and seemed not to move.
 export function projectMoveItems(repoRoot: string): MenuItem[] {
   const state = store.get();
-  const { activeProject, projectOrder } = state;
   // All view only: a project view renders a single heading, so there is nothing to order against.
-  if (activeProject !== null) return [];
-  // Not while filtering either: a hidden neighbour makes the move land where you can't see it, so "Move up" past a filtered-out project looks like a button that did nothing.
+  if (state.activeProject !== null) return [];
+  // Not while filtering either: where it would land among the projects the filter hides is arbitrary, so moves wait until the filter is cleared.
   if (isFiltering(state)) return [];
-  return orderMoveItems(projectOrder.indexOf(repoRoot), projectOrder.length, (move) => moveProjectBy(repoRoot, move));
+  // The projects the list has drawn that have a place in the order.
+  // One that turned up since the last full read has none until that read gives it one, and is drawn last meanwhile wherever it is moved, so it offers no move, and the project above it no move down.
+  const shown = renderedSections.projects.filter((root) => state.projectOrder.includes(root));
+  return orderMoveItems(shown.indexOf(repoRoot), shown.length, (move) => moveProjectBy(repoRoot, move, shown));
 }
 
 // The list, the strip and the tab bar place projects by the order, so all three follow the store together rather than the bar at the next unrelated redraw.
-async function moveProjectBy(repoRoot: string, move: OrderMove): Promise<void> {
-  store.set({ projectOrder: await window.claudeUi.moveProject(repoRoot, move) });
+async function moveProjectBy(repoRoot: string, move: OrderMove, shown: string[]): Promise<void> {
+  store.set({ projectOrder: await window.claudeUi.moveProject(repoRoot, move, shown) });
 }
 
 export async function renameProject(repoRoot: string): Promise<void> {

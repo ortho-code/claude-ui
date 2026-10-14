@@ -583,6 +583,11 @@ The app's own preferences are not there: they are what you chose rather than whe
 They were kept in `meta.json` as `settings` until then; `moved` records each thing that has moved out, so the move is made once, and the old copy stays where it was for an older build to find.
 The session store is never written to: `~/.claude` is read-only as far as this app is concerned.
 
+A project gets its place in the project order, in front, at the next full read of the sessions (at launch, or after a session is deleted), and keeps it, since no write takes a place away (`seedProjectOrder`).
+So the order holds projects the unfiltered list does not show, those whose sessions are all archived, being deleted or deleted, and roots a session no longer resolves to, and a move from a project's options steps over them: it passes the next project on screen and leaves the rest in their slots (`movedProject`).
+Moving one slot at a time, a project put in front of such a root swapped with it on its first move down, and looked like nothing happened.
+A project that turns up while the app runs is drawn last, with no place until the next full read, so until then it offers no move, and the project above it no move down.
+
 Writes are serialized through one queue and land via a temp file renamed over the target, with the previous good copy kept as a backup, so a crash mid-write can't leave the file half-written.
 Reads are tolerant by design: unknown or malformed entries are dropped rather than trusted, and older field names are still understood, so an older `meta.json` upgrades in place without a migration step.
 

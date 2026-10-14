@@ -756,11 +756,11 @@ export function seedProjectOrder(roots: string[]): Promise<string[]> {
   });
 }
 
-// Reorder one project among the others; a move that goes nowhere writes nothing.
-export function moveProject(repoRoot: string, move: OrderMove): Promise<string[]> {
+// Reorder one project among the ones on screen (`shown`, the window's to say); a move that goes nowhere writes nothing.
+export function moveProject(repoRoot: string, move: OrderMove, shown: string[]): Promise<string[]> {
   return serialize(async () => {
     const meta = await readMeta();
-    const moved = movedProject(meta.projectOrder, repoRoot, move);
+    const moved = movedProject(meta.projectOrder, repoRoot, move, shown);
     if (!moved) return meta.projectOrder;
     meta.projectOrder = moved;
     await writeMeta(meta);

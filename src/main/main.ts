@@ -568,7 +568,7 @@ ipcMain.handle('meta:deleteGroup', (_event, id: string) => deleteGroup(id));
 ipcMain.handle('meta:moveGroup', (_event, id: string, move: OrderMove) => moveGroup(id, move));
 ipcMain.handle('meta:getProjectOrder', () => getProjectOrder());
 ipcMain.handle('meta:seedProjectOrder', (_event, roots: string[]) => seedProjectOrder(roots));
-ipcMain.handle('meta:moveProject', (_event, repoRoot: string, move: OrderMove) => moveProject(repoRoot, move));
+ipcMain.handle('meta:moveProject', (_event, repoRoot: string, move: OrderMove, shown: string[]) => moveProject(repoRoot, move, shown));
 ipcMain.handle('meta:moveSessionToGroup', (_event, sessionId: string, groupId: string | null) =>
   moveSessionToGroup(sessionId, groupId),
 );

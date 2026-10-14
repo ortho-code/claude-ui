@@ -32,7 +32,42 @@ test('moving a project moves it in the list, the switcher and the tab bar togeth
   await expect(headings(page)).toHaveText(['other', 'demo']);
   await expect(switcherItems(page)).toHaveText(['other', 'demo']);
   await expect(tabBarProjects(page)).toHaveText(['other', 'demo']);
-  expect(await app.calls('moveProject')).toEqual([[OTHER, 'up']]);
+  expect(await app.calls('moveProject')).toEqual([[OTHER, 'up', [PROJECT, OTHER]]]);
+});
+
+// The order keeps the place of a project whose sessions were all deleted, and a new project is put in front at a full read, so its neighbour in the order can be one no surface shows (docs/architecture.md § App-side metadata and session groups).
+// Here `new` is seeded in front of `gone`, and `old` sits after `demo`; neither of those two has a session to show.
+const NEW = `${HOME}/projects/new`;
+const inNew = session({ id: '00000000-0000-4000-8000-0000000000d3', title: 'In new', cwd: NEW, repoRoot: NEW });
+const behindUnseen = { ...fixture, sessions: [inNew, inDemo], projectOrder: [`${HOME}/projects/gone`, PROJECT, `${HOME}/projects/old`], openSessions: [] };
+
+test('a new project moves down past the next project on screen, stepping over one shown nowhere', async ({ app, page }) => {
+  await app.boot(behindUnseen);
+  await expect(headings(page)).toHaveText(['new', 'demo']);
+
+  await projectMenu(page, 'new', 'Move down');
+  await expect(headings(page)).toHaveText(['demo', 'new']);
+  await expect(switcherItems(page)).toHaveText(['demo', 'new']);
+});
+
+test('the last project on screen offers no move down, when only projects shown nowhere come after it', async ({ app, page }) => {
+  await app.boot(behindUnseen);
+  await projectHeading(page, 'demo').locator('.project-kebab').click();
+  await expect(page.locator('.kebab-menu button', { hasText: /^Move/ })).toHaveText(['Move to top', 'Move up']);
+});
+
+// A project that turns up while the window runs has no slot until the next full read gives it one, and is drawn last meanwhile, wherever a move would put it.
+test('a project that turned up since the last full read offers no move, and the one above it no move down', async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [] });
+  await app.listOnDisk([inDemo, inOther, inNew]);
+  await expect(headings(page)).toHaveText(['demo', 'other', 'new']);
+
+  await projectHeading(page, 'other').locator('.project-kebab').click();
+  await expect(page.locator('.kebab-menu button', { hasText: /^Move/ })).toHaveText(['Move to top', 'Move up']);
+  await projectHeading(page, 'other').locator('.project-kebab').click();
+  await projectHeading(page, 'new').locator('.project-kebab').click();
+  await expect(page.locator('.kebab-menu')).toBeVisible();
+  await expect(page.locator('.kebab-menu button', { hasText: /^Move/ })).toHaveCount(0);
 });
 
 test('renaming a project renames it in the list, the switcher, the tab bar and its tabs, and its folder\'s name clears the rename', async ({ app, page }) => {

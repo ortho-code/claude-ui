@@ -39,11 +39,30 @@ describe('seededOrder', () => {
 describe('movedProject', () => {
   it('moves a project, and answers null for an unknown root or a move that goes nowhere', () => {
     const order = ['/a', '/b', '/c'];
-    expect(movedProject(order, '/c', 'top')).toEqual(['/c', '/a', '/b']);
-    expect(movedProject(order, '/a', 'down')).toEqual(['/b', '/a', '/c']);
-    expect(movedProject(order, '/x', 'top')).toBeNull();
-    expect(movedProject(order, '/a', 'up')).toBeNull();
+    expect(movedProject(order, '/c', 'top', order)).toEqual(['/c', '/a', '/b']);
+    expect(movedProject(order, '/a', 'down', order)).toEqual(['/b', '/a', '/c']);
+    expect(movedProject(order, '/x', 'top', order)).toBeNull();
+    expect(movedProject(order, '/a', 'up', order)).toBeNull();
     expect(order).toEqual(['/a', '/b', '/c']);
+  });
+
+  it('moves past the next project shown, stepping over the ones not shown, which keep their slots', () => {
+    // /x and /y are shown nowhere, such as a project whose sessions were all deleted and one whose sessions are all archived.
+    const order = ['/a', '/x', '/b', '/y', '/c'];
+    const shown = ['/a', '/b', '/c'];
+    expect(movedProject(order, '/a', 'down', shown)).toEqual(['/x', '/b', '/a', '/y', '/c']);
+    expect(movedProject(order, '/c', 'up', shown)).toEqual(['/a', '/x', '/c', '/b', '/y']);
+    expect(movedProject(order, '/b', 'top', shown)).toEqual(['/b', '/a', '/x', '/y', '/c']);
+    expect(movedProject(order, '/b', 'bottom', shown)).toEqual(['/a', '/x', '/y', '/c', '/b']);
+  });
+
+  it('answers null for a move toward an end that only projects not shown are past', () => {
+    const order = ['/x', '/a', '/b', '/y'];
+    const shown = ['/a', '/b'];
+    expect(movedProject(order, '/a', 'up', shown)).toBeNull();
+    expect(movedProject(order, '/a', 'top', shown)).toBeNull();
+    expect(movedProject(order, '/b', 'down', shown)).toBeNull();
+    expect(movedProject(order, '/b', 'bottom', shown)).toBeNull();
   });
 });
 
