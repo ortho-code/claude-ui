@@ -819,10 +819,11 @@ At start-up the default layout is drawn before the first paint, the file is read
 
 ### A type owns its options
 
-A panel type is a module under `src/renderer/panels/types/`, and it declares its options in one place: name, kind (`text`, `path`, `duration` or `choice`), for a `path` what it resolves against and what it must point at, for a `duration` the shortest and longest it may be, for a `choice` the values it may be, and which groups of options are exactly-one-of.
+A panel type is a module under `src/renderer/panels/types/`, and it declares its options in one place: name, kind (`text`, `path`, `duration`, `choice` or `list`), for a `path` what it resolves against and what it must point at, for a `duration` the shortest and longest it may be, for a `choice` the values it may be, for a `list` the fields of its items, if they are objects, and which groups of options are exactly-one-of.
 The layout sees only what it needs to draw and place an entry: the default icon, a default title from the options where they give one, whether the type is bare, and whether it is a built-in the layout must place once.
 
 **The type checks its own options**, with one checker every type shares (`panels/options.ts`), driven by that declaration: a key it does not know, a missing or doubled exactly-one-of, a value that is not a string or is empty, and what a path points at — the last asked of the main process, which has the filesystem.
+A `list` is checked by the same function, item by item and field by field, each under its whole path (`actions[0].button`), so an item's field is held to exactly what an option of its kind is held to, and every item's mistakes are named, not only the first.
 It checks when it is mounted, so a panel behind another already wears `alert` on its rail; before every run or shell start, since a script can go missing between runs; and whenever the config folder changes, which is how a script gaining its executable bit clears without a restart.
 It says what it found through its HOST, the tree's side of a conversation that already carried the busy mark, the run's last word and the rail dot: "cannot run, because …" is drawn with the same problem list the layout's own refusals use, with `alert` on the rail icon, and a note goes on the group's note line.
 `alert` is "will not start as its options stand"; the red dot is still "a run failed".
@@ -983,6 +984,9 @@ So `cwd`, `interval` and `watch` are the list kind's own, not something every pa
 A manifest is checked like the layout file — every mistake named, each prefixed with its file — and a type whose manifest is wrong is still a type, so every entry of it says what is wrong where the panel would be.
 A field the manifest does not know is a note, not a mistake, and the same holds for the list a script prints: both are a contract a shared type is written against, with a `version`, so a field a later version added is ignored here and only a version bump is a break.
 An edit to a manifest mounts that type's panels afresh: the type carries a revision, and the mount signature includes it beside the entry's options.
+A manifest declares an option as a `text` or a `list`, a list's items being texts, or objects of the `fields` it declares, each field declared as an option is and checked by the one function that checks a manifest's options; a field is a `text` only, for now (2026-10-14), so no field is a list until that check allows one.
+A list reaches the script as JSON in the same `CLAUDE_UI_OPTION_<NAME>` a text does, since a variable holds a string: exact for any character, and one parse in a script; a text stays as it is written, so nothing written for a text changed.
+Numbered variables (`…_ACTIONS_0_BUTTON`) were weighed and turned down, since an option may already be named `actions_0_button`, and so was one file holding every option, a second channel to keep in step with the variables.
 
 **The script describes and the app acts.**
 A list script only prints; opening a row's link, or a link in its detail, is the app's, through the same route every link leaves by, which takes http and https only.

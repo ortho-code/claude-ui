@@ -65,6 +65,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A filter shows only the sessions that link one, and searching for a PR's number finds the session that linked it.
 - A row of a panel type of your own can have several lines under its first, `detail`, each made of parts with a separator between them, ` · ` unless the list or the row names another.
   A part can be a link of its own, which opens in the browser instead of the row's, show a tooltip, and take a tone.
+- A panel type of your own can declare an option whose value is a list, `"kind": "list"`, of texts or of objects of the `fields` it declares, such as several buttons, each with its own word and prompt.
+  Its script gets the list as JSON.
 
 ### Changed
 
