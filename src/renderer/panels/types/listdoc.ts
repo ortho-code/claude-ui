@@ -19,7 +19,7 @@ export const LIST_VERSION = 1;
  * The fields of each object in a list document: the ONE place they are named (see fields.ts), which `docs/panel-types.md` is held to by a test.
  */
 export const LIST_FIELDS = {
-  document: ['version', 'badge', 'views', 'compact', 'separator', 'sections', 'notes'],
+  document: ['version', 'badge', 'views', 'compact', 'separator', 'buttons', 'sections', 'notes'],
   view: ['id', 'label', 'icon'],
   section: ['title', 'shut', 'tooltip', 'empty', 'items'],
   item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'separator', 'href', 'tone', 'actions', 'children', 'shut'],
@@ -30,6 +30,9 @@ export const LIST_FIELDS = {
 
 /** What goes between the parts of a row's `detail` lines when neither the row nor the list says. */
 export const DEFAULT_SEPARATOR = ' · ';
+
+/** How many of a row's actions show as buttons when the list does not say: the first, the rest behind the row's menu. */
+export const DEFAULT_BUTTONS = 1;
 
 export const TONES = ['normal', 'attention', 'positive', 'muted', 'danger'] as const;
 export type Tone = (typeof TONES)[number];
@@ -106,6 +109,8 @@ export interface ListDocument {
   views: PanelView[];
   /** One line a row, without the card around each. */
   compact: boolean;
+  /** How many of a row's actions show as buttons, the rest behind the row's menu; `DEFAULT_BUTTONS` without one. */
+  buttons: number;
   sections: ListSection[];
   /** Sentences for the panel's note line. */
   notes: string[];
@@ -145,6 +150,14 @@ class Reader {
     if (words.includes(value as T)) return value as T;
     this.problems.push(`${at} ${JSON.stringify(value)} is not one of ${words.join(', ')}.`);
     return words[0]!;
+  }
+
+  /** An optional whole number, 0 or more, such as the badge: null when absent, and a problem when it is anything else. */
+  count(value: unknown, at: string): number | null {
+    if (value === undefined) return null;
+    if (typeof value === 'number' && Number.isInteger(value) && value >= 0) return value;
+    this.problems.push(`${at} is not a whole number, 0 or more.`);
+    return null;
   }
 
   flag(value: unknown, at: string): boolean {
@@ -317,12 +330,7 @@ export function readListDocument(stdout: string): ListRead {
   if (version !== LIST_VERSION) return { doc: null, problems: [`version ${JSON.stringify(version)} is not one this build reads (it reads ${LIST_VERSION}).`] };
 
   const reader = new Reader();
-  const rawBadge = field('badge');
-  let badge: number | null = null;
-  if (rawBadge !== undefined) {
-    if (typeof rawBadge === 'number' && Number.isInteger(rawBadge) && rawBadge >= 0) badge = rawBadge;
-    else reader.problems.push('badge is not a whole number, 0 or more.');
-  }
+  const badge = reader.count(field('badge'), 'badge');
   const viewIds = new Set<string>();
   const views = reader
     .list(field('views'), 'views', false)
@@ -330,6 +338,7 @@ export function readListDocument(stdout: string): ListRead {
     .filter((view) => view !== null);
   const compact = reader.flag(field('compact'), 'compact');
   reader.separator = reader.text(field('separator'), 'separator') ?? DEFAULT_SEPARATOR;
+  const buttons = reader.count(field('buttons'), 'buttons') ?? DEFAULT_BUTTONS;
   const sections = reader
     .list(field('sections'), 'sections', true)
     .map((section, index) => reader.section(section, `sections[${index}]`))
@@ -339,5 +348,5 @@ export function readListDocument(stdout: string): ListRead {
     .map((note, index) => reader.text(note, `notes[${index}]`))
     .filter((note) => note !== null);
   if (reader.problems.length > 0) return { doc: null, problems: reader.problems };
-  return { doc: { badge, views, compact, sections, notes }, problems: [] };
+  return { doc: { badge, views, compact, buttons, sections, notes }, problems: [] };
 }

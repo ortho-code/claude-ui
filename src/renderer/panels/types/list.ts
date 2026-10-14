@@ -6,6 +6,7 @@ import { statusLabel } from '../../logic';
 import { element } from '../../dom';
 import { routeLinks } from '../../external-links';
 import { Keyed, placeChildren } from '../../keyed';
+import { kebabButton, type MenuItem } from '../../menu';
 import { sessionDotClass } from '../../statusdot';
 import { setTooltip } from '../../tooltip';
 import type { PanelSlot } from '../layout';
@@ -14,7 +15,7 @@ import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
 import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
 import type { FolderType } from './folder';
-import { readListDocument, type DetailPart, type ListDocument, type ListItem, type ListSection, type SessionAction } from './listdoc';
+import { DEFAULT_BUTTONS, readListDocument, type DetailPart, type ListDocument, type ListItem, type ListSection, type SessionAction } from './listdoc';
 import './list.css';
 
 /**
@@ -56,6 +57,9 @@ function stderrTail(stderr: string): string[] {
 }
 
 const clock = (at: Date): string => at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+/** All an action says, its label, prompt and name: what a row's button is kept by, and what a menu item checks the row still offers when chosen. */
+const actionKey = (action: SessionAction): string => JSON.stringify([action.label, action.prompt, action.name]);
 
 /** How many rows a section lists, for its count: the rows that hold none, since a row holding rows only groups them. */
 const listed = (items: ListItem[]): number => items.reduce((count, item) => count + (item.children.length > 0 ? listed(item.children) : 1), 0);
@@ -390,11 +394,12 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     placeChildren(meta, detail);
     placeChildren(content, detail.length > 0 ? [line, meta] : [line]);
     this.paintSessions(item.key, parts);
-    // What a row offers, as buttons at its end, each kept by all it says — its label, prompt and name — so a run that changes an action gives it a new button, and a press on the old one comes to nothing rather than asking for the new one.
+    // What a row offers, at its end: the first as many as the list's `buttons` says as buttons, each kept by all it says — its label, prompt and name — so a run that changes an action gives it a new button, and a press on the old one comes to nothing rather than asking for the new one; the rest behind its kebab, last.
     // Each only ASKS: the app's dialog shows what would start, and nothing does until Start there.
+    const shown = this.buttonCount();
     const said = new Map<string, number>();
-    const buttons = item.actions.map((action) => {
-      const what = JSON.stringify([action.label, action.prompt, action.name]);
+    const buttons = item.actions.slice(0, shown).map((action) => {
+      const what = actionKey(action);
       const again = said.get(what) ?? 0;
       said.set(what, again + 1);
       return parts.actions.draw(`${what}#${again}`, () => this.buildAction(item.key, action));
@@ -403,8 +408,32 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     // Where a click goes, since a shared type's rows are somebody else's links.
     setTooltip(row, item.href);
     // The sessions it started, before what it offers, so going back comes before starting again.
-    placeChildren(row, [content, mark, ...buttons]);
+    placeChildren(row, [content, mark, ...buttons, ...(item.actions.length > shown ? [parts.kebab] : [])]);
     return row;
+  }
+
+  /** How many of a row's actions show as buttons, as the last good list said. */
+  private buttonCount(): number {
+    return this.good?.doc.buttons ?? DEFAULT_BUTTONS;
+  }
+
+  /** The items of a row's kebab: its actions beyond its buttons, as the last draw left the row, each asking for its action only if the row still offers it when chosen, since a run may take it away while the menu is up; null for none. */
+  private moreActions(key: string): MenuItem[] | null {
+    const rest = this.items.get(key)?.actions.slice(this.buttonCount()) ?? [];
+    if (rest.length === 0) return null;
+    return rest.map((action) => ({
+      label: action.label,
+      onSelect: () => {
+        if (this.items.get(key)?.actions.some((offered) => actionKey(offered) === actionKey(action))) this.ask(key, action);
+      },
+    }));
+  }
+
+  /** Ask the app for an action's session, for the row as the last draw left it: the app's dialog shows what would start, and nothing does until Start there. */
+  private ask(key: string, action: SessionAction): void {
+    const item = this.items.get(key);
+    if (!item) return;
+    this.host.startSession({ from: this.slot.title, key, label: item.text, href: item.href, name: action.name, prompt: action.prompt, dir: this.lastDir });
   }
 
   /**
@@ -461,7 +490,9 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       if (href) window.claudeUi.openExternal(href);
       else this.toggleRow(key);
     });
-    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
+    // What the row offers beyond its buttons, behind the app's own kebab, last on the row as a session row's is; built once, so a press on it survives a redraw.
+    const kebab = kebabButton('list-kebab pair-end', 'More actions', () => this.moreActions(key));
+    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button), kebab };
   }
 
   /** The button for one of a row's actions, which asks for the session it describes, under the row as the last draw left it. */
@@ -473,9 +504,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     button.addEventListener('click', (event) => {
       // Its own click, not the row's link.
       event.stopPropagation();
-      const item = this.items.get(key);
-      if (!item) return;
-      this.host.startSession({ from: this.slot.title, key, label: item.text, href: item.href, name: action.name, prompt: action.prompt, dir: this.lastDir });
+      this.ask(key, action);
     });
     return button;
   }
@@ -504,6 +533,8 @@ interface ListRow {
   count: HTMLElement;
   /** Its action buttons, each kept by all its action says. */
   actions: Keyed<HTMLButtonElement>;
+  /** The kebab holding its actions beyond its buttons, on the row only while it has some. */
+  kebab: HTMLButtonElement;
 }
 
 /** A line of a row's detail, and its parts and the separators between them. */

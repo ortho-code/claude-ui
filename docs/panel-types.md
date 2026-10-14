@@ -152,6 +152,7 @@ One JSON object:
 | `views` | The ways the script can print the list, such as flat or as a tree: with two or more, the panel's header shows a switch between them, and a pick runs the script again with it as `CLAUDE_UI_VIEW`. |
 | `compact` | `true` draws the rows without the card around each, for a list scanned many rows at a time; a row's text is then cut short to one line, so put the rest in its `tooltip`, and leave out `detail`, whose lines still go under it. |
 | `separator` | What goes between the parts of each line of a row's `detail`: ` · ` without one; an empty one sets them side by side. |
+| `buttons` | How many of a row's `actions` show as buttons, a whole number, 0 or more: `1` without one, so a row shows its first action as a button and the rest in a menu behind a ⋮ after it; `0` puts every action in the menu. |
 | `sections` | Required: the sections, in order. |
 | `notes` | Sentences for the line under the panel. |
 
@@ -192,7 +193,7 @@ An entry naming a view the list does not offer is said under the panel.
 | `separator` | What goes between the parts of its own `detail` lines, in place of the list's; a row it holds takes the list's, not this. |
 | `href` | An http or https link, which a press on the row opens in your browser. |
 | `tone` | How the row is marked. |
-| `actions` | What the row offers, as buttons at its end. |
+| `actions` | What the row offers, at its end: the first as many as the list's `buttons` says as buttons, in order, and the rest in a menu behind a ⋮ after them, by their `label`. |
 | `children` | Rows under this one, as items, drawn a step further in, which it folds away and back from a chevron, or from a press anywhere on it when it has no `href`; a section's count counts the rows that hold none. |
 | `shut` | `true` starts the row folded; only a row with `children` can fold. |
 

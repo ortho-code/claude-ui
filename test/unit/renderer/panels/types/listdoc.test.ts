@@ -20,6 +20,7 @@ describe('readListDocument', () => {
         ],
         compact: true,
         separator: ' / ',
+        buttons: 2,
         sections: [
           {
             empty: 'Nothing waiting on you.',
@@ -53,6 +54,7 @@ describe('readListDocument', () => {
           { id: 'tree', label: 'Tree', icon: 'tree' },
         ],
         compact: true,
+        buttons: 2,
         sections: [
           {
             title: null,
@@ -91,9 +93,14 @@ describe('readListDocument', () => {
       badge: null,
       views: [],
       compact: false,
+      buttons: 1,
       sections: [{ title: null, shut: false, tooltip: null, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: [], separator: ' · ', href: null, tone: 'normal', actions: [], children: [], shut: false }] }],
       notes: [],
     });
+  });
+
+  it('takes 0 buttons', () => {
+    expect(readListDocument(doc({ buttons: 0 })).doc?.buttons).toBe(0);
   });
 
   it("puts a row's own separator between the parts of its lines, else the list's, else ' · ', an empty one included", () => {
@@ -139,6 +146,9 @@ describe('readListDocument', () => {
     [{ sections: {} }, 'sections is not an array.'],
     [{ badge: -1 }, 'badge is not a whole number, 0 or more.'],
     [{ badge: 1.5 }, 'badge is not a whole number, 0 or more.'],
+    [{ buttons: -1 }, 'buttons is not a whole number, 0 or more.'],
+    [{ buttons: 1.5 }, 'buttons is not a whole number, 0 or more.'],
+    [{ buttons: '1' }, 'buttons is not a whole number, 0 or more.'],
     [{ compact: 'yes' }, 'compact is not true or false.'],
     [{ views: {} }, 'views is not an array.'],
     [{ views: [{ label: 'Flat', icon: 'list' }] }, 'views[0].id is missing.'],
