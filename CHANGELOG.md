@@ -60,6 +60,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A row of a panel type of your own can hold rows of its own, `children`, which it folds away and back from a chevron, as a file tree folds a folder; a section's count counts the rows that hold none.
 - A list of a panel type of your own can offer several views, such as flat and as a tree, with `views`: the panel's header then switches between them, the script is told which with `CLAUDE_UI_VIEW`, and a panel entry's `view` in the layout says which it shows until you pick another.
   The view you pick is kept for the panel on this machine.
+- A section of a panel type of your own can show a tooltip on its heading, from a `tooltip` the script gives it, such as all of what its title shortens.
 
 ### Changed
 

@@ -308,6 +308,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       setFolded(box.caret, !open);
       box.label.textContent = title;
       box.count.textContent = String(listed(section.items));
+      setTooltip(box.heading, section.tooltip);
       children.push(box.heading);
     }
     if (open) {

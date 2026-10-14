@@ -149,6 +149,7 @@ An entry naming a view the list does not offer is said under the panel.
 |---|---|
 | `title` | A heading, which folds the section away and back. |
 | `shut` | `true` starts it folded; only a section with a `title` can fold. |
+| `tooltip` | What hovering its heading shows, such as all of what the title shortens, its line breaks kept; only a section with a `title` has a heading. |
 | `empty` | What it says when it has no items. |
 | `items` | Required: its rows, in order. |
 

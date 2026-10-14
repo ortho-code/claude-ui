@@ -21,7 +21,7 @@ export const LIST_VERSION = 1;
 export const LIST_FIELDS = {
   document: ['version', 'badge', 'views', 'compact', 'sections', 'notes'],
   view: ['id', 'label', 'icon'],
-  section: ['title', 'shut', 'empty', 'items'],
+  section: ['title', 'shut', 'tooltip', 'empty', 'items'],
   item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'href', 'tone', 'actions', 'children', 'shut'],
   action: ['label', 'session'],
   session: ['prompt', 'name'],
@@ -74,6 +74,8 @@ export interface ListSection {
   title: string | null;
   /** Starts folded; only a section with a title can fold, since its title is what stays. */
   shut: boolean;
+  /** What hovering its heading shows, such as all of what the title shortens; only a section with a title has a heading to hover. */
+  tooltip: string | null;
   /** What an empty section says instead of nothing. */
   empty: string | null;
   items: ListItem[];
@@ -228,11 +230,13 @@ class Reader {
     const title = this.text(field('title'), `${at}.title`);
     const shut = this.flag(field('shut'), `${at}.shut`);
     if (shut && title === null) this.problems.push(`${at}.shut needs a title, which is what stays when it folds.`);
+    const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
+    if (tooltip !== null && title === null) this.problems.push(`${at}.tooltip needs a title, which is what it shows over.`);
     const empty = this.text(field('empty'), `${at}.empty`);
     const items = this.list(field('items'), `${at}.items`, true)
       .map((item, index) => this.item(item, `${at}.items[${index}]`))
       .filter((item) => item !== null);
-    return { title, shut, empty, items };
+    return { title, shut, tooltip, empty, items };
   }
 }
 

@@ -36,7 +36,7 @@ describe('readListDocument', () => {
               },
             ],
           },
-          { title: 'Blocked', shut: true, items: [] },
+          { title: 'Blocked', shut: true, tooltip: 'PRs waiting on someone else first', items: [] },
         ],
         notes: ['Could not read team membership.'],
       }),
@@ -53,6 +53,7 @@ describe('readListDocument', () => {
           {
             title: null,
             shut: false,
+            tooltip: null,
             empty: 'Nothing waiting on you.',
             items: [
               {
@@ -72,7 +73,7 @@ describe('readListDocument', () => {
               },
             ],
           },
-          { title: 'Blocked', shut: true, empty: null, items: [] },
+          { title: 'Blocked', shut: true, tooltip: 'PRs waiting on someone else first', empty: null, items: [] },
         ],
         notes: ['Could not read team membership.'],
       },
@@ -85,7 +86,7 @@ describe('readListDocument', () => {
       badge: null,
       views: [],
       compact: false,
-      sections: [{ title: null, shut: false, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: null, href: null, tone: 'normal', actions: [], children: [], shut: false }] }],
+      sections: [{ title: null, shut: false, tooltip: null, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: null, href: null, tone: 'normal', actions: [], children: [], shut: false }] }],
       notes: [],
     });
   });
@@ -139,6 +140,8 @@ describe('readListDocument', () => {
     [{ sections: [{}] }, 'sections[0].items is missing.'],
     [{ sections: [{ shut: true, items: [] }] }, 'sections[0].shut needs a title, which is what stays when it folds.'],
     [{ sections: [{ title: 'x', shut: 'yes', items: [] }] }, 'sections[0].shut is not true or false.'],
+    [{ sections: [{ title: 'x', tooltip: 3, items: [] }] }, 'sections[0].tooltip is not a string.'],
+    [{ sections: [{ tooltip: 'x', items: [] }] }, 'sections[0].tooltip needs a title, which is what it shows over.'],
     [{ sections: [{ items: [{ text: 'x' }] }] }, 'sections[0].items[0].key is missing.'],
     [{ sections: [{ items: [{ key: 'a' }] }] }, 'sections[0].items[0].text is missing.'],
     [{ sections: [{ items: [{ key: ' ', text: 'x' }] }] }, 'sections[0].items[0].key is empty.'],
