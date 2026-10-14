@@ -111,7 +111,7 @@ beforeAll(async () => {
     ),
   );
 
-  // Mid-life worktree entry (EnterWorktree hook): the transcript stays in the original project dir; the last worktree-state event decides where the session lives.
+  // Mid-life worktree entry (claude's EnterWorktree tool): the transcript stays in the original project dir; the last worktree-state event decides where the session lives.
   await fs.writeFile(
     path.join(dir, 'w1.jsonl'),
     jsonl(

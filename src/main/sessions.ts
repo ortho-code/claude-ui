@@ -294,7 +294,7 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
   const postCompactHeads: string[] = [];
   // Set right after a compaction boundary so the next user/assistant message is captured as a head.
   let awaitingCompactHead = false;
-  // A session can ENTER a worktree mid-life (the EnterWorktree hook): the transcript stays in its original project dir and only a worktree-state event records the move, so the first-latched cwd goes stale.
+  // A session can ENTER a worktree mid-life (claude's EnterWorktree tool): the transcript stays in its original project dir and only a worktree-state event records the move, so the first-latched cwd goes stale.
   // The LAST worktree-state wins: entered (a worktreeSession object) puts the session at worktreePath; exited (worktreeSession null) drops it back to the recorded original cwd.
   let worktreeStateCwd: string | null = null;
   let worktreeOriginalCwd = '';
