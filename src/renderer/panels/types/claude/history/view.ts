@@ -1,9 +1,10 @@
 import type { ClaudeUiApi, Exchange, HistoryPin, ReplyPart } from '../../../../../shared/types';
+import { routeLinks } from '../../../../external-links';
 import { flash } from '../../../../flash';
 import { relativeTime } from '../../../../logic';
 import { chevronIcon, PIN_ICON, PINNED_ICON } from '../../../../svg';
 import { setTooltip } from '../../../../tooltip';
-import { renderMarkdown, routeLinks } from './markdown';
+import { renderMarkdown } from './markdown';
 // The filter pill its All · Pinned wear, shared with the sidebar's filter.
 import '../../../../pill.css';
 import './view.css';
