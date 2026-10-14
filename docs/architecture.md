@@ -1168,6 +1168,7 @@ A row holding the trigger keeps its own hover look too, the card by `:has(.menu-
 
 Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmenu` add an `attach-top`/`attach-bottom`/`attach-right`/`attach-left` class and set `--notch-x`/`--notch-y`, which position a small notch on the menu's edge pointing at the trigger's center.
 Anything new that floats near an anchor should go through those helpers so it gets the notch (and the active-state stamping) for free rather than reinventing positioning.
+The notch straddles the edge, so its inner half lies over the row beside that edge, the first one for a popover below its trigger, and it is drawn beneath the popover's content (`z-index: -1` inside the popover's own stacking context): drawn on top, it bit a notch-shaped piece out of any row with a fill of its own under it, a hovered item, the switcher's entry on show, or a row scrolled up under it.
 
 **One appearance, one rule.**
 Anything drawn on more than one surface is a single class, never parallel rules kept in step by hand.

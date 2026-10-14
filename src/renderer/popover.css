@@ -9,13 +9,19 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-surface);
   box-shadow: var(--shadow-raised);
+  /* Its own stacking context, so the notch's z-index below sinks it under the popover's content and never under the popover itself or anything outside it.
+     Each popover's own z-index makes one already; this keeps it so for one without. */
+  isolation: isolate;
 }
 
 /* The notch, which reads the popover as ATTACHED to its trigger: a small rotated square sharing the popover's surface, bordered only on its exposed sides, pointing at the trigger across the gap.
-   --notch-x and --notch-y place it along its edge: openMenu and openSubmenu set them to the trigger's centre, and a popover whose trigger does not move sets its own. */
+   --notch-x and --notch-y place it along its edge: openMenu and openSubmenu set them to the trigger's centre, and a popover whose trigger does not move sets its own.
+   Its inner half reaches about 5px inside the border, over the row beside that edge wherever the padding is 4px, so it is drawn beneath the content: on top, it bit a notch-shaped piece out of a row's fill, such as a hovered item's, the switcher's entry on show or a row scrolled up under it.
+   Above the popover's own background and border still, since a stacking context paints its own background and border before its children with a negative z-index. */
 .popover::before {
   content: '';
   position: absolute;
+  z-index: -1;
   width: 8px;
   height: 8px;
   background: var(--surface);
