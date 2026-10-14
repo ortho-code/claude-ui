@@ -80,7 +80,7 @@ describe('the default layout', () => {
 
 describe('the file as a whole', () => {
   it('puts what is said about the config folder under the root, with or without a file, and beside the file’s own notes', () => {
-    const note = 'types/command is not read: command is a type the app has built in.';
+    const note = 'panel-types/command is not read: command is a type the app has built in.';
     expect(tree(resolveLayout({ ...report(null), status: 'missing', json: null }, TYPES, [note])).notes).toEqual([note]);
     const root = tree(resolveLayout(report({ version: 2, root: DEFAULT_LAYOUT.root, stray: 1 }), TYPES, [note]));
     expect(root.notes).toEqual(['stray is not a field the layout file has.', note]);

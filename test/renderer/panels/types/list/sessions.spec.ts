@@ -10,7 +10,7 @@ import { runs, withLayout } from '../../layout/layout';
 
 // A list panel's row marks the sessions it started with the session list's own dot, in the list's own words (docs/architecture.md § Panels): it follows each session's status, a mark read, and whether it runs, as the session list does.
 // The mark goes to its session, and a row's action starts one through the app's own dialog, which remembers it under the row.
-const QUEUE_DIR = `${CONFIG_ROOT}/types/reviews`;
+const QUEUE_DIR = `${CONFIG_ROOT}/panel-types/reviews`;
 const reviewed = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'Review #1' });
 const quiet = session({ id: '00000000-0000-4000-8000-0000000000f2', title: 'Review #2' });
 const link = (key: string): PanelLink => ({ key, label: key, href: null, startedAt: '2026-09-30T09:00:00.000Z' });

@@ -1,6 +1,6 @@
 # Panel types of your own
 
-A folder under `types/` in the config folder is a panel type, named after the folder, which the layout file then uses like any built-in type.
+A folder under `panel-types/` in the config folder is a panel type, named after the folder, which the layout file then uses like any built-in type.
 A type is shared by copying its folder, and a type you were sent runs as you, the way a script in `scripts/` does, so read it before you drop it in.
 Everything a panel does beyond running its script — opening a link, starting a Claude session — is something you press.
 
@@ -10,7 +10,7 @@ A test holds it to the app's own checkers, so a field named here is one the app 
 ## A type's folder
 
 ```
-types/commits/
+panel-types/commits/
   panel.json     what the type is
   list.mjs       the script it runs
   to-list.mjs    whatever else the script needs

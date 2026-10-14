@@ -197,7 +197,7 @@ describe('noteLayout', () => {
   it('logs the type folders when which there are, or whether each could be read, changes', () => {
     logged.length = 0;
     const base = { configRoot, file: '/cfg/layouts/default.json', status: 'read' as const, error: null, json: {}, local };
-    const type = (name: string, over: Partial<TypeReport> = {}): TypeReport => ({ name, dir: `/cfg/types/${name}`, status: 'read', error: null, json: {}, ...over });
+    const type = (name: string, over: Partial<TypeReport> = {}): TypeReport => ({ name, dir: `/cfg/panel-types/${name}`, status: 'read', error: null, json: {}, ...over });
     noteLayout({ ...base, types: [type('reviews')] });
     noteLayout({ ...base, types: [type('reviews', { json: { changed: true } })] });
     noteLayout({ ...base, types: [type('reviews'), type('ci', { status: 'unparsable', error: 'Unexpected end of JSON input' }), type('bare', { status: 'missing' })] });

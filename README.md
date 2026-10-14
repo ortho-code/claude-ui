@@ -160,7 +160,7 @@ The panel types:
   `cwd` picks the folder it runs in, `interval` how often it runs again on its own, and `watch` whether it runs again when that folder's git working tree changes.
 - `terminal` is a plain shell, the same login shell your sessions run in.
   `cwd` picks the folder it starts in.
-- A folder under `types/` in the config folder is a type of your own, named after the folder; see [Panel types of your own](#panel-types-of-your-own).
+- A folder under `panel-types/` in the config folder is a type of your own, named after the folder; see [Panel types of your own](#panel-types-of-your-own).
 
 This one puts a shell in a drawer under the terminal area and two commands behind icons on the right, and lets the sidebar, the drawer and the right side fold:
 
@@ -249,7 +249,7 @@ A panel's options are checked by the panel itself, when it appears and before ea
 
 ### Panel types of your own
 
-A folder under `types/` in the config folder is a panel type, named after the folder, so a type is shared by copying its folder.
+A folder under `panel-types/` in the config folder is a panel type, named after the folder, so a type is shared by copying its folder.
 It holds a `panel.json` saying what the type is, and a script that prints a list, which the app draws: rows with links, sections that fold, a count on the panel's icon kept current on an interval, and buttons that start a Claude session with a prompt you see, and can change, before it starts.
 A row that started a session then shows that session's status and leads back to it.
 

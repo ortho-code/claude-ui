@@ -7,7 +7,7 @@ import type { PanelType } from '../contract';
 import { mountList } from './list';
 
 /**
- * Panel types of a person's own, from the config folder's `types/`: a folder each, holding a `panel.json` manifest and the script it runs.
+ * Panel types of a person's own, from the config folder's `panel-types/`: a folder each, holding a `panel.json` manifest and the script it runs.
  *
  * THE FOLDER'S NAME IS THE TYPE'S NAME, so the two cannot disagree, and a type is shared by copying its folder.
  * THE KIND DECIDES THE REST: a manifest says what kind of panel it is, and the kind brings its own options and behaviour.

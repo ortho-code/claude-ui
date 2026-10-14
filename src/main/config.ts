@@ -58,8 +58,8 @@ export async function checkPath(value: string, base: PathBase, must: PathKind): 
 export const MANIFEST_FILE = 'panel.json';
 
 /**
- * The folders under `types/`, by name: a folder, or a link to one, since a type shared as a git checkout may well be linked in.
- * A dot-folder is skipped, so `types/` can itself be a checkout without its `.git` reading as a type.
+ * The folders under `panel-types/`, by name: a folder, or a link to one, since a type shared as a git checkout may well be linked in.
+ * A dot-folder is skipped, so `panel-types/` can itself be a checkout without its `.git` reading as a type.
  */
 async function typeFolders(root: string): Promise<{ name: string; dir: string }[]> {
   let names: string[];
@@ -157,8 +157,8 @@ export function onConfigChange(listener: ConfigChangeListener): void {
 /**
  * Create the folder, answer reads, and push a fresh report whenever anything in it changes.
  *
- * Directories are watched one by one rather than the folder recursively (recursive watch is unreliable on Linux/WSL, as watcher.ts found): the folder itself, `layouts/` for the file, `scripts/` so a script appearing or gaining its executable bit (an attribute change, MEASURED to reach a directory watch) clears its panel's error without a restart, and `types/` with each type's own folder, for its manifest and the script it runs — the report that follows is what tells every panel to check again.
- * Any event on the folder itself re-opens the ones below it, and any event on `types/` re-opens the type folders, because a directory that was deleted and recreated leaves its old watcher pointing at nothing and a folder added there has none yet.
+ * Directories are watched one by one rather than the folder recursively (recursive watch is unreliable on Linux/WSL, as watcher.ts found): the folder itself, `layouts/` for the file, `scripts/` so a script appearing or gaining its executable bit (an attribute change, MEASURED to reach a directory watch) clears its panel's error without a restart, and `panel-types/` with each type's own folder, for its manifest and the script it runs — the report that follows is what tells every panel to check again.
+ * Any event on the folder itself re-opens the ones below it, and any event on `panel-types/` re-opens the type folders, because a directory that was deleted and recreated leaves its old watcher pointing at nothing and a folder added there has none yet.
  * Events are gathered over the debounce with the paths they name, and when every one was the app's own write to one of its files, as it left it, nothing is pushed (`ownWrites`): the window already has what the app wrote, and a push would have every panel check again for nothing.
  * Answers a way to stop watching, for the tests.
  */

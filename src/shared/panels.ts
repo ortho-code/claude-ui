@@ -194,13 +194,13 @@ export interface PathCheck {
 export type ReadStatus = 'missing' | 'unparsable' | 'read';
 
 /** The config folder's folder of panel types of a person's own, a folder each: named once, for main to read and watch and for a mistake in a type to name it by (`typeFolder`). */
-export const PANEL_TYPES_FOLDER = 'types';
+export const PANEL_TYPES_FOLDER = 'panel-types';
 
-/** Where a panel type of a person's own sits in the config folder, as everything said about it names it: `types/<name>`. */
+/** Where a panel type of a person's own sits in the config folder, as everything said about it names it: `panel-types/<name>`. */
 export const typeFolder = (name: string): string => `${PANEL_TYPES_FOLDER}/${name}`;
 
 /**
- * One folder under the config folder's `types/`: a panel type of a person's own, which the layout file uses by the folder's name.
+ * One folder under the config folder's `panel-types/`: a panel type of a person's own, which the layout file uses by the folder's name.
  * Read and not judged, like the layout file: `missing` is a folder without a `panel.json`, and what is wrong inside one is the renderer's to say.
  */
 export interface TypeReport {
@@ -228,7 +228,7 @@ export interface LayoutReport {
   status: ReadStatus;
   error: string | null;
   json: unknown;
-  /** Every folder under `types/`, by name; empty when there is none. */
+  /** Every folder under `panel-types/`, by name; empty when there is none. */
   types: TypeReport[];
   /** The app's file beside the layout, read with it so the window never draws one without the other. */
   local: LocalLayoutRead;

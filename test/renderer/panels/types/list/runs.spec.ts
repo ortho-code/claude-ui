@@ -7,7 +7,7 @@ import { chooseProject } from '../../../support/window';
 import { railItem, runs, withLayout } from '../../layout/layout';
 
 // How a list panel's runs start and end, whatever asked for them: each is checked first, and once a run starts, the run it replaced lands nothing more.
-const QUEUE_DIR = `${CONFIG_ROOT}/types/reviews`;
+const QUEUE_DIR = `${CONFIG_ROOT}/panel-types/reviews`;
 const SCRIPT = `${QUEUE_DIR}/list.sh`;
 
 /** The queue alone in its group, or on show with a command behind it, so either can be put out of sight; with `nodes`, the app's file beside the layout holding them. */
@@ -70,7 +70,7 @@ test('a list run overtaken while main is still answering its check never starts'
 
 test('a list panel without an interval that could not run runs once a change in the config folder finds it can', async ({ app, page }) => {
   await app.boot(fixture(false, 'missing'));
-  await expect(problems(page)).toHaveText('types/reviews: run list.sh not found.');
+  await expect(problems(page)).toHaveText('panel-types/reviews: run list.sh not found.');
   expect(await runs(app, 'queue')).toEqual([]);
 
   await scriptIs(page, 'executable');

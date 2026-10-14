@@ -5,7 +5,7 @@ import { checkManifest, escapes, folderTypes } from '../../../../../src/renderer
 
 const report = (json: unknown, over: Partial<TypeReport> = {}): TypeReport => ({
   name: 'reviews',
-  dir: '/cfg/types/reviews',
+  dir: '/cfg/panel-types/reviews',
   status: 'read',
   error: null,
   json,
@@ -13,13 +13,13 @@ const report = (json: unknown, over: Partial<TypeReport> = {}): TypeReport => ({
 });
 
 const SOUND = { version: 1, kind: 'list', title: 'Reviews', icon: 'check', run: 'queue', interval: '5m', options: [{ name: 'for', kind: 'text' }] };
-const AT = 'types/reviews/panel.json: ';
+const AT = 'panel-types/reviews/panel.json: ';
 
 describe('checkManifest', () => {
   it('reads a sound manifest, saying nothing about it', () => {
     expect(checkManifest(report(SOUND))).toEqual({
       name: 'reviews',
-      dir: '/cfg/types/reviews',
+      dir: '/cfg/panel-types/reviews',
       manifest: { kind: 'list', title: 'Reviews', icon: 'check', run: 'queue', interval: '5m', options: [{ name: 'for', kind: 'text' }] },
       problems: [],
       notes: [],
@@ -38,11 +38,11 @@ describe('checkManifest', () => {
   });
 
   it('says a folder has no manifest, or one that does not parse, or one that is not an object', () => {
-    expect(checkManifest(report(null, { status: 'missing' })).problems).toEqual(['types/reviews has no panel.json.']);
+    expect(checkManifest(report(null, { status: 'missing' })).problems).toEqual(['panel-types/reviews has no panel.json.']);
     expect(checkManifest(report(null, { status: 'unparsable', error: 'Unexpected end of JSON input' })).problems).toEqual([
-      'types/reviews/panel.json does not parse: Unexpected end of JSON input.',
+      'panel-types/reviews/panel.json does not parse: Unexpected end of JSON input.',
     ]);
-    expect(checkManifest(report([1])).problems).toEqual(['types/reviews/panel.json is not a JSON object.']);
+    expect(checkManifest(report([1])).problems).toEqual(['panel-types/reviews/panel.json is not a JSON object.']);
   });
 
   it.each([
@@ -90,7 +90,7 @@ describe('checkManifest', () => {
     expect(checked.problems).toEqual([]);
     expect(checked.manifest?.icon).toBeNull();
     expect(checked.notes).toEqual([
-      expect.stringMatching(/^types\/reviews\/panel\.json: icon "rocket" is not an icon this build has \(it has: .+\); the list icon is used\.$/),
+      expect.stringMatching(/^panel-types\/reviews\/panel\.json: icon "rocket" is not an icon this build has \(it has: .+\); the list icon is used\.$/),
       `${AT}option for: default is not a field this build reads; it is ignored.`,
       `${AT}colour is not a field this build reads; it is ignored.`,
     ]);
@@ -127,8 +127,8 @@ describe('folderTypes', () => {
     expect(types.command).toBe(commandType);
     expect(Object.keys(types)).toEqual(['command']);
     expect(notes).toEqual([
-      'types/command is not read: command is a type the app has built in.',
-      'types/My Reviews is not read: a type is named after its folder, and the name has to be lowercase letters, digits, hyphens and underscores, starting with a letter or digit.',
+      'panel-types/command is not read: command is a type the app has built in.',
+      'panel-types/My Reviews is not read: a type is named after its folder, and the name has to be lowercase letters, digits, hyphens and underscores, starting with a letter or digit.',
     ]);
   });
 

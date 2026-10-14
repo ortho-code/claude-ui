@@ -245,7 +245,7 @@ test('panels: a railed group with output, a shell in a drawer, and a panel that 
 });
 
 // A list panel, a type of the config folder's own: rows in every tone, with and without a link, one that started a session, a section folded and one empty, the count and a note.
-const QUEUE_DIR = `${CONFIG_ROOT}/types/reviews`;
+const QUEUE_DIR = `${CONFIG_ROOT}/panel-types/reviews`;
 const reviewed = session({ id: id(20), title: 'Review #1' });
 const queue = {
   ...withLayout({

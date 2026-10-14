@@ -4,7 +4,7 @@ import { type App, expect, test } from '../../../support/harness';
 import { runs, withLayout } from '../../layout/layout';
 
 // A list panel's run may say when it runs next too, by the rule a command panel's runs follow (`PanelRuns`); what its control file gets wrong sits beside the type's and the list's own notes.
-const QUEUE_DIR = `${CONFIG_ROOT}/types/reviews`;
+const QUEUE_DIR = `${CONFIG_ROOT}/panel-types/reviews`;
 const MINUTE = 60_000;
 
 /** The queue on show; its type's manifest gives `interval`, and a field this build does not read, for a note of the type's own. */
@@ -50,7 +50,7 @@ test('a list run that says when it runs next is run again then, in place of the 
 test("what a list run's control file gets wrong sits beside the type's notes and the list's, and goes with a run that writes none", async ({ app, page }) => {
   await app.boot(fixture());
   await expect.poll(() => runs(app, 'queue')).toHaveLength(1);
-  const typeNote = note(page, 'types/reviews/panel.json: colour is not a field this build reads; it is ignored.');
+  const typeNote = note(page, 'panel-types/reviews/panel.json: colour is not a field this build reads; it is ignored.');
   const controlNote = note(page, 'queue: CLAUDE_UI_CONTROL: when is not a name this build reads; it is ignored.');
   await expect(typeNote).toBeVisible();
 

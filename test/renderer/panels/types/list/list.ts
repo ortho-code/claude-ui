@@ -6,7 +6,7 @@ import { runs, withLayout } from '../../layout/layout';
 
 // A list panel of a type from the config folder, booted with what its script prints, for the checks of what a list draws.
 
-const TYPE_DIR = `${CONFIG_ROOT}/types/changes`;
+const TYPE_DIR = `${CONFIG_ROOT}/panel-types/changes`;
 
 /**
  * The window with the panel, `changes`, on the right, and its type read from the config folder: its entry with `entry` added, and `nodes` as the app's file beside the layout keeps them.

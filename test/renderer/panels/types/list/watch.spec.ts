@@ -4,7 +4,7 @@ import { expect, test } from '../../../support/harness';
 import { runs, withLayout } from '../../layout/layout';
 
 // A list panel takes `watch: git` as a command panel does, by the one declaration and the one check (`prepare`).
-const QUEUE_DIR = `${CONFIG_ROOT}/types/reviews`;
+const QUEUE_DIR = `${CONFIG_ROOT}/panel-types/reviews`;
 
 function fixture(trees: Record<string, string> = {}): Partial<BridgeFixture> {
   const base = withLayout({

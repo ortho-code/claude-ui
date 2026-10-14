@@ -643,7 +643,7 @@ Per-project and named layouts are the next steps of the same design, and the fil
 
 ### The config folder
 
-Everything a person may edit or share lives in ONE folder, `config/` under the app's data directory, and nothing else does: the settings in `settings.json`, the layout file at `layouts/default.json`, the scripts it points at under `scripts/`, and panel types of the person's own under `types/`.
+Everything a person may edit or share lives in ONE folder, `config/` under the app's data directory, and nothing else does: the settings in `settings.json`, the layout file at `layouts/default.json`, the scripts it points at under `scripts/`, and panel types of the person's own under `panel-types/`.
 It sits apart from `meta.json` and the status files on purpose.
 Those are machine state the app writes, which nobody should edit and nobody would want to hand a colleague; this folder is the opposite on every count, so "copy this folder" hands over exactly the customisation and none of the state.
 `layouts/` is a directory rather than a single `layout.json` so that named and per-project layouts can be added beside the default instead of by moving it.
@@ -676,8 +676,8 @@ A `settings.json` from somebody else was decided (2026-10-05) to need none eithe
 The settings dialog shows the folder's path with an Open button, which is the whole of the UI for finding it.
 It opens the folder itself (`shell.openPath`) rather than showing it selected in its parent (`showItemInFolder`): a Linux file manager without FileManager1 support, which is what WSLg offers, opens the parent and selects nothing, which reads as the wrong folder.
 
-Directories are watched one by one rather than the folder recursively (recursive watch is unreliable on Linux and WSL, as the session watcher found): the folder, `layouts/`, `scripts/`, `types/`, and each type's own folder.
-An event on the folder itself re-opens the ones below it, because a directory deleted and recreated leaves its old watcher pointing at nothing, and an event on `types/` re-lists the type folders, so one added there is watched from then on.
+Directories are watched one by one rather than the folder recursively (recursive watch is unreliable on Linux and WSL, as the session watcher found): the folder, `layouts/`, `scripts/`, `panel-types/`, and each type's own folder.
+An event on the folder itself re-opens the ones below it, because a directory deleted and recreated leaves its old watcher pointing at nothing, and an event on `panel-types/` re-lists the type folders, so one added there is watched from then on.
 `scripts/` is watched so that a script appearing, or gaining its executable bit, clears the panel's error without a restart; that an attribute change reaches a directory watch was measured rather than assumed.
 The events over the watch's debounce are gathered with the paths they name, and when every one was the app's own write to one of its files, as it left it, nothing is pushed (`ownWrites`): the window already has what the app wrote, and a push would have every panel check its options again for nothing.
 
@@ -957,7 +957,8 @@ The same observer covers every later reveal — a switch on the rail, an unfold,
 
 ### Types from the config folder
 
-A folder under `types/` is a panel type of the person's own: a `panel.json` manifest and the script it runs.
+A folder under `panel-types/` is a panel type of the person's own: a `panel.json` manifest and the script it runs.
+The folder is `panel-types/` rather than `panels/` since each folder in it defines a TYPE, which the layout then uses for any number of panels, each with an id of its own; it was `types/` until 2026-10-14, renamed before any release read it, since `types/` beside `layouts/` and `scripts/` said too little.
 It exists so a panel can be shared without being part of the app — the first one is a review queue fed by a task in another repo — and every choice below follows from that.
 The contract itself, field by field, is `docs/panel-types.md`; this section is why it is shaped as it is.
 
