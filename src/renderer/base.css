@@ -221,13 +221,14 @@ button:where(:not(.icon-btn)):hover,
    `:not(:disabled)` covers the two that opt out while inert — the tab close mid transition, and the group-jump button below two targets.
    And the same look while a menu it opened is up (`.menu-open`, stamped by openMenu), so every icon button that opens one keeps its hover look with the pointer gone onto the menu, from these rules alone.
 
-   A BORDERLESS one — every icon button but a framed one: a kebab, the pin, a close or a stop, a row's unarchive and delete, the group jump, a rail's icons — turns its mark accent and nothing else.
+   A BORDERLESS one — a kebab, the pin, a close or a stop, a row's unarchive and delete, the group jump — turns its mark accent and nothing else.
+   A rail's icon and a panel's view are left out: the one on show among them, where one is, is marked by a fill and a mark in `--text`, so they take a tab's fill on hover instead (panels/tree.css).
    A fill and an outline needed a box around the mark, and a kebab's box hugs its dots, so on a kebab they ran into whatever sat beside it; without them, controls can sit as close as their marks allow.
    Accent rather than `--text`: `--text` is the same greyish blue as the resting `--muted`, only lighter, where accent is a saturated blue, so the colour changes, not only the lightness.
    A FRAMED one, with a resting border — the split buttons' halves (`.composite`) and the divider's fold chevron (`.framed`) — fills and outlines, its border already saying where it is.
    The header actions (`.large`) wear a resting border too, but hover as the ordinary button beside them does (above), to `--surface-hover`, a smaller step than this, so that `--active` can say what a header button opened is up: the filter's panel or the Settings dialog, and + New's picker beside them (sessions/index.css).
    :where() keeps both rules at four classes' weight, which a surface's own hover after them can still match and win, as the project heading's caret does (and its +, which outranks them; sessions/headings.css). */
-.icon-btn:where(:not(.composite, .large, .framed)):not(:disabled):not(.unavailable):is(:hover, .menu-open) {
+.icon-btn:where(:not(.composite, .large, .framed, .rail-item, .panel-view)):not(:disabled):not(.unavailable):is(:hover, .menu-open) {
   color: var(--accent);
 }
 

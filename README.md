@@ -42,7 +42,7 @@ Done:
   A project whose folder is gone says so too, in the project switcher, on its heading and in the tab bar.
 - Project rename, app icon, single-instance lock.
 - Opens the way you left it: window size and position, and the sidebar's search, filters, folds, width and scroll offset.
-- A consistent control system: every mark is an SVG icon (no font glyphs), clickable icons share one mark size and one hover for each kind, a borderless one turning accent blue, a bordered one filling, and the header's buttons hovering as the ordinary button beside them does, and radius and type come from tokens.
+- A consistent control system: every mark is an SVG icon (no font glyphs), clickable icons share one mark size and one hover for each kind, a borderless one turning accent blue, a bordered one filling, the header's buttons hovering as the ordinary button beside them does, and a panel's icon in a strip filling as a tab does, and radius and type come from tokens.
 - Reaching a group without scrolling: a jump list on the project heading.
 - Settings: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included.
   The flags the app sets for itself are refused there rather than allowed to break a session.

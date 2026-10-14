@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../../../support/harness';
-import { token } from '../../../support/looks';
+import { lookOf, token } from '../../../support/looks';
 import { keptChanges, runs } from '../../layout/layout';
 import { bootList, layoutWith, print, type PrintedList } from './list';
 
@@ -33,7 +33,15 @@ test('the view on show takes neither a pointer nor the hover, since a press on i
   const shown = buttons(page).nth(0);
   await shown.hover();
   expect(await shown.evaluate((el) => getComputedStyle(el).cursor)).toBe('default');
-  expect(await shown.evaluate((el) => getComputedStyle(el).color)).toBe(await token(page, '--text'));
+  expect(await lookOf(shown)).toEqual({ background: await token(page, '--active'), border: 'rgba(0, 0, 0, 0)', color: await token(page, '--text') });
+});
+
+// A view not on show hovers as a rail's panel not on show does, since the switch marks the one on show with the rail's fill and glyph, without its edge.
+test('a view not on show fills and turns white on hover, never blue', async ({ app, page }) => {
+  await bootList(app, page, listed(VIEWS));
+  const other = buttons(page).nth(1);
+  await other.hover();
+  expect(await lookOf(other)).toEqual({ background: await token(page, '--surface-hover'), border: 'rgba(0, 0, 0, 0)', color: await token(page, '--text') });
 });
 
 test("an edit of the entry's view while the app runs is what the next run asks for, without the panel starting afresh", async ({ app, page }) => {

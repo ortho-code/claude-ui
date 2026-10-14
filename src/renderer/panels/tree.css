@@ -184,7 +184,7 @@
 
 /*
   THE RAIL: the icons of a group's panels, 28px across, the whole of a folded group.
-  Its items are icon buttons in the standard box, so they share every icon control's hover.
+  Its items are icon buttons in the standard box, with a hover of their own, a tab's fill rather than an icon button's accent (below).
 */
 .panel-rail {
   flex: 0 0 28px;
@@ -232,16 +232,19 @@
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
-/* What is on show where a click on it does nothing — the panel on show in a group that cannot fold, and the view on show in a panel's switch — so neither a pointer nor the borderless icon buttons' accent hover may claim one, as on a project heading that cannot collapse.
+/* One not on show, under the pointer: a `--surface-hover` fill, a smaller step than the `--active` of the one on show, where one is (a folded group has none), and its glyph from the resting `--muted` to the `--text` the one on show wears.
+   The fill ladder a live tab climbs, and the glyph never turns blue: the blue edge marks the rail's one on show, as a live tab's top edge does, so these are left out of the borderless icon buttons' accent hover (base.css), under which the glyph turned blue on hover.
+   The one on show keeps its look under the pointer, as the active tab does; on the rail, the pointer and the tooltip say a press folds its group. */
+.icon-btn:where(.rail-item:not(.shown), .panel-view:not([aria-pressed='true'])):not(:disabled):not(.unavailable):hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* What is on show where a click on it does nothing — the panel on show in a group that cannot fold, and the view on show in a panel's switch — so no pointer may claim one, as on a project heading that cannot collapse.
    The tooltip still names it. */
 .icon-btn.rail-item.shown.no-fold,
 .icon-btn.panel-view[aria-pressed='true'] {
   cursor: default;
-}
-
-.icon-btn.rail-item.shown.no-fold:hover,
-.panel-views .icon-btn.panel-view[aria-pressed='true']:hover {
-  color: var(--text);
 }
 
 /* The dot on an icon: the status dot itself, ringed in the rail's colour so it reads against the mark it overlaps. */

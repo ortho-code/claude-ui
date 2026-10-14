@@ -140,6 +140,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The point on a menu's edge no longer cuts into the item beside it when that item is highlighted, such as All in the project switcher.
 - Moving a project up or down always passes the next project in the list, where a new project's first move down sometimes did nothing.
 - The sidebar's header buttons, + New included, all hover alike, and Filter, + New and Settings show an open look, distinct from their hover, while what they opened is up, where the filter's used to be its hover and Settings showed nothing.
+- A panel's icon in a strip of icons, and a view in a panel's header, fill under the pointer as a tab you are not on does, instead of turning blue.
 
 ## 0.3.0 — 2026-08-29
 

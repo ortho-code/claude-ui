@@ -57,15 +57,16 @@ test("the folded sidebar's waiting dot outlasts a layout change that remounts it
   await expect(sessions.locator('.nudge.waiting')).toBeVisible();
 });
 
-// A rail's icons are borderless icon buttons: hovered they only turn accent, and the panel on show keeps the fill that marks it.
-test('a rail icon only turns accent on hover, and the panel on show keeps its fill', async ({ app, page }) => {
+// A rail's icons take a live tab's hover fill, and their glyph never turns blue: hovered, one not on show fills `--surface-hover` and its glyph turns `--text`, with no outline; the panel on show keeps its `--active`, its blue edge and its glyph under the pointer (docs/architecture.md § UI conventions).
+test('a rail icon fills and turns white on hover, never blue, and the panel on show keeps its look under the pointer', async ({ app, page }) => {
   await app.boot(withLayout(LAYOUT));
   const shown = railItem(page, /^Status/);
   const other = railItem(page, /^Checks/);
+  const none = 'rgba(0, 0, 0, 0)';
   await shown.hover();
-  expect((await lookOf(shown)).background).toBe(await token(page, '--active'));
+  expect(await lookOf(shown)).toEqual({ background: await token(page, '--active'), border: none, color: await token(page, '--text') });
   await other.hover();
-  expect(await lookOf(other)).toEqual({ background: 'rgba(0, 0, 0, 0)', border: 'rgba(0, 0, 0, 0)', color: await token(page, '--accent') });
+  expect(await lookOf(other)).toEqual({ background: await token(page, '--surface-hover'), border: none, color: await token(page, '--text') });
 });
 
 // The panel on show in a group that cannot fold does nothing when pressed, so its hover changes nothing.
