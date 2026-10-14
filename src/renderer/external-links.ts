@@ -1,6 +1,6 @@
 /**
  * Send every link clicked inside `root` to the OS browser, and never let one navigate the window.
- * A navigation would replace the app with the page, and a middle-click would open it in a new window of the app's own; both are stopped here, and `open` is given the link only when it is http(s), which main checks again.
+ * Main refuses a navigation of the window and a new window of its own anyway, so without this a link would do nothing; both are stopped here as well, and `open` is given the link only when it is http(s), which main checks again.
  */
 export function routeLinks(root: HTMLElement, open: (url: string) => void): void {
   const handle = (event: MouseEvent): void => {
