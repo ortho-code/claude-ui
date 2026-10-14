@@ -419,7 +419,7 @@ async function createWindow(): Promise<void> {
   trackBounds(mainWindow);
   watchWindow(mainWindow);
   // Nothing may take this window anywhere else, or open another: a page loaded here would get the preload's bridge, and the bridge runs commands.
-  // Links leave through `shell:openExternal` instead — the terminal's and the history's.
+  // Every link the window opens leaves through `shell:openExternal` instead.
   // The app never navigates on purpose, and `loadFile` below is programmatic, which this event does not see.
   mainWindow.webContents.on('will-navigate', (event) => {
     event.preventDefault();
@@ -459,7 +459,7 @@ ipcMain.handle('meta:togglePin', (_event, id: string) => togglePin(id));
 ipcMain.handle('meta:getHistoryPins', () => getHistoryPins());
 ipcMain.handle('meta:toggleHistoryPin', (_event, id: string, pin: Pick<HistoryPin, 'kind' | 'session' | 'text' | 'time'>) => toggleHistoryPin(id, pin));
 ipcMain.on('shell:openExternal', (_event, url: string) => {
-  // Only ever hand the OS http(s) links from terminal output — never file://, etc.
+  // Only ever hand the OS http(s) links, from whichever part of the window sent them — never file://, etc.
   if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
 });
 ipcMain.handle('meta:getArchived', () => getArchived());
