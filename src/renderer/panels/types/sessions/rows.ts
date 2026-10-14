@@ -51,6 +51,28 @@ interface RowEls {
 // Each row's child elements, cached so updateRow reads them directly instead of re-querying the DOM every render (same idea as the session summary cache, applied to rendering).
 const rowEls = new WeakMap<HTMLElement, RowEls>();
 
+/**
+ * A mark on a row that counts what a session has and lists it on a click: an icon, a count, and a menu that `open` puts up against the mark.
+ * Hidden until the row says otherwise; `className` names which mark it is.
+ */
+function menuBadge(className: string, icon: string, open: (anchor: HTMLElement) => void): { badge: HTMLElement; count: HTMLElement } {
+  const badge = document.createElement('span');
+  badge.className = `menu-badge ${className}`;
+  badge.hidden = true;
+  const iconEl = document.createElement('span');
+  iconEl.className = 'badge-icon';
+  iconEl.innerHTML = icon;
+  const count = document.createElement('span');
+  count.className = 'badge-text';
+  badge.append(iconEl, count);
+  badge.addEventListener('click', (event) => {
+    // The row's own click opens the session; a press on the mark is the mark's.
+    event.stopPropagation();
+    open(badge);
+  });
+  return { badge, count };
+}
+
 // Build a row once.
 // Its click/pin handlers read the live session from `currentByKey` by the entity key (the session id), so a reused row stays correct across re-renders.
 function createSessionRow(key: string): HTMLElement {
@@ -71,19 +93,9 @@ function createSessionRow(key: string): HTMLElement {
   badge.append(wtIcon);
   // A family member's mark: the fork icon plus a count of its siblings, which opens a list of them to jump into.
   // Shown only when session.isSibling (set in updateRow).
-  const siblingsBadge = document.createElement('span');
-  siblingsBadge.className = 'sibling-badge';
-  siblingsBadge.hidden = true;
-  const sibIcon = document.createElement('span');
-  sibIcon.className = 'badge-icon';
-  sibIcon.innerHTML = SIBLING_ICON;
-  const siblingCount = document.createElement('span');
-  siblingCount.className = 'badge-text';
-  siblingsBadge.append(sibIcon, siblingCount);
-  siblingsBadge.addEventListener('click', (event) => {
-    event.stopPropagation();
+  const { badge: siblingsBadge, count: siblingCount } = menuBadge('sibling-badge', SIBLING_ICON, (anchor) => {
     const session = currentByKey.get(key);
-    if (session) openSiblingsMenu(siblingsBadge, session);
+    if (session) openSiblingsMenu(anchor, session);
   });
   // The card's meta line holds the time and model, plus the note mark riding along at the end of that text.
   // The mark lives HERE rather than beside the title because a sibling box next to a text block has to have its alignment guessed; inside the text row it just centres.

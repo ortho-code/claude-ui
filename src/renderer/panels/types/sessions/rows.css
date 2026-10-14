@@ -63,7 +63,7 @@
 
 
 .worktree-badge,
-.sibling-badge {
+.menu-badge {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -82,14 +82,14 @@
   vertical-align: middle;
 }
 
-/* The sibling badge shares the worktree badge's look; it's clickable (opens the sibling list), so it also gets a pointer cursor and a fill on hover to signal that. */
-.sibling-badge {
+/* A mark that lists something on a click, such as the siblings, shares the worktree badge's look; being clickable, it also gets a pointer cursor and a fill on hover to signal that. */
+.menu-badge {
   cursor: pointer;
 }
 
 /* Filled on hover, and held filled while its popover is open (.menu-open) so it doesn't drop back when the mouse leaves the badge. */
-.sibling-badge:hover,
-.sibling-badge.menu-open {
+.menu-badge:hover,
+.menu-badge.menu-open {
   background: var(--accent);
   color: var(--bg);
 }
