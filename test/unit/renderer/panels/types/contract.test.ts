@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { KINDS, MANIFEST_FIELDS, MANIFEST_OPTION_KINDS, OPTION_FIELDS, checkManifest } from '../../../../../src/renderer/panels/types/folder';
-import { LIST_FIELDS, TONES, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
+import { CUTS, LIST_FIELDS, TONES, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
 import { CONTROL_NAMES } from '../../../../../src/renderer/panels/run';
 
 // docs/panel-types.md is the contract a type is written against, and these are the checkers that read it: a field one names that the other does not is the drift this holds shut.
@@ -64,6 +64,7 @@ describe('docs/panel-types.md', () => {
     expect(sorted(tableFields('### An action'))).toEqual(sorted(LIST_FIELDS.action));
     expect(sorted(tableFields('### A `session` action'))).toEqual(sorted(LIST_FIELDS.session));
     expect(sorted(listed('`tone` is one of:'))).toEqual(sorted(TONES));
+    expect(sorted(listed('`cut` is one of:'))).toEqual(sorted(CUTS));
   });
 
   it('shows a panel.json the app reads without a word to say about it', () => {

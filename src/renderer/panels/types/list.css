@@ -69,6 +69,22 @@
   min-width: 0;
 }
 
+/* A text cut at its start, such as a path whose end is what tells it apart: one line, cut short at its left, in a compact list and a list of cards alike.
+   The title runs right to left, so it overflows at its left, where the ellipsis goes; the text inside runs left to right, isolated, so its own order never moves, a leading dot or a bracket included.
+   Two-value `text-overflow`, which Chromium does not have, would not do it alone: it only picks the mark for each edge, and the text would still overflow at its right. */
+.list-row .card-title.cut-start {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.card-title.cut-start > .list-text {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
 /* A lead, such as a kind's letter: monospaced, so leads of one length make one column and the texts after them line up.
    The meta line's grey, or its own tone's colour (below), never its row's: the reset keeps it from inheriting that, and sits before the tones so a tone of its own still wins. */
 .list-lead {

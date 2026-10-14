@@ -154,6 +154,53 @@ test('a compact row with a link still lights under the pointer', async ({ app, p
   await expect.poll(() => linked.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await token(page, '--surface-hover'));
 });
 
+/** Where a row's text starts and ends on screen against its own box, by its first, second and last characters. */
+const endsOf = (title: Locator): Promise<{ first: number; second: number; last: number; left: number; right: number; height: number }> =>
+  title.evaluate((el) => {
+    const text = [...el.querySelectorAll('*'), el].flatMap((node) => [...node.childNodes]).find((node) => node.nodeType === Node.TEXT_NODE)!;
+    const at = (index: number): DOMRect => {
+      const range = document.createRange();
+      range.setStart(text, index);
+      range.setEnd(text, index + 1);
+      return range.getBoundingClientRect();
+    };
+    const box = el.getBoundingClientRect();
+    return { first: at(0).left, second: at(1).left, last: at(text.textContent!.length - 1).right, left: box.left, right: box.right, height: box.height };
+  });
+
+/** Paths cut at their start: one too long for its line, one that starts with a dot and one with a bracket at each end. */
+const PATHS = (compact: boolean): { version: number; compact: boolean; sections: { items: object[] }[] } => ({
+  version: 1,
+  compact,
+  sections: [
+    {
+      items: [
+        { key: 'long', lead: 'A', text: 'tests/unit/Application/Subscription/ProcessUpdates/Services/FeaturedImageDownloaderTest.php', cut: 'start', trail: '+144 −37' },
+        { key: 'dot', lead: 'M', text: '.github/workflows/ci.yml', cut: 'start', trail: '+2 −1' },
+        { key: 'brackets', lead: '?', text: '(draft) notes [old].md)', cut: 'start' },
+      ],
+    },
+  ],
+});
+
+for (const compact of [true, false]) {
+  test(`a row's text cut at its start keeps its end in view on one line and its own order, in a ${compact ? 'compact list' : 'list of cards'}`, async ({ app, page }) => {
+    await bootList(app, page, PATHS(compact));
+    const [long, dot, brackets] = await Promise.all(['FeaturedImageDownloaderTest.php', 'ci.yml', '(draft)'].map((text) => endsOf(row(page, text).locator('.card-title'))));
+    // Its end in view, its start cut off at the left, and one line, as high as a text that fits.
+    expect(long.last).toBeLessThanOrEqual(long.right + 0.5);
+    expect(long.last).toBeGreaterThan(long.left);
+    expect(long.first).toBeLessThan(long.left);
+    expect(long.height).toBe(dot.height);
+    // A text that fits starts at the left, in its own order: a leading dot or bracket first, and a closing bracket last.
+    for (const fits of [dot, brackets]) {
+      expect(Math.round(fits.first)).toBe(Math.round(fits.left));
+      expect(fits.first).toBeLessThan(fits.second);
+    }
+    expect(brackets.last).toBeGreaterThan(brackets.second);
+  });
+}
+
 test("a row's detail with a word longer than its line stays beside the row's button, not under it", async ({ app, page }) => {
   await bootList(app, page);
   await expect.poll(() => overrun(row(page, 'FeaturedImageDownloaderTest.php').locator('.card-meta'))).toBe(0);

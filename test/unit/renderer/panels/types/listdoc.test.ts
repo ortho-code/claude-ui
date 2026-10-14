@@ -21,6 +21,7 @@ describe('readListDocument', () => {
                 lead: 'PR',
                 leadTone: 'positive',
                 text: 'Fix the login redirect',
+                cut: 'start',
                 trail: '+12 −3',
                 tooltip: 'Fix the login redirect after a session times out',
                 detail: '#1 · 31h · someone',
@@ -50,6 +51,7 @@ describe('readListDocument', () => {
                 lead: 'PR',
                 leadTone: 'positive',
                 text: 'Fix the login redirect',
+                cut: 'start',
                 trail: '+12 −3',
                 tooltip: 'Fix the login redirect after a session times out',
                 detail: '#1 · 31h · someone',
@@ -71,7 +73,7 @@ describe('readListDocument', () => {
     expect(readListDocument(doc()).doc).toEqual({
       badge: null,
       compact: false,
-      sections: [{ title: null, shut: false, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', trail: null, tooltip: null, detail: null, href: null, tone: 'normal', actions: [] }] }],
+      sections: [{ title: null, shut: false, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: null, href: null, tone: 'normal', actions: [] }] }],
       notes: [],
     });
   });
@@ -109,6 +111,7 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ ...item, lead: 3 }] }] }, 'sections[0].items[0].lead is not a string.'],
     [{ sections: [{ items: [{ ...item, trail: 3 }] }] }, 'sections[0].items[0].trail is not a string.'],
     [{ sections: [{ items: [{ ...item, leadTone: 'loud' }] }] }, 'sections[0].items[0].leadTone "loud" is not one of normal, attention, positive, muted, danger.'],
+    [{ sections: [{ items: [{ ...item, cut: 'middle' }] }] }, 'sections[0].items[0].cut "middle" is not one of end, start.'],
     [{ sections: [{ items: [{ ...item, href: 'file:///etc/passwd' }] }] }, 'sections[0].items[0].href "file:///etc/passwd" is not an http or https link.'],
     [{ sections: [{ items: [{ ...item, tone: 'loud' }] }] }, 'sections[0].items[0].tone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, actions: [{ session: { prompt: 'x' } }] }] }] }, 'sections[0].items[0].actions[0].label is missing.'],

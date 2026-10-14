@@ -146,6 +146,7 @@ One JSON object:
 | `lead` | A short mark before the text, such as a letter for a kind of thing, in a column of its own so the texts after marks of one length line up. |
 | `leadTone` | The lead's colour, from the same words as `tone`: the colour a tone puts on a row's edge, the grey of the second line for `normal`, and dimmed for `muted`. |
 | `text` | Required: the row's first line. |
+| `cut` | Where `text` too long for its line is cut short: at its end, or at its start, which keeps its end in view, such as a path's file name; a text cut at its start keeps to one line. |
 | `trail` | A short text at the end of the first line, such as a count, which the text gives way to. |
 | `tooltip` | What hovering the row's first line shows, such as all of what that line shortens, its line breaks kept. |
 | `detail` | A second line, smaller. |
@@ -155,6 +156,9 @@ One JSON object:
 
 `tone` is one of: `normal`, `attention`, `positive`, `muted`, `danger`.
 `attention`, `positive` and `danger` mark the row's leading edge in the waiting, idle and failed colours (yellow, green and red), and `muted` dims it.
+
+`cut` is one of: `end`, `start`.
+`end` is what a row without one gets.
 
 ### An action
 

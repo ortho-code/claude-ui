@@ -322,11 +322,12 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   private drawItem(item: ListItem): HTMLElement {
     this.items.set(item.key, item);
     const parts = this.rows.draw(item.key, (key) => this.buildRow(key));
-    const { row, content, line, lead, title, trail, meta, mark } = parts;
+    const { row, content, line, lead, title, text, trail, meta, mark } = parts;
     row.className = `card list-row tone-${item.tone}${item.href === null ? ' still' : ''}`;
     lead.className = `list-lead tone-${item.leadTone}`;
     lead.textContent = item.lead ?? '';
-    title.textContent = item.text;
+    text.textContent = item.text;
+    title.classList.toggle('cut-start', item.cut === 'start');
     trail.textContent = item.trail ?? '';
     placeChildren(line, [...(item.lead !== null ? [lead] : []), title, ...(item.trail !== null ? [trail] : [])]);
     // On the first line alone, so the rest of a row with a link still says where the link goes.
@@ -356,6 +357,9 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     const { card: row, content, title, meta } = listCard('list-row');
     // The first line: the lead, the text and the trail, which the text gives way to.
     const line = element('div', 'list-line');
+    // The text in an element of its own inside the title, which a text cut at its start needs to keep its own order (list.css).
+    const text = element('span', 'list-text');
+    title.append(text);
     const mark = element('button', 'icon-btn list-session');
     mark.type = 'button';
     mark.addEventListener('click', (event) => {
@@ -370,7 +374,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       const href = this.items.get(key)?.href;
       if (href) window.claudeUi.openExternal(href);
     });
-    return { row, content, line, lead: element('span'), title, trail: element('span', 'list-trail'), meta, mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
+    return { row, content, line, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
   }
 
   /** The button for one of a row's actions, which asks for the session it describes, under the row as the last draw left it. */
@@ -398,6 +402,8 @@ interface ListRow {
   line: HTMLElement;
   lead: HTMLElement;
   title: HTMLElement;
+  /** The text itself, inside the title. */
+  text: HTMLElement;
   trail: HTMLElement;
   meta: HTMLElement;
   /** The mark for the sessions the row started, with its dot and, for several, their count. */

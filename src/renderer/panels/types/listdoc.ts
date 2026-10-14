@@ -18,13 +18,17 @@ export const LIST_VERSION = 1;
 export const LIST_FIELDS = {
   document: ['version', 'badge', 'compact', 'sections', 'notes'],
   section: ['title', 'shut', 'empty', 'items'],
-  item: ['key', 'lead', 'leadTone', 'text', 'trail', 'tooltip', 'detail', 'href', 'tone', 'actions'],
+  item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'href', 'tone', 'actions'],
   action: ['label', 'session'],
   session: ['prompt', 'name'],
 } as const;
 
 export const TONES = ['normal', 'attention', 'positive', 'muted', 'danger'] as const;
 export type Tone = (typeof TONES)[number];
+
+/** Where a row's text too long for its line is cut short: at its end, or at its start, keeping its end in view. */
+export const CUTS = ['end', 'start'] as const;
+export type Cut = (typeof CUTS)[number];
 
 /**
  * Start a claude session with a prompt, in the project and group the user picks in the app's own dialog.
@@ -45,6 +49,8 @@ export interface ListItem {
   /** The lead's colour, in the words a row's tone uses. */
   leadTone: Tone;
   text: string;
+  /** Where the text is cut short when it is too long for its line; cut at its start, it keeps to one line. */
+  cut: Cut;
   /** A short text at the end of the first line, such as a count, which the text gives way to. */
   trail: string | null;
   /** What hovering the row's first line shows, such as all of what the text shortens. */
@@ -101,12 +107,12 @@ class Reader {
     return value;
   }
 
-  /** A tone, a row's or its lead's: `normal` when absent, and a problem when it is not one of the tones. */
-  tone(value: unknown, at: string): Tone {
-    if (value === undefined) return 'normal';
-    if (TONES.includes(value as Tone)) return value as Tone;
-    this.problems.push(`${at} ${JSON.stringify(value)} is not one of ${TONES.join(', ')}.`);
-    return 'normal';
+  /** One of a field's words, such as a tone or a cut: the first of them when absent, and when it is not one of them, which is a problem too. */
+  choice<T extends string>(value: unknown, at: string, words: readonly T[]): T {
+    if (value === undefined) return words[0]!;
+    if (words.includes(value as T)) return value as T;
+    this.problems.push(`${at} ${JSON.stringify(value)} is not one of ${words.join(', ')}.`);
+    return words[0]!;
   }
 
   flag(value: unknown, at: string): boolean {
@@ -159,8 +165,9 @@ class Reader {
       this.keys.add(key);
     }
     const lead = this.text(field('lead'), `${at}.lead`);
-    const leadTone = this.tone(field('leadTone'), `${at}.leadTone`);
+    const leadTone = this.choice(field('leadTone'), `${at}.leadTone`, TONES);
     const text = this.text(field('text'), `${at}.text`, true);
+    const cut = this.choice(field('cut'), `${at}.cut`, CUTS);
     const trail = this.text(field('trail'), `${at}.trail`);
     const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
     const detail = this.text(field('detail'), `${at}.detail`);
@@ -169,11 +176,11 @@ class Reader {
       this.problems.push(`${at}.href "${href}" is not an http or https link.`);
       href = null;
     }
-    const tone = this.tone(field('tone'), `${at}.tone`);
+    const tone = this.choice(field('tone'), `${at}.tone`, TONES);
     const actions = this.list(field('actions'), `${at}.actions`, false)
       .map((action, index) => this.action(action, `${at}.actions[${index}]`))
       .filter((action) => action !== null);
-    return key !== null && text !== null ? { key, lead, leadTone, text, trail, tooltip, detail, href, tone, actions } : null;
+    return key !== null && text !== null ? { key, lead, leadTone, text, cut, trail, tooltip, detail, href, tone, actions } : null;
   }
 
   section(raw: unknown, at: string): ListSection | null {
