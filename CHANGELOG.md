@@ -127,6 +127,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's dot no longer stays on working in the background after you stop a shell or a monitor from claude's own task list.
 - A session's dot shows waiting as soon as claude asks for permission, instead of about six seconds later, or not at all for a prompt you answered within those seconds.
 - A session's dot shows claude working again a second or so after you turn a prompt down with feedback, instead of waiting until its next tool had run or its turn ended.
+- On macOS, the folder picker behind + New shows hidden folders as well.
 
 ## 0.3.0 — 2026-08-29
 

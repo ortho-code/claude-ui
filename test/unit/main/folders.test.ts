@@ -62,6 +62,12 @@ describe('the folder picker', () => {
     expect(showOpenDialog).toHaveBeenCalledWith({ properties: expect.arrayContaining(['openDirectory']) });
   });
 
+  it('asks it to show hidden folders as well', async () => {
+    showOpenDialog.mockClear();
+    await handlers.get('dialog:pickFolder')!();
+    expect(showOpenDialog).toHaveBeenCalledWith(expect.objectContaining({ properties: expect.arrayContaining(['showHiddenFiles']) }));
+  });
+
   it('answers nothing when it is cancelled', async () => {
     showOpenDialog.mockResolvedValueOnce({ canceled: true, filePaths: [] });
     expect(await handlers.get('dialog:pickFolder')!()).toBeNull();
