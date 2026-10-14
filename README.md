@@ -147,8 +147,9 @@ A group with several panels switches between them from a strip of icons on its e
 Clicking the icon of the panel on show folds a group that can fold, and clicking any icon of a folded group unfolds it on that panel.
 
 Every id, of a node or a panel, is unique in the file and uses lowercase letters, digits, hyphens and underscores.
-A panel needs an `id` and a `type`; `title`, `icon` and `hidden` are optional, and whatever the type itself takes goes under `options`.
-`icon` picks its icon by name: `git`, `list`, `check`, `eye`, `bug`, `book`, `clock`, `server`, `play`, `search`, `bell`, `terminal`, `command`, `sessions`, `claude` or `alert`.
+A panel needs an `id` and a `type`; `title`, `icon`, `view` and `hidden` are optional, and whatever the type itself takes goes under `options`.
+`icon` picks its icon by name: `git`, `list`, `tree`, `check`, `eye`, `bug`, `book`, `clock`, `server`, `play`, `search`, `bell`, `terminal`, `command`, `sessions`, `claude` or `alert`.
+`view` picks, by id, the view a panel shows until another is picked in its header, for a type that offers several, such as a list of files flat or as a tree; an edit of it shows from the panel's next run, and a pick in the header is kept on this machine instead.
 A panel that cannot run wears `alert` whatever it names, so a broken one stands out on a strip of icons too.
 
 The panel types:

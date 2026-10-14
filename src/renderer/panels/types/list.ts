@@ -161,6 +161,17 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     return { problems, ready: problems.length === 0 && prepared.run ? { context: prepared.run, script: script.path } : null, retry: prepared.retry, watched: prepared.watched };
   }
 
+  /**
+   * The view to give the script: the one picked when the last list offered it, else that list's first, as its switch marks them.
+   * Before any list has said what it offers, the pick as it stands, and empty without one; empty too for a list offering none.
+   */
+  private viewToRun(): string {
+    const picked = this.host.view();
+    const offered = this.good?.doc.views;
+    if (offered === undefined) return picked ?? '';
+    return offered.find(({ id }) => id === picked)?.id ?? offered[0]?.id ?? '';
+  }
+
   idle(runnable: boolean): void {
     // A panel that cannot run is drawn by the tree as its problems; this is for one that can, with nowhere to run.
     this.noContext = runnable;
@@ -174,7 +185,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     this.stderr = '';
     this.show();
     // Apart: stdout alone is the document, and stderr is kept for the reason a failure gives.
-    return { stderr: 'apart', source: { script }, context, options: this.optionValues() };
+    return { stderr: 'apart', source: { script }, context, options: this.optionValues(), view: this.viewToRun() };
   }
 
   progress(event: RunProgress): void {
@@ -206,6 +217,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
         this.host.setEnd('');
         this.host.setStatus(null);
         this.host.setCount(read.doc.badge);
+        this.host.setViews(read.doc.views);
         this.runs.setNotes([...this.folder.notes, ...read.doc.notes]);
         this.drawList();
         this.show();

@@ -459,6 +459,17 @@ describe('one entry', () => {
     expect(entry({ id: 'a', type: 'command', options: { command: 'ls' }, icon: 3 }).notes).toEqual(['icon on a is not a string; the command icon is used.']);
   });
 
+  it('starts on the view it names, or on its type’s first without one', () => {
+    expect(entry({ id: 'a', type: 'command', options: { command: 'ls' } })).toMatchObject({ view: null, notes: [] });
+    expect(entry({ id: 'a', type: 'command', options: { command: 'ls' }, view: 'tree' })).toMatchObject({ view: 'tree', notes: [], problems: [] });
+  });
+
+  it('names a view that is not a view’s id at all and ignores it, since a view is no reason to refuse a panel', () => {
+    const slot = entry({ id: 'files', type: 'command', options: { command: 'ls' }, view: 'Tree' });
+    expect(slot).toMatchObject({ view: null, problems: [] });
+    expect(slot.notes).toEqual(['view "Tree" on files is not the id of a view (lowercase letters, digits, hyphens and underscores, starting with a letter or digit); it is ignored, as if the entry named none.']);
+  });
+
   it('wears the alert icon when it cannot run, whatever it names', () => {
     expect(entry({ id: 'a', type: 'nope', icon: 'git' }).icon).toBe('alert');
     expect(entry('git status').icon).toBe('alert');

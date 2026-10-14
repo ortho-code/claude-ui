@@ -32,6 +32,11 @@ export interface PanelEntry {
   hidden?: boolean;
   /** The panel's icon on a rail, by name from the app's set; the type's own when absent. */
   icon?: string;
+  /**
+   * The view the panel shows, by id, among those its type offers (a list's `views`), until one is picked in its header; the type's first when absent.
+   * A panel's pick, as a group's `active` is its panel's.
+   */
+  view?: string;
   /** The type's own settings, as written. */
   options?: Record<string, unknown>;
 }
@@ -99,17 +104,18 @@ export function spelledSize(size: NodeSize): number | `${number}px` {
 }
 
 /**
- * What the app keeps for one node of a layout, in the layout's own field names, in the app's file beside it (`layouts/default.local.json`): this machine's sizes, folds and the panel picked in a group, each winning over the field of that name in your layout file (docs/architecture.md § Panel state).
+ * What the app keeps for one node of a layout, in the layout's own field names, in the app's file beside it (`layouts/default.local.json`): this machine's sizes, folds, the panel picked in a group and the view picked in a panel, each winning over the field of that name in your layout file (docs/architecture.md § Panel state).
  * Every field is one your layout file can carry too, so keeping one for good is moving it there.
  */
 export interface NodeState {
   size?: number | `${number}px`;
   folded?: boolean;
   active?: string;
+  view?: string;
 }
 
 export type NodeStateField = keyof NodeState;
-export const NODE_STATE_FIELDS: NodeStateField[] = ['size', 'folded', 'active'];
+export const NODE_STATE_FIELDS: NodeStateField[] = ['size', 'folded', 'active', 'view'];
 
 /** One change the window asks of the app's layout file: a node's field set, or removed with null. */
 export interface NodeStateChange {
@@ -122,6 +128,7 @@ export interface NodeStateChange {
 export function nodeStateProblem(field: NodeStateField, value: unknown): string | null {
   if (field === 'size') return parseSize(value) ? null : 'size is not a positive number or a pixel size like "320px".';
   if (field === 'folded') return typeof value === 'boolean' ? null : 'folded is not true or false.';
+  if (field === 'view') return typeof value === 'string' && ID_PATTERN.test(value) ? null : 'view is not the id of a view.';
   return typeof value === 'string' && ID_PATTERN.test(value) ? null : 'active is not the id of a panel.';
 }
 
@@ -255,6 +262,8 @@ export interface PanelRunRequest {
   stderr: PanelStderr;
   /** A type from the config folder's options as the entry gives them, by declared name: each reaches the run as `CLAUDE_UI_OPTION_<NAME>`. */
   options?: Record<string, string>;
+  /** A list panel's view as picked, its layout entry's or its header's, as `CLAUDE_UI_VIEW`: empty without one, and absent for a panel of another kind, whose run is given none. */
+  view?: string;
   /**
    * The renderer's own token for this run, carried back on every event.
    * A re-run stops the run before it, but output already on its way is not recalled, so the token is how the renderer tells a superseded run's tail from the new run's start.
@@ -288,6 +297,9 @@ export const PANEL_CONTROL_VARIABLE = 'CLAUDE_UI_CONTROL';
 
 /** How much of a control file is read: a few lines saying what happens next, not output. */
 export const PANEL_CONTROL_CAP = 4096;
+
+/** The variable giving a list panel's run the view picked for it (`PanelRunRequest.view`). */
+export const PANEL_VIEW_VARIABLE = 'CLAUDE_UI_VIEW';
 
 /**
  * What main found of the git working tree at a folder, for a panel that follows its changes: a fingerprint, which differs whenever what git reports there does; `none` outside a working tree; `failed` when git could not say, which says nothing either way.

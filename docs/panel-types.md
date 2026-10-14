@@ -76,6 +76,7 @@ It runs through your login shell, the same one your sessions run in, so `PATH` i
 | `CLAUDE_UI_SESSION_ID` | the active tab's session, empty without one |
 | `CLAUDE_UI_CONFIG_ROOT` | the config folder |
 | `CLAUDE_UI_OPTION_<NAME>` | each option the entry gives, by its name in capitals |
+| `CLAUDE_UI_VIEW` | the view on show, by id, among the list's `views` (below): the one picked in the panel's header or as its layout entry's `view`, else the first; before the panel has printed a list since it was last mounted, the pick as it stands, empty without one; and empty for a list offering no views |
 | `CLAUDE_UI_CONTROL` | a file of the run's own, to say when it runs next (below); unset in the rare run whose file could not be made, which the log names |
 
 `CLAUDE_UI` itself is not set, so a `claude -p` the script runs is not taken for one of the app's sessions.
@@ -125,9 +126,22 @@ One JSON object:
 |---|---|
 | `version` | Required, `1`. |
 | `badge` | A count on the panel's icon and beside its title: a whole number, 0 or more. |
+| `views` | The ways the script can print the list, such as flat or as a tree: with two or more, the panel's header shows a switch between them, and a pick runs the script again with it as `CLAUDE_UI_VIEW`. |
 | `compact` | `true` draws the rows without the card around each, for a list scanned many rows at a time; a row's text is then cut short to one line, so put the rest in its `tooltip`, and leave out `detail`, which still adds a second line. |
 | `sections` | Required: the sections, in order. |
 | `notes` | Sentences for the line under the panel. |
+
+### A view
+
+| Field | Meaning |
+|---|---|
+| `id` | Required: what the script is given as `CLAUDE_UI_VIEW`, and what a layout entry's `view` names; lowercase letters, digits, hyphens and underscores, starting with a letter or digit. |
+| `label` | Required: what its button in the switch says when hovered. |
+| `icon` | Required: its button's icon, by name from the app's set, as a panel's `icon` is. |
+
+The first view is the one shown until another is picked.
+A pick is kept for the panel on this machine, as a group's picked panel is, and its layout entry's `view` says which one it shows without one, an edit of it showing from the panel's next run.
+An entry naming a view the list does not offer is said under the panel.
 
 ### A section
 

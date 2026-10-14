@@ -17,6 +17,7 @@ export const ICONS = {
   terminal: '<rect x="1.8" y="2.8" width="12.4" height="10.4" rx="1.6" /><path d="M4.6 6.2l2 1.8-2 1.8M8.4 10h3" />',
   git: '<circle cx="5" cy="3.6" r="1.5" /><circle cx="5" cy="12.4" r="1.5" /><circle cx="11" cy="5.2" r="1.5" /><path d="M5 5.1v5.8M11 6.7c0 2.6-6 2.2-6 4.2" />',
   list: '<path d="M3 4h10M3 8h10M3 12h6.5" />',
+  tree: '<path d="M2.5 3.5h6M4.5 3.5v8.5M4.5 8h3M4.5 12h3M9.5 8h4M9.5 12h4" />',
   check: '<path d="M3 8.6l3.2 3.2L13 4.8" />',
   eye: '<path d="M1.6 8S4 3.8 8 3.8 14.4 8 14.4 8 12 12.2 8 12.2 1.6 8 1.6 8z" /><circle cx="8" cy="8" r="2" />',
   bug: '<rect x="5" y="5" width="6" height="8.2" rx="3" /><path d="M8 7.5v5M5 8.5H2.6M13.4 8.5H11M5.2 11.4l-2 1.4M10.8 11.4l2 1.4M6.2 5.2L4.8 3.4M9.8 5.2l1.4-1.8" />',

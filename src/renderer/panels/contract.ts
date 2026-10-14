@@ -116,9 +116,25 @@ export interface Asks {
   sessionMenu(id: string): MenuItem[] | null;
 }
 
+/** One way a panel can show what it shows, such as flat or as a tree, which its header offers in a switch. */
+export interface PanelView {
+  /** What the layout entry's `view` names, and what the panel is given back as its pick. */
+  id: string;
+  /** What its button in the switch says when hovered. */
+  label: string;
+  icon: IconName;
+}
+
 /** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw — the panel's side of the conversation with the layout — and the asks it can make of the app's surfaces. */
 export interface PanelHost extends Asks {
   where(): Where;
+  /** The view picked for the panel: the one picked in its header on this machine, else its layout entry's `view` as the layout says it now; null without either, which is its first. */
+  view(): string | null;
+  /**
+   * The views the panel offers: with two or more its header shows a switch between them, the picked one marked as shown, else the first.
+   * A pick there is kept for the panel as a group's picked panel is, and runs it again (`refresh`).
+   */
+  setViews(views: PanelView[]): void;
   setBusy(busy: boolean): void;
   /** The header's word on the last run: `exit 3`, `stopped after 30 s`, or '' for a run that ended well. */
   setEnd(label: string): void;

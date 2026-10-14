@@ -209,8 +209,9 @@
   position: relative;
 }
 
-/* The panel on show: filled, with the accent on the rail's outer edge, the side away from the content. */
-.icon-btn.rail-item.shown {
+/* What is on show among its kind: a rail's panel, and a panel's view in its header's switch, filled alike at rest; the rail's also carries the accent on its outer edge, the side away from the content (below). */
+.icon-btn.rail-item.shown,
+.icon-btn.panel-view[aria-pressed='true'] {
   background: var(--active);
   color: var(--text);
 }
@@ -231,13 +232,15 @@
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
-/* The panel on show in a group that cannot fold: a click does nothing, so neither a pointer nor the borderless icon buttons' accent hover may claim one, as on a project heading that cannot collapse.
-   The tooltip still names the panel. */
-.icon-btn.rail-item.shown.no-fold {
+/* What is on show where a click on it does nothing — the panel on show in a group that cannot fold, and the view on show in a panel's switch — so neither a pointer nor the borderless icon buttons' accent hover may claim one, as on a project heading that cannot collapse.
+   The tooltip still names it. */
+.icon-btn.rail-item.shown.no-fold,
+.icon-btn.panel-view[aria-pressed='true'] {
   cursor: default;
 }
 
-.icon-btn.rail-item.shown.no-fold:hover {
+.icon-btn.rail-item.shown.no-fold:hover,
+.panel-views .icon-btn.panel-view[aria-pressed='true']:hover {
   color: var(--text);
 }
 
@@ -276,6 +279,12 @@
   font-weight: 400;
   color: var(--muted);
   white-space: nowrap;
+}
+
+/* A panel's switch between its views, beside its one button: the buttons side by side, 2px apart, so they read as one control and the one on show as part of it. */
+.panel-views {
+  display: flex;
+  gap: 2px;
 }
 
 /* A panel that cannot run says why, one sentence per line, where its output would be. */

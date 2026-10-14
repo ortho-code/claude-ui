@@ -58,6 +58,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A list of a panel type of your own can be compact, with `"compact": true` in what its script prints: its rows lose the card around each, and a row's text keeps to one line.
 - A row of a panel type of your own can have its text cut short at its start, with `"cut": "start"`, so a long path keeps its end, such as its file name, in view; such a row keeps to one line.
 - A row of a panel type of your own can hold rows of its own, `children`, which it folds away and back from a chevron, as a file tree folds a folder; a section's count counts the rows that hold none.
+- A list of a panel type of your own can offer several views, such as flat and as a tree, with `views`: the panel's header then switches between them, the script is told which with `CLAUDE_UI_VIEW`, and a panel entry's `view` in the layout says which it shows until you pick another.
+  The view you pick is kept for the panel on this machine.
 
 ### Changed
 

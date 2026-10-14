@@ -69,7 +69,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 import { registerPanelsIpc, stopAllPanels, panelInvocation, panelEnv, contextEnv } from '../../../src/main/panels';
-import { PANEL_CONTROL_CAP, PANEL_CONTROL_VARIABLE, PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelRunEvent, type PanelRunRequest } from '../../../src/shared/panels';
+import { PANEL_CONTROL_CAP, PANEL_CONTROL_VARIABLE, PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, PANEL_VIEW_VARIABLE, type PanelRunEvent, type PanelRunRequest } from '../../../src/shared/panels';
 import { KILL_GRACE_MS } from '../../../src/main/shell';
 
 const CONTEXT = { projectRoot: process.cwd(), cwd: process.cwd(), sessionId: 'sess-1' };
@@ -127,8 +127,8 @@ describe('what reaches the shell', () => {
       if (match) named.push(match[1]);
     }
     expect(start).toBeGreaterThanOrEqual(0);
-    // The context, and the run's own control file beside it.
-    const run = [...Object.keys(contextEnv({ projectRoot: '/repo', cwd: '/repo', sessionId: 's' })), PANEL_CONTROL_VARIABLE];
+    // The context, the run's own control file beside it, and a list panel's view.
+    const run = [...Object.keys(contextEnv({ projectRoot: '/repo', cwd: '/repo', sessionId: 's' })), PANEL_CONTROL_VARIABLE, PANEL_VIEW_VARIABLE];
     expect(named.filter((name) => name !== 'CLAUDE_UI_OPTION_<NAME>').sort()).toEqual(run.sort());
     expect(named).toContain('CLAUDE_UI_OPTION_<NAME>');
   });
@@ -180,6 +180,12 @@ describe('a run', () => {
     vi.useRealTimers();
     // A run a test left going keeps its control file, which is a real file in the system's temp folder.
     for (const child of spawned) rmSync(child.options.env[PANEL_CONTROL_VARIABLE] ?? '', { force: true, recursive: true });
+  });
+
+  it('gives a run the view it asks with, empty too, and a run that asks with none no view at all', () => {
+    expect(start({ view: 'tree' }).child.options.env[PANEL_VIEW_VARIABLE]).toBe('tree');
+    expect(start({ view: '' }).child.options.env[PANEL_VIEW_VARIABLE]).toBe('');
+    expect(start().child.options.env).not.toHaveProperty(PANEL_VIEW_VARIABLE);
   });
 
   it('spawns detached in the context directory with the shell’s own stderr discarded', () => {

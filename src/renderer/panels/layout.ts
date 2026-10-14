@@ -57,6 +57,8 @@ export interface PanelSlot {
   hidden: boolean;
   /** Its icon on a rail: the entry's own, else its type's, and `alert` for an entry that cannot run. */
   icon: IconName;
+  /** The view it starts on, the entry's `view` when that is a view's id at all; null without one, which is its type's first. */
+  view: string | null;
 }
 
 interface NodeCommon {
@@ -138,7 +140,7 @@ function doubled(given: string[]): string {
 }
 
 /** The fields of an entry that are the layout's; `options` is the one it hands on unread. */
-const ENTRY_FIELDS = new Set(['id', 'type', 'title', 'hidden', 'icon', 'options']);
+const ENTRY_FIELDS = new Set(['id', 'type', 'title', 'hidden', 'icon', 'view', 'options']);
 
 /**
  * Validate one entry's LAYOUT fields: its id, its type, and how it is drawn.
@@ -150,7 +152,7 @@ export function validateEntry(raw: unknown, index: number, types: Record<string,
   const problems: string[] = [];
   const notes: string[] = [];
   if (!isObject(raw)) {
-    return { key: fallbackKey, type: null, title: `Entry ${index + 1}`, problems: ['The entry is not an object.'], notes, entry: null, hidden: false, icon: 'alert' };
+    return { key: fallbackKey, type: null, title: `Entry ${index + 1}`, problems: ['The entry is not an object.'], notes, entry: null, hidden: false, icon: 'alert', view: null };
   }
   // Handed on as the entry it claims to be; the checks below are what make that claim good before anything reads it as one.
   const entry = raw as unknown as PanelEntry;
@@ -185,6 +187,13 @@ export function validateEntry(raw: unknown, index: number, types: Record<string,
   } else if (raw.icon !== undefined) icon = raw.icon;
   if (problems.length > 0) icon = 'alert';
 
+  // A wrong view is cosmetic too, as an icon is: named, and ignored as if the entry named none.
+  // Whether the type offers a well-formed one is known only once its list has said, so only its shape is checked here and the rest under the panel (tree.ts).
+  let view: string | null = null;
+  if (raw.view !== undefined && (typeof raw.view !== 'string' || !ID_PATTERN.test(raw.view))) {
+    notes.push(`view ${JSON.stringify(raw.view)} on ${key} is not the id of a view (${SLUG_RULE}); it is ignored, as if the entry named none.`);
+  } else if (raw.view !== undefined) view = raw.view;
+
   const derived = type && problems.length === 0 ? type.defaultTitle(isObject(raw.options) ? raw.options : {}) : null;
   const title =
     typeof raw.title === 'string' && raw.title.trim() !== ''
@@ -194,7 +203,7 @@ export function validateEntry(raw: unknown, index: number, types: Record<string,
         : typeof raw.id === 'string'
           ? raw.id
           : `Entry ${index + 1}`;
-  return { key, type: type?.name ?? null, title, problems, notes, entry, hidden: raw.hidden === true, icon };
+  return { key, type: type?.name ?? null, title, problems, notes, entry, hidden: raw.hidden === true, icon, view };
 }
 
 /**
@@ -429,7 +438,7 @@ function addSingleton(root: ResolvedNode, type: PanelTypeDecl): ResolvedNode {
     min: home?.node.min ?? DEFAULT_MIN,
     resizable: home?.node.resizable !== false,
     notes: [`The layout does not place the ${type.name} panel, so it is added here.`],
-    slots: [{ key: `@${entry.id}`, type: type.name, title, problems: [], notes: [], entry, hidden: false, icon: type.icon }],
+    slots: [{ key: `@${entry.id}`, type: type.name, title, problems: [], notes: [], entry, hidden: false, icon: type.icon, view: null }],
     active: `@${entry.id}`,
     collapsible: home?.node.collapsible === true,
     folded: home?.node.collapsible === true && home.node.folded === true,

@@ -1,4 +1,7 @@
+import type { PanelView } from '../contract';
 import { fieldsOf } from '../fields';
+import { ICON_NAMES, isIconName } from '../icons';
+import { ID_PATTERN, SLUG_RULE } from '../layout';
 
 /**
  * The list document a `list` type's script prints on stdout, and its check.
@@ -16,7 +19,8 @@ export const LIST_VERSION = 1;
  * The fields of each object in a list document: the ONE place they are named (see fields.ts), which `docs/panel-types.md` is held to by a test.
  */
 export const LIST_FIELDS = {
-  document: ['version', 'badge', 'compact', 'sections', 'notes'],
+  document: ['version', 'badge', 'views', 'compact', 'sections', 'notes'],
+  view: ['id', 'label', 'icon'],
   section: ['title', 'shut', 'empty', 'items'],
   item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'href', 'tone', 'actions', 'children', 'shut'],
   action: ['label', 'session'],
@@ -78,6 +82,8 @@ export interface ListSection {
 export interface ListDocument {
   /** The count on the panel's rail icon and in its header; null for none. */
   badge: number | null;
+  /** The ways the script can print the list, the first shown until another is picked; a switch only with two or more, and each id is what the script is given as `CLAUDE_UI_VIEW`. */
+  views: PanelView[];
   /** One line a row, without the card around each. */
   compact: boolean;
   sections: ListSection[];
@@ -193,6 +199,26 @@ class Reader {
     return key !== null && text !== null ? { key, lead, leadTone, text, cut, trail, tooltip, detail, href, tone, actions, children, shut } : null;
   }
 
+  /** One of the list's views: an id a layout entry can name and a script can be given, a label and an icon from the app's set; an id used before is a problem, as an item's key is. */
+  view(raw: unknown, at: string, ids: Set<string>): PanelView | null {
+    if (!isObject(raw)) {
+      this.problems.push(`${at} is not an object.`);
+      return null;
+    }
+    const field = fieldsOf(raw, LIST_FIELDS.view);
+    let id = this.text(field('id'), `${at}.id`, true);
+    if (id !== null && !ID_PATTERN.test(id)) {
+      this.problems.push(`${at}.id "${id}" is not a slug (${SLUG_RULE}).`);
+      id = null;
+    } else if (id !== null && ids.has(id)) this.problems.push(`${at}.id "${id}" is already used by another view.`);
+    if (id !== null) ids.add(id);
+    const label = this.text(field('label'), `${at}.label`, true);
+    const icon = field('icon');
+    if (icon === undefined) this.problems.push(`${at}.icon is missing.`);
+    else if (!isIconName(icon)) this.problems.push(`${at}.icon ${JSON.stringify(icon)} is not an icon this build has (it has: ${ICON_NAMES.join(', ')}).`);
+    return id !== null && label !== null && isIconName(icon) ? { id, label, icon } : null;
+  }
+
   section(raw: unknown, at: string): ListSection | null {
     if (!isObject(raw)) {
       this.problems.push(`${at} is not an object.`);
@@ -234,6 +260,11 @@ export function readListDocument(stdout: string): ListRead {
     if (typeof rawBadge === 'number' && Number.isInteger(rawBadge) && rawBadge >= 0) badge = rawBadge;
     else reader.problems.push('badge is not a whole number, 0 or more.');
   }
+  const viewIds = new Set<string>();
+  const views = reader
+    .list(field('views'), 'views', false)
+    .map((view, index) => reader.view(view, `views[${index}]`, viewIds))
+    .filter((view) => view !== null);
   const compact = reader.flag(field('compact'), 'compact');
   const sections = reader
     .list(field('sections'), 'sections', true)
@@ -244,5 +275,5 @@ export function readListDocument(stdout: string): ListRead {
     .map((note, index) => reader.text(note, `notes[${index}]`))
     .filter((note) => note !== null);
   if (reader.problems.length > 0) return { doc: null, problems: reader.problems };
-  return { doc: { badge, compact, sections, notes }, problems: [] };
+  return { doc: { badge, views, compact, sections, notes }, problems: [] };
 }

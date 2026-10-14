@@ -16,6 +16,7 @@ import {
   OPTION_NAME,
   PANEL_CONTROL_CAP,
   PANEL_CONTROL_VARIABLE,
+  PANEL_VIEW_VARIABLE,
   PANEL_OUTPUT_CAP,
   PANEL_TIMEOUT_MS,
   type PanelContext,
@@ -238,6 +239,8 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
   const control = makeControl(request.entryId);
   const env = panelEnv(request.context, request.options);
   if (control !== null) env[PANEL_CONTROL_VARIABLE] = control;
+  // A list panel's view, set even when empty, as the session id is; a kind without views asks with none and its run is given none.
+  if (request.view !== undefined) env[PANEL_VIEW_VARIABLE] = request.view;
   // `detached` puts the child in a session of its own, so its pid is a group id the stop can signal (shell.ts).
   let child: ChildProcess;
   try {

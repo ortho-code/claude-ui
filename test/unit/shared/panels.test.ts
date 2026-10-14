@@ -37,6 +37,8 @@ describe('what the app keeps for a node', () => {
     expect(nodeStateProblem('folded', 'yes')).toBe('folded is not true or false.');
     expect(nodeStateProblem('active', 'Checks')).toBe('active is not the id of a panel.');
     expect(nodeStateProblem('active', 'checks')).toBeNull();
+    expect(nodeStateProblem('view', 'Tree')).toBe('view is not the id of a view.');
+    expect(nodeStateProblem('view', 'tree')).toBeNull();
   });
 
   it('sets and removes fields in order, removes a node left with nothing, and leaves the nodes it was given alone', () => {

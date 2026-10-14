@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ICON_NAMES } from '../../../../../src/renderer/panels/icons';
 import { readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
 
 const item = { key: 'org/repo#1', text: 'Fix the login redirect' };
@@ -11,6 +12,10 @@ describe('readListDocument', () => {
       JSON.stringify({
         version: 1,
         badge: 3,
+        views: [
+          { id: 'flat', label: 'Flat', icon: 'list' },
+          { id: 'tree', label: 'Tree', icon: 'tree' },
+        ],
         compact: true,
         sections: [
           {
@@ -39,6 +44,10 @@ describe('readListDocument', () => {
     expect(read).toEqual({
       doc: {
         badge: 3,
+        views: [
+          { id: 'flat', label: 'Flat', icon: 'list' },
+          { id: 'tree', label: 'Tree', icon: 'tree' },
+        ],
         compact: true,
         sections: [
           {
@@ -74,6 +83,7 @@ describe('readListDocument', () => {
   it('needs only a version, sections, and a key and text per item', () => {
     expect(readListDocument(doc()).doc).toEqual({
       badge: null,
+      views: [],
       compact: false,
       sections: [{ title: null, shut: false, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: null, href: null, tone: 'normal', actions: [], children: [], shut: false }] }],
       notes: [],
@@ -109,6 +119,21 @@ describe('readListDocument', () => {
     [{ badge: -1 }, 'badge is not a whole number, 0 or more.'],
     [{ badge: 1.5 }, 'badge is not a whole number, 0 or more.'],
     [{ compact: 'yes' }, 'compact is not true or false.'],
+    [{ views: {} }, 'views is not an array.'],
+    [{ views: [{ label: 'Flat', icon: 'list' }] }, 'views[0].id is missing.'],
+    [{ views: [{ id: 'Flat', label: 'Flat', icon: 'list' }] }, 'views[0].id "Flat" is not a slug (lowercase letters, digits, hyphens and underscores, starting with a letter or digit).'],
+    [{ views: [{ id: 'flat', icon: 'list' }] }, 'views[0].label is missing.'],
+    [{ views: [{ id: 'flat', label: 'Flat' }] }, 'views[0].icon is missing.'],
+    [{ views: [{ id: 'flat', label: 'Flat', icon: 'rocket' }] }, `views[0].icon "rocket" is not an icon this build has (it has: ${ICON_NAMES.join(', ')}).`],
+    [
+      {
+        views: [
+          { id: 'flat', label: 'Flat', icon: 'list' },
+          { id: 'flat', label: 'Also flat', icon: 'list' },
+        ],
+      },
+      'views[1].id "flat" is already used by another view.',
+    ],
     [{ notes: [3] }, 'notes[0] is not a string.'],
     [{ sections: [3] }, 'sections[0] is not an object.'],
     [{ sections: [{}] }, 'sections[0].items is missing.'],

@@ -27,7 +27,7 @@ import { claudeType } from './types/claude';
 import { sessionsType } from './types/sessions';
 import { folderTypes } from './types/folder';
 import { linkedSessions, pickSession, startSession } from './links';
-import type { Asks, MountedPanel, PanelHost, PanelStatus, PanelType, Where } from './contract';
+import type { Asks, MountedPanel, PanelHost, PanelStatus, PanelType, PanelView, Where } from './contract';
 import { commandType } from './types/command';
 import { terminalType } from './types/terminal';
 
@@ -65,10 +65,16 @@ export interface TreeHost {
 /** A panel on screen, and the marks it reports through — made once with it, so a rebuilt header or rail shows the same marks rather than orphaning them. */
 interface Mounted {
   panel: MountedPanel;
+  /** Its entry as the layout says it now, which an edit that does not mount the panel afresh (its `view`, its title) still changes. */
+  slot: PanelSlot;
+  /** What is wrong with its entry's `view` that only its views show, for its group's note line. */
+  viewNotes: string[];
   /** Its type and declared parameters: a change to either mounts it afresh, a change to anything else (title, icon) does not. */
   signature: string;
   busy: HTMLElement;
   end: HTMLElement;
+  /** The switch between the views it offers, empty and hidden with fewer than two. */
+  views: HTMLElement;
   action: HTMLButtonElement | null;
   /** The dot on its rail icon (P8). */
   badge: HTMLElement;
@@ -504,15 +510,15 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   if (shown.problems.length > 0) {
     content.prepend(header(shown.title), problemList(shown.problems));
   } else if (!types[shown.type!]!.bare) {
-    const { count, busy, end, action, problems } = mountedFor(shown);
-    const row = header(shown.title, action ? [count, busy, end, action] : [count, busy, end]);
+    const { count, busy, end, views, action, problems } = mountedFor(shown);
+    const row = header(shown.title, action ? [count, busy, end, views, action] : [count, busy, end, views]);
     // The layout's refusals and the panel's own are one list, drawn the same way.
     if (problems.length > 0) content.prepend(row, problemList(problems));
     else content.prepend(row);
   }
   // Shown even while it says it cannot run, so a check that passes later runs it where it stands.
   if (!place.folded && shown.problems.length === 0) onShow.add(shown.key);
-  const notes = [...group.notes, ...(stateNotes[group.id] ?? []), ...slots.flatMap((slot) => [...slot.notes, ...(mounted.get(slot.key)?.notes ?? [])])];
+  const notes = [...group.notes, ...(stateNotes[group.id] ?? []), ...slots.flatMap((slot) => [...slot.notes, ...(mounted.get(slot.key)?.notes ?? []), ...(mounted.get(slot.key)?.viewNotes ?? [])])];
   if (notes.length > 0) content.append(notesLine(notes));
 
   const rail = switcher(group, slots, shown, place);
@@ -575,7 +581,10 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
 /** The mounted panel for a slot, mounting it on first sight. */
 function mountedFor(slot: PanelSlot): Mounted {
   const existing = mounted.get(slot.key);
-  if (existing) return existing;
+  if (existing) {
+    existing.slot = slot;
+    return existing;
+  }
   const type = types[slot.type!]!;
   const busy = element('span', badgeClass('busy'));
   busy.hidden = true;
@@ -588,6 +597,41 @@ function mountedFor(slot: PanelSlot): Mounted {
   const count = element('span', 'panel-count');
   const railCount = element('span', 'rail-count');
   count.hidden = railCount.hidden = true;
+  // The switch between the panel's views, drawn again only when what it would say changes, so a press on one of its buttons survives a run that offers the same views.
+  const views = element('span', 'panel-views');
+  views.hidden = true;
+  let viewsSaid = '';
+  // The entry as the layout says it now, not as it was when the panel mounted: an edit of its `view` alone does not mount it afresh.
+  const entryView = (): string | null => (mounted.get(slot.key)?.slot ?? slot).view;
+  // The view picked on this machine, else the entry's; the switch marks it when the panel offers it, else the panel's first.
+  const pickedView = (): string | null => nodeState[slot.key]?.view ?? entryView();
+  const showViews = (offered: PanelView[]): void => {
+    const shown = offered.find(({ id }) => id === pickedView())?.id ?? offered[0]?.id;
+    // An entry naming a view its list does not offer is said under the group, as an icon this build does not have is; only the list's views can tell.
+    const named = entryView();
+    const notes = named !== null && offered.length > 0 && !offered.some(({ id }) => id === named) ? [`view "${named}" on ${slot.key} is not one of the views its list offers (${offered.map(({ id }) => id).join(', ')}); its first is shown until another is picked.`] : [];
+    const current = mounted.get(slot.key);
+    if (current && current.viewNotes.join('\n') !== notes.join('\n')) {
+      current.viewNotes = notes;
+      queueRender();
+    }
+    const now = JSON.stringify([offered, shown]);
+    if (now === viewsSaid) return;
+    viewsSaid = now;
+    views.hidden = offered.length < 2;
+    views.replaceChildren(
+      ...(offered.length < 2
+        ? []
+        : offered.map((view) =>
+            viewButton(view, view.id === shown, () => {
+              // Kept as a group's pick is: only where it differs from what the entry says, or from the panel's first when the entry says nothing.
+              keep([{ id: slot.key, field: 'view', value: keptOver(view.id, entryView() ?? offered[0]!.id) }]);
+              showViews(offered);
+              mounted.get(slot.key)?.panel.refresh();
+            }),
+          )),
+    );
+  };
   // What the panel reports about itself, held here so a report made while it is still mounting is not lost; a change re-renders, since both the panel's place and its rail icon draw from it.
   const said = { problems: [] as string[], notes: [] as string[] };
   const report = (field: keyof typeof said, lines: string[]): void => {
@@ -599,6 +643,8 @@ function mountedFor(slot: PanelSlot): Mounted {
   };
   const panelHost: PanelHost = {
     where: () => host.where(),
+    view: pickedView,
+    setViews: showViews,
     setBusy: (on) => {
       busy.hidden = !on;
     },
@@ -626,7 +672,7 @@ function mountedFor(slot: PanelSlot): Mounted {
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
-  const entry: Mounted = { panel, signature: signatureOf(slot), busy, end, action, badge, count, railCount, countValue: null, ...said };
+  const entry: Mounted = { panel, slot, viewNotes: [], signature: signatureOf(slot), busy, end, views, action, badge, count, railCount, countValue: null, ...said };
   mounted.set(slot.key, entry);
   return entry;
 }
@@ -644,6 +690,18 @@ function actionButton(label: string): HTMLButtonElement {
   button.setAttribute('aria-label', label);
   setTooltip(button, label);
   button.innerHTML = REFRESH_ICON;
+  return button;
+}
+
+/** A view's button in a panel's switch, in the compact box the header's other button takes; the view on show is marked pressed, and a press on it does nothing. */
+function viewButton(view: PanelView, shown: boolean, pick: () => void): HTMLButtonElement {
+  const button = element('button', 'icon-btn compact panel-view');
+  button.type = 'button';
+  button.setAttribute('aria-label', view.label);
+  button.setAttribute('aria-pressed', String(shown));
+  setTooltip(button, view.label);
+  button.innerHTML = iconSvg(view.icon);
+  if (!shown) button.addEventListener('click', pick);
   return button;
 }
 
