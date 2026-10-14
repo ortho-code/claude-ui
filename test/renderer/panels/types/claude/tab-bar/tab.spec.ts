@@ -77,6 +77,28 @@ test('a press on a tab or its button still counts, and a focused button keeps th
   await expect(tab(page, one.title)).toHaveCount(0);
 });
 
+// Unavailable rather than natively disabled (`setUnavailable`), so the keyboard reaches it to hear why, as the pointer does on hover.
+test("a tab's button that cannot act yet says why, takes the keyboard's focus, and a press on it does nothing", async ({ app, page }) => {
+  await app.boot(fixture);
+  await app.hold('startTerminal');
+  await tab(page, other.title).click();
+  const close = tab(page, other.title).locator('.tab-close');
+  await expect(close).toBeDisabled();
+
+  await close.hover();
+  await expect(page.locator('#tooltip')).toHaveText('Starting…');
+  await close.focus();
+  await expect(close).toBeFocused();
+  await page.keyboard.press('Enter');
+  await close.click({ force: true });
+  await expect(tab(page, other.title)).toHaveCount(1);
+  expect(await app.calls('closeTerminal')).toEqual([]);
+
+  await app.release('startTerminal');
+  await expect(close).toBeEnabled();
+  await expect(close).toHaveAttribute('data-tooltip', 'Stop session');
+});
+
 test('a middle click stops the tab of a running session, and closes it once it is cold', async ({ app, page }) => {
   await app.boot(fixture);
   await tab(page, other.title).click();

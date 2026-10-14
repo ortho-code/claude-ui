@@ -169,7 +169,7 @@ button:where(:not(.icon-btn)):hover,
 /* A control that cannot act says so before it is pressed: no pointer, no hover, dimmed.
    `.unavailable` goes with `aria-disabled` rather than the `disabled` property, because a natively disabled button emits no mouse events and its tooltip — the only thing that says WHY — never fires.
    See setUnavailable().
-   The native `:disabled` is covered too, for the controls that use it. */
+   The native `:disabled` is covered too, for the pin while its toggle is saved, which has no reason to give. */
 .icon-btn:disabled,
 .unavailable {
   cursor: default;
@@ -218,7 +218,7 @@ button:where(:not(.icon-btn)):hover,
 }
 
 /* One hover for each kind of icon button, replacing a thirteen-selector list that a new control had to be remembered into.
-   `:not(:disabled)` covers the two that opt out while inert — the tab close mid transition, and the group-jump button below two targets.
+   `:not(.unavailable)` covers a control that cannot act, and `:not(:disabled)` the pin while its toggle is saved.
    And the same look while a menu it opened is up (`.menu-open`, stamped by openMenu), so every icon button that opens one keeps its hover look with the pointer gone onto the menu, from these rules alone.
 
    A BORDERLESS one — a kebab, the pin, a close or a stop, a row's unarchive and delete, the group jump — turns its mark accent and nothing else.

@@ -465,7 +465,7 @@ function forceStop(token: string): void {
  * End the session but keep its tab, cold and resumable; once the stop has had its moment, the same press forces it.
  * The opposite of closeTab, and the deliberate counterpart to claude exiting on its own — which still CLOSES the tab, so a finished session does not leave an empty one behind.
  * `stopping` is what tells those two apart when the exit arrives.
- * Pressed again during the stop's pause it does nothing: the control is disabled then, and this is the check for the routes that do not go through it.
+ * Pressed again during the stop's pause it does nothing: the control is unavailable then, and this is the check for the routes that do not go through it.
  */
 export function stopSession(token: string): void {
   const tab = tabOf(token);

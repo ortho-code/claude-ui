@@ -9,6 +9,7 @@ import { isPaused, projectGone, projName, projectGroups, sessionById, sessionNud
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, tabButtonIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
+import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
 import { sessionMenuItems } from './actions';
 import '../../../menu-row.css';
@@ -107,10 +108,11 @@ function buildRow(id: string): StripRow {
   const stop = document.createElement('button');
   stop.type = 'button';
   stop.className = 'icon-btn compact strip-item-stop';
-  // Pressed only while enabled, which each render decides from the tab as it is then (`updateRow`).
+  // Pressed only while available, which each render decides from the tab as it is then (`updateRow`).
   stop.addEventListener('click', (event) => {
     // The row around it jumps to the session; pressing the button must not also take you there.
     event.stopPropagation();
+    if (unavailable(stop)) return;
     hostOf('sessions').pressTabButton(id);
   });
   row.append(jump, kebab, stop);
@@ -130,11 +132,10 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   if (onShow) jump.setAttribute('aria-current', 'true');
   else jump.removeAttribute('aria-current');
   const tab = tabWith(session.id, view);
-  // No tab at all should not happen — membership is a tab's process or its pause — so it is inert rather than guessed at.
-  const { disabled, tooltip, mark } = tab ? tabButtonState(tab) : { disabled: true, tooltip: null, mark: 'stop' as const };
+  // No tab at all should not happen — membership is a tab's process or its pause — so it is inert rather than guessed at, saying only what is so.
+  const { disabled, tooltip, mark } = tab ? tabButtonState(tab) : { disabled: true, tooltip: 'No tab to act on', mark: 'stop' as const };
   setMarkup(stop, tabButtonIcon(mark, 14));
-  stop.disabled = disabled;
-  setTooltip(stop, tooltip);
+  setUnavailable(stop, disabled ? tooltip : null, tooltip);
 }
 
 function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' |'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded'>): void {

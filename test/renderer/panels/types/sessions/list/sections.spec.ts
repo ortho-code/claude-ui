@@ -127,6 +127,29 @@ test("in a project, the heading cannot fold and collapse-all folds that project'
   await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
 });
 
+// It says why, and the keyboard reaches it to hear it (`setUnavailable`).
+test('collapse-all is unavailable while a filter is on, says why, and a press on it folds nothing', async ({ app, page }) => {
+  await app.boot(fixture);
+  const toggle = page.locator('#collapse-toggle');
+  await page.locator('#filter-toggle').click();
+  // Matches a row in each project, so both stay drawn.
+  await page.locator('#search').fill('e');
+  await expect(project(page, 'other')).toHaveCount(1);
+  await expect(toggle).toBeDisabled();
+
+  await toggle.hover();
+  await expect(page.locator('#tooltip')).toHaveText('Not while a filter is on.');
+  await toggle.focus();
+  await expect(toggle).toBeFocused();
+  await toggle.click({ force: true });
+  await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
+  await expect(project(page, 'other')).not.toHaveClass(/\bcollapsed\b/);
+
+  await page.locator('#search').fill('');
+  await expect(toggle).toBeEnabled();
+  await expect(toggle).toHaveAttribute('data-tooltip', 'Collapse all');
+});
+
 test('a filter opens every fold, a fold made under it lasts as long as the filter, and your own folds come back after', async ({ app, page }) => {
   await app.boot({ ...fixture, ...withUi({ collapsedGroups: ['g-alpha'] }) });
   await expect(group(page, 'Alpha')).toHaveClass(/\bcollapsed\b/);

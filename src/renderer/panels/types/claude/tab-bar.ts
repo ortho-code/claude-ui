@@ -9,6 +9,7 @@ import { projName, projectGone, projectGroups, statusChanges, visibleTabs } from
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { layersIcon, SIBLING_ICON, tabButtonIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
+import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
 import { activateTab, closeOrStop, persistOpenTabs, tabOf } from './terminals';
 import './tab-bar.css';
@@ -202,7 +203,9 @@ function buildTab(token: string): TabEls {
   const close = document.createElement('button');
   close.className = 'icon-btn compact tab-close';
   close.addEventListener('click', (event) => {
+    // A press on the button is never a press on its tab, even when it cannot act.
     event.stopPropagation();
+    if (unavailable(close)) return;
     closeOrStop(token);
   });
   el.addEventListener('click', () => {
@@ -261,9 +264,8 @@ function drawTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'ack
 
   // Stopping, its two pauses and its force, and closing a cold tab: the same rule the live strip's button follows — see tabButtonState.
   const { disabled, tooltip, mark } = tabButtonState(tab);
-  close.disabled = disabled;
+  setUnavailable(close, disabled ? tooltip : null, tooltip);
   setMarkup(close, tabButtonIcon(mark, 14));
-  setTooltip(close, tooltip);
 
   el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
   const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(worktree ? [worktreeMark] : [])];

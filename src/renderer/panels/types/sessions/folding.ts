@@ -5,7 +5,7 @@ import { store, type View } from '../../../state/app';
 import { foldedGroups, foldedProjects, foldsWith } from '../../../state/folds';
 import { isFiltering } from '../../../state/views';
 import { strokeIcon } from '../../../svg';
-import { setTooltip } from '../../../tooltip';
+import { setUnavailable, unavailable } from '../../../unavailable';
 import { groupSections, projectSections, renderedSections } from './drawn';
 import './folding.css';
 
@@ -85,19 +85,24 @@ function allSectionsCollapsed(view: View<'activeProject' | 'filter' | 'folds'>):
   return ids.length > 0 && ids.every((id) => collapsed.has(id));
 }
 
+/** Why collapse-all and a project's group jump cannot act while a filter is on: the one sentence both say. */
+export const NOT_WHILE_FILTERING = 'Not while a filter is on.';
+
 export function updateCollapseToggle(view: View<'activeProject' | 'filter' | 'folds'>): void {
-  // Filtering forces every section open (so matches inside a collapsed one are visible), which leaves this nothing to act on.
-  // Disabled rather than hidden, since a control vanishing as you type reads worse than one plainly unavailable.
-  collapseToggle.disabled = isFiltering(view) || collapseScope(view).ids.length === 0;
   const label = allSectionsCollapsed(view) ? 'Expand all' : 'Collapse all';
+  // Filtering forces every section open (so matches inside a collapsed one are visible), which leaves this nothing to act on.
+  // Unavailable rather than hidden, since a control vanishing as you type reads worse than one plainly unavailable.
+  const { kind, ids } = collapseScope(view);
+  const reason = isFiltering(view) ? NOT_WHILE_FILTERING : ids.length === 0 ? (kind === 'projects' ? 'No projects to collapse.' : 'No groups in this project to collapse.') : null;
+  setUnavailable(collapseToggle, reason, label);
   // Every draw of the list says it again, so only a change of icon replaces it, which a press on the button is mostly on (keyed.ts).
   setMarkup(collapseToggle, allSectionsCollapsed(view) ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON);
-  setTooltip(collapseToggle, label);
   collapseToggle.setAttribute('aria-label', label);
 }
 
 // Collapsing takes the groups with it, so expanding a project afterwards shows its group headings rather than dumping every row back at once — two levels of overview instead of one.
 collapseToggle.addEventListener('click', () => {
+  if (unavailable(collapseToggle)) return;
   const state = store.get();
   const { kind, ids } = collapseScope(state);
   const expanding = allSectionsCollapsed(state);

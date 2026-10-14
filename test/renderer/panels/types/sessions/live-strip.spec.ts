@@ -141,6 +141,33 @@ test("the strip's stop button stops the session, keeps its tab cold, and the row
   await expect(page.locator('#live-strip')).toBeHidden();
 });
 
+// Unavailable rather than natively disabled (`setUnavailable`), so the keyboard reaches it to hear why, as the pointer does on hover.
+// The clock is held so the stop cannot turn into a force, a second after the press, while the tooltip takes its moment to appear.
+test("the strip's stop says why it cannot act while its session is leaving, takes the keyboard's focus, and a press on it does nothing", async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });
+  await tabLabel(page, loose.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const stop = strip(page).locator('.strip-item-stop');
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000);
+
+  await stop.click();
+  await expect(stop).toBeDisabled();
+  // Off it and back: the press put the pointer there already, and its click took down the tooltip it was waiting to show.
+  await page.mouse.move(0, 0);
+  await stop.hover();
+  await page.clock.runFor(500);
+  await expect(page.locator('#tooltip')).toHaveText('Stopping…');
+  await stop.focus();
+  await expect(stop).toBeFocused();
+  await page.keyboard.press('Enter');
+  await stop.click({ force: true });
+  expect(await app.calls('closeTerminal')).toEqual([[1, false]]);
+  expect(await app.calls('killTerminal')).toEqual([]);
+  // Nothing else moved either: the session's tab is still the one on show.
+  await expect(tab(page, loose.title)).toHaveClass(/\bactive\b/);
+});
+
 // A session asked to leave may be asking something in a tab you are not looking at: the strip keeps it, says so, and forces it when pressed again.
 test("the strip's stop becomes a force when the session has not left, as the tab's does", async ({ app, page }) => {
   await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });

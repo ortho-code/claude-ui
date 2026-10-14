@@ -142,6 +142,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The sidebar's header buttons, + New included, all hover alike, and Filter, + New and Settings show an open look, distinct from their hover, while what they opened is up, where the filter's used to be its hover and Settings showed nothing.
 - A panel's icon in a strip of icons, and a view in a panel's header, fill under the pointer as a tab you are not on does, instead of turning blue.
 - A click on a tab counts when the pointer moves a pixel or two during it, instead of starting a drag and leaving the tab unchosen.
+- Collapse-all and a project's group jump say why they can't be used while a filter is on, where their tooltip only named what they do.
+- A button that can't act for the moment, such as a tab's while its session starts, can be reached with the keyboard to read why, instead of being skipped.
 
 ## 0.3.0 — 2026-08-29
 

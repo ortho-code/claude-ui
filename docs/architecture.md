@@ -303,6 +303,7 @@ An action that cannot be taken is shown rather than removed: a menu that changes
 
 **Unavailable is `aria-disabled`, never the `disabled` property**, and the reason is the tooltip: a natively disabled button emits no mouse events in Chromium, so a tooltip delegated from `document` never fires and the only thing explaining the refusal is invisible.
 `setUnavailable()` marks a control and carries the reason; the click handler refuses with `unavailable()`, which is the trade for a tooltip that works.
+The one `disabled` left is a row's pin for the moment its toggle is saved, which has no reason to give.
 **Management stays**: pin, note, archive and delete all keep working, because cleaning up after a folder that has gone is exactly when you need them.
 One function produces that sentence and the tooltip, the toast and the pane all use it, so they cannot drift.
 
