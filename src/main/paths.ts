@@ -1,5 +1,6 @@
 import { app } from 'electron';
 import * as path from 'node:path';
+import { PANEL_TYPES_FOLDER } from '../shared/panels';
 
 /**
  * The one place that decides where claude-ui keeps its own data, and the reason it exists as a module: the decision has to be made before anything reads a path.
@@ -61,7 +62,7 @@ export const scriptsDir = path.join(configRoot, 'scripts');
  * Panel types of a person's own, a folder each: its `panel.json` and the script it runs.
  * The folder's name is the type's, so a folder is shared by copying it.
  */
-export const typesDir = path.join(configRoot, 'types');
+export const typesDir = path.join(configRoot, PANEL_TYPES_FOLDER);
 
 export const defaultLayoutFile = path.join(layoutsDir, 'default.json');
 

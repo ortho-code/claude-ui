@@ -1,4 +1,4 @@
-import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, type PanelContext, type PanelRunEvent } from '../../../shared/panels';
+import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, typeFolder, type PanelContext, type PanelRunEvent } from '../../../shared/panels';
 import { stripAnsi } from '../../ansi';
 // Its rows are the session list's cards and its headings the group's bar.
 import { listCard, sectionHeading, setFolded } from '../../card';
@@ -157,7 +157,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       prepare(optionsOf(this.slot.entry), this.type, this.host.where()),
       window.claudeUi.checkPath(manifest.run, { dir: this.folder.dir }, 'executable'),
     ]);
-    const problems = [...prepared.problems, ...(script.problem ? [`types/${this.folder.name}: run ${script.problem}.`] : [])];
+    const problems = [...prepared.problems, ...(script.problem ? [`${typeFolder(this.folder.name)}: run ${script.problem}.`] : [])];
     return { problems, ready: problems.length === 0 && prepared.run ? { context: prepared.run, script: script.path } : null, retry: prepared.retry, watched: prepared.watched };
   }
 

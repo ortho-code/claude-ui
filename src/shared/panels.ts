@@ -193,6 +193,12 @@ export interface PathCheck {
 /** How one read of a hand-written file in the config folder went: not there, there and not parsed (`error` says what is wrong and where), or read (`json` is what it parsed to). */
 export type ReadStatus = 'missing' | 'unparsable' | 'read';
 
+/** The config folder's folder of panel types of a person's own, a folder each: named once, for main to read and watch and for a mistake in a type to name it by (`typeFolder`). */
+export const PANEL_TYPES_FOLDER = 'types';
+
+/** Where a panel type of a person's own sits in the config folder, as everything said about it names it: `types/<name>`. */
+export const typeFolder = (name: string): string => `${PANEL_TYPES_FOLDER}/${name}`;
+
 /**
  * One folder under the config folder's `types/`: a panel type of a person's own, which the layout file uses by the folder's name.
  * Read and not judged, like the layout file: `missing` is a folder without a `panel.json`, and what is wrong inside one is the renderer's to say.

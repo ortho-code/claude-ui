@@ -1,4 +1,4 @@
-import { OPTION_NAME, type TypeReport } from '../../../shared/panels';
+import { OPTION_NAME, typeFolder, type TypeReport } from '../../../shared/panels';
 import { ICON_NAMES, isIconName, type IconName } from '../icons';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
 import { CWD_OPTION, INTERVAL_OPTION, WATCH_OPTION, isFixedPath, valueProblem, type OptionDecl } from '../options';
@@ -110,9 +110,9 @@ function checkOptionList(raw: unknown, kind: Kind | null): { options: OptionDecl
  * Pure, and tested per rule.
  */
 export function checkManifest(report: TypeReport): FolderType {
-  const at = `types/${report.name}/panel.json`;
+  const at = `${typeFolder(report.name)}/panel.json`;
   const folder = { name: report.name, dir: report.dir, manifest: null, notes: [] };
-  if (report.status === 'missing') return { ...folder, problems: [`types/${report.name} has no panel.json.`] };
+  if (report.status === 'missing') return { ...folder, problems: [`${typeFolder(report.name)} has no panel.json.`] };
   if (report.status === 'unparsable') return { ...folder, problems: [`${at} does not parse: ${report.error ?? 'it could not be read'}.`] };
   const json = report.json;
   if (!isObject(json)) return { ...folder, problems: [`${at} is not a JSON object.`] };
@@ -203,9 +203,9 @@ export function folderTypes(reports: TypeReport[], builtins: Record<string, Pane
   const notes: string[] = [];
   for (const report of reports) {
     if (!ID_PATTERN.test(report.name)) {
-      notes.push(`types/${report.name} is not read: a type is named after its folder, and the name has to be ${SLUG_RULE}.`);
+      notes.push(`${typeFolder(report.name)} is not read: a type is named after its folder, and the name has to be ${SLUG_RULE}.`);
     } else if (Object.hasOwn(builtins, report.name)) {
-      notes.push(`types/${report.name} is not read: ${report.name} is a type the app has built in.`);
+      notes.push(`${typeFolder(report.name)} is not read: ${report.name} is a type the app has built in.`);
     } else types[report.name] = folderType(checkManifest(report), revisionOf(report));
   }
   return { types, notes };
