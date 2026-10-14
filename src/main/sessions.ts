@@ -6,7 +6,7 @@ import * as readline from 'node:readline';
 import { createReadStream } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { SessionSummary } from '../shared/types';
+import type { SessionPr, SessionSummary } from '../shared/types';
 import { errorText, fsFailure, log, logOnce } from './log';
 import { formatDuration } from './stamp';
 import { commandLabel, displayableUserText, extractUserText } from './transcript';
@@ -303,6 +303,9 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
   // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system append (a Remote Control notice) or a resume bumps mtime without being real activity.
   // Captured with a cheap regex below.
   let lastMsgTs = '';
+  // The PRs the transcript links, keyed by `owner/repo#number`.
+  // Claude Code writes the same record again through a session, so each is kept once, where it first appears.
+  const prs = new Map<string, SessionPr>();
 
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
   try {
@@ -328,7 +331,8 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
       const isTitle = line.includes('"custom-title"') || line.includes('"ai-title"');
       const maybeBoundary = line.includes('compact_boundary');
       const maybeWorktree = line.includes('worktree-state');
-      if (!isTitle && !maybeBoundary && !maybeWorktree && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
+      const maybePrLink = line.includes('"pr-link"');
+      if (!isTitle && !maybeBoundary && !maybeWorktree && !maybePrLink && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
 
       let event: Record<string, unknown>;
       try {
@@ -357,6 +361,14 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
           // Exited (worktreeSession null carries no path); fall back to the enter event's original cwd.
           worktreeStateCwd = worktreeOriginalCwd || null;
           leftWorktreePath = enteredWorktreePath;
+        }
+      }
+
+      if (event.type === 'pr-link') {
+        const pr = linkedPr(event);
+        if (pr) {
+          const key = `${pr.repository}#${pr.number}`;
+          if (!prs.has(key)) prs.set(key, pr);
         }
       }
 
@@ -396,12 +408,22 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
     // Sibling grouping is derived across the whole session list in listSessions; default to "alone".
     isSibling: false,
     siblingIds: [],
+    prs: [...prs.values()],
     postCompactHeads,
     // Both re-derived per listing, like the sibling marks: a folder can be removed or put back without the transcript changing, so the answer cannot be cached beside one.
     cwdExists: true,
     repoRootExists: true,
   };
   return { summary, leftWorktreePath };
+}
+
+/** The PR a `pr-link` record names, or null for a record this cannot use: its number a positive whole number, its repository a name, its page an https address. */
+function linkedPr(event: Record<string, unknown>): SessionPr | null {
+  const { prNumber, prRepository, prUrl } = event;
+  if (typeof prNumber !== 'number' || !Number.isInteger(prNumber) || prNumber <= 0) return null;
+  if (typeof prRepository !== 'string' || !prRepository) return null;
+  if (typeof prUrl !== 'string' || !prUrl.startsWith('https://')) return null;
+  return { repository: prRepository, number: prNumber, url: prUrl };
 }
 
 /** A title field is usable only when it is a non-empty string. */

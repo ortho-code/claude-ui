@@ -40,6 +40,11 @@ export interface SessionSummary {
   /** The other members of this session's family (empty when not a sibling). */
   siblingIds: string[];
   /**
+   * The PRs the session's transcript links, from Claude Code's `pr-link` records, each once, in the order first linked; empty when none.
+   * A record says the PR is linked to this session, not who opened it.
+   */
+  prs: SessionPr[];
+  /**
    * First user/assistant uuid after each compaction boundary.
    * A fork of a compacted session adopts one of these as its own conversationId, which is how such a fork is linked into the family.
    * Main-process bookkeeping; the renderer doesn't use it.
@@ -55,6 +60,15 @@ export interface SessionSummary {
    * Separate from `cwdExists` on purpose: a removed worktree leaves its repo perfectly fine, and a removed repo takes its worktrees with it.
    */
   repoRootExists: boolean;
+}
+
+/** A pull request a session's transcript links. */
+export interface SessionPr {
+  /** `owner/repo`, as the record spells it. */
+  repository: string;
+  number: number;
+  /** The PR's page. */
+  url: string;
 }
 
 /**

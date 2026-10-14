@@ -6,11 +6,11 @@ import { entityKey, modelLabel, relativeTime, sessionLabel, unstartableReason, w
 import { kebabButton } from '../../../menu';
 import { store, type View } from '../../../state/app';
 import { ackOnClick, applyStatus } from '../../../statusdot';
-import { NOTE_ICON, PIN_ICON, PINNED_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
+import { NOTE_ICON, PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { showToast } from '../../../toast';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
-import { confirmAndDelete, editNote, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
+import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
 import { currentByKey, sessionRows, statusDots } from './drawn';
 import './rows.css';
 
@@ -39,6 +39,8 @@ interface RowEls {
   badge: HTMLElement;
   siblingsBadge: HTMLElement;
   siblingCount: HTMLElement;
+  prBadge: HTMLElement;
+  prCount: HTMLElement;
   noteBadge: HTMLElement;
   noteSep: HTMLElement;
   meta: HTMLElement;
@@ -97,6 +99,12 @@ function createSessionRow(key: string): HTMLElement {
     const session = currentByKey.get(key);
     if (session) openSiblingsMenu(anchor, session);
   });
+  // The PRs the session's transcript links: the pull-request icon plus a count, which opens a list of them to open in the browser.
+  // Shown only when it links one (set in updateRow).
+  const { badge: prBadge, count: prCount } = menuBadge('pr-badge', PR_ICON, (anchor) => {
+    const session = currentByKey.get(key);
+    if (session) openPrsMenu(anchor, session);
+  });
   // The card's meta line holds the time and model, plus the note mark riding along at the end of that text.
   // The mark lives HERE rather than beside the title because a sibling box next to a text block has to have its alignment guessed; inside the text row it just centres.
   // The meta is short and single-line, so nothing can clip the mark off the way a two-line title clamp would.
@@ -125,7 +133,7 @@ function createSessionRow(key: string): HTMLElement {
 
   const subline = document.createElement('div');
   subline.className = 'session-subline';
-  subline.append(meta, badge, siblingsBadge);
+  subline.append(meta, badge, siblingsBadge, prBadge);
   content.append(subline);
 
   const pin = document.createElement('button');
@@ -172,7 +180,7 @@ function createSessionRow(key: string): HTMLElement {
 
   item.prepend(dot);
   item.append(pin, unarchiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, siblingsBadge, siblingCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (store.get().filter.filters.archived) return;
@@ -229,6 +237,14 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
     els.siblingCount.textContent = String(count);
     const label = count === 1 ? '1 sibling' : `${count} siblings`;
     setTooltip(els.siblingsBadge, `${label} in this session's family — click to list them`);
+  }
+
+  // Linked, not opened: a record says the PR is linked to the session, not who opened it.
+  const prCount = session.prs.length;
+  els.prBadge.hidden = prCount === 0;
+  if (prCount > 0) {
+    els.prCount.textContent = String(prCount);
+    setTooltip(els.prBadge, `${prCount === 1 ? '1 PR' : `${prCount} PRs`} linked to this session — click to list them`);
   }
 
   if (archivedView) {

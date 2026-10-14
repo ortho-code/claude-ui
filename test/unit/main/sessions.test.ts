@@ -189,6 +189,27 @@ beforeAll(async () => {
     ),
   );
 
+  // The PRs a transcript links: Claude Code writes the same record again through a session, a second PR after a first, and the reader keeps a record it can use.
+  // Every record sits after the first message, where the reader no longer parses an ordinary line.
+  const link = (prNumber: unknown, prRepository: unknown = 'ScientaNL/demo', prUrl: unknown = `https://github.com/ScientaNL/demo/pull/${String(prNumber)}`) => ({ type: 'pr-link', sessionId: 'pr', prNumber, prRepository, prUrl, timestamp: '2026-01-01T00:00:00.000Z' });
+  await fs.writeFile(
+    path.join(dir, 'pr.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'upr', cwd: '/tmp/projPR', message: { content: 'open a PR' } },
+      { type: 'assistant', uuid: 'apr', message: { content: 'opened' } },
+      link(12),
+      link(12),
+      link(7),
+      // Records the reader cannot use, each skipped.
+      link('5'),
+      link(0),
+      link(3.5),
+      link(9, ''),
+      link(9, 'ScientaNL/demo', 'javascript:alert(1)'),
+      link(9, 'ScientaNL/demo', 42),
+    ),
+  );
+
   // lastActivity comes from the last MESSAGE, so a later system event (a background/Remote Control touch) must not push it forward.
   await fs.writeFile(
     path.join(dir, 't.jsonl'),
@@ -210,6 +231,15 @@ describe('listSessions', () => {
     expect(byId.get('a')?.firstMessage).toBe('first message A');
 
     expect(byId.get('b')?.title).toBe('AI Title B');
+  });
+
+  it('reads the PRs a transcript links, each once, in the order first linked, and skips a record it cannot use', async () => {
+    const sessions = await listSessions();
+    expect(sessions.find((s) => s.id === 'pr')?.prs).toEqual([
+      { repository: 'ScientaNL/demo', number: 12, url: 'https://github.com/ScientaNL/demo/pull/12' },
+      { repository: 'ScientaNL/demo', number: 7, url: 'https://github.com/ScientaNL/demo/pull/7' },
+    ]);
+    expect(sessions.find((s) => s.id === 'a')?.prs).toEqual([]);
   });
 
   it('keeps the latest model reported across the transcript', async () => {

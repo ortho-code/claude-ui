@@ -52,6 +52,11 @@ The record of leaving does not always say why: in one transcript here it follows
 A Bash `cd` into a worktree changes the `cwd` the records carry and nothing else: Claude Code records no worktree session, and a resume runs where the session started, so it counts as neither.
 Counting it was considered and rejected: any record in a worktree would badge a one-off look inside one, and a share of the records would be a threshold nothing can check.
 
+**A session's PRs come from its transcript too**: Claude Code writes a `pr-link` record naming a PR's repository, number and page, and writes the same one again and again through a session, so each is kept once, in the order first linked (`prs`), and drawn as a mark on the row that lists them.
+A record says the PR is linked to the session, not who opened it, so the mark says "linked": over one machine's transcripts (2026-10-14), 96 of the 98 PRs linked were the user's own, and the other two a colleague's that a session worked on.
+A fork's transcript copies none of its parent's records, but in four of the five families there with a PR, the fork's opening records link its parent's PR afresh, so a fork tends to show its parent's PR from the start.
+What a PR's state is, open or merged, is not in the record, and nothing here reads it.
+
 ## Build
 
 Two TypeScript projects, because the two sides need different module systems:

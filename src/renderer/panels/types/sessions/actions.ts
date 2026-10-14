@@ -50,6 +50,14 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   }));
 }
 
+// The PRs a session's transcript links, by their full reference, oldest first, each opening its page in the browser.
+function prMenuItems(session: SessionSummary): MenuItem[] {
+  return session.prs.map((pr) => ({
+    label: `${pr.repository}#${pr.number}`,
+    onSelect: () => window.claudeUi.openExternal(pr.url),
+  }));
+}
+
 // --- Group actions ------------------------------------------------------------------------------ Written through main, which hands back the whole state (state/groups.ts).
 
 // Name a new group, create it in the project, and take the list to it.
@@ -221,6 +229,12 @@ export function openSiblingsMenu(anchor: HTMLElement, session: SessionSummary): 
   // The mark can briefly outlive its siblings (a delete between refreshes); nothing to list then.
   if (siblings.length === 0) return;
   openMenu(anchor, siblingMenuItems(siblings));
+}
+
+// List a session's PRs in the shared popover; click one to open it.
+export function openPrsMenu(anchor: HTMLElement, session: SessionSummary): void {
+  if (session.prs.length === 0) return;
+  openMenu(anchor, prMenuItems(session));
 }
 
 // A project's ordering moves.

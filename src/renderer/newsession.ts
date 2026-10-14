@@ -20,6 +20,7 @@ export function newSession(id: string, over: Partial<SessionSummary> & Pick<Sess
     lastActivity: new Date().toISOString(),
     isSibling: false,
     siblingIds: [],
+    prs: [],
     postCompactHeads: [],
     // A session the app is about to start in a folder it just resolved: both are there, or the start would not have been offered.
     cwdExists: true,

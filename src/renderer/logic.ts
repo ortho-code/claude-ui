@@ -44,6 +44,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   // Both shown as the sibling mark, and both can change MID-session when a fork lands.
   isSibling: true,
   siblingIds: true,
+  // Drawn as the PR mark, and a running session can link one.
+  prs: true,
   // Both change what the row IS — a session whose folder is gone cannot be opened, and says so — and both can flip while the app is running, with nothing in the transcript moving to announce it.
   cwdExists: true,
   repoRootExists: true,
@@ -58,7 +60,12 @@ const SIGNATURE_FIELDS = (Object.keys(AFFECTS_ROW) as (keyof SessionSummary)[]).
 
 /** One session's line of the signature: every field that affects a row. */
 function rowLine(session: SessionSummary): string {
-  return SIGNATURE_FIELDS.map((k) => String(session[k])).join('\0');
+  return SIGNATURE_FIELDS.map((k) => fieldText(session[k])).join('\0');
+}
+
+/** A field as text for the signature: `String` reads a list of objects, such as `prs`, as `[object Object]` whatever they hold, so one swapped for another would not move it. */
+function fieldText(value: SessionSummary[keyof SessionSummary]): string {
+  return Array.isArray(value) ? JSON.stringify(value) : String(value);
 }
 
 /**

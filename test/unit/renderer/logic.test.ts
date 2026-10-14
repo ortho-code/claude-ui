@@ -46,6 +46,7 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     lastActivity: '2026-07-28T10:00:00.000Z',
     isSibling: false,
     siblingIds: [],
+    prs: [],
     postCompactHeads: [],
     // A session whose folders are both there, which is every case except the ones that say otherwise.
     cwdExists: true,
@@ -148,12 +149,18 @@ describe('structuralSignature', () => {
     ['firstMessage', { firstMessage: 'hello' }],
     ['isSibling', { isSibling: true }],
     ['siblingIds', { siblingIds: ['other'] }],
+    ['prs', { prs: [{ repository: 'o/r', number: 1, url: 'https://github.com/o/r/pull/1' }] }],
     ['id', { id: 'other' }],
     ['conversationId', { conversationId: 'other' }],
   ])('changes when %s changes', (_field, over) => {
     expect(structuralSignature([session()])).not.toBe(structuralSignature([session(over)]));
   });
 
+  // A field holding objects: one swapped for another at the same count has to move it as well.
+  it('changes when a PR is swapped for another', () => {
+    const pr = (number: number) => ({ repository: 'o/r', number, url: `https://github.com/o/r/pull/${number}` });
+    expect(structuralSignature([session({ prs: [pr(1)] })])).not.toBe(structuralSignature([session({ prs: [pr(2)] })]));
+  });
   // The two that must NOT move it: one is rewritten on every message of a running session, the other is never drawn.
   it.each([
     ['lastActivity', { lastActivity: '2030-01-01T00:00:00Z' }],

@@ -80,6 +80,7 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
     lastActivity: '2026-09-30T08:00:00.000Z',
     isSibling: false,
     siblingIds: [],
+    prs: [],
     postCompactHeads: [],
     cwdExists: true,
     repoRootExists: true,
