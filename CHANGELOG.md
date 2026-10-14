@@ -61,6 +61,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A list of a panel type of your own can offer several views, such as flat and as a tree, with `views`: the panel's header then switches between them, the script is told which with `CLAUDE_UI_VIEW`, and a panel entry's `view` in the layout says which it shows until you pick another.
   The view you pick is kept for the panel on this machine.
 - A section of a panel type of your own can show a tooltip on its heading, from a `tooltip` the script gives it, such as all of what its title shortens.
+- A session's PRs, as Claude Code links them in its transcript: a mark on the session's row counts them and lists them, the session's options list them too, on its row, its tab and the live strip, and each opens its page in the browser.
+  A filter shows only the sessions that link one, and searching for a PR's number finds the session that linked it.
 
 ### Changed
 

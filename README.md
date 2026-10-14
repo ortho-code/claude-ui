@@ -27,6 +27,7 @@ Done:
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
   Sessions sharing a conversation show as siblings (a fork badge with a jump list); worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life, and a session that has since left its worktree keeps the badge, muted.
+- The PRs a session links, as Claude Code records them in its transcript: a badge on its row that lists them, an entry in its options, and each opening its page in the browser; a filter finds the sessions with one, and search finds a session by a PR's number.
 - Custom groups: sub-sections inside a project, made empty from the project's kebab or around a session from its kebab.
   Move a session between them, rename or delete a group (its sessions stay), and start a session, a fork or a worktree session straight into one.
   Open tabs cluster by group in the tab bar, and a group's name there takes you to the group in the list.
