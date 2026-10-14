@@ -277,7 +277,7 @@ Settings of your own go in `settings.json` beside it, which the app reads and ne
 There are two settings: `launchFlags`, the default flags for every session the app starts, and `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed.
 That is `"pause"` until you choose otherwise, which brings their tabs back paused, in the live strip, without starting them; `"start"` starts them again, and `"leave"` brings their tabs back with the other tabs, waiting for a click.
 A tab you paused comes back paused whichever it is.
-A value saved in Settings wins over yours; Settings then shows yours under the field, and **Use settings.json** puts it back when you save.
+A value saved in Settings wins over yours; Settings then shows yours under the field, and **Use settings.json** puts it back when you save, or the default where your file sets none.
 Saving the same value as yours takes the app's away rather than copying it, so a later edit of your file counts.
 A change to either file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock.
 A `settings.json` you were sent sets flags on every session you start, so read it before you use it.
