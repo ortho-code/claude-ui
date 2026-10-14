@@ -138,13 +138,14 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     return intervalOf(optionsOf(this.slot.entry), this.folder.manifest?.interval ?? null);
   }
 
-  /** The options the type declares, as the entry gives them: what the script gets as `CLAUDE_UI_OPTION_<NAME>`. */
+  /** The options the type declares, as the entry gives them: what the script gets as `CLAUDE_UI_OPTION_<NAME>`, a text as written and a list as its JSON, since a variable holds a string. */
   private optionValues(): Record<string, string> {
     const options = optionsOf(this.slot.entry);
     const values: Record<string, string> = {};
-    for (const { name } of this.folder.manifest?.options ?? []) {
+    for (const { name, kind } of this.folder.manifest?.options ?? []) {
       const value = options[name];
-      if (typeof value === 'string') values[name] = value;
+      if (kind === 'list' && Array.isArray(value)) values[name] = JSON.stringify(value);
+      else if (typeof value === 'string') values[name] = value;
     }
     return values;
   }

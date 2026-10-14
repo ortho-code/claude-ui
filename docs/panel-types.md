@@ -45,8 +45,18 @@ A `list` type's script prints a list, and the app draws it.
 |---|---|
 | `name` | Lowercase letters, digits and underscores, starting with a letter; the script gets it as `CLAUDE_UI_OPTION_<NAME>`. `cwd`, `interval` and `watch` are the kind's own and cannot be declared. |
 | `kind` | What the value is. |
+| `fields` | For a `list`: what each item holds, each declared as an option is, by `name` and `kind`; an item is then an object of them. A `list` without `fields` holds texts. |
 
-An option's `kind` is one of: `text`.
+An option's `kind` is one of: `text`, `list`.
+A field's `kind` is one of: `text`.
+
+A `text` is a string, and an empty one is a mistake: leave the option out instead.
+A `list` is an array, never an empty one, of texts or, with `fields`, of objects of those fields; an object may leave a field out, and the script decides what that means, but a field the list does not declare is a mistake, named by where it is, such as `actions[0].buton`.
+
+<!-- checked: manifest -->
+```json
+{ "version": 1, "kind": "list", "run": "list.mjs", "options": [{ "name": "actions", "kind": "list", "fields": [{ "name": "button", "kind": "text" }, { "name": "prompt", "kind": "text" }] }] }
+```
 
 A mistake in `panel.json` is named where each panel of the type would be, every mistake at once, and the panel does not run.
 A field the app does not read is noted and ignored, so a manifest written for a later version still works here.
@@ -60,6 +70,15 @@ The layout file uses the type by its name, and its entry's `options` take the ty
 ```
 
 `cwd` is where the script runs: without one, the active tab's folder, or the selected project's root when no tab is open; an absolute path or one under `~/` is fixed, whatever is selected; a relative one is under that same folder, so it follows the project.
+A `list` is written as one, here for the `actions` declared above:
+
+```json
+{ "id": "stories", "type": "stories", "options": { "actions": [
+  { "button": "Research", "prompt": "/research {id}" },
+  { "button": "Autopilot", "prompt": "/autopilot {id}" }
+] } }
+```
+
 `interval` overrides the manifest's.
 `"watch": "git"` runs the panel again when the git working tree of the folder it runs in changes, as a `command` panel's does (see the README's Panels section).
 
@@ -75,7 +94,7 @@ It runs through your login shell, the same one your sessions run in, so `PATH` i
 | `CLAUDE_UI_CWD` | the folder the script runs in |
 | `CLAUDE_UI_SESSION_ID` | the active tab's session, empty without one |
 | `CLAUDE_UI_CONFIG_ROOT` | the config folder |
-| `CLAUDE_UI_OPTION_<NAME>` | each option the entry gives, by its name in capitals |
+| `CLAUDE_UI_OPTION_<NAME>` | each option the entry gives, by its name in capitals: a `text` as it is written, a `list` as JSON, such as `[{"button":"Research","prompt":"/research {id}"}]`, which a script reads with `JSON.parse(process.env.CLAUDE_UI_OPTION_ACTIONS ?? '[]')` |
 | `CLAUDE_UI_VIEW` | the view on show, by id, among the list's `views` (below): the one picked in the panel's header or as its layout entry's `view`, else the first; before the panel has printed a list since it was last mounted, the pick as it stands, empty without one; and empty for a list offering no views |
 | `CLAUDE_UI_CONTROL` | a file of the run's own, to say when it runs next (below); unset in the rare run whose file could not be made, which the log names |
 

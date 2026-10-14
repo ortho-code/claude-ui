@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { KINDS, MANIFEST_FIELDS, MANIFEST_OPTION_KINDS, OPTION_FIELDS, checkManifest } from '../../../../../src/renderer/panels/types/folder';
+import { FIELD_KINDS, KINDS, MANIFEST_FIELDS, MANIFEST_OPTION_KINDS, OPTION_FIELDS, checkManifest } from '../../../../../src/renderer/panels/types/folder';
 import { CUTS, LIST_FIELDS, TONES, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
 import { CONTROL_NAMES } from '../../../../../src/renderer/panels/run';
 
@@ -55,6 +55,7 @@ describe('docs/panel-types.md', () => {
   it('names every kind, and every kind an option can be', () => {
     expect(sorted(listed('`kind` is one of:'))).toEqual(sorted(KINDS));
     expect(sorted(listed("An option's `kind` is one of:"))).toEqual(sorted(MANIFEST_OPTION_KINDS));
+    expect(sorted(listed("A field's `kind` is one of:"))).toEqual(sorted(FIELD_KINDS));
   });
 
   it('names every field of the list a script prints, at every level, and no other', () => {

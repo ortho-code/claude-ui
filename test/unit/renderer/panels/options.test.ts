@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { INTERVAL_OPTION, intervalOf, isFixedPath, optionProblems, optionsOf, parseDuration, pathChecks, type OptionsDecl } from '../../../../src/renderer/panels/options';
+import { INTERVAL_OPTION, intervalOf, isFixedPath, optionProblems, optionsOf, parseDuration, pathChecks, type OptionDecl, type OptionsDecl } from '../../../../src/renderer/panels/options';
 import { commandType } from '../../../../src/renderer/panels/types/command';
 
 const none: OptionsDecl = { name: 'terminal', options: [], exactlyOne: [] };
@@ -50,6 +50,33 @@ describe('optionProblems', () => {
 
   it('takes watch: git', () => {
     expect(optionProblems({ command: 'ls', watch: 'git' }, commandType)).toEqual([]);
+  });
+});
+
+describe('a list', () => {
+  const actions: OptionDecl = { name: 'actions', kind: 'list', fields: [{ name: 'button', kind: 'text' }, { name: 'prompt', kind: 'text' }] };
+  const labels: OptionDecl = { name: 'labels', kind: 'list' };
+  const stories: OptionsDecl = { name: 'stories', options: [actions, labels], exactlyOne: [] };
+
+  it('takes objects of the fields it declares, a field left out included, and texts without fields', () => {
+    expect(optionProblems({ actions: [{ button: 'Research', prompt: '/research {id}' }, { prompt: '/autopilot {id}' }], labels: ['bug', 'chore'] }, stories)).toEqual([]);
+  });
+
+  it.each([
+    [{ actions: 'Research' }, 'actions is not an array.'],
+    [{ actions: [] }, 'actions is empty.'],
+    [{ labels: ['bug', 3] }, 'labels[1] is not a string.'],
+    [{ labels: [' '] }, 'labels[0] is empty.'],
+    [{ actions: ['Research'] }, 'actions[0] is not an object.'],
+    [{ actions: [{ buton: 'Research' }] }, 'actions[0].buton is not a field of actions (it has: button, prompt).'],
+    [{ actions: [{ button: 3 }] }, 'actions[0].button is not a string.'],
+    [{ actions: [{ button: 'Research', prompt: '' }] }, 'actions[0].prompt is empty.'],
+  ])('refuses %j: %s', (options, problem) => {
+    expect(optionProblems(options, stories)).toEqual([problem]);
+  });
+
+  it("names every item's problems, not only the first", () => {
+    expect(optionProblems({ actions: [{ button: 3 }, { prompt: '' }] }, stories)).toEqual(['actions[0].button is not a string.', 'actions[1].prompt is empty.']);
   });
 });
 

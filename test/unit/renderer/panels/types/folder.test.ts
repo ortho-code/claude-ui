@@ -69,12 +69,35 @@ describe('checkManifest', () => {
     [{ options: [{ name: 'interval', kind: 'text' }] }, 'option interval is the list kind’s own; call it something else.'],
     [{ options: [{ name: 'watch', kind: 'text' }] }, 'option watch is the list kind’s own; call it something else.'],
     [{ options: [{ name: 'for', kind: 'text' }, { name: 'for', kind: 'text' }] }, 'option for is declared twice.'],
-    [{ options: [{ name: 'for' }] }, 'option for has no kind (it can be: text).'],
-    [{ options: [{ name: 'repo', kind: 'path' }] }, 'option repo: kind "path" is not one a manifest can declare in this build (it can: text).'],
+    [{ options: [{ name: 'for' }] }, 'option for has no kind (it can be: text, list).'],
+    [{ options: [{ name: 'repo', kind: 'path' }] }, 'option repo: kind "path" is not one a manifest can declare in this build (it can: text, list).'],
+    [{ options: [{ name: 'for', kind: 'text', fields: [{ name: 'a', kind: 'text' }] }] }, 'option for: fields are for a list; a text has none.'],
+    [{ options: [{ name: 'actions', kind: 'list', fields: {} }] }, 'option actions: fields is not an array.'],
+    [{ options: [{ name: 'actions', kind: 'list', fields: [] }] }, 'option actions: fields is empty; leave it out for a list of texts.'],
+    [{ options: [{ name: 'actions', kind: 'list', fields: ['button'] }] }, 'option actions: fields[0] is not an object.'],
+    [{ options: [{ name: 'actions', kind: 'list', fields: [{ kind: 'text' }] }] }, 'option actions: fields[0] has no name.'],
+    [{ options: [{ name: 'actions', kind: 'list', fields: [{ name: 'Button', kind: 'text' }] }] }, 'option actions: field "Button" is not lowercase letters, digits and underscores, starting with a letter.'],
+    [{ options: [{ name: 'actions', kind: 'list', fields: [{ name: 'button', kind: 'text' }, { name: 'button', kind: 'text' }] }] }, 'option actions: field button is declared twice.'],
+    [{ options: [{ name: 'actions', kind: 'list', fields: [{ name: 'button' }] }] }, 'option actions: field button has no kind (it can be: text).'],
+    [{ options: [{ name: 'actions', kind: 'list', fields: [{ name: 'tags', kind: 'list' }] }] }, 'option actions: field tags: kind "list" is not one a field can be in this build (it can: text).'],
   ])('refuses %j: %s', (over, problem) => {
     const checked = checkManifest(report({ ...SOUND, ...over }));
     expect(checked.problems).toEqual([AT + problem]);
     expect(checked.manifest).toBeNull();
+  });
+
+  it('reads a list, of objects with the fields it declares or of texts without them', () => {
+    const actions = { name: 'actions', kind: 'list', fields: [{ name: 'button', kind: 'text' }, { name: 'prompt', kind: 'text' }] };
+    const labels = { name: 'labels', kind: 'list' };
+    const checked = checkManifest(report({ ...SOUND, options: [actions, labels] }));
+    expect(checked.problems).toEqual([]);
+    expect(checked.manifest?.options).toEqual([actions, labels]);
+  });
+
+  it("notes a field's key it does not read, as it does an option's", () => {
+    const checked = checkManifest(report({ ...SOUND, options: [{ name: 'actions', kind: 'list', fields: [{ name: 'button', kind: 'text', default: 'Start' }] }] }));
+    expect(checked.problems).toEqual([]);
+    expect(checked.notes).toEqual([`${AT}option actions: field button: default is not a field this build reads; it is ignored.`]);
   });
 
   it('collects every problem, not only the first', () => {

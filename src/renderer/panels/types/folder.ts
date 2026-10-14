@@ -24,13 +24,16 @@ export const KINDS = ['list'] as const;
 export type Kind = (typeof KINDS)[number];
 
 /** The option kinds a manifest can declare in this build. */
-export const MANIFEST_OPTION_KINDS = ['text'] as const;
+export const MANIFEST_OPTION_KINDS = ['text', 'list'] as const;
+
+/** The kinds a list's field can be in this build: no field is a list, for now, which only this check would have to allow; a list without fields holds texts. */
+export const FIELD_KINDS = ['text'] as const;
 
 /**
- * The fields of `panel.json` and of an option in it: the ONE place they are named (see fields.ts), which `docs/panel-types.md` is held to by a test.
+ * The fields of `panel.json` and of an option in it, a list's field being declared as an option is: the ONE place they are named (see fields.ts), which `docs/panel-types.md` is held to by a test.
  */
 export const MANIFEST_FIELDS = ['version', 'kind', 'title', 'icon', 'run', 'interval', 'options'] as const;
-export const OPTION_FIELDS = ['name', 'kind'] as const;
+export const OPTION_FIELDS = ['name', 'kind', 'fields'] as const;
 
 /** What every type of a kind takes without its manifest declaring it. */
 export const KIND_OPTIONS: Record<Kind, OptionDecl[]> = { list: [CWD_OPTION, INTERVAL_OPTION, WATCH_OPTION] };
@@ -72,37 +75,75 @@ export function escapes(value: string): boolean {
   return false;
 }
 
-/** A manifest's declared options: what they are when every one is sound, and what is wrong with them. */
-function checkOptionList(raw: unknown, kind: Kind | null): { options: OptionDecl[]; problems: string[]; notes: string[] } {
-  const options: OptionDecl[] = [];
+/** How a list of declarations is checked: a manifest's `options`, or a list option's `fields`, which the one function checks alike. */
+interface Declarations {
+  /** What the list is called, and what one in it is: `options` and `option`, or `fields` and `field`. */
+  list: string;
+  one: string;
+  kinds: readonly string[];
+  /** Who it is that the kinds are for, in the sentence for a kind that is not one: "a manifest can declare", "a field can be". */
+  kindsFor: string;
+  /** Why a name cannot be taken, such as the kind's own options; null when it can. */
+  taken: (name: string) => string | null;
+}
+
+/** Declarations, as a manifest gives them: what they are when every one is sound, and what is wrong with them; a list's fields are checked by the same function, their sentences under the option's name. */
+function checkDeclarations(raw: unknown, how: Declarations): { declared: OptionDecl[]; problems: string[]; notes: string[] } {
+  const declared: OptionDecl[] = [];
   const problems: string[] = [];
   const notes: string[] = [];
-  if (raw === undefined) return { options, problems, notes };
-  if (!Array.isArray(raw)) return { options, problems: ['options is not an array.'], notes };
-  const own = kind ? KIND_OPTIONS[kind].map((option) => option.name) : [];
+  if (raw === undefined) return { declared, problems, notes };
+  if (!Array.isArray(raw)) return { declared, problems: [`${how.list} is not an array.`], notes };
   raw.forEach((entry: unknown, index) => {
     if (!isObject(entry)) {
-      problems.push(`options[${index}] is not an object.`);
+      problems.push(`${how.list}[${index}] is not an object.`);
       return;
     }
     const field = fieldsOf(entry, OPTION_FIELDS);
     const name = field('name');
-    const optionKind = field('kind');
+    const kind = field('kind');
     if (typeof name !== 'string') {
-      problems.push(`options[${index}] has no name.`);
+      problems.push(`${how.list}[${index}] has no name.`);
       return;
     }
-    if (!OPTION_NAME.test(name)) problems.push(`option "${name}" is not lowercase letters, digits and underscores, starting with a letter.`);
-    else if (own.includes(name)) problems.push(`option ${name} is the ${kind} kind’s own; call it something else.`);
-    else if (options.some((option) => option.name === name)) problems.push(`option ${name} is declared twice.`);
-    if (optionKind === undefined) problems.push(`option ${name} has no kind (it can be: ${MANIFEST_OPTION_KINDS.join(', ')}).`);
-    else if (!MANIFEST_OPTION_KINDS.includes(optionKind as (typeof MANIFEST_OPTION_KINDS)[number])) {
-      problems.push(`option ${name}: kind ${JSON.stringify(optionKind)} is not one a manifest can declare in this build (it can: ${MANIFEST_OPTION_KINDS.join(', ')}).`);
+    const taken = how.taken(name);
+    if (!OPTION_NAME.test(name)) problems.push(`${how.one} "${name}" is not lowercase letters, digits and underscores, starting with a letter.`);
+    else if (taken !== null) problems.push(taken);
+    else if (declared.some((other) => other.name === name)) problems.push(`${how.one} ${name} is declared twice.`);
+    if (kind === undefined) problems.push(`${how.one} ${name} has no kind (it can be: ${how.kinds.join(', ')}).`);
+    else if (!how.kinds.includes(kind as string)) problems.push(`${how.one} ${name}: kind ${JSON.stringify(kind)} is not one ${how.kindsFor} in this build (it can: ${how.kinds.join(', ')}).`);
+    for (const other of unknownFields(entry, OPTION_FIELDS)) notes.push(`${how.one} ${name}: ${other} is not a field this build reads; it is ignored.`);
+    const decl: OptionDecl = { name, kind: kind === 'list' ? 'list' : 'text' };
+    const fields = field('fields');
+    if (fields !== undefined) {
+      const under = (line: string): string => `${how.one} ${name}: ${line}`;
+      if (kind !== 'list') problems.push(under(`fields are for a list; a ${String(kind)} has none.`));
+      else if (Array.isArray(fields) && fields.length === 0) problems.push(under('fields is empty; leave it out for a list of texts.'));
+      else {
+        const checked = checkDeclarations(fields, FIELDS);
+        problems.push(...checked.problems.map(under));
+        notes.push(...checked.notes.map(under));
+        decl.fields = checked.declared;
+      }
     }
-    for (const other of unknownFields(entry, OPTION_FIELDS)) notes.push(`option ${name}: ${other} is not a field this build reads; it is ignored.`);
-    options.push({ name, kind: 'text' });
+    declared.push(decl);
   });
-  return { options, problems, notes };
+  return { declared, problems, notes };
+}
+
+/** A list option's fields: `text` alone, under any name `OPTION_NAME` allows, the kind's own included, since a field's names are its list's own. */
+const FIELDS: Declarations = { list: 'fields', one: 'field', kinds: FIELD_KINDS, kindsFor: 'a field can be', taken: () => null };
+
+/** A manifest's declared options: any kind a manifest can declare, each once, under any name `OPTION_NAME` allows but its kind's own. */
+function checkOptionList(raw: unknown, kind: Kind | null): { declared: OptionDecl[]; problems: string[]; notes: string[] } {
+  const own = kind ? KIND_OPTIONS[kind].map((option) => option.name) : [];
+  return checkDeclarations(raw, {
+    list: 'options',
+    one: 'option',
+    kinds: MANIFEST_OPTION_KINDS,
+    kindsFor: 'a manifest can declare',
+    taken: (name) => (own.includes(name) ? `option ${name} is the ${kind} kind’s own; call it something else.` : null),
+  });
 }
 
 /**
@@ -167,7 +208,7 @@ export function checkManifest(report: TypeReport): FolderType {
   return {
     ...folder,
     // A kind and a script are also what an empty problem list promises; asked again so the types say so too.
-    manifest: problems.length === 0 && kind !== null && run !== null ? { kind, title, icon, run, interval: interval as string | null, options: declared.options } : null,
+    manifest: problems.length === 0 && kind !== null && run !== null ? { kind, title, icon, run, interval: interval as string | null, options: declared.declared } : null,
     problems: named(problems),
     notes: named(notes),
   };

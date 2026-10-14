@@ -11,8 +11,8 @@ import type { PanelEntry, PathBase, PathKind } from '../../shared/panels';
 
 export interface OptionDecl {
   name: string;
-  /** `duration` is a whole number and a unit, `30s`, `5m` or `1h`; `choice` is one of `values`. */
-  kind: 'text' | 'path' | 'duration' | 'choice';
+  /** `duration` is a whole number and a unit, `30s`, `5m` or `1h`; `choice` is one of `values`; `list` is an array of texts, or of objects of `fields`. */
+  kind: 'text' | 'path' | 'duration' | 'choice' | 'list';
   /**
    * For a `path`: what a relative value resolves against — the config folder, or the panel's context directory — and what it must point at.
    * Declared beside the option so the check is not something the type has to remember.
@@ -25,6 +25,8 @@ export interface OptionDecl {
   atMost?: number;
   /** For a `choice`: the values it may be. */
   values?: readonly string[];
+  /** For a `list`: what each item holds, each declared as an option is, an item then an object of them; without, each item is a text. */
+  fields?: OptionDecl[];
 }
 
 /**
@@ -130,15 +132,39 @@ export function optionProblems(options: Record<string, unknown>, decl: OptionsDe
   }
   for (const option of decl.options) {
     const value = options[option.name];
-    if (value === undefined) continue;
-    const problem = valueProblem(option, value);
-    if (problem) problems.push(problem);
+    if (value !== undefined) problems.push(...valueProblems(option, value));
   }
   return problems;
 }
 
 /**
- * What is wrong with one option's value as written, or null: the ONE check of a value, for an entry's options and for a default a type's manifest gives.
+ * Everything wrong with one option's value as written, for an entry's options and for each item and field of a list, which it checks by the same rules under its full path, `actions[0].button`; `valueProblem` underneath it is the one check of a single value.
+ * A list says every item's problems, not only the first; any other kind has at most one.
+ */
+export function valueProblems(option: OptionDecl, value: unknown): string[] {
+  if (option.kind !== 'list') {
+    const problem = valueProblem(option, value);
+    return problem ? [problem] : [];
+  }
+  if (!Array.isArray(value)) return [`${option.name} is not an array.`];
+  // Leaving the option out is how an entry says none, as it is for a text.
+  if (value.length === 0) return [`${option.name} is empty.`];
+  const { fields } = option;
+  return value.flatMap((item: unknown, index) => {
+    const at = `${option.name}[${index}]`;
+    if (!fields) return valueProblems({ name: at, kind: 'text' }, item);
+    if (!isObject(item)) return [`${at} is not an object.`];
+    const known = fields.map((field) => field.name);
+    const strangers = Object.keys(item)
+      .filter((key) => !known.includes(key))
+      .map((key) => `${at}.${key} is not a field of ${option.name} (it has: ${known.join(', ')}).`);
+    // A field an item leaves out is the type's to read as it reads an option left out.
+    return [...strangers, ...fields.flatMap((field) => (item[field.name] === undefined ? [] : valueProblems({ ...field, name: `${at}.${field.name}` }, item[field.name])))];
+  });
+}
+
+/**
+ * What is wrong with one value of a kind other than `list`, or null: `valueProblems`' check of a single value, and a manifest's default `interval`'s.
  * Nothing on disk is looked at here; a path's target is `checkOptions`' to ask about.
  */
 export function valueProblem(option: OptionDecl, value: unknown): string | null {
