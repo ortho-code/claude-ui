@@ -73,6 +73,7 @@ Next:
 - A folder of its own for a panel type's script, to keep state between runs, such as an item snoozed for a day.
 - Options of a path kind in a panel type's manifest.
 - A panel's heading set from its layout entry, or by the panel itself.
+- A panel type's own look over the app's, for a type that wants one; until it says otherwise, its rows look like the app's.
 - A Panel data row in Settings: what each panel remembers about the sessions its rows started, whether that panel is still in the layout, and a way to clear it.
 
 - Context health per session in the list, coloured the way the CLI's own status line colours it.
