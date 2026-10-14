@@ -48,6 +48,11 @@ test('the sessions running at quit come back paused until another choice is save
   settings = await open(page);
   await expect(settings.choice).toHaveValue('start');
   await expect(settings.from).toHaveText('Set here; settings.json sets none.');
+
+  // With none in settings.json, its button goes back to the default.
+  await settings.dialog.locator('#settings-running-use').click();
+  await expect(settings.choice).toHaveValue('pause');
+  await expect(settings.from).toHaveText('The default, once you save; settings.json sets none.');
 });
 
 test('a choice set here over settings.json shows that file’s choice under it, and “Use settings.json” goes back to it', async ({ app, page }) => {

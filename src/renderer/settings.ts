@@ -187,7 +187,9 @@ class SettingField<K extends SettingKey> {
     if (!this.edited) this.control.write(this.usingYours ? setting.without : setting.value);
     const fromApp = setting.source === 'app' && !this.usingYours;
     this.from.textContent = this.usingYours
-      ? 'From settings.json, once you save.'
+      ? setting.withoutSource === 'yours'
+        ? 'From settings.json, once you save.'
+        : 'The default, once you save; settings.json sets none.'
       : fromApp
         ? setting.withoutSource === 'yours'
           ? `Set here, over ${this.words.over}:`

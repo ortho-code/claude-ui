@@ -82,6 +82,7 @@ test('flags set here with none in settings.json go back to none on “Use settin
   await settings.use.click();
   await expect(settings.field).toHaveValue('');
   await expect(settings.field).toBeFocused();
+  await expect(settings.from).toHaveText('The default, once you save; settings.json sets none.');
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
   expect(await app.calls('setSettings')).toEqual(savedWith(''));
