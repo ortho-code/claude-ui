@@ -74,3 +74,6 @@ The roadmap in `README.md` is the source of truth for what is done and what is n
   The tab bar ordered projects by whichever it met first while the sidebar and the strip used the order the user set; nobody chose that, it was just what the code happened to do, and it read as a bug the moment anyone compared them.
   Deliberate deviations are fine and should say so where the code is: pins float in the session list and not in the live strip, because a pin says where a session belongs in the LIST.
   When you touch one surface, ask what the others do about the same question, and either match them or record why not.
+- **Panels and panel types are made to be shared, so both lean to configurable.**
+  A type offers an option for anything its user may want otherwise, and the list contract offers a field for anything a type may want otherwise, each with a default, rather than the answer being fixed in the app or the script.
+  The exception is where a type from someone else could mislead the person running it — such as what a press does, or where a link goes — which stays the app's.
