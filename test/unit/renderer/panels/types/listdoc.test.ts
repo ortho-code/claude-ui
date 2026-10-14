@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { ICON_NAMES } from '../../../../../src/renderer/panels/icons';
-import { readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
+import { readListDocument, type DetailPart } from '../../../../../src/renderer/panels/types/listdoc';
 
 const item = { key: 'org/repo#1', text: 'Fix the login redirect' };
 const doc = (over: Record<string, unknown> = {}): string => JSON.stringify({ version: 1, sections: [{ items: [item] }], ...over });
 const problems = (text: string): string[] => readListDocument(text).problems;
+/** A part of a detail line as the reader gives a string back: its text, linking nowhere, with no tooltip and no tone of its own. */
+const plain = (text: string): DetailPart => ({ text, href: null, tooltip: null, tone: 'normal' });
 
 describe('readListDocument', () => {
   it('reads a full document', () => {
@@ -30,7 +32,7 @@ describe('readListDocument', () => {
                 cut: 'start',
                 trail: '+12 −3',
                 tooltip: 'Fix the login redirect after a session times out',
-                detail: [['#1', '31h', 'someone'], [{ text: 'Waiting on you' }]],
+                detail: [['#1', '31h', 'someone'], [{ text: 'Login revamp', href: 'https://example.com/epic/9', tooltip: 'Its epic', tone: 'attention' }]],
                 separator: ' | ',
                 href: 'https://github.com/org/repo/pull/1',
                 tone: 'attention',
@@ -66,7 +68,7 @@ describe('readListDocument', () => {
                 cut: 'start',
                 trail: '+12 −3',
                 tooltip: 'Fix the login redirect after a session times out',
-                detail: [[{ text: '#1' }, { text: '31h' }, { text: 'someone' }], [{ text: 'Waiting on you' }]],
+                detail: [[plain('#1'), plain('31h'), plain('someone')], [{ text: 'Login revamp', href: 'https://example.com/epic/9', tooltip: 'Its epic', tone: 'attention' }]],
                 separator: ' | ',
                 href: 'https://github.com/org/repo/pull/1',
                 tone: 'attention',
@@ -104,7 +106,7 @@ describe('readListDocument', () => {
   it("reads a child's lines and separator as a row's: its own separator, else the list's rather than its parent's", () => {
     const parent = { key: 'p', text: 'p', separator: ' / ', children: [{ key: 'c', text: 'c', detail: [['a', { text: 'b' }]] }] };
     const [child] = readListDocument(doc({ separator: ' | ', sections: [{ items: [parent] }] })).doc!.sections[0].items[0].children;
-    expect(child.detail).toEqual([[{ text: 'a' }, { text: 'b' }]]);
+    expect(child.detail).toEqual([[plain('a'), plain('b')]]);
     expect(child.separator).toBe(' | ');
   });
 
@@ -121,7 +123,7 @@ describe('readListDocument', () => {
     const read = readListDocument(doc({ generatedAt: 'now', sections: [{ colour: 'red', items: [{ ...item, weight: 3, detail: [[{ text: 'a', weight: 3 }]], actions: [{ label: 'Merge', merge: {} }] }] }] }));
     expect(read.problems).toEqual([]);
     expect(read.doc?.sections[0]?.items[0]?.actions).toEqual([]);
-    expect(read.doc?.sections[0]?.items[0]?.detail).toEqual([[{ text: 'a' }]]);
+    expect(read.doc?.sections[0]?.items[0]?.detail).toEqual([[plain('a')]]);
   });
 
   it('says what is wrong with the whole of what was printed', () => {
@@ -176,6 +178,9 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ ...item, detail: [['#1', ' ']] }] }] }, 'sections[0].items[0].detail[0][1] is empty.'],
     [{ sections: [{ items: [{ ...item, detail: [[{}]] }] }] }, 'sections[0].items[0].detail[0][0].text is missing.'],
     [{ sections: [{ items: [{ ...item, detail: [[{ text: '' }]] }] }] }, 'sections[0].items[0].detail[0][0].text is empty.'],
+    [{ sections: [{ items: [{ ...item, detail: [['#1', { text: 'x', href: 'file:///etc/passwd' }]] }] }] }, 'sections[0].items[0].detail[0][1].href "file:///etc/passwd" is not an http or https link.'],
+    [{ sections: [{ items: [{ ...item, detail: [[{ text: 'x', tooltip: 3 }]] }] }] }, 'sections[0].items[0].detail[0][0].tooltip is not a string.'],
+    [{ sections: [{ items: [{ ...item, detail: [[{ text: 'x', tone: 'loud' }]] }] }] }, 'sections[0].items[0].detail[0][0].tone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, children: [{ key: 'c', text: 'c', detail: [[3]] }] }] }] }, 'sections[0].items[0].children[0].detail[0][0] is not a string or an object.'],
     [{ sections: [{ items: [{ ...item, leadTone: 'loud' }] }] }, 'sections[0].items[0].leadTone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, cut: 'middle' }] }] }, 'sections[0].items[0].cut "middle" is not one of end, start.'],

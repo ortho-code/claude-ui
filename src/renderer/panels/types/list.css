@@ -120,6 +120,12 @@
   display: block;
 }
 
+/* A part of a detail line: the line's grey, or a link's accent (base.css), unless its own tone has a colour, which it takes from the map below.
+   Never its row's: every part carries a tone of its own, and only a tone with a colour sets one, since a colour that is not there falls back to the line's, which would turn a `normal` or `muted` link grey. */
+.list-part:not(.tone-normal, .tone-muted) {
+  color: var(--tone);
+}
+
 /* A trail, such as a count, at the meta line's size and grey, with digits of one width so counts line up down the list. */
 .list-trail {
   flex: 0 0 auto;
@@ -129,7 +135,7 @@
   white-space: nowrap;
 }
 
-/* A tone's colour, the status colour it borrows, named once here for everything a script tones: a row's leading edge and a lead's mark. */
+/* A tone's colour, the status colour it borrows, named once here for everything a script tones: a row's leading edge, a lead's mark and a part of a detail line. */
 .tone-attention {
   --tone: var(--waiting);
 }
@@ -144,13 +150,14 @@
 
 /* A row's tone, as its script says: its colour on the row's leading edge, where a session row keeps its accent bar for "open in a tab" — a different mark, since a tone says nothing about tabs; a tone without a colour leaves no edge.
    No fallback on purpose: without a colour the declaration is invalid, so the row has no shadow at all rather than a transparent one, which shifted a dimmed row's corner pixels by a shade in the style capture (measured once, 2026-10-13).
-   A muted row is dimmed, as a session that cannot start is, and so is a muted lead. */
+   A muted row is dimmed, as a session that cannot start is, and so are a muted lead and a muted part. */
 .list-row {
   box-shadow: inset 3px 0 0 var(--tone);
 }
 
 .list-row.tone-muted,
-.list-lead.tone-muted {
+.list-lead.tone-muted,
+.list-part.tone-muted {
   opacity: var(--dimmed);
 }
 

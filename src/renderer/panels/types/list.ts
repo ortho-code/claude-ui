@@ -4,6 +4,7 @@ import { stripAnsi } from '../../ansi';
 import { listCard, sectionHeading, setFolded } from '../../card';
 import { statusLabel } from '../../logic';
 import { element } from '../../dom';
+import { routeLinks } from '../../external-links';
 import { Keyed, placeChildren } from '../../keyed';
 import { sessionDotClass } from '../../statusdot';
 import { setTooltip } from '../../tooltip';
@@ -13,7 +14,7 @@ import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
 import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
 import type { FolderType } from './folder';
-import { readListDocument, type ListDocument, type ListItem, type ListSection, type SessionAction } from './listdoc';
+import { readListDocument, type DetailPart, type ListDocument, type ListItem, type ListSection, type SessionAction } from './listdoc';
 import './list.css';
 
 /**
@@ -100,6 +101,8 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   ) {
     this.placeholder.textContent = WAITING;
     this.el.append(this.placeholder, this.failedLine, this.body, this.unavailable);
+    // A link in a row's detail goes to the browser, a click or a middle-click, and never takes the window anywhere.
+    routeLinks(this.body, (url) => window.claudeUi.openExternal(url));
     this.show();
     this.runs = new PanelRuns(slot, host, () => this.interval(), this);
     // Through the runs, which put what a run's control file got wrong beside them.
@@ -381,11 +384,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     // On the first line alone, so the rest of a row with a link still says where the link goes.
     setTooltip(line, item.tooltip);
     // Each line of the detail an element of its own, kept by its place, so a press on one survives a run that changes what it says.
-    const detail = item.detail.map((pieces, at) => {
-      const shown = parts.lines.draw(String(at), () => element('span', 'list-detail-line'));
-      shown.textContent = pieces.map(({ text }) => text).join(item.separator);
-      return shown;
-    });
+    const detail = item.detail.map((line, at) => this.drawLine(parts.lines.draw(String(at), () => ({ el: element('span', 'list-detail-line'), pieces: new Keyed<HTMLElement>((piece) => piece) })), line, item.separator));
     parts.lines.sweep();
     placeChildren(meta, detail);
     placeChildren(content, detail.length > 0 ? [line, meta] : [line]);
@@ -405,6 +404,28 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     // The sessions it started, before what it offers, so going back comes before starting again.
     placeChildren(row, [content, mark, ...buttons]);
     return row;
+  }
+
+  /**
+   * One line of a row's detail: its parts in order, the separator between each two, each kept by its place, and a part by whether it links too, since a link and plain text are different elements.
+   * A part that links is an `<a>`, which the list's body sends to the browser (`routeLinks`); one without a tooltip leaves where the row's own link goes to show, as the rest of the row does.
+   */
+  private drawLine({ el, pieces }: DetailLine, line: DetailPart[], separator: string): HTMLElement {
+    const shown = line.flatMap((part, at) => {
+      const piece = pieces.draw(`${at}:${part.href === null ? 'text' : 'link'}`, () => element(part.href === null ? 'span' : 'a'));
+      piece.className = `list-part tone-${part.tone}`;
+      piece.textContent = part.text;
+      if (part.href !== null) piece.setAttribute('href', part.href);
+      // Where a link goes is always said, under what its tooltip says, since a shared type's links are somebody else's.
+      setTooltip(piece, part.href === null ? part.tooltip : [part.tooltip, part.href].filter((said) => said !== null).join('\n'));
+      if (at === 0) return [piece];
+      const between = pieces.draw(`${at}:separator`, () => element('span', 'list-separator'));
+      between.textContent = separator;
+      return [between, piece];
+    });
+    pieces.sweep();
+    placeChildren(el, shown);
+    return el;
   }
 
   /** A row, built once: what a press does it reads from the row's item as the last draw left it (`items`), since the next run may change it under the same key. */
@@ -432,13 +453,14 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       event.stopPropagation();
       this.toggleRow(key);
     });
-    // A row's link wins a press on it; a row without one that holds rows folds them.
-    row.addEventListener('click', () => {
+    // A row's link wins a press on it; a row without one that holds rows folds them; a link in its detail opens itself instead (`routeLinks`).
+    row.addEventListener('click', (event) => {
+      if (event.target instanceof Element && event.target.closest('a[href]')) return;
       const href = this.items.get(key)?.href;
       if (href) window.claudeUi.openExternal(href);
       else this.toggleRow(key);
     });
-    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<HTMLElement>((shown) => shown), mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
+    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
   }
 
   /** The button for one of a row's actions, which asks for the session it describes, under the row as the last draw left it. */
@@ -474,13 +496,19 @@ interface ListRow {
   /** What holds the detail's lines. */
   meta: HTMLElement;
   /** The detail's lines, each kept by its place. */
-  lines: Keyed<HTMLElement>;
+  lines: Keyed<DetailLine>;
   /** The mark for the sessions the row started, with its dot and, for several, their count. */
   mark: HTMLButtonElement;
   dot: HTMLElement;
   count: HTMLElement;
   /** Its action buttons, each kept by all its action says. */
   actions: Keyed<HTMLButtonElement>;
+}
+
+/** A line of a row's detail, and its parts and the separators between them. */
+interface DetailLine {
+  el: HTMLElement;
+  pieces: Keyed<HTMLElement>;
 }
 
 /** A section's box and heading, and the section it shows now, which a press on the heading folds. */

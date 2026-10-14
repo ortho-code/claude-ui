@@ -23,7 +23,7 @@ export const LIST_FIELDS = {
   view: ['id', 'label', 'icon'],
   section: ['title', 'shut', 'tooltip', 'empty', 'items'],
   item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'separator', 'href', 'tone', 'actions', 'children', 'shut'],
-  part: ['text'],
+  part: ['text', 'href', 'tooltip', 'tone'],
   action: ['label', 'session'],
   session: ['prompt', 'name'],
 } as const;
@@ -52,6 +52,12 @@ export interface SessionAction {
 /** One piece of a line under a row's first: a string the script printed is a part with that text alone. */
 export interface DetailPart {
   text: string;
+  /** What a press on it opens, in the browser, rather than the row's link; null for none. */
+  href: string | null;
+  /** What hovering it shows; a link's is shown above where it goes. */
+  tooltip: string | null;
+  /** Its colour, in the words a row's tone uses. */
+  tone: Tone;
 }
 
 export interface ListItem {
@@ -173,11 +179,11 @@ class Reader {
     return raw.map((part, index) => this.part(part, `${at}[${index}]`)).filter((part) => part !== null);
   }
 
-  /** A part of a line: a string, which is its text alone, or an object with its text. */
+  /** A part of a line: a string, which is its text alone, or an object with its text and what else it says. */
   part(raw: unknown, at: string): DetailPart | null {
     if (typeof raw === 'string') {
       const text = this.text(raw, at, true);
-      return text !== null ? { text } : null;
+      return text !== null ? { text, href: null, tooltip: null, tone: TONES[0] } : null;
     }
     if (!isObject(raw)) {
       this.problems.push(`${at} is not a string or an object.`);
@@ -185,7 +191,20 @@ class Reader {
     }
     const field = fieldsOf(raw, LIST_FIELDS.part);
     const text = this.text(field('text'), `${at}.text`, true);
-    return text !== null ? { text } : null;
+    const href = this.link(field('href'), `${at}.href`);
+    const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
+    const tone = this.choice(field('tone'), `${at}.tone`, TONES);
+    return text !== null ? { text, href, tooltip, tone } : null;
+  }
+
+  /** An optional link, a row's or a part's: null when absent, and a problem when it is not http or https, since the app opens it in the browser. */
+  link(value: unknown, at: string): string | null {
+    const href = this.text(value, at);
+    if (href !== null && !HTTP.test(href)) {
+      this.problems.push(`${at} "${href}" is not an http or https link.`);
+      return null;
+    }
+    return href;
   }
 
   action(raw: unknown, at: string): SessionAction | null {
@@ -227,11 +246,7 @@ class Reader {
     const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
     const detail = this.detail(field('detail'), `${at}.detail`);
     const separator = this.text(field('separator'), `${at}.separator`) ?? this.separator;
-    let href = this.text(field('href'), `${at}.href`);
-    if (href !== null && !HTTP.test(href)) {
-      this.problems.push(`${at}.href "${href}" is not an http or https link.`);
-      href = null;
-    }
+    const href = this.link(field('href'), `${at}.href`);
     const tone = this.choice(field('tone'), `${at}.tone`, TONES);
     const actions = this.list(field('actions'), `${at}.actions`, false)
       .map((action, index) => this.action(action, `${at}.actions[${index}]`))

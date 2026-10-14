@@ -112,7 +112,11 @@ One JSON object:
 { "version": 1, "badge": 2,
   "sections": [
     { "empty": "Nothing waiting on you.", "items": [
-      { "key": "org/repo#1", "text": "Fix the login redirect", "detail": [["#1", "3d", "someone"], ["2 reviewers"]], "href": "https://github.com/org/repo/pull/1", "tone": "attention",
+      { "key": "org/repo#1", "text": "Fix the login redirect", "href": "https://github.com/org/repo/pull/1", "tone": "attention",
+        "detail": [
+          ["#1", "3d", "someone"],
+          [{ "text": "Login revamp", "href": "https://example.com/epic/9", "tooltip": "Its epic" }, { "text": "blocked", "tone": "danger" }]
+        ],
         "actions": [{ "label": "Review", "session": { "prompt": "/review 1", "name": "Review #1" } }] }
     ] },
     { "title": "Blocked", "shut": true, "items": [] }
@@ -186,6 +190,9 @@ A part of a `detail` line is a string, or an object:
 | Field | Meaning |
 |---|---|
 | `text` | Required: what it says. |
+| `href` | An http or https link, which a press on the part opens in your browser, in place of the row's. |
+| `tooltip` | What hovering it shows; hovering a link always shows where it goes too, under its `tooltip` when it has one. |
+| `tone` | Its colour, from the same words as a row's `tone`: the colour a tone puts on a row's edge, and dimmed for `muted`; a link takes it in place of a link's own colour. |
 
 A string is a part with that `text` alone, so `["#1", "3d"]` and `[{ "text": "#1" }, { "text": "3d" }]` are the same line.
 A line is never empty, and a part's text is never empty or only spaces: either is a mistake in the list.
