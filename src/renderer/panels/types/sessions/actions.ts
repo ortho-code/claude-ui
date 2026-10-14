@@ -51,6 +51,7 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
 }
 
 // The PRs a session's transcript links, by their full reference, oldest first, each opening its page in the browser.
+// Shared by the PR mark and the kebab submenu.
 function prMenuItems(session: SessionSummary): MenuItem[] {
   return session.prs.map((pr) => ({
     label: `${pr.repository}#${pr.number}`,
@@ -193,6 +194,10 @@ export function sessionMenuItems(session: SessionSummary): MenuItem[] {
   const siblings = siblingsOf(session);
   if (siblings.length > 0) {
     items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
+  }
+  // Here as well as on the row's mark: this list is every kebab's, the tab's and the live strip's too, where the row's mark is not.
+  if (session.prs.length > 0) {
+    items.push({ label: `PRs (${session.prs.length})`, submenu: prMenuItems(session) });
   }
   items.push({ label: store.get().notes.has(entityKey(session)) ? 'Edit note…' : 'Add note…', onSelect: () => void editNote(session) });
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });

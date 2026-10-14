@@ -28,6 +28,27 @@ test('the mark lists the PRs by their full reference, oldest first, and opens th
   await expect(tab(page, two.title)).toHaveCount(0);
 });
 
+test("a session's options list its PRs, from its row and from its tab, each opening its page", async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [two.id] });
+  await row(page, two.title).locator('.session-kebab').click();
+  await page.locator('.kebab-menu button', { hasText: 'PRs (2)' }).click();
+  await expect(page.locator('.kebab-menu.submenu button')).toHaveText(['ScientaNL/demo#12', 'ScientaNL/demo#7']);
+  await page.locator('.kebab-menu.submenu button', { hasText: 'ScientaNL/demo#12' }).click();
+
+  await tab(page, two.title).locator('.tab-kebab').click();
+  await page.locator('.kebab-menu button', { hasText: 'PRs (2)' }).click();
+  await expect(page.locator('.kebab-menu.submenu button')).toHaveText(['ScientaNL/demo#12', 'ScientaNL/demo#7']);
+  await page.locator('.kebab-menu.submenu button', { hasText: 'ScientaNL/demo#7' }).click();
+  expect(await app.calls('openExternal')).toEqual([['https://github.com/ScientaNL/demo/pull/12'], ['https://github.com/ScientaNL/demo/pull/7']]);
+});
+
+test('the options of a session without a PR have no PRs item', async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, none.title).locator('.session-kebab').click();
+  await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
+  await expect(page.locator('.kebab-menu button', { hasText: /^PRs/ })).toHaveCount(0);
+});
+
 test('a PR the transcript links while the app runs shows on the row', async ({ app, page }) => {
   await app.boot(fixture);
   const mark = row(page, none.title).locator('.pr-badge');
