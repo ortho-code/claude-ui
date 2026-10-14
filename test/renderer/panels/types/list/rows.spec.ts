@@ -1,22 +1,9 @@
 import type { Locator, Page } from '@playwright/test';
-import { CONFIG_ROOT } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { overrun, token } from '../../../support/looks';
-import { runs, withLayout } from '../../layout/layout';
+import { bootList as boot, type PrintedList, row } from './list';
 
 // What a list row shows of what the script printed: its text and detail stay inside the row, beside its buttons and never under them, and its text shows the tooltip the script gives it.
-const TYPE_DIR = `${CONFIG_ROOT}/types/changes`;
-const fixture = withLayout({
-  version: 2,
-  root: {
-    id: 'window',
-    columns: [
-      { id: 'sidebar', size: '320px', panels: [{ id: 'sessions', type: 'sessions' }] },
-      { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] },
-      { id: 'right', size: '360px', panels: [{ id: 'changes', type: 'changes' }] },
-    ],
-  },
-});
 const review = { label: 'Review', session: { prompt: 'Review it.' } };
 const LIST = {
   version: 1,
@@ -32,17 +19,8 @@ const LIST = {
   ],
 };
 
-/** Boot with the panel, and let its script print `list`. */
-async function bootList(app: App, page: Page, list: { version: number; sections: { items: unknown[] }[] } = LIST): Promise<void> {
-  await app.boot({ ...fixture, layout: { ...fixture.layout, types: [{ name: 'changes', dir: TYPE_DIR, status: 'read', error: null, json: { version: 1, kind: 'list', title: 'Changes', icon: 'git', run: 'list.mjs' } }] }, paths: { [`${TYPE_DIR}/list.mjs`]: 'executable' }, panelData: { changes: { sessions: {}, lastGroup: {} } } });
-  await expect.poll(() => runs(app, 'changes')).toHaveLength(1);
-  const { token: run } = (await runs(app, 'changes'))[0];
-  await app.emit('onPanelRun', 'changes', run, { kind: 'output', text: JSON.stringify(list) });
-  await app.emit('onPanelRun', 'changes', run, { kind: 'exit', code: 0, signal: null });
-  await expect(page.locator('.list-row')).toHaveCount(list.sections.reduce((count, { items }) => count + items.length, 0));
-}
-
-const row = (page: Page, text: string): Locator => page.locator('.list-row', { hasText: text });
+/** Boot with the panel, its script printing `list`, LIST without one. */
+const bootList = (app: App, page: Page, list: PrintedList = LIST): Promise<void> => boot(app, page, list);
 
 /** The colour of a row's leading edge, or 'none' without one. */
 const edgeOf = (target: Locator): Promise<string> => target.evaluate((el) => /rgba?\([^)]*\)/.exec(getComputedStyle(el).boxShadow)?.[0] ?? 'none');
@@ -169,7 +147,7 @@ const endsOf = (title: Locator): Promise<{ first: number; second: number; last: 
   });
 
 /** Paths cut at their start: one too long for its line, one that starts with a dot and one with a bracket at each end. */
-const PATHS = (compact: boolean): { version: number; compact: boolean; sections: { items: object[] }[] } => ({
+const PATHS = (compact: boolean): PrintedList => ({
   version: 1,
   compact,
   sections: [
