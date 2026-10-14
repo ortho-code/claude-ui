@@ -32,6 +32,21 @@ test('a tab dragged before another moves there, in the bar, in what is kept and 
   await expect.poll(() => stripNames(page).allTextContents()).toEqual([second.title, first.title]);
 });
 
+// A hand on a mouse or a trackpad moves a pixel or two during a press, and that is still a click: a drag starts only past a few pixels.
+test('a press on a tab that moves a couple of pixels before its release still chooses the tab', async ({ app, page }) => {
+  await app.boot({ ...fixture, activeSession: first.id });
+  await expect(tab(page, first.title)).toHaveClass(/\bactive\b/);
+
+  const at = (await tabLabel(page, second.title).boundingBox())!;
+  await page.mouse.move(at.x + at.width / 2, at.y + at.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(at.x + at.width / 2 + 2, at.y + at.height / 2 + 1, { steps: 2 });
+  await page.mouse.up();
+
+  await expect(tab(page, second.title)).toHaveClass(/\bactive\b/);
+  await expect(tabLabels(page)).toHaveText([first.title, second.title]);
+});
+
 // A status arriving mid-drag is drawn once the tab drops, rather than drawing the bar under the drag and undoing it.
 test('a tab dragged while a status arrives still moves, and the status shows once it drops', async ({ app, page }) => {
   await app.boot(fixture);

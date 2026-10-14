@@ -291,6 +291,8 @@ function sortableFor(container: HTMLElement): Sortable {
     filter: '.tab-close, .tab-kebab',
     preventOnFilter: false,
     forceFallback: true,
+    // A press that wanders a pixel or two is a click: with Sortable's default of 0, any movement at all started a drag, and the tab was never chosen.
+    fallbackTolerance: 4,
     animation: 0,
     ghostClass: 'tab-ghost',
     onStart: () => {
