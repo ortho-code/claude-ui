@@ -742,7 +742,7 @@ export function getProjectOrder(): Promise<string[]> {
  * One rule: every root in front of an empty order is the roots as given.
  *
  * Absent roots are NOT pruned.
- * A project whose sessions are all archived drops out of the list while still existing, and forgetting its slot would make it leap to the top when a session comes back — the opposite of the stable order this exists to provide.
+ * A root is absent once no listed session resolves to it, such as when its sessions were all deleted (archived ones are still listed: the caller seeds from the raw listing), and forgetting its slot would make it leap to the top when a session appears there again — the opposite of the stable order this exists to provide.
  */
 export function seedProjectOrder(roots: string[]): Promise<string[]> {
   return serialize(async () => {

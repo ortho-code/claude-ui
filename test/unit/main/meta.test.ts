@@ -470,7 +470,7 @@ describe('projectOrder', () => {
 
   it('keeps the slot of a project that is absent for a while', async () => {
     await seedProjectOrder(['/a', '/b', '/c']);
-    // /b contributes no sessions this time (all archived, say) and must not lose its place.
+    // /b contributes no sessions this time (all deleted, say) and must not lose its place.
     expect(await seedProjectOrder(['/a', '/c'])).toEqual(['/a', '/b', '/c']);
     expect(await seedProjectOrder(['/a', '/b', '/c'])).toEqual(['/a', '/b', '/c']);
   });
