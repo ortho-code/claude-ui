@@ -61,6 +61,7 @@ describe('docs/panel-types.md', () => {
     expect(sorted(tableFields('### The list'))).toEqual(sorted(LIST_FIELDS.document));
     expect(sorted(tableFields('### A section'))).toEqual(sorted(LIST_FIELDS.section));
     expect(sorted(tableFields('### An item'))).toEqual(sorted(LIST_FIELDS.item));
+    expect(sorted(tableFields('### A part'))).toEqual(sorted(LIST_FIELDS.part));
     expect(sorted(tableFields('### An action'))).toEqual(sorted(LIST_FIELDS.action));
     expect(sorted(tableFields('### A `session` action'))).toEqual(sorted(LIST_FIELDS.session));
     expect(sorted(tableFields('### A view'))).toEqual(sorted(LIST_FIELDS.view));

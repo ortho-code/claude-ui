@@ -30,7 +30,7 @@
   padding: 0;
 }
 
-/* A COMPACT LIST, one its script marks `compact`: a row sits on the panel's own background, with no gap between rows, and its text keeps to one line, for a list scanned many rows at a time, such as changed files; a `detail` still adds a second line.
+/* A COMPACT LIST, one its script marks `compact`: a row sits on the panel's own background, with no gap between rows, and its text keeps to one line, for a list scanned many rows at a time, such as changed files; a `detail`'s lines still go under it.
    Its own row shape, not the card and not the menu row, which it resembles but which is a choice in a menu or a strip, where this is an item in a list (docs/architecture.md § UI conventions).
    The text keeps to one line, cut short, so a script puts the rest in the row's tooltip; a link still lights the row under the pointer, through the card's own hover.
    14px on the right, the section heading's own, so a trail ends under the heading's count. */
@@ -109,6 +109,15 @@
   font-size: var(--text-meta);
   text-align: center;
   color: var(--tone, var(--muted));
+}
+
+/* A row's detail: its lines one under another, each a block of its own, in place of the meta line's flex row (card.css), which centres a session row's note mark against its text. */
+.list-row .card-meta {
+  display: block;
+}
+
+.list-detail-line {
+  display: block;
 }
 
 /* A trail, such as a count, at the meta line's size and grey, with digits of one width so counts line up down the list. */

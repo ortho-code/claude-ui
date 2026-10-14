@@ -380,8 +380,15 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     placeChildren(line, [...(holds ? [fold] : []), ...(item.lead !== null ? [lead] : []), title, ...(item.trail !== null ? [trail] : [])]);
     // On the first line alone, so the rest of a row with a link still says where the link goes.
     setTooltip(line, item.tooltip);
-    meta.textContent = item.detail ?? '';
-    placeChildren(content, item.detail !== null ? [line, meta] : [line]);
+    // Each line of the detail an element of its own, kept by its place, so a press on one survives a run that changes what it says.
+    const detail = item.detail.map((pieces, at) => {
+      const shown = parts.lines.draw(String(at), () => element('span', 'list-detail-line'));
+      shown.textContent = pieces.map(({ text }) => text).join(item.separator);
+      return shown;
+    });
+    parts.lines.sweep();
+    placeChildren(meta, detail);
+    placeChildren(content, detail.length > 0 ? [line, meta] : [line]);
     this.paintSessions(item.key, parts);
     // What a row offers, as buttons at its end, each kept by all it says — its label, prompt and name — so a run that changes an action gives it a new button, and a press on the old one comes to nothing rather than asking for the new one.
     // Each only ASKS: the app's dialog shows what would start, and nothing does until Start there.
@@ -431,7 +438,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       if (href) window.claudeUi.openExternal(href);
       else this.toggleRow(key);
     });
-    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
+    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<HTMLElement>((shown) => shown), mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button) };
   }
 
   /** The button for one of a row's actions, which asks for the session it describes, under the row as the last draw left it. */
@@ -464,7 +471,10 @@ interface ListRow {
   /** The text itself, inside the title. */
   text: HTMLElement;
   trail: HTMLElement;
+  /** What holds the detail's lines. */
   meta: HTMLElement;
+  /** The detail's lines, each kept by its place. */
+  lines: Keyed<HTMLElement>;
   /** The mark for the sessions the row started, with its dot and, for several, their count. */
   mark: HTMLButtonElement;
   dot: HTMLElement;

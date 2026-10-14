@@ -271,9 +271,9 @@ const LIST = {
     {
       empty: 'Nothing waiting on you.',
       items: [
-        { key: 'org/repo#1', text: 'Fix the login redirect', detail: '#1 · 3d · someone', href: 'https://example.com/pr/1', tone: 'attention', actions: [{ label: 'Review', session: { prompt: '/review 1', name: 'Review #1' } }] },
-        { key: 'org/repo#2', text: 'Failing everywhere', detail: '#2 · 1d', tone: 'danger' },
-        { key: 'org/repo#3', text: 'Parked for now', detail: '#3', href: 'https://example.com/pr/3', tone: 'muted' },
+        { key: 'org/repo#1', text: 'Fix the login redirect', detail: [['#1', '3d', 'someone']], href: 'https://example.com/pr/1', tone: 'attention', actions: [{ label: 'Review', session: { prompt: '/review 1', name: 'Review #1' } }] },
+        { key: 'org/repo#2', text: 'Failing everywhere', detail: [['#2', '1d']], tone: 'danger' },
+        { key: 'org/repo#3', text: 'Parked for now', detail: [['#3']], href: 'https://example.com/pr/3', tone: 'muted' },
       ],
     },
     { title: 'Blocked', empty: 'Nothing blocked.', items: [] },

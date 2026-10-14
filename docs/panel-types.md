@@ -112,7 +112,7 @@ One JSON object:
 { "version": 1, "badge": 2,
   "sections": [
     { "empty": "Nothing waiting on you.", "items": [
-      { "key": "org/repo#1", "text": "Fix the login redirect", "detail": "#1 · 3d · someone", "href": "https://github.com/org/repo/pull/1", "tone": "attention",
+      { "key": "org/repo#1", "text": "Fix the login redirect", "detail": [["#1", "3d", "someone"], ["2 reviewers"]], "href": "https://github.com/org/repo/pull/1", "tone": "attention",
         "actions": [{ "label": "Review", "session": { "prompt": "/review 1", "name": "Review #1" } }] }
     ] },
     { "title": "Blocked", "shut": true, "items": [] }
@@ -127,7 +127,8 @@ One JSON object:
 | `version` | Required, `1`. |
 | `badge` | A count on the panel's icon and beside its title: a whole number, 0 or more. |
 | `views` | The ways the script can print the list, such as flat or as a tree: with two or more, the panel's header shows a switch between them, and a pick runs the script again with it as `CLAUDE_UI_VIEW`. |
-| `compact` | `true` draws the rows without the card around each, for a list scanned many rows at a time; a row's text is then cut short to one line, so put the rest in its `tooltip`, and leave out `detail`, which still adds a second line. |
+| `compact` | `true` draws the rows without the card around each, for a list scanned many rows at a time; a row's text is then cut short to one line, so put the rest in its `tooltip`, and leave out `detail`, whose lines still go under it. |
+| `separator` | What goes between the parts of each line of a row's `detail`: ` · ` without one; an empty one sets them side by side. |
 | `sections` | Required: the sections, in order. |
 | `notes` | Sentences for the line under the panel. |
 
@@ -159,12 +160,13 @@ An entry naming a view the list does not offer is said under the panel.
 |---|---|
 | `key` | Required, unique in the list: what a session started from the row is remembered by, so keep it the same for the same thing from one run to the next. |
 | `lead` | A short mark before the text, such as a letter for a kind of thing, in a column of its own so the texts after marks of one length line up. |
-| `leadTone` | The lead's colour, from the same words as `tone`: the colour a tone puts on a row's edge, the grey of the second line for `normal`, and dimmed for `muted`. |
+| `leadTone` | The lead's colour, from the same words as `tone`: the colour a tone puts on a row's edge, the grey of the `detail` for `normal`, and dimmed for `muted`. |
 | `text` | Required: the row's first line. |
 | `cut` | Where `text` too long for its line is cut short: at its end, or at its start, which keeps its end in view, such as a path's file name; a text cut at its start keeps to one line. |
 | `trail` | A short text at the end of the first line, such as a count, which the text gives way to. |
 | `tooltip` | What hovering the row's first line shows, such as all of what that line shortens, its line breaks kept. |
-| `detail` | A second line, smaller. |
+| `detail` | Lines under the first, smaller: an array of lines, each an array of parts (below), drawn in order with the `separator` between them. |
+| `separator` | What goes between the parts of its own `detail` lines, in place of the list's; a row it holds takes the list's, not this. |
 | `href` | An http or https link, which a press on the row opens in your browser. |
 | `tone` | How the row is marked. |
 | `actions` | What the row offers, as buttons at its end. |
@@ -176,6 +178,18 @@ An entry naming a view the list does not offer is said under the panel.
 
 `cut` is one of: `end`, `start`.
 `end` is what a row without one gets.
+
+### A part
+
+A part of a `detail` line is a string, or an object:
+
+| Field | Meaning |
+|---|---|
+| `text` | Required: what it says. |
+
+A string is a part with that `text` alone, so `["#1", "3d"]` and `[{ "text": "#1" }, { "text": "3d" }]` are the same line.
+A line is never empty, and a part's text is never empty or only spaces: either is a mistake in the list.
+Leave out a part with nothing to say, and no separator is drawn for it.
 
 ### An action
 
@@ -254,7 +268,7 @@ export function toList(log) {
       return {
         key: sha,
         text: subject,
-        detail: `${short} · ${author} · ${when}`,
+        detail: [[short, author, when]],
         actions: [{ label: 'Explain', session: { prompt: `Explain what commit ${short} changed, and why.`, name: `Explain ${short}` } }],
       };
     });
@@ -276,7 +290,7 @@ test('a commit is a row, keyed by its hash, with an Explain action', () => {
   assert.deepEqual(list.sections[0].items[0], {
     key: '3f2a9c1e',
     text: 'Fix the login redirect',
-    detail: '3f2a9c1 · Ana · 2 hours ago',
+    detail: [['3f2a9c1', 'Ana', '2 hours ago']],
     actions: [{ label: 'Explain', session: { prompt: 'Explain what commit 3f2a9c1 changed, and why.', name: 'Explain 3f2a9c1' } }],
   });
 });

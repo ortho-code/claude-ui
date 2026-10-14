@@ -167,7 +167,7 @@ test('a press on a row, its mark, its action or a heading still counts, and a fo
   // The list under a heading, its second row's detail saying which run printed it, so each run draws something new, and the third row offering `action`.
   const printed = (run: number, action: typeof review): unknown => ({
     ...LIST,
-    sections: LIST.sections.map((section) => ({ ...section, title: 'Open', items: section.items.map((item, at) => (at === 1 ? { ...item, detail: `run ${run}` } : at === 2 ? { ...item, actions: [action] } : item)) })),
+    sections: LIST.sections.map((section) => ({ ...section, title: 'Open', items: section.items.map((item, at) => (at === 1 ? { ...item, detail: [[`run ${run}`]] } : at === 2 ? { ...item, actions: [action] } : item)) })),
   });
   // A run asked for now, which prints the list and ends when what this returns is called.
   const rerun = async (run: number, action = review): Promise<() => Promise<void>> => {

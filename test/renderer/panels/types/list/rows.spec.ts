@@ -11,9 +11,9 @@ const LIST = {
     {
       title: 'Staged',
       items: [
-        { key: 'a', text: 'FeaturedImageDownloaderTest.php', detail: 'tests/unit/Application/Subscription/ProcessUpdates/Service · modified · +144 −37', actions: [review] },
-        { key: 'b', text: 'FeaturedImageDownloaderTestWithAFileNameLongerThanAnyRowIsWide.php', detail: 'src/Domain · modified · +9 −0' },
-        { key: 'c', text: 'FQDN.php', detail: 'modified · +9 −0', tooltip: 'src/Domain/ValueObject/Host/FQDN.php', href: 'https://example.com/FQDN.php' },
+        { key: 'a', text: 'FeaturedImageDownloaderTest.php', detail: [['tests/unit/Application/Subscription/ProcessUpdates/Service', 'modified', '+144 −37']], actions: [review] },
+        { key: 'b', text: 'FeaturedImageDownloaderTestWithAFileNameLongerThanAnyRowIsWide.php', detail: [['src/Domain', 'modified', '+9 −0']] },
+        { key: 'c', text: 'FQDN.php', detail: [['modified', '+9 −0']], tooltip: 'src/Domain/ValueObject/Host/FQDN.php', href: 'https://example.com/FQDN.php' },
       ],
     },
   ],

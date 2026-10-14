@@ -19,13 +19,17 @@ export const LIST_VERSION = 1;
  * The fields of each object in a list document: the ONE place they are named (see fields.ts), which `docs/panel-types.md` is held to by a test.
  */
 export const LIST_FIELDS = {
-  document: ['version', 'badge', 'views', 'compact', 'sections', 'notes'],
+  document: ['version', 'badge', 'views', 'compact', 'separator', 'sections', 'notes'],
   view: ['id', 'label', 'icon'],
   section: ['title', 'shut', 'tooltip', 'empty', 'items'],
-  item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'href', 'tone', 'actions', 'children', 'shut'],
+  item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'separator', 'href', 'tone', 'actions', 'children', 'shut'],
+  part: ['text'],
   action: ['label', 'session'],
   session: ['prompt', 'name'],
 } as const;
+
+/** What goes between the parts of a row's `detail` lines when neither the row nor the list says. */
+export const DEFAULT_SEPARATOR = ' · ';
 
 export const TONES = ['normal', 'attention', 'positive', 'muted', 'danger'] as const;
 export type Tone = (typeof TONES)[number];
@@ -45,6 +49,11 @@ export interface SessionAction {
   name: string | null;
 }
 
+/** One piece of a line under a row's first: a string the script printed is a part with that text alone. */
+export interface DetailPart {
+  text: string;
+}
+
 export interface ListItem {
   /** Unique across the document: what a session started from the row is remembered by. */
   key: string;
@@ -59,7 +68,10 @@ export interface ListItem {
   trail: string | null;
   /** What hovering the row's first line shows, such as all of what the text shortens. */
   tooltip: string | null;
-  detail: string | null;
+  /** The lines under the first, smaller, each its parts in order; empty for none. */
+  detail: DetailPart[][];
+  /** What goes between the parts of each of its lines: its own, else the list's, else `DEFAULT_SEPARATOR`; not its parent's, so a list says it once for every level. */
+  separator: string;
   /** What a click on the row opens, in the browser. */
   href: string | null;
   tone: Tone;
@@ -101,6 +113,8 @@ const HTTP = /^https?:\/\//i;
 class Reader {
   readonly problems: string[] = [];
   private readonly keys = new Set<string>();
+  /** The list's separator, which a row without its own takes; set once the document's own field is read, before its sections. */
+  separator = DEFAULT_SEPARATOR;
 
   /** An optional string: null when absent, and a problem when it is anything but a string. */
   text(value: unknown, at: string, required = false): string | null {
@@ -145,6 +159,35 @@ class Reader {
     return value;
   }
 
+  /** A row's lines under its first: an array of lines, each a non-empty array of parts, which a flat array of parts is not. */
+  detail(value: unknown, at: string): DetailPart[][] {
+    return this.list(value, at, false).map((line, index) => this.line(line, `${at}[${index}]`));
+  }
+
+  line(raw: unknown, at: string): DetailPart[] {
+    if (!Array.isArray(raw)) {
+      this.problems.push(`${at} is not a line, which is an array of parts.`);
+      return [];
+    }
+    if (raw.length === 0) this.problems.push(`${at} is empty.`);
+    return raw.map((part, index) => this.part(part, `${at}[${index}]`)).filter((part) => part !== null);
+  }
+
+  /** A part of a line: a string, which is its text alone, or an object with its text. */
+  part(raw: unknown, at: string): DetailPart | null {
+    if (typeof raw === 'string') {
+      const text = this.text(raw, at, true);
+      return text !== null ? { text } : null;
+    }
+    if (!isObject(raw)) {
+      this.problems.push(`${at} is not a string or an object.`);
+      return null;
+    }
+    const field = fieldsOf(raw, LIST_FIELDS.part);
+    const text = this.text(field('text'), `${at}.text`, true);
+    return text !== null ? { text } : null;
+  }
+
   action(raw: unknown, at: string): SessionAction | null {
     if (!isObject(raw)) {
       this.problems.push(`${at} is not an object.`);
@@ -182,7 +225,8 @@ class Reader {
     const cut = this.choice(field('cut'), `${at}.cut`, CUTS);
     const trail = this.text(field('trail'), `${at}.trail`);
     const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
-    const detail = this.text(field('detail'), `${at}.detail`);
+    const detail = this.detail(field('detail'), `${at}.detail`);
+    const separator = this.text(field('separator'), `${at}.separator`) ?? this.separator;
     let href = this.text(field('href'), `${at}.href`);
     if (href !== null && !HTTP.test(href)) {
       this.problems.push(`${at}.href "${href}" is not an http or https link.`);
@@ -198,7 +242,7 @@ class Reader {
       .filter((child) => child !== null);
     const shut = this.flag(field('shut'), `${at}.shut`);
     if (shut && children.length === 0) this.problems.push(`${at}.shut needs children, which are what it folds.`);
-    return key !== null && text !== null ? { key, lead, leadTone, text, cut, trail, tooltip, detail, href, tone, actions, children, shut } : null;
+    return key !== null && text !== null ? { key, lead, leadTone, text, cut, trail, tooltip, detail, separator, href, tone, actions, children, shut } : null;
   }
 
   /** One of the list's views: an id a layout entry can name and a script can be given, a label and an icon from the app's set; an id used before is a problem, as an item's key is. */
@@ -270,6 +314,7 @@ export function readListDocument(stdout: string): ListRead {
     .map((view, index) => reader.view(view, `views[${index}]`, viewIds))
     .filter((view) => view !== null);
   const compact = reader.flag(field('compact'), 'compact');
+  reader.separator = reader.text(field('separator'), 'separator') ?? DEFAULT_SEPARATOR;
   const sections = reader
     .list(field('sections'), 'sections', true)
     .map((section, index) => reader.section(section, `sections[${index}]`))

@@ -17,6 +17,7 @@ describe('readListDocument', () => {
           { id: 'tree', label: 'Tree', icon: 'tree' },
         ],
         compact: true,
+        separator: ' / ',
         sections: [
           {
             empty: 'Nothing waiting on you.',
@@ -29,7 +30,8 @@ describe('readListDocument', () => {
                 cut: 'start',
                 trail: '+12 −3',
                 tooltip: 'Fix the login redirect after a session times out',
-                detail: '#1 · 31h · someone',
+                detail: [['#1', '31h', 'someone'], [{ text: 'Waiting on you' }]],
+                separator: ' | ',
                 href: 'https://github.com/org/repo/pull/1',
                 tone: 'attention',
                 actions: [{ label: 'Review', session: { prompt: '/review 1', name: 'Review #1' } }],
@@ -64,7 +66,8 @@ describe('readListDocument', () => {
                 cut: 'start',
                 trail: '+12 −3',
                 tooltip: 'Fix the login redirect after a session times out',
-                detail: '#1 · 31h · someone',
+                detail: [[{ text: '#1' }, { text: '31h' }, { text: 'someone' }], [{ text: 'Waiting on you' }]],
+                separator: ' | ',
                 href: 'https://github.com/org/repo/pull/1',
                 tone: 'attention',
                 actions: [{ label: 'Review', prompt: '/review 1', name: 'Review #1' }],
@@ -86,9 +89,23 @@ describe('readListDocument', () => {
       badge: null,
       views: [],
       compact: false,
-      sections: [{ title: null, shut: false, tooltip: null, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: null, href: null, tone: 'normal', actions: [], children: [], shut: false }] }],
+      sections: [{ title: null, shut: false, tooltip: null, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: [], separator: ' · ', href: null, tone: 'normal', actions: [], children: [], shut: false }] }],
       notes: [],
     });
+  });
+
+  it("puts a row's own separator between the parts of its lines, else the list's, else ' · ', an empty one included", () => {
+    const separators = (list: Record<string, unknown>, items: Record<string, unknown>[]): string[] =>
+      readListDocument(doc({ ...list, sections: [{ items: items.map((over, at) => ({ key: `k${at}`, text: 't', detail: [['a', 'b']], ...over })) }] })).doc!.sections[0].items.map(({ separator }) => separator);
+    expect(separators({}, [{}, { separator: ' / ' }])).toEqual([' · ', ' / ']);
+    expect(separators({ separator: ' | ' }, [{}, { separator: '' }])).toEqual([' | ', '']);
+  });
+
+  it("reads a child's lines and separator as a row's: its own separator, else the list's rather than its parent's", () => {
+    const parent = { key: 'p', text: 'p', separator: ' / ', children: [{ key: 'c', text: 'c', detail: [['a', { text: 'b' }]] }] };
+    const [child] = readListDocument(doc({ separator: ' | ', sections: [{ items: [parent] }] })).doc!.sections[0].items[0].children;
+    expect(child.detail).toEqual([[{ text: 'a' }, { text: 'b' }]]);
+    expect(child.separator).toBe(' | ');
   });
 
   it('reads the rows a row holds, at any depth, with its keys unique across every level', () => {
@@ -101,9 +118,10 @@ describe('readListDocument', () => {
   });
 
   it('ignores what this build does not know: fields, and an action of a kind it does not have', () => {
-    const read = readListDocument(doc({ generatedAt: 'now', sections: [{ colour: 'red', items: [{ ...item, weight: 3, actions: [{ label: 'Merge', merge: {} }] }] }] }));
+    const read = readListDocument(doc({ generatedAt: 'now', sections: [{ colour: 'red', items: [{ ...item, weight: 3, detail: [[{ text: 'a', weight: 3 }]], actions: [{ label: 'Merge', merge: {} }] }] }] }));
     expect(read.problems).toEqual([]);
     expect(read.doc?.sections[0]?.items[0]?.actions).toEqual([]);
+    expect(read.doc?.sections[0]?.items[0]?.detail).toEqual([[{ text: 'a' }]]);
   });
 
   it('says what is wrong with the whole of what was printed', () => {
@@ -149,6 +167,16 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ ...item, tooltip: 3 }] }] }, 'sections[0].items[0].tooltip is not a string.'],
     [{ sections: [{ items: [{ ...item, lead: 3 }] }] }, 'sections[0].items[0].lead is not a string.'],
     [{ sections: [{ items: [{ ...item, trail: 3 }] }] }, 'sections[0].items[0].trail is not a string.'],
+    [{ separator: 3 }, 'separator is not a string.'],
+    [{ sections: [{ items: [{ ...item, separator: 3 }] }] }, 'sections[0].items[0].separator is not a string.'],
+    [{ sections: [{ items: [{ ...item, detail: '#1 · 3d' }] }] }, 'sections[0].items[0].detail is not an array.'],
+    [{ sections: [{ items: [{ ...item, detail: ['#1', '3d'] }] }] }, 'sections[0].items[0].detail[0] is not a line, which is an array of parts.'],
+    [{ sections: [{ items: [{ ...item, detail: [['#1'], []] }] }] }, 'sections[0].items[0].detail[1] is empty.'],
+    [{ sections: [{ items: [{ ...item, detail: [['#1', 3]] }] }] }, 'sections[0].items[0].detail[0][1] is not a string or an object.'],
+    [{ sections: [{ items: [{ ...item, detail: [['#1', ' ']] }] }] }, 'sections[0].items[0].detail[0][1] is empty.'],
+    [{ sections: [{ items: [{ ...item, detail: [[{}]] }] }] }, 'sections[0].items[0].detail[0][0].text is missing.'],
+    [{ sections: [{ items: [{ ...item, detail: [[{ text: '' }]] }] }] }, 'sections[0].items[0].detail[0][0].text is empty.'],
+    [{ sections: [{ items: [{ ...item, children: [{ key: 'c', text: 'c', detail: [[3]] }] }] }] }, 'sections[0].items[0].children[0].detail[0][0] is not a string or an object.'],
     [{ sections: [{ items: [{ ...item, leadTone: 'loud' }] }] }, 'sections[0].items[0].leadTone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, cut: 'middle' }] }] }, 'sections[0].items[0].cut "middle" is not one of end, start.'],
     [{ sections: [{ items: [{ ...item, children: {} }] }] }, 'sections[0].items[0].children is not an array.'],
