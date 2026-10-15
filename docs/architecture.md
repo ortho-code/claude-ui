@@ -48,7 +48,11 @@ The renderer groups the results by working directory.
 A session the transcript last puts in a worktree carries the worktree's name (`worktree`), and that is where a resume runs.
 One that ran in a worktree and has since left it carries the name apart (`leftWorktree`), drawn as the same badge, muted, because it still did its work there; a resume runs where it is now.
 Both are named the same way, so a tree removed since is still named under `<repo>/.claude/worktrees/`, where Claude Code cuts them, and goes unnamed, so unbadged, anywhere else.
-The record of leaving does not always say why: in one transcript here it follows an `ExitWorktree` call, in others it is the last line, and the muted badge is true whatever the cause.
+The record of leaving does not say why, and two causes write it: claude's `ExitWorktree` tool moving the session out mid-session, and Claude Code moving it back to the main checkout as it closes; both write a `relocated` record just before the exit.
+Across this machine's transcripts (2026-10-15), 13 of 14 exits were closes and one a move, and 8 of the closes had messages after them, from a resume later, so what follows an exit cannot tell the two apart.
+The tool's call can, and sets `movedOutOfWorktree`: it was seen two records after its exit, in the same turn, and the reader takes it there or before the exit, but not after a later user record, since a call a resume brings is not the exit's, and Claude Code refuses one for a worktree from an earlier session.
+The badge is muted either way, since a resume runs where the session is now, and its tooltip says which: worked in the worktree until it closed, or moved out of it.
+Claude Code writes `worktree-state: null` again and again after an exit, at each resume too, so only the first one after an entry is an exit.
 A Bash `cd` into a worktree changes the `cwd` the records carry and nothing else: Claude Code records no worktree session, and a resume runs where the session started, so it counts as neither.
 Counting it was considered and rejected: any record in a worktree would badge a one-off look inside one, and a share of the records would be a threshold nothing can check.
 

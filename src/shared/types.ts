@@ -17,6 +17,11 @@ export interface SessionSummary {
    * Named as `worktree` is, so a removed tree goes unnamed unless it sat under `.claude/worktrees/`.
    */
   leftWorktree: string;
+  /**
+   * Whether the session left `leftWorktree` mid-session, by claude's ExitWorktree tool, rather than by being closed there; false when it has left none.
+   * Claude Code moves a session out of its worktree on its way out too, writing the same records, so only the tool's call beside the exit tells the two apart.
+   */
+  movedOutOfWorktree: boolean;
   /** The session's custom or AI-generated title, empty when it has none. */
   title: string;
   /**

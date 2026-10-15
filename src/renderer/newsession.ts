@@ -15,6 +15,7 @@ export function newSession(id: string, over: Partial<SessionSummary> & Pick<Sess
     isRepo: false,
     worktree: '',
     leftWorktree: '',
+    movedOutOfWorktree: false,
     firstMessage: '',
     model: '',
     lastActivity: new Date().toISOString(),

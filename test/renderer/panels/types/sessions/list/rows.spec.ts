@@ -72,15 +72,15 @@ test("a row's worktree badge is accent while its session is in the worktree, and
   await expect(badge(inside.title)).toHaveAttribute('data-tooltip', 'Linked git worktree: feature-x');
   await expect(badge(inside.title)).toHaveCSS('color', await token(page, '--accent'));
   await expect(badge(left.title)).toBeVisible();
-  await expect(badge(left.title)).toHaveAttribute('data-tooltip', `Ran in linked git worktree: feature-y; now back in ${PROJECT}`);
+  await expect(badge(left.title)).toHaveAttribute('data-tooltip', `Worked in linked git worktree: feature-y until it closed; resumes in ${PROJECT}`);
   await expect(badge(left.title)).toHaveCSS('color', await token(page, '--muted'));
   await expect(badge(left.title)).toHaveCSS('border-top-color', await token(page, '--muted'));
   await expect(badge(one.title)).toBeHidden();
 
-  // Leaving a worktree it entered while the app runs, which writes an exit into the session's transcript.
-  await app.listOnDisk([one, { ...inside, cwd: PROJECT, worktree: '', leftWorktree: 'feature-x' }, left]);
+  // Moved out of its worktree by claude while the app runs, which writes an exit and the ExitWorktree call into the session's transcript.
+  await app.listOnDisk([one, { ...inside, cwd: PROJECT, worktree: '', leftWorktree: 'feature-x', movedOutOfWorktree: true }, left]);
   await expect(badge(inside.title)).toHaveCSS('color', await token(page, '--muted'));
-  await expect(badge(inside.title)).toHaveAttribute('data-tooltip', `Ran in linked git worktree: feature-x; now back in ${PROJECT}`);
+  await expect(badge(inside.title)).toHaveAttribute('data-tooltip', `Moved out of linked git worktree: feature-x; now in ${PROJECT}`);
 });
 
 // The list is drawn again whenever what it shows changes, which can land between a press and its release, or under a control you reached with the keyboard: a row it already shows stays where it is, so the click still counts and the focus stays put.

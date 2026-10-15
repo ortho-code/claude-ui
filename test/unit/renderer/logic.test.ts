@@ -40,6 +40,7 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     isRepo: false,
     worktree: '',
     leftWorktree: '',
+    movedOutOfWorktree: false,
     title: 'Title',
     firstMessage: 'first',
     model: '',
@@ -87,9 +88,13 @@ describe('worktreeMarkState', () => {
     expect(worktreeMarkState(session({ worktree: 'wt' }))).toEqual({ left: false, tooltip: 'Linked git worktree: wt' });
   });
 
-  // The session still did its work there, and the tooltip says where a resume runs now.
-  it('marks a worktree the session has left as left, naming where it is now', () => {
-    expect(worktreeMarkState(session({ cwd: '/repo', leftWorktree: 'wt' }))).toEqual({ left: true, tooltip: 'Ran in linked git worktree: wt; now back in /repo' });
+  // The session still did its work there, and the tooltip says which way it left and where a resume runs now.
+  it('marks a worktree the session was closed in as left, saying it closed there and where it resumes', () => {
+    expect(worktreeMarkState(session({ cwd: '/repo', leftWorktree: 'wt' }))).toEqual({ left: true, tooltip: 'Worked in linked git worktree: wt until it closed; resumes in /repo' });
+  });
+
+  it('marks a worktree the session moved out of as left, saying it moved and where it is now', () => {
+    expect(worktreeMarkState(session({ cwd: '/repo', leftWorktree: 'wt', movedOutOfWorktree: true }))).toEqual({ left: true, tooltip: 'Moved out of linked git worktree: wt; now in /repo' });
   });
 });
 

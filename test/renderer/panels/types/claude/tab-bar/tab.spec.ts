@@ -47,7 +47,7 @@ test("a tab's worktree mark is accent while its session is in the worktree, and 
 
   await expect(mark(inside.title)).toHaveAttribute('data-tooltip', 'Linked git worktree: feature-x');
   await expect(mark(inside.title)).toHaveCSS('color', await token(page, '--accent'));
-  await expect(mark(left.title)).toHaveAttribute('data-tooltip', `Ran in linked git worktree: feature-y; now back in ${PROJECT}`);
+  await expect(mark(left.title)).toHaveAttribute('data-tooltip', `Worked in linked git worktree: feature-y until it closed; resumes in ${PROJECT}`);
   await expect(mark(left.title)).toHaveCSS('color', await token(page, '--muted'));
   await expect(mark(one.title)).toHaveCount(0);
 

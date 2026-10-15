@@ -100,13 +100,14 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
     return cached?.summary ?? null;
   }
   if (read) {
-    const { summary, leftWorktreePath } = read;
+    const { summary, leftWorktreePath, movedOut } = read;
     const repo = await resolveRepo(summary.cwd);
     summary.repoRoot = repo.repoRoot;
     summary.worktree = repo.worktree;
     summary.isRepo = repo.isRepo;
     // Named the way the worktree it is in is named, so the two badges agree; once the tree is removed only the `.claude/worktrees/<name>` fallback still names it.
     if (!repo.worktree && leftWorktreePath) summary.leftWorktree = (await resolveRepo(leftWorktreePath)).worktree;
+    summary.movedOutOfWorktree = summary.leftWorktree !== '' && movedOut;
   }
   const summary = read?.summary ?? null;
   summaryCache.set(file, { key, summary });
@@ -280,6 +281,8 @@ interface SummaryRead {
   summary: SessionSummary;
   /** The path of the worktree the session last entered, when it has left it since; '' otherwise. */
   leftWorktreePath: string;
+  /** Whether it left that worktree by claude's ExitWorktree tool rather than by closing there (`SessionSummary.movedOutOfWorktree`). */
+  movedOut: boolean;
 }
 
 /** Summarize one transcript without loading the whole file into memory. */
@@ -301,6 +304,13 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
   // An exit does not undo where the session did its work, so the worktree it last entered is kept through one, and a later enter clears it.
   let enteredWorktreePath = '';
   let leftWorktreePath = '';
+  // Whether the session is in a worktree by its records, so only the first null after an entry is an exit: Claude Code writes null again and again after an exit, at each resume too.
+  let inWorktree = false;
+  // An exit is a MOVE when claude's ExitWorktree tool made it, and a close otherwise, since Claude Code writes the same records when a session closes in its worktree.
+  // The call has been seen two records after its exit, in the same turn, so it counts before the exit or after it until the next user record: a call after a later prompt, such as one a resume brings, is not the exit's, and Claude Code refuses it for a worktree from an earlier session.
+  let exitCalled = false;
+  let exitAwaitsCall = false;
+  let movedOut = false;
   // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system append (a Remote Control notice) or a resume bumps mtime without being real activity.
   // Captured with a cheap regex below.
   let lastMsgTs = '';
@@ -333,7 +343,10 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
       const maybeBoundary = line.includes('compact_boundary');
       const maybeWorktree = line.includes('worktree-state');
       const maybePrLink = line.includes('"pr-link"');
-      if (!isTitle && !maybeBoundary && !maybeWorktree && !maybePrLink && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
+      const maybeExitCall = line.includes('"ExitWorktree"');
+      // Read before the lines below are skipped unparsed, as a user record mostly is.
+      if (exitAwaitsCall && line.includes('"type":"user"')) exitAwaitsCall = false;
+      if (!isTitle && !maybeBoundary && !maybeWorktree && !maybePrLink && !maybeExitCall && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
 
       let event: Record<string, unknown>;
       try {
@@ -358,11 +371,26 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
           enteredWorktreePath = ws.worktreePath;
           leftWorktreePath = '';
           if (typeof ws.originalCwd === 'string') worktreeOriginalCwd = ws.originalCwd;
+          inWorktree = true;
+          exitCalled = false;
+          exitAwaitsCall = false;
+          movedOut = false;
         } else {
           // Exited (worktreeSession null carries no path); fall back to the enter event's original cwd.
           worktreeStateCwd = worktreeOriginalCwd || null;
           leftWorktreePath = enteredWorktreePath;
+          if (inWorktree) {
+            movedOut = exitCalled;
+            exitAwaitsCall = !exitCalled;
+          }
+          inWorktree = false;
         }
+      }
+
+      if (maybeExitCall && event.type === 'assistant' && callsTool(event, 'ExitWorktree')) {
+        // Before its exit, it is waited for; after it, in the same turn, it settles the exit already read as a close.
+        if (inWorktree) exitCalled = true;
+        else if (exitAwaitsCall) movedOut = true;
       }
 
       if (event.type === 'pr-link') {
@@ -401,6 +429,7 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
     repoRoot: resolvedCwd,
     worktree: '',
     leftWorktree: '',
+    movedOutOfWorktree: false,
     isRepo: false,
     title: title.slice(0, 200),
     firstMessage: firstMessage.slice(0, 200),
@@ -415,7 +444,13 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
     cwdExists: true,
     repoRootExists: true,
   };
-  return { summary, leftWorktreePath };
+  return { summary, leftWorktreePath, movedOut: leftWorktreePath !== '' && movedOut };
+}
+
+/** Whether an assistant record calls the tool `name`. */
+function callsTool(event: Record<string, unknown>, name: string): boolean {
+  const content = (event.message as { content?: unknown } | undefined)?.content;
+  return Array.isArray(content) && content.some((part) => typeof part === 'object' && part !== null && (part as { type?: unknown }).type === 'tool_use' && (part as { name?: unknown }).name === name);
 }
 
 /** The PR a `pr-link` record names, or null for a record this cannot use: its number a positive whole number, its repository a name, its page an https address. */

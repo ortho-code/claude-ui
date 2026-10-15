@@ -148,6 +148,54 @@ beforeAll(async () => {
       { type: 'worktree-state', worktreeSession: { originalCwd: '/tmp/projW4', worktreePath: `${testHome}/.claude/worktrees/wtg4b`, worktreeName: 'wtg4b', hookBased: true } },
     ),
   );
+  // Moved out by claude's ExitWorktree tool mid-session, its call two records after the exit, a thinking-only record between, and the work going on: the real abbb2b3e shape.
+  const exitCall = (uuid: string): Record<string, unknown> => ({ type: 'assistant', uuid, message: { content: [{ type: 'tool_use', id: `t-${uuid}`, name: 'ExitWorktree', input: { action: 'keep' } }] } });
+  await fs.writeFile(
+    path.join(dir, 'w6.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'uw6', cwd: '/tmp/projW6', message: { content: 'work' } },
+      { type: 'worktree-state', worktreeSession: { originalCwd: '/tmp/projW6', worktreePath: `${testHome}/.claude/worktrees/wtg6`, worktreeName: 'wtg6', hookBased: true } },
+      { type: 'relocated', relocatedCwd: '/tmp/projW6' },
+      { type: 'worktree-state', worktreeSession: null },
+      { type: 'assistant', uuid: 'aw6t', message: { content: [{ type: 'thinking', thinking: '' }] } },
+      exitCall('aw6'),
+      { type: 'user', uuid: 'uw6b', cwd: '/tmp/projW6', message: { content: 'carry on here' } },
+    ),
+  );
+  // Closed in its worktree, resumed, and asked to leave it then: Claude Code refuses a worktree from an earlier session, so nothing moved, and a call after a later prompt is not the exit's.
+  await fs.writeFile(
+    path.join(dir, 'w9.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'uw9', cwd: '/tmp/projW9', message: { content: 'work' } },
+      { type: 'worktree-state', worktreeSession: { originalCwd: '/tmp/projW9', worktreePath: `${testHome}/.claude/worktrees/wtg9`, worktreeName: 'wtg9', hookBased: true } },
+      { type: 'relocated', relocatedCwd: '/tmp/projW9' },
+      { type: 'worktree-state', worktreeSession: null },
+      { type: 'user', uuid: 'uw9b', cwd: '/tmp/projW9', message: { content: 'resumed: leave the worktree' } },
+      exitCall('aw9'),
+    ),
+  );
+  // The same move with the call before the exit, should Claude Code write them the other way round.
+  await fs.writeFile(
+    path.join(dir, 'w7.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'uw7', cwd: '/tmp/projW7', message: { content: 'work' } },
+      { type: 'worktree-state', worktreeSession: { originalCwd: '/tmp/projW7', worktreePath: `${testHome}/.claude/worktrees/wtg7`, worktreeName: 'wtg7', hookBased: true } },
+      exitCall('aw7'),
+      { type: 'worktree-state', worktreeSession: null },
+    ),
+  );
+  // Closed in its worktree, which Claude Code also writes as an exit, then resumed later: work after the exit, and no call.
+  await fs.writeFile(
+    path.join(dir, 'w8.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'uw8', cwd: '/tmp/projW8', message: { content: 'work' } },
+      { type: 'worktree-state', worktreeSession: { originalCwd: '/tmp/projW8', worktreePath: `${testHome}/.claude/worktrees/wtg8`, worktreeName: 'wtg8', hookBased: true } },
+      { type: 'relocated', relocatedCwd: '/tmp/projW8' },
+      { type: 'worktree-state', worktreeSession: null },
+      { type: 'worktree-state', worktreeSession: null },
+      { type: 'user', uuid: 'uw8b', cwd: '/tmp/projW8', message: { content: 'resumed days later' } },
+    ),
+  );
   // A Bash `cd` into a worktree moves the cwd the records carry and nothing else: no worktree-state, the transcript where it was, a resume in the main checkout.
   await fs.writeFile(
     path.join(dir, 'w5.jsonl'),
@@ -336,6 +384,23 @@ describe('listSessions', () => {
     expect(w3?.repoRoot).toBe('/tmp/projW3');
     expect(w3?.worktree).toBe('');
     expect(w3?.leftWorktree).toBe('wtg3');
+  });
+
+  it('tells a session moved out of its worktree by the ExitWorktree tool from one closed in it, the call before or after the exit', async () => {
+    const sessions = await listSessions();
+    const left = (id: string): [string | undefined, boolean | undefined] => {
+      const s = sessions.find((x) => x.id === id);
+      return [s?.leftWorktree, s?.movedOutOfWorktree];
+    };
+    expect(left('w6')).toEqual(['wtg6', true]);
+    expect(left('w7')).toEqual(['wtg7', true]);
+    // Closed there: at the end of the file, or resumed after it.
+    expect(left('w3')).toEqual(['wtg3', false]);
+    expect(left('w8')).toEqual(['wtg8', false]);
+    // A call after a later prompt is not the exit's.
+    expect(left('w9')).toEqual(['wtg9', false]);
+    // Never left one.
+    expect(left('w1')).toEqual(['', false]);
   });
 
   it('says nothing about a worktree left behind once the session is in one again', async () => {

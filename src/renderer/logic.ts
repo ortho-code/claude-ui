@@ -38,6 +38,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   worktree: true,
   // Drawn as the muted worktree mark, and it can change while the app runs, when a session leaves its worktree.
   leftWorktree: true,
+  // The mark's tooltip says which way it left.
+  movedOutOfWorktree: true,
   title: true,
   firstMessage: true,
   // The row prints it, and switching model mid-session used to leave the old one there until something else moved.
@@ -114,7 +116,15 @@ export interface WorktreeMarkState {
  */
 export function worktreeMarkState(session: SessionSummary): WorktreeMarkState | null {
   if (session.worktree) return { left: false, tooltip: `Linked git worktree: ${session.worktree}` };
-  if (session.leftWorktree) return { left: true, tooltip: `Ran in linked git worktree: ${session.leftWorktree}; now back in ${session.cwd}` };
+  // Muted either way, since a resume runs where the session is now; the words say which way it left, since closing a session in its worktree is the usual way and moving it out is the rare one.
+  if (session.leftWorktree) {
+    return {
+      left: true,
+      tooltip: session.movedOutOfWorktree
+        ? `Moved out of linked git worktree: ${session.leftWorktree}; now in ${session.cwd}`
+        : `Worked in linked git worktree: ${session.leftWorktree} until it closed; resumes in ${session.cwd}`,
+    };
+  }
   return null;
 }
 
