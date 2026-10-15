@@ -353,13 +353,18 @@ export interface SwitcherModel {
   projects: SwitcherProject[];
 }
 
+/** The nudge that speaks for several: waiting over idle over busy, and nothing when none has one; how sessions roll up into a project and projects into a line. */
+export function strongestNudge(nudges: Iterable<NudgeStatus>): NudgeStatus {
+  const all = new Set(nudges);
+  return all.has('waiting') ? 'waiting' : all.has('idle') ? 'idle' : all.has('busy') ? 'busy' : null;
+}
+
 function rollUpNudge(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
 ): NudgeStatus {
-  const nudges = new Set(sessions.map((s) => nudgeOf(statuses.get(s.id), acked.has(s.id))));
-  return nudges.has('waiting') ? 'waiting' : nudges.has('idle') ? 'idle' : nudges.has('busy') ? 'busy' : null;
+  return strongestNudge(sessions.map((s) => nudgeOf(statuses.get(s.id), acked.has(s.id))));
 }
 
 /**
