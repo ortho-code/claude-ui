@@ -603,7 +603,7 @@ describe('windowBounds', () => {
 describe('ui state', () => {
   const view = {
     search: 'psalm',
-    filters: { pinned: true, open: false, live: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
+    filters: { pinned: true, open: false, live: false, paused: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
     datePreset: 'custom',
     dateFrom: 1_700_000_000_000,
     dateTo: 1_700_500_000_000,
@@ -625,7 +625,7 @@ describe('ui state', () => {
   it('starts unfiltered, unfolded and at the default width', async () => {
     expect(await getUiState()).toEqual({
       search: '',
-      filters: { pinned: false, open: false, live: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
+      filters: { pinned: false, open: false, live: false, paused: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
       datePreset: 'any',
       dateFrom: null,
       dateTo: null,

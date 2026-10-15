@@ -5,7 +5,7 @@ import type { SessionSummary, UiState } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
 import { datePresetRange, entityKey, sessionPasses } from '../../../logic';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
-import { isFiltering, searchText } from '../../../state/views';
+import { isFiltering, isPaused, searchText } from '../../../state/views';
 import { closeIcon, folderGoneIcon, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { iconSvg } from '../../icons';
@@ -28,6 +28,7 @@ export const filterPanel = fromMarkup(`
       <button id="pinned-filter" data-tooltip="Show only pinned sessions" aria-label="Show only pinned sessions" aria-pressed="false"></button>
       <button id="open-filter" type="button" data-tooltip="Show only sessions with a tab open" aria-label="Show only sessions with a tab open" aria-pressed="false"></button>
       <button id="live-filter" type="button" data-tooltip="Show only live sessions" aria-label="Show only live sessions" aria-pressed="false"></button>
+      <button id="paused-filter" type="button" data-tooltip="Show only paused sessions" aria-label="Show only paused sessions" aria-pressed="false"></button>
       <button id="worktree-filter" type="button" data-tooltip="Show only worktree sessions" aria-label="Show only worktree sessions" aria-pressed="false"></button>
       <button id="sibling-filter" type="button" data-tooltip="Show only sessions with siblings" aria-label="Show only sessions with siblings" aria-pressed="false"></button>
       <button id="pr-filter" type="button" data-tooltip="Show only sessions with a PR" aria-label="Show only sessions with a PR" aria-pressed="false"></button>
@@ -58,6 +59,7 @@ export const filterStatus = fromMarkup(`
 const pinnedFilter = byId(filterPanel, 'pinned-filter', HTMLButtonElement);
 const openFilter = byId(filterPanel, 'open-filter', HTMLButtonElement);
 const liveFilter = byId(filterPanel, 'live-filter', HTMLButtonElement);
+const pausedFilter = byId(filterPanel, 'paused-filter', HTMLButtonElement);
 const worktreeFilter = byId(filterPanel, 'worktree-filter', HTMLButtonElement);
 const siblingFilter = byId(filterPanel, 'sibling-filter', HTMLButtonElement);
 const prFilter = byId(filterPanel, 'pr-filter', HTMLButtonElement);
@@ -98,6 +100,9 @@ const OPEN_ICON = strokeIcon(13, '<rect x="2.6" y="3.4" width="10.8" height="9.2
 // The running filter's mark: a filled dot inside a ring — the same "live" language the status dots speak, rather than a play triangle, which would read as "start these".
 const LIVE_ICON = strokeIcon(13, '<circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />');
 
+// The paused filter's mark: two bars, the paused status dot's own language — that dot is drawn in CSS (base.css), so there is no shared SVG to take, and this draws the same two bars at the pills' weight.
+const PAUSED_ICON = strokeIcon(13, '<path d="M6 4v8" /><path d="M10 4v8" />');
+
 // The archived filter's mark: a lidded box.
 // Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
 const ARCHIVE_ICON = strokeIcon(13, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
@@ -128,6 +133,9 @@ export function passesFilters(session: SessionSummary, view: View<'pinned' | 'ar
     live: filters.live
       ? new Set(view.tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)))
       : undefined,
+    pausedOnly: filters.paused,
+    // Through `isPaused`, as the live strip and the dot ask it, so a tab whose pause is still waiting for claude to leave is not paused here either.
+    paused: filters.paused ? new Set(view.tabs.filter(isPaused).map((t) => entityKey(t.session))) : undefined,
     worktreeOnly: filters.worktree,
     goneOnly: filters.gone,
     siblingOnly: filters.siblings,
@@ -387,6 +395,7 @@ const FILTER_PILLS: FilterPill[] = [
   { button: pinnedFilter, icon: PINNED_ICON, key: 'pinned' },
   { button: openFilter, icon: OPEN_ICON, key: 'open' },
   { button: liveFilter, icon: LIVE_ICON, key: 'live' },
+  { button: pausedFilter, icon: PAUSED_ICON, key: 'paused' },
   { button: worktreeFilter, icon: WORKTREE_ICON, key: 'worktree' },
   { button: siblingFilter, icon: SIBLING_ICON, key: 'siblings' },
   { button: prFilter, icon: PR_ICON, key: 'prs' },

@@ -43,6 +43,23 @@ for (const [pill, name, shows] of [
   });
 }
 
+// Paused is a tab's mark with no claude behind it (`isPaused`), the same rule the live strip lists paused tabs by.
+test('the paused pill narrows the list to the sessions whose tab rests paused, and a second press undoes it', async ({ app, page }) => {
+  const paused = session({ id: '00000000-0000-4000-8000-0000000000ca', title: 'Set aside' });
+  const all = [...everyone, paused];
+  await app.boot({ ...fixture, sessions: all, openSessions: [tabbed.id, paused.id], pausedSessions: [paused.id], history: { [tabbed.id]: [], [paused.id]: [] } });
+  await page.locator('#filter-toggle').click();
+  const button = page.locator('#paused-filter');
+  await expect(button).toHaveAttribute('aria-label', 'Show only paused sessions');
+
+  await button.click();
+  await expect(button).toHaveAttribute('aria-pressed', 'true');
+  // An open tab that is not paused is left out.
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(paused));
+  await button.click();
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(...all));
+});
+
 test('the live pill narrows the list to the sessions running, and a second press undoes it', async ({ app, page }) => {
   await app.boot(fixture);
   await page.locator('#filter-toggle').click();

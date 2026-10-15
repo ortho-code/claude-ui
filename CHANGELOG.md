@@ -68,6 +68,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A panel type of your own can declare an option whose value is a list, `"kind": "list"`, of texts or of objects of the `fields` it declares, such as several buttons, each with its own word and prompt.
   Its script gets the list as JSON.
 - A row of a panel type of your own shows its first action as a button and the rest in a menu behind a ⋮ at its end, and a list's `buttons` says how many show as buttons.
+- A filter for paused sessions, beside the live one.
 
 ### Changed
 

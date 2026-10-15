@@ -254,6 +254,8 @@ export interface UiState {
     pinned: boolean;
     open: boolean;
     live: boolean;
+    /** Sessions whose tab rests paused. */
+    paused: boolean;
     worktree: boolean;
     /** Sessions whose folder is gone. */
     gone: boolean;

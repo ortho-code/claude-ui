@@ -238,6 +238,7 @@ describe('sessionPasses', () => {
     pinnedOnly: false,
     openOnly: false,
     liveOnly: false,
+    pausedOnly: false,
     worktreeOnly: false,
     goneOnly: false,
     siblingOnly: false,
@@ -307,6 +308,16 @@ describe('sessionPasses', () => {
     expect(sessionPasses(session({ id: 's1' }), { ...base, liveOnly: true, live })).toBe(true);
     // A session with a tab but no process is not live, so it is filtered out too.
     expect(sessionPasses(session({ id: 's2' }), { ...base, liveOnly: true, live })).toBe(false);
+  });
+
+  it('shows only sessions whose tab rests paused when asked, and none with live as well', () => {
+    const paused = new Set(['s1']);
+    const live = new Set(['s2']);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, pausedOnly: true, paused })).toBe(true);
+    expect(sessionPasses(session({ id: 's2' }), { ...base, pausedOnly: true, paused })).toBe(false);
+    // A paused tab has no claude and a live one has, so no session is both.
+    expect(sessionPasses(session({ id: 's1' }), { ...base, pausedOnly: true, paused, liveOnly: true, live })).toBe(false);
+    expect(sessionPasses(session({ id: 's2' }), { ...base, pausedOnly: true, paused, liveOnly: true, live })).toBe(false);
   });
 
   it('separates having a tab from being live, which are different questions', () => {

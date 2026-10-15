@@ -239,6 +239,11 @@ export interface FilterCriteria {
    * Narrower than openOnly, which counts a cold tab too.
    */
   liveOnly: boolean;
+  /**
+   * Show only sessions whose tab rests PAUSED — set aside, with no claude behind it.
+   * No session passes it and liveOnly together, since live wants a claude behind the tab: the two on at once show nothing.
+   */
+  pausedOnly: boolean;
   worktreeOnly: boolean;
   /** Show only sessions that cannot run because their folder is gone — the set worth finding to clean up, or to put a folder back for. */
   goneOnly: boolean;
@@ -259,6 +264,8 @@ export interface FilterCriteria {
   open?: ReadonlySet<string>;
   /** Keys of the live sessions; only consulted when liveOnly is set. */
   live?: ReadonlySet<string>;
+  /** Keys of the sessions whose tab rests paused; only consulted when pausedOnly is set. */
+  paused?: ReadonlySet<string>;
   /** Set or Map keyed by conversationId; only membership is used. */
   archived: { has(key: string): boolean };
   pendingDeletes: ReadonlySet<string>;
@@ -284,6 +291,7 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   if (c.pinnedOnly && !c.pinned.has(key)) return false;
   if (c.openOnly && !c.open?.has(key)) return false;
   if (c.liveOnly && !c.live?.has(key)) return false;
+  if (c.pausedOnly && !c.paused?.has(key)) return false;
   if (c.worktreeOnly && worktreeMarkState(session) === null) return false;
   // The same question the row asks itself, through the same function — a second rule for "is this dead" would be able to disagree with the dimming.
   if (c.goneOnly && unstartableReason(session) === null) return false;
