@@ -6,7 +6,7 @@ import { expect, test } from '../../../../support/harness';
 import { chooseProject, group, groupHeading, groupHeadings, headings, project, projectHeading, row, titles } from '../../../../support/window';
 
 // The list is projects in the order you set, each holding its groups in registry order and then its loose rows, with pins floated inside their own section (docs/architecture.md § App-side metadata and session groups).
-// Folds are kept, and come in two kinds (§ Reopening the way you left it): the ones you made, stored, and the ones made while a filter is on, which last as long as the filter.
+// Folds are kept, and come in two kinds (§ Reopening the way you left it): the ones you made, stored, and the ones made while a filter is on, which last until you change the filter or end it.
 const OTHER = `${HOME}/projects/other`;
 const newer = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'Loose newer' });
 const inAlpha = session({ id: '00000000-0000-4000-8000-0000000000a2', title: 'In Alpha' });
@@ -150,7 +150,20 @@ test('collapse-all is unavailable while a filter is on, says why, and a press on
   await expect(toggle).toHaveAttribute('data-tooltip', 'Collapse all');
 });
 
-test('a filter opens every fold, a fold made under it lasts as long as the filter, and your own folds come back after', async ({ app, page }) => {
+// New results can sit in a section folded for the old ones, so a fold made under a filter lasts only until the filter changes.
+test('a change of the filter opens a fold made under the filter before it', async ({ app, page }) => {
+  await app.boot(fixture);
+  await page.locator('#filter-toggle').click();
+  await page.locator('#search').fill('alpha');
+  await projectHeading(page, 'demo').click();
+  await expect(project(page, 'demo')).toHaveClass(/\bcollapsed\b/);
+
+  await page.locator('#search').fill('alph');
+  await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
+  await expect(row(page, inAlpha.title)).toBeVisible();
+});
+
+test('a filter opens every fold, a fold made under it goes with the filter, and your own folds come back after', async ({ app, page }) => {
   await app.boot({ ...fixture, ...withUi({ collapsedGroups: ['g-alpha'] }) });
   await expect(group(page, 'Alpha')).toHaveClass(/\bcollapsed\b/);
 

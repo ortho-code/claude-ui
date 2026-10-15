@@ -40,7 +40,7 @@ export function toggleFold(kind: 'projects' | 'groups', key: string): void {
 export function applyFolds(view: View<'folds' | 'filter' | 'activeProject'>): void {
   const { activeProject } = view;
   for (const [repoRoot, els] of projectSections.entries()) {
-    // While filtering, force projects open so matches inside a collapsed one are visible; the stored collapse state is left untouched, so it returns when the filter clears.
+    // While filtering, the filter's own folds are in play, which every change you make to the filter clears, so a fold made for one filter never hides the results of another; your own folds wait untouched underneath (`Folds`).
     const collapsed = activeProject === null && foldedProjects(view).has(repoRoot);
     els.section.classList.toggle('collapsed', collapsed);
     // A project view can't collapse its one project, so it shows no caret and no clickable styling.

@@ -290,7 +290,7 @@ export interface UiState {
   collapsedGroups: string[];
   /**
    * The folds made WHILE filtering, which are a separate state from the two above.
-   * Filtering opens the whole tree so a match is never hidden, and folding from there is a way through the results rather than a statement about how the sidebar should look — so it applies only while a filter is on, and the moment one stops the pair is emptied.
+   * Filtering opens the whole tree so a match is never hidden, and folding from there is a way through the results rather than a statement about how the sidebar should look — so it applies only while a filter is on, and the pair is emptied the moment you change the filter or end it.
    * Stored all the same, because the filter itself is restored: coming back to the same results and not the same view would be the very thing this exists to prevent.
    */
   filterCollapsedProjects: string[];

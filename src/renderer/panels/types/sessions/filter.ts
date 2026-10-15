@@ -152,12 +152,12 @@ function setDatePopover(open: boolean): void {
 
 /**
  * Set the filter: the list, its count and its chips follow the store.
- * A filter that ends takes the folds made under it (`Folds`), in the same change: they have served their purpose.
- * Every way a filter ends comes here — the last character deleted, a preset back to Any, a chip's ×, Clear.
+ * Any change of the filter takes the folds made under it (`Folds`), in the same change: new results can sit in a section folded for the old ones, and a filter that ends has no use for them at all.
+ * Every change you make to the filter comes here — a character typed or deleted, a pill, a preset, the calendar, a chip's ×, Clear; the launch restores the filter directly, with the folds stored beside it.
  */
 function putFilter(next: FilterState): void {
   const { folds } = store.get();
-  store.set({ filter: next, ...(isFiltering({ filter: next }) ? {} : { folds: { ...folds, filterProjects: new Set(), filterGroups: new Set() } }) });
+  store.set({ filter: next, folds: { ...folds, filterProjects: new Set(), filterGroups: new Set() } });
 }
 
 /** Change part of the filter. */

@@ -83,7 +83,7 @@ export interface Folds {
    *
    * Filtering opens the whole tree, so that a match inside something you had folded away is not hidden from you.
    * Folding from there is a way THROUGH the results — shut a project you have already looked at — rather than a statement about how you like the sidebar arranged.
-   * So these last exactly as long as the filter, and leave the folds you made without a filter untouched underneath.
+   * So these last only while the filter stays as you set it — any change you make to it opens the whole tree again, since new results can sit in a section folded for the old ones — and leave the folds you made without a filter untouched underneath.
    *
    * They are stored all the same: the filter itself is restored on the next launch, and coming back to the same results without the same view is precisely what remembering the view is for.
    */
