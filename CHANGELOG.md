@@ -69,6 +69,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Its script gets the list as JSON.
 - A row of a panel type of your own shows its first action as a button and the rest in a menu behind a ⋮ at its end, and a list's `buttons` says how many show as buttons.
 - A filter for paused sessions, beside the live one.
+- Hiding a project from the live strip, from the eye on its heading: its sessions leave the strip, and a Hidden line at its foot counts the hidden projects and still shows what they are asking of you.
+  It stays hidden across a restart, and comes back when you pick it from that line's menu, or open or start a session in it.
 
 ### Changed
 

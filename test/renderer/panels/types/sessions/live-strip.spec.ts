@@ -1,11 +1,11 @@
-import type { Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../src/shared/defaults';
 import type { SessionSummary } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
 import { clickAcross } from '../../../support/press';
-import { chooseProject, row, strip, stripJump, stripLines, stripNames, stripRow, tab, tabLabel, tabs } from '../../../support/window';
+import { chooseProject, projectHeading, row, strip, stripHeading, stripHidden, stripJump, stripLines, stripNames, stripRow, tab, tabLabel, tabs } from '../../../support/window';
 
 // The strip lists what is RUNNING, and what you paused, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
 // It keeps still: a session writing a message or waiting moves no row, which recency- or attention-ordering did (6f04c95).
@@ -298,6 +298,122 @@ test('the strip folds from its line and opens again, and the fold is kept', asyn
   await expect(list).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect.poll(async () => (await app.saved())?.stripExpanded).toBe(true);
+});
+
+// A project you want out of sight for a while leaves the strip from the eye on its heading, is counted on a Hidden line at its foot, and comes back when picked from that line's menu.
+// Its sessions are not listed anywhere in the strip while it is hidden: a fold showing them was taken for the strip's own.
+test("a project's eye hides it from the strip, counted on the Hidden line, and picking it from that line's menu shows it again", async ({ app, page }) => {
+  await app.boot({ sessions: [loose, elsewhere], projectOrder: [PROJECT, OTHER], activeProject: null, openSessions: [loose.id, elsewhere.id], pausedSessions: [loose.id, elsewhere.id], history: { [loose.id]: [], [elsewhere.id]: [] } });
+  await expect(stripHidden(page)).toHaveCount(0);
+  await stripHeading(page, 'other').hover();
+  const eye = stripHeading(page, 'other').locator('.strip-eye');
+  await expect(eye).toHaveAttribute('aria-label', 'Hide from the live strip');
+
+  await eye.click();
+  await expect(stripLines(page)).toHaveText(['demo', loose.title]);
+  await expect(strip(page).locator('.strip-item', { hasText: elsewhere.title })).toHaveCount(0);
+  await expect(stripHidden(page)).toHaveText('1 project hidden');
+  // What it hides is still counted on the strip's own line.
+  await expect(page.locator('#strip-label')).toHaveText('2 paused');
+  await expect.poll(async () => (await app.saved())?.stripHiddenProjects).toEqual([OTHER]);
+
+  await stripHidden(page).click();
+  const item = page.locator('.kebab-menu .menu-row');
+  await expect(item.locator('.menu-item-label')).toHaveText(['other']);
+  await expect(item.locator('.menu-item-count')).toHaveText(['1']);
+  // The line holds its hover look while its menu is up, as the icon buttons that open a menu do.
+  await item.hover();
+  expect((await lookOf(stripHidden(page))).background).toBe(await token(page, '--surface-hover'));
+
+  await item.click();
+  await expect(stripLines(page)).toHaveText(['demo', loose.title, 'other', elsewhere.title]);
+  await expect(stripHidden(page)).toHaveCount(0);
+  await expect.poll(async () => (await app.saved())?.stripHiddenProjects).toEqual([]);
+});
+
+test("a listed project's eye shows only while its heading is pointed at, or the keyboard reaches it", async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], history: { [loose.id]: [] } });
+  const eye = stripHeading(page, 'demo').locator('.strip-eye');
+  await expect(eye).toHaveCSS('opacity', '0');
+  await stripHeading(page, 'demo').hover();
+  await expect(eye).toHaveCSS('opacity', '1');
+  await page.mouse.move(0, 0);
+  await expect(eye).toHaveCSS('opacity', '0');
+
+  // Back from the row under it, with the keyboard: Tab does not step over it.
+  await stripJump(page, loose.title).focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(eye).toBeFocused();
+  await expect(eye).toHaveCSS('opacity', '1');
+});
+
+// Hidden is not silenced: whatever its projects ask of you shows on its line, as each one's does in the switcher.
+test("the Hidden line carries its projects' roll-up, so a session waiting there still reaches you", async ({ app, page }) => {
+  await app.boot({ sessions: [loose, elsewhere], projectOrder: [PROJECT, OTHER], activeProject: null, openSessions: [loose.id, elsewhere.id], history: { [loose.id]: [], [elsewhere.id]: [] } });
+  for (const s of [elsewhere, loose]) await tabLabel(page, s.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  await stripHeading(page, 'other').hover();
+  await stripHeading(page, 'other').locator('.strip-eye').click();
+  await expect(page.locator('#strip-hidden-badge')).toBeHidden();
+
+  expect(await app.emit('onSessionStatus', elsewhere.id, 'waiting', '', 'Notification')).toBe(1);
+  await expect(page.locator('#strip-hidden-badge')).toHaveClass(/\bwaiting\b/);
+  await expect(page.locator('#strip-hidden-badge')).toBeVisible();
+  // And on its entry in the menu, which says which project it is.
+  await stripHidden(page).click();
+  await expect(page.locator('.kebab-menu .menu-row', { hasText: 'other' }).locator('.nudge')).toHaveClass(/\bwaiting\b/);
+});
+
+// What a restart brings back paused is what the hide is for: the launch restoring the tabs, the one on show among them, is not an open, and nor is a project switch selecting its tab.
+const hiddenAtLaunch = {
+  sessions: [loose, elsewhere],
+  projectOrder: [PROJECT, OTHER],
+  activeProject: null,
+  openSessions: [loose.id, elsewhere.id],
+  pausedSessions: [loose.id, elsewhere.id],
+  activeSession: elsewhere.id,
+  history: { [loose.id]: [], [elsewhere.id]: [] },
+  uiState: { ...defaultUi(), stripHiddenProjects: [OTHER] },
+};
+
+test('a project hidden last time comes back hidden, and switching to it leaves it so', async ({ app, page }) => {
+  await app.boot(hiddenAtLaunch);
+  await expect(tab(page, elsewhere.title)).toHaveClass(/\bactive\b/);
+  await expect(stripLines(page)).toHaveText(['demo', loose.title]);
+  await expect(stripHidden(page)).toHaveText('1 project hidden');
+
+  await chooseProject(page, 'other');
+  await expect(page.locator('#switcher-name')).toHaveText('other');
+  await expect(stripLines(page)).toHaveText(['demo', loose.title]);
+  await expect(stripHidden(page)).toBeVisible();
+  expect(await app.calls('startTerminal')).toEqual([]);
+});
+
+// Going back to work in a hidden project, wherever you do it from, is the end of wanting it out of sight.
+const opens: [string, (page: Page) => Promise<void>][] = [
+  ['its row in the list', (page) => row(page, elsewhere.title).click()],
+  ['its tab', (page) => tabLabel(page, elsewhere.title).click()],
+  ["the pane's Resume", (page) => page.locator('.pane-placeholder button', { hasText: 'Resume' }).click()],
+  ['a new session in it', (page) => projectHeading(page, 'other').locator('.project-add').click()],
+];
+for (const [how, open] of opens) {
+  test(`opening a session of a hidden project shows it in the strip again: ${how}`, async ({ app, page }) => {
+    await app.boot(hiddenAtLaunch);
+    await expect(stripHidden(page)).toBeVisible();
+    await open(page);
+    await expect(stripHidden(page)).toHaveCount(0);
+    await expect(stripHeading(page, 'other')).toBeVisible();
+    await expect.poll(async () => (await app.saved())?.stripHiddenProjects).toEqual([]);
+  });
+}
+
+// The eye's box is taller than the heading's line of text, and taken alone it made every heading 3px taller, eye shown or not.
+test("a strip heading is as tall with its eye as without it", async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], history: { [loose.id]: [] } });
+  const heading = stripHeading(page, 'demo');
+  const withEye = (await heading.boundingBox())!.height;
+  await page.addStyleTag({ content: '.strip-eye { display: none !important; }' });
+  expect((await heading.boundingBox())!.height).toBe(withEye);
 });
 
 test('a strip folded last time comes back folded', async ({ app, page }) => {

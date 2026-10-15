@@ -1,13 +1,14 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
-import { entityKey, orderAsTabs, sessionLabel, stripLine, tabButtonState, type SwitcherModel } from '../../../logic';
-import { kebabButton } from '../../../menu';
+import { entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButtonState, type NudgeStatus, type SwitcherModel } from '../../../logic';
+import { kebabButton, openMenu } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
+import { hideFromStrip } from '../../../state/strip';
 import { isPaused, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
-import { chevronIcon, tabButtonIcon } from '../../../svg';
+import { chevronIcon, eyeIcon, tabButtonIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
@@ -18,6 +19,7 @@ import './live-strip.css';
 /**
  * The live strip, at the foot of the sidebar: every running session and every paused tab, wherever it is, under a line badged with the switcher's roll-up that folds the rows away.
  * A row jumps to its session, its dot marks it read, and its button is its tab's, each through the sidebar's host; the row of the session on show is marked; the fold is the store's (`stripExpanded`).
+ * A project's heading hides it from the strip (state/strip.ts): its heading and rows leave, and a Hidden line at the list's foot says how many projects are hidden and what they ask of you, and lists them in a menu whose pick shows one again.
  */
 
 /** The strip, built here and placed by the sidebar (index.ts). */
@@ -35,6 +37,32 @@ const stripBadge = byId(liveStrip, 'strip-badge');
 const stripLabel = byId(liveStrip, 'strip-label');
 const stripList = byId(liveStrip, 'strip-list');
 
+/**
+ * The Hidden line, placed at the list's foot while a hidden project has something in the strip: its dot first and then its words, as the strip's own line has them.
+ * A menu rather than a fold: a hidden project's sessions are never listed, since a second caret in the strip, folding the hidden projects open, was taken for the strip's own fold.
+ */
+const hiddenLine = fromMarkup(`
+  <button id="strip-hidden" type="button" aria-haspopup="menu">
+    <span id="strip-hidden-badge" class="nudge" hidden></span>
+    <span id="strip-hidden-label"></span>
+  </button>`, HTMLButtonElement);
+const hiddenBadge = byId(hiddenLine, 'strip-hidden-badge');
+const hiddenLabel = byId(hiddenLine, 'strip-hidden-label');
+setTooltip(hiddenLine, 'Pick a project to show it in the strip again');
+// Listed afresh at each press, for the strip as it is then.
+hiddenLine.addEventListener('click', () => {
+  const view = store.get();
+  openMenu(
+    hiddenLine,
+    hiddenProjects(switcherModel(view), stripProjects(switcherPool(view), view).ordered, view).map(({ project, badge }) => ({
+      label: project.name,
+      count: project.items.length,
+      badge,
+      onSelect: () => hideFromStrip(project.repoRoot, false),
+    })),
+  );
+});
+
 /** A strip row and the parts each render writes, built once per session (`buildRow`) and kept while it is listed. */
 interface StripRow {
   row: HTMLElement;
@@ -49,22 +77,37 @@ interface StripRow {
 const stripRows = new Keyed<StripRow>((kept) => kept.row);
 const stripHeadings = new Keyed<StripHeading>((kept) => kept.heading);
 
-/** A project's heading in the strip: its name, and the mark of a project whose folder is gone. */
+/** A project's heading in the strip, and the parts each render writes: its name and the mark of a project whose folder is gone; the eye that hides it is set once, when it is built. */
 interface StripHeading {
   heading: HTMLElement;
   name: HTMLElement;
   mark: HTMLElement;
 }
 
-function buildHeading(): StripHeading {
+function buildHeading(repoRoot: string): StripHeading {
   const heading = document.createElement('div');
   heading.className = 'strip-project';
   const name = document.createElement('span');
   const mark = document.createElement('span');
   mark.className = 'gone-mark';
   mark.hidden = true;
-  heading.append(name, mark);
+  // Shown on the heading's hover (live-strip.css); the Hidden line's menu is the way back.
+  const eye = document.createElement('button');
+  eye.type = 'button';
+  eye.className = 'icon-btn compact strip-eye';
+  setMarkup(eye, eyeIcon(14));
+  setTooltip(eye, 'Hide from the live strip');
+  eye.setAttribute('aria-label', 'Hide from the live strip');
+  eye.addEventListener('click', () => hideFromStrip(repoRoot, true));
+  heading.append(name, mark, eye);
   return { heading, name, mark };
+}
+
+/** Write what a kept heading shows for its project now: its name, and whether its folder is gone. */
+function updateHeading({ name, mark }: StripHeading, project: { repoRoot: string; name: string }, view: View<'sessions' | 'tabs'>): void {
+  name.textContent = project.name;
+  // Marked as everywhere a project is named: a project's folder can be gone under a paused tab, or vanish while a session runs.
+  markProjectGone(project.repoRoot, projectGone(project.repoRoot, view), name, mark, 11);
 }
 
 /** A session's row, built once: its handlers act on the session by its id when pressed, and everything they show is written by each render (`updateRow`). */
@@ -136,12 +179,15 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   setUnavailable(stop, disabled ? tooltip : null, tooltip);
 }
 
-function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' |'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded'>): void {
-  const { stripExpanded } = view;
-  const overall = model.all.badge;
-  stripBadge.className = badgeClass(overall);
-  stripBadge.hidden = !overall;
+/** A project as the strip has it: its sessions in the strip, in their order. */
+interface StripProject {
+  repoRoot: string;
+  name: string;
+  items: SessionSummary[];
+}
 
+/** What the strip holds: its projects in order, each with its sessions, and which of those sessions are paused. */
+function stripProjects(pool: SessionSummary[], view: View<'groupState' | 'projectNames' | 'projectOrder' | 'tabs'>): { ordered: StripProject[]; paused: ReadonlySet<string> } {
   // What is RUNNING, wherever it is running, and what you PAUSED — not what is nudging.
   // Membership used to be "has a live nudge", which meant marking a dot read deleted the row: muting said "erase this" when it should have said "seen it".
   // Running is also the only rule that closes the gap this strip exists for: scoped to one project, a live session in another is invisible in the tab bar (filtered to the active project) and out of scope in the list, and the switcher only ever gets you to a PROJECT, never back to a SESSION.
@@ -170,6 +216,26 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
     name: projName(repoRoot, view),
     items: clusters.filter((c) => c.repoRoot === repoRoot).flatMap((c) => c.items),
   }));
+  return { ordered, paused };
+}
+
+/**
+ * The strip's projects you hid, in its order, each with its roll-up, the one the switcher gives it: what the Hidden line counts and badges, and what its menu lists.
+ * The roll-up is what makes hiding safe: a session waiting in a hidden project still reaches you, on the line, though its row is not listed.
+ */
+function hiddenProjects(model: SwitcherModel, ordered: StripProject[], view: View<'stripHidden'>): { project: StripProject; badge: NudgeStatus }[] {
+  const badges = new Map(model.projects.map((project) => [project.repoRoot, project.badge]));
+  return ordered.filter((project) => view.stripHidden.has(project.repoRoot)).map((project) => ({ project, badge: badges.get(project.repoRoot) ?? null }));
+}
+
+function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' |'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden'>): void {
+  const { stripExpanded } = view;
+  const overall = model.all.badge;
+  stripBadge.className = badgeClass(overall);
+  stripBadge.hidden = !overall;
+
+  const { ordered, paused } = stripProjects(pool, view);
+  // The line counts every row, hidden or not, as its badge rolls up every project: hiding changes what is listed, not what is summed up.
   const items = ordered.flatMap((g) => g.items);
   const total = items.length;
   const running = items.filter((s) => !paused.has(s.id));
@@ -195,22 +261,27 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
   const { groups, groupOf } = view.groupState;
   // The session on show, which its row says, as the tab bar marks its tab and the list its row: without it the row you are already in looks like any other, and pressing it seems to do nothing.
   const onShow = tabOnShow(view)?.session.id;
-  placeChildren(
-    stripList,
-    ordered.flatMap((project) => {
-      const { heading, name, mark } = stripHeadings.draw(project.repoRoot, buildHeading);
-      name.textContent = project.name;
-      // Marked as everywhere a project is named: a project's folder can be gone under a paused tab, or vanish while a session runs.
-      markProjectGone(project.repoRoot, projectGone(project.repoRoot, view), name, mark, 11);
-      const rows = project.items.map((session) => {
-        const parts = stripRows.draw(entityKey(session), buildRow);
-        const groupName = groups.find((g) => g.id === groupOf[entityKey(session)])?.name || undefined;
-        updateRow(parts, session, groupName, session.id === onShow, view);
-        return parts.row;
-      });
-      return [heading, ...rows];
-    }),
-  );
+  const hidden = hiddenProjects(model, ordered, view);
+  placeChildren(stripList, [
+    ...ordered
+      .filter((project) => !view.stripHidden.has(project.repoRoot))
+      .flatMap((project) => {
+        const parts = stripHeadings.draw(project.repoRoot, buildHeading);
+        updateHeading(parts, project, view);
+        const rows = project.items.map((session) => {
+          const row = stripRows.draw(entityKey(session), buildRow);
+          const groupName = groups.find((g) => g.id === groupOf[entityKey(session)])?.name || undefined;
+          updateRow(row, session, groupName, session.id === onShow, view);
+          return row.row;
+        });
+        return [parts.heading, ...rows];
+      }),
+    ...(hidden.length > 0 ? [hiddenLine] : []),
+  ]);
+  hiddenLabel.textContent = `${hidden.length} ${hidden.length === 1 ? 'project' : 'projects'} hidden`;
+  const hiddenNudge = strongestNudge(hidden.map(({ badge }) => badge));
+  hiddenBadge.className = badgeClass(hiddenNudge);
+  hiddenBadge.hidden = !hiddenNudge;
   // What this render did not draw is no longer running or paused as that session (stopped, unpaused, closed, or cleared into a new one), or left the pool (archived, being deleted), or its project has nothing left here.
   stripRows.sweep();
   stripHeadings.sweep();
@@ -223,7 +294,7 @@ stripToggle.addEventListener('click', () => store.set({ stripExpanded: !store.ge
 stripToggle.querySelector('.strip-chev')!.innerHTML = chevronIcon('down', 11);
 
 /** What the strip draws from the store. */
-type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' |'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded'>;
+type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' |'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden'>;
 
 /**
  * The strip follows the store, its line badged with the switcher's own roll-up (`switcherModel`) and its rows drawn from the switcher's pool.

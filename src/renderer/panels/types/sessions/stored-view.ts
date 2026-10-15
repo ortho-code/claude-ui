@@ -17,6 +17,7 @@ export function sidebarSnapshot(view: StoredView = store.get()): Omit<UiState, '
     ...view.filter,
     filterPanelOpen: view.filterPanelOpen,
     stripExpanded: view.stripExpanded,
+    stripHiddenProjects: [...view.stripHidden],
     collapsedProjects: [...folds.projects],
     collapsedGroups: [...folds.groups],
     filterCollapsedProjects: [...folds.filterProjects],
@@ -45,6 +46,7 @@ export async function restoreSidebar(state: UiState): Promise<{ scrollTop: numbe
     // Closing the panel over a filter you have deliberately left on is a choice to keep the results and reclaim the space; a shut panel folds down to chips naming what is on, so the list never passes for the whole one.
     filterPanelOpen: state.filterPanelOpen,
     stripExpanded: state.stripExpanded,
+    stripHidden: new Set(state.stripHiddenProjects),
   };
   return { scrollTop: state.scrollTop, view };
 }

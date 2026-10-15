@@ -64,5 +64,9 @@ const STAR_PATH =
 export const PIN_ICON = strokeIcon(14, `<path d="${STAR_PATH}" />`);
 export const PINNED_ICON = strokeIcon(14, `<path d="${STAR_PATH}" fill="currentColor" />`);
 
+// The eye: a panel's `eye` icon, and the live strip's button that hides a project from it, one drawing for both.
+export const EYE_PATH = '<path d="M1.6 8S4 3.8 8 3.8 14.4 8 14.4 8 12 12.2 8 12.2 1.6 8 1.6 8z" /><circle cx="8" cy="8" r="2" />';
+export const eyeIcon = (size: number): string => strokeIcon(size, EYE_PATH);
+
 // A note's mark: a page with a line of writing on it.
 export const NOTE_ICON = strokeIcon(13, '<path d="M4 2.5h8v11H4z" /><path d="M6.25 6h3.5M6.25 8.75h3.5" />');

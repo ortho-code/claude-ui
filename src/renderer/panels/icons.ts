@@ -7,7 +7,7 @@
  * Pure strings, so the validator can check a name without a DOM.
  */
 
-import { strokeIcon } from '../svg';
+import { EYE_PATH, strokeIcon } from '../svg';
 
 export const ICONS = {
   sessions:
@@ -19,7 +19,7 @@ export const ICONS = {
   list: '<path d="M3 4h10M3 8h10M3 12h6.5" />',
   tree: '<path d="M2.5 3.5h6M4.5 3.5v8.5M4.5 8h3M4.5 12h3M9.5 8h4M9.5 12h4" />',
   check: '<path d="M3 8.6l3.2 3.2L13 4.8" />',
-  eye: '<path d="M1.6 8S4 3.8 8 3.8 14.4 8 14.4 8 12 12.2 8 12.2 1.6 8 1.6 8z" /><circle cx="8" cy="8" r="2" />',
+  eye: EYE_PATH,
   bug: '<rect x="5" y="5" width="6" height="8.2" rx="3" /><path d="M8 7.5v5M5 8.5H2.6M13.4 8.5H11M5.2 11.4l-2 1.4M10.8 11.4l2 1.4M6.2 5.2L4.8 3.4M9.8 5.2l1.4-1.8" />',
   book: '<path d="M2.4 3.6h4A1.6 1.6 0 0 1 8 5.2v8a1.6 1.6 0 0 0-1.6-1.6h-4zM13.6 3.6h-4A1.6 1.6 0 0 0 8 5.2v8a1.6 1.6 0 0 1 1.6-1.6h4z" />',
   clock: '<circle cx="8" cy="8" r="6" /><path d="M8 4.6V8l2.4 1.6" />',

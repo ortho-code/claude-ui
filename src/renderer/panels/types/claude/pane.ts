@@ -1,11 +1,12 @@
 import { projectGoneReason, sessionLabel, unstartableReason } from '../../../logic';
 import { store, type TabState, type View } from '../../../state/app';
+import { showInStrip } from '../../../state/strip';
 import { projectGone, tabOnShow, visibleTabs } from '../../../state/views';
 import { setUnavailable, unavailable } from '../../../unavailable';
 import { element, fromMarkup } from '../../../dom';
 import { HistoryBar } from './history/bar';
 import { HistoryView } from './history/view';
-import { activateTab, isOnShow, terminalOf, terminalsEl } from './terminals';
+import { activateTab, isOnShow, tabOf, terminalOf, terminalsEl } from './terminals';
 // Its Resume, in its own actions and in the history's note.
 import '../../../decisive-button.css';
 import './pane.css';
@@ -140,7 +141,11 @@ function resumeButton(tab: TabState): HTMLButtonElement {
   button.textContent = 'Resume';
   setUnavailable(button, unstartableReason(tab.session), 'Start claude in this session again');
   button.addEventListener('click', () => {
-    if (!unavailable(button) && isOnShow(token)) activateTab(token);
+    if (unavailable(button) || !isOnShow(token)) return;
+    // Starting it, as opening it from anywhere, puts its project back in the strip (state/strip.ts).
+    const shown = tabOf(token);
+    if (shown) showInStrip(shown.session.repoRoot);
+    activateTab(token);
   });
   return button;
 }

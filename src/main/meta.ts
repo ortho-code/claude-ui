@@ -212,6 +212,7 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
     filterPanelOpen: bool(ui.filterPanelOpen, base.filterPanelOpen),
     // `stripExpanded` was stored as `footerExpanded` before the strip had one name; read the old key as its fallback so an existing file keeps the strip open or shut.
     stripExpanded: bool(ui.stripExpanded, bool(ui.footerExpanded, base.stripExpanded)),
+    stripHiddenProjects: strings(ui.stripHiddenProjects),
     collapsedProjects: strings(ui.collapsedProjects),
     collapsedGroups: strings(ui.collapsedGroups),
     filterCollapsedProjects: strings(ui.filterCollapsedProjects),

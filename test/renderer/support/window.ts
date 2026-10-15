@@ -68,6 +68,13 @@ export const stripRow = (page: Page, title: string): Locator => strip(page).loca
 /** The strip row's half that holds `title` and takes you to its session. */
 export const stripJump = (page: Page, title: string): Locator => stripRow(page, title).locator('.strip-item-jump');
 
+/** The strip's Hidden line, at its list's foot, whose press opens a menu of the projects hidden from the strip. */
+export const stripHidden = (page: Page): Locator => page.locator('#strip-hidden');
+
+/** The heading of the project named exactly `name` in the strip. */
+export const stripHeading = (page: Page, name: string): Locator =>
+  page.locator('#strip-list .strip-project', { has: page.locator(':scope > span:first-child', { hasText: new RegExp(`^${name}$`) }) });
+
 /** Every tab in the tab bar. */
 export const tabs = (page: Page): Locator => page.locator('#tabbar .tab');
 

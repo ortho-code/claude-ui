@@ -568,6 +568,22 @@ describe('stripExpanded', () => {
   });
 });
 
+describe('stripHiddenProjects', () => {
+  it('hides nothing on a first run', async () => {
+    expect((await getUiState()).stripHiddenProjects).toEqual([]);
+  });
+
+  it('remembers the projects hidden from the strip', async () => {
+    await setUiState({ ...(await getUiState()), stripHiddenProjects: ['/a', '/b'] });
+    expect((await getUiState()).stripHiddenProjects).toEqual(['/a', '/b']);
+  });
+
+  it('keeps only the roots it can read', async () => {
+    await writeMetaFile({ ui: { stripHiddenProjects: ['/a', 3, null, '/b'] }, version: 3 });
+    expect((await getUiState()).stripHiddenProjects).toEqual(['/a', '/b']);
+  });
+});
+
 describe('windowBounds', () => {
   it('has nothing stored until the window has been somewhere', async () => {
     expect(await getWindowBounds()).toBeNull();
@@ -609,6 +625,7 @@ describe('ui state', () => {
     dateTo: 1_700_500_000_000,
     filterPanelOpen: true,
     stripExpanded: false,
+    stripHiddenProjects: ['/home/me/side'],
     collapsedProjects: ['/home/me/work'],
     collapsedGroups: ['g1'],
     filterCollapsedProjects: ['/home/me/other'],
@@ -631,6 +648,7 @@ describe('ui state', () => {
       dateTo: null,
       filterPanelOpen: false,
       stripExpanded: true,
+      stripHiddenProjects: [],
       collapsedProjects: [],
       collapsedGroups: [],
       filterCollapsedProjects: [],

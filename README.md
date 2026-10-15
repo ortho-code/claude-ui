@@ -37,6 +37,7 @@ Done:
 - Per-session status dots (busy / idle / waiting, and working in the background when a turn ends with work it started still running) driven by Claude Code hooks scoped to app-launched sessions; dots can be marked read, a live strip at the foot of the sidebar lists what is running and what is paused across projects, and a project switcher scopes the sidebar.
   A session in the strip can be muted, stopped, paused or closed where it is listed, from its button or its kebab, so acting on one in another project doesn't cost you the project you're looking at.
   The strip keeps still: it follows your tabs, clustered by group, so a row only moves when you move a tab.
+  A project can be hidden from the strip while you focus elsewhere, counted on a Hidden line that still shows what it asks of you, until you pick it from that line's menu or open or start a session there.
 - Sessions are followed the way they actually run: stopping one escalates until it has really ended, a `/clear` carries on in the same tab and group as a new session, and a `/model` switch shows at once.
 - A session whose folder is gone says so, in its row and on its tab, and refuses to start, instead of starting somewhere nobody chose; pinning, notes, archiving and deleting still work.
   A project whose folder is gone says so too, in the project switcher, on its heading and in the tab bar.

@@ -5,6 +5,7 @@ import { newSession, untitledLabel } from '../../../newsession';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
 import { setProjectOnShow } from '../../../state/project';
+import { showInStrip } from '../../../state/strip';
 import { projName, sessionById, tabWith } from '../../../state/views';
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
@@ -32,6 +33,8 @@ export function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, '
  * A first prompt is for a session that is NOT running, which starts with it — a resumed one included; one that is running is only brought into view, since typing into a live session is never the app's to do.
  */
 async function openSession(session: SessionSummary, launch: Pick<TabLaunch, 'prompt'> = {}): Promise<void> {
+  // An open from anywhere — a row in the list or in a panel, a sibling, a toast — puts its project back in the strip.
+  showInStrip(session.repoRoot);
   const existing = tabWith(session.id);
   if (existing) {
     if (existing.terminalId === null && launch.prompt) {
@@ -53,13 +56,14 @@ function ensureProjectVisible(repoRoot: string): void {
 }
 
 /**
- * What every new session does once it is made — a fresh one, a worktree one and a fork alike: filed in its group, when it has one; the scope widened so its tab will be on show; and its tab, which brings its row.
+ * What every new session does once it is made — a fresh one, a worktree one and a fork alike: filed in its group, when it has one; the scope widened so its tab will be on show; its project back in the strip, as an open puts it; and its tab, which brings its row.
  * Filed BEFORE the tab exists, so the row's first paint is already inside the group.
  * An ordinary membership write: the id is the session's real one, so there is nothing to correct afterwards.
  */
 async function startNew(session: SessionSummary, groupId: string | undefined, launch: TabLaunch): Promise<void> {
   if (groupId) await moveSessionToGroup(session, groupId);
   ensureProjectVisible(session.repoRoot);
+  showInStrip(session.repoRoot);
   await createTab(session, launch);
 }
 

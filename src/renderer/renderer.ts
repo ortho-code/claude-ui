@@ -48,8 +48,8 @@ claudeWatch.rules();
 sessionsWatch.repaints();
 claudeWatch.repaints();
 
-// The view you are leaving behind — the filter, the folds, the panel, the strip — is kept for the next launch; the snapshot is compared before it is written, so a change that ends where it began costs nothing.
-store.watch(['filter', 'folds', 'filterPanelOpen', 'stripExpanded'], () => persistUi());
+// The view you are leaving behind — the filter, the folds, the panel, the strip and what it hides — is kept for the next launch; the snapshot is compared before it is written, so a change that ends where it began costs nothing.
+store.watch(['filter', 'folds', 'filterPanelOpen', 'stripExpanded', 'stripHidden'], () => persistUi());
 
 // The panels run where you are: in the tab on show's folder, or without one in the project's root, or in nothing in the All view.
 // Told of the slices `whereOf` reads, the tabs among them: a `/clear` or a move into another folder changes the session under the same tab.

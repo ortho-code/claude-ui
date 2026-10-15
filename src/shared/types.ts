@@ -291,6 +291,8 @@ export interface UiState {
    * Open by default — it is meant to be read.
    */
   stripExpanded: boolean;
+  /** The projects hidden from the live strip, by repo root: kept until you unhide one, or open or start a session in it. */
+  stripHiddenProjects: string[];
   /** Folded-away projects, by repo root. */
   collapsedProjects: string[];
   /** Folded-away groups, by group id. */

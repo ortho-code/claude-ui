@@ -231,6 +231,17 @@ Its line counts the two apart, `2 of 5 need you · 3 paused`, so "live" stays tr
 A row's button is its tab's button, drawn by the same rule (`tabButtonState`) and pressed through the same function (`closeOrStop`), so on a paused row it closes the tab, as the tab's own button does on a cold tab.
 Beside it, a kebab opens the session's menu, the one its row in the list has (`sessionMenuItems`), so a session in another project can be paused, unpaused, noted, filed or archived without going there; Fork and a sibling take you to the tab they open.
 
+Paused rows accumulate, where running ones clear themselves by ending, so a project can be hidden from the strip from the eye on its heading (`state/strip.ts`), kept in the stored view as `stripHiddenProjects`.
+Its heading and rows leave the strip, and a Hidden line at the list's foot counts the hidden projects and carries their roll-up, the switcher's per project, so a session waiting in one still reaches you though its row is not listed.
+The line's press opens a menu of them, each with its roll-up and its count of strip sessions, as the switcher lists projects, and a pick shows that project again.
+A menu rather than a fold: the first version folded the hidden projects open under the line, rows and all, and its caret was taken for the strip's own fold.
+The strip's own line still counts every row, as its badge rolls up every project: a hide changes what is listed, not what is summed up.
+A hidden project is shown again by that menu, or by your opening or starting one of its sessions wherever you do it: every open asked of the terminal area, which reaches `openSession` in `claude/asks.ts` by the `openSession` or `openTab` ask or `jumpToSession` (a row in the list or a panel, a sibling, a toast), a new session (`startNew`), a click on a tab, and the pane's Resume.
+An open refused because the session's folder is gone opens nothing, so it leaves the project hidden.
+A launch restoring the tabs and a project switch selecting one are not an open, since a restart bringing a hidden project's paused tabs back is what the hide is for, and browsing projects must no more change the strip than it may start a session.
+A hide stays until it is undone, even while the project has nothing in the strip, so it holds over a restart; a session started from the folder picker in a subfolder of a hidden project names the folder as its project until its transcript says otherwise, so it does not show the project again.
+The hide is the strip's alone: the switcher and the list do not hide projects.
+
 Where you were is remembered twice, in meta: `activeSession` (which tab to open on at launch) and `activeSessionByProject` (which to return to when you switch back to a project).
 The in-memory `activatedSeq` still decides while a project has something running; the stored map only matters when nothing does, which is how a launch begins.
 The remembered tab is *selected* at launch, and starts with the others only if it is one of them — a deliberately open question for one that is not, since a tab marked active with no process behind it is arguable.

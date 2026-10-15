@@ -105,8 +105,10 @@
   white-space: nowrap;
 }
 
-/* Project heading within the strip's list, its name followed by the mark of a project whose folder is gone, as the tab bar's project label is. */
-.strip-project {
+/* Project heading within the strip's list, its name followed by the mark of a project whose folder is gone, as the tab bar's project label is.
+   The Hidden line wears its look too, since it stands where the hidden projects' headings would. */
+.strip-project,
+#strip-hidden {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -114,4 +116,32 @@
   font-size: var(--text-small);
   font-weight: 600;
   color: var(--muted);
+}
+
+/* The eye that hides a project from the strip sits at its heading's end, where nothing else is, and shows only while the heading is pointed at or the eye has the keyboard's focus, so a heading at rest is its name alone.
+   Unseen by opacity rather than visibility, and not the dimming opacity is otherwise kept from: a button hidden by visibility cannot take the focus, so Tab would step over it, where this one is reached and then shows. */
+.strip-eye {
+  margin-left: auto;
+  /* Its box is taller than the heading's line of text; the heading keeps the height it has without it. */
+  margin-block: -2px;
+  opacity: 0;
+}
+
+.strip-project:hover .strip-eye,
+.strip-eye:focus-visible {
+  opacity: 1;
+}
+
+/* The Hidden line, a button in a heading's look: pressed, it opens a menu of the hidden projects, and keeps its hover look while that menu is up. */
+#strip-hidden {
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: var(--radius-control);
+  text-align: left;
+  cursor: pointer;
+}
+
+#strip-hidden:is(:hover, .menu-open) {
+  background: var(--surface-hover);
 }

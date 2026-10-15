@@ -5,6 +5,7 @@ import { orderAsTabs, reorderWithinGroup, sessionLabel, tabButtonState, unstarta
 import { kebabButton, openMenu, type MenuItem } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
+import { showInStrip } from '../../../state/strip';
 import { projName, projectGone, projectGroups, statusChanges, visibleTabs } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { layersIcon, SIBLING_ICON, tabButtonIcon, WORKTREE_ICON } from '../../../svg';
@@ -209,6 +210,9 @@ function buildTab(token: string): TabEls {
     closeOrStop(token);
   });
   el.addEventListener('click', () => {
+    const tab = tabOf(token);
+    // Opening it, as from anywhere else, puts its project back in the strip (state/strip.ts).
+    if (tab) showInStrip(tab.session.repoRoot);
     activateTab(token);
     const shown = tabOf(token);
     if (shown) hostOf('claude').revealSession(shown.session.id);

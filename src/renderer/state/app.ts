@@ -72,6 +72,8 @@ export interface AppState {
   filterPanelOpen: boolean;
   /** Whether the live strip shows its rows or only its line, kept for the next launch. */
   stripExpanded: boolean;
+  /** The projects hidden from the live strip, by repo root, kept for the next launch: counted on its Hidden line rather than listed (state/strip.ts). */
+  stripHidden: ReadonlySet<string>;
 }
 
 /** The sections folded away: projects by repo root, groups by their own id. */
@@ -103,7 +105,7 @@ export function noFilter(): FilterState {
 }
 
 /** What the start-up read puts back in the store, in its own change beside the listing: the view as it was left. */
-export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'stripExpanded'>;
+export type StoredView = Pick<AppState, 'filter' | 'folds' | 'filterPanelOpen' | 'stripExpanded' | 'stripHidden'>;
 
 /** A tab's data, as the surfaces draw it; its terminal — the xterm and its element — is the terminal area's own, under the same token. */
 export interface TabState {
@@ -265,6 +267,7 @@ export const store = createStore<AppState>(
     folds: { projects: new Set(), groups: new Set(), filterProjects: new Set(), filterGroups: new Set() },
     filterPanelOpen: defaultUi().filterPanelOpen,
     stripExpanded: defaultUi().stripExpanded,
+    stripHidden: new Set(),
   },
   {
     sessions: sameRows,
@@ -281,5 +284,6 @@ export const store = createStore<AppState>(
     panelData: sameEntries,
     filter: sameData,
     folds: sameFolds,
+    stripHidden: sameMembers,
   },
 );
