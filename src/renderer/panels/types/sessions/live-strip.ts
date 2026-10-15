@@ -109,9 +109,7 @@ function buildRow(id: string): StripRow {
   stop.type = 'button';
   stop.className = 'icon-btn compact strip-item-stop';
   // Pressed only while available, which each render decides from the tab as it is then (`updateRow`).
-  stop.addEventListener('click', (event) => {
-    // The row around it jumps to the session; pressing the button must not also take you there.
-    event.stopPropagation();
+  stop.addEventListener('click', () => {
     if (unavailable(stop)) return;
     hostOf('sessions').pressTabButton(id);
   });

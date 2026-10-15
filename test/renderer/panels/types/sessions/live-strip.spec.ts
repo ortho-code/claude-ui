@@ -121,6 +121,8 @@ test('a press on a strip row still counts when a status arrives before the relea
   // Waiting by then, so the stop asks with the extra Ctrl-C a turn needs.
   await clickAcross(page, stripRow(page, other.title).locator('.strip-item-stop'), status(other.title, other.id, 'waiting'));
   expect(await app.calls('closeTerminal')).toEqual([[2, true]]);
+  // The stop is a button beside the jump, not inside it: stopping a session does not take you to it.
+  await expect(stripJump(page, loose.title)).toHaveAttribute('aria-current', 'true');
 });
 
 // Stopping from the strip is the way to stop a session in another project without leaving the one you are in: it stops, never closes, and the row leaves the strip once nothing runs there.
