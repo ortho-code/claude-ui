@@ -17,6 +17,19 @@ vi.mock('../../../src/main/log', async (importOriginal) => ({
   logOnce: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
+// A filter that defaults to on, for the one check that needs one: none does yet, and the rule for a key a file does not have is only seen with one.
+const { defaultsWith } = vi.hoisted(() => ({ defaultsWith: { pinnedOn: false } }));
+vi.mock('../../../src/shared/defaults', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/shared/defaults')>();
+  return {
+    ...actual,
+    defaultUi: () => {
+      const ui = actual.defaultUi();
+      return defaultsWith.pinnedOn ? { ...ui, filters: { ...ui.filters, pinned: true } } : ui;
+    },
+  };
+});
+
 import {
   getPinned,
   togglePin,
@@ -885,5 +898,19 @@ describe('the PR filter, added after filters were first stored', () => {
     expect(filters.prs).toBe(false);
     expect(filters.pinned).toBe(true);
     expect(filters.siblings).toBe(true);
+  });
+});
+
+describe('a filter a stored file has no value for', () => {
+  it('takes its default, so one that defaults to on does not read as off', async () => {
+    defaultsWith.pinnedOn = true;
+    try {
+      await writeMetaFile({ ui: { filters: { siblings: true } }, version: 3 });
+      const { filters } = await getUiState();
+      expect(filters.pinned).toBe(true);
+      expect(filters.siblings).toBe(true);
+    } finally {
+      defaultsWith.pinnedOn = false;
+    }
   });
 });

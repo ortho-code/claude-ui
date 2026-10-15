@@ -202,8 +202,9 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
   return {
     search: typeof ui.search === 'string' ? ui.search : base.search,
     filters: Object.fromEntries(
+      // A key the file does not have takes its default, so a filter added later reads as it would on a first run.
       // `live` was stored as `running` before the word changed; read the old key as its fallback so an existing file keeps the toggle rather than silently clearing it.
-      Object.keys(base.filters).map((key) => [key, bool(filters[key], key === 'live' ? filters.running === true : false)]),
+      (Object.keys(base.filters) as (keyof UiState['filters'])[]).map((key) => [key, bool(filters[key], key === 'live' ? bool(filters.running, base.filters.live) : base.filters[key])]),
     ) as UiState['filters'],
     datePreset: typeof ui.datePreset === 'string' ? ui.datePreset : base.datePreset,
     dateFrom: ms(ui.dateFrom),
