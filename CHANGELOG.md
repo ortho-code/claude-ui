@@ -147,6 +147,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A panel's icon in a strip of icons, and a view in a panel's header, fill under the pointer as a tab you are not on does, instead of turning blue.
 - A click on a tab counts when the pointer moves a pixel or two during it, instead of starting a drag and leaving the tab unchosen.
 - A button that can't act for the moment, such as a tab's while its session starts, can be reached with the keyboard to read why, instead of being skipped.
+- On macOS, the folder picker behind + New can make a new folder.
 
 ## 0.3.0 — 2026-08-29
 

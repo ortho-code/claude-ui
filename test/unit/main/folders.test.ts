@@ -68,6 +68,12 @@ describe('the folder picker', () => {
     expect(showOpenDialog).toHaveBeenCalledWith(expect.objectContaining({ properties: expect.arrayContaining(['showHiddenFiles']) }));
   });
 
+  it("lets a new folder be made from it, which Electron turns on in macOS's picker only when asked", async () => {
+    showOpenDialog.mockClear();
+    await handlers.get('dialog:pickFolder')!();
+    expect(showOpenDialog).toHaveBeenCalledWith(expect.objectContaining({ properties: expect.arrayContaining(['createDirectory']) }));
+  });
+
   it('answers nothing when it is cancelled', async () => {
     showOpenDialog.mockResolvedValueOnce({ canceled: true, filePaths: [] });
     expect(await handlers.get('dialog:pickFolder')!()).toBeNull();

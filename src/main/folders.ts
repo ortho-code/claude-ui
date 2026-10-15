@@ -22,7 +22,8 @@ export function registerFolders(): void {
   ipcMain.handle('dialog:pickFolder', async (): Promise<string | null> => {
     // `showHiddenFiles` reaches the picker on macOS; Electron 43 does not pass it on to Linux's.
     // There the desktop portal's GTK picker follows GTK's own setting, which Ctrl+H toggles and the picker remembers, while Chromium's own GTK picker, its fallback below portal version 3, opens with hidden folders off every time.
-    const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'showHiddenFiles'] });
+    // `createDirectory` is what turns on the New Folder control in macOS's picker; Linux ignores it, and Chromium's own GTK picker offers one either way.
+    const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'showHiddenFiles', 'createDirectory'] });
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
 }
