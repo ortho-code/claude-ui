@@ -4,7 +4,6 @@ import { kebabButton, openMenu, type MenuItem } from '../../../menu';
 import { store } from '../../../state/app';
 import { folderIcon, layersIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
-import { unavailable } from '../../../unavailable';
 import { copyText, deleteGroupById, groupMoveItems, projectMoveItems, promptNewGroup, renameGroupById, renameProject, withMoves } from './actions';
 import { newSessionSplit } from './controls';
 import { container, jumpTargets, type GroupSectionEls, type ProjectSectionEls } from './drawn';
@@ -26,14 +25,14 @@ export function createProjectSection(name: string): ProjectSectionEls {
   setTooltip(label, name); // full path on hover
   // Jump straight to one of this project's groups instead of scrolling for it.
   // The heading is position:sticky, so this trigger is on screen the whole time you scroll the project — which is what makes a menu enough here, rather than a panel that would cost a line of height per project.
-  // reconcileProjectSections hides it below 2 targets, makes it unavailable while filtering, and gives it its tooltip either way.
+  // reconcileProjectSections hides it below 2 targets.
   const groupsBtn = document.createElement('button');
   groupsBtn.className = 'icon-btn project-groups';
   groupsBtn.innerHTML = layersIcon(14);
   groupsBtn.hidden = true;
+  setTooltip(groupsBtn, 'Jump to a group');
   groupsBtn.addEventListener('click', (event) => {
     event.stopPropagation(); // don't collapse the project
-    if (unavailable(groupsBtn)) return;
     const targets = jumpTargets.get(name) ?? [];
     const items: MenuItem[] = [];
     for (const t of targets) {

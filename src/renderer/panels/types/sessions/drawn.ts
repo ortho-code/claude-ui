@@ -28,7 +28,7 @@ export interface ProjectSectionEls {
   /** The folder in front of the name, which turns into the crossed-out folder when the project's folder is gone. */
   icon: HTMLElement;
   label: HTMLElement;
-  /** Opens the jump-to-a-group menu; hidden below 2 targets, unavailable while filtering. */
+  /** Opens the jump-to-a-group menu; hidden below 2 targets. */
   groupsBtn: HTMLButtonElement;
   /** The new-session split-button's dropdown caret; hidden unless the project is a git repo. */
   addCaret: HTMLElement;

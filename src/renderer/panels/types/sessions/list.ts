@@ -9,7 +9,7 @@ import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
 import { container, currentByKey, groupSections, jumpTargets, projectSections, renderedSections, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
-import { applyFolds, foldsFollow, NOT_WHILE_FILTERING, updateCollapseToggle } from './folding';
+import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
 import { createGroupSection, createProjectSection } from './headings';
 import { syncStickyOffset } from './reveal';
 import { drawRow, updateRow, type RowView } from './rows';
@@ -174,11 +174,10 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     els.count.textContent = String(project.count);
     els.label.textContent = projName(project.repoRoot, view); // keep the heading current (e.g. after a rename)
     // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
-    // Filtering forces every section open and reshuffles what is on screen, which leaves the jump nothing to act on: unavailable there, like collapse-all, since a control vanishing as you type reads worse than one plainly unavailable.
+    // Under a filter it offers the places the filter left drawn, and a pick unfolds the filter's own folds on the way.
     const targets = groupJumpTargets(project, view.statuses, view.acked);
     jumpTargets.set(project.repoRoot, targets);
     els.groupsBtn.hidden = targets.length < 2;
-    setUnavailable(els.groupsBtn, isFiltering(view) ? NOT_WHILE_FILTERING : null, 'Jump to a group');
     els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
     // Nothing can be started in a folder that is not there.
     // Disabled rather than hidden: the project still has sessions to read, and a control that vanishes explains nothing — the tooltip does.

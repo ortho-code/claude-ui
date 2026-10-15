@@ -1148,6 +1148,7 @@ Folds come in two states, and they are deliberately separate.
 Filtering opens the whole tree so a match inside a folded section is never hidden, and folding from there is a way through the results — shut a project you have already been through — rather than a statement about how the sidebar should look.
 So those folds apply only while a filter is on and are dropped the moment you change it, by any route: a character typed or deleted, a pill, a date preset or the calendar, a chip's ×, Clear.
 A change drops them as well as an end, because new results can sit in a section folded for the old ones; a fold kept across changes could hide a match without saying so.
+Collapse-all and a project's group jump act on them as they act on the folds you made without a filter.
 Both states are stored, because the filter itself is restored, and coming back to the same results without the same view is the thing remembering the view is meant to prevent.
 
 A **group** is a user-made sub-section inside one project.

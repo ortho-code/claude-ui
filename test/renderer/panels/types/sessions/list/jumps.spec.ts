@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { group, groupHeading, project, projectHeading, row } from '../../../../support/window';
+import { group, groupHeading, projectHeading, row } from '../../../../support/window';
 
 // A project's heading jumps to one of its groups, or to where its loose rows start, from a menu (docs/architecture.md § UI conventions); the jump's flash is the tab bar's group jump's too, and is checked there (tab-bar/jumps.spec.ts).
 const OTHER = `${HOME}/projects/other`;
@@ -69,24 +69,19 @@ test('a project with fewer than two places to jump to has no jump menu', async (
   await expect(jumpButton(page, 'third')).toBeHidden();
 });
 
-test('the jump menu is unavailable while a filter is on', async ({ app, page }) => {
+// A filter has folds of its own, which a jump opens as it opens yours.
+test('the jump menu works while a filter is on, and a pick unfolds a group folded under the filter', async ({ app, page }) => {
   await app.boot(fixture);
   await page.locator('#filter-toggle').click();
   // Matches a row in each group and the loose one, so every place is still drawn.
   await page.locator('#search').fill('a');
-  await expect(jumpButton(page, 'demo')).toBeVisible();
-  await expect(jumpButton(page, 'demo')).toBeDisabled();
-
-  // It says why, and the keyboard reaches it to hear it (`setUnavailable`).
-  await jumpButton(page, 'demo').hover();
-  await expect(page.locator('#tooltip')).toHaveText('Not while a filter is on.');
-  await jumpButton(page, 'demo').focus();
-  await expect(jumpButton(page, 'demo')).toBeFocused();
-  await jumpButton(page, 'demo').click({ force: true });
-  await expect(page.locator('.kebab-menu')).toHaveCount(0);
-  await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
-
-  await page.locator('#search').fill('');
+  await groupHeading(page, 'Alpha').click();
+  await expect(group(page, 'Alpha')).toHaveClass(/\bcollapsed\b/);
   await expect(jumpButton(page, 'demo')).toBeEnabled();
   await expect(jumpButton(page, 'demo')).toHaveAttribute('data-tooltip', 'Jump to a group');
+
+  await jumpButton(page, 'demo').click();
+  await page.locator('.kebab-menu button', { hasText: 'Alpha' }).click();
+  await expect(group(page, 'Alpha')).not.toHaveClass(/\bcollapsed\b/);
+  await expect(row(page, inAlpha.title)).toBeInViewport();
 });

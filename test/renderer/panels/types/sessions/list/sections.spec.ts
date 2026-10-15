@@ -127,27 +127,29 @@ test("in a project, the heading cannot fold and collapse-all folds that project'
   await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
 });
 
-// It says why, and the keyboard reaches it to hear it (`setUnavailable`).
-test('collapse-all is unavailable while a filter is on, says why, and a press on it folds nothing', async ({ app, page }) => {
+// Under a filter it folds the filter's own view, which the next change of the filter opens again, and your own folds are untouched underneath.
+test('collapse-all folds the results while a filter is on, and a change of the filter opens them again', async ({ app, page }) => {
   await app.boot(fixture);
   const toggle = page.locator('#collapse-toggle');
   await page.locator('#filter-toggle').click();
   // Matches a row in each project, so both stay drawn.
   await page.locator('#search').fill('e');
   await expect(project(page, 'other')).toHaveCount(1);
-  await expect(toggle).toBeDisabled();
+  await expect(toggle).toBeEnabled();
 
-  await toggle.hover();
-  await expect(page.locator('#tooltip')).toHaveText('Not while a filter is on.');
-  await toggle.focus();
-  await expect(toggle).toBeFocused();
-  await toggle.click({ force: true });
+  await toggle.click();
+  await expect(project(page, 'demo')).toHaveClass(/\bcollapsed\b/);
+  await expect(project(page, 'other')).toHaveClass(/\bcollapsed\b/);
+  await expect(toggle).toHaveAttribute('aria-label', 'Expand all');
+
+  // Still a row in each.
+  await page.locator('#search').fill('er');
   await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
   await expect(project(page, 'other')).not.toHaveClass(/\bcollapsed\b/);
 
   await page.locator('#search').fill('');
-  await expect(toggle).toBeEnabled();
-  await expect(toggle).toHaveAttribute('data-tooltip', 'Collapse all');
+  await expect(project(page, 'demo')).not.toHaveClass(/\bcollapsed\b/);
+  await expect(project(page, 'other')).not.toHaveClass(/\bcollapsed\b/);
 });
 
 // New results can sit in a section folded for the old ones, so a fold made under a filter lasts only until the filter changes.
