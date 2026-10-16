@@ -167,15 +167,41 @@ test('folded, the chevron turns into the dot of a tab out of sight that asks for
   await expect(fold).toHaveAttribute('aria-label', 'Fold the tab bar to one row');
 });
 
-// Folded is a stance, so the chevron stays on a bar of one row; it goes, with its line, only with the bar's last tab, as the strip goes when it has nothing.
-test('the chevron is there on a bar of one row, and goes with its line and the last tab', async ({ app, page }) => {
-  await app.boot({ ...fixture, openSessions: [looseOne.id], activeSession: looseOne.id, activeSessionByProject: { [PROJECT]: looseOne.id } });
-  await expect(tabBarRows(page)).toHaveCount(1);
+// A bar of one row has nothing to fold, so the chevron is there only while the open bar has more; the line stays while there is a tab to sit on it, and goes with the bar's last tab, as the strip goes when it has nothing.
+test('the chevron is there only while the open bar has more than one row, and the line goes with the last tab', async ({ app, page }) => {
+  const shown = { activeSession: looseOne.id, activeSessionByProject: { [PROJECT]: looseOne.id } };
+  await app.boot({ ...fixture, ...shown, openSessions: [looseOne.id, reviewOne.id] });
+  await expect(tabBarRows(page)).toHaveCount(2);
   await expect(tabBarFold(page)).toBeVisible();
 
   // Cold, so one press of its button closes it.
+  await tab(page, reviewOne.title).locator('.tab-close').click();
+  await expect(tabBarRows(page)).toHaveCount(1);
+  await expect(tabBarFold(page)).toBeHidden();
+  await expect(page.locator('#tabbar-edge')).toBeVisible();
+
   await tab(page, looseOne.title).locator('.tab-close').click();
   await expect(tabBarRows(page)).toHaveCount(0);
-  await expect(tabBarFold(page)).toBeHidden();
   await expect(page.locator('#tabbar-edge')).toBeHidden();
+});
+
+// In All, a project whose tabs are all in groups draws its name in a row of its own over them: two rows, which folding makes one.
+test('in All, a project name over its group is a row of its own, so the chevron is there', async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [reviewOne.id], activeProject: null, activeSessionByProject: {} });
+  await expect(tabBarRows(page)).toHaveCount(2);
+  await expect(tabBarFold(page)).toBeVisible();
+});
+
+// Folded is a stance all the same: kept unseen while there is one row, so a second row comes up folded, with the chevron to open it.
+test('folded on a bar of one row, the fold is kept, and a second row comes up folded with the chevron to open it', async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [looseOne.id], activeSession: looseOne.id, activeSessionByProject: { [PROJECT]: looseOne.id }, uiState: folded });
+  await expect(tabBarRows(page)).toHaveCount(1);
+  await expect(tabBarFold(page)).toBeHidden();
+
+  await row(page, reviewOne.title).click();
+  await expect(tab(page, reviewOne.title)).toHaveClass(/\bactive\b/);
+  await expect(tabBarRows(page)).toHaveCount(1);
+  await expect(tabLabels(page)).toHaveText([reviewOne.title]);
+  await expect(tabBarFold(page)).toBeVisible();
+  await expect(tabBarFold(page)).toHaveAttribute('aria-expanded', 'false');
 });

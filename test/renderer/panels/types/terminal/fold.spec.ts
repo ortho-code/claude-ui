@@ -59,11 +59,32 @@ test('folded, the row kept is the one of the tab on show', async ({ app, page })
   await expect(panelTabLabels(page)).toHaveText(['other']);
 });
 
-test('the fold is there only while the tabs are in rows', async ({ app, page }) => {
+// One row has nothing to fold, so the fold is there only while the tabs stand in more, as the tab bar's chevron is.
+test('the fold is there only while the tabs stand in more than one row', async ({ app, page }) => {
   await app.boot(layout);
   await newTerminal(page).click();
   await expect(panelTabLabels(page)).toHaveText(['demo']);
   await expect(fold(page)).toBeHidden();
+  // In All, one project's shells are one row.
+  await chooseProject(page, 'All');
+  await expect(panelTabRows(page)).toHaveCount(1);
+  await expect(fold(page)).toBeHidden();
+});
+
+// Folded is a stance all the same: kept unseen while there is one row, so a second row comes up folded, with the fold to open it.
+test('folded in one row, the fold is kept, and a second row comes up folded with the fold to open it', async ({ app, page }) => {
+  const shells: PanelShells = { list: [{ id: 'a', name: 'demo', project: PROJECT, folder: PROJECT }], shown: {}, folded: true };
+  await app.boot({ ...layout, activeProject: null, panelData: { shell: { sessions: {}, lastGroup: {}, shells } } });
+  await expect(panelTabRows(page)).toHaveCount(1);
+  await expect(fold(page)).toBeHidden();
+
+  await chooseProject(page, 'other');
+  await newTerminal(page).click();
+  await expect(panelTabLabels(page)).toHaveText(['other']);
+  await chooseProject(page, 'All');
+  await expect(panelTabRows(page)).toHaveCount(1);
+  await expect(fold(page)).toBeVisible();
+  await expect(fold(page)).toHaveAttribute('aria-label', 'Unfold the tabs');
 });
 
 test('the fold lies on the header\'s bottom line, centred across it', async ({ app, page }) => {

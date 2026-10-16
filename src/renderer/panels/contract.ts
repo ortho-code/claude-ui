@@ -169,8 +169,8 @@ export interface PanelTabs {
   /** A press on a row's label, with the cluster's key. */
   showCluster(key: string): void;
   /**
-   * Whether the rows are folded to one, the row of the tab on show, or with none on show the first, as the tab bar folds; it applies while the tabs are in rows, which is when the fold chevron shows.
-   * The panel keeps it, so it holds over a restart.
+   * Whether the rows are folded to one, the row of the tab on show, or with none on show the first, as the tab bar folds; the fold chevron shows while the tabs stand in two or more rows (`offerRowFold`).
+   * The panel keeps it, on one row too, so it holds over a restart and a second row comes up folded.
    */
   folded: boolean;
   /** A press of the fold chevron, with what it asks for. */

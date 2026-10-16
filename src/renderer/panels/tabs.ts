@@ -1,6 +1,6 @@
 import type Sortable from 'sortablejs';
 import { element } from '../dom';
-import { drawFoldChevron, foldChevron } from '../fold-chevron';
+import { drawFoldChevron, foldChevron, offerRowFold } from '../fold-chevron';
 import { Keyed, placeChildren } from '../keyed';
 import { plusIcon } from '../svg';
 import { buildTab, drawTab, dropSortable, sortableTabs, type TabEls } from '../tab';
@@ -66,6 +66,8 @@ export class HeaderTabs {
     this.addButton.setAttribute('aria-label', said.addLabel);
     const clustered = said.tabs.some((tab) => tab.cluster !== null);
     this.flat.option('disabled', clustered);
+    /** How many rows the tabs stand in unfolded. */
+    let rowCount = 1;
     if (!clustered) {
       placeChildren(this.el, [...said.tabs.map((tab) => this.drawOne(tab)), this.addButton]);
     } else {
@@ -82,6 +84,7 @@ export class HeaderTabs {
         }
         cluster.tabs.push(tab);
       }
+      rowCount = order.length;
       // Folded, one row: the one holding the tab on show, or with none on show the first, as the tab bar folds.
       const kept = order.find((key) => byCluster.get(key)!.tabs.some((tab) => tab.shown)) ?? order[0];
       const drawn = said.folded ? order.filter((key) => key === kept) : order;
@@ -98,8 +101,7 @@ export class HeaderTabs {
     if (!clustered) this.rows.clear();
     else this.rows.sweep();
     this.tabs.sweep();
-    // The fold is there while the tabs are in rows, folded or not, as the tab bar's stays on a bar of one row: folded is a stance that holds once a second row appears.
-    this.foldButton.hidden = !clustered;
+    offerRowFold(this.foldButton, rowCount);
     drawFoldChevron(this.foldButton, said.folded ? 'down' : 'up', said.folded ? 'Unfold the tabs' : 'Fold the tabs to one row');
     this.foldButton.setAttribute('aria-expanded', String(!said.folded));
   }

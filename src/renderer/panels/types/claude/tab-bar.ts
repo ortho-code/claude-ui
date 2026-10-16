@@ -1,6 +1,6 @@
 import type Sortable from 'sortablejs';
 import { element, fromMarkup } from '../../../dom';
-import { drawFoldChevron, foldChevron } from '../../../fold-chevron';
+import { drawFoldChevron, foldChevron, offerRowFold } from '../../../fold-chevron';
 import { Keyed, placeChildren } from '../../../keyed';
 import { asksForYou, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, tabButtonState, unstartableReason, worktreeMarkState } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
@@ -75,9 +75,12 @@ export function renderTabBar(view: TabBarView): void {
   const drawn = (key: string): boolean => tabBarExpanded || key === keptKey;
 
   const children: HTMLElement[] = [];
+  /** How many rows the bar has unfolded: a project's own row where it has loose tabs, or in All its name, and a row per group with tabs. */
+  let openRows = 0;
   for (const root of roots) {
     // The project's own row: its label (in All) and every tab of its that is in no group.
     const loose = byCluster.get(`${root}\0`) ?? [];
+    if (!activeProject || loose.length > 0) openRows += 1;
     if ((!activeProject || loose.length > 0) && drawn(`${root}\0`)) {
       const projectRow = projectRows.draw(`${root}\0`, buildProjectRow);
       if (!activeProject) drawProjectLabel(projectRow, root, view);
@@ -87,6 +90,7 @@ export function renderTabBar(view: TabBarView): void {
     // Then one row per group that has tabs open, in registry order — the sidebar's order.
     for (const group of projectGroups(root, view)) {
       const groupTabs = byCluster.get(`${root}\0${group.id}`) ?? [];
+      if (groupTabs.length > 0) openRows += 1;
       if (groupTabs.length === 0 || !drawn(`${root}\0${group.id}`)) continue;
       const { row, rail, label, name, project } = groupRows.draw(`${root}\0${group.id}`, buildGroupRow);
       name.data = group.name;
@@ -98,8 +102,9 @@ export function renderTabBar(view: TabBarView): void {
     }
   }
   placeChildren(tabbar, children);
-  // The line and its fold go with the last tab, as the live strip goes when it has nothing: an empty bar has nothing to fold, and nothing to sit on a line.
+  // The line goes with the last tab, as the live strip goes when it has nothing: an empty bar has nothing to sit on a line.
   tabbarEdge.hidden = shown.length === 0;
+  offerRowFold(fold, openRows);
   if (shown.length > 0) drawFold(tabBarExpanded, kept ? shown.filter((tab) => !kept.items.includes(tab)) : [], view);
   // What this draw did not draw is gone: a tab closed or out of the project on show, or a row with no tab left in it, whose Sortable goes with it.
   projectRows.sweep();
