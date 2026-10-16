@@ -188,7 +188,7 @@ function buildRow(cluster: string, className: string): { row: HTMLElement; sorta
 /** A project's name, which takes you to the project in the list. */
 function buildProjectLabel(root: string): ProjectLabel {
   const label = document.createElement('span');
-  label.className = 'tab-project-label';
+  label.className = 'tab-row-label tab-project-label';
   const name = document.createElement('span');
   const mark = document.createElement('span');
   mark.className = 'gone-mark';
@@ -217,7 +217,7 @@ function buildGroupRow(cluster: string): GroupRow {
   const rail = document.createElement('span');
   rail.className = 'tab-rail';
   const label = document.createElement('span');
-  label.className = 'tab-group-label';
+  label.className = 'tab-row-label tab-group-label';
   const icon = document.createElement('span');
   icon.className = 'heading-icon';
   icon.innerHTML = layersIcon(11);

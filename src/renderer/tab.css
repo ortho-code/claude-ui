@@ -1,4 +1,36 @@
-/* A TAB, as tab.ts builds one. */
+/* A TAB, as tab.ts builds one, and the rows tabs sit in. */
+
+/* A project's row of tabs, where tabs are shown by project, as in All: each project on its own line, led by its label (flex-basis 100% forces every project onto a fresh row). */
+.tab-project {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  flex-basis: 100%;
+}
+
+/* The label that leads a row, which takes you to what the row is: a project's to the project in the session list, and in the tab bar a group's to the group.
+   Every row's label is clickable, so they are one shape with one hover, and differ only in weight and in what sits beside the name.
+   Full text colour, like the project's own heading in the sidebar, so a project whose folder is gone reads the same way in both halves of the window: muted, beside names that are not. */
+.tab-row-label {
+  display: flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-small);
+  color: var(--text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab-row-label:hover {
+  background: var(--surface-hover);
+}
+
+.tab-project-label {
+  gap: 4px;
+  font-weight: 600;
+}
 
 .tab {
   display: flex;
