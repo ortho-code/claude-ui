@@ -311,6 +311,14 @@ describe('runContext', () => {
   it('gives a fixed panel with nothing selected empty project and session variables', () => {
     expect(runContext(null, '/home/u/fixed')).toEqual({ projectRoot: '', cwd: '/home/u/fixed', sessionId: '' });
   });
+
+  it("hands what belongs to a project of its own that project, and the selection's session only where the session is in it", () => {
+    const selection = { projectRoot: '/a', cwd: '/a/sub', sessionId: 's1' };
+    expect(runContext(selection, '/b', '/b')).toEqual({ projectRoot: '/b', cwd: '/b', sessionId: '' });
+    expect(runContext(selection, '/a/x', '/a')).toEqual({ projectRoot: '/a', cwd: '/a/x', sessionId: 's1' });
+    expect(runContext(null, '/b', '/b')).toEqual({ projectRoot: '/b', cwd: '/b', sessionId: '' });
+    expect(runContext(selection, '/a/x', null)).toEqual({ projectRoot: '/a', cwd: '/a/x', sessionId: 's1' });
+  });
 });
 
 describe('endLabel', () => {

@@ -1,8 +1,8 @@
 import type { PanelShells } from '../../../../../src/shared/panels';
-import { PROJECT } from '../../../support/fixture';
+import { PROJECT, session } from '../../../support/fixture';
 import { expect, test, type App } from '../../../support/harness';
 import { panelTab, panelTabAdd, panelTabLabels } from '../../../support/window';
-import { railItem, withLayout } from '../../layout/layout';
+import { OTHER, railItem, withLayout } from '../../layout/layout';
 
 // A terminal panel's shells are kept for the next launch, in the panel's own data, and come back as tabs with no shell, each starting where it was (docs/architecture.md § The `terminal` type).
 const API = `${PROJECT}/api`;
@@ -43,6 +43,9 @@ const withKept = (shells: PanelShells): ReturnType<typeof withLayout> & Record<s
 
 /** Every shell start so far: its folder and the owner it was started for. */
 const starts = async (app: App): Promise<unknown[][]> => (await app.calls('startShell')).map(([cwd, , owner]) => [cwd, owner]);
+
+/** The context each shell start so far was handed, which its `CLAUDE_UI_*` variables are made from. */
+const contexts = async (app: App): Promise<unknown[]> => (await app.calls('startShell')).map(([, context]) => context);
 
 /** What the window last asked main to keep of the panel's shells. */
 const lastKept = async (app: App): Promise<PanelShells | undefined> => (await app.calls('setPanelShells')).at(-1)?.[1] as PanelShells | undefined;
@@ -98,6 +101,27 @@ test('nothing is kept once the app is quitting, so the quit cannot write over wh
   await panelTabAdd(page).click();
   await expect(panelTabLabels(page)).toHaveText(['demo', 'api', 'demo 2']);
   expect(await app.calls('setPanelShells')).toHaveLength(kept);
+});
+
+// A shell belongs to its project, so its variables name that project whatever is selected when it starts, and the session on show only where that session is in it.
+test("a shell started in All has its own project's variables, not those of the tab on show", async ({ app, page }) => {
+  const here = session();
+  const shells: PanelShells = {
+    list: [
+      { id: 'a', name: 'demo', project: PROJECT, folder: PROJECT },
+      { id: 'o', name: 'other', project: OTHER, folder: OTHER },
+    ],
+    shown: {},
+  };
+  await app.boot({ ...withKept(shells), activeProject: null, openSessions: [here.id], activeSession: here.id, activeSessionByProject: {}, history: { [here.id]: [] } });
+  await expect(panelTabLabels(page)).toHaveText(['demo', 'other']);
+  await expect.poll(() => contexts(app)).toEqual([{ projectRoot: PROJECT, cwd: PROJECT, sessionId: here.id }]);
+
+  await panelTab(page, 'other').click();
+  await expect.poll(() => contexts(app)).toEqual([
+    { projectRoot: PROJECT, cwd: PROJECT, sessionId: here.id },
+    { projectRoot: OTHER, cwd: OTHER, sessionId: '' },
+  ]);
 });
 
 test('a kept shell whose folder is gone says so, in its screen and the header, and its icon fails', async ({ app, page }) => {

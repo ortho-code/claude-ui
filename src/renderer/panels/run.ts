@@ -63,8 +63,10 @@ export function runKey(cwd: unknown, context: PanelContext | null): string {
 /**
  * The context a run or a shell is handed: the selection as it is at that moment, with `cwd` the folder it actually runs in, so `CLAUDE_UI_CWD` tells the truth.
  * A fixed panel with nothing selected gets empty project and session variables rather than none.
+ * What belongs to a `project` of its own, such as a terminal panel's shell, is handed that project, and the selection's session only where the session is in it: a shell of one project started while another project's tab is on show is not that tab's.
  */
-export function runContext(context: PanelContext | null, dir: string): PanelContext {
+export function runContext(context: PanelContext | null, dir: string, project: string | null = null): PanelContext {
+  if (project !== null && context?.projectRoot !== project) return { projectRoot: project, cwd: dir, sessionId: '' };
   return { projectRoot: context?.projectRoot ?? '', cwd: dir, sessionId: context?.sessionId ?? '' };
 }
 

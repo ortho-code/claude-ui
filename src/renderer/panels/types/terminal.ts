@@ -525,7 +525,8 @@ class TerminalPanel implements MountedPanel {
     this.draw();
     const { term } = shell.view;
     try {
-      const id = await window.claudeUi.startShell(folder, runContext(resolveContext(this.host.where()), folder), { entryId: this.slot.key, shellId: shell.id });
+      // Filed under a project, its variables name that project whatever is selected, as in All with another project's tab on show; filed under none, the selection.
+      const id = await window.claudeUi.startShell(folder, runContext(resolveContext(this.host.where()), folder, shell.project), { entryId: this.slot.key, shellId: shell.id });
       // Closed or overtaken while it was starting: hand the shell straight back rather than leave one running with nothing showing it.
       if (!latest()) {
         window.claudeUi.killTerminal(id);

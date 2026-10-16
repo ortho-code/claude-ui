@@ -241,7 +241,8 @@ In All every project's tabs show, a row each led by the project's name, and a ch
 When a shell exits, its screen says so, and any key in it starts a new one in the same folder.
 The tabs come back at the next launch, with their names, and each shell starts again when its tab is shown, in the folder it was in when the app quit, on Linux; on macOS, or for a shell that had already exited, in the folder it was made or last restarted in.
 What was on screen in them does not come back.
-Each shell gets the same variables, and a `claude` you start in it by hand is not tracked as one of the app's sessions.
+Each shell gets the same variables, but a shell filed under a project names that project whatever is selected, and the session on show only when that session is in that project; one filed under none, as under a `global` scope, names what is selected.
+A `claude` you start in a shell by hand is not tracked as one of the app's sessions.
 
 Either type takes a `cwd` in its `options` to run somewhere other than that folder:
 
@@ -254,7 +255,7 @@ Either type takes a `cwd` in its `options` to run somewhere other than that fold
 { "id": "notes", "type": "command", "icon": "git", "options": { "command": "git status --short", "cwd": "~/notes" } }
 ```
 
-The variables tell the panel where it runs: `CLAUDE_UI_CWD` is that folder, and the project and session are the ones selected when it ran or started.
+The variables tell the panel where it runs: `CLAUDE_UI_CWD` is that folder, and the project and session are the ones selected when it ran or started, except for a shell filed under a project of its own, as above.
 
 A mistake in the file — an unknown type, a missing id, a size it cannot read, an option the type does not have, a script that is not there or not executable — is named in the place of the thing that is wrong, and a file that does not parse leaves the last good layout up and says what is wrong and at which line and column.
 A panel's options are checked by the panel itself, when it appears and before each run, so a missing script is named a moment after the rest.
