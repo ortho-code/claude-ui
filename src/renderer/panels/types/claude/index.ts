@@ -4,17 +4,17 @@ import { sessionNudge, visibleTabs } from '../../../state/views';
 import { builtinType, hostOf } from '../builtin';
 import type { PanelStatus } from '../../contract';
 import './index.css';
-import { tabbar } from './tab-bar';
+import { tabbar, tabbarEdge } from './tab-bar';
 import { paneEl, stepHistory } from './pane';
 
 /**
- * THE TERMINAL AREA as a panel type: the tab bar over the terminals, with the history's bar beside them.
+ * THE TERMINAL AREA as a panel type: the tab bar over the terminals, on a line that folds it, with the history's bar beside them.
  * One pane for the run: built once, parked until the layout places it, and put back by every mount (`builtinType`), so a layout change that remounts its entry — a new id, an option — keeps a running session and its terminal as they were.
- * Each part builds its own markup as it loads — the tab bar (tab-bar.ts), the pane with the terminals and the history's bar (pane.ts, terminals.ts) — and this module puts them together.
+ * Each part builds its own markup as it loads — the tab bar and its line (tab-bar.ts), the pane with the terminals and the history's bar (pane.ts, terminals.ts) — and this module puts them together.
  */
 const terminalPane = element('section');
 terminalPane.id = 'terminal-pane';
-terminalPane.append(tabbar, paneEl);
+terminalPane.append(tabbar, tabbarEdge, paneEl);
 document.getElementById('parked')!.append(terminalPane);
 
 export const claudeType = builtinType('claude', terminalPane, 'Claude', 'claude', () => railStatus(store.get()));

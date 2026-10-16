@@ -568,6 +568,27 @@ describe('stripExpanded', () => {
   });
 });
 
+describe('tabBarExpanded', () => {
+  it('starts expanded, every tab in sight', async () => {
+    expect((await getUiState()).tabBarExpanded).toBe(true);
+  });
+
+  it('remembers being folded, and being opened again', async () => {
+    const ui = await getUiState();
+    await setUiState({ ...ui, tabBarExpanded: false });
+    expect((await getUiState()).tabBarExpanded).toBe(false);
+    await setUiState({ ...ui, tabBarExpanded: true });
+    expect((await getUiState()).tabBarExpanded).toBe(true);
+  });
+
+  it('takes the default when an older meta.json never mentioned it, or holds something else', async () => {
+    await writeMetaFile({ ui: { stripExpanded: false }, version: 3 });
+    expect((await getUiState()).tabBarExpanded).toBe(true);
+    await writeMetaFile({ ui: { tabBarExpanded: 'no' }, version: 3 });
+    expect((await getUiState()).tabBarExpanded).toBe(true);
+  });
+});
+
 describe('stripHiddenProjects', () => {
   it('hides nothing on a first run', async () => {
     expect((await getUiState()).stripHiddenProjects).toEqual([]);
@@ -626,6 +647,7 @@ describe('ui state', () => {
     filterPanelOpen: true,
     stripExpanded: false,
     stripHiddenProjects: ['/home/me/side'],
+    tabBarExpanded: false,
     collapsedProjects: ['/home/me/work'],
     collapsedGroups: ['g1'],
     filterCollapsedProjects: ['/home/me/other'],
@@ -649,6 +671,7 @@ describe('ui state', () => {
       filterPanelOpen: false,
       stripExpanded: true,
       stripHiddenProjects: [],
+      tabBarExpanded: true,
       collapsedProjects: [],
       collapsedGroups: [],
       filterCollapsedProjects: [],

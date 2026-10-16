@@ -803,6 +803,7 @@ It sits there because a divider takes no room anywhere else, and won over a head
 The chevron points the way the group moves, and stays on the same divider when the group is folded, turned round: fold and unfold happen at one spot.
 It is FAINT until the pointer is on its divider and full then — quieter than a row of buttons on every foldable divider, and easier to find than a chevron that only appears on hover; all three were tried.
 It is a thin tab centred on the divider's line, 11px across, so it overhangs each neighbour by 3px, inside their padding, and never covers a header's text.
+The tab bar folds from the same chevron, on a line under it (§ UI conventions), so how it looks is one helper and one stylesheet (`fold-chevron.ts`, `fold-chevron.css`), and where it sits across its line, and when that line counts as pointed at, are each surface's.
 
 Which divider carries it, and which way it points, follows where the space goes.
 A folded group's room goes to its siblings without a pixel size, so a group in the middle of a split whose flexible siblings are all before it slides toward the END as they grow — and a chevron on its far side pointing back toward the start said the opposite of what happened, which is how the rule was found.
@@ -1147,6 +1148,7 @@ The **window's** size and position are stored as the unmaximized rectangle plus 
 The geometry decision is a pure function, so those cases are tested rather than reproduced by hand.
 
 The **sidebar's** view — search text, the filter toggles, the date filter, folded projects and groups, scroll offset — is one object written as a whole (its width belongs to the layout tree now; see Panel state), on a debounce, and only when a snapshot differs from the last one stored; renders happen constantly for reasons that have nothing to do with the view.
+The tab bar's fold is written in the same object, as the terminal area's part of it beside the sidebar's, each type saying what its part is (`claude/stored-view.ts`, `sessions/stored-view.ts`) and `view-saving.ts` putting them together.
 Rolling date presets are recomputed from the current moment, so "last 7 days" still means the last 7 days; only a custom range is restored literally.
 The filter panel comes back exactly as it was left, an active filter included — closing it over a filter you meant to keep is a choice to reclaim the space, and the filter icon carries an accent whenever anything is on.
 The toggle is a funnel rather than a magnifier, because a magnifier promises a search box, which clears when it closes.
@@ -1231,6 +1233,18 @@ A project's name scrolls the session list to that project and a group's to that 
 The group's is the function behind the heading's jump menu (`revealGroup`), and the project's (`revealProject`) flashes through the same `flash()`.
 The flash has no end keyframe, so it fades into whatever the element already has — a project heading's `--bg`, a group heading's `--surface`, an open row's accent bar.
 It used to end on `--surface`, which is right only for a group heading, and on anything else it finished by snapping to the element's own colour; that went unnoticed until a project heading was flashed.
+
+**The tab bar folds to one row, the row of the tab on show**, to give the terminal the room the bar takes even when it is behaving.
+That row is a cluster the bar already draws — a project's ungrouped tabs, or one group's — so folding needs no grouping of its own, and the tab on show is the signal the bar and the list already mark it by, and the live strip too while that session is in it.
+With no tab on show it keeps the first row that holds a tab, so the pane's "Pick a tab above" always has one above it; the bar's first row would not do, since in All that can be a project's name alone, its tabs all in groups.
+In All a group's row says nothing of its project, so as the folded bar's one row it carries its project's name in front, the same jump as the project's own row.
+It bounds the rows, not the tabs: a project with twenty ungrouped tabs still wraps that one row onto several lines.
+It folds from the chevron a panel group folds from (§ Dividers and folding), laid on a line under the bar that the tabs sit on, a divider's hairline with a divider's 5px to point at, and centred along it; the chevron points up while the bar is open, the way its edge moves as it folds.
+It was first a button at the right end of the bar's top row, which is the variant the divider's chevron had already beaten in the layout's mock, a button in the panel's own bar; it also took a column of width from every row, and in All sat beside a row that can be a project's name alone, out of line with the tabs.
+The line and its chevron go with the bar's last tab, as the live strip goes when it has nothing, and stay on a bar of one row, since folded is a stance that holds once a second row appears.
+Its dot is the strongest nudge of the tabs the fold hides, rolled up as the switcher rolls up a project's, so one waiting out of sight still says so; it is the dot a panel's icon carries on a rail, one rule for both (`.dotted-icon`, `base.css`), ringed in what is behind each, the rail's colour there and the chevron's resting fill here.
+The fold is one state for the whole bar, the same in every project and in All, and kept for the next launch beside the live strip's (§ Reopening the way you left it).
+It is not in the layout's `.local.json`, where a group's fold is: that would be a field the layout file could carry too, for a starting state that matters only on a first run, and the layout would learn a concept of the panel's.
 
 **A setting is named for what it turns on.**
 Its key and its label say what happens when it is on, never what stops: a key such as `resumeSessions`, not `disableResume`, and never a `no…`, `disable…` or `hide…`.

@@ -18,6 +18,11 @@
   opacity: 1;
 }
 
+/* The mark's own element lays out as if the mark were the button's child, so the button centres it as it centres any icon. */
+.fold-chev-mark {
+  display: contents;
+}
+
 /* On a line that runs down. */
 .icon-btn.fold-chev.vertical {
   width: 11px;

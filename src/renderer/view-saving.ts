@@ -2,11 +2,12 @@ import type { PanelState } from '../shared/panels';
 import { defaultUi } from '../shared/defaults';
 import type { UiState } from '../shared/types';
 import { holdLegacyState } from './panels/tree';
+import { restoreTerminalArea, terminalAreaSnapshot } from './panels/types/claude/stored-view';
 import { followListScroll, restoreSidebar, sidebarSnapshot } from './panels/types/sessions/stored-view';
 import { store, type StoredView } from './state/app';
 
 /**
- * THE VIEW THAT SURVIVES A RESTART: the sidebar's part (sessions/stored-view.ts), saved in the one shape `meta.json` keeps, and put back at start-up.
+ * THE VIEW THAT SURVIVES A RESTART: the sidebar's part (sessions/stored-view.ts) and the terminal area's (claude/stored-view.ts), saved in the one shape `meta.json` keeps, and put back at start-up.
  * Search, filters, folds, width and scroll are one answer to one question — put the window back the way it was — so they are snapshotted, stored and restored together rather than as a setting each.
  * The layout tree's sizes, folds and picks are not here any more: they are this machine's, in the app's file beside the layout (panels/tree.ts), and what `meta.json` kept of them is handed to the tree to move there once, and written back as it was read, so an older build still finds it.
  * renderer.ts wires it: a watcher of the view's slices and the start-up order; the list's scroll it follows itself, from the moment it starts saving.
@@ -22,10 +23,11 @@ let uiSaveTimer: number | undefined;
 // Renders happen for reasons that have nothing to do with the view — a transcript growing, a status dot changing — and without this each one would cost a full read-modify-write of meta.json.
 let lastUiSignature = '';
 
-/** The view to store: the sidebar's part and the layout tree's, in the one shape `meta.json` keeps. */
+/** The view to store: the sidebar's part, the terminal area's and the layout tree's, in the one shape `meta.json` keeps. */
 function uiSnapshot(view: StoredView = store.get()): UiState {
   return {
     ...sidebarSnapshot(view),
+    ...terminalAreaSnapshot(view),
     // Adopted into the layout tree's sizes on the first launch that has them, and not written again: the tree owns the sidebar's width now.
     sidebarWidth: null,
     panelState: heldPanelState,
@@ -50,7 +52,7 @@ export function persistUi(): void {
 }
 
 /**
- * Put the sidebar back the way it was left, and hand back what the start-up read sets in the store with the listing (`fullRead`), and the scroll offset to apply once there is a list to scroll.
+ * Put the sidebar and the tab bar back the way they were left, and hand back what the start-up read sets in the store with the listing (`fullRead`), and the scroll offset to apply once there is a list to scroll.
  *
  * Runs before the first render on purpose, and the view goes into the store in the same change as the listing: restoring filters afterwards would draw the full list and then visibly cut it down.
  * What is drawn straight from what was stored — the search box, the calendar, the chosen preset, the panel — is put back by the sidebar (`restoreSidebar`), before the layout places it; the tree puts back its own part.
@@ -60,10 +62,11 @@ export async function restoreUiState(): Promise<{ scrollTop: number; view: Store
   // The sidebar's width lived in localStorage, then in `sidebarWidth`; either goes with the tree's state into the app's file beside the layout, once, so an existing install keeps its sidebar.
   heldPanelState = state.panelState;
   holdLegacyState(state.panelState, state.sidebarWidth ?? Number(localStorage.getItem('sidebarWidth')));
-  const restored = await restoreSidebar(state);
+  const sidebar = await restoreSidebar(state);
+  const view: StoredView = { ...sidebar.view, ...restoreTerminalArea(state) };
   // Seed the signature from what was just restored, so an opening render that changed nothing writes nothing.
-  lastUiSignature = JSON.stringify(uiSnapshot(restored.view));
-  return restored;
+  lastUiSignature = JSON.stringify(uiSnapshot(view));
+  return { scrollTop: sidebar.scrollTop, view };
 }
 
 /** From the start-up read on, the view in the store is the one you left, so it can be saved; anything asked for meanwhile — the layout dropping a stale split's sizes, say — is written now, if it changed anything. */

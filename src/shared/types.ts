@@ -293,6 +293,11 @@ export interface UiState {
   stripExpanded: boolean;
   /** The projects hidden from the live strip, by repo root: kept until you unhide one, or open or start a session in it. */
   stripHiddenProjects: string[];
+  /**
+   * Whether the tab bar shows every row of tabs, or only one, the row of the tab on show where there is one.
+   * Open by default, every tab in sight; the terminal area's part of the stored view, where the rest is the sidebar's.
+   */
+  tabBarExpanded: boolean;
   /** Folded-away projects, by repo root. */
   collapsedProjects: string[];
   /** Folded-away groups, by group id. */

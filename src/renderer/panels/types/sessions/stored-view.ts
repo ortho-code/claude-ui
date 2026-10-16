@@ -10,7 +10,7 @@ import { container } from './drawn';
  */
 
 /** The sidebar's fields of the stored view, as they are now. */
-export function sidebarSnapshot(view: StoredView = store.get()): Omit<UiState, 'sidebarWidth' | 'panelState'> {
+export function sidebarSnapshot(view: StoredView = store.get()): Omit<UiState, 'sidebarWidth' | 'panelState' | 'tabBarExpanded'> {
   const { folds } = view;
   return {
     // The search as typed, not the trimmed and lowercased text it matches: what is restored has to be what was typed.
@@ -30,11 +30,11 @@ export function sidebarSnapshot(view: StoredView = store.get()): Omit<UiState, '
  * Put the sidebar back as it was stored: the filter's controls now (`restoreFilter`), and hand back the view the start-up read sets in the store with the listing, and the scroll to apply once there is a list to scroll.
  * A deleted group's fold comes back too, and goes once the groups have been read (`forgetDeletedGroupFolds`).
  */
-export async function restoreSidebar(state: UiState): Promise<{ scrollTop: number; view: StoredView }> {
+export async function restoreSidebar(state: UiState): Promise<{ scrollTop: number; view: Omit<StoredView, 'tabBarExpanded'> }> {
   const filter = await restoreFilter(state);
   // The folds made under a filter apply only while it is on, so a filter stored off leaves them behind.
   const underFilter = isFiltering({ filter });
-  const view: StoredView = {
+  const view: Omit<StoredView, 'tabBarExpanded'> = {
     filter,
     folds: {
       projects: new Set(state.collapsedProjects),

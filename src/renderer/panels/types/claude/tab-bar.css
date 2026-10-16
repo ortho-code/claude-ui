@@ -15,6 +15,33 @@
   flex-basis: 100%;
 }
 
+/* The line under the bar, which the tabs sit on and its fold chevron lies on (fold-chevron.css): a hairline at its top, in a divider's colour, and the 5px of a divider to point at below it. */
+#tabbar-edge {
+  position: relative;
+  flex: 0 0 5px;
+}
+
+#tabbar-edge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Centred on the hairline: 11px across a 1px line, so it reaches 5px up the bar, which is a tab's bottom padding where a tab sits above it, so it never covers a tab's buttons.
+   Its dot (`.dotted-icon`, base.css) is ringed in the chevron's resting fill. */
+#tabbar-edge .fold-chev {
+  top: -5px;
+  --dot-ring: var(--surface);
+}
+
+#tabbar-edge:hover .fold-chev {
+  opacity: 1;
+}
+
 /* The tab bar's two labels are both clickable — a project's scrolls the session list to the project, a group's to the group — so they are one shape with one hover, and differ only in weight and in what sits beside the name.
    Full text colour, like the project's own heading in the sidebar, so a project whose folder is gone reads the same way in both halves of the window: muted, beside names that are not. */
 .tab-project-label,

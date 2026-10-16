@@ -71,6 +71,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A filter for paused sessions, beside the live one.
 - Hiding a project from the live strip, from the eye on its heading: its sessions leave the strip, and a Hidden line at its foot counts the hidden projects and still shows what they are asking of you.
   It stays hidden across a restart, and comes back when you pick it from that line's menu, or open or start a session in it.
+- Folding the tab bar to one row, from a chevron on the line under the tabs, as a group of panels folds from its divider, to give the terminal the room: the row of the tab on show stays, or the first row when no tab is on show, and the chevron's dot rolls up the tabs folded away, as a project's dot does in the switcher.
+  It stays folded across a restart.
 
 ### Changed
 
