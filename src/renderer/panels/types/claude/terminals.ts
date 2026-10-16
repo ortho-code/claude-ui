@@ -10,6 +10,7 @@ import { tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
 import { fromMarkup } from '../../../dom';
+import { isQuitting } from '../../../quitting';
 import './terminals.css';
 
 /** Where the tabs' terminals go: built here, and placed by the pane (pane.ts) under the tab bar. */
@@ -98,10 +99,6 @@ let activationSeq = 0;
 let activeByProject: Record<string, string> = {};
 let lastActiveKey: string | null = null;
 let restoring = false;
-// Set once the app is quitting.
-// Shutdown kills every terminal, and each pty exit closes its tab; we must not let those closes persist an empty open-tabs list over the real one (it would wipe the tabs to restore next launch).
-// Set via onQuitting, below.
-let shuttingDown = false;
 
 /**
  * The open tabs, which of them run, and which you paused, for the next launch.
@@ -109,7 +106,8 @@ let shuttingDown = false;
  * A session still being stopped has its process until claude has gone, so it is written as running until then.
  */
 export function persistOpenTabs(): void {
-  if (restoring || shuttingDown) return;
+  // Once the app is quitting, every terminal is ended and each pty's exit closes its tab: those closes must not persist an empty open-tabs list over the real one, which would wipe the tabs to restore next launch.
+  if (restoring || isQuitting()) return;
   // Persist entity keys (session ids — immutable, so a restart always finds them again).
   // A session with no transcript yet is not in the map; its own id stands in, and restore drops it, which is right — there is nothing on disk to reopen.
   const { sessions, tabs } = store.get();
@@ -656,8 +654,3 @@ function onTabExit(token: string, exitCode: number): void {
   }
   removeTab(token);
 }
-
-// Stop persisting open tabs once shutdown starts, so the terminal-exit closes it triggers don't overwrite the saved tab list with an empty one (see the shuttingDown note above).
-window.claudeUi.onQuitting(() => {
-  shuttingDown = true;
-});
