@@ -1,0 +1,33 @@
+/*
+  The fold chevron, wherever it lies (fold-chevron.ts): a thin tab, 30px along its line and 11px across it, centred along the line unless the surface places it otherwise; how far it sits across the line is the surface's, since that turns on how thick the line's box is.
+  A framed icon button (`.framed`), so it takes the hover every bordered icon control shares; the resting fill and border are what make it read as a tab on a line rather than a loose mark.
+  FAINT at rest and full once the pointer is on its line, which each surface says, or once it has the keyboard's focus: quieter than always, and easier to find than only on hover — all three were tried.
+  Above what lies either side, whose own layers (xterm's among them) would otherwise paint over the part that overhangs them.
+*/
+.icon-btn.fold-chev {
+  position: absolute;
+  z-index: 10;
+  padding: 0;
+  background: var(--surface);
+  border-color: var(--border);
+  opacity: 0.35;
+  transition: opacity 0.12s;
+}
+
+.icon-btn.fold-chev:focus-visible {
+  opacity: 1;
+}
+
+/* On a line that runs down. */
+.icon-btn.fold-chev.vertical {
+  width: 11px;
+  height: 30px;
+  top: calc(50% - 15px);
+}
+
+/* On a line that runs across. */
+.icon-btn.fold-chev.horizontal {
+  width: 30px;
+  height: 11px;
+  left: calc(50% - 15px);
+}

@@ -2,12 +2,13 @@ import { keptOver } from '../../shared/kept';
 import { NODE_STATE_FIELDS, parseSize, spelledSize, withNodeChanges, type LayoutReport, type NodeSize, type NodeState, type NodeStateChange, type PanelState } from '../../shared/panels';
 import { idsIn, readNodeState, stateFromPanelState } from './nodestate';
 import { element } from '../dom';
+import { drawFoldChevron, foldChevron } from '../fold-chevron';
 import { installSplitResizer } from '../resizer';
 import { badgeClass } from '../statusdot';
 // A panel header's count wears the section heading's count pill.
 import '../card.css';
 import './tree.css';
-import { chevronIcon, strokeIcon, type Direction } from '../svg';
+import { strokeIcon, type Direction } from '../svg';
 import { setTooltip } from '../tooltip';
 import { iconSvg } from './icons';
 import { optionsOf } from './options';
@@ -449,9 +450,9 @@ function divider(split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLEleme
 const OPPOSITE: Record<Direction, Direction> = { up: 'down', down: 'up', left: 'right', right: 'left' };
 
 /**
- * THE FOLD CONTROL (P7, P12): a chevron on the divider on the other side of the edge a group folds toward, pointing the way it moves, and turned round while it is folded.
+ * THE FOLD CONTROL (P7, P12): the fold chevron (fold-chevron.ts) on the divider on the other side of the edge a group folds toward, pointing the way it moves, and turned round while it is folded.
  * Two on one divider — two foldable groups alone in a split — sit one after the other along the line, each pointing into its own group, so neither covers a header; hovering one outlines the group it acts on.
- * Faint until the pointer is on the divider (tree.css), so a window of foldable groups is not a row of buttons.
+ * Faint until the pointer is on the divider (fold-chevron.css, tree.css), so a window of foldable groups is not a row of buttons.
  */
 function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: ResolvedNode[], nodes: HTMLElement[], edges: Place['edge'][], folded: boolean[], toggles: Place['toggleFold'][], a: number, b: number): void {
   const riders = [a, b].filter((index) => toggles[index] && edges[index] === (index === a ? 'start' : 'end'));
@@ -459,12 +460,10 @@ function foldControls(handle: HTMLElement, split: ResolvedSplit, visible: Resolv
   for (const index of riders) {
     const group = visible[index]!;
     const toward: Direction = horizontal ? (edges[index] === 'start' ? 'left' : 'right') : edges[index] === 'start' ? 'up' : 'down';
-    const chevron = element('button', `icon-btn framed chev ${index === a ? 'before' : 'after'}${riders.length === 2 ? ' shared' : ''}`);
-    chevron.type = 'button';
-    chevron.innerHTML = chevronIcon(folded[index] ? OPPOSITE[toward] : toward, 10);
-    const label = `${folded[index] ? 'Unfold' : 'Fold'} ${group.id}`;
-    chevron.setAttribute('aria-label', label);
-    setTooltip(chevron, label);
+    const chevron = foldChevron(horizontal ? 'vertical' : 'horizontal');
+    chevron.classList.add(index === a ? 'before' : 'after');
+    if (riders.length === 2) chevron.classList.add('shared');
+    drawFoldChevron(chevron, folded[index] ? OPPOSITE[toward] : toward, `${folded[index] ? 'Unfold' : 'Fold'} ${group.id}`);
     chevron.addEventListener('mouseenter', () => nodes[index]!.classList.add('fold-target'));
     chevron.addEventListener('mouseleave', () => nodes[index]!.classList.remove('fold-target'));
     chevron.addEventListener('click', toggles[index]!);

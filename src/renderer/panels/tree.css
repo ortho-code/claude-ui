@@ -85,55 +85,35 @@
 }
 
 /*
-  The fold chevron: a thin tab laid along the divider, centred on its line.
-  11px across, so it overhangs each neighbour by 3px, which stays inside their padding and never covers a header's text.
-  A framed icon button (`.framed`), so it takes the hover every bordered icon control shares; the resting fill and border are what make it read as a tab on a line rather than a loose mark.
-  FAINT until the pointer is on its divider, and full then: quieter than always, and easier to find than only on hover — all three were tried.
-  Above the panels either side, whose own layers (xterm's among them) would otherwise paint over the part that overhangs them.
+  The fold chevron (fold-chevron.css) on a divider, centred on its line: 11px across a 5px divider, so it overhangs each neighbour by 3px, which stays inside their padding and never covers a header's text.
+  Full once the pointer is on its divider.
 */
-.divider .chev {
-  position: absolute;
-  z-index: 10;
-  padding: 0;
-  background: var(--surface);
-  border-color: var(--border);
-  opacity: 0.35;
-  transition: opacity 0.12s;
-}
-
-.divider:hover .chev,
-.divider .chev:focus-visible {
+.divider:hover .fold-chev {
   opacity: 1;
 }
 
-.split.columns > .divider .chev {
-  width: 11px;
-  height: 30px;
-  top: calc(50% - 15px);
+.split.columns > .divider .fold-chev {
   left: -3px;
 }
 
-.split.rows > .divider .chev {
-  width: 30px;
-  height: 11px;
-  left: calc(50% - 15px);
+.split.rows > .divider .fold-chev {
   top: -3px;
 }
 
 /* Two groups alone in a split share one divider: both chevrons sit on the line, one after the other along it, each pointing into its own group; the hover outline says which is which. */
-.split.columns > .divider .chev.shared.before {
+.split.columns > .divider .fold-chev.shared.before {
   top: calc(50% - 32px);
 }
 
-.split.columns > .divider .chev.shared.after {
+.split.columns > .divider .fold-chev.shared.after {
   top: calc(50% + 2px);
 }
 
-.split.rows > .divider .chev.shared.before {
+.split.rows > .divider .fold-chev.shared.before {
   left: calc(50% - 32px);
 }
 
-.split.rows > .divider .chev.shared.after {
+.split.rows > .divider .fold-chev.shared.after {
   left: calc(50% + 2px);
 }
 

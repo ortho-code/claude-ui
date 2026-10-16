@@ -23,6 +23,7 @@ const ORDER = [
   'src/renderer/projectgone.css',
   'src/renderer/chrome.css',
   'src/renderer/flash.css',
+  'src/renderer/fold-chevron.css',
   'src/renderer/resizer.css',
   'src/renderer/card.css',
   'src/renderer/panels/tree.css',
