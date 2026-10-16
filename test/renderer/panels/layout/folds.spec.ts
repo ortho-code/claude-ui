@@ -32,8 +32,8 @@ test('a pick kept in the app’s file is shown at once in an open group', async 
 test('a fold kept in the app’s file comes back folded, running nothing, and shows its kept pick once unfolded', async ({ app, page }) => {
   await app.boot(withLayout(LAYOUT, { right: { active: 'checks', folded: true } }));
   await expect(page.getByRole('button', { name: 'Unfold right' })).toBeVisible();
-  // The shell in the drawer starts, being on show; nothing behind the folded group does.
-  await expect.poll(() => app.calls('startShell')).toHaveLength(1);
+  // The drawer is on show, saying it has no shell yet; nothing behind the folded group runs.
+  await expect(page.locator('.pane-placeholder', { hasText: 'No terminal in demo.' })).toBeVisible();
   expect(await runs(app, 'checks')).toEqual([]);
   await page.getByRole('button', { name: 'Unfold right' }).click();
   await expect(railItem(page, /^Checks/)).toHaveClass(/\bshown\b/);

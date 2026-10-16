@@ -4,8 +4,8 @@ import { tab, tabLabel } from '../../../support/window';
 import { LAYOUT, here, withLayout } from '../../layout/layout';
 
 // The terminal area is one instance for the run (docs/architecture.md § Panels): a layout change that remounts its entry — a new id, an option — puts back the very same pane, so a running session and its terminal go on as they were.
-// The layout's drawer starts its shell first, so the claude is the second terminal.
-const CLAUDE = 2;
+// The layout's drawer makes no shell until asked, so the claude is the first terminal.
+const CLAUDE = 1;
 
 /** Mark the pane and the tab's terminal, so the same elements can be told from rebuilt ones afterwards. */
 const markElements = (page: Page): Promise<void> =>

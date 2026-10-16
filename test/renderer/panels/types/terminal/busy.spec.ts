@@ -24,9 +24,10 @@ const kills = async (app: App): Promise<unknown[]> => (await app.calls('killTerm
 
 const question = (page: Page): Locator => page.locator('#confirm-dialog');
 
-/** The panel's first shell, started by itself, is terminal 1. */
+/** Boot, and make the panel's first shell with `+`: terminal 1. */
 async function bootWithShell(app: App, page: Page): Promise<void> {
   await app.boot(layout);
+  await panelTabAdd(page).click();
   await expect(panelTabLabels(page)).toHaveText(['demo']);
   await expect.poll(() => app.calls('startShell')).toHaveLength(1);
 }

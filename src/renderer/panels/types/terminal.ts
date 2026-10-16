@@ -20,8 +20,8 @@ import { NO_CONTEXT, prepare, resolveContext, runContext } from '../run';
  * `+` makes another where you are working now, and Restart here, in a tab's menu, starts a tab's shell again there.
  *
  * BY PROJECT, unless the `scope` option says otherwise: the tabs on show are the selected project's, All shows every project's in a row each, and the others go on running out of sight.
- * A project with no shell gets one when it comes into view: at launch, when the panel is unfolded or picked, or when you switch to the project; and the tab on show starts its shell if it has none yet.
- * Closing its last shell leaves a line saying so instead, until `+`, a key, a switch back to the project, or the panel being shown again.
+ * ONLY YOU MAKE A SHELL, with `+` or a key on the line a project with none shows: a switch of project, or the panel coming into view, makes no tab, so looking through projects adds none.
+ * The tab on show starts its shell when it comes into view if it has none yet, so one brought back from the last launch runs again when its project is shown; that never adds a tab.
  *
  * A shell that EXITS leaves its screen up with a line saying so, and stays so until the next key, which starts a new one in its tab, so getting a shell back never depends on a button being there.
  */
@@ -56,7 +56,7 @@ interface Shell {
 
 class TerminalPanel implements MountedPanel {
   readonly el = document.createElement('div');
-  /** The line in a shell's place when there is none: no context to start one in, or the last one closed. */
+  /** The line in a shell's place when there is none: no context to start one in, or no shell made here yet. */
   private readonly placeholder = document.createElement('div');
   /** In the order their tabs are drawn, every project's together. */
   private shells: Shell[] = [];
@@ -64,17 +64,13 @@ class TerminalPanel implements MountedPanel {
   private readonly onShow = new Map<string, string>();
   /** Whether the panel is on screen, as the tree last said. */
   private onScreen = false;
-  /** No shell because the options did not pass; a recheck that passes starts one. */
+  /** No shell because the options did not pass; a recheck that passes starts the tab on show, if there is one. */
   private refused = false;
   private disposed = false;
-  /** Where the last shell was closed, which shows the line rather than a new shell until it comes into view again. */
-  private leftEmpty: string | null = null;
-  /** What was on show at the last draw, so a switch to another project is told from a switch of tab within one. */
-  private lastScope: string | null = null;
   private nextId = 1;
-  /** Shells being made, between the ask and the check of their folder. */
+  /** Shells being made, between the ask and the check of their folder, while the line still stands where the shell will be. */
   private adding = 0;
-  /** Its kept shells have been read: until then it makes none by itself, which would stand beside the ones it is about to bring back. */
+  /** Its kept shells have been read: until then it starts none, and keeps nothing, which would be written over them. */
   private loaded = false;
   /** Its kept shells could not be read, so it keeps nothing this run: what it holds would be written over them. */
   private unkept = false;
@@ -96,7 +92,7 @@ class TerminalPanel implements MountedPanel {
     this.placeholder.addEventListener('keydown', (event) => {
       if (event.target !== this.placeholder || !this.mayAdd() || event.ctrlKey || event.altKey || event.metaKey || (event.key.length !== 1 && event.key !== 'Enter')) return;
       event.preventDefault();
-      if (this.adding === 0) void this.add(true);
+      if (this.adding === 0) void this.add();
     });
     this.el.append(this.placeholder);
     // A project's name heads its row in All, and its place there is the project order you set.
@@ -153,8 +149,6 @@ class TerminalPanel implements MountedPanel {
   }
 
   contextChanged(): void {
-    // Another project on show is that project coming into view; a switch of tab within one is not.
-    if (this.scopeKey() !== this.lastScope) this.leftEmpty = null;
     this.draw();
     this.ensure();
   }
@@ -164,7 +158,6 @@ class TerminalPanel implements MountedPanel {
     const was = this.onScreen;
     this.onScreen = visible;
     if (!visible || was) return;
-    this.leftEmpty = null;
     if (this.refused) {
       // Coming back into view while it could not start is a look at it, so it looks again: with no button on a fixed terminal, that is how a folder that has appeared since is picked up.
       this.recheck();
@@ -235,7 +228,6 @@ class TerminalPanel implements MountedPanel {
   /** Say what is on show: which shell's box, the line when there is none, the tabs, and the count on the rail. */
   private draw(): void {
     if (this.disposed) return;
-    this.lastScope = this.scopeKey();
     const visible = this.visible();
     const current = this.current();
     for (const shell of this.shells) shell.box.hidden = shell !== current;
@@ -265,7 +257,7 @@ class TerminalPanel implements MountedPanel {
       },
       rename: (id) => this.withShell(id, (shell) => void this.rename(shell)),
       reorder: (ids) => this.reorder(ids),
-      add: () => void this.add(true),
+      add: () => void this.add(),
       showCluster: (root) => this.host.revealProject(root),
     });
   }
@@ -282,24 +274,20 @@ class TerminalPanel implements MountedPanel {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = 'New terminal';
-    button.addEventListener('click', () => void this.add(true));
+    button.addEventListener('click', () => void this.add());
     const hint = document.createElement('div');
     hint.textContent = 'or press any key here';
     this.placeholder.replaceChildren(sentence, button, hint);
   }
 
-  /** What is on show has a running shell: the tab on show starts if it has none yet, and where there is no tab, a shell is made, unless its last one was closed there. */
+  /**
+   * The tab on show starts its shell if it has none yet and has not exited, once the panel is on screen; where there is no tab, nothing is made, since only you make shells.
+   * Not focused: a shell started by itself must not take the keys from wherever you are typing.
+   */
   private ensure(): void {
     if (!this.loaded || !this.onScreen || this.refused || this.disposed) return;
     const current = this.current();
-    if (current) {
-      if (current.terminalId === null && !current.starting && !current.exited) void this.start(current, current.folder);
-      return;
-    }
-    // A shell already being made is the one this would make: `add` asks again once it is made.
-    if (this.leftEmpty === this.scopeKey() || !this.mayAdd() || this.adding > 0) return;
-    // Not focused: a shell started by itself must not take the keys from wherever you are typing.
-    void this.add(false);
+    if (current?.terminalId === null && !current.starting && !current.exited) void this.start(current, current.folder);
   }
 
   // ——— what a tab does ———
@@ -322,10 +310,10 @@ class TerminalPanel implements MountedPanel {
   }
 
   /**
-   * A new shell where you are working now, after the last of its project's, on show there; with the keys when `focus` says you asked for it.
-   * Where it belongs is read as it is asked for, so a switch while its folder is being checked files it where it was asked, and what came into view meanwhile then gets its own.
+   * A new shell where you are working now, after the last of its project's, on show there, and with the keys if it is still on show when its shell starts.
+   * Where it belongs is read as it is asked for, so a switch while its folder is being checked files it where it was asked.
    */
-  private async add(focus: boolean): Promise<void> {
+  private async add(): Promise<void> {
     const key = this.scopeKey();
     const project = this.scope() === 'project' ? (resolveContext(this.host.where())?.projectRoot ?? null) : null;
     if (this.scope() === 'project' && project === null) {
@@ -351,14 +339,12 @@ class TerminalPanel implements MountedPanel {
     });
     if (last < 0) this.shells.push(shell);
     else this.shells.splice(last + 1, 0, shell);
-    if (this.leftEmpty === key) this.leftEmpty = null;
     this.onShow.set(key, shell.id);
     if (project !== null) this.onShow.set(project, shell.id);
-    shell.focusWhenStarted = focus;
+    shell.focusWhenStarted = true;
     this.draw();
     this.save();
     void this.start(shell, shell.folder);
-    this.ensure();
   }
 
   /** A shell's tab, with no shell yet: a new one, or one kept from the last launch, which brings its own id and name. */
@@ -404,7 +390,6 @@ class TerminalPanel implements MountedPanel {
     this.dispose(shell);
     this.shells = this.shells.filter((each) => each !== shell);
     const next = wasCurrent ? (visible[at + 1] ?? visible[at - 1] ?? null) : null;
-    if (this.visible().length === 0) this.leftEmpty = this.scopeKey();
     if (next) this.select(next, true);
     else this.draw();
     this.save();
