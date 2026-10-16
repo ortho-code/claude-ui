@@ -2,7 +2,7 @@ import Sortable from 'sortablejs';
 import { element, fromMarkup } from '../../../dom';
 import { drawFoldChevron, foldChevron } from '../../../fold-chevron';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
-import { orderAsTabs, reorderWithinGroup, sessionLabel, strongestNudge, tabButtonState, unstartableReason, worktreeMarkState } from '../../../logic';
+import { asksForYou, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, tabButtonState, unstartableReason, worktreeMarkState } from '../../../logic';
 import { kebabButton, openMenu, type MenuItem } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
@@ -27,14 +27,13 @@ export const tabbar = fromMarkup(`<div id="tabbar"></div>`);
 
 /**
  * The line under the bar, which the tabs sit on, and its fold: the fold chevron a panel group folds from on its divider (fold-chevron.ts), centred on the line and pointing the way the bar's edge moves.
- * Its dot speaks for the tabs the fold hides, as a panel's icon on a rail does for the panel.
+ * A tab it hides that asks for you turns it into that tab's status dot (`drawFold`).
  * Folded is kept for the next launch (`tabBarExpanded`, claude/stored-view.ts).
  * Placed under the bar by the terminal area (index.ts).
  */
 export const tabbarEdge = fromMarkup(`<div id="tabbar-edge" hidden></div>`);
 const fold = foldChevron('horizontal');
 fold.id = 'tabbar-fold';
-fold.classList.add('dotted-icon');
 const foldDot = element('span', 'nudge');
 foldDot.hidden = true;
 fold.append(foldDot);
@@ -110,15 +109,18 @@ export function renderTabBar(view: TabBarView): void {
 }
 
 /**
- * The fold as the bar now is: which way it points (up while the bar is open, the way its edge moves as it folds), what it says, and its dot, the strongest nudge of the tabs it hides (`hidden`), so one waiting out of sight still says so; a read tab's waiting or idle counts as nothing, as it does in every roll-up.
+ * The fold as the bar now is: which way it points (up while the bar is open, the way its edge moves as it folds), what it says, and whether it is the dot of a tab it hides (`hidden`) that asks for you, the strongest of them, which the stylesheet puts in the arrow's place.
+ * Only what asks for you (`asksForYou`): a tab at work asks nothing, and with a few at work out of sight, a chevron that turned for them would hardly ever be a chevron.
  * It always folds the bar to one row, whatever is on show, so that is what it says.
  */
 function drawFold(expanded: boolean, hidden: readonly TabState[], view: View<'statuses' | 'acked'>): void {
-  drawFoldChevron(fold, expanded ? 'up' : 'down', expanded ? 'Fold the tab bar to one row' : 'Unfold the tab bar');
+  const asking = strongestNudge(hidden.map((tab) => sessionNudge(tab.session.id, view)).filter(asksForYou));
+  const label = expanded ? 'Fold the tab bar to one row' : asking ? `Unfold the tab bar: a tab out of sight is ${statusLabel(asking)?.toLowerCase()}` : 'Unfold the tab bar';
+  drawFoldChevron(fold, expanded ? 'up' : 'down', label);
   fold.setAttribute('aria-expanded', String(expanded));
-  const badge = strongestNudge(hidden.map((tab) => sessionNudge(tab.session.id, view)));
-  foldDot.className = badgeClass(badge);
-  foldDot.hidden = badge === null;
+  fold.classList.toggle('asking', asking !== null);
+  foldDot.className = badgeClass(asking);
+  foldDot.hidden = asking === null;
 }
 
 /**

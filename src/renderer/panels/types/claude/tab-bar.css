@@ -31,15 +31,30 @@
   background: var(--border);
 }
 
-/* Centred on the hairline: 11px across a 1px line, so it reaches 5px up the bar, which is a tab's bottom padding where a tab sits above it, so it never covers a tab's buttons.
-   Its dot (`.dotted-icon`, base.css) is ringed in the chevron's resting fill. */
+/* Centred on the hairline: 11px across a 1px line, so it reaches 5px up the bar, which is a tab's bottom padding where a tab sits above it, so it never covers a tab's buttons. */
 #tabbar-edge .fold-chev {
   top: -5px;
-  --dot-ring: var(--surface);
 }
 
 #tabbar-edge:hover .fold-chev {
   opacity: 1;
+}
+
+/* A tab out of sight that asks for you turns the chevron into its status dot (`.asking`, tab-bar.ts), in the arrow's place, the 9px dot filling the 11px tab inside its border, and at full strength: a chevron with something to say is not faint.
+   Pointing at the line, or the keyboard's focus on it, turns it back into the arrow, so it says what it does before it is pressed. */
+#tabbar-edge .fold-chev.asking {
+  opacity: 1;
+}
+
+#tabbar-edge .fold-chev.asking .fold-chev-mark,
+#tabbar-edge:hover .fold-chev.asking > .nudge,
+#tabbar-edge .fold-chev.asking:focus-visible > .nudge {
+  display: none;
+}
+
+#tabbar-edge:hover .fold-chev.asking .fold-chev-mark,
+#tabbar-edge .fold-chev.asking:focus-visible .fold-chev-mark {
+  display: contents;
 }
 
 /* The tab bar's two labels are both clickable — a project's scrolls the session list to the project, a group's to the group — so they are one shape with one hover, and differ only in weight and in what sits beside the name.

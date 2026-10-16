@@ -329,7 +329,7 @@ button:where(:not(.icon-btn)):hover,
   border-radius: 50%;
 }
 
-/* An icon carrying a status dot on its top-right corner: a panel's icon on a rail, and the tab bar's fold for the tabs it hides.
+/* An icon carrying a status dot on its top-right corner: a panel's icon on a rail.
    The dot is the nudge itself, ringed in what is behind the icon (`--dot-ring`, which each surface sets) so it reads against the mark it overlaps. */
 .dotted-icon {
   position: relative;

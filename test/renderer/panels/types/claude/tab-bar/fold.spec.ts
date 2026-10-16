@@ -3,7 +3,7 @@ import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { row, tab, tabBarFold, tabBarGroup, tabBarGroupRow, tabBarProject, tabBarRows, tabLabels, tabLabelsIn } from '../../../../support/window';
 
-// The tab bar folds to the row of the tab on show, from the fold chevron on the line under it, to give the terminal the room; the fold is kept, and the chevron's dot speaks for the tabs it hides.
+// The tab bar folds to the row of the tab on show, from the fold chevron on the line under it, to give the terminal the room; the fold is kept, and the chevron turns into the dot of a tab it hides that asks for you.
 const OTHER = `${HOME}/projects/other`;
 const looseOne = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'Loose one' });
 const looseTwo = session({ id: '00000000-0000-4000-8000-0000000000f2', title: 'Loose two' });
@@ -107,35 +107,64 @@ test('folded with no tab on show, the bar keeps the first row that holds a tab',
   await expect(tabBarRows(page).locator('.tab-project-label')).toHaveText('demo');
 });
 
-// A tab out of sight that waits for you still says so, from the chevron, as a folded panel's icon does on its rail; read, it asks nothing, and a tab in sight speaks for itself.
-test("folded, the chevron's dot speaks for the tabs the fold hides", async ({ app, page }) => {
+// A tab out of sight that asks something of you — waiting, or finished and not read — turns the chevron into its dot, at full strength; work in progress asks nothing and leaves the chevron be, and a tab in sight speaks for itself.
+// Pointing at the line brings the chevron back, so the control says what it does before it is pressed.
+test('folded, the chevron turns into the dot of a tab out of sight that asks for you, and back when its line is pointed at', async ({ app, page }) => {
   await app.boot({ ...fixture, uiState: folded });
-  const dot = tabBarFold(page).locator('.nudge');
+  const fold = tabBarFold(page);
+  const dot = fold.locator('.nudge');
+  const arrow = fold.locator('svg');
+  const asChevron = async (): Promise<void> => {
+    await expect(arrow).toBeVisible();
+    await expect(dot).toBeHidden();
+    await expect(fold).toHaveCSS('opacity', '0.35');
+    await expect(fold).toHaveAttribute('aria-label', 'Unfold the tab bar');
+  };
+  const asDot = async (status: 'waiting' | 'idle', said: string): Promise<void> => {
+    await expect(dot).toBeVisible();
+    await expect(dot).toHaveClass(new RegExp(`\\b${status}\\b`));
+    await expect(arrow).toBeHidden();
+    await expect(fold).toHaveCSS('opacity', '1');
+    await expect(fold).toHaveAttribute('aria-label', `Unfold the tab bar: a tab out of sight is ${said}`);
+  };
   await expect(tabLabels(page)).toHaveText([reviewOne.title, reviewTwo.title]);
-  await expect(dot).toBeHidden();
+  await asChevron();
 
   expect(await app.emit('onSessionStatus', reviewTwo.id, 'waiting', '', 'Notification')).toBe(1);
   await expect(tab(page, reviewTwo.title).locator('.nudge')).toHaveClass(/\bwaiting\b/);
-  await expect(dot).toBeHidden();
+  await asChevron();
+
+  expect(await app.emit('onSessionStatus', looseOne.id, 'busy', '', 'PreToolUse')).toBe(1);
+  await expect(row(page, looseOne.title).locator('.nudge')).toHaveClass(/\bbusy\b/);
+  await asChevron();
 
   expect(await app.emit('onSessionStatus', looseOne.id, 'idle', '', 'Stop')).toBe(1);
-  await expect(dot).toBeVisible();
-  await expect(dot).toHaveClass(/\bidle\b/);
+  await asDot('idle', 'idle');
   expect(await app.emit('onSessionStatus', looseTwo.id, 'waiting', '', 'Notification')).toBe(1);
-  await expect(dot).toHaveClass(/\bwaiting\b/);
+  await asDot('waiting', 'waiting for you');
 
-  // Marked read from its row in the list, the waiting one asks nothing, and the other's idle speaks.
+  await page.locator('#tabbar-edge').hover({ position: { x: 10, y: 3 } });
+  await expect(arrow).toBeVisible();
+  await expect(dot).toBeHidden();
+  await page.mouse.move(0, 0);
+  await asDot('waiting', 'waiting for you');
+
+  // Marked read from its row in the list, the waiting one asks nothing, and the other's idle speaks; read too, nothing does.
   await row(page, looseTwo.title).locator('.nudge').click();
-  await expect(dot).toHaveClass(/\bidle\b/);
+  await asDot('idle', 'idle');
   await row(page, looseOne.title).locator('.nudge').click();
-  await expect(dot).toBeHidden();
+  await asChevron();
 
-  // Unfolded, nothing is hidden for it to speak for.
+  // Unfolded, nothing is out of sight.
   await row(page, looseOne.title).locator('.nudge').click();
-  await expect(dot).toBeVisible();
-  await tabBarFold(page).click();
+  await asDot('idle', 'idle');
+  await fold.click();
   await expect(tabBarRows(page)).toHaveCount(2);
+  await page.mouse.move(0, 0);
+  await expect(arrow).toBeVisible();
   await expect(dot).toBeHidden();
+  await expect(fold).toHaveCSS('opacity', '0.35');
+  await expect(fold).toHaveAttribute('aria-label', 'Fold the tab bar to one row');
 });
 
 // Folded is a stance, so the chevron stays on a bar of one row; it goes, with its line, only with the bar's last tab, as the strip goes when it has nothing.
