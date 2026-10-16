@@ -9,7 +9,7 @@ import { showInStrip } from '../../../state/strip';
 import { projName, projectGone, projectGroups, sessionNudge, statusChanges, visibleTabs } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { layersIcon, SIBLING_ICON, WORKTREE_ICON } from '../../../svg';
-import { buildTab, drawTab, sortableTabs, type TabEls } from '../../../tab';
+import { buildTab, drawTab, dropSortable, sortableTabs, type TabEls } from '../../../tab';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { activateTab, closeOrStop, persistOpenTabs, tabOf } from './terminals';
@@ -166,15 +166,15 @@ interface SessionTabEls {
 
 /**
  * The rows by cluster key and the tabs by token, kept from one draw to the next: the bar is drawn again whenever an open tab's status changes, and a press on a tab, or the focus on its button, survives that only while the tab stays where it is (keyed.ts).
- * A row's Sortable is made with it and destroyed when it goes.
+ * A row's Sortable is made with it and let go of when it goes (`dropSortable`).
  */
 const projectRows = new Keyed<ProjectRow>(
   (kept) => kept.row,
-  (kept) => kept.sortable.destroy(),
+  (kept) => dropSortable(kept.sortable),
 );
 const groupRows = new Keyed<GroupRow>(
   (kept) => kept.row,
-  (kept) => kept.sortable.destroy(),
+  (kept) => dropSortable(kept.sortable),
 );
 const tabEls = new Keyed<SessionTabEls>((kept) => kept.tab.el);
 

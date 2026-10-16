@@ -125,6 +125,51 @@ export interface PanelView {
   icon: IconName;
 }
 
+/** One of the tabs a panel shows in its header, in place of its title (`PanelHost.setTabs`): what it says, and in what state. */
+export interface PanelTab {
+  /** The panel's own id for it, which every action is handed back. */
+  id: string;
+  text: string;
+  tooltip: string | null;
+  /** The one on show. */
+  shown: boolean;
+  /** Nothing runs behind it. */
+  cold: boolean;
+  /** Its button: the cross that closes it, or the square that stops what runs behind it first; the press is the panel's either way. */
+  button: { mark: 'close' | 'stop'; tooltip: string };
+  /**
+   * The row it sits in, such as its project where tabs are shown by project: a row per cluster, in the order the tabs first name them, led by its label, and a drag stays inside it.
+   * Null for none: with every tab's null, the tabs share one row with no label; among tabs with clusters, the ones with none share a row of their own with no label.
+   */
+  cluster: { key: string; label: string } | null;
+}
+
+/**
+ * A panel's tabs, which the tree draws in its header in place of the title, with a `+` after the last, and what a press on them does, which the panel answers.
+ * The chrome stays the tree's, as the view switch's does: the panel says what its tabs are, never how they are drawn.
+ */
+export interface PanelTabs {
+  tabs: PanelTab[];
+  /** What the `+` after the last tab says it does. */
+  addLabel: string;
+  /** Why the `+` cannot make a tab now, shown on it, which is then unavailable; null when it can. */
+  addRefused: string | null;
+  /** What a tab's kebab says it holds, such as "Terminal options". */
+  kebabLabel: string;
+  select(id: string): void;
+  /** Its button, and a middle-click on it, which skips the button's own checks, so the panel refuses whatever the button would. */
+  press(id: string): void;
+  /** Its kebab's menu, also on a right-click; null for nothing to offer. */
+  menu(id: string): MenuItem[] | null;
+  /** A double-click on it. */
+  rename(id: string): void;
+  /** A drag ended, leaving its row's tabs in this order. */
+  reorder(ids: string[]): void;
+  add(): void;
+  /** A press on a row's label, with the cluster's key. */
+  showCluster(key: string): void;
+}
+
 /** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw — the panel's side of the conversation with the layout — and the asks it can make of the app's surfaces. */
 export interface PanelHost extends Asks {
   where(): Where;
@@ -135,6 +180,12 @@ export interface PanelHost extends Asks {
    * A pick there is kept for the panel as a group's picked panel is, and runs it again (`refresh`).
    */
   setViews(views: PanelView[]): void;
+  /**
+   * The panel's tabs, drawn in its header in place of its title; null for none, which shows the title again.
+   * Called again whenever they change: the tree keeps each tab's element by its id and draws them again in place, so a press on one survives a call that changes only the tabs, made between its press and its release.
+   * The tree's own draws of the window put the tabs into a new header, as they do every header's controls.
+   */
+  setTabs(tabs: PanelTabs | null): void;
   setBusy(busy: boolean): void;
   /** The header's word on the last run: `exit 3`, `stopped after 30 s`, or '' for a run that ended well. */
   setEnd(label: string): void;

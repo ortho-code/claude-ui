@@ -78,15 +78,33 @@ export interface TabLook {
   lead: readonly HTMLElement[];
 }
 
-/** How many rows of tabs have a drag under way, for the release a lost pointer never sends. */
-let dragging = 0;
+/** What a drag of tabs tells the surface that owns the row it started in. */
+interface DragEnds {
+  start(): void;
+  end(event: Sortable.SortableEvent): void;
+}
+
+/** Whether a drag of tabs is under way, in any row of any surface. */
+let dragging = false;
 
 /**
- * Drag to reorder the tabs in `row`, one Sortable per row, so a drag stays inside its row by construction.
- * `start` and `end` are the owner's: while a drag is under way the library moves the tabs itself, so the owner holds its draws until `end`.
- * Made with its row and destroyed when the row goes.
+ * Rows' Sortables whose rows went while a drag was under way, destroyed once it ends.
+ * A Sortable destroyed during a drag, even another surface's, ends that drag in the library without its end reaching anyone, leaving the dragged tab marked and its copy on screen, and the surface that owns it holding its draws for good (seen when the tab bar dropped a row during a drag of a panel's tab).
  */
-export function sortableTabs(row: HTMLElement, on: { start(): void; end(event: Sortable.SortableEvent): void }): Sortable {
+const destroyLater: Sortable[] = [];
+
+/** Let go of a row's Sortable: at once, or once the drag under way has ended. */
+export function dropSortable(sortable: Sortable): void {
+  if (dragging) destroyLater.push(sortable);
+  else sortable.destroy();
+}
+
+/**
+ * Drag to reorder the tabs in `row`, one Sortable per row; none names a group, so none takes a drop from another, and a drag stays inside its row.
+ * `start` and `end` are the owner's: while a drag is under way the library moves the tabs itself, so the owner holds its draws until `end`.
+ * Made with its row, and let go of when the row goes through `dropSortable`, never destroyed directly.
+ */
+export function sortableTabs(row: HTMLElement, on: DragEnds): Sortable {
   return Sortable.create(row, {
     draggable: '.tab', // never a row's label
     // The tab's buttons, its close and its kebab, are not drag handles.
@@ -102,12 +120,13 @@ export function sortableTabs(row: HTMLElement, on: { start(): void; end(event: S
     animation: 0,
     ghostClass: 'tab-ghost',
     onStart: () => {
-      dragging += 1;
+      dragging = true;
       on.start();
     },
     onEnd: (event) => {
-      dragging = Math.max(0, dragging - 1);
+      dragging = false;
       on.end(event);
+      for (const sortable of destroyLater.splice(0)) sortable.destroy();
     },
   });
 }
@@ -115,7 +134,7 @@ export function sortableTabs(row: HTMLElement, on: { start(): void; end(event: S
 // Alt-tabbing away mid-drag never delivers a pointerup, so SortableJS can leave a drag stuck.
 // On blur, synthesise the release so it ends cleanly (dropping the tab where it currently is).
 window.addEventListener('blur', () => {
-  if (dragging === 0) return;
+  if (!dragging) return;
   document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
   document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 });

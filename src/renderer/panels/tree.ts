@@ -28,6 +28,7 @@ import { claudeType } from './types/claude';
 import { sessionsType } from './types/sessions';
 import { folderTypes } from './types/folder';
 import { linkedSessions, pickSession, startSession } from './links';
+import { HeaderTabs } from './tabs';
 import type { Asks, MountedPanel, PanelHost, PanelStatus, PanelType, PanelView, Where } from './contract';
 import { commandType } from './types/command';
 import { terminalType } from './types/terminal';
@@ -76,6 +77,8 @@ interface Mounted {
   end: HTMLElement;
   /** The switch between the views it offers, empty and hidden with fewer than two. */
   views: HTMLElement;
+  /** Its tabs, drawn in its header in place of its title, while it says it has them (`setTabs`). */
+  tabs: HeaderTabs | null;
   action: HTMLButtonElement | null;
   /** The dot on its rail icon (P8). */
   badge: HTMLElement;
@@ -509,8 +512,10 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   if (shown.problems.length > 0) {
     content.prepend(header(shown.title), problemList(shown.problems));
   } else if (!types[shown.type!]!.bare) {
-    const { count, busy, end, views, action, problems } = mountedFor(shown);
-    const row = header(shown.title, action ? [count, busy, end, views, action] : [count, busy, end, views]);
+    const { count, busy, end, views, action, problems, tabs } = mountedFor(shown);
+    const controls = [busy, end, views, ...(action ? [action] : [])];
+    // Tabs take the title's place, and its count with it: the tabs are there to count.
+    const row = tabs ? tabsHeader(tabs, controls) : header(shown.title, [count, ...controls]);
     // The layout's refusals and the panel's own are one list, drawn the same way.
     if (problems.length > 0) content.prepend(row, problemList(problems));
     else content.prepend(row);
@@ -588,7 +593,7 @@ function mountedFor(slot: PanelSlot): Mounted {
   const busy = element('span', badgeClass('busy'));
   busy.hidden = true;
   const end = element('span', 'panel-end');
-  // Per entry, since what the button would do can depend on the options: a terminal pinned to a folder has none.
+  // Per entry, since what the button would do can depend on the options; a terminal has none.
   const label = type.bare ? null : type.actionLabel ? type.actionLabel(optionsOf(slot.entry)) : 'Refresh';
   const action = label === null ? null : actionButton(label);
   const badge = element('span', badgeClass(null));
@@ -640,10 +645,26 @@ function mountedFor(slot: PanelSlot): Mounted {
     if (current) current[field] = lines;
     queueRender();
   };
+  // Built on the first call that has tabs and kept from then on, so a panel that says none for a while and then some again keeps its tabs' elements; only having tabs or not changes the header, which a render draws.
+  let headerTabs: HeaderTabs | null = null;
+  /** The tabs as on show in the header now, null while the panel says it has none. */
+  let tabsOn: HeaderTabs | null = null;
   const panelHost: PanelHost = {
     where: () => host.where(),
     view: pickedView,
     setViews: showViews,
+    setTabs: (tabs) => {
+      if (tabs) {
+        headerTabs ??= new HeaderTabs();
+        headerTabs.draw(tabs);
+      }
+      const now = tabs ? headerTabs : null;
+      if (now === tabsOn) return;
+      tabsOn = now;
+      const current = mounted.get(slot.key);
+      if (current) current.tabs = now;
+      queueRender();
+    },
     setBusy: (on) => {
       busy.hidden = !on;
     },
@@ -671,7 +692,8 @@ function mountedFor(slot: PanelSlot): Mounted {
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
-  const entry: Mounted = { panel, slot, viewNotes: [], signature: signatureOf(slot), busy, end, views, action, badge, count, railCount, countValue: null, ...said };
+  // A panel that said its tabs while it was mounting has them from the start.
+  const entry: Mounted = { panel, slot, viewNotes: [], signature: signatureOf(slot), busy, end, views, tabs: tabsOn, action, badge, count, railCount, countValue: null, ...said };
   mounted.set(slot.key, entry);
   return entry;
 }
@@ -710,6 +732,13 @@ function header(title: string, controls: HTMLElement[] = []): HTMLElement {
   heading.textContent = title;
   setTooltip(heading, title);
   row.append(heading, ...controls);
+  return row;
+}
+
+/** A header whose panel has tabs: the tabs where the title would be, then its controls (panels/tabs.ts). */
+function tabsHeader(tabs: HeaderTabs, controls: HTMLElement[]): HTMLElement {
+  const row = element('div', 'panel-header with-tabs');
+  row.append(tabs.el, ...controls);
   return row;
 }
 

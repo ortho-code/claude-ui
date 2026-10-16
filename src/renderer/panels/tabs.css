@@ -1,0 +1,31 @@
+/* A PANEL'S TABS (panels/tabs.ts), in its header in place of its title. */
+
+/* The header they stand in: its bottom edge is the line they sit on, as the tab bar's tabs sit on the line under it, and it grows only when they wrap.
+   1px above and the 1px line below a 26px tab make the 28px every header is, so a group's header does not jump when a panel with tabs takes over from one without. */
+.panel-header.with-tabs {
+  height: auto;
+  min-height: 28px;
+  align-items: flex-end;
+  padding: 1px 8px 0 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* What else the header holds stays centred beside the tabs. */
+.panel-header.with-tabs > :not(.panel-tabs) {
+  align-self: center;
+}
+
+/* The tabs wrap onto more lines when they fill one, as the tab bar's do; the header's own weight is its title's, which a tab does not take. */
+.panel-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  font-weight: 400;
+}
+
+.panel-tabs-add {
+  margin-left: 2px;
+}
