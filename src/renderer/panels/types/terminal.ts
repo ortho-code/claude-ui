@@ -78,6 +78,8 @@ class TerminalPanel implements MountedPanel {
   /** Its kept shells could not be read, so it keeps nothing this run: what it holds would be written over them. */
   private unkept = false;
   private saveQueued = false;
+  /** How many looks at the selection it has asked for, so only the latest sets what the panel is (`prepared`). */
+  private looks = 0;
   /** Whether it is asking before ending a shell (`mayEnd`). */
   private asking = false;
   /** Its tabs folded to the row on show where they are in rows, as in All; kept with the shells. */
@@ -157,7 +159,10 @@ class TerminalPanel implements MountedPanel {
 
   contextChanged(): void {
     this.draw();
-    this.ensure();
+    // Where you are now may let the panel run where it could not before, or the other way round, so it looks again before starting anything.
+    void this.prepared().then(({ runnable }) => {
+      if (runnable) this.ensure();
+    });
   }
 
   /** Called on every draw of the tree: only a change from hidden to shown is the panel coming into view. */
@@ -509,10 +514,12 @@ class TerminalPanel implements MountedPanel {
    * Against `where`, a shell's own project (`ownWhere`), they are that shell's alone, handed back for it to say, since the panel's would hide every shell for one project's lack.
    */
   private async prepared(where?: Where): Promise<{ runnable: boolean; run: { cwd: string } | null; problems: string[] }> {
+    const look = where === undefined ? ++this.looks : this.looks;
     const prepared = await prepare(optionsOf(this.slot.entry), terminalType, where ?? this.host.where());
     if (this.disposed) return { runnable: false, run: null, problems: [] };
     const runnable = prepared.problems.length === 0;
-    if (where === undefined) {
+    // Only the latest look at the selection says what the panel is: main can answer an earlier one last, at a place you have since left.
+    if (where === undefined && look === this.looks) {
       const was = this.refused;
       this.refused = !runnable;
       this.host.setProblems(prepared.problems);

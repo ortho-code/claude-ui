@@ -983,7 +983,9 @@ What that check finds wrong in a project other than the selection does not mark 
 A start says so on that shell's screen, as a start main refuses does, and Restart here, checked before anything ends, leaves the shell running; either says so in the header too, with the rail's red dot, which are the panel's own and stay until another shell starts.
 While the panel cannot run for the selection, no shell starts, another project's included, since it would run behind the problems where nobody sees it.
 A tab is named after its folder, numbered from 2 when another of its project's has that name, and renamed with the app's name dialog, from its menu or a double-click, as a project or a group is.
-A panel whose folder is missing says so in its place, like any panel that cannot run, and looks again whenever it comes back into view and whenever the config folder changes — with no button, being looked at is how a folder that has appeared since gets picked up.
+A panel whose folder is missing says so in its place, like any panel that cannot run, and looks again whenever where you are may have changed (the project, the tab on show, or anything about the open tabs), whenever it comes back into view and whenever the config folder changes — with no button, being looked at is how a folder that has appeared since gets picked up.
+Only the latest look at where you are says what the panel is, since main can answer an earlier one last, for a place you have since left.
+Until 2026-10-17 a switch did not check the options again, so a panel that could not run in one project stayed so in the next until it was hidden and shown or the config folder changed, and one checked at launch, before the selection had arrived, said nothing in its place until you asked for a new shell.
 
 **The shells are tabs inside the panel, not entries of its group.**
 The tabs stand in the header where the title would be, so they cost no height, and the header grows only when they need more than one line: when they wrap, and in All, where each project has a row.

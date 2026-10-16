@@ -20,7 +20,8 @@ export interface BridgeControl {
    * Hold every answer to `name` from now on until `release(name)`, for a check of what lands while main is still working: each is worked out when it is called, as main answers from what it has at that moment, and handed over on release, in the order they were called.
    */
   hold(name: keyof ClaudeUiApi): void;
-  release(name: keyof ClaudeUiApi): void;
+  /** Hand over what `hold` kept, in the order the calls were made, or `last first`, as main can answer an async call that finished sooner, such as a look at the disk. */
+  release(name: keyof ClaudeUiApi, order?: 'called' | 'last first'): void;
 }
 
 declare global {
@@ -265,10 +266,10 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     hold: (name) => {
       if (!held.has(name)) held.set(name, []);
     },
-    release: (name) => {
+    release: (name, order = 'called') => {
       const waiting = held.get(name) ?? [];
       held.delete(name);
-      for (const handOver of waiting) handOver();
+      for (const handOver of order === 'called' ? waiting : [...waiting].reverse()) handOver();
     },
   };
   return { api: recorded, control };

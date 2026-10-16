@@ -27,7 +27,8 @@ export interface App {
   listOnDisk(sessions: SessionSummary[]): Promise<void>;
   /** Hold every answer to `name` until `release(name)`, as main still working on it would (`BridgeControl.hold`). */
   hold(name: keyof ClaudeUiApi): Promise<void>;
-  release(name: keyof ClaudeUiApi): Promise<void>;
+  /** Hand over what `hold` kept, in the order the calls were made, or `last first` (`BridgeControl.release`). */
+  release(name: keyof ClaudeUiApi, order?: 'called' | 'last first'): Promise<void>;
 }
 
 async function serve(route: Route): Promise<void> {
@@ -73,7 +74,7 @@ export const test = base.extend<{ app: App }, { installScript: string }>({
         expect(await app.emit('onSessionsChanged')).toBe(1);
       },
       hold: (name) => page.evaluate((call) => window.__claudeUiTest.hold(call), name),
-      release: (name) => page.evaluate((call) => window.__claudeUiTest.release(call), name),
+      release: (name, order) => page.evaluate(([call, how]) => window.__claudeUiTest.release(call, how), [name, order] as const),
     };
     await use(app);
 
