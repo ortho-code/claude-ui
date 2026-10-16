@@ -153,6 +153,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A click on a tab counts when the pointer moves a pixel or two during it, instead of starting a drag and leaving the tab unchosen.
 - A button that can't act for the moment, such as a tab's while its session starts, can be reached with the keyboard to read why, instead of being skipped.
 - On macOS, the folder picker behind + New can make a new folder.
+- A session that published an artifact no longer stays on working in the background: claude watching the artifact for comments is not counted as work.
 
 ## 0.3.0 — 2026-08-29
 

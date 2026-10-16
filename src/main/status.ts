@@ -123,11 +123,18 @@ elif [ "$status" = start ] && [ "$(field source)" != compact ]; then
 fi
 # Stop lists the work still running behind the turn it ends, and while any runs the session has not finished: it reports background in idle's place, with the type claude gives each piece of work.
 # Only a "type" key can match, never one inside a string, whose quotes arrive escaped; Stop's own fields have none, so each match is one entry of the list.
+# An artifact claude watches for comments is listed as a monitor while the watch lasts, and nothing runs meanwhile: a comment sent to Claude summons a turn of its own (by claude's source), as a scheduled wakeup starts one.
+# So each watch takes one monitor off the list, and a list of nothing but watches is idle.
+# Claude starts a watch's description with the same words every time, and the same key-and-value match keeps one inside a string from counting.
 extra=''
 if [ "$status" = idle ] && printf '%s' "$input" | grep -qE '"background_tasks"[[:space:]]*:[[:space:]]*\\[[[:space:]]*\\{'; then
-  status=background
-  types="$(printf '%s' "$input" | grep -oE '"type"[[:space:]]*:[[:space:]]*"[A-Za-z0-9 _.-]+"' | sed -E 's/.*("[^"]+")$/\\1/' | paste -sd, -)"
-  extra=",\\"background\\":[$types]"
+  entries="$(printf '%s' "$input" | grep -oE '"type"[[:space:]]*:' | wc -l)"
+  watches="$(printf '%s' "$input" | grep -oE '"description"[[:space:]]*:[[:space:]]*"live updates for artifact ' | wc -l)"
+  if (( watches == 0 || entries > watches )); then
+    status=background
+    types="$(printf '%s' "$input" | grep -oE '"type"[[:space:]]*:[[:space:]]*"[A-Za-z0-9 _.-]+"' | sed -E 's/.*("[^"]+")$/\\1/' | awk -v n="$watches" '$0 == "\\"monitor\\"" && n > 0 { n--; next } { print }' | paste -sd, -)"
+    extra=",\\"background\\":[$types]"
+  fi
 fi
 # The end of a compaction, which is the only SessionStart that means a state rather than an identity.
 if [ "$status" = start ] && [ "$(field source)" = compact ]; then
@@ -286,6 +293,8 @@ export interface Work {
   id: string;
   /** What claude calls it, such as `shell` or `subagent`. */
   type: string;
+  /** Claude's description of it, kept so that an end reported in a hook's place hands the script what it tells an artifact watch by. */
+  description?: string;
 }
 
 /** What the hooks last reported of a session, with when, for a reader that ends what no hook ends. */
@@ -316,8 +325,10 @@ export async function readReport(id: string): Promise<Report | null> {
     // An end the app reported carries the time of the Stop its list came from, since the list is that Stop's, less what had ended; a Stop's own is when it was written.
     runningAt = typeof stop.listed_at === 'number' ? stop.listed_at : ((await mtimeOf(stopFile)) ?? Infinity);
     if (Array.isArray(stop.background_tasks)) {
-      running = (stop.background_tasks as ({ id?: unknown; type?: unknown } | null)[]).flatMap((work) =>
-        typeof work?.id === 'string' && typeof work.type === 'string' ? [{ id: work.id, type: work.type }] : [],
+      running = (stop.background_tasks as ({ id?: unknown; type?: unknown; description?: unknown } | null)[]).flatMap((work) =>
+        typeof work?.id === 'string' && typeof work.type === 'string'
+          ? [{ id: work.id, type: work.type, ...(typeof work.description === 'string' ? { description: work.description } : {}) }]
+          : [],
       );
     }
   } catch {

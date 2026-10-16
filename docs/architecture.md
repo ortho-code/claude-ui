@@ -528,6 +528,11 @@ The dot's tooltip names the work by the type claude gives each piece (`shell`, `
 The script reads those from the `type` keys, which in `Stop` only the list's entries have, and a claude too old to send the list reads idle, as before.
 The launch read passes on the status alone, so a `background` read back at launch says no more than that.
 Scheduled wakeups (`session_crons`, from `/loop` and the like) are not counted: nothing runs until they fire, and counting them would keep a looping session from ever showing finished.
+An artifact claude watches for comments is not counted either.
+Publishing one arms a watch wherever claude allows one (by its source, not in a remote session, for one), and `Stop` lists the watch as a `monitor` while it lasts: one armed by a publish was still listed about 50 minutes later (measured on claude 2.1.296), and the session read background from then on while nothing ran.
+By claude's source, the watch on the artifact published last is never retired for being idle, and a comment sent to Claude while its auto-replies are armed summons a turn of its own, as a scheduled wakeup starts one.
+A monitor of your own on a websocket is listed as `monitor` too (by claude's source), so the script tells a watch by its description, which claude starts with `live updates for artifact` every time, and takes one monitor off the list for each watch; worded otherwise by a later claude, a watch would count as work again.
+An end the transcript reports (below) hands the script each piece of work's description as well, so a watch the last `Stop` listed is left out there too.
 Claude's idle notice does not end it either.
 A minute at its prompt without input (claude's default, which its own config can change), claude sends `Notification` with `notification_type: "idle_prompt"` ("Claude is waiting for your input"), and it does so while a shell it started still runs; the script writes nothing for that notice over `background`.
 The same notice a minute after the work's own turn has ended is the one that says waiting, as for any finished session (both measured on claude 2.1.289, with a background shell).

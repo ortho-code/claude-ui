@@ -334,6 +334,25 @@ describe('the hook script', () => {
     });
 
     /**
+     * Claude watches a published artifact for comments, and lists the watch as a `monitor` while it lasts (measured on claude 2.1.296: one armed by a publish was still listed about 50 minutes later).
+     * Nothing runs meanwhile: a comment sent to Claude summons a turn of its own (by claude's source), as a scheduled wakeup starts one.
+     */
+    const watch = task('monitor', { id: 'sg1al8hmg', description: 'live updates for artifact https://claude.ai/artifact/AbCdEf123 (auto-armed on publish)' });
+
+    it('does not count an artifact watch as running', async () => {
+      runHook('idle', stop({ background_tasks: [watch], session_crons: [] }));
+      const written = await readStatusFile();
+      expect(written?.status).toBe('idle');
+      expect(written).not.toHaveProperty('background');
+    });
+
+    // A monitor of your own counts as work, and it is listed as `monitor` too, so a watch takes only one of them off the list.
+    it('leaves an artifact watch out of what runs beside it', async () => {
+      runHook('idle', stop({ background_tasks: [task('shell'), watch, task('monitor')] }));
+      expect(await readStatusFile()).toMatchObject({ status: 'background', background: ['shell', 'monitor'] });
+    });
+
+    /**
      * A minute at its prompt without input makes claude send an idle notice, `idle_prompt`, whether or not a shell still runs (measured on claude 2.1.289); by its source the same goes for a monitor, while claude itself holds the notice back for a background subagent.
      * While work runs, claude is not waiting for you: that work's end starts a turn of its own, and the same notice a minute after THAT turn is the real one.
      */
@@ -400,7 +419,7 @@ describe('the hook script', () => {
       runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [shell] });
       runHook('busy', { session_id: SID, hook_event_name: 'PreCompact' });
       runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'compact' });
-      expect((await readReport(SID))?.running).toEqual([{ id: 'bh9w6pqmt', type: 'shell' }]);
+      expect((await readReport(SID))?.running).toEqual([{ id: 'bh9w6pqmt', type: 'shell', description: 'Background sleep command' }]);
     });
 
     // Without a Stop file nothing is known to run, and nothing the transcript says was started counts as running since.

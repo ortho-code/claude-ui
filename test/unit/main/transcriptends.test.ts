@@ -247,6 +247,16 @@ describe('a transcript that changes', () => {
 
   const killed = '<task-notification>\n<task-id>bh9w6pqmt</task-id>\n<tool-use-id>toolu_01</tool-use-id>\n<status>killed</status>\n<summary>Task "Background sleep command" was stopped by the user</summary>\n</task-notification>';
 
+  // The end goes back through the script with what the Stop listed, so an artifact watch on that list must still read as nothing running.
+  it('ends background once the work it named is stopped, an artifact watch still listed beside it', async () => {
+    const watch = { id: 'sg1al8hmg', type: 'monitor', status: 'running', description: 'live updates for artifact https://claude.ai/artifact/AbCdEf123 (auto-armed on publish)' };
+    runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }, watch], session_crons: [] });
+    expect(await readStatusFile()).toMatchObject({ status: 'background', background: ['shell'] });
+    await appendNow({ type: 'queue-operation', operation: 'enqueue', content: killed });
+    await transcriptChanged(transcript, SETTLE);
+    expect(await readStatusFile()).toMatchObject({ status: 'idle', event: TASK_END_EVENT });
+  });
+
   // The report after an interrupt is written a second later, and a shell stopped from the task list in that second fires no hook, so only its notice says it has ended.
   it('ends work stopped while the end of an interrupt waits to be reported', async () => {
     runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [{ ...shell, status: 'running', description: 'Background sleep command' }], session_crons: [] });
