@@ -1,5 +1,5 @@
 import { openMenu } from '../../../menu';
-import { chevronIcon, strokeIcon } from '../../../svg';
+import { chevronIcon, plusIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
@@ -15,7 +15,6 @@ import './controls.css';
 // These render the same whatever the system has installed, take their colour from `currentColor` like the other icons, and are drawn through `strokeIcon`, which keeps their weight equal at every size.
 // Chevrons, not filled triangles: the collapse-all button already says fold/unfold with a chevron, and a solid triangle would be the only filled shape in an outline icon set.
 const chevronDown = (size: number): string => chevronIcon('down', size);
-const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
 
 interface NewSessionSplit {
   /** The class of the "+" and of the caret, which the heading's stylesheet sizes. */

@@ -25,6 +25,9 @@ export const chevronIcon = (direction: Direction, size: number): string => strok
 /** One helper for every collapsible section's caret — a project's, a group's, a list panel's section — so no two can drift apart. */
 export const caretIcon = (collapsed: boolean, size: number): string => chevronIcon(collapsed ? 'right' : 'down', size);
 
+/** The plus that adds one more of something, such as a new session from a heading. */
+export const plusIcon = (size: number): string => strokeIcon(size, '<path d="M8 3.5V12.5M3.5 8H12.5" />');
+
 /** The cross that closes or removes: a toast, a filter chip, a cold tab, the window. */
 export const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4" />');
 
