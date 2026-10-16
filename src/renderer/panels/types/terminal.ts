@@ -1,5 +1,7 @@
+import type { PanelShells } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
 import { promptText } from '../../dialogs';
+import { isQuitting } from '../../quitting';
 import { folderName } from '../../logic';
 import type { MenuItem } from '../../menu';
 import { store } from '../../state/app';
@@ -34,7 +36,7 @@ interface Shell {
   name: string;
   /** The project it belongs to, its repo root, for a panel that shows shells by project; null for one that shows every shell everywhere. */
   project: string | null;
-  /** The folder its shell starts in: where it was made, or where Restart here started it last. */
+  /** The folder its shell starts in: where it was made or Restart here last started it, or for one brought back, where it was when the app last quit. */
   folder: string;
   box: HTMLElement;
   view: TerminalView | null;
@@ -72,6 +74,11 @@ class TerminalPanel implements MountedPanel {
   private nextId = 1;
   /** Shells being made, between the ask and the check of their folder. */
   private adding = 0;
+  /** Its kept shells have been read: until then it makes none by itself, which would stand beside the ones it is about to bring back. */
+  private loaded = false;
+  /** Its kept shells could not be read, so it keeps nothing this run: what it holds would be written over them. */
+  private unkept = false;
+  private saveQueued = false;
   private readonly unwatch: () => void;
 
   constructor(
@@ -94,6 +101,48 @@ class TerminalPanel implements MountedPanel {
     this.unwatch = store.watch(['projectNames', 'projectOrder'], () => this.draw());
     // Checked at once rather than on first show, so a panel behind another already wears `alert` on its rail.
     void this.prepared();
+    void this.load();
+  }
+
+  /**
+   * Bring back the shells kept from the last launch, as tabs with no shell yet: the one on show starts when the panel comes into view, the others when they are picked, each in the folder it was in when the app quit, where that could be read, else where it was made or last restarted here.
+   * What was on screen in them is not kept, since it would put whatever a shell printed on disk.
+   */
+  private async load(): Promise<void> {
+    let kept: PanelShells | undefined;
+    try {
+      kept = (await window.claudeUi.getPanelData(this.slot.key)).shells;
+    } catch (error) {
+      this.unkept = true;
+      window.claudeUi.log('warn', 'terminal', `${this.slot.key}: its shells could not be read, so none came back, and none are kept this run: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (this.disposed) return;
+    for (const each of kept?.list ?? []) this.shells.push(this.make(each.project, each.folder, { id: each.id, name: each.name }));
+    for (const [where, id] of Object.entries(kept?.shown ?? {})) this.onShow.set(where, id);
+    this.loaded = true;
+    this.draw();
+    this.ensure();
+  }
+
+  /**
+   * Keep the shells as they are now, whole, for the next launch: once what changed them has run to its end, so a change of several parts is one write.
+   * Not once the app is quitting, when what changes is the quit's doing, and main keeps where each shell was; nor in a run whose kept shells could not be read.
+   */
+  private save(): void {
+    if (this.saveQueued) return;
+    this.saveQueued = true;
+    queueMicrotask(() => {
+      this.saveQueued = false;
+      if (this.disposed || !this.loaded || this.unkept || isQuitting()) return;
+      const ids = new Set(this.shells.map((shell) => shell.id));
+      const shells: PanelShells = {
+        list: this.shells.map(({ id, name, project, folder }) => ({ id, name, project, folder })),
+        shown: Object.fromEntries([...this.onShow].filter(([, id]) => ids.has(id))),
+      };
+      window.claudeUi.setPanelShells(this.slot.key, shells).catch((error: unknown) => {
+        window.claudeUi.log('warn', 'terminal', `${this.slot.key}: its shells could not be kept: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    });
   }
 
   refresh(): void {
@@ -239,7 +288,7 @@ class TerminalPanel implements MountedPanel {
 
   /** What is on show has a running shell: the tab on show starts if it has none yet, and where there is no tab, a shell is made, unless its last one was closed there. */
   private ensure(): void {
-    if (!this.onScreen || this.refused || this.disposed) return;
+    if (!this.loaded || !this.onScreen || this.refused || this.disposed) return;
     const current = this.current();
     if (current) {
       if (current.terminalId === null && !current.starting && !current.exited) void this.start(current, current.folder);
@@ -263,6 +312,7 @@ class TerminalPanel implements MountedPanel {
     this.onShow.set(this.scopeKey(), shell.id);
     if (shell.project !== null) this.onShow.set(shell.project, shell.id);
     this.draw();
+    this.save();
     if (shell.terminalId === null && !shell.starting && !shell.exited) void this.start(shell, shell.folder);
     if (!focus) return;
     if (shell.view) shell.view.term.focus();
@@ -304,18 +354,20 @@ class TerminalPanel implements MountedPanel {
     if (project !== null) this.onShow.set(project, shell.id);
     shell.focusWhenStarted = focus;
     this.draw();
+    this.save();
     void this.start(shell, shell.folder);
     this.ensure();
   }
 
-  private make(project: string | null, folder: string): Shell {
+  /** A shell's tab, with no shell yet: a new one, or one kept from the last launch, which brings its own id and name. */
+  private make(project: string | null, folder: string, kept?: { id: string; name: string }): Shell {
     const box = document.createElement('div');
     box.className = 'panel-terminal';
     box.hidden = true;
     this.el.append(box);
     const shell: Shell = {
-      id: `${Date.now().toString(36)}-${this.nextId++}`,
-      name: this.freeName(project, folderName(folder)),
+      id: kept?.id ?? `${Date.now().toString(36)}-${this.nextId++}`,
+      name: kept?.name ?? this.freeName(project, folderName(folder)),
       project,
       folder,
       box,
@@ -353,6 +405,7 @@ class TerminalPanel implements MountedPanel {
     if (this.visible().length === 0) this.leftEmpty = this.scopeKey();
     if (next) this.select(next, true);
     else this.draw();
+    this.save();
   }
 
   private menu(shell: Shell): MenuItem[] {
@@ -370,6 +423,7 @@ class TerminalPanel implements MountedPanel {
     if (!trimmed || shell.closed) return;
     shell.name = trimmed;
     this.draw();
+    this.save();
   }
 
   /** A drag left these tabs in this order: they take the places they had among the rest, in the new order. */
@@ -384,6 +438,7 @@ class TerminalPanel implements MountedPanel {
     });
     this.shells = next;
     this.draw();
+    this.save();
   }
 
   /** A new shell in the tab, in the folder you are working in now. */
@@ -394,6 +449,7 @@ class TerminalPanel implements MountedPanel {
     shell.folder = run.cwd;
     shell.focusWhenStarted = true;
     this.onShow.set(this.scopeKey(), shell.id);
+    this.save();
     await this.start(shell, run.cwd);
   }
 
@@ -440,7 +496,7 @@ class TerminalPanel implements MountedPanel {
     this.draw();
     const { term } = shell.view;
     try {
-      const id = await window.claudeUi.startShell(folder, runContext(resolveContext(this.host.where()), folder));
+      const id = await window.claudeUi.startShell(folder, runContext(resolveContext(this.host.where()), folder), { entryId: this.slot.key, shellId: shell.id });
       // Closed or overtaken while it was starting: hand the shell straight back rather than leave one running with nothing showing it.
       if (!latest()) {
         window.claudeUi.killTerminal(id);

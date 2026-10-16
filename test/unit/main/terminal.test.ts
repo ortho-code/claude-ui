@@ -62,7 +62,11 @@ vi.mock('node-pty', () => ({
   },
 }));
 
-import { claudeArgs, describeLaunch, registerTerminalIpc, terminateAll } from '../../../src/main/terminal';
+import { spawn as spawnChild } from 'node:child_process';
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import * as path from 'node:path';
+import { claudeArgs, describeLaunch, folderOf, registerTerminalIpc, shellFolders, terminateAll } from '../../../src/main/terminal';
 import { KILL_GRACE_MS } from '../../../src/main/shell';
 
 const SETTINGS = '/home/u/.config/claude-ui/claude-settings.json';
@@ -364,6 +368,62 @@ describe('stopping a session', () => {
     const sender = { isDestroyed: () => false, send: vi.fn() };
     await expect(handlers.get('terminal:startShell')!({ sender }, '/definitely/not/here', CONTEXT)).rejects.toThrow(/MISSING_CWD/);
     expect(spawned).toHaveLength(0);
+  });
+
+  // Where a shell is after a `cd` is known only from /proc while it runs, so it is read for each panel's shell before the quit ends it.
+  // The fake pty is pointed at a real, harmless process in a known folder, since /proc answers for real ones only.
+  it.runIf(process.platform === 'linux')('reads where each panel shell that has an owner is, and none that has gone', async () => {
+    const folder = realpathSync(tmpdir());
+    const child = spawnChild('sleep', ['30'], { cwd: folder, stdio: 'ignore' });
+    let owned: FakePty | null = null;
+    try {
+      const sender = { isDestroyed: () => false, send: vi.fn() };
+      await handlers.get('terminal:startShell')!({ sender }, process.cwd(), CONTEXT, { entryId: 'shell', shellId: 's1' });
+      owned = spawned[spawned.length - 1];
+      owned.pid = child.pid!;
+      // One without an owner, as an older window starts it, is not read.
+      await startShell();
+      expect(shellFolders()).toEqual([{ entryId: 'shell', shellId: 's1', folder }]);
+      owned.exit();
+      owned = null;
+      expect(shellFolders()).toEqual([]);
+    } finally {
+      owned?.exit();
+      child.kill();
+    }
+  });
+
+  it.runIf(process.platform === 'linux')('reads no folder for a process whose folder was removed since it went in', () => {
+    const folder = mkdtempSync(path.join(tmpdir(), 'claude-ui-gone-'));
+    const child = spawnChild('sleep', ['30'], { cwd: folder, stdio: 'ignore' });
+    try {
+      rmSync(folder, { recursive: true });
+      expect(folderOf(child.pid!)).toBeNull();
+    } finally {
+      child.kill();
+    }
+  });
+
+  it.runIf(process.platform === 'linux')('takes no owner that does not name an entry and a shell', async () => {
+    const child = spawnChild('sleep', ['30'], { cwd: realpathSync(tmpdir()), stdio: 'ignore' });
+    const started: FakePty[] = [];
+    try {
+      const sender = { isDestroyed: () => false, send: vi.fn() };
+      for (const owner of [{ entryId: '#0.2', shellId: 's1' }, { entryId: 'shell', shellId: '' }, 'shell', null]) {
+        await handlers.get('terminal:startShell')!({ sender }, process.cwd(), CONTEXT, owner);
+        const proc = spawned[spawned.length - 1];
+        proc.pid = child.pid!;
+        started.push(proc);
+      }
+      expect(shellFolders()).toEqual([]);
+    } finally {
+      for (const proc of started) proc.exit();
+      child.kill();
+    }
+  });
+
+  it('reads the folder a running process is in', () => {
+    expect(folderOf(process.pid)).toBe(process.platform === 'linux' ? process.cwd() : null);
   });
 
   // An interactive login shell (bash, zsh and dash, measured) ignores SIGTERM and leaves at once on SIGHUP, which is what a closing terminal sends it.

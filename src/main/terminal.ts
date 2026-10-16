@@ -1,6 +1,6 @@
 import { ipcMain, type WebContents } from 'electron';
 import * as pty from 'node-pty';
-import { existsSync } from 'node:fs';
+import { existsSync, readlinkSync } from 'node:fs';
 import { SCOPE_ENV, TAB_ENV, statusSettingsFile } from './status';
 import { inheritedEnv, loginShell, shellCommand, terminateGroup } from './shell';
 import { contextEnv } from './panels';
@@ -9,7 +9,8 @@ import { settingsNow } from './settings';
 import { log } from './log';
 import { formatDuration } from './stamp';
 import type { TerminalLaunch } from '../shared/types';
-import type { PanelContext } from '../shared/panels';
+import type { ShellFolder } from './paneldata';
+import { ID_PATTERN, type PanelContext } from '../shared/panels';
 
 const terminals = new Map<number, pty.IPty>();
 /** Sessions asked to leave since they started, so their exit is logged as asked for. */
@@ -24,7 +25,46 @@ const forced = new Set<number>();
  * A running command goes because the shell passes the `SIGHUP` on to it, in a process group of its own that the group signal does not reach; one that ignores `SIGHUP` outlives the shell, as it outlived `SIGTERM` before.
  */
 const shells = new Set<number>();
+/** Which panel's shell each one is, by terminal id: its entry and its own id there, so the quit can keep where it was (`shellFolders`). */
+const shellOwners = new Map<number, ShellOwner>();
 let nextId = 1;
+
+/** A panel's shell, as the panel names it: its entry's id, and its own id among that panel's shells. */
+export interface ShellOwner {
+  entryId: string;
+  shellId: string;
+}
+
+const isOwner = (value: unknown): value is ShellOwner =>
+  typeof value === 'object' && value !== null && typeof (value as ShellOwner).entryId === 'string' && ID_PATTERN.test((value as ShellOwner).entryId) && typeof (value as ShellOwner).shellId === 'string' && (value as ShellOwner).shellId !== '';
+
+/**
+ * The folder a process is in now, or null where it cannot be read: from `/proc`, so on Linux only, and only while the process runs.
+ * Null too for a folder removed since the process went into it, which is no folder to start in (`/proc` then reads it with " (deleted)" after it).
+ */
+export function folderOf(pid: number): string | null {
+  if (process.platform !== 'linux') return null;
+  try {
+    const folder = readlinkSync(`/proc/${pid}/cwd`);
+    return existsSync(folder) ? folder : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Where every panel's shell is now, read before the quit ends them, which is the last moment it can be: a `cd` changes nothing the app sees, and once the shell has gone so has its folder.
+ * Empty where it cannot be read (`folderOf`), and for a shell that has already gone.
+ */
+export function shellFolders(): ShellFolder[] {
+  const found: ShellFolder[] = [];
+  for (const [id, owner] of shellOwners) {
+    const proc = terminals.get(id);
+    const folder = proc ? folderOf(proc.pid) : null;
+    if (folder !== null) found.push({ ...owner, folder });
+  }
+  return found;
+}
 
 /** How far apart the presses of an ask to leave are: inside the window in which claude takes a second Ctrl-C as "exit". */
 const PRESS_GAP_MS = 400;
@@ -116,6 +156,7 @@ function spawnPty(sender: WebContents, what: string, file: string, args: string[
     pressing.delete(id);
     forced.delete(id);
     shells.delete(id);
+    shellOwners.delete(id);
     // An exit nobody asked for, with a failing code, is the one worth finding again; a stop's code is whatever the signal left.
     const how = `code ${exitCode}${signal ? `, signal ${signal}` : ''}, after ${formatDuration(Date.now() - started)}`;
     log(expected || exitCode === 0 ? 'info' : 'warn', 'terminal', `${id} ended: ${how}${expected ? ', as asked' : ''}`);
@@ -233,11 +274,13 @@ export function registerTerminalIpc(): void {
   // It gets the panel's context in its environment and NOT the session marker: a `claude` started by hand in it must not report as one of the app's sessions.
   // Same refusal of a missing folder, same pty path, so it is stopped and swept by the same escalation as a session, asked with SIGHUP (`shells`).
   // Async like `terminal:start`, so a refusal reaches the renderer as a rejection either way.
+  // Its owner, when the window names one, is which panel's shell it is, so the quit can keep where it was.
   // eslint-disable-next-line @typescript-eslint/require-await -- async for the rejection above, with nothing to await
-  ipcMain.handle('terminal:startShell', async (event, cwd: string, context: PanelContext): Promise<number> => {
+  ipcMain.handle('terminal:startShell', async (event, cwd: string, context: PanelContext, owner?: unknown): Promise<number> => {
     if (!cwd || !existsSync(cwd)) refuseMissing(cwd);
     const id = spawnPty(event.sender, 'panel shell', loginShell(), ['-l', '-i'], cwd, { ...ptyEnv(), ...contextEnv(context) });
     shells.add(id);
+    if (isOwner(owner)) shellOwners.set(id, { entryId: owner.entryId, shellId: owner.shellId });
     return id;
   });
 

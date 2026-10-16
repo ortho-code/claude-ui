@@ -317,7 +317,7 @@ export interface UiState {
   panelState: PanelState;
 }
 
-import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
+import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './folders';
 import type { LogLevel } from './log';
 import type { RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './settings';
@@ -472,8 +472,9 @@ export interface ClaudeUiApi {
   /**
    * Open a plain login shell in `cwd` for a terminal panel, with the context in its environment.
    * Same terminal id space, same data, exit, input and stop calls.
+   * `owner` names the panel's shell it is, so the quit can keep where it was then as where that shell's next one starts.
    */
-  startShell(cwd: string, context: PanelContext): Promise<number>;
+  startShell(cwd: string, context: PanelContext, owner: { entryId: string; shellId: string }): Promise<number>;
   onTerminalData(callback: (id: number, data: string) => void): void;
   onTerminalExit(callback: (id: number, exitCode: number) => void): void;
   sendTerminalInput(id: number, data: string): void;
@@ -515,8 +516,10 @@ export interface ClaudeUiApi {
   onPanelRun(callback: (entryId: string, token: string, event: PanelRunEvent) => void): void;
   /** The git working tree at `dir`, as a fingerprint of what git reports there, for a panel that runs again when it changes (src/main/gitstate.ts). */
   panelTree(dir: string): Promise<WorkingTree>;
-  /** What the app keeps for a panel: the sessions its rows started, and the group last picked for one. */
+  /** What the app keeps for a panel: the sessions its rows started, the group last picked for one, and a terminal panel's shells. */
   getPanelData(entryId: string): Promise<PanelData>;
+  /** Keep a terminal panel's shells as they are now, whole, for the next launch. */
+  setPanelShells(entryId: string, shells: PanelShells): Promise<void>;
   /** Remember a session a panel's row is starting, and the group it was filed in; answers with the panel's data as written. */
   linkPanelSession(entryId: string, sessionId: string, link: Omit<PanelLink, 'startedAt'>, filed: { repoRoot: string; groupId: string | null }): Promise<PanelData>;
   /** Fires when a panel's data changed: a session linked, or one forgotten because it is gone. */

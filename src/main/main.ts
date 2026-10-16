@@ -8,12 +8,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { findTranscript, listSessions, trashSessions, worktreeExists } from './sessions';
 import { readHistory } from './transcript';
-import { liveTerminals, registerTerminalIpc, terminateAll } from './terminal';
+import { liveTerminals, registerTerminalIpc, shellFolders, terminateAll } from './terminal';
 import { KILL_GRACE_MS, untilGone } from './shell';
 import { registerConfig } from './config';
 import { registerFolders } from './folders';
 import { liveRuns, registerPanelsIpc, stopAllPanels } from './panels';
-import { forgetSessions, registerPanelData } from './paneldata';
+import { forgetSessions, keepShellFolders, registerPanelData } from './paneldata';
 import { logsDir } from './paths';
 import { startLog, closeLog, errorText, log } from './log';
 import { headerLines, logGpuStatus, logProcessFailures, registerRendererLog, watchWindow } from './diagnostics';
@@ -661,11 +661,14 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   // Tell the renderer we're shutting down before killing terminals, so the tab-close it triggers for each dying pty doesn't persist an empty open-tabs list over the real one.
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:quitting');
+  // Where each panel's shell is, read before the sweep ends them, and kept as where its next shell starts.
+  const folders = keepShellFolders(shellFolders());
   terminateAll('quitting');
   stopAllPanels();
-  // Until everything stopped has gone, and never longer than the kill grace and a moment for its SIGKILL: a fixed wait would have to be that long every time, where claude sessions alone have gone within about 1.5 s.
+  // Until everything stopped has gone and the shells' folders are kept, and never longer than the kill grace and a moment for its SIGKILL: a fixed wait would have to be that long every time, where claude sessions alone have gone within about 1.5 s.
+  // A folder write that has not landed by then costs its shells their last `cd`, and holds up nothing.
   // The quit line goes last, once everything else has had its budget, because it is what tells the next launch this one ended on purpose.
-  void allGone()
+  void Promise.all([allGone(), Promise.race([folders, new Promise((resolve) => setTimeout(resolve, KILL_GRACE_MS + GONE_MARGIN_MS))])])
     .then(() => closeLog())
     .then(() => app.quit());
 });

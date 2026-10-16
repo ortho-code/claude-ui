@@ -62,7 +62,7 @@ const api: ClaudeUiApi = {
     ipcRenderer.on('session:model', (_event, id: string, model: string) => callback(id, model)),
   clearStatus: (id) => ipcRenderer.send('status:clear', id),
   startTerminal: (cwd, launch) => ipcRenderer.invoke('terminal:start', cwd, launch),
-  startShell: (cwd, context) => ipcRenderer.invoke('terminal:startShell', cwd, context),
+  startShell: (cwd, context, owner) => ipcRenderer.invoke('terminal:startShell', cwd, context, owner),
   onTerminalData: (callback) =>
     ipcRenderer.on('terminal:data', (_event, id: number, data: string) => callback(id, data)),
   onTerminalExit: (callback) =>
@@ -84,6 +84,7 @@ const api: ClaudeUiApi = {
     ),
   panelTree: (dir) => ipcRenderer.invoke('panel:tree', dir),
   getPanelData: (entryId) => ipcRenderer.invoke('panelData:get', entryId),
+  setPanelShells: (entryId, shells) => ipcRenderer.invoke('panelData:setShells', entryId, shells),
   linkPanelSession: (entryId, sessionId, link, filed) => ipcRenderer.invoke('panelData:link', entryId, sessionId, link, filed),
   onPanelDataChanged: (callback) => ipcRenderer.on('panelData:changed', (_event, entryId: string, data: PanelData) => callback(entryId, data)),
   getFolders: () => ipcRenderer.invoke('folders:get'),

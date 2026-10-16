@@ -334,6 +334,53 @@ export interface PanelData {
   sessions: Record<string, PanelLink>;
   /** Project (repo root) -> the group last picked for a session started from this panel there, or null for none. */
   lastGroup: Record<string, string | null>;
+  /** A terminal panel's shells, kept for the next launch; absent where its file has none. */
+  shells?: PanelShells;
+}
+
+/** A shell a terminal panel holds, as kept for the next launch: its tab, and where its next shell starts. */
+export interface PanelShell {
+  /** The panel's own id for it. */
+  id: string;
+  name: string;
+  /** Its project's repo root, or null for a panel that shows every shell everywhere. */
+  project: string | null;
+  /** Where its next shell starts: where it was made or restarted, and where it was when the app last quit, where that can be read. */
+  folder: string;
+}
+
+/** A terminal panel's shells, in their tabs' order, and the tab on show by what was on show: a project's root, '' for All, '*' for everywhere. */
+export interface PanelShells {
+  list: PanelShell[];
+  shown: Record<string, string>;
+}
+
+/**
+ * The sound part of what is kept as a panel's shells, and how many entries of its list and its tabs on show were not: read tolerantly, as the rest of a panel's data is, so one bad entry costs that entry and nothing else.
+ * A list that is not a list keeps nothing, and is not counted.
+ * Main's rule, pure, so that the window's checks keep shells the way main does.
+ */
+export function soundShells(value: unknown): { shells: PanelShells; dropped: number } {
+  const isObject = (each: unknown): each is Record<string, unknown> => typeof each === 'object' && each !== null && !Array.isArray(each);
+  const shells: PanelShells = { list: [], shown: {} };
+  if (!isObject(value)) return { shells, dropped: 0 };
+  let dropped = 0;
+  const ids = new Set<string>();
+  for (const each of Array.isArray(value.list) ? (value.list as unknown[]) : []) {
+    const sound =
+      isObject(each) && typeof each.id === 'string' && each.id !== '' && !ids.has(each.id) && typeof each.name === 'string' && (each.project === null || typeof each.project === 'string') && typeof each.folder === 'string' && each.folder !== '';
+    if (!sound) {
+      dropped += 1;
+      continue;
+    }
+    ids.add(each.id as string);
+    shells.list.push({ id: each.id as string, name: each.name as string, project: each.project as string | null, folder: each.folder as string });
+  }
+  for (const [where, id] of Object.entries(isObject(value.shown) ? value.shown : {})) {
+    if (typeof id === 'string' && ids.has(id)) shells.shown[where] = id;
+    else dropped += 1;
+  }
+  return { shells, dropped };
 }
 
 /**
@@ -341,7 +388,7 @@ export interface PanelData {
  * Main's rule, pure, so that the window's checks answer it the way main does; main (`linkSession` in src/main/paneldata.ts) applies it inside its write, which also forgets links to sessions that are gone.
  */
 export function withLink(data: PanelData, sessionId: string, link: Omit<PanelLink, 'startedAt'>, filed: { repoRoot: string; groupId: string | null }, startedAt: string): PanelData {
-  return { sessions: { ...data.sessions, [sessionId]: { ...link, startedAt } }, lastGroup: { ...data.lastGroup, [filed.repoRoot]: filed.groupId } };
+  return { ...data, sessions: { ...data.sessions, [sessionId]: { ...link, startedAt } }, lastGroup: { ...data.lastGroup, [filed.repoRoot]: filed.groupId } };
 }
 
 /**

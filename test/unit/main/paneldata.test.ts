@@ -20,9 +20,9 @@ vi.mock('../../../src/main/log', async (importOriginal) => ({
   log: (level: string, area: string, message: string) => logged.push(`${level} ${area} ${message}`),
 }));
 
-import { forgetSessions, linkSession, readPanelData, registerPanelData } from '../../../src/main/paneldata';
+import { forgetSessions, keepShellFolders, keepShells, linkSession, readPanelData, registerPanelData } from '../../../src/main/paneldata';
 import { panelDataDir } from '../../../src/main/paths';
-import type { PanelData } from '../../../src/shared/panels';
+import type { PanelData, PanelShells } from '../../../src/shared/panels';
 
 const file = (entryId: string): string => path.join(panelDataDir, `${entryId}.json`);
 const LINK = { key: 'org/repo#1', label: 'Fix the login redirect', href: 'https://github.com/org/repo/pull/1' };
@@ -133,5 +133,61 @@ describe('a panel’s own data', () => {
     expect((await readPanelData('ci')).sessions).toEqual({});
     // Not rewritten: nothing in it changed.
     expect((await fs.stat(file('other'))).mtimeMs).toBe(before.mtimeMs);
+  });
+});
+
+describe('a terminal panel’s shells', () => {
+  const SHELLS: PanelShells = {
+    list: [
+      { id: 'a', name: 'demo', project: '/repo', folder: '/repo' },
+      { id: 'b', name: 'api', project: '/repo', folder: '/repo/api' },
+    ],
+    shown: { '/repo': 'b', '': 'a' },
+  };
+
+  it('keeps them whole, as the window says them, and reads them back', async () => {
+    await handlers.get('panelData:setShells')?.(null, 'shell', SHELLS);
+    expect(await readPanelData('shell')).toEqual({ sessions: {}, lastGroup: {}, shells: SHELLS });
+    await keepShells('shell', { list: [SHELLS.list[0]], shown: {} });
+    expect((await readPanelData('shell')).shells).toEqual({ list: [SHELLS.list[0]], shown: {} });
+  });
+
+  it('keeps them beside a session a row links, and the link beside them', async () => {
+    await keepShells('mixed', SHELLS);
+    await linkSession('mixed', 's1', LINK, { repoRoot: '/repo', groupId: null });
+    const data = await readPanelData('mixed');
+    expect(data.shells).toEqual(SHELLS);
+    expect(Object.keys(data.sessions)).toEqual(['s1']);
+  });
+
+  it('drops a shell that is not sound, and a tab on show that names none kept, and says how many', async () => {
+    await fs.mkdir(panelDataDir, { recursive: true });
+    const shells = { list: [SHELLS.list[0], { id: 'a', name: 'twice', project: null, folder: '/x' }, { id: 'c', name: 'no folder', project: null, folder: '' }, 'not a shell'], shown: { '/repo': 'a', '/other': 'gone' } };
+    await fs.writeFile(file('shell'), JSON.stringify({ version: 1, sessions: {}, lastGroup: {}, shells }));
+    expect((await readPanelData('shell')).shells).toEqual({ list: [SHELLS.list[0]], shown: { '/repo': 'a' } });
+    expect(logged).toEqual([expect.stringMatching(/^warn panel-data .+shell\.json: dropped 4 entries that were not sound$/)]);
+  });
+
+  // What the quit finds is kept for the rest of the run, so each check names entries of its own.
+  it('keeps where each shell was at the quit as where its next one starts, for the shells the file holds', async () => {
+    await keepShells('quit', SHELLS);
+    await keepShells('quit-other', { list: [{ id: 'z', name: 'z', project: null, folder: '/z' }], shown: {} });
+    const before = await fs.stat(file('quit-other'));
+    await keepShellFolders([
+      { entryId: 'quit', shellId: 'b', folder: '/repo/api/src' },
+      { entryId: 'quit', shellId: 'gone', folder: '/nowhere' },
+      // Where it already was: nothing to write.
+      { entryId: 'quit-other', shellId: 'z', folder: '/z' },
+    ]);
+    expect((await readPanelData('quit')).shells?.list).toEqual([SHELLS.list[0], { ...SHELLS.list[1], folder: '/repo/api/src' }]);
+    expect((await fs.stat(file('quit-other'))).mtimeMs).toBe(before.mtimeMs);
+  });
+
+  // The window stops writing once it hears of the quit, but a write it sent just before can reach main after the quit began.
+  it('keeps the quit’s folders over a write of the window’s that arrives after the quit began, and the rest of that write', async () => {
+    await keepShells('late', SHELLS);
+    await keepShellFolders([{ entryId: 'late', shellId: 'b', folder: '/repo/api/src' }]);
+    await keepShells('late', { list: [SHELLS.list[0], { ...SHELLS.list[1], name: 'backend' }], shown: {} });
+    expect((await readPanelData('late')).shells?.list).toEqual([SHELLS.list[0], { ...SHELLS.list[1], name: 'backend', folder: '/repo/api/src' }]);
   });
 });

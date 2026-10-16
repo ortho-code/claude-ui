@@ -5,7 +5,7 @@ import { panelDataDir } from './paths';
 import { writeFileAtomic } from './atomic';
 import { errorText, fsFailure, log } from './log';
 import { inTurn } from './queue';
-import { ID_PATTERN, withLink, type PanelData, type PanelLink } from '../shared/panels';
+import { ID_PATTERN, soundShells, withLink, type PanelData, type PanelLink, type PanelShells } from '../shared/panels';
 
 /**
  * What the app keeps for each panel, a file per entry: the sessions its rows started, and the group last picked for one (`PanelData`).
@@ -79,6 +79,11 @@ export async function readPanelData(entryId: string): Promise<PanelData> {
     if (group === null || typeof group === 'string') data.lastGroup[root] = group;
     else dropped += 1;
   }
+  if (json.shells !== undefined) {
+    const read = soundShells(json.shells);
+    data.shells = read.shells;
+    dropped += read.dropped;
+  }
   if (dropped > 0) log('warn', 'panel-data', `${file}: dropped ${dropped} ${dropped === 1 ? 'entry' : 'entries'} that ${dropped === 1 ? 'was' : 'were'} not sound`);
   return data;
 }
@@ -147,6 +152,63 @@ export async function linkSession(entryId: string, sessionId: string, link: Omit
   return data;
 }
 
+/**
+ * Where each panel's shell was when the quit began, by entry and shell id, once it has: a write of the window's that arrives after that, sent before the window heard of the quit, keeps these folders rather than the ones it carries, which are only where each shell was made or last restarted.
+ */
+const foldersAtQuit = new Map<string, Map<string, string>>();
+
+/**
+ * Keep a terminal panel's shells as the window says them now, the sound part of what it sent, with the folders the quit found where it has found any.
+ * The window holds them and says them whole on every change, so nothing is told back.
+ * Exported for the tests.
+ */
+export async function keepShells(entryId: string, shells: unknown): Promise<void> {
+  await update(entryId, (current) => {
+    const kept = soundShells(shells).shells;
+    const atQuit = foldersAtQuit.get(entryId);
+    for (const shell of kept.list) shell.folder = atQuit?.get(shell.id) ?? shell.folder;
+    current.shells = kept;
+    return true;
+  });
+}
+
+/** Where a terminal panel's shell was when the app quit: its panel's entry, its own id, and its folder. */
+export interface ShellFolder {
+  entryId: string;
+  shellId: string;
+  folder: string;
+}
+
+/**
+ * Keep where each shell was as its next shell's folder, in its panel's file, for the shells that file still holds.
+ * Never rejects: the quit waits on it, and a folder not kept costs a shell its last `cd`, nothing more.
+ */
+export async function keepShellFolders(found: ShellFolder[]): Promise<void> {
+  for (const { entryId, shellId, folder } of found) {
+    const folders = foldersAtQuit.get(entryId) ?? new Map<string, string>();
+    folders.set(shellId, folder);
+    foldersAtQuit.set(entryId, folders);
+  }
+  await Promise.all(
+    [...foldersAtQuit].map(async ([entryId, folders]) => {
+      try {
+        await update(entryId, (current) => {
+          let changed = false;
+          for (const shell of current.shells?.list ?? []) {
+            const folder = folders.get(shell.id);
+            if (folder === undefined || folder === shell.folder) continue;
+            shell.folder = folder;
+            changed = true;
+          }
+          return changed;
+        });
+      } catch (error) {
+        log('warn', 'panel-data', `could not keep where ${entryId}'s shells were: ${errorText(error)}`);
+      }
+    }),
+  );
+}
+
 /** Tells the window a panel's data changed; set once the window is known. */
 let tell: (entryId: string, data: PanelData) => void = () => {};
 
@@ -185,4 +247,5 @@ export function registerPanelData(getWindow: () => BrowserWindow | null, session
     tell(entryId, data);
     return data;
   });
+  ipcMain.handle('panelData:setShells', (_event, entryId: string, shells: PanelShells) => keepShells(entryId, shells));
 }

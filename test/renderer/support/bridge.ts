@@ -1,6 +1,6 @@
 import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
-import { nodeStateProblem, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
+import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { purgedSession, togglePinned, toggleArchived } from '../../../src/shared/sessionmarks';
 import { appFileChanges, SETTING_KEYS, settingProblem, settingsView } from '../../../src/shared/settings';
@@ -210,7 +210,16 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       const tree = fixture.trees[dir];
       return answer(typeof tree === 'string' ? { kind: 'tree' as const, fingerprint: tree } : { kind: 'failed' as const, error: tree.error });
     },
-    getPanelData: (entryId) => (entryId in fixture.panelData ? answer(fixture.panelData[entryId]) : unmodelled('getPanelData')()),
+    // A panel with nothing kept has no file, which main answers as empty data.
+    getPanelData: (entryId) => answer(fixture.panelData[entryId] ?? { sessions: {}, lastGroup: {} }),
+    // Main keeps the sound part of what it is sent (`soundShells`, src/shared/panels.ts), in the panel's data, writing nothing for a key that is not an entry's id, and answers nothing.
+    // Its write also forgets the links of sessions that are gone, its look at the disk, so data naming a session the fixture does not list is main's to answer, not this.
+    setPanelShells: (entryId, shells) => {
+      const data = fixture.panelData[entryId] ?? { sessions: {}, lastGroup: {} };
+      if (Object.keys(data.sessions).some((id) => !fixture.sessions.some((s) => s.id === id))) return unmodelled('setPanelShells')();
+      if (ID_PATTERN.test(entryId)) fixture.panelData[entryId] = { ...data, shells: soundShells(shells).shells };
+      return answer(undefined);
+    },
     // Main records the link and the group it was filed in (`withLink`, src/shared/panels.ts), kept in the fixture, and answers with the panel's data; it pushes the same data too, which the window already has from the answer.
     // Main also forgets the links of sessions that are gone, which is its look at the disk, so a panel whose data names a session the fixture does not list is main's to answer, not this.
     linkPanelSession: (entryId, sessionId, link, filed) => {
