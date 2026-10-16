@@ -20,6 +20,8 @@ interface FakePty {
   pid: number;
   file: string;
   args: string[];
+  /** What node-pty reports as running in it: the file it was started as while nothing else runs (measured), which a test changes to start a command. */
+  process: string;
   options: { cwd: string; env: Record<string, string> };
   written: string[];
   exit: (code?: number) => void;
@@ -46,6 +48,7 @@ vi.mock('node-pty', () => ({
       pid: seq.pid++,
       file,
       args,
+      process: file,
       options,
       written: [],
       exit: (code = 0) => onExit({ exitCode: code }),
@@ -420,6 +423,42 @@ describe('stopping a session', () => {
       for (const proc of started) proc.exit();
       child.kill();
     }
+  });
+
+  // What node-pty names is measured (src/main/terminal.ts, `foreground`): the shell's own file while nothing else runs, a command's name otherwise.
+  it('names what runs in a panel shell besides the shell, by its last part, and nothing while only the shell does', async () => {
+    const { proc, id } = await startShell();
+    const ask = (): unknown => handlers.get('terminal:foreground')!(null, id);
+    expect(ask()).toBeNull();
+    proc.process = 'npm run lint';
+    expect(ask()).toBe('npm run lint');
+    proc.process = '/home/u/.local/share/mise/installs/node/lts/bin/node';
+    expect(ask()).toBe('node');
+    // npm's title carries its arguments, a path among them, and is shown whole.
+    proc.process = 'npm run lint src/main';
+    expect(ask()).toBe('npm run lint src/main');
+    // Where node-pty reports nothing, or cannot be read, nothing is known to run.
+    proc.process = undefined as unknown as string;
+    expect(ask()).toBeNull();
+    Object.defineProperty(proc, 'process', {
+      configurable: true,
+      get: () => {
+        throw new Error('no pty');
+      },
+    });
+    expect(ask()).toBeNull();
+    Object.defineProperty(proc, 'process', { configurable: true, writable: true, value: 'sleep' });
+    expect(ask()).toBe('sleep');
+    // A nested shell of the shell's own name reads as the shell.
+    proc.process = path.basename(proc.file);
+    expect(ask()).toBeNull();
+    proc.process = 'sleep';
+    proc.exit();
+    expect(ask()).toBeNull();
+    // A claude session is not a panel's shell, whatever runs in it.
+    const session = await start();
+    session.proc.process = 'claude';
+    expect(handlers.get('terminal:foreground')!(null, session.id)).toBeNull();
   });
 
   it('reads the folder a running process is in', () => {

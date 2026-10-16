@@ -47,6 +47,11 @@ export interface BridgeFixture {
    * A check changes one while the window runs to make a change in that tree.
    */
   trees: Record<string, string | { error: string }>;
+  /**
+   * What runs in each panel shell besides the shell itself, by terminal id, as main reads it off the pty; a shell left out runs nothing else.
+   * A check sets one while the window runs to start a command in it.
+   */
+  foreground: Record<number, string>;
 }
 
 /** One call the window made, as it arrived; a callback argument is recorded as the string `<callback>`. */
@@ -137,5 +142,6 @@ export function defaultFixture(): BridgeFixture {
     paths: {},
     pickFolder: null,
     trees: {},
+    foreground: {},
   };
 }

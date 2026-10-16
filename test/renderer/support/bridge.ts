@@ -168,6 +168,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     startTerminal: (cwd) => start(cwd),
     // A shell that has started and printed nothing yet, in the same id space as a claude, as main's are.
     startShell: (cwd) => start(cwd),
+    // What main reads off the pty is the fixture's table, by terminal id, read when asked, so a check can start a command mid-run; nothing but the shell where it names none.
+    terminalForeground: (id) => answer(fixture.foreground[id] ?? null),
     onTerminalData: on('onTerminalData'),
     onTerminalExit: on('onTerminalExit'),
     sendTerminalInput: sent,

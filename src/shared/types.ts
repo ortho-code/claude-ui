@@ -475,6 +475,8 @@ export interface ClaudeUiApi {
    * `owner` names the panel's shell it is, so the quit can keep where it was then as where that shell's next one starts.
    */
   startShell(cwd: string, context: PanelContext, owner: { entryId: string; shellId: string }): Promise<number>;
+  /** What runs in a panel's shell besides the shell itself, by name, or null when nothing does, or the shell has gone. */
+  terminalForeground(id: number): Promise<string | null>;
   onTerminalData(callback: (id: number, data: string) => void): void;
   onTerminalExit(callback: (id: number, exitCode: number) => void): void;
   sendTerminalInput(id: number, data: string): void;

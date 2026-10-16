@@ -27,6 +27,36 @@ const forced = new Set<number>();
 const shells = new Set<number>();
 /** Which panel's shell each one is, by terminal id: its entry and its own id there, so the quit can keep where it was (`shellFolders`). */
 const shellOwners = new Map<number, ShellOwner>();
+/** The file each panel's shell was started as, by terminal id, which is what it reports as running while nothing else does (`foreground`). */
+const shellFiles = new Map<number, string>();
+
+/** A path's last part. */
+const lastPart = (name: string): string => name.split('/').filter(Boolean).pop() ?? name;
+
+/** A name as a command is shown by: a bare path by its last part, anything else as it is, since a title such as `npm run lint src/main` has a `/` in its arguments. */
+const shownName = (name: string): string => (name.startsWith('/') && !name.includes(' ') ? lastPart(name) : name);
+
+/**
+ * What runs in the foreground of a panel's shell besides the shell itself, by the name node-pty reports for the terminal's foreground process group, or null when only the shell does, for no live shell, and where nothing can be read.
+ * MEASURED 2026-10-16 with bash on Linux: an idle shell reports the file it was started as (`/bin/bash`), a command its own name (`sleep`, `vi`; the first of a pipeline), npm its title with its arguments (`npm run lint src/main`), a node script node's full path, and a nested `bash` reads `bash`.
+ * On macOS node-pty reports the executable's own name instead, so `npm run lint` would read as `node` there, and can report nothing at all (from its source, not measured).
+ * Compared by last part, so a nested shell of the same name reads as nothing running.
+ * A command in the background (`sleep 100 &`) is not the foreground, so it reads as nothing running.
+ */
+export function foreground(id: number): string | null {
+  const proc = terminals.get(id);
+  const file = shellFiles.get(id);
+  if (!proc || file === undefined) return null;
+  let reported: unknown;
+  try {
+    reported = proc.process;
+  } catch {
+    return null;
+  }
+  if (typeof reported !== 'string' || reported === '') return null;
+  const name = shownName(reported);
+  return lastPart(name) === lastPart(file) ? null : name;
+}
 let nextId = 1;
 
 /** A panel's shell, as the panel names it: its entry's id, and its own id among that panel's shells. */
@@ -157,6 +187,7 @@ function spawnPty(sender: WebContents, what: string, file: string, args: string[
     forced.delete(id);
     shells.delete(id);
     shellOwners.delete(id);
+    shellFiles.delete(id);
     // An exit nobody asked for, with a failing code, is the one worth finding again; a stop's code is whatever the signal left.
     const how = `code ${exitCode}${signal ? `, signal ${signal}` : ''}, after ${formatDuration(Date.now() - started)}`;
     log(expected || exitCode === 0 ? 'info' : 'warn', 'terminal', `${id} ended: ${how}${expected ? ', as asked' : ''}`);
@@ -278,11 +309,15 @@ export function registerTerminalIpc(): void {
   // eslint-disable-next-line @typescript-eslint/require-await -- async for the rejection above, with nothing to await
   ipcMain.handle('terminal:startShell', async (event, cwd: string, context: PanelContext, owner?: unknown): Promise<number> => {
     if (!cwd || !existsSync(cwd)) refuseMissing(cwd);
-    const id = spawnPty(event.sender, 'panel shell', loginShell(), ['-l', '-i'], cwd, { ...ptyEnv(), ...contextEnv(context) });
+    const file = loginShell();
+    const id = spawnPty(event.sender, 'panel shell', file, ['-l', '-i'], cwd, { ...ptyEnv(), ...contextEnv(context) });
     shells.add(id);
+    shellFiles.set(id, file);
     if (isOwner(owner)) shellOwners.set(id, { entryId: owner.entryId, shellId: owner.shellId });
     return id;
   });
+
+  ipcMain.handle('terminal:foreground', (_event, id: number) => foreground(id));
 
   ipcMain.on('terminal:input', (_event, id: number, data: string) => {
     terminals.get(id)?.write(data);

@@ -1,6 +1,6 @@
 import type { PanelShells } from '../../../shared/panels';
 import type { PanelSlot } from '../layout';
-import { promptText } from '../../dialogs';
+import { confirmDanger, promptText } from '../../dialogs';
 import { isQuitting } from '../../quitting';
 import { folderName } from '../../logic';
 import type { MenuItem } from '../../menu';
@@ -79,6 +79,8 @@ class TerminalPanel implements MountedPanel {
   /** Its kept shells could not be read, so it keeps nothing this run: what it holds would be written over them. */
   private unkept = false;
   private saveQueued = false;
+  /** Whether it is asking before ending a shell (`mayEnd`). */
+  private asking = false;
   private readonly unwatch: () => void;
 
   constructor(
@@ -256,7 +258,7 @@ class TerminalPanel implements MountedPanel {
       addRefused: this.mayAdd() ? null : NO_CONTEXT,
       kebabLabel: 'Terminal options',
       select: (id) => this.withShell(id, (shell) => this.select(shell, true)),
-      press: (id) => this.withShell(id, (shell) => this.close(shell)),
+      press: (id) => this.withShell(id, (shell) => void this.askClose(shell)),
       menu: (id) => {
         const shell = this.shells.find((each) => each.id === id);
         return shell ? this.menu(shell) : null;
@@ -413,8 +415,32 @@ class TerminalPanel implements MountedPanel {
       { label: 'Rename…', onSelect: () => void this.rename(shell) },
       { label: 'Restart here', onSelect: () => void this.restartHere(shell) },
       { separator: true, label: '' },
-      { label: 'Close terminal', onSelect: () => this.close(shell) },
+      { label: 'Close terminal', onSelect: () => void this.askClose(shell) },
     ];
+  }
+
+  /**
+   * Whether ending a shell's running shell is all right: at once when nothing runs in its foreground but the shell, else when you say so, asked naming what runs, which main reads off its terminal at this moment.
+   * Read at the press rather than kept on the tab, since a short command would change a mark there as it came and went.
+   */
+  private async mayEnd(shell: Shell, question: string, consequence: string, action: string): Promise<boolean> {
+    if (shell.terminalId === null) return true;
+    // One question at a time: a second press while the first is being asked, or answered, ends nothing, rather than taking the first's answer as its own.
+    if (this.asking) return false;
+    this.asking = true;
+    try {
+      const running = await window.claudeUi.terminalForeground(shell.terminalId);
+      if (running === null) return true;
+      return await confirmDanger(question, `“${running}” is still running in “${shell.name}”. ${consequence}`, action);
+    } finally {
+      this.asking = false;
+    }
+  }
+
+  /** Close a shell's tab: the button, a middle-click and its menu's Close alike, asking first while a command runs in it. */
+  private async askClose(shell: Shell): Promise<void> {
+    if (!(await this.mayEnd(shell, 'Close this terminal?', 'Closing the terminal ends it.', 'Close terminal'))) return;
+    if (!shell.closed) this.close(shell);
   }
 
   private async rename(shell: Shell): Promise<void> {
@@ -441,10 +467,13 @@ class TerminalPanel implements MountedPanel {
     this.save();
   }
 
-  /** A new shell in the tab, in the folder you are working in now. */
+  /** A new shell in the tab, in the folder you are working in now, asking first while a command runs in the one it replaces. */
   private async restartHere(shell: Shell): Promise<void> {
     const { runnable, run } = await this.prepared();
     if (!runnable || !run || shell.closed || this.disposed) return;
+    if (!(await this.mayEnd(shell, 'Restart this terminal?', 'Restarting the terminal ends it.', 'Restart'))) return;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- a close or an unmount can run while the question is up, which TypeScript's narrowing does not see
+    if (shell.closed || this.disposed) return;
     this.stop(shell);
     shell.folder = run.cwd;
     shell.focusWhenStarted = true;
