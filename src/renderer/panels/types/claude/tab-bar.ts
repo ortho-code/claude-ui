@@ -1,17 +1,16 @@
 import Sortable from 'sortablejs';
 import { element, fromMarkup } from '../../../dom';
 import { drawFoldChevron, foldChevron } from '../../../fold-chevron';
-import { Keyed, placeChildren, setMarkup } from '../../../keyed';
+import { Keyed, placeChildren } from '../../../keyed';
 import { asksForYou, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, tabButtonState, unstartableReason, worktreeMarkState } from '../../../logic';
-import { kebabButton, openMenu, type MenuItem } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
 import { showInStrip } from '../../../state/strip';
 import { projName, projectGone, projectGroups, sessionNudge, statusChanges, visibleTabs } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
-import { layersIcon, SIBLING_ICON, tabButtonIcon, WORKTREE_ICON } from '../../../svg';
+import { layersIcon, SIBLING_ICON, WORKTREE_ICON } from '../../../svg';
+import { buildTab, drawTab, type TabEls } from '../../../tab';
 import { setTooltip } from '../../../tooltip';
-import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
 import { activateTab, closeOrStop, persistOpenTabs, tabOf } from './terminals';
 import './tab-bar.css';
@@ -82,7 +81,7 @@ export function renderTabBar(view: TabBarView): void {
     if ((!activeProject || loose.length > 0) && drawn(`${root}\0`)) {
       const projectRow = projectRows.draw(`${root}\0`, buildProjectRow);
       if (!activeProject) drawProjectLabel(projectRow, root, view);
-      placeChildren(projectRow.row, [...(activeProject ? [] : [projectRow.label]), ...loose.map((tab) => drawTab(tab, view))]);
+      placeChildren(projectRow.row, [...(activeProject ? [] : [projectRow.label]), ...loose.map((tab) => drawSessionTab(tab, view))]);
       children.push(projectRow.row);
     }
     // Then one row per group that has tabs open, in registry order — the sidebar's order.
@@ -94,7 +93,7 @@ export function renderTabBar(view: TabBarView): void {
       // Folded in All, the row is the bar's only one, and nothing else on it says which project it is: its project's name goes in front, as the project's own row has it.
       const named = !activeProject && !tabBarExpanded;
       if (named) drawProjectLabel(project, root, view);
-      placeChildren(row, [...(named ? [project.label] : []), rail, label, ...groupTabs.map((tab) => drawTab(tab, view))]);
+      placeChildren(row, [...(named ? [project.label] : []), rail, label, ...groupTabs.map((tab) => drawSessionTab(tab, view))]);
       children.push(row);
     }
   }
@@ -156,16 +155,13 @@ interface GroupRow extends TabRow {
   project: ProjectLabel;
 }
 
-/** A tab and the parts each draw writes. */
-interface TabEls {
-  el: HTMLElement;
+/** A session's tab: the tab (tab.ts), and the marks that lead its label, which each draw writes. */
+interface SessionTabEls {
+  tab: TabEls;
   dot: HTMLElement;
   markGroup: HTMLElement;
   siblingMark: HTMLElement;
   worktreeMark: HTMLElement;
-  label: HTMLElement;
-  kebab: HTMLButtonElement;
-  close: HTMLButtonElement;
 }
 
 /**
@@ -180,7 +176,7 @@ const groupRows = new Keyed<GroupRow>(
   (kept) => kept.row,
   (kept) => kept.sortable.destroy(),
 );
-const tabEls = new Keyed<TabEls>((kept) => kept.el);
+const tabEls = new Keyed<SessionTabEls>((kept) => kept.tab.el);
 
 function buildRow(cluster: string, className: string): { row: HTMLElement; sortable: Sortable } {
   const row = document.createElement('div');
@@ -232,9 +228,29 @@ function buildGroupRow(cluster: string): GroupRow {
   return { ...buildRow(cluster, 'tab-project tab-group-row'), rail, label, name, project: buildProjectLabel(root) };
 }
 
-/** A tab, built once: what it does acts on the tab by its token when pressed, since a `/clear` can hand the tab another session; what it shows each draw writes (`drawTab`). */
-function buildTab(token: string): TabEls {
-  const el = document.createElement('div');
+/** A session's tab, built once: what it does acts on the tab by its token when pressed, since a `/clear` can hand the tab another session; what it shows each draw writes (`drawSessionTab`). */
+function buildSessionTab(token: string): SessionTabEls {
+  const tab = buildTab({
+    select: () => {
+      const held = tabOf(token);
+      // Opening it, as from anywhere else, puts its project back in the strip (state/strip.ts).
+      if (held) showInStrip(held.session.repoRoot);
+      activateTab(token);
+      const shown = tabOf(token);
+      if (shown) hostOf('claude').revealSession(shown.session.id);
+    },
+    // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind.
+    // See closeOrStop.
+    // A middle click takes the same two steps: one that killed a running session outright would be the one way left to lose one by accident.
+    press: () => closeOrStop(token),
+    // The session's own menu, the one its row in the list has, Pause and Unpause with it: everything but the button beside it, which stays in sight.
+    // The session list answers it (`sessionMenu`), for the session the tab holds at the click.
+    menu: () => {
+      const held = tabOf(token);
+      return held ? hostOf('claude').sessionMenu(held.session.id) : null;
+    },
+    kebabLabel: 'Session options',
+  });
   const dot = document.createElement('span');
   // Toggle "read" from the tab too, rather than only from the sidebar row; the session as it is at the click, since `/clear` can hand the tab to another.
   ackOnClick(dot, () => tabOf(token)?.session.id ?? null);
@@ -246,64 +262,14 @@ function buildTab(token: string): TabEls {
   siblingMark.innerHTML = SIBLING_ICON;
   const worktreeMark = document.createElement('span');
   worktreeMark.innerHTML = WORKTREE_ICON;
-  const label = document.createElement('span');
-  label.className = 'tab-label';
-  // The session's own menu, the one its row in the list has, Pause and Unpause with it: everything but the button beside it, which stays in sight.
-  // The session list answers it (`sessionMenu`), for the session the tab holds at the click.
-  const menu = (): MenuItem[] | null => {
-    const tab = tabOf(token);
-    return tab ? hostOf('claude').sessionMenu(tab.session.id) : null;
-  };
-  const kebab = kebabButton('compact tab-kebab abuts', 'Session options', menu);
-  // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind.
-  // See closeOrStop.
-  const close = document.createElement('button');
-  close.className = 'icon-btn compact tab-close';
-  close.addEventListener('click', (event) => {
-    // A press on the button is never a press on its tab, even when it cannot act.
-    event.stopPropagation();
-    if (unavailable(close)) return;
-    closeOrStop(token);
-  });
-  el.addEventListener('click', () => {
-    const tab = tabOf(token);
-    // Opening it, as from anywhere else, puts its project back in the strip (state/strip.ts).
-    if (tab) showInStrip(tab.session.repoRoot);
-    activateTab(token);
-    const shown = tabOf(token);
-    if (shown) hostOf('claude').revealSession(shown.session.id);
-  });
-  // A right-click on the tab opens the same menu, from its kebab, so the menu sits where it always does.
-  el.addEventListener('contextmenu', (event) => {
-    event.preventDefault();
-    const items = menu();
-    if (items) openMenu(kebab, items);
-  });
-  el.addEventListener('mousedown', (event) => {
-    if (event.button === 1) {
-      event.preventDefault();
-      // The same two steps as the button: a middle click that killed a running session outright would be the one way left to lose one by accident.
-      closeOrStop(token);
-    }
-  });
-  return { el, dot, markGroup, siblingMark, worktreeMark, label, kebab, close };
+  return { tab, dot, markGroup, siblingMark, worktreeMark };
 }
 
-/** Draw a tab as it is now: its state, its dot, its marks, its name, and its button's step. */
-function drawTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'projectNames' | 'tabs' | 'activeTab'>): HTMLElement {
-  const { el, dot, markGroup, siblingMark, worktreeMark, label, kebab, close } = tabEls.draw(tab.token, buildTab);
-  // 'cold' = restored but never started.
-  // Unfilled rather than marked: it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
+/** Draw a session's tab as it is now: its state, its dot, its marks, its name, and its button's step. */
+function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'projectNames' | 'tabs' | 'activeTab'>): HTMLElement {
+  const { tab: els, dot, markGroup, siblingMark, worktreeMark } = tabEls.draw(tab.token, buildSessionTab);
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
   const unstartable = unstartableReason(tab.session);
-  el.className = [
-    'tab',
-    tab.token === view.activeTab ? 'active' : '',
-    tab.terminalId === null ? 'cold' : '',
-    unstartable ? 'unstartable' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
 
   applyStatus(dot, tab.session.id, view);
 
@@ -319,20 +285,22 @@ function drawTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'ack
   setTooltip(worktreeMark, worktree?.tooltip);
 
   const text = sessionLabel(tab.session);
-  label.textContent = text;
-  setTooltip(label, unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}`);
-
-  // Stopping, its two pauses and its force, and closing a cold tab: the same rule the live strip's button follows — see tabButtonState.
-  const { disabled, tooltip, mark } = tabButtonState(tab);
-  setUnavailable(close, disabled ? tooltip : null, tooltip);
-  setMarkup(close, tabButtonIcon(mark, 14));
-
-  el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
   const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(worktree ? [worktreeMark] : [])];
   placeChildren(markGroup, marks);
-  // The mark cluster is placed only when there ARE marks — an empty wrapper would still consume a gap and shift the label.
-  placeChildren(el, marks.length > 0 ? [dot, markGroup, label, kebab, close] : [dot, label, kebab, close]);
-  return el;
+  drawTab(els, {
+    active: tab.token === view.activeTab,
+    // Restored but never started: unfilled rather than marked, since it is a session waiting to be resumed, not a broken one, and clicking it is exactly what starts it.
+    cold: tab.terminalId === null,
+    classes: unstartable ? ['unstartable'] : [],
+    text,
+    tooltip: unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}`,
+    // Stopping, its two pauses and its force, and closing a cold tab: the same rule the live strip's button follows — see tabButtonState.
+    button: tabButtonState(tab),
+    // The mark cluster is placed only when there ARE marks — an empty wrapper would still consume a gap and shift the label.
+    lead: marks.length > 0 ? [dot, markGroup] : [dot],
+  });
+  els.el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
+  return els.el;
 }
 
 // Drag-to-reorder tabs via SortableJS.

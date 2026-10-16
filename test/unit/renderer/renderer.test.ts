@@ -28,6 +28,7 @@ const ORDER = [
   'src/renderer/card.css',
   'src/renderer/panels/tree.css',
   'src/renderer/panels/types/claude/index.css',
+  'src/renderer/tab.css',
   'node_modules/@xterm/xterm/css/xterm.css',
   'src/renderer/panels/types/claude/terminals.css',
   'src/renderer/panels/types/claude/tab-bar.css',

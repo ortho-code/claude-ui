@@ -1,0 +1,77 @@
+/* A TAB, as tab.ts builds one. */
+
+.tab {
+  display: flex;
+  align-items: center;
+  /* Tight enough to cluster the leading dot + marks; .tab-label adds its own left margin so the title still sits clear of them.
+     Named, so the kebab can sit right against the button after it (`.abuts`). */
+  --row-gap: 4px;
+  gap: var(--row-gap);
+  /* Natural width (sized to the title), never shrinking; capped so a long title ellipsizes instead of making one huge tab.
+     The cap is the old 200px plus the kebab's 12px, which takes the gap before it and gives back the one after, so a title shows as much as it did without one. */
+  flex: 0 0 auto;
+  max-width: 212px;
+  padding: 5px 8px;
+  background: var(--surface);
+  border-radius: var(--radius-surface) var(--radius-surface) 0 0;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--active);
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+
+/* Restored but not started.
+   It loses the FILL rather than just dimming its text: every other tab is a filled chip, so an unfilled one reads as "not loaded yet" at a glance, where a slightly greyer label did not.
+   Not badged and not marked — this is a session waiting to be resumed, and clicking it is the whole fix.
+   Hover fills it like any other tab, so it never reads as disabled. */
+.tab.cold {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.tab.cold .tab-label {
+  color: var(--muted);
+}
+
+.tab.cold:is(:hover, :has(.menu-open)) {
+  background: var(--surface);
+}
+
+.tab.cold:is(:hover, :has(.menu-open)) .tab-label {
+  color: var(--text);
+}
+
+/* Selected but still cold — the launch state.
+   Keeps the selected EDGE so you can see where you are, but in --muted, matching the session row's left bar: both marks answer "is this one running?", so they have to answer it the same way.
+   The accent is reserved for a live session. */
+.tab.cold.active {
+  background: none;
+  box-shadow:
+    inset 0 3px 0 var(--muted),
+    inset 0 0 0 1px var(--border);
+}
+
+/* Hover cue on inactive tabs (the active one keeps its accent styling), kept while the tab's menu is up, as a list row keeps it. */
+.tab:not(.active):is(:hover, :has(.menu-open)) {
+  background: var(--surface-hover);
+}
+
+.tab-label {
+  flex: 1;
+  min-width: 0;
+  /* Restores the spacing the smaller .tab gap took away, but only here — so the icons cluster while the title keeps its distance from them. */
+  margin-left: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-meta);
+}
+
+/* SortableJS placeholder marking a dragged tab's drop slot (ghostClass).
+   The floating clone it drags keeps the normal .tab look. */
+.tab-ghost {
+  opacity: 0.5;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
