@@ -43,18 +43,26 @@ const renameOk = document.getElementById('rename-ok') as HTMLButtonElement;
 const renameCancel = document.getElementById('rename-cancel') as HTMLButtonElement;
 
 // In-app confirm modal (a native dialog flickers under WSLg), run by modal.ts like every modal here.
-// Resolves true on Delete, false on Cancel / Esc.
 // Deliberately NOT dismissable by clicking the backdrop: selecting text inside the dialog and releasing the mouse outside it dispatches the click on the common ancestor of the mousedown and mouseup — the overlay — so an outside-click dismiss threw the dialog away mid-drag.
 
-export function confirmDelete(title: string): Promise<boolean> {
-  confirmMessage.textContent = `Delete "${title}"?`;
-  confirmDetail.textContent = 'Its transcript files move to the trash, so you can restore them from there if needed.';
-  // Focus Cancel, not Delete: safer default for a destructive action, and it keeps the accent focus ring off the red button.
+/**
+ * Ask before something is destroyed or ended: the question, what pressing on does, and the word on the red button that does it.
+ * Resolves true on that button, false on Cancel / Esc.
+ */
+export function confirmDanger(question: string, detail: string, action: string): Promise<boolean> {
+  confirmMessage.textContent = question;
+  confirmDetail.textContent = detail;
+  confirmOk.textContent = action;
+  // Focus Cancel, not the red button: safer default for a destructive action, and it keeps the accent focus ring off the red button.
   confirmCancel.focus();
   return runModal<boolean>(confirmOverlay, false, (finish) => [
     listen(confirmOk, 'click', () => finish(true)),
     listen(confirmCancel, 'click', () => finish(false)),
   ]);
+}
+
+export function confirmDelete(title: string): Promise<boolean> {
+  return confirmDanger(`Delete "${title}"?`, 'Its transcript files move to the trash, so you can restore them from there if needed.', 'Delete');
 }
 
 // A small modal text prompt (Promise-resolving): OK/Enter resolves the value, Cancel/Esc resolves null.
