@@ -1,3 +1,4 @@
+import Sortable from 'sortablejs';
 import { element } from './dom';
 import { placeChildren, setMarkup } from './keyed';
 import type { TabButtonMark } from './logic';
@@ -76,6 +77,48 @@ export interface TabLook {
   /** What leads the label, such as a status dot, in order. */
   lead: readonly HTMLElement[];
 }
+
+/** How many rows of tabs have a drag under way, for the release a lost pointer never sends. */
+let dragging = 0;
+
+/**
+ * Drag to reorder the tabs in `row`, one Sortable per row, so a drag stays inside its row by construction.
+ * `start` and `end` are the owner's: while a drag is under way the library moves the tabs itself, so the owner holds its draws until `end`.
+ * Made with its row and destroyed when the row goes.
+ */
+export function sortableTabs(row: HTMLElement, on: { start(): void; end(event: Sortable.SortableEvent): void }): Sortable {
+  return Sortable.create(row, {
+    draggable: '.tab', // never a row's label
+    // The tab's buttons, its close and its kebab, are not drag handles.
+    // Without this, a mousedown on one starts a potential drag, and `forceFallback` then calls preventDefault to take over pointer handling — after which Chromium on macOS never synthesises the click, so closing a tab silently did nothing there.
+    // It survived on Linux, which is why this only appeared once the app reached a Mac.
+    // preventOnFilter: false is the half that matters: the default (true) still preventDefaults on the filtered element, which is the very thing that swallows the click.
+    filter: '.tab-close, .tab-kebab',
+    preventOnFilter: false,
+    // Pointer-based dragging instead of native HTML5 DnD, which is flaky under WSLg.
+    forceFallback: true,
+    // A press that wanders a pixel or two is a click: with Sortable's default of 0, any movement at all started a drag, and the tab was never chosen.
+    fallbackTolerance: 4,
+    animation: 0,
+    ghostClass: 'tab-ghost',
+    onStart: () => {
+      dragging += 1;
+      on.start();
+    },
+    onEnd: (event) => {
+      dragging = Math.max(0, dragging - 1);
+      on.end(event);
+    },
+  });
+}
+
+// Alt-tabbing away mid-drag never delivers a pointerup, so SortableJS can leave a drag stuck.
+// On blur, synthesise the release so it ends cleanly (dropping the tab where it currently is).
+window.addEventListener('blur', () => {
+  if (dragging === 0) return;
+  document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+});
 
 /** Draw a tab as `look` says. */
 export function drawTab({ el, label, kebab, button }: TabEls, look: TabLook): void {
