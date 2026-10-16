@@ -543,7 +543,7 @@ function switcher(group: ResolvedGroup, slots: PanelSlot[], shown: PanelSlot, pl
   if (slots.length < 2 && !place.folded) return null;
   const rail = element('div', `panel-rail ${place.axis === 'rows' ? 'horizontal' : 'vertical'} ${place.edge}`);
   for (const slot of slots) {
-    const item = element('button', 'icon-btn rail-item');
+    const item = element('button', 'icon-btn rail-item dotted-icon');
     item.type = 'button';
     // `alert` for a panel that cannot run, whoever said so: the layout (already in the slot's icon) or the panel itself.
     item.innerHTML = iconSvg((mounted.get(slot.key)?.problems.length ?? 0) > 0 ? 'alert' : slot.icon);

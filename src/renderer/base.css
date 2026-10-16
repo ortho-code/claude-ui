@@ -329,6 +329,19 @@ button:where(:not(.icon-btn)):hover,
   border-radius: 50%;
 }
 
+/* An icon carrying a status dot on its top-right corner: a panel's icon on a rail.
+   The dot is the nudge itself, ringed in what is behind the icon (`--dot-ring`, which each surface sets) so it reads against the mark it overlaps. */
+.dotted-icon {
+  position: relative;
+}
+
+.dotted-icon > .nudge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  box-shadow: 0 0 0 2px var(--dot-ring);
+}
+
 /* A worktree mark — the session row's badge and the tab's — for a session that ran in a worktree and has since left it.
    Muted rather than dimmed, since nothing about the session is unavailable; two classes' weight, so it beats each surface's own accent rule wherever either stylesheet lands. */
 .worktree-mark.left {

@@ -205,8 +205,9 @@
   padding: 0 4px;
 }
 
+/* Its dot (`.dotted-icon`, base.css) is ringed in the rail's colour. */
 .icon-btn.rail-item {
-  position: relative;
+  --dot-ring: var(--surface);
 }
 
 /* What is on show among its kind: a rail's panel, and a panel's view in its header's switch, filled alike at rest; the rail's also carries the accent on its outer edge, the side away from the content (below). */
@@ -245,14 +246,6 @@
 .icon-btn.rail-item.shown.no-fold,
 .icon-btn.panel-view[aria-pressed='true'] {
   cursor: default;
-}
-
-/* The dot on an icon: the status dot itself, ringed in the rail's colour so it reads against the mark it overlaps. */
-.rail-item .nudge {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  box-shadow: 0 0 0 2px var(--surface);
 }
 
 /* The group's header: title, the busy mark, the run's last word, Refresh.
