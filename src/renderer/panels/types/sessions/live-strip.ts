@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
-import { entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButtonState, type NudgeStatus, type SwitcherModel } from '../../../logic';
+import { asksForYou, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButtonState, type NudgeStatus, type SwitcherModel } from '../../../logic';
 import { kebabButton, openMenu } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
@@ -240,7 +240,7 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
   const total = items.length;
   const running = items.filter((s) => !paused.has(s.id));
   // "Needs you" is idle or waiting and NOT already read; busy is work in progress, which wants nothing from you, and a paused session wants nothing either, whatever status it still holds.
-  const needing = running.filter((s) => sessionNudge(s.id, view) === 'idle' || sessionNudge(s.id, view) === 'waiting').length;
+  const needing = running.filter((s) => asksForYou(sessionNudge(s.id, view))).length;
 
   if (total === 0) {
     // Gone entirely rather than sitting there saying "All clear", which read as odd on a first run — nothing had happened yet for anything to be clear of — and left a caret pointing at a panel that could not open.

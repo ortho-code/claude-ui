@@ -359,6 +359,11 @@ export function strongestNudge(nudges: Iterable<NudgeStatus>): NudgeStatus {
   return all.has('waiting') ? 'waiting' : all.has('idle') ? 'idle' : all.has('busy') ? 'busy' : null;
 }
 
+/** Whether a nudge asks something of you: a turn that ended, waiting for you or finished, and not marked read, which `nudgeOf` has already taken away; work in progress asks nothing. */
+export function asksForYou(nudge: NudgeStatus): boolean {
+  return nudge === 'waiting' || nudge === 'idle';
+}
+
 function rollUpNudge(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,

@@ -17,6 +17,7 @@ import {
   sessionPasses,
   inView,
   nudgeOf,
+  asksForYou,
   projectsForSwitcher,
   modelLabel,
   reorderWithinGroup,
@@ -393,6 +394,15 @@ describe('nudgeOf', () => {
       expect(nudgeOf(status, false), `${status} unread`).toBe(unread);
       expect(nudgeOf(status, true), `${status} read`).toBe(read);
     }
+  });
+});
+
+describe('asksForYou', () => {
+  it('is a turn that ended, waiting for you or finished, and nothing at work or with nothing to say', () => {
+    expect(asksForYou('waiting')).toBe(true);
+    expect(asksForYou('idle')).toBe(true);
+    expect(asksForYou('busy')).toBe(false);
+    expect(asksForYou(null)).toBe(false);
   });
 });
 
