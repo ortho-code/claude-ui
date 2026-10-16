@@ -735,10 +735,10 @@ function header(title: string, controls: HTMLElement[] = []): HTMLElement {
   return row;
 }
 
-/** A header whose panel has tabs: the tabs where the title would be, then its controls (panels/tabs.ts). */
+/** A header whose panel has tabs: the tabs where the title would be, then its controls, and the tabs' fold on its bottom line (panels/tabs.ts). */
 function tabsHeader(tabs: HeaderTabs, controls: HTMLElement[]): HTMLElement {
   const row = element('div', 'panel-header with-tabs');
-  row.append(tabs.el, ...controls);
+  row.append(tabs.el, ...controls, tabs.foldButton);
   return row;
 }
 

@@ -1,5 +1,6 @@
 import type Sortable from 'sortablejs';
 import { element } from '../dom';
+import { drawFoldChevron, foldChevron } from '../fold-chevron';
 import { Keyed, placeChildren } from '../keyed';
 import { plusIcon } from '../svg';
 import { buildTab, drawTab, dropSortable, sortableTabs, type TabEls } from '../tab';
@@ -11,6 +12,7 @@ import './tabs.css';
  * A PANEL'S TABS, which the tree draws in the panel's header in place of its title, from what the panel says they are (`PanelHost.setTabs`).
  * Each tab is the tab the terminal area's tab bar draws (tab.ts), kept by its id from one draw to the next and drawn again in place, so a press on one survives the panel saying its tabs again between the press and the release.
  * With clusters, each has a row of its own led by its label, as the tab bar draws a project's in All, and a drag stays inside its row; without, the tabs share one row.
+ * Rows fold to one, the row of the tab on show, from the tab bar's fold chevron on the header's bottom line, which the tabs stand on.
  * A `+` follows the last tab.
  */
 
@@ -23,6 +25,8 @@ interface Row {
 
 export class HeaderTabs {
   readonly el = element('div', 'panel-tabs');
+  /** The fold: the chevron the tab bar folds from, laid on the header's bottom line, which the tree places in the header beside the tabs. */
+  readonly foldButton = foldChevron('horizontal');
   private readonly addButton = element('button', 'icon-btn compact panel-tabs-add');
   private readonly rows = new Keyed<Row>(
     (kept) => kept.row,
@@ -44,6 +48,11 @@ export class HeaderTabs {
       if (!unavailable(this.addButton)) this.said?.add();
     });
     this.flat = sortableTabs(this.el, this.dragEnds());
+    this.foldButton.classList.add('panel-tabs-fold');
+    this.foldButton.hidden = true;
+    this.foldButton.addEventListener('click', () => {
+      if (this.said) this.said.fold(!this.said.folded);
+    });
   }
 
   /** Draw the tabs as the panel says them now. */
@@ -73,12 +82,15 @@ export class HeaderTabs {
         }
         cluster.tabs.push(tab);
       }
-      const rows = order.map((key, at) => {
+      // Folded, one row: the one holding the tab on show, or with none on show the first, as the tab bar folds.
+      const kept = order.find((key) => byCluster.get(key)!.tabs.some((tab) => tab.shown)) ?? order[0];
+      const drawn = said.folded ? order.filter((key) => key === kept) : order;
+      const rows = drawn.map((key, at) => {
         const { label, tabs } = byCluster.get(key)!;
         const row = this.rows.draw(key, (k) => this.buildRow(k.slice(1)));
         if (label !== null) row.label.textContent = label;
         // The `+` after the last tab, in the last row.
-        placeChildren(row.row, [...(label === null ? [] : [row.label]), ...tabs.map((tab) => this.drawOne(tab)), ...(at === order.length - 1 ? [this.addButton] : [])]);
+        placeChildren(row.row, [...(label === null ? [] : [row.label]), ...tabs.map((tab) => this.drawOne(tab)), ...(at === drawn.length - 1 ? [this.addButton] : [])]);
         return row.row;
       });
       placeChildren(this.el, rows);
@@ -86,6 +98,10 @@ export class HeaderTabs {
     if (!clustered) this.rows.clear();
     else this.rows.sweep();
     this.tabs.sweep();
+    // The fold is there while the tabs are in rows, folded or not, as the tab bar's stays on a bar of one row: folded is a stance that holds once a second row appears.
+    this.foldButton.hidden = !clustered;
+    drawFoldChevron(this.foldButton, said.folded ? 'down' : 'up', said.folded ? 'Unfold the tabs' : 'Fold the tabs to one row');
+    this.foldButton.setAttribute('aria-expanded', String(!said.folded));
   }
 
   private drawOne(tab: PanelTab): HTMLElement {

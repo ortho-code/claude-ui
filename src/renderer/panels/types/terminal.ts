@@ -77,6 +77,8 @@ class TerminalPanel implements MountedPanel {
   private saveQueued = false;
   /** Whether it is asking before ending a shell (`mayEnd`). */
   private asking = false;
+  /** Its tabs folded to the row on show where they are in rows, as in All; kept with the shells. */
+  private folded = false;
   private readonly unwatch: () => void;
 
   constructor(
@@ -117,6 +119,7 @@ class TerminalPanel implements MountedPanel {
     if (this.disposed) return;
     for (const each of kept?.list ?? []) this.shells.push(this.make(each.project, each.folder, { id: each.id, name: each.name }));
     for (const [where, id] of Object.entries(kept?.shown ?? {})) this.onShow.set(where, id);
+    this.folded = kept?.folded === true;
     this.loaded = true;
     this.draw();
     this.ensure();
@@ -136,6 +139,7 @@ class TerminalPanel implements MountedPanel {
       const shells: PanelShells = {
         list: this.shells.map(({ id, name, project, folder }) => ({ id, name, project, folder })),
         shown: Object.fromEntries([...this.onShow].filter(([, id]) => ids.has(id))),
+        ...(this.folded ? { folded: true } : {}),
       };
       window.claudeUi.setPanelShells(this.slot.key, shells).catch((error: unknown) => {
         window.claudeUi.log('warn', 'terminal', `${this.slot.key}: its shells could not be kept: ${error instanceof Error ? error.message : String(error)}`);
@@ -259,6 +263,12 @@ class TerminalPanel implements MountedPanel {
       reorder: (ids) => this.reorder(ids),
       add: () => void this.add(),
       showCluster: (root) => this.host.revealProject(root),
+      folded: this.folded,
+      fold: (folded) => {
+        this.folded = folded;
+        this.draw();
+        this.save();
+      },
     });
   }
 

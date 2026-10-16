@@ -5,4 +5,6 @@
   min-height: 0;
   padding: 8px;
   background: var(--terminal-bg);
+  /* xterm's layers carry z-indexes of their own, and a right-click moves its transparent textarea under the pointer at a z-index of 1000, which would otherwise take the presses of the tabs' fold where it reaches down over the shell. */
+  isolation: isolate;
 }

@@ -3,6 +3,7 @@
 /* The header they stand in: its bottom edge is the line they sit on, as the tab bar's tabs sit on the line under it, and it grows only when they wrap.
    1px above and the 1px line below a 26px tab make the 28px every header is, so a group's header does not jump when a panel with tabs takes over from one without. */
 .panel-header.with-tabs {
+  position: relative;
   height: auto;
   min-height: 28px;
   align-items: flex-end;
@@ -11,8 +12,18 @@
 }
 
 /* What else the header holds stays centred beside the tabs. */
-.panel-header.with-tabs > :not(.panel-tabs) {
+.panel-header.with-tabs > :not(.panel-tabs, .panel-tabs-fold) {
   align-self: center;
+}
+
+/* The fold (fold-chevron.css), centred along the bottom line and on it: 11px across a 1px line, so it reaches 5px up into a tab's bottom padding, where it covers none of a tab's buttons but takes a press on those 5px of the tab under it, and 5px down over the top of what is below, which a terminal's padding leaves empty.
+   Bright while the header is pointed at, as the tab bar's is while its line is. */
+.panel-header.with-tabs > .panel-tabs-fold {
+  bottom: -6px;
+}
+
+.panel-header.with-tabs:hover > .panel-tabs-fold {
+  opacity: 1;
 }
 
 /* The tabs wrap onto more lines when they fill one, as the tab bar's do; the header's own weight is its title's, which a tab does not take. */

@@ -168,6 +168,13 @@ export interface PanelTabs {
   add(): void;
   /** A press on a row's label, with the cluster's key. */
   showCluster(key: string): void;
+  /**
+   * Whether the rows are folded to one, the row of the tab on show, or with none on show the first, as the tab bar folds; it applies while the tabs are in rows, which is when the fold chevron shows.
+   * The panel keeps it, so it holds over a restart.
+   */
+  folded: boolean;
+  /** A press of the fold chevron, with what it asks for. */
+  fold(folded: boolean): void;
 }
 
 /** What the tree gives a mounted panel: where it is, and the marks around it that are the tree's to draw — the panel's side of the conversation with the layout — and the asks it can make of the app's surfaces. */

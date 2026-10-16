@@ -152,6 +152,15 @@ describe('a terminal panel’s shells', () => {
     expect((await readPanelData('shell')).shells).toEqual({ list: [SHELLS.list[0]], shown: {} });
   });
 
+  it('keeps their tabs folded, and drops a fold that is not a yes or a no, saying so', async () => {
+    await keepShells('folded', { ...SHELLS, folded: true });
+    expect((await readPanelData('folded')).shells?.folded).toBe(true);
+    await fs.mkdir(panelDataDir, { recursive: true });
+    await fs.writeFile(file('folded'), JSON.stringify({ version: 1, sessions: {}, lastGroup: {}, shells: { ...SHELLS, folded: 'yes' } }));
+    expect((await readPanelData('folded')).shells).toEqual(SHELLS);
+    expect(logged).toEqual([expect.stringMatching(/^warn panel-data .+folded\.json: dropped 1 entry that was not sound$/)]);
+  });
+
   it('keeps them beside a session a row links, and the link beside them', async () => {
     await keepShells('mixed', SHELLS);
     await linkSession('mixed', 's1', LINK, { repoRoot: '/repo', groupId: null });

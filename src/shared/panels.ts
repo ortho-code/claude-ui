@@ -353,6 +353,8 @@ export interface PanelShell {
 export interface PanelShells {
   list: PanelShell[];
   shown: Record<string, string>;
+  /** Its tabs folded to one row where they are in rows, as in All; absent for not. */
+  folded?: boolean;
 }
 
 /**
@@ -380,6 +382,8 @@ export function soundShells(value: unknown): { shells: PanelShells; dropped: num
     if (typeof id === 'string' && ids.has(id)) shells.shown[where] = id;
     else dropped += 1;
   }
+  if (value.folded === true) shells.folded = true;
+  else if (value.folded !== undefined && value.folded !== false) dropped += 1;
   return { shells, dropped };
 }
 
