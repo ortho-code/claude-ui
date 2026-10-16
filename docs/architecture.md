@@ -834,6 +834,7 @@ Clicking an icon shows that panel and unfolds the group, and clicking the shown 
 That icon used to do nothing, which kept the chevron the one fold control; both now call the one fold (`toggleFold`), so they cannot fold a group two ways, and the icon's tooltip and its `aria-label`, one string, say it folds.
 In a group that cannot fold the shown icon still does nothing, and has neither a pointer nor a hover to suggest otherwise.
 A panel's own marks — the busy mark, the run's last word, its button — sit in a header over it, unless its type is bare.
+A panel can put tabs in that header in place of its title (`PanelHost.setTabs`, § The `terminal` type).
 
 The fold control and the switcher each live in one function in `tree.ts` (`foldControls`, `switcher`), so trying one of the other variants from the mock — a header button, a tab strip — is a local change there, and none of it is in the file format.
 
@@ -847,7 +848,7 @@ Moving an element resets its scroll offsets and drops its focus, so a rebuild ca
 A panel behind another in its group, or in a folded group, keeps its DOM and its process: hiding stops nothing, and only removal from the file does.
 A context change does not run a hidden `command` panel; it is remembered as a difference, and the panel runs once when shown — and not at all if the context came back to where its last run was (`RunGate`, tested).
 One with an `interval` runs on it while hidden all the same (§ The `command` type).
-A `terminal` keeps its shell and refits from its own `ResizeObserver` once it has a size again.
+A `terminal` keeps its shells, and each refits from its own `ResizeObserver` once it has a size again.
 
 At start-up the default layout is drawn before the first paint, the file is read before a single row is drawn — so the sidebar and terminal area are moved into the tree while they are still empty — and panels are shown only once the tabs are restored, so a panel's first run is in the restored tab's folder.
 
@@ -969,22 +970,64 @@ The renderer mints one per run and every event echoes it, so output still in fli
 
 ### The `terminal` type
 
-A plain shell in a panel: the interactive login shell a session runs `claude` in, with nothing to run, in a pty, shown in an xterm.
-Its one option is `cwd` (see Where a panel runs).
+Plain shells in a panel: the interactive login shell a session runs `claude` in, with nothing to run, each in a pty and an xterm of its own, as tabs in the panel's header.
+Its options are `cwd` (see Where a panel runs) and `scope` (below).
 
-**It stays put.**
-The shell starts where the panel is placed at the moment it first shows — the context directory, or its `cwd` — and stays there through tab and project switches.
-A shell has state — the command you have running in it — so following the context the way the `command` panel does would kill that command on every switch, and one shell per directory kept alive and swapped like tabs is a lifecycle that belongs with groups and tabs, not here.
-So the header names the folder the shell is in, the button is "Restart here", which kills the shell and starts one in the current context, and the one exception is a panel with no shell because there was nothing to run in, which starts as soon as a context appears.
-The type declares that button's label itself, per entry, so the tree keeps one button and the type says what it does.
-**A terminal with a fixed `cwd` has no button**: it would restart in the same place, so what is left of its purpose is bringing a dead shell back, and a key press does that (below).
-One whose folder is missing says so in its place, like any panel that cannot run, and looks again whenever it comes back into view and whenever the config folder changes — with no button, being looked at is how a folder that has appeared since gets picked up.
+**A shell stays put.**
+A shell starts where the panel is placed at the moment it is made — the context directory, or its `cwd` — and stays there through tab and project switches.
+A shell has state — the command you have running in it — so following the context the way the `command` panel does would kill that command on every switch.
+So `+` after the tabs makes another shell where you are working now, Restart here in a tab's menu starts that tab's shell again there, and a tab's tooltip names its folder.
+A tab is named after its folder, numbered from 2 when another of its project's has that name, and renamed with the app's name dialog, from its menu or a double-click, as a project or a group is.
+A panel whose folder is missing says so in its place, like any panel that cannot run, and looks again whenever it comes back into view and whenever the config folder changes — with no button, being looked at is how a folder that has appeared since gets picked up.
+
+**The shells are tabs inside the panel, not entries of its group.**
+The tabs stand in the header where the title would be, so they cost no height, and the header grows only when they need more than one line: when they wrap, and in All, where each project has a row.
+The header is the tree's, so the panel says what its tabs are through `PanelHost.setTabs`, as a list says its views through `setViews`, and the tree draws them (`panels/tabs.ts`) with the claude tab bar's own tab (`tab.ts`: its label, button, kebab, middle-click and drag), so the app has one tab, drawn in two places, and a later type gets tabs by saying them.
+`setTabs(null)` puts the title back: with no tab the header is the ordinary one, and the line in the panel's body is the way in, since a header holding only a `+` read as something gone wrong (2026-10-16); the `+` comes with the first tab.
+The rejected alternatives were the title with a `+` button at its right end, which put two "new terminal" buttons on screen at once, and the title with a `+` after it, a heading with an add button, which nothing else in the app has.
+Each shell as an entry of the panel's group, switched from the rail, was the first plan, since a group's rail already switches panels, and was turned down before building: one glyph for every shell with its name only on hover, no place for `+` or a close, no rail at all in a group of one, two levels on one strip whose shown icon already folds the group, and every shell a panel the layout file does not name, which is still an open question for panels opened at will.
+So the rail keeps one icon per panel, counting the tabs of the project on show, or in All every project's, folded away or not.
+
+**By project.**
+The `scope` option is `project` or `global`, the words planned for every type: `project` shows the selected project's shells, and in All every project's, a row each led by the project's name, which takes the session list to that project, in the project order you set, as the tab bar shows its tabs; `global` shows every shell everywhere.
+It defaults to `project`, except with a fixed `cwd`, whose shells do not follow the project; a value in the file always wins.
+A switch never ends a shell: the other projects' shells run on out of sight, which is cheap, since an idle login shell measured about 5.7 MB against about 437 MB for a claude session (2026-10-16, bash on Linux).
+The tab on show is remembered per project, and for All.
+In All the rows fold to one, the row of the tab on show or the first with none on show, from the tab bar's own fold chevron laid on the header's bottom line, offered as the tab bar's is while there are two or more rows (`offerRowFold`), and the fold is kept with the shells; like the tab bar's fold, it bounds the rows, not the tabs.
+The rejected alternatives for a tall header in All were a header capped at about two rows that scrolls, since tabs scrolling in a 28px header are fiddly to hit and nothing else in the app scrolls tabs, and one row without the projects' names, where tabs of different projects mix and look alike.
+A project's name over its row does NOT mark a project whose folder is gone, as the tab bar's does (§ A session whose folder is gone), deliberately: a shell there says so itself when it starts.
+
+**Only you make a shell.**
+Showing the panel or switching project makes no tab; where there is none, a line says so, with New terminal, and a key on that line makes one, as a key does in a shell that has exited.
+With nowhere to start one, such as All with no session tab on show, whose project a new shell would be filed under, the line says to pick a project instead, and `+` says the same.
+It first made one by itself wherever there was none (2026-10-16), which filled All with a shell for every project you had looked at, and was taken back the same day.
+The tab on show still starts its shell when it comes into view, so a tab brought back from the last launch runs again when its project is shown: that never adds a tab.
+A shell started by a press of yours — `+`, its tab picked, Restart here, or the close that put its tab on show — takes the keys once it has started, if its tab is still on show; one started because the panel came into view, the project changed or the app launched does not, so it never takes the keys from wherever you are typing.
+
+**Kept for the next launch.**
+The shells are kept in the panel's own file, `panel-data/<entry id>.json`, beside a list panel's sessions (§ Types from the config folder): each tab's id, name, project and folder, in order, the tab on show per project, and the fold.
+A tab comes back with no shell, which starts when it is shown, in the folder the shell was in when the app quit.
+Main reads that folder at `before-quit`, before the sweep, from `/proc/<pid>/cwd` of each shell it was told the owner of when it started it (the panel's entry and the tab), since only main still has the shells by then, and a `cd` just before quitting would be lost to anything the window saved earlier.
+The quit waits for that write at most as long as its cap for the terminals, the grace and half a second more (§ Stopping a session is a request).
+Where `/proc` does not exist, on macOS, for a shell that had already exited, and for a folder removed since, the tab keeps the folder it was made or last restarted in.
+A save the window sent before it heard of the quit can reach main after it, so main keeps the quit's folders over any later write, and the window saves nothing once it knows it is quitting (`quitting.ts`, which the claude tabs read too).
+A panel whose data main cannot hand over at all brings back no tabs and keeps none that run, rather than writing over what the file holds; a file that does not parse is kept beside itself, as any panel's is (§ Types from the config folder).
+What was on screen is not kept: it would put whatever a shell printed on disk, tokens and environment dumps included, which is also why the log never records a panel's output.
+
+**Closing asks while a command runs.**
+A tab's cross, a middle-click on it and its menu's Close end an idle shell at once; while a command runs in it they ask first, naming the command, and Restart here asks the same way.
+What runs is read at the press from main (`terminal:foreground`): node-pty's name for the terminal's foreground process, which is the shell's own file while nothing else runs, so main compares the two by their last part and answers null for the shell itself.
+MEASURED 2026-10-16 with bash on Linux: an idle shell reports `/bin/bash`, a command its own name (`sleep`, `vi`, the first of a pipeline), npm its title with its arguments (`npm run lint src/main`), a node script node's full path, and a nested `bash` reads `bash`, so a nested shell of the shell's own name reads as nothing running.
+On macOS node-pty reports the executable's own name, cut to 16 characters, so `npm run dev` would read as `node` there, and can report nothing at all, which reads as nothing running (from its source, not measured).
+A command left in the background is not the foreground, so a shell running only that closes without asking.
+It is read at the press rather than kept as a mark on the tab, which a short command would change as it came and went; the claude tab's two presses, stop and then close, were turned down for the same reason.
+The question is the app's confirm dialog, which takes its caller's words (`confirmDanger` in `dialogs.ts`, with the delete's `confirmDelete` one caller) and opens on Cancel; it is asked once at a time, so a second close pressed while the first is being asked ends nothing.
 
 **A shell that exits comes back on a key press.**
-Its screen stays up with a dimmed line saying it exited and that any key starts a new shell, and the next key does, through the same start the button uses; the key is the ask, so it is not sent on to the new shell.
+Its screen stays up with a dimmed line saying it exited and that any key starts a new shell, and the next key does, in its tab and its folder; the key is the ask, so it is not sent on to the new shell.
 That is what VS Code's terminal does, and it was chosen over a button that appears only once the shell has gone, and over restarting on exit by itself, which would need a guard against a shell that dies at once — a broken rc file, say — starting again forever.
-It exists so that getting a shell back never depends on the button, which a terminal with a fixed `cwd` does not have.
-The header keeps its `exited N`, since that is what shows while the panel is behind another.
+Its tab goes unfilled, as a tab with nothing behind it does.
+The header says nothing of an exit, as it did with one shell (`exited N`), since several shells share one header; a start that fails still says so there, with the rail's red dot.
 
 **The same pty path as a session.**
 `terminal.ts` has one spawn for both — the terminals map, the data and exit routing, the stop escalation and the quit sweep — with the claude-specific argument building and the plain-shell start as two callers of it.
@@ -994,8 +1037,8 @@ It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` a
 **One xterm, one router.**
 The renderer's `terminal.ts` builds every xterm in the window (the font tokens, the neutral foreground, the canvas fallback, clickable links) and routes every terminal's output and exit to whichever sink bound its id, a tab or a panel.
 The tab's claude-specific key handling — Ctrl+Enter and Shift+Enter as newline, Ctrl+Z refused, Ctrl+C twice to close — stays with the tab.
-A panel fits its xterm from a `ResizeObserver` on its own box rather than at mount, because it is mounted before the tree has placed it and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
-The same observer covers every later reveal — a switch on the rail, an unfold, a divider reopening a squeezed node — since each gives the box a size again.
+Each shell fits its xterm from a `ResizeObserver` on its own box rather than when it is made, because a shell is made before its box is on screen and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
+The same observer covers every later reveal — its tab picked, a switch on the rail, an unfold, a divider reopening a squeezed node — since each gives the box a size again.
 
 ### Types from the config folder
 
@@ -1014,7 +1057,7 @@ Main reads the manifests in the same pass as the layout file and hands them over
 
 **The kind decides the rest.**
 A manifest names what kind of panel it is, and the kind brings its own options and behaviour; `list` is the one kind so far.
-So `cwd`, `interval` and `watch` are the list kind's own, not something every panel takes: a shell has nothing to re-run, so the `terminal` type takes `cwd` alone, while the `command` type takes all three, as the same declarations.
+So `cwd`, `interval` and `watch` are the list kind's own, not something every panel takes: a shell has nothing to re-run, so the `terminal` type takes `cwd` and a `scope` of its own, while the `command` type takes all three, as the same declarations.
 A manifest is checked like the layout file — every mistake named, each prefixed with its file — and a type whose manifest is wrong is still a type, so every entry of it says what is wrong where the panel would be.
 A field the manifest does not know is a note, not a mistake, and the same holds for the list a script prints: both are a contract a shared type is written against, with a `version`, so a field a later version added is ignored here and only a version bump is a break.
 An edit to a manifest mounts that type's panels afresh: the type carries a revision, and the mount signature includes it beside the entry's options.
@@ -1083,7 +1126,7 @@ A link whose session the app no longer has is simply not drawn, whether or not m
 A second Review on such a row opens the dialog on CONTINUING the latest session, since that session holds what the first look found: stopped, it is resumed with the prompt as its first (`--resume <id> -- <prompt>`, checked against claude in print mode before this was built); running, it is brought into view and the prompt is not sent, which the dialog says before anything happens, because typing into a live session could land mid-turn or on a question and is never the app's to do.
 
 **Which session a row started is the panel's data, kept by the app.**
-One file per entry, `panel-data/<entry id>.json` in the app's data directory, with the sessions its rows started (by session id: the item's key, its text, its link, when) and the group last picked per project.
+One file per entry, `panel-data/<entry id>.json` in the app's data directory, with the sessions its rows started (by session id: the item's key, its text, its link, when) and the group last picked per project; a `terminal` panel keeps its shells in it too (§ The `terminal` type).
 Not in `meta.json`, so a panel's data cannot damage the app's, and not in the config folder, which is what gets shared while a session id means something only on this machine.
 The app writes it, never the script, which never learns a session id: the id is minted before the tab exists and the link written first, so the row can lead back to the session from the start.
 A file that does not parse, or is of another version, is kept beside itself rather than overwritten, and an entry that is not sound is dropped and logged.
@@ -1224,6 +1267,7 @@ Keeping them is not enough on its own: in Chromium, `appendChild`, `insertBefore
 The same goes for an icon inside a kept element: setting its markup again replaces the icon's own element, which sits over the middle of an icon button where a press lands, so an icon a render sets is set through `setMarkup`, which leaves the same markup alone.
 A kept element outlives what it was built for, so its handlers look up what they act on by its key when they run, as a session row's read `currentByKey`, never what was current when it was built.
 A library bound to a kept element lives as long as the element, and `Keyed`'s `forget` lets it go when the element is swept, as the tab bar's rows destroy their Sortable.
+They do it through `dropSortable` (`tab.ts`), which waits for a drag under way to end, since destroying a Sortable during a drag, even another row's or another surface's, ends that drag inside the library without its `end` reaching anyone (sortablejs 1.15.7), which left the dragged tab marked and its owner holding its draws for good.
 While such a library moves the elements itself, the surface does not draw: during a tab drag, Sortable moves the dragged tab and puts its copy of it in the row, so the tab bar holds a draw asked for meanwhile and makes it once the tab drops, rather than undoing the drag under the pointer.
 
 **A module's stylesheet sits beside it, and the module imports it.**

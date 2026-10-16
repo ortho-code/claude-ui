@@ -50,7 +50,7 @@ Done:
   The flags the app sets for itself are refused there rather than allowed to break a session.
   They are kept in the config folder, over a `settings.json` of your own; see [Settings](#settings).
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
-  Panels so far run a command or a script and show its output, again on an interval, when the script says, or when the git working tree of their folder changes, or give you a plain shell, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
+  Panels so far run a command or a script and show its output, again on an interval, when the script says, or when the git working tree of their folder changes, or give you plain shells, as tabs per project that come back at the next launch, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
   See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag.
   See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
@@ -87,7 +87,8 @@ Next:
 - Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.
 - Named layouts, several in `layouts/` with the one in use chosen in settings, and blocks: parts of a layout kept in files of their own and used in it by name, as often as you like.
 - More panel types (markdown, diff, transcript, config), and layouts per project.
-- Panels opened at will rather than only from the file, such as a second shell, and panels that belong to one project while others stay the same everywhere.
+- Panels opened at will rather than only from the file, and panels that belong to one project while others stay the same everywhere.
+- A terminal panel's shells listed from its icon on a strip, to reach one in a folded group, and marked on their tabs while a command runs and when it ends out of sight.
 - Minimize-to-tray.
 - Telling you when a session fails to start, instead of leaving the terminal to explain it.
 - History: file changes under their tool calls (the diffs behind Edit and Write, and claude's result summaries), syntax colouring in code blocks, another look at its type, and tuning the bar and its loupe.
@@ -163,8 +164,8 @@ The panel types:
   Each belongs in the file exactly once: one left out is added back, and a second copy says where the first one is, so no file can leave you without the terminal.
 - `command` runs something and shows what it printed, given one of two ways in its `options`: `command`, a command line run by your login shell as you typed it, or `script`, the path to an executable.
   `cwd` picks the folder it runs in, `interval` how often it runs again on its own, and `watch` whether it runs again when that folder's git working tree changes.
-- `terminal` is a plain shell, the same login shell your sessions run in.
-  `cwd` picks the folder it starts in.
+- `terminal` holds plain shells, the same login shell your sessions run in, as tabs in its header.
+  `cwd` picks the folder they start in, and `scope` whether its tabs are the selected project's (`project`) or the same in every project (`global`).
 - A folder under `panel-types/` in the config folder is a type of your own, named after the folder; see [Panel types of your own](#panel-types-of-your-own).
 
 This one puts a shell in a drawer under the terminal area and two commands behind icons on the right, and lets the sidebar, the drawer and the right side fold:
@@ -230,17 +231,23 @@ The command sees these variables:
 
 Output is shown as plain text (`NO_COLOR` and `TERM=dumb` are set, and escape codes are stripped), a non-zero exit shows as `exit N`, a run still going after 30 seconds is stopped, and output is cut at 1 MB.
 
-A `terminal` panel's shell starts in that folder too, the first time you show it, but stays there when you switch tab or project, since a shell may have something running in it.
-The header names the folder it is in, and the button restarts it in the current one.
-When the shell exits, the panel says so, and any key starts a new one in the current folder.
-It keeps running while hidden or folded, and while you edit the layout file around it.
-It gets the same variables, and a `claude` you start in it by hand is not tracked as one of the app's sessions.
+A `terminal` panel holds shells, each a tab in its header where the title would be, and makes none by itself: where there is none it says so, and New terminal there, or any key, makes one, in All under the project of the session tab on show; with no session tab on show in All, it asks you to pick a project first.
+`+` after the last tab makes another, and each starts in the folder a command would run in, named after it, but stays there when you switch tab or project, since a shell may have something running in it.
+A tab's tooltip names its folder, and its kebab, or a right-click, renames it, which a double-click does too, restarts its shell in the current folder, or closes it.
+Its cross or a middle-click closes it too, and while a command runs in the shell, closing or restarting it asks first, naming the command.
+Drag a tab to move it along its row.
+The tabs are the selected project's, and a switch ends no shell: the other projects' keep running out of sight, as a shell does while hidden or folded, and while you edit the layout file around it.
+In All every project's tabs show, a row each led by the project's name, and a chevron on the header's bottom line folds them to the row of the tab on show.
+When a shell exits, its screen says so, and any key in it starts a new one in the same folder.
+The tabs come back at the next launch, with their names, and each shell starts again when its tab is shown, in the folder it was in when the app quit, on Linux; on macOS, or for a shell that had already exited, in the folder it was made or last restarted in.
+What was on screen in them does not come back.
+Each shell gets the same variables, and a `claude` you start in it by hand is not tracked as one of the app's sessions.
 
 Either type takes a `cwd` in its `options` to run somewhere other than that folder:
 
 - An absolute path, or one under `~/`, is fixed: the panel runs there whatever is selected, even with no project at all.
   A command with one does not run again when you switch project or tab, since its folder has not moved; Refresh runs it, and so does its `interval`.
-  A terminal with one has no button, and a key starts a new shell there after the old one exits.
+  A terminal with one starts every shell you make or restart there, and shows the same tabs in every project unless its `scope` is `project`.
 - A relative path is under the active tab's folder, or the project's root, so `"cwd": "packages/api"` follows the project into that folder.
 
 ```json

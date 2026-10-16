@@ -20,10 +20,12 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A `command` panel type: a command line or a script, run in the active tab's folder (or the selected project's) and shown as plain text, run again when you switch project or tab or press Refresh.
   A `cwd` option runs it in a fixed folder instead, whatever is selected, or in a subfolder of the project.
   An `interval` option runs it again on its own, out of sight too, leaving what it last printed on show until the new run ends.
-- A `terminal` panel type: a plain shell in the folder the panel first showed for.
-  It stays there when you switch tab or project, the header says where it is, and the button restarts it in the current folder.
-  After the shell exits, any key starts a new one.
-  It takes the same `cwd`; with a fixed one it starts there and has no restart button.
+- A `terminal` panel type: plain shells, as tabs in the panel's header, each started where you are working when you make it with `+`, and staying there when you switch tab or project.
+  The tabs are the selected project's, All shows every project's in a row each, which fold to one, and a switch ends no shell.
+  A tab renames, restarts in the current folder or closes from its menu, and closing or restarting a shell with a command running in it asks first, naming the command.
+  After a shell exits, any key starts a new one.
+  The tabs come back at the next launch, and each shell starts again when its tab is shown, in the folder it was in when the app quit, on Linux.
+  It takes the same `cwd`, and a `scope` to show the same tabs in every project, which a fixed `cwd` does unless told otherwise.
 - Several panels in one group, switched from a strip of icons whose dot says a command failed or a session is waiting for you; a panel out of sight keeps what it was doing and runs again only once shown, or on its interval.
 - Folding a group of panels to its strip of icons, from a chevron on the divider beside it or by clicking the icon of the panel on show.
   `folded` in the layout file starts a group folded.
