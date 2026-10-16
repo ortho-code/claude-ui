@@ -54,6 +54,8 @@ export function confirmDanger(question: string, detail: string, action: string):
   confirmDetail.textContent = detail;
   confirmOk.textContent = action;
   // Focus Cancel, not the red button: safer default for a destructive action, and it keeps the accent focus ring off the red button.
+  // Shown first, as runModal would show it, since a hidden button cannot take the focus: it stayed wherever it was, a terminal's included, which then took Esc and every other key.
+  confirmOverlay.hidden = false;
   confirmCancel.focus();
   return runModal<boolean>(confirmOverlay, false, (finish) => [
     listen(confirmOk, 'click', () => finish(true)),

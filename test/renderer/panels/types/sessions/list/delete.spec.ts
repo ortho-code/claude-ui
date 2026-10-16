@@ -52,6 +52,21 @@ test('cancelling a delete leaves the session where it was', async ({ app, page }
   expect(await app.calls('deleteSession')).toEqual([]);
 });
 
+// The red button is the one a stray Enter must not press.
+test('the delete question takes the keyboard on Cancel, so Enter cancels and Esc does too', async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, gone.title).locator('.delete-btn').click();
+  await expect(page.locator('#confirm-cancel')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#confirm-overlay')).toBeHidden();
+  await row(page, gone.title).locator('.delete-btn').click();
+  await expect(page.locator('#confirm-cancel')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#confirm-overlay')).toBeHidden();
+  await expect(row(page, gone.title)).toHaveCount(1);
+  expect(await app.calls('deleteSession')).toEqual([]);
+});
+
 test('a confirmed delete takes the row away at once and it never comes back', async ({ app, page }) => {
   await app.boot(fixture);
   await expect(row(page, gone.title)).toHaveCount(1);
