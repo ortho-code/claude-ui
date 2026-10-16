@@ -1,6 +1,6 @@
 import { PROJECT } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { panelTabAdd } from '../../../support/window';
+import { newTerminal } from '../../../support/window';
 import { railItem, withLayout } from '../../layout/layout';
 
 // A shell panel starts in the folder you are working in (docs/architecture.md § The `terminal` type), and main refuses one whose folder is not there: the panel says so in its header, and its icon fails, so a shut group says it too.
@@ -26,7 +26,7 @@ const layout = withLayout({
 
 test('a shell whose folder is gone is refused: its header says the folder is not there, and its icon fails', async ({ app, page }) => {
   await app.boot({ ...layout, paths: { [PROJECT]: 'missing' } });
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await expect.poll(() => app.calls('startShell')).toHaveLength(1);
   await expect(page.locator('.panel-end', { hasText: `${PROJECT} is not there` })).toBeVisible();
   await expect(railItem(page, /^Shell/).locator('.nudge.failed')).toBeVisible();

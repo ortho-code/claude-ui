@@ -238,6 +238,11 @@ class TerminalPanel implements MountedPanel {
     this.placeholder.hidden = current !== null;
     if (!current) this.drawLine();
     this.host.setCount(visible.length > 0 ? visible.length : null);
+    // With no tab, the header is the ordinary one, with the panel's title: a `+` alone there looked like something had gone wrong, and the line below offers New terminal.
+    if (visible.length === 0) {
+      this.host.setTabs(null);
+      return;
+    }
     const clustered = this.scope() === 'project' && this.host.where().project === null;
     const view = store.get();
     this.host.setTabs({

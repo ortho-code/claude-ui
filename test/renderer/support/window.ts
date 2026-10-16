@@ -133,6 +133,9 @@ export const panelTabRows = (page: Page): Locator => page.locator('.panel-tabs >
 /** The `+` after a panel's last tab. */
 export const panelTabAdd = (page: Page): Locator => page.locator('.panel-tabs-add');
 
+/** The New terminal button on the line a terminal panel with no tab on show shows instead of a shell. */
+export const newTerminal = (page: Page): Locator => page.locator('.panel-body .pane-placeholder:visible').getByRole('button', { name: 'New terminal' });
+
 /** A line of the history that opens into more, found by its line reading exactly `label`: the line itself, which is what opens and folds it, and what it opens into. */
 export const historyFold = (page: Page, label: string): { head: Locator; body: Locator } => {
   const fold = page.locator('.exchange-fold', { has: page.locator('> .exchange-fold-head', { hasText: new RegExp(`^${label}$`) }) });

@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { HOME, PROJECT } from '../../../support/fixture';
 import { expect, test, type App } from '../../../support/harness';
-import { chooseProject, panelTab, panelTabAdd, panelTabLabels, panelTabRows, panelTabs, tab, tabLabel } from '../../../support/window';
+import { chooseProject, newTerminal, panelTab, panelTabAdd, panelTabLabels, panelTabRows, panelTabs, tab, tabLabel } from '../../../support/window';
 import { here, railItem, withLayout } from '../../layout/layout';
 
 // A terminal panel holds shells as tabs in its header, by project (docs/architecture.md § The `terminal` type): only you make one, a switch never ends one, and a project with none shows a line instead.
@@ -37,22 +37,25 @@ const kills = async (app: App): Promise<unknown[]> => (await app.calls('killTerm
 /** The line in a shell's place when there is none. */
 const line = (page: Page): Locator => page.locator('.panel-body .pane-placeholder:visible');
 
-/** Boot, and make the project's first shell with `+`: terminal 1, named "demo". */
+/** Boot, and make the project's first shell from the line's New terminal: terminal 1, named "demo". */
 async function bootWithShell(app: App, page: Page, fixture: Parameters<App['boot']>[0] = layout()): Promise<void> {
   await app.boot(fixture);
   await expect(line(page)).toContainText('No terminal in demo.');
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await expect(panelTabLabels(page)).toHaveText(['demo']);
   await expect.poll(() => app.calls('startShell')).toHaveLength(1);
 }
 
-test('a project with no shell shows a line and starts none; + makes one, a tab named after its folder in place of the title, counted on the rail', async ({ app, page }) => {
+test('a project with no shell shows a line under the panel\'s own title and starts none; New terminal makes one, a tab named after its folder in place of the title, counted on the rail', async ({ app, page }) => {
   await app.boot(layout());
   await expect(line(page)).toContainText('No terminal in demo.');
   await expect(panelTabs(page)).toHaveCount(0);
+  // The ordinary header, with no `+` on its own: the line's button is the way in.
+  await expect(page.locator('.panel-header .panel-title', { hasText: 'Shell' })).toBeVisible();
+  await expect(panelTabAdd(page)).toHaveCount(0);
   expect(await starts(app)).toEqual([]);
 
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await expect.poll(() => starts(app)).toEqual([PROJECT]);
   await expect(panelTabLabels(page)).toHaveText(['demo']);
   await expect(page.locator('.panel-header.with-tabs .panel-title')).toHaveCount(0);
@@ -107,7 +110,7 @@ test('showing the panel again makes no shell either', async ({ app, page }) => {
 test('All shows every project\'s shells, a row each led by its name', async ({ app, page }) => {
   await bootWithShell(app, page);
   await chooseProject(page, 'other');
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await expect(panelTabLabels(page)).toHaveText(['other']);
   await chooseProject(page, 'All');
   await expect(panelTabRows(page)).toHaveCount(2);
@@ -219,7 +222,7 @@ test('a shell asked for is filed where it was asked, though another project is o
   await app.boot(layout({ cwd: '.' }));
   await expect(line(page)).toContainText('No terminal in demo.');
   await app.hold('checkPath');
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await chooseProject(page, 'other');
   await app.release('checkPath');
 
@@ -248,7 +251,7 @@ test('a drag of a panel tab that the tab bar ends by taking its own row away lea
   // The claude tab starts first, so its terminal is 1, and the shells are 2 and 3.
   await tabLabel(page, here.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await panelTabAdd(page).click();
   await expect(panelTabLabels(page)).toHaveText(['demo', 'demo 2']);
   // Past the moment in which an exit reads as a failed start, so the exit below closes the claude tab, and its row in the bar goes with its Sortable.
@@ -271,7 +274,7 @@ test('a drag of a panel tab that the tab bar ends by taking its own row away lea
 test('a terminal pinned to a folder shows its shells in every project, and a switch starts no other', async ({ app, page }) => {
   await app.boot({ ...layout({ cwd: NOTES }), paths: { [NOTES]: 'directory' } });
   await expect(line(page)).toContainText('No terminal yet.');
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await expect.poll(() => starts(app)).toEqual([NOTES]);
   await expect(panelTabLabels(page)).toHaveText(['notes']);
   await chooseProject(page, 'other');

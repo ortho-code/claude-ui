@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { PROJECT } from '../../../support/fixture';
 import { expect, test, type App } from '../../../support/harness';
-import { panelTab, panelTabAdd, panelTabLabels, panelTabs } from '../../../support/window';
+import { newTerminal, panelTab, panelTabAdd, panelTabLabels, panelTabs } from '../../../support/window';
 import { withLayout } from '../../layout/layout';
 
 // Ending a shell with a command running in it asks first, naming the command, which main reads off its terminal at the press (docs/architecture.md § The `terminal` type).
@@ -24,10 +24,10 @@ const kills = async (app: App): Promise<unknown[]> => (await app.calls('killTerm
 
 const question = (page: Page): Locator => page.locator('#confirm-dialog');
 
-/** Boot, and make the panel's first shell with `+`: terminal 1. */
+/** Boot, and make the panel's first shell from the line's New terminal: terminal 1. */
 async function bootWithShell(app: App, page: Page): Promise<void> {
   await app.boot(layout);
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await expect(panelTabLabels(page)).toHaveText(['demo']);
   await expect.poll(() => app.calls('startShell')).toHaveLength(1);
 }

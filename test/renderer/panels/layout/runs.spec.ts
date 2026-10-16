@@ -1,12 +1,12 @@
 import type { TerminalLaunch } from '../../../../src/shared/types';
 import { PROJECT, session } from '../../support/fixture';
 import { type App, expect, test } from '../../support/harness';
-import { chooseProject, panelTabAdd, tab, tabLabel, tabLabels } from '../../support/window';
+import { chooseProject, newTerminal, tab, tabLabel, tabLabels } from '../../support/window';
 import { LAYOUT, OTHER, railItem, runs, withLayout } from './layout';
 
 test('a change to the layout file keeps a running shell and does not run a command again', async ({ app, page }) => {
   await app.boot(withLayout(LAYOUT));
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await expect.poll(() => app.calls('startShell')).toHaveLength(1);
   await expect.poll(() => runs(app, 'status')).toHaveLength(1);
 

@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { PanelShells } from '../../../../../src/shared/panels';
 import { PROJECT } from '../../../support/fixture';
 import { expect, test, type App } from '../../../support/harness';
-import { chooseProject, panelTabAdd, panelTabLabels, panelTabRows } from '../../../support/window';
+import { chooseProject, newTerminal, panelTabLabels, panelTabRows } from '../../../support/window';
 import { OTHER, withLayout } from '../../layout/layout';
 
 // In All a terminal panel's tabs stand in a row per project, and fold to one, the row of the tab on show, from the tab bar's fold chevron on the header's bottom line (docs/architecture.md § The `terminal` type).
@@ -26,10 +26,10 @@ const lastKept = async (app: App): Promise<PanelShells | undefined> => (await ap
 /** A shell in each project, then All: two rows. */
 async function inAllWithTwoRows(app: App, page: Page): Promise<void> {
   await app.boot(layout);
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await expect(panelTabLabels(page)).toHaveText(['demo']);
   await chooseProject(page, 'other');
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await expect(panelTabLabels(page)).toHaveText(['other']);
   await chooseProject(page, 'All');
   await expect(panelTabRows(page)).toHaveCount(2);
@@ -61,7 +61,7 @@ test('folded, the row kept is the one of the tab on show', async ({ app, page })
 
 test('the fold is there only while the tabs are in rows', async ({ app, page }) => {
   await app.boot(layout);
-  await panelTabAdd(page).click();
+  await newTerminal(page).click();
   await expect(panelTabLabels(page)).toHaveText(['demo']);
   await expect(fold(page)).toBeHidden();
 });
