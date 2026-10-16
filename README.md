@@ -234,6 +234,7 @@ Output is shown as plain text (`NO_COLOR` and `TERM=dumb` are set, and escape co
 A `terminal` panel holds shells, each a tab in its header where the title would be, and makes none by itself: where there is none it says so, and New terminal there, or any key, makes one, in All under the project of the session tab on show; with no session tab on show in All, it asks you to pick a project first.
 `+` after the last tab makes another, and each starts in the folder a command would run in, named after it, but stays there when you switch tab or project, since a shell may have something running in it.
 A tab's tooltip names its folder, and its kebab, or a right-click, renames it, which a double-click does too, restarts its shell in the current folder, or closes it.
+A restart stays in the tab's own project: in All, unless the session tab on show is in that project, it starts at the project's root, or where `cwd` says, under the root when it is relative.
 Its cross or a middle-click closes it too, and while a command runs in the shell, closing or restarting it asks first, naming the command.
 Drag a tab to move it along its row.
 The tabs are the selected project's, and a switch ends no shell: the other projects' keep running out of sight, as a shell does while hidden or folded, and while you edit the layout file around it.

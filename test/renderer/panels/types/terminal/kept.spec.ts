@@ -1,4 +1,5 @@
 import type { PanelShells } from '../../../../../src/shared/panels';
+import type { Found } from '../../../../../src/shared/pathcheck';
 import { PROJECT, session } from '../../../support/fixture';
 import { expect, test, type App } from '../../../support/harness';
 import { panelTab, panelTabAdd, panelTabLabels } from '../../../support/window';
@@ -7,24 +8,28 @@ import { OTHER, railItem, withLayout } from '../../layout/layout';
 // A terminal panel's shells are kept for the next launch, in the panel's own data, and come back as tabs with no shell, each starting where it was (docs/architecture.md § The `terminal` type).
 const API = `${PROJECT}/api`;
 
-const layout = withLayout({
-  version: 2,
-  root: {
-    id: 'window',
-    columns: [
-      { id: 'sidebar', size: '320px', panels: [{ id: 'sessions', type: 'sessions' }] },
-      { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] },
-      {
-        id: 'right',
-        size: '420px',
-        panels: [
-          { id: 'shell', type: 'terminal', title: 'Shell' },
-          { id: 'status', type: 'command', title: 'Status', options: { command: 'git status --short' } },
-        ],
-      },
-    ],
-  },
-});
+/** The layout, with `options` for the shell panel where given. */
+const layoutWith = (options?: Record<string, unknown>): ReturnType<typeof withLayout> =>
+  withLayout({
+    version: 2,
+    root: {
+      id: 'window',
+      columns: [
+        { id: 'sidebar', size: '320px', panels: [{ id: 'sessions', type: 'sessions' }] },
+        { id: 'claude', panels: [{ id: 'cli', type: 'claude' }] },
+        {
+          id: 'right',
+          size: '420px',
+          panels: [
+            { id: 'shell', type: 'terminal', title: 'Shell', ...(options ? { options } : {}) },
+            { id: 'status', type: 'command', title: 'Status', options: { command: 'git status --short' } },
+          ],
+        },
+      ],
+    },
+  });
+
+const layout = layoutWith();
 
 const KEPT: PanelShells = {
   list: [
@@ -122,6 +127,81 @@ test("a shell started in All has its own project's variables, not those of the t
     { projectRoot: PROJECT, cwd: PROJECT, sessionId: here.id },
     { projectRoot: OTHER, cwd: OTHER, sessionId: '' },
   ]);
+});
+
+// "Here" is where you are working in the shell's own project: the tab on show where that tab is in it, else the project's root.
+test("Restart here in All, with another project's tab on show, starts the shell again in its own project", async ({ app, page }) => {
+  const here = session();
+  const otherApi = `${OTHER}/api`;
+  const shells: PanelShells = {
+    list: [
+      { id: 'a', name: 'demo', project: PROJECT, folder: PROJECT },
+      { id: 'o', name: 'api', project: OTHER, folder: otherApi },
+    ],
+    shown: {},
+  };
+  await app.boot({ ...withKept(shells), paths: { [otherApi]: 'directory' }, activeProject: null, openSessions: [here.id], activeSession: here.id, activeSessionByProject: {}, history: { [here.id]: [] } });
+  await panelTab(page, 'api').locator('.tab-label').click();
+  await expect.poll(() => contexts(app)).toHaveLength(2);
+
+  await panelTab(page, 'api').locator('.tab-kebab').click();
+  await page.locator('.kebab-menu .menu-row', { hasText: 'Restart here' }).click();
+  await expect.poll(async () => (await contexts(app)).at(2)).toEqual({ projectRoot: OTHER, cwd: OTHER, sessionId: '' });
+  await expect(panelTabLabels(page)).toHaveText(['demo', 'api']);
+});
+
+/** In All with a tab of demo on show, a shell panel whose `cwd` is `sub`, with a shell kept in each project, `o`'s in `otherFolder`, and `onDisk` the folders there are. */
+async function inAllWithSub(app: App, otherFolder: string, onDisk: Record<string, Found>): Promise<void> {
+  const here = session();
+  const shells: PanelShells = {
+    list: [
+      { id: 'a', name: 'demo', project: PROJECT, folder: `${PROJECT}/sub` },
+      { id: 'o', name: 'other', project: OTHER, folder: otherFolder },
+    ],
+    shown: {},
+  };
+  await app.boot({ ...layoutWith({ cwd: 'sub' }), panelData: { shell: { sessions: {}, lastGroup: {}, shells } }, paths: onDisk, activeProject: null, openSessions: [here.id], activeSession: here.id, activeSessionByProject: {}, history: { [here.id]: [] } });
+}
+
+// A shell is checked against its own project, so a `cwd` missing there is that shell's to say, as a start main refuses is, and does not stop the panel showing its other shells.
+test("a shell whose own project lacks the panel's cwd says so on its own, though the selection has it", async ({ app, page }) => {
+  await inAllWithSub(app, OTHER, { [`${PROJECT}/sub`]: 'directory' });
+  await expect.poll(() => starts(app)).toHaveLength(1);
+
+  await panelTab(page, 'other').locator('.tab-label').click();
+  await expect(page.locator('.panel-end')).toHaveText('sub not found');
+  await expect(railItem(page, /^Shell/).locator('.nudge.failed')).toBeVisible();
+  await expect(page.locator('.panel-problems')).toHaveCount(0);
+  expect(await starts(app)).toHaveLength(1);
+  await panelTab(page, 'demo').locator('.tab-label').click();
+  await expect(page.locator('.panel-terminal:visible')).toHaveCount(1);
+});
+
+// Checked before anything ends, so a restart its own project refuses leaves the shell as it was.
+test("Restart here, where the shell's own project lacks the panel's cwd, leaves the shell running and says why", async ({ app, page }) => {
+  await inAllWithSub(app, `${OTHER}/sub`, { [`${PROJECT}/sub`]: 'directory', [`${OTHER}/sub`]: 'directory' });
+  await panelTab(page, 'other').locator('.tab-label').click();
+  await expect.poll(() => starts(app)).toHaveLength(2);
+
+  await page.evaluate((folder) => void (window.__claudeUiFixture.paths[folder] = 'missing'), `${OTHER}/sub`);
+  await panelTab(page, 'other').locator('.tab-kebab').click();
+  await page.locator('.kebab-menu .menu-row', { hasText: 'Restart here' }).click();
+  await expect(page.locator('.panel-end')).toHaveText('sub not found');
+  await expect(page.locator('.panel-problems')).toHaveCount(0);
+  expect(await app.calls('killTerminal')).toEqual([]);
+  expect(await starts(app)).toHaveLength(2);
+});
+
+// The panel cannot run where you are, so it says why in its place, over every shell, and starts none behind that, another project's shell included.
+test("a panel that cannot run for the selection starts no shell behind its problems, though the shell's own project could", async ({ app, page }) => {
+  await inAllWithSub(app, `${OTHER}/sub`, { [`${OTHER}/sub`]: 'directory' });
+  await expect(page.locator('.panel-problems')).toContainText('sub not found');
+
+  await panelTab(page, 'other').locator('.tab-label').click();
+  await panelTab(page, 'other').locator('.tab-kebab').click();
+  await page.locator('.kebab-menu .menu-row', { hasText: 'Restart here' }).click();
+  await expect(page.locator('.panel-problems')).toContainText('sub not found');
+  expect(await starts(app)).toEqual([]);
 });
 
 test('a kept shell whose folder is gone says so, in its screen and the header, and its icon fails', async ({ app, page }) => {

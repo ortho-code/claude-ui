@@ -977,6 +977,11 @@ Its options are `cwd` (see Where a panel runs) and `scope` (below).
 A shell starts where the panel is placed at the moment it is made — the context directory, or its `cwd` — and stays there through tab and project switches.
 A shell has state — the command you have running in it — so following the context the way the `command` panel does would kill that command on every switch.
 So `+` after the tabs makes another shell where you are working now, Restart here in a tab's menu starts that tab's shell again there, and a tab's tooltip names its folder.
+For a shell filed under a project, "there" is within that project: the selection where it is in that project, else the project's root (`ownWhere`), with the `cwd` option applied either way, so Restart here in All with another project's tab on show, or none, no longer starts a shell in the folder of a project it is not filed under; a fixed `cwd` still starts it in that folder (2026-10-16).
+A shell's start is checked against the same project, so a restart's check and its start look at the same place unless the selection changes between them.
+What that check finds wrong in a project other than the selection does not mark the panel as unable to run, as the selection's problems do, since that draws the problems in the panel's place and would hide every shell for one project's lack.
+A start says so on that shell's screen, as a start main refuses does, and Restart here, checked before anything ends, leaves the shell running; either says so in the header too, with the rail's red dot, which are the panel's own and stay until another shell starts.
+While the panel cannot run for the selection, no shell starts, another project's included, since it would run behind the problems where nobody sees it.
 A tab is named after its folder, numbered from 2 when another of its project's has that name, and renamed with the app's name dialog, from its menu or a double-click, as a project or a group is.
 A panel whose folder is missing says so in its place, like any panel that cannot run, and looks again whenever it comes back into view and whenever the config folder changes — with no button, being looked at is how a folder that has appeared since gets picked up.
 

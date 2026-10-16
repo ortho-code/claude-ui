@@ -9,7 +9,7 @@ import { projName } from '../../state/views';
 import { bindTerminal, createTerminal, unbindTerminal, type TerminalView } from '../../terminal';
 import './terminal.css';
 import { CWD_OPTION, isFixedPath, optionsOf, type OptionDecl } from '../options';
-import type { MountedPanel, PanelHost, PanelTab, PanelType } from '../contract';
+import type { MountedPanel, PanelHost, PanelTab, PanelType, Where } from '../contract';
 import { NO_CONTEXT, prepare, resolveContext, runContext } from '../run';
 
 /**
@@ -25,6 +25,9 @@ import { NO_CONTEXT, prepare, resolveContext, runContext } from '../run';
  *
  * A shell that EXITS leaves its screen up with a line saying so, and stays so until the next key, which starts a new one in its tab, so getting a shell back never depends on a button being there.
  */
+
+/** What a shell says of its first problem, as the header's word, which carries no full stop. */
+const problemSaid = (problems: string[]): string => problems[0]?.replace(/\.$/, '') ?? 'could not start';
 
 /** Which shells a panel shows: the selected project's, or every one in every project. */
 const SCOPE_OPTION: OptionDecl = { name: 'scope', kind: 'choice', values: ['project', 'global'] };
@@ -467,10 +470,26 @@ class TerminalPanel implements MountedPanel {
     this.save();
   }
 
-  /** A new shell in the tab, in the folder you are working in now, asking first while a command runs in the one it replaces. */
+  /**
+   * Where a shell of a project starts as you are working now, when that is not the selection: its project's root, as in All with another project's tab on show, or with none.
+   * Undefined where the selection is that place: the shell is filed under no project, or the selection is in its project.
+   */
+  private ownWhere(shell: Shell): Where | undefined {
+    if (shell.project === null) return undefined;
+    const where = this.host.where();
+    const inIt = where.tab ? where.tab.repoRoot === shell.project : where.project === shell.project;
+    return inIt ? undefined : { tab: null, project: shell.project };
+  }
+
+  /** A new shell in the tab, in the folder you are working in now within its own project (`ownWhere`), asking first while a command runs in the one it replaces. */
   private async restartHere(shell: Shell): Promise<void> {
-    const { runnable, run } = await this.prepared();
-    if (!runnable || !run || shell.closed || this.disposed) return;
+    const own = this.ownWhere(shell);
+    const { runnable, run, problems } = await this.prepared(own);
+    // The panel cannot run where you are, which it says in its place: nothing restarts behind that.
+    if (shell.closed || this.disposed || this.refused) return;
+    // Refused in its own project: checked before anything ends, so the shell is left running, and the header says why.
+    if (!runnable && own !== undefined) this.sayFailed(problemSaid(problems));
+    if (!runnable || !run) return;
     if (!(await this.mayEnd(shell, 'Restart this terminal?', 'Restarting the terminal ends it.', 'Restart'))) return;
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- a close or an unmount can run while the question is up, which TypeScript's narrowing does not see
     if (shell.closed || this.disposed) return;
@@ -484,15 +503,22 @@ class TerminalPanel implements MountedPanel {
 
   // ——— a shell's life ———
 
-  /** Check the options against the selection as it is now, tell the host what is wrong with them, and hand back where a new shell would start. */
-  private async prepared(): Promise<{ runnable: boolean; run: { cwd: string } | null }> {
-    const prepared = await prepare(optionsOf(this.slot.entry), terminalType, this.host.where());
-    if (this.disposed) return { runnable: false, run: null };
-    const was = this.refused;
-    this.refused = prepared.problems.length > 0;
-    this.host.setProblems(prepared.problems);
-    if (was !== this.refused) this.draw();
-    return { runnable: !this.refused, run: prepared.run };
+  /**
+   * Check the options against where a shell would start, and hand back that folder.
+   * Against the selection, the problems are the panel's: the tree draws them in its place, and it runs nothing until they pass.
+   * Against `where`, a shell's own project (`ownWhere`), they are that shell's alone, handed back for it to say, since the panel's would hide every shell for one project's lack.
+   */
+  private async prepared(where?: Where): Promise<{ runnable: boolean; run: { cwd: string } | null; problems: string[] }> {
+    const prepared = await prepare(optionsOf(this.slot.entry), terminalType, where ?? this.host.where());
+    if (this.disposed) return { runnable: false, run: null, problems: [] };
+    const runnable = prepared.problems.length === 0;
+    if (where === undefined) {
+      const was = this.refused;
+      this.refused = !runnable;
+      this.host.setProblems(prepared.problems);
+      if (was !== this.refused) this.draw();
+    }
+    return { runnable, run: prepared.run, problems: prepared.problems };
   }
 
   /**
@@ -504,9 +530,12 @@ class TerminalPanel implements MountedPanel {
     const latest = (): boolean => shell.starts === start && !shell.closed && !this.disposed;
     shell.exited = false;
     shell.starting = true;
-    const { runnable } = await this.prepared();
+    // Checked against its own project, as Restart here checked it, so the two look at the same place unless the selection changes between them.
+    const own = this.ownWhere(shell);
+    const { runnable, problems } = await this.prepared(own);
     if (!latest()) return;
-    if (!runnable) {
+    // The panel cannot run where you are: it says why in its place, over every shell, and starts none behind that, another project's shell included.
+    if (this.refused) {
       shell.starting = false;
       return;
     }
@@ -524,6 +553,13 @@ class TerminalPanel implements MountedPanel {
     }
     this.draw();
     const { term } = shell.view;
+    if (!runnable) {
+      // Refused in its own project: this shell alone says why, as a start main refuses does.
+      this.failed(shell, problemSaid(problems));
+      shell.starting = false;
+      this.draw();
+      return;
+    }
     try {
       // Filed under a project, its variables name that project whatever is selected, as in All with another project's tab on show; filed under none, the selection.
       const id = await window.claudeUi.startShell(folder, runContext(resolveContext(this.host.where()), folder, shell.project), { entryId: this.slot.key, shellId: shell.id });
@@ -553,12 +589,7 @@ class TerminalPanel implements MountedPanel {
     } catch (error) {
       if (!latest()) return;
       const missing = (error instanceof Error ? error.message : '').includes('MISSING_CWD:');
-      shell.exited = true;
-      const said = missing ? `${folder} is not there` : 'could not start';
-      term.write(`\x1b[2m[${said} — press any key to try again]\x1b[0m`);
-      this.host.setEnd(said);
-      // A shell that exits is somebody typing `exit`; one that never started is the failure worth a dot.
-      this.host.setStatus('fail');
+      this.failed(shell, missing ? `${folder} is not there` : 'could not start');
     } finally {
       // An overtaken start leaves the tab to the start that overtook it.
       if (latest()) {
@@ -566,6 +597,19 @@ class TerminalPanel implements MountedPanel {
         this.draw();
       }
     }
+  }
+
+  /** A shell that could not start says why on its own screen, dimmed, with a key to try again, and in the header (`sayFailed`). */
+  private failed(shell: Shell, said: string): void {
+    shell.exited = true;
+    shell.view?.term.write(`\x1b[2m[${said} — press any key to try again]\x1b[0m`);
+    this.sayFailed(said);
+  }
+
+  /** Why a shell could not start or restart, in the header and with the rail's red dot: a shell that exits is somebody typing `exit`, and one that never started is the failure worth a dot. */
+  private sayFailed(said: string): void {
+    this.host.setEnd(said);
+    this.host.setStatus('fail');
   }
 
   /** End a shell, if it has one, and stop listening to it: its tail belongs to nobody once a restart or a close has been asked for. */
