@@ -22,9 +22,13 @@ export function badgeClass(badge: NudgeStatus | 'failed'): string {
  */
 export function applyStatus(dot: HTMLElement, id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs'>): void {
   const status = dotStatus(id, view);
-  const isAcked = view.acked.has(id);
-  dot.className = sessionDotClass(status, isAcked, status !== 'paused');
-  setTooltip(dot, statusLabel(status, isAcked, view.backgroundTasks.get(id)));
+  dot.className = sessionDotClass(status, view.acked.has(id), status !== 'paused');
+  setTooltip(dot, statusText(id, view));
+}
+
+/** What a session's dot says it shows, as its tooltip and in its menu's header; null for nothing to report. */
+export function statusText(id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs'>): string | null {
+  return statusLabel(dotStatus(id, view), view.acked.has(id), view.backgroundTasks.get(id));
 }
 
 /**
