@@ -2,7 +2,7 @@ import type { SessionSummary } from '../../../../shared/types';
 // Its rows are the card a list panel draws too.
 import { listCard } from '../../../card';
 import { setMarkup } from '../../../keyed';
-import { entityKey, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
+import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import { kebabButton } from '../../../menu';
 import { store, type View } from '../../../state/app';
 import { ackOnClick, applyStatus } from '../../../statusdot';
@@ -11,7 +11,7 @@ import { showToast } from '../../../toast';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
-import { activityLine, sessionTitle } from './describe';
+import { activityLine, archivedLine, sessionTitle } from './describe';
 import { currentByKey, sessionRows, statusDots } from './drawn';
 import './rows.css';
 
@@ -168,7 +168,7 @@ function createSessionRow(key: string): HTMLElement {
     void confirmAndDelete(key);
   });
 
-  // Per-session actions menu: fork this session, and (for a family member) list its siblings.
+  // The session's menu, in both views: an archived session's holds the archived view's two actions among its items (`sessionMenuItems`).
   const kebab = kebabButton('session-kebab pair-end', 'Session options', () => {
     const session = currentByKey.get(key);
     return session ? sessionMenuItems(session, 'row') : null;
@@ -243,12 +243,8 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
     setTooltip(els.prBadge, `${prCount === 1 ? '1 PR' : `${prCount} PRs`} linked to this session — click to list them`);
   }
 
-  if (archivedView) {
-    const ts = view.archived.get(entityKey(session));
-    els.metaText.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
-  } else {
-    els.metaText.textContent = activityLine(session, view);
-  }
+  // When it was archived in the archived view, where every session is; when it was active everywhere else.
+  els.metaText.textContent = (archivedView && archivedLine(session, view)) || activityLine(session, view);
 
   // The archived view is a management view: no pinning, and delete replaces it there.
   const isPinned = view.pinned.has(entityKey(session));
@@ -257,9 +253,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   els.pin.disabled = false;
   els.pin.hidden = archivedView;
 
-  // Unarchive and delete are the archived view's two actions and appear nowhere else.
+  // Unarchive and delete are the archived view's two buttons, shortcuts to the items its kebab holds, and appear nowhere else.
   els.unarchiveBtn.hidden = !archivedView;
   els.deleteBtn.hidden = !archivedView;
-  // The kebab (fork, groups, archive) is a normal-view affordance; the archived view is manage-only.
-  els.kebab.hidden = archivedView;
 }

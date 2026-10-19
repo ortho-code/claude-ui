@@ -236,6 +236,45 @@ for (const [state, paused] of [['cold', []], ['paused', [full.id]]] as const) {
   });
 }
 
+// The archived view's rows carry the kebab too, holding what the row's marks reach but its dot, its id, and the view's two buttons.
+const archivedView = { sessions: [full], archived: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } };
+
+test("an archived session's menu holds its note, its id, Unarchive and Delete, and nothing that starts or files it", async ({ app, page }) => {
+  await app.boot(archivedView);
+  await row(page, full.title).locator('.session-kebab').click();
+  await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Unarchive', 'Delete session…']);
+  // When it was archived, as its row says it, below when it was last active.
+  const archived = await row(page, full.title).locator('.meta-text').textContent();
+  await expect(lines(page).nth(3)).toHaveText(archived!);
+  expect(archived).toMatch(/^archived /);
+});
+
+test("Unarchive in an archived session's menu takes it out of the archived view, as the row's button does", async ({ app, page }) => {
+  await app.boot(archivedView);
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Unarchive').click();
+  await expect(row(page, full.title)).toHaveCount(0);
+  expect(await app.calls('toggleArchive')).toEqual([[full.id]]);
+});
+
+test("Delete session in an archived session's menu asks first, as the row's button does", async ({ app, page }) => {
+  await app.boot(archivedView);
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Delete session…').click();
+  await expect(page.locator('#confirm-message')).toHaveText(`Delete "${full.title}"?`);
+  await page.locator('#confirm-cancel').click();
+  await expect(row(page, full.title)).toBeVisible();
+  expect(await app.calls('deleteSession')).toEqual([]);
+});
+
+test("an archived row's trailing controls sit 4px apart, delete second from the right", async ({ app, page }) => {
+  await app.boot(archivedView);
+  const box = async (selector: string): Promise<{ x: number; width: number }> => (await row(page, full.title).locator(selector).boundingBox())!;
+  const [unarchive, del, kebab] = [await box('.unarchive-btn'), await box('.delete-btn'), await box('.session-kebab')];
+  expect(Math.round(del.x - (unarchive.x + unarchive.width))).toBe(4);
+  expect(Math.round(kebab.x - (del.x + del.width))).toBe(4);
+});
+
 test("Open is unavailable, with the reason, for a session whose folder is gone", async ({ app, page }) => {
   const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });
   await app.boot({ sessions: [gone] });

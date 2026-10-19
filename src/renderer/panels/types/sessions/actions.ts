@@ -198,6 +198,18 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
     sessionHeader(session, store.get()),
     { label: '', separator: true },
   ];
+  // An archived session's menu holds its siblings, its PRs and its note, as its row's marks in the archived view reach them, its id, and the archived view's two actions; nothing that starts or files it, which that view does not offer.
+  if (store.get().archived.has(entityKey(session))) {
+    return [
+      ...items,
+      ...linkedItems(session),
+      noteItem(session),
+      copyIdItem(session),
+      { label: '', separator: true },
+      { label: 'Unarchive', onSelect: () => void toggleArchiveFor(entityKey(session)) },
+      { label: 'Delete session…', onSelect: () => void confirmAndDelete(entityKey(session)) },
+    ];
+  }
   // What a press on the row or the strip row does, each its own: the row opens the tab where you are, the strip row takes you to it.
   // On the tab only while nothing runs behind it and nothing is starting, cold or paused, where selecting it is what starts it; a running tab is already the session, a press away.
   const tab = tabWith(session.id);
@@ -212,14 +224,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
       ? { label: 'Fork this session', disabled: cannotRun }
       : { label: 'Fork this session', onSelect: () => { void hostOf('sessions').forkSession(session.id); } },
   );
-  const siblings = siblingsOf(session);
-  if (siblings.length > 0) {
-    items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
-  }
-  // Here as well as on the row's mark: this list is every kebab's, the tab's and the live strip's too, where the row's mark is not.
-  if (session.prs.length > 0) {
-    items.push({ label: `PRs (${session.prs.length})`, submenu: prMenuItems(session) });
-  }
+  items.push(...linkedItems(session));
   // "in list" on every surface, the row's too: a pin says where a session sits in the list, which neither the tab bar nor the strip honours.
   const pinned = store.get().pinned.has(entityKey(session));
   items.push({ label: pinned ? 'Unpin' : 'Pin in list', onSelect: () => void togglePinFor(entityKey(session)) });
@@ -230,15 +235,10 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
       ? { label: markLabel, onSelect: () => toggleAck(session.id) }
       : { label: markLabel, disabled: 'Only a session that is idle or waiting for you can be marked read or unread' },
   );
-  items.push({ label: store.get().notes.has(entityKey(session)) ? 'Edit note…' : 'Add note…', onSelect: () => void editNote(session) });
+  items.push(noteItem(session));
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
-  // The short id shows here rather than on the row: this is where you come looking for it, and the item both displays it and copies the full one.
-  items.push({
-    label: `Copy session id (${session.id.slice(0, 8)})`,
-    onSelect: () => void copyText(session.id, 'Session id copied.'),
-  });
+  items.push(copyIdItem(session));
   // The state changes sit below a rule, away from the navigate/copy items.
-  // Only the normal view offers them: the archived view keeps unarchive on the row and hides the kebab.
   items.push({ label: '', separator: true });
   // Pausing is the tab's, and needs one: it marks the tab, and for a running session ends its claude (pauseTab).
   if (tab?.paused) items.push({ label: 'Unpause', onSelect: () => hostOf('sessions').unpauseSession(session.id) });
@@ -257,17 +257,35 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   return items;
 }
 
+// A session's siblings and PRs, each a submenu where it has any; the session's menu has them in both views.
+// Here as well as on the row's marks: this list is every kebab's, the tab's and the live strip's too, where the row's marks are not.
+function linkedItems(session: SessionSummary): MenuItem[] {
+  const items: MenuItem[] = [];
+  const siblings = siblingsOf(session);
+  if (siblings.length > 0) items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
+  if (session.prs.length > 0) items.push({ label: `PRs (${session.prs.length})`, submenu: prMenuItems(session) });
+  return items;
+}
+
+function noteItem(session: SessionSummary): MenuItem {
+  return { label: store.get().notes.has(entityKey(session)) ? 'Edit note…' : 'Add note…', onSelect: () => void editNote(session) };
+}
+
+// The short id shows here rather than on the row: this is where you come looking for it, and the item both displays it and copies the full one.
+function copyIdItem(session: SessionSummary): MenuItem {
+  return { label: `Copy session id (${session.id.slice(0, 8)})`, onSelect: () => void copyText(session.id, 'Session id copied.') };
+}
+
 // Bring a session's row into view, widening the list to All first when it shows another project.
 // All rather than the session's project: choosing a project moves the tab bar and the tab on show with it, which would take you out of the tab you are in, while All holds every tab, so the one on show stays.
-// The list can still leave the session out, and the toast says why where the store says it, rather than the press seeming to do nothing: archived, which only the archived view lists; under a filter; or neither of those, such as one being deleted.
+// The list can still leave the session out, and the toast says why where the store says it, rather than the press seeming to do nothing: under a filter, or not, such as one being deleted.
+// Never for being archived: an archived session's menu has no Show in list on any surface (its own branch in `sessionMenuItems`).
 function showInList(session: SessionSummary): void {
   const { activeProject } = store.get();
   if (activeProject !== null && activeProject !== session.repoRoot) hostOf('sessions').selectProject(null);
   if (revealSession(session)) return;
-  const state = store.get();
   const title = sessionLabel(session);
-  if (state.archived.has(entityKey(session))) showToast(`"${title}" is archived. The archived view lists it.`);
-  else if (isFiltering(state)) showToast(`"${title}" is left out by the filter. Clear it to see its row.`);
+  if (isFiltering(store.get())) showToast(`"${title}" is left out by the filter. Clear it to see its row.`);
   else showToast(`"${title}" is not in the list.`);
 }
 

@@ -6,7 +6,7 @@ import { groupNameOf, projName } from '../../../state/views';
 import { statusText } from '../../../statusdot';
 
 /**
- * WHAT IS SAID ABOUT A SESSION, in words: its menu's header, and its row's title and its meta line outside the archived view, which draw from here, so the row and the header cannot come to say those two differently.
+ * WHAT IS SAID ABOUT A SESSION, in words: its menu's header, and its row's title and its meta line, which draw from here, so the row and the header cannot come to say those differently.
  */
 
 /** The model to show for a session: the one it has switched to if we saw that happen, else the one that last answered. */
@@ -21,18 +21,25 @@ export function activityLine(session: SessionSummary, view: View<'switchedModel'
   return model ? `${when} · ${model}` : when;
 }
 
+/** When a session was archived, as its row in the archived view says it; null for a session that is not archived. */
+export function archivedLine(session: SessionSummary, view: View<'archived'>): string | null {
+  const ts = view.archived.get(entityKey(session));
+  if (ts === undefined) return null;
+  return ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
+}
+
 /** A session's title, as its row shows it. */
 export function sessionTitle(session: SessionSummary): string {
   return sessionLabel(session, '(no prompt yet)');
 }
 
-/** What a session's menu opens with: its title, then where it is filed and its status, when it was active and on what model, its worktree, its note's first line, and why it cannot run. */
+/** What a session's menu opens with: its title, then where it is filed and its status, when it was active and on what model, when it was archived, its worktree, its note's first line, and why it cannot run. */
 export function sessionHeader(
   session: SessionSummary,
-  view: View<'projectNames' | 'groupState' | 'statuses' | 'backgroundTasks' | 'acked' | 'tabs' | 'switchedModel' | 'notes'>,
+  view: View<'projectNames' | 'groupState' | 'statuses' | 'backgroundTasks' | 'acked' | 'tabs' | 'switchedModel' | 'notes' | 'archived'>,
 ): MenuItem {
   const where = [projName(session.repoRoot, view), groupNameOf(session, view), statusText(session.id, view)];
   const note = view.notes.get(entityKey(session))?.split('\n')[0];
-  const lines = [where.filter(Boolean).join(' · '), activityLine(session, view), worktreeMarkState(session)?.tooltip, note, unstartableReason(session)];
+  const lines = [where.filter(Boolean).join(' · '), activityLine(session, view), archivedLine(session, view), worktreeMarkState(session)?.tooltip, note, unstartableReason(session)];
   return { label: sessionTitle(session), header: lines.filter((line): line is string => Boolean(line)) };
 }
