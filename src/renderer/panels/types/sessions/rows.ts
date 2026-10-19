@@ -2,7 +2,7 @@ import type { SessionSummary } from '../../../../shared/types';
 // Its rows are the card a list panel draws too.
 import { listCard } from '../../../card';
 import { setMarkup } from '../../../keyed';
-import { entityKey, modelLabel, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
+import { entityKey, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import { kebabButton } from '../../../menu';
 import { store, type View } from '../../../state/app';
 import { ackOnClick, applyStatus } from '../../../statusdot';
@@ -11,17 +11,13 @@ import { showToast } from '../../../toast';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
+import { activityLine, sessionTitle } from './describe';
 import { currentByKey, sessionRows, statusDots } from './drawn';
 import './rows.css';
 
 /**
  * THE SESSION LIST'S ROWS: a session's card, built once per session with its marks and controls and kept across renders, and brought up to date for the session it shows on every render (list.ts).
  */
-
-/** The model to show for a session: the one it has switched to if we saw that happen, else the one that last answered. */
-function modelOf(session: SessionSummary, view: View<'switchedModel'>): string {
-  return view.switchedModel.get(session.id) ?? session.model;
-}
 
 /** The row for a session this render draws, built the first time and the same element after that. */
 export function drawRow(key: string): HTMLElement {
@@ -210,7 +206,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   applyStatus(els.dot, session.id, view);
   statusDots.set(session.id, els.dot);
 
-  els.title.textContent = sessionLabel(session, '(no prompt yet)');
+  els.title.textContent = sessionTitle(session);
   // A session that cannot run says why on the row itself, rather than only when you try it: the tooltip is the one place with room for the folder's path.
   const unstartable = unstartableReason(session);
   row.classList.toggle('unstartable', unstartable !== null);
@@ -251,9 +247,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
     const ts = view.archived.get(entityKey(session));
     els.metaText.textContent = ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
   } else {
-    const model = modelLabel(modelOf(session, view));
-    const when = relativeTime(session.lastActivity);
-    els.metaText.textContent = model ? `${when} · ${model}` : when;
+    els.metaText.textContent = activityLine(session, view);
   }
 
   // The archived view is a management view: no pinning, and delete replaces it there.
