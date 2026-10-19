@@ -54,6 +54,28 @@
   font-size: var(--text-small);
 }
 
+/* What a menu is about, at its top (MenuItem.header): text, not a row, so no hover and the arrow pointer, padded as a menu row is so its text lines up with the labels of items that have no tick or dot ahead of them.
+   A long line widens the menu only as far as every popover's cap (popover.css), where it is cut. */
+.menu-header {
+  padding: 6px 9px;
+  cursor: default;
+}
+
+.menu-header-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+/* The first line names the thing: an item's size, bolder. */
+.menu-header-line:first-child {
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
 .menu-separator {
   height: 1px;
   margin: 4px 2px;

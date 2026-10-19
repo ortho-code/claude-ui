@@ -1,7 +1,7 @@
 import type { Locator } from '@playwright/test';
 import { HOME, session } from '../support/fixture';
 import { expect, test } from '../support/harness';
-import { rows, switcherEntries } from '../support/window';
+import { switcherEntries } from '../support/window';
 
 // A popover's notch stands across its edge, so its inner half lies over the row beside that edge, the first one for a popover below its trigger (popover.css).
 // Drawn over that row, it bit a notch-shaped piece out of the row's fill whenever the row had one: the switcher's entry on show, a hovered item, or any row scrolled up under it.
@@ -52,9 +52,10 @@ test('a switcher entry scrolled up under the notch is drawn over it', async ({ a
   expect(await underNotch(page.locator('#switcher-popover'), first)).toEqual({ reaches: true, onTop: true });
 });
 
+// The project's menu, since a session's opens with its header, which has no fill for the notch to bite.
 test("a menu's hovered first item is drawn over the notch above it", async ({ app, page }) => {
   await app.boot();
-  await rows(page).first().locator('.kebab').click();
+  await page.locator('.project-kebab').first().click();
   const menu = page.locator('.kebab-menu');
   await expect(menu).toHaveClass(/\battach-top\b/);
   const first = menu.locator('.menu-row').first();

@@ -8,6 +8,7 @@ import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
 import { isFiltering, projName, projectGroups, tabWith } from '../../../state/views';
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
+import { sessionHeader } from './describe';
 import { currentByKey, renderedSections } from './drawn';
 import { fullRead } from './read';
 import { revealGroup } from './reveal';
@@ -188,6 +189,9 @@ export function sessionMenuItems(session: SessionSummary): MenuItem[] {
   // Everything below is bookkeeping about a session rather than a way to start one, so it stays available: cleaning up after a folder that has gone is exactly when you need it.
   const cannotRun = unstartableReason(session);
   const items: MenuItem[] = [
+    // What the session is, before what can be done to it, so the tab's and the strip's kebab, which open this same menu, show what their own surface has no room for.
+    sessionHeader(session, store.get()),
+    { label: '', separator: true },
     cannotRun
       ? { label: 'Fork this session', disabled: cannotRun }
       : { label: 'Fork this session', onSelect: () => { void hostOf('sessions').forkSession(session.id); } },

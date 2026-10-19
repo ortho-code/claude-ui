@@ -42,6 +42,11 @@ export interface MenuItem {
    * Kept in the list rather than dropped: a menu that changes SHAPE is one you have to re-read, and an action that silently disappears looks like it was never there — where a dimmed one with a reason answers the question you opened the menu to ask.
    */
   disabled?: string;
+  /**
+   * Not an item but what the menu is about, at its top: the label as its first line and these after it, muted, taking no hover and no click.
+   * A line too long for the menu is cut with an ellipsis and carries its whole text as its tooltip.
+   */
+  header?: string[];
 }
 let openMenuEl: HTMLElement | null = null;
 let openMenuAnchor: HTMLElement | null = null;
@@ -83,6 +88,18 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       const rule = document.createElement('div');
       rule.className = 'menu-separator';
       menu.append(rule);
+      continue;
+    }
+    if (item.header) {
+      const header = document.createElement('div');
+      header.className = 'menu-header';
+      for (const text of [item.label, ...item.header]) {
+        const line = document.createElement('div');
+        line.className = 'menu-header-line';
+        line.textContent = text;
+        header.append(line);
+      }
+      menu.append(header);
       continue;
     }
     const button = document.createElement('button');
@@ -143,6 +160,13 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
   }
 }
 
+/** Give each header line the menu had to cut its whole text as its tooltip; measured once the menu is in the page, since only then has it a width. */
+function tipCutLines(menu: HTMLElement): void {
+  for (const line of menu.querySelectorAll<HTMLElement>('.menu-header-line')) {
+    if (line.scrollWidth > line.clientWidth) setTooltip(line, line.textContent);
+  }
+}
+
 /** How far from the end of its edge a popover's notch may start, clear of the rounded corner there (popover.css). */
 const NOTCH_CLEAR_END = 18;
 
@@ -164,6 +188,7 @@ function openSubmenu(item: HTMLElement, items: MenuItem[]): void {
   menu.className = 'kebab-menu popover submenu';
   fillMenu(menu, items, false);
   document.body.append(menu);
+  tipCutLines(menu);
   const r = item.getBoundingClientRect();
   const flipped = r.right + menu.offsetWidth + 8 > window.innerWidth;
   menu.classList.add(flipped ? 'attach-left' : 'attach-right');
@@ -190,6 +215,7 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   menu.className = 'kebab-menu popover';
   fillMenu(menu, items, true);
   document.body.append(menu);
+  tipCutLines(menu);
   const r = anchor.getBoundingClientRect();
   // Below the trigger, and above it when the menu would run off the bottom of the window and there is more room above — a row near the bottom of the list opened its menu half out of sight.
   const roomBelow = window.innerHeight - r.bottom - 5 - 8;
