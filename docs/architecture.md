@@ -202,7 +202,7 @@ The first press stops a running session and leaves the tab cold, the second remo
 A session arriving disables the button rather than merely ignoring it, and so does one leaving, for its first second and again once it has been forced: a tab acted on before its process has arrived, or in the moment its process takes to go, would leave the bar disagreeing with what is actually running.
 A session still there after that second makes the button a force (§ Stopping a session is a request).
 The mark follows the state, so which press you are on is visible: a stop square while there is a session to end, filled once pressing it forces the session out, and a cross once there is only a tab.
-Everything else about the session is in a kebab beside the button: the session's menu, the one its row in the list has, which the session list hands the tab bar through an ask (`sessionMenu`), since the two built-ins never import each other; a right-click on the tab opens the same menu from the kebab.
+Everything about the session is in a kebab beside the button, the button's own press among it: the session's menu, from the builder its row in the list uses (§ A session's menu holds everything about it), which the session list hands the tab bar through an ask (`sessionMenu`), since the two built-ins never import each other; a right-click on the tab opens the same menu from the kebab.
 The kebab costs a tab 12px, its own width: it takes the tab's gap before it and sits right against the button after it, so the cap on a tab's width went from 200px to 212px, and a long title shows as much as it did without one.
 Every kebab is 12px wide, hugging its three dots, where a standard icon button is 24px and a compact one 22px: the dots are 2.6px wide, and the rest of the box was empty space that read as a gap between a kebab and the control beside it (`.icon-btn.kebab`, with a mark drawn only as wide as its dots).
 Its hover and its open menu turn the dots accent and nothing else, as every borderless icon button's do (§ UI conventions, Hover), since a fill on the 12px box was a thin sliver and a wider one ran into its neighbours.
@@ -217,19 +217,19 @@ Those two marks answer the same question, so they answer it the same way — acc
 
 A cold tab can also be **paused**: set aside to come back to, a mark beside the cold state rather than a fourth state, so everything that reads `terminalId` goes on reading it unchanged (`paused`).
 It exists because a stopped tab and one that came back cold from a restart looked the same, and a pile of the second kind hid the few still in hand.
-Pause and Unpause are in the session row's menu while the session has a tab, Pause unavailable while the tab is starting: pausing a running session asks its claude to leave as a stop does, and the mark is set at once, so a pause still waiting for claude to leave is kept as paused; pausing a cold tab only marks it, and forgets any status it still held.
+Pause and Unpause are in the session's menu while the session has a tab, Pause unavailable while the tab is starting: pausing a running session asks its claude to leave as a stop does, and the mark is set at once, so a pause still waiting for claude to leave is kept as paused; pausing a cold tab only marks it, and forgets any status it still held.
 Nothing is suspended: the process is ended, not frozen, and opening the tab resumes the session as any cold tab's does, reloading its conversation.
 A prompt reported before claude has gone calls the pause off with the stop; one submitted just before the pause can do so too, and the tab then closes at the exit, as it does for a stop.
 An Unpause during that wait lets the stop go on, leaving the tab cold.
 The mark is a state of the session's dot (`dotStatus`), two bars in place of its last report once claude has gone, so every dot that stands for one session reads it from one rule: the tab's, the session row's, the strip's, and a list panel's row mark and session menu items.
 A roll-up, such as a project's in the switcher, and the attention toasts read the status itself, which for a session claude has left is `closed` and nudges nothing.
-A paused dot is no control and never shows the session's mark read, since it reports no claude, and a click on it goes to what holds it, which opens the session and so resumes it, unless its folder has gone.
+A paused dot never shows the session's mark read, since it reports no claude, and it is no control, as no dot is but an idle or a waiting one (`canMarkRead`, § A session's menu holds everything about it): a click on it goes to what holds it, which opens the session and so resumes it, unless its folder has gone.
 
 The live strip lists paused tabs beside the running sessions: its membership is a tab with a process or a paused one, since a tab you set aside is work in hand in the same way, and as far out of sight in another project.
 A paused row keeps its place in tab order rather than gathering in a section of its own, so pausing or resuming a session never moves its row, and the strip now comes up at launch whenever a paused tab is restored, where it used to start empty and hidden.
 Its line counts the two apart, `2 of 5 need you · 3 paused`, so "live" stays true of what it counts, and the line never counts a paused session as wanting you, whatever status it still holds.
 A row's button is its tab's button, drawn by the same rule (`tabButtonState`) and pressed through the same function (`closeOrStop`), so on a paused row it closes the tab, as the tab's own button does on a cold tab.
-Beside it, a kebab opens the session's menu, the one its row in the list has (`sessionMenuItems`), so a session in another project can be paused, unpaused, noted, filed or archived without going there; Fork and a sibling take you to the tab they open.
+Beside it, a kebab opens the session's menu (`sessionMenuItems`), the button's press among its items, so a session in another project can be shown in the list, paused, unpaused, marked read, noted, filed, stopped or archived without going there; Open, Fork and a sibling take you to the tab they open.
 
 Paused rows accumulate, where running ones clear themselves by ending, so a project can be hidden from the strip from the eye on its heading (`state/strip.ts`), kept in the stored view as `stripHiddenProjects`.
 Its heading and rows leave the strip, and a Hidden line at the list's foot counts the hidden projects and carries their roll-up, the switcher's per project, so a session waiting in one still reaches you though its row is not listed.
@@ -297,6 +297,40 @@ With `SIGTERM` every shell waited out the grace for its `SIGKILL`, and held the 
 Not implemented, and deliberately: their design also sweeps the group once more *after* the leader exits, for a grandchild that changed its own group.
 Nothing here has been observed needing it, and a `SIGKILL` aimed at a group id that no longer exists is the one version of this that could reach an innocent process.
 
+### A session's menu holds everything about it
+
+A session's kebab is one menu on its row in the list, its tab and its row in the live strip, built by one function (`sessionMenuItems`, `sessions/actions.ts`) and told which of the three opened it (`SessionSurface`); the tab bar asks the session list for it (`sessionMenu`).
+**The kebab is complete; a button is a shortcut.**
+Every button, control dot and mark that opens something on those surfaces has its item in the menu, and so does a press on the row, on the strip row and on a cold tab, so a session in another project can be dealt with from the strip, and one whose tab is all you see from the tab.
+A window check holds the rule (`kebab-complete.spec.ts`): it finds each surface's controls in the page and fails on one with no item, naming it.
+Outside the rule, by decision: a running tab's own press, which brings it on show and shows its row; its drag, which places it rather than acting on the session; its right-click, which is its menu; and its middle-click, which is its button.
+It was the other way round before: the tab's and the strip's kebab left out the button, "which stays in sight", and the list had no plain stop, only Pause and Archive, which stopped a running session on the way.
+
+**What the session is comes first**: a header that is not an item (`MenuItem.header`) — its title, project · group · status, last activity · model, when it was archived, worktree, the first line of its note, and why it cannot run — drawn from the helpers its row uses (`sessions/describe.ts`), since the tab and the strip show little of it themselves.
+A line too long for the menu, which every popover caps at 300px, is cut and carries its whole text as its tooltip.
+
+**One order on every surface**: Open, Show in list, Fork, Siblings and PRs; Pin in list, Mark as read, the note, Move to group and Copy id; a rule; then Pause or Unpause, the tab's button and Archive.
+An item that applies but cannot be taken now stays, unavailable with its reason, as Close tab does with no tab ("Not open in a tab"), since a menu that changes shape is one you have to read again.
+One that would be the surface itself is left out — Show in list on the row, Open on a tab that is running, starting or stopping — and so is Pause without a tab, a deliberate exception.
+**Open** is what a press on the surface does: on the row it opens the tab where you are, on the strip row it takes you to it, and on a cold or paused tab it starts it.
+**Show in list** widens the list to All when it shows another project, rather than choosing the session's project.
+Choosing a project moves the tab bar and the tab on show with it, which took you out of the tab you were in when it was built that way, while All holds every tab, so the one on show stays.
+Making it unavailable on another project was turned down, since from the strip, which is there for other projects, it would hardly ever be available; a filter that still leaves the row out says so in a toast.
+**Pin in list** says where its effect is, on every surface, since neither the tab bar nor the strip honours a pin; once pinned, the item is Unpin.
+**Mark as read** and the dot share one rule (`canMarkRead`): only an idle or a waiting session that is not archived has something to mark, so only then is its dot a control, painted and pressable, and the item available, and a click on any other dot is the click of what holds it.
+The dot used to look pressable for every status but paused while a click did nothing for most of them.
+**The tab's button** is one item, by the button's own rule (`tabButtonState`) and words (`tabButtonLabel`): Stop session, Force stop or Close tab.
+
+**Archiving waits for a stop.**
+Archive is unavailable while the session runs, starting and stopping included, so a question claude asks on its way out is answered in a tab that is still there; a tab that is open but not running closes as the session is archived.
+One press that stopped and archived together was turned down (2026-10-19): it left an archived session with a live tab while its claude left.
+**Every way the app opens a session refuses an archived one** (`unopenableReason`, `state/views.ts`): the asks that open a session refuse it with a toast, an archived sibling in the menu is unavailable and says why, and a tab kept for one is dropped at launch.
+Opening it to unarchive it was turned down, as not clear enough about what had happened.
+Its menu, the same on every surface, holds its siblings, PRs and note, as its row's marks reach them, its id, Unarchive and Delete, and nothing that starts or files it; its dot is never a control.
+
+**A known gap**: with the session list folded or behind another panel, Show in list, like every jump into the list, scrolls a list nobody can see.
+The fix belongs to the layout tree, which no panel can yet ask to bring a panel on show, so it waits for that rather than one jump differing from the rest.
+
 ### A session whose folder is gone
 
 A session cannot run anywhere but its own directory, so when that directory is missing the app **refuses**, in two layers.
@@ -311,7 +345,7 @@ A missing worktree names the tree to recreate, since `git worktree add` at the s
 Both are re-derived on every listing rather than cached beside the summary: a folder can be removed or put back without the transcript changing, and one stat per distinct path covers hundreds of sessions.
 
 What that buys is a row that says so before you click it.
-A session whose folder is gone is dimmed and unclickable with the reason in its tooltip, its **Fork** item stays in the kebab but dimmed and inert, and the "+" on a project whose root is gone is unavailable with the same explanation.
+A session whose folder is gone is dimmed and unclickable with the reason in its tooltip, its **Open** and **Fork** items stay in the kebab but dimmed and inert, and the "+" on a project whose root is gone is unavailable with the same explanation.
 Its tab, if it has one, is dimmed by the same rule with the same tooltip, and that is what tells it apart from a cold tab: cold is unfilled and resumes on a click, dimmed will not start at all.
 The tab still selects on a click, since the pane is where the reason is said in full.
 An action that cannot be taken is shown rather than removed: a menu that changes shape has to be re-read, and an item that vanishes looks like it was never there, where a dimmed one answers the question you opened the menu to ask.
@@ -1262,7 +1296,7 @@ The notch straddles the edge, so its inner half lies over the row beside that ed
 **One appearance, one rule.**
 Anything drawn on more than one surface is a single class, never parallel rules kept in step by hand.
 Parallel rules always drift, and they drift silently: the session mark and the strip mark were the same dot in two classes, and they diverged twice — first to two different sizes, worst on the busy arc, where 7px and 9px read as two different marks rather than one state; then to a hollow ring in the list and a 9px hole in the strip for a session that had not reported yet.
-They are now one `.nudge`, with `.nudge.clickable` for the single surface where it is a control rather than a report.
+They are now one `.nudge`, with `.nudge.clickable` for a session's own dot while it is a control rather than a report.
 The practical test: **a comment saying "match X exactly", or "same as Y", is a bug report against the stylesheet.**
 It means the relationship is being maintained by whoever remembers it.
 Extract the shared rule and let the difference be a modifier.
@@ -1332,7 +1366,7 @@ Documented exceptions: the note mark (inline inside a 12px text line) and the 9p
 The split buttons on the project and group headings are two halves acting as one button, so they need to look like one object before you touch them; outlining them only on hover makes the pair read as two loose icons that suddenly acquire a box.
 A single icon needs no such help, and bordering each would put two more boxes on every row and heading.
 
-**A session row's trailing controls sit 4px apart** — its pin and kebab, or its unarchive and delete in the archived view — so the pins line up down the list, not just the kebabs.
+**A session row's trailing controls sit 4px apart** — its pin and kebab, or its unarchive, delete and kebab in the archived view — so the pins line up down the list, not just the kebabs.
 Tight rather than roomy because every pixel there is width the session title loses; the controls' own padding keeps their ink well clear.
 The row's gap is 8, so one rule, `.pair-end` in `base.css`, works the offset out from the row's own `--row-gap`.
 A heading's kebab sits 8px after its new-session button instead, since that button wears a border and the kebab's narrow dots crowded it at 4px, so on a group heading the split button's right edge sits 4px left of the pins below it, where it lined up with them (`headings.css`).

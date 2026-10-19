@@ -75,6 +75,10 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   It stays hidden across a restart, and comes back when you pick it from that line's menu, or open or start a session in it.
 - Folding the tab bar to one row, from a chevron on the line under the tabs, as a group of panels folds from its divider, to give the terminal the room: the row of the tab on show stays, or the first row when no tab is on show, and while a tab folded away is waiting for you, or has finished and is not marked read, the chevron turns into its status dot.
   It stays folded across a restart.
+- A session's options, on its row, its tab and the live strip, open with what the session is: its title, project, group and status, when it was last active and on what model, when it was archived, its worktree, the start of its note, and why it can't run when its folder is gone.
+- A session's options now hold the actions you could only take from its row, tab or strip row, so a session can be dealt with from wherever it is listed: Open, Show in list, Pin in list, Mark as read, and the tab's Stop session, Force stop or Close tab.
+  Show in list from a tab or the strip widens the list to All when it shows another project, so the tab you are in stays on show.
+- A session in the archived view has options too: what it is, its siblings, PRs and note, its id, Unarchive and Delete.
 
 ### Changed
 
@@ -100,6 +104,10 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Deleting its sessions takes it away.
 - Changing a filter opens every section again, where a fold made under the filter used to last until the filter was cleared, and could hide a new match.
 - Collapse-all and a project's group jump work while a filter is on, folding and opening what the filter shows.
+- Archive is unavailable while a session runs: stop it first, so anything claude asks on its way out is answered in its tab.
+  Archiving a session whose tab is open but not running closes the tab.
+- The app no longer opens an archived session again: an archived sibling in a session's options says it is archived, and a tab left open for one does not come back at the next launch.
+- A session's status dot reacts to a click only while the session is idle or waiting for you, when a click marks it read; any other dot no longer looks clickable, and a click on it does what a click beside it does.
 
 ### Fixed
 
@@ -131,7 +139,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Clicking the notification for a session that is waiting for you or has finished also shows its row in the session list, unfolding its group, as a click in the live strip does.
 - A session that has left its worktree keeps its worktree badge, which it used to lose as soon as it left.
   The badge is muted then, its tooltip says whether the session was closed in the worktree or moved out of it, and where it runs now, and the worktree filter still finds it.
-- Stopping a session, closing its tab or archiving it leaves anything claude asks on its way out in its tab to answer, such as whether to keep a worktree with changes, instead of ending the session over the question.
+- Stopping a session or closing its tab leaves anything claude asks on its way out in its tab to answer, such as whether to keep a worktree with changes, instead of ending the session over the question.
   The tab stays until claude has gone, and for a session that has not gone a second later the stop button becomes a force stop.
 - Quitting the app, or forcing a stop, gives a session three seconds to finish leaving before it is killed, instead of just over one.
 - A tab whose session failed to start closes with one press of its button, and the live strip no longer lists it as running; selecting it tries the start again, as selecting a stopped tab does.

@@ -34,8 +34,11 @@ Done:
   Open tabs cluster by group in the tab bar, and a group's name there takes you to the group in the list.
 - Ordering and overview: reorder projects and groups from their kebabs, fold every section away and back from one header button, and attach a note to any session.
 - Pin, archive, and delete (to the OS trash), a project whose sessions are all archived staying in the list until they are deleted; search plus filters (pinned, open, live, paused, worktree, siblings, linked PR, noted, archived, folder gone, date range).
+  Archive is unavailable while a session runs, so it is stopped first, and the app does not open an archived session again until you unarchive it.
   A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
-- Per-session status dots (busy / idle / waiting, and working in the background when a turn ends with work it started still running) driven by Claude Code hooks scoped to app-launched sessions; dots can be marked read, a live strip at the foot of the sidebar lists what is running and what is paused across projects, and a project switcher scopes the sidebar.
+- A session's kebab holds everything about it, one menu on its row, its tab and the live strip: what the session is, at its top — title, project, group, status, when it was last active and on what model, when it was archived, worktree, the start of its note — and the actions its row, tab and strip row offer, such as open, show in list, pin, mark read, stop or close, besides fork, siblings, PRs, note, group, copy id, pause and archive.
+  An archived session's row has one too, with what it is, its siblings, PRs and note, its id, unarchive and delete.
+- Per-session status dots (busy / idle / waiting, and working in the background when a turn ends with work it started still running) driven by Claude Code hooks scoped to app-launched sessions; a dot can be marked read while its session is idle or waiting and not archived, a live strip at the foot of the sidebar lists what is running and what is paused across projects, and a project switcher scopes the sidebar.
   A session in the strip can be muted, stopped, paused or closed where it is listed, from its button or its kebab, so acting on one in another project doesn't cost you the project you're looking at.
   The strip keeps still: it follows your tabs, clustered by group, so a row only moves when you move a tab.
   A project can be hidden from the strip while you focus elsewhere, counted on a Hidden line that still shows what it asks of you, until you pick it from that line's menu or open or start a session there.
@@ -85,6 +88,8 @@ Next:
 - Visual regression checks: reference pictures of the window, made on CI, which a change to the look updates on purpose.
 - A Renovate configuration of the repo's own, tuned to its dependencies and workflows rather than left at Renovate's defaults.
 - Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.
+- New session and new worktree session in a project's and a group's kebab, as a session's kebab already holds everything about the session.
+- A jump into the session list, from a tab or the live strip, bringing the list into view when it is folded or behind another panel.
 - Named layouts, several in `layouts/` with the one in use chosen in settings, and blocks: parts of a layout kept in files of their own and used in it by name, as often as you like.
 - More panel types (markdown, diff, transcript, config), and layouts per project.
 - Panels opened at will rather than only from the file, and panels that belong to one project while others stay the same everywhere.
