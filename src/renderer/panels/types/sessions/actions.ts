@@ -248,7 +248,10 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   if (!button) items.push({ label: tabButtonLabel('close'), disabled: 'Not open in a tab' });
   else if (button.disabled) items.push({ label: tabButtonLabel(button.mark), disabled: button.tooltip });
   else items.push({ label: tabButtonLabel(button.mark), onSelect: () => hostOf('sessions').pressTabButton(session.id) });
-  items.push({ label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
+  // Not while it runs, starting and stopping included: stopping it first, with the item above, keeps the tab up for anything claude asks on its way out, so Archive is never offered for a running tab.
+  // A tab that is open but not running closes as the session is archived (`toggleArchiveFor`).
+  const running = tab !== undefined && (tab.terminalId !== null || tab.starting);
+  items.push(running ? { label: 'Archive', disabled: 'Stop the session first' } : { label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
   return items;
 }
 

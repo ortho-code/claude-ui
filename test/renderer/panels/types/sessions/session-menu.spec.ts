@@ -52,7 +52,7 @@ test("a session whose folder is gone says why in its menu's header", async ({ ap
 });
 
 // Everything a press on a surface does is in the session's menu there too; what would be the surface itself is not.
-const item = (page: Page, label: string): Locator => page.locator('.kebab-menu button.menu-row').filter({ hasText: new RegExp(`^${label}$`) });
+const item = (page: Page, label: string): Locator => page.locator('.kebab-menu button.menu-row').filter({ hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) });
 const OTHER = `${HOME}/projects/other`;
 const elsewhere = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'In other', cwd: OTHER, repoRoot: OTHER });
 
@@ -206,6 +206,30 @@ test('Close tab is unavailable, with the reason, for a session with no tab', asy
   await expect(item(page, 'Close tab')).toHaveClass(/\bunavailable\b/);
   await expect(item(page, 'Close tab')).toHaveAttribute('data-tooltip', 'Not open in a tab');
 });
+
+// Archiving says a session is finished, so a running one is stopped first; one open but not running is put away with its tab.
+test('Archive is unavailable while the session runs, and says to stop it first', async ({ app, page }) => {
+  await app.boot(fixture);
+  await tabLabel(page, full.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await row(page, full.title).locator('.session-kebab').click();
+  await expect(item(page, 'Archive')).toHaveClass(/\bunavailable\b/);
+  await expect(item(page, 'Archive')).toHaveAttribute('data-tooltip', 'Stop the session first');
+  await item(page, 'Archive').click({ force: true });
+  expect(await app.calls('toggleArchive')).toEqual([]);
+});
+
+for (const [state, paused] of [['cold', []], ['paused', [full.id]]] as const) {
+  test(`Archive on a session whose tab is ${state} archives it and closes the tab`, async ({ app, page }) => {
+    await app.boot({ ...fixture, pausedSessions: [...paused] });
+    await tab(page, full.title).locator('.tab-kebab').click();
+    await item(page, 'Archive').click();
+    await expect(tab(page, full.title)).toHaveCount(0);
+    await expect(row(page, full.title)).toHaveCount(0);
+    expect(await app.calls('toggleArchive')).toEqual([[full.id]]);
+    expect(await app.calls('startTerminal')).toEqual([]);
+  });
+}
 
 test("Open is unavailable, with the reason, for a session whose folder is gone", async ({ app, page }) => {
   const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });
