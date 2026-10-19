@@ -12,6 +12,11 @@ export function projectGroups(repoRoot: string, { groupState }: View<'groupState
   return groupState.groups.filter((g) => g.repoRoot === repoRoot);
 }
 
+/** The name of the group a session is filed in; undefined when it is in none, in one the registry no longer has, or in one with no name. */
+export function groupNameOf(session: SessionSummary, { groupState }: View<'groupState'>): string | undefined {
+  return groupState.groups.find((g) => g.id === groupState.groupOf[entityKey(session)])?.name || undefined;
+}
+
 /** The tab a session is open in, if any. */
 export function tabWith(sessionId: string, view: View<'tabs'> = store.get()): TabState | undefined {
   return view.tabs.find((t) => t.session.id === sessionId);

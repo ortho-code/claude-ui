@@ -6,7 +6,7 @@ import { kebabButton, openMenu } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
 import { hideFromStrip } from '../../../state/strip';
-import { isPaused, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
+import { groupNameOf, isPaused, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, eyeIcon, tabButtonIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -257,8 +257,6 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
   stripToggle.setAttribute('aria-expanded', String(stripExpanded));
   stripLabel.textContent = stripLine(running.length, needing, total - running.length);
   stripList.hidden = !stripExpanded;
-  // Once for the whole strip rather than per row: the membership and the registry have to come from the same read anyway.
-  const { groups, groupOf } = view.groupState;
   // The session on show, which its row says, as the tab bar marks its tab and the list its row: without it the row you are already in looks like any other, and pressing it seems to do nothing.
   const onShow = tabOnShow(view)?.session.id;
   const hidden = hiddenProjects(model, ordered, view);
@@ -270,8 +268,7 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
         updateHeading(parts, project, view);
         const rows = project.items.map((session) => {
           const row = stripRows.draw(entityKey(session), buildRow);
-          const groupName = groups.find((g) => g.id === groupOf[entityKey(session)])?.name || undefined;
-          updateRow(row, session, groupName, session.id === onShow, view);
+          updateRow(row, session, groupNameOf(session, view), session.id === onShow, view);
           return row.row;
         });
         return [parts.heading, ...rows];
