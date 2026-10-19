@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import { defaultUi } from '../../../../../src/shared/defaults';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { chooseProject, row, stripRow, tab, tabLabel } from '../../../support/window';
@@ -93,6 +94,57 @@ for (const [state, paused] of [['cold', []], ['paused', [full.id]]] as const) {
     await expect(tab(page, full.title)).toHaveClass(/\bactive\b/);
   });
 }
+
+test("Show in list in a strip row's menu widens the list to All and unfolds its group, leaving the tab on show where it is", async ({ app, page }) => {
+  await app.boot({
+    ...fixture,
+    sessions: [full, elsewhere],
+    projectOrder: [PROJECT, OTHER],
+    activeProject: null,
+    openSessions: [full.id, elsewhere.id],
+    history: { [full.id]: [], [elsewhere.id]: [] },
+    uiState: { ...defaultUi(), collapsedGroups: ['g-bugs'] },
+  });
+  await tabLabel(page, full.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await tabLabel(page, elsewhere.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  await chooseProject(page, 'other');
+  await expect(row(page, full.title)).toHaveCount(0);
+
+  await stripRow(page, full.title).locator('.strip-item-kebab').click();
+  await item(page, 'Show in list').click();
+  await expect(page.locator('#switcher-name')).toHaveText('All');
+  await expect(row(page, full.title)).toBeVisible();
+  // The tab you were in stays on show: All holds every tab.
+  await expect(tab(page, elsewhere.title)).toHaveClass(/\bactive\b/);
+});
+
+test('Show in list says so when a filter leaves the session out', async ({ app, page }) => {
+  await app.boot(fixture);
+  await page.locator('#filter-toggle').click();
+  await page.locator('#search').fill('nothing matches this');
+  await expect(row(page, full.title)).toHaveCount(0);
+  await tab(page, full.title).locator('.tab-kebab').click();
+  await item(page, 'Show in list').click();
+  await expect(page.locator('#toast-message')).toHaveText(`"${full.title}" is left out by the filter. Clear it to see its row.`);
+});
+
+// An archived session can still have a tab, a sibling opened from another's menu for one; the list leaves it out with no filter on.
+test('Show in list says an archived session is in the archived view, not that a filter left it out', async ({ app, page }) => {
+  await app.boot({ ...fixture, archived: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
+  await expect(row(page, full.title)).toHaveCount(0);
+  await tab(page, full.title).locator('.tab-kebab').click();
+  await item(page, 'Show in list').click();
+  await expect(page.locator('#toast-message')).toHaveText(`"${full.title}" is archived. The archived view lists it.`);
+});
+
+test("a row's menu has no Show in list, since the row is what it would show", async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, full.title).locator('.session-kebab').click();
+  await expect(item(page, 'Open')).toBeVisible();
+  await expect(item(page, 'Show in list')).toHaveCount(0);
+});
 
 test("Open is unavailable, with the reason, for a session whose folder is gone", async ({ app, page }) => {
   const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });

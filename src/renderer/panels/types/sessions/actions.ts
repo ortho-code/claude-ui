@@ -12,7 +12,7 @@ import { hostOf } from '../builtin';
 import { sessionHeader } from './describe';
 import { currentByKey, renderedSections } from './drawn';
 import { fullRead } from './read';
-import { revealGroup } from './reveal';
+import { revealGroup, revealSession } from './reveal';
 
 /**
  * THE SESSION LIST'S MENUS AND THE WRITES THEY MAKE: a session's options and its pin, archive and delete; a group's and a project's options, their moves and renames, and a new group.
@@ -185,7 +185,7 @@ export async function confirmAndDelete(key: string): Promise<void> {
 }
 
 // The per-session action list — one builder, shared by the kebab on the session's row, its tab and its strip row, and opened from `from`.
-// The tab leaves out the item that would be itself.
+// The row and the tab leave out the item that would be themselves.
 export function sessionMenuItems(session: SessionSummary, from: SessionSurface): MenuItem[] {
   // Opening can start claude in the session's folder, and forking always does, so both need that folder to be there — but the items stay in the list, dimmed and carrying the reason, rather than vanishing.
   // Everything below is bookkeeping about a session rather than a way to start one, so it stays available: cleaning up after a folder that has gone is exactly when you need it.
@@ -202,6 +202,8 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
     const open = from === 'strip' ? () => hostOf('sessions').openSession(session.id) : () => hostOf('sessions').openTab(session.id);
     items.push(cannotRun ? { label: 'Open', disabled: cannotRun } : { label: 'Open', onSelect: open });
   }
+  // Not on the row, which is what it shows.
+  if (from !== 'row') items.push({ label: 'Show in list', onSelect: () => showInList(session) });
   items.push(
     cannotRun
       ? { label: 'Fork this session', disabled: cannotRun }
@@ -232,6 +234,20 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   else if (tab) items.push({ label: 'Pause', onSelect: () => hostOf('sessions').pauseSession(session.id) });
   items.push({ label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
   return items;
+}
+
+// Bring a session's row into view, widening the list to All first when it shows another project.
+// All rather than the session's project: choosing a project moves the tab bar and the tab on show with it, which would take you out of the tab you are in, while All holds every tab, so the one on show stays.
+// The list can still leave the session out, and the toast says why where the store says it, rather than the press seeming to do nothing: archived, which only the archived view lists; under a filter; or neither of those, such as one being deleted.
+function showInList(session: SessionSummary): void {
+  const { activeProject } = store.get();
+  if (activeProject !== null && activeProject !== session.repoRoot) hostOf('sessions').selectProject(null);
+  if (revealSession(session)) return;
+  const state = store.get();
+  const title = sessionLabel(session);
+  if (state.archived.has(entityKey(session))) showToast(`"${title}" is archived. The archived view lists it.`);
+  else if (isFiltering(state)) showToast(`"${title}" is left out by the filter. Clear it to see its row.`);
+  else showToast(`"${title}" is not in the list.`);
 }
 
 // Open the note editor for a session.

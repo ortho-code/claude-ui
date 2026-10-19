@@ -77,7 +77,7 @@ export interface LinkedSession {
   running: boolean;
 }
 
-/** Where a session's menu is opened: its row in the list, its tab, or its row in the live strip. */
+/** Where a session's menu is opened: its row in the list or its tab, each of which leaves out the item that would be itself, or its row in the live strip. */
 export type SessionSurface = 'row' | 'tab' | 'strip';
 
 /**

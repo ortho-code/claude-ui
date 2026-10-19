@@ -11,19 +11,21 @@ import { unfold } from './folding';
  */
 
 // Reveal a session's row in the sidebar (expanding its project if collapsed), so clicking a tab scrolls to where it lives and shows which project it belongs to.
-export function revealSession(session: SessionSummary): void {
+// Answers whether the list has drawn the row: it has not while the list is on another project, a filter leaves the session out, or the session is archived or being deleted.
+export function revealSession(session: SessionSummary): boolean {
   // Its group can be collapsed too, and then the row is hidden even with the project open.
   const groupId = store.get().groupState.groupOf[entityKey(session)];
   if (groupId) unfold('groups', groupId);
   unfold('projects', session.repoRoot);
   const row = sessionRows.find(entityKey(session));
-  if (!row) return;
+  if (!row) return false;
   // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole app).
   // Land the row clear of EVERYTHING pinned above it: the project heading always, plus its group's heading when the row sits in a group — that one is sticky too, and a fixed offset for the project heading alone left the row half-hidden behind it.
   const groupHeading = groupId ? groupSections.find(groupId)?.heading : undefined;
   const pinned = stickyOffset + (groupHeading?.getBoundingClientRect().height ?? 0);
   container.scrollTop +=
     row.getBoundingClientRect().top - container.getBoundingClientRect().top - pinned - REVEAL_GAP;
+  return true;
 }
 
 /** A little air between a revealed row and the headings pinned above it, so it doesn't sit flush. */
