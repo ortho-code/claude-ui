@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
-import { PROJECT, session } from '../../../support/fixture';
+import { HOME, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { row, stripRow, tab, tabLabel } from '../../../support/window';
+import { chooseProject, row, stripRow, tab, tabLabel } from '../../../support/window';
 
 // A session's menu opens with what the session is, on every surface that has its kebab, so a tab and the strip, which say less than its row, still show its title, place, status, activity, worktree and note.
 const full = session({ title: 'Fix the tab drag', worktree: 'feat-drag' });
@@ -48,4 +48,59 @@ test("a session whose folder is gone says why in its menu's header", async ({ ap
   const reason = await row(page, gone.title).locator('.card-title').getAttribute('data-tooltip');
   await row(page, gone.title).locator('.session-kebab').click();
   await expect(lines(page).last()).toHaveText(reason!);
+});
+
+// Everything a press on a surface does is in the session's menu there too; what would be the surface itself is not.
+const item = (page: Page, label: string): Locator => page.locator('.kebab-menu button.menu-row').filter({ hasText: new RegExp(`^${label}$`) });
+const OTHER = `${HOME}/projects/other`;
+const elsewhere = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'In other', cwd: OTHER, repoRoot: OTHER });
+
+test("Open in a row's menu opens its tab, as a press on the row does", async ({ app, page }) => {
+  await app.boot({ sessions: [full], history: { [full.id]: [] } });
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Open').click();
+  await expect(tab(page, full.title)).toHaveClass(/\bactive\b/);
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+});
+
+test("Open in a strip row's menu takes you to its session in another project, as a press on the strip row does", async ({ app, page }) => {
+  await app.boot({ sessions: [full, elsewhere], projectOrder: [PROJECT, OTHER], activeProject: null, openSessions: [full.id, elsewhere.id], history: { [full.id]: [], [elsewhere.id]: [] } });
+  await tabLabel(page, elsewhere.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await chooseProject(page, 'demo');
+  await stripRow(page, elsewhere.title).locator('.strip-item-kebab').click();
+  await item(page, 'Open').click();
+  await expect(page.locator('#switcher-name')).toHaveText('other');
+  await expect(tab(page, elsewhere.title)).toHaveClass(/\bactive\b/);
+});
+
+test("a running tab's menu has no Open, since the tab is the session", async ({ app, page }) => {
+  await app.boot(fixture);
+  await tabLabel(page, full.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await tab(page, full.title).locator('.tab-kebab').click();
+  await expect(item(page, 'Fork this session')).toBeVisible();
+  await expect(item(page, 'Open')).toHaveCount(0);
+});
+
+// Selecting a cold or paused tab is what starts it, so its menu offers that too.
+for (const [state, paused] of [['cold', []], ['paused', [full.id]]] as const) {
+  test(`Open in a ${state} tab's menu starts its session`, async ({ app, page }) => {
+    await app.boot({ ...fixture, pausedSessions: [...paused] });
+    await tab(page, full.title).locator('.tab-kebab').click();
+    await item(page, 'Open').click();
+    await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+    await expect(tab(page, full.title)).toHaveClass(/\bactive\b/);
+  });
+}
+
+test("Open is unavailable, with the reason, for a session whose folder is gone", async ({ app, page }) => {
+  const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });
+  await app.boot({ sessions: [gone] });
+  const reason = await row(page, gone.title).locator('.card-title').getAttribute('data-tooltip');
+  await row(page, gone.title).locator('.session-kebab').click();
+  await expect(item(page, 'Open')).toHaveClass(/\bunavailable\b/);
+  await expect(item(page, 'Open')).toHaveAttribute('data-tooltip', reason!);
+  await item(page, 'Open').click({ force: true });
+  expect(await app.calls('startTerminal')).toEqual([]);
 });

@@ -171,7 +171,7 @@ function createSessionRow(key: string): HTMLElement {
   // Per-session actions menu: fork this session, and (for a family member) list its siblings.
   const kebab = kebabButton('session-kebab pair-end', 'Session options', () => {
     const session = currentByKey.get(key);
-    return session ? sessionMenuItems(session) : null;
+    return session ? sessionMenuItems(session, 'row') : null;
   });
 
   item.prepend(dot);

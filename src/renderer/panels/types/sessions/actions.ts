@@ -7,6 +7,7 @@ import { store, withMember } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
 import { isFiltering, projName, projectGroups, tabWith } from '../../../state/views';
 import { showToast } from '../../../toast';
+import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
 import { sessionHeader } from './describe';
 import { currentByKey, renderedSections } from './drawn';
@@ -183,19 +184,29 @@ export async function confirmAndDelete(key: string): Promise<void> {
   }
 }
 
-// The per-session action list — one builder, shared by the row kebab (and any future surface that offers session actions, e.g. a tab context menu).
-export function sessionMenuItems(session: SessionSummary): MenuItem[] {
-  // Forking RUNS claude in the session's folder, so it needs that folder to be there — but the item stays in the list, dimmed and carrying the reason, rather than vanishing.
+// The per-session action list — one builder, shared by the kebab on the session's row, its tab and its strip row, and opened from `from`.
+// The tab leaves out the item that would be itself.
+export function sessionMenuItems(session: SessionSummary, from: SessionSurface): MenuItem[] {
+  // Opening can start claude in the session's folder, and forking always does, so both need that folder to be there — but the items stay in the list, dimmed and carrying the reason, rather than vanishing.
   // Everything below is bookkeeping about a session rather than a way to start one, so it stays available: cleaning up after a folder that has gone is exactly when you need it.
   const cannotRun = unstartableReason(session);
   const items: MenuItem[] = [
-    // What the session is, before what can be done to it, so the tab's and the strip's kebab, which open this same menu, show what their own surface has no room for.
+    // What the session is, before what can be done to it, so the tab's and the strip's kebab, which this builder fills too, show what their own surface has no room for.
     sessionHeader(session, store.get()),
     { label: '', separator: true },
+  ];
+  // What a press on the row or the strip row does, each its own: the row opens the tab where you are, the strip row takes you to it.
+  // On the tab only while nothing runs behind it and nothing is starting, cold or paused, where selecting it is what starts it; a running tab is already the session, a press away.
+  const tab = tabWith(session.id);
+  if (from !== 'tab' || (tab?.terminalId === null && !tab.starting)) {
+    const open = from === 'strip' ? () => hostOf('sessions').openSession(session.id) : () => hostOf('sessions').openTab(session.id);
+    items.push(cannotRun ? { label: 'Open', disabled: cannotRun } : { label: 'Open', onSelect: open });
+  }
+  items.push(
     cannotRun
       ? { label: 'Fork this session', disabled: cannotRun }
       : { label: 'Fork this session', onSelect: () => { void hostOf('sessions').forkSession(session.id); } },
-  ];
+  );
   const siblings = siblingsOf(session);
   if (siblings.length > 0) {
     items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
@@ -216,7 +227,6 @@ export function sessionMenuItems(session: SessionSummary): MenuItem[] {
   items.push({ label: '', separator: true });
   // Stopping lives on the tab's own button, which is where the session you want to stop is: see closeOrStop.
   // Pausing is the tab's too, and needs one: it marks the tab, and for a running session ends its claude (pauseTab).
-  const tab = tabWith(session.id);
   if (tab?.paused) items.push({ label: 'Unpause', onSelect: () => hostOf('sessions').unpauseSession(session.id) });
   else if (tab?.starting) items.push({ label: 'Pause', disabled: 'Starting…' });
   else if (tab) items.push({ label: 'Pause', onSelect: () => hostOf('sessions').pauseSession(session.id) });

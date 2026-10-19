@@ -10,9 +10,9 @@ import { selectProject } from './switcher';
  */
 export const sessionsAnswers: Pick<Asks, 'selectProject' | 'revealSession' | 'revealProject' | 'revealGroup' | 'sessionMenu'> = {
   selectProject: (repoRoot) => selectProject(repoRoot),
-  sessionMenu: (id) => {
+  sessionMenu: (id, from) => {
     const session = sessionById(id);
-    return session ? sessionMenuItems(session) : null;
+    return session ? sessionMenuItems(session, from) : null;
   },
   revealSession: (id) => {
     const session = sessionById(id);

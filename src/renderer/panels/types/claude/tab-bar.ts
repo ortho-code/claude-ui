@@ -252,7 +252,7 @@ function buildSessionTab(token: string): SessionTabEls {
     // The session list answers it (`sessionMenu`), for the session the tab holds at the click.
     menu: () => {
       const held = tabOf(token);
-      return held ? hostOf('claude').sessionMenu(held.session.id) : null;
+      return held ? hostOf('claude').sessionMenu(held.session.id, 'tab') : null;
     },
     kebabLabel: 'Session options',
   });

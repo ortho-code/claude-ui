@@ -77,6 +77,9 @@ export interface LinkedSession {
   running: boolean;
 }
 
+/** Where a session's menu is opened: its row in the list, its tab, or its row in the live strip. */
+export type SessionSurface = 'row' | 'tab' | 'strip';
+
 /**
  * What one surface asks another for, through the host every panel is given (docs/architecture.md § The app's own surfaces are panels): each ask is answered by the built-in that owns it, so no surface reaches into another's code.
  * By session id or project folder, never a tab's token, which is the terminal area's own.
@@ -112,8 +115,8 @@ export interface Asks {
   revealProject(repoRoot: string): void;
   /** Bring a group's heading into view, or the project's rows in no group for null, and flash it. */
   revealGroup(repoRoot: string, groupId: string | null): void;
-  /** A session's menu, as its row's kebab lists it, for another surface to open: null for a session the app no longer has. */
-  sessionMenu(id: string): MenuItem[] | null;
+  /** A session's menu, as the kebab on `from` lists it, for another surface to open: null for a session the app no longer has. */
+  sessionMenu(id: string, from: SessionSurface): MenuItem[] | null;
 }
 
 /** One way a panel can show what it shows, such as flat or as a tree, which its header offers in a switch. */

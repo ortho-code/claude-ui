@@ -146,7 +146,7 @@ function buildRow(id: string): StripRow {
   // Listed afresh at each click, for the session as it is then.
   const kebab = kebabButton('compact strip-item-kebab abuts', 'Session options', () => {
     const session = sessionById(id);
-    return session ? sessionMenuItems(session) : null;
+    return session ? sessionMenuItems(session, 'strip') : null;
   });
   const stop = document.createElement('button');
   stop.type = 'button';
