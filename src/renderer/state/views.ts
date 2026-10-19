@@ -1,11 +1,20 @@
 import type { SessionGroup, SessionSummary } from '../../shared/types';
-import { displayName, entityKey, inView, nudgeOf, projectRootExists, projectsForSwitcher, sessionsByKey, type NudgeStatus, type SwitcherModel } from '../logic';
+import { displayName, entityKey, inView, nudgeOf, projectRootExists, projectsForSwitcher, sessionsByKey, unstartableReason, type NudgeStatus, type SwitcherModel } from '../logic';
 import { sameOrder, store, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */
 
 /** A project's name: the one you gave it, or its folder's. */
 export const projName = (repoRoot: string, view: View<'projectNames'>): string => displayName(repoRoot, view.projectNames);
+
+/**
+ * Why a session cannot be opened, or null for one that can: archived, which is put away rather than resumed, as its row in the archived view does not open it either, or its folder gone (`unstartableReason`).
+ * One rule for every ask that opens a session (`openSession`, `openTab`), and the session's siblings in its menu.
+ */
+export function unopenableReason(session: SessionSummary, view: View<'archived'> = store.get()): string | null {
+  if (view.archived.has(entityKey(session))) return 'Archived: unarchive it in the archived view to open it';
+  return unstartableReason(session);
+}
 
 /** The groups belonging to one project, in registry order. */
 export function projectGroups(repoRoot: string, { groupState }: View<'groupState'>): SessionGroup[] {

@@ -1,12 +1,12 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { promptText } from '../../../dialogs';
-import { entityKey, sessionLabel, unstartableReason } from '../../../logic';
+import { entityKey, sessionLabel } from '../../../logic';
 import { newSession, untitledLabel } from '../../../newsession';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
 import { setProjectOnShow } from '../../../state/project';
 import { showInStrip } from '../../../state/strip';
-import { projName, sessionById, tabWith } from '../../../state/views';
+import { projName, sessionById, tabWith, unopenableReason } from '../../../state/views';
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
@@ -74,16 +74,18 @@ async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<Ta
   await startNew(session, joinGroupId, { name: launch.name || undefined, prompt: launch.prompt || undefined });
 }
 
-/** Go to a session a panel's row started, as a jump from the live strip does; one whose folder is gone says so, as its row in the list would. */
+/** Go to a session a panel's row started, as a jump from the live strip does; one that cannot be opened, archived or its folder gone, says why instead. */
 function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const session = sessionById(id);
-  if (!session) return;
-  const reason = unstartableReason(session);
-  if (reason) {
-    showToast(reason);
-    return;
-  }
+  if (!session || refusedToOpen(session)) return;
   jumpToSession(session, launch);
+}
+
+/** Whether a session cannot be opened (`unopenableReason`), saying why in a toast when it cannot. */
+function refusedToOpen(session: SessionSummary): boolean {
+  const reason = unopenableReason(session);
+  if (reason) showToast(reason);
+  return reason !== null;
 }
 
 // Start a new session in a fresh git worktree of `repoRoot`: `claude -w [name]`.
@@ -153,7 +155,7 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
-    if (session) void openSession(session);
+    if (session && !refusedToOpen(session)) void openSession(session);
   },
   openNewSession: (cwd, groupId, launch, id) => openNewSession(cwd, groupId, launch, id),
   openWorktreeSession: (repoRoot, groupId) => openWorktreeSession(repoRoot, groupId),

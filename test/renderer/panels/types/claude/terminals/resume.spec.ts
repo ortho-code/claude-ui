@@ -80,3 +80,14 @@ test('a tab you paused comes back paused whatever the choice, and is never start
   expect(launch.resumeSessionId).toBe(one.id);
   await expect(tab(page, two.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
 });
+
+// Archived is put away, not resumed: a tab kept for one by an earlier version (archived while it ran, or opened as a sibling) is not brought back, even one that was running, and is no longer kept.
+test('an archived session kept among the open tabs does not come back, and is dropped from them', async ({ app, page }) => {
+  await app.boot({ ...choosing('start'), archived: { [two.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await expect(tab(page, one.title)).toBeVisible();
+  await expect(tab(page, two.title)).toHaveCount(0);
+  const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
+  expect(launch.resumeSessionId).toBe(one.id);
+  await expect.poll(async () => ((await app.calls('setOpenSessions')).at(-1) as string[][])[0]).not.toContain(two.id);
+});

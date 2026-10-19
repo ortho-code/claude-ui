@@ -130,13 +130,18 @@ test('Show in list says so when a filter leaves the session out', async ({ app, 
   await expect(page.locator('#toast-message')).toHaveText(`"${full.title}" is left out by the filter. Clear it to see its row.`);
 });
 
-// An archived session can still have a tab, a sibling opened from another's menu for one; the list leaves it out with no filter on.
-test('Show in list says an archived session is in the archived view, not that a filter left it out', async ({ app, page }) => {
-  await app.boot({ ...fixture, archived: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
-  await expect(row(page, full.title)).toHaveCount(0);
-  await tab(page, full.title).locator('.tab-kebab').click();
-  await item(page, 'Show in list').click();
-  await expect(page.locator('#toast-message')).toHaveText(`"${full.title}" is archived. The archived view lists it.`);
+// An archived sibling stays in the list of siblings, unavailable and saying why: archived is put away, not opened.
+test("an archived sibling in a session's menu is unavailable, saying it is archived", async ({ app, page }) => {
+  const kept = session({ id: '00000000-0000-4000-8000-0000000000f2', title: 'Kept sibling', isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000f3'] });
+  const put = session({ id: '00000000-0000-4000-8000-0000000000f3', title: 'Archived sibling', isSibling: true, siblingIds: [kept.id] });
+  await app.boot({ sessions: [kept, put], archived: { [put.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
+  await row(page, kept.title).locator('.session-kebab').click();
+  await page.locator('.kebab-menu button.menu-row', { hasText: 'Siblings (1)' }).hover();
+  const sibling = page.locator('.kebab-menu.submenu button.menu-row', { hasText: put.title });
+  await expect(sibling).toHaveClass(/\bunavailable\b/);
+  await expect(sibling).toHaveAttribute('data-tooltip', 'Archived: unarchive it in the archived view to open it');
+  await sibling.click({ force: true });
+  expect(await app.calls('startTerminal')).toEqual([]);
 });
 
 test("a row's menu has no Show in list, since the row is what it would show", async ({ app, page }) => {

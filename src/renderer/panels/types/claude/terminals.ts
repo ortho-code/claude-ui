@@ -147,7 +147,8 @@ export async function restoreOpenTabs(): Promise<void> {
       let toActivate: string | null = null;
       for (const key of openKeys) {
         const session = tips.get(key);
-        if (!session) continue;
+        // Not an archived one, which is put away rather than resumed (`unopenableReason`): the list has read the archived ones by now, and the tab is dropped from what is kept.
+        if (!session || store.get().archived.has(key)) continue;
         // A tab you paused comes back paused and is never started here, even one also kept as running, whose claude had not left yet when the app closed.
         const pausedByYou = pausedKeys.includes(key);
         const wasRunning = runningKeys.includes(key) && !pausedByYou;

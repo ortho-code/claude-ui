@@ -6,7 +6,7 @@ import { openMenu, type MenuItem } from '../../../menu';
 import { store, withMember } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
-import { isFiltering, projName, projectGroups, tabWith } from '../../../state/views';
+import { isFiltering, projName, projectGroups, tabWith, unopenableReason } from '../../../state/views';
 import { showToast } from '../../../toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
@@ -47,11 +47,13 @@ function siblingsOf(session: SessionSummary): SessionSummary[] {
 }
 
 // Menu items for a sibling list; siblings often share a title, so each shows title + when.
+// One that cannot be opened, an archived one say, stays in the list, unavailable and saying why (`unopenableReason`).
 function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
-  return siblings.map((sibling) => ({
-    label: `${sessionLabel(sibling)} · ${relativeTime(sibling.lastActivity)}`,
-    onSelect: () => hostOf('sessions').openSession(sibling.id),
-  }));
+  return siblings.map((sibling) => {
+    const label = `${sessionLabel(sibling)} · ${relativeTime(sibling.lastActivity)}`;
+    const refused = unopenableReason(sibling);
+    return refused ? { label, disabled: refused } : { label, onSelect: () => hostOf('sessions').openSession(sibling.id) };
+  });
 }
 
 // The PRs a session's transcript links, by their full reference, oldest first, each opening its page in the browser.

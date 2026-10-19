@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import type { PanelLink } from '../../../../../src/shared/panels';
 import type { TerminalLaunch } from '../../../../../src/shared/types';
-import { CONFIG_ROOT, PROJECT, session } from '../../../support/fixture';
+import { type BridgeFixture, CONFIG_ROOT, PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { hoveredAndOpen } from '../../../support/looks';
 import { clickAcross } from '../../../support/press';
@@ -59,8 +59,8 @@ const litFill = (page: Page): Promise<string> =>
   });
 
 /** Boot with the queue panel, its rows' sessions as given, and let its script print the list. */
-async function bootQueue(app: App, page: Page, links: Record<string, PanelLink> = fixture.panelData.queue.sessions): Promise<void> {
-  await app.boot({ ...fixture, panelData: { queue: { sessions: links, lastGroup: {} } }, layout: { ...fixture.layout, types: [{ name: 'reviews', dir: QUEUE_DIR, status: 'read', error: null, json: { version: 1, kind: 'list', title: 'Reviews', icon: 'eye', run: 'list.sh' } }] } });
+async function bootQueue(app: App, page: Page, links: Record<string, PanelLink> = fixture.panelData.queue.sessions, more: Partial<BridgeFixture> = {}): Promise<void> {
+  await app.boot({ ...fixture, ...more, panelData: { queue: { sessions: links, lastGroup: {} } }, layout: { ...fixture.layout, types: [{ name: 'reviews', dir: QUEUE_DIR, status: 'read', error: null, json: { version: 1, kind: 'list', title: 'Reviews', icon: 'eye', run: 'list.sh' } }] } });
   await expect.poll(() => runs(app, 'queue')).toHaveLength(1);
   const { token } = (await runs(app, 'queue'))[0];
   await app.emit('onPanelRun', 'queue', token, { kind: 'output', text: JSON.stringify(LIST) });
@@ -75,6 +75,15 @@ test("a row's session mark goes to its session: its tab opens, resumed, on show"
   const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
   expect(launch.resumeSessionId).toBe(reviewed.id);
   await expect(tab(page, reviewed.title)).toHaveClass(/\bactive\b/);
+});
+
+// Archived is put away, not resumed: a panel row's mark refuses it and opens no tab.
+test("a row's session mark for an archived session says so, and opens nothing", async ({ app, page }) => {
+  await bootQueue(app, page, undefined, { archived: { [reviewed.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
+  await mark(page, 'Fix the login redirect').click();
+  await expect(page.locator('#toast-message')).toHaveText('Archived: unarchive it in the archived view to open it');
+  await expect(tab(page, reviewed.title)).toHaveCount(0);
+  expect(await app.calls('startTerminal')).toEqual([]);
 });
 
 test("a row's action starts a session through the app's dialog, remembered under the row from the start", async ({ app, page }) => {
