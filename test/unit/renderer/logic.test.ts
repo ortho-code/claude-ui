@@ -6,6 +6,7 @@ import {
   statusLabel,
   stripLine,
   tabButtonState,
+  tabButtonLabel,
   sessionsByKey,
   structuralSignature,
   sameRow,
@@ -860,6 +861,16 @@ describe('stripLine', () => {
     expect(stripLine(3, 0, 2)).toBe('3 live · 2 paused');
     expect(stripLine(3, 1, 2)).toBe('1 of 3 need you · 2 paused');
     expect(stripLine(0, 0, 2)).toBe('2 paused');
+  });
+});
+
+describe('tabButtonLabel', () => {
+  it("names each mark's press, as the button's tooltip says it where it says only that", () => {
+    expect(tabButtonLabel('stop')).toBe('Stop session');
+    expect(tabButtonLabel('force')).toBe('Force stop');
+    expect(tabButtonLabel('close')).toBe('Close tab');
+    expect(tabButtonState({ terminalId: 7 }).tooltip).toBe(tabButtonLabel('stop'));
+    expect(tabButtonState({ terminalId: null }).tooltip).toBe(tabButtonLabel('close'));
   });
 });
 

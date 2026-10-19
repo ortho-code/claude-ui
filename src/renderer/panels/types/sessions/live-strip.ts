@@ -142,7 +142,7 @@ function buildRow(id: string): StripRow {
   // This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
   // It IS the tab's button, pressed from here: one rule draws both (`tabButtonState`) and one press acts for both (`closeOrStop`, through the ask), so it stops a running session, forces one that has not left, and closes a paused tab.
   // A row leaves the strip by its session stopping without a pause, its tab being unpaused or closed, which is what this does to a paused one, or its session leaving the pool.
-  // The session's own menu beside it, the one its row in the list has, Pause and Unpause with it: everything but the button, which stays in sight.
+  // The session's own menu beside it, from the builder its row in the list uses, the button's press among its items, so the button is a shortcut to one of them.
   // Listed afresh at each click, for the session as it is then.
   const kebab = kebabButton('compact strip-item-kebab abuts', 'Session options', () => {
     const session = sessionById(id);

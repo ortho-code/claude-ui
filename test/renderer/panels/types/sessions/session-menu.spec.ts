@@ -180,6 +180,33 @@ test('Mark as read is unavailable, with the reason, while the session is busy', 
   await expect(item(page, 'Mark as read')).toHaveAttribute('data-tooltip', 'Only a session that is idle or waiting for you can be marked read or unread');
 });
 
+// The tab's button, pressed from the session's menu: one rule for the two (`tabButtonState`), so the item says and does what the button would.
+test("Stop session in a row's menu stops it as the tab's button does, and then says it is stopping", async ({ app, page }) => {
+  await app.boot(fixture);
+  await tabLabel(page, full.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Stop session').click();
+  await expect(tab(page, full.title).locator('.tab-close')).toBeDisabled();
+  await row(page, full.title).locator('.session-kebab').click();
+  await expect(item(page, 'Stop session')).toHaveAttribute('data-tooltip', 'Stopping…');
+});
+
+test("Close tab in a row's menu closes a paused session's tab", async ({ app, page }) => {
+  await app.boot({ ...fixture, pausedSessions: [full.id] });
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Close tab').click();
+  await expect(tab(page, full.title)).toHaveCount(0);
+  expect(await app.calls('startTerminal')).toEqual([]);
+});
+
+test('Close tab is unavailable, with the reason, for a session with no tab', async ({ app, page }) => {
+  await app.boot({ sessions: [full] });
+  await row(page, full.title).locator('.session-kebab').click();
+  await expect(item(page, 'Close tab')).toHaveClass(/\bunavailable\b/);
+  await expect(item(page, 'Close tab')).toHaveAttribute('data-tooltip', 'Not open in a tab');
+});
+
 test("Open is unavailable, with the reason, for a session whose folder is gone", async ({ app, page }) => {
   const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });
   await app.boot({ sessions: [gone] });

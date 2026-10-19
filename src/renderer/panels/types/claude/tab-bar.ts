@@ -248,7 +248,7 @@ function buildSessionTab(token: string): SessionTabEls {
     // See closeOrStop.
     // A middle click takes the same two steps: one that killed a running session outright would be the one way left to lose one by accident.
     press: () => closeOrStop(token),
-    // The session's own menu, the one its row in the list has, Pause and Unpause with it: everything but the button beside it, which stays in sight.
+    // The session's own menu, from the builder its row in the list uses, the press of the button beside it among its items, so the button is a shortcut to one of them.
     // The session list answers it (`sessionMenu`), for the session the tab holds at the click.
     menu: () => {
       const held = tabOf(token);

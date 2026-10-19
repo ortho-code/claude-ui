@@ -1,7 +1,7 @@
 import { prReference } from '../../../../shared/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDelete, promptText } from '../../../dialogs';
-import { entityKey, folderName, relativeTime, sessionLabel, unstartableReason } from '../../../logic';
+import { entityKey, folderName, relativeTime, sessionLabel, tabButtonLabel, tabButtonState, unstartableReason } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
 import { store, withMember } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
@@ -186,7 +186,7 @@ export async function confirmAndDelete(key: string): Promise<void> {
 }
 
 // The per-session action list — one builder, shared by the kebab on the session's row, its tab and its strip row, and opened from `from`.
-// The row and the tab leave out the item that would be themselves.
+// Every press on the session's row or strip row is here too, and the tab's button, dot and middle-click, and its select while that starts it, so a button is a shortcut to an item; the row and the tab leave out the item that would be themselves.
 export function sessionMenuItems(session: SessionSummary, from: SessionSurface): MenuItem[] {
   // Opening can start claude in the session's folder, and forking always does, so both need that folder to be there — but the items stay in the list, dimmed and carrying the reason, rather than vanishing.
   // Everything below is bookkeeping about a session rather than a way to start one, so it stays available: cleaning up after a folder that has gone is exactly when you need it.
@@ -238,11 +238,16 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   // The state changes sit below a rule, away from the navigate/copy items.
   // Only the normal view offers them: the archived view keeps unarchive on the row and hides the kebab.
   items.push({ label: '', separator: true });
-  // Stopping lives on the tab's own button, which is where the session you want to stop is: see closeOrStop.
-  // Pausing is the tab's too, and needs one: it marks the tab, and for a running session ends its claude (pauseTab).
+  // Pausing is the tab's, and needs one: it marks the tab, and for a running session ends its claude (pauseTab).
   if (tab?.paused) items.push({ label: 'Unpause', onSelect: () => hostOf('sessions').unpauseSession(session.id) });
   else if (tab?.starting) items.push({ label: 'Pause', disabled: 'Starting…' });
   else if (tab) items.push({ label: 'Pause', onSelect: () => hostOf('sessions').pauseSession(session.id) });
+  // A press on the tab's button, from wherever the session's menu is, by the button's own rule (`tabButtonState`), so the item says and does what the button would: stop it, force it out, or close the tab it left.
+  // Unavailable without a tab, since there is then nothing to stop or close.
+  const button = tab ? tabButtonState(tab) : null;
+  if (!button) items.push({ label: tabButtonLabel('close'), disabled: 'Not open in a tab' });
+  else if (button.disabled) items.push({ label: tabButtonLabel(button.mark), disabled: button.tooltip });
+  else items.push({ label: tabButtonLabel(button.mark), onSelect: () => hostOf('sessions').pressTabButton(session.id) });
   items.push({ label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
   return items;
 }

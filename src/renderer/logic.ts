@@ -689,10 +689,15 @@ export type TabButtonMark = 'stop' | 'force' | 'close';
 export function tabButtonState(tab: TabButtonTab): { disabled: boolean; tooltip: string; mark: TabButtonMark } {
   // Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving.
   if (tab.starting) return { disabled: true, tooltip: 'Starting…', mark: 'stop' };
-  if (tab.stopping && tab.forceable) return { disabled: false, tooltip: 'Force stop: claude has not left yet — it may be asking you something', mark: 'force' };
+  if (tab.stopping && tab.forceable) return { disabled: false, tooltip: `${tabButtonLabel('force')}: claude has not left yet — it may be asking you something`, mark: 'force' };
   if (tab.stopping) return { disabled: true, tooltip: 'Stopping…', mark: 'stop' };
-  if (tab.terminalId === null) return { disabled: false, tooltip: 'Close tab', mark: 'close' };
-  return { disabled: false, tooltip: 'Stop session', mark: 'stop' };
+  if (tab.terminalId === null) return { disabled: false, tooltip: tabButtonLabel('close'), mark: 'close' };
+  return { disabled: false, tooltip: tabButtonLabel('stop'), mark: 'stop' };
+}
+
+/** What a press on a tab's button does, in words, by its mark: the label of the item in the session's menu that presses it, and the button's tooltip while it can act (for a force, its first words). */
+export function tabButtonLabel(mark: TabButtonMark): string {
+  return { stop: 'Stop session', force: 'Force stop', close: 'Close tab' }[mark];
 }
 
 /**
