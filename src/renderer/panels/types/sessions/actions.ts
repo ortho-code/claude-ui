@@ -217,6 +217,9 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   if (session.prs.length > 0) {
     items.push({ label: `PRs (${session.prs.length})`, submenu: prMenuItems(session) });
   }
+  // "in list" on every surface, the row's too: a pin says where a session sits in the list, which neither the tab bar nor the strip honours.
+  const pinned = store.get().pinned.has(entityKey(session));
+  items.push({ label: pinned ? 'Unpin' : 'Pin in list', onSelect: () => void togglePinFor(entityKey(session)) });
   items.push({ label: store.get().notes.has(entityKey(session)) ? 'Edit note…' : 'Add note…', onSelect: () => void editNote(session) });
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
   // The short id shows here rather than on the row: this is where you come looking for it, and the item both displays it and copies the full one.

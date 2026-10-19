@@ -146,6 +146,17 @@ test("a row's menu has no Show in list, since the row is what it would show", as
   await expect(item(page, 'Show in list')).toHaveCount(0);
 });
 
+test("Pin in list in a tab's menu pins its row, as the row's pin does, and the menu then offers Unpin", async ({ app, page }) => {
+  await app.boot(fixture);
+  await tab(page, full.title).locator('.tab-kebab').click();
+  await item(page, 'Pin in list').click();
+  await expect(row(page, full.title).locator('.pin')).toHaveAttribute('data-tooltip', 'Unpin');
+  await tab(page, full.title).locator('.tab-kebab').click();
+  await item(page, 'Unpin').click();
+  await expect(row(page, full.title).locator('.pin')).toHaveAttribute('data-tooltip', 'Pin');
+  expect(await app.calls('togglePin')).toEqual([[full.id], [full.id]]);
+});
+
 test("Open is unavailable, with the reason, for a session whose folder is gone", async ({ app, page }) => {
   const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });
   await app.boot({ sessions: [gone] });
