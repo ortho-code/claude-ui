@@ -20,9 +20,9 @@ export const claudeWatch = {
     // A tab not on show turned waiting or finished: a toast says so.
     store.watch(['statuses'], toastAttention, { reads: ['tabs', 'activeTab', 'projectNames'] });
     // The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes, every change to a tab or to which one is on show, and its fold.
-    store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded'], renderTabBar, { reads: ['sessions', 'statuses', 'backgroundTasks', 'acked'] });
+    store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded'], renderTabBar, { reads: ['sessions', 'statuses', 'backgroundTasks', 'acked', 'archived'] });
     // And a status, the work behind one, or a mark read of one of its tabs' sessions, which its fold's dot follows too.
-    store.watch(['statuses', 'backgroundTasks', 'acked'], tabBarFollowsStatuses, { reads: ['sessions', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded'] });
+    store.watch(['statuses', 'backgroundTasks', 'acked'], tabBarFollowsStatuses, { reads: ['sessions', 'archived', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded'] });
     // The terminal area's rail icon waits while a tab on show waits for you.
     store.watch(['activeProject', 'tabs', 'statuses', 'acked'], railStatusFollowsTabs);
     // The pane shows the tab on show, or says why there is none, which turns on the listing and the project on show too.

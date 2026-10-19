@@ -175,6 +175,30 @@ test("Mark as read in a strip row's menu marks the session read, as a click on i
   await expect(row(page, full.title).locator('.nudge')).not.toHaveClass(/\backed\b/);
 });
 
+// The dot is a control only where its click marks something, by the rule the menu's item follows, so a dot never looks pressable for nothing.
+test("a session's dot is a control only while it is idle or waiting, on its row and its tab alike", async ({ app, page }) => {
+  await app.boot(fixture);
+  await tabLabel(page, full.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  for (const [status, control] of [['busy', false], ['idle', true], ['waiting', true], ['closed', false]] as const) {
+    expect(await app.emit('onSessionStatus', full.id, status, '', '')).toBe(1);
+    for (const dot of [row(page, full.title).locator('.nudge'), tab(page, full.title).locator('.nudge')]) {
+      if (control) await expect(dot).toHaveClass(/\bclickable\b/);
+      else await expect(dot).not.toHaveClass(/\bclickable\b/);
+    }
+  }
+});
+
+// Even one whose claude left a status behind, as one that ended without saying so does.
+test("an archived row's dot is no control, whatever status it still shows", async ({ app, page }) => {
+  await app.boot({ ...archivedView, statuses: { [full.id]: 'waiting' } });
+  const dot = row(page, full.title).locator('.nudge');
+  await expect(dot).toHaveClass(/\bwaiting\b/);
+  await expect(dot).not.toHaveClass(/\bclickable\b/);
+  await dot.click();
+  await expect(dot).not.toHaveClass(/\backed\b/);
+});
+
 test('Mark as read is unavailable, with the reason, while the session is busy', async ({ app, page }) => {
   await app.boot(fixture);
   await tabLabel(page, full.title).click();

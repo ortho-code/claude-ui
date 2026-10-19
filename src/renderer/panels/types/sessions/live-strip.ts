@@ -125,7 +125,7 @@ function buildRow(id: string): StripRow {
   const dot = document.createElement('span');
   // A muted row stays LISTED: membership is a process or a pause, and acking says "seen it", not "stop".
   // Only the count above drops it.
-  // A paused row's dot is no control (`applyStatus`), so a click on it is the jump's, which resumes the session.
+  // A dot with nothing to mark, a paused row's say, is no control (`applyStatus`), so a click on it is the jump's, which for a paused one resumes the session unless its folder is gone.
   ackOnClick(dot, () => id);
   const name = document.createElement('span');
   name.className = 'strip-item-name';
@@ -161,7 +161,7 @@ function buildRow(id: string): StripRow {
 }
 
 /** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its tab's button in the tab's state. */
-function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs'>): void {
+function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'archived' | 'tabs'>): void {
   const { row, jump, dot, name, chip, stop } = parts;
   applyStatus(dot, session.id, view);
   name.textContent = sessionLabel(session);
@@ -228,7 +228,7 @@ function hiddenProjects(model: SwitcherModel, ordered: StripProject[], view: Vie
   return ordered.filter((project) => view.stripHidden.has(project.repoRoot)).map((project) => ({ project, badge: badges.get(project.repoRoot) ?? null }));
 }
 
-function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' |'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden'>): void {
+function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden'>): void {
   const { stripExpanded } = view;
   const overall = model.all.badge;
   stripBadge.className = badgeClass(overall);

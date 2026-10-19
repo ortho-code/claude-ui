@@ -1,6 +1,6 @@
 import { showsRead, statusLabel, type NudgeStatus } from './logic';
 import type { View } from './state/app';
-import { toggleAck } from './state/statuses';
+import { canMarkRead, toggleAck } from './state/statuses';
 import { dotStatus } from './state/views';
 import { setTooltip } from './tooltip';
 
@@ -17,12 +17,11 @@ export function badgeClass(badge: NudgeStatus | 'failed'): string {
 }
 
 /**
- * Paint a session's dot as a control, from what it shows (`dotStatus`) and whether it is marked read, on every surface that draws one as a control.
- * A paused session's dot is not one: there is nothing to mark read, and a click goes to what holds it, which opens the session and so resumes it.
+ * Paint a session's dot, from what it shows (`dotStatus`) and whether it is marked read, on every surface that draws one as a control.
+ * It is a control only where a click marks something, idle and waiting and not archived (`canMarkRead`, the rule the click and the menu's Mark as read follow too); any other dot is no control, and a click on it goes to what holds it — a paused one's opens the session and so resumes it, unless its folder is gone.
  */
-export function applyStatus(dot: HTMLElement, id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs'>): void {
-  const status = dotStatus(id, view);
-  dot.className = sessionDotClass(status, view.acked.has(id), status !== 'paused');
+export function applyStatus(dot: HTMLElement, id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs' | 'archived'>): void {
+  dot.className = sessionDotClass(dotStatus(id, view), view.acked.has(id), canMarkRead(id, view));
   setTooltip(dot, statusText(id, view));
 }
 
@@ -40,7 +39,7 @@ export function statusText(id: string, view: View<'statuses' | 'backgroundTasks'
  */
 export function ackOnClick(dot: HTMLElement, sessionId: () => string | null): void {
   dot.addEventListener('click', (event) => {
-    // A dot painted as no control, a paused session's, leaves the click to what holds it.
+    // A dot painted as no control, one with nothing to mark (`applyStatus`), leaves the click to what holds it.
     if (!dot.classList.contains('clickable')) return;
     event.stopPropagation();
     const id = sessionId();

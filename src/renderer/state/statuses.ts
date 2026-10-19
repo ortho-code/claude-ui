@@ -17,8 +17,10 @@ export function setStatus(id: string, status: string | undefined, background: re
 /**
  * Whether a session's "read" mark can be set or cleared now: only in the attention states, idle (done) and waiting (needs you), as its dot shows them.
  * Busy (working) and closed/hollow have nothing to acknowledge, and a paused session reports no claude at all.
+ * Nor an archived one, which is put away: a status it still shows is one its claude left behind, such as one that ended without saying so.
  */
-export function canMarkRead(id: string, view: View<'statuses' | 'tabs'> = store.get()): boolean {
+export function canMarkRead(id: string, view: View<'statuses' | 'tabs' | 'archived'> = store.get()): boolean {
+  if (view.archived.has(id)) return false;
   const status = dotStatus(id, view);
   return status === 'idle' || status === 'waiting';
 }
