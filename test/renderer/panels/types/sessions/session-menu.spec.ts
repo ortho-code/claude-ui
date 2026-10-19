@@ -157,6 +157,29 @@ test("Pin in list in a tab's menu pins its row, as the row's pin does, and the m
   expect(await app.calls('togglePin')).toEqual([[full.id], [full.id]]);
 });
 
+test("Mark as read in a strip row's menu marks the session read, as a click on its dot does, and the menu then offers Mark as unread", async ({ app, page }) => {
+  await app.boot(fixture);
+  await tabLabel(page, full.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  expect(await app.emit('onSessionStatus', full.id, 'waiting', '', '')).toBe(1);
+  await stripRow(page, full.title).locator('.strip-item-kebab').click();
+  await item(page, 'Mark as read').click();
+  await expect(row(page, full.title).locator('.nudge')).toHaveClass(/\backed\b/);
+  await stripRow(page, full.title).locator('.strip-item-kebab').click();
+  await item(page, 'Mark as unread').click();
+  await expect(row(page, full.title).locator('.nudge')).not.toHaveClass(/\backed\b/);
+});
+
+test('Mark as read is unavailable, with the reason, while the session is busy', async ({ app, page }) => {
+  await app.boot(fixture);
+  await tabLabel(page, full.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  expect(await app.emit('onSessionStatus', full.id, 'busy', '', '')).toBe(1);
+  await tab(page, full.title).locator('.tab-kebab').click();
+  await expect(item(page, 'Mark as read')).toHaveClass(/\bunavailable\b/);
+  await expect(item(page, 'Mark as read')).toHaveAttribute('data-tooltip', 'Only a session that is idle or waiting for you can be marked read or unread');
+});
+
 test("Open is unavailable, with the reason, for a session whose folder is gone", async ({ app, page }) => {
   const gone = session({ title: 'Gone', cwdExists: false, repoRootExists: false });
   await app.boot({ sessions: [gone] });

@@ -5,6 +5,7 @@ import { entityKey, folderName, relativeTime, sessionLabel, unstartableReason } 
 import { openMenu, type MenuItem } from '../../../menu';
 import { store, withMember } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
+import { canMarkRead, toggleAck } from '../../../state/statuses';
 import { isFiltering, projName, projectGroups, tabWith } from '../../../state/views';
 import { showToast } from '../../../toast';
 import type { SessionSurface } from '../../contract';
@@ -220,6 +221,13 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   // "in list" on every surface, the row's too: a pin says where a session sits in the list, which neither the tab bar nor the strip honours.
   const pinned = store.get().pinned.has(entityKey(session));
   items.push({ label: pinned ? 'Unpin' : 'Pin in list', onSelect: () => void togglePinFor(entityKey(session)) });
+  // What a click on its dot does, by the same rule (`canMarkRead`), and unavailable where the click would do nothing.
+  const markLabel = store.get().acked.has(session.id) ? 'Mark as unread' : 'Mark as read';
+  items.push(
+    canMarkRead(session.id)
+      ? { label: markLabel, onSelect: () => toggleAck(session.id) }
+      : { label: markLabel, disabled: 'Only a session that is idle or waiting for you can be marked read or unread' },
+  );
   items.push({ label: store.get().notes.has(entityKey(session)) ? 'Edit note…' : 'Add note…', onSelect: () => void editNote(session) });
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
   // The short id shows here rather than on the row: this is where you come looking for it, and the item both displays it and copies the full one.
