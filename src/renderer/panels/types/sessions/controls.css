@@ -1,5 +1,5 @@
 /* Split button: the "+" and a dropdown caret joined into one control.
-   The caret is hidden for non-repo folders (no worktree option), so the "+" keeps its full rounding then. */
+   The caret is on every heading, saying in its dropdown when the worktree option cannot be taken; a hidden one would leave the "+" its full rounding (headings.css). */
 .split-button {
   display: flex;
   flex: 0 0 auto;

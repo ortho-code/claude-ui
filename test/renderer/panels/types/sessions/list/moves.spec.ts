@@ -26,8 +26,9 @@ const fixture = {
   },
 };
 
-const GROUP_OWN = ['Rename…', 'Delete group'];
-const PROJECT_OWN = ['Rename…', 'Copy path', '—', 'New group…'];
+// After the moves, the ways to add something there, then the heading's own (heading-menu.spec.ts).
+const GROUP_OWN = ['New session', 'New worktree session…', '—', 'Rename…', 'Delete group'];
+const PROJECT_OWN = ['New session', 'New worktree session…', 'New session in group', 'New group…', '—', 'Rename…', 'Copy path'];
 const ALL_MOVES = ['Move to top', 'Move up', 'Move down', 'Move to bottom'];
 
 /** Open the options behind `kebab` and read them as they are listed, a rule as "—". */

@@ -351,6 +351,11 @@ One press that stopped and archived together was turned down (2026-10-19): it le
 Opening it to unarchive it was turned down, as not clear enough about what had happened.
 Its menu, the same on every surface, holds its siblings, PRs and note, as its row's marks reach them, its id, Unarchive and Delete, and nothing that starts or files it; its dot is never a control.
 
+**A heading's menu holds the ways to start a session there** (2026-10-20): New session and New worktree session…, from one function (`newSessionItems`, `sessions/controls.ts`) that the "+"'s caret draws too, so the dropdown and the two menus cannot drift; on a project also New session in group, a submenu of every group the project has (`projectGroups` reads no filter), which reaches a group a filter left without a heading, or unavailable saying why when the project has no groups or its folder is gone.
+They sit together after the moves, New group… with them on a project, then the heading's own items: grouped by what they do rather than added at the end, which would have split the ways to add something over two blocks.
+The caret is on every heading, and the worktree item is unavailable outside a git repository ("Not a git repository") rather than the caret hidden, which hid New session from it too; where the project's folder is gone, the caret is unavailable as the "+" is, and both items in the menus with the project's gone reason.
+The completeness check covers the headings' "+" and caret.
+
 **A known gap**: with the session list folded or behind another panel, Show in list, like every jump into the list, scrolls a list nobody can see.
 The fix belongs to the layout tree, which no panel can yet ask to bring a panel on show, so it waits for that rather than one jump differing from the rest.
 

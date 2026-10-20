@@ -5,7 +5,7 @@ import { store } from '../../../state/app';
 import { folderIcon, layersIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { copyText, deleteGroupById, groupMoveItems, projectMoveItems, promptNewGroup, renameGroupById, renameProject, withMoves } from './actions';
-import { newSessionSplit } from './controls';
+import { newSessionInGroupItem, newSessionItems, newSessionSplit } from './controls';
 import { container, jumpTargets, type GroupSectionEls, type ProjectSectionEls } from './drawn';
 import { toggleFold } from './folding';
 import { revealGroup } from './reveal';
@@ -57,13 +57,15 @@ export function createProjectSection(name: string): ProjectSectionEls {
     where: () => ({ repoRoot: name }),
   });
   heading.append(split);
-  // Project options (rename now, hide later).
+  // Project options: after the moves, the ways to add something here together, the "+" and its caret's among them, then the project's own.
   const kebab = kebabButton('project-kebab', 'Project options', () =>
     withMoves(projectMoveItems(name), [
+      ...newSessionItems(name),
+      newSessionInGroupItem(name),
+      { label: 'New group…', onSelect: () => void promptNewGroup(name) },
+      { label: '', separator: true },
       { label: 'Rename…', onSelect: () => void renameProject(name) },
       { label: 'Copy path', onSelect: () => void copyText(name, 'Path copied.') },
-      { label: '', separator: true },
-      { label: 'New group…', onSelect: () => void promptNewGroup(name) },
     ]),
   );
   heading.append(kebab);
@@ -103,13 +105,15 @@ export function createGroupSection(id: string): GroupSectionEls {
       return repoRoot ? { repoRoot, groupId: id } : null;
     },
   });
-  // Group options.
-  const kebab = kebabButton('group-kebab', 'Group options', () =>
-    withMoves(groupMoveItems(id), [
+  // Group options: after the moves, the ways to start a session in it, the "+" and its caret's, then the group's own.
+  const kebab = kebabButton('group-kebab', 'Group options', () => {
+    const repoRoot = store.get().groupState.groups.find((g) => g.id === id)?.repoRoot;
+    return withMoves(groupMoveItems(id), [
+      ...(repoRoot ? [...newSessionItems(repoRoot, id), { label: '', separator: true }] : []),
       { label: 'Rename…', onSelect: () => void renameGroupById(id) },
       { label: 'Delete group', onSelect: () => void deleteGroupById(id) },
-    ]),
-  );
+    ]);
+  });
   heading.append(split, kebab);
   heading.addEventListener('click', () => {
     toggleFold('groups', id);

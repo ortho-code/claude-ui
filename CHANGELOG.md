@@ -79,6 +79,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's options now hold the actions you could only take from its row, tab or strip row, so a session can be dealt with from wherever it is listed: Open, Show in list, Pin in list, Mark as read, and the tab's Stop session, Force stop or Close tab.
   Show in list from a tab or the strip widens the list to All when it shows another project, so the tab you are in stays on show.
 - A session in the archived view has options too: what it is, its siblings, PRs and note, its id, Unarchive and Delete.
+- A project's and a group's options start a session there, New session and New worktree session…, and a project's has New session in group, which reaches a group the filter hides as well.
 
 ### Changed
 
@@ -108,6 +109,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Archiving a session whose tab is open but not running closes the tab.
 - The app no longer opens an archived session again: an archived sibling in a session's options says it is archived, and a tab left open for one does not come back at the next launch.
 - A session's status dot reacts to a click only while the session is idle or waiting for you, when a click marks it read; any other dot no longer looks clickable, and a click on it does what a click beside it does.
+- The arrow beside a project's or a group's + is there outside a git repository too, its New worktree session… greyed out saying why, where the arrow used to be missing.
+  New group… sits with the other ways to add something in a project's options, after the moves and before Rename….
 
 ### Fixed
 

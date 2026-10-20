@@ -1,13 +1,14 @@
 import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../src/shared/defaults';
-import { session } from '../../../support/fixture';
+import { PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
-import { row, stripRow, tab, tabLabel } from '../../../support/window';
+import { groupHeading, projectHeading, row, stripRow, tab, tabLabel } from '../../../support/window';
 
 // THE KEBAB IS COMPLETE; A BUTTON IS A SHORTCUT: every button, dot that is a control and mark that opens something on a session's row, its tab and its strip row has an item in that surface's menu, and so does a press on the row, on the strip row and on a stopped tab.
 // Outside the rule, by decision: a running tab's own press, which only brings it on show; its drag to reorder, which places it rather than acting on the session; its right-click, which is its menu; and its middle-click, which is its button's press.
 // Each visible button, dot that is a control, `.menu-badge` and `.note-badge` on a surface is found in the page rather than listed, in the state the fixture sets up, and must be in the table below, so one added without its item fails here, naming it; a click handler on any other element, or one on the surface itself, is not found.
 // The kebab itself is the menu, so it is in no table.
+// A project's and a group's heading are checked for their + and caret alone, in a fixture with one group and nothing loose, where the project's Jump to a group is hidden: that button has no item, and is outside this check.
 
 /** A control, known by a class it carries, and the label of the item it is the shortcut to. */
 type Shortcuts = [className: string, item: RegExp][];
@@ -31,6 +32,9 @@ const ARCHIVED_ROW: Shortcuts = [
 ];
 const TAB: Shortcuts = [['tab-close', TAB_BUTTON], DOT];
 const STRIP: Shortcuts = [['strip-item-jump', /^Open$/], ['strip-item-stop', TAB_BUTTON], DOT];
+// A heading's "+" and the caret beside it, whose dropdown holds the same two items the heading's menu does.
+const PROJECT_HEADING: Shortcuts = [['project-add', /^New session$/], ['project-add-caret', /^New worktree session…$/]];
+const GROUP_HEADING: Shortcuts = [['group-add', /^New session$/], ['group-add-caret', /^New worktree session…$/]];
 
 /** What on a surface takes a press of its own: its buttons, its dot while that is a control, and the marks that open something. */
 const CONTROLS = 'button:visible, .nudge.clickable:visible, .menu-badge:visible, .note-badge:visible';
@@ -114,4 +118,12 @@ test("every control on an archived session's row is a shortcut to an item in its
   });
   const surface = row(page, full.title);
   await eachControlHasItsItem(page, surface, surface.locator('.session-kebab'), ARCHIVED_ROW);
+});
+
+test("a heading's + and caret are shortcuts to items in its menu", async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [], groupState: { groups: [{ id: 'g-work', name: 'Work', repoRoot: PROJECT }], groupOf: { [full.id]: 'g-work', [sibling.id]: 'g-work' } } });
+  const projectSurface = projectHeading(page, 'demo');
+  await eachControlHasItsItem(page, projectSurface, projectSurface.locator('.project-kebab'), PROJECT_HEADING);
+  const groupSurface = groupHeading(page, 'Work');
+  await eachControlHasItsItem(page, groupSurface, groupSurface.locator('.group-kebab'), GROUP_HEADING);
 });

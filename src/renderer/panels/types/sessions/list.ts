@@ -7,7 +7,7 @@ import { archivedOnlyProjects, isFiltering, pausedChanges, projName, searchText,
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
-import { container, currentByKey, groupSections, jumpTargets, projectSections, renderedSections, sessionRows, statusDots } from './drawn';
+import { container, currentByKey, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
 import { createGroupSection, createProjectSection } from './headings';
@@ -178,11 +178,11 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     const targets = groupJumpTargets(project, view.statuses, view.acked);
     jumpTargets.set(project.repoRoot, targets);
     els.groupsBtn.hidden = targets.length < 2;
-    els.addCaret.hidden = !project.isRepo; // worktree option only for git repos
     // Nothing can be started in a folder that is not there.
     // Disabled rather than hidden: the project still has sessions to read, and a control that vanishes explains nothing — the tooltip does.
     const rootGone = !project.rootExists;
     const goneReason = rootGone ? projectGoneReason(project.repoRoot) : null;
+    projectFacts.set(project.repoRoot, { isRepo: project.isRepo, goneReason });
     setUnavailable(els.addBtn, goneReason, 'New session in this project');
     setUnavailable(els.addCaret, goneReason, 'New session options');
     markProjectGone(project.repoRoot, rootGone, els.label, els.icon, 14, els.label, folderIcon(14));
@@ -191,7 +191,6 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
       const groupEls = groupSections.draw(group.id, createGroupSection);
       groupEls.label.textContent = group.name;
       groupEls.count.textContent = String(sessions.length);
-      groupEls.addCaret.hidden = !project.isRepo; // worktree option only for git repos
       // A group starts its sessions in the project's folder, so it is gated by the same fact.
       setUnavailable(groupEls.addBtn, goneReason, 'New session in this group');
       setUnavailable(groupEls.addCaret, goneReason, 'New session options');

@@ -30,7 +30,7 @@ export interface ProjectSectionEls {
   label: HTMLElement;
   /** Opens the jump-to-a-group menu; hidden below 2 targets. */
   groupsBtn: HTMLButtonElement;
-  /** The new-session split-button's dropdown caret; hidden unless the project is a git repo. */
+  /** The new-session split-button's dropdown caret, on every heading; its worktree item says when the project is no git repository. */
   addCaret: HTMLElement;
   /** The new-session "+" itself, disabled when the project's folder is gone. */
   addBtn: HTMLButtonElement;
@@ -39,6 +39,8 @@ export interface ProjectSectionEls {
 }
 // What each project's group menu offers, refreshed on every render so the menu can't name a group that has since been deleted or renamed.
 export const jumpTargets = new Map<string, GroupJumpTarget[]>();
+/** What a project's folder allows, by repo root, refreshed for each project a render draws, for the menus that start a session there (`newSessionItems`): whether it is a git repository, and why nothing can start in it, null while something can. */
+export const projectFacts = new Map<string, { isRepo: boolean; goneReason: string | null }>();
 // Project sections by repo root, kept across renders as the rows are.
 export const projectSections = new Keyed<ProjectSectionEls>((els) => els.section);
 
@@ -49,7 +51,7 @@ export interface GroupSectionEls {
   caret: HTMLElement;
   label: HTMLElement;
   count: HTMLElement;
-  /** The new-session split-button's dropdown caret; hidden unless the project is a git repo. */
+  /** The new-session split-button's dropdown caret, on every heading; its worktree item says when the project is no git repository. */
   addCaret: HTMLElement;
   /** The new-session "+" itself, disabled when the project's folder is gone. */
   addBtn: HTMLButtonElement;

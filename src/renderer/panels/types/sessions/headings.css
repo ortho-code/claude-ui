@@ -63,7 +63,7 @@
   background: var(--surface-hover);
 }
 
-/* Square the +'s right corners only while the caret sits beside it. */
+/* Square the +'s right corners only while the caret sits beside it, which is always since the caret is on every heading. */
 .split-button:has(.project-add-caret:not([hidden])) .project-add {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
@@ -104,7 +104,7 @@
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
-/* Square the +'s right corners only while the caret sits beside it, so they read as one control. */
+/* Square the +'s right corners only while the caret sits beside it, which is always since the caret is on every heading, so they read as one control. */
 .group h3 .split-button:has(.group-add-caret:not([hidden])) .group-add {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;

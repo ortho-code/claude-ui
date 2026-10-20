@@ -1,12 +1,15 @@
-import { openMenu } from '../../../menu';
+import { openMenu, type MenuItem } from '../../../menu';
+import { store } from '../../../state/app';
+import { projectGroups } from '../../../state/views';
 import { chevronIcon, plusIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
+import { projectFacts } from './drawn';
 import './controls.css';
 
 /**
- * THE SESSION LIST'S SHARED CONTROLS: the new-session split button a project's heading and a group's both carry, and the marks it wears.
+ * THE SESSION LIST'S SHARED CONTROLS: the new-session split button a project's heading and a group's both carry, the marks it wears, and the items that start a session, which its caret and both headings' menus draw.
  * The kebab the headings and the rows carry is the menu's own (`kebabButton`, menu.ts).
  */
 
@@ -27,8 +30,37 @@ interface NewSessionSplit {
   where: () => { repoRoot: string; groupId?: string } | null;
 }
 
+/**
+ * The ways to start a session in a project, filed in `groupId` when given: one list for the caret's dropdown and the project's and the group's menus, so the three cannot drift; the dropdown opens only while the folder is there, its caret being unavailable otherwise.
+ * Each is there whether or not it can be taken, saying why not: the worktree one needs a git repository, and both a folder that is still there (`projectFacts`, as drawn).
+ */
+export function newSessionItems(repoRoot: string, groupId?: string): MenuItem[] {
+  const facts = projectFacts.get(repoRoot);
+  const gone = facts?.goneReason ?? null;
+  const noWorktree = gone ?? (facts?.isRepo ? null : 'Not a git repository');
+  return [
+    gone ? { label: 'New session', disabled: gone } : { label: 'New session', onSelect: () => void hostOf('sessions').openNewSession(repoRoot, groupId) },
+    noWorktree
+      ? { label: 'New worktree session…', disabled: noWorktree }
+      : { label: 'New worktree session…', onSelect: () => void hostOf('sessions').openWorktreeSession(repoRoot, groupId) },
+  ];
+}
+
+/**
+ * A new session in one of the project's groups, each a row of a submenu: every group the project has, including one a filter left without a heading (`projectGroups` reads no filter), which is the way to start in it then.
+ * Plain sessions only; the group's own menu has the worktree one.
+ */
+export function newSessionInGroupItem(repoRoot: string): MenuItem {
+  const label = 'New session in group';
+  const gone = projectFacts.get(repoRoot)?.goneReason ?? null;
+  if (gone) return { label, disabled: gone };
+  const groups = projectGroups(repoRoot, store.get());
+  if (groups.length === 0) return { label, disabled: 'This project has no groups' };
+  return { label, submenu: groups.map((group) => ({ label: group.name, onSelect: () => void hostOf('sessions').openNewSession(repoRoot, group.id) })) };
+}
+
 // A heading's new-session split button: the "+" is one-click "New session"; the caret opens a dropdown with the worktree variant too.
-// reconcileProjectSections shows the caret only for git repos.
+// The caret is on every heading, and its worktree item says when it cannot be taken.
 export function newSessionSplit({ addClass, caretClass, plusSize, tooltip, where }: NewSessionSplit): { split: HTMLElement; add: HTMLButtonElement; addCaret: HTMLButtonElement } {
   const split = document.createElement('div');
   split.className = 'split-button';
@@ -45,17 +77,13 @@ export function newSessionSplit({ addClass, caretClass, plusSize, tooltip, where
   const addCaret = document.createElement('button');
   addCaret.className = `icon-btn composite ${caretClass}`;
   addCaret.innerHTML = chevronDown(9);
-  addCaret.hidden = true;
   setTooltip(addCaret, 'New session options');
   addCaret.addEventListener('click', (event) => {
     event.stopPropagation();
     if (unavailable(addCaret)) return;
     const at = where();
     if (!at) return;
-    openMenu(addCaret, [
-      { label: 'New session', onSelect: () => void hostOf('sessions').openNewSession(at.repoRoot, at.groupId) },
-      { label: 'New worktree session…', onSelect: () => void hostOf('sessions').openWorktreeSession(at.repoRoot, at.groupId) },
-    ]);
+    openMenu(addCaret, newSessionItems(at.repoRoot, at.groupId));
   });
   split.append(add, addCaret);
   return { split, add, addCaret };
