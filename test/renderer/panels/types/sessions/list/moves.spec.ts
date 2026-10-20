@@ -26,9 +26,9 @@ const fixture = {
   },
 };
 
-// After the moves, a project's Jump to group, the ways to add something there, then the heading's own (heading-menu.spec.ts).
+// The ways to add something there, the heading's own, on a project Jump to group, and the moves last of all (heading-menu.spec.ts).
 const GROUP_OWN = ['New session', 'New worktree session…', '—', 'Rename…', 'Delete group'];
-const PROJECT_OWN = ['Jump to group', '—', 'New session', 'New worktree session…', 'New session in group', 'New group…', '—', 'Rename…', 'Copy path'];
+const PROJECT_OWN = ['New session', 'New worktree session…', 'New session in group', 'New group…', '—', 'Rename…', 'Copy path', '—', 'Jump to group'];
 const ALL_MOVES = ['Move to top', 'Move up', 'Move down', 'Move to bottom'];
 
 /** Open the options behind `kebab` and read them as they are listed, a rule as "—". */
@@ -41,17 +41,17 @@ const projectOptions = (page: Page, name: string): Promise<string[]> => optionsO
 
 test("a group's options move it only where it can go", async ({ app, page }) => {
   await app.boot(fixture);
-  expect(await groupOptions(page, 'First')).toEqual(['Move down', 'Move to bottom', '—', ...GROUP_OWN]);
-  expect(await groupOptions(page, 'Middle')).toEqual([...ALL_MOVES, '—', ...GROUP_OWN]);
-  expect(await groupOptions(page, 'Last')).toEqual(['Move to top', 'Move up', '—', ...GROUP_OWN]);
+  expect(await groupOptions(page, 'First')).toEqual([...GROUP_OWN, '—', 'Move down', 'Move to bottom']);
+  expect(await groupOptions(page, 'Middle')).toEqual([...GROUP_OWN, '—', ...ALL_MOVES]);
+  expect(await groupOptions(page, 'Last')).toEqual([...GROUP_OWN, '—', 'Move to top', 'Move up']);
   expect(await groupOptions(page, 'Lone')).toEqual(GROUP_OWN);
 });
 
 test("a project's options move it only where it can go", async ({ app, page }) => {
   await app.boot(fixture);
-  expect(await projectOptions(page, 'demo')).toEqual(['Move down', 'Move to bottom', '—', ...PROJECT_OWN]);
-  expect(await projectOptions(page, 'other')).toEqual([...ALL_MOVES, '—', ...PROJECT_OWN]);
-  expect(await projectOptions(page, 'third')).toEqual(['Move to top', 'Move up', '—', ...PROJECT_OWN]);
+  expect(await projectOptions(page, 'demo')).toEqual([...PROJECT_OWN, '—', 'Move down', 'Move to bottom']);
+  expect(await projectOptions(page, 'other')).toEqual([...PROJECT_OWN, '—', ...ALL_MOVES]);
+  expect(await projectOptions(page, 'third')).toEqual([...PROJECT_OWN, '—', 'Move to top', 'Move up']);
 });
 
 test('while a filter is on, neither a group nor a project offers a move', async ({ app, page }) => {
@@ -68,5 +68,5 @@ test('in a project, its heading offers no move, and its groups still do', async 
   await chooseProject(page, 'other');
   expect(await projectOptions(page, 'other')).toEqual(PROJECT_OWN);
   await chooseProject(page, 'demo');
-  expect(await groupOptions(page, 'Middle')).toEqual([...ALL_MOVES, '—', ...GROUP_OWN]);
+  expect(await groupOptions(page, 'Middle')).toEqual([...GROUP_OWN, '—', ...ALL_MOVES]);
 });

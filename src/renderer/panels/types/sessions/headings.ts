@@ -61,18 +61,18 @@ export function createProjectSection(name: string): ProjectSectionEls {
     where: () => ({ repoRoot: name }),
   });
   heading.append(split);
-  // Project options: after the moves, the jump button's places, as Open and Show in list lead a session's menu; then the ways to add something here together, the "+" and its caret's among them; then the project's own.
+  // Project options: the ways to add something here together, the "+" and its caret's among them; the project's own; the jump button's places; and the moves last (`withMoves`).
   // The button is left out below two places for the room on the heading, which a menu has, so there the item stays, saying why.
   const kebab = kebabButton('project-kebab', 'Project options', () =>
     withMoves(projectMoveItems(name), [
-      (jumpTargets.get(name) ?? []).length < 2 ? { label: 'Jump to group', disabled: 'Nowhere else to jump to in this project' } : { label: 'Jump to group', submenu: jumpItems(name) },
-      { label: '', separator: true },
       ...newSessionItems(name),
       newSessionInGroupItem(name),
       { label: 'New group…', onSelect: () => void promptNewGroup(name) },
       { label: '', separator: true },
       { label: 'Rename…', onSelect: () => void renameProject(name) },
       { label: 'Copy path', onSelect: () => void copyText(name, 'Path copied.') },
+      { label: '', separator: true },
+      (jumpTargets.get(name) ?? []).length < 2 ? { label: 'Jump to group', disabled: 'Nowhere else to jump to in this project' } : { label: 'Jump to group', submenu: jumpItems(name) },
     ]),
   );
   heading.append(kebab);
@@ -112,7 +112,7 @@ export function createGroupSection(id: string): GroupSectionEls {
       return repoRoot ? { repoRoot, groupId: id } : null;
     },
   });
-  // Group options: after the moves, the ways to start a session in it, the "+" and its caret's, then the group's own.
+  // Group options: the ways to start a session in it, the "+" and its caret's, the group's own, and the moves last (`withMoves`).
   const kebab = kebabButton('group-kebab', 'Group options', () => {
     const repoRoot = store.get().groupState.groups.find((g) => g.id === id)?.repoRoot;
     return withMoves(groupMoveItems(id), [

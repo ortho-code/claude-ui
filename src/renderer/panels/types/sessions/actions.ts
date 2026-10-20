@@ -20,9 +20,9 @@ import { revealGroup, revealSession } from './reveal';
  * Each write goes through main and is set in the store, which the list follows; nothing here draws the list.
  */
 
-/** A heading's options: its ordering moves first, above a rule when it has any, then its own. */
+/** A heading's options: its own, then its ordering moves last of all, below a rule when it has any (user, 2026-10-20). */
 export function withMoves(moves: MenuItem[], own: MenuItem[]): MenuItem[] {
-  return [...moves, ...(moves.length > 0 ? [{ label: '', separator: true }] : []), ...own];
+  return [...own, ...(moves.length > 0 ? [{ label: '', separator: true }] : []), ...moves];
 }
 
 // --- Session helpers ---

@@ -110,7 +110,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The app no longer opens an archived session again: an archived sibling in a session's options says it is archived, and a tab left open for one does not come back at the next launch.
 - A session's status dot reacts to a click only while the session is idle or waiting for you, when a click marks it read; any other dot no longer looks clickable, and a click on it does what a click beside it does.
 - The arrow beside a project's or a group's + is there outside a git repository too, its New worktree session… greyed out saying why, where the arrow used to be missing.
-  New group… sits with the other ways to add something in a project's options, after the moves and before Rename….
+  A project's and a group's options open with the ways to add something there, on a project New group… among them, and end with the moves, Move to top, up, down and bottom, where it has any, which used to come first.
 
 ### Fixed
 

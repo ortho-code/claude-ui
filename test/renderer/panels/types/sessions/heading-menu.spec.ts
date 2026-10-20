@@ -5,7 +5,7 @@ import { expect, test } from '../../../support/harness';
 import { groupHeading, projectHeading } from '../../../support/window';
 
 // A heading's menu holds the ways to start a session there, as its "+" and caret do, and the project's reaches every one of its groups, a filter's hidden ones too (docs/architecture.md § A session's menu holds everything about it).
-// After the moves a project's menu has Jump to group, the heading's jump button as an item, then the creating items together: New session, New worktree session…, then on a project New session in group ▸ and New group….
+// The creating items come first, together: New session, New worktree session…, then on a project New session in group ▸ and New group…; then the heading's own; then on a project Jump to group, the heading's jump button as an item; the moves last of all.
 // An item that cannot be taken is there, unavailable and saying why: the worktree one outside a git repository, both where the project's folder is gone.
 const one = session({ title: 'In the repo' });
 const groups = { groups: [{ id: 'g-work', name: 'Work', repoRoot: PROJECT }, { id: 'g-empty', name: 'Empty one', repoRoot: PROJECT }], groupOf: { [one.id]: 'g-work' } };
@@ -21,7 +21,7 @@ test("a project's menu holds the ways to start a session there, together, before
   await app.boot(fixture);
   await projectHeading(page, 'demo').locator('.project-kebab').click();
   // Its one project has nowhere to move.
-  expect(await menuLines(page)).toEqual(['Jump to group', '─', 'New session', 'New worktree session…', 'New session in group', 'New group…', '─', 'Rename…', 'Copy path']);
+  expect(await menuLines(page)).toEqual(['New session', 'New worktree session…', 'New session in group', 'New group…', '─', 'Rename…', 'Copy path', '─', 'Jump to group']);
   await item(page, 'New session').click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[cwd]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
@@ -32,7 +32,7 @@ test("a project's menu holds the ways to start a session there, together, before
 test("a group's menu holds the ways to start a session in it, before its own items", async ({ page, app }) => {
   await app.boot(fixture);
   await groupHeading(page, 'Work').locator('.group-kebab').click();
-  expect(await menuLines(page)).toEqual(['Move down', 'Move to bottom', '─', 'New session', 'New worktree session…', '─', 'Rename…', 'Delete group']);
+  expect(await menuLines(page)).toEqual(['New session', 'New worktree session…', '─', 'Rename…', 'Delete group', '─', 'Move down', 'Move to bottom']);
   await item(page, 'New session').click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[cwd, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
