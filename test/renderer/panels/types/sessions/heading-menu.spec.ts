@@ -5,7 +5,7 @@ import { expect, test } from '../../../support/harness';
 import { groupHeading, projectHeading } from '../../../support/window';
 
 // A heading's menu holds the ways to start a session there, as its "+" and caret do, and the project's reaches every one of its groups, a filter's hidden ones too (docs/architecture.md § A session's menu holds everything about it).
-// The creating items sit together after the moves: New session, New worktree session…, then on a project New session in group ▸ and New group….
+// After the moves a project's menu has Jump to group, the heading's jump button as an item, then the creating items together: New session, New worktree session…, then on a project New session in group ▸ and New group….
 // An item that cannot be taken is there, unavailable and saying why: the worktree one outside a git repository, both where the project's folder is gone.
 const one = session({ title: 'In the repo' });
 const groups = { groups: [{ id: 'g-work', name: 'Work', repoRoot: PROJECT }, { id: 'g-empty', name: 'Empty one', repoRoot: PROJECT }], groupOf: { [one.id]: 'g-work' } };
@@ -21,7 +21,7 @@ test("a project's menu holds the ways to start a session there, together, before
   await app.boot(fixture);
   await projectHeading(page, 'demo').locator('.project-kebab').click();
   // Its one project has nowhere to move.
-  expect(await menuLines(page)).toEqual(['New session', 'New worktree session…', 'New session in group', 'New group…', '─', 'Rename…', 'Copy path']);
+  expect(await menuLines(page)).toEqual(['Jump to group', '─', 'New session', 'New worktree session…', 'New session in group', 'New group…', '─', 'Rename…', 'Copy path']);
   await item(page, 'New session').click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[cwd]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
@@ -83,4 +83,25 @@ test("where the project's folder is gone, the ways to start a session are in its
   }
   await projectHeading(page, 'demo').locator('.project-kebab').click();
   await expect(item(page, 'New session in group')).toHaveAttribute('data-tooltip', reason);
+});
+
+test("a project's Jump to group holds what its heading's jump button does, and goes there", async ({ page, app }) => {
+  await app.boot(fixture);
+  await projectHeading(page, 'demo').locator('.project-groups').click();
+  const fromButton = await page.locator('.kebab-menu .menu-row .menu-item-label').allTextContents();
+  await page.keyboard.press('Escape');
+  await projectHeading(page, 'demo').locator('.project-kebab').click();
+  await item(page, 'Jump to group').hover();
+  await expect(page.locator('.kebab-menu.submenu .menu-row .menu-item-label')).toHaveText(fromButton);
+  expect(fromButton).toEqual(['Work', 'Empty one']);
+  await page.locator('.kebab-menu.submenu .menu-row').filter({ hasText: 'Empty one' }).click();
+  await expect(groupHeading(page, 'Empty one')).toHaveClass(/\bflash\b/);
+});
+
+// The button is left out below two places to go, for the room on the heading; the item stays, saying why.
+test("with one place to jump to, a project's Jump to group is unavailable and says why", async ({ page, app }) => {
+  await app.boot({ ...fixture, groupState: { groups: [groups.groups[0]], groupOf: groups.groupOf } });
+  await expect(projectHeading(page, 'demo').locator('.project-groups')).toBeHidden();
+  await projectHeading(page, 'demo').locator('.project-kebab').click();
+  await expect(item(page, 'Jump to group')).toHaveAttribute('data-tooltip', 'Nowhere else to jump to in this project');
 });

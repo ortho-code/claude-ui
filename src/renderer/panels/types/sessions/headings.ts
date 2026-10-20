@@ -16,6 +16,23 @@ import './headings.css';
  * What they show — names, counts, folds, the rows — the draw writes into them on every render (list.ts).
  */
 
+// The places a project's jump goes, as drawn (`jumpTargets`): its groups, then a rule and where its loose rows start, the one list for the heading's jump button and its menu's Jump to group.
+function jumpItems(repoRoot: string): MenuItem[] {
+  const items: MenuItem[] = [];
+  for (const t of jumpTargets.get(repoRoot) ?? []) {
+    // A rule before the ungrouped entry: it is a different KIND of target, not another group.
+    if (t.groupId === null && items.length > 0) items.push({ label: '', separator: true });
+    items.push({
+      label: t.name,
+      count: t.count,
+      badge: t.badge,
+      muted: t.groupId === null,
+      onSelect: () => revealGroup(repoRoot, t.groupId),
+    });
+  }
+  return items;
+}
+
 // Build a project section once; its contents (name, count, caret, rows) are drawn by reconcileProjectSections, on this render and every later one.
 export function createProjectSection(name: string): ProjectSectionEls {
   const section = document.createElement('section');
@@ -33,20 +50,7 @@ export function createProjectSection(name: string): ProjectSectionEls {
   setTooltip(groupsBtn, 'Jump to a group');
   groupsBtn.addEventListener('click', (event) => {
     event.stopPropagation(); // don't collapse the project
-    const targets = jumpTargets.get(name) ?? [];
-    const items: MenuItem[] = [];
-    for (const t of targets) {
-      // A rule before the ungrouped entry: it is a different KIND of target, not another group.
-      if (t.groupId === null && items.length > 0) items.push({ label: '', separator: true });
-      items.push({
-        label: t.name,
-        count: t.count,
-        badge: t.badge,
-        muted: t.groupId === null,
-        onSelect: () => revealGroup(name, t.groupId),
-      });
-    }
-    openMenu(groupsBtn, items);
+    openMenu(groupsBtn, jumpItems(name));
   });
   heading.append(groupsBtn);
   const { split, add, addCaret } = newSessionSplit({
@@ -57,9 +61,12 @@ export function createProjectSection(name: string): ProjectSectionEls {
     where: () => ({ repoRoot: name }),
   });
   heading.append(split);
-  // Project options: after the moves, the ways to add something here together, the "+" and its caret's among them, then the project's own.
+  // Project options: after the moves, the jump button's places, as Open and Show in list lead a session's menu; then the ways to add something here together, the "+" and its caret's among them; then the project's own.
+  // The button is left out below two places for the room on the heading, which a menu has, so there the item stays, saying why.
   const kebab = kebabButton('project-kebab', 'Project options', () =>
     withMoves(projectMoveItems(name), [
+      (jumpTargets.get(name) ?? []).length < 2 ? { label: 'Jump to group', disabled: 'Nowhere else to jump to in this project' } : { label: 'Jump to group', submenu: jumpItems(name) },
+      { label: '', separator: true },
       ...newSessionItems(name),
       newSessionInGroupItem(name),
       { label: 'New group…', onSelect: () => void promptNewGroup(name) },

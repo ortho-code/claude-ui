@@ -79,7 +79,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's options now hold the actions you could only take from its row, tab or strip row, so a session can be dealt with from wherever it is listed: Open, Show in list, Pin in list, Mark as read, and the tab's Stop session, Force stop or Close tab.
   Show in list from a tab or the strip widens the list to All when it shows another project, so the tab you are in stays on show.
 - A session in the archived view has options too: what it is, its siblings, PRs and note, its id, Unarchive and Delete.
-- A project's and a group's options start a session there, New session and New worktree session…, and a project's has New session in group, which reaches a group the filter hides as well.
+- A project's and a group's options start a session there, New session and New worktree session…, and a project's has New session in group, which reaches a group the filter hides as well, and Jump to group, to the places its heading's jump button offers.
 
 ### Changed
 
