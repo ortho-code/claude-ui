@@ -143,7 +143,7 @@ export interface TabState {
    * Paused: set aside by you to come back to (`pauseTab`), its claude asked to leave as a stop asks it, and kept for the next launch, which restores the tab paused and never starts it.
    * NOTHING IS SUSPENDED: the process is ended, not frozen, and resuming reloads the conversation, as resuming any cold tab does.
    * Its session's dot shows it once claude has gone (`dotStatus`), so it stands apart from the cold tabs that came back from a restart.
-   * The mark stays until its session's process arrives, a prompt calls the pause off, or you unpause it; a start that fails within its first moments gives it back, and one that is refused or throws never clears it.
+   * The mark stays until its session's process arrives, a prompt calls the pause off, or you choose Stop session (`stopPausedTab`), which only takes the mark off; a start that fails within its first moments gives it back, and one that is refused or throws never clears it.
    */
   paused: boolean;
   /**

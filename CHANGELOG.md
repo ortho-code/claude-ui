@@ -45,11 +45,11 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   `next=off` leaves it until something else runs it, and a `command` panel and a type of your own read it alike.
 - A `watch` option, `"watch": "git"`, runs a panel again when the git working tree of its folder changes, looked at every 30 seconds, out of sight too, once a burst of changes has settled.
   A folder in no working tree says so in the panel's place, and when git cannot answer the panel's check it asks again three times, then waits until something looks again, such as Refresh.
-- Pausing a tab, from its session's menu, to set it aside without keeping it running: claude is asked to leave, as a stop asks it, and the tab stays, its dot showing two bars, until you open it again or choose Unpause.
+- Pausing a tab, from its session's menu, to set it aside without keeping it running: claude is asked to leave, as a stop asks it, and the tab stays, its dot showing two bars, until you open it again or choose Stop session, which leaves it an ordinary stopped tab.
   A paused tab comes back paused at the next launch and does not start.
 - The live strip lists paused tabs beside the running sessions, in their place in tab order, so it also comes up at launch when a paused tab comes back.
   Its line counts them apart, such as `2 live · 1 paused`, and a paused row's button closes its tab.
-- Each row of the live strip has its session's menu, the one its row in the session list has, so a session in another project can be paused or unpaused from where you are.
+- Each row of the live strip has its session's menu, the one its row in the session list has, so a session in another project can be paused, or a paused one stopped, from where you are.
 - Each tab has its session's menu too, from a kebab beside its button or a right-click on the tab.
   Every tab is 12px wider to make room for the kebab, so a long title shows as much as before.
 - A row of a panel type of your own can show a tooltip on its first line, from a `tooltip` the script gives it, such as all of what that line shortens.

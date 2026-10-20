@@ -228,10 +228,10 @@ test("a paused row's button closes its tab, and the row leaves the strip", async
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
-test('a paused row leaves the strip when its tab is unpaused, and a click on it resumes the session', async ({ app, page }) => {
+test('a paused row leaves the strip when its session is stopped, and a click on it resumes the session', async ({ app, page }) => {
   await app.boot({ sessions: [loose, inFirst], openSessions: [loose.id, inFirst.id], pausedSessions: [loose.id, inFirst.id], history: { [loose.id]: [], [inFirst.id]: [] } });
   await row(page, loose.title).locator('.session-kebab').click();
-  await page.locator('.kebab-menu button', { hasText: /^Unpause$/ }).click();
+  await page.locator('.kebab-menu button', { hasText: /^Stop session$/ }).click();
   await expect(stripNames(page)).toHaveText([inFirst.title]);
 
   await stripJump(page, inFirst.title).click();

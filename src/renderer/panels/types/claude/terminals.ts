@@ -518,8 +518,8 @@ export function pauseTab(token: string): void {
   else if (tab.terminalId === null) clearNudge(tab.session.id);
 }
 
-/** Take a tab's paused mark off, and nothing else: a pause still waiting for claude to leave goes on as a stop, and leaves the tab cold. */
-export function unpauseTab(token: string): void {
+/** Stop a paused tab, its menu's Stop session: take the paused mark off, and nothing else, so it is an ordinary stopped tab; a pause still waiting for claude to leave goes on as a stop, and leaves the tab cold. */
+export function stopPausedTab(token: string): void {
   if (!tabOf(token)?.paused) return;
   setTab(token, { paused: false });
   persistOpenTabs();

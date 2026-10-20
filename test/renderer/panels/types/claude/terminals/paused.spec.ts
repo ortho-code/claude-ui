@@ -5,7 +5,7 @@ import { type App, expect, test } from '../../../../support/harness';
 import { row, switcherEntry, tab } from '../../../../support/window';
 
 // Pausing sets a tab aside from its session's menu: a running session's claude is asked to leave, and a cold tab is only marked; the session's own dots then show it paused.
-// A tab you paused is kept as paused with the open tabs, comes back paused at the next launch without starting, and loses the mark only when its session runs again or you unpause it.
+// A tab you paused is kept as paused with the open tabs, comes back paused at the next launch without starting, and loses the mark only when its session runs again or you choose Stop session in its menu, the running one's word, which leaves a cold or leaving tab an ordinary stopped one.
 const one = session();
 const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Second session' });
 // A tab on show has its history read; what it holds is not what is checked here.
@@ -17,7 +17,7 @@ const FIRST = 1;
 const lastKept = async (app: App): Promise<unknown> => (await app.calls('setOpenSessions')).at(-1);
 
 /** Choose an item of a session's menu, from its row's kebab. */
-async function fromMenu(page: Page, title: string, item: 'Pause' | 'Unpause'): Promise<void> {
+async function fromMenu(page: Page, title: string, item: 'Pause' | 'Stop session'): Promise<void> {
   await row(page, title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button', { hasText: new RegExp(`^${item}$`) }).click();
 }
@@ -64,15 +64,47 @@ test('pausing a cold tab forgets the status it still held, so nothing nudges for
   expect(await app.calls('clearStatus')).toEqual([[one.id]]);
 });
 
-test('unpausing takes the mark off and leaves the tab cold', async ({ app, page }) => {
+test('stopping a paused session takes the mark off and leaves the tab cold', async ({ app, page }) => {
   await app.boot({ sessions: [one], openSessions: [one.id], pausedSessions: [one.id], history });
   await expect(tabDot(page, one.title)).toHaveClass(/\bpaused\b/);
-  await fromMenu(page, one.title, 'Unpause');
+  await fromMenu(page, one.title, 'Stop session');
   await expect(tabDot(page, one.title)).not.toHaveClass(/\bpaused\b/);
   await expect(rowDot(page, one.title)).not.toHaveClass(/\bpaused\b/);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
   await expect.poll(() => lastKept(app)).toEqual([[one.id], [], []]);
   expect(await app.calls('startTerminal')).toEqual([]);
+});
+
+// While a pause still waits for claude to leave, the tab's button says it is stopping until the stop can be forced, and the menu's Stop session is the one that takes the mark off, so it is there once, and available.
+test("a paused tab whose claude is still leaving has one Stop session in its menu, which takes the mark off", async ({ app, page }) => {
+  await app.boot({ history });
+  await row(page, one.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await fromMenu(page, one.title, 'Pause');
+  // Asked to leave, and not gone yet.
+  await expect.poll(() => app.calls('closeTerminal')).toHaveLength(1);
+  await row(page, one.title).locator('.session-kebab').click();
+  const stop = page.locator('.kebab-menu button.menu-row', { hasText: /^Stop session$/ });
+  await expect(stop).toHaveCount(1);
+  await expect(stop).not.toHaveClass(/\bunavailable\b/);
+  await stop.click();
+  // The stop goes on; once claude has gone the tab is an ordinary stopped one, kept as open and not as paused.
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+  await expect(tabDot(page, one.title)).not.toHaveClass(/\bpaused\b/);
+  await expect.poll(() => lastKept(app)).toEqual([[one.id], [], []]);
+});
+
+// Opening a paused tab starts it, and the mark goes when its process arrives: until then there is nothing to stop yet, so Stop session says so, as the tab's button does, rather than offering to take the mark off while the start goes on.
+test('a paused tab that is starting offers no Stop session yet, and says why', async ({ app, page }) => {
+  await app.boot({ sessions: [one], openSessions: [one.id], pausedSessions: [one.id], history });
+  await app.hold('startTerminal');
+  await tab(page, one.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await row(page, one.title).locator('.session-kebab').click();
+  const stop = page.locator('.kebab-menu button.menu-row', { hasText: /^Stop session$/ });
+  await expect(stop).toHaveCount(1);
+  await expect(stop).toHaveAttribute('data-tooltip', 'Starting…');
 });
 
 test('a session without a tab has no pause in its menu', async ({ app, page }) => {

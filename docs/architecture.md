@@ -240,10 +240,12 @@ Those two marks answer the same question, so they answer it the same way — acc
 
 A cold tab can also be **paused**: set aside to come back to, a mark beside the cold state rather than a fourth state, so everything that reads `terminalId` goes on reading it unchanged (`paused`).
 It exists because a stopped tab and one that came back cold from a restart looked the same, and a pile of the second kind hid the few still in hand.
-Pause and Unpause are in the session's menu while the session has a tab, Pause unavailable while the tab is starting: pausing a running session asks its claude to leave as a stop does, and the mark is set at once, so a pause still waiting for claude to leave is kept as paused; pausing a cold tab only marks it, and forgets any status it still held.
+Pause is in the session's menu while the session has a tab and is not paused, unavailable while the tab is starting, and a paused tab's way out is **Stop session**, the word a running session's stop uses, since both leave an ordinary stopped tab: it takes the mark off and starts nothing (`stopPausedTab`); while the paused tab starts, which clears the mark as its process arrives, it is any starting tab's Stop session, unavailable.
+It was called Unpause, a word for coming back on an act that does not (user, 2026-10-20).
+Pausing a running session asks its claude to leave as a stop does, and the mark is set at once, so a pause still waiting for claude to leave is kept as paused; pausing a cold tab only marks it, and forgets any status it still held.
 Nothing is suspended: the process is ended, not frozen, and opening the tab resumes the session as any cold tab's does, reloading its conversation.
 A prompt reported before claude has gone calls the pause off with the stop; one submitted just before the pause can do so too, and the tab then closes at the exit, as it does for a stop.
-An Unpause during that wait lets the stop go on, leaving the tab cold.
+Stop session during that wait lets the stop go on, leaving the tab cold; the tab button's own item, which says Stopping… then, is left out of the menu meanwhile, so Stop session is listed once, and once the stop can be forced Force stop is listed beside it.
 The mark is a state of the session's dot (`dotStatus`), two bars in place of its last report once claude has gone, so every dot that stands for one session reads it from one rule: the tab's, the session row's, the strip's, and a list panel's row mark and session menu items.
 A roll-up, such as a project's in the switcher, and the attention toasts read the status itself, which for a session claude has left is `closed` and nudges nothing.
 A paused dot never shows the session's mark read, since it reports no claude, and it is no control, as no dot is but an idle or a waiting one (`canMarkRead`, § A session's menu holds everything about it): a click on it goes to what holds it, which opens the session and so resumes it, unless its folder has gone.
@@ -252,7 +254,7 @@ The live strip lists paused tabs beside the running sessions: its membership is 
 A paused row keeps its place in tab order rather than gathering in a section of its own, so pausing or resuming a session never moves its row, and the strip now comes up at launch whenever a paused tab is restored, where it used to start empty and hidden.
 Its line counts the two apart, `2 of 5 need you · 3 paused`, so "live" stays true of what it counts, and the line never counts a paused session as wanting you, whatever status it still holds.
 A row's button is its tab's button, drawn by the same rule (`tabButtonState`) and pressed through the same function (`closeOrStop`), so on a paused row it closes the tab, as the tab's own button does on a cold tab.
-Beside it, a kebab opens the session's menu (`sessionMenuItems`), the button's press among its items, so a session in another project can be shown in the list, paused, unpaused, marked read, noted, filed, stopped or archived without going there; Open, Fork and a sibling take you to the tab they open.
+Beside it, a kebab opens the session's menu (`sessionMenuItems`), the button's press among its items, so a session in another project can be shown in the list, paused, marked read, noted, filed, stopped or archived without going there; Open, Fork and a sibling take you to the tab they open.
 
 Paused rows accumulate, where running ones clear themselves by ending, so a project can be hidden from the strip from the eye on its heading (`state/strip.ts`), kept in the stored view as `stripHiddenProjects`.
 Its heading and rows leave the strip, and a Hidden line at the list's foot counts the hidden projects and carries their roll-up, the switcher's per project, so a session waiting in one still reaches you though its row is not listed.
@@ -332,7 +334,7 @@ It was the other way round before: the tab's and the strip's kebab left out the 
 **What the session is comes first**: a header that is not an item (`MenuItem.header`) — its title, project · group · status, last activity · model, when it was archived, worktree, the first line of its note, and why it cannot run — drawn from the helpers its row uses (`sessions/describe.ts`), since the tab and the strip show little of it themselves.
 A line too long for the menu, which every popover caps at 300px, is cut and carries its whole text as its tooltip.
 
-**One order on every surface**: Open, Show in list, Fork, Siblings and PRs; Pin in list, Mark as read, the note, Move to group and Copy id; a rule; then Pause or Unpause, the tab's button and Archive.
+**One order on every surface**: Open, Show in list, Fork, Siblings and PRs; Pin in list, Mark as read, the note, Move to group and Copy id; a rule; then Pause, or Stop session on a paused tab, the tab's button and Archive.
 An item that applies but cannot be taken now stays, unavailable with its reason, as Close tab does with no tab ("Not open in a tab"), since a menu that changes shape is one you have to read again.
 One that would be the surface itself is left out — Show in list on the row, Open on a tab that is running, starting or stopping — and so is Pause without a tab, a deliberate exception.
 **Open** is what a press on the surface does: on the row it opens the tab where you are, on the strip row it takes you to it, and on a cold or paused tab it starts it.
