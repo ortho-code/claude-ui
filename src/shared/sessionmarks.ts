@@ -20,16 +20,19 @@ export function togglePinned(pinned: readonly string[], id: string): string[] {
 
 /** An archive entry toggled: gone if it was there, there from `now` if it was not. */
 export function toggleArchived(archived: Readonly<Record<string, number>>, id: string, now: number): Record<string, number> {
+  return id in archived ? unarchived(archived, id) : { ...archived, [id]: now };
+}
+
+/** An archive entry gone, whether or not it was there. */
+export function unarchived(archived: Readonly<Record<string, number>>, id: string): Record<string, number> {
   const next = { ...archived };
-  if (id in next) delete next[id];
-  else next[id] = now;
+  delete next[id];
   return next;
 }
 
 /** A deleted session's marks forgotten: its pin, its archive entry and its note (`purgedSession` forgets the rest of what meta holds about it). */
 export function withoutSession(marks: Readonly<SessionMarks>, id: string): SessionMarks {
-  const archived = { ...marks.archived };
-  delete archived[id];
+  const archived = unarchived(marks.archived, id);
   const notes = { ...marks.notes };
   delete notes[id];
   return { pinned: marks.pinned.filter((key) => key !== id), archived, notes };

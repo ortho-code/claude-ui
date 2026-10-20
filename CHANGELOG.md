@@ -164,6 +164,10 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A button that can't act for the moment, such as a tab's while its session starts, can be reached with the keyboard to read why, instead of being skipped.
 - On macOS, the folder picker behind + New can make a new folder.
 - A session that published an artifact no longer stays on working in the background: claude watching the artifact for comments is not counted as work.
+- A session you go on in with claude's own `/resume` inside a tab keeps its title and its group, instead of being taken for a cleared one: a blank title, and moved into the group of the session the tab ran before.
+  An archived session resumed that way is unarchived, and a message says so.
+- A session you go on in with claude's own `/resume` while another tab runs it is handed back: that claude is stopped, its tab stays on the session it was on, and the tab running the session comes on show, since two claudes in one session branch it, and a later resume shows only one of their turns.
+  A tab that only held the session, with nothing running, closes instead.
 
 ## 0.3.0 — 2026-08-29
 

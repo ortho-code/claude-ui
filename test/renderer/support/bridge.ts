@@ -2,7 +2,7 @@ import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
-import { purgedSession, togglePinned, toggleArchived } from '../../../src/shared/sessionmarks';
+import { purgedSession, togglePinned, toggleArchived, unarchived } from '../../../src/shared/sessionmarks';
 import { appFileChanges, SETTING_KEYS, settingProblem, settingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -94,6 +94,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
     getArchived: () => answer(fixture.archived),
     toggleArchive: (id) => answer((fixture.archived = toggleArchived(fixture.archived, id, Date.now()))),
+    unarchive: (id) => answer((fixture.archived = unarchived(fixture.archived, id))),
     // Main moves the transcript to the trash, so the listing no longer has it, forgets its status, and purges it from meta by main's own rule: its marks, its open tab, the tab to reopen on, its group.
     // A panel row linked to it is forgotten with an event the stand-in does not fire, so that delete is main's to answer, not this.
     deleteSession: (id) => {
@@ -163,6 +164,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     openExternal: sent,
     getAllStatuses: () => answer(fixture.statuses),
     onSessionStatus: on('onSessionStatus'),
+    onSessionStart: on('onSessionStart'),
     onSessionModel: on('onSessionModel'),
     clearStatus: sent,
     // A claude that has started and printed nothing yet: its tab boots until a check fires `onTerminalData` for it.

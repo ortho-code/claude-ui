@@ -20,7 +20,7 @@ export const SCOPE_ENV = 'CLAUDE_UI';
  *
  * `--session-id` gives a session its identity at birth, and that is the whole of it for a session that runs and ends.
  * This exists for the one thing that flag cannot cover: an id changing MID-LIFE.
- * `/clear` ends the session and starts a fresh one, with an id Claude Code chooses, in the same terminal — without this the tab would go on pointing at the session that just ended.
+ * `/clear` ends the session and starts a fresh one, with an id Claude Code chooses, in the same terminal — without this the tab would go on pointing at the session that just ended; claude's own `/resume` does the same into a session that already exists, under that session's id.
  */
 export const TAB_ENV = 'CLAUDE_UI_TAB';
 
@@ -60,7 +60,7 @@ const HOOK_EVENTS: [string, string][] = [
   // `PostCompact` would be the obvious end signal, but a probe on 2026-08-29 never observed it firing and could not prove it ever does; `SessionStart` was observed.
   ['PreCompact', 'busy'],
   // Two jobs, and only one of them is a status.
-  // IDENTITY, always: the payload's session id is what this terminal is running NOW, which is how a tab follows a `/clear` onto the session that replaced it.
+  // IDENTITY, always: the payload's session id is what this terminal is running NOW, which is how a tab follows a `/clear` or claude's own `/resume` onto the session that replaced it; the script writes it with its source to a file of its own (`<id>.start`), since the status file below keeps a status it already has.
   // A STATUS, only for `source=compact`, where it means the compaction above has ended; the script turns that one into `idle` and leaves every other source as the identity-only marker `start`.
   // It must never overwrite a real status, because these files seed the dots at launch and this event also fires mid-session — the script guards that too.
   ['SessionStart', 'start'],
@@ -120,6 +120,9 @@ if [ "$status" = idle ]; then
   keep_stop=1
 elif [ "$status" = start ] && [ "$(field source)" != compact ]; then
   printf '{}' > "$dir/$sid.stop"
+  # Which session this terminal runs from now, and why, in a file of its own as a model switch is: the status file below keeps a status it already has, so a resume into a session that has one would otherwise reach the app only with its next prompt.
+  # Written before that status file, though the app may still hear either first: it reads each file as it changes, and the reads can finish in either order.
+  printf '{"tab":"%s","source":"%s"}' "\${CLAUDE_UI_TAB:-}" "$(field source)" > "$dir/$sid.start"
 fi
 # Stop lists the work still running behind the turn it ends, and while any runs the session has not finished: it reports background in idle's place, with the type claude gives each piece of work.
 # Only a "type" key can match, never one inside a string, whose quotes arrive escaped; Stop's own fields have none, so each match is one entry of the list.
@@ -226,7 +229,7 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('status:getAll', () => readAllStatuses());
   // Only once its claude has gone, so what its last Stop left running goes too.
   ipcMain.on('status:clear', (_event, id: string) => {
-    for (const file of [`${id}.json`, `${id}.stop`]) void fs.rm(path.join(statusDir, file)).catch(() => {});
+    for (const file of [`${id}.json`, `${id}.stop`, `${id}.start`]) void fs.rm(path.join(statusDir, file)).catch(() => {});
   });
 
   watch(statusDir, (_event, filename) => {
@@ -244,6 +247,15 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
         .catch(() => {});
       return;
     }
+    // A claude starting on a session, which is identity rather than a state, and like a model switch not read at launch: the tabs restored then say which session each runs.
+    if (filename.endsWith('.start')) {
+      const id = filename.slice(0, -'.start'.length);
+      void readStart(id).then((start) => {
+        const win = getWindow();
+        if (start && win && !win.isDestroyed()) win.webContents.send('session:start', id, start.tab, start.source);
+      });
+      return;
+    }
     if (!filename.endsWith('.json')) return;
     const id = filename.replace(/\.json$/, '');
     void readStatus(id).then((entry) => {
@@ -252,6 +264,16 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
       if (win && !win.isDestroyed()) win.webContents.send('session:status', id, entry.status, entry.tab, entry.event, entry.background);
     });
   });
+}
+
+/** What a claude starting on a session wrote: the terminal it runs in (TAB_ENV) and SessionStart's source; null when the file is gone or not one. */
+async function readStart(id: string): Promise<{ tab: string; source: string } | null> {
+  try {
+    const parsed = JSON.parse(await fs.readFile(path.join(statusDir, `${id}.start`), 'utf8')) as { tab?: unknown; source?: unknown };
+    return { tab: typeof parsed.tab === 'string' ? parsed.tab : '', source: typeof parsed.source === 'string' ? parsed.source : '' };
+  } catch {
+    return null;
+  }
 }
 
 interface StatusEntry {

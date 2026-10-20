@@ -64,10 +64,17 @@ window.claudeUi.onSessionStatus((id, status, tabToken, event, background) => {
   // 'start' reports which session a tab is running, not a state it is in — and it fires mid-session on clear and compact, where setting a status would wipe a live one.
   // The one SessionStart that does mean a state (a compaction ending) reaches us as 'idle', not as this.
   if (status === 'start') return;
+  // An end reported from another tab than the one holding the session is not the session's: a claude that resumed a session another tab runs is asked to leave for it (`adoptResumed`), and reports the session's end on its way out while it runs on.
+  // Only an end: one the app reads from a transcript carries the tab the status file last named, which after a restart is not the tab running the session now, and is the session's all the same.
+  const holder = tabWith(id);
+  if (event === 'SessionEnd' && tabToken && holder && holder.token !== tabToken) return;
   setStatus(id, status, background);
   // A new session's title isn't on disk immediately; re-read on its status events until it is (this also replaces the tab's own stand-in row with the real one).
   if (tabWith(id) && !store.get().sessions.some((s) => s.id === id)) void refreshFromDisk();
 });
+
+// A claude starting on a session: a tab whose claude went on in another, by `/clear` or its own `/resume`, takes that one over.
+window.claudeUi.onSessionStart((id, tabToken, source) => claudeWatch.sessionStart(id, tabToken, source));
 
 window.claudeUi.onSessionModel((id, model) => {
   store.set({ switchedModel: withEntry(store.get().switchedModel, id, model) });

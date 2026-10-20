@@ -349,6 +349,8 @@ export interface ClaudeUiApi {
   getArchived(): Promise<Record<string, number>>;
   /** Toggle a session's archived state; resolves to the updated archived map. */
   toggleArchive(id: string): Promise<Record<string, number>>;
+  /** Unarchive a session, whatever its state, so a second call leaves the archived map as it is; resolves to the updated archived map. */
+  unarchive(id: string): Promise<Record<string, number>>;
   /**
    * Delete a session: move its transcript file to the trash and drop it from metadata.
    * The renderer confirms first via its own modal.
@@ -457,6 +459,11 @@ export interface ClaudeUiApi {
    * `background` comes with that status alone: the type claude gives each piece of work still running behind the finished turn, such as `shell` or `subagent`.
    */
   onSessionStatus(callback: (id: string, status: string, tab: string, event: string, background?: string[]) => void): void;
+  /**
+   * Subscribe to a claude starting on a session: which session the terminal `tab` runs from now, and why, as claude's SessionStart says (`startup`, `resume`, `clear`; a compaction's is a status instead).
+   * It arrives for every such start, of a session with a status already too, which `onSessionStatus` never hears of.
+   */
+  onSessionStart(callback: (id: string, tab: string, source: string) => void): void;
   /**
    * Subscribe to a session changing model.
    * Only a live switch arrives here; a session's model at rest comes from its transcript, which records which model answered.

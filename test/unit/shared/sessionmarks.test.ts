@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { purgedSession, togglePinned, toggleArchived, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
+import { purgedSession, togglePinned, toggleArchived, unarchived, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -18,6 +18,15 @@ describe('toggleArchived', () => {
     const archived = { a: 1 };
     expect(toggleArchived(archived, 'b', 42)).toEqual({ a: 1, b: 42 });
     expect(toggleArchived(archived, 'a', 42)).toEqual({});
+    expect(archived).toEqual({ a: 1 });
+  });
+});
+
+describe('unarchived', () => {
+  it('unarchives, and leaves a session that is not archived as it is', () => {
+    const archived = { a: 1 };
+    expect(unarchived(archived, 'a')).toEqual({});
+    expect(unarchived(archived, 'b')).toEqual({ a: 1 });
     expect(archived).toEqual({ a: 1 });
   });
 });

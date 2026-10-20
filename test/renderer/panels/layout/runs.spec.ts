@@ -98,7 +98,7 @@ test("a /clear in the tab on show runs the command beside it again, once, under 
 
   const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
   expect(await app.emit('onTerminalData', 1, 'claude is here')).toBe(1);
-  expect(await app.emit('onSessionStatus', next, 'start', launch.tabToken ?? '', 'SessionStart')).toBe(1);
+  expect(await app.emit('onSessionStart', next, launch.tabToken ?? '', 'clear')).toBe(1);
   await expect(tabLabels(page)).toHaveText(['New: demo']);
   await expect.poll(() => sessionsOf(app)).toEqual(['', a.id, next]);
 });

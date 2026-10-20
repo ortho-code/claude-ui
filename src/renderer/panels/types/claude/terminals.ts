@@ -1,12 +1,12 @@
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { SessionSummary } from '../../../../shared/types';
-import { entityKey, hasVisibleOutput, sessionsByKey, unstartableReason } from '../../../logic';
+import { entityKey, hasVisibleOutput, sessionLabel, sessionsByKey, unstartableReason } from '../../../logic';
 import { newSession, untitledLabel } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
 import { clearNudge } from '../../../state/statuses';
-import { tabOnShow } from '../../../state/views';
+import { sessionById, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
 import { fromMarkup } from '../../../dom';
@@ -395,7 +395,8 @@ function removeTab(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
   clearForceTimer(token);
-  clearNudge(tab.session.id);
+  // Its session's status goes with it, unless another tab holds the session, whose status it is then (`adoptResumed`).
+  if (!store.get().tabs.some((t) => t.token !== token && t.session.id === tab.session.id)) clearNudge(tab.session.id);
   const terminal = terminalOf(token);
   terminal.term.dispose();
   terminal.el.remove();
@@ -458,6 +459,18 @@ function forceStop(token: string): void {
   if (!tab?.forceable || tab.terminalId === null) return;
   setTab(token, { forceable: false });
   window.claudeUi.killTerminal(tab.terminalId);
+}
+
+/**
+ * End a tab's claude without asking it, keeping the tab, cold: for a claude that must not go on, which an ask it ignores would leave running.
+ * The tab says it is stopping until the exit lands, as any stop does, and the exit cools it.
+ */
+function forceOutAtOnce(token: string): void {
+  if (tabOf(token)?.terminalId == null) return;
+  clearForceTimer(token);
+  // A stop already past its ask, so the force is the one every stop ends in.
+  setTab(token, { stopping: true, closing: false, forceable: true });
+  forceStop(token);
 }
 
 /**
@@ -570,40 +583,73 @@ export function closeTab(token: string): void {
   askToLeave(token, tab.terminalId, true);
 }
 
-/** A status event named the session a tab now runs: when that is another session than the tab's, the tab takes it over. */
-export function adoptReplacement(tabToken: string, id: string): void {
-  // A tab's session can be REPLACED under it: `/clear` ends the session and starts a fresh one in the same terminal, under an id Claude Code chooses rather than one the app passed as `--session-id`.
+/**
+ * A claude's start or a status event named the session a tab now runs: when that is another session than the tab's, the tab takes it over.
+ * `source` is why, as claude's SessionStart says: only `clear` makes it a new session, and '' (a status event, which does not say) is taken as an existing one, since a clear's part done to one would move it out of its group.
+ * Answers the tab already running that session when the take-over was undone for it (`adoptResumed`), for the caller to bring on show; else null.
+ */
+export function adoptReplacement(tabToken: string, id: string, source: string): TabState | null {
+  // A tab's session can be REPLACED under it: `/clear` ends the session and starts a fresh one in the same terminal, under an id Claude Code chooses rather than one the app passed as `--session-id`, and claude's own `/resume` goes on in another session that already exists, under that session's id.
   // The token is what ties the two together — without this the tab would keep pointing at the session that just ended, and resuming it later would reopen the wrong history.
   const owner = tabOf(tabToken);
-  if (owner && owner.session.id !== id) {
-    const previous = owner.session;
-    const replaced = previous.id;
-    // A CLEARED SESSION IS A NEW SESSION, so it starts from the same blank the "+" button does rather than from its predecessor's row.
-    // Carrying the old object forward was the app's own half of the copied-title problem: it kept the title, the first message and the sibling marks of a conversation this session does not have.
-    // The folder is all that genuinely survives — it is the same terminal, in the same place.
-    // Everything that draws the tab follows: the bar names the new session, its stand-in row is the open one, and the history on show follows it, since a cleared session has a transcript of its own.
-    setTab(owner.token, {
-      session: newSession(id, {
-        cwd: previous.cwd,
-        repoRoot: previous.repoRoot,
-        isRepo: previous.isRepo,
-        worktree: previous.worktree,
-        title: untitledLabel(previous.cwd),
-      }),
-    });
-    // The stand-in is ours to choose; the TITLE on disk is not, and is left alone.
-    // Claude Code copies the cleared session's name into the new transcript, where nothing distinguishes it from a name somebody chose — so a named session goes on showing that name, exactly as `claude --resume` lists it.
-    // Overriding it would mean this app and the CLI disagreeing about what a session is called.
-    // The pairing is recorded because nothing else can observe it: neither transcript points at the other, and the connection exists only in this moment.
-    void window.claudeUi.recordClear(replaced, id, previous.title);
-    persistOpenTabs();
-    // A group says where this WORK lives, and clearing a session does not move the work — so the replacement joins the group its predecessor was in, rather than the tab visibly dropping out of its section.
-    // The predecessor keeps its own membership: it is still a real session, and still that group's history.
-    // Only the group carries over.
-    // A pin and a note are about one CONVERSATION, and that conversation still has its own row to hold them.
-    const group = store.get().groupState.groupOf[replaced];
-    if (group) void moveSessionToGroupById(id, group);
+  if (!owner || owner.session.id === id) return null;
+  if (source !== 'clear') return adoptResumed(owner, id);
+  const previous = owner.session;
+  const replaced = previous.id;
+  // A CLEARED SESSION IS A NEW SESSION, so it starts from the same blank the "+" button does rather than from its predecessor's row.
+  // Carrying the old object forward was the app's own half of the copied-title problem: it kept the title, the first message and the sibling marks of a conversation this session does not have.
+  // The folder is all that genuinely survives — it is the same terminal, in the same place.
+  // Everything that draws the tab follows: the bar names the new session, its stand-in row is the open one, and the history on show follows it, since a cleared session has a transcript of its own.
+  setTab(owner.token, { session: blankAfter(previous, id) });
+  // The stand-in is ours to choose; the TITLE on disk is not, and is left alone.
+  // Claude Code copies the cleared session's name into the new transcript, where nothing distinguishes it from a name somebody chose — so a named session goes on showing that name, exactly as `claude --resume` lists it.
+  // Overriding it would mean this app and the CLI disagreeing about what a session is called.
+  // The pairing is recorded because nothing else can observe it: neither transcript points at the other, and the connection exists only in this moment.
+  void window.claudeUi.recordClear(replaced, id, previous.title);
+  persistOpenTabs();
+  // A group says where this WORK lives, and clearing a session does not move the work — so the replacement joins the group its predecessor was in, rather than the tab visibly dropping out of its section.
+  // The predecessor keeps its own membership: it is still a real session, and still that group's history.
+  // Only the group carries over.
+  // A pin and a note are about one CONVERSATION, and that conversation still has its own row to hold them.
+  const group = store.get().groupState.groupOf[replaced];
+  if (group) void moveSessionToGroupById(id, group);
+  return null;
+}
+
+/**
+ * A tab whose claude went on in a session that already exists, by its own `/resume`: the tab takes it as it is, its row, title, group and pin, with nothing carried from the session before.
+ * Archiving is this app's and claude cannot see it, so the session can be an archived one: it is unarchived, since the app runs no archived session, and a toast says so, since nobody pressed Unarchive.
+ * Another tab can hold the session too: one with no claude behind it goes, since this tab is the session's now; one running it is left alone and the take-over undone, this tab's claude forced out and the tab kept on the session it ran before, and that tab is answered.
+ */
+function adoptResumed(owner: TabState, id: string): TabState | null {
+  // claude lets a second claude resume a session another runs, and the two then branch its transcript, each turn hanging off the same message, so a later resume drops one of them (measured on claude 2.1.302).
+  // No hook can refuse a `/resume` (SessionStart cannot block, and neither UserPromptSubmit nor UserPromptExpansion fires for it, measured), so this is the closest to refusing it: the claude that switched is forced out as soon as the app hears of it, before any turn of its own unless one was submitted first.
+  const other = store.get().tabs.find((t) => t.token !== owner.token && t.session.id === id);
+  if (other && (other.terminalId !== null || other.starting)) {
+    // Forced, not asked: in the app such a claude was seen to ignore the Ctrl-C an ask sends (three times out of three, 2026-10-20, cause unknown), and the two of those forced went within a second; it has nothing of its own to finish.
+    // Once: a report from it while it goes asks nothing more.
+    if (owner.stopping) return null;
+    forceOutAtOnce(owner.token);
+    return other;
   }
+  // Its row where another tab or the listing has it; else the blank, until the listing reads it (`reconcileOpenTabs`).
+  const session = sessionById(id) ?? blankAfter(owner.session, id);
+  setTab(owner.token, { session });
+  // After the take-over, so the session's status, which is this tab's now, stays (`removeTab`).
+  if (other) removeTab(other.token);
+  persistOpenTabs();
+  const key = entityKey(session);
+  if (!store.get().archived.has(key)) return null;
+  void window.claudeUi.unarchive(key).then((archived) => {
+    store.set({ archived: new Map(Object.entries(archived)) });
+    showToast(`"${sessionLabel(session)}" was archived; resuming it in claude unarchived it`);
+  }, () => showToast(`"${sessionLabel(session)}" is archived and running; unarchive it from the archived view`));
+  return null;
+}
+
+/** The "+" button's blank for session `id`, in the folder of the session a tab ran before it: the same terminal, in the same place. */
+function blankAfter(previous: SessionSummary, id: string): SessionSummary {
+  return newSession(id, { cwd: previous.cwd, repoRoot: previous.repoRoot, isRepo: previous.isRepo, worktree: previous.worktree, title: untitledLabel(previous.cwd) });
 }
 
 function onTabData(token: string, data: string): void {

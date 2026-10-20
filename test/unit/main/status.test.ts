@@ -156,6 +156,7 @@ describe('the hook script', () => {
     await installStatusHooks();
     await fs.rm(statusFile, { force: true });
     await fs.rm(path.join(statusDir, `${SID}.model`), { force: true });
+    await fs.rm(path.join(statusDir, `${SID}.start`), { force: true });
   });
 
   it('writes the status it is given for the session on stdin', async () => {
@@ -221,6 +222,20 @@ describe('the hook script', () => {
     const written = await readStatusFile();
     expect(written?.status).toBe('start');
     expect(written?.tab).toBe(TOKEN);
+  });
+
+  // Which session a terminal runs, and why, goes to a file of its own, for a session that has a status too: claude's own `/resume` goes on in a session that already has one, and the tab must hear of it at once rather than at the next prompt.
+  it.each(['clear', 'resume', 'startup'])('says which session the terminal runs and why when SessionStart says %s, over a status it leaves alone', async (source) => {
+    runHook('closed', { session_id: SID, hook_event_name: 'SessionEnd', reason: 'other' });
+    runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source });
+    expect(JSON.parse(await fs.readFile(path.join(statusDir, `${SID}.start`), 'utf8'))).toEqual({ tab: TOKEN, source });
+    expect((await readStatusFile())?.status).toBe('closed');
+  });
+
+  // A compaction is the same claude going on in the same session, and its SessionStart is a status instead.
+  it('says nothing of which session runs at the end of a compaction', async () => {
+    runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'compact' });
+    await expect(fs.access(path.join(statusDir, `${SID}.start`))).rejects.toThrow();
   });
 
   // ...but it is identity, not a state, so it must not come back as one at the next launch: nothing renders it, and the dot's tooltip would show the raw word "start".

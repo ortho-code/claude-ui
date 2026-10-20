@@ -155,8 +155,9 @@ A fork is the one launch that names two sessions: `--session-id <new> --resume <
 `claude` refuses an id that is already in use, which turns out to be the same question as "does this session have a transcript" — nothing is written until the first prompt, so a session that never got one can be started again under its own id, and a session that has one is resumed by it.
 That is the single test `startTab` makes, and it is why a tab stopped before its first prompt keeps its identity instead of coming back as a different session.
 
-**What the flag cannot cover is an id changing mid-life**, and one thing does that: `/clear` ends the session and starts a fresh one in the same terminal, under an id Claude Code chooses.
+**What the flag cannot cover is an id changing mid-life**, and two things do that: `/clear` ends the session and starts a fresh one in the same terminal, under an id Claude Code chooses, and claude's own `/resume` ends it and goes on in another session that already exists, under that session's id.
 So a tab also carries a token, set as an environment variable on its pty and echoed back by the status hook, and a reported id that differs from the tab's own replaces it.
+claude's `SessionStart` says which of the two it was (`source` is `clear` or `resume`, measured on claude 2.1.302), and the hook script passes it on.
 Without that the tab goes on naming the session that just ended, and resuming it later reopens the wrong history.
 The token names the **terminal**, not the session, which is exactly why the tab's own id could not do the job.
 
@@ -178,6 +179,28 @@ In practice the case is narrow — 127 of 710 transcripts here carry a name at a
 What is kept is the **pairing**, appended to the audit log: which session became which.
 Nothing reads it back.
 It is recorded because it is observable exactly once and nowhere else — neither transcript points at the other — and whether a cleared session should be shown as related to its predecessor is a question better answered later from what happened than guessed at now.
+
+### A resumed session is the session it was
+
+claude's own `/resume` goes on in a session that already exists, so the tab takes that session as it is: its row, its title, its group and its pin, with nothing carried over from the session before and no pairing recorded.
+Doing a clear's part to it would move a session with a group of its own into the tab's, and keep the move.
+Where a status event names another id than the tab's before any start has said why, the tab takes it the same way: only a start that says `clear` does a clear's part.
+A `SessionEnd` never moves a tab, since it says the reporting tab's claude has left that session: main reads each status file as it changes, and the reads can finish in either order, so the session a tab left can report its end after the next one's start.
+
+Archiving is this app's, and claude cannot see it, so its `/resume` can land in an archived session.
+That session is unarchived as soon as the app hears of it, and a toast says so, since nobody pressed Unarchive: the app opens no archived session (§ A session's menu holds everything about it), and claude has already gone on in it.
+Refusing it was the other way, stopping claude and giving the tab back the session before, and it was turned down: claude cannot be stopped from switching, since `SessionStart` cannot block and `/resume` fires no `UserPromptSubmit` (measured), so refusing means ending a claude you just asked for something and losing what you had typed.
+
+A session that another tab holds is a different case, and there the switch is undone.
+claude lets a second claude resume a session another runs, with no warning, and the two then branch its transcript: each one's turn hangs off the same message, and a later resume follows one branch, dropping the other's turn (measured on claude 2.1.302).
+So the claude that switched is forced out as soon as the app hears of the switch, before any turn of its own unless one was submitted first; its tab never takes the session over and stays on the one it ran before, cold once that claude has gone; and the tab already running the session comes on show, with a toast saying why.
+Forced rather than asked, as a stop first asks: in the app such a claude ignored the Ctrl-C an ask sends, three times out of three on 2026-10-20, while the two of those forced went within a second, and a probe outside the app could not make it ignore them, so the cause is not known; it has nothing of its own to finish either way.
+It is forced once: a report from it while it goes asks nothing more.
+On its way out it reports the session's end, and an end reported from another tab than the one holding the session is not that session's, so the running tab's dot keeps its own.
+Only an end: one the app reads from a transcript carries the tab the status file last named, which after a restart is not the tab running the session, and is the session's all the same.
+What that claude writes to the session's status files stays as it wrote it: its start empties the list of work the running tab's last turn left running, until that tab's next turn ends, and its end says closed, until that tab's next report.
+No hook can refuse the `/resume` instead: neither `UserPromptSubmit` nor `UserPromptExpansion` fires for it (measured: both did for a custom command).
+A tab that holds the session with no claude behind it, cold or paused, runs nothing that could branch it, so it goes, and the tab that resumed the session keeps it, with the session's status, which is that tab's now.
 
 ### Tab lifecycle: a tab can exist without a process
 
@@ -608,8 +631,10 @@ A transcript records which model *answered*, never which one was chosen, so `/mo
 The renderer prefers it over the transcript's and keeps it **in memory only**: every switch in a session this app runs lands there, so it can never be staler than the file, and after a restart the transcript's own last answer is the right source again.
 
 **`SessionStart` is mostly identity, not state.**
-Its session id is what the terminal is running *now*, which is the only way to follow a `/clear` (below).
-For every source but `compact` the script writes an identity-only marker that the renderer applies to the tab and never shows as a dot, and it refuses to overwrite an existing status file — these files seed the dots at launch, and the event also fires mid-session, where a real status is worth keeping.
+Its session id is what the terminal is running *now*, which is the only way to follow a `/clear` or claude's own `/resume` (§ A resumed session is the session it was).
+For every source but `compact` the script writes the terminal's token and the source to `<id>.start`, a file of its own as a model switch's is, which main passes on and the renderer applies to the tab.
+It also writes an identity-only marker into the status file, never shown as a dot, and refuses to overwrite an existing status file there — these files seed the dots at launch, and the event also fires mid-session, where a real status is worth keeping.
+That refusal is why the start has a file of its own: `/resume` goes on in a session that has a status already, and the tab would otherwise hear of it only with the session's next status, such as its next prompt.
 For the same reason that marker is dropped when the launch state is read back: identity is answered by the tabs being restored around it, and seeding it would hand the renderer a status no dot has wording for.
 
 **`SessionEnd` ends the session it names, every time — including `clear` and `resume`.**
