@@ -145,7 +145,7 @@ function renderList(view: ListView): void {
   // One section per repo, each holding its groups and then the sessions in no group.
   // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
   // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  const tree = buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder, archivedOnly);
+  const tree = buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder, archivedOnly, all);
   renderedSections.projects = tree.map((p) => p.repoRoot);
   renderedSections.groups = tree.flatMap((p) => p.groups.map((g) => g.group.id));
   reconcileProjectSections(tree, view);

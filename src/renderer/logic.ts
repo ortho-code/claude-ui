@@ -451,7 +451,7 @@ export interface ProjectTree {
   loose: SessionSummary[];
   /** Sessions shown under this project, grouped and loose together (the heading's count). */
   count: number;
-  /** Whether any session here is in a git repo (gates the worktree option on the "+"). */
+  /** Whether the project's folder is a git repository, as any session the app knows there says, not only the ones shown (gates the worktree option). */
   isRepo: boolean;
   /**
    * Whether the project's own folder is still there.
@@ -477,6 +477,7 @@ function pinnedFirst(sessions: SessionSummary[], pinned: ReadonlySet<string>): S
  *
  * `hideEmptyGroups` is for filtering: a group whose sessions were all filtered out is noise in a search, but an empty group must stay visible normally — that is how a freshly created one is seen.
  * A root in `archivedOnly` is a project with no rows, its `archived` saying how many sessions it has archived (`archivedOnlyProjects`).
+ * `known` is every session the app knows, filtered out or not, which answers for what a project's folder is: a filter changes what is shown, not whether the folder is a git repository.
  */
 export function buildProjectTree(
   sessions: SessionSummary[],
@@ -485,6 +486,7 @@ export function buildProjectTree(
   hideEmptyGroups = false,
   projectOrder: readonly string[] = [],
   archivedOnly: ReadonlyMap<string, SessionSummary[]> = new Map(),
+  known: readonly SessionSummary[] = sessions,
 ): ProjectTree[] {
   const groupsByProject = new Map<string, SessionGroup[]>();
   for (const group of state.groups) {
@@ -509,7 +511,7 @@ export function buildProjectTree(
       groups,
       loose,
       count: ordered.length,
-      isRepo: folderWitnesses(entry).some((s) => s.isRepo),
+      isRepo: folderWitnesses(entry).some((s) => s.isRepo) || known.some((s) => s.repoRoot === repoRoot && s.isRepo),
       rootExists: projectRootExists(folderWitnesses(entry)),
       archived: entry.shown.length > 0 ? 0 : entry.archived.length,
     };

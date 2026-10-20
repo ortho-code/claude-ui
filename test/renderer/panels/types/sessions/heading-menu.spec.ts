@@ -85,6 +85,17 @@ test("where the project's folder is gone, the ways to start a session are in its
   await expect(item(page, 'New session in group')).toHaveAttribute('data-tooltip', reason);
 });
 
+// Whether a project is a git repository is a fact about its folder, so every session the app knows there answers it, not only the ones a filter shows.
+test('a filter that shows only a session git could not place leaves the worktree item available', async ({ page, app }) => {
+  const placed = session({ id: '00000000-0000-4000-8000-0000000000e1', title: 'Placed by git' });
+  const unplaced = session({ id: '00000000-0000-4000-8000-0000000000e2', title: 'Git timed out', isRepo: false });
+  await app.boot({ sessions: [placed, unplaced], history: { [placed.id]: [], [unplaced.id]: [] } });
+  await page.locator('#filter-toggle').click();
+  await page.locator('#search').fill('Git timed out');
+  await projectHeading(page, 'demo').locator('.project-add-caret').click();
+  await expect(item(page, 'New worktree session…')).not.toHaveClass(/\bunavailable\b/);
+});
+
 test("a project's Jump to group holds what its heading's jump button does, and goes there", async ({ page, app }) => {
   await app.boot(fixture);
   await projectHeading(page, 'demo').locator('.project-groups').click();
