@@ -17,7 +17,7 @@ The review changes nothing: it reads, and every fix it finds is a later change o
 - HEAD is the commit checked out.
   Say so if the tree has uncommitted changes, since the review reads HEAD's files as they are on disk.
 - The report is a research document, local to whoever runs the review.
-  When `git check-ignore -q .plan/x` says `.plan/` is ignored, it goes to `.plan/research_codebase-review.md`, dated in its name if that file exists.
+  When `git check-ignore -q .plan` says `.plan` is ignored (not `.plan/x`, which git refuses where `.plan` is a link), it goes to `.plan/research_codebase-review.md`, dated in its name if that file exists.
   Otherwise ask where it goes, and never write it into a tracked path without asking.
 
 ## 2. The scope
