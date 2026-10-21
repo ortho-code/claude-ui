@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { FIELD_KINDS, KINDS, MANIFEST_FIELDS, MANIFEST_OPTION_KINDS, OPTION_FIELDS, checkManifest } from '../../../../../src/renderer/panels/types/folder';
-import { CUTS, LIST_FIELDS, TONES, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
+import { CUTS, LIST_FIELDS, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
+import { TONES } from '../../../../../src/renderer/tone';
 import { CONTROL_NAMES } from '../../../../../src/renderer/panels/run';
 
 // docs/panel-types.md is the contract a type is written against, and these are the checkers that read it: a field one names that the other does not is the drift this holds shut.

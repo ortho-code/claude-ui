@@ -2,6 +2,7 @@ import type { PanelView } from '../contract';
 import { fieldsOf } from '../fields';
 import { ICON_NAMES, isIconName } from '../icons';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
+import { TONES, type Tone } from '../../tone';
 
 /**
  * The list document a `list` type's script prints on stdout, and its check.
@@ -33,9 +34,6 @@ export const DEFAULT_SEPARATOR = ' · ';
 
 /** How many of a row's actions show as buttons when the list does not say: the first, the rest behind the row's menu. */
 export const DEFAULT_BUTTONS = 1;
-
-export const TONES = ['normal', 'attention', 'positive', 'muted', 'danger'] as const;
-export type Tone = (typeof TONES)[number];
 
 /** Where a row's text too long for its line is cut short: at its end, or at its start, keeping its end in view. */
 export const CUTS = ['end', 'start'] as const;
