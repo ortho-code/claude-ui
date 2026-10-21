@@ -23,7 +23,7 @@ The roadmap in `README.md` is the source of truth for what is done and what is n
 - Runs under WSL via WSLg; launch needs `--no-sandbox` (the `start` script sets it).
 - Two tsconfigs build the app: `tsconfig.main.json` (main + preload, NodeNext/CommonJS) and `tsconfig.renderer.json` (renderer, ESNext/bundler).
   TypeScript 7 removed `moduleResolution: node`; don't reintroduce it.
-  A third, `tsconfig.test.json`, covers the tests, which all live under `test/` — unit tests in `test/unit/`, mirroring `src/`, and the window's checks in `test/renderer/` — so a new test goes there, never beside its module: the linter reads it and `npm test` type-checks it.
+  A third, `tsconfig.test.json`, covers the tests, which all live under `test/` — unit tests in `test/unit/`, mirroring `src/`, the rules every comment and doc keeps in `test/text/`, and the window's checks in `test/renderer/` — so a new test goes there, never beside its module: the linter reads it and `npm test` type-checks it.
 - `npm run test:renderer` builds, then runs the window's checks: Playwright on the built renderer, headless, with a typed stand-in for the bridge (`test/renderer/support/bridge.ts`).
   A check goes under the panel type it checks (`test/renderer/panels/types/<type>/`), or `panels/layout/` for the layout tree.
   Nothing goes on screen and the running app is not touched, so it is the way to check a renderer change before anyone relaunches.
@@ -33,7 +33,8 @@ The roadmap in `README.md` is the source of truth for what is done and what is n
   Keep them as two entries (see `docs/architecture.md` § Build).
 - `npm run lint` is ESLint with type-aware rules, and CI runs it.
   Why each rule is off or tuned is written beside it in `eslint.config.mjs`.
-- Before a commit, `npm run build`, `npm test`, `npm run lint` and `npm run test:renderer` run one after the other, and all pass.
+- Before a commit, the checks its change needs run one after the other, and all pass; which those are, by what changed, is in docs/architecture.md § Which checks a change needs.
+  A change to `.md` files alone needs only `npm test`; one that touches `src/renderer` or `src/shared` needs all four: `npm run build`, `npm test`, `npm run lint` and `npm run test:renderer`.
 - A fix to behaviour starts with a check that fails without it: a window check where the window shows the bug, a unit test where main or a pure function does.
   The check lands with the fix, and an area without checks gets one when it is next touched.
 - `node-pty` (M2) is a native module — rebuild against Electron's ABI after install.
