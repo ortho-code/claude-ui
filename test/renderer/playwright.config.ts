@@ -15,6 +15,9 @@ export default defineConfig({
   // At the repo root and gitignored, not under dist/, which electron-builder packs.
   outputDir: '../../test-results',
   forbidOnly: process.env.CI !== undefined,
+  // Each check, not each file, goes to whichever worker is free, since every check opens a page of its own and leans on no check before it.
+  // Handed out by file, the files' uneven lengths left workers idle: 84s where this takes 68s, on 12 workers (measured 2026-10-21).
+  fullyParallel: true,
   // None: a check that passes on a second try is a flake, and a gate that retries it away teaches everybody to ignore it.
   retries: 0,
   reporter: process.env.CI !== undefined ? [['list'], ['github']] : 'list',
