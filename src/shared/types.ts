@@ -93,6 +93,15 @@ export type PrStatus =
       conflict: boolean | null;
     };
 
+/** A PR as GitHub is asked about it. */
+export type PrRef = Pick<SessionPr, 'repository' | 'number'>;
+
+/** What main answers when asked about PRs: the last status GitHub gave for each, by its reference (`prReference`), and why a request this time got no answer (the first that failed, those after it not made), null when every one answered. */
+export interface PrStatusRead {
+  statuses: Record<string, PrStatus>;
+  problem: string | null;
+}
+
 /**
  * One request in a session and what claude sent back, read from the session's transcript (`src/main/transcript.ts`).
  * Only the LAST exchange of a session ever changes, and only by growing: claude's reply to it is still being written.
@@ -478,6 +487,8 @@ export interface ClaudeUiApi {
   pickFolder(): Promise<string | null>;
   /** Open an http(s) URL in the OS default browser (non-http schemes are ignored). */
   openExternal(url: string): void;
+  /** What GitHub says of `prs`, asked with `gh` (`src/main/prstatus.ts`); a merged one is not asked again while the app runs. */
+  prStatuses(prs: PrRef[]): Promise<PrStatusRead>;
   /** Current status per session id (busy | idle | background | waiting). */
   getAllStatuses(): Promise<Record<string, string>>;
   /**

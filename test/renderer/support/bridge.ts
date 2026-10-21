@@ -164,6 +164,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     recordClear: () => answer(undefined),
     pickFolder: () => answer(fixture.pickFolder),
     openExternal: sent,
+    prStatuses: unmodelled('prStatuses'),
     getAllStatuses: () => answer(fixture.statuses),
     onSessionStatus: on('onSessionStatus'),
     onSessionStart: on('onSessionStart'),

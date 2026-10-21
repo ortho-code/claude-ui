@@ -58,6 +58,7 @@ const api: ClaudeUiApi = {
   moveProject: (repoRoot, move, shown) => ipcRenderer.invoke('meta:moveProject', repoRoot, move, shown),
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   openExternal: (url) => ipcRenderer.send('shell:openExternal', url),
+  prStatuses: (prs) => ipcRenderer.invoke('prs:status', prs),
   getAllStatuses: () => ipcRenderer.invoke('status:getAll'),
   onSessionStatus: (callback) =>
     ipcRenderer.on('session:status', (_event, id: string, status: string, tab: string, event: string, background?: string[]) => callback(id, status, tab, event, background)),

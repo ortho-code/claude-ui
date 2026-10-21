@@ -60,6 +60,7 @@ import { registerSettings } from './settings';
 import { registerLayoutState } from './layoutstate';
 import { readProcVersion, runsOnWsl } from './platform';
 import { copiedFiles } from './clipboard';
+import { registerPrStatus } from './prstatus';
 import {
   placeWindow,
   maximizedRect,
@@ -617,6 +618,7 @@ void app.whenReady().then(async () => {
     },
   );
   registerFolders();
+  registerPrStatus();
   // Before the window, so the answer is in hand by the time anyone can reach the maximize button.
   learnMaximizeInset();
   await createWindow();
