@@ -16,7 +16,7 @@ function pointsLocal(file: string, text: string): string[] {
 describe('local-only content', () => {
   it('is pointed at by nothing committed', () => {
     // This file holds the names it looks for.
-    const committed = tracked(/\.(ts|mjs|js|css|md|yml|yaml|sh|toml|json|html)$/).filter(({ file }) => file !== 'CLAUDE.md' && !file.startsWith('.claude/') && file !== 'test/unit/local-only.test.ts');
+    const committed = tracked(/\.(ts|mjs|js|css|md|yml|yaml|sh|toml|json|html)$/).filter(({ file }) => file !== 'CLAUDE.md' && !file.startsWith('.claude/') && file !== 'test/text/local-only.test.ts');
     expect(committed.flatMap(({ file, text }) => pointsLocal(file, text))).toEqual([]);
   });
 

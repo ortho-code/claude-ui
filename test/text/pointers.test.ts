@@ -29,7 +29,7 @@ function deadPointers(files: { file: string; text: string }[]): string[] {
 describe('pointers into the docs', () => {
   it('each name a heading that exists', () => {
     // This file's own pointers are examples.
-    expect(deadPointers(tracked(/\.(ts|mjs|css|md|yml|sh|toml)$/).filter(({ file }) => file !== 'test/unit/pointers.test.ts'))).toEqual([]);
+    expect(deadPointers(tracked(/\.(ts|mjs|css|md|yml|sh|toml)$/).filter(({ file }) => file !== 'test/text/pointers.test.ts'))).toEqual([]);
   });
 
   it('what counts as a dead pointer, and what does not', () => {

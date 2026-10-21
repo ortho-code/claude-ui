@@ -86,13 +86,14 @@ The linter reads it, because a type-aware rule needs a project for every file it
 The test project turns it off: a test that indexes past the end fails anyway, and the source files it pulls in are checked with it on by the build projects.
 
 **Prose is one sentence per line**, in a comment or in a doc: no sentence goes on in the next line, so the raw text reads as the rendered one does, and no line holds two, so an edit changes only the lines of the sentences it touches.
-A unit test reads every comment and every doc paragraph git tracks and fails on a wrapped line or a line of two sentences, naming it (`test/unit/prose.test.ts`); what it leaves out (a fence, a table, a tag, an indented sample, and for wrapping a list and a comment after code) is spelled out in it.
+A test reads every comment and every doc paragraph git tracks and fails on a wrapped line or a line of two sentences, naming it (`test/text/prose.test.ts`); what it leaves out (a fence, a table, a tag, an indented sample, and for wrapping a list and a comment after code) is spelled out in it.
 A change meant to touch only comments is proved to with `npm run comments:prove [-- <ref>]` (`test/tools/comments-only.ts`): every file changed since the ref, HEAD unless named, must be the same as it was there once its comments are dropped (TypeScript and JavaScript printed back from their parse, CSS with its comments taken out, markdown rendered), and a file of another kind, a new one or a deleted one fails it.
 
 ## The window's checks
 
 Every test is under `test/`, so `src/` is only what ships.
 `npm test` is the unit tests: vitest, in `test/unit/`, which mirrors `src/` folder for folder, fast enough to run all the time.
+It also runs the rules every comment and doc keeps, in `test/text/`, which test no module and so mirror nothing; `npm run test:text` runs them alone, in seconds.
 `npm run test:renderer` checks the window itself: it builds, then Playwright loads the built `dist/renderer` in a headless Chromium, a fresh page per check, with nothing on screen and no main process (`test/renderer/`).
 It is kept out of `npm test` so that one stays fast; CI runs both, and a failed check leaves a trace to download from the run.
 A release runs CI's own workflow on its tag before building anything (`release.yml` calls `ci.yml`), so a tag on a commit that fails a check is never built.
