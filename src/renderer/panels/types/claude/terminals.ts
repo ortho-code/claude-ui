@@ -186,14 +186,13 @@ function buildTab(session: SessionSummary, paused = false): string {
   el.className = 'term';
   terminalsEl.appendChild(el);
 
-  // The xterm itself is the one every terminal here shares (terminal.ts); what follows is the handling that belongs to a tab running claude.
-  const { term, fitAddon } = createTerminal(el);
   // The tab's process as it is at the moment of asking, not a captured value: it is null while these handlers are wired and only filled in when the tab is actually started.
   const running = (): number | null => tabOf(token)?.terminalId ?? null;
 
+  // The xterm itself is the one every terminal here shares (terminal.ts); what follows is the handling that belongs to a tab running claude.
   // Ctrl+Enter and Shift+Enter insert a newline (send \n, which claude reads as a newline) rather than submitting — matching the terminal (Ctrl+Enter) and Claude Desktop (Shift+Enter) habits.
   // Plain Enter still submits; Ctrl+J and Alt+Enter already produce \n on their own.
-  term.attachCustomKeyEventHandler((event) => {
+  const { term, fitAddon } = createTerminal(el, (event) => {
     if (event.key === 'Enter' && (event.ctrlKey || event.shiftKey)) {
       // Send the newline once (on keydown), and swallow BOTH keydown and keypress so xterm never turns the accompanying keypress into a submit \r.
       // Shift+Enter emits that keypress (Ctrl+ Enter does not), which is why only Shift+Enter was flaky.

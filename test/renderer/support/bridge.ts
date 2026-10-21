@@ -138,6 +138,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     },
     onSettingsChanged: on('onSettingsChanged'),
     getWindowChrome: () => answer(fixture.windowChrome),
+    isWsl: () => answer(fixture.wsl),
     minimizeWindow: sent,
     toggleMaximizeWindow: sent,
     closeWindow: sent,

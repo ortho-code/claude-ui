@@ -7,7 +7,7 @@ import { errorText } from '../shared/log';
 
 /**
  * The xterm every terminal in the window is built from — a tab's `claude` and a panel's shell — and the one place their output and exits are routed.
- * One construction rather than two, because the options here are decisions (the font tokens, the neutral foreground, the canvas fallback, clickable links) that would otherwise be made twice and drift.
+ * One construction rather than two, because the options here are decisions (the font tokens, the neutral foreground, the canvas fallback, clickable links, what Ctrl+V does) that would otherwise be made twice and drift.
  */
 
 // The terminal's face comes from the stylesheet's tokens, so a panel showing command output is set in the same type without a second copy of the values.
@@ -25,6 +25,25 @@ export interface TerminalView {
 
 let canvasLogged = false;
 
+// Whether this is WSL, which main answers once (`askPlatform`); until it has, every key goes on as it does elsewhere.
+let wsl = false;
+
+/** Ask main, once at startup, whether the app runs under WSL, which decides what Ctrl+V does (`pastesHere`). */
+export async function askPlatform(): Promise<void> {
+  wsl = await window.claudeUi.isWsl();
+}
+
+/**
+ * Whether `event` is a Ctrl+V the terminal pastes from the clipboard, rather than sending it on to what runs in it.
+ * Only under WSL, where claude reads Ctrl+V as "paste an image" and looks for one before it falls back to text, through xclip or wl-paste where there is one and then powershell.exe, whose call took ten seconds the first time it was measured.
+ * An image still reaches claude: a clipboard with no text pastes as an empty paste (in the app under WSLg, as in the window's checks), which claude under WSL reads as an image paste, and Alt+V is its own image key there.
+ * Not on macOS, where Cmd+V is the paste and Ctrl+V is claude's, as in Terminal.app, nor on native Linux, where Ctrl+V is claude's only image key and an empty paste reads no image.
+ * Matched by the letter the key types, so on a layout whose V key types another letter, such as a Cyrillic one, the key goes on as before.
+ */
+function pastesHere(event: KeyboardEvent): boolean {
+  return wsl && event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === 'v';
+}
+
 /**
  * The last `count` non-empty lines of a terminal, trimmed, oldest first: what a failed start said, for the log.
  * Read from the buffer as parsed so far, so a caller that has just written waits for `term.write('', …)` first.
@@ -39,8 +58,12 @@ export function lastLines(term: Terminal, count: number): string[] {
   return lines;
 }
 
-/** An xterm opened in `container`, sized to it by the fit addon, drawn on canvas where that works, with http(s) links clickable. */
-export function createTerminal(container: HTMLElement): TerminalView {
+/**
+ * An xterm opened in `container`, sized to it by the fit addon, drawn on canvas where that works, with http(s) links clickable.
+ * `keys` is the caller's own say over a key, asked after the keys every terminal takes for itself, and answered as xterm's custom key handler is: false keeps the key from the terminal.
+ * It is passed here rather than attached by the caller, because xterm holds one handler and a second would replace the first.
+ */
+export function createTerminal(container: HTMLElement, keys?: (event: KeyboardEvent) => boolean): TerminalView {
   const term = new Terminal({
     fontFamily: MONO_FAMILY,
     fontSize: MONO_SIZE,
@@ -51,6 +74,12 @@ export function createTerminal(container: HTMLElement): TerminalView {
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
   term.open(container);
+
+  // A key handed back to the browser is one xterm leaves alone without cancelling, so Chromium's own paste runs into xterm's textarea, which pastes it as one paste, bracketed where the program asked for that.
+  term.attachCustomKeyEventHandler((event) => {
+    if (pastesHere(event)) return false;
+    return keys ? keys(event) : true;
+  });
 
   // Canvas renderer for smoother scrolling/paste than the default DOM renderer; fall back to DOM if it can't initialize (e.g. a WSLg GPU quirk) so the terminal always works.
   // Which one a terminal got is logged, because "the terminal is slow" cannot be answered without it: canvas once, since it is the usual answer, and every fallback, since each is news.

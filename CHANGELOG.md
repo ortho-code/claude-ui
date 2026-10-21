@@ -175,6 +175,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   An archived session resumed that way is unarchived, and a message says so.
 - A session you go on in with claude's own `/resume` while another tab runs it is handed back: that claude is stopped, its tab stays on the session it was on, and the tab running the session comes on show, since two claudes in one session branch it, and a later resume shows only one of their turns.
   A tab that only held the session, with nothing running, closes instead.
+- On WSL, Ctrl+V in a session or a panel's shell pastes the text on the clipboard at once, instead of claude showing `Pasting…` for seconds while it first looked for an image.
+  Alt+V pastes an image into claude; on macOS and on Linux outside WSL, Ctrl+V reaches claude as before.
 
 ## 0.3.0 — 2026-08-29
 

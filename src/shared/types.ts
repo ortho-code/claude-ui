@@ -396,6 +396,11 @@ export interface ClaudeUiApi {
    * Asked once at startup: it is decided by the platform and cannot change while the app runs.
    */
   getWindowChrome(): Promise<WindowChrome>;
+  /**
+   * Whether the app runs under WSL, by claude's own rule (`runsOnWsl`, src/main/platform.ts).
+   * Asked once at startup: it cannot change while the app runs.
+   */
+  isWsl(): Promise<boolean>;
   minimizeWindow(): void;
   toggleMaximizeWindow(): void;
   closeWindow(): void;

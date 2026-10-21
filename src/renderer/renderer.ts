@@ -24,7 +24,7 @@ import { store, withEntry } from './state/app';
 import { tabWith } from './state/views';
 import { setStatus } from './state/statuses';
 import { installTooltips } from './tooltip';
-import { routeTerminals } from './terminal';
+import { askPlatform, routeTerminals } from './terminal';
 
 // A disk change fired: re-read sessions; the store tells the list and the tabs only when the structure actually changed (a new/removed session, a rename, or a new branch becoming the tip).
 // Statuses and pins arrive on their own channels, so we don't refetch them here.
@@ -38,6 +38,8 @@ async function refreshFromDisk(): Promise<void> {
 
 // Output and exits reach a tab through the sink it bound when it started (terminal.ts routes them by terminal id, for tabs and panels alike).
 routeTerminals();
+// What Ctrl+V does in every terminal depends on whether this is WSL (terminal.ts).
+void askPlatform();
 
 // --- What the store tells ---
 // Subscribed before start-up sets anything, and told in this order.

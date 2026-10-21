@@ -1128,8 +1128,16 @@ A panel's shell is therefore stopped and swept by the same escalation as a sessi
 It gets the `CLAUDE_UI_*` context in its environment and `COLORTERM=truecolor` as a session does, and NOT `CLAUDE_UI=1`: a `claude` started by hand in it must not report as one of the app's sessions.
 
 **One xterm, one router.**
-The renderer's `terminal.ts` builds every xterm in the window (the font tokens, the neutral foreground, the canvas fallback, clickable links) and routes every terminal's output and exit to whichever sink bound its id, a tab or a panel.
-The tab's claude-specific key handling — Ctrl+Enter and Shift+Enter as newline, Ctrl+Z refused, Ctrl+C twice to close — stays with the tab.
+The renderer's `terminal.ts` builds every xterm in the window (the font tokens, the neutral foreground, the canvas fallback, clickable links, what Ctrl+V does) and routes every terminal's output and exit to whichever sink bound its id, a tab or a panel.
+The tab's claude-specific key handling — Ctrl+Enter and Shift+Enter as newline, Ctrl+Z refused, Ctrl+C twice to close — stays with the tab, handed to `createTerminal` rather than attached to the xterm, since xterm holds one key handler and a second would replace the shared one.
+
+**Ctrl+V pastes under WSL, and only there.**
+xterm sends Ctrl+V on as `^V`, and claude reads that as "paste an image": under WSL it looks for an image before it falls back to the text, through xclip or wl-paste where there is one and then `powershell.exe`, whose call took ten seconds the first time it was measured.
+So under WSL every terminal hands Ctrl+V back to Chromium, whose own paste runs into xterm's textarea, and xterm sends it as one paste, bracketed where the program asked for that.
+An image still reaches claude: a clipboard holding no text gives a paste with nothing in it (in the app under WSLg, as in the window's checks), which claude under WSL reads as an image paste, and Alt+V is its own image key there.
+Elsewhere Ctrl+V goes on as before: on native Linux, handing it back would cost the image, since Ctrl+V is claude's only image key there and claude reads no image from an empty paste; on macOS, Ctrl+V is not the paste key, Cmd+V is, and claude keeps Ctrl+V, as in Terminal.app.
+Whether this is WSL is claude's own rule, mirrored in main (`runsOnWsl`, src/main/platform.ts) and asked once at startup, so the window never takes the key where claude would not read an empty paste as an image.
+Rejected: the same on every platform, for the image paste it costs; claude's tabs only, which would answer one key two ways with nothing to say why; and passing Ctrl+V to claude only while the clipboard holds an image, which needs a look at the clipboard's formats that claude's empty paste already makes unnecessary.
 Each shell fits its xterm from a `ResizeObserver` on its own box rather than when it is made, because a shell is made before its box is on screen and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
 The same observer covers every later reveal — its tab picked, a switch on the rail, an unfold, a divider reopening a squeezed node — since each gives the box a size again.
 
