@@ -84,7 +84,7 @@ Next:
 
 - Context health per session in the list, coloured the way the CLI's own status line colours it.
 - Clickable paths in terminal output, opening the file the session just named in a panel.
-- Status nudges that survive an app restart; a performance pass (scroll, open, paste).
+- Status nudges that survive an app restart; a performance pass (scroll, open).
 - End-to-end tests of the built app with a stand-in `claude`, now that the window's own checks run headless; then split view.
 - Visual regression checks: reference pictures of the window, made on CI, which a change to the look updates on purpose.
 - A Renovate configuration of the repo's own, tuned to its dependencies and workflows rather than left at Renovate's defaults.
