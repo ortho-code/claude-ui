@@ -288,7 +288,10 @@ export type PanelStopReason = 'timeout' | 'truncated' | 'rerun' | 'request' | 'q
  */
 export type PanelRunEvent =
   | { kind: 'output'; text: string }
-  /** Only in an `apart` run: what the command wrote on stderr. In order among themselves, but not against `output`, since the two arrive on pipes of their own. */
+  /**
+   * Only in an `apart` run: what the command wrote on stderr.
+   * In order among themselves, but not against `output`, since the two arrive on pipes of their own.
+   */
   | { kind: 'stderr'; text: string }
   /** The cap was reached: nothing after this is forwarded, and the process is being stopped. */
   | { kind: 'truncated' }

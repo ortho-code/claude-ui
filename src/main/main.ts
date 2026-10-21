@@ -414,9 +414,8 @@ async function createWindow(): Promise<void> {
 
   // After construction, unlike the size: maximizing is a state change rather than a geometry argument, and doing it here leaves the constructed rectangle as the size to return to.
   if (placement?.maximized) setMaximized(mainWindow, true);
-  // A decorated window is placed at its requested position PLUS the frame, so a restored position
-  // walks down-right on every launch unless it is cancelled. Only the decorated path needs it, which
-  // today is macOS — and whatever OWN_CHROME is turned off for tomorrow.
+  // A decorated window is placed at its requested position PLUS the frame, so a restored position walks down-right on every launch unless it is cancelled.
+  // Only the decorated path needs it, which today is macOS — and whatever OWN_CHROME is turned off for tomorrow.
   else if (!OWN_CHROME && placement?.x !== undefined && placement.y !== undefined) {
     correctFramePlacement(mainWindow, { x: placement.x, y: placement.y });
   }
