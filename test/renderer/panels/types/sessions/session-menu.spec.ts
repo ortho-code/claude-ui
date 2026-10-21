@@ -221,6 +221,57 @@ test("Stop session in a row's menu stops it as the tab's button does, and then s
   await expect(item(page, 'Stop session')).toHaveAttribute('data-tooltip', 'Stopping…');
 });
 
+// The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the session's claude is 1.
+const FIRST = 1;
+
+// An open menu follows its session, as the tab and its button do, so what it offers is what can be done now.
+test("a session's menu open while its pause waits for claude turns into a paused tab's once claude has gone", async ({ app, page }) => {
+  await app.boot(fixture);
+  await tabLabel(page, full.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Pause').click();
+  await expect(tab(page, full.title).locator('.tab-close')).toBeEnabled();
+  await row(page, full.title).locator('.session-kebab').click();
+  await expect(item(page, 'Force stop')).toBeVisible();
+
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await expect(item(page, 'Stop session')).not.toHaveClass(/\bunavailable\b/);
+  await expect(item(page, 'Close tab')).toBeVisible();
+  await expect(item(page, 'Force stop')).toHaveCount(0);
+  await expect(item(page, 'Pause')).toHaveCount(0);
+});
+
+// A redraw replaces every row, an open submenu's parent among them, so the submenu is opened again under the new one: the pointer may be inside it, and something the menu shows can change without anything you did, such as a relative time ticking over.
+test("an open submenu stays open when its menu is drawn again", async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Move to group').click();
+  const submenu = page.locator('.kebab-menu.submenu');
+  await expect(submenu).toBeVisible();
+  // Inside the submenu, off its parent, so nothing under the pointer opens it again by itself.
+  await submenu.locator('button.menu-row').first().hover();
+  expect(await app.emit('onSessionStatus', full.id, 'busy', '', '')).toBe(1);
+  await expect(header(page)).toContainText('Busy');
+  await expect(submenu).toBeVisible();
+  // Its own, opened from the new row.
+  await expect(item(page, 'Move to group')).toHaveClass(/\bmenu-open\b/);
+});
+
+// Following the session is not redrawing at every change, which would replace every row under the pointer: a change that leaves the menu's items as they were leaves the menu as it is drawn.
+test("an open menu is left as it is drawn by a change that does not touch what it lists", async ({ app, page }) => {
+  const other = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Another session' });
+  await app.boot({ ...fixture, sessions: [full, other] });
+  await row(page, full.title).locator('.session-kebab').click();
+  // Held on to, since a redraw replaces it rather than changing it.
+  await item(page, 'Move to group').evaluate((button) => {
+    (window as unknown as { held: Element }).held = button;
+  });
+  expect(await app.emit('onSessionStatus', other.id, 'busy', '', '')).toBe(1);
+  await expect(row(page, other.title).locator('.nudge')).toHaveClass(/\bbusy\b/);
+  expect(await page.evaluate(() => (window as unknown as { held: Element }).held.isConnected)).toBe(true);
+});
+
 test("Close tab in a row's menu closes a paused session's tab", async ({ app, page }) => {
   await app.boot({ ...fixture, pausedSessions: [full.id] });
   await row(page, full.title).locator('.session-kebab').click();

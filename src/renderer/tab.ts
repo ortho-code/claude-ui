@@ -52,7 +52,7 @@ export function buildTab(actions: TabActions): TabEls {
   el.addEventListener('contextmenu', (event) => {
     event.preventDefault();
     const items = actions.menu();
-    if (items) openMenu(kebab, items);
+    if (items) openMenu(kebab, items, () => actions.menu());
   });
   el.addEventListener('mousedown', (event) => {
     if (event.button !== 1) return;

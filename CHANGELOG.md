@@ -113,6 +113,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's status dot reacts to a click only while the session is idle or waiting for you, when a click marks it read; any other dot no longer looks clickable, and a click on it does what a click beside it does.
 - The arrow beside a project's or a group's + is there outside a git repository too, its New worktree session… greyed out saying why, where the arrow used to be missing.
   A project's and a group's options open with the ways to add something there, on a project New group… among them, and end with the moves, Move to top, up, down and bottom, where it has any, which used to come first.
+- Options opened from a ⋮, or by right-clicking a tab, change while they are open to match what they list, such as a session that stops or pauses meanwhile, instead of showing what was true when they opened.
+  A list panel row's options catch up with its list's next run once anything else in the app changes.
 
 ### Fixed
 

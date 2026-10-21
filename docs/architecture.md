@@ -1341,6 +1341,17 @@ Every menu/popover also reads as attached to its trigger: `openMenu`/`openSubmen
 Anything new that floats near an anchor should go through those helpers so it gets the notch (and the active-state stamping) for free rather than reinventing positioning.
 The notch straddles the edge, so its inner half lies over the row beside that edge, the first one for a popover below its trigger, and it is drawn beneath the popover's content (`z-index: -1` inside the popover's own stacking context): drawn on top, it bit a notch-shaped piece out of any row with a fill of its own under it, a hovered item, the switcher's entry on show, or a row scrolled up under it.
 
+**An open kebab menu follows what it lists.**
+Every kebab, and a tab's right-click, which opens the tab's kebab menu, hands `openMenu` the builder of its items, and while the menu is up every change to the store lists them again; where they differ from what it shows, it is drawn again and placed again under its trigger.
+So a menu left open does not go on offering what can no longer be done, such as Force stop for a session claude has since left, or Pause for a tab whose pause has landed (user, 2026-10-21).
+Only where they differ, compared by all an item shows, since a redraw replaces every row under the pointer; a change that leaves everything the menu shows as it was leaves it as it is drawn.
+That includes the relative times a session's menu shows, its last activity and its siblings', which move with the clock rather than the store, so the first change to the store after one of them ticks over draws the menu again.
+An open submenu goes with the row it hangs from, and is opened again under the row drawn in its place while an available item with the same label still has one, so it stays under the pointer wherever that row is drawn where it was; a parent whose label changed, such as Siblings with a new count, is another item, and its submenu stays closed.
+A menu whose items are gone, or whose trigger has left the page, closes at the next change to the store, which is the same moment for a trigger the store's own repaint removed.
+It was a snapshot before, built at the click and kept until it closed.
+The other menus, the sibling and PR lists opened from a row's badges, the group jump, the new-session caret, the strip's hidden projects and a list row's sessions, are drawn once, as before.
+A list panel's rows are not in the store, so its kebab follows a run only at the next change to the store after it; its items ask for their action only while the row still offers them, so the lag shows a stale item, never runs one.
+
 **One appearance, one rule.**
 Anything drawn on more than one surface is a single class, never parallel rules kept in step by hand.
 Parallel rules always drift, and they drift silently: the session mark and the strip mark were the same dot in two classes, and they diverged twice — first to two different sizes, worst on the busy arc, where 7px and 9px read as two different marks rather than one state; then to a hollow ring in the list and a 9px hole in the strip for a session that had not reported yet.

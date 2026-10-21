@@ -1,4 +1,5 @@
 import type { NudgeStatus } from './logic';
+import { store, type AppState } from './state/app';
 import { badgeClass, sessionDotClass } from './statusdot';
 import { chevronIcon, strokeIcon } from './svg';
 import { setTooltip } from './tooltip';
@@ -52,6 +53,8 @@ let openMenuEl: HTMLElement | null = null;
 let openMenuAnchor: HTMLElement | null = null;
 let openSubmenuEl: HTMLElement | null = null;
 let openSubmenuOwner: HTMLElement | null = null;
+/** Ends the open menu's following of the state, for a menu opened with something to follow (`openMenu`). */
+let stopFollowing: (() => void) | null = null;
 function closeSubmenu(): void {
   openSubmenuEl?.remove();
   openSubmenuEl = null;
@@ -59,6 +62,8 @@ function closeSubmenu(): void {
   openSubmenuOwner = null;
 }
 function closeMenu(): void {
+  stopFollowing?.();
+  stopFollowing = null;
   closeSubmenu();
   openMenuEl?.remove();
   openMenuEl = null;
@@ -138,6 +143,8 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     }
     if (item.submenu) {
       button.className = 'menu-row has-submenu';
+      // What a redraw of the menu finds it by, to open its submenu again (`openMenu`).
+      button.dataset.submenu = item.label;
       const chev = document.createElement('span');
       chev.className = 'submenu-chev';
       chev.innerHTML = chevronIcon('right', 10);
@@ -204,7 +211,14 @@ function openSubmenu(item: HTMLElement, items: MenuItem[]): void {
   item.classList.add('menu-open'); // hold the parent row's active look while its submenu is up
 }
 
-export function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
+/**
+ * Open a menu of `items` under `anchor`.
+ * With `follow`, the menu's items as they would be listed now, the open menu follows the window's state: whenever the state changes it lists them again, and draws them again where they differ from what it shows, so a menu left open does not go on offering what can no longer be done.
+ * Drawn again only where they differ, since a redraw replaces every row: a change that leaves everything the menu shows as it was, a relative time in it included, leaves it as it is.
+ * An open submenu is opened again under its parent's new row, while an available item with the same label still has one.
+ * A menu whose items are gone, or whose anchor has left the page, closes at the next change to the state.
+ */
+export function openMenu(anchor: HTMLElement, items: MenuItem[], follow?: () => MenuItem[] | null): void {
   // Clicking the same trigger again toggles the menu shut.
   if (openMenuAnchor === anchor) {
     closeMenu();
@@ -216,11 +230,51 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   fillMenu(menu, items, true);
   document.body.append(menu);
   tipCutLines(menu);
+  placeMenu(menu, anchor);
+  openMenuEl = menu;
+  openMenuAnchor = anchor;
+  anchor.classList.add('menu-open'); // trigger shows an open/active state while its menu is up
+  // Defer so the click that opened it doesn't immediately close it.
+  setTimeout(() => document.addEventListener('click', onMenuOutside, true));
+  if (!follow) return;
+  let drawn = menuShape(items);
+  // Every slice, since a menu's items can read any of them; the comparison below is what keeps that cheap for the menu on screen.
+  stopFollowing = store.watch(Object.keys(store.get()) as (keyof AppState)[], () => {
+    const now = follow();
+    if (!now || !anchor.isConnected) {
+      closeMenu();
+      return;
+    }
+    const shape = menuShape(now);
+    if (shape === drawn) return;
+    drawn = shape;
+    // An open submenu goes with the row it hangs from, and is opened again under the row drawn in its place, found by its label, so it stays under the pointer wherever that row is drawn where it was.
+    const reopen = openSubmenuOwner?.dataset.submenu;
+    closeSubmenu();
+    menu.replaceChildren();
+    fillMenu(menu, now, true);
+    tipCutLines(menu);
+    placeMenu(menu, anchor);
+    // Available, as the rows `fillMenu` marks are, so the item and the row are the same one.
+    const parent = now.find((item) => item.submenu && !item.disabled && item.label === reopen);
+    const row = [...menu.querySelectorAll<HTMLElement>('.has-submenu')].find((button) => button.dataset.submenu === reopen);
+    if (parent?.submenu && row) openSubmenu(row, parent.submenu);
+  });
+}
+
+/** What a menu shows of its items, everything but what they do, to tell whether a fresh listing would draw anything else. */
+function menuShape(items: MenuItem[]): string {
+  return JSON.stringify(items, (_key, value: unknown) => (typeof value === 'function' ? undefined : value));
+}
+
+/** Put a menu under its anchor, or above it where there is no room below, its notch pointing at the anchor. */
+function placeMenu(menu: HTMLElement, anchor: HTMLElement): void {
   const r = anchor.getBoundingClientRect();
   // Below the trigger, and above it when the menu would run off the bottom of the window and there is more room above — a row near the bottom of the list opened its menu half out of sight.
   const roomBelow = window.innerHeight - r.bottom - 5 - 8;
   const flipped = menu.offsetHeight > roomBelow && r.top - 5 - 8 > roomBelow;
-  menu.classList.add(flipped ? 'attach-bottom' : 'attach-top');
+  menu.classList.toggle('attach-bottom', flipped);
+  menu.classList.toggle('attach-top', !flipped);
   menu.style.top = `${flipped ? Math.max(8, r.top - 5 - menu.offsetHeight) : r.bottom + 5}px`;
   // Its right edge at the trigger's, or far enough past a narrow trigger's centre for the notch to reach it: the notch keeps clear of the menu's right corner (`notchAt`), so under a kebab, which hugs its dots, a menu flush with it pointed about 6px short of them.
   const centre = r.left + r.width / 2;
@@ -231,15 +285,10 @@ export function openMenu(anchor: HTMLElement, items: MenuItem[]): void {
   // The notch points at the anchor's horizontal center, clamped clear of the rounded corners.
   const notchX = notchAt(centre, left, border, menu.offsetWidth);
   menu.style.setProperty('--notch-x', `${notchX}px`);
-  openMenuEl = menu;
-  openMenuAnchor = anchor;
-  anchor.classList.add('menu-open'); // trigger shows an open/active state while its menu is up
-  // Defer so the click that opened it doesn't immediately close it.
-  setTimeout(() => document.addEventListener('click', onMenuOutside, true));
 }
 
 /**
- * A kebab: the options behind a ⋮, listed afresh at each click by `items`, which answers null when there is nothing to offer.
+ * A kebab: the options behind a ⋮, listed afresh at each click by `items`, which answers null when there is nothing to offer, and again while the menu is open, which follows them (`openMenu`).
  * The click goes no further, so it neither folds a heading nor opens a row.
  */
 export function kebabButton(className: string, tooltip: string, items: () => MenuItem[] | null): HTMLButtonElement {
@@ -252,7 +301,7 @@ export function kebabButton(className: string, tooltip: string, items: () => Men
   kebab.addEventListener('click', (event) => {
     event.stopPropagation();
     const menu = items();
-    if (menu) openMenu(kebab, menu);
+    if (menu) openMenu(kebab, menu, items);
   });
   return kebab;
 }
