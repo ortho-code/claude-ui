@@ -6,6 +6,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"],
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "rootDir": ".",
     "noUncheckedIndexedAccess": false
   },

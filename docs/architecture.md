@@ -81,6 +81,7 @@ The alias goes once typescript-eslint's supported TypeScript range includes 7.
 
 A third project, `tsconfig.test.json`, covers the test files, which are in neither build project.
 The linter reads it, because a type-aware rule needs a project for every file it reads, and `npm test` type-checks it before running anything, because vitest strips a test's types without checking them.
+It lets an import name a `.ts` file, which Node needs to run a script under `test/` straight from its source, as `npm run comments:prove` does with the comment walker it shares with the prose rule.
 
 `noUncheckedIndexedAccess` is on, so an index into an array or a record reads as possibly missing, and the code says why it is not: a check, or a `!` where the lines just before guarantee it.
 The test project turns it off: a test that indexes past the end fails anyway, and the source files it pulls in are checked with it on by the build projects.

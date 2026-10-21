@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import MarkdownIt from 'markdown-it';
 import ts from 'typescript';
+import { comments, tokens } from '../text/comments.ts';
 
 /**
  * NOT A CHECK: a tool, for a change meant to touch nothing but comments, which proves it did: `npm run comments:prove [-- <ref>]`.
@@ -31,46 +32,24 @@ const ABOUT_OWN = 'eslint-disable-line';
 /** A DIRECTIVE about the line below it. */
 const ABOUT_NEXT = /@ts-(?:expect-error|ignore)|eslint-disable-next-line/;
 
-/**
- * Every token of a script's code, in order, the end of the file last: the parse's leaves, without the JSDoc the parse hangs on them, which is comment.
- * A token is kept whatever hangs on it, since the end of a file whose last comment is a `/** *\/` one carries that comment as its child.
- */
-function tokens(file: ts.SourceFile): ts.Node[] {
-  const found: ts.Node[] = [];
-  const walk = (node: ts.Node): void => {
-    if (node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode) return;
-    if (node.kind < ts.SyntaxKind.FirstNode) found.push(node);
-    else node.getChildren(file).forEach(walk);
-  };
-  walk(file);
-  return found;
-}
-
 /** Each DIRECTIVE comment of a script, in order, where it sits among the tokens and with the lines it covers. */
 function directives(file: ts.SourceFile, code: ts.Node[]): string[] {
   const text = file.getFullText();
   const lines = text.split('\n').map((line) => line.trim());
   const breaks = (from: number, to: number): number => text.slice(from, to).split('\n').length - 1;
-  return code.flatMap((token, before) => {
-    // Every comment between this token and the one before it: those on that one's line are its trailing comments, the rest this one's leading.
-    const ranges = new Map<number, ts.CommentRange>();
-    for (const range of [...(ts.getTrailingCommentRanges(text, token.pos) ?? []), ...(ts.getLeadingCommentRanges(text, token.pos) ?? [])]) ranges.set(range.pos, range);
-    return [...ranges.values()]
-      .sort((a, b) => a.pos - b.pos)
-      .flatMap((range) => {
-        const comment = text.slice(range.pos, range.end).split('\n').map((line) => line.trim());
-        if (!comment.some((line) => DIRECTIVE.test(line))) return [];
-        const kept = [`after ${before} tokens, ${breaks(token.pos, range.pos)} line breaks after the last and ${breaks(range.end, token.getStart(file))} before the next`, ...comment];
-        const last = file.getLineAndCharacterOfPosition(range.end).line;
-        if (comment.some((line) => line.includes(ABOUT_OWN))) kept.push(...lines.slice(file.getLineAndCharacterOfPosition(range.pos).line, last + 1));
-        if (comment.some((line) => ABOUT_NEXT.test(line))) {
-          const below = last + 1;
-          let covered = below;
-          while (covered < lines.length && (lines[covered] === '' || lines[covered].startsWith('//'))) covered++;
-          kept.push(...lines.slice(below, covered + 1));
-        }
-        return [kept.join('\n')];
-      });
+  return comments(file, code).flatMap(({ range, next, before }) => {
+    const comment = text.slice(range.pos, range.end).split('\n').map((line) => line.trim());
+    if (!comment.some((line) => DIRECTIVE.test(line))) return [];
+    const kept = [`after ${before} tokens, ${breaks(next.pos, range.pos)} line breaks after the last and ${breaks(range.end, next.getStart(file))} before the next`, ...comment];
+    const last = file.getLineAndCharacterOfPosition(range.end).line;
+    if (comment.some((line) => line.includes(ABOUT_OWN))) kept.push(...lines.slice(file.getLineAndCharacterOfPosition(range.pos).line, last + 1));
+    if (comment.some((line) => ABOUT_NEXT.test(line))) {
+      const below = last + 1;
+      let covered = below;
+      while (covered < lines.length && (lines[covered] === '' || lines[covered].startsWith('//'))) covered++;
+      kept.push(...lines.slice(below, covered + 1));
+    }
+    return [kept.join('\n')];
   });
 }
 

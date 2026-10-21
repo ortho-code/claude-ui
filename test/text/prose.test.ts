@@ -1,6 +1,7 @@
 import { extname } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { comments } from './comments';
 import { tracked } from './tracked';
 
 /**
@@ -40,17 +41,10 @@ function wrapped(paragraph: Line[]): Line[] {
 /** Every comment in TypeScript or JavaScript, from the compiler's parse: a run of `//` lines alone on consecutive lines is one, a block comment another, and a comment after code its own. */
 function scriptComments(text: string): Line[][] {
   const source = ts.createSourceFile('file.ts', text, ts.ScriptTarget.Latest, true);
-  const ranges = new Map<number, ts.CommentRange>();
-  const visit = (node: ts.Node): void => {
-    for (const range of [...(ts.getLeadingCommentRanges(text, node.pos) ?? []), ...(ts.getTrailingCommentRanges(text, node.end) ?? [])]) ranges.set(range.pos, range);
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  for (const range of ts.getLeadingCommentRanges(text, source.endOfFileToken.pos) ?? []) ranges.set(range.pos, range);
   const lineOf = (pos: number): number => source.getLineAndCharacterOfPosition(pos).line + 1;
   const groups: Line[][] = [];
   let run: Line[] | null = null;
-  for (const range of [...ranges.values()].sort((a, b) => a.pos - b.pos)) {
+  for (const { range } of comments(source)) {
     const body = text.slice(range.pos, range.end);
     const line = lineOf(range.pos);
     if (range.kind === ts.SyntaxKind.SingleLineCommentTrivia) {
