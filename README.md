@@ -359,6 +359,7 @@ npm start
 It runs with `--no-sandbox`, which WSL requires.
 
 `npm test` runs the unit tests, and `npm run test:renderer` checks the window itself in a headless browser, which `npx playwright install --only-shell chromium` fetches the first time.
+Which of them a change needs is in [the architecture notes](docs/architecture.md#which-checks-a-change-needs).
 
 To produce installable builds: `npm run dist:linux`, and `npm run dist:mac` on a Mac.
 Artifacts land in `release/`.

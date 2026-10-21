@@ -89,6 +89,7 @@ The test project turns it off: a test that indexes past the end fails anyway, an
 A test reads every comment and every doc paragraph git tracks and fails on a wrapped line or a line of two sentences, naming it (`test/text/prose.test.ts`); what it leaves out (a fence, a table, a tag, an indented sample, and for wrapping a list and a comment after code) is spelled out in it.
 A change meant to touch only comments is proved to with `npm run comments:prove [-- <ref>]` (`test/tools/comments-only.ts`): every file changed since the ref, HEAD unless named, must be the same as it was there once its comments are dropped (TypeScript and JavaScript printed back from their parse and compared token by token, CSS with its comments taken out, markdown rendered), and a file of another kind, a new one, a deleted one or a renamed one fails it.
 A directive comment is not dropped, since the tool that reads it takes it as code: ESLint's, TypeScript's, esbuild's annotations (`@__PURE__` and its kind, anywhere in a comment) and the legal comments it keeps in the bundle, and Vitest's environment, must each stay as they were, between the same two tokens and the same line breaks from each; one about its own line, an `eslint-disable-line`, keeps that line too, and one about the line below it, such as a `@ts-expect-error`, everything up to the next line that is neither blank nor a `//` comment.
+Passing it is still no reason to skip the linter, whose rules read other comments too (§ Which checks a change needs).
 
 ## The window's checks
 
@@ -127,6 +128,32 @@ Of three captures taken on 2026-10-14, one differed from the other two by the sa
 The Settings button's corner is none of the window's doing: the layout and every computed style are the same either way, no tooltip is up, removing every animation or switching the raster path (`--disable-gpu`, `--disable-gpu-rasterization`) leaves it, and with the button moved to a whole pixel it goes (measured 2026-10-01).
 The comparison lists them, as it lists every pixel that differs, rather than excusing them, and one capture alone is no baseline, so a change is compared against two of the build before it.
 The comparison sorts each state's lines, and takes a map of the classes a change renames (`{ "old": "new" }`), applied to the before-capture's element keys only, so a pure rename compares empty.
+
+## Which checks a change needs
+
+What a commit runs follows from what it changed, since most of the time goes on the window's checks, and most changes cannot reach them.
+
+| What changed | What to run |
+|---|---|
+| Only `.md` files | `npm test` |
+| Only comments in scripts, which `npm run comments:prove` passes | `npm run comments:prove`, then `npm run build`, `npm test`, `npm run lint` |
+| `src/main`, `src/preload`, `test/unit`, `test/text`, `test/tools`, `scripts/` | `npm run build`, `npm test`, `npm run lint` |
+| `src/renderer`, `src/shared`, `test/renderer`, `assets/` | all four: `npm run build`, `npm test`, `npm run lint`, `npm run test:renderer` |
+| `package.json`, `package-lock.json`, a `tsconfig*.json`, a tool's config, `mise.toml` | all four |
+
+A change across rows runs what each of its rows lists.
+The first takes about ten seconds, the next two about half a minute, and the last two up to two minutes, most of it the window's checks.
+
+A doc runs `npm test` and not only the text rules, since some unit tests hold a doc to the code: the variables `docs/panel-types.md` names, the icon names in the README; `npm run test:text` is for while writing.
+A comment still reaches the linter (one that fills an empty block, a `// falls through`, a `@deprecated` tag), the compiler (what a `@ts-expect-error` covers) and the text rules (a wrapped line), but not the window: once the proof passes, the bundled code is the same, its directives included, and only the source map beside it differs.
+A comment change the proof fails, a directive's among them, is a change to code, and goes by the row of its folder.
+So does a stylesheet's comment: the proof takes every `/* … */` out as a space, which is wrong between two selectors, where a comment leaves them joined, and inside a string, where it is no comment at all.
+Main and the preload reach the window's checks only through the build, which their row runs already: the checks load the built renderer, with a stand-in for the bridge, and import nothing but `src/shared` and `src/renderer`, neither of which imports `src/main` or `src/preload`.
+`src/shared` is built into main and into the window alike, so it runs everything.
+A workflow, `electron-builder.yml` and the shell script in `build/` are read here only by the text rules, for their comments, and the macOS entitlements file by nothing; CI's next run, or a release, is where they are tried.
+
+CI runs all four on every push to `main` and every pull request, whatever changed, so a commit that ran too few is still caught, after the push rather than before it.
+While working on one thing, run only its file: `npx vitest run <file>`, or `npm run build` and then `npx playwright test -c test/renderer <file>`; the rows above are for the commit.
 
 ## Embedded terminal
 
