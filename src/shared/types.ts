@@ -401,6 +401,11 @@ export interface ClaudeUiApi {
    * Asked once at startup: it cannot change while the app runs.
    */
   isWsl(): Promise<boolean>;
+  /**
+   * The files copied in Windows, as Linux paths, for a paste under WSL that brought no text (`copiedFiles`, src/main/clipboard.ts).
+   * None where the clipboard holds an image, which is left to claude, where nothing was copied, without wl-clipboard, and where Windows cannot be asked.
+   */
+  copiedFiles(): Promise<string[]>;
   minimizeWindow(): void;
   toggleMaximizeWindow(): void;
   closeWindow(): void;

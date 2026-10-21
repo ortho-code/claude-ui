@@ -4,6 +4,7 @@ import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import { errorText } from '../shared/log';
+import { pastedPaths } from '../shared/paste';
 
 /**
  * The xterm every terminal in the window is built from — a tab's `claude` and a panel's shell — and the one place their output and exits are routed.
@@ -44,6 +45,16 @@ function pastesHere(event: KeyboardEvent): boolean {
   return wsl && event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === 'v';
 }
 
+/** Whether `event` is a key Chromium pastes the clipboard on, once `pastesHere` has handed Ctrl+V back: Ctrl+V, Ctrl+Shift+V or Shift+Insert. */
+function isPasteKey(event: KeyboardEvent): boolean {
+  if (event.altKey || event.metaKey) return false;
+  if (event.ctrlKey) return event.key.toLowerCase() === 'v';
+  return event.shiftKey && event.key === 'Insert';
+}
+
+/** How soon after a paste key a paste counts as the key's: a paste a key asks for follows it at once, while a middle-click's counts only if one of those keys was pressed this shortly before. */
+const PASTE_KEY_MS = 1_000;
+
 /**
  * The last `count` non-empty lines of a terminal, trimmed, oldest first: what a failed start said, for the log.
  * Read from the buffer as parsed so far, so a caller that has just written waits for `term.write('', …)` first.
@@ -76,10 +87,33 @@ export function createTerminal(container: HTMLElement, keys?: (event: KeyboardEv
   term.open(container);
 
   // A key handed back to the browser is one xterm leaves alone without cancelling, so Chromium's own paste runs into xterm's textarea, which pastes it as one paste, bracketed where the program asked for that.
+  let pasteKeyAt = -Infinity;
   term.attachCustomKeyEventHandler((event) => {
+    if (event.type === 'keydown' && isPasteKey(event)) pasteKeyAt = event.timeStamp;
     if (pastesHere(event)) return false;
     return keys ? keys(event) : true;
   });
+
+  // Under WSL a paste from a key that brings no text may be files copied in Explorer, which only Windows has: main is asked for them, and their paths are pasted instead, or nothing, as the paste came, where there are none (`copiedFiles`).
+  // Caught on the way down, before xterm's own handling on its element and its textarea, which would send the paste on at once.
+  container.addEventListener(
+    'paste',
+    (event) => {
+      if (!wsl || event.timeStamp - pasteKeyAt > PASTE_KEY_MS) return;
+      pasteKeyAt = -Infinity;
+      if (event.clipboardData?.getData('text/plain')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void window.claudeUi
+        .copiedFiles()
+        .catch(() => [])
+        .then((paths) => {
+          // Its tab or shell may have closed meanwhile.
+          if (term.element?.isConnected) term.paste(pastedPaths(paths));
+        });
+    },
+    true,
+  );
 
   // Canvas renderer for smoother scrolling/paste than the default DOM renderer; fall back to DOM if it can't initialize (e.g. a WSLg GPU quirk) so the terminal always works.
   // Which one a terminal got is logged, because "the terminal is slow" cannot be answered without it: canvas once, since it is the usual answer, and every fallback, since each is news.

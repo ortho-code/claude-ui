@@ -82,6 +82,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A project's and a group's options start a session there, New session and New worktree session…, and a project's has New session in group, which reaches a group the filter hides as well, and Jump to group, to the places its heading's jump button offers.
 - A session's dot shows when its claude has been asked to stop or pause and has not gone yet, as a pulsing square or the paused bars pulsing, for as long as that takes.
   Meanwhile Pause in its options asks claude again, and makes a stop a pause.
+- On WSL, a paste of files copied in Explorer pastes their paths, in a session or a panel's shell, so claude attaches an image file; it needs `wl-clipboard`, and reading the files from Windows usually takes about a second.
 
 ### Changed
 

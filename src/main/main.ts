@@ -59,6 +59,7 @@ import {
 import { registerSettings } from './settings';
 import { registerLayoutState } from './layoutstate';
 import { readProcVersion, runsOnWsl } from './platform';
+import { copiedFiles } from './clipboard';
 import {
   placeWindow,
   maximizedRect,
@@ -508,6 +509,8 @@ ipcMain.handle('window:chrome', () => ({
 // Decided once: what the window's terminals do with Ctrl+V depends on it (docs/architecture.md § The `terminal` type).
 const WSL = runsOnWsl(process.platform, process.env, readProcVersion);
 ipcMain.handle('app:wsl', () => WSL);
+// Only under WSL is a copied file on Windows' side alone (src/main/clipboard.ts).
+ipcMain.handle('clipboard:copiedFiles', () => (WSL ? copiedFiles() : []));
 ipcMain.on('window:minimize', () => mainWindow?.minimize());
 ipcMain.on('window:toggleMaximize', () => {
   if (mainWindow) setMaximized(mainWindow, !maximized);

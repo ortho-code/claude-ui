@@ -36,6 +36,7 @@ const api: ClaudeUiApi = {
   onSettingsChanged: (callback) => ipcRenderer.on('settings:changed', (_event, view: SettingsView) => callback(view)),
   getWindowChrome: () => ipcRenderer.invoke('window:chrome'),
   isWsl: () => ipcRenderer.invoke('app:wsl'),
+  copiedFiles: () => ipcRenderer.invoke('clipboard:copiedFiles'),
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   toggleMaximizeWindow: () => ipcRenderer.send('window:toggleMaximize'),
   closeWindow: () => ipcRenderer.send('window:close'),

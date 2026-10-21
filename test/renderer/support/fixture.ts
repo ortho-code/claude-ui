@@ -26,6 +26,8 @@ export interface BridgeFixture {
   windowChrome: WindowChrome;
   /** Whether main says the app runs under WSL; not, unless a check says so, which is the case the window changes nothing for. */
   wsl: boolean;
+  /** The files main finds copied in Windows, as Linux paths; none unless a check copies some. */
+  copiedFiles: string[];
   projectNames: Record<string, string>;
   groupState: GroupState;
   projectOrder: string[];
@@ -133,6 +135,7 @@ export function defaultFixture(): BridgeFixture {
     settings: { yours: noSettingsFile('settings.json'), app: noSettingsFile('settings.local.json') },
     windowChrome: { own: false, maximized: false, title: 'Claude UI (test)', version: '0.0.0-test', dev: true },
     wsl: false,
+    copiedFiles: [],
     projectNames: {},
     groupState: { groups: [], groupOf: {} },
     projectOrder: [one.repoRoot],

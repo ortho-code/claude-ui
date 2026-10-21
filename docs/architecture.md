@@ -1138,6 +1138,15 @@ An image still reaches claude: a clipboard holding no text gives a paste with no
 Elsewhere Ctrl+V goes on as before: on native Linux, handing it back would cost the image, since Ctrl+V is claude's only image key there and claude reads no image from an empty paste; on macOS, Ctrl+V is not the paste key, Cmd+V is, and claude keeps Ctrl+V, as in Terminal.app.
 Whether this is WSL is claude's own rule, mirrored in main (`runsOnWsl`, src/main/platform.ts) and asked once at startup, so the window never takes the key where claude would not read an empty paste as an image.
 Rejected: the same on every platform, for the image paste it costs; claude's tabs only, which would answer one key two ways with nothing to say why; and passing Ctrl+V to claude only while the clipboard holds an image, which needs a look at the clipboard's formats that claude's empty paste already makes unnecessary.
+
+**Under WSL, a paste with no text may be files copied in Explorer.**
+Such a copy reaches neither side of Linux's clipboard — Windows holds a file list, `wl-paste -l` lists nothing and X11 offers an empty text — so only `powershell.exe` can read it, and claude's own image check, which asks Windows only whether it holds an image, finds nothing.
+So a paste from a key (Ctrl+V, Ctrl+Shift+V or Shift+Insert) that brings no text is held while main looks (`copiedFiles`, src/main/clipboard.ts): at `wl-paste -l` first, since a screenshot looks the same from Linux and an image listed there is left to claude, which reads a png, jpeg, gif, webp or bmp one from Linux without asking Windows, then at Windows' file list, each path mapped by `wslpath -u`.
+The window pastes the paths with their shell-special characters behind a backslash, joined by spaces (`pastedPaths`), which a shell reads as typed and claude splits into paths, attaching each image file; with none, the empty paste goes on as it came.
+Not quoted, since claude splits a paste only at a space before a `/` or a drive, which a quote in front of each path would hide.
+A middle-click is left alone, since it pastes the selection rather than the clipboard, and without wl-clipboard nothing is asked, since telling a screenshot from a file copy would then put a `powershell.exe` call in front of every screenshot.
+Asking Windows took 0.4 to 1 s warm when measured, and nothing shows meanwhile.
+Rejected: Windows paths, as Explorer's Copy as path gives them, which a panel's shell cannot use.
 Each shell fits its xterm from a `ResizeObserver` on its own box rather than when it is made, because a shell is made before its box is on screen and the box measures nothing yet: the hidden-pane trap, in its "not yet placed" form.
 The same observer covers every later reveal — its tab picked, a switch on the rail, an unfold, a divider reopening a squeezed node — since each gives the box a size again.
 
