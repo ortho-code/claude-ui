@@ -2,10 +2,10 @@ import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { noSettingsFile, PROJECT, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, switcherEntry, tab } from '../../../../support/window';
+import { row, stripRow, switcherEntry, tab } from '../../../../support/window';
 
 // Pausing sets a tab aside from its session's menu: a running session's claude is asked to leave, and a cold tab is only marked; the session's own dots then show it paused.
-// A tab you paused is kept as paused with the open tabs, comes back paused at the next launch without starting, and loses the mark only when its session runs again or you choose Stop session in its menu, the running one's word, which leaves a cold or leaving tab an ordinary stopped one.
+// A tab you paused is kept as paused with the open tabs, comes back paused at the next launch without starting, and loses the mark only when its session runs again or you choose Stop session in its menu, the running one's word, which leaves it an ordinary stopped tab.
 const one = session();
 const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Second session' });
 // A tab on show has its history read; what it holds is not what is checked here.
@@ -25,7 +25,7 @@ async function fromMenu(page: Page, title: string, item: 'Pause' | 'Stop session
 const tabDot = (page: Page, title: string): Locator => tab(page, title).locator('.nudge');
 const rowDot = (page: Page, title: string): Locator => row(page, title).locator('.nudge');
 
-test('pausing a running session from its menu asks its claude to leave, and its tab and row show it paused once claude has gone', async ({ app, page }) => {
+test('pausing a running session from its menu asks its claude to leave, its dots say it is pausing until claude has gone, and paused once it has', async ({ app, page }) => {
   await app.boot({ history });
   await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
@@ -33,9 +33,13 @@ test('pausing a running session from its menu asks its claude to leave, and its 
 
   await fromMenu(page, one.title, 'Pause');
   expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
-  // Kept as paused at once, so a quit before claude has gone still comes back paused; the dot shows what claude is doing until it has.
+  await expect(tab(page, one.title).locator('.tab-close')).toHaveAttribute('data-tooltip', 'Pausing…');
+  // Kept as paused at once, so a quit before claude has gone still comes back paused; the dots say the pause is under way until it has.
   await expect.poll(() => lastKept(app)).toEqual([[one.id], [one.id], [one.id]]);
-  await expect(tabDot(page, one.title)).not.toHaveClass(/\bpaused\b/);
+  for (const dot of [tabDot(page, one.title), rowDot(page, one.title), stripRow(page, one.title).locator('.nudge')]) {
+    await expect(dot).toHaveClass(/\bpausing\b/);
+    await expect(dot).not.toHaveClass(/\bpaused\b/);
+  }
 
   await app.emit('onTerminalExit', FIRST, 0);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
@@ -75,24 +79,54 @@ test('stopping a paused session takes the mark off and leaves the tab cold', asy
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
-// While a pause still waits for claude to leave, the tab's button says it is stopping until the stop can be forced, and the menu's Stop session is the one that takes the mark off, so it is there once, and available.
-test("a paused tab whose claude is still leaving has one Stop session in its menu, which takes the mark off", async ({ app, page }) => {
+// A pause is not there until claude has gone: until then the tab runs, so its menu is a running tab's, and its Pause asks claude again, for a claude that let the first ask pass.
+test("a paused tab whose claude is still leaving has a running tab's menu, and its Pause asks claude again", async ({ app, page }) => {
   await app.boot({ history });
   await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await fromMenu(page, one.title, 'Pause');
-  // Asked to leave, and not gone yet.
+  // Asked to leave, not gone, and past the moment after which the stop can be forced.
   await expect.poll(() => app.calls('closeTerminal')).toHaveLength(1);
+  await expect(tab(page, one.title).locator('.tab-close')).toBeEnabled();
   await row(page, one.title).locator('.session-kebab').click();
-  const stop = page.locator('.kebab-menu button.menu-row', { hasText: /^Stop session$/ });
-  await expect(stop).toHaveCount(1);
-  await expect(stop).not.toHaveClass(/\bunavailable\b/);
-  await stop.click();
-  // The stop goes on; once claude has gone the tab is an ordinary stopped one, kept as open and not as paused.
+  await expect(page.locator('.kebab-menu button.menu-row', { hasText: /^Stop session$/ })).toHaveCount(0);
+  await expect(page.locator('.kebab-menu button.menu-row', { hasText: /^Force stop$/ })).not.toHaveClass(/\bunavailable\b/);
+  await page.locator('.kebab-menu button.menu-row', { hasText: /^Pause$/ }).click();
+  expect(await app.calls('closeTerminal')).toEqual([
+    [FIRST, false],
+    [FIRST, false],
+  ]);
+  // Asked again, so the force waits its moment again.
+  await expect(tab(page, one.title).locator('.tab-close')).toHaveAttribute('data-tooltip', 'Pausing…');
+  expect(await app.calls('killTerminal')).toEqual([]);
+
   expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
-  await expect(tabDot(page, one.title)).not.toHaveClass(/\bpaused\b/);
-  await expect.poll(() => lastKept(app)).toEqual([[one.id], [], []]);
+  await expect(tabDot(page, one.title)).toHaveClass(/\bpaused\b/);
+  await expect.poll(() => lastKept(app)).toEqual([[one.id], [], [one.id]]);
+});
+
+// A stop claude let pass can be made a pause, which asks claude again and keeps the tab, paused, once it has gone.
+test("pausing a session whose stop claude has not answered asks it again, and the tab rests paused once claude has gone", async ({ app, page }) => {
+  await app.boot({ history });
+  await row(page, one.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const close = tab(page, one.title).locator('.tab-close');
+  await close.click();
+  await expect(close).toBeEnabled();
+  await expect(tabDot(page, one.title)).toHaveClass(/\bstopping\b/);
+
+  await fromMenu(page, one.title, 'Pause');
+  expect(await app.calls('closeTerminal')).toEqual([
+    [FIRST, false],
+    [FIRST, false],
+  ]);
+  await expect(tabDot(page, one.title)).toHaveClass(/\bpausing\b/);
+  await expect.poll(() => lastKept(app)).toEqual([[one.id], [one.id], [one.id]]);
+
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+  await expect(tabDot(page, one.title)).toHaveClass(/\bpaused\b/);
 });
 
 // Opening a paused tab starts it, and the mark goes when its process arrives: until then there is nothing to stop yet, so Stop session says so, as the tab's button does, rather than offering to take the mark off while the start goes on.

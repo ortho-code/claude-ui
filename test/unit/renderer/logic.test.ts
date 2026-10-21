@@ -820,6 +820,13 @@ describe('statusLabel', () => {
     expect(statusLabel('paused', true)).toBe('Paused — opening it resumes the session');
   });
 
+  it('names a session on its way to a pause or a stop, and never as read, since its claude is leaving', () => {
+    expect(statusLabel('pausing')).toBe('Pausing — waiting for claude to leave');
+    expect(statusLabel('pausing', true)).toBe('Pausing — waiting for claude to leave');
+    expect(statusLabel('stopping')).toBe('Stopping — waiting for claude to leave');
+    expect(statusLabel('stopping', true)).toBe('Stopping — waiting for claude to leave');
+  });
+
   it('says nothing at all for a session with no status', () => {
     // The hollow dot: no tooltip rather than an empty one, so closest() falls through to whatever it sits in.
     expect(statusLabel(undefined)).toBe(null);
@@ -887,6 +894,10 @@ describe('tabButtonState', () => {
     // A process on its way has no id yet.
     expect(tabButtonState({ terminalId: null, starting: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop' });
     expect(tabButtonState({ terminalId: LIVE, stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…', mark: 'stop' });
+  });
+
+  it('says a pause on its way out is pausing', () => {
+    expect(tabButtonState({ terminalId: LIVE, stopping: true, paused: true })).toEqual({ disabled: true, tooltip: 'Pausing…', mark: 'stop' });
   });
 
   it('reports ARRIVING when a tab somehow carries both flags', () => {

@@ -6,7 +6,7 @@ import { newSession, untitledLabel } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
 import { clearNudge } from '../../../state/statuses';
-import { sessionById, tabOnShow } from '../../../state/views';
+import { isPaused, sessionById, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
 import { fromMarkup } from '../../../dom';
@@ -506,16 +506,19 @@ export function stopCalledOff(token: string): void {
 /**
  * Set a tab aside to come back to (`TabState.paused`): a running tab's claude is asked to leave as a stop asks it, and a cold tab is only marked.
  * NOTHING IS SUSPENDED: the process is ended, not frozen, and opening the tab again resumes the session, reloading its conversation as resuming any cold tab does.
+ * A claude already asked to leave, by a pause or a stop, is asked again, since it can let an ask pass (seen 2026-10-21, cause unknown); a close under way becomes a pause, keeping the tab.
  * A tab whose process is still arriving is left alone, since there is nothing there yet to ask to leave; its Pause item is unavailable then.
  */
 export function pauseTab(token: string): void {
   const tab = tabOf(token);
-  if (!tab || tab.paused || tab.starting) return;
-  setTab(token, { paused: true });
-  persistOpenTabs();
-  if (tab.terminalId !== null && !tab.stopping) askToLeave(token, tab.terminalId, false);
+  if (!tab || isPaused(tab) || tab.starting) return;
+  if (!tab.paused) {
+    setTab(token, { paused: true });
+    persistOpenTabs();
+  }
+  if (tab.terminalId !== null) askToLeave(token, tab.terminalId, false);
   // A cold tab forgets whatever status it still holds, as one that goes cold does (`coolTab`): one restored from a file could say waiting, and a paused session nudges nothing.
-  else if (tab.terminalId === null) clearNudge(tab.session.id);
+  else clearNudge(tab.session.id);
 }
 
 /** Stop a paused tab, its menu's Stop session: take the paused mark off, and nothing else, so it is an ordinary stopped tab; a pause still waiting for claude to leave goes on as a stop, and leaves the tab cold. */

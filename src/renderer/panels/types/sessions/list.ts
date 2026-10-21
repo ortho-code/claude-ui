@@ -3,7 +3,7 @@ import { placeChildren } from '../../../keyed';
 import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, groupJumpTargets, projectGoneReason } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
-import { archivedOnlyProjects, isFiltering, pausedChanges, projName, searchText, statusChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
+import { archivedOnlyProjects, isFiltering, projName, searchText, statusChanges, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
@@ -54,8 +54,8 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
   if (moved) renderList(view);
   else {
     updateSidebarHighlight(view);
-    // A tab that came to rest paused, or stopped resting so, changes what its session's dot shows (`dotStatus`).
-    repaintDots(pausedChanges({ tabs: before }, view), view);
+    // A tab that came to rest paused, or stopped resting so, or whose claude was asked to leave, changes what its session's dot shows (`dotStatus`).
+    repaintDots(tabDotChanges({ tabs: before }, view), view);
   }
 }
 

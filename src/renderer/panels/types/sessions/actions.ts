@@ -6,7 +6,7 @@ import { openMenu, type MenuItem } from '../../../menu';
 import { store, withMember } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
-import { isFiltering, projName, projectGroups, tabWith, unopenableReason } from '../../../state/views';
+import { isFiltering, isPaused, projName, projectGroups, tabWith, unopenableReason } from '../../../state/views';
 import { showToast } from '../../../toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
@@ -240,22 +240,18 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   items.push(copyIdItem(session));
   // The state changes sit below a rule, away from the navigate/copy items.
   items.push({ label: '', separator: true });
-  // Pausing is the tab's, and needs one: it marks the tab, and for a running session ends its claude (pauseTab).
-  // A paused tab's way out is Stop session, the running one's word, since both leave an ordinary stopped tab: here it takes the mark off and starts nothing (`stopPausedTab`), a stop still under way going on (user, 2026-10-20, replacing "Unpause").
+  // Pausing is the tab's, and needs one: it marks the tab, and for a running session asks its claude to leave (pauseTab).
+  // A paused tab's way out is Stop session, the running one's word, since both leave an ordinary stopped tab: here it takes the mark off and starts nothing (`stopPausedTab`) (user, 2026-10-20, replacing "Unpause").
+  // Only once it rests paused (`isPaused`), as its dot says: while its claude is still leaving, it runs, so its menu is a running tab's, whose Pause asks claude again (user, 2026-10-21).
   // Not while it starts, which clears the mark when its process arrives: there is nothing to stop yet, so it is any starting tab's then.
-  const pausedOut = tab?.paused === true && !tab.starting;
-  if (pausedOut) items.push({ label: tabButtonLabel('stop'), onSelect: () => hostOf('sessions').stopPausedSession(session.id) });
+  if (tab && isPaused(tab) && !tab.starting) items.push({ label: tabButtonLabel('stop'), onSelect: () => hostOf('sessions').stopPausedSession(session.id) });
   else if (tab?.starting) items.push({ label: 'Pause', disabled: 'Starting…' });
   else if (tab) items.push({ label: 'Pause', onSelect: () => hostOf('sessions').pauseSession(session.id) });
   // A press on the tab's button, from wherever the session's menu is, by the button's own rule (`tabButtonState`), so the item says and does what the button would: stop it, force it out, or close the tab it left.
   // Unavailable without a tab, since there is then nothing to stop or close.
   const button = tab ? tabButtonState(tab) : null;
-  // On a paused tab whose claude is still leaving, the button says Stopping… until the stop can be forced, and the Stop session above is the one to take: listed once.
-  const listedAbove = pausedOut && button?.mark === 'stop';
   if (!button) items.push({ label: tabButtonLabel('close'), disabled: 'Not open in a tab' });
-  else if (!listedAbove) {
-    items.push(button.disabled ? { label: tabButtonLabel(button.mark), disabled: button.tooltip } : { label: tabButtonLabel(button.mark), onSelect: () => hostOf('sessions').pressTabButton(session.id) });
-  }
+  else items.push(button.disabled ? { label: tabButtonLabel(button.mark), disabled: button.tooltip } : { label: tabButtonLabel(button.mark), onSelect: () => hostOf('sessions').pressTabButton(session.id) });
   // Not while it runs, starting and stopping included: stopping it first, with the item above, keeps the tab up for anything claude asks on its way out, so Archive is never offered for a running tab.
   // A tab that is open but not running closes as the session is archived (`toggleArchiveFor`).
   const running = tab !== undefined && (tab.terminalId !== null || tab.starting);

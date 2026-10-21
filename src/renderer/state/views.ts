@@ -37,12 +37,22 @@ export function isPaused(tab: TabState): boolean {
 }
 
 /**
- * What a session's own dot shows, wherever one stands for one session: `paused` for a session whose tab rests paused, since its last report describes a claude that has gone; otherwise its status as its hooks last reported it.
+ * What a session's own dot shows, wherever one stands for one session: what its tab says (`tabDot`), where it says anything, since the last report then describes a claude that has gone or is going; otherwise its status as its hooks last reported it.
  * A roll-up reads the status itself (`sessionNudge`).
  */
 export function dotStatus(id: string, view: View<'statuses' | 'tabs'>): string | undefined {
   const tab = tabWith(id, view);
-  return tab && isPaused(tab) ? 'paused' : view.statuses.get(id);
+  return (tab && tabDot(tab)) ?? view.statuses.get(id);
+}
+
+/**
+ * What a tab says in its session's dot: `paused` once it rests paused, and `pausing` or `stopping` while its claude has been asked to leave and has not, however long that takes; otherwise nothing.
+ * The ask can go unanswered, and only these say so, since the tab's button turns into a force after its first moment, until the force is pressed.
+ */
+function tabDot(tab: TabState): 'paused' | 'pausing' | 'stopping' | undefined {
+  if (isPaused(tab)) return 'paused';
+  if (tab.stopping && tab.terminalId !== null) return tab.paused ? 'pausing' : 'stopping';
+  return undefined;
 }
 
 /** The tab on show, from the token the store keeps. */
@@ -136,12 +146,12 @@ export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'ack
   return ids;
 }
 
-/** The sessions whose tab came to rest paused or stopped resting so between two readings of the tabs: what a change of the tabs asks a session's dot to repaint (`dotStatus`). */
-export function pausedChanges(before: View<'tabs'>, after: View<'tabs'>): Set<string> {
-  const paused = (view: View<'tabs'>): Set<string> => new Set(view.tabs.filter(isPaused).map((t) => t.session.id));
-  const was = paused(before);
-  const is = paused(after);
-  return new Set([...was, ...is].filter((id) => was.has(id) !== is.has(id)));
+/** The sessions whose tab says something else in their dot between two readings of the tabs (`tabDot`), such as one that came to rest paused: what a change of the tabs asks a session's dot to repaint (`dotStatus`). */
+export function tabDotChanges(before: View<'tabs'>, after: View<'tabs'>): Set<string> {
+  const dots = (view: View<'tabs'>): Map<string, string | undefined> => new Map(view.tabs.map((t) => [t.session.id, tabDot(t)]));
+  const was = dots(before);
+  const is = dots(after);
+  return new Set([...was.keys(), ...is.keys()].filter((id) => was.get(id) !== is.get(id)));
 }
 
 /** A session's part in a roll-up (`nudgeOf`), read out of the store. */

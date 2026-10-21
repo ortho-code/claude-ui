@@ -302,10 +302,27 @@ button:where(:not(.icon-btn)):hover,
 }
 
 /* Paused: set aside, its claude ended — two bars in the same 9px box rather than a ring, so it reads apart from a session that has simply not reported, in the same muted colour since it wants nothing from you. */
-.nudge.paused {
+.nudge.paused,
+.nudge.pausing {
   border: none;
   border-radius: 1px;
   background: linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 6px, var(--muted) 6px);
+}
+
+/* Stopping: a 7px square, the stop mark, kept 1px inside the 9px box so it does not read as a block next to the round dots. */
+.nudge.stopping {
+  border: none;
+  border-radius: 1px;
+  padding: 1px;
+  background: var(--muted);
+  background-clip: content-box;
+}
+
+/* On its way to a pause or a stop: claude was asked to leave and has not gone, which lasts as long as anything it asks on its way out, or until it is forced when it lets the ask pass.
+   The mark it is heading for, pulsing, and slower than waiting's pulse, so it reads as under way rather than as wanting you. */
+.nudge.pausing,
+.nudge.stopping {
+  animation: pulse 2.4s ease-in-out infinite;
 }
 
 /* "Read": dim whatever colour it is and stop the pulse — acknowledged, still open. */

@@ -240,14 +240,16 @@ Those two marks answer the same question, so they answer it the same way — acc
 
 A cold tab can also be **paused**: set aside to come back to, a mark beside the cold state rather than a fourth state, so everything that reads `terminalId` goes on reading it unchanged (`paused`).
 It exists because a stopped tab and one that came back cold from a restart looked the same, and a pile of the second kind hid the few still in hand.
-Pause is in the session's menu while the session has a tab and is not paused, unavailable while the tab is starting, and a paused tab's way out is **Stop session**, the word a running session's stop uses, since both leave an ordinary stopped tab: it takes the mark off and starts nothing (`stopPausedTab`); while the paused tab starts, which clears the mark as its process arrives, it is any starting tab's Stop session, unavailable.
+Pause is in the session's menu while the session has a tab that does not rest paused, unavailable while the tab is starting, and a paused tab's way out is **Stop session**, the word a running session's stop uses, since both leave an ordinary stopped tab: it takes the mark off and starts nothing (`stopPausedTab`); while the paused tab starts, which clears the mark as its process arrives, it is any starting tab's Stop session, unavailable.
 It was called Unpause, a word for coming back on an act that does not (user, 2026-10-20).
 Pausing a running session asks its claude to leave as a stop does, and the mark is set at once, so a pause still waiting for claude to leave is kept as paused; pausing a cold tab only marks it, and forgets any status it still held.
 Nothing is suspended: the process is ended, not frozen, and opening the tab resumes the session as any cold tab's does, reloading its conversation.
 A prompt reported before claude has gone calls the pause off with the stop; one submitted just before the pause can do so too, and the tab then closes at the exit, as it does for a stop.
-Stop session during that wait lets the stop go on, leaving the tab cold; the tab button's own item, which says Stopping… then, is left out of the menu meanwhile, so Stop session is listed once, and once the stop can be forced Force stop is listed beside it.
-The mark is a state of the session's dot (`dotStatus`), two bars in place of its last report once claude has gone, so every dot that stands for one session reads it from one rule: the tab's, the session row's, the strip's, and a list panel's row mark and session menu items.
+The tab rests paused only once claude has gone (`isPaused`), and until then it runs, so its menu is a running tab's, with Pause, which asks claude again, and the tab button's item: Stop session, unavailable as Pausing…, for its first second and again once forced, and Force stop in between (§ Stopping a session is a request).
+It used to be the paused menu as soon as the mark was set, its Stop session taking the mark off while the stop went on, so a session whose claude let the ask pass showed a pause that had not happened and could not be paused again (user, 2026-10-21).
+The mark is a state of the session's dot (`dotStatus`), two bars in place of its last report once claude has gone, pulsing while it goes, so every dot that stands for one session reads it from one rule: the tab's, the session row's, the strip's, and a list panel's row mark and session menu items.
 A roll-up, such as a project's in the switcher, and the attention toasts read the status itself, which for a session claude has left is `closed` and nudges nothing.
+A pausing or a stopping dot never shows the session's mark read either, and is no control, so a click on it goes to its running tab.
 A paused dot never shows the session's mark read, since it reports no claude, and it is no control, as no dot is but an idle or a waiting one (`canMarkRead`, § A session's menu holds everything about it): a click on it goes to what holds it, which opens the session and so resumes it, unless its folder has gone.
 
 The live strip lists paused tabs beside the running sessions: its membership is a tab with a process or a paused one, since a tab you set aside is work in hand in the same way, and as far out of sight in another project.
@@ -296,6 +298,13 @@ Esc at the question calls claude's exit off, and the next prompt the session sub
 Until that prompt the tab goes on saying it is stopping.
 A prompt submitted a moment before the stop, whose report arrives after it, calls the stop off just the same, and the exit that follows then closes the tab instead of cooling it.
 
+**The stop shows for as long as it lasts**: the session's dot says `stopping`, or `pausing` for a pause, from the ask until the exit lands or a prompt calls the stop off (`dotStatus`), a pulsing square or the paused bars pulsing, in place of the last report, since that describes a claude on its way out.
+The button cannot say it, because it turns into a force after its first second, until the force is pressed.
+Claude can also let the ask pass and stay at its prompt: on 2026-10-21 a resumed session idle at its prompt for fifteen minutes was pressed twice and was still running 44 minutes later, when it was forced, with no question on screen and only a space in its input, while a fresh session with a space typed left on the same two presses (claude 2.1.302), so the cause is unknown.
+Another resumed session let a two-press ask pass the same day, and left at the next ask, 25 minutes later.
+Pause in its menu then asks it again, and makes a stop a pause, a close one included; main presses again unless the presses before are still being sent or the session has already been forced.
+Ending it is still the user's: the app forces a session out on its own only when you quit, when its window closes on macOS, when its tab is removed while its claude is still starting, as deleting the session does, and when a claude's `/resume` takes a session another tab runs (§ A resumed session is the session it was), and never because an ask went unanswered (user, 2026-10-21).
+
 A session still there a second after the ask can be **forced**: its stop control, disabled for that second so a double-click cannot force before the question is on screen, then sends the process group `SIGTERM`, and `SIGKILL` if it is still there after the grace below.
 Quitting the app forces every session without asking, since a question would have nobody to answer it, and a panel shell's stop forces it too, since a shell has no Ctrl-C exit to be asked through.
 Closing the window on macOS, where the app stays without one, forces them the same way: a window opened again from the Dock brings back the ones that were running as `runningSessionsAtLaunch` says, starting them afresh when it says start, and were they not forced, a start would put them beside the old ones, which no window could reach any more.
@@ -334,7 +343,7 @@ It was the other way round before: the tab's and the strip's kebab left out the 
 **What the session is comes first**: a header that is not an item (`MenuItem.header`) — its title, project · group · status, last activity · model, when it was archived, worktree, the first line of its note, and why it cannot run — drawn from the helpers its row uses (`sessions/describe.ts`), since the tab and the strip show little of it themselves.
 A line too long for the menu, which every popover caps at 300px, is cut and carries its whole text as its tooltip.
 
-**One order on every surface**: Open, Show in list, Fork, Siblings and PRs; Pin in list, Mark as read, the note, Move to group and Copy id; a rule; then Pause, or Stop session on a paused tab, the tab's button and Archive.
+**One order on every surface**: Open, Show in list, Fork, Siblings and PRs; Pin in list, Mark as read, the note, Move to group and Copy id; a rule; then Pause, or Stop session on a tab that rests paused, the tab's button and Archive.
 An item that applies but cannot be taken now stays, unavailable with its reason, as Close tab does with no tab ("Not open in a tab"), since a menu that changes shape is one you have to read again.
 One that would be the surface itself is left out — Show in list on the row, Open on a tab that is running, starting or stopping — and so is Pause without a tab, a deliberate exception.
 **Open** is what a press on the surface does: on the row it opens the tab where you are, on the strip row it takes you to it, and on a cold or paused tab it starts it.

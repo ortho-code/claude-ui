@@ -618,8 +618,10 @@ const STATUS_LABEL: Record<string, string> = {
   background: 'Working in the background',
   waiting: 'Waiting for you',
   closed: 'Not running',
-  // Not a status a hook reports: what the dot of a session whose tab rests paused shows in place of its last one (`dotStatus`).
+  // Not statuses a hook reports: what the dot of a session whose tab rests paused, or whose claude was asked to leave and has not, shows in place of its last one (`dotStatus`).
   paused: 'Paused — opening it resumes the session',
+  pausing: 'Pausing — waiting for claude to leave',
+  stopping: 'Stopping — waiting for claude to leave',
 };
 
 /**
@@ -646,11 +648,14 @@ function countedTypes(types: readonly string[]): string {
 
 /**
  * Whether a dot showing `status` shows the session's mark read, by its tooltip and its dimming alike (`sessionDotClass`).
- * A paused dot never does: it reports no claude, so there is nothing on it to have read, and a mark made before the pause would dim it for nothing.
+ * A dot showing what its tab does never does, paused, pausing or stopping: it reports no claude, or one on its way out, so there is nothing on it to have read, and a mark made before would dim it for nothing.
  */
 export function showsRead(status: string | null | undefined, acked: boolean): boolean {
-  return acked && status !== 'paused';
+  return acked && !TAB_DOTS.has(status ?? '');
 }
+
+/** The states a session's dot takes from its tab rather than from its hooks (`dotStatus`). */
+const TAB_DOTS: ReadonlySet<string> = new Set(['paused', 'pausing', 'stopping']);
 
 /**
  * The live strip's line: how many of its sessions run and how many of those want you, then how many tabs are paused.
@@ -662,7 +667,7 @@ export function stripLine(live: number, needing: number, paused: number): string
 }
 
 /**
- * Enough of a tab to know what its button should say: whether it has a process, three of the flags a tab's data carries (`TabState`, in state/app.ts), and nothing of its terminal.
+ * Enough of a tab to know what its button should say: whether it has a process, four of the flags a tab's data carries (`TabState`, in state/app.ts), and nothing of its terminal.
  * The flags are optional, so a caller can name only the one it is about: absent means "not in that transition", which is the same thing as false and is why every check on them is a truthiness test.
  */
 export interface TabButtonTab {
@@ -674,6 +679,8 @@ export interface TabButtonTab {
   stopping?: boolean;
   /** It has been on its way out long enough that the control now forces it. */
   forceable?: boolean;
+  /** Set aside: on its way out, that is a pause rather than a stop. */
+  paused?: boolean;
 }
 
 /** The mark on a tab's button: the stop square, filled once a press forces the session out, or the cross once there is only a tab to close (`tabButtonIcon`). */
@@ -692,7 +699,7 @@ export function tabButtonState(tab: TabButtonTab): { disabled: boolean; tooltip:
   // Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving.
   if (tab.starting) return { disabled: true, tooltip: 'Starting…', mark: 'stop' };
   if (tab.stopping && tab.forceable) return { disabled: false, tooltip: `${tabButtonLabel('force')}: claude has not left yet — it may be asking you something`, mark: 'force' };
-  if (tab.stopping) return { disabled: true, tooltip: 'Stopping…', mark: 'stop' };
+  if (tab.stopping) return { disabled: true, tooltip: tab.paused ? 'Pausing…' : 'Stopping…', mark: 'stop' };
   if (tab.terminalId === null) return { disabled: false, tooltip: tabButtonLabel('close'), mark: 'close' };
   return { disabled: false, tooltip: tabButtonLabel('stop'), mark: 'stop' };
 }

@@ -3,7 +3,7 @@ import { unstartableReason } from '../../../../../../src/renderer/logic';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, switcherEntry, tab, tabs } from '../../../../support/window';
+import { row, stripRow, switcherEntry, tab, tabs } from '../../../../support/window';
 
 // A tab's life (docs/architecture.md § Tab lifecycle): selecting it starts it, it boots until claude prints, its button stops the session and keeps the tab cold, a second press closes it; claude ending by itself closes the tab, unless it ended so soon that the start failed.
 const one = session();
@@ -98,6 +98,20 @@ test("the tab's button stops the session and keeps the tab cold, and a second pr
   await expect(pane(page)).toHaveText('Pick a session in the sidebar to open it.');
 });
 
+// The stop is under way until claude has gone, however long it takes, and every dot that stands for the session says so in place of its last report.
+test("a session asked to stop says it is stopping in its dots until claude has gone", async ({ app, page }) => {
+  await app.boot(fixture);
+  await startLive(page, app);
+  await tab(page, one.title).locator('.tab-close').click();
+  const dots = [tab(page, one.title).locator('.nudge'), row(page, one.title).locator('.nudge'), stripRow(page, one.title).locator('.nudge')];
+  for (const dot of dots) await expect(dot).toHaveClass(/\bstopping\b/);
+  await expect(tab(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Stopping — waiting for claude to leave');
+
+  await app.emit('onTerminalExit', FIRST, 0);
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+  for (const dot of [dots[0], dots[1]]) await expect(dot).not.toHaveClass(/\bstopping\b/);
+});
+
 // Claude can answer an exit with a question — a worktree with changes asks whether to keep it — and waits for the answer: nothing tells that from a claude that hangs, so the stop waits and, a moment on, offers to force it.
 test("a stop claude has not answered by leaving stays a stop, its terminal on show, and a moment later the button forces it", async ({ app, page }) => {
   await app.boot(fixture);
@@ -174,13 +188,15 @@ test('a prompt submitted by a session asked to leave calls the stop off, and a t
   const dot = tab(page, one.title).locator('.nudge');
 
   await close.click();
-  await app.emit('onSessionStatus', one.id, 'busy', token, 'PostToolUse');
-  await expect(dot).toHaveClass(/\bbusy\b/);
+  expect(await app.emit('onSessionStatus', one.id, 'busy', token, 'PostToolUse')).toBe(1);
+  // Still a stop, so the dot goes on saying so over the report.
+  await expect(dot).toHaveClass(/\bstopping\b/);
   await expect(close).not.toHaveAttribute('data-tooltip', 'Stop session');
 
   await app.emit('onSessionStatus', one.id, 'busy', token, 'UserPromptSubmit');
   await expect(close).toHaveAttribute('data-tooltip', 'Stop session');
   await expect(close).toBeEnabled();
+  await expect(dot).toHaveClass(/\bbusy\b/);
   // Live again, so the button stops it again, mid-turn now.
   await close.click();
   expect(await app.calls('closeTerminal')).toEqual([
