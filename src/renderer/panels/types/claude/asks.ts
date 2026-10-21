@@ -1,6 +1,6 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { promptText } from '../../../dialogs';
-import { entityKey, sessionLabel } from '../../../logic';
+import { entityKey, sessionLabel, tabButtonState } from '../../../logic';
 import { newSession, untitledLabel } from '../../../newsession';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
@@ -163,9 +163,11 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
     const session = sessionById(id);
     if (session) await forkSession(session);
   },
-  pressTabButton: (id) => {
+  pressTabButton: (id, mark) => {
     const tab = tabWith(id);
-    if (tab) closeOrStop(tab.token);
+    if (!tab) return;
+    const now = tabButtonState(tab);
+    if (!now.disabled && now.mark === mark) closeOrStop(tab.token);
   },
   pauseSession: (id) => {
     const tab = tabWith(id);

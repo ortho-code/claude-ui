@@ -354,6 +354,8 @@ Making it unavailable on another project was turned down, since from the strip, 
 **Mark as read** and the dot share one rule (`canMarkRead`): only an idle or a waiting session that is not archived has something to mark, so only then is its dot a control, painted and pressable, and the item available, and a click on any other dot is the click of what holds it.
 The dot used to look pressable for every status but paused while a click did nothing for most of them.
 **The tab's button** is one item, by the button's own rule (`tabButtonState`) and words (`tabButtonLabel`): Stop session, Force stop or Close tab.
+It does what it says or nothing: a press carries the mark it was drawn with and acts only while the button would still do the same (`pressTabButton`), since a press can land on an item drawn before the tab moved on, and the button by then can be another press — a Force stop pressed once claude has gone would close the tab (user, 2026-10-21).
+The strip's button passes the mark it last drew the same way, as a list panel's kebab item asks for its action only while its row still offers it (§ Types from the config folder).
 
 **Archiving waits for a stop.**
 Archive is unavailable while the session runs, starting and stopping included, so a question claude asks on its way out is answered in a tab that is still there; a tab that is open but not running closes as the session is archived.

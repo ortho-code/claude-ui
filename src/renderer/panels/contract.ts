@@ -1,3 +1,4 @@
+import type { TabButtonMark } from '../logic';
 import type { MenuItem } from '../menu';
 import type { IconName } from './icons';
 import type { PanelSlot } from './layout';
@@ -96,8 +97,11 @@ export interface Asks {
   openWorktreeSession(repoRoot: string, groupId?: string): Promise<void>;
   /** Fork a session, named as the dialog it opens is answered, into its parent's group. */
   forkSession(id: string): Promise<void>;
-  /** Press a session's tab's button, as on the tab: stop a running session, force one that has not left once it may, or close a cold tab. */
-  pressTabButton(id: string): void;
+  /**
+   * Press a session's tab's button, as on the tab: stop a running session, force one that has not left once it may, or close a cold tab.
+   * `mark` is what the press was drawn as, and the press does that or nothing: one drawn before the tab moved on, such as a Force stop pressed after claude has gone, would otherwise do what the button does by then, closing the tab.
+   */
+  pressTabButton(id: string, mark: TabButtonMark): void;
   /** Set a session's tab aside, paused: its claude ended if it runs, the tab marked either way. */
   pauseSession(id: string): void;
   /** Stop a session whose tab is paused, as Stop session in its menu: the paused mark off its tab, and nothing started. */

@@ -248,10 +248,11 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   else if (tab?.starting) items.push({ label: 'Pause', disabled: 'Starting…' });
   else if (tab) items.push({ label: 'Pause', onSelect: () => hostOf('sessions').pauseSession(session.id) });
   // A press on the tab's button, from wherever the session's menu is, by the button's own rule (`tabButtonState`), so the item says and does what the button would: stop it, force it out, or close the tab it left.
+  // What it says is what it does, or nothing, once the tab has moved on (`pressTabButton`).
   // Unavailable without a tab, since there is then nothing to stop or close.
   const button = tab ? tabButtonState(tab) : null;
   if (!button) items.push({ label: tabButtonLabel('close'), disabled: 'Not open in a tab' });
-  else items.push(button.disabled ? { label: tabButtonLabel(button.mark), disabled: button.tooltip } : { label: tabButtonLabel(button.mark), onSelect: () => hostOf('sessions').pressTabButton(session.id) });
+  else items.push(button.disabled ? { label: tabButtonLabel(button.mark), disabled: button.tooltip } : { label: tabButtonLabel(button.mark), onSelect: () => hostOf('sessions').pressTabButton(session.id, button.mark) });
   // Not while it runs, starting and stopping included: stopping it first, with the item above, keeps the tab up for anything claude asks on its way out, so Archive is never offered for a running tab.
   // A tab that is open but not running closes as the session is archived (`toggleArchiveFor`).
   const running = tab !== undefined && (tab.terminalId !== null || tab.starting);

@@ -224,6 +224,27 @@ test("Stop session in a row's menu stops it as the tab's button does, and then s
 // The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the session's claude is 1.
 const FIRST = 1;
 
+// A press can land on an item drawn before the tab moved on, in the moment before the menu follows: the item does what it said or nothing, where the button it stands for would by then close the tab.
+test("the tab button's item pressed after its tab moved on does what it said or nothing: a Force stop once claude has gone leaves the tab", async ({ app, page }) => {
+  await app.boot(fixture);
+  await tabLabel(page, full.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const close = tab(page, full.title).locator('.tab-close');
+  await close.click();
+  await expect(close).toBeEnabled();
+  await row(page, full.title).locator('.session-kebab').click();
+  // Held on to as it was drawn, since the open menu follows the tab once it moves.
+  await item(page, 'Force stop').evaluate((button) => {
+    (window as unknown as { held: Element }).held = button;
+  });
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await expect(tab(page, full.title)).toHaveClass(/\bcold\b/);
+
+  await page.evaluate(() => (window as unknown as { held: Element }).held.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await expect(tab(page, full.title)).toHaveCount(1);
+  expect(await app.calls('killTerminal')).toEqual([]);
+});
+
 // An open menu follows its session, as the tab and its button do, so what it offers is what can be done now.
 test("a session's menu open while its pause waits for claude turns into a paused tab's once claude has gone", async ({ app, page }) => {
   await app.boot(fixture);

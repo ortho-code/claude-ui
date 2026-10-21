@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
-import { asksForYou, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButtonState, type NudgeStatus, type SwitcherModel } from '../../../logic';
+import { asksForYou, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButtonState, type NudgeStatus, type SwitcherModel, type TabButtonMark } from '../../../logic';
 import { kebabButton, openMenu } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { store, type View } from '../../../state/app';
@@ -151,10 +151,10 @@ function buildRow(id: string): StripRow {
   const stop = document.createElement('button');
   stop.type = 'button';
   stop.className = 'icon-btn compact strip-item-stop';
-  // Pressed only while available, which each render decides from the tab as it is then (`updateRow`).
+  // Pressed only while available, which each render decides from the tab as it is then (`updateRow`), and as what it was drawn as.
   stop.addEventListener('click', () => {
     if (unavailable(stop)) return;
-    hostOf('sessions').pressTabButton(id);
+    hostOf('sessions').pressTabButton(id, stop.dataset.mark as TabButtonMark);
   });
   row.append(jump, kebab, stop);
   return { row, jump, dot, name, chip, stop };
@@ -176,6 +176,7 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   // No tab at all should not happen — membership is a tab's process or its pause — so it is inert rather than guessed at, saying only what is so.
   const { disabled, tooltip, mark } = tab ? tabButtonState(tab) : { disabled: true, tooltip: 'No tab to act on', mark: 'stop' as const };
   setMarkup(stop, tabButtonIcon(mark, 14));
+  stop.dataset.mark = mark;
   setUnavailable(stop, disabled ? tooltip : null, tooltip);
 }
 
