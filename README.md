@@ -335,6 +335,7 @@ Use `apt`, not `dpkg -i`: apt pulls in the dependencies the app needs, and `dpkg
 The same command installs a newer version over an older one, keeping your pins, groups and notes.
 
 Under WSL, also install `wl-clipboard` (`sudo apt install wl-clipboard`): claude can then read a pasted screenshot without going through Windows' PowerShell, which can take seconds.
+A `.png`, `.jpg`, `.jpeg`, `.gif` or `.webp` file copied in Explorer pastes into claude with Copy as path (Ctrl+Shift+C on recent Windows 11), not with plain Copy.
 
 For a non-Debian distribution there is an `.AppImage`: `chmod +x` it and run it.
 It has no install or upgrade step, so updating means replacing the file yourself.
