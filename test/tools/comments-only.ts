@@ -7,7 +7,7 @@ import ts from 'typescript';
 /**
  * NOT A CHECK: a tool, for a change meant to touch nothing but comments, which proves it did: `npm run comments:prove [-- <ref>]`.
  * Every file changed since `<ref>` (HEAD unless named), as it stands in the working tree, is compared with that file at `<ref>`.
- * TypeScript and JavaScript are each printed back from the compiler's parse with every comment dropped, and must print the same; CSS has every comment taken out and its whitespace collapsed; markdown is rendered, its whitespace collapsed, since a line break inside a paragraph shows as a space.
+ * TypeScript and JavaScript are each printed back from the compiler's parse with every comment dropped, and must print the same and have the same tokens; CSS has every comment taken out and its whitespace collapsed; markdown is rendered, its whitespace collapsed, since a line break inside a paragraph shows as a space.
  * So "the same" is the same up to layout: what this cannot tell from a comment's change is a change of whitespace in code, which the diff shows and a comment's change has no business making.
  * A file it has no way to read, a new file, a deleted one and a renamed one each fail the proof, since none of them is a comment's change.
  * Exits non-zero unless every changed file is the same.
@@ -16,11 +16,31 @@ import ts from 'typescript';
 const markdown = new MarkdownIt();
 const printer = ts.createPrinter({ removeComments: true });
 
-/** A script's text as the compiler prints it back without its comments. */
+/**
+ * Every token of a script's code, in order, the end of the file last: the parse's leaves, without the JSDoc the parse hangs on them, which is comment.
+ * A token is kept whatever hangs on it, since the end of a file whose last comment is a `/** *\/` one carries that comment as its child.
+ */
+function tokens(file: ts.SourceFile): ts.Node[] {
+  const found: ts.Node[] = [];
+  const walk = (node: ts.Node): void => {
+    if (node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode) return;
+    if (node.kind < ts.SyntaxKind.FirstNode) found.push(node);
+    else node.getChildren(file).forEach(walk);
+  };
+  walk(file);
+  return found;
+}
+
+/**
+ * A script's text as the compiler prints it back without its comments, then its tokens.
+ * The tokens, because the printer writes back a semicolon that automatic semicolon insertion left out, so a line without one printed the same.
+ */
 const script =
   (kind: ts.ScriptKind) =>
-  (text: string): string =>
-    printer.printFile(ts.createSourceFile('file', text, ts.ScriptTarget.Latest, true, kind));
+  (text: string): string => {
+    const file = ts.createSourceFile('file', text, ts.ScriptTarget.Latest, true, kind);
+    return [printer.printFile(file), ...tokens(file).map((token) => token.getText(file))].join('\n');
+  };
 
 /** Each kind of file this reads, and what of it a comment's change must leave the same. */
 const FORMS = new Map<string, (text: string) => string>([

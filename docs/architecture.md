@@ -87,7 +87,7 @@ The test project turns it off: a test that indexes past the end fails anyway, an
 
 **Prose is one sentence per line**, in a comment or in a doc: no sentence goes on in the next line, so the raw text reads as the rendered one does, and no line holds two, so an edit changes only the lines of the sentences it touches.
 A test reads every comment and every doc paragraph git tracks and fails on a wrapped line or a line of two sentences, naming it (`test/text/prose.test.ts`); what it leaves out (a fence, a table, a tag, an indented sample, and for wrapping a list and a comment after code) is spelled out in it.
-A change meant to touch only comments is proved to with `npm run comments:prove [-- <ref>]` (`test/tools/comments-only.ts`): every file changed since the ref, HEAD unless named, must be the same as it was there once its comments are dropped (TypeScript and JavaScript printed back from their parse, CSS with its comments taken out, markdown rendered), and a file of another kind, a new one or a deleted one fails it.
+A change meant to touch only comments is proved to with `npm run comments:prove [-- <ref>]` (`test/tools/comments-only.ts`): every file changed since the ref, HEAD unless named, must be the same as it was there once its comments are dropped (TypeScript and JavaScript printed back from their parse and compared token by token, CSS with its comments taken out, markdown rendered), and a file of another kind, a new one, a deleted one or a renamed one fails it.
 
 ## The window's checks
 
