@@ -505,9 +505,13 @@ The first version joined the text into one reply and folded the tools to a count
 A tool call is drawn as claude draws one, a green dot, the tool's name in bold and what it acted on in grey; drawn like a message, with the same dot and ink, the two were too much alike to tell apart.
 **A run of tool calls between two of claude's messages is folded to one line**, as claude folds them — "Ran 4 shell commands, read 1 file", with a chevron — which opens into the calls; it stays open or closed while claude's reply grows.
 That is a fold in place, where the first version's count was one for the whole reply.
-A lone call stays its own line, since its line says more than a count of one, and an edit (Edit, Write, MultiEdit, NotebookEdit) is never folded and ends a run, so the changes to files stay in view, as claude shows them apart.
-The line uses claude's words where they are known ("ran N shell commands", "read N files") and plain ones otherwise; claude also folds edits to its scratch files into the line, which is not copied, since telling a scratch file from a project file would be a guess from its path.
-Measured on two sessions, of 906 and 54 requests: 417 runs fold, and 1,202 calls stand alone.
+A lone call stays its own line, since its line says more than a count of one.
+An edit (Edit, Write, MultiEdit, NotebookEdit) folds with the rest, where claude shows each apart but for its own memory and scratch files, and the line counts the files changed, so a change still shows without a line each, and which files once the run is opened.
+Edits first kept a line each and ended a run, and those lines were a third of the history: across 506 transcripts of 10,586 requests, 34,946 of the 103,569 lines drawn, and folding them takes it to 68,854.
+The line uses claude's words where they are known ("ran N shell commands", "read N files") and plain ones otherwise ("changed N files").
+A phrase about files counts each file once, told apart by what the call acted on as its line shows it, since in half the runs with an edit (5,400 of 10,925) a file is changed more than once; a shell command run twice still counts twice.
+That line is cut at 120 characters, so two longer paths alike up to the cut count as one file.
+Not taken: folding a lone call too, which saves no line and hides what it acted on; a message no longer ending a run, which would fold the tool calls from either side of a sentence into one line, out of the order claude wrote them; and counting edits by call ("made N edits"), which does not say how many files.
 **A subagent's report is folded to one line too**, "claim-checker reported", where it came back in the reply, and it ends a run as a message does; it opens into the report as markdown, drawn by the same rules as claude's messages.
 Where it came back is not always beside the Agent call that started it: of the 151 reports on the machine this was written on, 57 follow their call, 42 follow another report, from agents started side by side, 50 follow some other tool call claude made meanwhile, and 2 open a reply; a few came back after a new request, and sit in that request's reply.
 Folded, since a report runs to several kilobytes (0.5 to 21 KB as drawn, about 5 KB in the middle) and open it would outweigh claude's own reply.

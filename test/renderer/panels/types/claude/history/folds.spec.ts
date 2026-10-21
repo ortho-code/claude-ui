@@ -31,6 +31,24 @@ test('a run of tool calls folds to one line, closed, that opens into its calls a
   await expect(run.body).toBeHidden();
 });
 
+test('an edit folds into the run, which counts each file once', async ({ app, page }) => {
+  const parts: Exchange['parts'] = [
+    { kind: 'tool', name: 'Read', detail: '/repo/src/a.ts' },
+    { kind: 'tool', name: 'Edit', detail: '/repo/src/a.ts' },
+    { kind: 'tool', name: 'Edit', detail: '/repo/src/a.ts' },
+    { kind: 'tool', name: 'Bash', detail: 'npm test' },
+    { kind: 'tool', name: 'Write', detail: '/repo/src/b.ts' },
+    { kind: 'text', id: 'message-1', time: TIME, text: 'Done.' },
+  ];
+  await app.boot({ openSessions: [one.id], activeSession: one.id, history: { [one.id]: [exchange(parts)] } });
+  await page.getByRole('button', { name: 'Show history' }).click();
+  const run = historyFold(page, 'Read 1 file, changed 2 files, ran 1 shell command');
+
+  await expect(run.head).toHaveAttribute('aria-expanded', 'false');
+  await run.head.click();
+  await expect(run.body.locator('.exchange-tool')).toHaveText(['Read(/repo/src/a.ts)', 'Edit(/repo/src/a.ts)', 'Edit(/repo/src/a.ts)', 'Bash(npm test)', 'Write(/repo/src/b.ts)']);
+});
+
 test("a subagent's report folds to one line naming its agent, closed, that opens into the report as markdown", async ({ app, page }) => {
   const parts: Exchange['parts'] = [
     { kind: 'tool', name: 'Agent', detail: 'Claim-check' },

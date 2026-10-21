@@ -41,8 +41,8 @@ describe('replyBlocks', () => {
     expect(shape([text('a'), tool('Bash'), text('b'), tool('Read')])).toEqual(['a', 'Bash', 'b', 'Read']);
   });
 
-  it('keeps an edit on its own line, ending the run before it', () => {
-    expect(shape([tool('Read'), tool('Bash'), tool('Edit'), tool('Bash'), tool('Write'), tool('Bash'), tool('Read')])).toEqual(['0:[Read,Bash]', 'Edit', 'Bash', 'Write', '5:[Bash,Read]']);
+  it('folds an edit into the run like any other call, and leaves a lone one as itself', () => {
+    expect(shape([tool('Read'), tool('Bash'), tool('Edit'), tool('Bash'), tool('Write'), text('a'), tool('Edit')])).toEqual(['0:[Read,Bash,Edit,Bash,Write]', 'a', 'Edit']);
   });
 
   it("folds a subagent's report to a line of its own, keyed by where it stands, ending the run before it", () => {
@@ -59,6 +59,7 @@ describe('reportLine', () => {
 
 describe('toolSummary', () => {
   const tools = (...names: string[]) => names.map((name) => ({ kind: 'tool' as const, name, detail: '' }));
+  const on = (...calls: [name: string, detail: string][]) => calls.map(([name, detail]) => ({ kind: 'tool' as const, name, detail }));
 
   it("names what the run did in claude's words, in the order the tools first came", () => {
     expect(toolSummary(tools('Read', 'Bash', 'Bash', 'Bash', 'Bash'))).toBe('Read 1 file, ran 4 shell commands');
@@ -67,6 +68,22 @@ describe('toolSummary', () => {
 
   it('counts tools that share a phrase together', () => {
     expect(toolSummary(tools('Grep', 'Glob', 'Grep'))).toBe('Searched for 3 patterns');
+  });
+
+  it('counts the files an edit changed, every edit tool together', () => {
+    expect(toolSummary(on(['Edit', '/a.ts'], ['Write', '/b.ts'], ['MultiEdit', '/c.ts'], ['NotebookEdit', '/d.ipynb']))).toBe('Changed 4 files');
+  });
+
+  it('counts a file read or changed again once', () => {
+    expect(toolSummary(on(['Read', '/a.ts'], ['Edit', '/a.ts'], ['Edit', '/a.ts'], ['Bash', 'npm test'], ['Write', '/a.ts'], ['Edit', '/b.ts'], ['Read', '/a.ts']))).toBe('Read 1 file, changed 2 files, ran 1 shell command');
+  });
+
+  it('counts a call that names no file on its own', () => {
+    expect(toolSummary(on(['NotebookEdit', ''], ['NotebookEdit', '']))).toBe('Changed 2 files');
+  });
+
+  it('counts a shell command run again each time', () => {
+    expect(toolSummary(on(['Bash', 'npm test'], ['Bash', 'npm test']))).toBe('Ran 2 shell commands');
   });
 
   it('names any other tool by its name and count', () => {

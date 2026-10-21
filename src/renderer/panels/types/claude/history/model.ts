@@ -10,12 +10,9 @@ type ReportPart = Extract<ReplyPart, { kind: 'report' }>;
  */
 export type ReplyBlock = { kind: 'text'; part: TextPart } | { kind: 'tool'; part: ToolPart } | { kind: 'tools'; at: number; parts: ToolPart[] } | { kind: 'report'; at: number; part: ReportPart };
 
-/** The tools that change files: each keeps its own line, as claude shows an edit apart from the reading and running around it. */
-const EDITS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
-
 /**
  * A reply as it is drawn: two or more tool calls in a row, between claude's messages, fold to one line; a lone one stays itself, since its own line says more than a count of one.
- * An edit is never folded and ends a run, so the changes to files stay in view.
+ * An edit folds with the rest, where claude shows each apart but for its own memory and scratch files: the run's line counts the files changed, so a change still shows without a line each, and which files once the run is opened.
  * A subagent's report is folded on its own and ends a run, as a message does.
  * A run's key is the index of its first call, and a report's its own index, which stay put while the last exchange grows.
  */
@@ -29,14 +26,14 @@ export function replyBlocks(parts: readonly ReplyPart[]): ReplyBlock[] {
     run = [];
   };
   parts.forEach((part, index) => {
-    if (part.kind === 'tool' && !EDITS.has(part.name)) {
+    if (part.kind === 'tool') {
       if (run.length === 0) at = index;
       run.push(part);
       return;
     }
     flush();
     if (part.kind === 'report') blocks.push({ kind: 'report', at: index, part });
-    else blocks.push(part.kind === 'text' ? { kind: 'text', part } : { kind: 'tool', part });
+    else blocks.push({ kind: 'text', part });
   });
   flush();
   return blocks;
@@ -47,10 +44,20 @@ export function reportLine(part: ReportPart): string {
   return `${part.agent ?? 'A subagent'} reported`;
 }
 
-/** How a folded run names what its tools did, in claude's words where claude's are known; tools that share a phrase share a count. */
-const PHRASES: Record<string, [one: string, many: string]> = {
+/** How a folded run names a tool's calls: its phrase for one and for many, and whether it counts the files they acted on rather than the calls. */
+type Phrase = [one: string, many: string, counts?: 'files'];
+
+/**
+ * How a folded run names what its tools did, in claude's words where claude's are known; tools that share a phrase share a count.
+ * A phrase that counts files counts each file once, however often it was read or changed, told apart by what the call acted on as its line shows it.
+ */
+const PHRASES: Record<string, Phrase> = {
   Bash: ['ran 1 shell command', 'ran # shell commands'],
-  Read: ['read 1 file', 'read # files'],
+  Read: ['read 1 file', 'read # files', 'files'],
+  Edit: ['changed 1 file', 'changed # files', 'files'],
+  Write: ['changed 1 file', 'changed # files', 'files'],
+  MultiEdit: ['changed 1 file', 'changed # files', 'files'],
+  NotebookEdit: ['changed 1 file', 'changed # files', 'files'],
   Grep: ['searched for 1 pattern', 'searched for # patterns'],
   Glob: ['searched for 1 pattern', 'searched for # patterns'],
   WebFetch: ['fetched 1 page', 'fetched # pages'],
@@ -61,12 +68,14 @@ const PHRASES: Record<string, [one: string, many: string]> = {
 
 /** A folded run's line: "Ran 4 shell commands, read 1 file", in the order the tools first came; any other tool by its name and count. */
 export function toolSummary(parts: readonly ToolPart[]): string {
-  const counts = new Map<string, { forms: [string, string] | null; name: string; count: number }>();
+  const counts = new Map<string, { forms: Phrase | null; name: string; count: number; files: Set<string> }>();
   for (const part of parts) {
     const forms = PHRASES[part.name] ?? null;
     const key = forms ? forms[1] : part.name;
-    const entry = counts.get(key) ?? { forms, name: part.name, count: 0 };
-    entry.count++;
+    const entry = counts.get(key) ?? { forms, name: part.name, count: 0, files: new Set<string>() };
+    // A call that names no file cannot be told apart from another, so it counts on its own.
+    if (forms?.[2] !== 'files' || part.detail === '' || !entry.files.has(part.detail)) entry.count++;
+    entry.files.add(part.detail);
     counts.set(key, entry);
   }
   const text = [...counts.values()].map(({ forms, name, count }) => (forms ? (count === 1 ? forms[0] : forms[1].replace('#', String(count))) : `${name} ×${count}`)).join(', ');
