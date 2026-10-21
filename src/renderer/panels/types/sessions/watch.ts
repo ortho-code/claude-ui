@@ -4,6 +4,7 @@ import { fallBackIfEmptied, refreshSwitcher } from './switcher';
 import { refreshStrip } from './live-strip';
 import { applyDatePickerMinDate, filterPanelFollows } from './filter';
 import { watchList } from './list';
+import { watchPrStatus } from './pr-status';
 
 /**
  * What the sidebar follows in the store, registered by renderer.ts beside the terminal area's (docs/architecture.md § The store): its rules, which set state as they are told, before any repaint, then its repaints.
@@ -14,6 +15,8 @@ export const sessionsWatch = {
     // What the switcher's projects are made of changed, and the project on show may have none left.
     // The tabs are among them: a session with no transcript yet is in its project only through its tab.
     store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptied, { reads: ['activeProject'] });
+    // What GitHub says of the PRs the listing links, asked as they change and on a timer after.
+    watchPrStatus();
   },
 
   repaints(): void {

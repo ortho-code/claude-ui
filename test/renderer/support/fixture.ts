@@ -3,7 +3,7 @@ import type { FolderName } from '../../../src/shared/folders';
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/pathcheck';
 import type { SettingsFileRead } from '../../../src/shared/settings';
-import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
+import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, PrStatus, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -32,6 +32,10 @@ export interface BridgeFixture {
   groupState: GroupState;
   projectOrder: string[];
   statuses: Record<string, string>;
+  /** What GitHub says of each PR, by its reference (`prReference`), as main would answer for it; a PR left out has no status. */
+  prStatuses: Record<string, PrStatus>;
+  /** Why main could not ask GitHub, as it would say; null for nothing wrong. */
+  prProblem: string | null;
   historyPins: Record<string, HistoryPin>;
   /** Session id -> its transcript's exchanges, as main reads them; a listed session left out has no history the stand-in can answer for, and one the listing does not have has no transcript yet. */
   history: Record<string, Exchange[]>;
@@ -140,6 +144,8 @@ export function defaultFixture(): BridgeFixture {
     groupState: { groups: [], groupOf: {} },
     projectOrder: [one.repoRoot],
     statuses: {},
+    prStatuses: {},
+    prProblem: null,
     historyPins: {},
     history: {},
     layout: { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, status: 'missing', error: null, json: null, types: [], local: noLocalLayout() },

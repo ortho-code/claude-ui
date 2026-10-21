@@ -1,7 +1,8 @@
 import { defaultUi } from '../../shared/defaults';
 import type { PanelData } from '../../shared/panels';
-import type { GroupState, SessionSummary, UiState } from '../../shared/types';
+import type { GroupState, PrStatusRead, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../logic';
+import { NO_PR_STATUS } from '../prstatus';
 import { createStore } from './store';
 
 /**
@@ -76,6 +77,11 @@ export interface AppState {
   stripHidden: ReadonlySet<string>;
   /** Whether the tab bar shows every row of tabs or only one, the row of the tab on show where there is one, kept for the next launch. */
   tabBarExpanded: boolean;
+  /**
+   * What GitHub says of the PRs the sessions link, as last asked of main (panels/types/sessions/pr-status.ts): empty while no PR is linked, and the statuses before with the error when the call itself failed.
+   * In memory only, asked again at every launch.
+   */
+  prStatus: PrStatusRead;
 }
 
 /** The sections folded away: projects by repo root, groups by their own id. */
@@ -271,6 +277,7 @@ export const store = createStore<AppState>(
     stripExpanded: defaultUi().stripExpanded,
     stripHidden: new Set(),
     tabBarExpanded: defaultUi().tabBarExpanded,
+    prStatus: NO_PR_STATUS,
   },
   {
     sessions: sameRows,
@@ -288,5 +295,6 @@ export const store = createStore<AppState>(
     filter: sameData,
     folds: sameFolds,
     stripHidden: sameMembers,
+    prStatus: sameData,
   },
 );

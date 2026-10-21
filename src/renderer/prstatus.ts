@@ -1,5 +1,33 @@
-import type { PrStatus } from '../shared/types';
+import { prReference } from '../shared/prs';
+import type { PrRef, PrStatus, PrStatusRead, SessionSummary } from '../shared/types';
 import type { Tone } from './tone';
+
+/** Main's answer before it has given one: no status for any PR, and nothing gone wrong. */
+export const NO_PR_STATUS: PrStatusRead = { statuses: {}, problem: null };
+
+/** Every PR the sessions link, once each, in the order the listing first names them: what main is asked about. */
+export function linkedPrs(sessions: readonly Pick<SessionSummary, 'prs'>[]): PrRef[] {
+  const linked = new Map<string, PrRef>();
+  for (const session of sessions) {
+    for (const { repository, number } of session.prs) {
+      const key = prReference({ repository, number });
+      if (!linked.has(key)) linked.set(key, { repository, number });
+    }
+  }
+  return [...linked.values()];
+}
+
+const MINUTE = 60_000;
+
+/**
+ * When to ask main again after it answered `read` about `prs`: in a minute while any open PR's checks run, in five while any PR could still change — open, closed, or with no status — or main could not ask, and never once every one is merged.
+ */
+export function nextAsk(prs: readonly PrRef[], read: PrStatusRead): number | 'off' {
+  const statuses = prs.map((pr) => read.statuses[prReference(pr)]);
+  if (statuses.some((status) => status?.state === 'open' && status.checks === 'running')) return MINUTE;
+  if (read.problem !== null || statuses.some((status) => status?.state !== 'merged')) return 5 * MINUTE;
+  return 'off';
+}
 
 /** A PR's standing: the tone its mark takes, and the words for why, null where its status is not known. */
 export interface PrVerdict {

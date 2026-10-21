@@ -2,6 +2,7 @@ import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
+import { prReference } from '../../../src/shared/prs';
 import { purgedSession, togglePinned, toggleArchived, unarchived } from '../../../src/shared/sessionmarks';
 import { appFileChanges, SETTING_KEYS, settingProblem, settingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
@@ -164,7 +165,17 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     recordClear: () => answer(undefined),
     pickFolder: () => answer(fixture.pickFolder),
     openExternal: sent,
-    prStatuses: unmodelled('prStatuses'),
+    // Main answers for the PRs asked about only, each one's last status by its reference (`PrStatuses.ask`, src/main/prstatus.ts); it also leaves out a PR whose repository is not `owner/name`, which no fixture links.
+    prStatuses: (prs) =>
+      answer({
+        statuses: Object.fromEntries(
+          prs
+            .map(prReference)
+            .filter((key) => Object.hasOwn(fixture.prStatuses, key))
+            .map((key) => [key, fixture.prStatuses[key]]),
+        ),
+        problem: fixture.prProblem,
+      }),
     getAllStatuses: () => answer(fixture.statuses),
     onSessionStatus: on('onSessionStatus'),
     onSessionStart: on('onSessionStart'),

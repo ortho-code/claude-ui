@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import { prVerdict, rollUpPrTone } from '../../../src/renderer/prstatus';
-import type { PrStatus } from '../../../src/shared/types';
+import { linkedPrs, nextAsk, NO_PR_STATUS, prVerdict, rollUpPrTone } from '../../../src/renderer/prstatus';
+import type { PrRef, PrStatus, SessionPr } from '../../../src/shared/types';
 
 /** An open PR waiting on nobody: not a draft, approved, its checks passed, no conflict. */
 function open(overrides: Partial<Extract<PrStatus, { state: 'open' }>> = {}): PrStatus {
@@ -55,5 +55,45 @@ describe('rollUpPrTone', () => {
 
   it('is normal for none', () => {
     expect(rollUpPrTone([])).toBe('normal');
+  });
+});
+
+const linked = (repository: string, number: number): SessionPr => ({ repository, number, url: `https://github.com/${repository}/pull/${number}` });
+
+describe('linkedPrs', () => {
+  it('names every PR the sessions link once, in the order first named', () => {
+    const sessions = [{ prs: [linked('acme/app', 2), linked('acme/app', 1)] }, { prs: [] }, { prs: [linked('acme/lib', 2), linked('acme/app', 2)] }];
+    expect(linkedPrs(sessions)).toEqual([
+      { repository: 'acme/app', number: 2 },
+      { repository: 'acme/app', number: 1 },
+      { repository: 'acme/lib', number: 2 },
+    ]);
+  });
+});
+
+describe('nextAsk', () => {
+  const prs: PrRef[] = [
+    { repository: 'acme/app', number: 1 },
+    { repository: 'acme/app', number: 2 },
+  ];
+  const read = (one: PrStatus | undefined, two: PrStatus | undefined, problem: string | null = null) => ({
+    statuses: { ...(one ? { 'acme/app#1': one } : {}), ...(two ? { 'acme/app#2': two } : {}) },
+    problem,
+  });
+
+  it('asks again in a minute while any open PR’s checks run', () => {
+    expect(nextAsk(prs, read(open({ checks: 'running' }), { state: 'merged' }))).toBe(60_000);
+  });
+
+  it('asks again in five while a PR is open, closed or has no status, or main could not ask', () => {
+    expect(nextAsk(prs, read(open(), { state: 'merged' }))).toBe(300_000);
+    expect(nextAsk(prs, read({ state: 'closed' }, { state: 'merged' }))).toBe(300_000);
+    expect(nextAsk(prs, read(undefined, { state: 'merged' }))).toBe(300_000);
+    expect(nextAsk(prs, read({ state: 'merged' }, { state: 'merged' }, 'gh was not found'))).toBe(300_000);
+    expect(nextAsk(prs, NO_PR_STATUS)).toBe(300_000);
+  });
+
+  it('asks no more once every PR is merged', () => {
+    expect(nextAsk(prs, read({ state: 'merged' }, { state: 'merged' }))).toBe('off');
   });
 });
