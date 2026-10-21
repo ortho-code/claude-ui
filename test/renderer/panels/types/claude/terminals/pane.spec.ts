@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { projectGoneReason } from '../../../../../../src/renderer/logic';
 import type { Exchange } from '../../../../../../src/shared/types';
-import { exitAtOnce } from '../../../../support/clock';
+import { exitAtOnce, exitLater } from '../../../../support/clock';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { chooseProject, row, tab, tabs } from '../../../../support/window';
@@ -182,8 +182,8 @@ test("a tab closed while its history was open on show forgets it: reopened, the 
   await page.keyboard.press('Control+Shift+ArrowUp');
   await expect(drawer(page)).toBeVisible();
 
-  // claude ending by itself, past the moment in which an exit reads as a failed start: the tab closes and the pane goes to the other one.
-  await page.clock.setSystemTime(Date.now() + 60_000);
+  // claude ending by itself: the tab closes and the pane goes to the other one.
+  await exitLater(page);
   await app.emit('onTerminalExit', 2, 0);
   await expect(tab(page, here.title)).toHaveCount(0);
   await expect(tab(page, other.title)).toHaveClass(/\bactive\b/);

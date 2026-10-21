@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import { exitLater } from '../../../support/clock';
 import { HOME, PROJECT } from '../../../support/fixture';
 import { expect, test, type App } from '../../../support/harness';
 import { chooseProject, newTerminal, panelTab, panelTabAdd, panelTabLabels, panelTabRows, panelTabs, tab, tabLabel } from '../../../support/window';
@@ -254,8 +255,8 @@ test('a drag of a panel tab that the tab bar ends by taking its own row away lea
   await newTerminal(page).click();
   await panelTabAdd(page).click();
   await expect(panelTabLabels(page)).toHaveText(['demo', 'demo 2']);
-  // Past the moment in which an exit reads as a failed start, so the exit below closes the claude tab, and its row in the bar goes with its Sortable.
-  await page.clock.setSystemTime(Date.now() + 60_000);
+  // So that the exit below closes the claude tab, and its row in the bar goes with its Sortable.
+  await exitLater(page);
 
   const from = (await panelTab(page, 'demo 2').boundingBox())!;
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);

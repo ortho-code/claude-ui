@@ -1,4 +1,5 @@
 import type { TerminalLaunch } from '../../../../src/shared/types';
+import { exitLater } from '../../support/clock';
 import { PROJECT, session } from '../../support/fixture';
 import { type App, expect, test } from '../../support/harness';
 import { chooseProject, newTerminal, tab, tabLabel, tabLabels } from '../../support/window';
@@ -79,7 +80,7 @@ test('the tab on show closing hands the command to the next tab: one run, in its
   await expect.poll(folders).toEqual([PROJECT, b.cwd, a.cwd]);
 
   // a's claude ending by itself, long after its start, closes its tab, and b comes on show.
-  await page.clock.setSystemTime(Date.now() + 60_000);
+  await exitLater(page);
   expect(await app.emit('onTerminalExit', 2, 0)).toBe(1);
   await expect(tab(page, b.title)).toHaveClass(/\bactive\b/);
   await expect.poll(folders).toEqual([PROJECT, b.cwd, a.cwd, b.cwd]);

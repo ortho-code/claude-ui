@@ -1,4 +1,4 @@
-import { exitAtOnce } from '../../../../support/clock';
+import { exitAtOnce, exitLater } from '../../../../support/clock';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab } from '../../../../support/window';
@@ -47,8 +47,8 @@ test('what runs when the app quits stays kept as running: the exits the quit cau
   await row(page, one.title).click();
   await expect.poll(() => lastKept(app)).toEqual([[one.id], [one.id], []]);
   const writes = (await app.calls('setOpenSessions')).length;
-  // Past the moment in which an exit reads as a failed start, so the exit closes the tab, which would write.
-  await page.clock.setSystemTime(Date.now() + 60_000);
+  // claude ending by itself closes the tab, which would write.
+  await exitLater(page);
 
   expect(await app.emit('onQuitting')).toBe(1);
   await app.emit('onTerminalExit', FIRST, 0);

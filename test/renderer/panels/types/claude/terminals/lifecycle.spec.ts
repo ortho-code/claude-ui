@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { unstartableReason } from '../../../../../../src/renderer/logic';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
-import { exitAtOnce } from '../../../../support/clock';
+import { exitAtOnce, exitLater } from '../../../../support/clock';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, stripRow, switcherEntry, tab, tabs } from '../../../../support/window';
@@ -237,7 +237,7 @@ test('Ctrl-C goes to claude every time, even twice straight after, and claude le
   expect(await app.calls('closeTerminal')).toEqual([]);
   await expect(tab(page, one.title)).toHaveCount(1);
 
-  await page.clock.setSystemTime(Date.now() + 60_000);
+  await exitLater(page);
   await app.emit('onTerminalExit', FIRST, 0);
   await expect(tab(page, one.title)).toHaveCount(0);
 });
@@ -370,8 +370,7 @@ test('a failed start whose folder the listing has since lost is not tried again,
 test('claude ending by itself later closes its tab', async ({ app, page }) => {
   await app.boot(fixture);
   await startLive(page, app);
-  // Past the moment in which an exit reads as a failed start.
-  await page.clock.setSystemTime(Date.now() + 60_000);
+  await exitLater(page);
 
   await app.emit('onTerminalExit', FIRST, 0);
   await expect(tab(page, one.title)).toHaveCount(0);
