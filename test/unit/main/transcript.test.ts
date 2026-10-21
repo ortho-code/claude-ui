@@ -314,6 +314,11 @@ describe('tool lines', () => {
     expect(toolLines(f.exchanges[0]).slice(0, 3)).toEqual(['Bash(git status)', 'Grep(enum )', 'TodoWrite']);
     expect(toolLines(f.exchanges[0])[3]).toHaveLength('Bash()'.length + 120);
   });
+
+  it('names the notebook a notebook edit changed, by its own input', () => {
+    const f = fold(typed('go'), answer(tool('NotebookEdit', { notebook_path: '/repo/a.ipynb', cell_id: 'c1', new_source: 'print(1)', cell_type: 'code', edit_mode: 'replace' })));
+    expect(toolLines(f.exchanges[0])).toEqual(['NotebookEdit(/repo/a.ipynb)']);
+  });
 });
 
 describe('reading a transcript', () => {

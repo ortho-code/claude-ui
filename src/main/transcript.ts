@@ -211,7 +211,7 @@ const PLUMBING = /^<[a-z][a-z-]*(\s[^>]*)?>/;
 function toolPart(part: { name?: unknown; input?: unknown }): ReplyPart {
   const name = typeof part.name === 'string' ? part.name : 'tool';
   const input = (part.input ?? {}) as Record<string, unknown>;
-  const main = [input.file_path, input.path, input.command, input.pattern, input.url, input.query, input.description].find(
+  const main = [input.file_path, input.notebook_path, input.path, input.command, input.pattern, input.url, input.query, input.description].find(
     (value): value is string => typeof value === 'string' && value.trim() !== '',
   );
   // Its first line as written, not trimmed: a pattern's trailing space is part of what was searched for.
