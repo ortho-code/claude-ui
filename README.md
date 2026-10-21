@@ -99,6 +99,7 @@ Next:
 - History: file changes under their tool calls (the diffs behind Edit and Write, and claude's result summaries), syntax colouring in code blocks, another look at its type, and tuning the bar and its loupe.
 - History: search within it, and one list of every pin across sessions, with a way to clear pins no session opens any more.
 - History: reading a session's history without starting it, from the session list, and showing an entry in claude's own view as well as the app's.
+- History: claude's tool use quieter still than folding edits in with reads and commands, such as tool lines drawn quieter, and folds that start open or shut by kind or remember which you opened.
 - A taskbar attention nudge requires a native Windows build; parked while the app runs under WSLg.
 
 ## Panels
