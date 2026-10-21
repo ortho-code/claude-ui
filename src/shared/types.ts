@@ -77,6 +77,23 @@ export interface SessionPr {
 }
 
 /**
+ * What GitHub says of a PR a session links.
+ * A merged or closed PR carries its state alone, since nothing else about it changes how the app shows it.
+ */
+export type PrStatus =
+  | { state: 'merged' | 'closed' }
+  | {
+      state: 'open';
+      draft: boolean;
+      /** Its review decision; null when GitHub gives none. */
+      review: 'approved' | 'changes-requested' | 'review-required' | null;
+      /** The checks and statuses on its last commit, rolled up by GitHub; null for none. */
+      checks: 'passed' | 'failed' | 'running' | null;
+      /** Whether it conflicts with its base; null while GitHub is still working that out. */
+      conflict: boolean | null;
+    };
+
+/**
  * One request in a session and what claude sent back, read from the session's transcript (`src/main/transcript.ts`).
  * Only the LAST exchange of a session ever changes, and only by growing: claude's reply to it is still being written.
  * The one exception is a rewind, which marks the requests it went back past.
