@@ -1,3 +1,4 @@
+import { exitAtOnce } from '../../../../support/clock';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab } from '../../../../support/window';
@@ -32,6 +33,7 @@ test('a session is kept as running from its start until its process has gone, a 
 
 test('a failed start is no longer kept as running', async ({ app, page }) => {
   await app.boot(fixture);
+  await exitAtOnce(page);
   await row(page, one.title).click();
   await expect.poll(() => lastKept(app)).toEqual([[one.id], [one.id], []]);
 

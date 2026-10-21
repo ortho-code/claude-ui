@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { projectGoneReason } from '../../../../../../src/renderer/logic';
 import type { Exchange } from '../../../../../../src/shared/types';
+import { exitAtOnce } from '../../../../support/clock';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { chooseProject, row, tab, tabs } from '../../../../support/window';
@@ -104,6 +105,7 @@ function atTop(page: Page): Promise<string> {
 // A failed start's terminal stays on show with what claude said before it went, so its history opens over it as a live one's does, not under the pane.
 test("Ctrl+Shift+↑ on a failed start's tab opens the history over its terminal", async ({ app, page }) => {
   await app.boot({ ...both, openSessions: [here.id] });
+  await exitAtOnce(page);
   await tab(page, here.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await app.emit('onTerminalExit', 1, 127);

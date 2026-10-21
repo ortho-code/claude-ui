@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { unstartableReason } from '../../../../../../src/renderer/logic';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
+import { exitAtOnce } from '../../../../support/clock';
 import { PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, stripRow, switcherEntry, tab, tabs } from '../../../../support/window';
@@ -288,6 +289,7 @@ test('the tabs restored at launch are drawn once, not once per tab', async ({ ap
 
 test('claude ending within moments of its start keeps the tab, uncovered, and logs what it said', async ({ app, page }) => {
   await app.boot(fixture);
+  await exitAtOnce(page);
   await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
 
@@ -303,6 +305,7 @@ test('claude ending within moments of its start keeps the tab, uncovered, and lo
 // The process of a failed start has gone, so the tab is cold for everything that asks: its button closes it in one press, the strip does not list it, and selecting it starts it again; only its terminal stays on show, since what claude printed is the explanation.
 test('a tab whose start failed is cold: its button closes it at once, nothing lists it as running, and selecting it tries again', async ({ app, page }) => {
   await app.boot(fixture);
+  await exitAtOnce(page);
   await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   expect(await app.emit('onTerminalData', FIRST, 'claude: command not found')).toBe(1);
@@ -333,6 +336,7 @@ test('a tab whose start failed is cold: its button closes it at once, nothing li
 // A refused start says why on the pane, and a failed start's lines give way to it rather than showing beside it.
 test('a failed start tried again and refused by main says why on the pane, with no terminal beside it', async ({ app, page }) => {
   await app.boot(fixture);
+  await exitAtOnce(page);
   await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await app.emit('onTerminalExit', FIRST, 127);
@@ -350,6 +354,7 @@ test('a failed start tried again and refused by main says why on the pane, with 
 
 test('a failed start whose folder the listing has since lost is not tried again, and says why on the pane', async ({ app, page }) => {
   await app.boot(fixture);
+  await exitAtOnce(page);
   await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await app.emit('onTerminalExit', FIRST, 127);

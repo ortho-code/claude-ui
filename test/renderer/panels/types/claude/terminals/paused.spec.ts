@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
+import { exitAtOnce } from '../../../../support/clock';
 import { noSettingsFile, PROJECT, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, stripRow, switcherEntry, tab } from '../../../../support/window';
@@ -200,6 +201,7 @@ test('starting a paused tab takes the mark off once its claude has arrived', asy
 
 test('a paused tab whose start fails within its first moments stays paused', async ({ app, page }) => {
   await app.boot({ sessions: [one], openSessions: [one.id], pausedSessions: [one.id], history });
+  await exitAtOnce(page);
   await tab(page, one.title).locator('.tab-label').click();
   await expect.poll(() => lastKept(app)).toEqual([[one.id], [one.id], []]);
   await app.emit('onTerminalExit', FIRST, 127);
