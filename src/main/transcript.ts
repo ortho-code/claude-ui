@@ -22,10 +22,18 @@ export function commandLabel(text: string): string {
 
 /**
  * A command claude ran itself rather than sent to the model as a prompt, such as `/clear`, `/model` or `/compact`.
- * Claude writes one with the command's name first, where a command sent to the model opens with `<command-message>` (claude 2.1.302's templates); across one machine's transcripts (2026-10-22), 164 commands of the one kind, each right after a `<local-command-caveat>` record, and 323 of the other, with no third shape.
+ * Claude writes one with the command's name first, where a command sent to the model opens with `<command-message>` (claude 2.1.302's templates); across one machine's transcripts (2026-10-22), 164 commands of the one kind as user records, each right after a `<local-command-caveat>` record, and 323 of the other, with no third shape.
  */
 function isLocalCommand(text: string): boolean {
   return text.startsWith('<command-name>');
+}
+
+/**
+ * The command line of a command claude ran itself, from the user record that holds it or from the `local_command` system record claude writes some in instead (135 on that machine, most of them `/rename`); '' for any other record.
+ */
+function localCommandLine(record: Record<string, unknown>): string {
+  const text = record.type === 'system' && record.subtype === 'local_command' && typeof record.content === 'string' ? record.content.trim() : sentText(record);
+  return isLocalCommand(text) ? commandLabel(text) : '';
 }
 
 /** Claude Code's own records, written into the user's turn: a local command's caveat and output, a reminder, a task notification, `!` bash mode, whether or not its tag carries attributes (`<agent-message from="…">`). */
@@ -206,7 +214,7 @@ function parseRecord(line: string): Record<string, unknown> | null {
 
 /**
  * The fold's state, record by record: every exchange so far, and a slash command waiting for its answer.
- * A slash command is a request only once claude answers it — `/review` is one, `/model` is not, and nothing in the command line tells them apart (arguments do not: `/learn` is answered with none, `/model` is not with one) — so it waits here until an assistant record arrives, and is dropped if the user sends something else first.
+ * A slash command sent to the model is a request only once claude answers it, so it waits here until an assistant record arrives, and is dropped if the user sends something else first; a command claude runs itself is a request at once (`localCommandLine`).
  * It waits across reads as well, since the answer can land in the next read of a file claude is still writing.
  */
 export interface HistoryFold {
@@ -220,13 +228,15 @@ export interface HistoryFold {
    * After a compaction Claude Code writes much of the conversation into the file a second time, under the same uuids; folding the copies drew each of those requests, and claude's messages, twice.
    */
   records: Map<string, string | null>;
-  /** The first exchange changed before the last since the reader last looked, by a rewind; null when none was. */
+  /** The first exchange changed before the last since the reader last looked, by a rewind or by claude's reply going on under a request a command claude ran itself has followed; null when none was. */
   changedFrom: number | null;
   pending: { exchange: Exchange; parent: string | null } | null;
+  /** The exchange claude's reply goes to: the last request that is not a command claude ran itself, which nothing answers; null before there is one. */
+  answering: number | null;
 }
 
 export function newFold(): HistoryFold {
-  return { exchanges: [], parents: [], byParent: new Map(), records: new Map(), changedFrom: null, pending: null };
+  return { exchanges: [], parents: [], byParent: new Map(), records: new Map(), changedFrom: null, pending: null, answering: null };
 }
 
 /** A tool call as the history shows it: its name, and apart from it, on one line, the one input that says what it acted on. */
@@ -278,7 +288,7 @@ function parentOf(record: Record<string, unknown>): string | null {
  * - one further back, with every request since following on from it, is REWOUND past, and all of those with it — claude's rewind.
  * A same-parent request further back that the ones since do not all descend from is left unmarked: nothing on the machine this was written on was like that once records written twice were skipped, so there is no case to say what it means.
  */
-function push(fold: HistoryFold, exchange: Exchange, parent: string | null): void {
+function push(fold: HistoryFold, exchange: Exchange, parent: string | null, answered = true): void {
   const last = fold.exchanges.length - 1;
   const earlier = parent === null ? undefined : fold.byParent.get(parent);
   if (earlier === last && last >= 0) fold.exchanges[last]!.replaced = true;
@@ -286,6 +296,18 @@ function push(fold: HistoryFold, exchange: Exchange, parent: string | null): voi
   fold.exchanges.push(exchange);
   fold.parents.push(parent);
   if (parent !== null) fold.byParent.set(parent, fold.exchanges.length - 1);
+  if (answered) fold.answering = fold.exchanges.length - 1;
+}
+
+/**
+ * The exchange a part of claude's reply goes to: the one it is answering, so a `/rename` or a `/login` in the middle of a turn does not take the rest of it, or for a `<synthetic>` record, Claude Code's own line such as "No response requested.", the last one, whatever it is.
+ * One before the last is marked changed, since a read otherwise sends again only the last one (`readFrom`).
+ */
+function replyTo(fold: HistoryFold, synthetic: boolean): Exchange | undefined {
+  const at = synthetic ? fold.exchanges.length - 1 : fold.answering;
+  if (at === null || at < 0) return undefined;
+  if (at < fold.exchanges.length - 1) fold.changedFrom = Math.min(fold.changedFrom ?? at, at);
+  return fold.exchanges[at];
 }
 
 /** Mark exchange `from` and every one up to `last` rewound, when each of them followed on from `from`. */
@@ -321,7 +343,7 @@ function carriesToolResult(record: Record<string, unknown>): boolean {
 
 /**
  * Fold one transcript record into the history.
- * A request is what the user sent: a typed prompt (with or without a pasted image), one sent while a tool ran, one queued while claude worked (a `queued_command` attachment, which is not a user record at all), and a slash command claude answered.
+ * A request is what the user sent: a typed prompt (with or without a pasted image), one sent while a tool ran, one queued while claude worked (a `queued_command` attachment, which is not a user record at all), a slash command claude answered, and a command claude ran itself, such as `/model` or `/compact`.
  * Not a request: tool results, meta records (a skill's expanded body, a message from another session, a subagent's hand-back, whose report is a part of the reply instead), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing.
  * The rule and the counts behind it are in docs/architecture.md, In-session history.
  */
@@ -340,9 +362,8 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
     // A subagent's report is part of claude's reply, where it came back; before the first request there is nothing for it to be a reply to.
     const origin = attachment.isMeta === true && attachment.origin?.handback === true ? attachment.origin : undefined;
     if (origin) {
-      const last = fold.exchanges[fold.exchanges.length - 1];
       const name = typeof origin.name === 'string' ? origin.name.trim() : '';
-      if (last && typeof origin.body === 'string' && origin.body.trim()) last.parts.push({ kind: 'report', agent: name || null, text: reportText(origin.body) });
+      if (typeof origin.body === 'string' && origin.body.trim()) replyTo(fold, false)?.parts.push({ kind: 'report', agent: name || null, text: reportText(origin.body) });
       return;
     }
     // Claude Code's own records are queued the same way — a task notification, anything else it marks meta — and are no more a request here than when they come as a user record.
@@ -352,11 +373,12 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
   }
   if (record.type === 'assistant') {
     promote(fold);
-    const last = fold.exchanges[fold.exchanges.length - 1];
-    // Before the first request there is nothing for it to be a reply to.
-    if (!last) return;
-    const content = (record.message as { content?: unknown } | undefined)?.content;
+    const message = record.message as { content?: unknown; model?: unknown } | undefined;
+    const content = message?.content;
     if (!Array.isArray(content)) return;
+    // Before the first request there is nothing for it to be a reply to.
+    const last = replyTo(fold, message?.model === '<synthetic>');
+    if (!last) return;
     // In the order claude wrote them, each message its own part, with the tool calls where they came: that is how claude itself shows a reply.
     // A message's id is its record's uuid and its place among that record's messages, stable across reads and copied by a fork, so a pin on it holds.
     const uuid = typeof record.uuid === 'string' ? record.uuid : '';
@@ -369,6 +391,15 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
         last.parts.push(toolPart(part));
       }
     }
+    return;
+  }
+  // Something the user did, though nothing answers it, and nothing sent to the model, so a command waiting for claude's answer goes on waiting.
+  const local = localCommandLine(record);
+  if (local) {
+    // Claude sometimes writes the line as typed first, `/compact` before compacting and the command after it (37 of 74 there), which is one request.
+    const last = fold.exchanges[fold.exchanges.length - 1];
+    if (last?.kind !== 'command' && last?.request === local) return;
+    push(fold, exchangeOf(record, local, 'command'), parentOf(record), false);
     return;
   }
   const text = sentText(record);

@@ -15,6 +15,10 @@ const answer = (...parts: unknown[]) => ({ type: 'assistant', uuid: uuid(), time
 const text = (t: string) => ({ type: 'text', text: t });
 const tool = (name: string, input: Record<string, unknown>) => ({ type: 'tool_use', name, input });
 const command = (name: string, args = '') => typed(`<command-message>${name.slice(1)}</command-message>\n<command-name>${name}</command-name>\n<command-args>${args}</command-args>`);
+// A command claude runs itself, written name first, as a user record or, as claude 2.1.302 writes `/rename`, as a system one.
+const localText = (name: string, args = '') => `<command-name>${name}</command-name>\n            <command-message>${name.slice(1)}</command-message>\n            <command-args>${args}</command-args>`;
+const local = (name: string, args = '') => typed(localText(name, args));
+const localSystem = (name: string, args = '') => ({ type: 'system', subtype: 'local_command', uuid: uuid(), timestamp: '2026-09-29T10:00:00Z', content: localText(name, args) });
 const queued = (prompt: string, extra: Record<string, unknown> = {}) => ({ type: 'attachment', uuid: uuid(), timestamp: '2026-09-29T10:01:00Z', attachment: { type: 'queued_command', prompt, source_uuid: 'not-a-record', ...extra } });
 
 function fold(...records: Record<string, unknown>[]): HistoryFold {
@@ -81,9 +85,43 @@ describe('what counts as a request', () => {
     expect(replyText(f.exchanges[0])).toBe('The review.');
   });
 
-  it('a slash command claude does not answer is dropped when the user sends something else', () => {
-    const f = fold(command('/model', 'opus'), typed('<local-command-stdout>Set model to Opus</local-command-stdout>'), typed('hello'), answer(text('Hi.')));
+  it('a slash command sent to the model that claude does not answer is dropped when the user sends something else', () => {
+    const f = fold(command('/learn'), typed('hello'), answer(text('Hi.')));
     expect(requests(f)).toEqual(['typed: hello']);
+  });
+
+  it('a command claude runs itself is a request at once, with no reply, as a user record or a system one', () => {
+    const f = fold(
+      typed('<local-command-caveat>The command below was run directly in Claude Code, not sent to you as a request.</local-command-caveat>', { isMeta: true }),
+      local('/model', 'opus'),
+      typed('<local-command-stdout>Set model to Opus</local-command-stdout>'),
+      localSystem('/rename', 'hook rules'),
+      { type: 'system', subtype: 'local_command', uuid: uuid(), content: '<local-command-stdout>Session renamed to: hook rules</local-command-stdout>' },
+      typed('hello'),
+      answer(text('Hi.')),
+    );
+    expect(requests(f)).toEqual(['command: /model opus', 'command: /rename hook rules', 'typed: hello']);
+    expect(f.exchanges.map((e) => replyText(e))).toEqual(['', '', 'Hi.']);
+  });
+
+  it("a command claude runs itself takes no reply of claude's but its own synthetic line, and leaves the rest to the request claude is answering", () => {
+    const f = fold(
+      typed('review the PR again'),
+      answer(text('Looking.')),
+      localSystem('/rename', 'review'),
+      answer(text('Found it.')),
+      queued('<agent-message from="a3f8">\nThe report.', { isMeta: true, origin: { kind: 'peer', from: 'a3f8', handback: true, name: 'scout', body: 'The report follows:\n  All clear.' } }),
+      local('/compact'),
+      { ...answer(text('No response requested.')), message: { model: '<synthetic>', content: [text('No response requested.')] } },
+    );
+    expect(requests(f)).toEqual(['typed: review the PR again', 'command: /rename review', 'command: /compact']);
+    expect(f.exchanges.map((e) => replyText(e))).toEqual(['Looking.\n\nFound it.', '', 'No response requested.']);
+    expect(f.exchanges[0].parts.filter((p) => p.kind === 'report')).toHaveLength(1);
+  });
+
+  it('a command claude runs itself that repeats the line typed just before it is that one request, and one run again is another', () => {
+    const f = fold(typed('/compact'), typed('This session is being continued from a previous conversation', { isCompactSummary: true }), local('/compact'), local('/model', 'opus'), local('/model', 'opus'));
+    expect(requests(f)).toEqual(['typed: /compact', 'command: /model opus', 'command: /model opus']);
   });
 
   it('a slash command waiting at the end of one read becomes a request when the next read brings its answer', () => {
@@ -356,6 +394,16 @@ describe('reading a transcript', () => {
     const next = await readHistory(f, first.total, first.generation);
     expect(next.from).toBe(0);
     expect(next.exchanges.map((e) => e.replaced)).toEqual([true, false]);
+  });
+
+  it("sends a request again when claude's reply to it goes on after a command claude ran itself", async () => {
+    const f = await file('login.jsonl');
+    await fs.writeFile(f, line(typed('review the PR again')) + line(answer(text('Looking.'))) + line(localSystem('/login')));
+    const first = await readHistory(f, 0, 0);
+    await fs.appendFile(f, line(answer(text('Found it.'))));
+    const next = await readHistory(f, first.total, first.generation);
+    expect(next.from).toBe(0);
+    expect(next.exchanges.map((e) => [e.request, replyText(e)])).toEqual([['review the PR again', 'Looking.\n\nFound it.'], ['/login', '']]);
   });
 
   it('sends the requests a rewind went back past again, from the first of them', async () => {

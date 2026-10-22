@@ -525,15 +525,20 @@ A stopped tab still drops you to the empty screen; reopening it resumes claude, 
 
 ### What counts as a request
 
-A typed prompt, one with a pasted image, one sent while a tool ran, one queued while claude was working — a `queued_command` attachment, which is not a user record at all — and a slash command claude answered.
+A typed prompt, one with a pasted image, one sent while a tool ran, one queued while claude was working — a `queued_command` attachment, which is not a user record at all — a slash command claude answered, and a command claude ran itself, such as `/model` or `/compact`.
 Not a request: tool results, meta records (a skill's expanded body, a message from another session, a subagent's hand-back), compaction summaries, interruptions, and Claude Code's own tag-wrapped plumbing (a local command's output, a reminder, a task notification, `!` bash mode), whether it comes as a user record or queued while claude worked — the queued ones were missed at first, and drew 253 task notifications as requests.
 A subagent's hand-back is queued too, marked meta on its attachment and wrapped in a tag with an attribute (`<agent-message from="…">`), which the plumbing rule at first did not take for a tag: 149 of them, in 41 of 445 transcripts, showed as requests until a queued record was held to its meta mark as a user record is, and a tag to its name whatever attributes follow.
 Its report is drawn in the reply instead, where it came back (§ What it looks like).
 The rule was taken from a scan of 312 transcripts, and the numbers below are from them.
 
-**A slash command counts only once claude answers it.**
-`/review` and `/learn` are answered, `/model` and `/clear` are not, and nothing in the command line tells them apart — `/learn` usually has no arguments, `/model` usually has one; 265 were answered and 112 not.
-So a command waits for an assistant record, across reads of a file claude is still writing, and is dropped if the user sends something else first.
+**A command claude runs itself counts at once; one sent to the model, once claude answers it.**
+A command claude runs itself, such as `/model`, `/compact`, `/clear` or `/rename`, is something you did, though nothing answers it, so it stands with no reply under it.
+Claude writes it with the command's name first (§ Reading sessions), as a user record or, for some, as a `local_command` system record: 164 and 135 on one machine (2026-10-22), most of the second `/rename`.
+Where Claude wrote the line as typed text just before, as it does `/compact` before compacting (37 of 74 there), the command is that same request and is not shown twice.
+Claude's reply goes on under the request it is answering, so a `/rename` or a `/login` run in the middle of a turn takes none of it; a command claude ran itself takes only Claude Code's own `<synthetic>` line, such as the one saying no response was requested.
+A reply that goes on under a request before the last sends that request to the window again, as a rewind does (`changedFrom`), since a read otherwise sends again only the last one.
+A command sent to the model, such as `/review` or `/learn`, waits for an assistant record, across reads of a file claude is still writing, and is dropped if the user sends something else first.
+Waiting for an answer was at first how `/model` and `/clear` were told from `/review`, since the command line cannot tell them apart, and it hid them; it let one through whenever any assistant record followed it, about a dozen on that machine, a few of them a second copy of a typed `/compact`, and hid some 250, until they were all shown (2026-10-22).
 Leaving slash commands out altogether was the first rule, and it left a session that was one `/review` doing all the work with an empty history.
 
 **A transcript is a tree, and it keeps abandoned attempts.**
@@ -543,8 +548,7 @@ The history shows it, dimmed and marked "sent again", rather than hiding it, so 
 All of them are marked "rewound" and dimmed the same way, since claude's conversation no longer has any of them; 59 requests in 2 sessions, in one of which the request after the rewind says "I rewinded, but one too many".
 A same-parent request further back that the ones since do not all follow on from is left unmarked, rather than guessed at: there were 304 such at first, and all but those 2 rewinds turned out to be records Claude Code writes twice (see Reading a transcript).
 
-The session list's first prompt is read by the same rule as a request, except for slash commands: the list tells a command Claude ran itself by how Claude wrote it (§ Reading sessions) and counts any other at once, where the history waits for an answer.
-The two differ on a command Claude ran itself that any assistant record follows before the next prompt, which the history counts: on one machine (2026-10-22), 13 answered by a `<synthetic>` record saying no response was requested (`/compact`, `/model`, `/mcp`), and one `/clear` followed by a reply to a task notification.
+The session list's first prompt is read by the same rule as a request, except for slash commands: a command claude ran itself is a request in the history but no prompt to name a session by, since it says nothing of what the session is for, and a command sent to the model is a first prompt at once, where the history waits for its answer.
 
 ### Reading a transcript
 
