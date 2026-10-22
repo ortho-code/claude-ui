@@ -14,7 +14,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', source: 'default', without: '', withoutSource: 'default', problems: [] });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back paused until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'pause' });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'pause', prStatus: true });
   });
 
   it('take a choice of either file for the sessions running at quit, and leave out one that is no choice', () => {
@@ -24,6 +24,17 @@ describe('the settings in force', () => {
       const view = settingsView(yours({ runningSessionsAtLaunch: wrong }), noApps);
       expect(view.runningSessionsAtLaunch.value).toBe('pause');
       expect(view.runningSessionsAtLaunch.problems).toEqual([{ file: 'settings.json', why: 'It has to be one of "start", "pause", "leave".' }]);
+    }
+  });
+
+  it('ask GitHub for PR status unless a file says not to, and leave out a value that is not true or false', () => {
+    expect(settingsView(noYours, noApps).prStatus).toMatchObject({ value: true, source: 'default' });
+    expect(settingsView(yours({ prStatus: false }), noApps).prStatus).toMatchObject({ value: false, source: 'yours' });
+    expect(settingsView(yours({ prStatus: false }), apps({ prStatus: true })).prStatus).toMatchObject({ value: true, source: 'app', without: false });
+    for (const wrong of ['false', 0, null]) {
+      const view = settingsView(yours({ prStatus: wrong }), noApps);
+      expect(view.prStatus.value).toBe(true);
+      expect(view.prStatus.problems).toEqual([{ file: 'settings.json', why: 'It has to be true or false.' }]);
     }
   });
 
@@ -74,6 +85,11 @@ describe('what a save writes into the app’s file', () => {
   it('removes the app’s value instead of copying yours, or the default where yours says nothing', () => {
     expect(appFileChanges(settingsView(yours({ launchFlags: '--mine' }), apps({ launchFlags: '--app' })), { launchFlags: '--mine' })).toEqual([{ key: 'launchFlags', value: undefined }]);
     expect(appFileChanges(settingsView(noYours, apps({ launchFlags: '--app' })), { launchFlags: '' })).toEqual([{ key: 'launchFlags', value: undefined }]);
+  });
+
+  it('writes false as a value of its own, and removes it where false is what would be in force anyway', () => {
+    expect(appFileChanges(settingsView(noYours, noApps), { prStatus: false })).toEqual([{ key: 'prStatus', value: false }]);
+    expect(appFileChanges(settingsView(yours({ prStatus: false }), apps({ prStatus: true })), { prStatus: false })).toEqual([{ key: 'prStatus', value: undefined }]);
   });
 
   it('removes it when asked outright, and touches nothing it was not asked about', () => {

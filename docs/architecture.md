@@ -746,6 +746,7 @@ A watcher is also handed its slices as they were at its last call, one that has 
 A read from main is written as of the moment it asked (`stamp`, then `set` with `readAt`), because its answer can land after something newer: a slice written since with anything newer is left as it is, and what the read does write is as new as its asking, so a read asked later still wins whichever lands first.
 Without it, the read after a delete, asked before a status event landed, wrote the older statuses back and toasted a busy session as finished; and the listing cannot instead just skip whatever was written meanwhile, since the trash moving a transcript sends a refresh of its own, which may have read the disk before the move was done.
 Start-up's read is the exception, written whole: nothing can have written those slices before the first draw but a status event from a claude a crashed launch left running, and leaving start-up's statuses out for it would cost every other session's.
+The settings are kept another way, by main's own count: main numbers each read of the two files as it starts (`SettingsView.read`), and a change it tells of unasked is one of those reads too, read before it is sent, so the window keeps the view of the highest number rather than stamping its own; a stamp would count that telling as new when it lands, and could put back settings read before a save.
 The store holds state and nothing else: a change main keeps is written by the action that makes it, as before, rather than by a watcher that would also write back what start-up had just read.
 A watcher never writes back what it was told; one that takes a decision of its own writes it the way the action would, as the switcher falls back to All when the project on show has nothing left, exactly as choosing All does (`fallBackIfEmptied`).
 A write two surfaces make leaves the first surface for `state/` when the second appears — the group writes (`state/groups.ts`), the status writers (`state/statuses.ts`), the project on show (`state/project.ts`) — so both make it the one way; a write only one surface makes stays with it, beside its menu or its dialog, until a second needs it.
@@ -1455,6 +1456,7 @@ It is not in the layout's `.local.json`, where a group's fold is: that would be 
 Its key and its label say what happens when it is on, never what stops: a key such as `resumeSessions`, not `disableResume`, and never a `no…`, `disable…` or `hide…`.
 So on always reads as yes, and nobody has to undo a negative to know what a box does.
 Something the app does unless you say otherwise is therefore a setting that defaults to on, not an opt-out named for turning it off.
+In Settings, an on/off setting is a checkbox beside the words for what it turns on, the row the session dialog's radios use (`.dialog-choice`), under a section's label and detail like any other setting: `prStatus`, "PR status from GitHub", is the first.
 A setting with more than two choices names each for what it does: `runningSessionsAtLaunch` is `start`, `pause` or `leave`, and none of them is a `no…`.
 It is one setting rather than two dependent boxes, which would allow a combination that means nothing.
 

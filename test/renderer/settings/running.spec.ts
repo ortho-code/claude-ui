@@ -43,7 +43,7 @@ test('the sessions running at quit come back paused until another choice is save
   await settings.choice.selectOption('start');
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '', runningSessionsAtLaunch: 'start' }]]);
+  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '', runningSessionsAtLaunch: 'start', prStatus: true }]]);
 
   settings = await open(page);
   await expect(settings.choice).toHaveValue('start');

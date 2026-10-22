@@ -25,6 +25,8 @@ export interface App {
   emit<K extends BridgeEvent>(name: K, ...args: BridgeEventArgs<K>): Promise<number>;
   /** List `sessions` on disk from now on, as main would once a transcript was written, moved or taken away, and tell the window the listing changed. */
   listOnDisk(sessions: SessionSummary[]): Promise<void>;
+  /** Put `settings` on disk, as an edit by hand would, and tell the window as main does, with a read of them started now. */
+  settingsOnDisk(settings: BridgeFixture['settings']): Promise<void>;
   /** Hold every answer to `name` until `release(name)`, as main still working on it would (`BridgeControl.hold`). */
   hold(name: keyof ClaudeUiApi): Promise<void>;
   /** Hand over what `hold` kept, in the order the calls were made, or `last first` (`BridgeControl.release`). */
@@ -72,6 +74,13 @@ export const test = base.extend<{ app: App }, { installScript: string }>({
           window.__claudeUiFixture.sessions = listed;
         }, sessions);
         expect(await app.emit('onSessionsChanged')).toBe(1);
+      },
+      settingsOnDisk: async (settings) => {
+        const told = await page.evaluate((files) => {
+          window.__claudeUiFixture.settings = files;
+          return window.__claudeUiTest.emit('onSettingsChanged', window.__claudeUiTest.readSettings());
+        }, settings);
+        expect(told).toBe(1);
       },
       hold: (name) => page.evaluate((call) => window.__claudeUiTest.hold(call), name),
       release: (name, order) => page.evaluate(([call, how]) => window.__claudeUiTest.release(call, how), [name, order] as const),

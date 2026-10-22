@@ -1,5 +1,6 @@
 import { defaultUi } from '../../shared/defaults';
 import type { PanelData } from '../../shared/panels';
+import type { SettingsView } from '../../shared/settings';
 import type { GroupState, PrStatusRead, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../logic';
 import { NO_PR_STATUS } from '../prstatus';
@@ -82,6 +83,11 @@ export interface AppState {
    * In memory only, asked again at every launch.
    */
   prStatus: PrStatusRead;
+  /**
+   * The settings as they stand, from main's latest read of the files (`SettingsView.read`), whether it came as an answer, a change main tells of, or a save's answer: main tells the window of a change to the files unless every change it saw was its own write, so a save is kept here by the dialog that made it too (settings.ts).
+   * Null until the first read.
+   */
+  settings: SettingsView | null;
 }
 
 /** The sections folded away: projects by repo root, groups by their own id. */
@@ -278,6 +284,7 @@ export const store = createStore<AppState>(
     stripHidden: new Set(),
     tabBarExpanded: defaultUi().tabBarExpanded,
     prStatus: NO_PR_STATUS,
+    settings: null,
   },
   {
     sessions: sameRows,
@@ -296,5 +303,6 @@ export const store = createStore<AppState>(
     folds: sameFolds,
     stripHidden: sameMembers,
     prStatus: sameData,
+    settings: sameData,
   },
 );

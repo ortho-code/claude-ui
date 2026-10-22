@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
+import type { SettingsFileRead } from '../../../../../../src/shared/settings';
 import type { PrStatus, SessionPr, SessionSummary } from '../../../../../../src/shared/types';
-import { session } from '../../../../support/fixture';
+import { noSettingsFile, session, settingsFileWith } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { lookOf, token } from '../../../../support/looks';
 import { row, tab } from '../../../../support/window';
@@ -136,6 +137,66 @@ test("a PR mark follows GitHub's next answer", async ({ app, page }) => {
   await page.clock.fastForward(MINUTE);
   await expect(mark(page, two.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — 1 with failing checks — click to list them');
   expect((await lookOf(mark(page, two.title))).color).toBe(await token(page, '--failed'));
+});
+
+/** The settings files with PR status on or off in your settings.json. */
+const prStatusIs = (on: boolean): { yours: SettingsFileRead; app: SettingsFileRead } => ({ yours: settingsFileWith('settings.json', { prStatus: on }), app: noSettingsFile('settings.local.json') });
+
+/** Tick or untick PR status in Settings and save. */
+async function saveWith(page: Page, on: boolean): Promise<void> {
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'PR status from GitHub' }).setChecked(on);
+  await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Save' }).click();
+}
+
+test('with PR status off in the settings, the window asks GitHub nothing, from launch on, and every mark keeps the accent', async ({ app, page }) => {
+  await app.boot({ ...states, settings: prStatusIs(false) });
+  await expect(mark(page, failing.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — click to list them');
+  expect((await lookOf(mark(page, failing.title))).color).toBe(await token(page, '--accent'));
+  expect(await app.calls('prStatuses')).toEqual([]);
+});
+
+test('switching PR status on asks at once, and switching it off again takes every colour away', async ({ app, page }) => {
+  await app.boot({ ...states, settings: prStatusIs(false) });
+  await expect(mark(page, failing.title)).toBeVisible();
+  await app.settingsOnDisk(prStatusIs(true));
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  await expect(mark(page, failing.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — 1 with failing checks — click to list them');
+
+  await app.settingsOnDisk(prStatusIs(false));
+  await expect(mark(page, failing.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — click to list them');
+  expect((await lookOf(mark(page, failing.title))).color).toBe(await token(page, '--accent'));
+  expect(await app.calls('prStatuses')).toHaveLength(1);
+});
+
+test('switching PR status off in Settings stops the asking and takes every colour away at once, and switching it on there asks at once', async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot({ ...states, prStatuses: { ...states.prStatuses, 'ScientaNL/demo#5': open('running') } });
+  await expect(mark(page, failing.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — 1 with failing checks — click to list them');
+
+  await saveWith(page, false);
+  await expect(mark(page, failing.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — click to list them');
+  expect((await lookOf(mark(page, failing.title))).color).toBe(await token(page, '--accent'));
+  // A PR's checks were running, which asks again in a minute: off, nothing does.
+  await page.clock.fastForward(5 * MINUTE);
+  expect(await app.calls('prStatuses')).toHaveLength(1);
+
+  await saveWith(page, true);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(2);
+  await expect(mark(page, failing.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — 1 with failing checks — click to list them');
+});
+
+test('a change main read before a save and told of after it leaves the save in force', async ({ app, page }) => {
+  await app.boot(states);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  // Main's read for a change on disk, started while PR status was still on, and sent only once the save has been answered.
+  const readBefore = await page.evaluate(() => window.__claudeUiTest.readSettings());
+  await saveWith(page, false);
+  await expect(mark(page, failing.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — click to list them');
+
+  await app.emit('onSettingsChanged', readBefore);
+  await expect(mark(page, failing.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — click to list them');
+  expect(await app.calls('prStatuses')).toHaveLength(1);
 });
 
 const items = (page: Page, menu = '.kebab-menu'): Locator => page.locator(`${menu} button`);

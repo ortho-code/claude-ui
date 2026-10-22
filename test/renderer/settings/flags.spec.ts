@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { settingsView, type SettingsFileRead } from '../../../src/shared/settings';
+import type { SettingsFileRead } from '../../../src/shared/settings';
 import { expect, test } from '../support/harness';
 import { CONFIG_ROOT, noLocalLayout, noSettingsFile, settingsFileWith } from '../support/fixture';
 
@@ -8,7 +8,7 @@ const yours = (json: unknown): SettingsFileRead => settingsFileWith('settings.js
 const apps = (json: unknown): SettingsFileRead => settingsFileWith('settings.local.json', json);
 const noApps = noSettingsFile('settings.local.json');
 /** The one save Settings sent, with these flags: a save sends every setting, the others as they were left, which here is the default. */
-const savedWith = (launchFlags: string): unknown[][] => [[{ launchFlags, runningSessionsAtLaunch: 'pause' }]];
+const savedWith = (launchFlags: string): unknown[][] => [[{ launchFlags, runningSessionsAtLaunch: 'pause', prStatus: true }]];
 
 interface SettingsDialog {
   dialog: Locator;
@@ -151,15 +151,47 @@ test('a settings file that does not parse is toasted from start-up, until a read
   const broken: SettingsFileRead = { name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null };
   await app.boot({ settings: { yours: broken, app: noApps } });
   await expect(page.locator('#toast-message')).toHaveText('settings.json: expected a comma at line 3, column 3');
-  await app.emit('onSettingsChanged', settingsView(yours({ launchFlags: '--mine' }), noApps));
+  await app.settingsOnDisk({ yours: yours({ launchFlags: '--mine' }), app: noApps });
   await expect(page.locator('#toast')).toBeHidden();
+});
+
+test('a settings file that stops parsing is toasted though main tells of it only after a save', async ({ app, page }) => {
+  await app.boot();
+  // The file breaks, and main's read for telling of it starts, but is sent only once a save has been answered: the save's answer has it broken too.
+  const broken: SettingsFileRead = { name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null };
+  const readBefore = await page.evaluate((file) => {
+    window.__claudeUiFixture.settings.yours = file;
+    return window.__claudeUiTest.readSettings();
+  }, broken);
+  const settings = await open(page);
+  await settings.field.fill('--app');
+  await settings.save.click();
+  await expect(settings.dialog).toBeHidden();
+  await app.emit('onSettingsChanged', readBefore);
+  await expect(page.locator('#toast-message')).toHaveText('settings.json: expected a comma at line 3, column 3');
+});
+
+test('Settings opened while main is still telling of an older change shows the settings it read, not the older ones', async ({ app, page }) => {
+  await app.boot();
+  // Main's read for telling of a change starts with your flags at --old; they are --new by the time Settings is opened, and the telling lands after.
+  const readBefore = await page.evaluate((files) => {
+    window.__claudeUiFixture.settings.yours = files.old;
+    const read = window.__claudeUiTest.readSettings();
+    window.__claudeUiFixture.settings.yours = files.now;
+    return read;
+  }, { old: yours({ launchFlags: '--old' }), now: yours({ launchFlags: '--new' }) });
+  const settings = await open(page);
+  await expect(settings.field).toHaveValue('--new');
+  await app.emit('onSettingsChanged', readBefore);
+  await expect(settings.field).toHaveValue('--new');
+  await settings.cancel.click();
 });
 
 test('fixing the layout file leaves up the settings file’s toast that replaced the layout’s', async ({ app, page }) => {
   const layout = { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, error: null, json: null, types: [], local: noLocalLayout() };
   await app.boot({ layout: { ...layout, status: 'unparsable', error: 'expected a value at the end of the file' } });
   await expect(page.locator('#toast-message')).toHaveText('default.json: expected a value at the end of the file');
-  await app.emit('onSettingsChanged', settingsView({ name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null }, noApps));
+  await app.settingsOnDisk({ yours: { name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null }, app: noApps });
   await expect(page.locator('#toast-message')).toHaveText('settings.json: expected a comma at line 3, column 3');
   await app.emit('onLayoutChanged', { ...layout, status: 'missing' });
   await expect(page.locator('#toast-message')).toHaveText('settings.json: expected a comma at line 3, column 3');
@@ -170,7 +202,7 @@ test('an edit of a settings file while Settings is open shows there, and leaves 
   await app.boot();
   const settings = await open(page);
   await settings.field.fill('--typed');
-  await app.emit('onSettingsChanged', settingsView(yours({ launchFlags: '--mine' }), apps({ launchFlags: '--app' })));
+  await app.settingsOnDisk({ yours: yours({ launchFlags: '--mine' }), app: apps({ launchFlags: '--app' }) });
   await expect(settings.from).toHaveText('Set here, over the flags in settings.json:');
   await expect(settings.yoursValue).toHaveText('--mine');
   await expect(settings.field).toHaveValue('--typed');

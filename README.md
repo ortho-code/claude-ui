@@ -287,16 +287,19 @@ Settings of your own go in `settings.json` beside it, which the app reads and ne
   // Grep and Glob without asking, in every session
   "launchFlags": "--allowedTools Grep,Glob",
   // The sessions that were running when the app closed start again at launch
-  "runningSessionsAtLaunch": "start"
+  "runningSessionsAtLaunch": "start",
+  // Don't ask GitHub what it says of the sessions' PRs
+  "prStatus": false
 }
 ```
 
-There are two settings: `launchFlags`, the default flags for every session the app starts, and `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed.
-That is `"pause"` until you choose otherwise, which brings their tabs back paused, in the live strip, without starting them; `"start"` starts them again, and `"leave"` brings their tabs back with the other tabs, waiting for a click.
+There are three settings: `launchFlags`, the default flags for every session the app starts, `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed, and `prStatus`, whether the app asks GitHub what it says of the PRs your sessions link.
+`runningSessionsAtLaunch` is `"pause"` until you choose otherwise, which brings their tabs back paused, in the live strip, without starting them; `"start"` starts them again, and `"leave"` brings their tabs back with the other tabs, waiting for a click.
 A tab you paused comes back paused whichever it is.
+`prStatus` is `true` until you choose otherwise, which colours each session's PR mark by what GitHub says, asked with `gh` on your own login; `false` asks nothing, and the marks keep one colour.
 A value saved in Settings wins over yours; Settings then shows yours under the field, and **Use settings.json** puts it back when you save, or the default where your file sets none.
 Saving the same value as yours takes the app's away rather than copying it, so a later edit of your file counts.
-A change to either file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock.
+A change to either file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus` counts at once.
 A `settings.json` you were sent sets flags on every session you start, so read it before you use it.
 A mistake in either file is named in Settings, and a file that does not parse keeps the settings it last read until it does.
 

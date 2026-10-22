@@ -45,7 +45,19 @@ describe('reading the settings', () => {
     writeFileSync(appFile, '{ "launchFlags": "--app" }\n');
     const settings = await fresh();
     expect((await settings.readSettings()).launchFlags).toMatchObject({ value: '--app', source: 'app', without: '--mine' });
-    expect(await settings.settingsNow()).toEqual({ launchFlags: '--app', runningSessionsAtLaunch: 'pause' });
+    expect(await settings.settingsNow()).toEqual({ launchFlags: '--app', runningSessionsAtLaunch: 'pause', prStatus: true });
+  });
+
+  it('numbers each read in the order reads start, so one started before a save is numbered below the save’s answer', async () => {
+    const settings = await fresh();
+    const first = await settings.readSettings();
+    const startedBefore = settings.readSettings();
+    const saved = await settings.saveSettings({ prStatus: false });
+    const before = await startedBefore;
+    expect(first.read).toBe(1);
+    expect(before.read).toBeGreaterThan(first.read);
+    expect(saved.view.read).toBeGreaterThan(before.read);
+    expect(saved.view.prStatus.value).toBe(false);
   });
 
   it('keeps what a file last read in force while it does not parse, and drops it once the file is gone', async () => {

@@ -4,6 +4,7 @@ import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
 import { RUNNING_AT_LAUNCH, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView } from '../shared/settings';
 import type { Settings } from '../shared/types';
 import { listen, runModal } from './modal';
+import { store, type View } from './state/app';
 import { hideToast, showToast } from './toast';
 
 /** Each choice for the sessions that were running when the app closed, in words: the dropdown's option, and settings.json's value, in these words, under it. */
@@ -35,6 +36,11 @@ document.body.insertAdjacentHTML(
           ${RUNNING_AT_LAUNCH.map((choice) => `<option value="${choice}">${RUNNING_LABELS[choice]}</option>`).join('')}
         </select>
       </div>
+      <div class="dialog-section">
+        <span class="dialog-label">Pull requests</span>
+        <p class="dialog-detail">A session's PR badge takes the colour of what GitHub says of its PRs, such as changes requested, failing checks or merged. The app asks with gh, on your own login.</p>
+        <label id="settings-pr-status-row" class="dialog-choice"><input id="settings-pr-status" type="checkbox" /> PR status from GitHub</label>
+      </div>
       <div id="settings-notes" class="dialog-section" hidden>
         <span class="dialog-label">In the settings files</span>
         <div id="settings-notes-list"></div>
@@ -50,6 +56,7 @@ document.body.insertAdjacentHTML(
 const settingsOverlay = document.getElementById('settings-overlay')!;
 const settingsFlags = document.getElementById('settings-flags') as HTMLInputElement;
 const settingsRunning = document.getElementById('settings-running') as HTMLSelectElement;
+const settingsPrStatus = document.getElementById('settings-pr-status') as HTMLInputElement;
 const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
@@ -117,8 +124,10 @@ function lines(host: HTMLElement, className: string, texts: string[]): void {
 
 /** How a setting's control shows a value and gives it back. */
 interface Control<T> {
-  /** The field or the dropdown: its id names the setting's lines, and an input event on it is the setting changed. */
+  /** The field, the dropdown or the checkbox: its id names the setting's lines, and an input event on it is the setting changed. */
   element: HTMLInputElement | HTMLSelectElement;
+  /** What the setting's lines go after: the control itself, unless it sits inside its own words, as the PR status checkbox does in its label. */
+  after?: HTMLElement;
   read(): T;
   write(value: T): void;
 }
@@ -155,9 +164,9 @@ class SettingField<K extends SettingKey> {
     readonly control: Control<Settings[K]>,
     private readonly words: Words<Settings[K]>,
   ) {
-    // Right after the control, each named after the control's own id, so a line is found by the setting it belongs to.
+    // Right after the control, or what holds it, each named after the control's own id, so a line is found by the setting it belongs to.
     const id = control.element.id;
-    control.element.insertAdjacentHTML(
+    (control.after ?? control.element).insertAdjacentHTML(
       'afterend',
       `<p id="${id}-from" class="dialog-under" hidden></p>
         <div id="${id}-yours" class="dialog-row" hidden>
@@ -262,8 +271,25 @@ const runningField = new SettingField(
   },
 );
 
+const prStatusField = new SettingField(
+  'prStatus',
+  {
+    element: settingsPrStatus,
+    after: document.getElementById('settings-pr-status-row')!,
+    read: () => settingsPrStatus.checked,
+    write: (value) => {
+      settingsPrStatus.checked = value;
+    },
+  },
+  {
+    over: 'the choice in settings.json',
+    refused: (file, why) => `The choice in ${file} is not used: ${why}`,
+    shown: (value) => (value ? 'On' : 'Off'),
+  },
+);
+
 /** Every setting's field. */
-const fields = [flagsField, runningField];
+const fields = [flagsField, runningField, prStatusField];
 
 /** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with a file as a whole. */
 function render(view: SettingsView): void {
@@ -281,7 +307,9 @@ function render(view: SettingsView): void {
  */
 export async function openSettings(): Promise<void> {
   for (const field of fields) field.reset();
-  render(await window.claudeUi.getSettings());
+  // Kept as any read of main's is, so a change main tells of that was read before it cannot draw older settings over it.
+  keepSettings(await window.claudeUi.getSettings());
+  render(store.get().settings!);
   settingsError.hidden = true;
   renderFolderRows(await window.claudeUi.getFolders());
   settingsOverlay.hidden = false;
@@ -297,7 +325,9 @@ export async function openSettings(): Promise<void> {
         settingsError.hidden = false;
         return;
       }
-      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value() });
+      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value(), prStatus: prStatusField.value() });
+      // Main does not tell the window of a change that is all its own write, so the settings as the save left them are kept here.
+      keepSettings(saved.view);
       if (saved.refused !== null) {
         render(saved.view);
         settingsError.textContent = saved.refused;
@@ -325,20 +355,38 @@ export async function openSettings(): Promise<void> {
 /** The toast a settings file that does not parse put up, so the file being fixed takes down that one and never another. */
 let toasted: string | null = null;
 
-/** The settings as they now stand: a toast while either file does not parse, as the layout file gets one, and an open Settings kept current. */
+/**
+ * Keep `view` in the store, unless the store holds one from a later read of main's (`SettingsView.read`), and say whether it did.
+ * A change main tells of is read before it is sent, so it can arrive after a save's answer though read before the save wrote, and must not put the old settings back.
+ */
+function keepSettings(view: SettingsView): boolean {
+  const kept = store.get().settings;
+  if (kept !== null && kept.read > view.read) return false;
+  store.set({ settings: view });
+  return true;
+}
+
+/** The settings as they now stand, unless the window has them from a later read already: in the store, and an open Settings drawn again with them. */
 function followSettings(view: SettingsView): void {
-  const broken = [view.files.yours, view.files.app].find((file) => file.status === 'unparsable');
+  if (keepSettings(view) && !settingsOverlay.hidden) render(view);
+}
+
+/**
+ * A toast while either file does not parse, as the layout file gets one, from the settings the store keeps, which a save keeps as well as main's telling.
+ * So a file that broke while a save was out is toasted from the save's answer, though main's telling of it lands after and is not kept.
+ */
+function toastFollows({ settings }: View<'settings'>): void {
+  const broken = settings ? [settings.files.yours, settings.files.app].find((file) => file.status === 'unparsable') : undefined;
   const message = broken ? `${broken.name}: ${broken.error ?? 'it could not be read'}` : null;
-  if (message !== toasted) {
-    if (toasted !== null) hideToast(toasted);
-    if (message !== null) showToast(message, true);
-    toasted = message;
-  }
-  if (!settingsOverlay.hidden) render(view);
+  if (message === toasted) return;
+  if (toasted !== null) hideToast(toasted);
+  if (message !== null) showToast(message, true);
+  toasted = message;
 }
 
 /** Follow the settings files from start-up on. */
 export async function watchSettings(): Promise<void> {
+  store.watch(['settings'], toastFollows);
   window.claudeUi.onSettingsChanged(followSettings);
   followSettings(await window.claudeUi.getSettings());
 }

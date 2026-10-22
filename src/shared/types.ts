@@ -275,6 +275,8 @@ export interface Settings {
    * The other tabs come back without starting whichever it is, and a tab you paused comes back paused.
    */
   runningSessionsAtLaunch: RunningAtLaunch;
+  /** Whether the app asks GitHub, with `gh`, what it says of the PRs the sessions link, which colours their marks; off, it asks nothing and every mark keeps the accent. */
+  prStatus: boolean;
 }
 
 export interface UiState {

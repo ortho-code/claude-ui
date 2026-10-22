@@ -82,7 +82,7 @@
   gap: 8px;
 }
 
-/* A pick-one in a dialog: a line per choice, the radio beside its words, and a choice's own detail indented under it. */
+/* A choice in a dialog: a line each, the radio of a pick-one or an on/off setting's checkbox beside its words, and a pick-one's own detail indented under it. */
 .dialog-choice {
   display: flex;
   align-items: center;

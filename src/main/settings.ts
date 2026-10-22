@@ -50,10 +50,14 @@ function noteSettings(view: SettingsView): void {
 /** The move of the launch flags from meta.json, started when the app registers this module; every read waits for it. */
 let moved: Promise<void> = Promise.resolve();
 
-/** The settings as they stand. */
+/** How many reads of the two files have started this run, which numbers each (`SettingsView.read`). */
+let reads = 0;
+
+/** The settings as they stand, numbered as of when the read started, before either file is read. */
 export async function readSettings(): Promise<SettingsView> {
   await moved;
-  const view = settingsView(await readSettingsFile(settingsFile), await readSettingsFile(settingsLocalFile));
+  const read = ++reads;
+  const view = settingsView(await readSettingsFile(settingsFile), await readSettingsFile(settingsLocalFile), read);
   noteSettings(view);
   return view;
 }
