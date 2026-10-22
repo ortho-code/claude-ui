@@ -3,7 +3,7 @@ import type { PrStatus, SessionPr, SessionSummary } from '../../../../../../src/
 import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { lookOf, token } from '../../../../support/looks';
-import { row } from '../../../../support/window';
+import { row, tab } from '../../../../support/window';
 
 // The window asks main what GitHub says of the PRs the sessions link: at launch, when a PR is linked, on a timer the answer sets, and when the window comes back into focus.
 // A session's PR mark takes the colour its PRs roll up to, and its tooltip says what set it.
@@ -136,4 +136,35 @@ test("a PR mark follows GitHub's next answer", async ({ app, page }) => {
   await page.clock.fastForward(MINUTE);
   await expect(mark(page, two.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — 1 with failing checks — click to list them');
   expect((await lookOf(mark(page, two.title))).color).toBe(await token(page, '--failed'));
+});
+
+const items = (page: Page, menu = '.kebab-menu'): Locator => page.locator(`${menu} button`);
+const dotColours = (list: Locator): Promise<string[]> => list.locator('.nudge').evaluateAll((dots) => dots.map((dot) => getComputedStyle(dot).backgroundColor));
+
+test("each PR in a mark's list and in a tab's options says its state, led by a dot in its own ink", async ({ app, page }) => {
+  await app.boot({ ...states, openSessions: [failing.id] });
+  await mark(page, failing.title).click();
+  await expect(items(page)).toHaveText(['ScientaNL/demo#12 · checks failed', 'ScientaNL/demo#7 · merged']);
+  expect(await dotColours(items(page))).toEqual([await token(page, '--failed'), await token(page, '--muted')]);
+  await mark(page, failing.title).click();
+
+  await tab(page, failing.title).locator('.tab-kebab').click();
+  await page.locator('.kebab-menu button', { hasText: 'PRs (2)' }).click();
+  const submenu = items(page, '.kebab-menu.submenu');
+  await expect(submenu).toHaveText(['ScientaNL/demo#12 · checks failed', 'ScientaNL/demo#7 · merged']);
+  expect(await dotColours(submenu)).toEqual([await token(page, '--failed'), await token(page, '--muted')]);
+});
+
+test('a PR with no status is listed by its reference alone, with a hollow dot', async ({ app, page }) => {
+  await app.boot({ ...states, prStatuses: {} });
+  await mark(page, failing.title).click();
+  await expect(items(page)).toHaveText(['ScientaNL/demo#12', 'ScientaNL/demo#7']);
+  await expect(items(page).locator('.nudge')).toHaveClass(['nudge single', 'nudge single']);
+});
+
+test('while main could not ask GitHub, every PR is listed as one with no status, whatever statuses come with the problem', async ({ app, page }) => {
+  await app.boot({ ...states, prProblem: 'gh was not found' });
+  await mark(page, failing.title).click();
+  await expect(items(page)).toHaveText(['ScientaNL/demo#12', 'ScientaNL/demo#7']);
+  await expect(items(page).locator('.nudge')).toHaveClass(['nudge single', 'nudge single']);
 });

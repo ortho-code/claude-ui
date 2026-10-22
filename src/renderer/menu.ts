@@ -36,6 +36,8 @@ export interface MenuItem {
   badge?: NudgeStatus;
   /** An item that IS a session: its own dot ahead of the label, as its row draws it, in place of a roll-up's. */
   session?: { status: string | null; acked: boolean };
+  /** A dot ahead of the label classed by whoever lists the item, such as a PR's in its ink (prstatus.css), in place of a roll-up's. */
+  dot?: string;
   /** Dims the label — used for "Ungrouped", which is a place rather than a named thing. */
   muted?: boolean;
   /**
@@ -117,14 +119,14 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       menu.append(button);
       continue;
     }
-    // A row led by a status dot: a session's own, or the roll-up of something countable (a group, say), whose count then sits in its own column at the right; the label takes the room it needs and ellipsizes.
-    if (item.count !== undefined || item.session) {
+    // A row led by a dot: a session's own, one its lister classes, or the roll-up of something countable (a group, say), whose count then sits in its own column at the right; the label takes the room it needs and ellipsizes.
+    if (item.count !== undefined || item.session || item.dot !== undefined) {
       const label = document.createElement('span');
       label.className = 'menu-item-label';
       label.textContent = item.label;
       if (item.muted) label.classList.add('muted');
       const dot = document.createElement('span');
-      dot.className = item.session ? sessionDotClass(item.session.status, item.session.acked) : badgeClass(item.badge ?? null);
+      dot.className = item.session ? sessionDotClass(item.session.status, item.session.acked) : (item.dot ?? badgeClass(item.badge ?? null));
       button.textContent = '';
       button.append(dot, label);
       if (item.count !== undefined) {

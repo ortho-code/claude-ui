@@ -90,12 +90,17 @@ export interface PrMark {
 }
 
 /**
- * The mark for `prs` from main's answer: their roll-up tone, and the PRs that set it counted by state, `1 with failing checks`.
- * When main could not ask GitHub the mark is `normal` and says why, whatever statuses it still holds from before, so a status that may be stale never colours it.
+ * A PR's verdict from main's answer: as if it had no status while main could not ask GitHub, whatever status it still holds from before, so a status that may be stale never colours anything.
+ * What the mark and a PR's menu item both take it from.
  */
+export function verdictOf(pr: PrRef, read: PrStatusRead): PrVerdict {
+  return prVerdict(read.problem === null ? (read.statuses[prReference(pr)] ?? null) : null);
+}
+
+/** The mark for `prs` from main's answer: their roll-up tone, and the PRs that set it counted by state, `1 with failing checks`; when main could not ask GitHub, `normal`, saying why. */
 export function prMark(prs: readonly PrRef[], read: PrStatusRead): PrMark {
   if (read.problem !== null) return { tone: 'normal', says: `no status: ${read.problem}` };
-  const verdicts = prs.map((pr) => prVerdict(read.statuses[prReference(pr)] ?? null));
+  const verdicts = prs.map((pr) => verdictOf(pr, read));
   const tone = rollUpPrTone(verdicts.map((verdict) => verdict.tone));
   const counts = new Map<PrWords, number>();
   for (const verdict of verdicts) if (verdict.tone === tone && verdict.words !== null) counts.set(verdict.words, (counts.get(verdict.words) ?? 0) + 1);

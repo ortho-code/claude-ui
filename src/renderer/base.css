@@ -258,6 +258,7 @@ button:where(:not(.icon-btn)):hover,
 
 /* A mark standing for ONE session is hollow when that session has nothing to report — "here, and quiet".
    Without it a session that has not reported yet, a cold one just started, left a 9px hole.
+   A PR in a menu that has no status yet is hollow the same way, being one thing with nothing to report.
    A ROLL-UP is not marked: a project in the switcher or a group in the jump menu stands for many sessions and has no quiet state of its own, so it carries the strongest nudge underneath it or shows nothing at all.
    Ringing every one of them just draws a column of empty circles. */
 .nudge.single {
@@ -279,6 +280,12 @@ button:where(:not(.icon-btn)):hover,
 .nudge.failed {
   background: var(--failed);
   border-color: var(--failed);
+}
+
+/* A PR in a menu: filled with its ink, the colour its status gives it (prstatus.css). */
+.nudge.pr-dot {
+  background: var(--pr-ink);
+  border-color: var(--pr-ink);
 }
 
 /* Busy is a spinning two-tone ring rather than a filled dot: "working" reads as motion, and it is unmistakable next to the waiting pulse.

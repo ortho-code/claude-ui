@@ -1,4 +1,4 @@
-/* A tone's colour, the status colour it borrows, named once here for everything a tone colours (tone.ts): a list row's leading edge, a lead's mark and a part of a detail line, and a session's PR mark.
+/* A tone's colour, the status colour it borrows, named once here for everything a tone colours (tone.ts): a list row's leading edge, a lead's mark and a part of a detail line, and a session's PR mark and its PRs' dots in a menu.
    It only sets `--tone`, which each of those reads; `normal` and `muted` set none. */
 .tone-attention {
   --tone: var(--waiting);

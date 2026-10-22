@@ -3,6 +3,7 @@ import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDelete, promptText } from '../../../dialogs';
 import { entityKey, folderName, relativeTime, sessionLabel, tabButtonLabel, tabButtonState, unstartableReason } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
+import { verdictOf } from '../../../prstatus';
 import { store, withMember } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
@@ -14,6 +15,8 @@ import { sessionHeader } from './describe';
 import { currentByKey, renderedSections } from './drawn';
 import { fullRead } from './read';
 import { revealGroup, revealSession } from './reveal';
+import '../../../tone.css';
+import '../../../prstatus.css';
 
 /**
  * THE SESSION LIST'S MENUS AND THE WRITES THEY MAKE: a session's options and its pin, archive and delete; a group's and a project's options, their moves and renames, and a new group.
@@ -57,12 +60,18 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
 }
 
 // The PRs a session's transcript links, by their full reference, oldest first, each opening its page in the browser.
+// Each led by a dot in its ink and followed by its state, from what GitHub last said (`verdictOf`); a PR with no status has the hollow dot of one thing with nothing to report (base.css's `.nudge.single`), and no words.
 // Shared by the PR mark and the kebab submenu.
 function prMenuItems(session: SessionSummary): MenuItem[] {
-  return session.prs.map((pr) => ({
-    label: prReference(pr),
-    onSelect: () => window.claudeUi.openExternal(pr.url),
-  }));
+  const { prStatus } = store.get();
+  return session.prs.map((pr) => {
+    const { tone, words } = verdictOf(pr, prStatus);
+    return {
+      label: words === null ? prReference(pr) : `${prReference(pr)} · ${words}`,
+      dot: words === null ? 'nudge single' : `nudge pr-dot pr-ink tone-${tone}`,
+      onSelect: () => window.claudeUi.openExternal(pr.url),
+    };
+  });
 }
 
 // --- Group actions ------------------------------------------------------------------------------ Written through main, which hands back the whole state (state/groups.ts).

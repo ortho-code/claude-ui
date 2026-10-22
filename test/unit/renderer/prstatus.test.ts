@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { linkedPrs, nextAsk, NO_PR_STATUS, prMark, prVerdict, rollUpPrTone } from '../../../src/renderer/prstatus';
+import { linkedPrs, nextAsk, NO_PR_STATUS, prMark, prVerdict, rollUpPrTone, verdictOf } from '../../../src/renderer/prstatus';
 import type { PrRef, PrStatus, SessionPr } from '../../../src/shared/types';
 
 /** An open PR waiting on nobody: not a draft, approved, its checks passed, no conflict. */
@@ -68,6 +68,19 @@ describe('linkedPrs', () => {
       { repository: 'acme/app', number: 1 },
       { repository: 'acme/lib', number: 2 },
     ]);
+  });
+});
+
+describe('verdictOf', () => {
+  const pr: PrRef = { repository: 'acme/app', number: 1 };
+
+  it('reads the PR’s status from the answer, and no status for one it lacks', () => {
+    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged' } }, problem: null })).toEqual({ tone: 'muted', words: 'merged' });
+    expect(verdictOf(pr, NO_PR_STATUS)).toEqual({ tone: 'normal', words: null });
+  });
+
+  it('reads no status while main could not ask, whatever the answer still holds', () => {
+    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged' } }, problem: 'gh was not found' })).toEqual({ tone: 'normal', words: null });
   });
 });
 
