@@ -83,6 +83,9 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's dot shows when its claude has been asked to stop or pause and has not gone yet, as a pulsing square or the paused bars pulsing, for as long as that takes.
   Meanwhile Pause in its options asks claude again, and makes a stop a pause.
 - On WSL, a paste of files copied in Explorer pastes their paths, in a session or a panel's shell, so claude attaches an image file; it needs `wl-clipboard`, and reading the files from Windows usually takes about a second.
+- A session's PR mark takes the colour of what GitHub says of its PRs: yellow for changes requested, red for failing checks or a merge conflict, green when approved and ready to merge, grey once all are merged or closed.
+  Its tooltip says what set the colour, and its list and the session's options name the state of each PR GitHub has answered for.
+  The app asks with `gh`, on your own login, so it needs `gh` installed and logged in; **PR status from GitHub** in Settings, `prStatus` in `settings.json`, turns it off.
 
 ### Changed
 

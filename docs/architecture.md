@@ -59,7 +59,22 @@ Counting it was considered and rejected: any record in a worktree would badge a 
 **A session's PRs come from its transcript too**: Claude Code writes a `pr-link` record naming a PR's repository, number and page, and writes the same one again and again through a session, so each is kept once, in the order first linked (`prs`), and drawn as a mark on the row that lists them.
 A record says the PR is linked to the session, not who opened it, so the mark says "linked": over one machine's transcripts (2026-10-14), 96 of the 98 PRs linked were the user's own, and the other two a colleague's that a session worked on.
 A fork's transcript copies none of its parent's records, but in four of the five families there with a PR, the fork's opening records link its parent's PR afresh, so a fork tends to show its parent's PR from the start.
-What a PR's state is, open or merged, is not in the record, and nothing here reads it.
+What a PR's state is, open or merged, is not in the record, so it is asked of GitHub.
+
+**What GitHub says of a PR is asked with `gh`**: main runs `gh api graphql` through the login shell (`src/main/prstatus.ts`), on the person's own `gh` login, so the app keeps no token, and `gh`'s stderr comes on fd 3, apart from the shell's job-control lines.
+It asks in two steps, because asking more than a PR's state is slow (measured 2026-10-21, 103 PRs in one repository: 25 PRs with every field took 3.4–4.1 s, the state alone of all 103 under one): a PR not known yet, or closed, is asked its state, and one known to be open every field.
+A merged PR is not asked again while the app runs, and the statuses are kept in main's memory only, so a launch asks again; a file across restarts was weighed and left, a file and a writer more for under a second saved.
+A request with no answer — no `gh`, no login, offline, or still going after 30 seconds, when its process group is stopped as a panel's run is — leaves every mark in the accent with its tooltip saying why, since a status that may be stale should colour nothing.
+
+**The window asks through the gate a panel's runs go through** (`RunGate`, `panels/types/sessions/pr-status.ts`): when the PRs the listing links change, then at the delay the answer calls for, a minute while any open PR's checks run, five while any PR could still change or the last ask got no answer, and never once every one is merged and the last ask was answered; the window coming back into focus asks at once, once the last answer is a minute old.
+Only while the `prStatus` setting allows it: off, or before the settings are read, an ask asks nothing, so a launch with it off never runs `gh`.
+
+**A PR's colour comes from the tone words a list panel's rows use** (`src/renderer/prstatus.ts`, `tone.css`), never a palette of its own: red (`danger`) for failing checks or a merge conflict, yellow (`attention`) for changes requested, green (`positive`) when approved, not a draft, with its checks passed or none and GitHub having worked out that it does not conflict, the accent (`normal`) for any other open PR — waiting on a review or its checks, a draft, or not yet known to conflict or not — and for one with no status, and grey (`muted`) once merged or closed.
+Yellow and green mean what they mean on a session's dot beside it on the row, something asking you and done with your move next; red is what a failed panel run's dot shows, something gone wrong.
+A session's mark takes whatever most needs a person among its PRs, so it is grey only once every one is merged or closed; its tooltip counts the PRs that set its colour by state, and its list and the session's options lead each PR with a dot in its colour and name its state after it, or, for a PR with no status, a hollow dot and no words.
+Muted is the grey a worktree mark whose session left it has, not the list rows' dimming, since the mark stays a control and a dimmed control reads as disabled.
+An open PR with no review decision stays the accent even with its checks passed, since GitHub's schema describes the decision only as "the current status of this pull request with respect to code review", and says nothing of what a missing one means.
+GitHub's own colours were weighed and left: they are a second palette, and their green for "open" says the opposite of the dot's green for "done" on the same row.
 
 ## Build
 
