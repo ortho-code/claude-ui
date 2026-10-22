@@ -95,14 +95,9 @@
   color: var(--bg);
 }
 
-/* A PR mark's ink is its PRs' roll-up tone (prstatus.ts), at rest and filled alike: a tone with a colour (tone.css) in the accent's place, a `normal` one the accent still.
-   A muted one is the muted grey, as a worktree mark whose session left it is (base.css), rather than dimmed, which reads as disabled on a control. */
-.pr-badge:not(.tone-normal, .tone-muted) {
-  --badge-ink: var(--tone);
-}
-
-.pr-badge.tone-muted {
-  --badge-ink: var(--muted);
+/* A PR mark is drawn in its PRs' roll-up ink (prstatus.css), at rest and filled alike; the accent while it has no tone. */
+.pr-badge {
+  --badge-ink: var(--pr-ink);
 }
 
 /* The badge/pill icons (fork, branch) as inline SVG.

@@ -16,6 +16,7 @@ import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, sessionMenuI
 import { activityLine, archivedLine, sessionTitle } from './describe';
 import { currentByKey, sessionRows, statusDots } from './drawn';
 import '../../../tone.css';
+import '../../../prstatus.css';
 import './rows.css';
 
 /**
@@ -100,7 +101,7 @@ function createSessionRow(key: string): HTMLElement {
   });
   // The PRs the session's transcript links: the pull-request icon plus a count, which opens a list of them to open in the browser.
   // Shown only when it links one (set in updateRow).
-  const { badge: prBadge, count: prCount } = menuBadge('pr-badge', PR_ICON, (anchor) => {
+  const { badge: prBadge, count: prCount } = menuBadge('pr-badge pr-ink', PR_ICON, (anchor) => {
     const session = currentByKey.get(key);
     if (session) openPrsMenu(anchor, session);
   });

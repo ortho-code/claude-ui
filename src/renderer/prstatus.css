@@ -1,0 +1,13 @@
+/* A PR's ink, what everything showing a PR's tone (prstatus.ts) is drawn in: a tone with a colour (tone.css), the accent for `normal`, and the muted grey for `muted`, as a worktree mark whose session left it is (base.css), rather than dimmed, which reads as disabled on a control.
+   It only sets `--pr-ink`, which each of them reads. */
+.pr-ink:not(.tone-normal, .tone-muted) {
+  --pr-ink: var(--tone);
+}
+
+.pr-ink.tone-normal {
+  --pr-ink: var(--accent);
+}
+
+.pr-ink.tone-muted {
+  --pr-ink: var(--muted);
+}
