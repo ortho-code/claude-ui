@@ -44,6 +44,7 @@ const ORDER = [
   'src/renderer/panels/types/sessions/folding.css',
   'src/renderer/panels/types/sessions/read.css',
   'src/renderer/panels/types/sessions/live-strip.css',
+  'src/renderer/tone.css',
   'src/renderer/panels/types/list.css',
   'src/renderer/panels/tabs.css',
   'src/renderer/panels/types/command.css',

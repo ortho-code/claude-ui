@@ -1,0 +1,13 @@
+/* A tone's colour, the status colour it borrows, named once here for everything a tone colours (tone.ts): a list row's leading edge, a lead's mark and a part of a detail line.
+   It only sets `--tone`, which each of those reads; `normal` and `muted` set none. */
+.tone-attention {
+  --tone: var(--waiting);
+}
+
+.tone-positive {
+  --tone: var(--idle);
+}
+
+.tone-danger {
+  --tone: var(--failed);
+}

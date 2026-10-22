@@ -100,15 +100,21 @@
 }
 
 /* A lead, such as a kind's letter: monospaced, so leads of one length make one column and the texts after them line up.
-   The meta line's grey, or its own tone's colour (below), never its row's: the reset keeps it from inheriting that, and sits before the tones so a tone of its own still wins. */
+   The meta line's grey, or its own tone's colour (tone.css), never its row's. */
 .list-lead {
-  --tone: initial;
   flex: 0 0 auto;
   min-width: 1ch;
   font-family: var(--font-mono);
   font-size: var(--text-meta);
   text-align: center;
   color: var(--tone, var(--muted));
+}
+
+/* A lead whose tone has no colour resets the one it would inherit from its row; a lead always carries a tone, `normal` when its script gives none.
+   Only those tones, so the reset and a tone with a colour never meet on one lead, and neither depends on which stylesheet comes first. */
+.list-lead.tone-normal,
+.list-lead.tone-muted {
+  --tone: initial;
 }
 
 /* A row's detail: its lines one under another, each a block of its own, in place of the meta line's flex row (card.css), which centres a session row's note mark against its text. */
@@ -120,7 +126,7 @@
   display: block;
 }
 
-/* A part of a detail line: the line's grey, or a link's accent (base.css), unless its own tone has a colour, which it takes from the map below.
+/* A part of a detail line: the line's grey, or a link's accent (base.css), unless its own tone has a colour, which it takes from the tone map (tone.css).
    Never its row's: every part carries a tone of its own, and only a tone with a colour sets one, since a colour that is not there falls back to the line's, which would turn a `normal` or `muted` link grey. */
 .list-part:not(.tone-normal, .tone-muted) {
   color: var(--tone);
@@ -133,19 +139,6 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-/* A tone's colour, the status colour it borrows, named once here for everything a script tones: a row's leading edge, a lead's mark and a part of a detail line. */
-.tone-attention {
-  --tone: var(--waiting);
-}
-
-.tone-positive {
-  --tone: var(--idle);
-}
-
-.tone-danger {
-  --tone: var(--failed);
 }
 
 /* A row's tone, as its script says: its colour on the row's leading edge, where a session row keeps its accent bar for "open in a tab" — a different mark, since a tone says nothing about tabs; a tone without a colour leaves no edge.

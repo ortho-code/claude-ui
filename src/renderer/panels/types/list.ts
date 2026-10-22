@@ -16,6 +16,7 @@ import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
 import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
 import type { FolderType } from './folder';
 import { DEFAULT_BUTTONS, readListDocument, type DetailPart, type ListDocument, type ListItem, type ListSection, type SessionAction } from './listdoc';
+import '../../tone.css';
 import './list.css';
 
 /**
