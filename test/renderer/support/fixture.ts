@@ -21,8 +21,8 @@ export interface BridgeFixture {
   activeSessionByProject: Record<string, string>;
   activeProject: string | null;
   uiState: UiState;
-  /** The two settings files as main reads them (shared/settings.ts); a save writes into `app`'s `json`. */
-  settings: { yours: SettingsFileRead; app: SettingsFileRead };
+  /** `settings.json` as main reads it (shared/settings.ts); a save writes into its `json`. */
+  settings: SettingsFileRead;
   windowChrome: WindowChrome;
   /** Whether main says the app runs under WSL; not, unless a check says so, which is the case the window changes nothing for. */
   wsl: boolean;
@@ -136,7 +136,7 @@ export function defaultFixture(): BridgeFixture {
     activeSessionByProject: {},
     activeProject: one.repoRoot,
     uiState: defaultUi(),
-    settings: { yours: noSettingsFile('settings.json'), app: noSettingsFile('settings.local.json') },
+    settings: noSettingsFile('settings.json'),
     windowChrome: { own: false, maximized: false, title: 'Claude UI (test)', version: '0.0.0-test', dev: true },
     wsl: false,
     copiedFiles: [],

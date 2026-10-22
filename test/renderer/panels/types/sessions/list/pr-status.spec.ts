@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import type { SettingsFileRead } from '../../../../../../src/shared/settings';
 import type { PrStatus, SessionPr, SessionSummary } from '../../../../../../src/shared/types';
-import { noSettingsFile, session, settingsFileWith } from '../../../../support/fixture';
+import { session, settingsFileWith } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { lookOf, token } from '../../../../support/looks';
 import { row, tab } from '../../../../support/window';
@@ -139,8 +139,8 @@ test("a PR mark follows GitHub's next answer", async ({ app, page }) => {
   expect((await lookOf(mark(page, two.title))).color).toBe(await token(page, '--failed'));
 });
 
-/** The settings files with PR status on or off in your settings.json. */
-const prStatusIs = (on: boolean): { yours: SettingsFileRead; app: SettingsFileRead } => ({ yours: settingsFileWith('settings.json', { prStatus: on }), app: noSettingsFile('settings.local.json') });
+/** settings.json with PR status on or off. */
+const prStatusIs = (on: boolean): SettingsFileRead => settingsFileWith('settings.json', { prStatus: on });
 
 /** Tick or untick PR status in Settings and save. */
 async function saveWith(page: Page, on: boolean): Promise<void> {

@@ -1,6 +1,6 @@
 import type { RunningAtLaunch } from '../../../../../../src/shared/settings';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
-import { type BridgeFixture, noSettingsFile, session, settingsFileWith } from '../../../../support/fixture';
+import { type BridgeFixture, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { stripNames, tab } from '../../../../support/window';
 
@@ -21,7 +21,7 @@ const fixture = {
 /** The fixture with the choice in settings.json. */
 const choosing = (choice: RunningAtLaunch): Partial<BridgeFixture> => ({
   ...fixture,
-  settings: { yours: settingsFileWith('settings.json', { runningSessionsAtLaunch: choice }), app: noSettingsFile('settings.local.json') },
+  settings: settingsFileWith('settings.json', { runningSessionsAtLaunch: choice }),
 });
 
 type Size = [id: number, cols: number, rows: number];

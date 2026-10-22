@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { exitAtOnce } from '../../../../support/clock';
-import { noSettingsFile, PROJECT, session, settingsFileWith } from '../../../../support/fixture';
+import { PROJECT, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, stripRow, switcherEntry, tab } from '../../../../support/window';
 
@@ -183,7 +183,7 @@ test("a paused session's dot is no control: a click on it opens the session, whi
 });
 
 test('a tab kept as paused comes back paused and is not started at launch, even one that was running when the app closed and with running ones chosen to start', async ({ app, page }) => {
-  const starting = { yours: settingsFileWith('settings.json', { runningSessionsAtLaunch: 'start' }), app: noSettingsFile('settings.local.json') };
+  const starting = settingsFileWith('settings.json', { runningSessionsAtLaunch: 'start' });
   await app.boot({ sessions: [one, two], openSessions: [one.id, two.id], runningSessions: [one.id, two.id], pausedSessions: [one.id], activeSession: one.id, history, settings: starting });
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];

@@ -84,7 +84,7 @@ export interface AppState {
    */
   prStatus: PrStatusRead;
   /**
-   * The settings as they stand, from main's latest read of the files (`SettingsView.read`), whether it came as an answer, a change main tells of, or a save's answer: main tells the window of a change to the files unless every change it saw was its own write, so a save is kept here by the dialog that made it too (settings.ts).
+   * The settings as they stand, from main's latest read of the file (`SettingsView.read`), whether it came as an answer, a change main tells of, or a save's answer: main tells the window of a change to the file unless every change it saw was its own write, so a save is kept here by the dialog that made it too (settings.ts).
    * Null until the first read.
    */
   settings: SettingsView | null;

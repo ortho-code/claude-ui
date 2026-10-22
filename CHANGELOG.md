@@ -13,7 +13,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A filter for sessions whose folder is gone, next to the other filter pills — the set to clean up, or to put folders back for.
 - A config folder for the files you may edit or share, `config/` inside the app's data directory, holding your `settings.json`, the layout file `layouts/default.json` and the scripts it points at; the app reads and watches it, and Settings shows where it is with an Open button.
   Its files are JSON that may also carry comments and trailing commas.
-  The app writes only its own files there, whose names end in `.local.json`, never one of yours.
+  The app writes `settings.json` at a launch that finds none, with every setting at its default, when you save in Settings, keeping your comments, and once to move in the launch flags you had set, and its own files, whose names end in `.local.json`, and never any other file of yours.
 - A layout that arranges the whole window, from that file: rows and columns of panels with the sidebar and the terminal among them, sized in shares or pixels and resized from dividers, where a double-click puts back the file's sizes.
   A mistake in the file is named where it is instead of dropped, and no file can leave you without the terminal; without a file, the window is as it was.
   The sizes you drag to, the groups you fold and the panel you pick are kept in `layouts/default.local.json` beside it, in the file's own field names, so keeping one for good is moving it into your file.
@@ -100,8 +100,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Making a group from a session's options takes the list to the new group at the top of its project, instead of leaving the session to move out of sight.
 - A tab that isn't running says so with a Resume button and a Show history button, instead of asking you to click its tab.
 - Starting a session in another project while you are in a project view takes the session list to All at its top, as choosing All does, instead of keeping the previous project's scroll position.
-- The default launch flags are kept in the config folder, in `settings.local.json`, where Settings saves them and where the ones you had set move by themselves.
-  A `settings.json` of your own beside it can set them too; what Settings saves wins, and Settings shows yours with a button to go back to them.
+- The default launch flags are kept in the config folder, in `settings.json`, where Settings saves them, where you can edit them by hand, and where the ones you had set move by themselves.
 - Ctrl-C twice in a session's terminal goes to claude, as in any terminal: from its prompt claude exits, or first asks what it has to, and the tab closes when it has gone.
   The app used to close the tab itself on the second press.
 - The live strip marks the session whose tab you are looking at, as the tab bar and the session list already do.

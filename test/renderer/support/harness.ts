@@ -25,7 +25,7 @@ export interface App {
   emit<K extends BridgeEvent>(name: K, ...args: BridgeEventArgs<K>): Promise<number>;
   /** List `sessions` on disk from now on, as main would once a transcript was written, moved or taken away, and tell the window the listing changed. */
   listOnDisk(sessions: SessionSummary[]): Promise<void>;
-  /** Put `settings` on disk, as an edit by hand would, and tell the window as main does, with a read of them started now. */
+  /** Put `settings` on disk as settings.json, as an edit by hand would, and tell the window as main does, with a read of it started now. */
   settingsOnDisk(settings: BridgeFixture['settings']): Promise<void>;
   /** Hold every answer to `name` until `release(name)`, as main still working on it would (`BridgeControl.hold`). */
   hold(name: keyof ClaudeUiApi): Promise<void>;

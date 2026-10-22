@@ -14,8 +14,8 @@ vi.mock('electron', () => ({
   app: { getPath: () => dataDir, setPath: () => {}, getVersion: () => running.version },
 }));
 
-import { editAppFile, isAppFile, ownWrites } from '../../../src/main/appfiles';
-import { configBackupsDir, configRoot, defaultLayoutFile } from '../../../src/main/paths';
+import { editAppFile, isAppFile, ownWrites, removeAppFile, startAppFile } from '../../../src/main/appfiles';
+import { configBackupsDir, configRoot, defaultLayoutFile, settingsFile } from '../../../src/main/paths';
 
 const file = path.join(configRoot, 'settings.local.json');
 const backups = path.join(configBackupsDir, 'settings.local.json');
@@ -29,20 +29,66 @@ beforeEach(async () => {
 afterAll(() => fs.rm(dataDir, { recursive: true, force: true }));
 
 describe('which files the app may write', () => {
-  it('is only its own .local.json files, inside the config folder', () => {
+  it('is its own .local.json files inside the config folder, and settings.json', () => {
     expect(isAppFile(file)).toBe(true);
     expect(isAppFile(path.join(configRoot, 'layouts', 'default.local.json'))).toBe(true);
-    expect(isAppFile(path.join(configRoot, 'settings.json'))).toBe(false);
+    expect(isAppFile(settingsFile)).toBe(true);
     expect(isAppFile(defaultLayoutFile)).toBe(false);
     expect(isAppFile(path.join(dataDir, 'settings.local.json'))).toBe(false);
+    expect(isAppFile(path.join(dataDir, 'settings.json'))).toBe(false);
     expect(isAppFile(path.join(configRoot, '..', 'elsewhere.local.json'))).toBe(false);
   });
 
   it('refuses any other file, writing nothing', async () => {
-    const yours = path.join(configRoot, 'settings.json');
-    writeFileSync(yours, '{ "launchFlags": "--mine" }\n');
-    await expect(editAppFile(yours, [{ path: ['launchFlags'], value: '--app' }])).rejects.toThrow(/is not one of the app's own files/);
-    expect(await read(yours)).toBe('{ "launchFlags": "--mine" }\n');
+    await fs.mkdir(path.dirname(defaultLayoutFile), { recursive: true });
+    writeFileSync(defaultLayoutFile, '{ "version": 2 }\n');
+    await expect(editAppFile(defaultLayoutFile, [{ path: ['version'], value: 3 }])).rejects.toThrow(/is not a file the app writes/);
+    expect(await read(defaultLayoutFile)).toBe('{ "version": 2 }\n');
+  });
+});
+
+describe('starting a file the app writes', () => {
+  it('writes it when there is none, and says so', async () => {
+    expect(await startAppFile(settingsFile, '{}\n')).toBe(true);
+    expect(await read(settingsFile)).toBe('{}\n');
+  });
+
+  it('marks the version that wrote it, so the first edit by a later version keeps the file as this one left it', async () => {
+    await startAppFile(settingsFile, '{}\n');
+    running.version = '0.5.0';
+    await editAppFile(settingsFile, [{ path: ['prStatus'], value: false }]);
+    expect(await read(path.join(configBackupsDir, 'settings.json.0.4.0.bak'))).toBe('{}\n');
+  });
+
+  it('leaves one that is there as it is, whatever it holds', async () => {
+    writeFileSync(settingsFile, '{ "prStatus": fals');
+    expect(await startAppFile(settingsFile, '{}\n')).toBe(false);
+    expect(await read(settingsFile)).toBe('{ "prStatus": fals');
+  });
+
+  it('refuses a file the app does not write', async () => {
+    await expect(startAppFile(defaultLayoutFile, '{}\n')).rejects.toThrow(/is not a file the app writes/);
+    await expect(fs.access(defaultLayoutFile)).rejects.toThrow();
+  });
+});
+
+describe('taking one of the app’s own files away', () => {
+  it('keeps its text as its previous good copy, then removes it', async () => {
+    writeFileSync(file, '{ "prStatus": false }\n');
+    await removeAppFile(file);
+    await expect(fs.access(file)).rejects.toThrow();
+    expect(await read(`${backups}.bak`)).toBe('{ "prStatus": false }\n');
+  });
+
+  it('does nothing for one that is not there', async () => {
+    await expect(removeAppFile(file)).resolves.toBeUndefined();
+    await expect(fs.access(`${backups}.bak`)).rejects.toThrow();
+  });
+
+  it('refuses settings.json, which is a person’s file the app only writes into', async () => {
+    writeFileSync(settingsFile, '{}\n');
+    await expect(removeAppFile(settingsFile)).rejects.toThrow(/is not one of the app's own files/);
+    expect(await read(settingsFile)).toBe('{}\n');
   });
 });
 
@@ -78,6 +124,21 @@ describe('editing one of the app’s files', () => {
     writeFileSync(file, '{\n  "launchFlags": "--a"\n  "other": 1\n}\n');
     await expect(editAppFile(file, [{ path: ['launchFlags'], value: '--b' }])).rejects.toThrow('settings.local.json does not parse, so it was not written: expected a comma at line 3, column 3');
     expect(await read(file)).toBe('{\n  "launchFlags": "--a"\n  "other": 1\n}\n');
+  });
+
+  // Why Settings refuses a save of a key settings.json names twice: the parser reads the last.
+  it('edits the first of a key the file names twice', async () => {
+    writeFileSync(file, '{ "launchFlags": "--a", "launchFlags": "--b" }\n');
+    await editAppFile(file, [{ path: ['launchFlags'], value: '--c' }]);
+    expect(await read(file)).toBe('{ "launchFlags": "--c", "launchFlags": "--b" }\n');
+  });
+
+  it('will not write into a file a person left holding no object, and says so', async () => {
+    for (const held of ['[]\n', 'null\n', '"x"\n']) {
+      writeFileSync(file, held);
+      await expect(editAppFile(file, [{ path: ['launchFlags'], value: '--b' }])).rejects.toThrow('settings.local.json has to hold one object, { … }, so it was not written');
+      expect(await read(file)).toBe(held);
+    }
   });
 
   it('writes nothing, and takes no copy, for a change that leaves the text as it was', async () => {

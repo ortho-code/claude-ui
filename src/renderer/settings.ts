@@ -7,22 +7,23 @@ import { listen, runModal } from './modal';
 import { store, type View } from './state/app';
 import { hideToast, showToast } from './toast';
 
-/** Each choice for the sessions that were running when the app closed, in words: the dropdown's option, and settings.json's value, in these words, under it. */
+/** Each choice for the sessions that were running when the app closed, in words: the dropdown's options. */
 const RUNNING_LABELS: Record<RunningAtLaunch, string> = {
   start: 'Start them again',
   pause: 'Keep them paused in the live strip',
   leave: 'Leave them with the other tabs',
 };
 
-// App preferences, from the config folder: your settings.json under the app's settings.local.json, which this dialog writes (shared/settings.ts).
+// App preferences, from the config folder: settings.json, which you edit and this dialog saves into (shared/settings.ts), said once under the title.
 // One section for now; the shape is per-section so a second one (a read-only view of the user's own Claude config) is an addition rather than a rework.
-// Under a field, where its value comes from and what is wrong with either file's; under the section, what is wrong with a file as a whole.
+// Under a field, a value of the file's that is not used and why; under the section, what is wrong with the file as a whole.
 // The app's own folders are one row each under it, built from SETTINGS_FOLDERS below.
 document.body.insertAdjacentHTML(
   'beforeend',
   `<div id="settings-overlay" class="overlay" hidden>
     <div id="settings-dialog" class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <p id="settings-title" class="dialog-title">Settings</p>
+      <p class="dialog-detail">Saved in <code>settings.json</code> in the config folder, where you can edit them by hand too.</p>
       <div class="dialog-section">
         <label class="dialog-label" for="settings-flags">Default launch flags</label>
         <p class="dialog-detail">Added to every session started from now on. Sessions already running keep the flags they started with.</p>
@@ -42,7 +43,7 @@ document.body.insertAdjacentHTML(
         <label id="settings-pr-status-row" class="dialog-choice"><input id="settings-pr-status" type="checkbox" /> PR status from GitHub</label>
       </div>
       <div id="settings-notes" class="dialog-section" hidden>
-        <span class="dialog-label">In the settings files</span>
+        <span class="dialog-label">In settings.json</span>
         <div id="settings-notes-list"></div>
       </div>
       <div id="settings-folders"></div>
@@ -73,7 +74,7 @@ const SETTINGS_FOLDERS: { name: FolderName; label: string; detail: string }[] = 
   {
     name: 'config',
     label: 'Config folder',
-    detail: 'Holds <code>settings.json</code>, your settings, which the ones saved here win over; <code>layouts/default.json</code>, which lays out the window and its panels; and the scripts it points at.',
+    detail: 'Holds <code>settings.json</code>, the settings above; <code>layouts/default.json</code>, which lays out the window and its panels; and the scripts it points at.',
   },
   {
     name: 'logs',
@@ -132,86 +133,37 @@ interface Control<T> {
   write(value: T): void;
 }
 
-/** What a setting's lines say that is its own. */
-interface Words<T> {
-  /** What settings.json gives it, as "Set here, over …:" names it. */
-  over: string;
-  /** A value a file gives it that is not used, and why. */
-  refused(file: string, why: string): string;
-  /** settings.json's value, as the row beside its button shows it. */
-  shown(value: T): string;
-}
-
 /**
- * One setting in the dialog: its control, and under it where its value comes from, the value it would have without the app's (settings.json's, or the default) with a button back to it, and what is wrong with a value either file gives it.
- * Every setting is one of these, so each has the same lines behaving the same way.
+ * One setting in the dialog: its control, and under it, when the file gives it a value that is not used, that and why, in `refused`'s words.
+ * Every setting is one of these, so each has the same line behaving the same way.
  */
 class SettingField<K extends SettingKey> {
-  /** Changed in the control since the dialog last filled it, which a change to the files while it is open must not overwrite. */
+  /** Changed in the control since the dialog last filled it, which a change to the file while it is open must not overwrite. */
   private edited = false;
-  /** "Use settings.json" pressed and the control not changed since: it holds the value without the app's (settings.json's, or the default), and saving takes the app's away. */
-  private usingYours = false;
-  /** The settings the field was last rendered from, which "Use settings.json" renders it from again. */
-  private shown: SettingsView | null = null;
-  private readonly from: HTMLElement;
-  private readonly yours: HTMLElement;
-  private readonly yoursValue: HTMLElement;
-  private readonly use: HTMLButtonElement;
   private readonly problems: HTMLElement;
 
   constructor(
     private readonly key: K,
     readonly control: Control<Settings[K]>,
-    private readonly words: Words<Settings[K]>,
+    private readonly refused: (file: string, why: string) => string,
   ) {
-    // Right after the control, or what holds it, each named after the control's own id, so a line is found by the setting it belongs to.
+    // Right after the control, or what holds it, named after the control's own id, so the line is found by the setting it belongs to.
     const id = control.element.id;
-    (control.after ?? control.element).insertAdjacentHTML(
-      'afterend',
-      `<p id="${id}-from" class="dialog-under" hidden></p>
-        <div id="${id}-yours" class="dialog-row" hidden>
-          <code id="${id}-yours-value" class="dialog-path"></code>
-          <button id="${id}-use" type="button">Use settings.json</button>
-        </div>
-        <div id="${id}-problems"></div>`,
-    );
-    this.from = document.getElementById(`${id}-from`)!;
-    this.yours = document.getElementById(`${id}-yours`)!;
-    this.yoursValue = document.getElementById(`${id}-yours-value`)!;
-    this.use = document.getElementById(`${id}-use`) as HTMLButtonElement;
+    (control.after ?? control.element).insertAdjacentHTML('afterend', `<div id="${id}-problems"></div>`);
     this.problems = document.getElementById(`${id}-problems`)!;
   }
 
-  /** The dialog opened afresh: the control follows the files again. */
+  /** The dialog opened afresh: the control follows the file again. */
   reset(): void {
     this.edited = false;
-    this.usingYours = false;
   }
 
-  /** Fill from the settings as they stand: the control, unless it was changed, and under it where its value comes from and what is wrong. */
+  /** Fill from the settings as they stand: the control, unless it was changed, and under it what is wrong with the file's value. */
   render(view: SettingsView): void {
-    this.shown = view;
     const views: SettingViews = view;
     const setting = views[this.key];
-    if (!this.edited) this.control.write(this.usingYours ? setting.without : setting.value);
-    const fromApp = setting.source === 'app' && !this.usingYours;
-    this.from.textContent = this.usingYours
-      ? setting.withoutSource === 'yours'
-        ? 'From settings.json, once you save.'
-        : 'The default, once you save; settings.json sets none.'
-      : fromApp
-        ? setting.withoutSource === 'yours'
-          ? `Set here, over ${this.words.over}:`
-          : 'Set here; settings.json sets none.'
-        : 'From settings.json.';
-    this.from.hidden = setting.source === 'default' && !this.usingYours;
-    this.yours.hidden = !fromApp;
-    this.yoursValue.textContent = setting.withoutSource === 'yours' ? this.words.shown(setting.without) : '';
-    lines(
-      this.problems,
-      'dialog-error',
-      setting.problems.map(({ file, why }) => this.words.refused(file, why)),
-    );
+    if (!this.edited) this.control.write(setting.value);
+    lines(this.problems, 'dialog-error', setting.problem === null ? [] : [this.refused(view.file.name, setting.problem)]);
   }
 
   /** What saving sends for it. */
@@ -219,20 +171,12 @@ class SettingField<K extends SettingKey> {
     return this.control.read();
   }
 
-  /** While the dialog is up: a change in the control, and "Use settings.json", each telling `changed` too. */
+  /** While the dialog is up: a change in the control, telling `changed` too. */
   listeners(changed: () => void): (() => void)[] {
     return [
       listen(this.control.element, 'input', () => {
         this.edited = true;
-        this.usingYours = false;
         changed();
-      }),
-      listen(this.use, 'click', () => {
-        this.edited = false;
-        this.usingYours = true;
-        changed();
-        if (this.shown) this.render(this.shown);
-        this.control.element.focus();
       }),
     ];
   }
@@ -247,11 +191,7 @@ const flagsField = new SettingField(
       settingsFlags.value = value;
     },
   },
-  {
-    over: 'the flags in settings.json',
-    refused: (file, why) => `The flags in ${file} are not used: ${why}`,
-    shown: (value) => value,
-  },
+  (file, why) => `The flags in ${file} are not used: ${why}`,
 );
 
 const runningField = new SettingField(
@@ -264,11 +204,7 @@ const runningField = new SettingField(
       settingsRunning.value = value;
     },
   },
-  {
-    over: 'the choice in settings.json',
-    refused: (file, why) => `The choice in ${file} is not used: ${why}`,
-    shown: (value) => RUNNING_LABELS[value],
-  },
+  (file, why) => `The choice in ${file} is not used: ${why}`,
 );
 
 const prStatusField = new SettingField(
@@ -281,17 +217,13 @@ const prStatusField = new SettingField(
       settingsPrStatus.checked = value;
     },
   },
-  {
-    over: 'the choice in settings.json',
-    refused: (file, why) => `The choice in ${file} is not used: ${why}`,
-    shown: (value) => (value ? 'On' : 'Off'),
-  },
+  (file, why) => `The choice in ${file} is not used: ${why}`,
 );
 
 /** Every setting's field. */
 const fields = [flagsField, runningField, prStatusField];
 
-/** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with a file as a whole. */
+/** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with the file as a whole. */
 function render(view: SettingsView): void {
   for (const field of fields) field.render(view);
   lines(settingsNotesList, 'dialog-error', view.notes);
@@ -303,7 +235,7 @@ function render(view: SettingsView): void {
  *
  * Shares the overlay skin and `runModal`'s behaviour with the other two dialogs, but is its own form rather than a call to `promptText`: that one is a transient prompt built per call, this is a fixed screen that will grow sections.
  * Saving is validated by the same parser the launcher uses (shared/flags.ts), so what the field accepts and what a session gets can't disagree.
- * It saves into the app's `settings.local.json`; a value equal to what your `settings.json` gives takes the app's away rather than copying it there (`appFileChanges`), which is all "Use settings.json" needs: it puts your value in the field.
+ * It saves into `settings.json`, writing a setting whose value changed, or whose value in the file is not used (`fileChanges`), so a save that changes nothing leaves a file with no such value as it was.
  */
 export async function openSettings(): Promise<void> {
   for (const field of fields) field.reset();
@@ -372,11 +304,11 @@ function followSettings(view: SettingsView): void {
 }
 
 /**
- * A toast while either file does not parse, as the layout file gets one, from the settings the store keeps, which a save keeps as well as main's telling.
+ * A toast while the file does not parse, as the layout file gets one, from the settings the store keeps, which a save keeps as well as main's telling.
  * So a file that broke while a save was out is toasted from the save's answer, though main's telling of it lands after and is not kept.
  */
 function toastFollows({ settings }: View<'settings'>): void {
-  const broken = settings ? [settings.files.yours, settings.files.app].find((file) => file.status === 'unparsable') : undefined;
+  const broken = settings?.file.status === 'unparsable' ? settings.file : undefined;
   const message = broken ? `${broken.name}: ${broken.error ?? 'it could not be read'}` : null;
   if (message === toasted) return;
   if (toasted !== null) hideToast(toasted);
@@ -384,7 +316,7 @@ function toastFollows({ settings }: View<'settings'>): void {
   toasted = message;
 }
 
-/** Follow the settings files from start-up on. */
+/** Follow the settings file from start-up on. */
 export async function watchSettings(): Promise<void> {
   store.watch(['settings'], toastFollows);
   window.claudeUi.onSettingsChanged(followSettings);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readJsonc } from '../../../src/main/jsonc';
+import { duplicateKeys, readJsonc } from '../../../src/main/jsonc';
 
 describe('reading the config folder’s format', () => {
   it('reads plain JSON as JSON.parse does', () => {
@@ -37,5 +37,23 @@ describe('reading the config folder’s format', () => {
     expect(readJsonc('{ "a": "one\n" }')).toEqual({ ok: false, error: 'a string that is never closed at line 1, column 8' });
     expect(readJsonc('{ "a": 1 } { "b": 2 }')).toEqual({ ok: false, error: 'expected nothing more after the value at line 1, column 12' });
     expect(readJsonc('{ "a": 1 /* open')).toEqual({ ok: false, error: 'a comment that is never closed at line 1, column 10' });
+  });
+});
+
+describe('the keys a file names more than once', () => {
+  it('are the top object’s, each once, in the order their second naming comes', () => {
+    expect(duplicateKeys('{ "a": 1, "b": 2, "b": 3, "a": 4, "a": 5, "c": 6 }')).toEqual(['b', 'a']);
+    expect(duplicateKeys('{\n  // a comment\n  "a": 1,\n  "a": 2,\n}\n')).toEqual(['a']);
+  });
+
+  it('leave out a key named again only inside a value, and are none for a text holding no object', () => {
+    expect(duplicateKeys('{ "a": { "x": 1, "x": 2 }, "b": [{ "a": 1 }] }')).toEqual([]);
+    expect(duplicateKeys('[1, 1]')).toEqual([]);
+    expect(duplicateKeys('')).toEqual([]);
+  });
+
+  it('are keys of which the parser keeps the last', () => {
+    expect(duplicateKeys('{ "a": 1, "a": 2 }')).toEqual(['a']);
+    expect(readJsonc('{ "a": 1, "a": 2 }')).toEqual({ ok: true, json: { a: 2 } });
   });
 });

@@ -95,7 +95,7 @@ window.claudeUi.onClaudeMissing(() => {
   showToast('The claude CLI was not found on your PATH. Install it and restart claude-ui.', true);
 });
 
-// The settings files: a toast while one does not parse, and an open Settings kept current (settings.ts).
+// The settings file: a toast while it does not parse, and an open Settings kept current (settings.ts).
 void watchSettings();
 
 // The window's own title bar, where the app draws its chrome (chrome.ts).

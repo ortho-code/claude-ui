@@ -67,7 +67,7 @@ Done:
   See [Panel types of your own](#panel-types-of-your-own).
   A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick; it then shows that session's status and leads back to it, and a second press offers to continue it.
 - The sidebar and the terminal area are panel types like the others, each drawn by modules of its own.
-- A config folder that stays yours: the app never writes a file you wrote, and keeps what you change in it — the settings you save, the sizes you drag to, the groups you fold — in `.local.json` files of its own beside yours, in your files' own field names.
+- A config folder that stays yours: the settings in `settings.json`, which you edit and Settings saves into, keeping your comments, and your layout, which the app never writes, keeping where you left it — the sizes you drag to, the groups you fold — in a `.local.json` file of its own beside it, in your file's own field names.
   Every file there may carry comments and trailing commas.
 
 Next:
@@ -114,8 +114,8 @@ It lives in the app's config folder, which Settings shows with an Open button:
 Write `layouts/default.json` there, and the app picks it up as you save.
 Every file in the folder is JSON that may also carry comments (`//` and `/* */`) and trailing commas.
 Without a file — or after you delete or rename yours — the window is the default layout below, so there is always a way back to one that works.
-The app writes only the files in the folder whose names end in `.local.json`, which hold what you changed in the app on this machine, such as the flags saved in Settings, and win over the file of yours beside them.
-Every other file is yours and the app never writes it, so it is yours to edit, version, or hand to a colleague; a `.local.json` holds nothing secret and may go along, with this machine's choices in it.
+The app writes `settings.json` at a launch that finds none, when you save in Settings, and once at a launch to move settings kept elsewhere before into it, and the files whose names end in `.local.json`, which hold where you left a layout on this machine, such as the sizes you drag to, and win over the file of yours beside them.
+Every other file is yours and the app never writes it, so it is yours to edit, version, or hand to a colleague; a `.local.json` holds nothing secret and may go along, with this machine's sizes in it, and a folder you keep in git can leave them out with `*.local.json` in its `.gitignore`.
 
 The default layout, as a starting point to copy:
 
@@ -280,8 +280,9 @@ A type you were sent runs as you, the way a script in `scripts/` does, so read i
 
 ## Settings
 
-What you save in Settings goes into `settings.local.json` in the config folder (see [Panels](#panels) for where it is), which the app writes.
-Settings of your own go in `settings.json` beside it, which the app reads and never writes:
+The settings are in `settings.json` in the config folder (see [Panels](#panels) for where it is), which you can edit by hand and which Settings saves into.
+A launch that finds none writes one with every setting at its default, under a line saying what each is; a default written there stays as it is, so a later version's new default is in force only where you delete that line.
+For example:
 
 ```jsonc
 {
@@ -298,11 +299,10 @@ There are three settings: `launchFlags`, the default flags for every session the
 `runningSessionsAtLaunch` is `"pause"` until you choose otherwise, which brings their tabs back paused, in the live strip, without starting them; `"start"` starts them again, and `"leave"` brings their tabs back with the other tabs, waiting for a click.
 A tab you paused comes back paused whichever it is.
 `prStatus` is `true` until you choose otherwise, which colours each session's PR mark by what GitHub says, asked with `gh` on your own login; `false` asks nothing, and the marks keep one colour.
-A value saved in Settings wins over yours; Settings then shows yours under the field, and **Use settings.json** puts it back when you save, or the default where your file sets none.
-Saving the same value as yours takes the app's away rather than copying it, so a later edit of your file counts.
-A change to either file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus` counts at once.
+A save writes the settings you changed, and puts a value Settings can use in place of one in the file it cannot, as edits of the file's text, so your comments stay; it is refused while the file does not parse or does not hold an object.
+A change to the file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus` counts at once.
 A `settings.json` you were sent sets flags on every session you start, so read it before you use it.
-A mistake in either file is named in Settings, and a file that does not parse keeps the settings it last read until it does.
+A mistake in the file is named in Settings, and a file that does not parse keeps the settings it last read until it does.
 
 ## Install a build
 

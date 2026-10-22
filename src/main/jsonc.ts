@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs';
-import { parse, ParseErrorCode, type ParseError } from 'jsonc-parser';
+import { parse, parseTree, ParseErrorCode, type ParseError } from 'jsonc-parser';
 import type { ReadStatus } from '../shared/panels';
 
 /**
@@ -59,17 +59,53 @@ export function readJsonc(text: string): { ok: true; json: unknown } | { ok: fal
 }
 
 /**
- * One read of a file in the config folder: never throws, a missing file is `missing` rather than a mistake, and a file that does not parse carries what is wrong and where.
- * The one read for every file there — the layout, a type's manifest, the settings, the app's own files.
+ * The keys the object at the top of a text names more than once, each once, in the order their second naming comes; none when the text holds no object.
+ * The parser keeps the last of them as the value, while an edit (`jsonc-parser`'s `modify`) reaches the first, so a file naming one twice cannot be edited into saying something else.
  */
-export async function readJsoncFile(file: string): Promise<{ status: ReadStatus; error: string | null; json: unknown }> {
+export function duplicateKeys(text: string): string[] {
+  const root = parseTree(withoutBom(text), [], { allowTrailingComma: true });
+  if (root?.type !== 'object') return [];
+  const named = new Set<string>();
+  const twice = new Set<string>();
+  for (const property of root.children ?? []) {
+    const key: unknown = property.children?.[0]?.value;
+    if (typeof key !== 'string') continue;
+    if (named.has(key)) twice.add(key);
+    named.add(key);
+  }
+  return [...twice];
+}
+
+/** One read of a file in the config folder, as `readJsoncFile` gives it. */
+export interface JsoncFileRead {
+  status: ReadStatus;
+  error: string | null;
+  json: unknown;
+}
+
+/** A read of a file, and its text where there was one to read, for what a caller reads from the text itself. */
+async function readWithText(file: string): Promise<{ read: JsoncFileRead; text: string | null }> {
   let text: string;
   try {
     text = await fs.readFile(file, 'utf8');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { status: 'missing', error: null, json: null };
-    return { status: 'unparsable', error: (error as Error).message, json: null };
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { read: { status: 'missing', error: null, json: null }, text: null };
+    return { read: { status: 'unparsable', error: (error as Error).message, json: null }, text: null };
   }
   const read = readJsonc(text);
-  return read.ok ? { status: 'read', error: null, json: read.json } : { status: 'unparsable', error: read.error, json: null };
+  return { read: read.ok ? { status: 'read', error: null, json: read.json } : { status: 'unparsable', error: read.error, json: null }, text };
+}
+
+/**
+ * One read of a file in the config folder: never throws, a missing file is `missing` rather than a mistake, and a file that does not parse carries what is wrong and where.
+ * The one read for every file there — the layout, a type's manifest, the settings, the app's own files.
+ */
+export async function readJsoncFile(file: string): Promise<JsoncFileRead> {
+  return (await readWithText(file)).read;
+}
+
+/** `readJsoncFile` of a file the app edits as well as reads, with the keys it names more than once (`duplicateKeys`): none for a file that is not there or does not parse. */
+export async function readJsoncFileWithDuplicates(file: string): Promise<JsoncFileRead & { duplicates: string[] }> {
+  const { read, text } = await readWithText(file);
+  return { ...read, duplicates: read.status === 'read' && text !== null ? duplicateKeys(text) : [] };
 }

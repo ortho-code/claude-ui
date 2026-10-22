@@ -1,21 +1,17 @@
 import type { Locator, Page } from '@playwright/test';
 import type { SettingsFileRead } from '../../../src/shared/settings';
 import { expect, test } from '../support/harness';
-import { CONFIG_ROOT, noLocalLayout, noSettingsFile, settingsFileWith } from '../support/fixture';
+import { CONFIG_ROOT, noLocalLayout, settingsFileWith } from '../support/fixture';
 
-// The launch flags in Settings (docs/architecture.md § The config folder): saved into the app's settings.local.json over your settings.json, with where the value comes from said under the field.
-const yours = (json: unknown): SettingsFileRead => settingsFileWith('settings.json', json);
-const apps = (json: unknown): SettingsFileRead => settingsFileWith('settings.local.json', json);
-const noApps = noSettingsFile('settings.local.json');
+// The launch flags in Settings (docs/architecture.md § The config folder): saved into settings.json, which the dialog says once under its title, with only a value of the file's that is not used said under the field.
+const file = (json: unknown): SettingsFileRead => settingsFileWith('settings.json', json);
+const broken: SettingsFileRead = { name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null };
 /** The one save Settings sent, with these flags: a save sends every setting, the others as they were left, which here is the default. */
 const savedWith = (launchFlags: string): unknown[][] => [[{ launchFlags, runningSessionsAtLaunch: 'pause', prStatus: true }]];
 
 interface SettingsDialog {
   dialog: Locator;
   field: Locator;
-  from: Locator;
-  yoursValue: Locator;
-  use: Locator;
   save: Locator;
   cancel: Locator;
 }
@@ -27,71 +23,44 @@ const open = async (page: Page): Promise<SettingsDialog> => {
   return {
     dialog,
     field: dialog.locator('#settings-flags'),
-    from: dialog.locator('#settings-flags-from'),
-    yoursValue: dialog.locator('#settings-flags-yours-value'),
-    use: dialog.getByRole('button', { name: 'Use settings.json' }),
     save: dialog.getByRole('button', { name: 'Save' }),
     cancel: dialog.getByRole('button', { name: 'Cancel' }),
   };
 };
 
-test('flags saved in Settings go to the app’s file, and the field says they were set here', async ({ app, page }) => {
+/** What the stand-in's settings.json holds now, as main would find it on disk. */
+const onDisk = (page: Page): Promise<unknown> => page.evaluate(() => window.__claudeUiFixture.settings.json);
+
+test('Settings says once, under its title, where its settings are saved, and nothing under a field says where a value came from', async ({ app, page }) => {
+  await app.boot({ settings: file({ launchFlags: '--mine' }) });
+  const settings = await open(page);
+  await expect(settings.dialog.locator('.dialog-detail').first()).toHaveText('Saved in settings.json in the config folder, where you can edit them by hand too.');
+  await expect(settings.field).toHaveValue('--mine');
+  await expect(settings.dialog.getByText(/Set here|From settings\.json|settings\.json sets none/)).toHaveCount(0);
+  await expect(settings.dialog.getByRole('button', { name: 'Use settings.json' })).toHaveCount(0);
+});
+
+test('flags saved in Settings go into settings.json', async ({ app, page }) => {
   await app.boot();
   let settings = await open(page);
   await expect(settings.field).toHaveValue('');
-  await expect(settings.from).toBeHidden();
   await settings.field.fill('--allowedTools Grep');
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
   expect(await app.calls('setSettings')).toEqual(savedWith('--allowedTools Grep'));
+  expect(await onDisk(page)).toEqual({ launchFlags: '--allowedTools Grep' });
 
   settings = await open(page);
   await expect(settings.field).toHaveValue('--allowedTools Grep');
-  await expect(settings.from).toHaveText('Set here; settings.json sets none.');
-  await expect(settings.use).toBeVisible();
 });
 
-test('flags set here over settings.json show its flags, and “Use settings.json” goes back to them on save', async ({ app, page }) => {
-  await app.boot({ settings: { yours: yours({ launchFlags: '--mine' }), app: apps({ launchFlags: '--app' }) } });
-  let settings = await open(page);
-  await expect(settings.field).toHaveValue('--app');
-  await expect(settings.from).toHaveText('Set here, over the flags in settings.json:');
-  await expect(settings.yoursValue).toHaveText('--mine');
-
-  await settings.use.click();
-  await expect(settings.field).toHaveValue('--mine');
-  await expect(settings.from).toHaveText('From settings.json, once you save.');
-  await expect(settings.use).toBeHidden();
+test('a save that changes nothing leaves settings.json as it was, and adds no setting only to say its default', async ({ app, page }) => {
+  await app.boot({ settings: file({ launchFlags: '--mine' }) });
+  const settings = await open(page);
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual(savedWith('--mine'));
-
-  // Equal to yours, so the stand-in, by main's rule, took the app's value away rather than copying yours.
-  settings = await open(page);
-  await expect(settings.field).toHaveValue('--mine');
-  await expect(settings.from).toHaveText('From settings.json.');
-  await expect(settings.use).toBeHidden();
-});
-
-test('flags set here with none in settings.json go back to none on “Use settings.json”', async ({ app, page }) => {
-  await app.boot({ settings: { yours: noSettingsFile('settings.json'), app: apps({ launchFlags: '--app' }) } });
-  let settings = await open(page);
-  await expect(settings.from).toHaveText('Set here; settings.json sets none.');
-  await expect(settings.yoursValue).toHaveText('');
-
-  await settings.use.click();
-  await expect(settings.field).toHaveValue('');
-  await expect(settings.field).toBeFocused();
-  await expect(settings.from).toHaveText('The default, once you save; settings.json sets none.');
-  await settings.save.click();
-  await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual(savedWith(''));
-
-  // The default, so the app's value went rather than an empty one taking its place.
-  settings = await open(page);
-  await expect(settings.field).toHaveValue('');
-  await expect(settings.from).toBeHidden();
-  await expect(settings.use).toBeHidden();
+  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '--mine', runningSessionsAtLaunch: 'pause', prStatus: true }]]);
+  expect(await onDisk(page)).toEqual({ launchFlags: '--mine' });
 });
 
 test('flags are saved without the spaces around them', async ({ app, page }) => {
@@ -103,38 +72,36 @@ test('flags are saved without the spaces around them', async ({ app, page }) => 
   expect(await app.calls('setSettings')).toEqual(savedWith('--allowedTools Grep'));
 });
 
-test('the error under the field goes once the field is typed in, or “Use settings.json” is pressed', async ({ app, page }) => {
-  await app.boot({ settings: { yours: yours({ launchFlags: '--mine' }), app: apps({ launchFlags: '--app' }) } });
+test('the error under the field goes once the field is typed in', async ({ app, page }) => {
+  await app.boot();
   const settings = await open(page);
   const error = settings.dialog.locator('#settings-error');
-  const refuse = async (): Promise<void> => {
-    await settings.field.fill('--resume other');
-    await settings.save.click();
-    await expect(error).toBeVisible();
-  };
-
-  await refuse();
+  await settings.field.fill('--resume other');
+  await settings.save.click();
+  await expect(error).toBeVisible();
   await settings.field.press('End');
   await settings.field.press('Backspace');
   await expect(error).toBeHidden();
-
-  await refuse();
-  await settings.use.click();
-  await expect(error).toBeHidden();
-  await expect(settings.field).toHaveValue('--mine');
-  await expect(settings.field).toBeFocused();
   expect(await app.calls('setSettings')).toEqual([]);
   await settings.cancel.click();
 });
 
-test('a value a file gives that is refused is named under the field, and a mistake in a file as a whole under the section', async ({ app, page }) => {
-  await app.boot({ settings: { yours: yours({ launchFlags: '--session-id x', lanchFlags: 1 }), app: noApps } });
+test('a value the file gives that is refused is named under the field, and a mistake in the file as a whole under the section', async ({ app, page }) => {
+  await app.boot({ settings: file({ launchFlags: '--session-id x', lanchFlags: 1 }) });
   const settings = await open(page);
   await expect(settings.field).toHaveValue('');
   await expect(settings.dialog.locator('#settings-flags-problems')).toHaveText(
     "The flags in settings.json are not used: --session-id can't be set here — claude-ui gives each session its own id, and claude refuses an id twice.",
   );
   await expect(settings.dialog.locator('#settings-notes')).toContainText('settings.json: "lanchFlags" is not a setting the app has.');
+});
+
+test('a save puts in a value the file gives that is refused, so the file holds one that is used', async ({ app, page }) => {
+  await app.boot({ settings: file({ launchFlags: '--session-id x' }) });
+  const settings = await open(page);
+  await settings.save.click();
+  await expect(settings.dialog).toBeHidden();
+  expect(await onDisk(page)).toEqual({ launchFlags: '' });
 });
 
 test('flags Settings would refuse are said under the field and never saved', async ({ app, page }) => {
@@ -148,23 +115,20 @@ test('flags Settings would refuse are said under the field and never saved', asy
 });
 
 test('a settings file that does not parse is toasted from start-up, until a read succeeds', async ({ app, page }) => {
-  const broken: SettingsFileRead = { name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null };
-  await app.boot({ settings: { yours: broken, app: noApps } });
+  await app.boot({ settings: broken });
   await expect(page.locator('#toast-message')).toHaveText('settings.json: expected a comma at line 3, column 3');
-  await app.settingsOnDisk({ yours: yours({ launchFlags: '--mine' }), app: noApps });
+  await app.settingsOnDisk(file({ launchFlags: '--mine' }));
   await expect(page.locator('#toast')).toBeHidden();
 });
 
 test('a settings file that stops parsing is toasted though main tells of it only after a save', async ({ app, page }) => {
   await app.boot();
   // The file breaks, and main's read for telling of it starts, but is sent only once a save has been answered: the save's answer has it broken too.
-  const broken: SettingsFileRead = { name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null };
-  const readBefore = await page.evaluate((file) => {
-    window.__claudeUiFixture.settings.yours = file;
+  const readBefore = await page.evaluate((now) => {
+    window.__claudeUiFixture.settings = now;
     return window.__claudeUiTest.readSettings();
   }, broken);
   const settings = await open(page);
-  await settings.field.fill('--app');
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
   await app.emit('onSettingsChanged', readBefore);
@@ -174,12 +138,15 @@ test('a settings file that stops parsing is toasted though main tells of it only
 test('Settings opened while main is still telling of an older change shows the settings it read, not the older ones', async ({ app, page }) => {
   await app.boot();
   // Main's read for telling of a change starts with your flags at --old; they are --new by the time Settings is opened, and the telling lands after.
-  const readBefore = await page.evaluate((files) => {
-    window.__claudeUiFixture.settings.yours = files.old;
-    const read = window.__claudeUiTest.readSettings();
-    window.__claudeUiFixture.settings.yours = files.now;
-    return read;
-  }, { old: yours({ launchFlags: '--old' }), now: yours({ launchFlags: '--new' }) });
+  const readBefore = await page.evaluate(
+    (files) => {
+      window.__claudeUiFixture.settings = files.old;
+      const read = window.__claudeUiTest.readSettings();
+      window.__claudeUiFixture.settings = files.now;
+      return read;
+    },
+    { old: file({ launchFlags: '--old' }), now: file({ launchFlags: '--new' }) },
+  );
   const settings = await open(page);
   await expect(settings.field).toHaveValue('--new');
   await app.emit('onSettingsChanged', readBefore);
@@ -191,20 +158,19 @@ test('fixing the layout file leaves up the settings file’s toast that replaced
   const layout = { configRoot: CONFIG_ROOT, file: `${CONFIG_ROOT}/layouts/default.json`, error: null, json: null, types: [], local: noLocalLayout() };
   await app.boot({ layout: { ...layout, status: 'unparsable', error: 'expected a value at the end of the file' } });
   await expect(page.locator('#toast-message')).toHaveText('default.json: expected a value at the end of the file');
-  await app.settingsOnDisk({ yours: { name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null }, app: noApps });
+  await app.settingsOnDisk(broken);
   await expect(page.locator('#toast-message')).toHaveText('settings.json: expected a comma at line 3, column 3');
   await app.emit('onLayoutChanged', { ...layout, status: 'missing' });
   await expect(page.locator('#toast-message')).toHaveText('settings.json: expected a comma at line 3, column 3');
   await expect(page.locator('#toast')).toBeVisible();
 });
 
-test('an edit of a settings file while Settings is open shows there, and leaves what was typed in the field', async ({ app, page }) => {
+test('an edit of settings.json while Settings is open shows there, and leaves what was typed in the field', async ({ app, page }) => {
   await app.boot();
   const settings = await open(page);
   await settings.field.fill('--typed');
-  await app.settingsOnDisk({ yours: yours({ launchFlags: '--mine' }), app: apps({ launchFlags: '--app' }) });
-  await expect(settings.from).toHaveText('Set here, over the flags in settings.json:');
-  await expect(settings.yoursValue).toHaveText('--mine');
+  await app.settingsOnDisk(file({ launchFlags: '--mine', runningSessionsAtLaunch: 'start' }));
+  await expect(settings.dialog.locator('#settings-running')).toHaveValue('start');
   await expect(settings.field).toHaveValue('--typed');
   await settings.cancel.click();
 });

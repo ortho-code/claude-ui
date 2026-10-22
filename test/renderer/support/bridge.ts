@@ -4,7 +4,7 @@ import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, t
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { prReference } from '../../../src/shared/prs';
 import { purgedSession, togglePinned, toggleArchived, unarchived } from '../../../src/shared/sessionmarks';
-import { appFileChanges, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
+import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
 import { CONFIG_ROOT, HOME, type BridgeCall, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
@@ -15,7 +15,7 @@ export interface BridgeControl {
   calls: BridgeCall[];
   /** Every call that reached what the stand-in does not model, in order: the harness fails a check on any, whether or not the window caught the refusal. */
   unmodelled: (keyof ClaudeUiApi)[];
-  /** A read of the settings files as main makes one, numbered after every read so far: what main sends when it tells of a change, or one a check holds back to send late. */
+  /** A read of settings.json as main makes one, numbered after every read so far: what main sends when it tells of a change, or one a check holds back to send late. */
   readSettings(): SettingsView;
   /** Call every callback the window subscribed with `name`; answers how many there were, so a check can tell a fired event from one nobody listens to. */
   emit<K extends BridgeEvent>(name: K, ...args: BridgeEventArgs<K>): number;
@@ -71,9 +71,9 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
 
   // Main's ids for the ptys it starts: a counter, and nothing the window reads into beyond each being its own.
   let terminals = 0;
-  /** How many reads of the settings files main has made, which numbers each, as main's `readSettings` does. */
+  /** How many reads of settings.json main has made, which numbers each, as main's `readSettings` does. */
   let settingsReads = 0;
-  const readSettings = (): SettingsView => settingsView(fixture.settings.yours, fixture.settings.app, ++settingsReads);
+  const readSettings = (): SettingsView => settingsView(fixture.settings, ++settingsReads);
   /** A pty started, claude's or a shell's, or main's refusal of one in a folder that is not there (`refuseMissing`, src/main/terminal.ts), which it makes before anything is spawned. */
   const start = (cwd: string): Promise<number> => (onDisk(cwd) === 'missing' ? Promise.reject(new Error(`MISSING_CWD:${cwd}`)) : answer(++terminals));
   /** The generation of every fixture transcript's one read: main numbers each read from the start, and the window only ever compares it with the one it holds. */
@@ -126,20 +126,20 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     setNote: (id, note) => answer((fixture.notes = withText(fixture.notes, id, note))),
     getUiState: () => answer(fixture.uiState),
     setUiState: sent,
-    // Main's rules (src/shared/settings.ts) over the fixture's two files in place of main's read of them, numbered as main numbers its reads.
+    // Main's rules (src/shared/settings.ts) over the fixture's settings.json in place of main's read of it, numbered as main numbers its reads.
     getSettings: () => answer(readSettings()),
-    // Main checks the value and writes what `appFileChanges` says into the app's file, then reads the files again for its answer; its refusal to write over an app's file that does not parse is main's look at the disk, so that is main's to answer, not this.
+    // Main checks the value, refuses a save of a setting the file names more than once (`saveRefusal`), and writes what `fileChanges` says into settings.json, then reads it again for its answer; its refusal to write over a file that does not parse is main's look at the disk, so that is main's to answer, not this.
     setSettings: (change) => {
       const view = readSettings();
-      const refused = SETTING_KEYS.map((key) => (change[key] === undefined || change[key] === null ? null : settingProblem(key, change[key]))).find((problem) => problem !== null);
+      const refused = SETTING_KEYS.map((key) => (change[key] === undefined ? null : settingProblem(key, change[key]))).find((problem) => problem !== null);
       if (refused) return answer({ view, refused });
-      if (fixture.settings.app.status === 'unparsable') return unmodelled('setSettings')();
-      const json: Record<string, unknown> = { ...(fixture.settings.app.json as Record<string, unknown> | null) };
-      for (const { key, value } of appFileChanges(view, change)) {
-        if (value === undefined) delete json[key];
-        else json[key] = value;
-      }
-      fixture.settings.app = { ...fixture.settings.app, status: 'read', error: null, json };
+      const twice = saveRefusal(view, change);
+      if (twice !== null) return answer({ view, refused: twice });
+      const changes = fileChanges(view, change);
+      if (changes.length > 0 && fixture.settings.status === 'unparsable') return unmodelled('setSettings')();
+      const json: Record<string, unknown> = { ...(fixture.settings.json as Record<string, unknown> | null) };
+      for (const { key, value } of changes) json[key] = value;
+      if (changes.length > 0) fixture.settings = { ...fixture.settings, status: 'read', error: null, json };
       return answer({ view: readSettings(), refused: null });
     },
     onSettingsChanged: on('onSettingsChanged'),
