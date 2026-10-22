@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { linkedPrs, nextAsk, NO_PR_STATUS, prVerdict, rollUpPrTone } from '../../../src/renderer/prstatus';
+import { linkedPrs, nextAsk, NO_PR_STATUS, prMark, prVerdict, rollUpPrTone } from '../../../src/renderer/prstatus';
 import type { PrRef, PrStatus, SessionPr } from '../../../src/shared/types';
 
 /** An open PR waiting on nobody: not a draft, approved, its checks passed, no conflict. */
@@ -68,6 +68,31 @@ describe('linkedPrs', () => {
       { repository: 'acme/app', number: 1 },
       { repository: 'acme/lib', number: 2 },
     ]);
+  });
+});
+
+describe('prMark', () => {
+  const prs: PrRef[] = [1, 2, 3].map((number) => ({ repository: 'acme/app', number }));
+  const read = (statuses: Record<string, PrStatus>, problem: string | null = null) => ({ statuses, problem });
+
+  it('takes the roll-up tone, and counts only the PRs that set it, by state', () => {
+    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }), 'acme/app#2': open({ conflict: true }), 'acme/app#3': { state: 'merged' } }))).toEqual({
+      tone: 'danger',
+      says: '1 with failing checks, 1 with a merge conflict',
+    });
+    expect(prMark(prs, read({ 'acme/app#1': { state: 'merged' }, 'acme/app#2': { state: 'merged' }, 'acme/app#3': { state: 'closed' } }))).toEqual({ tone: 'muted', says: '2 merged, 1 closed' });
+  });
+
+  it('is normal and says nothing while no PR has a status', () => {
+    expect(prMark(prs, NO_PR_STATUS)).toEqual({ tone: 'normal', says: null });
+  });
+
+  it('counts a PR with no status as normal beside the others, naming only those it has words for', () => {
+    expect(prMark(prs, read({ 'acme/app#1': open({ review: 'review-required' }), 'acme/app#3': { state: 'merged' } }))).toEqual({ tone: 'normal', says: '1 awaiting review' });
+  });
+
+  it('is normal and says why when main could not ask, whatever statuses it still holds', () => {
+    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }) }, 'gh was not found'))).toEqual({ tone: 'normal', says: 'no status: gh was not found' });
   });
 });
 

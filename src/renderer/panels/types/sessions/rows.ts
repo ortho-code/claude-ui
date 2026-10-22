@@ -4,15 +4,18 @@ import { listCard } from '../../../card';
 import { setMarkup } from '../../../keyed';
 import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import { kebabButton } from '../../../menu';
+import { prMark } from '../../../prstatus';
 import { store, type View } from '../../../state/app';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { NOTE_ICON, PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { showToast } from '../../../toast';
+import { TONES } from '../../../tone';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
 import { activityLine, archivedLine, sessionTitle } from './describe';
 import { currentByKey, sessionRows, statusDots } from './drawn';
+import '../../../tone.css';
 import './rows.css';
 
 /**
@@ -196,7 +199,7 @@ function createSessionRow(key: string): HTMLElement {
 
 // Refresh a reused row's content for the tip it now shows.
 /** What a row draws from the store besides the session it shows. */
-export type RowView = View<'statuses' | 'backgroundTasks' | 'acked' |'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs'>;
+export type RowView = View<'statuses' | 'backgroundTasks' | 'acked' |'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs' | 'prStatus'>;
 
 export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView): void {
   row.dataset.sid = session.id;
@@ -236,11 +239,14 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   }
 
   // Linked, not opened: a record says the PR is linked to the session, not who opened it.
+  // Coloured by its PRs' roll-up tone, and its tooltip says what set it; the classes are toggled rather than set, since an open menu has marked the badge too.
   const prCount = session.prs.length;
   els.prBadge.hidden = prCount === 0;
   if (prCount > 0) {
+    const mark = prMark(session.prs, view.prStatus);
+    for (const tone of TONES) els.prBadge.classList.toggle(`tone-${tone}`, tone === mark.tone);
     els.prCount.textContent = String(prCount);
-    setTooltip(els.prBadge, `${prCount === 1 ? '1 PR' : `${prCount} PRs`} linked to this session — click to list them`);
+    setTooltip(els.prBadge, `${prCount === 1 ? '1 PR' : `${prCount} PRs`} linked to this session${mark.says ? ` — ${mark.says}` : ''} — click to list them`);
   }
 
   // When it was archived in the archived view, where every session is; when it was active everywhere else.

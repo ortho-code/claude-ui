@@ -74,8 +74,9 @@
   padding: 0 6px;
   font-size: var(--text-badge);
   line-height: 1;
-  color: var(--accent);
-  border: 1px solid var(--accent);
+  /* Its ink: the accent, unless a mark sets one of its own (the PR mark, below). */
+  color: var(--badge-ink, var(--accent));
+  border: 1px solid var(--badge-ink, var(--accent));
   border-radius: var(--radius-pill);
   overflow: hidden;
   white-space: nowrap;
@@ -90,8 +91,18 @@
 /* Filled on hover, and held filled while its popover is open (.menu-open) so it doesn't drop back when the mouse leaves the badge. */
 .menu-badge:hover,
 .menu-badge.menu-open {
-  background: var(--accent);
+  background: var(--badge-ink, var(--accent));
   color: var(--bg);
+}
+
+/* A PR mark's ink is its PRs' roll-up tone (prstatus.ts), at rest and filled alike: a tone with a colour (tone.css) in the accent's place, a `normal` one the accent still.
+   A muted one is the muted grey, as a worktree mark whose session left it is (base.css), rather than dimmed, which reads as disabled on a control. */
+.pr-badge:not(.tone-normal, .tone-muted) {
+  --badge-ink: var(--tone);
+}
+
+.pr-badge.tone-muted {
+  --badge-ink: var(--muted);
 }
 
 /* The badge/pill icons (fork, branch) as inline SVG.

@@ -29,10 +29,13 @@ export function nextAsk(prs: readonly PrRef[], read: PrStatusRead): number | 'of
   return 'off';
 }
 
+/** What a PR's state is called, as the words for why its mark has the tone it has. */
+export type PrWords = 'checks failed' | 'merge conflict' | 'changes requested' | 'draft' | 'checks running' | 'review required' | 'approved' | 'open' | 'merged' | 'closed';
+
 /** A PR's standing: the tone its mark takes, and the words for why, null where its status is not known. */
 export interface PrVerdict {
   tone: Tone;
-  words: string | null;
+  words: PrWords | null;
 }
 
 /**
@@ -64,4 +67,37 @@ const PR_TONE_ORDER: readonly Tone[] = ['danger', 'attention', 'positive', 'norm
 export function rollUpPrTone(tones: Iterable<Tone>): Tone {
   const all = new Set(tones);
   return PR_TONE_ORDER.find((tone) => all.has(tone)) ?? 'normal';
+}
+
+/** How a count of PRs in one state reads: `1 with failing checks`, `2 merged`. */
+const COUNTED: Record<PrWords, string> = {
+  'checks failed': 'with failing checks',
+  'merge conflict': 'with a merge conflict',
+  'changes requested': 'with changes requested',
+  draft: 'in draft',
+  'checks running': 'with checks running',
+  'review required': 'awaiting review',
+  approved: 'approved',
+  open: 'open',
+  merged: 'merged',
+  closed: 'closed',
+};
+
+/** What a session's PR mark shows: the tone its PRs roll up to, and what set it or why there is no status, null with nothing to say. */
+export interface PrMark {
+  tone: Tone;
+  says: string | null;
+}
+
+/**
+ * The mark for `prs` from main's answer: their roll-up tone, and the PRs that set it counted by state, `1 with failing checks`.
+ * When main could not ask GitHub the mark is `normal` and says why, whatever statuses it still holds from before, so a status that may be stale never colours it.
+ */
+export function prMark(prs: readonly PrRef[], read: PrStatusRead): PrMark {
+  if (read.problem !== null) return { tone: 'normal', says: `no status: ${read.problem}` };
+  const verdicts = prs.map((pr) => prVerdict(read.statuses[prReference(pr)] ?? null));
+  const tone = rollUpPrTone(verdicts.map((verdict) => verdict.tone));
+  const counts = new Map<PrWords, number>();
+  for (const verdict of verdicts) if (verdict.tone === tone && verdict.words !== null) counts.set(verdict.words, (counts.get(verdict.words) ?? 0) + 1);
+  return { tone, says: [...counts].map(([words, count]) => `${count} ${COUNTED[words]}`).join(', ') || null };
 }

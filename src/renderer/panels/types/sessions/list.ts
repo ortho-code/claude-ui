@@ -75,8 +75,8 @@ function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' 
   repaintDots(statusChanges(before, view), view);
 }
 
-/** What draws the list again: the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter. */
-const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter'] as const;
+/** What draws the list again: the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs. */
+const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus'] as const;
 /** The tabs, which have a watcher of their own (`listFollowsTabs`), since most of a tab's changes move only the rows' marks. */
 const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
