@@ -1,5 +1,5 @@
 import type { PanelData } from '../../shared/panels';
-import { projectFor } from '../logic';
+import { projectFor, sessionLabel } from '../logic';
 import { openMenu } from '../menu';
 import { askForSession } from '../sessiondialog';
 import { showToast } from '../toast';
@@ -54,7 +54,7 @@ export function linkedSessions(entryKey: string, itemKey: string): LinkedSession
       return [
         {
           id,
-          title: session.title,
+          title: sessionLabel(session),
           status: dotStatus(id, view) ?? null,
           background: backgroundTasks.get(id) ?? [],
           acked: acked.has(id),

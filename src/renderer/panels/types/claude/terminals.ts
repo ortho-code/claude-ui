@@ -2,7 +2,7 @@ import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { SessionSummary } from '../../../../shared/types';
 import { entityKey, hasVisibleOutput, sessionLabel, sessionsByKey, unstartableReason } from '../../../logic';
-import { newSession, untitledLabel } from '../../../newsession';
+import { newSession } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
 import { clearNudge } from '../../../state/statuses';
@@ -603,8 +603,8 @@ export function adoptReplacement(tabToken: string, id: string, source: string): 
   // The folder is all that genuinely survives — it is the same terminal, in the same place.
   // Everything that draws the tab follows: the bar names the new session, its stand-in row is the open one, and the history on show follows it, since a cleared session has a transcript of its own.
   setTab(owner.token, { session: blankAfter(previous, id) });
-  // The stand-in is ours to choose; the TITLE on disk is not, and is left alone.
-  // Claude Code copies the cleared session's name into the new transcript, where nothing distinguishes it from a name somebody chose — so a named session goes on showing that name, exactly as `claude --resume` lists it.
+  // The stand-in is a blank; the TITLE on disk is Claude's, and is left alone.
+  // Claude Code copies the cleared session's name into the new transcript, and a title from Claude is a session's name before anything else — so a named session goes on showing that name, exactly as `claude --resume` lists it.
   // Overriding it would mean this app and the CLI disagreeing about what a session is called.
   // The pairing is recorded because nothing else can observe it: neither transcript points at the other, and the connection exists only in this moment.
   void window.claudeUi.recordClear(replaced, id, previous.title);
@@ -651,7 +651,7 @@ function adoptResumed(owner: TabState, id: string): TabState | null {
 
 /** The "+" button's blank for session `id`, in the folder of the session a tab ran before it: the same terminal, in the same place. */
 function blankAfter(previous: SessionSummary, id: string): SessionSummary {
-  return newSession(id, { cwd: previous.cwd, repoRoot: previous.repoRoot, isRepo: previous.isRepo, worktree: previous.worktree, title: untitledLabel(previous.cwd) });
+  return newSession(id, { cwd: previous.cwd, repoRoot: previous.repoRoot, isRepo: previous.isRepo, worktree: previous.worktree });
 }
 
 function onTabData(token: string, data: string): void {

@@ -105,6 +105,21 @@ test("a row's action starts a session through the app's dialog, remembered under
   await expect(mark(page, 'Speed up the search')).toHaveAttribute('aria-label', 'Go to Review #3 · running');
 });
 
+test("a row's session mark calls a session claude has not named what the session list calls it", async ({ app, page }) => {
+  await bootQueue(app, page);
+  await page.locator('.list-row', { hasText: 'Speed up the search' }).locator('.list-action', { hasText: 'Review' }).click();
+  await page.locator('#session-name').fill('');
+  await page.locator('#session-ok').click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await expect(mark(page, 'Speed up the search')).toHaveAttribute('aria-label', 'Go to New: demo · running');
+});
+
+test("a row's session mark calls a session claude has not named, but that has been asked something, by its first prompt", async ({ app, page }) => {
+  const unnamed = session({ id: '00000000-0000-4000-8000-0000000000f3', title: '', firstMessage: 'review 3' });
+  await bootQueue(app, page, { ...fixture.panelData.queue.sessions, [unnamed.id]: link('org/repo#3') }, { sessions: [reviewed, quiet, unnamed], history: { ...fixture.history, [unnamed.id]: [] } });
+  await expect(mark(page, 'Speed up the search')).toHaveAttribute('aria-label', 'Go to review 3 · not running');
+});
+
 test("a row's session mark follows its session's status, a mark read, and whether it runs", async ({ app, page }) => {
   await bootQueue(app, page);
 

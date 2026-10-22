@@ -36,3 +36,24 @@ test('a session cleared in its tab hands the tab to its successor, which keeps t
   await expect(row(page, 'New: demo')).toHaveClass(/\bopen\b/);
   await expect(row(page, one.title)).not.toHaveClass(/\bopen\b/);
 });
+
+test('a cleared session is new until something is typed in it, then goes by its first prompt until claude names it', async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, one.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
+  expect(await app.emit('onTerminalData', FIRST, 'claude is here')).toBe(1);
+  expect(await app.emit('onSessionStart', next, launch.tabToken ?? '', 'clear')).toBe(1);
+
+  // Its transcript holds only the `/clear`, which main reads as no prompt.
+  await app.listOnDisk([one, session({ id: next, title: '', firstMessage: '' })]);
+  await expect(tabLabels(page)).toHaveText(['New: demo']);
+  await expect(row(page, 'New: demo')).toHaveClass(/\bopen\b/);
+
+  await app.listOnDisk([one, session({ id: next, title: '', firstMessage: 'why is the build slow?' })]);
+  await expect(tabLabels(page)).toHaveText(['why is the build slow?']);
+
+  // The name claude copied across the clear, or gave it since, is its name.
+  await app.listOnDisk([one, session({ id: next, title: one.title, firstMessage: 'why is the build slow?' })]);
+  await expect(tabLabels(page)).toHaveText([one.title]);
+});

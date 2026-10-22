@@ -31,6 +31,7 @@ import {
   projectRootExists,
   projectGoneReason,
   worktreeMarkState,
+  sessionLabel,
 } from '../../../src/renderer/logic';
 
 function session(over: Partial<SessionSummary> = {}): SessionSummary {
@@ -542,6 +543,14 @@ describe('displayName', () => {
     expect(displayName('/x/beta', names)).toBe('beta');
     expect(displayName('/x/beta')).toBe('beta'); // no map at all
     expect(displayName('/x/alpha', new Map([['/x/alpha', '']]))).toBe('alpha'); // blank falls back
+  });
+});
+
+describe('sessionLabel', () => {
+  it("names a session by Claude's title, else its first prompt, else as new in its folder", () => {
+    expect(sessionLabel(session({ title: 'Fix the login', firstMessage: 'the login is broken', cwd: '/x/demo' }))).toBe('Fix the login');
+    expect(sessionLabel(session({ title: '', firstMessage: 'the login is broken', cwd: '/x/demo' }))).toBe('the login is broken');
+    expect(sessionLabel(session({ title: '', firstMessage: '', cwd: '/x/demo' }))).toBe('New: demo');
   });
 });
 

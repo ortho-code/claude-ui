@@ -28,11 +28,6 @@ export function archivedLine(session: SessionSummary, view: View<'archived'>): s
   return ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
 }
 
-/** A session's title, as its row shows it. */
-export function sessionTitle(session: SessionSummary): string {
-  return sessionLabel(session, '(no prompt yet)');
-}
-
 /** What a session's menu opens with: its title, then where it is filed and its status, when it was active and on what model, when it was archived, its worktree, its note's first line, and why it cannot run. */
 export function sessionHeader(
   session: SessionSummary,
@@ -41,5 +36,5 @@ export function sessionHeader(
   const where = [projName(session.repoRoot, view), groupNameOf(session, view), statusText(session.id, view)];
   const note = view.notes.get(entityKey(session))?.split('\n')[0];
   const lines = [where.filter(Boolean).join(' · '), activityLine(session, view), archivedLine(session, view), worktreeMarkState(session)?.tooltip, note, unstartableReason(session)];
-  return { label: sessionTitle(session), header: lines.filter((line): line is string => Boolean(line)) };
+  return { label: sessionLabel(session), header: lines.filter((line): line is string => Boolean(line)) };
 }

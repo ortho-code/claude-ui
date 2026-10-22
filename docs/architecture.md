@@ -41,8 +41,17 @@ Links leave through `shell:openExternal` instead, which accepts only http(s); th
 
 `src/main/sessions.ts` walks `~/.claude/projects/*/*.jsonl`.
 Each `.jsonl` is one session transcript with one JSON event per line.
-For each file it streams the lines to pull the working directory and the first user message without loading the whole file, counts the events, and takes last activity from the file mtime.
+For each file it streams the lines to pull the working directory and the first prompt without loading the whole file, counts the events, and takes last activity from the file mtime.
 The renderer groups the results by working directory.
+
+**A session's name is Claude's, or its first prompt**: its custom title, else the title Claude generated, else its first prompt, else `New: <folder>` after the folder it runs in (`sessionLabel`), on every surface.
+The app stores no name of its own, and offers none to claude: a fork's name starts as its parent's title from Claude, never its first prompt.
+A slash command as the first prompt is named without its slash (`review 35676`), which reads better as a name; the history keeps the slash, since it shows what was sent.
+A command Claude runs itself, such as `/clear`, `/model` or `/effort`, is not a prompt, so a session that opens with one is `New:` until something is typed in it.
+The app once took such a command for the first prompt and named sessions `/clear` and `/model`, which Claude itself never does: none of the 284 titles it generated on one machine (2026-10-22) starts with `/`.
+Claude writes such a command with the command's name first, where a command sent to the model opens with `<command-message>` (claude 2.1.302's templates): 164 commands of the one kind on that machine, each right after a `<local-command-caveat>` record, and 323 of the other, with no third shape.
+Claude generates a title from the first prompt that is neither a slash command nor its own plumbing, so a session started with a skill such as `/implement` goes by its command a long while, its title coming late, from a later prompt, or never; and its automatic title generator runs only while the session has no title of any kind, so never once it has a custom title (none of 228 named sessions there got one later).
+Rejected: naming a session only by Claude, with `New:` before a prompt and `Untitled:` after, since 63 of the 326 unarchived sessions of one project there had no title, 11 of them real conversations that would then differ only by their dates; and the app sending `/rename`, which makes Claude generate a name, since it would type into a terminal where you may be halfway through a prompt.
 
 **A session's worktree comes from its transcript**: the last of Claude Code's `worktree-state` records, when there is one, says whether the session entered a worktree or left it, and without one the first `cwd` does.
 A session the transcript last puts in a worktree carries the worktree's name (`worktree`), and that is where a resume runs.
@@ -215,10 +224,11 @@ Only the **group** follows the tab across, because a group says where the work l
 A pin and a note are about one conversation, and that conversation still has its row to hold them.
 
 **The title on disk is left exactly as Claude Code writes it**, and that is a deliberate limit on the above.
-Claude Code copies the cleared session's `custom-title` into the new transcript, in the same record a deliberate name is written to and with nothing to tell the two apart — and since a custom title is preferred over a generated one when a row is labelled, a named session goes on wearing the name it was handed.
-The app could tell them apart, since it alone sees the end and the start arrive on one terminal, and an earlier version did exactly that.
+Claude Code copies the cleared session's `custom-title` into the new transcript, as its first record, in the same record a deliberate name is written to — and since a title from Claude is a session's name before anything else (§ Reading sessions), a named session goes on wearing the name it was handed, and Claude's automatic title generator gives it no other while it has that one.
+The app could tell the copy apart, by where it sits or because it alone sees the end and the start arrive on one terminal, and an earlier version did exactly that.
 It was removed: `claude --resume` lists that session under the copied name, and an app that showed a different one would put two names on one session.
 **Staying legible next to the CLI beats being tidier than it.**
+`/rename` with no name is the way out: Claude then generates a name from the conversation and writes it as the session's custom title, so both show it.
 In practice the case is narrow — 127 of 710 transcripts here carry a name at all, so clearing an unnamed session already produces a blank one with no help from us.
 
 What is kept is the **pairing**, appended to the audit log: which session became which.
@@ -533,7 +543,8 @@ The history shows it, dimmed and marked "sent again", rather than hiding it, so 
 All of them are marked "rewound" and dimmed the same way, since claude's conversation no longer has any of them; 59 requests in 2 sessions, in one of which the request after the rewind says "I rewinded, but one too many".
 A same-parent request further back that the ones since do not all follow on from is left unmarked, rather than guessed at: there were 304 such at first, and all but those 2 rewinds turned out to be records Claude Code writes twice (see Reading a transcript).
 
-The session list's first message is deliberately NOT the history's first request: the list is labelling a session, where `/model opus` beats a blank row, and the history is listing what was asked.
+The session list's first prompt is read by the same rule as a request, except for slash commands: the list tells a command Claude ran itself by how Claude wrote it (§ Reading sessions) and counts any other at once, where the history waits for an answer.
+The two differ on a command Claude ran itself that any assistant record follows before the next prompt, which the history counts: on one machine (2026-10-22), 13 answered by a `<synthetic>` record saying no response was requested (`/compact`, `/model`, `/mcp`), and one `/clear` followed by a reply to a task notification.
 
 ### Reading a transcript
 

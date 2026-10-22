@@ -118,6 +118,9 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A project's and a group's options open with the ways to add something there, on a project New group… among them, and end with the moves, Move to top, up, down and bottom, where it has any, which used to come first.
 - Options opened from a ⋮, or by right-clicking a tab, change while they are open to match what they list, such as a session that stops or pauses meanwhile, instead of showing what was true when they opened.
   A list panel row's options catch up with its list's next run once anything else in the app changes.
+- A session Claude has not named, and that started with a slash command, is named after the command without its `/`, such as `review 35676`.
+  Forking a session Claude has not named no longer offers its first prompt as the fork's name.
+- A session with nothing asked in it yet reads `New: <folder>` in the session list and on its tab alike, where one read from disk said "(no prompt yet)" in the list and showed part of its id on its tab.
 
 ### Fixed
 
@@ -180,6 +183,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A tab that only held the session, with nothing running, closes instead.
 - On WSL, Ctrl+V in a session or a panel's shell pastes the text on the clipboard at once, instead of claude showing `Pasting…` for seconds while it first looked for an image.
   Alt+V pastes an image into claude; on macOS and on Linux outside WSL, Ctrl+V reaches claude as before.
+- A session that starts with a command claude runs itself, such as `/clear`, `/model` or `/effort`, is no longer named after it, but after the first thing asked in it, and reads `New: <folder>` until then.
 
 ## 0.3.0 — 2026-08-29
 

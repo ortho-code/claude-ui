@@ -44,6 +44,22 @@ test("a fork from a row's options starts a copy of it under a new id, named as a
   await expect(titlesIn(group(page, 'Work')).filter({ hasText: 'The fork' })).toHaveCount(1);
 });
 
+test("a fork of a session claude has not named offers no name, and starts without one", async ({ app, page }) => {
+  const unnamed = session({ id: '00000000-0000-4000-8000-0000000000a3', title: '', firstMessage: 'why is the build slow?' });
+  await app.boot({ ...fixture, sessions: [unnamed], history: { [unnamed.id]: [] } });
+  await row(page, unnamed.firstMessage).locator('.session-kebab').click();
+  await page.locator('.kebab-menu button', { hasText: 'Fork this session' }).click();
+  await expect(page.locator('#rename-input')).toHaveValue('');
+  await page.locator('#rename-ok').click();
+
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const [[, launch]] = await launches(app);
+  expect(launch).toMatchObject({ resumeSessionId: unnamed.id, fork: true });
+  expect(launch.name).toBeUndefined();
+  // A fork carries its parent's conversation, and so its first prompt.
+  await expect(tab(page, unnamed.firstMessage)).toHaveClass(/\bactive\b/);
+});
+
 test("a new worktree session from the project's \"+\" starts claude in a fresh worktree, named by claude when left blank", async ({ app, page }) => {
   await app.boot(fixture);
   await page.locator('#sessions .project .project-add-caret').click();

@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { promptText } from '../../../dialogs';
 import { entityKey, sessionLabel, tabButtonState } from '../../../logic';
-import { newSession, untitledLabel } from '../../../newsession';
+import { newSession } from '../../../newsession';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
 import { setProjectOnShow } from '../../../state/project';
@@ -70,7 +70,7 @@ async function startNew(session: SessionSummary, groupId: string | undefined, la
 // Start a brand-new claude session in `cwd`, under an id this app mints; the sidebar row is that same session, filled in once claude writes its transcript.
 // A panel's row starting one passes a name and a first prompt, and mints the id itself, so it can remember the session before the tab exists.
 async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<TabLaunch, 'name' | 'prompt'> = {}, id: string = crypto.randomUUID()): Promise<void> {
-  const session = newSession(id, { cwd, repoRoot: cwd, title: launch.name || untitledLabel(cwd) });
+  const session = newSession(id, { cwd, repoRoot: cwd, title: launch.name ?? '' });
   await startNew(session, joinGroupId, { name: launch.name || undefined, prompt: launch.prompt || undefined });
 }
 
@@ -119,8 +119,7 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
     // Show the worktree badge right away (optimistic); it reconciles to the real name on refresh.
     worktree: slug || 'new worktree',
     // The name you typed becomes the title (it's also what --name sets); the badge already says it's a worktree, so no prefix.
-    // Blank name falls back to a plain new-session label.
-    title: friendly || untitledLabel(repoRoot),
+    title: friendly,
   });
   await startNew(session, joinGroupId, { name: friendly || undefined, worktree: slug });
 }
@@ -128,10 +127,10 @@ async function openWorktreeSession(repoRoot: string, joinGroupId?: string): Prom
 // Fork an existing session: `claude --session-id <new> --resume <parent> --fork-session` copies its transcript into a new session in the same cwd.
 // The fork's id is minted here like any other new session — claude honours it even while resuming — so the fork is a row of its own from the first paint, not one that arrives later.
 async function forkSession(parent: SessionSummary): Promise<void> {
-  const parentTitle = sessionLabel(parent, 'session');
   // Forks copy the parent's title, so offer a fresh name up front (via claude's --name).
   // Cancel aborts the fork; keeping/clearing the field just inherits the parent title.
-  const name = await promptText('Create fork', `Fork from "${parentTitle}"`, parentTitle, 'Fork');
+  // The field starts with the name Claude gave the parent and nothing else, so what the window calls an unnamed session, its first prompt, is never handed to claude as a name.
+  const name = await promptText('Create fork', `Fork from "${sessionLabel(parent)}"`, parent.title, 'Fork');
   if (name === null) return;
   const trimmed = name.trim();
   const session = newSession(crypto.randomUUID(), {
@@ -139,7 +138,9 @@ async function forkSession(parent: SessionSummary): Promise<void> {
     repoRoot: parent.repoRoot,
     isRepo: parent.isRepo,
     worktree: parent.worktree,
-    title: trimmed || parentTitle,
+    title: trimmed || parent.title,
+    // It carries its parent's conversation, so it has been asked what its parent was.
+    firstMessage: parent.firstMessage,
     // Mark it a family member right away (we know its parent is a sibling), so the row shows the sibling mark immediately instead of waiting for claude to write the transcript.
     // It reconciles to the real row once that file lands and grouping runs on the next refresh.
     isSibling: true,

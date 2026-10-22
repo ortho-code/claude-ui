@@ -67,6 +67,7 @@ export interface SessionRequest {
 /** A session one of the panel's items started, as the app sees it now: what to call it, its status dot, and whether it is running. */
 export interface LinkedSession {
   id: string;
+  /** What the session is called, as every surface calls it (`sessionLabel`). */
   title: string;
   /** The status dot's state, as the session list draws it; null for a session with nothing to report. */
   status: string | null;

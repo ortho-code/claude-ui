@@ -10,7 +10,7 @@ import { prReference } from '../shared/prs';
 import type { SessionPr, SessionSummary } from '../shared/types';
 import { errorText, fsFailure, log, logOnce } from './log';
 import { formatDuration } from './stamp';
-import { commandLabel, displayableUserText, extractUserText } from './transcript';
+import { promptOf } from './transcript';
 
 const execFileAsync = promisify(execFile);
 const projectsDir = path.join(os.homedir(), '.claude', 'projects');
@@ -362,7 +362,7 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
       }
       if (event.type === 'custom-title') customTitle = event.customTitle;
       else if (event.type === 'ai-title') aiTitle = event.aiTitle;
-      else if (!firstMessage && event.type === 'user') firstMessage = commandLabel(displayableUserText(extractUserText(event)));
+      else if (!firstMessage && event.type === 'user') firstMessage = promptOf(event);
 
       if (event.type === 'worktree-state') {
         const ws = event.worktreeSession as { worktreePath?: unknown; originalCwd?: unknown } | null;

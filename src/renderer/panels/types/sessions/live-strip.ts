@@ -167,7 +167,7 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   name.textContent = sessionLabel(session);
   chip.textContent = groupName ?? '';
   chip.hidden = groupName === undefined;
-  setTooltip(jump, sessionLabel(session, '') || null);
+  setTooltip(jump, sessionLabel(session));
   // The class is the stylesheet's, the menu row's fill for what is on show, which the switcher's entry on show wears too; the attribute is what a screen reader reads.
   row.classList.toggle('active', onShow);
   if (onShow) jump.setAttribute('aria-current', 'true');

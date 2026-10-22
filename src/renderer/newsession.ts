@@ -7,8 +7,9 @@ import type { SessionSummary } from '../shared/types';
  * THE ID IS THE REAL ONE, and the caller says what it is: minted here for a session the app is about to start (handed to claude as `--session-id`), or the id Claude Code reported for a session that replaced another in the same terminal.
  * Either way everything keyed by id — the sidebar row, a group, a pin, a note, the status file — is right from the first paint rather than being moved later.
  * Until claude writes the transcript the session exists only as this object, held by its tab; `visibleSessions` is what puts it in the sidebar in the meantime.
+ * Its title is the name claude is about to give it, one the app passes as `--name` or the one a fork copies, and empty otherwise, so it is called what any session without a name is (`sessionLabel`).
  */
-export function newSession(id: string, over: Partial<SessionSummary> & Pick<SessionSummary, 'cwd' | 'repoRoot' | 'title'>): SessionSummary {
+export function newSession(id: string, over: Partial<SessionSummary> & Pick<SessionSummary, 'cwd' | 'repoRoot'>): SessionSummary {
   return {
     id,
     conversationId: id,
@@ -16,6 +17,7 @@ export function newSession(id: string, over: Partial<SessionSummary> & Pick<Sess
     worktree: '',
     leftWorktree: '',
     movedOutOfWorktree: false,
+    title: '',
     firstMessage: '',
     model: '',
     lastActivity: new Date().toISOString(),
@@ -28,12 +30,4 @@ export function newSession(id: string, over: Partial<SessionSummary> & Pick<Sess
     repoRootExists: true,
     ...over,
   };
-}
-
-/**
- * What a session with nothing in it yet is called: the folder it runs in.
- * Shared with a session `/clear` has just emptied, which is the same thing.
- */
-export function untitledLabel(cwd: string): string {
-  return `New: ${cwd.split('/').filter(Boolean).pop() ?? cwd}`;
 }

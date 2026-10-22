@@ -9,14 +9,7 @@ import type { Exchange, HistorySlice, ReplyPart } from '../shared/types';
 import { fsFailure, logOnce } from './log';
 
 /**
- * A message that is pure local-command plumbing — the `<local-command-caveat>` preamble a session gets when it starts with local commands, or captured `<local-command-stdout>` output — is not a usable first message; blank it so the latch waits for the first real prompt instead.
- */
-export function displayableUserText(text: string): string {
-  return /^<local-command-(caveat|stdout)>/.test(text.trim()) ? '' : text;
-}
-
-/**
- * A session started by a slash command wraps its first message in tags — `<command-message>word</command-message>\n<command-name>/cmd</command-name>` plus an optional (possibly empty) `<command-args>…</command-args>` — which reads as junk in the row.
+ * A slash command is written in tags — `<command-message>word</command-message>\n<command-name>/cmd</command-name>` plus an optional (possibly empty) `<command-args>…</command-args>` — which reads as junk where it is shown.
  * Render it as the command line the user effectively typed: "/cmd args".
  * Anything else passes through untouched.
  */
@@ -25,6 +18,38 @@ export function commandLabel(text: string): string {
   if (!name) return text;
   const args = text.match(/<command-args>([^<]*)<\/command-args>/)?.[1]!.trim();
   return args ? `${name} ${args}` : name;
+}
+
+/**
+ * A command claude ran itself rather than sent to the model as a prompt, such as `/clear`, `/model` or `/compact`.
+ * Claude writes one with the command's name first, where a command sent to the model opens with `<command-message>` (claude 2.1.302's templates); across one machine's transcripts (2026-10-22), 164 commands of the one kind, each right after a `<local-command-caveat>` record, and 323 of the other, with no third shape.
+ */
+function isLocalCommand(text: string): boolean {
+  return text.startsWith('<command-name>');
+}
+
+/** Claude Code's own records, written into the user's turn: a local command's caveat and output, a reminder, a task notification, `!` bash mode, whether or not its tag carries attributes (`<agent-message from="…">`). */
+const PLUMBING = /^<[a-z][a-z-]*(\s[^>]*)?>/;
+
+/**
+ * What a user record sent, tags and all; '' for one that sent nothing: a meta record (a skill's expanded body, a reminder, a message from another session), a compaction summary, an interruption, a tool's result alone, and Claude Code's own plumbing.
+ * A slash command is kept, though it opens with a tag too.
+ */
+function sentText(record: Record<string, unknown>): string {
+  if (record.type !== 'user' || record.isMeta === true || record.isCompactSummary === true) return '';
+  const text = extractUserText(record);
+  if (text.includes('<command-name>')) return text;
+  return PLUMBING.test(text) || isInterruptMarker(record) ? '' : text;
+}
+
+/**
+ * The prompt a user record holds, as the session list reads a session's first one, which names a session Claude has not: what was typed, or a slash command sent to the model as its command line without the slash, which reads better as a name (`review 35676`); '' for anything else, a command claude ran itself included.
+ * So a session one `/clear` has just started has none until something is typed in it.
+ */
+export function promptOf(record: Record<string, unknown>): string {
+  const text = sentText(record);
+  if (!text.includes('<command-name>')) return text;
+  return isLocalCommand(text) ? '' : commandLabel(text).replace(/^\//, '');
 }
 
 /** Pull display text out of a user event, whether content is a string or an array of blocks. */
@@ -204,9 +229,6 @@ export function newFold(): HistoryFold {
   return { exchanges: [], parents: [], byParent: new Map(), records: new Map(), changedFrom: null, pending: null };
 }
 
-/** Claude Code's own records, written into the user's turn: a local command's output, a reminder, a task notification, `!` bash mode, whether or not its tag carries attributes (`<agent-message from="…">`). */
-const PLUMBING = /^<[a-z][a-z-]*(\s[^>]*)?>/;
-
 /** A tool call as the history shows it: its name, and apart from it, on one line, the one input that says what it acted on. */
 function toolPart(part: { name?: unknown; input?: unknown }): ReplyPart {
   const name = typeof part.name === 'string' ? part.name : 'tool';
@@ -349,15 +371,12 @@ export function foldRecord(fold: HistoryFold, record: Record<string, unknown>): 
     }
     return;
   }
-  if (record.type !== 'user' || record.isMeta === true || record.isCompactSummary === true) return;
-  const text = extractUserText(record);
-  // A tool's result, with nothing the user wrote beside it.
+  const text = sentText(record);
   if (!text) return;
   if (text.includes('<command-name>')) {
     fold.pending = { exchange: exchangeOf(record, commandLabel(text), 'command'), parent: parentOf(record) };
     return;
   }
-  if (PLUMBING.test(text) || isInterruptMarker(record)) return;
   fold.pending = null;
   const busy = carriesToolResult(record) || record.promptSource === 'queued';
   push(fold, exchangeOf(record, text, busy ? 'busy' : 'typed'), parentOf(record));

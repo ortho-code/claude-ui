@@ -22,11 +22,11 @@ export interface SessionSummary {
    * Claude Code moves a session out of its worktree on its way out too, writing the same records, so only the tool's call beside the exit tells the two apart.
    */
   movedOutOfWorktree: boolean;
-  /** The session's custom or AI-generated title, empty when it has none. */
+  /** The name Claude gave the session, its custom title or else its generated one, empty when it has none. */
   title: string;
   /**
-   * First user message, trimmed for display.
-   * Empty when none was found.
+   * The first prompt sent to the model, a slash command as its command line without the slash, cut to 200 characters: the name of a session without a title, and searched.
+   * Empty while there is none, as in a session `/clear` has just started; a command claude ran itself, such as `/model`, is not a prompt.
    */
   firstMessage: string;
   /** Latest model id an assistant message reported (e.g. claude-opus-4-…); empty when unknown. */

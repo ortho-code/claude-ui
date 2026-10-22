@@ -13,7 +13,7 @@ import { TONES } from '../../../tone';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
-import { activityLine, archivedLine, sessionTitle } from './describe';
+import { activityLine, archivedLine } from './describe';
 import { currentByKey, sessionRows, statusDots } from './drawn';
 import '../../../tone.css';
 import '../../../prstatus.css';
@@ -210,11 +210,11 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   applyStatus(els.dot, session.id, view);
   statusDots.set(session.id, els.dot);
 
-  els.title.textContent = sessionTitle(session);
+  els.title.textContent = sessionLabel(session);
   // A session that cannot run says why on the row itself, rather than only when you try it: the tooltip is the one place with room for the folder's path.
   const unstartable = unstartableReason(session);
   row.classList.toggle('unstartable', unstartable !== null);
-  setTooltip(els.title, unstartable ?? (sessionLabel(session, '') || null));
+  setTooltip(els.title, unstartable ?? sessionLabel(session));
 
   const worktree = worktreeMarkState(session);
   els.badge.hidden = worktree === null;
