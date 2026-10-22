@@ -1,6 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { entityKey, modelLabel, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import type { MenuItem } from '../../../menu';
+import type { Moment } from '../../../moments';
 import type { View } from '../../../state/app';
 import { groupNameOf, projName } from '../../../state/views';
 import { statusText } from '../../../statusdot';
@@ -15,17 +16,19 @@ function modelOf(session: SessionSummary, view: View<'switchedModel'>): string {
 }
 
 /** When a session was last active, and the model it runs, as its row's meta line says them. */
-export function activityLine(session: SessionSummary, view: View<'switchedModel'>): string {
+export function activityMoment(session: SessionSummary, view: View<'switchedModel'>): Moment {
   const model = modelLabel(modelOf(session, view));
   const when = relativeTime(session.lastActivity);
-  return model ? `${when} · ${model}` : when;
+  return { text: model ? `${when} · ${model}` : when, at: session.lastActivity };
 }
 
 /** When a session was archived, as its row in the archived view says it; null for a session that is not archived. */
-export function archivedLine(session: SessionSummary, view: View<'archived'>): string | null {
+export function archivedMoment(session: SessionSummary, view: View<'archived'>): Moment | null {
   const ts = view.archived.get(entityKey(session));
   if (ts === undefined) return null;
-  return ts ? `archived ${relativeTime(new Date(ts).toISOString())}` : 'archived';
+  if (!ts) return { text: 'archived', at: null };
+  const at = new Date(ts).toISOString();
+  return { text: `archived ${relativeTime(at)}`, at };
 }
 
 /** What a session's menu opens with: its title, then where it is filed and its status, when it was active and on what model, when it was archived, its worktree, its note's first line, and why it cannot run. */
@@ -35,6 +38,6 @@ export function sessionHeader(
 ): MenuItem {
   const where = [projName(session.repoRoot, view), groupNameOf(session, view), statusText(session.id, view)];
   const note = view.notes.get(entityKey(session))?.split('\n')[0];
-  const lines = [where.filter(Boolean).join(' · '), activityLine(session, view), archivedLine(session, view), worktreeMarkState(session)?.tooltip, note, unstartableReason(session)];
+  const lines = [where.filter(Boolean).join(' · '), activityMoment(session, view).text, archivedMoment(session, view)?.text, worktreeMarkState(session)?.tooltip, note, unstartableReason(session)];
   return { label: sessionLabel(session), header: lines.filter((line): line is string => Boolean(line)) };
 }

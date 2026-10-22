@@ -4,6 +4,7 @@ import { listCard } from '../../../card';
 import { setMarkup } from '../../../keyed';
 import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import { kebabButton } from '../../../menu';
+import { showMoment, type Moment } from '../../../moments';
 import { prMark } from '../../../prstatus';
 import { store, type View } from '../../../state/app';
 import { ackOnClick, applyStatus } from '../../../statusdot';
@@ -13,7 +14,7 @@ import { TONES } from '../../../tone';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
-import { activityLine, archivedLine } from './describe';
+import { activityMoment, archivedMoment } from './describe';
 import { currentByKey, sessionRows, statusDots } from './drawn';
 import '../../../tone.css';
 import '../../../prstatus.css';
@@ -198,6 +199,22 @@ function createSessionRow(key: string): HTMLElement {
   return item;
 }
 
+const listedById = new WeakMap<SessionSummary[], Map<string, SessionSummary>>();
+
+/**
+ * `session` as the newest listing has it: the store keeps a listing whose only change is a last activity, and tells nobody (`sameRows`, state/app.ts).
+ * A session with no transcript yet is not in the listing, and stays as it was drawn.
+ */
+function newest(session: SessionSummary): SessionSummary {
+  const { sessions } = store.get();
+  let byId = listedById.get(sessions);
+  if (!byId) {
+    byId = new Map(sessions.map((s) => [s.id, s]));
+    listedById.set(sessions, byId);
+  }
+  return byId.get(session.id) ?? session;
+}
+
 // Refresh a reused row's content for the tip it now shows.
 /** What a row draws from the store besides the session it shows. */
 export type RowView = View<'statuses' | 'backgroundTasks' | 'acked' |'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs' | 'prStatus'>;
@@ -251,7 +268,9 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   }
 
   // When it was archived in the archived view, where every session is; when it was active everywhere else.
-  els.metaText.textContent = (archivedView && archivedLine(session, view)) || activityLine(session, view);
+  // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, logic.ts).
+  const moment = (shown: SessionSummary, as: RowView): Moment => (archivedView ? archivedMoment(shown, as) : null) ?? activityMoment(shown, as);
+  showMoment(els.metaText, moment(session, view), () => moment(newest(session), store.get()));
 
   // The archived view is a management view: no pinning, and delete replaces it there.
   const isPinned = view.pinned.has(entityKey(session));

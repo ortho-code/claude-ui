@@ -86,6 +86,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's PR mark takes the colour of what GitHub says of its PRs: yellow for changes requested, red for failing checks or a merge conflict, green when approved and ready to merge, grey once all are merged or closed.
   Its tooltip says what set the colour, and its list and the session's options name the state of each PR GitHub has answered for.
   The app asks with `gh`, on your own login, so it needs `gh` installed and logged in; **PR status from GitHub** in Settings, `prStatus` in `settings.json`, turns it off.
+- Hovering a session's time in the session list shows the date and time in full, as a request's time in the history already did.
 
 ### Changed
 
@@ -184,6 +185,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - On WSL, Ctrl+V in a session or a panel's shell pastes the text on the clipboard at once, instead of claude showing `Pasting…` for seconds while it first looked for an image.
   Alt+V pastes an image into claude; on macOS and on Linux outside WSL, Ctrl+V reaches claude as before.
 - A session that starts with a command claude runs itself, such as `/clear`, `/model` or `/effort`, is no longer named after it, but after the first thing asked in it, and reads `New: <folder>` until then.
+- The times in the session list and the history, such as "5 min ago", keep up with the clock, instead of staying what they were when that part was last drawn, which for a session you were not using could be hours behind.
 
 ## 0.3.0 — 2026-08-29
 

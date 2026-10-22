@@ -2,6 +2,7 @@ import type { ClaudeUiApi, Exchange, HistoryPin, ReplyPart } from '../../../../.
 import { routeLinks } from '../../../../external-links';
 import { flash } from '../../../../flash';
 import { relativeTime } from '../../../../logic';
+import { showMoment, type Moment } from '../../../../moments';
 import { chevronIcon, PIN_ICON, PINNED_ICON } from '../../../../svg';
 import { setTooltip } from '../../../../tooltip';
 import { renderMarkdown } from './markdown';
@@ -557,8 +558,9 @@ export class HistoryView {
     const meta = document.createElement('span');
     meta.className = 'exchange-meta';
     const when = document.createElement('span');
-    when.textContent = `#${index + 1} · ${exchange.time ? relativeTime(exchange.time) : ''}`;
-    if (exchange.time) setTooltip(when, new Date(exchange.time).toLocaleString());
+    // On the clock, since an exchange once drawn is kept as it is.
+    const moment = (): Moment => ({ text: `#${index + 1} · ${exchange.time ? relativeTime(exchange.time) : ''}`, at: exchange.time || null });
+    showMoment(when, moment(), moment);
     const marks = [MARKS[exchange.kind], exchange.replaced ? REPLACED : undefined, exchange.rewound ? REWOUND : undefined].filter((m): m is [string, string] => m !== undefined);
     for (const [label, tooltip] of marks) {
       const mark = document.createElement('span');

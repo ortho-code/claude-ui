@@ -1456,6 +1456,15 @@ A library bound to a kept element lives as long as the element, and `Keyed`'s `f
 They do it through `dropSortable` (`tab.ts`), which waits for a drag under way to end, since destroying a Sortable during a drag, even another row's or another surface's, ends that drag inside the library without its `end` reaching anyone (sortablejs 1.15.7), which left the dragged tab marked and its owner holding its draws for good.
 While such a library moves the elements itself, the surface does not draw: during a tab drag, Sortable moves the dragged tab and puts its copy of it in the row, so the tab bar holds a draw asked for meanwhile and makes it once the tab drops, rather than undoing the drag under the pointer.
 
+**A time that says how long ago is drawn on a clock, not by its surface.**
+"5 min ago" goes out of date while nothing in the store moves, so a surface that draws only when the store tells it, or never again, as the history keeps each exchange it has drawn, leaves it frozen; the session list's rows did, until something else redrew the list.
+So such an element is handed to `showMoment` (`moments.ts`) with its words and its moment, and drawn again every minute while it is in the page, a minute being the finest step `relativeTime` takes past "just now": a session row's time, the archived view's, and an exchange's in the history.
+What it says is asked for again at each tick rather than kept: a row asks of the newest listing, which the store keeps even when its equality told nobody (§ The store), so a session claude is writing to moves its row's time without the list redrawing for it, and `AFFECTS_ROW.lastActivity` stays `false`.
+Each carries its moment in full as its tooltip where the moment is known, in one format, `toLocaleString`.
+Rounding the time into the list's signature was weighed and turned down: it moves a row whose last activity moves, but a quiet row's never does, and those are the rows it matters for; so was redrawing the whole list every minute, which reconciles every section and brings every drawn row up to date for one line of text, and reaches no other surface.
+A copy of a tick took 1–2 ms over 519 rows in headless Chromium, about 45 of them changing (2026-10-22); the app itself was not measured.
+A menu is written when it opens and is not on the clock, so an open kebab menu's times follow the store, as said above of an open kebab menu.
+
 **A module's stylesheet sits beside it, and the module imports it.**
 esbuild bundles every stylesheet a module imports into one `renderer.css`, in import order, each file once, so `index.html` links only that: `xterm.css` and `air-datepicker.css` are imports of the modules that use them too.
 A rule sits beside the one module that draws it; a rule several modules draw sits in a stylesheet of its own beside what owns it — the menu row in `menu-row.css`, the surface and notch every menu and popover floats on in `popover.css`, a dialog's or the pane's decisive button (`.primary`, `.danger`) in `decisive-button.css`, the filter pill in `pill.css`, the card and the section heading in `card.css` — or in `base.css` when nothing does (the tokens, the reset, `.icon-btn`, `.pair-end`, `.nudge`, the empty pane's sentence), and is never copied into each.
@@ -1600,7 +1609,8 @@ It had been wrong: `model` was absent while the row printed it, so switching mod
 
 The shape that fixes it is `AFFECTS_ROW`, a `Record<keyof SessionSummary, boolean>` naming every field with a yes or a no.
 The annotation is the whole mechanism: adding a field to `SessionSummary` **fails to compile** until somebody says whether the list must redraw for it, which turns "did we remember?" into a question the build answers.
-Only two are `false`, each with its reason written beside it — `lastActivity`, rewritten on every message of a running session, and `postCompactHeads`, which no row reads.
+Only two are `false`, each with its reason written beside it — `lastActivity`, rewritten on every message of a running session and drawn as the row's time, which a clock keeps current instead (§ UI conventions), and `postCompactHeads`, which no row reads.
+`lastActivity` had once been marked as drawn by nothing, and every row's time stayed what it was at the list's last redraw.
 The general rule this stands for: **where stale is worse than an extra rebuild, make the exhaustive case the one the compiler enforces**, rather than trusting a list to be complete.
 
 **Two surfaces can disagree about the same list, because only one of them re-rendered.**

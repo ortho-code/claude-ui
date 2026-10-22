@@ -52,7 +52,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   // Both change what the row IS — a session whose folder is gone cannot be opened, and says so — and both can flip while the app is running, with nothing in the transcript moving to announce it.
   cwdExists: true,
   repoRootExists: true,
-  // A running session rewrites this constantly and no row is drawn from it; including it would make the guard useless.
+  // Drawn as the row's time, the one field drawn that is not here: that time ages with the clock whatever the listing does, so the row asks for it every minute instead (moments.ts).
+  // A running session rewrites it constantly, and a repaint for it would make the guard useless.
   lastActivity: false,
   // Main-process bookkeeping that links a fork of a compacted session into its family.
   // The renderer never reads it.
