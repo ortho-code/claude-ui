@@ -22,7 +22,7 @@ import { sessionsAnswers } from './panels/types/sessions/asks';
 import { persistUi, restoreUiState, startSavingUi } from './view-saving';
 import { store, withEntry } from './state/app';
 import { tabWith } from './state/views';
-import { setStatus } from './state/statuses';
+import { setScheduled, setStatus } from './state/statuses';
 import { installTooltips } from './tooltip';
 import { askPlatform, routeTerminals } from './terminal';
 
@@ -77,6 +77,9 @@ window.claudeUi.onSessionStatus((id, status, tabToken, event, background) => {
 
 // A claude starting on a session: a tab whose claude went on in another, by `/clear` or its own `/resume`, takes that one over.
 window.claudeUi.onSessionStart((id, tabToken, source) => claudeWatch.sessionStart(id, tabToken, source));
+
+// What a session's last Stop left scheduled, for its clock.
+window.claudeUi.onSessionScheduled((id, tasks) => setScheduled(id, tasks));
 
 window.claudeUi.onSessionModel((id, model) => {
   store.set({ switchedModel: withEntry(store.get().switchedModel, id, model) });

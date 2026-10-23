@@ -4,6 +4,7 @@ import { Keyed, placeChildren, setMarkup } from '../../../keyed';
 import { asksForYou, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButtonState, type NudgeStatus, type SwitcherModel, type TabButtonMark } from '../../../logic';
 import { kebabButton, openMenu } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
+import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { store, type View } from '../../../state/app';
 import { hideFromStrip } from '../../../state/strip';
 import { groupNameOf, isPaused, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
@@ -69,6 +70,7 @@ interface StripRow {
   jump: HTMLButtonElement;
   dot: HTMLElement;
   name: HTMLElement;
+  clock: HTMLElement;
   chip: HTMLElement;
   stop: HTMLButtonElement;
 }
@@ -134,7 +136,9 @@ function buildRow(id: string): StripRow {
   // Worth revisiting if several sessions of one group routinely show here together, since the same chip repeated down a run of rows reads as noise where a single heading would not.
   const chip = document.createElement('span');
   chip.className = 'strip-item-group';
-  jump.append(dot, name, chip);
+  // A task claude has scheduled for the session, as its tab and its row in the list show it (scheduledmark.ts), beside the name it is about.
+  const clock = scheduledMark('strip-item-scheduled');
+  jump.append(dot, name, clock, chip);
   jump.addEventListener('click', () => hostOf('sessions').openSession(id));
   // The tab's own button, on the strip's row for it.
   // WHY IT BELONGS HERE: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab.
@@ -157,14 +161,15 @@ function buildRow(id: string): StripRow {
     hostOf('sessions').pressTabButton(id, stop.dataset.mark as TabButtonMark);
   });
   row.append(jump, kebab, stop);
-  return { row, jump, dot, name, chip, stop };
+  return { row, jump, dot, name, clock, chip, stop };
 }
 
 /** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its tab's button in the tab's state. */
-function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'archived' | 'tabs'>): void {
-  const { row, jump, dot, name, chip, stop } = parts;
+function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'tabs'>): void {
+  const { row, jump, dot, name, clock, chip, stop } = parts;
   applyStatus(dot, session.id, view);
   name.textContent = sessionLabel(session);
+  showScheduled(clock, view.scheduledTasks.get(session.id));
   chip.textContent = groupName ?? '';
   chip.hidden = groupName === undefined;
   setTooltip(jump, sessionLabel(session));
@@ -229,7 +234,7 @@ function hiddenProjects(model: SwitcherModel, ordered: StripProject[], view: Vie
   return ordered.filter((project) => view.stripHidden.has(project.repoRoot)).map((project) => ({ project, badge: badges.get(project.repoRoot) ?? null }));
 }
 
-function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden'>): void {
+function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden'>): void {
   const { stripExpanded } = view;
   const overall = model.all.badge;
   stripBadge.className = badgeClass(overall);
@@ -292,7 +297,7 @@ stripToggle.addEventListener('click', () => store.set({ stripExpanded: !store.ge
 stripToggle.querySelector('.strip-chev')!.innerHTML = chevronIcon('down', 11);
 
 /** What the strip draws from the store. */
-type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' |'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden'>;
+type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' |'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden'>;
 
 /**
  * The strip follows the store, its line badged with the switcher's own roll-up (`switcherModel`) and its rows drawn from the switcher's pool.

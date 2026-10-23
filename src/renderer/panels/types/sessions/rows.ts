@@ -6,6 +6,7 @@ import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '.
 import { kebabButton } from '../../../menu';
 import { showMoment, type Moment } from '../../../moments';
 import { prMark } from '../../../prstatus';
+import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { store, type View } from '../../../state/app';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { NOTE_ICON, PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
@@ -38,6 +39,7 @@ interface RowEls {
   dot: HTMLElement;
   title: HTMLElement;
   badge: HTMLElement;
+  clock: HTMLElement;
   siblingsBadge: HTMLElement;
   siblingCount: HTMLElement;
   prBadge: HTMLElement;
@@ -134,7 +136,9 @@ function createSessionRow(key: string): HTMLElement {
 
   const subline = document.createElement('div');
   subline.className = 'session-subline';
-  subline.append(meta, badge, siblingsBadge, prBadge);
+  // A task claude has scheduled for the session, as its tab and its strip row show it (scheduledmark.ts); shown in updateRow.
+  const clock = scheduledMark('scheduled-badge', true);
+  subline.append(meta, badge, clock, siblingsBadge, prBadge);
   content.append(subline);
 
   const pin = document.createElement('button');
@@ -181,7 +185,7 @@ function createSessionRow(key: string): HTMLElement {
 
   item.prepend(dot);
   item.append(pin, unarchiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, clock, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (store.get().filter.filters.archived) return;
@@ -217,7 +221,7 @@ function newest(session: SessionSummary): SessionSummary {
 
 // Refresh a reused row's content for the tip it now shows.
 /** What a row draws from the store besides the session it shows. */
-export type RowView = View<'statuses' | 'backgroundTasks' | 'acked' |'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs' | 'prStatus'>;
+export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' |'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs' | 'prStatus'>;
 
 export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView): void {
   row.dataset.sid = session.id;
@@ -240,6 +244,8 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
     setTooltip(els.badge, worktree.tooltip);
     els.badge.setAttribute('aria-label', worktree.tooltip);
   }
+
+  showScheduled(els.clock, view.scheduledTasks.get(session.id));
 
   const note = view.notes.get(entityKey(session));
   els.noteBadge.hidden = !note;

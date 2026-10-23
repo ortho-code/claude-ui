@@ -32,7 +32,7 @@ vi.mock('node:os', async (importOriginal) => {
   return { ...actual, homedir: () => testHome };
 });
 
-import { installStatusHooks, readAllStatuses as getAllStatuses, readReport, reportEnd, statusSettingsFile, type Ending, type Report, type Work } from '../../../src/main/status';
+import { installStatusHooks, readAllStatuses as getAllStatuses, readReport, readScheduled, reportEnd, statusSettingsFile, type Ending, type Report, type Work } from '../../../src/main/status';
 import { statusDir } from '../../../src/main/paths';
 import { runHook, TOKEN } from './hookscript';
 
@@ -445,6 +445,54 @@ describe('the hook script', () => {
 
     it('is no report at all for a session with no status', async () => {
       expect(await readReport(SID)).toBe(null);
+    });
+  });
+
+  /** What the last Stop left scheduled, read from the same file, for the clock beside the session (`session:scheduled`). */
+  describe('what the last Stop left scheduled', () => {
+    const stopFile = path.join(statusDir, `${SID}.stop`);
+    const wakeup = { id: 'b7a70443', schedule: '53 23 * * *', recurring: false, prompt: '/loop say the word tick' };
+    const cron = { id: '1eb67062', schedule: '7,17,27,37,47,57 * * * *', recurring: true, prompt: 'say the word tock' };
+
+    beforeEach(async () => {
+      await fs.rm(stopFile, { force: true });
+    });
+
+    it('is each task the Stop listed, by its prompt and whether it repeats', async () => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [], session_crons: [wakeup, cron] });
+      expect(await readScheduled(SID)).toEqual([
+        { prompt: '/loop say the word tick', recurring: false },
+        { prompt: 'say the word tock', recurring: true },
+      ]);
+    });
+
+    it('leaves out an entry without a prompt, and reads a missing repeat as once', async () => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', session_crons: [null, { id: 'x' }, { prompt: 'check the build' }] });
+      expect(await readScheduled(SID)).toEqual([{ prompt: 'check the build', recurring: false }]);
+    });
+
+    it('is nothing from a Stop without the list, after a start, or with no Stop file', async () => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [] });
+      expect(await readScheduled(SID)).toEqual([]);
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', session_crons: [cron] });
+      runHook('start', { session_id: SID, hook_event_name: 'SessionStart', source: 'resume' });
+      expect(await readScheduled(SID)).toEqual([]);
+      await fs.rm(stopFile);
+      expect(await readScheduled(SID)).toEqual([]);
+    });
+
+    // Read while the script is still writing it, the file is cut short: nothing is said then, rather than that nothing is scheduled.
+    it('is unknown, not nothing, from a file that does not parse', async () => {
+      await fs.writeFile(stopFile, '{"session_crons":[{"prompt":"say');
+      expect(await readScheduled(SID)).toBe(null);
+    });
+
+    it("is kept through an end reported in a hook's place", async () => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop', background_tasks: [], session_crons: [cron] });
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+      await reportEnd(SID, (await readReport(SID))!, { event: 'transcript:interrupt', status: 'idle', running: [], ends: ['busy', 'waiting'] });
+      expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'transcript:interrupt' });
+      expect(await readScheduled(SID)).toEqual([{ prompt: 'say the word tock', recurring: true }]);
     });
   });
 

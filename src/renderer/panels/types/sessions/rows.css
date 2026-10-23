@@ -63,6 +63,7 @@
 
 
 .worktree-badge,
+.scheduled-badge,
 .menu-badge {
   display: inline-flex;
   align-items: center;

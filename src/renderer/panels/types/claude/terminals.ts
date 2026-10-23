@@ -5,7 +5,7 @@ import { entityKey, hasVisibleOutput, sessionLabel, sessionsByKey, unstartableRe
 import { newSession } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
-import { clearNudge } from '../../../state/statuses';
+import { clearNudge, setScheduled } from '../../../state/statuses';
 import { isPaused, sessionById, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
@@ -602,6 +602,8 @@ export function adoptReplacement(tabToken: string, id: string, source: string): 
   // The folder is all that genuinely survives — it is the same terminal, in the same place.
   // Everything that draws the tab follows: the bar names the new session, its stand-in row is the open one, and the history on show follows it, since a cleared session has a transcript of its own.
   setTab(owner.token, { session: blankAfter(previous, id) });
+  // No claude of the app's runs the cleared session now, so what it had scheduled is not shown for it, though nothing will say its list emptied.
+  setScheduled(replaced, []);
   // The stand-in is a blank; the TITLE on disk is Claude's, and is left alone.
   // Claude Code copies the cleared session's name into the new transcript, and a title from Claude is a session's name before anything else — so a named session goes on showing that name, exactly as `claude --resume` lists it.
   // Overriding it would mean this app and the CLI disagreeing about what a session is called.
@@ -636,6 +638,8 @@ function adoptResumed(owner: TabState, id: string): TabState | null {
   // Its row where another tab or the listing has it; else the blank, until the listing reads it (`reconcileOpenTabs`).
   const session = sessionById(id) ?? blankAfter(owner.session, id);
   setTab(owner.token, { session });
+  // The session it left runs in no claude of the app's now, as after a clear.
+  setScheduled(owner.session.id, []);
   // After the take-over, so the session's status, which is this tab's now, stays (`removeTab`).
   if (other) removeTab(other.token);
   persistOpenTabs();

@@ -89,18 +89,20 @@
   gap: 2px;
 }
 
-/* Sibling / worktree markers on a tab, matching the sidebar badges. */
+/* Sibling / worktree / scheduled markers on a tab, matching the sidebar badges. */
 .tab-sibling,
-.tab-worktree {
+.tab-worktree,
+.tab-scheduled {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   color: var(--accent);
 }
 
-/* Both tab marks are the same SVG family now, so they need no per-mark size correction. */
+/* The tab marks are the same SVG family now, so they need no per-mark size correction. */
 .tab-sibling svg,
-.tab-worktree svg {
+.tab-worktree svg,
+.tab-scheduled svg {
   display: block;
   width: 11px;
   height: 11px;

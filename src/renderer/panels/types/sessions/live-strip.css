@@ -97,6 +97,20 @@
   margin-left: 4px;
 }
 
+/* The clock of a session with a task scheduled (scheduledmark.ts), beside its name, in the accent at the 11px its tab's marks are drawn at. */
+.strip-item-scheduled {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+}
+
+.strip-item-scheduled svg {
+  display: block;
+  width: 11px;
+  height: 11px;
+}
+
 .strip-item-name {
   /* Takes the slack so the group chip sits at the row's right edge: a column of chips reads as a column, where chips trailing each name at its own width read as ragged. */
   flex: 1;

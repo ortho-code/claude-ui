@@ -1,7 +1,7 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested.
 // renderer.ts wires these to its state and the DOM.
 import { prReference } from '../shared/prs';
-import type { GroupState, SessionGroup, SessionSummary } from '../shared/types';
+import type { GroupState, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
 
 // The stable key for a displayed session entity: the session's own id, always.
@@ -127,6 +127,15 @@ export function worktreeMarkState(session: SessionSummary): WorktreeMarkState | 
     };
   }
   return null;
+}
+
+/**
+ * What a session's clock says of the tasks claude has scheduled for it, one line each, its prompt and whether it repeats; null for none, which shows no clock.
+ * Claude cuts a long prompt short in what it reports, so the line ends where it did.
+ */
+export function scheduledText(tasks: readonly ScheduledTask[]): string | null {
+  if (tasks.length === 0) return null;
+  return ['Scheduled:', ...tasks.map((task) => `${task.prompt} (${task.recurring ? 'repeats' : 'once'})`)].join('\n');
 }
 
 /**

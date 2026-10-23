@@ -87,6 +87,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Its tooltip says what set the colour, and its list and the session's options name the state of each PR GitHub has answered for.
   The app asks with `gh`, on your own login, so it needs `gh` installed and logged in; **PR status from GitHub** in Settings, `prStatus` in `settings.json`, turns it off.
 - Hovering a session's time in the session list shows the date and time in full, as a request's time in the history already did.
+- A clock beside a running session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own, on its tab, its row and its row in the live strip; hovering it names each task and whether it repeats.
 
 ### Changed
 

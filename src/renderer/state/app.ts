@@ -1,7 +1,7 @@
 import { defaultUi } from '../../shared/defaults';
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/settings';
-import type { GroupState, PrStatusRead, SessionSummary, UiState } from '../../shared/types';
+import type { GroupState, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../logic';
 import { NO_PR_STATUS } from '../prstatus';
 import { createStore } from './store';
@@ -20,6 +20,11 @@ export interface AppState {
    * The launch read passes on statuses alone, so a `background` read back at launch has no entry: what ran is not known, and the dot says no more than that.
    */
   backgroundTasks: ReadonlyMap<string, readonly string[]>;
+  /**
+   * Session id -> the tasks claude has scheduled for it, as its last Stop listed them, which its clock shows: kept through the statuses after that Stop, since a scheduled task waits through every turn until it fires, and dropped with the session's claude (`clearNudge`) or when a tab's claude leaves the session for another (`adoptReplacement`).
+   * A session with none is absent.
+   */
+  scheduledTasks: ReadonlyMap<string, readonly ScheduledTask[]>;
   /**
    * Sessions whose dot you marked read: dimmed, not pulsing.
    * In memory only, so a restart lights everything again; any status event clears a session's mark.
@@ -264,6 +269,7 @@ export const store = createStore<AppState>(
     sessions: [],
     statuses: new Map(),
     backgroundTasks: new Map(),
+    scheduledTasks: new Map(),
     acked: new Set(),
     switchedModel: new Map(),
     pinned: new Set(),
@@ -290,6 +296,8 @@ export const store = createStore<AppState>(
     sessions: sameRows,
     statuses: sameEntries,
     backgroundTasks: (a, b) => sameEntries(a, b, sameOrder),
+    // Every Stop writes the list again, the same tasks as new objects.
+    scheduledTasks: (a, b) => sameEntries(a, b, sameData),
     pinned: sameMembers,
     archived: sameEntries,
     notes: sameEntries,

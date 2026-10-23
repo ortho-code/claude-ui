@@ -38,7 +38,7 @@ import { runHook } from './hookscript';
 const shell = { id: 'bh9w6pqmt', type: 'shell' };
 const subagent = { id: 'a9f387eb22d2413de', type: 'subagent' };
 
-const report = (status: string, at: number, running = [] as Report['running'], runningAt = 0): Report => ({ status, at, ts: Math.floor(at / 1000), tab: 'tab-token-1', running, runningAt });
+const report = (status: string, at: number, running = [] as Report['running'], runningAt = 0): Report => ({ status, at, ts: Math.floor(at / 1000), tab: 'tab-token-1', running, runningAt, crons: [] });
 const facts = (extra: Partial<Facts>): Facts => ({ ...newFacts(), ...extra });
 const interrupted = (running: Work[]): Ending => ({ event: INTERRUPT_EVENT, status: 'idle', running, ends: ['busy', 'waiting'] });
 const workEnded = (running: Work[]): Ending => ({ event: TASK_END_EVENT, status: 'idle', running, ends: ['background'] });

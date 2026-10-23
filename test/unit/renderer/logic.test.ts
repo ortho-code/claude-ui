@@ -7,6 +7,7 @@ import {
   stripLine,
   tabButtonState,
   tabButtonLabel,
+  scheduledText,
   sessionsByKey,
   structuralSignature,
   sameRow,
@@ -877,6 +878,19 @@ describe('stripLine', () => {
     expect(stripLine(3, 0, 2)).toBe('3 live · 2 paused');
     expect(stripLine(3, 1, 2)).toBe('1 of 3 need you · 2 paused');
     expect(stripLine(0, 0, 2)).toBe('2 paused');
+  });
+});
+
+describe('scheduledText', () => {
+  it('names each task on a line of its own, with whether it repeats, and says nothing for none', () => {
+    expect(scheduledText([])).toBe(null);
+    expect(scheduledText([{ prompt: 'say the word tock', recurring: true }])).toBe('Scheduled:\nsay the word tock (repeats)');
+    expect(
+      scheduledText([
+        { prompt: '/loop check the deploy', recurring: false },
+        { prompt: 'say the word tock', recurring: true },
+      ]),
+    ).toBe('Scheduled:\n/loop check the deploy (once)\nsay the word tock (repeats)');
   });
 });
 

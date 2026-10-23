@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import { statusDir, hookScriptPath, statusSettingsFile, shellQuote } from './paths';
 import { errorText, fsFailure, log } from './log';
 import { writeFileAtomic } from './atomic';
+import type { ScheduledTask } from '../shared/types';
 
 const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
 
@@ -247,6 +248,16 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
         .catch(() => {});
       return;
     }
+    // What the last Stop left scheduled, rewritten with each Stop's payload and with an end the app reports (`reportEnd`), and emptied by a start that is not a compaction's: a fact about the session, like a model switch, so its own channel, since a status that is not the Stop's must not take it away.
+    // A file that does not parse, as one read halfway through its write does not, is skipped rather than sent as nothing, so a clock does not blink off and on; one that is gone is nothing.
+    if (filename.endsWith('.stop')) {
+      const id = filename.slice(0, -'.stop'.length);
+      void readScheduled(id).then((tasks) => {
+        const win = getWindow();
+        if (tasks && win && !win.isDestroyed()) win.webContents.send('session:scheduled', id, tasks);
+      });
+      return;
+    }
     // A claude starting on a session, which is identity rather than a state, and like a model switch not read at launch: the tabs restored then say which session each runs.
     if (filename.endsWith('.start')) {
       const id = filename.slice(0, -'.start'.length);
@@ -331,6 +342,8 @@ export interface Report {
   running: Work[];
   /** When that Stop was, in ms since the epoch; never, for a session with no Stop file, so nothing found after it counts as running. */
   runningAt: number;
+  /** The tasks that Stop listed as scheduled (`session_crons`), as claude wrote them, for an end reported in a hook's place to keep (`reportEnd`). */
+  crons: unknown[];
 }
 
 /** The last report of a session, or null for one with no status: one claude-ui is not running. */
@@ -342,8 +355,10 @@ export async function readReport(id: string): Promise<Report | null> {
   const stopFile = path.join(statusDir, `${id}.stop`);
   let running: Work[] = [];
   let runningAt = Infinity;
+  let crons: unknown[] = [];
   try {
-    const stop = JSON.parse(await fs.readFile(stopFile, 'utf8')) as { background_tasks?: unknown; listed_at?: unknown };
+    const stop = JSON.parse(await fs.readFile(stopFile, 'utf8')) as { background_tasks?: unknown; listed_at?: unknown; session_crons?: unknown };
+    if (Array.isArray(stop.session_crons)) crons = stop.session_crons;
     // An end the app reported carries the time of the Stop its list came from, since the list is that Stop's, less what had ended; a Stop's own is when it was written.
     runningAt = typeof stop.listed_at === 'number' ? stop.listed_at : ((await mtimeOf(stopFile)) ?? Infinity);
     if (Array.isArray(stop.background_tasks)) {
@@ -356,7 +371,30 @@ export async function readReport(id: string): Promise<Report | null> {
   } catch {
     // No Stop file, or one that does not parse: nothing is known to run, and nothing the transcript says was started counts as running since.
   }
-  return { status: entry.status, at, ts: entry.ts, tab: entry.tab, running, runningAt };
+  return { status: entry.status, at, ts: entry.ts, tab: entry.tab, running, runningAt, crons };
+}
+
+/**
+ * The tasks a session's last Stop left scheduled, from its `session_crons`, each entry without a prompt left out; none for a session with no Stop file.
+ * Null for a file that does not parse, such as one read while the script is still writing it (it truncates first), so the caller sends nothing rather than an empty list.
+ */
+export async function readScheduled(id: string): Promise<ScheduledTask[] | null> {
+  let text: string;
+  try {
+    text = await fs.readFile(path.join(statusDir, `${id}.stop`), 'utf8');
+  } catch {
+    return [];
+  }
+  let stop: { session_crons?: unknown };
+  try {
+    stop = JSON.parse(text) as { session_crons?: unknown };
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(stop.session_crons)) return [];
+  return (stop.session_crons as ({ prompt?: unknown; recurring?: unknown } | null)[]).flatMap((cron) =>
+    typeof cron?.prompt === 'string' ? [{ prompt: cron.prompt, recurring: cron.recurring === true }] : [],
+  );
 }
 
 async function mtimeOf(file: string): Promise<number | null> {
@@ -395,7 +433,8 @@ export function reportEnd(id: string, report: Report, ending: Ending): Promise<v
     child.on('close', () => resolve());
     // Without a Stop to take it from, the report is the first list, as a Stop's would be.
     const listed = Number.isFinite(listedAt) ? { listed_at: listedAt } : {};
-    const stop = ending.status === 'idle' ? { background_tasks: ending.running, ...listed } : {};
+    // What that Stop left scheduled goes with it, since the script writes this over the Stop's file: an interrupt leaves a cron as it was, though it takes a `/loop` wakeup with it (by claude's source), which the next Stop says.
+    const stop = ending.status === 'idle' ? { background_tasks: ending.running, session_crons: report.crons, ...listed } : {};
     child.stdin.end(JSON.stringify({ session_id: id, hook_event_name: ending.event, claude_ui_expect: ending.ends.join('|'), claude_ui_expect_ts: String(ts ?? ''), ...stop }));
   });
 }

@@ -185,6 +185,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     onSessionStatus: on('onSessionStatus'),
     onSessionStart: on('onSessionStart'),
     onSessionModel: on('onSessionModel'),
+    onSessionScheduled: on('onSessionScheduled'),
     clearStatus: sent,
     // A claude that has started and printed nothing yet: its tab boots until a check fires `onTerminalData` for it.
     startTerminal: (cwd) => start(cwd),

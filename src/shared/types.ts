@@ -1,3 +1,11 @@
+/** A task claude has scheduled for a session, a `/loop` wakeup or a cron not made durable, as its last `Stop` listed it in `session_crons`: what it will run, and whether it runs again after. */
+export interface ScheduledTask {
+  /** The prompt it runs, as claude reports it, which cuts a long one short. */
+  prompt: string;
+  /** Whether it fires again after it has run; never for a `/loop` wakeup, each of which is one-shot. */
+  recurring: boolean;
+}
+
 export interface SessionSummary {
   /** Session id, taken from the .jsonl filename. */
   id: string;
@@ -509,6 +517,11 @@ export interface ClaudeUiApi {
    * Only a live switch arrives here; a session's model at rest comes from its transcript, which records which model answered.
    */
   onSessionModel(callback: (id: string, model: string) => void): void;
+  /**
+   * Subscribe to the tasks claude has scheduled for a session, as its last `Stop` listed them, each time main sees that list written again: an empty list once a turn ends with none, once a claude starts on the session, or once its status files have gone.
+   * Not read at launch, since no claude outlives a quit; a resumed claude's own tasks arrive with its next `Stop`.
+   */
+  onSessionScheduled(callback: (id: string, tasks: ScheduledTask[]) => void): void;
   /** Clear a session's status (removes its status file). */
   clearStatus(id: string): void;
   /**

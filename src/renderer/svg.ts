@@ -65,6 +65,8 @@ export const folderGoneIcon = (size: number): string => strokeIcon(size, `${FOLD
 // Both are drawn so their INK is centred on 8,8 and 10 units tall, not merely their viewBox: the first cut centred the boxes while the fork hung 1.25 low and the branch filled 7.5 units against the fork's 11, which read as one mark misaligned and the other too small.
 export const SIBLING_ICON = strokeIcon(11, '<path d="M8 12V8M4 4L8 8L12 4" />');
 export const WORKTREE_ICON = strokeIcon(11, '<path d="M4.5 12V4M4.5 8Q11.5 8 11.5 4" />');
+// A task scheduled to run later: a clock face, its ink centred on 8,8 and 10 units tall as the family and branch marks' are (a radius of 4.1 plus the stroke at 11px), so it sits beside them as one of the set.
+export const CLOCK_ICON = strokeIcon(11, '<circle cx="8" cy="8" r="4.1" /><path d="M8 5.7V8l1.6 1.1" />');
 // A pull request: the line it leaves from, and the change curving back into it with an arrowhead, the conventional mark; two strokes where the fork and the branch are one, so it stays apart from both.
 // Drawn over the same height as theirs, y 4 to 12, and centred on 8,8 as they are.
 export const PR_ICON = strokeIcon(11, '<path d="M4.5 4V12" /><path d="M11.5 12V8Q11.5 5.5 8.75 5.5" /><path d="M10.25 4L8.75 5.5L10.25 7" />');

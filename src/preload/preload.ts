@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { ClaudeUiApi } from '../shared/types';
+import type { ClaudeUiApi, ScheduledTask } from '../shared/types';
 import type { LayoutReport, PanelData, PanelRunEvent } from '../shared/panels';
 import type { SettingsView } from '../shared/settings';
 
@@ -66,6 +66,8 @@ const api: ClaudeUiApi = {
     ipcRenderer.on('session:start', (_event, id: string, tab: string, source: string) => callback(id, tab, source)),
   onSessionModel: (callback) =>
     ipcRenderer.on('session:model', (_event, id: string, model: string) => callback(id, model)),
+  onSessionScheduled: (callback) =>
+    ipcRenderer.on('session:scheduled', (_event, id: string, tasks: ScheduledTask[]) => callback(id, tasks)),
   clearStatus: (id) => ipcRenderer.send('status:clear', id),
   startTerminal: (cwd, launch) => ipcRenderer.invoke('terminal:start', cwd, launch),
   startShell: (cwd, context, owner) => ipcRenderer.invoke('terminal:startShell', cwd, context, owner),

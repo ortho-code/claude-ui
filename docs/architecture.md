@@ -673,7 +673,7 @@ Work you stop yourself, from claude's own task list, started no turn and fired n
 The dot's tooltip names the work by the type claude gives each piece (`shell`, `subagent`, …), counted per type, as in "2 shells, 1 subagent"; a monitor that watches a shell command arrives as a `shell`.
 The script reads those from the `type` keys, which in `Stop` only the list's entries have, and a claude too old to send the list reads idle, as before.
 The launch read passes on the status alone, so a `background` read back at launch says no more than that.
-Scheduled wakeups (`session_crons`, from `/loop` and the like) are not counted: nothing runs until they fire, and counting them would keep a looping session from ever showing finished.
+Scheduled wakeups (`session_crons`, from `/loop` and the like) are not counted: nothing runs until they fire, and counting them would keep a looping session from ever showing finished; they show as a clock of their own instead (below).
 An artifact claude watches for comments is not counted either.
 Publishing one arms a watch wherever claude allows one (by its source, not in a remote session, for one), and `Stop` lists the watch as a `monitor` while it lasts: one armed by a publish was still listed about 50 minutes later (measured on claude 2.1.296), and the session read background from then on while nothing ran.
 By claude's source, the watch on the artifact published last is never retired for being idle, and a comment sent to Claude while its auto-replies are armed summons a turn of its own, as a scheduled wakeup starts one.
@@ -684,6 +684,16 @@ A minute at its prompt without input (claude's default, which its own config can
 The same notice a minute after the work's own turn has ended is the one that says waiting, as for any finished session (both measured on claude 2.1.289, with a background shell).
 Every other notification, a permission prompt or a question, still writes waiting over it.
 Its dot is busy's spinning ring around a small core of idle's green: the turn is done, and work goes on.
+
+**A task claude has scheduled shows as a clock beside the session.**
+`Stop` lists what is scheduled for the session, a `/loop` wakeup or a cron not made durable (a durable one goes to a file of claude's instead), as `session_crons`, each entry its prompt, its schedule and whether it repeats, and the script keeps the whole payload as `<id>.stop`, which main reads on every change and hands the window on a channel of its own (`session:scheduled`): a fact about the session rather than a state, like a model switch, since a task waits through every status until it fires, and the busy of the next turn must not take it away.
+The window keeps the prompts and whether each repeats (`scheduledTasks`), and one mark draws them, on the session's tab, its row and its strip row (`scheduledmark.ts`), the tooltip naming each task.
+A `/loop` wakeup reads as once: each is one-shot, and the loop schedules the next from the turn it starts.
+The clock goes when a later turn ends with nothing scheduled, when the app drops the session's status files (its tab closed or gone cold), and from a session a tab's claude left by `/clear` or its own `/resume`, which no claude of the app's runs any more though nothing says its list emptied.
+An end the app reports in a hook's place (below) is written over `<id>.stop` too, so it carries the last `Stop`'s list on, or every interrupt would take a cron's clock away while the cron still waits.
+The list is the last `Stop`'s, so it can be behind: by claude's source an interrupt, and an Esc at its prompt, cancel a pending `/loop` wakeup without a `Stop`, and the clock stays until the next one.
+It is not read at launch: no claude outlives a quit, and a start writes `<id>.stop` as `{}`.
+A resumed claude can bring its scheduled tasks back, and re-arm a pending `/loop` wakeup (by claude's source), and those show only from its next `Stop`.
 
 **A subagent's events arrive as the session's, and once its turn has ended they are not the session working.**
 Hooks fired inside a subagent carry the session's own id, told apart by `agent_id`, so a background subagent's tool call wrote busy over a finished session, and the dot went idle, busy and idle again with nobody doing anything.

@@ -1,3 +1,4 @@
+import type { ScheduledTask } from '../../shared/types';
 import { store, withEntry, withMember, type View } from './app';
 import { dotStatus } from './views';
 
@@ -32,8 +33,17 @@ export function toggleAck(id: string): void {
   store.set({ acked: withMember(acked, id, !acked.has(id)) });
 }
 
+/** What claude has scheduled for a session, as main read it from its last Stop: none takes the session out. */
+export function setScheduled(id: string, tasks: readonly ScheduledTask[]): void {
+  store.set({ scheduledTasks: withEntry(store.get().scheduledTasks, id, tasks.length > 0 ? tasks : undefined) });
+}
+
 // You've attended to a session by viewing it, so drop its "needs you" nudge.
+// Its claude has gone too, every caller says, and what it had scheduled went with it.
 export function clearNudge(id: string): void {
   window.claudeUi.clearStatus(id);
-  setStatus(id, undefined);
+  store.batch(() => {
+    setStatus(id, undefined);
+    setScheduled(id, []);
+  });
 }

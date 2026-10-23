@@ -7,6 +7,7 @@ import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
 import { showInStrip } from '../../../state/strip';
 import { projName, projectGone, projectGroups, sessionNudge, statusChanges, visibleTabs } from '../../../state/views';
+import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { layersIcon, SIBLING_ICON, WORKTREE_ICON } from '../../../svg';
 import { buildTab, drawTab, dropSortable, sortableTabs, type TabEls } from '../../../tab';
@@ -48,7 +49,7 @@ function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.ge
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups gets an indented row beneath it behind the same rail the sidebar uses.
 // A project view drops the project label (everything shown belongs to it) but keeps the group rows.
 /** What the tab bar draws from the store. */
-type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'acked' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab' | 'tabBarExpanded'>;
+type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab' | 'tabBarExpanded'>;
 
 export function renderTabBar(view: TabBarView): void {
   // The library owns the bar's tabs while one is dragged — it moves them, and puts its copy of the dragged one in its row — so a redraw then would undo the drag under the pointer; the drop draws what was held (`sortableFor`).
@@ -167,6 +168,7 @@ interface SessionTabEls {
   markGroup: HTMLElement;
   siblingMark: HTMLElement;
   worktreeMark: HTMLElement;
+  clock: HTMLElement;
 }
 
 /**
@@ -267,12 +269,12 @@ function buildSessionTab(token: string): SessionTabEls {
   siblingMark.innerHTML = SIBLING_ICON;
   const worktreeMark = document.createElement('span');
   worktreeMark.innerHTML = WORKTREE_ICON;
-  return { tab, dot, markGroup, siblingMark, worktreeMark };
+  return { tab, dot, markGroup, siblingMark, worktreeMark, clock: scheduledMark('tab-scheduled') };
 }
 
 /** Draw a session's tab as it is now: its state, its dot, its marks, its name, and its button's step. */
-function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'archived' | 'projectNames' | 'tabs' | 'activeTab'>): HTMLElement {
-  const { tab: els, dot, markGroup, siblingMark, worktreeMark } = tabEls.draw(tab.token, buildSessionTab);
+function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'projectNames' | 'tabs' | 'activeTab'>): HTMLElement {
+  const { tab: els, dot, markGroup, siblingMark, worktreeMark, clock } = tabEls.draw(tab.token, buildSessionTab);
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
   const unstartable = unstartableReason(tab.session);
 
@@ -289,8 +291,11 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
   worktreeMark.className = worktree?.left ? 'tab-worktree worktree-mark left' : 'tab-worktree worktree-mark';
   setTooltip(worktreeMark, worktree?.tooltip);
 
+  // A task claude has scheduled, as its row and its strip row show it (scheduledmark.ts).
+  const scheduled = showScheduled(clock, view.scheduledTasks.get(tab.session.id));
+
   const text = sessionLabel(tab.session);
-  const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(worktree ? [worktreeMark] : [])];
+  const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(worktree ? [worktreeMark] : []), ...(scheduled ? [clock] : [])];
   placeChildren(markGroup, marks);
   drawTab(els, {
     active: tab.token === view.activeTab,
