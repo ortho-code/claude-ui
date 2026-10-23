@@ -345,6 +345,15 @@ Mid-turn the first press only interrupts the turn, so a session whose hooks last
 Waiting is a permission prompt, or a `Notification`, which claude also sends to a session sitting idle at its prompt, so such a session gets the third press too.
 The presses are bytes written to the pty, which claude reads as keys while it holds the terminal in raw mode.
 
+**A session with a task scheduled takes three presses.**
+A pending `/loop` wakeup takes the first Ctrl-C to cancel itself ("Pending wakeup cancelled"), so two presses left such a session at its prompt, still running, with only the force to end it (measured on claude 2.1.302, 2026-10-22).
+So a session whose last `Stop` listed a task, as its clock (§ Status cues) shows, gets the third press too, from every route that asks claude to leave.
+The third press is one more whatever else takes the first: claude's handler cancels the wakeup and interrupts a turn in the same press, and three presses mid-turn with a wakeup pending left; at the question claude asks for a cron, "Background work is running", the third only arms "Press Ctrl-C again to exit" under it for a moment, and the question stays (both measured).
+The list is the last `Stop`'s, so it can still name a wakeup an Esc at claude's prompt has cancelled since; the third press then lands on whatever claude asks on its way out, where one press only arms "press again" too (measured at the worktree question).
+What becomes of the tasks was measured on claude 2.1.302 (2026-10-23), resuming with `--resume` as the app does: a `/loop` wakeup did not come back, whether the presses cancelled it or the session was forced out; a cron, one-shot or repeating, came back with the same id, even after claude's own question was answered "Exit and stop tasks".
+Only a task's prompt tells a wakeup from a one-shot cron, so the clock's tooltip says both in one sentence rather than labelling each task: "A /loop wakeup ends with the session; a cron comes back when you open it again."
+It is said there, before a stop, and not asked at one (user, 2026-10-24): a confirm dialog before the presses was tried in the app and turned down, since for a cron claude asks its own question straight after the presses, and two questions about one task are too many; asking only where claude would not means telling a wakeup from a cron by its prompt, the guess the sentence avoids.
+
 **Nothing follows them.**
 Claude can answer an exit with a question — a worktree session with uncommitted changes asks whether to keep the tree or remove it — and waits for the answer.
 Nothing it sends tells asking from being slow: every stop probed on claude 2.1.289 printed something after the presses, and in the one run that logged hooks none fired in the 5 s the question was up.

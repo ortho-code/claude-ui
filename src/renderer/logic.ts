@@ -130,12 +130,18 @@ export function worktreeMarkState(session: SessionSummary): WorktreeMarkState | 
 }
 
 /**
- * What a session's clock says of the tasks claude has scheduled for it, one line each, its prompt and whether it repeats; null for none, which shows no clock.
+ * What becomes of a session's scheduled tasks when its claude goes, said beside them wherever they are named, so it is known before a pause or a stop rather than asked at it.
+ * Measured on claude 2.1.302: a `/loop` wakeup did not come back when the session was resumed, a cron did, one-shot or repeating, whether claude's own question was answered "Exit and stop tasks" or the session was forced out; so one sentence for both, since only a task's prompt tells the two apart.
+ */
+export const SCHEDULED_ON_STOP = 'A /loop wakeup ends with the session; a cron comes back when you open it again.';
+
+/**
+ * What a session's clock says of the tasks claude has scheduled for it, one line each, its prompt and whether it repeats, then what a stop does to them (`SCHEDULED_ON_STOP`); null for none, which shows no clock.
  * Claude cuts a long prompt short in what it reports, so the line ends where it did.
  */
 export function scheduledText(tasks: readonly ScheduledTask[]): string | null {
   if (tasks.length === 0) return null;
-  return ['Scheduled:', ...tasks.map((task) => `${task.prompt} (${task.recurring ? 'repeats' : 'once'})`)].join('\n');
+  return ['Scheduled:', ...tasks.map((task) => `${task.prompt} (${task.recurring ? 'repeats' : 'once'})`), SCHEDULED_ON_STOP].join('\n');
 }
 
 /**

@@ -429,14 +429,18 @@ function clearForceTimer(token: string): void {
  * Claude can answer an exit with a question — a worktree with changes asks whether to keep it — and the tab has to outlive it for it to be answered, so nothing here ends the session itself.
  * Mid-turn, as the hooks last reported it, claude needs a third Ctrl-C, since the first then only interrupts the turn; any other session gets two, because a third at its prompt would arm claude's own "press again to exit" under its question.
  * Waiting counts as mid-turn, though claude also reports it for a session idle at its prompt, which then gets the third press as well.
+ * So does a session with a task scheduled, as its clock shows: a `/loop` wakeup takes the first press to cancel itself, and the same press interrupts a turn, so it is one more either way, never two; a cron makes claude ask what to do with it, where the third only arms "press again to exit" for a moment and the question stays (both measured on claude 2.1.302).
+ * The list is the last Stop's, so it can still name a wakeup cancelled since by an Esc at claude's prompt; the third press then lands on whatever claude asks on its way out, where one press only arms "press again" too (measured at the worktree question).
+ * Nothing asks first: claude asks its own question for a cron, and a second one before it was too much (user, 2026-10-24); the clock's tooltip says what becomes of each kind (`SCHEDULED_ON_STOP`).
  */
 function askToLeave(token: string, terminalId: number, closing: boolean): void {
   const tab = tabOf(token);
   if (!tab) return;
   // At once, so the button shows the pause for as long as the exit takes rather than after it — on both buttons, the tab's and the strip's, which follow the same flag.
   setTab(token, { stopping: true, closing, forceable: false });
-  const status = store.get().statuses.get(tab.session.id);
-  window.claudeUi.closeTerminal(terminalId, status === 'busy' || status === 'waiting');
+  const { statuses, scheduledTasks } = store.get();
+  const status = statuses.get(tab.session.id);
+  window.claudeUi.closeTerminal(terminalId, status === 'busy' || status === 'waiting' || scheduledTasks.has(tab.session.id));
   clearForceTimer(token);
   forceTimers.set(
     token,

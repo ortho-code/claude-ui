@@ -34,7 +34,10 @@ test('a session with a task scheduled shows a clock on its tab, its row and its 
   ).toBe(1);
   for (const clock of clocks(page)) {
     await expect(clock).toBeVisible();
-    await expect(clock).toHaveAttribute('data-tooltip', 'Scheduled:\n/loop check the deploy (once)\nsay the word tock (repeats)');
+    await expect(clock).toHaveAttribute(
+      'data-tooltip',
+      'Scheduled:\n/loop check the deploy (once)\nsay the word tock (repeats)\nA /loop wakeup ends with the session; a cron comes back when you open it again.',
+    );
   }
 
   // A later turn that ends with nothing scheduled takes it off.
@@ -65,6 +68,7 @@ test('the clock goes when the session stops', async ({ app, page }) => {
   await expect(tab(page, one.title).locator('.scheduled-mark')).toBeVisible();
 
   await tab(page, one.title).locator('.tab-close').click();
+  await expect.poll(() => app.calls('closeTerminal')).toHaveLength(1);
   expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
   await expect(tab(page, one.title).locator('.scheduled-mark')).toBeHidden();

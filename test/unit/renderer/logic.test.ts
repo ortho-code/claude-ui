@@ -882,15 +882,16 @@ describe('stripLine', () => {
 });
 
 describe('scheduledText', () => {
-  it('names each task on a line of its own, with whether it repeats, and says nothing for none', () => {
+  it('names each task on a line of its own, with whether it repeats, then what a stop does to them, and says nothing for none', () => {
+    const onStop = 'A /loop wakeup ends with the session; a cron comes back when you open it again.';
     expect(scheduledText([])).toBe(null);
-    expect(scheduledText([{ prompt: 'say the word tock', recurring: true }])).toBe('Scheduled:\nsay the word tock (repeats)');
+    expect(scheduledText([{ prompt: 'say the word tock', recurring: true }])).toBe(`Scheduled:\nsay the word tock (repeats)\n${onStop}`);
     expect(
       scheduledText([
         { prompt: '/loop check the deploy', recurring: false },
         { prompt: 'say the word tock', recurring: true },
       ]),
-    ).toBe('Scheduled:\n/loop check the deploy (once)\nsay the word tock (repeats)');
+    ).toBe(`Scheduled:\n/loop check the deploy (once)\nsay the word tock (repeats)\n${onStop}`);
   });
 });
 
