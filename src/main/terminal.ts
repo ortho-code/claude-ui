@@ -102,19 +102,19 @@ const PRESS_GAP_MS = 400;
 /**
  * Ask a session to leave the way it is left in a terminal, and wait for it to go, however long that takes.
  *
- * Ctrl-C twice is claude's own way out from its prompt; mid-turn the first press interrupts the turn instead, so `interrupt` adds one in front.
+ * Ctrl-C twice is claude's own way out from its prompt; `thirdPress` adds one in front, which the caller asks for where it takes the first press to go elsewhere, as for a session it takes to be mid-turn, whose turn the first press interrupts instead.
  * NO DEADLINE, deliberately: claude can answer an exit with a question — a worktree with changes asks whether to keep it — and waits for the answer (still asking after 15 s, the longest measured), and nothing it sends tells asking from slow.
  * A timer here once sent `SIGTERM` 1.8 s after the first press, which killed that question, and ended every stop of a session mid-turn, which the two presses alone did not end in either run probed.
  * So a session that has not gone is the user's to force (`forceOut`).
  * The presses are bytes written to the pty, which claude reads as keys while it holds the terminal in raw mode.
  * Only one ask presses at a time, since presses added to a question already on screen would answer it; once they are done, another ask presses again, because Esc at that question calls the exit off and the session works on.
  */
-function askToLeave(id: number, interrupt: boolean): void {
+function askToLeave(id: number, thirdPress: boolean): void {
   const proc = terminals.get(id);
   if (!proc || pressing.has(id) || forced.has(id)) return;
   asked.add(id);
   pressing.add(id);
-  const presses = interrupt ? 3 : 2;
+  const presses = thirdPress ? 3 : 2;
   log('info', 'terminal', `${id} asked to leave, Ctrl-C ${presses} times`);
   proc.write('\x03');
   for (let press = 1; press < presses; press++) {
@@ -330,8 +330,8 @@ export function registerTerminalIpc(): void {
   // End it now: a forced stop, or a panel shell, which has no exit of its own to be asked through.
   ipcMain.on('terminal:kill', (_event, id: number) => forceOut(id));
 
-  // Ask claude to leave through its own exit, which is where it asks anything it has to; `interrupt` for a session mid-turn.
-  ipcMain.on('terminal:close', (_event, id: number, interrupt: boolean) => askToLeave(id, interrupt));
+  // Ask claude to leave through its own exit, which is where it asks anything it has to; `thirdPress` where the caller takes the first press to go elsewhere.
+  ipcMain.on('terminal:close', (_event, id: number, thirdPress: boolean) => askToLeave(id, thirdPress));
 }
 
 /**

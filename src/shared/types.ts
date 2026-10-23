@@ -544,10 +544,10 @@ export interface ClaudeUiApi {
   /** End a session or a shell outright: `SIGTERM` to its group, `SIGKILL` if it is still there after the grace period. */
   killTerminal(id: number): void;
   /**
-   * Ask claude to leave through its own exit, Ctrl-C twice, and three times when `interrupt` says it is mid-turn.
+   * Ask claude to leave through its own exit, Ctrl-C twice, and three times when `thirdPress` says the caller takes the first to go elsewhere, as to a turn it takes to be under way, which the first press interrupts.
    * Nothing follows it: claude may ask something on its way out and wait for the answer, so a session that has not gone is ended with `killTerminal`.
    */
-  closeTerminal(id: number, interrupt: boolean): void;
+  closeTerminal(id: number, thirdPress: boolean): void;
   /**
    * The layout file as main last read it.
    * Validated in the renderer (panels/layout.ts).

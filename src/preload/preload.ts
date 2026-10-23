@@ -79,7 +79,7 @@ const api: ClaudeUiApi = {
   sendTerminalInput: (id, data) => ipcRenderer.send('terminal:input', id, data),
   resizeTerminal: (id, cols, rows) => ipcRenderer.send('terminal:resize', id, cols, rows),
   killTerminal: (id) => ipcRenderer.send('terminal:kill', id),
-  closeTerminal: (id, interrupt) => ipcRenderer.send('terminal:close', id, interrupt),
+  closeTerminal: (id, thirdPress) => ipcRenderer.send('terminal:close', id, thirdPress),
   getLayout: () => ipcRenderer.invoke('config:getLayout'),
   checkPath: (value, base, must) => ipcRenderer.invoke('config:checkPath', value, base, must),
   onLayoutChanged: (callback) => ipcRenderer.on('config:changed', (_event, report: LayoutReport) => callback(report)),
