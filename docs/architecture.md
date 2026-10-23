@@ -1194,6 +1194,7 @@ On macOS node-pty reports the executable's own name, cut to 16 characters, so `n
 A command left in the background is not the foreground, so a shell running only that closes without asking.
 It is read at the press rather than kept as a mark on the tab, which a short command would change as it came and went; the claude tab's two presses, stop and then close, were turned down for the same reason.
 The question is the app's confirm dialog, which takes its caller's words (`confirmDanger` in `dialogs.ts`, with the delete's `confirmDelete` one caller) and opens on Cancel; it is asked once at a time, so a second close pressed while the first is being asked ends nothing.
+The dialog keeps that rule for every caller too: a confirm asked while another confirm is up is answered no at once and asks nothing, since it would rewrite the one on screen and take its answer as its own — as a shell's close did, whose look at what runs came back while a session's stop was being asked.
 
 **A shell that exits comes back on a key press.**
 Its screen stays up with a dimmed line saying it exited and that any key starts a new shell, and the next key does, in its tab and its folder; the key is the ask, so it is not sent on to the new shell.

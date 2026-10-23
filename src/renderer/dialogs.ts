@@ -48,8 +48,11 @@ const renameCancel = document.getElementById('rename-cancel') as HTMLButtonEleme
 /**
  * Ask before something is destroyed or ended: the question, what pressing on does, and the word on the red button that does it.
  * Resolves true on that button, false on Cancel / Esc.
+ * One confirm at a time, whoever asks: one that comes while this dialog is already up, such as a shell's close whose look at what runs in it was answered late, would rewrite it and take its answer as its own, so it is answered no at once and asks nothing.
+ * The other dialogs (a text prompt, Settings) have overlays of their own, which this does not look at.
  */
 export function confirmDanger(question: string, detail: string, action: string): Promise<boolean> {
+  if (!confirmOverlay.hidden) return Promise.resolve(false);
   confirmMessage.textContent = question;
   confirmDetail.textContent = detail;
   confirmOk.textContent = action;
