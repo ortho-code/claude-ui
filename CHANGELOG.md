@@ -76,12 +76,12 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Folding the tab bar to one row, from a chevron on the line under the tabs, as a group of panels folds from its divider, to give the terminal the room: the row of the tab on show stays, or the first row when no tab is on show, and while a tab folded away is waiting for you, or has finished and is not marked read, the chevron turns into its status dot.
   It stays folded across a restart.
 - A session's options, on its row, its tab and the live strip, open with what the session is: its title, project, group and status, when it was last active and on what model, when it was archived, its worktree, the start of its note, and why it can't run when its folder is gone.
-- A session's options now hold the actions you could only take from its row, tab or strip row, so a session can be dealt with from wherever it is listed: Open, Show in list, Pin in list, Mark as read, and the tab's Stop session, Force stop or Close tab.
+- A session's options now hold the actions you could only take from its row, tab or strip row, so a session can be dealt with from wherever it is listed: Open, Show in list, Pin in list, Mark as read, and the tab's Stop session, Force stop, Force pause or Close tab.
   Show in list from a tab or the strip widens the list to All when it shows another project, so the tab you are in stays on show.
 - A session in the archived view has options too: what it is, its siblings, PRs and note, its id, Unarchive and Delete.
 - A project's and a group's options start a session there, New session and New worktree session…, and a project's has New session in group, which reaches a group the filter hides as well, and Jump to group, to the places its heading's jump button offers.
 - A session's dot shows when its claude has been asked to stop or pause and has not gone yet, as a pulsing square or the paused bars pulsing, for as long as that takes.
-  Meanwhile Pause in its options asks claude again, and makes a stop a pause.
+  Meanwhile its buttons, on the tab and the strip, show the pause bars or the stop square, and its options offer Force pause or Force stop in place of Pause and Stop session, available from the first second until it is pressed.
 - On WSL, a paste of files copied in Explorer pastes their paths, in a session or a panel's shell, so claude attaches an image file; it needs `wl-clipboard`, and reading the files from Windows usually takes about a second.
 - A session's PR mark takes the colour of what GitHub says of its PRs: yellow for changes requested, red for failing checks or a merge conflict, green when approved and ready to merge, grey once all are merged or closed.
   Its tooltip says what set the colour, and its list and the session's options name the state of each PR GitHub has answered for.

@@ -210,7 +210,7 @@ test('Mark as read is unavailable, with the reason, while the session is busy', 
 });
 
 // The tab's button, pressed from the session's menu: one rule for the two (`tabButtonState`), so the item says and does what the button would.
-test("Stop session in a row's menu stops it as the tab's button does, and then says it is stopping", async ({ app, page }) => {
+test("Stop session in a row's menu stops it as the tab's button does, and then offers the force, unavailable while it says it is stopping", async ({ app, page }) => {
   await app.boot(fixture);
   await tabLabel(page, full.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
@@ -218,7 +218,8 @@ test("Stop session in a row's menu stops it as the tab's button does, and then s
   await item(page, 'Stop session').click();
   await expect(tab(page, full.title).locator('.tab-close')).toBeDisabled();
   await row(page, full.title).locator('.session-kebab').click();
-  await expect(item(page, 'Stop session')).toHaveAttribute('data-tooltip', 'Stopping…');
+  await expect(item(page, 'Force stop')).toHaveAttribute('data-tooltip', 'Stopping…');
+  await expect(item(page, 'Stop session')).toHaveCount(0);
 });
 
 // The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the session's claude is 1.
@@ -254,12 +255,12 @@ test("a session's menu open while its pause waits for claude turns into a paused
   await item(page, 'Pause').click();
   await expect(tab(page, full.title).locator('.tab-close')).toBeEnabled();
   await row(page, full.title).locator('.session-kebab').click();
-  await expect(item(page, 'Force stop')).toBeVisible();
+  await expect(item(page, 'Force pause')).toBeVisible();
 
   expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
   await expect(item(page, 'Stop session')).not.toHaveClass(/\bunavailable\b/);
   await expect(item(page, 'Close tab')).toBeVisible();
-  await expect(item(page, 'Force stop')).toHaveCount(0);
+  await expect(item(page, 'Force pause')).toHaveCount(0);
   await expect(item(page, 'Pause')).toHaveCount(0);
 });
 

@@ -13,7 +13,7 @@ import { groupHeading, projectHeading, row, stripRow, tab, tabLabel } from '../.
 type Shortcuts = [className: string, item: RegExp][];
 
 const DOT: [string, RegExp] = ['nudge', /^Mark as (read|unread)$/];
-const TAB_BUTTON = /^(Stop session|Force stop|Close tab)$/;
+const TAB_BUTTON = /^(Stop session|Force stop|Force pause|Close tab)$/;
 
 const ROW: Shortcuts = [
   ['pin', /^(Pin in list|Unpin)$/],

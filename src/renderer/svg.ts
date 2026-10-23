@@ -37,8 +37,17 @@ export const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4
 export const stopIcon = (size: number, force = false): string =>
   strokeIcon(size, `<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2"${force ? ' fill="currentColor"' : ''} />`);
 
+// A pause on its way out shows the pause it is heading for, as its dot does: two strokes the stop square's height, then, as its force, two filled bars over the same centres.
+// Bars rather than strokes for the force, since a stroke already as wide as a narrow bar would look the same filled or not.
+export const pauseIcon = (size: number, force = false): string =>
+  strokeIcon(size, force ? '<rect x="5" y="4.7" width="1.6" height="6.6" rx="0.5" fill="currentColor" /><rect x="9.4" y="4.7" width="1.6" height="6.6" rx="0.5" fill="currentColor" />' : '<path d="M5.8 4.7V11.3M10.2 4.7V11.3" />');
+
 /** A tab's button's mark, as its rule says it (`tabButtonState`), wherever the button is drawn. */
-export const tabButtonIcon = (mark: TabButtonMark, size: number): string => (mark === 'close' ? closeIcon(size) : stopIcon(size, mark === 'force'));
+export const tabButtonIcon = (mark: TabButtonMark, size: number): string => {
+  if (mark === 'close') return closeIcon(size);
+  if (mark === 'pause' || mark === 'force-pause') return pauseIcon(size, mark === 'force-pause');
+  return stopIcon(size, mark === 'force-stop');
+};
 
 // A group's mark: layers, meaning "several things stacked as one".
 // Muted, never accent — the accent belongs to the project's folder icon one line above it.

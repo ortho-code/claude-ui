@@ -881,9 +881,10 @@ describe('stripLine', () => {
 });
 
 describe('tabButtonLabel', () => {
-  it("names each mark's press, as the button's tooltip says it where it says only that", () => {
+  it("names each press, as the button's tooltip says it where it says only that", () => {
     expect(tabButtonLabel('stop')).toBe('Stop session');
-    expect(tabButtonLabel('force')).toBe('Force stop');
+    expect(tabButtonLabel('force-stop')).toBe('Force stop');
+    expect(tabButtonLabel('force-pause')).toBe('Force pause');
     expect(tabButtonLabel('close')).toBe('Close tab');
     expect(tabButtonState({ terminalId: 7 }).tooltip).toBe(tabButtonLabel('stop'));
     expect(tabButtonState({ terminalId: null }).tooltip).toBe(tabButtonLabel('close'));
@@ -895,36 +896,44 @@ describe('tabButtonState', () => {
   const LIVE = 7;
 
   it('offers to stop a settled session', () => {
-    expect(tabButtonState({ terminalId: LIVE })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop' });
-    expect(tabButtonState({ terminalId: LIVE, starting: false, stopping: false })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop' });
+    expect(tabButtonState({ terminalId: LIVE })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop', label: 'Stop session' });
+    expect(tabButtonState({ terminalId: LIVE, starting: false, stopping: false })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop', label: 'Stop session' });
   });
 
   it('refuses both ends of a session lifetime, and says which end it is', () => {
     // A process on its way has no id yet.
-    expect(tabButtonState({ terminalId: null, starting: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop' });
-    expect(tabButtonState({ terminalId: LIVE, stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…', mark: 'stop' });
+    expect(tabButtonState({ terminalId: null, starting: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop', label: 'Stop session' });
+    // On its way out, the menu's item is already the force it will become.
+    expect(tabButtonState({ terminalId: LIVE, stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…', mark: 'stop', label: 'Force stop' });
   });
 
-  it('says a pause on its way out is pausing', () => {
-    expect(tabButtonState({ terminalId: LIVE, stopping: true, paused: true })).toEqual({ disabled: true, tooltip: 'Pausing…', mark: 'stop' });
+  it('says a pause on its way out is pausing, with the pause bars and a force named for the pause', () => {
+    expect(tabButtonState({ terminalId: LIVE, stopping: true, paused: true })).toEqual({ disabled: true, tooltip: 'Pausing…', mark: 'pause', label: 'Force pause' });
   });
 
   it('reports ARRIVING when a tab somehow carries both flags', () => {
     // The precedence is load-bearing and was implicit until this test: a tab that is both is one being started, and calling it "Stopping…" would tell the user the opposite of what is happening.
-    expect(tabButtonState({ terminalId: null, starting: true, stopping: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop' });
+    expect(tabButtonState({ terminalId: null, starting: true, stopping: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop', label: 'Stop session' });
   });
 
-  it('offers to force out a session that has not left, and says it may be asking', () => {
+  it('offers to force out a session that has not left, named for what was asked, and says it may be asking', () => {
     expect(tabButtonState({ terminalId: LIVE, stopping: true, forceable: true })).toEqual({
       disabled: false,
       tooltip: 'Force stop: claude has not left yet — it may be asking you something',
-      mark: 'force',
+      mark: 'force-stop',
+      label: 'Force stop',
     });
-    // Only a stop can become a force.
-    expect(tabButtonState({ terminalId: LIVE, forceable: true })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop' });
+    expect(tabButtonState({ terminalId: LIVE, stopping: true, forceable: true, paused: true })).toEqual({
+      disabled: false,
+      tooltip: 'Force pause: claude has not left yet — it may be asking you something',
+      mark: 'force-pause',
+      label: 'Force pause',
+    });
+    // Only a stop or a pause on its way can become a force.
+    expect(tabButtonState({ terminalId: LIVE, forceable: true })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop', label: 'Stop session' });
   });
 
   it('closes a cold tab, which has nothing to stop', () => {
-    expect(tabButtonState({ terminalId: null })).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close' });
+    expect(tabButtonState({ terminalId: null })).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close', label: 'Close tab' });
   });
 });

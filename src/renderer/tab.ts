@@ -146,5 +146,7 @@ export function drawTab({ el, label, kebab, button }: TabEls, look: TabLook): vo
   setTooltip(label, look.tooltip);
   setUnavailable(button, look.button.disabled ? look.button.tooltip : null, look.button.tooltip);
   setMarkup(button, tabButtonIcon(look.button.mark, 14));
+  // What it was drawn as, as the strip's button says it, so the two can be told by more than their ink.
+  button.dataset.mark = look.button.mark;
   placeChildren(el, [...look.lead, label, kebab, button]);
 }

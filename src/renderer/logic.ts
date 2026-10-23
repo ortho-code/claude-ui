@@ -684,30 +684,49 @@ export interface TabButtonTab {
   paused?: boolean;
 }
 
-/** The mark on a tab's button: the stop square, filled once a press forces the session out, or the cross once there is only a tab to close (`tabButtonIcon`). */
-export type TabButtonMark = 'stop' | 'force' | 'close';
+/**
+ * The mark on a tab's button: the stop square, or the pause bars while a pause is on its way, each filled once a press forces the session out, or the cross once there is only a tab to close (`tabButtonIcon`).
+ * A force is named for what was asked, so a pause that has not landed still says it is a pause.
+ */
+export type TabButtonMark = 'stop' | 'pause' | 'force-stop' | 'force-pause' | 'close';
+
+/** The marks with a press, and so a label: the pause bars are only ever drawn unavailable, for a pause on its way that is not yet a force. */
+export type TabButtonPress = Exclude<TabButtonMark, 'pause'>;
+
+/** What a tab's button shows and does, and the words of the item in the session's menu that presses it. */
+export interface TabButton {
+  disabled: boolean;
+  tooltip: string;
+  mark: TabButtonMark;
+  label: string;
+}
 
 /**
- * What a tab's button shows, wherever it is drawn: on the tab, and on the live strip's row for its session.
+ * What a tab's button shows, wherever it is drawn: on the tab, and on the live strip's row for its session; and the session menu's item for it.
  *
  * Both ends of a session's life are a pause, for the same reason: neither a tab whose process has not arrived yet nor one whose process is still leaving can be acted on without the UI disagreeing with what is actually running.
  * Except that a session asked to leave may never go: claude can ask something on its way out and wait for the answer, and nothing it sends tells that from a claude that hangs.
- * So after a moment the pause becomes a FORCE, the stop mark filled, which ends it without asking; the moment is what keeps a double-click from forcing before the question is even on screen.
+ * So after a moment the pause becomes a FORCE, its mark filled, which ends it without asking; the moment is what keeps a double-click from forcing before the question is even on screen.
+ * While it leaves, the mark and the menu's item say what was asked, a pause or a stop, and the item is that force from the start, unavailable for the moment, since asking claude again could only land on what it is asking.
  * A cold tab has nothing to stop, so the button closes it.
  * ONE RULE RATHER THAN TWO, and it is here rather than in the renderer because the two surfaces did come to different conclusions about the same tab the day the strip grew its own copy.
  */
-export function tabButtonState(tab: TabButtonTab): { disabled: boolean; tooltip: string; mark: TabButtonMark } {
+export function tabButtonState(tab: TabButtonTab): TabButton {
   // Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving.
-  if (tab.starting) return { disabled: true, tooltip: 'Starting…', mark: 'stop' };
-  if (tab.stopping && tab.forceable) return { disabled: false, tooltip: `${tabButtonLabel('force')}: claude has not left yet — it may be asking you something`, mark: 'force' };
-  if (tab.stopping) return { disabled: true, tooltip: tab.paused ? 'Pausing…' : 'Stopping…', mark: 'stop' };
-  if (tab.terminalId === null) return { disabled: false, tooltip: tabButtonLabel('close'), mark: 'close' };
-  return { disabled: false, tooltip: tabButtonLabel('stop'), mark: 'stop' };
+  if (tab.starting) return { disabled: true, tooltip: 'Starting…', mark: 'stop', label: tabButtonLabel('stop') };
+  if (tab.stopping) {
+    const force = tab.paused ? 'force-pause' : 'force-stop';
+    const label = tabButtonLabel(force);
+    if (tab.forceable) return { disabled: false, tooltip: `${label}: claude has not left yet — it may be asking you something`, mark: force, label };
+    return { disabled: true, tooltip: tab.paused ? 'Pausing…' : 'Stopping…', mark: tab.paused ? 'pause' : 'stop', label };
+  }
+  if (tab.terminalId === null) return { disabled: false, tooltip: tabButtonLabel('close'), mark: 'close', label: tabButtonLabel('close') };
+  return { disabled: false, tooltip: tabButtonLabel('stop'), mark: 'stop', label: tabButtonLabel('stop') };
 }
 
-/** What a press on a tab's button does, in words, by its mark: the label of the item in the session's menu that presses it, and the button's tooltip while it can act (for a force, its first words). */
-export function tabButtonLabel(mark: TabButtonMark): string {
-  return { stop: 'Stop session', force: 'Force stop', close: 'Close tab' }[mark];
+/** What a press on a tab's button does, in words: the label of the item in the session's menu that presses it, and the button's tooltip while it can act (for a force, its first words). */
+export function tabButtonLabel(press: TabButtonPress): string {
+  return { stop: 'Stop session', 'force-stop': 'Force stop', 'force-pause': 'Force pause', close: 'Close tab' }[press];
 }
 
 /**
