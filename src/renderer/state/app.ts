@@ -156,6 +156,8 @@ export interface TabState {
   closing: boolean;
   /** A stop that has had its moment without the session going: its stop control now forces it out (`tabButtonState`). */
   forceable: boolean;
+  /** A stop that has gone on long enough to say so where it shows without a hover (`notLeftWords`), and in a toast. */
+  notLeft: boolean;
   /**
    * Paused: set aside by you to come back to (`pauseTab`), its claude asked to leave as a stop asks it, and kept for the next launch, which restores the tab paused and never starts it.
    * NOTHING IS SUSPENDED: the process is ended, not frozen, and resuming reloads the conversation, as resuming any cold tab does.

@@ -1,4 +1,4 @@
-import { scheduledText, type ClockShown } from './logic';
+import { clockText, type ClockShown } from './logic';
 import { CLOCK_ICON } from './svg';
 import { setTooltip } from './tooltip';
 
@@ -18,7 +18,7 @@ export function scheduledMark(className: string, pill = false): HTMLElement {
 
 /** Show the clock as `clockOf` says, naming each task in its tooltip, muted for a stopped tab's, or hide it for nothing; says whether it shows. */
 export function showScheduled(mark: HTMLElement, clock: ClockShown | null): boolean {
-  const text = clock ? scheduledText(clock.tasks, clock.stopped ? 'Scheduled when stopped:' : 'Scheduled:') : null;
+  const text = clockText(clock);
   mark.hidden = text === null;
   mark.classList.toggle('stopped', clock?.stopped === true);
   setTooltip(mark, text);

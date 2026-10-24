@@ -56,3 +56,8 @@
   color: var(--muted);
   font-size: var(--text-small);
 }
+
+.notif-detail {
+  font-size: var(--text-small);
+  white-space: pre-line;
+}

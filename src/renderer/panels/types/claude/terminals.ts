@@ -235,7 +235,7 @@ function buildTab(session: SessionSummary, paused = false, scheduledWhenStopped:
   });
 
   store.set({
-    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, closing: false, forceable: false, paused, scheduledWhenStopped, failure: null, startFailed: false }],
+    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, closing: false, forceable: false, notLeft: false, paused, scheduledWhenStopped, failure: null, startFailed: false }],
   });
   return token;
 }
@@ -432,11 +432,17 @@ function removeTab(token: string): void {
  */
 const FORCE_AFTER_MS = 1000;
 
-/** The pending switch of each stopping tab's control to a force, so a stop that ends or is called off takes its timer with it. */
-const stopTimers = new Map<string, ReturnType<typeof setTimeout>>();
+/**
+ * How long a stop goes before it says, where it shows without a hover, that claude has not left (`notLeftWords`, and a toast).
+ * Past most exits, so an ordinary one says nothing: of the 49 exits after an ask the app's logs held to 2026-10-23, half had gone by 1.43 s, 95 % by 2.98 s, and the slowest took 6.6 s.
+ */
+const NOT_LEFT_AFTER_MS = 3000;
+
+/** Each stopping tab's pending steps, its control becoming a force and its saying claude has not left, so a stop that ends, is called off or is forced takes them with it. */
+const stopTimers = new Map<string, ReturnType<typeof setTimeout>[]>();
 
 function clearStopTimers(token: string): void {
-  clearTimeout(stopTimers.get(token));
+  for (const timer of stopTimers.get(token) ?? []) clearTimeout(timer);
   stopTimers.delete(token);
 }
 
@@ -453,19 +459,18 @@ function askToLeave(token: string, terminalId: number, closing: boolean): void {
   const tab = tabOf(token);
   if (!tab) return;
   // At once, so the button shows the pause for as long as the exit takes rather than after it — on both buttons, the tab's and the strip's, which follow the same flag.
-  setTab(token, { stopping: true, closing, forceable: false });
+  setTab(token, { stopping: true, closing, forceable: false, notLeft: false });
   const { statuses, scheduledTasks } = store.get();
   const status = statuses.get(tab.session.id);
   window.claudeUi.closeTerminal(terminalId, status === 'busy' || status === 'waiting' || scheduledTasks.has(tab.session.id));
   clearStopTimers(token);
-  stopTimers.set(
-    token,
+  // Each step only for the ask it was set for, still under way.
+  const step = (patch: Partial<TabState>, after: number): ReturnType<typeof setTimeout> =>
     setTimeout(() => {
-      stopTimers.delete(token);
       const now = tabOf(token);
-      if (now?.stopping && now.terminalId === terminalId) setTab(token, { forceable: true });
-    }, FORCE_AFTER_MS),
-  );
+      if (now?.stopping && now.terminalId === terminalId) setTab(token, patch);
+    }, after);
+  stopTimers.set(token, [step({ forceable: true }, FORCE_AFTER_MS), step({ notLeft: true }, NOT_LEFT_AFTER_MS)]);
 }
 
 /**
@@ -476,7 +481,9 @@ function askToLeave(token: string, terminalId: number, closing: boolean): void {
 function forceStop(token: string): void {
   const tab = tabOf(token);
   if (!tab?.forceable || tab.terminalId === null) return;
-  setTab(token, { forceable: false });
+  // Nothing is asked any more, so nothing is said of it either.
+  clearStopTimers(token);
+  setTab(token, { forceable: false, notLeft: false });
   window.claudeUi.killTerminal(tab.terminalId);
 }
 
@@ -488,7 +495,7 @@ function forceOutAtOnce(token: string): void {
   if (tabOf(token)?.terminalId == null) return;
   clearStopTimers(token);
   // A stop already past its ask, so the force is the one every stop ends in.
-  setTab(token, { stopping: true, closing: false, forceable: true });
+  setTab(token, { stopping: true, closing: false, forceable: true, notLeft: false });
   forceStop(token);
 }
 
@@ -518,7 +525,7 @@ export function stopCalledOff(token: string): void {
   if (!tab?.stopping) return;
   clearStopTimers(token);
   // A pause waiting for claude to leave is called off with it: the session is being worked in.
-  setTab(token, { stopping: false, closing: false, forceable: false, paused: false });
+  setTab(token, { stopping: false, closing: false, forceable: false, notLeft: false, paused: false });
   if (tab.paused) persistOpenTabs();
 }
 
@@ -592,7 +599,7 @@ function coolTab(token: string): void {
   // One change, which also drops it from the live strip now rather than when its SessionEnd lands.
   store.batch(() => {
     // A stopped tab is not a slow one: the loader must not outlive the process.
-    setTab(token, { terminalId: null, stopping: false, closing: false, forceable: false, booting: false, scheduledWhenStopped });
+    setTab(token, { terminalId: null, stopping: false, closing: false, forceable: false, notLeft: false, booting: false, scheduledWhenStopped });
     // Stopping what you were looking at drops you to the empty screen rather than leaving a selected tab with nothing behind it; the panels lose their tab too, and fall back to the project.
     if (isOnShow(token)) store.set({ activeTab: null });
   });

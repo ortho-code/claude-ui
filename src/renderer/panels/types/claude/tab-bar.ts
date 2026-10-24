@@ -3,6 +3,7 @@ import { element, fromMarkup } from '../../../dom';
 import { drawFoldChevron, foldChevron, offerRowFold } from '../../../fold-chevron';
 import { Keyed, placeChildren } from '../../../keyed';
 import { asksForYou, clockOf, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, tabButtonState, unstartableReason, worktreeMarkState } from '../../../logic';
+import { notLeftMark, showNotLeft } from '../../../notleft';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
 import { showInStrip } from '../../../state/strip';
@@ -169,6 +170,7 @@ interface SessionTabEls {
   siblingMark: HTMLElement;
   worktreeMark: HTMLElement;
   clock: HTMLElement;
+  notLeft: HTMLElement;
 }
 
 /**
@@ -269,12 +271,12 @@ function buildSessionTab(token: string): SessionTabEls {
   siblingMark.innerHTML = SIBLING_ICON;
   const worktreeMark = document.createElement('span');
   worktreeMark.innerHTML = WORKTREE_ICON;
-  return { tab, dot, markGroup, siblingMark, worktreeMark, clock: scheduledMark('tab-scheduled') };
+  return { tab, dot, markGroup, siblingMark, worktreeMark, clock: scheduledMark('tab-scheduled'), notLeft: notLeftMark('tab-not-left') };
 }
 
 /** Draw a session's tab as it is now: its state, its dot, its marks, its name, and its button's step. */
 function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'projectNames' | 'tabs' | 'activeTab'>): HTMLElement {
-  const { tab: els, dot, markGroup, siblingMark, worktreeMark, clock } = tabEls.draw(tab.token, buildSessionTab);
+  const { tab: els, dot, markGroup, siblingMark, worktreeMark, clock, notLeft } = tabEls.draw(tab.token, buildSessionTab);
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
   const unstartable = unstartableReason(tab.session);
 
@@ -308,6 +310,8 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
     button: tabButtonState(tab),
     // The mark cluster is placed only when there ARE marks — an empty wrapper would still consume a gap and shift the label.
     lead: marks.length > 0 ? [dot, markGroup] : [dot],
+    // A stop claude has not left, as its row and its strip row say it (notleft.ts).
+    trail: showNotLeft(notLeft, tab) ? [notLeft] : [],
   });
   els.el.dataset.sid = tab.session.id; // used by the Sortable onEnd to find the moved tab
   return els.el;

@@ -9,6 +9,8 @@ import {
   tabButtonLabel,
   scheduledText,
   clockOf,
+  clockText,
+  notLeftWords,
   sessionsByKey,
   structuralSignature,
   sameRow,
@@ -915,6 +917,33 @@ describe('clockOf', () => {
   it('shows nothing for neither', () => {
     expect(clockOf(undefined, { scheduledWhenStopped: null })).toBe(null);
     expect(clockOf(undefined, undefined)).toBe(null);
+  });
+});
+
+describe('clockText', () => {
+  const tock = [{ prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' }];
+
+  it('says the tasks under the heading for live ones, or for the ones a stopped tab kept', () => {
+    expect(clockText({ tasks: tock, stopped: false })).toBe('Scheduled:\nsay the word tock · Every 10 minutes · comes back when you open the session');
+    expect(clockText({ tasks: tock, stopped: true })).toBe('Scheduled when stopped:\nsay the word tock · Every 10 minutes · comes back when you open the session');
+  });
+
+  it('says nothing for no clock', () => {
+    expect(clockText(null)).toBe(null);
+  });
+});
+
+describe('notLeftWords', () => {
+  const LIVE = 3;
+
+  it('says a stop has not left once it has gone on long enough', () => {
+    expect(notLeftWords({ terminalId: LIVE, stopping: true, forceable: true, notLeft: true })).toBe("hasn't left");
+  });
+
+  it('says nothing before then, or for a tab not stopping', () => {
+    expect(notLeftWords({ terminalId: LIVE, stopping: true, forceable: true })).toBe(null);
+    expect(notLeftWords({ terminalId: LIVE, notLeft: true })).toBe(null);
+    expect(notLeftWords({ terminalId: null })).toBe(null);
   });
 });
 

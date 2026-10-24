@@ -1,4 +1,4 @@
-import { sessionLabel } from '../../../logic';
+import { clockOf, clockText, notLeftWords, sessionLabel } from '../../../logic';
 import { showAttentionToast } from '../../../notifications';
 import type { View } from '../../../state/app';
 import { projName, tabWith } from '../../../state/views';
@@ -6,8 +6,8 @@ import { jumpToSession } from './asks';
 import { tabOf } from './terminals';
 
 /**
- * The terminal area's attention toasts: a tab not on show that turns waiting or finished says so in a toast (drawn by notifications.ts), and a click on it goes to that tab.
- * A watcher of the statuses (`toastAttention`), which the terminal area registers (watch.ts).
+ * The terminal area's attention toasts: a tab not on show that turns waiting or finished says so in a toast (drawn by notifications.ts), and so does one whose claude has not left a stop, and a click on it goes to that tab.
+ * Watchers of the statuses (`toastAttention`) and of the tabs (`toastNotLeft`), which the terminal area registers (watch.ts).
  */
 
 /**
@@ -23,6 +23,29 @@ export function toastAttention(view: View<'statuses' | 'tabs' | 'activeTab' | 'p
     if (!tab || tab.token === view.activeTab) continue;
     const { token } = tab;
     showAttentionToast({ status, label: sessionLabel(tab.session), project: projName(tab.session.repoRoot, view), open: () => jumpToTab(token) });
+  }
+}
+
+/** The toast up for each tab whose claude has not left a stop, by its token, as the function that takes it down. */
+const notLeftToasts = new Map<string, () => void>();
+
+/**
+ * A stop claude has not left a while after the ask (`notLeftWords`) on a tab not on show -> a toast that stays, saying so with what the session has scheduled, since claude may be asking about it, out of sight.
+ * Not raised for the tab on show, whose question is on screen, until another tab comes on show, and one up already stays when its tab comes on show; once only per stop, so a toast dismissed stays dismissed; taken down when the stop ends, however it ends.
+ */
+export function toastNotLeft(view: View<'tabs' | 'activeTab' | 'scheduledTasks' | 'projectNames'>): void {
+  for (const [token, takeDown] of notLeftToasts) {
+    const tab = view.tabs.find((t) => t.token === token);
+    if (tab && notLeftWords(tab)) continue;
+    takeDown();
+    notLeftToasts.delete(token);
+  }
+  for (const tab of view.tabs) {
+    if (!notLeftWords(tab) || tab.token === view.activeTab || notLeftToasts.has(tab.token)) continue;
+    const { token } = tab;
+    const tasks = clockText(clockOf(view.scheduledTasks.get(tab.session.id), tab));
+    const detail = ["Claude hasn't left — it may be asking you something", ...(tasks ? [tasks] : [])].join('\n');
+    notLeftToasts.set(token, showAttentionToast({ status: 'waiting', label: sessionLabel(tab.session), project: projName(tab.session.repoRoot, view), detail, open: () => jumpToTab(token) }, true));
   }
 }
 

@@ -5,6 +5,7 @@ import { setMarkup } from '../../../keyed';
 import { clockOf, entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import { kebabButton } from '../../../menu';
 import { showMoment, type Moment } from '../../../moments';
+import { notLeftMark, showNotLeft } from '../../../notleft';
 import { prMark } from '../../../prstatus';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { store, type View } from '../../../state/app';
@@ -17,7 +18,7 @@ import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
 import { activityMoment, archivedMoment } from './describe';
-import { currentByKey, rowClocks, sessionRows, statusDots } from './drawn';
+import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
 import '../../../tone.css';
 import '../../../prstatus.css';
 import './rows.css';
@@ -41,6 +42,7 @@ interface RowEls {
   title: HTMLElement;
   badge: HTMLElement;
   clock: HTMLElement;
+  notLeft: HTMLElement;
   siblingsBadge: HTMLElement;
   siblingCount: HTMLElement;
   prBadge: HTMLElement;
@@ -133,7 +135,9 @@ function createSessionRow(key: string): HTMLElement {
   noteSep.className = 'meta-sep';
   noteSep.textContent = '·';
   noteSep.hidden = true;
-  meta.append(metaText, noteSep, noteBadge);
+  // A stop claude has not left, as its tab and its strip row say it (notleft.ts), in place of the time and model while it does.
+  const notLeft = notLeftMark('meta-not-left');
+  meta.append(notLeft, metaText, noteSep, noteBadge);
 
   const subline = document.createElement('div');
   subline.className = 'session-subline';
@@ -186,7 +190,7 @@ function createSessionRow(key: string): HTMLElement {
 
   item.prepend(dot);
   item.append(pin, unarchiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, clock, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, clock, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (store.get().filter.filters.archived) return;
@@ -224,6 +228,13 @@ function newest(session: SessionSummary): SessionSummary {
 /** What a row draws from the store besides the session it shows. */
 export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' |'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs' | 'prStatus'>;
 
+/** Show what a row has from the tab running its session: its clock (`clockOf`), and the words for a stop claude has not left (notleft.ts), in place of its time and model while they show. */
+export function showTabMarks(marks: RowTabMarks, id: string, view: View<'scheduledTasks' | 'tabs'>): void {
+  const tab = tabWith(id, view);
+  showScheduled(marks.clock, clockOf(view.scheduledTasks.get(id), tab));
+  marks.metaText.hidden = showNotLeft(marks.notLeft, tab);
+}
+
 export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView): void {
   row.dataset.sid = session.id;
   const els = rowEls.get(row)!;
@@ -246,8 +257,8 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
     els.badge.setAttribute('aria-label', worktree.tooltip);
   }
 
-  showScheduled(els.clock, clockOf(view.scheduledTasks.get(session.id), tabWith(session.id, view)));
-  rowClocks.set(session.id, els.clock);
+  showTabMarks(els, session.id, view);
+  rowTabMarks.set(session.id, els);
 
   const note = view.notes.get(entityKey(session));
   els.noteBadge.hidden = !note;

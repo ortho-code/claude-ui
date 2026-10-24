@@ -89,6 +89,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Hovering a session's time in the session list shows the date and time in full, as a request's time in the history already did.
 - A clock beside a running session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own, on its tab, its row and its row in the live strip; hovering it names each task, a cron's schedule, and whether it ends with the session or comes back when you open it again.
 - A tab you paused or stopped, or that was still running when the app quit, keeps its clock, muted, for the crons that come back when you open the session, also after a restart, until the session runs again and reports its own; a session that had only `/loop` wakeups keeps none.
+- A stop, pause or close claude has not left three seconds after the ask says "hasn't left" beside the session's name on its tab, its row and its row in the live strip, and, when its tab is not on show, in a toast that stays until claude leaves and names what the session has scheduled; clicking the toast brings the tab on show, where claude may be asking you something.
 
 ### Changed
 

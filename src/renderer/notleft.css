@@ -1,0 +1,7 @@
+/* In the colour of a session waiting for you, since claude may be asking something; never wrapped or squeezed, where the name beside it gives way. */
+.not-left {
+  color: var(--waiting);
+  font-size: var(--text-small);
+  white-space: nowrap;
+  flex: none;
+}

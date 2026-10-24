@@ -3,6 +3,7 @@ import { byId, fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
 import { asksForYou, clockOf, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButtonState, type NudgeStatus, type SwitcherModel, type TabButtonMark } from '../../../logic';
 import { kebabButton, openMenu } from '../../../menu';
+import { notLeftMark, showNotLeft } from '../../../notleft';
 import { markProjectGone } from '../../../projectgone';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { store, type View } from '../../../state/app';
@@ -71,6 +72,7 @@ interface StripRow {
   dot: HTMLElement;
   name: HTMLElement;
   clock: HTMLElement;
+  notLeft: HTMLElement;
   chip: HTMLElement;
   stop: HTMLButtonElement;
 }
@@ -138,7 +140,9 @@ function buildRow(id: string): StripRow {
   chip.className = 'strip-item-group';
   // A task claude has scheduled for the session, as its tab and its row in the list show it (scheduledmark.ts), beside the name it is about.
   const clock = scheduledMark('strip-item-scheduled');
-  jump.append(dot, name, clock, chip);
+  // A stop claude has not left, as its tab and its row in the list say it (notleft.ts).
+  const notLeft = notLeftMark('strip-item-not-left');
+  jump.append(dot, name, notLeft, clock, chip);
   jump.addEventListener('click', () => hostOf('sessions').openSession(id));
   // The tab's own button, on the strip's row for it.
   // WHY IT BELONGS HERE: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab.
@@ -161,16 +165,17 @@ function buildRow(id: string): StripRow {
     hostOf('sessions').pressTabButton(id, stop.dataset.mark as TabButtonMark);
   });
   row.append(jump, kebab, stop);
-  return { row, jump, dot, name, clock, chip, stop };
+  return { row, jump, dot, name, clock, notLeft, chip, stop };
 }
 
 /** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its tab's button in the tab's state. */
 function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'tabs'>): void {
-  const { row, jump, dot, name, clock, chip, stop } = parts;
+  const { row, jump, dot, name, clock, notLeft, chip, stop } = parts;
   applyStatus(dot, session.id, view);
   name.textContent = sessionLabel(session);
   const tab = tabWith(session.id, view);
   showScheduled(clock, clockOf(view.scheduledTasks.get(session.id), tab));
+  showNotLeft(notLeft, tab);
   chip.textContent = groupName ?? '';
   chip.hidden = groupName === undefined;
   setTooltip(jump, sessionLabel(session));

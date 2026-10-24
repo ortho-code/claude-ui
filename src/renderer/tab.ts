@@ -76,6 +76,8 @@ export interface TabLook {
   button: { mark: TabButtonMark; tooltip: string; disabled: boolean };
   /** What leads the label, such as a status dot, in order. */
   lead: readonly HTMLElement[];
+  /** What follows the label, before its menu and its button, in order. */
+  trail?: readonly HTMLElement[];
 }
 
 /** What a drag of tabs tells the surface that owns the row it started in. */
@@ -148,5 +150,5 @@ export function drawTab({ el, label, kebab, button }: TabEls, look: TabLook): vo
   setMarkup(button, tabButtonIcon(look.button.mark, 14));
   // What it was drawn as, as the strip's button says it, so the two can be told by more than their ink.
   button.dataset.mark = look.button.mark;
-  placeChildren(el, [...look.lead, label, kebab, button]);
+  placeChildren(el, [...look.lead, label, ...(look.trail ?? []), kebab, button]);
 }

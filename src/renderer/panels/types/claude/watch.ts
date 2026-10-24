@@ -3,7 +3,7 @@ import { store } from '../../../state/app';
 import { tabOnShow } from '../../../state/views';
 import { showToast } from '../../../toast';
 import { jumpToSession } from './asks';
-import { toastAttention } from './attention';
+import { toastAttention, toastNotLeft } from './attention';
 import { railStatusFollowsTabs } from './index';
 import { history, paneFollows } from './pane';
 import { renderTabBar, tabBarFollowsStatuses } from './tab-bar';
@@ -30,6 +30,8 @@ export const claudeWatch = {
   repaints(): void {
     // A tab not on show turned waiting or finished: a toast says so.
     store.watch(['statuses'], toastAttention, { reads: ['tabs', 'activeTab', 'projectNames'] });
+    // And one whose claude has not left a stop, until it has or the stop is off.
+    store.watch(['tabs', 'activeTab'], toastNotLeft, { reads: ['scheduledTasks', 'projectNames'] });
     // The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes, every change to a tab or to which one is on show, and its fold.
     // A task claude scheduled for a tab's session, or one gone, draws its clock: it changes at most once a turn.
     store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'scheduledTasks'], renderTabBar, { reads: ['sessions', 'statuses', 'backgroundTasks', 'acked', 'archived'] });

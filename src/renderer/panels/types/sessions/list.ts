@@ -1,19 +1,18 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { placeChildren } from '../../../keyed';
-import { structuralSignature, buildProjectTree, clockOf, entityKey, type ProjectTree, groupJumpTargets, projectGoneReason } from '../../../logic';
+import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, groupJumpTargets, projectGoneReason } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
-import { showScheduled } from '../../../scheduledmark';
 import { store, type TabState, type View } from '../../../state/app';
 import { archivedOnlyProjects, isFiltering, projName, searchText, statusChanges, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
-import { container, currentByKey, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, rowClocks, sessionRows, statusDots } from './drawn';
+import { container, currentByKey, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, rowTabMarks, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
 import { createGroupSection, createProjectSection } from './headings';
 import { syncStickyOffset } from './reveal';
-import { drawRow, updateRow, type RowView } from './rows';
+import { drawRow, showTabMarks, updateRow, type RowView } from './rows';
 import './list.css';
 
 /**
@@ -57,8 +56,8 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
     updateSidebarHighlight(view);
     // A tab that came to rest paused, or stopped resting so, or whose claude was asked to leave, changes what its session's dot shows (`dotStatus`).
     repaintDots(tabDotChanges({ tabs: before }, view), view);
-    // And one whose claude went, or reported again, what its clock shows (`clockOf`).
-    for (const [id, clock] of rowClocks) showScheduled(clock, clockOf(view.scheduledTasks.get(id), tabWith(id, view)));
+    // And one whose claude went, or reported again, what its clock shows (`clockOf`); and one whose stop has gone on, whether it says claude has not left.
+    for (const [id, marks] of rowTabMarks) showTabMarks(marks, id, view);
   }
 }
 
@@ -112,7 +111,7 @@ function listChanged(view: ListView, before: View<'filter' | 'activeProject'>): 
 function renderList(view: ListView): void {
   const scroll = container.scrollTop;
   statusDots.clear();
-  rowClocks.clear();
+  rowTabMarks.clear();
 
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions(view);
@@ -167,7 +166,7 @@ function clearList(): void {
   projectSections.clear();
   groupSections.clear();
   statusDots.clear();
-  rowClocks.clear();
+  rowTabMarks.clear();
 }
 
 // Bring the project sections in line with `desired`: draw each section, group and row, place them in order, and sweep away what is no longer drawn.

@@ -162,6 +162,11 @@ export function clockOf(live: readonly ScheduledTask[] | undefined, tab: { sched
   return null;
 }
 
+/** What a clock says, wherever it is said: its tasks under the heading for live ones or for the ones a stopped tab kept (`scheduledText`); null for no clock. */
+export function clockText(clock: ClockShown | null): string | null {
+  return clock ? scheduledText(clock.tasks, clock.stopped ? 'Scheduled when stopped:' : 'Scheduled:') : null;
+}
+
 /**
  * Whether a project's folder is still there, answered from the sessions filed under it.
  * Every one of them shares the project's repoRoot, so any of them can answer; `some` rather than `every`, so one stale summary cannot condemn a folder that is there.
@@ -713,6 +718,8 @@ export interface TabButtonTab {
   stopping?: boolean;
   /** It has been on its way out long enough that the control now forces it. */
   forceable?: boolean;
+  /** It has been on its way out long enough to say so where it shows without a hover (`notLeftWords`). */
+  notLeft?: boolean;
   /** Set aside: on its way out, that is a pause rather than a stop. */
   paused?: boolean;
 }
@@ -755,6 +762,14 @@ export function tabButtonState(tab: TabButtonTab): TabButton {
   }
   if (tab.terminalId === null) return { disabled: false, tooltip: tabButtonLabel('close'), mark: 'close', label: tabButtonLabel('close') };
   return { disabled: false, tooltip: tabButtonLabel('stop'), mark: 'stop', label: tabButtonLabel('stop') };
+}
+
+/**
+ * The words beside a session's name, on its tab, its list row and its strip row, for a stop claude has not answered by leaving a while after the ask; null otherwise.
+ * The button's own words say the same, but only on a hover, and the question claude may be asking is out of sight on a tab not on show.
+ */
+export function notLeftWords(tab: TabButtonTab): string | null {
+  return tab.stopping && tab.notLeft ? "hasn't left" : null;
 }
 
 /** What a press on a tab's button does, in words: the label of the item in the session's menu that presses it, and the button's tooltip while it can act (for a force, its first words). */
