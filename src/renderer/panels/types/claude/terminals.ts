@@ -409,7 +409,7 @@ new ResizeObserver(() => fitActive()).observe(terminalsEl);
 function removeTab(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
-  clearForceTimer(token);
+  clearStopTimers(token);
   // Its session's status goes with it, unless another tab holds the session, whose status it is then (`adoptResumed`).
   if (!store.get().tabs.some((t) => t.token !== token && t.session.id === tab.session.id)) clearNudge(tab.session.id);
   const terminal = terminalOf(token);
@@ -433,11 +433,11 @@ function removeTab(token: string): void {
 const FORCE_AFTER_MS = 1000;
 
 /** The pending switch of each stopping tab's control to a force, so a stop that ends or is called off takes its timer with it. */
-const forceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const stopTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-function clearForceTimer(token: string): void {
-  clearTimeout(forceTimers.get(token));
-  forceTimers.delete(token);
+function clearStopTimers(token: string): void {
+  clearTimeout(stopTimers.get(token));
+  stopTimers.delete(token);
 }
 
 /**
@@ -457,11 +457,11 @@ function askToLeave(token: string, terminalId: number, closing: boolean): void {
   const { statuses, scheduledTasks } = store.get();
   const status = statuses.get(tab.session.id);
   window.claudeUi.closeTerminal(terminalId, status === 'busy' || status === 'waiting' || scheduledTasks.has(tab.session.id));
-  clearForceTimer(token);
-  forceTimers.set(
+  clearStopTimers(token);
+  stopTimers.set(
     token,
     setTimeout(() => {
-      forceTimers.delete(token);
+      stopTimers.delete(token);
       const now = tabOf(token);
       if (now?.stopping && now.terminalId === terminalId) setTab(token, { forceable: true });
     }, FORCE_AFTER_MS),
@@ -486,7 +486,7 @@ function forceStop(token: string): void {
  */
 function forceOutAtOnce(token: string): void {
   if (tabOf(token)?.terminalId == null) return;
-  clearForceTimer(token);
+  clearStopTimers(token);
   // A stop already past its ask, so the force is the one every stop ends in.
   setTab(token, { stopping: true, closing: false, forceable: true });
   forceStop(token);
@@ -516,7 +516,7 @@ export function stopSession(token: string): void {
 export function stopCalledOff(token: string): void {
   const tab = tabOf(token);
   if (!tab?.stopping) return;
-  clearForceTimer(token);
+  clearStopTimers(token);
   // A pause waiting for claude to leave is called off with it: the session is being worked in.
   setTab(token, { stopping: false, closing: false, forceable: false, paused: false });
   if (tab.paused) persistOpenTabs();
@@ -728,7 +728,7 @@ const FAILED_START_LINES = 5;
 function onTabExit(token: string, exitCode: number): void {
   const tab = tabOf(token);
   if (!tab) return; // Already closed by the user.
-  clearForceTimer(token);
+  clearStopTimers(token);
   // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed — or, for a close, remove it now that claude has gone.
   // Every other exit keeps today's behaviour below.
   if (tab.stopping) {
