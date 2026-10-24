@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import { statusDir, hookScriptPath, statusSettingsFile, shellQuote } from './paths';
 import { errorText, fsFailure, log } from './log';
 import { writeFileAtomic } from './atomic';
+import { scheduledTasksOf } from '../shared/scheduled';
 import type { ScheduledTask } from '../shared/types';
 
 const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
@@ -391,10 +392,7 @@ export async function readScheduled(id: string): Promise<ScheduledTask[] | null>
   } catch {
     return null;
   }
-  if (!Array.isArray(stop.session_crons)) return [];
-  return (stop.session_crons as ({ prompt?: unknown; recurring?: unknown } | null)[]).flatMap((cron) =>
-    typeof cron?.prompt === 'string' ? [{ prompt: cron.prompt, recurring: cron.recurring === true }] : [],
-  );
+  return scheduledTasksOf(stop.session_crons);
 }
 
 async function mtimeOf(file: string): Promise<number | null> {
