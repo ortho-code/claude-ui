@@ -3,7 +3,7 @@ import type { FolderName } from '../../../src/shared/folders';
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/pathcheck';
 import type { SettingsFileRead } from '../../../src/shared/settings';
-import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, PrStatus, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
+import type { ClaudeUiApi, Exchange, GroupState, HistoryPin, PrStatus, ScheduledTask, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -17,6 +17,8 @@ export interface BridgeFixture {
   openSessions: string[];
   runningSessions: string[];
   pausedSessions: string[];
+  /** Open session -> the tasks claude had scheduled for it when its claude went, as the open tabs were last written. */
+  scheduledWhenStopped: Record<string, ScheduledTask[]>;
   activeSession: string | null;
   activeSessionByProject: Record<string, string>;
   activeProject: string | null;
@@ -132,6 +134,7 @@ export function defaultFixture(): BridgeFixture {
     openSessions: [],
     runningSessions: [],
     pausedSessions: [],
+    scheduledWhenStopped: {},
     activeSession: null,
     activeSessionByProject: {},
     activeProject: one.repoRoot,

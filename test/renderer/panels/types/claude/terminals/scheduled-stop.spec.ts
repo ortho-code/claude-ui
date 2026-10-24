@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import type { ScheduledTask } from '../../../../../../src/shared/types';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, stripRow, tab } from '../../../../support/window';
@@ -9,10 +10,10 @@ const one = session();
 const fixture = { sessions: [one], history: { [one.id]: [] } };
 // The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the first claude is 1.
 const FIRST = 1;
-const tock = { prompt: 'say the word tock', recurring: true };
+const tock = { prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' };
 
 /** Start the session from its row, let its claude print, and give it these tasks, as its last Stop would. */
-async function start(page: Page, app: App, tasks: { prompt: string; recurring: boolean }[]): Promise<void> {
+async function start(page: Page, app: App, tasks: ScheduledTask[]): Promise<void> {
   await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   expect(await app.emit('onTerminalData', FIRST, 'claude is here')).toBe(1);

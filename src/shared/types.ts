@@ -4,6 +4,11 @@ export interface ScheduledTask {
   prompt: string;
   /** Whether it fires again after it has run; never for a `/loop` wakeup, each of which is one-shot. */
   recurring: boolean;
+  /**
+   * For a cron (`CronCreate`, which `/loop 10m` used too in the runs measured), its schedule in claude's own words, such as "Every 10 minutes", from the result of the call that made it in the session's transcript; null for anything else, which is a `/loop` wakeup.
+   * The `Stop` list cannot tell the two apart, and a stop does not end them alike: a cron comes back when the session is resumed, a wakeup did not.
+   */
+  cron: string | null;
 }
 
 export interface SessionSummary {
@@ -400,6 +405,10 @@ export interface ClaudeUiApi {
   getRunningSessions(): Promise<string[]>;
   /** The open sessions you paused, as the open tabs were last written. */
   getPausedSessions(): Promise<string[]>;
+  /** Open session -> the crons claude had scheduled for it when its claude went, as the open tabs were last written. */
+  getScheduledWhenStopped(): Promise<Record<string, ScheduledTask[]>>;
+  /** The crons the open tabs whose claude went had scheduled, by session, written beside the open tabs (`setOpenSessions`); a session not open is dropped. */
+  setScheduledWhenStopped(bySession: Record<string, ScheduledTask[]>): void;
   /** Which open session to reopen on; null means open on no tab. */
   getActiveSession(): Promise<string | null>;
   /** repoRoot -> the session last looked at there, so switching projects returns you where you were. */

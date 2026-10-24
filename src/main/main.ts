@@ -29,6 +29,8 @@ import {
   getOpenSessions,
   getRunningSessions,
   getPausedSessions,
+  getScheduledWhenStopped,
+  setScheduledWhenStopped,
   setOpenSessions,
   getActiveSession,
   getActiveSessionByProject,
@@ -484,6 +486,10 @@ ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: strin
 });
 ipcMain.handle('meta:getRunningSessions', () => getRunningSessions());
 ipcMain.handle('meta:getPausedSessions', () => getPausedSessions());
+ipcMain.handle('meta:getScheduledWhenStopped', () => getScheduledWhenStopped());
+ipcMain.on('meta:setScheduledWhenStopped', (_event, bySession: Record<string, unknown>) => {
+  void setScheduledWhenStopped(bySession);
+});
 ipcMain.on('meta:setOpenSessions', (_event, ids: string[], running: string[], paused: string[]) => {
   void setOpenSessions(ids, running, paused);
 });

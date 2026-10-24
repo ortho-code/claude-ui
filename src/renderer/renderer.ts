@@ -78,8 +78,11 @@ window.claudeUi.onSessionStatus((id, status, tabToken, event, background) => {
 // A claude starting on a session: a tab whose claude went on in another, by `/clear` or its own `/resume`, takes that one over.
 window.claudeUi.onSessionStart((id, tabToken, source) => claudeWatch.sessionStart(id, tabToken, source));
 
-// What a session's last Stop left scheduled, for its clock.
-window.claudeUi.onSessionScheduled((id, tasks) => setScheduled(id, tasks));
+// What a session's last Stop left scheduled, for its clock; the terminal area's part first, as for a status.
+window.claudeUi.onSessionScheduled((id, tasks) => {
+  claudeWatch.sessionScheduled(id);
+  setScheduled(id, tasks);
+});
 
 window.claudeUi.onSessionModel((id, model) => {
   store.set({ switchedModel: withEntry(store.get().switchedModel, id, model) });

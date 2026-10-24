@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
-import { asksForYou, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButtonState, type NudgeStatus, type SwitcherModel, type TabButtonMark } from '../../../logic';
+import { asksForYou, clockOf, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButtonState, type NudgeStatus, type SwitcherModel, type TabButtonMark } from '../../../logic';
 import { kebabButton, openMenu } from '../../../menu';
 import { markProjectGone } from '../../../projectgone';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
@@ -169,7 +169,8 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   const { row, jump, dot, name, clock, chip, stop } = parts;
   applyStatus(dot, session.id, view);
   name.textContent = sessionLabel(session);
-  showScheduled(clock, view.scheduledTasks.get(session.id));
+  const tab = tabWith(session.id, view);
+  showScheduled(clock, clockOf(view.scheduledTasks.get(session.id), tab));
   chip.textContent = groupName ?? '';
   chip.hidden = groupName === undefined;
   setTooltip(jump, sessionLabel(session));
@@ -177,7 +178,6 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   row.classList.toggle('active', onShow);
   if (onShow) jump.setAttribute('aria-current', 'true');
   else jump.removeAttribute('aria-current');
-  const tab = tabWith(session.id, view);
   // No tab at all should not happen — membership is a tab's process or its pause — so it is inert rather than guessed at, saying only what is so.
   const { disabled, tooltip, mark } = tab ? tabButtonState(tab) : { disabled: true, tooltip: 'No tab to act on', mark: 'stop' as const };
   setMarkup(stop, tabButtonIcon(mark, 14));

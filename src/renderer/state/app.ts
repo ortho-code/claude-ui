@@ -164,6 +164,11 @@ export interface TabState {
    */
   paused: boolean;
   /**
+   * The crons claude had scheduled for the session when this tab's claude went (`scheduledTasks`), which come back when it is opened again, and which its clock goes on showing, muted (`clockOf`), since claude's own word on them can be missed; null when there was none.
+   * Kept for the next launch beside the open tabs, and through a start of its claude until that claude reports what it has itself (`scheduledReported`).
+   */
+  scheduledWhenStopped: readonly ScheduledTask[] | null;
+  /**
    * Why the last attempt to start this tab was refused, shown in place of the pane until it is tried again.
    * A refusal is not an exit: the tab never had a process, so nothing arrives on the terminal to explain itself.
    */

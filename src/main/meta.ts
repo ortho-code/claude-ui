@@ -2,7 +2,8 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { OrderMove, GroupState, HistoryPin, SessionGroup, UiState, Settings } from '../shared/types';
+import type { OrderMove, GroupState, HistoryPin, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
+import { scheduledTasksOf } from '../shared/scheduled';
 import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
@@ -40,6 +41,11 @@ interface Meta {
    * Written with the open tabs, as `runningSessions` is.
    */
   pausedSessions: string[];
+  /**
+   * Open session -> the crons claude had scheduled for it when its claude went, which come back when it is opened again, so its paused or stopped tab still says so at the next launch.
+   * Written beside the open tabs, in a write of its own (`setScheduledWhenStopped`); a session that is not open is dropped.
+   */
+  scheduledWhenStopped: Record<string, ScheduledTask[]>;
   /**
    * Which open session was last looked at, so a restart lands you where you left off.
    * Without it the app opened on whichever tab happened to be LAST in openSessions — harmless while every tab was started at launch, but tabs are restored COLD now, and landing on an arbitrary cold one is worse than landing on none.
@@ -118,6 +124,7 @@ const KNOWN_KEYS = new Set([
   'openSessions',
   'runningSessions',
   'pausedSessions',
+  'scheduledWhenStopped',
   'activeSession',
   'activeSessionByProject',
   'archived',
@@ -142,7 +149,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], pausedSessions: [], activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], pausedSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -301,6 +308,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     runningSessions: Array.isArray(parsed.runningSessions) ? (parsed.runningSessions as unknown[]).filter((id): id is string => typeof id === 'string') : [],
     // The same again: absent means nothing was paused.
     pausedSessions: Array.isArray(parsed.pausedSessions) ? (parsed.pausedSessions as unknown[]).filter((id): id is string => typeof id === 'string') : [],
+    // The same again: absent means no stopped tab had a cron scheduled.
+    scheduledWhenStopped: scheduledBySession(parsed.scheduledWhenStopped),
     // Same reasoning as projectOrder below: a new defaulted field is not a reinterpretation of what is stored, so no version bump.
     // Absent means "no memory yet" — open on nothing.
     activeSession: typeof parsed.activeSession === 'string' ? parsed.activeSession : null,
@@ -620,13 +629,36 @@ export function getPausedSessions(): Promise<string[]> {
   return serialize(async () => (await readMeta()).pausedSessions);
 }
 
+/** The crons the open tabs whose claude went had scheduled; see `scheduledWhenStopped`. */
+export function getScheduledWhenStopped(): Promise<Record<string, ScheduledTask[]>> {
+  return serialize(async () => (await readMeta()).scheduledWhenStopped);
+}
+
+/** Keep the crons the open tabs whose claude went had scheduled, each read as claude's own list is read (`scheduledTasksOf`), for the open sessions only. */
+export function setScheduledWhenStopped(bySession: Record<string, unknown>): Promise<void> {
+  return update('setScheduledWhenStopped', (meta) => {
+    meta.scheduledWhenStopped = Object.fromEntries(Object.entries(scheduledBySession(bySession)).filter(([id]) => meta.openSessions.includes(id)));
+  });
+}
+
+/** Session -> its tasks, from whatever was stored, a session with none left out. */
+function scheduledBySession(raw: unknown): Record<string, ScheduledTask[]> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>)
+      .map(([id, list]) => [id, scheduledTasksOf(list)] as const)
+      .filter(([, tasks]) => tasks.length > 0),
+  );
+}
+
 /** The open tabs, which of them run, and which you paused, in one write, so the three lists are never from different moments. */
 export function setOpenSessions(ids: string[], running: string[], paused: string[]): Promise<void> {
   return update('setOpenSessions', (meta) => {
     meta.openSessions = ids;
-    // Only an open tab runs anything, or is paused.
+    // Only an open tab runs anything, or is paused, or keeps what was scheduled when its claude went.
     meta.runningSessions = running.filter((id) => ids.includes(id));
     meta.pausedSessions = paused.filter((id) => ids.includes(id));
+    meta.scheduledWhenStopped = Object.fromEntries(Object.entries(meta.scheduledWhenStopped).filter(([id]) => ids.includes(id)));
     // A tab that is no longer open cannot be the one to reopen on — globally or for its project.
     if (meta.activeSession && !ids.includes(meta.activeSession)) meta.activeSession = null;
     meta.activeSessionByProject = Object.fromEntries(

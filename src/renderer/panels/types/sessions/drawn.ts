@@ -14,6 +14,8 @@ export const container = fromMarkup(`<div id="sessions" aria-live="polite"></div
 
 // Status dots by tip session id; rebuilt each render (a status event names a session id).
 export const statusDots = new Map<string, HTMLElement>();
+// The rows' clocks the same way, which a tab's change can mute or take off without the list drawing again (`listFollowsTabs`).
+export const rowClocks = new Map<string, HTMLElement>();
 // Row elements by entity key (the session id), kept across renders and left where they are (keyed.ts) — no flicker, no scroll jump, and a press or the focus on a row that keeps its place survives a render.
 export const sessionRows = new Keyed<HTMLElement>((row) => row);
 // Every section currently rendered, so collapse-all/expand-all acts on precisely what is on screen rather than on everything that has ever existed.

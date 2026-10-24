@@ -373,6 +373,12 @@ button:where(:not(.icon-btn)):hover,
   border-color: var(--muted);
 }
 
+/* The clock of a tab whose claude has gone, for what was scheduled when it went (scheduledmark.ts) — the session row's pill, the tab's and the strip row's — muted as the worktree mark is for a worktree left, by the same weight. */
+.scheduled-mark.stopped {
+  color: var(--muted);
+  border-color: var(--muted);
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

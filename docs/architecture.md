@@ -347,12 +347,12 @@ The presses are bytes written to the pty, which claude reads as keys while it ho
 
 **A session with a task scheduled takes three presses.**
 A pending `/loop` wakeup takes the first Ctrl-C to cancel itself ("Pending wakeup cancelled"), so two presses left such a session at its prompt, still running, with only the force to end it (measured on claude 2.1.302, 2026-10-22).
-So a session whose last `Stop` listed a task, as its clock (§ Status cues) shows, gets the third press too, from every route that asks claude to leave.
+So a session whose last `Stop` listed a task, as its clock in its own colour (§ Status cues) shows, gets the third press too, from every route that asks claude to leave; a muted clock, kept from before its claude started, adds none.
 The third press is one more whatever else takes the first: claude's handler cancels the wakeup and interrupts a turn in the same press, and three presses mid-turn with a wakeup pending left; at the question claude asks for a cron, "Background work is running", the third only arms "Press Ctrl-C again to exit" under it for a moment, and the question stays (both measured).
 The list is the last `Stop`'s, so it can still name a wakeup an Esc at claude's prompt has cancelled since; the third press then lands on whatever claude asks on its way out, where one press only arms "press again" too (measured at the worktree question).
 What becomes of the tasks was measured on claude 2.1.302 (2026-10-23), resuming with `--resume` as the app does: a `/loop` wakeup did not come back, whether the presses cancelled it or the session was forced out; a cron, one-shot or repeating, came back with the same id, even after claude's own question was answered "Exit and stop tasks".
-Only a task's prompt tells a wakeup from a one-shot cron, so the clock's tooltip says both in one sentence rather than labelling each task: "A /loop wakeup ends with the session; a cron comes back when you open it again."
-It is said there, before a stop, and not asked at one (user, 2026-10-24): a confirm dialog before the presses was tried in the app and turned down, since for a cron claude asks its own question straight after the presses, and two questions about one task are too many; asking only where claude would not means telling a wakeup from a cron by its prompt, the guess the sentence avoids.
+The clock's tooltip says it of each task, a cron told from a wakeup by its transcript (§ Status cues): "comes back when you open the session" or "ends with the session".
+It is said there, before a stop, and not asked at one (user, 2026-10-24): a confirm dialog before the presses was tried in the app and turned down, since for a cron claude asks its own question straight after the presses, and two questions about one task are too many.
 
 **Nothing follows them.**
 Claude can answer an exit with a question — a worktree session with uncommitted changes asks whether to keep the tree or remove it — and waits for the answer.
@@ -696,13 +696,28 @@ Its dot is busy's spinning ring around a small core of idle's green: the turn is
 
 **A task claude has scheduled shows as a clock beside the session.**
 `Stop` lists what is scheduled for the session, a `/loop` wakeup or a cron not made durable (a durable one goes to a file of claude's instead), as `session_crons`, each entry its prompt, its schedule and whether it repeats, and the script keeps the whole payload as `<id>.stop`, which main reads on every change and hands the window on a channel of its own (`session:scheduled`): a fact about the session rather than a state, like a model switch, since a task waits through every status until it fires, and the busy of the next turn must not take it away.
-The window keeps the prompts and whether each repeats (`scheduledTasks`), and one mark draws them, on the session's tab, its row and its strip row (`scheduledmark.ts`), the tooltip naming each task.
-A `/loop` wakeup reads as once: each is one-shot, and the loop schedules the next from the turn it starts.
-The clock goes when a later turn ends with nothing scheduled, when the app drops the session's status files (its tab closed or gone cold), and from a session a tab's claude left by `/clear` or its own `/resume`, which no claude of the app's runs any more though nothing says its list emptied.
-An end the app reports in a hook's place (below) is written over `<id>.stop` too, so it carries the last `Stop`'s list on, or every interrupt would take a cron's clock away while the cron still waits.
+The list cannot tell a cron from a `/loop` wakeup, and a stop does not end them alike, as the section on stopping a session says, so main looks each listed task's id up in the session's transcript (`cronSchedules`): a `CronCreate` call's result names the cron's id with its schedule in claude's words, `{"id": "34f607db", "humanSchedule": "Every 10 minutes", …}`, and a `ScheduleWakeup` call's names no id at all, so a task found there is a cron and any other a wakeup (`ScheduledTask.cron`).
+Seen in session f3829708 on 2026-10-24, whose list named a cron by the id its transcript gave it and a wakeup by one it gave nowhere.
+A subagent's calls are kept in a transcript of their own (seen in session 2e8cf79b), so a cron a subagent made would read as a wakeup; not tried.
+Main reads a transcript on from where its last look stopped, since one only grows and can run to tens of megabytes, and only for a list that names a task.
+The window keeps the tasks (`scheduledTasks`), and one mark draws them, on the session's tab, its row and its strip row (`scheduledmark.ts`), the tooltip naming each task, a cron's schedule, and what a stop does to it (`afterStop`): "say hi · Every 10 minutes · comes back when you open the session", or "/loop say tick · ends with the session".
+The clock in its own colour goes when a later turn ends with nothing scheduled, when the app drops the session's status files (its tab closed or gone cold, where a muted one may take its place, below), and from a session a tab's claude left by `/clear` or its own `/resume`, which no claude of the app's runs any more though nothing says its list emptied.
+An end the app reports in a hook's place (below) is written over `<id>.stop` too, so it carries the last `Stop`'s list on, with its transcript's path, or every interrupt would take a cron's clock away while the cron still waits.
 The list is the last `Stop`'s, so it can be behind: by claude's source an interrupt, and an Esc at its prompt, cancel a pending `/loop` wakeup without a `Stop`, and the clock stays until the next one.
-It is not read at launch: no claude outlives a quit, and a start writes `<id>.stop` as `{}`.
-A resumed claude can bring its scheduled tasks back, and re-arm a pending `/loop` wakeup (by claude's source), and those show only from its next `Stop`.
+It is not read at launch: no claude outlives a quit.
+A start other than a compaction's writes `<id>.stop` as `{}`, which main takes as no news rather than as nothing scheduled, and sends nothing for (`readScheduled`), as it does for a `Stop` without the list; an end the app reports in a hook's place before any `Stop` carries no list either, rather than an empty one.
+A resumed claude brings its crons back (measured on claude 2.1.302, below), and those show only from its next `Stop`: its `SessionStart` carries no list of them (measured with `--resume`, and so by claude's source), and a `/loop` wakeup did not come back in either run measured, though claude's source has a path that re-arms one still pending, so nothing before that `Stop` can say which came back.
+
+**A tab whose claude has gone keeps its clock, muted, for the crons that come back.**
+Claude's own word on a task can be missed (the user saw a notice of claude's go before it could be read, 2026-10-22), and a cron's question is answered once, so the tab keeps the crons its session had when its claude went (`TabState.scheduledWhenStopped`), which come back when the session is opened again, and its clock goes on showing them, muted as a left worktree's mark is, on its tab, its row and its strip row while it is in the strip (resting paused, or started again and not yet reported), under "Scheduled when stopped:" (`clockOf`, `scheduledmark.ts`).
+A `/loop` wakeup ends with the session, so it is not kept, and a session that had only wakeups keeps no clock.
+It stays through a start of its claude until that claude reports (`scheduledReported`): the report's list then shows in the clock's own colour, or the clock goes for none; a claude stopped again before it reported leaves what the tab kept, which is still all that is known.
+A tab started again before the app has dropped its last claude's status files loses it early: their going reads as a report of nothing scheduled.
+It is the session's, so a claude that moves the tab on to another session by `/clear` or its own `/resume` takes the tab without it.
+It is kept for the next launch beside the open tabs (`scheduledWhenStopped` in meta, written in a call of its own after `setOpenSessions`, for the open sessions only).
+Only a tab whose claude went while the app ran gets a new one: the open tabs are not written once the app is quitting, so a session still running at a quit comes back (paused, by default) with what it kept when that claude started, the muted clock if its claude had not reported since, else none.
+The cost of no news: a claude too old to list its tasks in `Stop` would keep a restarted tab's muted clock until it goes (claude 2.1.302 lists them).
+It was first a line under the tab's and the strip row's own tooltips, with a dimmed clock turned down (user, 2026-10-24); seen in the app, the user asked "shouldn't we keep the clock then and let the clock say something about the schedule?", so the clock is the one place it is said.
 
 **A subagent's events arrive as the session's, and once its turn has ended they are not the session working.**
 Hooks fired inside a subagent carry the session's own id, told apart by `agent_id`, so a background subagent's tool call wrote busy over a finished session, and the dot went idle, busy and idle again with nobody doing anything.

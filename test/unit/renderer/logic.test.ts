@@ -8,6 +8,7 @@ import {
   tabButtonState,
   tabButtonLabel,
   scheduledText,
+  clockOf,
   sessionsByKey,
   structuralSignature,
   sameRow,
@@ -882,16 +883,38 @@ describe('stripLine', () => {
 });
 
 describe('scheduledText', () => {
-  it('names each task on a line of its own, with whether it repeats, then what a stop does to them, and says nothing for none', () => {
-    const onStop = 'A /loop wakeup ends with the session; a cron comes back when you open it again.';
+  const cron = { prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' };
+  const wakeup = { prompt: '/loop check the deploy', recurring: false, cron: null };
+
+  it("names each task on a line of its own, a cron with its schedule in claude's words, each with what a stop does to it, and says nothing for none", () => {
     expect(scheduledText([])).toBe(null);
-    expect(scheduledText([{ prompt: 'say the word tock', recurring: true }])).toBe(`Scheduled:\nsay the word tock (repeats)\n${onStop}`);
-    expect(
-      scheduledText([
-        { prompt: '/loop check the deploy', recurring: false },
-        { prompt: 'say the word tock', recurring: true },
-      ]),
-    ).toBe(`Scheduled:\n/loop check the deploy (once)\nsay the word tock (repeats)\n${onStop}`);
+    expect(scheduledText([wakeup, cron])).toBe(
+      'Scheduled:\n/loop check the deploy · ends with the session\nsay the word tock · Every 10 minutes · comes back when you open the session',
+    );
+  });
+
+  it('names what a tab kept from when its claude went under a heading of its own', () => {
+    expect(scheduledText([cron], 'Scheduled when stopped:')).toBe('Scheduled when stopped:\nsay the word tock · Every 10 minutes · comes back when you open the session');
+  });
+});
+
+describe('clockOf', () => {
+  const tock = [{ prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' }];
+  const tick = [{ prompt: 'say tock again', recurring: false, cron: 'Runs once in 1h' }];
+
+  it("shows what the session's claude last reported, over anything its tab kept", () => {
+    expect(clockOf(tock, { scheduledWhenStopped: tick })).toEqual({ tasks: tock, stopped: false });
+    expect(clockOf(tock, undefined)).toEqual({ tasks: tock, stopped: false });
+  });
+
+  it('shows what its tab kept from when its claude went, muted, while nothing is reported', () => {
+    expect(clockOf(undefined, { scheduledWhenStopped: tick })).toEqual({ tasks: tick, stopped: true });
+    expect(clockOf([], { scheduledWhenStopped: tick })).toEqual({ tasks: tick, stopped: true });
+  });
+
+  it('shows nothing for neither', () => {
+    expect(clockOf(undefined, { scheduledWhenStopped: null })).toBe(null);
+    expect(clockOf(undefined, undefined)).toBe(null);
   });
 });
 

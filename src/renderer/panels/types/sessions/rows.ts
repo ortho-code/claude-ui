@@ -2,12 +2,13 @@ import type { SessionSummary } from '../../../../shared/types';
 // Its rows are the card a list panel draws too.
 import { listCard } from '../../../card';
 import { setMarkup } from '../../../keyed';
-import { entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
+import { clockOf, entityKey, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import { kebabButton } from '../../../menu';
 import { showMoment, type Moment } from '../../../moments';
 import { prMark } from '../../../prstatus';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { store, type View } from '../../../state/app';
+import { tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus } from '../../../statusdot';
 import { NOTE_ICON, PIN_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { showToast } from '../../../toast';
@@ -16,7 +17,7 @@ import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
 import { activityMoment, archivedMoment } from './describe';
-import { currentByKey, sessionRows, statusDots } from './drawn';
+import { currentByKey, rowClocks, sessionRows, statusDots } from './drawn';
 import '../../../tone.css';
 import '../../../prstatus.css';
 import './rows.css';
@@ -245,7 +246,8 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
     els.badge.setAttribute('aria-label', worktree.tooltip);
   }
 
-  showScheduled(els.clock, view.scheduledTasks.get(session.id));
+  showScheduled(els.clock, clockOf(view.scheduledTasks.get(session.id), tabWith(session.id, view)));
+  rowClocks.set(session.id, els.clock);
 
   const note = view.notes.get(entityKey(session));
   els.noteBadge.hidden = !note;

@@ -26,17 +26,18 @@ test('a session with a task scheduled shows a clock on its tab, its row and its 
   await start(page, app);
   for (const clock of clocks(page)) await expect(clock).toBeHidden();
 
+  // A cron with its schedule in claude's words, which main found in the transcript; a `/loop` wakeup without.
   expect(
     await app.emit('onSessionScheduled', one.id, [
-      { prompt: '/loop check the deploy', recurring: false },
-      { prompt: 'say the word tock', recurring: true },
+      { prompt: '/loop check the deploy', recurring: false, cron: null },
+      { prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' },
     ]),
   ).toBe(1);
   for (const clock of clocks(page)) {
     await expect(clock).toBeVisible();
     await expect(clock).toHaveAttribute(
       'data-tooltip',
-      'Scheduled:\n/loop check the deploy (once)\nsay the word tock (repeats)\nA /loop wakeup ends with the session; a cron comes back when you open it again.',
+      'Scheduled:\n/loop check the deploy · ends with the session\nsay the word tock · Every 10 minutes · comes back when you open the session',
     );
   }
 
@@ -52,7 +53,7 @@ for (const source of ['clear', 'resume']) {
     await app.boot({ sessions: [one, other], history: { [one.id]: [], [other.id]: [] } });
     await start(page, app);
     const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
-    await app.emit('onSessionScheduled', one.id, [{ prompt: 'say the word tock', recurring: true }]);
+    await app.emit('onSessionScheduled', one.id, [{ prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' }]);
     await expect(row(page, one.title).locator('.scheduled-mark')).toBeVisible();
 
     expect(await app.emit('onSessionStart', other.id, launch.tabToken ?? '', source)).toBe(1);
@@ -60,17 +61,4 @@ for (const source of ['clear', 'resume']) {
   });
 }
 
-// A task scheduled in a claude that has gone is gone with it, as far as anything here can tell, whatever main last said.
-test('the clock goes when the session stops', async ({ app, page }) => {
-  await app.boot(fixture);
-  await start(page, app);
-  await app.emit('onSessionScheduled', one.id, [{ prompt: 'say the word tock', recurring: true }]);
-  await expect(tab(page, one.title).locator('.scheduled-mark')).toBeVisible();
-
-  await tab(page, one.title).locator('.tab-close').click();
-  await expect.poll(() => app.calls('closeTerminal')).toHaveLength(1);
-  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
-  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
-  await expect(tab(page, one.title).locator('.scheduled-mark')).toBeHidden();
-  await expect(row(page, one.title).locator('.scheduled-mark')).toBeHidden();
-});
+// What the clock shows once the session's claude has gone, muted, is scheduled-paused.spec.ts's.

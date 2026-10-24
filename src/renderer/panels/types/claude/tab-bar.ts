@@ -2,7 +2,7 @@ import type Sortable from 'sortablejs';
 import { element, fromMarkup } from '../../../dom';
 import { drawFoldChevron, foldChevron, offerRowFold } from '../../../fold-chevron';
 import { Keyed, placeChildren } from '../../../keyed';
-import { asksForYou, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, tabButtonState, unstartableReason, worktreeMarkState } from '../../../logic';
+import { asksForYou, clockOf, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, tabButtonState, unstartableReason, worktreeMarkState } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
 import { showInStrip } from '../../../state/strip';
@@ -292,7 +292,7 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
   setTooltip(worktreeMark, worktree?.tooltip);
 
   // A task claude has scheduled, as its row and its strip row show it (scheduledmark.ts).
-  const scheduled = showScheduled(clock, view.scheduledTasks.get(tab.session.id));
+  const scheduled = showScheduled(clock, clockOf(view.scheduledTasks.get(tab.session.id), tab));
 
   const text = sessionLabel(tab.session);
   const marks = [...(tab.session.isSibling ? [siblingMark] : []), ...(worktree ? [worktreeMark] : []), ...(scheduled ? [clock] : [])];

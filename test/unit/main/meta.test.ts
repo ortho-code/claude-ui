@@ -41,7 +41,9 @@ import {
   getOpenSessions,
   getRunningSessions,
   getPausedSessions,
+  getScheduledWhenStopped,
   setOpenSessions,
+  setScheduledWhenStopped,
   getActiveProject,
   setActiveProject,
   migrateToSessionKeys,
@@ -190,6 +192,34 @@ describe('paused sessions', () => {
     expect(await getPausedSessions()).toEqual([]);
     await writeMetaFile({ version: 3, openSessions: ['a'], pausedSessions: ['a', 7] });
     expect(await getPausedSessions()).toEqual(['a']);
+  });
+});
+
+describe('what was scheduled when a tab stopped', () => {
+  const tock = { prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' };
+
+  it('is kept for an open session only, read as claude lists it, and goes with its tab', async () => {
+    await setOpenSessions(['a', 'b'], [], ['a']);
+    await setScheduledWhenStopped({ a: [tock, { id: 'x' }, { prompt: 'say tock once' }], b: [], gone: [tock] });
+    expect(await getScheduledWhenStopped()).toEqual({ a: [tock, { prompt: 'say tock once', recurring: false, cron: null }] });
+    await setOpenSessions(['b'], [], []);
+    expect(await getScheduledWhenStopped()).toEqual({});
+  });
+
+  it('is nothing in a file written before it was kept, or one that holds something else', async () => {
+    await writeMetaFile({ version: 3, openSessions: ['a'] });
+    expect(await getScheduledWhenStopped()).toEqual({});
+    await writeMetaFile({ version: 3, openSessions: ['a'], scheduledWhenStopped: ['a'] });
+    expect(await getScheduledWhenStopped()).toEqual({});
+    await writeMetaFile({ version: 3, openSessions: ['a'], scheduledWhenStopped: { a: [tock] } });
+    expect(await getScheduledWhenStopped()).toEqual({ a: [tock] });
+  });
+
+  it('goes when its session is deleted', async () => {
+    await setOpenSessions(['a', 'b'], [], []);
+    await setScheduledWhenStopped({ a: [tock], b: [tock] });
+    await purgeSession('a');
+    expect(await getScheduledWhenStopped()).toEqual({ b: [tock] });
   });
 });
 

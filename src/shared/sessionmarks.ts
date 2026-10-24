@@ -2,6 +2,7 @@
  * Main's rules for the marks a session carries in meta — its pin, its archive entry, its note (written with `withText`, src/shared/text.ts) — pure, so that the window's checks answer them the way main does.
  * Main (src/main/meta.ts) applies them inside its serialised writes of `meta.json`.
  */
+import type { ScheduledTask } from './types';
 
 /** The three marks, as `meta.json` holds them. */
 export interface SessionMarks {
@@ -43,6 +44,7 @@ export interface SessionPlaces {
   openSessions: string[];
   runningSessions: string[];
   pausedSessions: string[];
+  scheduledWhenStopped: Record<string, ScheduledTask[]>;
   activeSession: string | null;
   activeSessionByProject: Record<string, string>;
   groupOf: Record<string, string>;
@@ -57,6 +59,7 @@ export function purgedSession(meta: Readonly<SessionMarks & SessionPlaces>, id: 
     openSessions: meta.openSessions.filter((key) => key !== id),
     runningSessions: meta.runningSessions.filter((key) => key !== id),
     pausedSessions: meta.pausedSessions.filter((key) => key !== id),
+    scheduledWhenStopped: Object.fromEntries(Object.entries(meta.scheduledWhenStopped).filter(([key]) => key !== id)),
     activeSession: meta.activeSession === id ? null : meta.activeSession,
     activeSessionByProject: Object.fromEntries(Object.entries(meta.activeSessionByProject).filter(([, key]) => key !== id)),
     groupOf,
