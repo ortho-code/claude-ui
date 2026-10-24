@@ -10,7 +10,7 @@ import { isPaused, sessionById, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
 import { fromMarkup } from '../../../dom';
-import { isQuitting } from '../../../quitting';
+import { isQuitting, whenQuitting } from '../../../quitting';
 import './terminals.css';
 
 /** Where the tabs' terminals go: built here, and placed by the pane (pane.ts) under the tab bar. */
@@ -108,18 +108,29 @@ let restoring = false;
 export function persistOpenTabs(): void {
   // Once the app is quitting, every terminal is ended and each pty's exit closes its tab: those closes must not persist an empty open-tabs list over the real one, which would wipe the tabs to restore next launch.
   if (restoring || isQuitting()) return;
-  // Persist entity keys (session ids — immutable, so a restart always finds them again).
-  // A session with no transcript yet is not in the map; its own id stands in, and restore drops it, which is right — there is nothing on disk to reopen.
-  const { sessions, tabs } = store.get();
-  const idToKey = new Map(sessions.map((s) => [s.id, entityKey(s)]));
-  const keyOf = (tab: TabState): string => idToKey.get(tab.session.id) ?? tab.session.id;
+  const { tabs } = store.get();
+  const keyOf = tabKeys();
   window.claudeUi.setOpenSessions(
     tabs.map(keyOf),
     tabs.filter((tab) => tab.terminalId !== null).map(keyOf),
     tabs.filter((tab) => tab.paused).map(keyOf),
   );
-  // Beside them, in a write of its own, which main keeps for the open tabs only.
-  window.claudeUi.setScheduledWhenStopped(Object.fromEntries(tabs.flatMap((tab) => (tab.scheduledWhenStopped ? [[keyOf(tab), [...tab.scheduledWhenStopped]]] : []))));
+  writeScheduledWhenStopped();
+}
+
+/**
+ * Each tab's key for the next launch: its session's entity key, immutable, so a restart always finds it again.
+ * A session with no transcript yet is not in the map; its own id stands in, and restore drops it, which is right — there is nothing on disk to reopen.
+ */
+function tabKeys(): (tab: TabState) => string {
+  const idToKey = new Map(store.get().sessions.map((s) => [s.id, entityKey(s)]));
+  return (tab) => idToKey.get(tab.session.id) ?? tab.session.id;
+}
+
+/** What the tabs keep of their sessions' tasks, beside the open tabs, in a write of its own, which main keeps for the open tabs only. */
+function writeScheduledWhenStopped(): void {
+  const keyOf = tabKeys();
+  window.claudeUi.setScheduledWhenStopped(Object.fromEntries(store.get().tabs.flatMap((tab) => (tab.scheduledWhenStopped ? [[keyOf(tab), [...tab.scheduledWhenStopped]]] : []))));
 }
 
 export async function restoreOpenTabs(): Promise<void> {
@@ -549,19 +560,32 @@ export function scheduledReported(id: string): void {
   persistOpenTabs();
 }
 
+/**
+ * What a tab keeps of its session's tasks once its claude has gone, by a stop or a quit: what comes back when the session is opened again, its crons, since a `/loop` wakeup ends with the session (`afterStop`); null for none.
+ * A claude that went before it reported at all leaves what the tab already kept from the stop before, which is still all that is known.
+ */
+function keptWhenGone(tab: TabState): TabState['scheduledWhenStopped'] {
+  const live = store.get().scheduledTasks.get(tab.session.id);
+  const kept = live ? live.filter((task) => task.cron !== null) : tab.scheduledWhenStopped;
+  return kept && kept.length > 0 ? kept : null;
+}
+
+// A quit forces every claude out, and the exits it causes write nothing (`persistOpenTabs`), so each tab still running keeps what its stop would have kept, written as the window hears of the quit, which main tells it before it ends any.
+whenQuitting(() => {
+  for (const tab of store.get().tabs) if (tab.terminalId !== null) setTab(tab.token, { scheduledWhenStopped: keptWhenGone(tab) });
+  writeScheduledWhenStopped();
+});
+
 /** Turn a tab that has just lost its process into a cold one. */
 function coolTab(token: string): void {
   const terminal = terminalOf(token);
   // Wipe the dead session's output: left in place it reads as a live terminal, and a resume would paint the new session over the old one's tail.
   terminal.term.reset();
   terminal.el.classList.remove('active');
-  // What it had scheduled that comes back when the session is opened again, which the cold tab goes on showing, read before its claude's report is forgotten with the rest: its crons, since a `/loop` wakeup ends with the session (`afterStop`).
-  // A claude that went before it reported at all leaves what the tab already kept from the stop before, which is still all that is known.
+  // What the cold tab goes on showing, read before its claude's report is forgotten with the rest.
   const tab = tabOf(token)!;
   const id = tab.session.id;
-  const live = store.get().scheduledTasks.get(id);
-  const kept = live ? live.filter((task) => task.cron !== null) : tab.scheduledWhenStopped;
-  const scheduledWhenStopped = kept && kept.length > 0 ? kept : null;
+  const scheduledWhenStopped = keptWhenGone(tab);
   // Its claude has gone, so its last report is forgotten, as closing a tab forgets it: a claude forced out may never report that it ended, and its busy or waiting would go on nudging from every roll-up.
   // A SessionEnd that does arrive writes `closed`, which draws the same hollow dot as no status.
   clearNudge(id);

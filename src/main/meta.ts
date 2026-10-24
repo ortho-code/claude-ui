@@ -33,7 +33,7 @@ interface Meta {
   openSessions: string[];
   /**
    * The open sessions that were running when the window last wrote the open tabs: a session is in it from its tab's start until its process has gone, so one still being stopped counts.
-   * The window stops writing once the app quits, so the quit's own exits leave it as it was, and a launch reads what was running when the app closed before its restore writes the open tabs again.
+   * The window stops writing the open tabs once the app quits, so the quit's own exits leave it as it was, and a launch reads what was running when the app closed before its restore writes the open tabs again.
    */
   runningSessions: string[];
   /**

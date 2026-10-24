@@ -715,7 +715,9 @@ It stays through a start of its claude until that claude reports (`scheduledRepo
 A tab started again before the app has dropped its last claude's status files loses it early: their going reads as a report of nothing scheduled.
 It is the session's, so a claude that moves the tab on to another session by `/clear` or its own `/resume` takes the tab without it.
 It is kept for the next launch beside the open tabs (`scheduledWhenStopped` in meta, written in a call of its own after `setOpenSessions`, for the open sessions only).
-Only a tab whose claude went while the app ran gets a new one: the open tabs are not written once the app is quitting, so a session still running at a quit comes back (paused, by default) with what it kept when that claude started, the muted clock if its claude had not reported since, else none.
+A quit forces every claude out, after which a cron came back and a `/loop` wakeup did not (measured, as for a stop), and the exits it causes write nothing, since the open tabs are not written once the app is quitting; so as the window hears of the quit, which main tells it before it ends any claude, each tab still running keeps what its stop would have kept, and that is written then (`whenQuitting`).
+A session running at a quit comes back (paused, by default) with a muted clock if it had crons.
+Main does not wait for that write, and nothing holds the quit for it: it normally lands while the quit waits for the sessions it ended to go, which, with a session running, is at least one 50 ms look (`untilGone`) and usually longer.
 The cost of no news: a claude too old to list its tasks in `Stop` would keep a restarted tab's muted clock until it goes (claude 2.1.302 lists them).
 It was first a line under the tab's and the strip row's own tooltips, with a dimmed clock turned down (user, 2026-10-24); seen in the app, the user asked "shouldn't we keep the clock then and let the clock say something about the schedule?", so the clock is the one place it is said.
 

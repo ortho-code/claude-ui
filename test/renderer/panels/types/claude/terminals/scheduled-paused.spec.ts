@@ -147,6 +147,15 @@ test('a stopped tab keeps its clock, muted, on its tab and its row', async ({ ap
   await expect(stripRow(page, one.title)).toHaveCount(0);
 });
 
+// A quit forces every claude out, after which a cron came back and a `/loop` wakeup did not (measured), so a tab still running keeps what a stop would have kept.
+test('a quit keeps the crons of a session still running, for the next launch', async ({ app, page }) => {
+  await app.boot(fixture);
+  await start(page, app, [tick, tock]);
+  await expect.poll(() => lastKept(app)).toEqual([{}]);
+  expect(await app.emit('onQuitting')).toBe(1);
+  await expect.poll(() => lastKept(app)).toEqual([{ [one.id]: [tock] }]);
+});
+
 test('a tab kept paused with a task scheduled shows its muted clock at the next launch', async ({ app, page }) => {
   await app.boot({ ...fixture, openSessions: [one.id], pausedSessions: [one.id], scheduledWhenStopped: { [one.id]: [tock] } });
   await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bpaused\b/);

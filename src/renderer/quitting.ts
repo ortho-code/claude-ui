@@ -4,9 +4,16 @@
  */
 
 let quitting = false;
+const lastWrites: (() => void)[] = [];
 
 window.claudeUi.onQuitting(() => {
   quitting = true;
+  for (const write of lastWrites) write();
 });
 
 export const isQuitting = (): boolean => quitting;
+
+/** Run `write` once the app is quitting, after `isQuitting` turns true: a surface's last word for the next launch on what the quit is about to end. */
+export function whenQuitting(write: () => void): void {
+  lastWrites.push(write);
+}

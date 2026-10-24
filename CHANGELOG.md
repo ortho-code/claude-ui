@@ -88,7 +88,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The app asks with `gh`, on your own login, so it needs `gh` installed and logged in; **PR status from GitHub** in Settings, `prStatus` in `settings.json`, turns it off.
 - Hovering a session's time in the session list shows the date and time in full, as a request's time in the history already did.
 - A clock beside a running session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own, on its tab, its row and its row in the live strip; hovering it names each task, a cron's schedule, and whether it ends with the session or comes back when you open it again.
-- A tab you paused or stopped keeps its clock, muted, for the crons that come back when you open the session, also after a restart, until the session runs again and reports its own; a session that had only `/loop` wakeups keeps none, and a session still running when the app quits does not get a new one.
+- A tab you paused or stopped, or that was still running when the app quit, keeps its clock, muted, for the crons that come back when you open the session, also after a restart, until the session runs again and reports its own; a session that had only `/loop` wakeups keeps none.
 
 ### Changed
 
