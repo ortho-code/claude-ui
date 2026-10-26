@@ -24,14 +24,13 @@
   vertical-align: middle;
 }
 
-/* The badge/pill icons (fork, branch) as inline SVG.
-   The pill stays an inline-block so its max-width + ellipsis keep applying to the text beside the icon; this only aligns the icon to the text baseline and sizes it to the 10px pill.
+/* A badge's icon — the branch, the fork, the clock, the pull request — as inline SVG, in a flex box around the block svg, so it is just the icon with no line box around it, and the pill centres the icon itself; its size is the rule below's.
    No per-glyph size correction any more — the shapes are ours, so they already match. */
 .badge-icon {
   display: flex;
 }
 
-/* Text inside a badge pill (a sibling count, the model label).
+/* Text inside a badge pill: the count on a mark that opens a list, or a panel folder's name.
    A digit's em box carries the font's full ascent and descent, so centring that box leaves the digit's INK riding ~0.7px high next to an icon whose ink is centred in its own viewBox — visible at 10px.
    text-box-trim cuts the box down to cap-height/baseline, i.e. to the ink itself, so flex centres what you actually see.
    Font-independent, unlike a hard-coded nudge (the trap .wt-icon's old 0.8em fell into).
