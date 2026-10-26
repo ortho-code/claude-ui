@@ -338,7 +338,7 @@ The mark is written whenever it changes, with the rest.
 
 The code is in `src/renderer/panels/types/claude/terminals.ts`: each tab's terminal, its life from built to closed, the workspace switch, the fit of the tab on show to the terminal area, and the open tabs kept for the next launch.
 
-### Stopping a session is a request, and claude may answer it with a question
+### Stopping a session is a request: claude may answer it with a question
 
 A stop, from the tab's button or the live strip's, and a close of a live tab ask claude to leave the way it is left in a terminal: Ctrl-C twice, 400 ms apart, from its prompt.
 Mid-turn the first press only interrupts the turn, so a session whose hooks last reported it busy or waiting gets a third, and any other gets two, because a third at its prompt would arm claude's own "Press Ctrl-C again to exit" under anything it asks.

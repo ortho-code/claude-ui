@@ -4,7 +4,7 @@ import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, stripRow, tab } from '../../../../support/window';
 
-// A stop claude has not answered by leaving 3 s after the ask says so where it shows without a hover: beside the name on the tab, the list row and the strip row, and in an attention toast that stays until claude leaves, the stop is called off, or it is dismissed (docs/architecture.md § Stopping a session).
+// A stop claude has not answered by leaving 3 s after the ask says so where it shows without a hover: beside the name on the tab, the list row and the strip row, and in an attention toast that stays until claude leaves, the stop is called off, or it is dismissed (docs/architecture.md § Stopping a session is a request).
 const stuck = session({ id: '00000000-0000-4000-8000-000000000001', title: 'Fix the login bug' });
 const other = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Write the release notes' });
 const fixture = { sessions: [stuck, other], history: { [stuck.id]: [], [other.id]: [] } };
