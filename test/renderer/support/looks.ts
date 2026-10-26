@@ -51,6 +51,19 @@ export async function hoveredAndOpen(page: Page, trigger: Locator): Promise<{ ho
 /** A colour as drawn: red, green and blue, each 0 to 255. */
 export type Rgb = [number, number, number];
 
+/** WCAG 2's contrast ratio between two colours as drawn: 1 for the same colour, up to 21 for black against white. */
+export function contrast(one: Rgb, other: Rgb): number {
+  const luminance = (colour: Rgb): number => {
+    const [r, g, b] = colour.map((channel) => {
+      const s = channel / 255;
+      return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [lighter, darker] = [luminance(one), luminance(other)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 /**
  * Every pixel of `clip` as the window draws it, row by row, from a screenshot: for what no computed style can say, such as a scrollbar's thumb, or whether something paints over it.
  * Decoded by the page's own browser, which needs nothing reached out of Playwright's internals, as `styles/compare.ts` reaches for its PNG reader.

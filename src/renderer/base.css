@@ -67,6 +67,8 @@
   Unscoped on purpose: the session list, the terminals, panel output, the project switcher and the live strip all scroll with it, and a scroller added later gets it without joining a list.
   `height` is the horizontal bar's thickness, which command output needs since it scrolls both ways; the corner where two bars meet stays clear.
   Chromium ignores all of this on an element that sets `scrollbar-width` or `scrollbar-color`, so neither is used anywhere.
+  The thumb is the faintest white that reaches 3:1 against every background a bar is drawn on, WCAG's least for what you have to see of a control: as Chromium draws it, 3.14:1 on --terminal-bg, 3.12:1 on --bg and 3.04:1 on --surface, where a 13% white was 1.5:1; 4.8:1 or more hovered.
+  Measured as drawn rather than worked out, because Chromium blends a shade darker than the arithmetic: one step fainter worked out at 3.03:1 on --surface and drew at 2.99:1.
 */
 ::-webkit-scrollbar {
   width: 8px;
@@ -74,12 +76,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #ffffff22;
+  background: #ffffff58;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #ffffff44;
+  background: #ffffff80;
 }
 
 ::-webkit-scrollbar-track,

@@ -125,6 +125,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session Claude has not named, and that started with a slash command, is named after the command without its `/`, such as `review 35676`.
   Forking a session Claude has not named no longer offers its first prompt as the fork's name.
 - A session with nothing asked in it yet reads `New: <folder>` in the session list and on its tab alike, where one read from disk said "(no prompt yet)" in the list and showed part of its id on its tab.
+- Scrollbars are easier to see: their thumb is lighter, everywhere in the window.
 
 ### Fixed
 

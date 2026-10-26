@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test, type App } from '../../../support/harness';
-import { pixels, type Rgb } from '../../../support/looks';
+import { contrast, pixels, type Rgb } from '../../../support/looks';
 import { newTerminal, panelTabLabels } from '../../../support/window';
 import { withLayout } from '../../layout/layout';
 
@@ -51,4 +51,14 @@ test('a shell with more lines than it shows has its scrollbar in sight, and its 
     contentBottom: box.getBoundingClientRect().bottom - parseFloat(getComputedStyle(box).paddingBottom),
   }));
   expect(screenBottom).toBeLessThanOrEqual(contentBottom);
+});
+
+// 3:1 is WCAG's least for what you have to see of a control to use it (1.4.11).
+// Checked on the shell's background, where the bar went unseen; a translucent white thumb stands out least on the lightest background, --surface, which this check does not reach.
+test("the scrollbar's thumb stands out from the shell's background at 3:1 or more", async ({ app, page }) => {
+  await bootWithScrollback(app, page);
+  const column = await gutter(page);
+  const byLight = [...column].sort((a, b) => contrast(a, [0, 0, 0]) - contrast(b, [0, 0, 0]));
+  // The darkest of the gutter is its track, which shows the background; the lightest is the thumb.
+  expect(contrast(byLight.at(-1)!, byLight[0])).toBeGreaterThanOrEqual(3);
 });
