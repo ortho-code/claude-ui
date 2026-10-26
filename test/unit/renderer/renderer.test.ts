@@ -31,6 +31,7 @@ const ORDER = [
   'src/renderer/notleft.css',
   'src/renderer/tab.css',
   'node_modules/@xterm/xterm/css/xterm.css',
+  'src/renderer/terminal.css',
   'src/renderer/panels/types/claude/terminals.css',
   'src/renderer/panels/types/claude/tab-bar.css',
   'src/renderer/panels/types/claude/history/bar.css',

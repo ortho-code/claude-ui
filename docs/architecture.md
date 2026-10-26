@@ -1631,12 +1631,18 @@ The fix is symmetric vertical padding: it gives the clip box room while keeping 
 Measure the font's descent rather than guessing the value.
 
 **A hidden pane measures as the default size, not as nothing.**
-`FitAddon` sizes from the element's own box, and a `.term` is `display: none` until it is the active tab.
+`FitAddon` sizes from the box xterm opens in, and a `.term` around it is `display: none` until it is the active tab.
 Fitting one before revealing it therefore yields xterm's 80×24 default rather than an error — and that default is what the PTY is told, so `claude` draws its entire TUI to 80 columns for the life of the session.
 Reveal, then fit, then resize.
 A session started out of sight, as a launch starts the ones that were running behind the tab on show, is revealed for the measurement alone and hidden again in the same task, which no paint comes between; with the terminal area itself hidden there is nothing to measure, and it is fitted when it is next selected.
 Every conditionally-visible pane carries this hazard, split view included.
 The whole terminal area is one now: it is hidden while another panel of its group is shown or its group is folded, so the tab fit refuses a terminal area with no size and leaves it to the `ResizeObserver` on it, which fires once the area has a size again.
+
+**A padded box fits the terminal too big.**
+`FitAddon` takes the room a terminal has from the computed height and width of the element xterm opens in, less the padding of xterm's own element and the scrollbar's width, but not that element's own padding, and with every box `border-box` its computed size counts that padding.
+A shell panel opened xterm straight into its 8px-padded box, so each shell was given 16px too much room each way: xterm's text layer, an opaque canvas, lay over the scrollbar's gutter, and its last row ran into the panel's bottom padding and could run past it.
+So `createTerminal` opens xterm in an unpadded `.terminal-box` of its own that fills the container it is given, and a caller pads its container freely.
+Rejected: `box-sizing: content-box` on the padded box, one line but a trap for the next caller.
 
 **xterm's layers carry z-indexes of their own, up to 10.**
 A `.term` makes no stacking context by default, so those layers competed with the history lying over the terminal area, painted over it and took its clicks.

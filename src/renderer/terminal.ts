@@ -3,6 +3,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { CanvasAddon } from '@xterm/addon-canvas';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
+import './terminal.css';
 import { errorText } from '../shared/log';
 import { pastedPaths } from '../shared/paste';
 
@@ -71,6 +72,7 @@ export function lastLines(term: Terminal, count: number): string[] {
 
 /**
  * An xterm opened in `container`, sized to it by the fit addon, drawn on canvas where that works, with http(s) links clickable.
+ * `container` may be padded: the terminal fills it inside its padding, given a definite height, as both callers' containers have.
  * `keys` is the caller's own say over a key, asked after the keys every terminal takes for itself, and answered as xterm's custom key handler is: false keeps the key from the terminal.
  * It is passed here rather than attached by the caller, because xterm holds one handler and a second would replace the first.
  */
@@ -84,7 +86,12 @@ export function createTerminal(container: HTMLElement, keys?: (event: KeyboardEv
   });
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
-  term.open(container);
+  // xterm opens in a box of its own, because the fit addon takes the room it has from the computed size of xterm's parent, and with every box border-box that size counts the parent's padding.
+  // A shell panel opened xterm straight into its padded box, which gave the terminal 16px too much room each way: its opaque text canvas lay over its scrollbar, and its last row ran into the padding below and could run past it.
+  const box = document.createElement('div');
+  box.className = 'terminal-box';
+  container.append(box);
+  term.open(box);
 
   // A key handed back to the browser is one xterm leaves alone without cancelling, so Chromium's own paste runs into xterm's textarea, which pastes it as one paste, bracketed where the program asked for that.
   let pasteKeyAt = -Infinity;

@@ -1,0 +1,5 @@
+/* The box every terminal opens in (createTerminal), filling what it is put in, inside that one's padding.
+   Unpadded on purpose: its size is the room the fit addon gives the terminal. */
+.terminal-box {
+  height: 100%;
+}
