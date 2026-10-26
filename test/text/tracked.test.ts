@@ -45,6 +45,14 @@ describe('the files the text rules read', () => {
     expect(read).toEqual([{ file: 'kept.md', text: 'kept\n' }]);
   });
 
+  it('leave out a link that points to itself, which is no file to read', () => {
+    const read = readIn((at) => {
+      symlinkSync('loop.md', at('loop.md'));
+      writeFileSync(at('kept.md'), 'kept\n');
+    });
+    expect(read).toEqual([{ file: 'kept.md', text: 'kept\n' }]);
+  });
+
   it('leave out a file deleted but still in the index, which is no file to read', () => {
     const read = readIn((at, git) => {
       writeFileSync(at('gone.md'), 'gone\n');
