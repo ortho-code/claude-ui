@@ -7,8 +7,9 @@ import { installSplitResizer } from '../resizer';
 import { badgeClass } from '../statusdot';
 // A panel header's count wears the section heading's count pill.
 import '../card.css';
+import '../badge.css';
 import './tree.css';
-import { strokeIcon, type Direction } from '../svg';
+import { WORKTREE_ICON, strokeIcon, type Direction } from '../svg';
 import { setTooltip } from '../tooltip';
 import { iconSvg } from './icons';
 import { optionsOf } from './options';
@@ -87,6 +88,8 @@ interface Mounted {
   railCount: HTMLElement;
   /** The count as last reported, for the rail's label, which says it whole where the badge cannot. */
   countValue: number | null;
+  /** The folder it looks in, beside its title, while it names one (`setFolder`). */
+  folder: HTMLElement;
   /** Why the panel says it cannot run, as it last reported: drawn in its place, with `alert` on its rail icon. */
   problems: string[];
   /** What the panel says about itself that does not stop it, for its group's note line. */
@@ -512,10 +515,10 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   if (shown.problems.length > 0) {
     content.prepend(header(shown.title), problemList(shown.problems));
   } else if (!types[shown.type!]!.bare) {
-    const { count, busy, end, views, action, problems, tabs } = mountedFor(shown);
+    const { count, folder, busy, end, views, action, problems, tabs } = mountedFor(shown);
     const controls = [busy, end, views, ...(action ? [action] : [])];
-    // Tabs take the title's place, and its count with it: the tabs are there to count.
-    const row = tabs ? tabsHeader(tabs, controls) : header(shown.title, [count, ...controls]);
+    // Tabs take the title's place, and its count and folder with it: the tabs are there to count, and each shell names its own folder.
+    const row = tabs ? tabsHeader(tabs, controls) : header(shown.title, [folder, count, ...controls]);
     // The layout's refusals and the panel's own are one list, drawn the same way.
     if (problems.length > 0) content.prepend(row, problemList(problems));
     else content.prepend(row);
@@ -601,6 +604,13 @@ function mountedFor(slot: PanelSlot): Mounted {
   const count = element('span', 'panel-count');
   const railCount = element('span', 'rail-count');
   count.hidden = railCount.hidden = true;
+  // The folder it looks in: the worktree mark and the checkout's name, in the badge a session row wears.
+  const folder = element('span', 'panel-folder');
+  const folderIcon = element('span', 'badge-icon');
+  folderIcon.innerHTML = WORKTREE_ICON;
+  const folderName = element('span', 'badge-text');
+  folder.append(folderIcon, folderName);
+  folder.hidden = true;
   // The switch between the panel's views, drawn again only when what it would say changes, so a press on one of its buttons survives a run that offers the same views.
   const views = element('span', 'panel-views');
   views.hidden = true;
@@ -684,6 +694,15 @@ function mountedFor(slot: PanelSlot): Mounted {
     },
     setProblems: (problems) => report('problems', problems),
     setNotes: (notes) => report('notes', notes),
+    // In place, as the count is: the element stands in the header whatever it says.
+    setFolder: (named) => {
+      folder.hidden = named === null;
+      if (!named) return;
+      folder.classList.toggle('main', !named.worktree);
+      folderIcon.hidden = !named.worktree;
+      folderName.textContent = named.name;
+      setTooltip(folder, named.path);
+    },
     // The session links are remembered under the panel's own entry key.
     startSession: (request) => void startSession(slot.key, request, host.asks),
     linkedSessions: (itemKey) => linkedSessions(slot.key, itemKey),
@@ -693,7 +712,7 @@ function mountedFor(slot: PanelSlot): Mounted {
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
   // A panel that said its tabs while it was mounting has them from the start.
-  const entry: Mounted = { panel, slot, viewNotes: [], signature: signatureOf(slot), busy, end, views, tabs: tabsOn, action, badge, count, railCount, countValue: null, ...said };
+  const entry: Mounted = { panel, slot, viewNotes: [], signature: signatureOf(slot), busy, end, views, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder, ...said };
   mounted.set(slot.key, entry);
   return entry;
 }

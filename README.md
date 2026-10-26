@@ -58,6 +58,7 @@ Done:
   They are kept in the config folder, over a `settings.json` of your own; see [Settings](#settings).
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
   Panels so far run a command or a script and show its output, again on an interval, when the script says, or when the git working tree of their folder changes, or give you plain shells, as tabs per project that come back at the next launch, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
+  A panel follows its tab's session into the worktree claude is changing files in, by path, after a `cd` or by claude's own worktree tools, and names the folder it looks in beside its title.
   See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag.
   See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
@@ -200,7 +201,9 @@ A relative `script` resolves against the config folder, so `scripts/` is the pla
 It never resolves against the project, so switching to a repo cannot run that repo's file in place of yours.
 To run a project's own script, say so with a command line such as `"command": "./bin/status"`, which runs in the project's folder.
 
-The command runs in the active tab's folder, or the selected project's root when no tab is open, and runs again when you switch project or tab or press Refresh.
+The command runs where the active tab's session works, or in the selected project's root when no tab is open, and runs again when you switch project or tab or press Refresh.
+Where a session works is the checkout, the main one or a worktree, holding the file claude last changed with its file tools, such as an edit, which it may have reached by path or with a `cd` as well as by claude's own worktree tools; a file git ignores, such as notes kept beside the code, does not count, and claude entering or leaving a worktree after that change puts it back in the folder the session runs in, as does having changed nothing yet.
+The panel's header names that folder beside its title: the project's folder, muted, for the main checkout, or the worktree's name with the worktree mark, and the whole path when you point at it.
 While it is out of sight, behind another panel or folded away, a switch does not run it; it runs once when you show it again, if the folder changed meanwhile.
 
 An `interval` in its `options`, such as `"5m"` or `"1h"`, from `"10s"` to `"24h"`, also runs it again that long after each run ends, out of sight too, so the dot on its icon stays current; a panel with one runs as soon as it is placed, at launch or when you add it, even out of sight.
@@ -259,7 +262,7 @@ Either type takes a `cwd` in its `options` to run somewhere other than that fold
 - An absolute path, or one under `~/`, is fixed: the panel runs there whatever is selected, even with no project at all.
   A command with one does not run again when you switch project or tab, since its folder has not moved; Refresh runs it, and so does its `interval`.
   A terminal with one starts every shell you make or restart there, and shows the same tabs in every project unless its `scope` is `project`.
-- A relative path is under the active tab's folder, or the project's root, so `"cwd": "packages/api"` follows the project into that folder.
+- A relative path is under the folder the panel would run in without one, so `"cwd": "packages/api"` follows the project into that folder.
 
 ```json
 { "id": "notes", "type": "command", "icon": "git", "options": { "command": "git status --short", "cwd": "~/notes" } }

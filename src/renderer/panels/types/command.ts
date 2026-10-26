@@ -80,7 +80,8 @@ class CommandPanel implements MountedPanel, RunHooks<PanelContext> {
 
   /** The options against the selection as it is now, and where the panel would run. */
   async check(): Promise<Checked<PanelContext>> {
-    const { problems, run, retry, watched } = await prepare(optionsOf(this.slot.entry), commandType, this.host.where());
+    const { problems, run, retry, watched, folder } = await prepare(optionsOf(this.slot.entry), commandType, this.host.where());
+    this.host.setFolder(folder ?? null);
     return { problems, ready: run, retry, watched };
   }
 

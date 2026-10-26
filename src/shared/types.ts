@@ -35,6 +35,13 @@ export interface SessionSummary {
    * Claude Code moves a session out of its worktree on its way out too, writing the same records, so only the tool's call beside the exit tells the two apart.
    */
   movedOutOfWorktree: boolean;
+  /**
+   * The root of the checkout, the main one or a linked worktree of the session's repo, holding the newest file claude changed with a file tool, a file git ignores passed over, when that is not the checkout `cwd` is in; empty otherwise.
+   * It is where a panel without a folder of its own runs, so a panel follows a session into a worktree it works in by path or by a Bash `cd`, which moves nothing else here.
+   * Empty too when no such change has been made since the session last entered or left a worktree, or when the newest one is in a worktree it can tell is gone, a listed one whose folder was removed or a `<repo>/.claude/worktrees/<name>` folder git no longer lists: then it does not fall back to an older checkout.
+   * The checkout is chosen when the transcript is read, and whether its folder is still there is asked per listing, since a checkout can be removed without the transcript changing.
+   */
+  workCwd: string;
   /** The name Claude gave the session, its custom title or else its generated one, empty when it has none. */
   title: string;
   /**

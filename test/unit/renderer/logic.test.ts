@@ -48,6 +48,7 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     worktree: '',
     leftWorktree: '',
     movedOutOfWorktree: false,
+    workCwd: '',
     title: 'Title',
     firstMessage: 'first',
     model: '',

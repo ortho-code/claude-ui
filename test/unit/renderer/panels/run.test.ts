@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { resolveContext, endLabel, runFailed, RunGate, placement, readControl, runKey, runContext } from '../../../../src/renderer/panels/run';
+import { resolveContext, endLabel, folderOf, runFailed, RunGate, placement, readControl, runKey, runContext, whereOf } from '../../../../src/renderer/panels/run';
+import { newSession } from '../../../../src/renderer/newsession';
+import type { SessionSummary } from '../../../../src/shared/types';
+import type { TabState } from '../../../../src/renderer/state/app';
 
 describe('RunGate', () => {
   /** A gate over a context the test moves by hand, counting the runs it lets through. */
@@ -246,7 +249,7 @@ describe('RunGate', () => {
 
 describe('resolveContext', () => {
   it('runs in the active tab’s cwd, so a worktree session’s panel reports the worktree', () => {
-    expect(resolveContext({ tab: { cwd: '/repo/.worktrees/x', repoRoot: '/repo', id: 's1' }, project: '/repo' })).toEqual({
+    expect(resolveContext({ tab: { cwd: '/repo/.worktrees/x', repoRoot: '/repo', id: 's1', worktree: 'x' }, project: '/repo' })).toEqual({
       projectRoot: '/repo',
       cwd: '/repo/.worktrees/x',
       sessionId: 's1',
@@ -259,7 +262,7 @@ describe('resolveContext', () => {
   });
 
   it('prefers the tab over the project even when the tab belongs to another project (the All view)', () => {
-    expect(resolveContext({ tab: { cwd: '/other', repoRoot: '/other', id: 's2' }, project: null })?.cwd).toBe('/other');
+    expect(resolveContext({ tab: { cwd: '/other', repoRoot: '/other', id: 's2', worktree: '' }, project: null })?.cwd).toBe('/other');
   });
 });
 
@@ -279,6 +282,46 @@ describe('placement', () => {
   it('runs a relative cwd under the context directory, and nowhere without a context', () => {
     expect(placement('packages/api', context)).toEqual({ kind: 'under', value: 'packages/api' });
     expect(placement('packages/api', null)).toBeNull();
+  });
+});
+
+describe('whereOf', () => {
+  /** The view with one tab on show, holding `session`. */
+  const showing = (session: SessionSummary): Parameters<typeof whereOf>[0] => ({ activeProject: '/repo', activeTab: 't', tabs: [{ token: 't', session } as TabState] });
+  const at = (over: Partial<SessionSummary>): SessionSummary => newSession('s1', { cwd: '/repo', repoRoot: '/repo', ...over });
+
+  it('puts the panels where the session works, naming the worktree by its folder', () => {
+    expect(whereOf(showing(at({ workCwd: '/repo/.claude/worktrees/fix' }))).tab).toEqual({ cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix' });
+  });
+
+  it('names no worktree when a session in one works in the main checkout', () => {
+    expect(whereOf(showing(at({ cwd: '/repo/.claude/worktrees/fix', worktree: 'fix', workCwd: '/repo' }))).tab).toEqual({ cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '' });
+  });
+
+  it('puts the panels where the session runs while it works there, naming its worktree as the session does', () => {
+    expect(whereOf(showing(at({ cwd: '/repo/.claude/worktrees/fix', worktree: 'fix' }))).tab).toEqual({ cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix' });
+    expect(whereOf(showing(at({}))).tab).toEqual({ cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '' });
+  });
+});
+
+describe('folderOf', () => {
+  const inWorktree = { tab: { cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix' }, project: '/repo' };
+  const inMain = { tab: { cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '' }, project: '/repo' };
+  const context = { projectRoot: '/repo', cwd: '/repo/.claude/worktrees/fix', sessionId: 's1' };
+
+  it('names the worktree the tab puts the panel in, with the whole path its run goes to', () => {
+    expect(folderOf({ kind: 'context' }, inWorktree, context, '/repo/.claude/worktrees/fix')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix' });
+  });
+
+  it('names the main checkout by the project’s folder, with a tab in it and with only the project chosen', () => {
+    const main = { name: 'repo', worktree: false, path: '/repo' };
+    expect(folderOf({ kind: 'context' }, inMain, { ...context, cwd: '/repo' }, '/repo')).toEqual(main);
+    expect(folderOf({ kind: 'context' }, { tab: null, project: '/repo' }, { projectRoot: '/repo', cwd: '/repo', sessionId: '' }, '/repo')).toEqual(main);
+  });
+
+  it('names the checkout for a relative cwd, with the subfolder in the path, and nothing for a fixed one', () => {
+    expect(folderOf({ kind: 'under', value: 'packages/api' }, inWorktree, context, '/repo/.claude/worktrees/fix/packages/api')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix/packages/api' });
+    expect(folderOf({ kind: 'fixed', value: '/srv/app' }, inWorktree, context, '/srv/app')).toBeNull();
   });
 });
 

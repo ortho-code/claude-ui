@@ -250,6 +250,34 @@
   white-space: nowrap;
 }
 
+/* The folder a panel looks in, right after its title: the badge pill (badge.css), muted for the main checkout, in the accent with the worktree mark for a worktree, its whole path in its tooltip.
+   Beside it, the title hugs its text, and the room up to the end goes to an auto margin, which keeps the count and the controls at the end as the title did: the count's own (card.css) when it shows one, else the mark's.
+   It gives way first when the header is narrow (a flex-shrink of 100 against the title's 1), down to 26px, which is the icon for a worktree; its name is cut at its end. */
+.panel-header:has(> .panel-folder:not([hidden])) > .panel-title {
+  flex: 0 1 auto;
+}
+
+.panel-folder {
+  flex: 0 100 auto;
+  min-width: 26px;
+  margin-right: auto;
+  font-weight: 400;
+}
+
+.panel-folder:has(+ .panel-count:not([hidden])) {
+  margin-right: 0;
+}
+
+.panel-folder.main {
+  --badge-ink: var(--muted);
+}
+
+.panel-folder > .badge-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .panel-end {
   font-size: var(--text-meta);
   font-weight: 400;

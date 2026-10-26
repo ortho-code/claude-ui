@@ -73,13 +73,25 @@ async function resolveRepo(cwd: string): Promise<RepoInfo> {
   return info;
 }
 
+/** A summary as the listing caches it: the session, and the checkouts it changed files in, which its work folder is chosen from. */
+interface Summarized {
+  summary: SessionSummary;
+  /** Every checkout of its repo the session changed a file in, newest first, when one is not the checkout it runs in; empty otherwise, and for a session git could not answer about. */
+  checkouts: ChangedCheckout[];
+  /** The root of the checkout it works in when that is not the one `cwd` is in, '' otherwise; whether it is still there is asked per listing. */
+  work: string;
+}
+
+/** What one listing asks git once, however many transcripts it re-reads: each repo's checkouts. */
+type ListingPass = Map<string, Promise<string[] | null>>;
+
 // Per-file summary cache keyed by mtime+size, so a disk change only re-reads the files that actually changed instead of all of them every time.
 // In-memory only — a restart rebuilds it.
-const summaryCache = new Map<string, { key: string; summary: SessionSummary | null }>();
+const summaryCache = new Map<string, { key: string; summarized: Summarized | null }>();
 
 // Summarize a file, reusing the cached result while its mtime+size are unchanged.
 // Caches ONLY a completed summarize; a read error keeps the previous entry rather than poisoning the cache, and presence is driven by readdir (a gone file is skipped, never served stale).
-async function summarizeCached(file: string): Promise<SessionSummary | null> {
+async function summarizeCached(file: string, pass: ListingPass): Promise<Summarized | null> {
   let stat;
   try {
     stat = await fs.stat(file);
@@ -88,7 +100,7 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
   }
   const key = `${stat.mtimeMs}:${stat.size}`;
   const cached = summaryCache.get(file);
-  if (cached?.key === key) return cached.summary;
+  if (cached?.key === key) return cached.summarized;
 
   let read: SummaryRead | null;
   try {
@@ -97,8 +109,9 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
     // Gone since the stat is a race; anything else keeps that session out of the list, or stale in it, on every listing.
     const failure = fsFailure(error);
     if (failure) logOnce('warn', 'sessions', `cannot read ${file}: ${failure}`);
-    return cached?.summary ?? null;
+    return cached?.summarized ?? null;
   }
+  let summarized: Summarized | null = null;
   if (read) {
     const { summary, leftWorktreePath, movedOut } = read;
     const repo = await resolveRepo(summary.cwd);
@@ -108,10 +121,10 @@ async function summarizeCached(file: string): Promise<SessionSummary | null> {
     // Named the way the worktree it is in is named, so the two badges agree; once the tree is removed only the `.claude/worktrees/<name>` fallback still names it.
     if (!repo.worktree && leftWorktreePath) summary.leftWorktree = (await resolveRepo(leftWorktreePath)).worktree;
     summary.movedOutOfWorktree = summary.leftWorktree !== '' && movedOut;
+    summarized = { summary, ...(repo.isRepo ? await workOf(read, repo.repoRoot, pass) : { checkouts: [], work: '' }) };
   }
-  const summary = read?.summary ?? null;
-  summaryCache.set(file, { key, summary });
-  return summary;
+  summaryCache.set(file, { key, summarized });
+  return summarized;
 }
 
 /**
@@ -149,19 +162,23 @@ export async function listSessions(): Promise<SessionSummary[]> {
     }
   }
 
-  const summaries = (await Promise.all(files.map(summarizeCached))).filter(
-    (s): s is SessionSummary => s !== null,
+  const pass: ListingPass = new Map();
+  const listed = (await Promise.all(files.map((file) => summarizeCached(file, pass)))).filter(
+    (s): s is Summarized => s !== null,
   );
+  const summaries = listed.map((s) => s.summary);
 
   // DOES THE FOLDER STILL EXIST, asked fresh on every listing rather than cached beside the summary: a folder can be removed or put back without the transcript changing, and a stale yes is what let a session start somewhere nobody chose.
   // One stat per distinct path, not per session — hundreds of sessions share a handful of directories.
-  const dirs = new Set(summaries.flatMap((s) => [s.cwd, s.repoRoot]));
+  const dirs = new Set(listed.flatMap(({ summary: s, work }) => [s.cwd, s.repoRoot, ...(work ? [work] : [])]));
   const exists = new Map(
     await Promise.all([...dirs].map(async (dir) => [dir, await isDirectory(dir)] as const)),
   );
-  for (const s of summaries) {
+  for (const { summary: s, work } of listed) {
     s.cwdExists = exists.get(s.cwd) ?? false;
     s.repoRootExists = exists.get(s.repoRoot) ?? false;
+    // A checkout removed since leaves the session where it runs, not in an older checkout.
+    s.workCwd = work && exists.get(work) ? work : '';
   }
 
   // Sibling grouping: sessions sharing a conversationId are one family.
@@ -283,7 +300,29 @@ interface SummaryRead {
   leftWorktreePath: string;
   /** Whether it left that worktree by claude's ExitWorktree tool rather than by closing there (`SessionSummary.movedOutOfWorktree`). */
   movedOut: boolean;
+  /** Each file claude changed with a file tool, at its newest change, newest first. */
+  changes: FileChange[];
+  /** Where in the transcript the session last entered or left a worktree, by `worktree-state`; -1 for never. */
+  movedAt: number;
 }
+
+/** A file claude changed: where in the transcript, by line, and when, as its record says. */
+interface FileChange {
+  file: string;
+  position: number;
+  at: string;
+}
+
+/** Claude's tools that change a file, each with the input that names it. */
+const FILE_TOOLS = new Map([
+  ['Edit', 'file_path'],
+  ['Write', 'file_path'],
+  ['MultiEdit', 'file_path'],
+  ['NotebookEdit', 'notebook_path'],
+]);
+
+/** A line that may call one of them, before it is parsed. */
+const FILE_TOOL_CALL = new RegExp(`"name":"(?:${[...FILE_TOOLS.keys()].join('|')})"`);
 
 /** Summarize one transcript without loading the whole file into memory. */
 async function summarizeFile(file: string): Promise<SummaryRead | null> {
@@ -311,6 +350,11 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
   let exitCalled = false;
   let exitAwaitsCall = false;
   let movedOut = false;
+  // Where the session changed files, against where it last moved by a worktree tool, so a move after its last change wins and a change after a move does.
+  // Positions, not times, order the two: a `worktree-state` record carries no timestamp.
+  const changes = new Map<string, FileChange>();
+  let movedAt = -1;
+  let position = 0;
   // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system append (a Remote Control notice) or a resume bumps mtime without being real activity.
   // Captured with a cheap regex below.
   let lastMsgTs = '';
@@ -321,6 +365,7 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
   try {
     for await (const line of rl) {
+      position++;
       if (!line.trim()) continue;
 
       // Keep the latest model an assistant message reported.
@@ -330,7 +375,10 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
 
       // Last message's timestamp (lastActivity): a cheap regex before the early-continue, so it sees every message line without a full parse.
       // Overwrites, so the final value is the newest message.
-      if (line.includes('"type":"user"') || line.includes('"type":"assistant"')) {
+      // A user record is looked for first, as it always was: it finds its type near the start of the line, where a search for the other type would read all of a long tool result.
+      const isUser = line.includes('"type":"user"');
+      const isAssistant = !isUser && line.includes('"type":"assistant"');
+      if (isUser || isAssistant) {
         const tsMatch = line.match(/"timestamp":"([^"]+)"/);
         if (tsMatch) lastMsgTs = tsMatch[1]!;
       }
@@ -344,9 +392,11 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
       const maybeWorktree = line.includes('worktree-state');
       const maybePrLink = line.includes('"pr-link"');
       const maybeExitCall = line.includes('"ExitWorktree"');
+      // Searched only in claude's own records, which keeps it off the long tool results and replayed requests.
+      const maybeChange = isAssistant && FILE_TOOL_CALL.test(line);
       // Read before the lines below are skipped unparsed, as a user record mostly is.
       if (exitAwaitsCall && line.includes('"type":"user"')) exitAwaitsCall = false;
-      if (!isTitle && !maybeBoundary && !maybeWorktree && !maybePrLink && !maybeExitCall && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
+      if (!isTitle && !maybeBoundary && !maybeWorktree && !maybePrLink && !maybeExitCall && !maybeChange && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
 
       let event: Record<string, unknown>;
       try {
@@ -367,6 +417,8 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
       if (event.type === 'worktree-state') {
         const ws = event.worktreeSession as { worktreePath?: unknown; originalCwd?: unknown } | null;
         if (ws && typeof ws.worktreePath === 'string') {
+          // Claude Code writes the state again with each turn while the session is in its worktree, and a repeat is no move.
+          if (!inWorktree || worktreeStateCwd !== ws.worktreePath) movedAt = position;
           worktreeStateCwd = ws.worktreePath;
           enteredWorktreePath = ws.worktreePath;
           leftWorktreePath = '';
@@ -382,6 +434,7 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
           if (inWorktree) {
             movedOut = exitCalled;
             exitAwaitsCall = !exitCalled;
+            movedAt = position;
           }
           inWorktree = false;
         }
@@ -391,6 +444,15 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
         // Before its exit, it is waited for; after it, in the same turn, it settles the exit already read as a close.
         if (inWorktree) exitCalled = true;
         else if (exitAwaitsCall) movedOut = true;
+      }
+
+      // Only claude's own records: a transcript's `api-request-blob` records replay earlier calls, with no timestamp, wherever they are written.
+      if (maybeChange && event.type === 'assistant') {
+        for (const changed of changedFiles(event)) {
+          // Moved to the end, so the map runs oldest to newest change.
+          changes.delete(changed);
+          changes.set(changed, { file: changed, position, at: typeof event.timestamp === 'string' ? event.timestamp : '' });
+        }
       }
 
       if (event.type === 'pr-link') {
@@ -430,6 +492,8 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
     worktree: '',
     leftWorktree: '',
     movedOutOfWorktree: false,
+    // Set per listing, from the checkout chosen with the summary, while that checkout's folder is there.
+    workCwd: '',
     isRepo: false,
     title: title.slice(0, 200),
     firstMessage: firstMessage.slice(0, 200),
@@ -444,7 +508,183 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
     cwdExists: true,
     repoRootExists: true,
   };
-  return { summary, leftWorktreePath, movedOut: leftWorktreePath !== '' && movedOut };
+  return { summary, leftWorktreePath, movedOut: leftWorktreePath !== '' && movedOut, changes: [...changes.values()].reverse(), movedAt };
+}
+
+/** The absolute paths an assistant record's file-tool calls change; a relative one names no file anyone can find. */
+function changedFiles(event: Record<string, unknown>): string[] {
+  const content = (event.message as { content?: unknown } | undefined)?.content;
+  if (!Array.isArray(content)) return [];
+  return content.flatMap((part: unknown) => {
+    if (typeof part !== 'object' || part === null) return [];
+    const { type, name, input } = part as { type?: unknown; name?: unknown; input?: unknown };
+    const field = type === 'tool_use' && typeof name === 'string' ? FILE_TOOLS.get(name) : undefined;
+    const file = field && typeof input === 'object' && input !== null ? (input as Record<string, unknown>)[field] : undefined;
+    return typeof file === 'string' && path.isAbsolute(file) ? [file] : [];
+  });
+}
+
+/** A checkout a session changed a file in: its root, and its newest change there; `gone` for a worktree whose folder is not there, or that git no longer lists. */
+interface ChangedCheckout {
+  root: string;
+  position: number;
+  at: string;
+  gone: boolean;
+}
+
+/**
+ * WHERE A SESSION WORKS: the checkouts of its repo it changed files in, and of them the one a panel without a folder of its own runs in.
+ * That is the checkout of its newest change, a file git ignores or outside the repo's checkouts passed over, so a session working in a worktree by path or by a Bash `cd` takes its panels there, and back once claude changes a file git does not ignore in the main checkout.
+ * Not when it entered or left a worktree after that change, which puts it where `cwd` already says; and not when that change is in a worktree that is gone (`changedCheckouts` says which it can tell), where it falls back to `cwd` rather than to an older checkout, which would be a guess.
+ * Nothing when git cannot answer, rather than an answer made without it.
+ */
+async function workOf(read: SummaryRead, repoRoot: string, pass: ListingPass): Promise<Omit<Summarized, 'summary'>> {
+  const none = { checkouts: [], work: '' };
+  if (read.changes.length === 0) return none;
+  const listed = pass.get(repoRoot) ?? checkoutsOf(repoRoot);
+  pass.set(repoRoot, listed);
+  const roots = await listed;
+  if (!roots) return none;
+  // Most sessions change files only in the checkout they run in, or outside the repo, and work where they run whatever git ignores: their paths say so, and git is not asked which files it ignores.
+  // Only a path through a link into a checkout, or from one checkout into another, would make the paths say otherwise than their real folders do.
+  const own = rootOf(read.summary.cwd, roots);
+  const main = roots[0]!;
+  if (!read.changes.some(({ file }) => goneWorktree(file, main, roots) || ![own, ''].includes(rootOf(file, roots)))) return none;
+  const checkouts = await changedCheckouts(read.changes, roots);
+  if (!checkouts) return none;
+  const newest = checkouts[0];
+  if (!newest || newest.gone || newest.position < read.movedAt) return { checkouts, work: '' };
+  return { checkouts, work: rootOf(await realFolder(read.summary.cwd), roots) === newest.root ? '' : newest.root };
+}
+
+/**
+ * The checkouts a session changed files in, newest first, each at its newest change that counts; null when git could not say which files it ignores.
+ * A file under `.claude/worktrees/<name>/` of a worktree git no longer lists is a gone worktree's, not the main checkout's it would otherwise fall in, and so is one in a listed worktree whose folder was removed by hand, which git lists as prunable until it is pruned.
+ */
+async function changedCheckouts(changes: FileChange[], roots: string[]): Promise<ChangedCheckout[] | null> {
+  // `checkoutsOf` answers no empty list.
+  const main = roots[0]!;
+  const byRoot = new Map<string, ChangedCheckout>();
+  const note = (root: string, change: FileChange, gone: boolean): void => {
+    if (!byRoot.has(root)) byRoot.set(root, { root, position: change.position, at: change.at, gone });
+  };
+  const toCheck = new Map<string, FileChange[]>();
+  for (const change of changes) {
+    const file = path.join(await realFolder(path.dirname(change.file)), path.basename(change.file));
+    const gone = goneWorktree(file, main, roots);
+    if (gone) {
+      note(gone, change, true);
+      continue;
+    }
+    const root = rootOf(file, roots);
+    if (root) toCheck.set(root, [...(toCheck.get(root) ?? []), { ...change, file }]);
+  }
+  for (const [root, inRoot] of toCheck) {
+    if (!(await isDirectory(root))) {
+      note(root, inRoot[0]!, true);
+      continue;
+    }
+    const ignored = await ignoredIn(root, inRoot.map(({ file }) => file));
+    if (!ignored) return null;
+    const counted = inRoot.find(({ file }) => !ignored.has(file));
+    if (counted) note(root, counted, false);
+  }
+  return [...byRoot.values()].sort((a, b) => b.position - a.position);
+}
+
+/** The root of the gone worktree a path is in, by claude's `<repo>/.claude/worktrees/<name>` layout, when git does not list that worktree; '' otherwise. */
+function goneWorktree(file: string, main: string, roots: string[]): string {
+  const worktrees = path.join(main, '.claude', 'worktrees');
+  if (!file.startsWith(`${worktrees}/`)) return '';
+  const root = path.join(worktrees, file.slice(worktrees.length + 1).split('/')[0]!);
+  return roots.includes(root) ? '' : root;
+}
+
+/** The root of the checkout a path is in: the longest of `roots` that holds it, or is it; '' for none. */
+function rootOf(file: string, roots: string[]): string {
+  return roots.filter((root) => file === root || file.startsWith(`${root}/`)).reduce((longest, root) => (root.length > longest.length ? root : longest), '');
+}
+
+/**
+ * A repo's checkouts, the main one first, as `git worktree list` gives them, through their real paths where they are there; null when the repo is gone or git cannot say.
+ * A worktree whose folder was removed by hand stays listed, as prunable, until git prunes it.
+ */
+async function checkoutsOf(repoRoot: string): Promise<string[] | null> {
+  // A repo deleted since its sessions ran has no checkouts, and git would only say so; claude's `.claude/worktrees/` layout still files those sessions under it.
+  if (!(await isDirectory(repoRoot))) return null;
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', repoRoot, 'worktree', 'list', '--porcelain'], { timeout: GIT_TIMEOUT_MS });
+    const roots = stdout.split('\n').flatMap((line) => (line.startsWith('worktree ') ? [line.slice('worktree '.length)] : []));
+    return roots.length > 0 ? await Promise.all(roots.map((root) => fs.realpath(root).catch(() => root))) : null;
+  } catch (error) {
+    logOnce('warn', 'sessions', `git could not list the checkouts of ${repoRoot}: ${errorText(error)}`);
+    return null;
+  }
+}
+
+// What git ignores, per checkout and file, asked once a run: a file's answer changes only when an ignore rule or the index does, and a checkout git cannot answer for is asked again next time.
+const ignoreCache = new Map<string, boolean>();
+
+/**
+ * Which of a checkout's files git ignores there, asked in one call; null when git cannot say.
+ * Without `--no-index`, so a tracked file that matches a pattern counts as not ignored, as git shows its change.
+ */
+async function ignoredIn(root: string, files: string[]): Promise<Set<string> | null> {
+  const key = (file: string): string => `${root}\0${file}`;
+  const unknown = [...new Set(files.filter((file) => !ignoreCache.has(key(file))))];
+  if (unknown.length > 0) {
+    let answer: { code: number; stdout: string };
+    try {
+      answer = await gitWithInput(['-C', root, 'check-ignore', '--stdin', '-z', '-v', '-n'], unknown.map((file) => `${path.relative(root, file)}\0`).join(''));
+    } catch (error) {
+      logOnce('warn', 'sessions', `git could not say which files it ignores in ${root}: ${errorText(error)}`);
+      return null;
+    }
+    // Exit 1 is git's answer that it ignores none of them, with the same output.
+    if (answer.code !== 0 && answer.code !== 1) {
+      logOnce('warn', 'sessions', `git could not say which files it ignores in ${root}: exit ${answer.code}`);
+      return null;
+    }
+    // Four fields a file, in the order asked: the source of the rule that matched, its line, the rule, and the path; no rule, or a negated one, is not ignored.
+    const fields = answer.stdout.split('\0');
+    unknown.forEach((file, index) => {
+      const rule = fields[index * 4 + 2] ?? '';
+      ignoreCache.set(key(file), rule !== '' && !rule.startsWith('!'));
+    });
+  }
+  return new Set(files.filter((file) => ignoreCache.get(key(file))));
+}
+
+/** Git with `input` on its stdin: its exit code and output, or a rejection when it could not run or ran past its time. */
+function gitWithInput(args: string[], input: string): Promise<{ code: number; stdout: string }> {
+  return new Promise((resolve, reject) => {
+    const child = execFile('git', args, { timeout: GIT_TIMEOUT_MS }, (error, stdout) => {
+      // An exit code is git's answer; a missing binary has a string code, and a run stopped at its time none.
+      if (error && typeof error.code !== 'number') reject(new Error(errorText(error)));
+      else resolve({ code: typeof error?.code === 'number' ? error.code : 0, stdout });
+    });
+    // A git that ends before it has read everything closes the pipe, and its exit says why.
+    child.stdin?.on('error', () => {});
+    child.stdin?.end(input);
+  });
+}
+
+// A folder's real path, asked once a run.
+const realFolders = new Map<string, Promise<string>>();
+
+/**
+ * A folder's real path, so a file behind a link out of the repo lands outside it; for a folder that is gone, its nearest ancestor's real path with the rest of the path kept, since a removed folder is still somewhere.
+ */
+function realFolder(dir: string): Promise<string> {
+  let real = realFolders.get(dir);
+  if (!real) {
+    real = fs.realpath(dir).catch(async () => {
+      const up = path.dirname(dir);
+      return up === dir ? dir : path.join(await realFolder(up), path.basename(dir));
+    });
+    realFolders.set(dir, real);
+  }
+  return real;
 }
 
 /** Whether an assistant record calls the tool `name`. */

@@ -33,10 +33,20 @@ export interface PanelTypeDecl {
   revision?: string;
 }
 
-/** Where a panel would run right now: the renderer's active tab and selected project, as the side reads them. */
+/**
+ * Where a panel would run right now: the renderer's active tab and selected project, as the side reads them.
+ * A tab's `worktree` names the linked worktree its `cwd` is in, '' for the main checkout.
+ */
 export interface Where {
-  tab: { cwd: string; repoRoot: string; id: string } | null;
+  tab: { cwd: string; repoRoot: string; id: string; worktree: string } | null;
   project: string | null;
+}
+
+/** The folder a panel looks in, as its header names it: the checkout's name, whether that is a linked worktree, and the whole path its run goes to. */
+export interface PanelFolder {
+  name: string;
+  worktree: boolean;
+  path: string;
 }
 
 /**
@@ -218,6 +228,8 @@ export interface PanelHost extends Asks {
   setProblems(problems: string[]): void;
   /** Sentences about the panel that do not stop it running, shown in its group's note line. */
   setNotes(notes: string[]): void;
+  /** The folder the panel looks in, named beside its title; null for none, as for a panel with a folder of its own, which no tab moves. */
+  setFolder(folder: PanelFolder | null): void;
   /** Ask the app for a session from one of the panel's items (see `SessionRequest`). */
   startSession(request: SessionRequest): void;
   /** The sessions an item started that the app still has, latest first; empty until the panel's data has been read. */

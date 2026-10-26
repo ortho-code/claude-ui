@@ -69,7 +69,7 @@ The layout file uses the type by its name, and its entry's `options` take the ty
 { "id": "commits", "type": "commits", "options": { "count": "10", "interval": "5m" } }
 ```
 
-`cwd` is where the script runs: without one, the active tab's folder, or the selected project's root when no tab is open; an absolute path or one under `~/` is fixed, whatever is selected; a relative one is under that same folder, so it follows the project.
+`cwd` is where the script runs: without one, where the active tab's session works, the checkout it last changed a file in, or the selected project's root when no tab is open, which the panel's header names; an absolute path or one under `~/` is fixed, whatever is selected; a relative one is under that same folder, so it follows the project.
 A `list` is written as one, here for the `actions` declared above:
 
 ```json

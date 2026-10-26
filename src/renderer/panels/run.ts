@@ -1,8 +1,9 @@
 import type { PanelContext, PanelRunEvent } from '../../shared/panels';
 import { PANEL_CONTROL_VARIABLE, PANEL_TIMEOUT_MS } from '../../shared/panels';
+import { folderName } from '../logic';
 import type { View } from '../state/app';
 import { tabOnShow } from '../state/views';
-import type { Where } from './contract';
+import type { PanelFolder, Where } from './contract';
 import { INTERVAL_OPTION, checkOptions, durationLabel, isFixedPath, parseDuration, watchesGit, type OptionsDecl } from './options';
 
 /**
@@ -18,10 +19,14 @@ export const WHERE_SLICES = ['activeProject', 'activeTab', 'tabs'] as const;
 /**
  * Where the panels are: the tab on show's session, or without one the project chosen.
  * The session is read from the tab itself, since a `/clear` or a move into another folder changes it under the same tab, which is why the tabs are among the slices.
+ * Its folder is where it works, the checkout it last changed a file in (`workCwd`), which is its own folder unless that is another; only the panels follow it there, and a resume still runs where the session does.
+ * That checkout is the main one or a worktree, named as main names a worktree, by its folder.
  */
 export function whereOf(view: View<(typeof WHERE_SLICES)[number]>): Where {
   const tab = tabOnShow(view);
-  return { tab: tab ? { cwd: tab.session.cwd, repoRoot: tab.session.repoRoot, id: tab.session.id } : null, project: view.activeProject };
+  if (!tab) return { tab: null, project: view.activeProject };
+  const { workCwd, cwd, repoRoot, id, worktree } = tab.session;
+  return { tab: { cwd: workCwd || cwd, repoRoot, id, worktree: workCwd ? (workCwd === repoRoot ? '' : folderName(workCwd)) : worktree }, project: view.activeProject };
 }
 
 /**
@@ -78,6 +83,18 @@ export interface Prepared {
   retry?: boolean;
   /** For a panel that watches git whose options and folder pass: the folder it runs in, and its working tree's fingerprint as the check found it. */
   watched?: Watched;
+  /** For a panel that can run where the selection places it: the folder its header names (`folderOf`); absent otherwise. */
+  folder?: PanelFolder | null;
+}
+
+/**
+ * The folder a panel looks in, as its header names it: the checkout the selection puts it in, by the worktree's name or else the project's folder, and the whole path its run goes to, a relative `cwd`'s subfolder included.
+ * Null for a panel with a folder of its own, which no selection moves.
+ */
+export function folderOf(place: Placement, where: Where, context: PanelContext, dir: string): PanelFolder | null {
+  if (place.kind === 'fixed') return null;
+  const worktree = where.tab?.worktree ?? '';
+  return { name: worktree || folderName(context.projectRoot), worktree: worktree !== '', path: dir };
 }
 
 /** A watched folder and its git working tree's fingerprint at one moment. */
@@ -98,15 +115,17 @@ export async function prepare(options: Record<string, unknown>, decl: OptionsDec
   const place = placement(options.cwd, context);
   if (!place) return { problems: [], run: null };
   const run = runContext(context, place.kind === 'context' ? context!.cwd : paths.cwd!);
+  // A placement that is not fixed has a context: `placement` answers null without one.
+  const folder = context ? folderOf(place, where, context, run.cwd) : null;
   if (watchesGit(options)) {
     const tree = await window.claudeUi.panelTree(run.cwd);
     // No working tree is git's definite answer, and stands until the panel is looked at again: a Refresh, a reveal, a change in the config folder, or a switch that runs it.
     if (tree.kind === 'none') return { problems: [`watch: git, but ${run.cwd} is not in a git working tree; press Refresh once it is.`], run: null };
     // Git not answering is as much a refusal, since there is no tree to watch, but it may answer when asked again.
     if (tree.kind === 'failed') return { problems: [`watch: git, but git could not look at ${run.cwd}: ${tree.error.replace(/\.$/, '')}.`], run: null, retry: true };
-    return { problems: [], run, watched: { dir: run.cwd, fingerprint: tree.fingerprint } };
+    return { problems: [], run, watched: { dir: run.cwd, fingerprint: tree.fingerprint }, folder };
   }
-  return { problems: [], run };
+  return { problems: [], run, folder };
 }
 
 /**

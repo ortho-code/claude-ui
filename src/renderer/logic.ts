@@ -40,6 +40,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   leftWorktree: true,
   // The mark's tooltip says which way it left.
   movedOutOfWorktree: true,
+  // Not drawn on the row, but the panels read it from the tab, and a tab hears of a re-read session only when its row would change (`sameTabs`, state/app.ts).
+  workCwd: true,
   title: true,
   firstMessage: true,
   // The row prints it, and switching model mid-session used to leave the old one there until something else moved.
