@@ -21,6 +21,7 @@ import { activityMoment, archivedMoment } from './describe';
 import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
 import '../../../tone.css';
 import '../../../prstatus.css';
+import '../../../badge.css';
 import './rows.css';
 
 /**
