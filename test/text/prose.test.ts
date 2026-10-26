@@ -162,7 +162,7 @@ function crowdedIn(file: string, text: string): string[] {
   );
 }
 
-/** Every tracked file whose kind paragraphsOf reads, with its text. */
+/** Every file `tracked` lists whose kind paragraphsOf reads, with its text. */
 const trackedProse = (): { file: string; text: string }[] => tracked(/\.(ts|mjs|css|md|yml|sh|toml)$/);
 
 describe('prose', () => {
