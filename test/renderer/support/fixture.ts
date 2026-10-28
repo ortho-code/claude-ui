@@ -13,6 +13,8 @@ export interface BridgeFixture {
   sessions: SessionSummary[];
   pinned: string[];
   archived: Record<string, number>;
+  /** Why main's write of an archive mark fails, as its error would say, such as `meta.json` that cannot be written; null for one that succeeds. */
+  archiveFails: string | null;
   notes: Record<string, string>;
   openSessions: string[];
   runningSessions: string[];
@@ -132,6 +134,7 @@ export function defaultFixture(): BridgeFixture {
     sessions: [one],
     pinned: [],
     archived: {},
+    archiveFails: null,
     notes: {},
     openSessions: [],
     runningSessions: [],

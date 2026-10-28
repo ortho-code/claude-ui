@@ -59,7 +59,8 @@ test('an archived session resumed in a tab is unarchived, a toast says so, and i
   await tab(page, old.title).locator('.tab-kebab').click();
   const items = page.locator('.kebab-menu button.menu-row');
   await expect(items.filter({ hasText: /^Stop session$/ })).toHaveCount(1);
-  await expect(items.filter({ hasText: /^Archive$/ })).toBeDisabled();
+  await expect(items.filter({ hasText: /^Archive$/ })).toHaveCount(1);
+  await expect(items.filter({ hasText: /^Archive$/ })).not.toHaveClass(/\bunavailable\b/);
   await expect(items.filter({ hasText: /^Delete session/ })).toHaveCount(0);
 });
 

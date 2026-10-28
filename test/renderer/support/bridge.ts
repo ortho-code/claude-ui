@@ -99,7 +99,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
     getArchived: () => answer(fixture.archived),
-    archive: (id) => answer((fixture.archived = archivedFrom(fixture.archived, id, Date.now()))),
+    archive: (id) => (fixture.archiveFails === null ? answer((fixture.archived = archivedFrom(fixture.archived, id, Date.now()))) : Promise.reject(new Error(fixture.archiveFails))),
     unarchive: (id) => answer((fixture.archived = unarchived(fixture.archived, id))),
     // Main moves the transcript to the trash, so the listing no longer has it, forgets its status, and purges it from meta by main's own rule: its marks, its open tab, the tab to reopen on, its group.
     // A panel row linked to it is forgotten with an event the stand-in does not fire, so that delete is main's to answer, not this.

@@ -158,10 +158,10 @@ export interface TabState {
    */
   stopping: boolean;
   /**
-   * What the exit of a claude asked to leave does to the tab: `cool` keeps it, cold, and `close` removes it.
-   * A close of a live tab waits for claude like a stop, since claude may ask something on its way out.
+   * What the exit of a claude asked to leave does to the tab: `cool` keeps it, cold, `close` removes it, and `archive` removes it and archives its session (`archiveSession`).
+   * A close or an archive of a live tab waits for claude like a stop, since claude may ask something on its way out.
    */
-  onExit: 'cool' | 'close';
+  onExit: 'cool' | 'close' | 'archive';
   /** A stop that has had its moment without the session going: its stop control now forces it out (`tabButtonState`). */
   forceable: boolean;
   /**

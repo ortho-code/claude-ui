@@ -117,8 +117,9 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Deleting its sessions takes it away.
 - Changing a filter opens every section again, where a fold made under the filter used to last until the filter was cleared, and could hide a new match.
 - Collapse-all and a project's group jump work while a filter is on, folding and opening what the filter shows.
-- Archive is unavailable while a session runs: stop it first, so anything claude asks on its way out is answered in its tab.
-  Archiving a session whose tab is open but not running closes the tab.
+- Archive is one press on a running session too: claude is asked to leave, its tab stays for anything claude asks on its way out, and the session is archived and its tab closed once claude has gone.
+  Going on working meanwhile, with a prompt, a `/resume` or a `/clear`, calls the archive off, a prompt with a message saying so; quitting before claude has gone leaves the session unarchived.
+  Archiving a session whose tab is open but not running closes the tab at once.
 - The app no longer opens an archived session again: an archived sibling in a session's options says it is archived, and a tab left open for one does not come back at the next launch.
 - A session's status dot reacts to a click only while the session is idle or waiting for you, when a click marks it read; any other dot no longer looks clickable, and a click on it does what a click beside it does.
 - The arrow beside a project's or a group's + is there outside a git repository too, its New worktree session… greyed out saying why, where the arrow used to be missing.

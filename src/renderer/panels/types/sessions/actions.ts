@@ -174,16 +174,6 @@ function moveToGroupItems(session: SessionSummary): MenuItem[] {
   return items;
 }
 
-// Archive one session: it is put away, so any open tab for it closes too.
-export async function archiveFor(key: string): Promise<void> {
-  const archived = new Map(Object.entries(await window.claudeUi.archive(key)));
-  // One change, told once the tabs are closed, so the list draws with them gone, as it did.
-  store.batch(() => {
-    store.set({ archived });
-    hostOf('sessions').closeTabs(key);
-  });
-}
-
 // Unarchive one session, leaving tabs alone: from the archived view's row button and the archived session's menu.
 export async function unarchiveFor(key: string): Promise<void> {
   store.set({ archived: new Map(Object.entries(await window.claudeUi.unarchive(key))) });
@@ -284,10 +274,11 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   const button = tab ? tabButtonState(tab) : null;
   if (!button) items.push({ label: tabButtonLabel('close'), disabled: 'Not open in a tab' });
   else items.push(button.disabled ? { label: button.label, disabled: button.tooltip } : { label: button.label, onSelect: () => hostOf('sessions').pressTabButton(session.id, button.mark) });
-  // Not while it runs, starting and stopping included: stopping it first, with the item above, keeps the tab up for anything claude asks on its way out, so Archive is never offered for a running tab.
-  // A tab that is open but not running closes as the session is archived (`archiveFor`).
-  const running = tab !== undefined && (tab.terminalId !== null || tab.starting);
-  items.push(running ? { label: 'Archive', disabled: 'Stop the session first' } : { label: 'Archive', onSelect: () => void archiveFor(entityKey(session)) });
+  // One press whatever its tabs are doing (`archiveSession`): a running claude is asked to leave first, its tab kept for anything claude asks on its way out, and the session is archived once claude has gone (user, 2026-10-28).
+  // Not while a tab starts, as Pause is not: there is no claude yet to ask to leave.
+  const key = entityKey(session);
+  const starting = store.get().tabs.some((t) => entityKey(t.session) === key && t.starting);
+  items.push(starting ? { label: 'Archive', disabled: 'Starting…' } : { label: 'Archive', onSelect: () => hostOf('sessions').archiveSession(key) });
   return items;
 }
 

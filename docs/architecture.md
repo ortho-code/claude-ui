@@ -295,7 +295,7 @@ Activating a tab can only ever **resume** it: the tab's own session is all it kn
 The arguments that apply to a session's first start and to nothing afterwards — `--fork-session`, `--name`, `-w` — belong to the call that creates the tab, so that call selects the tab *without* starting it and starts it itself.
 
 Two exits must stay distinguishable.
-A **user stop** sets a `stopping` flag before asking claude to leave, and the exit handler checks it first: that tab is cooled and kept, or removed when the stop was a close (`onExit`).
+A **user stop** sets a `stopping` flag before asking claude to leave, and the exit handler checks it first: that tab is cooled and kept, or removed when the stop was a close or an archive, which archives the session too (`onExit`).
 **Any other exit** closes the tab, which is deliberate — it stops a finished session leaving an empty tab behind.
 
 That separation is what the tab's button is built on: ending a session and removing a tab are different intents, so one press does not decide both.
@@ -384,8 +384,8 @@ So the tab stays, stopping, with its terminal kept and answerable in the tab, un
 An earlier version sent `SIGTERM` 1.8 s after the first press, which killed the question and left the tree kept but locked; it also ended every stop of a session mid-turn, which two presses alone did not end in either run probed.
 A close keeps the tab the same way and removes it when the exit lands, since a tab removed first is what made the question unreachable.
 Esc at the question calls claude's exit off, and the next prompt the session submits clears the stop: the status hook names the event that reported each status, and `UserPromptSubmit` is the one only a session that stayed can send once the stop is pressed.
-A `/resume` or `/clear` there clears it the same way, whatever the leave was, a stop, a pause or a close: the app hears of either as a start of another session reported from the tab, which is going on working (user, 2026-10-28: "when you don't finish a stop/pause/close/archive and then do something else, you call it off"), and a `/resume` fires no `UserPromptSubmit` (measured; for a `/clear` it is not known).
-It used to leave the tab saying it was stopping, in the session claude went on in.
+A `/resume` or `/clear` there clears it the same way, whatever the leave was, a stop, a pause, a close or an archive: the app hears of either as a start of another session reported from the tab, which is going on working (user, 2026-10-28: "when you don't finish a stop/pause/close/archive and then do something else, you call it off"), and a `/resume` fires no `UserPromptSubmit` (measured; for a `/clear` it is not known).
+It used to leave the tab saying it was stopping, in the session claude went on in, and an archive's exit would then have archived that session.
 A claude forced out, by its force control or by the app, is the exception: nothing it reports on its way out calls its stop off or moves its tab (`forced`), since it is being ended whatever it reports.
 Until that prompt the tab goes on saying it is stopping.
 A prompt submitted a moment before the stop, whose report arrives after it, calls the stop off just the same, and the exit that follows then closes the tab instead of cooling it.
@@ -462,9 +462,18 @@ The dot used to look pressable for every status but paused while a click did not
 It does what it says or nothing: a press carries the mark it was drawn with and acts only while the button would still do the same (`pressTabButton`), since a press can land on an item drawn before the tab moved on, and the button by then can be another press — a Force stop pressed once claude has gone would close the tab (user, 2026-10-21).
 The strip's button passes the mark it last drew the same way, as a list panel's kebab item asks for its action only while its row still offers it (§ Types from the config folder).
 
-**Archiving waits for a stop.**
-Archive is unavailable while the session runs, starting and stopping included, so a question claude asks on its way out is answered in a tab that is still there; a tab that is open but not running closes as the session is archived.
-One press that stopped and archived together was turned down (2026-10-19): it left an archived session with a live tab while its claude left.
+**Archive is one press, and the mark waits for claude to go** (user, 2026-10-28; `archiveSession`, `claude/terminals.ts`).
+A running session's claude is asked to leave as a close asks it, and its tab stays, stopping, so a question claude asks on its way out is answered in a tab that is still there; its exit removes the tab and archives the session (`onExit: 'archive'`).
+A tab that is open but not running closes as the session is archived, at once.
+One press that stopped and archived together was turned down on 2026-10-19, since it wrote the mark at the press and left an archived session with a live tab while its claude left; writing the mark at the exit is what answers that, so the claudes the app asked do not run an archived session, and one opened in the moment main writes the mark is asked to leave after it, or closed at its exit if it was leaving already, or ended as it arrives if it is still starting.
+A claude already on its way out, from a stop, a pause or a close, is asked nothing more, since a second pair of presses ends its question unanswered: Archive changes what its exit does, as Close does, and the force stays Force stop, or Force pause for a pause, the button's own rule.
+Going on working meanwhile, a prompt or a `/resume` or `/clear`, calls the archive off with the stop, so a session you went on working in is not archived, and nor is the one a `/resume` or `/clear` put in the tab.
+A prompt that calls it off says so in a toast, naming the session (user, 2026-10-28), since a prompt sent just before the press can report after it, and claude then leaves on the presses with the session unarchived: the status the window is given does not say when the prompt was sent, the hook's file having it only to the second, so the app cannot tell it from one sent after.
+A `/resume` or `/clear` says nothing of the call-off, since you typed it, and one into a session another tab runs already says that it runs there (user, 2026-10-28).
+Keeping that tab, cold, at an exit soon after a call-off was turned down, since telling such an exit from claude ending by itself later would take a time window nothing measures.
+A write main refuses says so in a toast too, since at an exit the tab has gone and the row staying would be all that says it.
+Archive is unavailable while a tab starts ("Starting…"), as Pause is, since there is no claude yet to ask.
+A quit before claude has gone archives nothing, and the tab comes back at the next launch, as a close under way does: that claude may still have needed you, and writing the mark at the quit was turned down for that (user, 2026-10-28).
 **Every way the app opens a session refuses an archived one** (`unopenableReason`, `state/views.ts`): the asks that open a session refuse it with a toast, an archived sibling in the menu is unavailable and says why, and a tab kept for one is dropped at launch.
 Opening it to unarchive it was turned down, as not clear enough about what had happened.
 Its menu, the same on every surface, holds its siblings, PRs, worktrees, scheduled tasks and note, as its row's marks reach them, its id, Unarchive and Delete, and nothing that starts or files it; its dot is never a control.

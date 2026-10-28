@@ -10,10 +10,10 @@ import { projName, sessionById, tabWith, unopenableReason } from '../../../state
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
-import { activateTab, closeOrStop, closeTab, createTab, pauseTab, startTab, stopPausedTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';
+import { activateTab, archiveSession, closeOrStop, createTab, pauseTab, startTab, stopPausedTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';
 
 /**
- * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, close its tabs, and follow the project chosen.
+ * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, archive one with its tabs, and follow the project chosen.
  * renderer.ts hands them to the tree with the sidebar's (sessions/asks.ts), and every panel's host carries them as they are.
  */
 
@@ -152,7 +152,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
 }
 
 /** The asks the terminal area answers. */
-export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressTabButton' | 'pauseSession' | 'stopPausedSession' | 'closeTabs' | 'showProject'> = {
+export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressTabButton' | 'pauseSession' | 'stopPausedSession' | 'archiveSession' | 'showProject'> = {
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
@@ -178,8 +178,6 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
     const tab = tabWith(id);
     if (tab) stopPausedTab(tab.token);
   },
-  closeTabs: (id) => {
-    for (const tab of store.get().tabs) if (entityKey(tab.session) === id) closeTab(tab.token);
-  },
+  archiveSession,
   showProject: (repoRoot) => switchWorkspaceTerminal(repoRoot),
 };

@@ -36,7 +36,7 @@ Done:
   Open tabs cluster by group in the tab bar, and a group's name there takes you to the group in the list.
 - Ordering and overview: reorder projects and groups from their kebabs, fold every section away and back from one header button, and attach a note to any session.
 - Pin, archive, and delete (to the OS trash), a project whose sessions are all archived staying in the list until they are deleted; search plus filters (pinned, open, live, paused, worktree, siblings, linked PR, noted, archived, folder gone, date range).
-  Archive is unavailable while a session runs, so it is stopped first, and the app does not open an archived session again until you unarchive it.
+  Archive is one press on a running session too: claude is asked to leave, its tab staying for anything it asks on its way out, and the session is archived once claude has gone; the app does not open an archived session again until you unarchive it.
   A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
 - A session's kebab holds everything about it, one menu on its row, its tab and the live strip: what the session is, at its top — title, project, group, status, when it was last active and on what model, when it was archived, worktree, the start of its note — and the actions its row, tab and strip row offer, such as open, show in list, pin, mark read, stop or close, besides fork, siblings, PRs, worktrees, what is scheduled, note, group, copy id, pause and archive.
   An archived session's row has one too, with what it is, its siblings, PRs and note, its id, unarchive and delete.

@@ -7,7 +7,7 @@ import { toastAttention, toastNotLeft } from './attention';
 import { railStatusFollowsTabs } from './index';
 import { history, paneFollows } from './pane';
 import { renderTabBar, tabBarFollowsStatuses } from './tab-bar';
-import { adoptReplacement, reconcileOpenTabs, scheduledReported, stopCalledOff } from './terminals';
+import { adoptReplacement, promptSubmitted, reconcileOpenTabs, scheduledReported } from './terminals';
 
 /**
  * What the terminal area follows, in the store and from main, registered by renderer.ts beside the sidebar's (docs/architecture.md § The store): its rules, which set state as they are told, before any repaint, then its repaints; and its part of what main sends, which renderer.ts's one handler per event calls ahead of the app's own.
@@ -63,7 +63,7 @@ export const claudeWatch = {
     // A prompt, and only a prompt: a session asked to leave that submits one has stayed.
     // Any busy would not do, since a tool call's report still on its way when the stop was pressed would call off a stop that is going ahead.
     // A prompt's own report can be on its way the same way, from one submitted just before the stop; that narrower case closes the tab at the exit instead of cooling it.
-    if (tabToken && event === 'UserPromptSubmit') stopCalledOff(tabToken);
+    if (tabToken && event === 'UserPromptSubmit') promptSubmitted(tabToken);
     // What claude just did is in the transcript, and the history of the session on show reads it.
     if (tabOnShow(store.get())?.session.id === id) void history.refresh();
   },

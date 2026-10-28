@@ -519,16 +519,28 @@ export function stopSession(token: string): void {
 /**
  * A session asked to leave that went on working: a prompt it submitted, or a `/resume` or `/clear` that moved its tab to another session (`adoptReplacement`), so the stop is off and the tab is live again.
  * Claude's exit can be called off — Esc at a worktree's keep-or-remove question takes it back to its prompt — and only what is done next says so; until then the tab goes on saying it is stopping.
- * Whatever the leave was, a stop, a pause or a close, it goes (user, 2026-10-28: "when you don't finish a stop/pause/close/archive and then do something else, you call it off").
+ * Whatever the leave was, a stop, a pause, a close or an archive, it goes (user, 2026-10-28: "when you don't finish a stop/pause/close/archive and then do something else, you call it off").
  * Not once its claude has been forced out (`forced`): that claude is being ended whatever it reports.
+ * Answers the tab as it was when its leave was called off, or null when there was none to call off.
  */
-export function stopCalledOff(token: string): void {
+function stopCalledOff(token: string): TabState | null {
   const tab = tabOf(token);
-  if (!tab?.stopping || tab.forced) return;
+  if (!tab?.stopping || tab.forced) return null;
   clearStopTimers(token);
   // A pause waiting for claude to leave is called off with it: the session is being worked in.
   setTab(token, { stopping: false, onExit: 'cool', forceable: false, notLeft: false, paused: false });
   if (tab.paused) persistOpenTabs();
+  return tab;
+}
+
+/**
+ * A prompt a tab's claude submitted: it went on working, so a leave under way is off (`stopCalledOff`).
+ * An archive called off by one says so, since a prompt sent just before the press can report after it, and claude then leaves on the presses with the session unarchived (user, 2026-10-28).
+ * Only a prompt: a `/resume` or `/clear` that calls an archive off is one you typed, and one into a session another tab runs already says that it runs there.
+ */
+export function promptSubmitted(token: string): void {
+  const calledOff = stopCalledOff(token);
+  if (calledOff?.onExit === 'archive') showToast(`Archiving "${sessionLabel(calledOff.session)}" was called off`);
 }
 
 /**
@@ -648,6 +660,58 @@ export function closeTab(token: string): void {
 }
 
 /**
+ * Archive a session, closing every tab it is open in: at once where no claude of the app's runs it, and where one does, once that claude has gone, asked to leave as a close asks it.
+ * The mark waits for the exit so that no claude the app runs when it is written runs an archived session, and the tab waits so that what claude asks on its way out can be answered there.
+ * A claude already asked to leave, by a stop, a pause or a close, is asked nothing more, since a second pair of presses ends what it asks on its way out unanswered: its exit archives instead, as a close changes a stop.
+ * Going on working meanwhile, a prompt or a `/resume` or `/clear`, calls the archive off with the stop (`stopCalledOff`), a prompt saying so (`promptSubmitted`), and a quit archives nothing (`archiveAtExit`).
+ * Not while a tab starts, which has no claude yet to ask; the menu's Archive is unavailable then.
+ */
+export function archiveSession(key: string): void {
+  const held = store.get().tabs.filter((t) => entityKey(t.session) === key);
+  if (held.some((t) => t.starting)) return;
+  if (held.every((t) => t.terminalId === null)) {
+    void archiveNow(key);
+    return;
+  }
+  for (const tab of held) {
+    if (tab.terminalId === null) removeTab(tab.token);
+    else if (tab.stopping) setTab(tab.token, { onExit: 'archive' });
+    else askToLeave(tab.token, tab.terminalId, 'archive');
+  }
+}
+
+/**
+ * Write a session's archive mark, and close its tabs in the same change, so the list draws once, with both gone.
+ * A tab opened while main writes is closed too: its claude, if one has started by then, asked to leave as a close asks it, after the mark, or closed at its exit if it was leaving already, and one still starting ended as it arrives.
+ * A write main refuses says so, since at an exit the tab is gone already and the row staying would be all that says it.
+ */
+async function archiveNow(key: string): Promise<void> {
+  let archived: Map<string, number>;
+  try {
+    archived = new Map(Object.entries(await window.claudeUi.archive(key)));
+  } catch {
+    const session = sessionById(key);
+    showToast(`Couldn't archive "${session ? sessionLabel(session) : key.slice(0, 8)}". It's still here.`);
+    return;
+  }
+  store.batch(() => {
+    store.set({ archived });
+    for (const tab of store.get().tabs) if (entityKey(tab.session) === key) closeTab(tab.token);
+  });
+}
+
+/**
+ * The exit of a claude asked to leave for an archive, its tab already gone: the session is archived once no tab holds it.
+ * A tab still holding it is either still leaving for the archive, whose exit archives it then, or one whose stop was called off, where the session is being worked in.
+ * Not at a quit: a claude that had not gone may still have needed you, answering its question say, so the session stays unarchived and its tab comes back at the next launch, as a close under way does (user, 2026-10-28).
+ */
+function archiveAtExit(key: string): void {
+  if (isQuitting()) return;
+  if (store.get().tabs.some((t) => entityKey(t.session) === key)) return;
+  void archiveNow(key);
+}
+
+/**
  * A claude's start or a status event named the session a tab now runs: when that is another session than the tab's, the tab takes it over.
  * `source` is why, as claude's SessionStart says: only `clear` makes it a new session, and '' (a status event, which does not say) is taken as an existing one, since a clear's part done to one would move it out of its group.
  * Answers the tab already running that session when the take-over was undone for it (`adoptResumed`), for the caller to bring on show; else null.
@@ -745,11 +809,15 @@ function onTabExit(token: string, exitCode: number): void {
   const tab = tabOf(token);
   if (!tab) return; // Already closed by the user.
   clearStopTimers(token);
-  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed — or, for a close, remove it now that claude has gone.
+  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed — or, for a close or an archive, remove it now that claude has gone, and archive the session for the archive.
   // Every other exit keeps today's behaviour below.
   if (tab.stopping) {
-    if (tab.onExit === 'close') removeTab(token);
-    else coolTab(token);
+    if (tab.onExit === 'cool') {
+      coolTab(token);
+      return;
+    }
+    removeTab(token);
+    if (tab.onExit === 'archive') archiveAtExit(entityKey(tab.session));
     return;
   }
   // A near-instant exit almost always means claude failed to start (bad env, not found, rc error).

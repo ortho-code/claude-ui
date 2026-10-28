@@ -325,18 +325,7 @@ test('Close tab is unavailable, with the reason, for a session with no tab', asy
   await expect(item(page, 'Close tab')).toHaveAttribute('data-tooltip', 'Not open in a tab');
 });
 
-// Archiving says a session is finished, so a running one is stopped first; one open but not running is put away with its tab.
-test('Archive is unavailable while the session runs, and says to stop it first', async ({ app, page }) => {
-  await app.boot(fixture);
-  await tabLabel(page, full.title).click();
-  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  await row(page, full.title).locator('.session-kebab').click();
-  await expect(item(page, 'Archive')).toHaveClass(/\bunavailable\b/);
-  await expect(item(page, 'Archive')).toHaveAttribute('data-tooltip', 'Stop the session first');
-  await item(page, 'Archive').click({ force: true });
-  expect(await app.calls('archive')).toEqual([]);
-});
-
+// One open but not running is put away with its tab at once; a running one's archive waits for its claude (claude/terminals/archive.spec.ts).
 for (const [state, paused] of [['cold', []], ['paused', [full.id]]] as const) {
   test(`Archive on a session whose tab is ${state} archives it and closes the tab`, async ({ app, page }) => {
     await app.boot({ ...fixture, pausedSessions: [...paused] });
