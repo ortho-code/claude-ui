@@ -61,4 +61,26 @@ for (const source of ['clear', 'resume']) {
   });
 }
 
+// The clock opens nothing, so its menu's item lists its tasks as its tooltip names them, as lines to read rather than items to press.
+test("a session's options hold its clock as Scheduled, its tasks in the clock's own words, on its row, its tab and its strip row", async ({ app, page }) => {
+  await app.boot(fixture);
+  await start(page, app);
+  const kebabs = [row(page, one.title).locator('.session-kebab'), tab(page, one.title).locator('.tab-kebab'), stripRow(page, one.title).locator('.strip-item-kebab')];
+  const scheduled = page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Scheduled/ });
+  await kebabs[0].click();
+  await expect(scheduled).toHaveCount(0);
+  await kebabs[0].click();
+
+  await app.emit('onSessionScheduled', one.id, [
+    { prompt: '/loop check the deploy', recurring: false, cron: null },
+    { prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' },
+  ]);
+  for (const kebab of kebabs) {
+    await kebab.click();
+    await scheduled.filter({ hasText: /^Scheduled \(2\)$/ }).click();
+    await expect(page.locator('.kebab-menu.submenu .menu-header-line')).toHaveText(['Scheduled:', '/loop check the deploy · ends with the session', 'say the word tock · Every 10 minutes · comes back when you open the session']);
+    await expect(page.locator('.kebab-menu.submenu button')).toHaveCount(0);
+  }
+});
+
 // What the clock shows once the session's claude has gone, muted, is scheduled-paused.spec.ts's.

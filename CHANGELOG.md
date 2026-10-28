@@ -92,6 +92,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A stop, pause or close claude has not left three seconds after the ask says "hasn't left" beside the session's name on its tab, its row and its row in the live strip, and, when its tab is not on show, in a toast that stays until claude leaves and names what the session has scheduled; clicking the toast brings the tab on show, where claude may be asking you something.
 - A session's worktree badge counts and lists the checkouts it changed files in, with the worktree it runs in or left, from its row and as Worktrees in its options, when there are others besides that worktree, and a session that changed files in a worktree it reached by path or with a `cd` has the badge too.
 - Picking a checkout from that list points the panels there while that session is on show, with a star beside the folder their header names, until you pick Follow the session in the same list; while the checkout is gone, they follow the session.
+- A session's options hold its clock as Scheduled, listing its tasks as the clock's tooltip names them.
 
 ### Changed
 

@@ -162,3 +162,10 @@ test('a tab kept paused with a task scheduled shows its muted clock at the next 
   for (const clock of [...tabAndRow(page), clockOn(stripRow(page, one.title))]) await expectStopped(clock);
   expect(await app.calls('startTerminal')).toEqual([]);
 });
+
+test("a stopped tab's options hold its muted clock's tasks under the words the clock says them with", async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [one.id], pausedSessions: [one.id], scheduledWhenStopped: { [one.id]: [tock] } });
+  await row(page, one.title).locator('.session-kebab').click();
+  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Scheduled \(1\)$/ }).click();
+  await expect(page.locator('.kebab-menu.submenu .menu-header-line')).toHaveText(STOPPED.split('\n'));
+});

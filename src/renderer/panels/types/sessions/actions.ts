@@ -1,7 +1,7 @@
 import { prReference } from '../../../../shared/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDelete, promptText } from '../../../dialogs';
-import { entityKey, folderName, relativeTime, sessionLabel, tabButtonLabel, tabButtonState, unstartableReason } from '../../../logic';
+import { clockLines, clockOf, entityKey, folderName, relativeTime, sessionLabel, tabButtonLabel, tabButtonState, unstartableReason } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
 import { verdictOf } from '../../../prstatus';
 import { store, withMember } from '../../../state/app';
@@ -227,7 +227,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
     sessionHeader(session, store.get()),
     { label: '', separator: true },
   ];
-  // An archived session's menu holds its siblings, its PRs, its worktrees and its note, as its row's marks in the archived view reach them, its id, and the archived view's two actions; nothing that starts or files it, which that view does not offer.
+  // An archived session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the archived view reach them, its id, and the archived view's two actions; nothing that starts or files it, which that view does not offer.
   if (store.get().archived.has(entityKey(session))) {
     return [
       ...items,
@@ -290,7 +290,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   return items;
 }
 
-// A session's siblings, PRs and the checkouts it worked in, each a submenu where it has any; the session's menu has them in both views.
+// A session's siblings, PRs, the checkouts it worked in and what its clock says, each a submenu where it has any; the session's menu has them in both views.
 // Here as well as on the row's marks: this list is every kebab's, the tab's and the live strip's too, where the row's marks are not.
 function linkedItems(session: SessionSummary): MenuItem[] {
   const items: MenuItem[] = [];
@@ -298,6 +298,12 @@ function linkedItems(session: SessionSummary): MenuItem[] {
   if (siblings.length > 0) items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
   if (session.prs.length > 0) items.push({ label: `PRs (${session.prs.length})`, submenu: prMenuItems(session) });
   if (session.checkouts.length > 0) items.push({ label: `Worktrees (${session.checkouts.length})`, submenu: worktreeItems(session) });
+  // The clock opens nothing, so its tasks are lines to read in its own words (`header`), not items to press.
+  const clock = clockLines(clockOf(store.get().scheduledTasks.get(session.id), tabWith(session.id)));
+  if (clock) {
+    const [heading, ...tasks] = clock;
+    items.push({ label: `Scheduled (${tasks.length})`, submenu: [{ label: heading!, header: tasks }] });
+  }
   return items;
 }
 
