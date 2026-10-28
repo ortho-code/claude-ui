@@ -103,6 +103,13 @@ expect_ts="$(field claude_ui_expect_ts)"
 if [ "$status" = busy ] && [ -n "$(field agent_id)" ] && grep -qE '"status":"(idle|background)"' "$dir/$sid.json" 2>/dev/null; then
   exit 0
 fi
+# Notices of something finished ask nothing: a login done, an agent finished or failed, claude done using your computer (where claude 2.1.310 sends them).
+# Every other kind goes through as waiting, one claude may add later included, since missing a question is worse than a waiting too many.
+if [ "$status" = waiting ]; then
+  case "$(field notification_type)" in
+    auth_success | agent_completed | computer_use_exit) exit 0 ;;
+  esac
+fi
 # A permission prompt's own notice comes about six seconds after its PermissionRequest wrote waiting, for the same question.
 # Writing it again would only take a read mark off a dot muted meanwhile.
 if [ "$status" = waiting ] && [ "$(field notification_type)" = permission_prompt ] && grep -q '"event":"PermissionRequest"' "$dir/$sid.json" 2>/dev/null; then

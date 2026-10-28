@@ -142,10 +142,11 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's options have Stop session, Close tab and Archive side by side, each doing its one thing, so a running session closes from its options without being stopped first.
   One pressed while claude is on its way out changes what its going does, such as Stop session keeping the tab of a close, and the one in force becomes its force, as Force stop and Force pause were: Force close and Force archive, also on the tab's button.
 - A finished session's dot stays finished when claude reminds you, a minute later, that it is waiting for your input, where it used to turn to waiting.
-  A permission prompt, a question or any other notice from claude still turns it to waiting.
+  A permission prompt, a question or another notice from claude that may ask something still turns it to waiting.
 - The sessions that were running when the app closed come back marked as needing you, a mauve dot that says why, instead of paused, and stay marked until you act on the session, such as typing a prompt there, closing the tab, leaving claude yourself, archiving it or choosing Clear needs you.
   `runningSessionsAtLaunch` is `"mark"`, `"start"` or `"leave"` now, and a `"pause"` already in your `settings.json` reads as `"mark"`.
 - The top of a session's options lists every state it is in on a line of its own, each with its dot, such as idle and needing you at once, where the status used to end the line with its project.
+- A session's dot no longer turns to waiting for claude's notices of something finished, such as a login that succeeded or an agent that finished.
 
 ### Fixed
 

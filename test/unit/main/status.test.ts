@@ -454,6 +454,25 @@ describe('the hook script', () => {
     });
   });
 
+  /** Notices claude sends of something finished (claude 2.1.310's binary: "Claude Code login successful", "<agent> finished", "Claude is done using your computer"), which ask nothing. */
+  describe('a notice of something finished', () => {
+    it.each(['auth_success', 'agent_completed', 'computer_use_exit'])('writes nothing for %s, over idle or busy', async (type) => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop' });
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: type });
+      expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'Stop' });
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: 'go' });
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: type });
+      expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'UserPromptSubmit' });
+    });
+
+    // One that may ask something, or a kind a later claude adds, still says waiting: missing a question is worse than a waiting too many.
+    it.each(['push_notification', 'auth_storage_failure', 'agent_needs_input', 'worker_permission_prompt', 'a_kind_not_known_yet'])('still says waiting for %s', async (type) => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop' });
+      runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: type });
+      expect((await readStatusFile())?.status).toBe('waiting');
+    });
+  });
+
   describe('what the last Stop left running', () => {
     const stopFile = path.join(statusDir, `${SID}.stop`);
     const shell = { id: 'bh9w6pqmt', type: 'shell', status: 'running', description: 'Background sleep command', command: 'sleep 100' };
