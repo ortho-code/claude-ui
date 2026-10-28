@@ -3,7 +3,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { prReference } from '../../../src/shared/prs';
-import { archivedFrom, purgedSession, togglePinned, unarchived } from '../../../src/shared/sessionmarks';
+import { archivedFrom, clearedNeedsYou, markedNeedsYou, purgedSession, togglePinned, unarchived } from '../../../src/shared/sessionmarks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -99,7 +99,12 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
     getArchived: () => answer(fixture.archived),
-    archive: (id) => (fixture.archiveFails === null ? answer((fixture.archived = archivedFrom(fixture.archived, id, Date.now()))) : Promise.reject(new Error(fixture.archiveFails))),
+    // Main's archive takes the session's needs-you mark off in the same write.
+    archive: (id) => {
+      if (fixture.archiveFails !== null) return Promise.reject(new Error(fixture.archiveFails));
+      fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
+      return answer((fixture.archived = archivedFrom(fixture.archived, id, Date.now())));
+    },
     unarchive: (id) => answer((fixture.archived = unarchived(fixture.archived, id))),
     // Main moves the transcript to the trash, so the listing no longer has it, forgets its status, and purges it from meta by main's own rule: its marks, its open tab, the tab to reopen on, its group.
     // A panel row linked to it is forgotten with an event the stand-in does not fire, so that delete is main's to answer, not this.
@@ -117,6 +122,14 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     setOpenSessions: sent,
     getRunningSessions: () => answer(fixture.runningSessions),
     getPausedSessions: () => answer(fixture.pausedSessions),
+    getNeedsYou: () => answer(fixture.needsYou),
+    markNeedsYou: (ids, reason) => {
+      fixture.needsYou = markedNeedsYou(fixture.needsYou, ids, reason, Date.now());
+    },
+    clearNeedsYou: (id) => {
+      fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
+    },
+    getLastClosed: () => answer(fixture.lastClosed),
     getScheduledWhenStopped: () => answer(fixture.scheduledWhenStopped),
     setScheduledWhenStopped: sent,
     getActiveSession: () => answer(fixture.activeSession),

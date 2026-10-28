@@ -30,7 +30,7 @@ for (const [surface, kebab] of [
     expect(await app.emit('onSessionStatus', full.id, 'waiting', '', '')).toBe(1);
     const meta = await row(page, full.title).locator('.meta-text').textContent();
     await kebab(page).click();
-    await expect(lines(page)).toHaveText([full.title, 'demo · Bugs · Waiting for you', meta!, 'Linked git worktree: feat-drag', 'Check it on a mac']);
+    await expect(lines(page)).toHaveText([full.title, 'demo · Bugs', 'Waiting for you', meta!, 'Linked git worktree: feat-drag', 'Check it on a mac']);
     // Outside the archived view, the row's meta line and the header's are one rule.
     expect(meta).toMatch(/ · Opus 5\.5$/);
   });
@@ -222,7 +222,7 @@ test('Mark as read is unavailable, with the reason, while the session is busy', 
   expect(await app.emit('onSessionStatus', full.id, 'busy', '', '')).toBe(1);
   await tab(page, full.title).locator('.tab-kebab').click();
   await expect(item(page, 'Mark as read')).toHaveClass(/\bunavailable\b/);
-  await expect(item(page, 'Mark as read')).toHaveAttribute('data-tooltip', 'Only a session that is idle or waiting for you can be marked read or unread');
+  await expect(item(page, 'Mark as read')).toHaveAttribute('data-tooltip', 'Only a session that is idle, waiting for you or marked as needing you can be marked read or unread');
 });
 
 // The tab's button is a shortcut to one of the menu's leave items: one rule for the two (`leaveAction`), so the item says and does what the button would.

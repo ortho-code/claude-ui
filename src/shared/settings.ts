@@ -14,7 +14,7 @@ export type SettingKey = keyof Settings;
 export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'stoppedTabButton'];
 
 /** The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them. */
-export const RUNNING_AT_LAUNCH = ['start', 'pause', 'leave'] as const;
+export const RUNNING_AT_LAUNCH = ['start', 'mark', 'leave'] as const;
 export type RunningAtLaunch = (typeof RUNNING_AT_LAUNCH)[number];
 
 /** The choices for a stopped tab's button (`Settings.stoppedTabButton`), in the order Settings offers them. */
@@ -82,7 +82,8 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
     const { error } = parseLaunchFlags(value);
     return error === null ? { ok: true, value } : { ok: false, why: error };
   },
-  runningSessionsAtLaunch: oneOf(RUNNING_AT_LAUNCH),
+  // `pause` is what `mark` was called while those sessions came back paused, and what a file written by then holds, so it still reads, as the choice that took its place.
+  runningSessionsAtLaunch: (value) => oneOf(RUNNING_AT_LAUNCH)(value === 'pause' ? 'mark' : value),
   prStatus: (value) => (typeof value === 'boolean' ? { ok: true, value } : { ok: false, why: 'It has to be true or false.' }),
   stoppedTabButton: oneOf(STOPPED_TAB_BUTTON),
 };

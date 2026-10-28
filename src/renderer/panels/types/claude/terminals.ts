@@ -1,10 +1,11 @@
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
-import type { ScheduledTask, SessionSummary } from '../../../../shared/types';
+import type { ClosedHow, NeedsYou, ScheduledTask, SessionSummary } from '../../../../shared/types';
 import { entityKey, hasVisibleOutput, leaveAction, sessionLabel, sessionsByKey, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../logic';
 import { newSession } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
+import { clearNeedsYou, markNeedsYou } from '../../../state/needsyou';
 import { clearNudge, setScheduled } from '../../../state/statuses';
 import { isPaused, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
@@ -137,9 +138,12 @@ export async function restoreOpenTabs(): Promise<void> {
   restoring = true;
   /** The tabs to start once restored: those whose sessions were running when the app closed, when Settings says to start them. */
   const resume: string[] = [];
+  /** The sessions to mark as needing you: those that were running when the app closed, unless Settings says to leave them with the others. */
+  const marked: string[] = [];
+  let closedHow: ClosedHow = 'unknown';
   try {
     // The running list is read here, before the write below replaces it with what runs now, which is nothing yet.
-    const [sessions, openKeys, activeKey, byProject, runningKeys, pausedKeys, scheduledByKey, settings] = await Promise.all([
+    const [sessions, openKeys, activeKey, byProject, runningKeys, pausedKeys, scheduledByKey, settings, lastClosed] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getOpenSessions(),
       window.claudeUi.getActiveSession(),
@@ -148,7 +152,9 @@ export async function restoreOpenTabs(): Promise<void> {
       window.claudeUi.getPausedSessions(),
       window.claudeUi.getScheduledWhenStopped(),
       window.claudeUi.getSettings(),
+      window.claudeUi.getLastClosed(),
     ]);
+    closedHow = lastClosed;
     activeByProject = { ...byProject };
     lastActiveKey = activeKey;
     const tips = sessionsByKey(sessions);
@@ -166,13 +172,16 @@ export async function restoreOpenTabs(): Promise<void> {
         // A tab you paused comes back paused and is never started here, even one also kept as running, whose claude had not left yet when the app closed.
         const pausedByYou = pausedKeys.includes(key);
         const wasRunning = runningKeys.includes(key) && !pausedByYou;
-        // One that was running comes back paused too, unless Settings says to leave it with the others: what was in hand is in the live strip at launch.
-        // One to start is marked as well, so its start clears the mark, and a start that fails, or is not tried because its folder has gone, leaves it there.
         // What it said was scheduled when its claude went, which it goes on saying until a claude started on it reports.
-        const token = buildTab(session, pausedByYou || (wasRunning && atLaunch !== 'leave'), scheduledByKey[key] ?? null);
+        const token = buildTab(session, pausedByYou, scheduledByKey[key] ?? null);
         if (key === activeKey) toActivate = token;
+        // One that was running comes back marked as needing you, unless Settings says to leave it with the others: what was in hand is in the live strip at launch, and stays marked until your next prompt there, started or not.
+        if (wasRunning && atLaunch !== 'leave') marked.push(key);
         if (wasRunning && atLaunch === 'start') resume.push(token);
       }
+      // Its claude has gone, so what its status file last said is forgotten, as a tab going cold forgets it (`coolTab`): after an end without a quit the file still holds it, and a busy or a waiting from then would hide the mark.
+      for (const key of marked) clearNudge(key);
+      markNeedsYou(marked, closedHow);
       // Land where you left off — SELECTED but not started here; it starts below with the others if it was running and Settings says to start them.
       // Without a remembered tab we open on none rather than guessing.
       if (toActivate) activateTab(toActivate, false);
@@ -290,7 +299,7 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
     setTab(token, { terminalId, paused: false });
     persistOpenTabs();
     // From here its output and exit are this tab's, until the pty's own exit unbinds it.
-    bindTerminal(terminalId, { data: (data) => onTabData(token, data), exit: (exitCode) => onTabExit(token, exitCode) });
+    bindTerminal(terminalId, { data: (data) => onTabData(token, data), exit: (exitCode, signal) => onTabExit(token, exitCode, signal) });
     // Reveal it BEFORE fitting: `.term` is display:none until `.active`, and FitAddon sizes from the element's own box, so fitting a hidden pane leaves the terminal at xterm's 80x24 default and claude draws its whole TUI at that width.
     // Cold tabs are what exposed this — the pane used to be revealed by activateTab before any of this ran, and now it only reveals a tab that HAS a process.
     // One out of sight — switched away from during the await, or started behind another tab, as a launch resumes them — is revealed for the measurement alone and hidden again in the same task, before anything paints, so it draws at the terminal area's width too.
@@ -406,12 +415,17 @@ new ResizeObserver(() => fitActive()).observe(terminalsEl);
 // Drop a tab from the UI.
 // Idempotent (a user close and the terminal's own exit can both fire).
 // It does not touch the terminal process; callers terminate it when they need to.
-function removeTab(token: string): void {
+// `settles` is whether its going settles what its session needed you for: every removal but claude's own exit with an error, a crash, which you did not do (`onTabExit`).
+function removeTab(token: string, settles = true): void {
   const tab = tabOf(token);
   if (!tab) return;
   clearStopTimers(token);
   // Its session's status goes with it, unless another tab holds the session, whose status it is then (`adoptResumed`).
-  if (!store.get().tabs.some((t) => t.token !== token && t.session.id === tab.session.id)) clearNudge(tab.session.id);
+  // Its needs-you mark too, a quit's closes aside, since the mark is for the launch after it.
+  if (!store.get().tabs.some((t) => t.token !== token && t.session.id === tab.session.id)) {
+    clearNudge(tab.session.id);
+    if (settles && !isQuitting()) clearNeedsYou(entityKey(tab.session));
+  }
   const terminal = terminalOf(token);
   terminal.term.dispose();
   terminal.el.remove();
@@ -658,21 +672,30 @@ interface RemovedTab {
   at: number;
   paused: boolean;
   scheduledWhenStopped: TabState['scheduledWhenStopped'];
+  /** What its session needed you for, which its going settled. */
+  needsYou: NeedsYou | null;
 }
 
 /** What Undo needs of a tab about to be removed, read before it goes. */
 function removedTab(tab: TabState): RemovedTab {
-  return { session: tab.session, at: store.get().tabs.findIndex((t) => t.token === tab.token), paused: tab.paused, scheduledWhenStopped: keptWhenGone(tab) };
+  return {
+    session: tab.session,
+    at: store.get().tabs.findIndex((t) => t.token === tab.token),
+    paused: tab.paused,
+    scheduledWhenStopped: keptWhenGone(tab),
+    needsYou: store.get().needsYou.get(entityKey(tab.session)) ?? null,
+  };
 }
 
 /**
- * Undo's put-back: each tab back where it stood, cold, as a tab restored at launch is, and set aside again if it was; nothing starts.
+ * Undo's put-back: each tab back where it stood, cold, as a tab restored at launch is, set aside again if it was, and marked as needing you again if it was; nothing starts.
  * `removed` is in the order the tabs went, each `at` counted among the tabs as they were then, so they come back last first.
  * A session another tab holds by now, opened again meanwhile, keeps that tab rather than gaining a second, and an archived one gets none, since the app opens no archived session.
  */
 function putBack(removed: readonly RemovedTab[]): void {
-  for (const { session, at, paused, scheduledWhenStopped } of [...removed].reverse()) {
+  for (const { session, at, paused, scheduledWhenStopped, needsYou } of [...removed].reverse()) {
     if (store.get().tabs.some((t) => t.session.id === session.id) || store.get().archived.has(entityKey(session))) continue;
+    if (needsYou) markNeedsYou([entityKey(session)], needsYou.reason);
     // Built at the end, as every tab is, then moved to where it stood.
     buildTab(session, paused, scheduledWhenStopped);
     const tabs = [...store.get().tabs];
@@ -785,6 +808,8 @@ async function archiveNow(key: string): Promise<void> {
       if (tab.terminalId === null) removed.push(removedTab(tab));
       closeTab(tab.token);
     }
+    // Main's archive took the mark off as it archived (src/main/meta.ts); after the tabs, whose Undo puts it back.
+    clearNeedsYou(key);
   });
   offerUndoArchive(key, removed);
 }
@@ -825,6 +850,8 @@ export function adoptReplacement(tabToken: string, id: string, source: string): 
   setTab(owner.token, { session: blankAfter(previous, id), scheduledWhenStopped: null });
   // No claude of the app's runs the cleared session now, so what it had scheduled is not shown for it, though nothing will say its list emptied.
   setScheduled(replaced, []);
+  // Nor does a tab hold it, which settles what it needed you for, as a close does; the new session needs nothing yet.
+  clearNeedsYou(entityKey(previous));
   // The stand-in is a blank; the TITLE on disk is Claude's, and is left alone.
   // Claude Code copies the cleared session's name into the new transcript, and a title from Claude is a session's name before anything else — so a named session goes on showing that name, exactly as `claude --resume` lists it.
   // Overriding it would mean this app and the CLI disagreeing about what a session is called.
@@ -863,8 +890,9 @@ function adoptResumed(owner: TabState, id: string): TabState | null {
   stopCalledOff(owner.token);
   // What the tab kept from its claude's last stop was the session it left, as after a clear.
   setTab(owner.token, { session, scheduledWhenStopped: null });
-  // The session it left runs in no claude of the app's now, as after a clear.
+  // The session it left runs in no claude of the app's now, as after a clear, and no tab holds it, which settles what it needed you for.
   setScheduled(owner.session.id, []);
+  clearNeedsYou(entityKey(owner.session));
   // After the take-over, so the session's status, which is this tab's now, stays (`removeTab`).
   if (other) removeTab(other.token);
   persistOpenTabs();
@@ -894,7 +922,7 @@ function onTabData(token: string, data: string): void {
 /** How much of what a failed start printed goes into the log: enough for claude's own error and the line before it, and little enough that a resumed session's history, which it draws first, mostly stays out. */
 const FAILED_START_LINES = 5;
 
-function onTabExit(token: string, exitCode: number): void {
+function onTabExit(token: string, exitCode: number, signal = 0): void {
   const tab = tabOf(token);
   if (!tab) return; // Already closed by the user.
   clearStopTimers(token);
@@ -943,5 +971,7 @@ function onTabExit(token: string, exitCode: number): void {
     persistOpenTabs();
     return;
   }
-  removeTab(token);
+  // You leaving claude, by `/exit`, Ctrl-D or two Ctrl-Cs, exits 0 with no signal, and a signal claude catches exits with a code of its own, SIGTERM 143 and SIGHUP 129 (measured on claude 2.1.310), so only the first settles the session's mark.
+  // A signal claude cannot catch, SIGKILL or a native crash, comes with code 0 and the signal (node-pty), which keeps it too.
+  removeTab(token, exitCode === 0 && !signal);
 }

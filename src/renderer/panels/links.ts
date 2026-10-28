@@ -57,6 +57,7 @@ export function linkedSessions(entryKey: string, itemKey: string): LinkedSession
           title: sessionLabel(session),
           status: dotStatus(id, view) ?? null,
           background: backgroundTasks.get(id) ?? [],
+          needsYou: view.needsYou.get(id)?.reason ?? null,
           acked: acked.has(id),
           running: tab !== undefined && tab.terminalId !== null,
         },

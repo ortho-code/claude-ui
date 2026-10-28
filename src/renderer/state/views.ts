@@ -1,5 +1,5 @@
 import type { SessionGroup, SessionSummary } from '../../shared/types';
-import { displayName, entityKey, inView, nudgeOf, projectRootExists, projectsForSwitcher, sessionsByKey, tabButton, unstartableReason, type NudgeStatus, type SwitcherModel, type TabButton } from '../logic';
+import { displayName, entityKey, inView, nudgeOf, projectRootExists, projectsForSwitcher, sessionsByKey, shownStatus, tabButton, unstartableReason, type NudgeStatus, type SwitcherModel, type TabButton } from '../logic';
 import { sameOrder, store, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */
@@ -42,19 +42,19 @@ export function isPaused(tab: TabState): boolean {
 }
 
 /**
- * What a session's own dot shows, wherever one stands for one session: what its tab says (`tabDot`), where it says anything, since the last report then describes a claude that has gone or is going; otherwise its status as its hooks last reported it.
- * A roll-up reads the status itself (`sessionNudge`).
+ * What a session's own dot shows, wherever one stands for one session: what its tab says (`tabDot`), where it says anything, since the last report then describes a claude that has gone or is going; otherwise its status as its hooks last reported it, or its needs-you mark where claude says nothing more pressing (`shownStatus`).
+ * A roll-up reads the status and the mark itself (`sessionNudge`).
  */
-export function dotStatus(id: string, view: View<'statuses' | 'tabs'>): string | undefined {
+export function dotStatus(id: string, view: View<'statuses' | 'tabs' | 'needsYou'>): string | undefined {
   const tab = tabWith(id, view);
-  return (tab && tabDot(tab)) ?? view.statuses.get(id);
+  return (tab && tabDot(tab)) ?? shownStatus(view.statuses.get(id), view.needsYou.has(id));
 }
 
 /**
  * What a tab says in its session's dot: `paused` once it rests paused, and `pausing` or `stopping` while its claude has been asked to leave and has not, however long that takes; otherwise nothing.
  * The ask can go unanswered, and only these say so, since the tab's button turns into a force after its first moment, until the force is pressed.
  */
-function tabDot(tab: TabState): 'paused' | 'pausing' | 'stopping' | undefined {
+export function tabDot(tab: TabState): 'paused' | 'pausing' | 'stopping' | undefined {
   if (isPaused(tab)) return 'paused';
   if (tab.stopping && tab.terminalId !== null) return tab.paused ? 'pausing' : 'stopping';
   return undefined;
@@ -109,8 +109,8 @@ export function listedProjects(view: View<'sessions' | 'tabs' | 'archived' | 'pe
  * Every project in the switcher's pool, counted and rolled up in the list's order, with those whose sessions are all archived counted at none, and all of them together: the one roll-up the switcher, the strip's line, the sidebar's rail icon and a panel's session dialog read.
  * Worked out for each reader rather than kept, since it costs well under a millisecond (0.07 ms at 382 sessions, measured).
  */
-export function switcherModel(view: View<'sessions' | 'tabs' | 'archived' | 'pendingDeletes' | 'statuses' | 'acked' | 'projectNames' | 'projectOrder'>): SwitcherModel {
-  return projectsForSwitcher(switcherPool(view), view.statuses, view.acked, view.projectNames, view.projectOrder, archivedOnlyProjects(view));
+export function switcherModel(view: View<'sessions' | 'tabs' | 'archived' | 'pendingDeletes' | 'statuses' | 'acked' | 'needsYou' | 'projectNames' | 'projectOrder'>): SwitcherModel {
+  return projectsForSwitcher(switcherPool(view), view.statuses, view.acked, view.needsYou, view.projectNames, view.projectOrder, archivedOnlyProjects(view));
 }
 
 /** The sessions a view holds before any filter, archived or not (see inView). */
@@ -142,12 +142,13 @@ export function isFiltering(view: View<'filter'>): boolean {
   return searchText(view).length > 0 || Object.values(view.filter.filters).some(Boolean) || view.filter.datePreset !== 'any';
 }
 
-/** The sessions whose status, background work or read mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has. */
-export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'acked'>, after: View<'statuses' | 'backgroundTasks' | 'acked'>): Set<string> {
+/** The sessions whose status, background work, read mark or needs-you mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has. */
+export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou'>, after: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou'>): Set<string> {
   const ids = new Set<string>();
   for (const id of new Set([...before.statuses.keys(), ...after.statuses.keys()])) if (before.statuses.get(id) !== after.statuses.get(id)) ids.add(id);
   for (const id of new Set([...before.backgroundTasks.keys(), ...after.backgroundTasks.keys()])) if (!sameOrder(before.backgroundTasks.get(id) ?? [], after.backgroundTasks.get(id) ?? [])) ids.add(id);
   for (const id of new Set([...before.acked, ...after.acked])) if (before.acked.has(id) !== after.acked.has(id)) ids.add(id);
+  for (const id of new Set([...before.needsYou.keys(), ...after.needsYou.keys()])) if (before.needsYou.get(id)?.reason !== after.needsYou.get(id)?.reason) ids.add(id);
   return ids;
 }
 
@@ -160,6 +161,6 @@ export function tabDotChanges(before: View<'tabs'>, after: View<'tabs'>): Set<st
 }
 
 /** A session's part in a roll-up (`nudgeOf`), read out of the store. */
-export function sessionNudge(id: string, view: View<'statuses' | 'acked'>): NudgeStatus {
-  return nudgeOf(view.statuses.get(id), view.acked.has(id));
+export function sessionNudge(id: string, view: View<'statuses' | 'acked' | 'needsYou'>): NudgeStatus {
+  return nudgeOf(shownStatus(view.statuses.get(id), view.needsYou.has(id)), view.acked.has(id));
 }

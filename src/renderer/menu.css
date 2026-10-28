@@ -68,6 +68,17 @@
   font-size: var(--text-small);
 }
 
+/* A line led by a dot, such as each state a session is in: the dot centred on the first line of its words, which wrap beside it. */
+.menu-header-line.dotted {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.menu-header-line.dotted > .nudge {
+  align-self: center;
+}
+
 /* The first line names the thing: an item's size, bolder, and one line, cut when too long, with its whole text as its tooltip (menu.ts), since a session's name read from its transcript runs to 200 characters. */
 .menu-header-line:first-child {
   overflow: hidden;

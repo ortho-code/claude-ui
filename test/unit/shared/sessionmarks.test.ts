@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { archivedFrom, purgedSession, togglePinned, unarchived, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
+import { archivedFrom, clearedNeedsYou, markedNeedsYou, purgedSession, togglePinned, unarchived, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -32,11 +32,29 @@ describe('unarchived', () => {
   });
 });
 
+describe('markedNeedsYou', () => {
+  it('marks each session for the reason given, from the time given, a session already marked taking the newer reason', () => {
+    const needsYou = { a: { reason: 'ended' as const, at: 1 } };
+    expect(markedNeedsYou(needsYou, ['a', 'b'], 'quit', 42)).toEqual({ a: { reason: 'quit', at: 42 }, b: { reason: 'quit', at: 42 } });
+    expect(markedNeedsYou(needsYou, [], 'quit', 42)).toEqual(needsYou);
+    expect(needsYou).toEqual({ a: { reason: 'ended', at: 1 } });
+  });
+});
+
+describe('clearedNeedsYou', () => {
+  it('takes the mark off, and leaves a session that has none as it is', () => {
+    const needsYou = { a: { reason: 'quit' as const, at: 1 } };
+    expect(clearedNeedsYou(needsYou, 'a')).toEqual({});
+    expect(clearedNeedsYou(needsYou, 'b')).toEqual(needsYou);
+    expect(needsYou).toEqual({ a: { reason: 'quit', at: 1 } });
+  });
+});
+
 describe('withoutSession', () => {
-  it('forgets the session\'s pin, archive entry and note, and keeps everyone else\'s', () => {
-    const marks: SessionMarks = { pinned: ['a', 'b'], archived: { a: 1, b: 2 }, notes: { a: 'x', b: 'y' } };
-    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], archived: { b: 2 }, notes: { b: 'y' } });
-    expect(marks).toEqual({ pinned: ['a', 'b'], archived: { a: 1, b: 2 }, notes: { a: 'x', b: 'y' } });
+  it('forgets the session\'s pin, archive entry, note and needs-you mark, and keeps everyone else\'s', () => {
+    const marks: SessionMarks = { pinned: ['a', 'b'], archived: { a: 1, b: 2 }, notes: { a: 'x', b: 'y' }, needsYou: { a: { reason: 'quit', at: 1 }, b: { reason: 'ended', at: 2 } } };
+    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], archived: { b: 2 }, notes: { b: 'y' }, needsYou: { b: { reason: 'ended', at: 2 } } });
+    expect(marks.needsYou).toEqual({ a: { reason: 'quit', at: 1 }, b: { reason: 'ended', at: 2 } });
   });
 });
 
@@ -47,6 +65,7 @@ describe('purgedSession', () => {
       pinned: ['a', 'b'],
       archived: { a: 1 },
       notes: { a: 'x' },
+      needsYou: { a: { reason: 'quit' as const, at: 1 } },
       openSessions: ['a', 'b'],
       runningSessions: ['a', 'b'],
       pausedSessions: ['a', 'b'],
@@ -59,6 +78,7 @@ describe('purgedSession', () => {
       pinned: ['b'],
       archived: {},
       notes: {},
+      needsYou: {},
       openSessions: ['b'],
       runningSessions: ['b'],
       pausedSessions: ['b'],

@@ -2,13 +2,13 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { OrderMove, GroupState, HistoryPin, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
+import type { ClosedHow, NeedsYou, OrderMove, GroupState, HistoryPin, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
 import { scheduledTasksOf } from '../shared/scheduled';
 import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { archivedFrom, purgedSession, togglePinned, unarchived } from '../shared/sessionmarks';
+import { archivedFrom, CLOSED_HOW, clearedNeedsYou, markedNeedsYou, purgedSession, togglePinned, unarchived } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
@@ -72,6 +72,11 @@ interface Meta {
    * An empty note is deleted, so presence here means there IS one.
    */
   notes: Record<string, string>;
+  /**
+   * The sessions marked as needing you, by session id: why, and since when.
+   * Kept whether or not a tab holds the session, so a mark outlives a launch that leaves it unopened, until the window takes it off for a prompt there, Clear needs you, a close or your leaving claude, or main does for an archive or a delete.
+   */
+  needsYou: Record<string, NeedsYou>;
   /**
    * Size and position of the window as it was last left, or null until it has been.
    * The size stored is always the unmaximized one, with `maximized` recorded beside it, so restoring a maximized window still knows how big to make it when it is un-maximized.
@@ -138,6 +143,7 @@ const KNOWN_KEYS = new Set([
   'settings',
   'moved',
   'notes',
+  'needsYou',
   'groups',
   'groupOf',
   'version',
@@ -149,7 +155,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], pausedSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], pausedSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -345,6 +351,9 @@ function normalize(parsed: Record<string, unknown>): Meta {
         (entry): entry is [string, string] => typeof entry[1] === 'string',
       ),
     ),
+    // Same reasoning as projectOrder: no version bump for a new defaulted field; absent means nothing is marked.
+    // An entry this build cannot read is dropped, so a hand edit can't leave a mark with no reason to show.
+    needsYou: needsYouOf(parsed.needsYou),
     groups,
     groupOf,
     version: typeof parsed.version === 'number' ? parsed.version : 1,
@@ -579,9 +588,11 @@ export function getArchived(): Promise<Record<string, number>> {
   return serialize(async () => (await readMeta()).archived);
 }
 
+/** Archive a session, which settles anything it needed you for: an archived session is put away. */
 export function archive(id: string): Promise<Record<string, number>> {
   return update('archive', (meta) => {
     meta.archived = archivedFrom(meta.archived, id, Date.now());
+    meta.needsYou = clearedNeedsYou(meta.needsYou, id);
     return meta.archived;
   });
 }
@@ -639,6 +650,37 @@ export function setScheduledWhenStopped(bySession: Record<string, unknown>): Pro
   return update('setScheduledWhenStopped', (meta) => {
     meta.scheduledWhenStopped = Object.fromEntries(Object.entries(scheduledBySession(bySession)).filter(([id]) => meta.openSessions.includes(id)));
   });
+}
+
+/** The sessions marked as needing you; see `needsYou`. */
+export function getNeedsYou(): Promise<Record<string, NeedsYou>> {
+  return serialize(async () => (await readMeta()).needsYou);
+}
+
+/** Mark sessions as needing you, for `reason`; one already marked takes the newer reason. */
+export function markNeedsYou(ids: string[], reason: ClosedHow): Promise<void> {
+  return update('markNeedsYou', (meta) => {
+    meta.needsYou = markedNeedsYou(meta.needsYou, ids, reason, Date.now());
+  });
+}
+
+/** Take a session's needs-you mark off, whether or not it had one. */
+export function clearNeedsYou(id: string): Promise<void> {
+  return update('clearNeedsYou', (meta) => {
+    meta.needsYou = clearedNeedsYou(meta.needsYou, id);
+  });
+}
+
+/** Session -> its needs-you mark, from whatever was stored, an entry without a reason this build knows or a time left out. */
+function needsYouOf(raw: unknown): Record<string, NeedsYou> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>).flatMap(([id, entry]) => {
+      if (typeof entry !== 'object' || entry === null) return [];
+      const { reason, at } = entry as Record<string, unknown>;
+      return CLOSED_HOW.includes(reason as ClosedHow) && typeof at === 'number' ? [[id, { reason: reason as ClosedHow, at }]] : [];
+    }),
+  );
 }
 
 /** Session -> its tasks, from whatever was stored, a session with none left out. */

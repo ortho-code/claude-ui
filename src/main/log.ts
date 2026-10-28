@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { appendStamped, localTimestamp } from './stamp';
+import type { ClosedHow } from '../shared/types';
 // Shared because Settings says how long logs are kept, and the numbers it gives must be the ones used here.
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES, errorText, type LogLevel } from '../shared/log';
 
@@ -141,6 +142,17 @@ export interface Log {
   close(): Promise<void>;
   /** Resolves once everything asked for so far has been written. */
   settled(): Promise<void>;
+  /** How the launch before this one ended, as its last file says (`closedHowOf`), once that has been read. */
+  lastClosed(): Promise<ClosedHow>;
+}
+
+/**
+ * How a launch ended, from the last line of its last file: `quit` with the quit line, `unknown` where there is no line to read or the line hands on to a file of the next day that has gone, and `ended` otherwise, a file left without its quit line, or an empty one.
+ * The file is the newest of any kind, since a launch that quit with a process of the app dying in it is kept as a crash log, and passing over it would answer for an older launch.
+ */
+export function closedHowOf(lastLine: string | null): ClosedHow {
+  if (lastLine === null || lastLine.includes(CONTINUES_IN)) return 'unknown';
+  return lastLine.endsWith(QUIT) ? 'quit' : 'ended';
 }
 
 export function createLog({ dir, header }: LogOptions): Log {
@@ -226,11 +238,20 @@ export function createLog({ dir, header }: LogOptions): Log {
     enqueue(() => put(text));
   }
 
+  /** Read before the previous file is classified, which may add a line to it, and before this launch makes its own. */
+  async function readLastClosed(): Promise<ClosedHow> {
+    const newest = logNames(await fs.readdir(dir))[0];
+    return newest === undefined ? 'unknown' : closedHowOf(await readLastLine(file(newest.name)));
+  }
+
+  let closedHow: ClosedHow = 'unknown';
   enqueue(async () => {
     await fs.mkdir(dir, { recursive: true });
+    closedHow = await readLastClosed().catch(() => 'unknown' as const);
     await classifyPrevious().catch(() => undefined);
     await begin(new Date());
   });
+  const closedRead = queue.then(() => closedHow);
 
   const instance: Log = {
     writeOnce(level, area, message) {
@@ -279,6 +300,7 @@ export function createLog({ dir, header }: LogOptions): Log {
       return queue;
     },
     settled: () => queue,
+    lastClosed: () => closedRead,
   };
   return instance;
 }
@@ -288,6 +310,11 @@ let active: Log | null = null;
 
 export function startLog(options: LogOptions): void {
   active ??= createLog(options);
+}
+
+/** How the launch before this one ended (`Log.lastClosed`); `unknown` without a log. */
+export function lastClosed(): Promise<ClosedHow> {
+  return active?.lastClosed() ?? Promise.resolve('unknown');
 }
 
 export function log(level: LogLevel, area: string, message: string): void {

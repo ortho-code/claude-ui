@@ -1,7 +1,7 @@
 import { showsRead, statusLabel, type NudgeStatus } from './logic';
 import type { View } from './state/app';
 import { canMarkRead, toggleAck } from './state/statuses';
-import { dotStatus } from './state/views';
+import { dotStatus, tabDot, tabWith } from './state/views';
 import { setTooltip } from './tooltip';
 
 /** The status dots: a session's own, as the sidebar row, the tab, the live strip and a list panel's row draw it, and a roll-up's, which stands for many; how each looks is base.css's `.nudge`. */
@@ -18,16 +18,31 @@ export function badgeClass(badge: NudgeStatus | 'failed'): string {
 
 /**
  * Paint a session's dot, from what it shows (`dotStatus`) and whether it is marked read, on every surface that draws one as a control.
- * It is a control only where a click marks something, idle and waiting and not archived (`canMarkRead`, the rule the click and the menu's Mark as read follow too); any other dot is no control, and a click on it goes to what holds it — a paused one's opens the session and so resumes it, unless its folder is gone.
+ * It is a control only where a click marks something, idle, waiting and needs and not archived (`canMarkRead`, the rule the click and the menu's Mark as read follow too); any other dot is no control, and a click on it goes to what holds it — a paused one's opens the session and so resumes it, unless its folder is gone.
  */
-export function applyStatus(dot: HTMLElement, id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs' | 'archived'>): void {
+export function applyStatus(dot: HTMLElement, id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'tabs' | 'archived'>): void {
   dot.className = sessionDotClass(dotStatus(id, view), view.acked.has(id), canMarkRead(id, view));
   setTooltip(dot, statusText(id, view));
 }
 
-/** What a session's dot says it shows, as its tooltip and in its menu's header; null for nothing to report. */
-export function statusText(id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs'>): string | null {
-  return statusLabel(dotStatus(id, view), view.acked.has(id), view.backgroundTasks.get(id));
+/** What a session's dot says it shows, as its tooltip; null for nothing to report. */
+export function statusText(id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'tabs'>): string | null {
+  return statusLabel(dotStatus(id, view), view.acked.has(id), view.backgroundTasks.get(id), view.needsYou.get(id)?.reason);
+}
+
+/**
+ * Every state a session is in, each with its dot, for its menu's header: what its tab says, its status as its hooks last reported it, and its needs-you mark, in that order, where its one dot shows only the strongest of them (`dotStatus`).
+ * The read mark dims the state the dot shows, as it dims the dot.
+ */
+export function statusLines(id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'tabs'>): { text: string; dot: string }[] {
+  const tab = tabWith(id, view);
+  const shown = dotStatus(id, view);
+  const needsYou = view.needsYou.get(id);
+  const states = [tab && tabDot(tab), view.statuses.get(id), needsYou ? 'needs' : undefined].filter((state): state is string => Boolean(state));
+  return states.map((state) => {
+    const read = view.acked.has(id) && state === shown;
+    return { text: statusLabel(state, read, view.backgroundTasks.get(id), needsYou?.reason) ?? state, dot: sessionDotClass(state, read) };
+  });
 }
 
 /**

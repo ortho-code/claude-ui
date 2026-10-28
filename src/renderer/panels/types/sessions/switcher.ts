@@ -155,7 +155,7 @@ switcherCurrent.addEventListener('click', () => {
 switcherCurrent.querySelector('.switcher-chev')!.innerHTML = chevronIcon('down', 11);
 
 /** What the switcher draws from the store. */
-type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs'>;
+type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs'>;
 
 /**
  * The switcher follows the store: every project's count and roll-up, and the project on show.

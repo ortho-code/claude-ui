@@ -35,11 +35,11 @@ export const claudeWatch = {
     // The tab bar clusters its tabs by group, places its projects by the order under their names, and shows the project on show's tabs, as the list does: it follows the same changes, every change to a tab or to which one is on show, and its fold.
     // A task claude scheduled for a tab's session, or one gone, draws its clock: it changes at most once a turn.
     // And the setting for a stopped tab's button.
-    store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'scheduledTasks', 'settings'], renderTabBar, { reads: ['sessions', 'statuses', 'backgroundTasks', 'acked', 'archived'] });
+    store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'scheduledTasks', 'settings'], renderTabBar, { reads: ['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'archived'] });
     // And a status, the work behind one, or a mark read of one of its tabs' sessions, which its fold's dot follows too.
-    store.watch(['statuses', 'backgroundTasks', 'acked'], tabBarFollowsStatuses, { reads: ['sessions', 'scheduledTasks', 'archived', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'settings'] });
+    store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou'], tabBarFollowsStatuses, { reads: ['sessions', 'scheduledTasks', 'archived', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'settings'] });
     // The terminal area's rail icon waits while a tab on show waits for you.
-    store.watch(['activeProject', 'tabs', 'statuses', 'acked'], railStatusFollowsTabs);
+    store.watch(['activeProject', 'tabs', 'statuses', 'acked', 'needsYou'], railStatusFollowsTabs);
     // The pane shows the tab on show, or says why there is none, which turns on the listing and the project on show too.
     store.watch(['sessions', 'activeProject', 'tabs', 'activeTab'], paneFollows);
   },

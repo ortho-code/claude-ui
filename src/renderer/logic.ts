@@ -1,7 +1,7 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested.
 // renderer.ts wires these to its state and the DOM.
 import { prReference } from '../shared/prs';
-import type { GroupState, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
+import type { ClosedHow, GroupState, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
 
 // The stable key for a displayed session entity: the session's own id, always.
@@ -392,17 +392,26 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
 }
 
 // A project's rolled-up nudge for the switcher: the strongest UNATTENDED status among its sessions, so a project you're not looking at still shows it needs you.
-// Priority waiting > idle > busy; null when nothing needs surfacing.
-// A read session waiting or finished is muted and contributes nothing (`nudgeOf`).
-export type NudgeStatus = 'waiting' | 'idle' | 'busy' | null;
+// Priority waiting > needs > idle > busy; null when nothing needs surfacing.
+// A read session waiting, needing you or finished is muted and contributes nothing (`nudgeOf`).
+export type NudgeStatus = 'waiting' | 'needs' | 'idle' | 'busy' | null;
 
 /**
- * One session's part in a roll-up: its live status, muted to nothing once read; closed, unknown or not reported yet is nothing too.
- * Only waiting and idle can be read (`toggleAck`), and a new status clears the mark, so the mark mutes only those.
+ * What a session shows of its claude's status and its needs-you mark, one rule for its dot and for every roll-up: the mark where claude says nothing more pressing.
+ * Busy and background show over it, since claude is then working, and waiting does, since claude then asks you something; idle, closed and no status at all give way to it.
+ */
+export function shownStatus(status: string | undefined, needsYou: boolean): string | undefined {
+  if (status === 'busy' || status === 'background' || status === 'waiting') return status;
+  return needsYou ? 'needs' : status;
+}
+
+/**
+ * One session's part in a roll-up: what it shows (`shownStatus`), muted to nothing once read; closed, unknown or not reported yet is nothing too.
+ * Only waiting, needs and idle can be read (`toggleAck`), and a new status clears the mark, so the mark mutes only those.
  * Work still running behind a finished turn (`background`) is working, so it rolls up as busy: a roll-up must not carry a "finished" that is not true yet.
  */
 export function nudgeOf(status: string | undefined, acked: boolean): NudgeStatus {
-  if (status === 'waiting' || status === 'idle') return acked ? null : status;
+  if (status === 'waiting' || status === 'needs' || status === 'idle') return acked ? null : status;
   return status === 'busy' || status === 'background' ? 'busy' : null;
 }
 
@@ -420,23 +429,24 @@ export interface SwitcherModel {
   projects: SwitcherProject[];
 }
 
-/** The nudge that speaks for several: waiting over idle over busy, and nothing when none has one; how sessions roll up into a project and projects into a line. */
+/** The nudge that speaks for several: waiting over needs over idle over busy, and nothing when none has one; how sessions roll up into a project and projects into a line. */
 export function strongestNudge(nudges: Iterable<NudgeStatus>): NudgeStatus {
   const all = new Set(nudges);
-  return all.has('waiting') ? 'waiting' : all.has('idle') ? 'idle' : all.has('busy') ? 'busy' : null;
+  return all.has('waiting') ? 'waiting' : all.has('needs') ? 'needs' : all.has('idle') ? 'idle' : all.has('busy') ? 'busy' : null;
 }
 
-/** Whether a nudge asks something of you: a turn that ended, waiting for you or finished, and not marked read, which `nudgeOf` has already taken away; work in progress asks nothing. */
+/** Whether a nudge asks something of you: waiting for you, marked as needing you, or a turn that finished, and not marked read, which `nudgeOf` has already taken away; work in progress asks nothing. */
 export function asksForYou(nudge: NudgeStatus): boolean {
-  return nudge === 'waiting' || nudge === 'idle';
+  return nudge === 'waiting' || nudge === 'needs' || nudge === 'idle';
 }
 
 function rollUpNudge(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
+  needsYou: ReadonlyMap<string, unknown>,
 ): NudgeStatus {
-  return strongestNudge(sessions.map((s) => nudgeOf(statuses.get(s.id), acked.has(s.id))));
+  return strongestNudge(sessions.map((s) => nudgeOf(shownStatus(statuses.get(s.id), needsYou.has(entityKey(s))), acked.has(s.id))));
 }
 
 /**
@@ -478,6 +488,7 @@ export function projectsForSwitcher(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
+  needsYou: ReadonlyMap<string, unknown>,
   names?: ReadonlyMap<string, string>,
   projectOrder: readonly string[] = [],
   archivedOnly: ReadonlyMap<string, SessionSummary[]> = new Map(),
@@ -487,11 +498,11 @@ export function projectsForSwitcher(
     repoRoot,
     name: displayName(repoRoot, names),
     count: entry.shown.length,
-    badge: rollUpNudge(entry.shown, statuses, acked),
+    badge: rollUpNudge(entry.shown, statuses, acked, needsYou),
     rootExists: projectRootExists(folderWitnesses(entry)),
   }));
   return {
-    all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked) },
+    all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked, needsYou) },
     projects,
   };
 }
@@ -655,19 +666,20 @@ export function groupJumpTargets(
   project: ProjectTree,
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
+  needsYou: ReadonlyMap<string, unknown>,
 ): GroupJumpTarget[] {
   const targets: GroupJumpTarget[] = project.groups.map(({ group, sessions }) => ({
     groupId: group.id,
     name: group.name,
     count: sessions.length,
-    badge: rollUpNudge(sessions, statuses, acked),
+    badge: rollUpNudge(sessions, statuses, acked, needsYou),
   }));
   if (project.loose.length > 0) {
     targets.push({
       groupId: null,
       name: 'Ungrouped',
       count: project.loose.length,
-      badge: rollUpNudge(project.loose, statuses, acked),
+      badge: rollUpNudge(project.loose, statuses, acked, needsYou),
     });
   }
   return targets;
@@ -691,6 +703,13 @@ const STATUS_LABEL: Record<string, string> = {
   stopping: 'Stopping — waiting for claude to leave',
 };
 
+/** What a session marked as needing you shows (`shownStatus`), by why it was marked: how the app closed while it ran. */
+const NEEDS_LABEL: Record<ClosedHow, string> = {
+  quit: 'Needs you — was running when the app quit',
+  ended: 'Needs you — was running when the app ended without quitting',
+  unknown: 'Needs you — was running when the app last closed',
+};
+
 /**
  * A status dot's tooltip: the status as a label, plus whether it has been marked read.
  * Here rather than beside the dot it decorates, because the wording is the thing worth pinning — an unknown status used to render its own internal value at the user.
@@ -699,10 +718,16 @@ const STATUS_LABEL: Record<string, string> = {
  * That only works while everything reaching here is MEANT to be a state — the identity marker `start` is not, and is filtered out where it is read rather than hidden here.
  *
  * `background` also says what still runs, from the type claude gives each piece of work (`background`), counted per type: "2 shells, 1 subagent".
+ * `needs` says why, from the session's mark (`needsYou`).
  */
-export function statusLabel(status: string | undefined, isAcked = false, background: readonly string[] = []): string | null {
+export function statusLabel(status: string | undefined, isAcked = false, background: readonly string[] = [], needsYou?: ClosedHow): string | null {
   if (!status) return null;
-  const label = status === 'background' && background.length > 0 ? `${STATUS_LABEL.background}: ${countedTypes(background)}` : (STATUS_LABEL[status] ?? status);
+  const label =
+    status === 'background' && background.length > 0
+      ? `${STATUS_LABEL.background}: ${countedTypes(background)}`
+      : status === 'needs'
+        ? NEEDS_LABEL[needsYou ?? 'unknown']
+        : (STATUS_LABEL[status] ?? status);
   return showsRead(status, isAcked) ? `${label} (read)` : label;
 }
 
@@ -725,12 +750,13 @@ export function showsRead(status: string | null | undefined, acked: boolean): bo
 const TAB_DOTS: ReadonlySet<string> = new Set(['paused', 'pausing', 'stopping']);
 
 /**
- * The live strip's line: how many of its sessions run and how many of those want you, then how many tabs are paused.
+ * The live strip's line: how many of its rows want you, among those running or marked as needing you (`among`), else how many run and how many are marked but seen, then how many tabs are paused.
  * Counting ATTENTION rather than rows: a plain count of running sessions would report five wanting you when four are working away happily, and a paused one wants nothing.
+ * A marked row wants you whether or not it runs, so a launch that marked three cold tabs reads "3 of 3 need you"; once seen (marked read), a cold one is counted as marked, since it does not run.
  */
-export function stripLine(live: number, needing: number, paused: number): string {
-  const running = needing > 0 ? `${needing} of ${live} need you` : live > 0 ? `${live} live` : '';
-  return [running, paused > 0 ? `${paused} paused` : ''].filter(Boolean).join(' · ');
+export function stripLine({ live, needing, among, paused }: { live: number; needing: number; among: number; paused: number }): string {
+  const inHand = needing > 0 ? [`${needing} of ${among} need you`] : [live > 0 ? `${live} live` : '', among > live ? `${among - live} marked` : ''];
+  return [...inHand, paused > 0 ? `${paused} paused` : ''].filter(Boolean).join(' · ');
 }
 
 /**

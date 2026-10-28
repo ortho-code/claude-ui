@@ -152,6 +152,15 @@ fi
 if [ "$status" = start ] && [ -e "$dir/$sid.json" ]; then
   exit 0
 fi
+# A prompt goes along with its status, so the app can tell yours from a turn claude starts itself, which fires UserPromptSubmit too (startedByClaude, src/shared/scheduled.ts).
+# Taken as the payload holds it, a JSON string's inside, escapes and all, so it is one in the line as well.
+if [ "$status" = busy ] && [ "$(field hook_event_name)" = UserPromptSubmit ]; then
+  said="$(printf '%s' "$input" | grep -oE '"prompt"[[:space:]]*:[[:space:]]*"([^"\\\\]|\\\\.)*"' | head -1 | sed -E 's/^"prompt"[[:space:]]*:[[:space:]]*"//; s/"$//')"
+  extra="$extra,\\"prompt\\":\\"$said\\""
+  # Claude's own word for where the prompt came from, which its hook schema names and 2.1.310 did not yet send.
+  from="$(field source)"
+  [ -n "$from" ] && extra="$extra,\\"source\\":\\"$from\\""
+fi
 # The event goes along because one status is several events, and the app asks of one of them in particular: a prompt submitted says a session asked to leave has stayed.
 printf -v line '{"status":"%s","ts":%s,"tab":"%s","event":"%s"%s}' "$status" "$(date +%s)" "\${CLAUDE_UI_TAB:-}" "$(field hook_event_name)" "$extra"
 # An end the app reports stands only over the status it read, of the same second: one a hook has written since, a Stop above all, keeps its word.
@@ -275,7 +284,7 @@ export function registerStatusIpc(getWindow: () => BrowserWindow | null): void {
     void readStatus(id).then((entry) => {
       if (entry === null) return;
       const win = getWindow();
-      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, entry.status, entry.tab, entry.event, entry.background);
+      if (win && !win.isDestroyed()) win.webContents.send('session:status', id, entry.status, entry.tab, entry.event, entry.background, entry.prompt, entry.source);
     });
   });
 }
@@ -300,6 +309,10 @@ interface StatusEntry {
   event: string;
   /** For `background`, the type claude gives each piece of work still running, as many as the script could read; absent for any other status. */
   background?: string[];
+  /** For `UserPromptSubmit`, the prompt submitted, which tells yours from a turn claude started itself (`startedByClaude`); absent for any other event. */
+  prompt?: string;
+  /** For `UserPromptSubmit`, where claude says the prompt came from, such as `user`, where its payload says; absent otherwise. */
+  source?: string;
 }
 
 async function readStatus(id: string): Promise<StatusEntry | null> {
@@ -310,6 +323,8 @@ async function readStatus(id: string): Promise<StatusEntry | null> {
       tab?: unknown;
       event?: unknown;
       background?: unknown;
+      prompt?: unknown;
+      source?: unknown;
     };
     if (typeof parsed.status !== 'string') return null;
     return {
@@ -318,6 +333,8 @@ async function readStatus(id: string): Promise<StatusEntry | null> {
       tab: typeof parsed.tab === 'string' ? parsed.tab : '',
       event: typeof parsed.event === 'string' ? parsed.event : '',
       ...(Array.isArray(parsed.background) ? { background: parsed.background.filter((type): type is string => typeof type === 'string') } : {}),
+      ...(typeof parsed.prompt === 'string' ? { prompt: parsed.prompt } : {}),
+      ...(typeof parsed.source === 'string' ? { source: parsed.source } : {}),
     };
   } catch {
     return null;

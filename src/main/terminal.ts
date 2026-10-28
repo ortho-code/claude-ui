@@ -191,7 +191,8 @@ function spawnPty(sender: WebContents, what: string, file: string, args: string[
     // An exit nobody asked for, with a failing code, is the one worth finding again; a stop's code is whatever the signal left.
     const how = `code ${exitCode}${signal ? `, signal ${signal}` : ''}, after ${formatDuration(Date.now() - started)}`;
     log(expected || exitCode === 0 ? 'info' : 'warn', 'terminal', `${id} ended: ${how}${expected ? ', as asked' : ''}`);
-    if (!sender.isDestroyed()) sender.send('terminal:exit', id, exitCode);
+    // The signal goes along: node-pty reports a death by a signal claude cannot catch, SIGKILL or a native crash, with code 0, which alone reads as claude leaving on its own.
+    if (!sender.isDestroyed()) sender.send('terminal:exit', id, exitCode, signal ?? 0);
   });
   return id;
 }

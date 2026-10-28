@@ -25,6 +25,8 @@ import {
   sessionPasses,
   inView,
   nudgeOf,
+  shownStatus,
+  strongestNudge,
   asksForYou,
   projectsForSwitcher,
   modelLabel,
@@ -422,6 +424,7 @@ describe('nudgeOf', () => {
   it('counts a live status, muted once read, and nothing for a session with none', () => {
     const table: [string | undefined, unread: string | null, read: string | null][] = [
       ['waiting', 'waiting', null],
+      ['needs', 'needs', null],
       ['idle', 'idle', null],
       // Busy cannot be read (toggleAck), so the mark is never there to mute it.
       ['busy', 'busy', 'busy'],
@@ -437,9 +440,28 @@ describe('nudgeOf', () => {
   });
 });
 
+describe('shownStatus', () => {
+  // The order decided 2026-10-28: claude working or asking shows over the mark, and the mark over a turn that finished or no status at all.
+  it('shows the needs-you mark over idle, closed and no status, and busy, background and waiting over it', () => {
+    for (const status of ['idle', 'closed', undefined]) expect(shownStatus(status, true), `${status} marked`).toBe('needs');
+    for (const status of ['busy', 'background', 'waiting']) expect(shownStatus(status, true), `${status} marked`).toBe(status);
+    for (const status of ['idle', 'busy', undefined]) expect(shownStatus(status, false), `${status} unmarked`).toBe(status);
+  });
+});
+
+describe('strongestNudge', () => {
+  it('ranks waiting over needs over idle over busy', () => {
+    expect(strongestNudge(['busy', 'idle', 'needs', 'waiting'])).toBe('waiting');
+    expect(strongestNudge(['busy', 'idle', 'needs'])).toBe('needs');
+    expect(strongestNudge(['busy', 'idle'])).toBe('idle');
+    expect(strongestNudge([null])).toBeNull();
+  });
+});
+
 describe('asksForYou', () => {
   it('is a turn that ended, waiting for you or finished, and nothing at work or with nothing to say', () => {
     expect(asksForYou('waiting')).toBe(true);
+    expect(asksForYou('needs')).toBe(true);
     expect(asksForYou('idle')).toBe(true);
     expect(asksForYou('busy')).toBe(false);
     expect(asksForYou(null)).toBe(false);
@@ -455,6 +477,7 @@ describe('projectsForSwitcher', () => {
       [s('a1', '/x/alpha'), s('b1', '/x/beta'), s('a2', '/x/alpha')],
       new Map(),
       new Set(),
+      new Map(),
     );
     expect(model.all.count).toBe(3);
     expect(model.projects.map((f) => [f.name, f.count])).toEqual([
@@ -464,7 +487,7 @@ describe('projectsForSwitcher', () => {
   });
 
   it('orders projects by recency (most-recent session first)', () => {
-    const model = projectsForSwitcher([s('b1', '/x/beta'), s('a1', '/x/alpha')], new Map(), new Set());
+    const model = projectsForSwitcher([s('b1', '/x/beta'), s('a1', '/x/alpha')], new Map(), new Set(), new Map());
     expect(model.projects.map((f) => f.name)).toEqual(['beta', 'alpha']);
   });
 
@@ -479,6 +502,7 @@ describe('projectsForSwitcher', () => {
       [s('a1', '/x/alpha'), s('a2', '/x/alpha'), s('b1', '/x/beta'), s('b2', '/x/beta')],
       statuses,
       new Set(),
+      new Map(),
     );
     const byName = new Map(model.projects.map((f) => [f.name, f.badge]));
     expect(byName.get('alpha')).toBe('waiting'); // waiting beats busy
@@ -486,20 +510,47 @@ describe('projectsForSwitcher', () => {
     expect(model.all.badge).toBe('waiting'); // strongest across everything
   });
 
+  // A session marked as needing you counts where claude says nothing more pressing: over idle, under waiting, and not while claude works.
+  it('rolls up a needs-you mark between waiting and idle, and not over busy', () => {
+    const mark = { reason: 'quit' as const, at: 1 };
+    const statuses = new Map([
+      ['a2', 'idle'],
+      ['b1', 'waiting'],
+      ['c1', 'busy'],
+    ]);
+    const needsYou = new Map([
+      ['a1', mark],
+      ['b2', mark],
+      ['c1', mark],
+    ]);
+    const model = projectsForSwitcher(
+      [s('a1', '/x/alpha'), s('a2', '/x/alpha'), s('b1', '/x/beta'), s('b2', '/x/beta'), s('c1', '/x/gamma')],
+      statuses,
+      new Set(),
+      needsYou,
+    );
+    const byName = new Map(model.projects.map((f) => [f.name, f.badge]));
+    expect(byName.get('alpha')).toBe('needs');
+    expect(byName.get('beta')).toBe('waiting');
+    expect(byName.get('gamma')).toBe('busy');
+    // Read, it falls through as any other.
+    expect(projectsForSwitcher([s('a1', '/x/alpha'), s('a2', '/x/alpha')], statuses, new Set(['a1']), needsYou).projects[0].badge).toBe('idle');
+  });
+
   it('mutes acked sessions so the badge falls through to the next status', () => {
     const statuses = new Map([
       ['a1', 'waiting'],
       ['a2', 'idle'],
     ]);
-    const model = projectsForSwitcher([s('a1', '/x/alpha'), s('a2', '/x/alpha')], statuses, new Set(['a1']));
+    const model = projectsForSwitcher([s('a1', '/x/alpha'), s('a2', '/x/alpha')], statuses, new Set(['a1']), new Map());
     expect(model.projects[0].badge).toBe('idle'); // waiting is acked, so idle wins
   });
 
   it('badge is null when a folder has no live status (or all acked)', () => {
     const statuses = new Map([['a1', 'waiting']]);
-    expect(projectsForSwitcher([s('a1', '/x/alpha')], new Map(), new Set()).projects[0].badge).toBeNull();
+    expect(projectsForSwitcher([s('a1', '/x/alpha')], new Map(), new Set(), new Map()).projects[0].badge).toBeNull();
     expect(
-      projectsForSwitcher([s('a1', '/x/alpha')], statuses, new Set(['a1'])).projects[0].badge,
+      projectsForSwitcher([s('a1', '/x/alpha')], statuses, new Set(['a1']), new Map()).projects[0].badge,
     ).toBeNull();
   });
 
@@ -509,6 +560,7 @@ describe('projectsForSwitcher', () => {
       [session({ id: 'a', repoRoot: '/x/alive' }), session({ id: 'g', repoRoot: '/x/gone', repoRootExists: false, cwdExists: false })],
       new Map(),
       new Set(),
+      new Map(),
     );
     expect(model.projects.map((f) => [f.name, f.rootExists])).toEqual([
       ['alive', true],
@@ -517,7 +569,7 @@ describe('projectsForSwitcher', () => {
   });
 
   it('handles an empty session list', () => {
-    const model = projectsForSwitcher([], new Map(), new Set());
+    const model = projectsForSwitcher([], new Map(), new Set(), new Map());
     expect(model.projects).toEqual([]);
     expect(model.all).toEqual({ count: 0, badge: null });
   });
@@ -525,7 +577,7 @@ describe('projectsForSwitcher', () => {
   // The list keeps the same project (buildProjectTree), so the two agree on which projects there are and where each sits.
   it('lists a project whose sessions are all archived at none, in its place, its folder answered by those sessions', () => {
     const archived = new Map([['/x/gone', [session({ id: 'g', repoRoot: '/x/gone', repoRootExists: false, cwdExists: false })]]]);
-    const model = projectsForSwitcher([s('a1', '/x/alpha')], new Map([['g', 'waiting']]), new Set(), undefined, ['/x/gone', '/x/alpha'], archived);
+    const model = projectsForSwitcher([s('a1', '/x/alpha')], new Map([['g', 'waiting']]), new Set(), new Map(), undefined, ['/x/gone', '/x/alpha'], archived);
     expect(model.projects.map((f) => [f.name, f.count, f.badge, f.rootExists])).toEqual([
       ['gone', 0, null, false],
       ['alpha', 1, null, true],
@@ -715,7 +767,7 @@ describe('groupJumpTargets', () => {
     buildProjectTree([s('a'), s('b'), s('c')], { groups, groupOf }, none)[0];
 
   it('lists the groups in list order, then the ungrouped remainder', () => {
-    const out = groupJumpTargets(tree({ a: 'g2', b: 'g1' }), new Map(), none);
+    const out = groupJumpTargets(tree({ a: 'g2', b: 'g1' }), new Map(), none, new Map());
     expect(out.map((t) => [t.name, t.count])).toEqual([
       ['First', 1],
       ['Second', 1],
@@ -725,12 +777,12 @@ describe('groupJumpTargets', () => {
   });
 
   it('omits the ungrouped entry when every session is in a group', () => {
-    const out = groupJumpTargets(tree({ a: 'g1', b: 'g1', c: 'g2' }), new Map(), none);
+    const out = groupJumpTargets(tree({ a: 'g1', b: 'g1', c: 'g2' }), new Map(), none, new Map());
     expect(out.map((t) => t.name)).toEqual(['First', 'Second']);
   });
 
   it('keeps an empty group, which still has a heading to jump to', () => {
-    const out = groupJumpTargets(tree({ a: 'g1', b: 'g1', c: 'g1' }), new Map(), none);
+    const out = groupJumpTargets(tree({ a: 'g1', b: 'g1', c: 'g1' }), new Map(), none, new Map());
     expect(out.map((t) => [t.name, t.count])).toEqual([
       ['First', 3],
       ['Second', 0],
@@ -743,13 +795,18 @@ describe('groupJumpTargets', () => {
       ['b', 'waiting'],
       ['c', 'idle'],
     ]);
-    const out = groupJumpTargets(tree({ a: 'g1', b: 'g1' }), statuses, none);
+    const out = groupJumpTargets(tree({ a: 'g1', b: 'g1' }), statuses, none, new Map());
     expect(out.map((t) => t.badge)).toEqual(['waiting', null, 'idle']);
+  });
+
+  it('rolls up a needs-you mark over idle', () => {
+    const out = groupJumpTargets(tree({ a: 'g1' }), new Map([['c', 'idle']]), none, new Map([['c', { reason: 'quit' as const, at: 1 }]]));
+    expect(out.map((t) => t.badge)).toEqual([null, null, 'needs']);
   });
 
   it('ignores an acked session, so a muted group shows no dot', () => {
     const statuses = new Map([['a', 'waiting']]);
-    const out = groupJumpTargets(tree({ a: 'g1' }), statuses, new Set(['a']));
+    const out = groupJumpTargets(tree({ a: 'g1' }), statuses, new Set(['a']), new Map());
     expect(out[0].badge).toBeNull();
   });
 });
@@ -862,6 +919,13 @@ describe('statusLabel', () => {
     expect(statusLabel('idle', false)).toBe('Idle');
   });
 
+  it('says why a session needs you, by how the app closed while it ran', () => {
+    expect(statusLabel('needs', false, [], 'quit')).toBe('Needs you — was running when the app quit');
+    expect(statusLabel('needs', false, [], 'ended')).toBe('Needs you — was running when the app ended without quitting');
+    expect(statusLabel('needs', false, [], 'unknown')).toBe('Needs you — was running when the app last closed');
+    expect(statusLabel('needs', true, [], 'quit')).toBe('Needs you — was running when the app quit (read)');
+  });
+
   it('names a paused session, and never as read, since it reports no claude to have read', () => {
     expect(statusLabel('paused')).toBe('Paused — opening it resumes the session');
     expect(statusLabel('paused', true)).toBe('Paused — opening it resumes the session');
@@ -907,14 +971,26 @@ describe('statusLabel', () => {
 
 describe('stripLine', () => {
   it('counts what runs, and of those what wants you', () => {
-    expect(stripLine(3, 0, 0)).toBe('3 live');
-    expect(stripLine(3, 2, 0)).toBe('2 of 3 need you');
+    expect(stripLine({ live: 3, needing: 0, among: 3, paused: 0 })).toBe('3 live');
+    expect(stripLine({ live: 3, needing: 2, among: 3, paused: 0 })).toBe('2 of 3 need you');
   });
 
   it('adds the paused tabs after what runs, and names them alone when nothing runs', () => {
-    expect(stripLine(3, 0, 2)).toBe('3 live · 2 paused');
-    expect(stripLine(3, 1, 2)).toBe('1 of 3 need you · 2 paused');
-    expect(stripLine(0, 0, 2)).toBe('2 paused');
+    expect(stripLine({ live: 3, needing: 0, among: 3, paused: 2 })).toBe('3 live · 2 paused');
+    expect(stripLine({ live: 3, needing: 1, among: 3, paused: 2 })).toBe('1 of 3 need you · 2 paused');
+    expect(stripLine({ live: 0, needing: 0, among: 0, paused: 2 })).toBe('2 paused');
+  });
+
+  // A tab marked as needing you is in hand whether or not it runs, as after a launch that marked what ran.
+  it('counts a marked tab that does not run among those that want you', () => {
+    expect(stripLine({ live: 0, needing: 3, among: 3, paused: 0 })).toBe('3 of 3 need you');
+    expect(stripLine({ live: 1, needing: 2, among: 3, paused: 0 })).toBe('2 of 3 need you');
+  });
+
+  // Marked read, a cold marked row wants nothing more of the line, but is still listed, so the line still counts it.
+  it('counts marked rows seen and not running apart, so the line is never empty while rows are listed', () => {
+    expect(stripLine({ live: 0, needing: 0, among: 1, paused: 0 })).toBe('1 marked');
+    expect(stripLine({ live: 1, needing: 0, among: 3, paused: 1 })).toBe('1 live · 2 marked · 1 paused');
   });
 });
 

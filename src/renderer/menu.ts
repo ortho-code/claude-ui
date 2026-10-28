@@ -48,9 +48,13 @@ export interface MenuItem {
   /**
    * Not an item but what the menu is about, at its top: the label as its first line and these after it, muted, taking no hover and no click.
    * The first line, too long for the menu, is cut with an ellipsis and carries its whole text as its tooltip; the lines after it wrap (menu.css).
+   * A line can lead with a dot, classed by whoever lists it, such as each state a session is in.
    */
-  header?: string[];
+  header?: HeaderLine[];
 }
+
+/** A line under a menu's name: its words, or its words after a dot of the class given. */
+export type HeaderLine = string | { text: string; dot: string };
 let openMenuEl: HTMLElement | null = null;
 let openMenuAnchor: HTMLElement | null = null;
 let openSubmenuEl: HTMLElement | null = null;
@@ -100,10 +104,19 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     if (item.header) {
       const header = document.createElement('div');
       header.className = 'menu-header';
-      for (const text of [item.label, ...item.header]) {
+      for (const said of [item.label, ...item.header]) {
         const line = document.createElement('div');
         line.className = 'menu-header-line';
-        line.textContent = text;
+        if (typeof said === 'string') line.textContent = said;
+        else {
+          // The dot as the session's own dots draw it, beside its words, which wrap after it rather than under it.
+          const dot = document.createElement('span');
+          dot.className = said.dot;
+          const text = document.createElement('span');
+          text.textContent = said.text;
+          line.classList.add('dotted');
+          line.append(dot, text);
+        }
         header.append(line);
       }
       menu.append(header);

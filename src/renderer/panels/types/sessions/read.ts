@@ -32,13 +32,14 @@ export async function fullRead({ showLoading = true, revealed, startUp }: FullRe
   if (showLoading) setLoading(true);
   try {
     const readAt = store.stamp();
-    const [sessions, pinnedList, archivedList, statusMap, namesMap, noteMap, groupState, storedProject] = await Promise.all([
+    const [sessions, pinnedList, archivedList, statusMap, namesMap, noteMap, needsYouMap, groupState, storedProject] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getPinned(),
       window.claudeUi.getArchived(),
       window.claudeUi.getAllStatuses(),
       window.claudeUi.getProjectNames(),
       window.claudeUi.getNotes(),
+      window.claudeUi.getNeedsYou(),
       window.claudeUi.getGroupState(),
       startUp ? window.claudeUi.getActiveProject() : null,
     ]);
@@ -54,6 +55,7 @@ export async function fullRead({ showLoading = true, revealed, startUp }: FullRe
           pinned: new Set(pinnedList),
           archived: new Map(Object.entries(archivedList)),
           notes: new Map(Object.entries(noteMap)),
+          needsYou: new Map(Object.entries(needsYouMap)),
           groupState,
           projectNames: new Map(Object.entries(namesMap)),
           projectOrder,

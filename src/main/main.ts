@@ -15,7 +15,7 @@ import { registerFolders } from './folders';
 import { liveRuns, registerPanelsIpc, stopAllPanels } from './panels';
 import { forgetSessions, keepShellFolders, registerPanelData } from './paneldata';
 import { logsDir } from './paths';
-import { startLog, closeLog, errorText, log } from './log';
+import { startLog, closeLog, errorText, lastClosed, log } from './log';
 import { headerLines, logGpuStatus, logProcessFailures, registerRendererLog, watchWindow } from './diagnostics';
 import { localTimestamp } from './stamp';
 import {
@@ -29,6 +29,9 @@ import {
   getOpenSessions,
   getRunningSessions,
   getPausedSessions,
+  getNeedsYou,
+  markNeedsYou,
+  clearNeedsYou,
   getScheduledWhenStopped,
   setScheduledWhenStopped,
   setOpenSessions,
@@ -79,7 +82,7 @@ import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
 import { transcriptChanged } from './transcriptends';
 import { NO_TRANSCRIPT } from '../shared/history';
-import type { HistoryPin, HistorySlice, OrderMove, UiState } from '../shared/types';
+import type { ClosedHow, HistoryPin, HistorySlice, OrderMove, UiState } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -486,6 +489,15 @@ ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: strin
 });
 ipcMain.handle('meta:getRunningSessions', () => getRunningSessions());
 ipcMain.handle('meta:getPausedSessions', () => getPausedSessions());
+ipcMain.handle('meta:getNeedsYou', () => getNeedsYou());
+ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reason: ClosedHow) => {
+  void markNeedsYou(ids, reason);
+});
+ipcMain.on('meta:clearNeedsYou', (_event, id: string) => {
+  void clearNeedsYou(id);
+});
+// A window opened again from the Dock follows no close of the app's, so the log has nothing to say of it.
+ipcMain.handle('app:lastClosed', () => (reopened ? 'unknown' : lastClosed()));
 ipcMain.handle('meta:getScheduledWhenStopped', () => getScheduledWhenStopped());
 ipcMain.on('meta:setScheduledWhenStopped', (_event, bySession: Record<string, unknown>) => {
   void setScheduledWhenStopped(bySession);
@@ -654,6 +666,8 @@ app.on('window-all-closed', () => {
 
 /** A window being opened again on macOS, so a second click on the Dock during the wait opens no second one. */
 let reopening = false;
+/** Whether a window has been opened again on macOS since launch, whose sessions were ended by a window's close rather than the app's. */
+let reopened = false;
 
 /**
  * Open a window again on macOS once what the last one ran has gone, as a quit waits for it: the new window may start the sessions that were running afresh (`runningSessionsAtLaunch`), and before then would start each beside the one still on its way out.
@@ -663,7 +677,9 @@ async function reopen(): Promise<void> {
   reopening = true;
   try {
     await allGone();
-    if (!quitting) await createWindow();
+    if (quitting) return;
+    reopened = true;
+    await createWindow();
   } finally {
     reopening = false;
   }

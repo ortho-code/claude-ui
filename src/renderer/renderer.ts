@@ -22,6 +22,8 @@ import { sessionsAnswers } from './panels/types/sessions/asks';
 import { persistUi, restoreUiState, startSavingUi } from './view-saving';
 import { store, withEntry } from './state/app';
 import { tabWith } from './state/views';
+import { startedByClaude } from '../shared/scheduled';
+import { clearNeedsYou } from './state/needsyou';
 import { setScheduled, setStatus } from './state/statuses';
 import { installTooltips } from './tooltip';
 import { askPlatform, routeTerminals } from './terminal';
@@ -58,9 +60,9 @@ store.watch(['filter', 'folds', 'filterPanelOpen', 'stripExpanded', 'stripHidden
 store.watch(WHERE_SLICES, treeContextChanged);
 
 // A panel's rows mark the sessions they started — each one's title, status dot and the work behind it, mark read, and whether it runs — so the panels hear of every change to those, and to which sessions a panel's rows started (its data, panels/links.ts).
-store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'tabs', 'panelData'], treeSessionsChanged);
+store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'tabs', 'panelData'], treeSessionsChanged);
 
-window.claudeUi.onSessionStatus((id, status, tabToken, event, background) => {
+window.claudeUi.onSessionStatus((id, status, tabToken, event, background, prompt, source) => {
   // The terminal area's part first: a cleared session's successor is the tab's, a prompt calls off a stop, and the history on show reads what was added.
   claudeWatch.sessionStatus(id, tabToken, event);
   // 'start' reports which session a tab is running, not a state it is in — and it fires mid-session on clear and compact, where setting a status would wipe a live one.
@@ -71,6 +73,12 @@ window.claudeUi.onSessionStatus((id, status, tabToken, event, background) => {
   const holder = tabWith(id);
   if (event === 'SessionEnd' && tabToken && holder && holder.token !== tabToken) return;
   setStatus(id, status, background);
+  // A prompt you submitted is you acting on the session, which settles what it needed you for; a turn claude started itself is not (`startedByClaude`), against what the session has scheduled: what its last Stop listed, and the crons its tab kept from the claude before, which come back with a resume and can fire before any Stop lists them.
+  // Without the prompt, as from a script older than this window, it is taken as yours.
+  if (event === 'UserPromptSubmit') {
+    const scheduled = [...(store.get().scheduledTasks.get(id) ?? []), ...(tabWith(id)?.scheduledWhenStopped ?? [])].map((task) => task.prompt);
+    if (prompt === undefined || !startedByClaude(prompt, scheduled, source)) clearNeedsYou(id);
+  }
   // A new session's title isn't on disk immediately; re-read on its status events until it is (this also replaces the tab's own stand-in row with the real one).
   if (tabWith(id) && !store.get().sessions.some((s) => s.id === id)) void refreshFromDisk();
 });

@@ -1,3 +1,4 @@
+import type { ClosedHow } from '../../shared/types';
 import type { LeaveAction, TabButtonMark } from '../logic';
 import type { MenuItem } from '../menu';
 import type { IconName } from './icons';
@@ -52,10 +53,10 @@ export interface PanelFolder {
 }
 
 /**
- * What a panel's icon on a rail says about it, so a panel that is not on show still reports: a session waiting for you, or a run that failed.
+ * What a panel's icon on a rail says about it, so a panel that is not on show still reports: a session waiting for you, one marked as needing you, or a run that failed.
  * Null says nothing.
  */
-export type PanelStatus = 'wait' | 'fail' | null;
+export type PanelStatus = 'wait' | 'needs' | 'fail' | null;
 
 /**
  * A claude session a panel asks the app for, from one of its items: what it is about, and what the session starts with.
@@ -85,6 +86,8 @@ export interface LinkedSession {
   status: string | null;
   /** For a `background` status, what still runs behind its finished turn, by the type claude gives each piece of work; empty when nothing is known. */
   background: readonly string[];
+  /** For a `needs` status, why it needs you; null otherwise. */
+  needsYou: ClosedHow | null;
   /** Its dot marked read. */
   acked: boolean;
   /** A tab holds it with its process live. */

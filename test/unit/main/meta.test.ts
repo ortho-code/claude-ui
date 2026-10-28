@@ -42,6 +42,9 @@ import {
   getOpenSessions,
   getRunningSessions,
   getPausedSessions,
+  getNeedsYou,
+  markNeedsYou,
+  clearNeedsYou,
   getScheduledWhenStopped,
   setOpenSessions,
   setScheduledWhenStopped,
@@ -194,6 +197,40 @@ describe('paused sessions', () => {
     expect(await getPausedSessions()).toEqual([]);
     await writeMetaFile({ version: 3, openSessions: ['a'], pausedSessions: ['a', 7] });
     expect(await getPausedSessions()).toEqual(['a']);
+  });
+});
+
+describe('sessions that need you', () => {
+  it('are marked with why and since when, a newer reason over an older, and taken off one at a time', async () => {
+    expect(await getNeedsYou()).toEqual({});
+    await markNeedsYou(['a', 'b'], 'ended');
+    await markNeedsYou(['a'], 'quit');
+    const marked = await getNeedsYou();
+    expect(marked).toMatchObject({ a: { reason: 'quit' }, b: { reason: 'ended' } });
+    expect(marked.a.at).toBeGreaterThan(0);
+    await clearNeedsYou('a');
+    expect(Object.keys(await getNeedsYou())).toEqual(['b']);
+  });
+
+  // Kept per session, not per tab: a mark outlives the tabs being written again, as every launch writes them.
+  it('stay through the open tabs being written', async () => {
+    await markNeedsYou(['a'], 'quit');
+    await setOpenSessions(['b'], [], []);
+    expect(Object.keys(await getNeedsYou())).toEqual(['a']);
+  });
+
+  it('are taken off by an archive, and forgotten by a delete', async () => {
+    await markNeedsYou(['a', 'b'], 'quit');
+    await archive('a');
+    await purgeSession('b');
+    expect(await getNeedsYou()).toEqual({});
+  });
+
+  it('are none in a file written before they were kept, and an entry without a reason this build knows or a time is dropped', async () => {
+    await writeMetaFile({ version: 3 });
+    expect(await getNeedsYou()).toEqual({});
+    await writeMetaFile({ version: 3, needsYou: { a: { reason: 'quit', at: 5 }, b: { reason: 'pr', at: 5 }, c: { reason: 'ended' }, d: 'yes' } });
+    expect(await getNeedsYou()).toEqual({ a: { reason: 'quit', at: 5 } });
   });
 });
 

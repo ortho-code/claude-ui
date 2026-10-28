@@ -169,7 +169,7 @@ function buildRow(id: string): StripRow {
 }
 
 /** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its tab's button in the tab's state. */
-function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'tabs' | 'settings'>): void {
+function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'archived' | 'tabs' | 'settings'>): void {
   const { row, jump, dot, name, clock, notLeft, chip, stop } = parts;
   applyStatus(dot, session.id, view);
   name.textContent = sessionLabel(session);
@@ -197,12 +197,13 @@ interface StripProject {
   items: SessionSummary[];
 }
 
-/** What the strip holds: its projects in order, each with its sessions, and which of those sessions are paused. */
-function stripProjects(pool: SessionSummary[], view: View<'groupState' | 'projectNames' | 'projectOrder' | 'tabs'>): { ordered: StripProject[]; paused: ReadonlySet<string> } {
-  // What is RUNNING, wherever it is running, and what you PAUSED — not what is nudging.
+/** What the strip holds: its projects in order, each with its sessions, and which of those sessions run and which are paused. */
+function stripProjects(pool: SessionSummary[], view: View<'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'needsYou'>): { ordered: StripProject[]; live: ReadonlySet<string>; paused: ReadonlySet<string> } {
+  // What is RUNNING, wherever it is running, what you PAUSED, and what is marked as NEEDING YOU — not what is nudging.
   // Membership used to be "has a live nudge", which meant marking a dot read deleted the row: muting said "erase this" when it should have said "seen it".
   // Running is also the only rule that closes the gap this strip exists for: scoped to one project, a live session in another is invisible in the tab bar (filtered to the active project) and out of scope in the list, and the switcher only ever gets you to a PROJECT, never back to a SESSION.
-  // Paused widens it on purpose: a tab you set aside, or one that was running when the app closed, is work in hand, which the other cold tabs are not, and it is the same gap — a paused tab in another project is as far out of sight as a running one.
+  // Paused widens it on purpose: a tab you set aside is work in hand, which the other cold tabs are not, and it is the same gap — a paused tab in another project is as far out of sight as a running one.
+  // Marked widens it the same way: a tab whose session was running when the app closed comes back marked, started or not (`restoreOpenTabs`), and is work in hand until your next prompt there.
   // That is also what keeps the strip at launch, which used to start with nothing running and so with no strip at all.
   // Nothing is lost by dropping the nudge from the membership: a running session that stopped has reported SessionEnd or had its status forgotten (`coolTab`), so it cannot be nudging; a paused one can still hold a status from before, which is why the line's count leaves paused rows out.
   // IN TAB ORDER, which is the only order here that nothing on disk can move — see orderAsTabs.
@@ -210,7 +211,8 @@ function stripProjects(pool: SessionSummary[], view: View<'groupState' | 'projec
   // A paused tab keeps its place among the running ones rather than gathering in a section of its own, so pausing or resuming a session never moves its row.
   // The session data still comes from the list, so a row shows what the sidebar shows; only the ORDER is the tab bar's.
   const shown = new Map(pool.map((s) => [entityKey(s), s]));
-  const listed = view.tabs.filter((t) => t.terminalId !== null || isPaused(t));
+  const listed = view.tabs.filter((t) => t.terminalId !== null || isPaused(t) || view.needsYou.has(entityKey(t.session)));
+  const live = new Set(listed.filter((t) => t.terminalId !== null).map((t) => t.session.id));
   const paused = new Set(listed.filter(isPaused).map((t) => t.session.id));
   const clusters = orderAsTabs(
     listed
@@ -227,7 +229,7 @@ function stripProjects(pool: SessionSummary[], view: View<'groupState' | 'projec
     name: projName(repoRoot, view),
     items: clusters.filter((c) => c.repoRoot === repoRoot).flatMap((c) => c.items),
   }));
-  return { ordered, paused };
+  return { ordered, live, paused };
 }
 
 /**
@@ -239,19 +241,20 @@ function hiddenProjects(model: SwitcherModel, ordered: StripProject[], view: Vie
   return ordered.filter((project) => view.stripHidden.has(project.repoRoot)).map((project) => ({ project, badge: badges.get(project.repoRoot) ?? null }));
 }
 
-function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden' | 'settings'>): void {
+function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden' | 'settings'>): void {
   const { stripExpanded } = view;
   const overall = model.all.badge;
   stripBadge.className = badgeClass(overall);
   stripBadge.hidden = !overall;
 
-  const { ordered, paused } = stripProjects(pool, view);
+  const { ordered, live, paused } = stripProjects(pool, view);
   // The line counts every row, hidden or not, as its badge rolls up every project: hiding changes what is listed, not what is summed up.
   const items = ordered.flatMap((g) => g.items);
   const total = items.length;
-  const running = items.filter((s) => !paused.has(s.id));
-  // "Needs you" is idle or waiting and NOT already read; busy is work in progress, which wants nothing from you, and a paused session wants nothing either, whatever status it still holds.
-  const needing = running.filter((s) => asksForYou(sessionNudge(s.id, view))).length;
+  // Every row but the paused ones: those running, and those marked as needing you, running or not.
+  const inHand = items.filter((s) => !paused.has(s.id));
+  // "Needs you" is idle, waiting or marked, and NOT already read; busy is work in progress, which wants nothing from you, and a paused session wants nothing either, whatever status it still holds.
+  const needing = inHand.filter((s) => asksForYou(sessionNudge(s.id, view))).length;
 
   if (total === 0) {
     // Gone entirely rather than sitting there saying "All clear", which read as odd on a first run — nothing had happened yet for anything to be clear of — and left a caret pointing at a panel that could not open.
@@ -266,7 +269,7 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
 
   liveStrip.hidden = false;
   stripToggle.setAttribute('aria-expanded', String(stripExpanded));
-  stripLabel.textContent = stripLine(running.length, needing, total - running.length);
+  stripLabel.textContent = stripLine({ live: live.size, needing, among: inHand.length, paused: paused.size });
   stripList.hidden = !stripExpanded;
   // The session on show, which its row says, as the tab bar marks its tab and the list its row: without it the row you are already in looks like any other, and pressing it seems to do nothing.
   const onShow = tabOnShow(view)?.session.id;
@@ -302,7 +305,7 @@ stripToggle.addEventListener('click', () => store.set({ stripExpanded: !store.ge
 stripToggle.querySelector('.strip-chev')!.innerHTML = chevronIcon('down', 11);
 
 /** What the strip draws from the store. */
-type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' |'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden' | 'settings'>;
+type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden' | 'settings'>;
 
 /**
  * The strip follows the store, its line badged with the switcher's own roll-up (`switcherModel`) and its rows drawn from the switcher's pool.

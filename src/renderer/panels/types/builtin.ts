@@ -1,6 +1,7 @@
 import type { IconName } from '../icons';
 import { optionProblems, optionsOf } from '../options';
 import type { MountedPanel, PanelHost, PanelStatus, PanelType } from '../contract';
+import type { NudgeStatus } from '../../logic';
 
 /**
  * The app's own surfaces as panels: `sessions` is the whole sidebar (switcher, actions, filter, list, live strip, in types/sessions/) and `claude` is the terminal area (tab bar and terminals, in types/claude/).
@@ -22,6 +23,11 @@ export function hostOf(name: BuiltinName): PanelHost {
   const host = hosts.get(name);
   if (!host) throw new Error(`The ${name} panel was asked for its host before the layout placed it.`);
   return host;
+}
+
+/** What a built-in's rail icon says for the nudge that speaks for its sessions (`strongestNudge`): waiting, or needs for one marked as needing you, and nothing for a turn that finished or work under way, which ask nothing urgent of a panel out of sight. */
+export function railStatusOf(nudge: NudgeStatus): PanelStatus {
+  return nudge === 'waiting' ? 'wait' : nudge === 'needs' ? 'needs' : null;
 }
 
 /**

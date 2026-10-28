@@ -147,6 +147,33 @@ describe('the previous launch', () => {
   });
 });
 
+/** How the launch before ended, which a session running then is marked for (`lastClosed`). */
+describe('how the previous launch closed', () => {
+  it('quit, by its quit line', async () => {
+    await seed('claude-ui-20260927100000.log', 'INFO  app ===== quit =====');
+    expect(await open().lastClosed()).toBe('quit');
+  });
+
+  it('ended without quitting, by a last line that is not the quit line, read before the crash rename adds its own', async () => {
+    await seed('claude-ui-20260927100000.log', 'INFO  session started');
+    expect(await open().lastClosed()).toBe('ended');
+  });
+
+  // A process of the app died in it, so its file was kept as a crash log at its quit, and the ordinary file before it is an older launch's.
+  it('is read from the newest file of any kind, a crash log included', async () => {
+    await seed('claude-ui-20260927100000.log', 'INFO  session started');
+    await seed('claude-ui-20260927120000-crash.log', 'INFO  app ===== quit =====');
+    expect(await open().lastClosed()).toBe('quit');
+  });
+
+  it('cannot be said without a file, or from one that hands on to a file of the next day since deleted', async () => {
+    expect(await open().lastClosed()).toBe('unknown');
+    await fs.rm(dir, { recursive: true });
+    await seed('claude-ui-20260927100000.log', 'INFO  app ===== continues in claude-ui-20260928000001.log =====');
+    expect(await open().lastClosed()).toBe('unknown');
+  });
+});
+
 describe('a run that crosses midnight', () => {
   it('starts a new file on its first write of the new date, which says where it came from', async () => {
     vi.setSystemTime(new Date('2026-09-28T21:59:59.000Z')); // 23:59:59 local

@@ -21,11 +21,12 @@ In daily use: the app lists your `~/.claude` sessions grouped by project, runs s
 Done:
 
 - Session list from `~/.claude`, grouped into collapsible projects, refreshed live as transcripts change on disk.
-- Tabs: several sessions open at once, drag to reorder, and restored on the next launch, where the sessions that were running come back paused, or start again if you choose, and the rest wait — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab, or archives the session if you choose that in Settings.
+- Tabs: several sessions open at once, drag to reorder, and restored on the next launch, where the sessions that were running come back marked as needing you, started again too if you choose, and the rest wait — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab, or archives the session if you choose that in Settings.
   A session that asks something on its way out, such as whether to keep its worktree, is answered in its tab, which stays until claude has gone, its dot pulsing meanwhile; one that has not gone a second later can be forced.
   Its kebab stops a running session, and closes or archives it, each in one press, also while claude is on its way out, where one pressed changes what its going does; not while it starts.
   A tab you close or a session you archive can be put back from the message it leaves, with Undo.
   A tab can be paused, from its kebab or a right-click: claude ends and the tab stays, marked with two bars, to set it aside without keeping it running, and it comes back paused at the next launch until you open it again.
+  A session marked as needing you has a mauve dot on its row, its tab and in the live strip, saying why on hover, such as that it was running when the app quit, also when the app ended without quitting; the mark stays through a resume and a restart until you act on the session, such as typing a prompt there, closing its tab, leaving claude yourself, a `/clear`, archiving it, or choosing Clear needs you in its kebab, and a click on the dot only marks it seen.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
   The tab bar folds to one row, the row of the tab on show where there is one, from a chevron on the line under the tabs, to give the terminal the room; while a tab folded away is waiting for you, or has finished and is not marked read, the chevron turns into its status dot.
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
@@ -40,10 +41,10 @@ Done:
 - Pin, archive, and delete (to the OS trash), a project whose sessions are all archived staying in the list until they are deleted; search plus filters (pinned, open, live, paused, worktree, siblings, linked PR, noted, archived, folder gone, date range).
   Archive is one press on a running session too: claude is asked to leave, its tab staying for anything it asks on its way out, and the session is archived once claude has gone; the app does not open an archived session again until you unarchive it.
   A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
-- A session's kebab holds everything about it, one menu on its row, its tab and the live strip: what the session is, at its top — title, project, group, status, when it was last active and on what model, when it was archived, worktree, the start of its note — and the actions its row, tab and strip row offer, such as open, show in list, pin, mark read, stop, close, besides fork, siblings, PRs, worktrees, what is scheduled, note, group, copy id, pause and archive.
+- A session's kebab holds everything about it, one menu on its row, its tab and the live strip: what the session is, at its top — title, project, group, each state it is in with its dot, such as idle and needing you at once, where its dot shows only the strongest, when it was last active and on what model, when it was archived, worktree, the start of its note — and the actions its row, tab and strip row offer, such as open, show in list, pin, mark read, stop, close, besides fork, siblings, PRs, worktrees, what is scheduled, note, group, copy id, pause and archive.
   An archived session's row has one too, with what it is, its siblings, PRs and note, its id, unarchive and delete.
   A project's and a group's kebab start a session there, plain or in a worktree, and a project's starts one in any of its groups, a group a filter hides included, and jumps to one of its groups or to its ungrouped sessions.
-- Per-session status dots (busy / idle / waiting, and working in the background when a turn ends with work it started still running) driven by Claude Code hooks scoped to app-launched sessions; a dot can be marked read while its session is idle or waiting and not archived, a live strip at the foot of the sidebar lists what is running and what is paused across projects, and a project switcher scopes the sidebar.
+- Per-session status dots (busy / idle / waiting, and working in the background when a turn ends with work it started still running) driven by Claude Code hooks scoped to app-launched sessions; a dot can be marked read while it shows idle, waiting or needing you and its session is not archived, a live strip at the foot of the sidebar lists the tabs that are running, paused or marked as needing you across projects, and a project switcher scopes the sidebar.
   A session in the strip can be muted, stopped, paused or closed where it is listed, from its button or its kebab, so acting on one in another project doesn't cost you the project you're looking at.
   A running session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own, shows a clock beside it, naming each task on hover with a cron's schedule and what a stop does to it; a tab you paused or stopped keeps it, muted, for the crons that come back, also after a restart.
   A stop, pause or close claude has not left three seconds after the ask says "hasn't left" beside the session's name, and, when its tab is not on show, in a toast that stays until claude leaves and takes you to the tab.
@@ -297,7 +298,7 @@ For example:
 {
   // Grep and Glob without asking, in every session
   "launchFlags": "--allowedTools Grep,Glob",
-  // The sessions that were running when the app closed start again at launch
+  // The sessions that were running when the app closed start again at launch, marked as needing you
   "runningSessionsAtLaunch": "start",
   // Don't ask GitHub what it says of the sessions' PRs
   "prStatus": false
@@ -305,7 +306,8 @@ For example:
 ```
 
 There are four settings: `launchFlags`, the default flags for every session the app starts, `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed, `prStatus`, whether the app asks GitHub what it says of the PRs your sessions link, and `stoppedTabButton`, what the button on a stopped tab does.
-`runningSessionsAtLaunch` is `"pause"` until you choose otherwise, which brings their tabs back paused, in the live strip, without starting them; `"start"` starts them again, and `"leave"` brings their tabs back with the other tabs, waiting for a click.
+`runningSessionsAtLaunch` is `"mark"` until you choose otherwise, which brings their tabs back without starting them, marked as needing you, in the live strip; `"start"` starts them again, marked as well, and `"leave"` brings their tabs back with the other tabs, unmarked, waiting for a click.
+`"pause"`, which a file an older version wrote may hold, reads as `"mark"`.
 A tab you paused comes back paused whichever it is.
 `prStatus` is `true` until you choose otherwise, which colours each session's PR mark by what GitHub says, asked with `gh` on your own login; `false` asks nothing, and the marks keep one colour.
 `stoppedTabButton` is `"close"` until you choose otherwise, which closes the tab, and `"archive"` archives its session instead; it is the button on the tab and, for a paused one, on its row in the live strip, and a middle-click on the tab, and it leaves a running tab's button as it is.

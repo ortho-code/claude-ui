@@ -7,6 +7,7 @@ import { verdictOf } from '../../../prstatus';
 import { store, withMember, type TabState } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
 import { pickCheckout, pickedFor } from '../../../state/picks';
+import { clearNeedsYou } from '../../../state/needsyou';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
 import { isFiltering, isPaused, projName, projectGroups, tabWith, unopenableReason } from '../../../state/views';
 import { showToast } from '../../../toast';
@@ -253,7 +254,13 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   items.push(
     canMarkRead(session.id)
       ? { label: markLabel, onSelect: () => toggleAck(session.id) }
-      : { label: markLabel, disabled: 'Only a session that is idle or waiting for you can be marked read or unread' },
+      : { label: markLabel, disabled: 'Only a session that is idle, waiting for you or marked as needing you can be marked read or unread' },
+  );
+  // Settling the needs-you mark without acting on the session, which a prompt there, a close and an archive also do; reading it only dims it (decided 2026-10-28).
+  items.push(
+    store.get().needsYou.has(entityKey(session))
+      ? { label: 'Clear needs you', onSelect: () => clearNeedsYou(entityKey(session)) }
+      : { label: 'Clear needs you', disabled: 'Not marked as needing you' },
   );
   items.push(noteItem(session));
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });

@@ -62,7 +62,7 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
 }
 
 /** Repaint the dots of these sessions' rows, those drawn, from what each shows now. */
-function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs' | 'archived'>): void {
+function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'tabs' | 'archived'>): void {
   for (const id of ids) {
     const dot = statusDots.get(id);
     if (dot) applyStatus(dot, id, view);
@@ -70,10 +70,10 @@ function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks'
 }
 
 /**
- * A status, the work behind one, or a mark read changed: repaint the rows' dots that differ from what they were last painted from (`before`).
+ * A status, the work behind one, a mark read or a needs-you mark changed: repaint the rows' dots that differ from what they were last painted from (`before`).
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' | 'tabs' | 'archived'>, before: View<'statuses' | 'backgroundTasks' | 'acked'>): void {
+function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'tabs' | 'archived'>, before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou'>): void {
   repaintDots(statusChanges(before, view), view);
 }
 
@@ -84,7 +84,7 @@ const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
  * What the list reads and is never told of: a status change repaints only the dots (`dotsFollowStatuses`); a fold only folds what is drawn (`foldsFollow`); and whether the filter panel is open.
  */
-const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'folds', 'filterPanelOpen'] as const;
+const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'needsYou', 'folds', 'filterPanelOpen'] as const;
 
 /** Everything the list draws from the store. */
 type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (typeof LIST_QUIET)[number]>;
@@ -93,7 +93,7 @@ type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (
 export function watchList(): void {
   store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
-  store.watch(['statuses', 'backgroundTasks', 'acked'], dotsFollowStatuses, { reads: ['tabs', 'archived'] });
+  store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou'], dotsFollowStatuses, { reads: ['tabs', 'archived'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject'] });
 }
 
@@ -179,7 +179,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     els.label.textContent = projName(project.repoRoot, view); // keep the heading current (e.g. after a rename)
     // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
     // Under a filter it offers the places the filter left drawn, and a pick unfolds the filter's own folds on the way.
-    const targets = groupJumpTargets(project, view.statuses, view.acked);
+    const targets = groupJumpTargets(project, view.statuses, view.acked, view.needsYou);
     jumpTargets.set(project.repoRoot, targets);
     els.groupsBtn.hidden = targets.length < 2;
     // Nothing can be started in a folder that is not there.

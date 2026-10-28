@@ -182,6 +182,23 @@ describe('the hook script', () => {
     expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'PostToolUse' });
   });
 
+  // The prompt tells yours from a turn claude started itself (startedByClaude), so it goes along, as the JSON string it was, escapes and all.
+  it('writes the prompt submitted beside its status, and none for any other event', async () => {
+    const prompt = 'say "hi" \\ then\nstop';
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt });
+    expect(await readStatusFile()).toMatchObject({ status: 'busy', event: 'UserPromptSubmit', prompt });
+    runHook('busy', { session_id: SID, hook_event_name: 'PostToolUse', tool_name: 'Read', tool_input: { prompt: 'not this' } });
+    expect(await readStatusFile()).not.toHaveProperty('prompt');
+  });
+
+  // Claude's hook schema names where a prompt came from, which 2.1.310 did not yet send.
+  it('writes where claude says the prompt came from, where it says', async () => {
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: 'tick', source: 'schedule_wakeup' });
+    expect(await readStatusFile()).toMatchObject({ prompt: 'tick', source: 'schedule_wakeup' });
+    runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: 'tick' });
+    expect(await readStatusFile()).not.toHaveProperty('source');
+  });
+
   /**
    * EVERY reason, `clear` and `resume` included.
    * Those two leave the PROCESS running, which is what made them look like exceptions — but they end the session this event NAMES and start a different one, and this app tracks sessions.

@@ -720,9 +720,9 @@ function mountedFor(slot: PanelSlot): Mounted {
   return entry;
 }
 
-/** The rail dot, in the status dot's own states: `waiting` as a session's dot pulses, `failed` for a run that did not end well. */
+/** The rail dot, in the status dot's own states: `waiting` and `needs` as a session's dot pulses, `failed` for a run that did not end well. */
 function showStatus(badge: HTMLElement, status: PanelStatus): void {
-  badge.className = badgeClass(status === 'wait' ? 'waiting' : status === 'fail' ? 'failed' : null);
+  badge.className = badgeClass(status === 'wait' ? 'waiting' : status === 'needs' ? 'needs' : status === 'fail' ? 'failed' : null);
   badge.hidden = status === null;
 }
 

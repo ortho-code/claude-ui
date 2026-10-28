@@ -11,6 +11,18 @@ export interface ScheduledTask {
   cron: string | null;
 }
 
+/**
+ * How the app last closed, as its log says: it quit, it ended without quitting (a crash, a kill, a shutdown, all alike from in here), or the log cannot say, as for a macOS window opened again from the Dock, where the app never closed.
+ * Why a session that was running then needs you.
+ */
+export type ClosedHow = 'quit' | 'ended' | 'unknown';
+
+/** A session marked as needing you: why, and when it was marked (epoch ms). */
+export interface NeedsYou {
+  reason: ClosedHow;
+  at: number;
+}
+
 export interface SessionSummary {
   /** Session id, taken from the .jsonl filename. */
   id: string;
@@ -309,7 +321,7 @@ export interface Settings {
    */
   launchFlags: string;
   /**
-   * What the next launch does with the sessions that were running when the app closed: start them again in their tabs, bring their tabs back paused, so the live strip lists them, or leave their tabs with the other cold ones.
+   * What the next launch does with the sessions that were running when the app closed: start them again in their tabs, or bring their tabs back without starting them, both marked as needing you until your next prompt there, so the live strip lists them, or leave their tabs with the other cold ones, unmarked.
    * The other tabs come back without starting whichever it is, and a tab you paused comes back paused.
    */
   runningSessionsAtLaunch: RunningAtLaunch;
@@ -432,6 +444,14 @@ export interface ClaudeUiApi {
   getRunningSessions(): Promise<string[]>;
   /** The open sessions you paused, as the open tabs were last written. */
   getPausedSessions(): Promise<string[]>;
+  /** The sessions marked as needing you, by session id. */
+  getNeedsYou(): Promise<Record<string, NeedsYou>>;
+  /** Mark sessions as needing you, for `reason`; one already marked takes the newer reason. */
+  markNeedsYou(ids: string[], reason: ClosedHow): void;
+  /** Take a session's needs-you mark off, whether or not it had one. */
+  clearNeedsYou(id: string): void;
+  /** How the app closed before this window opened: what a session running then is marked for. */
+  getLastClosed(): Promise<ClosedHow>;
   /** Open session -> the crons claude had scheduled for it when its claude went, as the open tabs were last written. */
   getScheduledWhenStopped(): Promise<Record<string, ScheduledTask[]>>;
   /** The crons the open tabs whose claude went had scheduled, by session, written beside the open tabs (`setOpenSessions`); a session not open is dropped. */
@@ -541,8 +561,9 @@ export interface ClaudeUiApi {
    * Subscribe to live status changes.
    * `tab` is the reporting terminal's token (empty for a session claude-ui is not running), and `event` the hook event that reported it (empty from a file written before the hook named it).
    * `background` comes with that status alone: the type claude gives each piece of work still running behind the finished turn, such as `shell` or `subagent`.
+   * `prompt` comes with a `UserPromptSubmit` alone: what was submitted, yours or a turn claude started itself, and `source` with it where claude says where it came from.
    */
-  onSessionStatus(callback: (id: string, status: string, tab: string, event: string, background?: string[]) => void): void;
+  onSessionStatus(callback: (id: string, status: string, tab: string, event: string, background?: string[], prompt?: string, source?: string) => void): void;
   /**
    * Subscribe to a claude starting on a session: which session the terminal `tab` runs from now, and why, as claude's SessionStart says (`startup`, `resume`, `clear`; a compaction's is a status instead).
    * It arrives for every such start, of a session with a status already too, which `onSessionStatus` never hears of.
@@ -574,7 +595,8 @@ export interface ClaudeUiApi {
   /** What runs in a panel's shell besides the shell itself, by name, or null when nothing does, or the shell has gone. */
   terminalForeground(id: number): Promise<string | null>;
   onTerminalData(callback: (id: number, data: string) => void): void;
-  onTerminalExit(callback: (id: number, exitCode: number) => void): void;
+  /** A pty's exit: its code, and the signal that ended it, 0 for none; a death by a signal comes with code 0. */
+  onTerminalExit(callback: (id: number, exitCode: number, signal?: number) => void): void;
   sendTerminalInput(id: number, data: string): void;
   resizeTerminal(id: number, cols: number, rows: number): void;
   /** End a session or a shell outright: `SIGTERM` to its group, `SIGKILL` if it is still there after the grace period. */

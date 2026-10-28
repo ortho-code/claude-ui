@@ -17,6 +17,8 @@
   --group-rail: color-mix(in srgb, var(--muted) 25%, transparent);
   /* Status colours, shared by the session dots, project badges and attention toasts. */
   --waiting: #f9e2af;
+  /* A session marked as needing you, such as one running when the app closed: mauve, far enough from waiting's yellow to tell apart at a dot's size, which peach was not (decided 2026-10-28, from a mock of six). */
+  --needs: #cba6f7;
   --idle: #a6e3a1;
   /* Something gone wrong: a panel's run that did not end well (its rail icon, the line above its list), a list row its script marks as danger, and a dialog's inline error. */
   --failed: #f38ba8;
@@ -270,6 +272,13 @@ button:where(:not(.icon-btn)):hover,
 .nudge.waiting {
   background: var(--waiting);
   border-color: var(--waiting);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+/* Needs you: pulsing at waiting's pace, since it asks for you as much, in a colour of its own, since claude is not the one asking. */
+.nudge.needs {
+  background: var(--needs);
+  border-color: var(--needs);
   animation: pulse 1.2s ease-in-out infinite;
 }
 

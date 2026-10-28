@@ -144,7 +144,8 @@ export function createTerminal(container: HTMLElement, keys?: (event: KeyboardEv
 /** Where a terminal's output and exit go: a tab's handlers, or a panel's. */
 export interface TerminalSink {
   data(data: string): void;
-  exit(exitCode: number): void;
+  /** `signal` is what ended it, 0 or absent for none. */
+  exit(exitCode: number, signal?: number): void;
 }
 
 const sinks = new Map<number, TerminalSink>();
@@ -172,9 +173,9 @@ export function routeTerminals(): void {
   if (routed) return;
   routed = true;
   window.claudeUi.onTerminalData((id, data) => sinks.get(id)?.data(data));
-  window.claudeUi.onTerminalExit((id, exitCode) => {
+  window.claudeUi.onTerminalExit((id, exitCode, signal) => {
     const sink = sinks.get(id);
     sinks.delete(id);
-    sink?.exit(exitCode);
+    sink?.exit(exitCode, signal);
   });
 }
