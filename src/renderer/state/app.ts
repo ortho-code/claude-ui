@@ -162,7 +162,7 @@ export interface TabState {
    * A close or an archive of a live tab waits for claude like a stop, since claude may ask something on its way out.
    */
   onExit: 'cool' | 'close' | 'archive';
-  /** A stop that has had its moment without the session going: its stop control now forces it out (`tabButtonState`). */
+  /** A stop that has had its moment without the session going: its stop control now forces it out (`leaveAction`). */
   forceable: boolean;
   /**
    * Forced out, by its force control or by the app, and not yet gone: nothing it reports on its way out calls its stop off or moves the tab to another session.

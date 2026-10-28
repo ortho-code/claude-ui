@@ -84,8 +84,8 @@ test('stopping a paused session takes the mark off and leaves the tab cold', asy
 const menuItem = (page: Page, words: RegExp): Locator => page.locator('.kebab-menu button.menu-row', { hasText: words });
 
 // A pause is not there until claude has gone, and nothing more is asked of claude meanwhile: what it asks on its way out is answered in its tab, and another pair of presses would end such a question unanswered (measured on claude 2.1.302).
-// So the tab says what was asked, the pause bars on its buttons, and its menu offers only the force, named for the pause, once the buttons' moment has passed.
-test('a tab whose pause waits for claude offers only Force pause, after its moment, and its buttons show the pause', async ({ app, page }) => {
+// So the tab says what was asked, the pause bars on its buttons, and its menu offers the force, named for the pause, once the buttons' moment has passed; Stop session waits for claude to have gone, and Close tab and Archive would change what the exit does.
+test('a tab whose pause waits for claude offers Force pause, after its moment, and its buttons show the pause', async ({ app, page }) => {
   await app.boot({ history });
   await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
@@ -98,7 +98,9 @@ test('a tab whose pause waits for claude offers only Force pause, after its mome
   await row(page, one.title).locator('.session-kebab').click();
   const force = menuItem(page, /^Force pause$/);
   await expect(force).toHaveAttribute('data-tooltip', 'Pausing…');
-  await expect(menuItem(page, /^(Pause|Stop session|Force stop)$/)).toHaveCount(0);
+  await expect(menuItem(page, /^(Pause|Force stop)$/)).toHaveCount(0);
+  await expect(menuItem(page, /^Stop session$/)).toHaveAttribute('data-tooltip', 'Pausing…');
+  await expect(menuItem(page, /^Close tab$/)).not.toHaveClass(/\bunavailable\b/);
   // Past the moment, the open menu follows the tab, as its buttons do.
   await expect(force).not.toHaveClass(/\bunavailable\b/);
   await expect(close).toHaveAttribute('data-mark', 'force-pause');

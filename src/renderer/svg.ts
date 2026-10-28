@@ -46,9 +46,24 @@ export const pauseIcon = (size: number, force = false): string =>
 // Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
 export const archiveIcon = (size: number): string => strokeIcon(size, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
 
-/** A tab's button's mark, as its rule says it (`tabButtonState`), wherever the button is drawn. */
+// The forces of a close and an archive: the force-stop square, larger, with the act's own mark cut through it, so one shape says "force" and the cut says which (user, 2026-10-28, from a mock).
+// A filled cross would be the plain one, being only two strokes.
+// Cut as holes of an even-odd fill rather than through a mask, whose id every tab would share, and whose first copy could sit in a tab the folded bar hides.
+const FORCE_SQUARE = 'M5.4 3.6H10.6A1.8 1.8 0 0 1 12.4 5.4V10.6A1.8 1.8 0 0 1 10.6 12.4H5.4A1.8 1.8 0 0 1 3.6 10.6V5.4A1.8 1.8 0 0 1 5.4 3.6Z';
+// The cross's outline, its arms 1.1 units wide.
+const CUT_CROSS = 'M6.2 10.58L8 8.78L9.8 10.58L10.58 9.8L8.78 8L10.58 6.2L9.8 5.42L8 7.22L6.2 5.42L5.42 6.2L7.22 8L5.42 9.8Z';
+// The lidded box at 0.55 of its size, each stroke a ring: the lid's outline and its inside, the body's walls and its inside, then the slot.
+const CUT_BOX = 'M4.53 4.91H11.47V7.46H4.53Z M5.43 5.81H10.57V6.56H5.43Z M5.13 7.46H10.87V11.09H5.13Z M6.03 7.46H9.97V10.19H6.03Z M6.9 8.1H9.1V9H6.9Z';
+const forceIcon = (size: number, cut: string): string =>
+  strokeIcon(size, `<path d="${FORCE_SQUARE} ${cut}" fill="currentColor" fill-rule="evenodd" stroke="none" />`);
+
+/** A tab's button's mark, as its rule says it (`tabButton`), wherever the button is drawn. */
 export const tabButtonIcon = (mark: TabButtonMark, size: number): string => {
   if (mark === 'close') return closeIcon(size);
+  if (mark === 'force-close') return forceIcon(size, CUT_CROSS);
+  // The filter's box spans the whole 16 units, so drawn smaller to stand as tall as the stop square beside it.
+  if (mark === 'archive') return archiveIcon(Math.round(size * 0.65));
+  if (mark === 'force-archive') return forceIcon(size, CUT_BOX);
   if (mark === 'pause' || mark === 'force-pause') return pauseIcon(size, mark === 'force-pause');
   return stopIcon(size, mark === 'force-stop');
 };

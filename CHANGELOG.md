@@ -135,6 +135,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The lines under the name at the top of a session's options wrap instead of being cut short, such as why it cannot run and the folder it names.
 - A session's worktree badge is in the accent while claude's newest change is in a worktree, also one the session has left, instead of muted.
 - A `/resume` or `/clear` typed at the question claude asks on its way out calls the stop or pause off, as a prompt does, where the tab used to go on saying it was stopping.
+- A session's options have Stop session, Close tab and Archive side by side, each doing its one thing, so a running session closes from its options without being stopped first.
+  One pressed while claude is on its way out changes what its going does, such as Stop session keeping the tab of a close, and the one in force becomes its force, as Force stop and Force pause were: Force close and Force archive, also on the tab's button.
 
 ### Fixed
 

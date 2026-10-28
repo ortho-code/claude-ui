@@ -5,8 +5,10 @@ import {
   hasVisibleOutput,
   statusLabel,
   stripLine,
-  tabButtonState,
-  tabButtonLabel,
+  leaveAction,
+  leaveLabel,
+  leaveUnderWay,
+  tabButton,
   scheduledLines,
   clockOf,
   clockLines,
@@ -979,60 +981,121 @@ describe('notLeftWords', () => {
   });
 });
 
-describe('tabButtonLabel', () => {
-  it("names each press, as the button's tooltip says it where it says only that", () => {
-    expect(tabButtonLabel('stop')).toBe('Stop session');
-    expect(tabButtonLabel('force-stop')).toBe('Force stop');
-    expect(tabButtonLabel('force-pause')).toBe('Force pause');
-    expect(tabButtonLabel('close')).toBe('Close tab');
-    expect(tabButtonState({ terminalId: 7 }).tooltip).toBe(tabButtonLabel('stop'));
-    expect(tabButtonState({ terminalId: null }).tooltip).toBe(tabButtonLabel('close'));
+describe('leaveLabel', () => {
+  it("names each leave item, as the button's tooltip says it where it says only that", () => {
+    expect(leaveLabel('stop')).toBe('Stop session');
+    expect(leaveLabel('close')).toBe('Close tab');
+    expect(leaveLabel('archive')).toBe('Archive');
+    expect(leaveLabel('pause')).toBe('Pause');
+    expect(tabButton({ terminalId: 7 }).tooltip).toBe(leaveLabel('stop'));
+    expect(tabButton({ terminalId: null }).tooltip).toBe(leaveLabel('close'));
   });
 });
 
-describe('tabButtonState', () => {
-  // A running tab's process; any id will do.
-  const LIVE = 7;
+// A running tab's process; any id will do.
+const LIVE = 7;
+const FORCE_WHY = ': claude has not left yet — it may be asking you something';
 
-  it('offers to stop a settled session', () => {
-    expect(tabButtonState({ terminalId: LIVE })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop', label: 'Stop session' });
-    expect(tabButtonState({ terminalId: LIVE, starting: false, stopping: false })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop', label: 'Stop session' });
+describe('leaveUnderWay', () => {
+  it('names what a leaving tab leaves for, by what its exit does, and a pause for a stop that marks it', () => {
+    expect(leaveUnderWay({ terminalId: LIVE })).toBe(null);
+    expect(leaveUnderWay({ terminalId: LIVE, stopping: true })).toBe('stop');
+    expect(leaveUnderWay({ terminalId: LIVE, stopping: true, onExit: 'cool' })).toBe('stop');
+    expect(leaveUnderWay({ terminalId: LIVE, stopping: true, paused: true })).toBe('pause');
+    expect(leaveUnderWay({ terminalId: LIVE, stopping: true, onExit: 'close' })).toBe('close');
+    expect(leaveUnderWay({ terminalId: LIVE, stopping: true, onExit: 'archive' })).toBe('archive');
+    // A pause turned into a close goes at the exit, so it is a close.
+    expect(leaveUnderWay({ terminalId: LIVE, stopping: true, paused: true, onExit: 'close' })).toBe('close');
+  });
+});
+
+describe('leaveAction', () => {
+  it('offers each of the three on a running tab, each its own press', () => {
+    expect(leaveAction({ terminalId: LIVE }, 'stop')).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop', label: 'Stop session', action: 'stop' });
+    expect(leaveAction({ terminalId: LIVE }, 'close')).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close', label: 'Close tab', action: 'close' });
+    expect(leaveAction({ terminalId: LIVE }, 'archive')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'archive', label: 'Archive', action: 'archive' });
+  });
+
+  it('has nothing to stop on a cold tab, which closes and archives at once', () => {
+    expect(leaveAction({ terminalId: null }, 'stop')).toEqual({ disabled: true, tooltip: 'Not running', mark: 'stop', label: 'Stop session', action: 'stop' });
+    expect(leaveAction({ terminalId: null }, 'close').disabled).toBe(false);
+    expect(leaveAction({ terminalId: null }, 'archive').disabled).toBe(false);
+    expect(leaveAction({ terminalId: null, paused: true }, 'close').disabled).toBe(false);
+  });
+
+  it('refuses every item while the tab starts, ARRIVING winning over a leave it also carries', () => {
+    for (const action of ['stop', 'close', 'archive'] as const) {
+      expect(leaveAction({ terminalId: null, starting: true }, action)).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: action });
+      expect(leaveAction({ terminalId: null, starting: true, stopping: true }, action)).toMatchObject({ disabled: true, tooltip: 'Starting…' });
+    }
+  });
+
+  it("makes the item of what was asked its force, unavailable for its first moment and named for it", () => {
+    expect(leaveAction({ terminalId: LIVE, stopping: true }, 'stop')).toEqual({ disabled: true, tooltip: 'Stopping…', mark: 'stop', label: 'Force stop', action: 'stop' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'close')).toEqual({ disabled: true, tooltip: 'Closing…', mark: 'close', label: 'Force close', action: 'close' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'archive' }, 'archive')).toEqual({ disabled: true, tooltip: 'Archiving…', mark: 'archive', label: 'Force archive', action: 'archive' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, paused: true }, 'pause')).toEqual({ disabled: true, tooltip: 'Pausing…', mark: 'pause', label: 'Force pause', action: 'pause' });
+  });
+
+  it('offers the force once it may, saying claude may be asking', () => {
+    expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true }, 'stop')).toEqual({ disabled: false, tooltip: `Force stop${FORCE_WHY}`, mark: 'force-stop', label: 'Force stop', action: 'stop' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'close' }, 'close')).toEqual({ disabled: false, tooltip: `Force close${FORCE_WHY}`, mark: 'force-close', label: 'Force close', action: 'close' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'archive' }, 'archive')).toEqual({ disabled: false, tooltip: `Force archive${FORCE_WHY}`, mark: 'force-archive', label: 'Force archive', action: 'archive' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true, paused: true }, 'pause')).toEqual({ disabled: false, tooltip: `Force pause${FORCE_WHY}`, mark: 'force-pause', label: 'Force pause', action: 'pause' });
+    // Only a leave on its way can become a force.
+    expect(leaveAction({ terminalId: LIVE, forceable: true }, 'stop')).toMatchObject({ disabled: false, mark: 'stop', label: 'Stop session' });
+  });
+
+  it('lets every other item change what the exit does, a stop turning a close or an archive back', () => {
+    expect(leaveAction({ terminalId: LIVE, stopping: true }, 'close')).toMatchObject({ disabled: false, mark: 'close', label: 'Close tab' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true }, 'archive')).toMatchObject({ disabled: false, mark: 'archive', label: 'Archive' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'stop')).toMatchObject({ disabled: false, mark: 'stop', label: 'Stop session' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'archive' }, 'close')).toMatchObject({ disabled: false, mark: 'close', label: 'Close tab' });
+    // Forced, the exit can still be changed: claude is going whatever it is asked.
+    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'archive').disabled).toBe(false);
+  });
+
+  it('keeps a pause under way a pause: Stop session waits for claude to have gone', () => {
+    expect(leaveAction({ terminalId: LIVE, stopping: true, paused: true }, 'stop')).toMatchObject({ disabled: true, tooltip: 'Pausing…', mark: 'stop' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, paused: true }, 'close').disabled).toBe(false);
+    expect(leaveAction({ terminalId: LIVE, stopping: true, paused: true }, 'archive').disabled).toBe(false);
+  });
+
+  it("refuses Pause's force while no pause is under way, so a stale press of it does nothing", () => {
+    expect(leaveAction({ terminalId: LIVE }, 'pause')).toMatchObject({ disabled: true, tooltip: 'Not pausing' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'pause')).toMatchObject({ disabled: true, tooltip: 'Closing…' });
+  });
+});
+
+describe('tabButton', () => {
+  it('stops a settled session', () => {
+    expect(tabButton({ terminalId: LIVE })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop', label: 'Stop session', action: 'stop' });
+    expect(tabButton({ terminalId: LIVE, starting: false, stopping: false })).toMatchObject({ disabled: false, mark: 'stop' });
   });
 
   it('refuses both ends of a session lifetime, and says which end it is', () => {
-    // A process on its way has no id yet.
-    expect(tabButtonState({ terminalId: null, starting: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop', label: 'Stop session' });
-    // On its way out, the menu's item is already the force it will become.
-    expect(tabButtonState({ terminalId: LIVE, stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…', mark: 'stop', label: 'Force stop' });
-  });
-
-  it('says a pause on its way out is pausing, with the pause bars and a force named for the pause', () => {
-    expect(tabButtonState({ terminalId: LIVE, stopping: true, paused: true })).toEqual({ disabled: true, tooltip: 'Pausing…', mark: 'pause', label: 'Force pause' });
+    expect(tabButton({ terminalId: null, starting: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop', label: 'Stop session', action: 'stop' });
+    expect(tabButton({ terminalId: LIVE, stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…', mark: 'stop', label: 'Force stop', action: 'stop' });
+    expect(tabButton({ terminalId: LIVE, stopping: true, paused: true })).toMatchObject({ disabled: true, tooltip: 'Pausing…', mark: 'pause', label: 'Force pause' });
   });
 
   it('reports ARRIVING when a tab somehow carries both flags', () => {
-    // The precedence is load-bearing and was implicit until this test: a tab that is both is one being started, and calling it "Stopping…" would tell the user the opposite of what is happening.
-    expect(tabButtonState({ terminalId: null, starting: true, stopping: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop', label: 'Stop session' });
+    // The precedence is load-bearing: a tab that is both is one being started, and calling it "Stopping…" would tell the user the opposite of what is happening.
+    expect(tabButton({ terminalId: null, starting: true, stopping: true })).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: 'stop' });
   });
 
-  it('offers to force out a session that has not left, named for what was asked, and says it may be asking', () => {
-    expect(tabButtonState({ terminalId: LIVE, stopping: true, forceable: true })).toEqual({
-      disabled: false,
-      tooltip: 'Force stop: claude has not left yet — it may be asking you something',
-      mark: 'force-stop',
-      label: 'Force stop',
-    });
-    expect(tabButtonState({ terminalId: LIVE, stopping: true, forceable: true, paused: true })).toEqual({
-      disabled: false,
-      tooltip: 'Force pause: claude has not left yet — it may be asking you something',
-      mark: 'force-pause',
-      label: 'Force pause',
-    });
-    // Only a stop or a pause on its way can become a force.
-    expect(tabButtonState({ terminalId: LIVE, forceable: true })).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop', label: 'Stop session' });
+  it('is the force of whatever claude is leaving for, so it stays the press that ends claude', () => {
+    expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true })).toMatchObject({ disabled: false, mark: 'force-stop', action: 'stop' });
+    expect(tabButton({ terminalId: LIVE, stopping: true, onExit: 'close' })).toMatchObject({ disabled: true, tooltip: 'Closing…', mark: 'close', action: 'close' });
+    expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'close' })).toMatchObject({ disabled: false, mark: 'force-close', label: 'Force close', action: 'close' });
+    expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'archive' })).toMatchObject({ disabled: false, mark: 'force-archive', label: 'Force archive', action: 'archive' });
+    expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, paused: true })).toMatchObject({ disabled: false, mark: 'force-pause', action: 'pause' });
   });
 
-  it('closes a cold tab, which has nothing to stop', () => {
-    expect(tabButtonState({ terminalId: null })).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close', label: 'Close tab' });
+  it("closes a cold tab, which has nothing to stop, or archives it when that is the stopped tab's button", () => {
+    expect(tabButton({ terminalId: null })).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close', label: 'Close tab', action: 'close' });
+    expect(tabButton({ terminalId: null }, 'archive')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'archive', label: 'Archive', action: 'archive' });
+    // A running tab stops whichever it is.
+    expect(tabButton({ terminalId: LIVE }, 'archive')).toMatchObject({ mark: 'stop', action: 'stop' });
   });
 });

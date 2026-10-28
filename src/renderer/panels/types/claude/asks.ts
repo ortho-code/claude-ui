@@ -1,6 +1,6 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { promptText } from '../../../dialogs';
-import { entityKey, sessionLabel, tabButtonState } from '../../../logic';
+import { entityKey, sessionLabel } from '../../../logic';
 import { newSession } from '../../../newsession';
 import { store } from '../../../state/app';
 import { moveSessionToGroup } from '../../../state/groups';
@@ -10,7 +10,7 @@ import { projName, sessionById, tabWith, unopenableReason } from '../../../state
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
-import { activateTab, archiveSession, closeOrStop, createTab, pauseTab, startTab, stopPausedTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';
+import { activateTab, archiveSession, createTab, pauseTab, pressLeave, pressTabButton, startTab, stopPausedTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';
 
 /**
  * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, archive one with its tabs, and follow the project chosen.
@@ -152,7 +152,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
 }
 
 /** The asks the terminal area answers. */
-export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressTabButton' | 'pauseSession' | 'stopPausedSession' | 'archiveSession' | 'showProject'> = {
+export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressTabButton' | 'pressLeave' | 'pauseSession' | 'stopPausedSession' | 'archiveSession' | 'showProject'> = {
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
@@ -166,9 +166,11 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
   },
   pressTabButton: (id, mark) => {
     const tab = tabWith(id);
-    if (!tab) return;
-    const now = tabButtonState(tab);
-    if (!now.disabled && now.mark === mark) closeOrStop(tab.token);
+    if (tab) pressTabButton(tab.token, mark);
+  },
+  pressLeave: (id, action, mark) => {
+    const tab = tabWith(id);
+    if (tab) pressLeave(tab.token, action, mark);
   },
   pauseSession: (id) => {
     const tab = tabWith(id);

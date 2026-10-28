@@ -1,7 +1,7 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
-import { asksForYou, clockOf, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButtonState, type NudgeStatus, type SwitcherModel, type TabButtonMark } from '../../../logic';
+import { asksForYou, clockOf, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButton, type NudgeStatus, type SwitcherModel, type TabButtonMark } from '../../../logic';
 import { kebabButton, openMenu } from '../../../menu';
 import { notLeftMark, showNotLeft } from '../../../notleft';
 import { markProjectGone } from '../../../projectgone';
@@ -148,7 +148,7 @@ function buildRow(id: string): StripRow {
   // WHY IT BELONGS HERE: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab.
   // So acting on a stray session from its tab costs you your place: you go there, act, and come back.
   // This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
-  // It IS the tab's button, pressed from here: one rule draws both (`tabButtonState`) and one press acts for both (`closeOrStop`, through the ask), so it stops a running session, forces one that has not left, and closes a paused tab.
+  // It IS the tab's button, pressed from here: one rule draws both (`tabButton`) and one press acts for both (`pressTabButton`, through the ask), so it stops a running session, forces one that has not left, and closes a paused tab.
   // A row leaves the strip by its session stopping without a pause, its tab being unpaused or closed, which is what this does to a paused one, or its session leaving the pool.
   // The session's own menu beside it, from the builder its row in the list uses, the button's press among its items, so the button is a shortcut to one of them.
   // Listed afresh at each click, for the session as it is then.
@@ -184,7 +184,7 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   if (onShow) jump.setAttribute('aria-current', 'true');
   else jump.removeAttribute('aria-current');
   // No tab at all should not happen — membership is a tab's process or its pause — so it is inert rather than guessed at, saying only what is so.
-  const { disabled, tooltip, mark } = tab ? tabButtonState(tab) : { disabled: true, tooltip: 'No tab to act on', mark: 'stop' as const };
+  const { disabled, tooltip, mark } = tab ? tabButton(tab) : { disabled: true, tooltip: 'No tab to act on', mark: 'stop' as const };
   setMarkup(stop, tabButtonIcon(mark, 14));
   stop.dataset.mark = mark;
   setUnavailable(stop, disabled ? tooltip : null, tooltip);

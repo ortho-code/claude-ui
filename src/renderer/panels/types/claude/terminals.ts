@@ -1,7 +1,7 @@
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { ScheduledTask, SessionSummary } from '../../../../shared/types';
-import { entityKey, hasVisibleOutput, sessionLabel, sessionsByKey, unstartableReason } from '../../../logic';
+import { entityKey, hasVisibleOutput, leaveAction, sessionLabel, sessionsByKey, tabButton, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../logic';
 import { newSession } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
@@ -500,20 +500,37 @@ function forceOutAtOnce(token: string): void {
 }
 
 /**
- * End the session but keep its tab, cold and resumable; once the stop has had its moment, the same press forces it.
+ * End the session but keep its tab, cold and resumable.
  * The opposite of closeTab, and the deliberate counterpart to claude exiting on its own — which still CLOSES the tab, so a finished session does not leave an empty one behind.
  * `stopping` is what tells those two apart when the exit arrives.
- * Pressed again during the stop's pause it does nothing: the control is unavailable then, and this is the check for the routes that do not go through it.
+ * A claude already leaving, for a close or an archive, is asked nothing more: its exit keeps the tab instead (user, 2026-10-28), as a close changes a stop.
+ * A close or an archive that began as a pause becomes a stop too, the mark taken off, as Stop session takes it off a tab that rests paused.
  */
-export function stopSession(token: string): void {
+function stopSession(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
   if (tab.terminalId === null || tab.starting) return;
   if (tab.stopping) {
-    if (tab.forceable) forceStop(token);
+    setTab(token, { onExit: 'cool', paused: false });
+    if (tab.paused) persistOpenTabs();
     return;
   }
   askToLeave(token, tab.terminalId, 'cool');
+}
+
+/**
+ * A leave item pressed, from the session's menu, the tab's button or the strip's (`leaveAction`): Stop session, Close tab, Archive, or the force of what claude is leaving for.
+ * It acts only while the item would still do the same, and, given the mark it was drawn with, still draws it, since a press can land on an item drawn before the tab moved on — a Force stop pressed once claude has gone would otherwise close the tab (user, 2026-10-21).
+ */
+export function pressLeave(token: string, action: LeaveAction, mark?: TabButtonMark): void {
+  const tab = tabOf(token);
+  if (!tab) return;
+  const now = leaveAction(tab, action);
+  if (now.disabled || (mark !== undefined && now.mark !== mark)) return;
+  if (now.mark === `force-${action}`) forceStop(token);
+  else if (action === 'stop') stopSession(token);
+  else if (action === 'close') closeTab(token);
+  else if (action === 'archive') archiveSession(entityKey(tab.session));
 }
 
 /**
@@ -625,18 +642,14 @@ function coolTab(token: string): void {
  *
  * A running session and a tab are separate things — a cold tab costs nothing but a line in the bar, and it is restored on the next launch — so one press should not decide both.
  * The first press stops (claude gets its normal exit path and flushes), the tab stays and goes cold; the second removes it.
- * A tab that is already cold goes in one press, since there is nothing live to protect.
- * While a session is arriving, or in the first moment of leaving, the button does nothing at all, and a session that is slow to leave is forced: see tabButtonState.
- * Checked here too, since a middle click reaches this without going through the button.
+ * While a session is arriving, or in the first moment of leaving, the button does nothing at all, and a session that is slow to leave is forced: see tabButton.
+ * Checked here too, since a middle click reaches this without going through the button, and with `mark`, the one the strip's button was drawn with, only while the button still draws it.
  */
-export function closeOrStop(token: string): void {
+export function pressTabButton(token: string, mark?: TabButtonMark): void {
   const tab = tabOf(token);
-  if (!tab || tab.starting) return;
-  if (tab.terminalId !== null) {
-    stopSession(token);
-    return;
-  }
-  closeTab(token);
+  if (!tab) return;
+  const button = tabButton(tab);
+  if (!button.disabled && (mark === undefined || button.mark === mark)) pressLeave(token, button.action, button.mark);
 }
 
 /**

@@ -9,11 +9,22 @@ import { groupHeading, projectHeading, row, stripRow, tab, tabLabel } from '../.
 // Each visible button, dot that is a control, `.menu-badge` and `.note-badge` on a surface is found in the page rather than listed, in the state the fixture sets up, and must be in the table below, so one added without its item fails here, naming it; a click handler on any other element, or one on the surface itself, is not found.
 // The kebab itself is the menu, so it is in no table.
 
-/** A control, known by a class it carries, and the label of the item it is the shortcut to. */
-type Shortcuts = [className: string, item: RegExp][];
+/** A control, known by a class it carries, and the label of the item it is the shortcut to, or how to read that label off the control. */
+type Shortcuts = [className: string, item: RegExp | ((control: Locator) => Promise<RegExp>)][];
 
 const DOT: [string, RegExp] = ['nudge', /^Mark as (read|unread)$/];
-const TAB_BUTTON = /^(Stop session|Force stop|Force pause|Close tab)$/;
+// The tab's button is a shortcut to one of the menu's leave items, which its mark says (`tabButton`): Stop session, Close tab, Archive or a force, the plain pause bars being a pause's force before its moment.
+const BUTTON_ITEMS: Record<string, string> = {
+  stop: 'Stop session',
+  close: 'Close tab',
+  archive: 'Archive',
+  pause: 'Force pause',
+  'force-stop': 'Force stop',
+  'force-close': 'Force close',
+  'force-archive': 'Force archive',
+  'force-pause': 'Force pause',
+};
+const TAB_BUTTON = async (control: Locator): Promise<RegExp> => new RegExp(`^${BUTTON_ITEMS[(await control.getAttribute('data-mark')) ?? '']}$`);
 
 const ROW: Shortcuts = [
   ['pin', /^(Pin in list|Unpin)$/],
@@ -65,7 +76,8 @@ async function eachControlHasItsItem(page: Page, surface: Locator, kebab: Locato
     const known = shortcuts.find(([className]) => classes.includes(className));
     expect(known, `a control on this surface with no item in its menu: ${await control.evaluate((el) => el.outerHTML.slice(0, 160))}`).toBeDefined();
     const unavailable = classes.includes('unavailable') || (await control.isDisabled());
-    expected.push({ control: known![0], item: known![1], available: !unavailable });
+    const item = known![1];
+    expected.push({ control: known![0], item: typeof item === 'function' ? await item(control) : item, available: !unavailable });
   }
   for (const [className] of shortcuts) expect(expected.some(({ control }) => control === className), `${className} on the surface`).toBe(true);
   await kebab.click();

@@ -121,11 +121,14 @@ test('an archive main fails to write for a session with no tab says so, and leav
   await expect(row(page, one.title)).toHaveCount(1);
 });
 
-test('an archive claude has not left is forced by the Force stop, and the forced exit archives it', async ({ app, page }) => {
+test('an archive claude has not left is forced by the Force archive, and the forced exit archives it', async ({ app, page }) => {
   await app.boot(fixture);
   await startLive(page, app);
   await (await menuItem(page, 'Archive')).click();
-  await expect(button(page)).toHaveAttribute('data-tooltip', /^Force stop/);
+  await expect(button(page)).toHaveAttribute('data-mark', 'archive');
+  await expect(button(page)).toHaveAttribute('data-tooltip', 'Archiving…');
+  await expect(button(page)).toHaveAttribute('data-tooltip', /^Force archive/);
+  await expect(button(page)).toHaveAttribute('data-mark', 'force-archive');
   await button(page).click();
   expect(await app.calls('killTerminal')).toEqual([[FIRST]]);
 

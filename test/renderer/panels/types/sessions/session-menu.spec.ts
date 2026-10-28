@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../src/shared/defaults';
 import { HOME, PROJECT, session } from '../../../support/fixture';
-import { expect, test } from '../../../support/harness';
+import { type App, expect, test } from '../../../support/harness';
 import { chooseProject, row, stripRow, tab, tabLabel } from '../../../support/window';
 
 // A session's menu opens with what the session is, on every surface that has its kebab, so a tab and the strip, which say less than its row, still show its title, place, status, activity, worktree and note.
@@ -225,7 +225,7 @@ test('Mark as read is unavailable, with the reason, while the session is busy', 
   await expect(item(page, 'Mark as read')).toHaveAttribute('data-tooltip', 'Only a session that is idle or waiting for you can be marked read or unread');
 });
 
-// The tab's button, pressed from the session's menu: one rule for the two (`tabButtonState`), so the item says and does what the button would.
+// The tab's button is a shortcut to one of the menu's leave items: one rule for the two (`leaveAction`), so the item says and does what the button would.
 test("Stop session in a row's menu stops it as the tab's button does, and then offers the force, unavailable while it says it is stopping", async ({ app, page }) => {
   await app.boot(fixture);
   await tabLabel(page, full.title).click();
@@ -240,6 +240,95 @@ test("Stop session in a row's menu stops it as the tab's button does, and then o
 
 // The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the session's claude is 1.
 const FIRST = 1;
+
+/** Start the fixture's session from its tab, and open its row's menu. */
+async function runningMenu(app: App, page: Page): Promise<void> {
+  await app.boot(fixture);
+  await tabLabel(page, full.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await row(page, full.title).locator('.session-kebab').click();
+}
+
+// Stop session, Close tab and Archive each do one thing, whatever that takes (user, 2026-10-28): no item in the menu is two of them.
+test("a running session's menu has Stop session, Close tab and Archive, each available", async ({ app, page }) => {
+  await runningMenu(app, page);
+  for (const label of ['Stop session', 'Close tab', 'Archive']) await expect(item(page, label)).not.toHaveClass(/\bunavailable\b/);
+});
+
+test("Close tab in a running session's menu asks claude to leave, keeps the tab until it has gone, and archives nothing", async ({ app, page }) => {
+  await runningMenu(app, page);
+  await item(page, 'Close tab').click();
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
+  const button = tab(page, full.title).locator('.tab-close');
+  await expect(button).toHaveAttribute('data-tooltip', 'Closing…');
+  await expect(button).toHaveAttribute('data-mark', 'close');
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await expect(tab(page, full.title)).toHaveCount(0);
+  await expect(row(page, full.title)).toHaveCount(1);
+  expect(await app.calls('archive')).toEqual([]);
+});
+
+test("a cold tab's menu has nothing to stop, and closes and archives it", async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, full.title).locator('.session-kebab').click();
+  await expect(item(page, 'Stop session')).toHaveClass(/\bunavailable\b/);
+  await expect(item(page, 'Stop session')).toHaveAttribute('data-tooltip', 'Not running');
+  await expect(item(page, 'Close tab')).not.toHaveClass(/\bunavailable\b/);
+  await expect(item(page, 'Archive')).not.toHaveClass(/\bunavailable\b/);
+});
+
+// The item of what was asked becomes its force, named for it, and the tab's and the strip's button are that force too, so the button stays the press that ends claude.
+test("a close claude has not left is forced by Force close, which the tab's and the strip's button are too", async ({ app, page }) => {
+  await runningMenu(app, page);
+  await item(page, 'Close tab').click();
+  const button = tab(page, full.title).locator('.tab-close');
+  await expect(button).toHaveAttribute('data-mark', 'force-close');
+  await expect(button).toHaveAttribute('data-tooltip', /^Force close: claude has not left yet/);
+  await expect(stripRow(page, full.title).locator('.strip-item-stop')).toHaveAttribute('data-mark', 'force-close');
+  await row(page, full.title).locator('.session-kebab').click();
+  await expect(item(page, 'Close tab')).toHaveCount(0);
+  await item(page, 'Force close').click();
+  expect(await app.calls('killTerminal')).toEqual([[FIRST]]);
+  expect(await app.emit('onTerminalExit', FIRST, 143)).toBe(1);
+  await expect(tab(page, full.title)).toHaveCount(0);
+});
+
+// Another item pressed while claude leaves changes what its exit does, and asks claude nothing more, since a second pair of presses ends what it asks on its way out unanswered.
+test('Stop session on a close under way keeps the tab at the exit, and sends claude nothing more', async ({ app, page }) => {
+  await runningMenu(app, page);
+  await item(page, 'Close tab').click();
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Stop session').click();
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
+  await expect(tab(page, full.title).locator('.tab-close')).toHaveAttribute('data-tooltip', 'Stopping…');
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await expect(tab(page, full.title)).toHaveClass(/\bcold\b/);
+});
+
+test('Stop session on a close that began as a pause makes it a stop: the tab stays at the exit, not paused', async ({ app, page }) => {
+  await runningMenu(app, page);
+  await item(page, 'Pause').click();
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Close tab').click();
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Stop session').click();
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
+  await expect(tab(page, full.title).locator('.tab-close')).toHaveAttribute('data-mark', /^(force-)?stop$/);
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await expect(tab(page, full.title)).toHaveClass(/\bcold\b/);
+  await expect(tab(page, full.title).locator('.nudge')).not.toHaveClass(/\bpaused\b/);
+});
+
+test('Close tab on a stop under way removes the tab at the exit, and sends claude nothing more', async ({ app, page }) => {
+  await runningMenu(app, page);
+  await item(page, 'Stop session').click();
+  await row(page, full.title).locator('.session-kebab').click();
+  await item(page, 'Close tab').click();
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
+  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
+  await expect(tab(page, full.title)).toHaveCount(0);
+  expect(await app.calls('archive')).toEqual([]);
+});
 
 // A press can land on an item drawn before the tab moved on, in the moment before the menu follows: the item does what it said or nothing, where the button it stands for would by then close the tab.
 test("the tab button's item pressed after its tab moved on does what it said or nothing: a Force stop once claude has gone leaves the tab", async ({ app, page }) => {

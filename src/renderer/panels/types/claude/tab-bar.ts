@@ -2,7 +2,7 @@ import type Sortable from 'sortablejs';
 import { element, fromMarkup } from '../../../dom';
 import { drawFoldChevron, foldChevron, offerRowFold } from '../../../fold-chevron';
 import { Keyed, placeChildren } from '../../../keyed';
-import { asksForYou, clockOf, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, tabButtonState, unstartableReason, worktreeMarkState } from '../../../logic';
+import { asksForYou, clockOf, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, tabButton, unstartableReason, worktreeMarkState } from '../../../logic';
 import { notLeftMark, showNotLeft } from '../../../notleft';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
@@ -14,7 +14,7 @@ import { layersIcon, SIBLING_ICON, WORKTREE_ICON } from '../../../svg';
 import { buildTab, drawTab, dropSortable, sortableTabs, type TabEls } from '../../../tab';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
-import { activateTab, closeOrStop, persistOpenTabs, tabOf } from './terminals';
+import { activateTab, persistOpenTabs, pressTabButton, tabOf } from './terminals';
 import './tab-bar.css';
 
 /**
@@ -249,9 +249,9 @@ function buildSessionTab(token: string): SessionTabEls {
       if (shown) hostOf('claude').revealSession(shown.session.id);
     },
     // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind.
-    // See closeOrStop.
+    // See pressTabButton.
     // A middle click takes the same two steps: one that killed a running session outright would be the one way left to lose one by accident.
-    press: () => closeOrStop(token),
+    press: () => pressTabButton(token),
     // The session's own menu, from the builder its row in the list uses, the press of the button beside it among its items, so the button is a shortcut to one of them.
     // The session list answers it (`sessionMenu`), for the session the tab holds at the click.
     menu: () => {
@@ -306,8 +306,8 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
     classes: unstartable ? ['unstartable'] : [],
     text,
     tooltip: unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}`,
-    // Stopping, its two pauses and its force, and closing a cold tab: the same rule the live strip's button follows — see tabButtonState.
-    button: tabButtonState(tab),
+    // Stopping, the force of what claude is leaving for, and closing a cold tab: the same rule the live strip's button follows — see tabButton.
+    button: tabButton(tab),
     // The mark cluster is placed only when there ARE marks — an empty wrapper would still consume a gap and shift the label.
     lead: marks.length > 0 ? [dot, markGroup] : [dot],
     // A stop claude has not left, as its row and its strip row say it (notleft.ts).

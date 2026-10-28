@@ -750,46 +750,92 @@ export interface TabButtonTab {
   notLeft?: boolean;
   /** Set aside: on its way out, that is a pause rather than a stop. */
   paused?: boolean;
+  /** What its exit does once claude has gone, while it is on its way out: keep the tab (`cool`, the default), remove it, or remove it and archive its session. */
+  onExit?: 'cool' | 'close' | 'archive';
 }
 
 /**
- * The mark on a tab's button: the stop square, or the pause bars while a pause is on its way, each filled once a press forces the session out, or the cross once there is only a tab to close (`tabButtonIcon`).
- * A force is named for what was asked, so a pause that has not landed still says it is a pause.
+ * What a tab's claude can be asked to leave for, each one press of its own meaning (user, 2026-10-28): a stop keeps the tab, cold, a close removes it, and an archive removes it and archives its session, each waiting out what claude asks on its way out.
+ * A pause is a stop that marks the tab, and is here only for its force: it is pressed from its own item.
  */
-export type TabButtonMark = 'stop' | 'pause' | 'force-stop' | 'force-pause' | 'close';
+export type LeaveAction = 'stop' | 'close' | 'archive' | 'pause';
 
-/** The marks with a press, and so a label: the pause bars are only ever drawn unavailable, for a pause on its way that is not yet a force. */
-export type TabButtonPress = Exclude<TabButtonMark, 'pause'>;
+/**
+ * The mark on a tab's button and its menu's items: the stop square, the cross, the lidded box, or the pause bars while a pause is on its way (`tabButtonIcon`).
+ * Each has a force, which ends a claude that has not left without asking: the stop square filled, the pause bars as filled bars, and for a close and an archive the filled square with their own mark cut through it.
+ */
+export type TabButtonMark = LeaveAction | `force-${LeaveAction}`;
 
-/** What a tab's button shows and does, and the words of the item in the session's menu that presses it. */
+/** What a tab's button, or one of its menu's leave items, shows and does: `action` is what a press asks for, and the item's words are `label`. */
 export interface TabButton {
   disabled: boolean;
   tooltip: string;
   mark: TabButtonMark;
   label: string;
+  action: LeaveAction;
+}
+
+const LEAVE_WORDS: Record<LeaveAction, { label: string; force: string; going: string }> = {
+  stop: { label: 'Stop session', force: 'Force stop', going: 'Stopping…' },
+  close: { label: 'Close tab', force: 'Force close', going: 'Closing…' },
+  archive: { label: 'Archive', force: 'Force archive', going: 'Archiving…' },
+  pause: { label: 'Pause', force: 'Force pause', going: 'Pausing…' },
+};
+
+/** What a press on a leave item does, in words: its label, and the button's tooltip while it can act. */
+export function leaveLabel(action: LeaveAction): string {
+  return LEAVE_WORDS[action].label;
+}
+
+/** What a tab that is on its way out is leaving for: what its exit will do, and for a stop that marks the tab, a pause; null while it is not leaving. */
+export function leaveUnderWay(tab: TabButtonTab): LeaveAction | null {
+  if (!tab.stopping) return null;
+  if (tab.onExit === 'close' || tab.onExit === 'archive') return tab.onExit;
+  return tab.paused ? 'pause' : 'stop';
+}
+
+const available = (action: LeaveAction): TabButton => ({ disabled: false, tooltip: LEAVE_WORDS[action].label, mark: action, label: LEAVE_WORDS[action].label, action });
+const unavailable = (action: LeaveAction, why: string): TabButton => ({ disabled: true, tooltip: why, mark: action, label: LEAVE_WORDS[action].label, action });
+
+/**
+ * The force of what a tab is leaving for, named for it: Force stop, Force close, Force archive or Force pause.
+ * A session asked to leave may never go: claude can ask something on its way out and wait for the answer, and nothing it sends tells that from a claude that hangs.
+ * So after a moment the force ends it without asking; the moment, when it is unavailable, is what keeps a double-click from forcing before the question is even on screen, and it is unavailable again once forced, until the exit lands.
+ */
+function leaveForce(tab: TabButtonTab, under: LeaveAction): TabButton {
+  const { force, going } = LEAVE_WORDS[under];
+  if (tab.forceable) return { disabled: false, tooltip: `${force}: claude has not left yet — it may be asking you something`, mark: `force-${under}`, label: force, action: under };
+  return { disabled: true, tooltip: going, mark: under, label: force, action: under };
 }
 
 /**
- * What a tab's button shows, wherever it is drawn: on the tab, and on the live strip's row for its session; and the session menu's item for it.
+ * A leave item of a tab's menu, by one rule for every surface that draws it: Stop session, Close tab, Archive, or Pause's force.
  *
- * Both ends of a session's life are a pause, for the same reason: neither a tab whose process has not arrived yet nor one whose process is still leaving can be acted on without the UI disagreeing with what is actually running.
- * Except that a session asked to leave may never go: claude can ask something on its way out and wait for the answer, and nothing it sends tells that from a claude that hangs.
- * So after a moment the pause becomes a FORCE, its mark filled, which ends it without asking; the moment is what keeps a double-click from forcing before the question is even on screen.
- * While it leaves, the mark and the menu's item say what was asked, a pause or a stop, and the item is that force from the start, unavailable for the moment, since asking claude again could only land on what it is asking.
- * A cold tab has nothing to stop, so the button closes it.
+ * Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving, so there is no claude yet to ask.
+ * While claude is on its way out, the item of what was asked is its force (user, 2026-10-28), and the others change what the exit does without asking claude again, since a second pair of presses ends what it asks on its way out unanswered: Stop session turns a close or an archive back into a stop, Close tab and Archive turn a leave into theirs.
+ * A pause under way that nothing has changed is left a pause, as it was before there were three items: Stop session is unavailable then; once a close or an archive has changed it, Stop session makes it a stop.
+ * A cold tab has nothing to stop; it closes and archives at once.
+ */
+export function leaveAction(tab: TabButtonTab, action: LeaveAction): TabButton {
+  if (tab.starting) return unavailable(action, 'Starting…');
+  const under = leaveUnderWay(tab);
+  if (under === action) return leaveForce(tab, under);
+  if (action === 'pause') return unavailable('pause', under ? LEAVE_WORDS[under].going : 'Not pausing');
+  if (under === 'pause' && action === 'stop') return unavailable('stop', LEAVE_WORDS.pause.going);
+  if (under === null && tab.terminalId === null && action === 'stop') return unavailable('stop', 'Not running');
+  return available(action);
+}
+
+/**
+ * What a tab's button shows, wherever it is drawn: on the tab, and on the live strip's row for its session.
+ * A shortcut to one of its menu's leave items, so it says and does what that item would (`leaveAction`): Stop session on a running tab, and on a cold one what `stopped` names; while claude is on its way out, the force of what it is leaving for, so the button stays the press that ends claude, and changing what the exit does is the menu's.
  * ONE RULE RATHER THAN TWO, and it is here rather than in the renderer because the two surfaces did come to different conclusions about the same tab the day the strip grew its own copy.
  */
-export function tabButtonState(tab: TabButtonTab): TabButton {
-  // Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving.
-  if (tab.starting) return { disabled: true, tooltip: 'Starting…', mark: 'stop', label: tabButtonLabel('stop') };
-  if (tab.stopping) {
-    const force = tab.paused ? 'force-pause' : 'force-stop';
-    const label = tabButtonLabel(force);
-    if (tab.forceable) return { disabled: false, tooltip: `${label}: claude has not left yet — it may be asking you something`, mark: force, label };
-    return { disabled: true, tooltip: tab.paused ? 'Pausing…' : 'Stopping…', mark: tab.paused ? 'pause' : 'stop', label };
-  }
-  if (tab.terminalId === null) return { disabled: false, tooltip: tabButtonLabel('close'), mark: 'close', label: tabButtonLabel('close') };
-  return { disabled: false, tooltip: tabButtonLabel('stop'), mark: 'stop', label: tabButtonLabel('stop') };
+export function tabButton(tab: TabButtonTab, stopped: 'close' | 'archive' = 'close'): TabButton {
+  if (tab.starting) return unavailable('stop', 'Starting…');
+  const under = leaveUnderWay(tab);
+  if (under) return leaveForce(tab, under);
+  return leaveAction(tab, tab.terminalId === null ? stopped : 'stop');
 }
 
 /**
@@ -798,11 +844,6 @@ export function tabButtonState(tab: TabButtonTab): TabButton {
  */
 export function notLeftWords(tab: TabButtonTab): string | null {
   return tab.stopping && tab.notLeft ? "hasn't left" : null;
-}
-
-/** What a press on a tab's button does, in words: the label of the item in the session's menu that presses it, and the button's tooltip while it can act (for a force, its first words). */
-export function tabButtonLabel(press: TabButtonPress): string {
-  return { stop: 'Stop session', 'force-stop': 'Force stop', 'force-pause': 'Force pause', close: 'Close tab' }[press];
 }
 
 /**

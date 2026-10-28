@@ -1,4 +1,4 @@
-import type { TabButtonMark } from '../logic';
+import type { LeaveAction, TabButtonMark } from '../logic';
 import type { MenuItem } from '../menu';
 import type { IconName } from './icons';
 import type { PanelSlot } from './layout';
@@ -115,6 +115,8 @@ export interface Asks {
    * `mark` is what the press was drawn as, and the press does that or nothing: one drawn before the tab moved on, such as a Force stop pressed after claude has gone, would otherwise do what the button does by then, closing the tab.
    */
   pressTabButton(id: string, mark: TabButtonMark): void;
+  /** Press one of a session's tab's leave items, Stop session, Close tab, Archive or a force, as its menu draws it (`leaveAction`); `mark` as for the button. */
+  pressLeave(id: string, action: LeaveAction, mark: TabButtonMark): void;
   /** Set a session's tab aside, paused: its claude ended if it runs, the tab marked either way. */
   pauseSession(id: string): void;
   /** Stop a session whose tab is paused, as Stop session in its menu: the paused mark off its tab, and nothing started. */

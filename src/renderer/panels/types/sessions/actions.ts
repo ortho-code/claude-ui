@@ -1,10 +1,10 @@
 import { prReference } from '../../../../shared/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDelete, promptText } from '../../../dialogs';
-import { clockLines, clockOf, entityKey, folderName, relativeTime, sessionLabel, tabButtonLabel, tabButtonState, unstartableReason } from '../../../logic';
+import { clockLines, clockOf, entityKey, folderName, leaveAction, leaveLabel, leaveUnderWay, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
 import { verdictOf } from '../../../prstatus';
-import { store, withMember } from '../../../state/app';
+import { store, withMember, type TabState } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
 import { pickCheckout, pickedFor } from '../../../state/picks';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
@@ -261,25 +261,32 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   // The state changes sit below a rule, away from the navigate/copy items.
   items.push({ label: '', separator: true });
   // Pausing is the tab's, and needs one: it marks the tab, and for a running session asks its claude to leave (pauseTab).
-  // A paused tab's way out is Stop session, the running one's word, since both leave an ordinary stopped tab: here it takes the mark off and starts nothing (`stopPausedTab`) (user, 2026-10-20, replacing "Unpause").
-  // Only once it rests paused (`isPaused`), as its dot says.
-  // Not while it starts, which clears the mark when its process arrives: there is nothing to stop yet, so it is any starting tab's then.
-  // Nor while its claude is leaving, from a pause or a stop: it then has only the force, the item below, named for what was asked (user, 2026-10-23), since a Pause would ask claude again, and another pair of presses ends what claude asks on its way out unanswered.
-  if (tab && isPaused(tab) && !tab.starting) items.push({ label: tabButtonLabel('stop'), onSelect: () => hostOf('sessions').stopPausedSession(session.id) });
-  else if (tab?.starting) items.push({ label: 'Pause', disabled: 'Starting…' });
-  else if (tab && !tab.stopping) items.push({ label: 'Pause', onSelect: () => hostOf('sessions').pauseSession(session.id) });
-  // A press on the tab's button, from wherever the session's menu is, by the button's own rule (`tabButtonState`), so the item says and does what the button would: stop it, force it out, or close the tab it left.
-  // What it says is what it does, or nothing, once the tab has moved on (`pressTabButton`).
-  // Unavailable without a tab, since there is then nothing to stop or close.
-  const button = tab ? tabButtonState(tab) : null;
-  if (!button) items.push({ label: tabButtonLabel('close'), disabled: 'Not open in a tab' });
-  else items.push(button.disabled ? { label: button.label, disabled: button.tooltip } : { label: button.label, onSelect: () => hostOf('sessions').pressTabButton(session.id, button.mark) });
-  // One press whatever its tabs are doing (`archiveSession`): a running claude is asked to leave first, its tab kept for anything claude asks on its way out, and the session is archived once claude has gone (user, 2026-10-28).
-  // Not while a tab starts, as Pause is not: there is no claude yet to ask to leave.
+  // Not while it starts, which clears the mark when its process arrives.
+  // While its claude is leaving for a pause, its force, named for what was asked (user, 2026-10-23); while it leaves for anything else, or rests paused, nothing, since a Pause would ask claude again, and another pair of presses ends what claude asks on its way out unanswered.
+  const under = tab ? leaveUnderWay(tab) : null;
+  if (tab?.starting) items.push({ label: 'Pause', disabled: 'Starting…' });
+  else if (tab && under === 'pause') items.push(leaveItem(session, tab, 'pause'));
+  else if (tab && !under && !isPaused(tab)) items.push({ label: 'Pause', onSelect: () => hostOf('sessions').pauseSession(session.id) });
+  // Stop session, Close tab and Archive, each one press of its own meaning, whatever the tab is doing (user, 2026-10-28), by the rule the tab's button is a shortcut to (`leaveAction`).
+  // A tab that rests paused has Stop session as its way out, the running one's word, since both leave an ordinary stopped tab: it takes the mark off and starts nothing (`stopPausedTab`) (user, 2026-10-20, replacing "Unpause").
+  if (tab && isPaused(tab) && !tab.starting) items.push({ label: leaveLabel('stop'), onSelect: () => hostOf('sessions').stopPausedSession(session.id) });
+  else items.push(leaveItem(session, tab, 'stop'));
+  items.push(leaveItem(session, tab, 'close'));
+  // Archive is the session's rather than a tab's (`archiveSession`): a session with no tab archives at once, and one with a tab starting is unavailable, whichever tab it is, since there is no claude yet to ask to leave.
   const key = entityKey(session);
   const starting = store.get().tabs.some((t) => entityKey(t.session) === key && t.starting);
-  items.push(starting ? { label: 'Archive', disabled: 'Starting…' } : { label: 'Archive', onSelect: () => hostOf('sessions').archiveSession(key) });
+  if (starting) items.push({ label: leaveLabel('archive'), disabled: 'Starting…' });
+  else if (!tab) items.push({ label: leaveLabel('archive'), onSelect: () => hostOf('sessions').archiveSession(key) });
+  else items.push(leaveItem(session, tab, 'archive'));
   return items;
+}
+
+// A leave item of the session's menu, by the rule its tab's button follows (`leaveAction`): what it says is what it does, or nothing, once the tab has moved on (`pressLeave`).
+// Unavailable without a tab, since there is then nothing to stop or close.
+function leaveItem(session: SessionSummary, tab: TabState | undefined, action: LeaveAction): MenuItem {
+  if (!tab) return { label: leaveLabel(action), disabled: 'Not open in a tab' };
+  const item = leaveAction(tab, action);
+  return item.disabled ? { label: item.label, disabled: item.tooltip } : { label: item.label, onSelect: () => hostOf('sessions').pressLeave(session.id, action, item.mark) };
 }
 
 // A session's siblings, PRs, the checkouts it worked in and what its clock says, each a submenu where it has any; the session's menu has them in both views.
