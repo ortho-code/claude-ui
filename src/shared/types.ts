@@ -413,8 +413,8 @@ export interface ClaudeUiApi {
   toggleHistoryPin(id: string, pin: Pick<HistoryPin, 'kind' | 'session' | 'text' | 'time'>): Promise<Record<string, HistoryPin>>;
   /** Archived session ids mapped to when they were archived (epoch ms; 0 = unknown). */
   getArchived(): Promise<Record<string, number>>;
-  /** Toggle a session's archived state; resolves to the updated archived map. */
-  toggleArchive(id: string): Promise<Record<string, number>>;
+  /** Archive a session, keeping when it was archived if it already is, so a second call leaves the archived map as it is; resolves to the updated archived map. */
+  archive(id: string): Promise<Record<string, number>>;
   /** Unarchive a session, whatever its state, so a second call leaves the archived map as it is; resolves to the updated archived map. */
   unarchive(id: string): Promise<Record<string, number>>;
   /**

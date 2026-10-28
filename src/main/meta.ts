@@ -8,7 +8,7 @@ import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { purgedSession, togglePinned, toggleArchived, unarchived } from '../shared/sessionmarks';
+import { archivedFrom, purgedSession, togglePinned, unarchived } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
@@ -579,9 +579,9 @@ export function getArchived(): Promise<Record<string, number>> {
   return serialize(async () => (await readMeta()).archived);
 }
 
-export function toggleArchive(id: string): Promise<Record<string, number>> {
-  return update('toggleArchive', (meta) => {
-    meta.archived = toggleArchived(meta.archived, id, Date.now());
+export function archive(id: string): Promise<Record<string, number>> {
+  return update('archive', (meta) => {
+    meta.archived = archivedFrom(meta.archived, id, Date.now());
     return meta.archived;
   });
 }

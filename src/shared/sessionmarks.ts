@@ -19,9 +19,9 @@ export function togglePinned(pinned: readonly string[], id: string): string[] {
   return [...set];
 }
 
-/** An archive entry toggled: gone if it was there, there from `now` if it was not. */
-export function toggleArchived(archived: Readonly<Record<string, number>>, id: string, now: number): Record<string, number> {
-  return id in archived ? unarchived(archived, id) : { ...archived, [id]: now };
+/** An archive entry there, from `now`, or from when it was archived before, so a second archive is no change. */
+export function archivedFrom(archived: Readonly<Record<string, number>>, id: string, now: number): Record<string, number> {
+  return id in archived ? { ...archived } : { ...archived, [id]: now };
 }
 
 /** An archive entry gone, whether or not it was there. */

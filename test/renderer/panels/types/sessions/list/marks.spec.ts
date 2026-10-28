@@ -81,7 +81,8 @@ test('archiving closes the session\'s tab and moves its row to the archived view
   await page.locator('#archived-filter').click();
   await expect(titles(page)).toHaveText([newer.title, older.title]);
   await expect(tabLabel(page, older.title)).toHaveCount(0);
-  expect(await app.calls('toggleArchive')).toEqual([[older.id], [older.id]]);
+  expect(await app.calls('archive')).toEqual([[older.id]]);
+  expect(await app.calls('unarchive')).toEqual([[older.id]]);
 });
 
 // Claude can ask something on its way out, a worktree's keep-or-remove, so a running session is stopped before it is archived: the stop keeps its tab for the question, and the archive comes once claude has gone.
@@ -99,5 +100,5 @@ test("a running session is archived once it is stopped, and its tab goes with it
   await menuItem(page, older.title, 'Archive');
   await expect(row(page, older.title)).toHaveCount(0);
   await expect(tabLabel(page, older.title)).toHaveCount(0);
-  expect(await app.calls('toggleArchive')).toEqual([[older.id]]);
+  expect(await app.calls('archive')).toEqual([[older.id]]);
 });

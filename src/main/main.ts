@@ -24,7 +24,7 @@ import {
   getHistoryPins,
   toggleHistoryPin,
   getArchived,
-  toggleArchive,
+  archive,
   unarchive,
   getOpenSessions,
   getRunningSessions,
@@ -468,7 +468,7 @@ ipcMain.on('shell:openExternal', (_event, url: string) => {
   if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
 });
 ipcMain.handle('meta:getArchived', () => getArchived());
-ipcMain.handle('meta:toggleArchive', (_event, id: string) => toggleArchive(id));
+ipcMain.handle('meta:archive', (_event, id: string) => archive(id));
 ipcMain.handle('meta:unarchive', (_event, id: string) => unarchive(id));
 ipcMain.handle('sessions:delete', async (_event, id: string) => {
   // The renderer confirms via its own modal (a native dialog flickers under WSLg), so here we just do the deletion: move the files to trash, then drop the session from metadata.

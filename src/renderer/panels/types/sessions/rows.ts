@@ -16,7 +16,7 @@ import { showToast } from '../../../toast';
 import { TONES } from '../../../tone';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
-import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
+import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor, unarchiveFor } from './actions';
 import { activityMoment, archivedMoment } from './describe';
 import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
 import '../../../tone.css';
@@ -170,7 +170,7 @@ function createSessionRow(key: string): HTMLElement {
   setTooltip(unarchiveBtn, 'Unarchive');
   unarchiveBtn.addEventListener('click', (event) => {
     event.stopPropagation();
-    void toggleArchiveFor(key);
+    void unarchiveFor(key);
   });
 
   // Delete lives only in the archived view (shown/hidden in updateRow); trash-based + confirmed.

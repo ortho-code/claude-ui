@@ -36,7 +36,8 @@ import {
   getHistoryPins,
   toggleHistoryPin,
   getArchived,
-  toggleArchive,
+  archive,
+  unarchive,
   purgeSession,
   getOpenSessions,
   getRunningSessions,
@@ -136,11 +137,12 @@ describe('history pins', () => {
 });
 
 describe('archive', () => {
-  it('archives with a timestamp and unarchives', async () => {
-    const archived = await toggleArchive('conv1');
+  it('archives with a timestamp, keeps it on a second archive, and unarchives', async () => {
+    const archived = await archive('conv1');
     expect(Object.keys(archived)).toEqual(['conv1']);
     expect(archived.conv1).toBeGreaterThan(0);
-    expect(await toggleArchive('conv1')).toEqual({});
+    expect(await archive('conv1')).toEqual(archived);
+    expect(await unarchive('conv1')).toEqual({});
   });
 
   it('reads a legacy archived id-array as a map with unknown (0) timestamps', async () => {
@@ -152,7 +154,7 @@ describe('archive', () => {
 describe('purgeSession', () => {
   it('drops the session from pins, open tabs, running tabs, paused tabs and archive', async () => {
     await togglePin('conv1');
-    await toggleArchive('conv1');
+    await archive('conv1');
     await setOpenSessions(['conv1', 'conv2'], ['conv1'], ['conv1']);
     await purgeSession('conv1');
     expect(await getPinned()).toEqual([]);

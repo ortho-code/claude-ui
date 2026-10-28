@@ -334,7 +334,7 @@ test('Archive is unavailable while the session runs, and says to stop it first',
   await expect(item(page, 'Archive')).toHaveClass(/\bunavailable\b/);
   await expect(item(page, 'Archive')).toHaveAttribute('data-tooltip', 'Stop the session first');
   await item(page, 'Archive').click({ force: true });
-  expect(await app.calls('toggleArchive')).toEqual([]);
+  expect(await app.calls('archive')).toEqual([]);
 });
 
 for (const [state, paused] of [['cold', []], ['paused', [full.id]]] as const) {
@@ -344,7 +344,7 @@ for (const [state, paused] of [['cold', []], ['paused', [full.id]]] as const) {
     await item(page, 'Archive').click();
     await expect(tab(page, full.title)).toHaveCount(0);
     await expect(row(page, full.title)).toHaveCount(0);
-    expect(await app.calls('toggleArchive')).toEqual([[full.id]]);
+    expect(await app.calls('archive')).toEqual([[full.id]]);
     expect(await app.calls('startTerminal')).toEqual([]);
   });
 }
@@ -367,7 +367,7 @@ test("Unarchive in an archived session's menu takes it out of the archived view,
   await row(page, full.title).locator('.session-kebab').click();
   await item(page, 'Unarchive').click();
   await expect(row(page, full.title)).toHaveCount(0);
-  expect(await app.calls('toggleArchive')).toEqual([[full.id]]);
+  expect(await app.calls('unarchive')).toEqual([[full.id]]);
 });
 
 test("Delete session in an archived session's menu asks first, as the row's button does", async ({ app, page }) => {

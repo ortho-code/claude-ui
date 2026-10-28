@@ -3,7 +3,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { prReference } from '../../../src/shared/prs';
-import { purgedSession, togglePinned, toggleArchived, unarchived } from '../../../src/shared/sessionmarks';
+import { archivedFrom, purgedSession, togglePinned, unarchived } from '../../../src/shared/sessionmarks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -99,7 +99,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
     getArchived: () => answer(fixture.archived),
-    toggleArchive: (id) => answer((fixture.archived = toggleArchived(fixture.archived, id, Date.now()))),
+    archive: (id) => answer((fixture.archived = archivedFrom(fixture.archived, id, Date.now()))),
     unarchive: (id) => answer((fixture.archived = unarchived(fixture.archived, id))),
     // Main moves the transcript to the trash, so the listing no longer has it, forgets its status, and purges it from meta by main's own rule: its marks, its open tab, the tab to reopen on, its group.
     // A panel row linked to it is forgotten with an event the stand-in does not fire, so that delete is main's to answer, not this.

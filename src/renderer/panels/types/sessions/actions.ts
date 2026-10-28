@@ -174,18 +174,19 @@ function moveToGroupItems(session: SessionSummary): MenuItem[] {
   return items;
 }
 
-// Archive/unarchive one session.
-// Archiving puts it away, so any open tab for it closes too (unarchive leaves tabs alone).
-// Shared by the kebab item and the archived view's row button.
-export async function toggleArchiveFor(key: string): Promise<void> {
-  const archived = new Map(Object.entries(await window.claudeUi.toggleArchive(key)));
+// Archive one session: it is put away, so any open tab for it closes too.
+export async function archiveFor(key: string): Promise<void> {
+  const archived = new Map(Object.entries(await window.claudeUi.archive(key)));
   // One change, told once the tabs are closed, so the list draws with them gone, as it did.
   store.batch(() => {
     store.set({ archived });
-    if (archived.has(key)) {
-      hostOf('sessions').closeTabs(key);
-    }
+    hostOf('sessions').closeTabs(key);
   });
+}
+
+// Unarchive one session, leaving tabs alone: from the archived view's row button and the archived session's menu.
+export async function unarchiveFor(key: string): Promise<void> {
+  store.set({ archived: new Map(Object.entries(await window.claudeUi.unarchive(key))) });
 }
 
 // Pin or unpin one session, from its row.
@@ -235,7 +236,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
       noteItem(session),
       copyIdItem(session),
       { label: '', separator: true },
-      { label: 'Unarchive', onSelect: () => void toggleArchiveFor(entityKey(session)) },
+      { label: 'Unarchive', onSelect: () => void unarchiveFor(entityKey(session)) },
       { label: 'Delete session…', onSelect: () => void confirmAndDelete(entityKey(session)) },
     ];
   }
@@ -284,9 +285,9 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   if (!button) items.push({ label: tabButtonLabel('close'), disabled: 'Not open in a tab' });
   else items.push(button.disabled ? { label: button.label, disabled: button.tooltip } : { label: button.label, onSelect: () => hostOf('sessions').pressTabButton(session.id, button.mark) });
   // Not while it runs, starting and stopping included: stopping it first, with the item above, keeps the tab up for anything claude asks on its way out, so Archive is never offered for a running tab.
-  // A tab that is open but not running closes as the session is archived (`toggleArchiveFor`).
+  // A tab that is open but not running closes as the session is archived (`archiveFor`).
   const running = tab !== undefined && (tab.terminalId !== null || tab.starting);
-  items.push(running ? { label: 'Archive', disabled: 'Stop the session first' } : { label: 'Archive', onSelect: () => void toggleArchiveFor(entityKey(session)) });
+  items.push(running ? { label: 'Archive', disabled: 'Stop the session first' } : { label: 'Archive', onSelect: () => void archiveFor(entityKey(session)) });
   return items;
 }
 
