@@ -25,7 +25,8 @@ const boundary = (folder, files, ignores = [], ...more) => ({
 const BUILTINS_APART = 'The two built-ins never import each other’s modules: they ask through the host (Asks) and share the store.';
 
 export default defineConfig(
-  { ignores: ['dist/', 'release/'] },
+  // test-results/ is Playwright's output, which a run of the window's checks deletes at its start, so a lint walking the tree beside one failed on the folder gone under it.
+  { ignores: ['dist/', 'release/', 'test-results/'] },
   js.configs.recommended,
   {
     files: ['**/*.ts'],
