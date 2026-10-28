@@ -35,6 +35,11 @@ The roadmap in `README.md` is the source of truth for what is done and what is n
   Why each rule is off or tuned is written beside it in `eslint.config.mjs`.
 - Before a commit, the checks its change needs run one after the other, and all pass; which those are, by what changed, is in docs/architecture.md § Which checks a change needs.
   A change to `.md` files alone needs only `npm test`; one that touches `src/renderer` or `src/shared` needs all four: `npm run build`, `npm test`, `npm run lint` and `npm run test:renderer`.
+  A change to comments alone in TypeScript or JavaScript needs no window's checks: `npm run comments:prove`, then `npm run build`, `npm test` and `npm run lint`; a stylesheet's comment, or one the proof fails, goes by the row of its folder.
+  Never side by side: the window's checks load the whole machine, so together they took longer than in a row and pushed unit tests past their timeout.
+  While working, run only the checks of what you touched, its file or the folder of its panel type; the whole of `npm run test:renderer` runs only when the change is ready.
+  After a failed run, `npm run build` and then `npx playwright test -c test/renderer --last-failed` rerun what failed or never started, until it passes, and then the whole suite once more; a check cut off mid-run, as by Ctrl+C, is not rerun.
+  `--last-failed` reads `test-results/.last-run.json`, written by the last run in this checkout to finish, another session's included; while another session's run is under way there is none, and it runs everything.
 - A fix to behaviour starts with a check that fails without it: a window check where the window shows the bug, a unit test where main or a pure function does.
   The check lands with the fix, and an area without checks gets one when it is next touched.
 - `node-pty` (M2) is a native module — rebuild against Electron's ABI after install.
