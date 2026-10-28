@@ -42,6 +42,10 @@ export const stopIcon = (size: number, force = false): string =>
 export const pauseIcon = (size: number, force = false): string =>
   strokeIcon(size, force ? '<rect x="5" y="4.7" width="1.6" height="6.6" rx="0.5" fill="currentColor" /><rect x="9.4" y="4.7" width="1.6" height="6.6" rx="0.5" fill="currentColor" />' : '<path d="M5.8 4.7V11.3M10.2 4.7V11.3" />');
 
+// Archiving's mark: a lidded box, the archived filter's.
+// Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
+export const archiveIcon = (size: number): string => strokeIcon(size, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
+
 /** A tab's button's mark, as its rule says it (`tabButtonState`), wherever the button is drawn. */
 export const tabButtonIcon = (mark: TabButtonMark, size: number): string => {
   if (mark === 'close') return closeIcon(size);

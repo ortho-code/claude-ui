@@ -6,7 +6,7 @@ import { byId, fromMarkup } from '../../../dom';
 import { datePresetRange, entityKey, sessionPasses } from '../../../logic';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
 import { isFiltering, isPaused, searchText } from '../../../state/views';
-import { closeIcon, folderGoneIcon, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
+import { archiveIcon, closeIcon, folderGoneIcon, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { iconSvg } from '../../icons';
 // The filter pill its pills and presets wear, shared with the history's All · Pinned.
@@ -103,9 +103,8 @@ const LIVE_ICON = strokeIcon(13, '<circle cx="8" cy="8" r="5.5" /><circle cx="8"
 // The paused filter's mark: two bars, the paused status dot's own language — that dot is drawn in CSS (base.css), so there is no shared SVG to take, and this draws the same two bars at the pills' weight.
 const PAUSED_ICON = strokeIcon(13, '<path d="M6 4v8" /><path d="M10 4v8" />');
 
-// The archived filter's mark: a lidded box.
-// Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
-const ARCHIVE_ICON = strokeIcon(13, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
+// The archived filter's mark: the lidded box archiving wears everywhere (`archiveIcon`).
+const ARCHIVE_ICON = archiveIcon(13);
 
 // Session key -> its group's NAME, so typing a group name reaches its sessions.
 // Built ONCE per filter pass and handed in: passesFilters runs per session, so building it there would be one pass over the membership map per row.
