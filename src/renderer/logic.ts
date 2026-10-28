@@ -131,6 +131,11 @@ export function worktreeMarkState(session: SessionSummary): WorktreeMarkState | 
   return null;
 }
 
+/** The linked worktree a checkout's root is, named by its folder as main names a worktree; '' for the main checkout, whose root is the repo's. */
+export function worktreeAt(root: string, repoRoot: string): string {
+  return root !== repoRoot ? folderName(root) : '';
+}
+
 /**
  * What becomes of a task when its session's claude goes, said beside it wherever it is named, so it is known before a pause or a stop rather than asked at it.
  * Measured on claude 2.1.302: a cron, one-shot or repeating, came back with the same id when the session was resumed, whether claude's own question was answered "Exit and stop tasks" or the session was forced out; a `/loop` wakeup did not.

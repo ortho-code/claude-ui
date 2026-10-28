@@ -1,6 +1,6 @@
 import type { PanelContext, PanelRunEvent } from '../../shared/panels';
 import { PANEL_CONTROL_VARIABLE, PANEL_TIMEOUT_MS } from '../../shared/panels';
-import { folderName } from '../logic';
+import { folderName, worktreeAt } from '../logic';
 import type { View } from '../state/app';
 import { tabOnShow } from '../state/views';
 import type { PanelFolder, Where } from './contract';
@@ -26,7 +26,7 @@ export function whereOf(view: View<(typeof WHERE_SLICES)[number]>): Where {
   const tab = tabOnShow(view);
   if (!tab) return { tab: null, project: view.activeProject };
   const { workCwd, cwd, repoRoot, id, worktree } = tab.session;
-  return { tab: { cwd: workCwd || cwd, repoRoot, id, worktree: workCwd ? (workCwd === repoRoot ? '' : folderName(workCwd)) : worktree }, project: view.activeProject };
+  return { tab: { cwd: workCwd || cwd, repoRoot, id, worktree: workCwd ? worktreeAt(workCwd, repoRoot) : worktree }, project: view.activeProject };
 }
 
 /**
