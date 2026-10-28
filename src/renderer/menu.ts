@@ -136,13 +136,7 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
         button.append(count);
       }
     }
-    if (item.checked !== undefined) {
-      // A fixed-width column, empty when unchecked, so every label in the list still lines up.
-      const tick = document.createElement('span');
-      tick.className = 'menu-tick';
-      tick.innerHTML = item.checked ? tickIcon(11) : '';
-      button.prepend(tick);
-    }
+    if (item.checked !== undefined) button.prepend(tickColumn(item.checked));
     if (item.submenu) {
       button.className = 'menu-row has-submenu';
       // What a redraw of the menu finds it by, to open its submenu again (`openMenu`).
@@ -167,6 +161,14 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     }
     menu.append(button);
   }
+}
+
+/** A pick-one list's tick column: a fixed width, empty when unchecked, so every label in the list still lines up. */
+function tickColumn(checked: boolean): HTMLElement {
+  const tick = document.createElement('span');
+  tick.className = 'menu-tick';
+  tick.innerHTML = checked ? tickIcon(11) : '';
+  return tick;
 }
 
 /** Give each header line the menu had to cut its whole text as its tooltip; measured once the menu is in the page, since only then has it a width. */
