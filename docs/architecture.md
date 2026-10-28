@@ -723,7 +723,14 @@ Rejected from the same mock: a popover from the tab bar (no scrollbar), a panel 
 Rather than parse terminal output to guess a session's state, the app drives status from Claude Code hooks, and reads the transcript only for the ends no hook reports (below).
 On startup it writes a hook script and its own settings file to `~/.config/claude-ui/`, and passes that file to `claude --settings`, whose hooks merge with the user's own — so claude-ui never writes into `~/.claude/settings.json` (an earlier version did, and still strips those entries when it finds them).
 
-Seven events map straight to a status: `UserPromptSubmit` → busy, `PostToolUse` → busy, `PreCompact` → busy (compaction, below), `Stop` → idle (or background, below), `Notification` → waiting, `PermissionRequest` → waiting, `SessionEnd` → closed.
+Seven events map straight to a status: `UserPromptSubmit` → busy, `PostToolUse` → busy, `PreCompact` → busy (compaction, below), `Stop` → idle (or background, below), `Notification` → waiting (but for claude's idle notice, below), `PermissionRequest` → waiting, `SessionEnd` → closed.
+
+**Claude's idle notice is idle, not waiting.**
+A minute at its prompt without input (claude's default, which its own config can change), claude sends `Notification` with `notification_type: "idle_prompt"` ("Claude is waiting for your input"), at most once per turn (measured on claude 2.1.289).
+It says the turn is done, which the `Stop` before it already said, and asks nothing, so it is not waiting: it used to turn every idle session's dot to waiting a minute after its turn, which made waiting say nothing that idle did not (decided 2026-10-28).
+The script writes nothing for it over idle, background or waiting, so a read mark and the work a `Stop` listed stay, and a question still open keeps saying so; over any other status, such as a busy no hook ended, or with no status file, it writes idle, since claude is at its prompt.
+Every other notification still writes waiting: a permission prompt and a question, and whatever else claude sends as one; claude's binary names more kinds, such as `auth_success` and `agent_completed`, which ask nothing, but which of them reach the hook is unmeasured.
+The last `Stop`'s payload, which the app reads for what still runs and what is scheduled, stays as that `Stop` left it.
 
 **A permission prompt is waiting from the moment claude asks.**
 Claude sends a prompt's `Notification` about six seconds after the prompt appears, and none at all once it is answered sooner, so for a prompt within a turn the dot used to say busy for those six seconds, and throughout a prompt answered quickly.
@@ -750,10 +757,8 @@ Publishing one arms a watch wherever claude allows one (by its source, not in a 
 By claude's source, the watch on the artifact published last is never retired for being idle, and a comment sent to Claude while its auto-replies are armed summons a turn of its own, as a scheduled wakeup starts one.
 A monitor of your own on a websocket is listed as `monitor` too (by claude's source), so the script tells a watch by its description, which claude starts with `live updates for artifact` every time, and takes one monitor off the list for each watch; worded otherwise by a later claude, a watch would count as work again.
 An end the transcript reports (below) hands the script each piece of work's description as well, so a watch the last `Stop` listed is left out there too.
-Claude's idle notice does not end it either.
-A minute at its prompt without input (claude's default, which its own config can change), claude sends `Notification` with `notification_type: "idle_prompt"` ("Claude is waiting for your input"), and it does so while a shell it started still runs; the script writes nothing for that notice over `background`.
-The same notice a minute after the work's own turn has ended is the one that says waiting, as for any finished session (both measured on claude 2.1.289, with a background shell).
-Every other notification, a permission prompt or a question, still writes waiting over it.
+Claude's idle notice (above) does not end it either: claude sends it while a shell it started still runs, and the script writes nothing for it over `background` (measured on claude 2.1.289, with a background shell).
+Every other notification, such as a permission prompt or a question, still writes waiting over it.
 Its dot is busy's spinning ring around a small core of idle's green: the turn is done, and work goes on.
 
 **A task claude has scheduled shows as a clock beside the session.**

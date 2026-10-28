@@ -103,12 +103,6 @@ expect_ts="$(field claude_ui_expect_ts)"
 if [ "$status" = busy ] && [ -n "$(field agent_id)" ] && grep -qE '"status":"(idle|background)"' "$dir/$sid.json" 2>/dev/null; then
   exit 0
 fi
-# A minute at its prompt without input (its default), claude sends an idle notice even while a shell it started still runs (measured), and by its source a monitor too.
-# It is not waiting for you then: that work's end starts a turn of its own, and the notice a minute after that turn is the one that says waiting.
-# Every other notification, a permission prompt or a question, needs you and goes through.
-if [ "$status" = waiting ] && [ "$(field notification_type)" = idle_prompt ] && grep -q '"status":"background"' "$dir/$sid.json" 2>/dev/null; then
-  exit 0
-fi
 # A permission prompt's own notice comes about six seconds after its PermissionRequest wrote waiting, for the same question.
 # Writing it again would only take a read mark off a dot muted meanwhile.
 if [ "$status" = waiting ] && [ "$(field notification_type)" = permission_prompt ] && grep -q '"event":"PermissionRequest"' "$dir/$sid.json" 2>/dev/null; then
@@ -126,6 +120,13 @@ elif [ "$status" = start ] && [ "$(field source)" != compact ]; then
   # Which session this terminal runs from now, and why, in a file of its own as a model switch is: the status file below keeps a status it already has, so a resume into a session that has one would otherwise reach the app only with its next prompt.
   # Written before that status file, though the app may still hear either first: it reads each file as it changes, and the reads can finish in either order.
   printf '{"tab":"%s","source":"%s"}' "\${CLAUDE_UI_TAB:-}" "$(field source)" > "$dir/$sid.start"
+fi
+# A minute at its prompt without input (its default), claude sends an idle notice, which says the turn is done, not that it asks you anything: that is idle.
+# Nothing over idle or background, which say as much already and keep their read mark and their work list, and nothing over waiting, which a question still open says better.
+# Below the Stop's keeping, so its payload is not kept as a Stop's; every other notification, such as a permission prompt or a question, goes through as waiting.
+if [ "$status" = waiting ] && [ "$(field notification_type)" = idle_prompt ]; then
+  grep -qE '"status":"(idle|background|waiting)"' "$dir/$sid.json" 2>/dev/null && exit 0
+  status=idle
 fi
 # Stop lists the work still running behind the turn it ends, and while any runs the session has not finished: it reports background in idle's place, with the type claude gives each piece of work.
 # Only a "type" key can match, never one inside a string, whose quotes arrive escaped; Stop's own fields have none, so each match is one entry of the list.

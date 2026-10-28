@@ -371,7 +371,7 @@ describe('the hook script', () => {
      * A minute at its prompt without input makes claude send an idle notice, `idle_prompt`, whether or not a shell still runs (measured on claude 2.1.289); by its source the same goes for a monitor, while claude itself holds the notice back for a background subagent.
      * While work runs, claude is not waiting for you: that work's end starts a turn of its own, and the same notice a minute after THAT turn is the real one.
      */
-    it("keeps background through claude's idle notice, and lets the one after the work has ended say waiting", async () => {
+    it("keeps background through claude's idle notice, and idle through the one after the work has ended", async () => {
       runHook('idle', stop({ background_tasks: [task('shell')] }));
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' });
       expect((await readStatusFile())?.status).toBe('background');
@@ -379,7 +379,7 @@ describe('the hook script', () => {
       runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit', prompt: '<task-notification>' });
       runHook('idle', stop({ background_tasks: [] }));
       runHook('waiting', { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' });
-      expect((await readStatusFile())?.status).toBe('waiting');
+      expect((await readStatusFile())?.status).toBe('idle');
     });
 
     // Only the idle notice is held back: a permission prompt, a question, anything else claude notifies, needs you.
@@ -406,6 +406,37 @@ describe('the hook script', () => {
    * What the last Stop left running is kept beside the status, for the reader of the transcript that ends what no hook ends (transcriptends.ts).
    * It is that Stop's own payload, so it survives the busy of the next turn, which is when an interrupt needs it.
    */
+  /** A minute at its prompt without input, claude says "Claude is waiting for your input": the turn is done, which is idle, and nothing asks you anything. */
+  describe("claude's idle notice", () => {
+    const notice = { session_id: SID, hook_event_name: 'Notification', notification_type: 'idle_prompt', message: 'Claude is waiting for your input' };
+
+    it('writes nothing over the idle the Stop wrote, so the Stop stays the event', async () => {
+      runHook('idle', { session_id: SID, hook_event_name: 'Stop' });
+      runHook('waiting', notice);
+      expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'Stop' });
+    });
+
+    it('writes nothing over a waiting, which a question still open says better', async () => {
+      runHook('waiting', { session_id: SID, hook_event_name: 'PermissionRequest', tool_name: 'WebFetch' });
+      runHook('waiting', notice);
+      expect(await readStatusFile()).toMatchObject({ status: 'waiting', event: 'PermissionRequest' });
+    });
+
+    it('says idle where the file says claude is still at work, since claude is at its prompt', async () => {
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+      runHook('waiting', notice);
+      expect(await readStatusFile()).toMatchObject({ status: 'idle', event: 'Notification' });
+    });
+
+    it('keeps the last Stop for what it left running and scheduled', async () => {
+      const stopFile = path.join(statusDir, `${SID}.stop`);
+      runHook('busy', { session_id: SID, hook_event_name: 'UserPromptSubmit' });
+      await fs.writeFile(stopFile, '{"session_crons":[]}');
+      runHook('waiting', notice);
+      expect(await fs.readFile(stopFile, 'utf8')).toBe('{"session_crons":[]}');
+    });
+  });
+
   describe('what the last Stop left running', () => {
     const stopFile = path.join(statusDir, `${SID}.stop`);
     const shell = { id: 'bh9w6pqmt', type: 'shell', status: 'running', description: 'Background sleep command', command: 'sleep 100' };
