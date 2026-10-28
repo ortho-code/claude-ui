@@ -21,6 +21,7 @@ const ROW: Shortcuts = [
   ['note-badge', /^(Add|Edit) note…$/],
   ['sibling-badge', /^Siblings \(\d+\)$/],
   ['pr-badge', /^PRs \(\d+\)$/],
+  ['worktree-badge', /^Worktrees \(\d+\)$/],
 ];
 const ARCHIVED_ROW: Shortcuts = [
   ['unarchive-btn', /^Unarchive$/],
@@ -28,6 +29,7 @@ const ARCHIVED_ROW: Shortcuts = [
   ['note-badge', /^(Add|Edit) note…$/],
   ['sibling-badge', /^Siblings \(\d+\)$/],
   ['pr-badge', /^PRs \(\d+\)$/],
+  ['worktree-badge', /^Worktrees \(\d+\)$/],
 ];
 const TAB: Shortcuts = [['tab-close', TAB_BUTTON], DOT];
 const STRIP: Shortcuts = [['strip-item-jump', /^Open$/], ['strip-item-stop', TAB_BUTTON], DOT];
@@ -45,6 +47,8 @@ const full = session({
   isSibling: true,
   siblingIds: [sibling.id],
   prs: [{ repository: 'ScientaNL/demo', number: 1, url: 'https://github.com/ScientaNL/demo/pull/1' }],
+  // A worktree it changed files in, so its worktree badge lists and is a control.
+  checkouts: [{ root: `${PROJECT}/.claude/worktrees/fix`, at: '2026-10-26T10:00:00.000Z', gone: false, own: false }],
 });
 const fixture = { sessions: [full, sibling], openSessions: [full.id], notes: { [full.id]: 'a note' }, history: { [full.id]: [] } };
 

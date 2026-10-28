@@ -4,7 +4,7 @@ import { setTooltip } from './tooltip';
 
 /**
  * The clock beside a session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own: on its tab, its row in the list and its row in the strip, so the task is known before the session is stopped.
- * Muted for what a tab kept from when its claude went (`clockOf`), as a worktree's mark is muted for a worktree the session has left.
+ * Muted for what a tab kept from when its claude went (`clockOf`), as a worktree mark can be muted.
  * ONE mark for the three, built and written here, so they cannot come to say different things; each surface places it and gives it its look, `className`, as each does its worktree mark.
  * A row's marks are pills, so there the icon sits in the pill's icon box (`pill`), as the row's worktree mark's does.
  */

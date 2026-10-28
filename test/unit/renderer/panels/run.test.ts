@@ -249,7 +249,7 @@ describe('RunGate', () => {
 
 describe('resolveContext', () => {
   it('runs in the active tab’s cwd, so a worktree session’s panel reports the worktree', () => {
-    expect(resolveContext({ tab: { cwd: '/repo/.worktrees/x', repoRoot: '/repo', id: 's1', worktree: 'x' }, project: '/repo' })).toEqual({
+    expect(resolveContext({ tab: { cwd: '/repo/.worktrees/x', repoRoot: '/repo', id: 's1', worktree: 'x', picked: false }, project: '/repo' })).toEqual({
       projectRoot: '/repo',
       cwd: '/repo/.worktrees/x',
       sessionId: 's1',
@@ -262,7 +262,7 @@ describe('resolveContext', () => {
   });
 
   it('prefers the tab over the project even when the tab belongs to another project (the All view)', () => {
-    expect(resolveContext({ tab: { cwd: '/other', repoRoot: '/other', id: 's2', worktree: '' }, project: null })?.cwd).toBe('/other');
+    expect(resolveContext({ tab: { cwd: '/other', repoRoot: '/other', id: 's2', worktree: '', picked: false }, project: null })?.cwd).toBe('/other');
   });
 });
 
@@ -287,40 +287,57 @@ describe('placement', () => {
 
 describe('whereOf', () => {
   /** The view with one tab on show, holding `session`. */
-  const showing = (session: SessionSummary): Parameters<typeof whereOf>[0] => ({ activeProject: '/repo', activeTab: 't', tabs: [{ token: 't', session } as TabState] });
+  const showing = (session: SessionSummary, picked = ''): Parameters<typeof whereOf>[0] => ({ activeProject: '/repo', activeTab: 't', tabs: [{ token: 't', session } as TabState], picks: new Map(picked ? [[session.id, picked]] : []) });
+  const listing = (...roots: string[]): Pick<SessionSummary, 'checkouts'> => ({ checkouts: roots.map((root) => ({ root, at: '2026-10-26T10:00:00.000Z', gone: false, own: false })) });
   const at = (over: Partial<SessionSummary>): SessionSummary => newSession('s1', { cwd: '/repo', repoRoot: '/repo', ...over });
 
   it('puts the panels where the session works, naming the worktree by its folder', () => {
-    expect(whereOf(showing(at({ workCwd: '/repo/.claude/worktrees/fix' }))).tab).toEqual({ cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix' });
+    expect(whereOf(showing(at({ workCwd: '/repo/.claude/worktrees/fix' }))).tab).toEqual({ cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix', picked: false });
   });
 
   it('names no worktree when a session in one works in the main checkout', () => {
-    expect(whereOf(showing(at({ cwd: '/repo/.claude/worktrees/fix', worktree: 'fix', workCwd: '/repo' }))).tab).toEqual({ cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '' });
+    expect(whereOf(showing(at({ cwd: '/repo/.claude/worktrees/fix', worktree: 'fix', workCwd: '/repo' }))).tab).toEqual({ cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '', picked: false });
   });
 
   it('puts the panels where the session runs while it works there, naming its worktree as the session does', () => {
-    expect(whereOf(showing(at({ cwd: '/repo/.claude/worktrees/fix', worktree: 'fix' }))).tab).toEqual({ cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix' });
-    expect(whereOf(showing(at({}))).tab).toEqual({ cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '' });
+    expect(whereOf(showing(at({ cwd: '/repo/.claude/worktrees/fix', worktree: 'fix' }))).tab).toEqual({ cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix', picked: false });
+    expect(whereOf(showing(at({}))).tab).toEqual({ cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '', picked: false });
+  });
+
+  it('puts the panels in the checkout picked for the session, wherever it works, naming it and saying it was picked', () => {
+    const working = at({ workCwd: '/repo/.claude/worktrees/fix', ...listing('/repo/.claude/worktrees/fix', '/repo/.claude/worktrees/other') });
+    expect(whereOf(showing(working, '/repo/.claude/worktrees/other')).tab).toEqual({ cwd: '/repo/.claude/worktrees/other', repoRoot: '/repo', id: 's1', worktree: 'other', picked: true });
+    expect(whereOf(showing(at({ cwd: '/repo/.claude/worktrees/fix', worktree: 'fix', ...listing('/repo', '/repo/.claude/worktrees/fix') }), '/repo')).tab).toEqual({ cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '', picked: true });
+  });
+
+  it('follows the session while the checkout picked is gone or no longer in its list', () => {
+    const gone = at({ workCwd: '/repo/.claude/worktrees/fix', checkouts: [{ root: '/repo/.claude/worktrees/other', at: '2026-10-26T10:00:00.000Z', gone: true, own: false }] });
+    expect(whereOf(showing(gone, '/repo/.claude/worktrees/other')).tab).toEqual({ cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix', picked: false });
+    expect(whereOf(showing(at({ workCwd: '/repo/.claude/worktrees/fix' }), '/repo/.claude/worktrees/other')).tab).toEqual({ cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix', picked: false });
   });
 });
 
 describe('folderOf', () => {
-  const inWorktree = { tab: { cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix' }, project: '/repo' };
-  const inMain = { tab: { cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '' }, project: '/repo' };
+  const inWorktree = { tab: { cwd: '/repo/.claude/worktrees/fix', repoRoot: '/repo', id: 's1', worktree: 'fix', picked: false }, project: '/repo' };
+  const inMain = { tab: { cwd: '/repo', repoRoot: '/repo', id: 's1', worktree: '', picked: false }, project: '/repo' };
   const context = { projectRoot: '/repo', cwd: '/repo/.claude/worktrees/fix', sessionId: 's1' };
 
   it('names the worktree the tab puts the panel in, with the whole path its run goes to', () => {
-    expect(folderOf({ kind: 'context' }, inWorktree, context, '/repo/.claude/worktrees/fix')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix' });
+    expect(folderOf({ kind: 'context' }, inWorktree, context, '/repo/.claude/worktrees/fix')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix', picked: false });
+  });
+
+  it('says the checkout was picked for the session on show', () => {
+    expect(folderOf({ kind: 'context' }, { ...inWorktree, tab: { ...inWorktree.tab, picked: true } }, context, '/repo/.claude/worktrees/fix')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix', picked: true });
   });
 
   it('names the main checkout by the project’s folder, with a tab in it and with only the project chosen', () => {
-    const main = { name: 'repo', worktree: false, path: '/repo' };
+    const main = { name: 'repo', worktree: false, path: '/repo', picked: false };
     expect(folderOf({ kind: 'context' }, inMain, { ...context, cwd: '/repo' }, '/repo')).toEqual(main);
     expect(folderOf({ kind: 'context' }, { tab: null, project: '/repo' }, { projectRoot: '/repo', cwd: '/repo', sessionId: '' }, '/repo')).toEqual(main);
   });
 
   it('names the checkout for a relative cwd, with the subfolder in the path, and nothing for a fixed one', () => {
-    expect(folderOf({ kind: 'under', value: 'packages/api' }, inWorktree, context, '/repo/.claude/worktrees/fix/packages/api')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix/packages/api' });
+    expect(folderOf({ kind: 'under', value: 'packages/api' }, inWorktree, context, '/repo/.claude/worktrees/fix/packages/api')).toEqual({ name: 'fix', worktree: true, path: '/repo/.claude/worktrees/fix/packages/api', picked: false });
     expect(folderOf({ kind: 'fixed', value: '/srv/app' }, inWorktree, context, '/srv/app')).toBeNull();
   });
 });

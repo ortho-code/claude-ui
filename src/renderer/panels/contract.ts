@@ -38,15 +38,17 @@ export interface PanelTypeDecl {
  * A tab's `worktree` names the linked worktree its `cwd` is in, '' for the main checkout.
  */
 export interface Where {
-  tab: { cwd: string; repoRoot: string; id: string; worktree: string } | null;
+  /** The tab on show: where its panels look, the checkout's worktree by name or '' for the main one, and whether that checkout was picked for its session rather than followed. */
+  tab: { cwd: string; repoRoot: string; id: string; worktree: string; picked: boolean } | null;
   project: string | null;
 }
 
-/** The folder a panel looks in, as its header names it: the checkout's name, whether that is a linked worktree, and the whole path its run goes to. */
+/** The folder a panel looks in, as its header names it: the checkout's name, whether that is a linked worktree, the whole path its run goes to, and whether it was picked for the session on show. */
 export interface PanelFolder {
   name: string;
   worktree: boolean;
   path: string;
+  picked: boolean;
 }
 
 /**

@@ -368,14 +368,16 @@ button:where(:not(.icon-btn)):hover,
   box-shadow: 0 0 0 2px var(--dot-ring);
 }
 
-/* A worktree mark — the session row's badge and the tab's — for a session that ran in a worktree and has since left it.
-   Muted rather than dimmed, since nothing about the session is unavailable; two classes' weight, so it beats each surface's own accent rule wherever either stylesheet lands. */
+/* A worktree mark — the session row's badge and the tab's — for a session that neither runs in a worktree nor works in one, though it ran in one or changed files in one (`worktreeMarkState`).
+   Muted rather than dimmed, since nothing about the session is unavailable; two classes' weight, so it beats each surface's own accent rule wherever either stylesheet lands.
+   Its ink too, which a row's mark that lists fills with under the pointer (rows.css), so it fills muted rather than in the accent. */
 .worktree-mark.muted {
+  --badge-ink: var(--muted);
   color: var(--muted);
   border-color: var(--muted);
 }
 
-/* The clock of a tab whose claude has gone, for what was scheduled when it went (scheduledmark.ts) — the session row's pill, the tab's and the strip row's — muted as the worktree mark is for a worktree left, by the same weight. */
+/* The clock of a tab whose claude has gone, for what was scheduled when it went (scheduledmark.ts) — the session row's pill, the tab's and the strip row's — muted as the worktree mark is, by the same weight. */
 .scheduled-mark.stopped {
   color: var(--muted);
   border-color: var(--muted);

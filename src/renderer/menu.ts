@@ -116,6 +116,8 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
     if (item.disabled) {
       // Nothing is wired below: it takes no click and opens no submenu, and it carries the reason as its tooltip.
       setUnavailable(button, item.disabled);
+      // In a pick-one list it keeps its tick's column, so it lines up with the rest.
+      if (item.checked !== undefined) button.prepend(tickColumn(item.checked));
       menu.append(button);
       continue;
     }

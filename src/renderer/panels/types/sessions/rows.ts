@@ -16,7 +16,7 @@ import { showToast } from '../../../toast';
 import { TONES } from '../../../tone';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
-import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
+import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, toggleArchiveFor, togglePinFor } from './actions';
 import { activityMoment, archivedMoment } from './describe';
 import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
 import '../../../tone.css';
@@ -42,6 +42,7 @@ interface RowEls {
   dot: HTMLElement;
   title: HTMLElement;
   badge: HTMLElement;
+  worktreeCount: HTMLElement;
   clock: HTMLElement;
   notLeft: HTMLElement;
   siblingsBadge: HTMLElement;
@@ -63,6 +64,7 @@ const rowEls = new WeakMap<HTMLElement, RowEls>();
 /**
  * A mark on a row that counts what a session has and lists it on a click: an icon, a count, and a menu that `open` puts up against the mark.
  * Hidden until the row says otherwise; `className` names which mark it is.
+ * `menu-badge` on it is what makes it a control, its pointer and its hover (rows.css), so a mark that has nothing to list for a while, as the worktree mark of a session that worked in one worktree, takes it off, and a press on it is then the row's.
  */
 function menuBadge(className: string, icon: string, open: (anchor: HTMLElement) => void): { badge: HTMLElement; count: HTMLElement } {
   const badge = document.createElement('span');
@@ -75,6 +77,7 @@ function menuBadge(className: string, icon: string, open: (anchor: HTMLElement) 
   count.className = 'badge-text';
   badge.append(iconEl, count);
   badge.addEventListener('click', (event) => {
+    if (!badge.classList.contains('menu-badge')) return;
     // The row's own click opens the session; a press on the mark is the mark's.
     event.stopPropagation();
     open(badge);
@@ -91,15 +94,13 @@ function createSessionRow(key: string): HTMLElement {
   const dot = document.createElement('span');
   // Click the dot to toggle "read": mute a done/waiting session without opening or replying to it.
   ackOnClick(dot, () => currentByKey.get(key)?.id ?? null);
-  const badge = document.createElement('span');
-  badge.className = 'worktree-badge worktree-mark';
-  badge.hidden = true;
-  // Icon only — the word "worktree" cost a badge-width of room and the branch icon plus its tooltip already say it.
+  // The worktree mark: the branch icon, and a count of the checkouts the session worked in, which opens a list of them, while it has one (set in updateRow).
+  // No word — "worktree" cost a badge-width of room and the branch icon plus its tooltip already say it.
   // Being wordless, the pill carries its own aria-label (set in updateRow).
-  const wtIcon = document.createElement('span');
-  wtIcon.className = 'badge-icon';
-  wtIcon.innerHTML = WORKTREE_ICON;
-  badge.append(wtIcon);
+  const { badge, count: worktreeCount } = menuBadge('worktree-badge worktree-mark', WORKTREE_ICON, (anchor) => {
+    const session = currentByKey.get(key);
+    if (session) openWorktreesMenu(anchor, session);
+  });
   // A family member's mark: the fork icon plus a count of its siblings, which opens a list of them to jump into.
   // Shown only when session.isSibling (set in updateRow).
   const { badge: siblingsBadge, count: siblingCount } = menuBadge('sibling-badge', SIBLING_ICON, (anchor) => {
@@ -191,7 +192,7 @@ function createSessionRow(key: string): HTMLElement {
 
   item.prepend(dot);
   item.append(pin, unarchiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, clock, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, worktreeCount, clock, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', () => {
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (store.get().filter.filters.archived) return;
@@ -253,9 +254,14 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   const worktree = worktreeMarkState(session);
   els.badge.hidden = worktree === null;
   els.badge.classList.toggle('muted', worktree?.muted === true);
+  // A control only while it has a list (`menuBadge`).
+  els.badge.classList.toggle('menu-badge', (worktree?.count ?? 0) > 0);
+  els.worktreeCount.hidden = (worktree?.count ?? 0) === 0;
+  els.worktreeCount.textContent = worktree?.count ? String(worktree.count) : '';
   if (worktree) {
-    setTooltip(els.badge, worktree.tooltip);
-    els.badge.setAttribute('aria-label', worktree.tooltip);
+    const tooltip = worktree.count > 0 ? `${worktree.tooltip} — click to list them` : worktree.tooltip;
+    setTooltip(els.badge, tooltip);
+    els.badge.setAttribute('aria-label', tooltip);
   }
 
   showTabMarks(els, session.id, view);

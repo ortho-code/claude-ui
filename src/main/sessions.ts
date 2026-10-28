@@ -7,7 +7,7 @@ import { createReadStream } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { prReference } from '../shared/prs';
-import type { SessionPr, SessionSummary } from '../shared/types';
+import type { SessionCheckout, SessionPr, SessionSummary } from '../shared/types';
 import { errorText, fsFailure, log, logOnce } from './log';
 import { formatDuration } from './stamp';
 import { promptOf } from './transcript';
@@ -80,6 +80,10 @@ interface Summarized {
   checkouts: ChangedCheckout[];
   /** The root of the checkout it works in when that is not the one `cwd` is in, '' otherwise; whether it is still there is asked per listing. */
   work: string;
+  /** The root of the worktree its mark names, where it runs or that it left, when `checkouts` has others to list it with; '' otherwise. */
+  own: string;
+  /** The checkout a list of it alone says nothing about: the worktree its mark names, or for a session without one the checkout it runs in; '' when `checkouts` is empty. */
+  alone: string;
 }
 
 /** What one listing asks git once, however many transcripts it re-reads: each repo's checkouts. */
@@ -121,7 +125,9 @@ async function summarizeCached(file: string, pass: ListingPass): Promise<Summari
     // Named the way the worktree it is in is named, so the two badges agree; once the tree is removed only the `.claude/worktrees/<name>` fallback still names it.
     if (!repo.worktree && leftWorktreePath) summary.leftWorktree = (await resolveRepo(leftWorktreePath)).worktree;
     summary.movedOutOfWorktree = summary.leftWorktree !== '' && movedOut;
-    summarized = { summary, ...(repo.isRepo ? await workOf(read, repo.repoRoot, pass) : { checkouts: [], work: '' }) };
+    // The folder of the worktree its mark names, by the path it was entered at for one it left.
+    const marked = summary.worktree ? summary.cwd : summary.leftWorktree ? leftWorktreePath : '';
+    summarized = { summary, ...(repo.isRepo ? await workOf(read, repo.repoRoot, marked, pass) : { checkouts: [], work: '', own: '', alone: '' }) };
   }
   summaryCache.set(file, { key, summarized });
   return summarized;
@@ -170,15 +176,16 @@ export async function listSessions(): Promise<SessionSummary[]> {
 
   // DOES THE FOLDER STILL EXIST, asked fresh on every listing rather than cached beside the summary: a folder can be removed or put back without the transcript changing, and a stale yes is what let a session start somewhere nobody chose.
   // One stat per distinct path, not per session — hundreds of sessions share a handful of directories.
-  const dirs = new Set(listed.flatMap(({ summary: s, work }) => [s.cwd, s.repoRoot, ...(work ? [work] : [])]));
+  const dirs = new Set(listed.flatMap(({ summary: s, work, checkouts, own }) => [s.cwd, s.repoRoot, ...(work ? [work] : []), ...checkouts.map(({ root }) => root), ...(own ? [own] : [])]));
   const exists = new Map(
     await Promise.all([...dirs].map(async (dir) => [dir, await isDirectory(dir)] as const)),
   );
-  for (const { summary: s, work } of listed) {
+  for (const { summary: s, work, ...worked } of listed) {
     s.cwdExists = exists.get(s.cwd) ?? false;
     s.repoRootExists = exists.get(s.repoRoot) ?? false;
     // A checkout removed since leaves the session where it runs, not in an older checkout.
     s.workCwd = work && exists.get(work) ? work : '';
+    s.checkouts = listedCheckouts(worked, exists);
   }
 
   // Sibling grouping: sessions sharing a conversationId are one family.
@@ -494,6 +501,8 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
     movedOutOfWorktree: false,
     // Set per listing, from the checkout chosen with the summary, while that checkout's folder is there.
     workCwd: '',
+    // Set per listing too, from the checkouts read with the summary and whether each folder is there.
+    checkouts: [],
     isRepo: false,
     title: title.slice(0, 200),
     firstMessage: firstMessage.slice(0, 200),
@@ -537,9 +546,10 @@ interface ChangedCheckout {
  * That is the checkout of its newest change, a file git ignores or outside the repo's checkouts passed over, so a session working in a worktree by path or by a Bash `cd` takes its panels there, and back once claude changes a file git does not ignore in the main checkout.
  * Not when it entered or left a worktree after that change, which puts it where `cwd` already says; and not when that change is in a worktree that is gone (`changedCheckouts` says which it can tell), where it falls back to `cwd` rather than to an older checkout, which would be a guess.
  * Nothing when git cannot answer, rather than an answer made without it.
+ * `marked` is the folder of the worktree the session's mark names, '' for none, whose root goes with the checkouts for the mark to list them with.
  */
-async function workOf(read: SummaryRead, repoRoot: string, pass: ListingPass): Promise<Omit<Summarized, 'summary'>> {
-  const none = { checkouts: [], work: '' };
+async function workOf(read: SummaryRead, repoRoot: string, marked: string, pass: ListingPass): Promise<Omit<Summarized, 'summary'>> {
+  const none = { checkouts: [], work: '', own: '', alone: '' };
   if (read.changes.length === 0) return none;
   const listed = pass.get(repoRoot) ?? checkoutsOf(repoRoot);
   pass.set(repoRoot, listed);
@@ -547,14 +557,35 @@ async function workOf(read: SummaryRead, repoRoot: string, pass: ListingPass): P
   if (!roots) return none;
   // Most sessions change files only in the checkout they run in, or outside the repo, and work where they run whatever git ignores: their paths say so, and git is not asked which files it ignores.
   // Only a path through a link into a checkout, or from one checkout into another, would make the paths say otherwise than their real folders do.
-  const own = rootOf(read.summary.cwd, roots);
+  // Not a session that left a worktree: the checkout it runs in now is one besides the worktree its mark names, listed with it when git shows a change there.
+  const runsIn = rootOf(read.summary.cwd, roots);
   const main = roots[0]!;
-  if (!read.changes.some(({ file }) => goneWorktree(file, main, roots) || ![own, ''].includes(rootOf(file, roots)))) return none;
+  if (!read.summary.leftWorktree && !read.changes.some(({ file }) => goneWorktree(file, main, roots) || ![runsIn, ''].includes(rootOf(file, roots)))) return none;
   const checkouts = await changedCheckouts(read.changes, roots);
   if (!checkouts) return none;
+  const own = marked ? await checkoutOf(marked, roots) : '';
+  const here = rootOf(await realFolder(read.summary.cwd), roots);
+  // The answer the shortcut above gives, for a session whose paths reached another checkout but whose changes there git ignores.
+  const alone = own || here;
   const newest = checkouts[0];
-  if (!newest || newest.gone || newest.position < read.movedAt) return { checkouts, work: '' };
-  return { checkouts, work: rootOf(await realFolder(read.summary.cwd), roots) === newest.root ? '' : newest.root };
+  if (!newest || newest.gone || newest.position < read.movedAt) return { checkouts, work: '', own, alone };
+  return { checkouts, work: here === newest.root ? '' : newest.root, own, alone };
+}
+
+/** The root of the checkout a folder is in, through its real path: a gone worktree's by claude's layout, else the longest listed root holding it; '' for none. */
+async function checkoutOf(dir: string, roots: string[]): Promise<string> {
+  const real = await realFolder(dir);
+  return goneWorktree(real, roots[0]!, roots) || rootOf(real, roots);
+}
+
+/**
+ * The checkouts a session's worktree mark lists (`SessionSummary.checkouts`): those it changed a file in, newest first, and the worktree its mark names, `own`, last when it changed nothing there.
+ * Gone when the reading found it so, or its folder is not there at this listing; none at all when the list would hold only `alone`, which it would say nothing about.
+ */
+function listedCheckouts({ checkouts, own, alone }: Omit<Summarized, 'summary' | 'work'>, exists: ReadonlyMap<string, boolean>): SessionCheckout[] {
+  const listed = checkouts.map(({ root, at, gone }) => ({ root, at, gone: gone || !exists.get(root), own: root === own }));
+  if (own && !listed.some((checkout) => checkout.own)) listed.push({ root: own, at: '', gone: !exists.get(own), own: true });
+  return listed.some(({ root }) => root !== alone) ? listed : [];
 }
 
 /**

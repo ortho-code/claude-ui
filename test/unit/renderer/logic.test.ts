@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { SessionSummary } from '../../../src/shared/types';
+import type { SessionCheckout, SessionSummary } from '../../../src/shared/types';
 import {
   projectFor,
   hasVisibleOutput,
@@ -49,6 +49,7 @@ function session(over: Partial<SessionSummary> = {}): SessionSummary {
     leftWorktree: '',
     movedOutOfWorktree: false,
     workCwd: '',
+    checkouts: [],
     title: 'Title',
     firstMessage: 'first',
     model: '',
@@ -93,16 +94,44 @@ describe('worktreeMarkState', () => {
   });
 
   it('names the worktree a session is in', () => {
-    expect(worktreeMarkState(session({ worktree: 'wt' }))).toEqual({ muted: false, tooltip: 'Linked git worktree: wt' });
+    expect(worktreeMarkState(session({ worktree: 'wt' }))).toEqual({ muted: false, tooltip: 'Linked git worktree: wt', count: 0 });
   });
 
   // The session still did its work there, and the tooltip says which way it left and where a resume runs now.
   it('mutes the mark of a worktree the session was closed in, saying it closed there and where it resumes', () => {
-    expect(worktreeMarkState(session({ cwd: '/repo', leftWorktree: 'wt' }))).toEqual({ muted: true, tooltip: 'Worked in linked git worktree: wt until it closed; resumes in /repo' });
+    expect(worktreeMarkState(session({ cwd: '/repo', leftWorktree: 'wt' }))).toEqual({ muted: true, tooltip: 'Worked in linked git worktree: wt until it closed; resumes in /repo', count: 0 });
   });
 
   it('mutes the mark of a worktree the session moved out of, saying it moved and where it is now', () => {
-    expect(worktreeMarkState(session({ cwd: '/repo', leftWorktree: 'wt', movedOutOfWorktree: true }))).toEqual({ muted: true, tooltip: 'Moved out of linked git worktree: wt; now in /repo' });
+    expect(worktreeMarkState(session({ cwd: '/repo', leftWorktree: 'wt', movedOutOfWorktree: true }))).toEqual({ muted: true, tooltip: 'Moved out of linked git worktree: wt; now in /repo', count: 0 });
+  });
+
+  const checkout = (root: string, own = false): SessionCheckout => ({ root, at: own ? '' : '2026-10-26T10:00:00.000Z', gone: false, own });
+
+  // d90f859a: in the main checkout, its changes in worktrees it reached with a `cd`.
+  it('marks a session that worked in worktrees it did not enter, in the accent while its panels follow it into one', () => {
+    const checkouts = ['b', 'c', 'd'].map((name) => checkout(`/repo/.claude/worktrees/${name}`));
+    expect(worktreeMarkState(session({ checkouts, workCwd: '/repo/.claude/worktrees/b' }))).toEqual({ muted: false, tooltip: 'Its panels follow it into linked git worktree: b; 3 checkouts it worked in', count: 3 });
+    expect(worktreeMarkState(session({ checkouts }))).toEqual({ muted: true, tooltip: '3 checkouts it worked in', count: 3 });
+  });
+
+  // b11ed876: closed in its worktree, and changing files in it by path since.
+  it('keeps the mark of a worktree the session left in the accent while its panels follow it there', () => {
+    expect(worktreeMarkState(session({ cwd: '/repo', leftWorktree: 'wt', workCwd: '/repo/.claude/worktrees/wt' }))).toEqual({
+      muted: false,
+      tooltip: 'Worked in linked git worktree: wt until it closed; resumes in /repo; its panels follow it into linked git worktree: wt',
+      count: 0,
+    });
+  });
+
+  // 49ac1ff5: in a worktree, changing files in another and in the main checkout.
+  it('counts the checkouts of a session in a worktree, its own among them, and names the main checkout when its panels follow it there', () => {
+    const checkouts = [checkout('/repo'), checkout('/repo/.claude/worktrees/b'), checkout('/repo/.claude/worktrees/wt', true)];
+    expect(worktreeMarkState(session({ cwd: '/repo/.claude/worktrees/wt', worktree: 'wt', checkouts, workCwd: '/repo' }))).toEqual({
+      muted: false,
+      tooltip: 'Linked git worktree: wt; its panels follow it into the main checkout; 3 checkouts it worked in',
+      count: 3,
+    });
   });
 });
 
@@ -357,6 +386,7 @@ describe('sessionPasses', () => {
     expect(sessionPasses(session({ worktree: '' }), { ...base, worktreeOnly: true })).toBe(false);
     expect(sessionPasses(session({ worktree: 'wt' }), { ...base, worktreeOnly: true })).toBe(true);
     expect(sessionPasses(session({ leftWorktree: 'wt' }), { ...base, worktreeOnly: true })).toBe(true);
+    expect(sessionPasses(session({ checkouts: [{ root: '/repo/.claude/worktrees/wt', at: '2026-10-26T10:00:00.000Z', gone: false, own: false }] }), { ...base, worktreeOnly: true })).toBe(true);
     expect(sessionPasses(session({ isSibling: false }), { ...base, siblingOnly: true })).toBe(false);
     expect(sessionPasses(session({ isSibling: true, siblingIds: ['p'] }), { ...base, siblingOnly: true })).toBe(true);
     expect(sessionPasses(session({ prs: [] }), { ...base, prsOnly: true })).toBe(false);

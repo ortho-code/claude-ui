@@ -25,6 +25,7 @@ vi.mock('node:os', async (importOriginal) => {
 });
 
 import { findTranscript, listSessions } from '../../../src/main/sessions';
+import type { SessionCheckout } from '../../../src/shared/types';
 
 const projectsDir = path.join(testHome, '.claude', 'projects');
 
@@ -501,9 +502,17 @@ describe('the folder a session works in', () => {
   });
   const enter = (name: string): Record<string, unknown> => ({ type: 'worktree-state', worktreeSession: { originalCwd: repo, worktreePath: worktree(name), worktreeName: name, hookBased: false } });
   const exit = { type: 'worktree-state', worktreeSession: null };
-  const session = (id: string, ...events: unknown[]): Promise<void> =>
-    fs.writeFile(path.join(projectsDir, '-work', `${id}.jsonl`), jsonl({ type: 'user', uuid: `work-u-${id}`, cwd: repo, timestamp: at(), message: { content: 'work' } }, ...events));
+  const sessionIn = (id: string, cwd: string, ...events: unknown[]): Promise<void> =>
+    fs.writeFile(path.join(projectsDir, '-work', `${id}.jsonl`), jsonl({ type: 'user', uuid: `work-u-${id}`, cwd, timestamp: at(), message: { content: 'work' } }, ...events));
+  const session = (id: string, ...events: unknown[]): Promise<void> => sessionIn(id, repo, ...events);
   const workCwd = async (id: string): Promise<string | undefined> => (await listSessions()).find((s) => s.id === id)?.workCwd;
+  const listed = async (id: string): Promise<SessionCheckout[] | undefined> => (await listSessions()).find((s) => s.id === id)?.checkouts;
+  // The time each change below was made, by name, for the lists that carry it.
+  const stamps: Record<string, string> = {};
+  const stamped = (name: string, event: Record<string, unknown>): Record<string, unknown> => {
+    stamps[name] = event.timestamp as string;
+    return event;
+  };
 
   beforeAll(async () => {
     config = mkdtempSync(path.join(os.tmpdir(), 'claude-ui-work-config-'));
@@ -518,7 +527,7 @@ describe('the folder a session works in', () => {
     writeFileSync(path.join(repo, 'src', 'a.txt'), 'a\n');
     git('add', '-A');
     git('commit', '-q', '-m', 'first');
-    for (const name of ['wt-a', 'wt-b', 'wt-c', 'wt-gone']) git('worktree', 'add', '-q', '-b', name, worktree(name));
+    for (const name of ['wt-a', 'wt-b', 'wt-c', 'wt-d', 'wt-gone']) git('worktree', 'add', '-q', '-b', name, worktree(name));
     // Removed by hand, so git still lists it, as prunable.
     rmSync(worktree('wt-gone'), { recursive: true, force: true });
     // A folder git does not know as a worktree, as one left behind looks.
@@ -546,6 +555,15 @@ describe('the folder a session works in', () => {
     await session('work-gone', change(inB, 'Write'), change(path.join(worktree('wt-gone'), 'src', 'a.txt')));
     await session('work-left', change(inB), change(path.join(worktree('wt-left'), 'src', 'a.txt')));
     await session('work-removed', change(path.join(worktree('wt-c'), 'src', 'a.txt')));
+    // The checkouts a session's worktree mark lists.
+    const inMain = path.join(repo, 'src', 'a.txt');
+    await session('list-two', stamped('two-a', change(inA)), stamped('two-b', change(inB)));
+    await sessionIn('list-own', worktree('wt-a'), stamped('own-main', change(inMain)), stamped('own-b', change(inB)));
+    await session('list-left-main', enter('wt-b'), exit, stamped('left-main', change(inMain)));
+    await sessionIn('list-left-folder', worktree('wt-left'), change(path.join(worktree('wt-left'), 'src', 'a.txt')));
+    await session('list-removed', change(path.join(worktree('wt-d'), 'src', 'a.txt')), change(inA));
+    // Its paths reach a worktree, so it is not passed over before git is asked, but git ignores the file it changed there.
+    await session('list-ignored-elsewhere', change(inMain), change(path.join(worktree('wt-a'), 'ignored.txt')));
     // A session in a worktree of a repository deleted since, which claude's `.claude/worktrees/` layout still files under that repository.
     const gone = `${repo}-deleted`;
     await fs.writeFile(
@@ -603,6 +621,42 @@ describe('the folder a session works in', () => {
     expect(await workCwd('work-removed')).toBe(worktree('wt-c'));
     rmSync(worktree('wt-c'), { recursive: true, force: true });
     expect(await workCwd('work-removed')).toBe('');
+  });
+
+  it('lists every checkout a session changed a file in, newest first, each at its newest change there', async () => {
+    expect(await listed('list-two')).toEqual([
+      { root: worktree('wt-b'), at: stamps['two-b'], gone: false, own: false },
+      { root: worktree('wt-a'), at: stamps['two-a'], gone: false, own: false },
+    ]);
+  });
+
+  it('lists the worktree its badge names, where it runs or that it left, and the main checkout only for a change git shows', async () => {
+    expect(await listed('list-own')).toEqual([
+      { root: worktree('wt-b'), at: stamps['own-b'], gone: false, own: false },
+      { root: repo, at: stamps['own-main'], gone: false, own: false },
+      { root: worktree('wt-a'), at: '', gone: false, own: true },
+    ]);
+    expect(await listed('list-left-main')).toEqual([
+      { root: repo, at: stamps['left-main'], gone: false, own: false },
+      { root: worktree('wt-b'), at: '', gone: false, own: true },
+    ]);
+    expect((await listed('work-tracked'))?.map(({ root, own }) => [root, own])).toEqual([[repo, false], [worktree('wt-a'), true]]);
+    expect(await listed('work-ignored')).toEqual([]);
+  });
+
+  it('lists nothing when there is nothing besides the worktree its badge names, or without a badge the checkout it runs in', async () => {
+    expect(await listed('work-week')).toEqual([]);
+    expect(await listed('list-left-folder')).toEqual([]);
+    expect(await listed('work-own')).toEqual([]);
+    expect(await listed('work-none')).toEqual([]);
+    expect(await listed('list-ignored-elsewhere')).toEqual([]);
+  });
+
+  it('says a checkout removed since the transcript was read is gone, at the next listing', async () => {
+    const roots = async (): Promise<[string, boolean][] | undefined> => (await listed('list-removed'))?.map(({ root, gone }) => [root, gone]);
+    expect(await roots()).toEqual([[worktree('wt-a'), false], [worktree('wt-d'), false]]);
+    rmSync(worktree('wt-d'), { recursive: true, force: true });
+    expect(await roots()).toEqual([[worktree('wt-a'), false], [worktree('wt-d'), true]]);
   });
 });
 

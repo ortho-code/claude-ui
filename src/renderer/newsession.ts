@@ -18,6 +18,7 @@ export function newSession(id: string, over: Partial<SessionSummary> & Pick<Sess
     leftWorktree: '',
     movedOutOfWorktree: false,
     workCwd: '',
+    checkouts: [],
     title: '',
     firstMessage: '',
     model: '',

@@ -91,6 +91,7 @@ export function session(overrides: Partial<SessionSummary> = {}): SessionSummary
     leftWorktree: '',
     movedOutOfWorktree: false,
     workCwd: '',
+    checkouts: [],
     title: 'A session',
     firstMessage: 'Hello',
     model: 'claude-opus-5-5',

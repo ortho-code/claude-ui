@@ -42,6 +42,12 @@ export interface SessionSummary {
    * The checkout is chosen when the transcript is read, and whether its folder is still there is asked per listing, since a checkout can be removed without the transcript changing.
    */
   workCwd: string;
+  /**
+   * The checkouts of its repo the session worked in, as its worktree mark lists them: each it changed a file in, a file git ignores passed over, newest change first, and the worktree its mark names, where it runs or that it left, which has no time when the session changed nothing there.
+   * Empty when that would be only the worktree the mark names, or for a session without a mark only the checkout it runs in, or nothing, so a list is something the mark does not already say.
+   * Only a change counts, as for `workCwd`: a worktree a Bash `cd` only looked into is not listed.
+   */
+  checkouts: SessionCheckout[];
   /** The name Claude gave the session, its custom title or else its generated one, empty when it has none. */
   title: string;
   /**
@@ -85,6 +91,18 @@ export interface SessionSummary {
    * Separate from `cwdExists` on purpose: a removed worktree leaves its repo perfectly fine, and a removed repo takes its worktrees with it.
    */
   repoRootExists: boolean;
+}
+
+/** A checkout a session worked in, as its worktree mark lists it (`SessionSummary.checkouts`). */
+export interface SessionCheckout {
+  /** The checkout's root, the main one's or a linked worktree's. */
+  root: string;
+  /** When the session last changed a file there, as its record says; empty for the mark's own worktree when it changed nothing there. */
+  at: string;
+  /** Its folder is not there, or it is a folder under `<repo>/.claude/worktrees/` git no longer lists. */
+  gone: boolean;
+  /** The worktree the session's mark names: the one it runs in, or the one it left. */
+  own: boolean;
 }
 
 /** A pull request a session's transcript links. */

@@ -9,7 +9,7 @@ import { badgeClass } from '../statusdot';
 import '../card.css';
 import '../badge.css';
 import './tree.css';
-import { WORKTREE_ICON, strokeIcon, type Direction } from '../svg';
+import { PINNED_BADGE_ICON, WORKTREE_ICON, strokeIcon, type Direction } from '../svg';
 import { setTooltip } from '../tooltip';
 import { iconSvg } from './icons';
 import { optionsOf } from './options';
@@ -604,12 +604,14 @@ function mountedFor(slot: PanelSlot): Mounted {
   const count = element('span', 'panel-count');
   const railCount = element('span', 'rail-count');
   count.hidden = railCount.hidden = true;
-  // The folder it looks in: the worktree mark and the checkout's name, in the badge a session row wears.
+  // The folder it looks in: the worktree mark and the checkout's name, in the badge a session row wears, and the star of a pin while that checkout was picked for the session rather than followed.
   const folder = element('span', 'panel-folder');
   const folderIcon = element('span', 'badge-icon');
   folderIcon.innerHTML = WORKTREE_ICON;
   const folderName = element('span', 'badge-text');
-  folder.append(folderIcon, folderName);
+  const folderPicked = element('span', 'badge-icon panel-folder-picked');
+  folderPicked.innerHTML = PINNED_BADGE_ICON;
+  folder.append(folderIcon, folderName, folderPicked);
   folder.hidden = true;
   // The switch between the panel's views, drawn again only when what it would say changes, so a press on one of its buttons survives a run that offers the same views.
   const views = element('span', 'panel-views');
@@ -701,7 +703,8 @@ function mountedFor(slot: PanelSlot): Mounted {
       folder.classList.toggle('main', !named.worktree);
       folderIcon.hidden = !named.worktree;
       folderName.textContent = named.name;
-      setTooltip(folder, named.path);
+      folderPicked.hidden = !named.picked;
+      setTooltip(folder, named.picked ? `${named.path}\nPicked from the session's worktree list; Follow the session there lets go` : named.path);
     },
     // The session links are remembered under the panel's own entry key.
     startSession: (request) => void startSession(slot.key, request, host.asks),

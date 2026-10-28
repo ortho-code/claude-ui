@@ -2,6 +2,7 @@ import type { PanelContext, PanelRunEvent } from '../../shared/panels';
 import { PANEL_CONTROL_VARIABLE, PANEL_TIMEOUT_MS } from '../../shared/panels';
 import { folderName, worktreeAt } from '../logic';
 import type { View } from '../state/app';
+import { pickedFor } from '../state/picks';
 import { tabOnShow } from '../state/views';
 import type { PanelFolder, Where } from './contract';
 import { INTERVAL_OPTION, checkOptions, durationLabel, isFixedPath, parseDuration, watchesGit, type OptionsDecl } from './options';
@@ -14,19 +15,22 @@ import { INTERVAL_OPTION, checkOptions, durationLabel, isFixedPath, parseDuratio
 export const NO_CONTEXT = 'Pick a project to run this in.';
 
 /** The slices the panels' context is read from, named once: `whereOf` can read only these, and the tree is told of a change to any of them. */
-export const WHERE_SLICES = ['activeProject', 'activeTab', 'tabs'] as const;
+export const WHERE_SLICES = ['activeProject', 'activeTab', 'tabs', 'picks'] as const;
 
 /**
  * Where the panels are: the tab on show's session, or without one the project chosen.
  * The session is read from the tab itself, since a `/clear` or a move into another folder changes it under the same tab, which is why the tabs are among the slices.
  * Its folder is where it works, the checkout it last changed a file in (`workCwd`), which is its own folder unless that is another; only the panels follow it there, and a resume still runs where the session does.
+ * A checkout picked for the session from its worktree list wins over that, while its list holds it and it is not gone (`pickedFor`).
  * That checkout is the main one or a worktree, named as main names a worktree, by its folder.
  */
 export function whereOf(view: View<(typeof WHERE_SLICES)[number]>): Where {
   const tab = tabOnShow(view);
   if (!tab) return { tab: null, project: view.activeProject };
   const { workCwd, cwd, repoRoot, id, worktree } = tab.session;
-  return { tab: { cwd: workCwd || cwd, repoRoot, id, worktree: workCwd ? worktreeAt(workCwd, repoRoot) : worktree }, project: view.activeProject };
+  const picked = pickedFor(tab.session, view);
+  const looks = picked || workCwd;
+  return { tab: { cwd: looks || cwd, repoRoot, id, worktree: looks ? worktreeAt(looks, repoRoot) : worktree, picked: picked !== '' }, project: view.activeProject };
 }
 
 /**
@@ -94,7 +98,7 @@ export interface Prepared {
 export function folderOf(place: Placement, where: Where, context: PanelContext, dir: string): PanelFolder | null {
   if (place.kind === 'fixed') return null;
   const worktree = where.tab?.worktree ?? '';
-  return { name: worktree || folderName(context.projectRoot), worktree: worktree !== '', path: dir };
+  return { name: worktree || folderName(context.projectRoot), worktree: worktree !== '', path: dir, picked: where.tab?.picked ?? false };
 }
 
 /** A watched folder and its git working tree's fingerprint at one moment. */

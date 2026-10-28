@@ -67,6 +67,11 @@ export interface AppState {
   /** The tab on show, by its token, or null for none: the tab bar, the rows, the pane, the history and the panels' context all follow it. */
   activeTab: string | null;
   /**
+   * Session id -> the root of the checkout picked from its worktree list for the panels to look in while it is on show, instead of where it works (`pickedFor`).
+   * The session's rather than its tab's, so a pick is made the same from every surface its list is on, a tab or none; in memory only, so a restart follows every session again.
+   */
+  picks: ReadonlyMap<string, string>;
+  /**
    * Each panel's own data as last read, by entry key: the sessions its rows started (main's `panel-data/`), which a row marks and goes back to.
    * Read the first time a panel asks, and kept current by main's pushes after every write, a forgotten session's included (panels/links.ts).
    */
@@ -289,6 +294,7 @@ export const store = createStore<AppState>(
     activeProject: null,
     tabs: [],
     activeTab: null,
+    picks: new Map(),
     panelData: new Map(),
     filter: noFilter(),
     folds: { projects: new Set(), groups: new Set(), filterProjects: new Set(), filterGroups: new Set() },
@@ -313,6 +319,7 @@ export const store = createStore<AppState>(
     projectNames: sameEntries,
     projectOrder: sameOrder,
     tabs: sameTabs,
+    picks: sameEntries,
     panelData: sameEntries,
     filter: sameData,
     folds: sameFolds,

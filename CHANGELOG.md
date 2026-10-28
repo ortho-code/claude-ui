@@ -90,6 +90,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A clock beside a running session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own, on its tab, its row and its row in the live strip; hovering it names each task, a cron's schedule, and whether it ends with the session or comes back when you open it again.
 - A tab you paused or stopped, or that was still running when the app quit, keeps its clock, muted, for the crons that come back when you open the session, also after a restart, until the session runs again and reports its own; a session that had only `/loop` wakeups keeps none.
 - A stop, pause or close claude has not left three seconds after the ask says "hasn't left" beside the session's name on its tab, its row and its row in the live strip, and, when its tab is not on show, in a toast that stays until claude leaves and names what the session has scheduled; clicking the toast brings the tab on show, where claude may be asking you something.
+- A session's worktree badge counts and lists the checkouts it changed files in, with the worktree it runs in or left, from its row and as Worktrees in its options, when there are others besides that worktree, and a session that changed files in a worktree it reached by path or with a `cd` has the badge too.
+- Picking a checkout from that list points the panels there while that session is on show, with a star beside the folder their header names, until you pick Follow the session in the same list; while the checkout is gone, they follow the session.
 
 ### Changed
 
@@ -129,6 +131,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session with nothing asked in it yet reads `New: <folder>` in the session list and on its tab alike, where one read from disk said "(no prompt yet)" in the list and showed part of its id on its tab.
 - Scrollbars are easier to see: their thumb is lighter, everywhere in the window.
 - The lines under the name at the top of a session's options wrap instead of being cut short, such as why it cannot run and the folder it names.
+- A session's worktree badge is in the accent while claude's newest change is in a worktree, also one the session has left, instead of muted.
 
 ### Fixed
 

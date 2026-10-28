@@ -42,6 +42,8 @@ const AFFECTS_ROW: Record<keyof SessionSummary, boolean> = {
   movedOutOfWorktree: true,
   // Not drawn on the row, but the panels read it from the tab, and a tab hears of a re-read session only when its row would change (`sameTabs`, state/app.ts).
   workCwd: true,
+  // Drawn as the worktree mark's count and list, and a running session changes files in another checkout.
+  checkouts: true,
   title: true,
   firstMessage: true,
   // The row prints it, and switching model mid-session used to leave the old one there until something else moved.
@@ -108,27 +110,41 @@ export function unstartableReason(session: SessionSummary): string | null {
 
 /** What a session's worktree mark says, when it has one. */
 export interface WorktreeMarkState {
-  /** The mark is muted: the session ran in the worktree and has since left it, and a resume runs where the session is now. */
+  /** The session neither runs in a worktree nor works in one (`workCwd`), though it ran in one or changed files in one, so the mark is muted. */
   muted: boolean;
   tooltip: string;
+  /** How many checkouts its list holds (`checkouts`); 0 when it has none, and then the mark lists nothing. */
+  count: number;
 }
 
 /**
  * The worktree mark a session carries, or null when it has none: one rule for the row's badge, the tab's mark and the worktree filter, so the three cannot disagree about which sessions are worktree sessions.
- * A session that left its worktree keeps a mark because it still did its work there, which is what the mark is for.
+ * A session that left its worktree keeps a mark because it still did its work there, which is what the mark is for; so does one that changed files in a worktree it never entered, by path or after a `cd`.
+ * In the accent while the session runs in a worktree or works in one, so a session whose panels follow it into a worktree wears it as a worktree session; one in a worktree whose panels follow it into the main checkout keeps the accent, while their header names the main checkout.
  */
 export function worktreeMarkState(session: SessionSummary): WorktreeMarkState | null {
-  if (session.worktree) return { muted: false, tooltip: `Linked git worktree: ${session.worktree}` };
-  // Muted either way, since a resume runs where the session is now; the words say which way it left, since closing a session in its worktree is the usual way and moving it out is the rare one.
-  if (session.leftWorktree) {
-    return {
-      muted: true,
-      tooltip: session.movedOutOfWorktree
+  const count = session.checkouts.length;
+  if (!session.worktree && !session.leftWorktree && count === 0) return null;
+  const work = workWorktree(session);
+  const says: string[] = [];
+  if (session.worktree) says.push(`Linked git worktree: ${session.worktree}`);
+  // The words say which way it left, since closing a session in its worktree is the usual way and moving it out is the rare one; a resume runs where the session is now either way.
+  else if (session.leftWorktree) {
+    says.push(
+      session.movedOutOfWorktree
         ? `Moved out of linked git worktree: ${session.leftWorktree}; now in ${session.cwd}`
         : `Worked in linked git worktree: ${session.leftWorktree} until it closed; resumes in ${session.cwd}`,
-    };
+    );
   }
-  return null;
+  if (session.workCwd) says.push(`its panels follow it into ${work ? `linked git worktree: ${work}` : 'the main checkout'}`);
+  if (count > 0) says.push(`${count === 1 ? '1 checkout' : `${count} checkouts`} it worked in`);
+  const tooltip = says.join('; ');
+  return { muted: !session.worktree && !work, tooltip: `${tooltip.charAt(0).toUpperCase()}${tooltip.slice(1)}`, count };
+}
+
+/** The linked worktree a session works in (`workCwd`); '' when that is the main checkout, or the folder the session runs in. */
+export function workWorktree(session: Pick<SessionSummary, 'workCwd' | 'repoRoot'>): string {
+  return session.workCwd ? worktreeAt(session.workCwd, session.repoRoot) : '';
 }
 
 /** The linked worktree a checkout's root is, named by its folder as main names a worktree; '' for the main checkout, whose root is the repo's. */

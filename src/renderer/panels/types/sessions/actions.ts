@@ -6,6 +6,7 @@ import { openMenu, type MenuItem } from '../../../menu';
 import { verdictOf } from '../../../prstatus';
 import { store, withMember } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
+import { pickCheckout, pickedFor } from '../../../state/picks';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
 import { isFiltering, isPaused, projName, projectGroups, tabWith, unopenableReason } from '../../../state/views';
 import { showToast } from '../../../toast';
@@ -72,6 +73,25 @@ function prMenuItems(session: SessionSummary): MenuItem[] {
       onSelect: () => window.claudeUi.openExternal(pr.url),
     };
   });
+}
+
+// The checkouts a session worked in (`SessionSummary.checkouts`), as a pick-one list of where the panels look for it, under a line saying so, since nothing else in a session's menu moves the panels: "Follow the session" first, ticked while nothing is picked, then each checkout, newest change first, by its folder's name, as a panel's header names it, and when the session last changed a file there; the worktree its mark names says where the session is instead, where it changed nothing.
+// A pick is the session's (`pickCheckout`), so it is made alike from every surface, a tab or none, and holds while the session is on show; a gone checkout has nothing to look at, so it stays in the list, unavailable and saying why.
+// Shared by the worktree mark and the kebab submenu.
+function worktreeItems(session: SessionSummary): MenuItem[] {
+  const picked = pickedFor(session);
+  const checkouts = session.checkouts.map(({ root, at, gone }): MenuItem => ({
+    label: `${folderName(root)} · ${at ? relativeTime(at) : session.worktree ? 'runs here' : 'left'}`,
+    checked: root === picked,
+    ...(gone ? { disabled: 'Its folder is gone' } : { onSelect: () => pickCheckout(session.id, root) }),
+  }));
+  return [
+    // The first line short, since a menu cuts it when too long for it; the line under it wraps.
+    { label: 'Where the panels look', header: ['A pick holds them there until you follow the session again'] },
+    { label: 'Follow the session', checked: picked === '', onSelect: () => pickCheckout(session.id, '') },
+    { label: '', separator: true },
+    ...checkouts,
+  ];
 }
 
 // --- Group actions ------------------------------------------------------------------------------ Written through main, which hands back the whole state (state/groups.ts).
@@ -207,7 +227,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
     sessionHeader(session, store.get()),
     { label: '', separator: true },
   ];
-  // An archived session's menu holds its siblings, its PRs and its note, as its row's marks in the archived view reach them, its id, and the archived view's two actions; nothing that starts or files it, which that view does not offer.
+  // An archived session's menu holds its siblings, its PRs, its worktrees and its note, as its row's marks in the archived view reach them, its id, and the archived view's two actions; nothing that starts or files it, which that view does not offer.
   if (store.get().archived.has(entityKey(session))) {
     return [
       ...items,
@@ -270,13 +290,14 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   return items;
 }
 
-// A session's siblings and PRs, each a submenu where it has any; the session's menu has them in both views.
+// A session's siblings, PRs and the checkouts it worked in, each a submenu where it has any; the session's menu has them in both views.
 // Here as well as on the row's marks: this list is every kebab's, the tab's and the live strip's too, where the row's marks are not.
 function linkedItems(session: SessionSummary): MenuItem[] {
   const items: MenuItem[] = [];
   const siblings = siblingsOf(session);
   if (siblings.length > 0) items.push({ label: `Siblings (${siblings.length})`, submenu: siblingMenuItems(siblings) });
   if (session.prs.length > 0) items.push({ label: `PRs (${session.prs.length})`, submenu: prMenuItems(session) });
+  if (session.checkouts.length > 0) items.push({ label: `Worktrees (${session.checkouts.length})`, submenu: worktreeItems(session) });
   return items;
 }
 
@@ -323,6 +344,12 @@ export function openSiblingsMenu(anchor: HTMLElement, session: SessionSummary): 
 export function openPrsMenu(anchor: HTMLElement, session: SessionSummary): void {
   if (session.prs.length === 0) return;
   openMenu(anchor, prMenuItems(session));
+}
+
+// List the checkouts a session worked in in the shared popover.
+export function openWorktreesMenu(anchor: HTMLElement, session: SessionSummary): void {
+  if (session.checkouts.length === 0) return;
+  openMenu(anchor, worktreeItems(session));
 }
 
 // A project's ordering moves, among the projects on screen.
