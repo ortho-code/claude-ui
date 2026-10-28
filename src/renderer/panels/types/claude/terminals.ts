@@ -235,7 +235,7 @@ function buildTab(session: SessionSummary, paused = false, scheduledWhenStopped:
   });
 
   store.set({
-    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, closing: false, forceable: false, notLeft: false, paused, scheduledWhenStopped, failure: null, startFailed: false }],
+    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, onExit: 'cool', forceable: false, notLeft: false, paused, scheduledWhenStopped, failure: null, startFailed: false }],
   });
   return token;
 }
@@ -447,7 +447,7 @@ function clearStopTimers(token: string): void {
 }
 
 /**
- * Ask a live tab's claude to leave, and wait for the exit, however long it takes: `closing` says whether the tab goes with it or stays cold.
+ * Ask a live tab's claude to leave, and wait for the exit, however long it takes: `onExit` says whether the tab goes with it or stays cold.
  * Claude can answer an exit with a question — a worktree with changes asks whether to keep it — and the tab has to outlive it for it to be answered, so nothing here ends the session itself.
  * Mid-turn, as the hooks last reported it, claude needs a third Ctrl-C, since the first then only interrupts the turn; any other session gets two, because a third at its prompt would arm claude's own "press again to exit" under its question.
  * Waiting counts as mid-turn, though claude also reports it for a session idle at its prompt, which then gets the third press as well.
@@ -455,11 +455,11 @@ function clearStopTimers(token: string): void {
  * The list is the last Stop's, so it can still name a wakeup cancelled since by an Esc at claude's prompt; the third press then lands on whatever claude asks on its way out, where one press only arms "press again" too (measured at the worktree question).
  * Nothing asks first: claude asks its own question for a cron, and a second one before it was too much (user, 2026-10-24); the clock's tooltip says what becomes of each task (`afterStop`).
  */
-function askToLeave(token: string, terminalId: number, closing: boolean): void {
+function askToLeave(token: string, terminalId: number, onExit: TabState['onExit']): void {
   const tab = tabOf(token);
   if (!tab) return;
   // At once, so the button shows the pause for as long as the exit takes rather than after it — on both buttons, the tab's and the strip's, which follow the same flag.
-  setTab(token, { stopping: true, closing, forceable: false, notLeft: false });
+  setTab(token, { stopping: true, onExit, forceable: false, notLeft: false });
   const { statuses, scheduledTasks } = store.get();
   const status = statuses.get(tab.session.id);
   window.claudeUi.closeTerminal(terminalId, status === 'busy' || status === 'waiting' || scheduledTasks.has(tab.session.id));
@@ -495,7 +495,7 @@ function forceOutAtOnce(token: string): void {
   if (tabOf(token)?.terminalId == null) return;
   clearStopTimers(token);
   // A stop already past its ask, so the force is the one every stop ends in.
-  setTab(token, { stopping: true, closing: false, forceable: true, notLeft: false });
+  setTab(token, { stopping: true, onExit: 'cool', forceable: true, notLeft: false });
   forceStop(token);
 }
 
@@ -513,7 +513,7 @@ export function stopSession(token: string): void {
     if (tab.forceable) forceStop(token);
     return;
   }
-  askToLeave(token, tab.terminalId, false);
+  askToLeave(token, tab.terminalId, 'cool');
 }
 
 /**
@@ -525,7 +525,7 @@ export function stopCalledOff(token: string): void {
   if (!tab?.stopping) return;
   clearStopTimers(token);
   // A pause waiting for claude to leave is called off with it: the session is being worked in.
-  setTab(token, { stopping: false, closing: false, forceable: false, notLeft: false, paused: false });
+  setTab(token, { stopping: false, onExit: 'cool', forceable: false, notLeft: false, paused: false });
   if (tab.paused) persistOpenTabs();
 }
 
@@ -540,7 +540,7 @@ export function pauseTab(token: string): void {
   if (!tab || isPaused(tab) || tab.starting || tab.stopping) return;
   setTab(token, { paused: true });
   persistOpenTabs();
-  if (tab.terminalId !== null) askToLeave(token, tab.terminalId, false);
+  if (tab.terminalId !== null) askToLeave(token, tab.terminalId, 'cool');
   // A cold tab forgets whatever status it still holds, as one that goes cold does (`coolTab`): one restored from a file could say waiting, and a paused session nudges nothing.
   else clearNudge(tab.session.id);
 }
@@ -599,7 +599,7 @@ function coolTab(token: string): void {
   // One change, which also drops it from the live strip now rather than when its SessionEnd lands.
   store.batch(() => {
     // A stopped tab is not a slow one: the loader must not outlive the process.
-    setTab(token, { terminalId: null, stopping: false, closing: false, forceable: false, notLeft: false, booting: false, scheduledWhenStopped });
+    setTab(token, { terminalId: null, stopping: false, onExit: 'cool', forceable: false, notLeft: false, booting: false, scheduledWhenStopped });
     // Stopping what you were looking at drops you to the empty screen rather than leaving a selected tab with nothing behind it; the panels lose their tab too, and fall back to the project.
     if (isOnShow(token)) store.set({ activeTab: null });
   });
@@ -639,10 +639,10 @@ export function closeTab(token: string): void {
   }
   // Already leaving: it goes with the exit rather than staying cold.
   if (tab.stopping) {
-    setTab(token, { closing: true });
+    setTab(token, { onExit: 'close' });
     return;
   }
-  askToLeave(token, tab.terminalId, true);
+  askToLeave(token, tab.terminalId, 'close');
 }
 
 /**
@@ -739,7 +739,7 @@ function onTabExit(token: string, exitCode: number): void {
   // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed — or, for a close, remove it now that claude has gone.
   // Every other exit keeps today's behaviour below.
   if (tab.stopping) {
-    if (tab.closing) removeTab(token);
+    if (tab.onExit === 'close') removeTab(token);
     else coolTab(token);
     return;
   }

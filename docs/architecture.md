@@ -294,7 +294,7 @@ Activating a tab can only ever **resume** it: the tab's own session is all it kn
 The arguments that apply to a session's first start and to nothing afterwards — `--fork-session`, `--name`, `-w` — belong to the call that creates the tab, so that call selects the tab *without* starting it and starts it itself.
 
 Two exits must stay distinguishable.
-A **user stop** sets a `stopping` flag before asking claude to leave, and the exit handler checks it first: that tab is cooled and kept, or removed when the stop was a close (`closing`).
+A **user stop** sets a `stopping` flag before asking claude to leave, and the exit handler checks it first: that tab is cooled and kept, or removed when the stop was a close (`onExit`).
 **Any other exit** closes the tab, which is deliberate — it stops a finished session leaving an empty tab behind.
 
 That separation is what the tab's button is built on: ending a session and removing a tab are different intents, so one press does not decide both.
