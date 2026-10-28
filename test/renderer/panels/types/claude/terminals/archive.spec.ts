@@ -53,7 +53,7 @@ test('a prompt submitted after Archive calls it off: the tab stays live, and cla
   await (await menuItem(page, 'Archive')).click();
   await app.emit('onSessionStatus', one.id, 'busy', launch.tabToken!, 'UserPromptSubmit');
   await expect(button(page)).toHaveAttribute('data-tooltip', 'Stop session');
-  // Said, since a prompt sent just before the press can report after it and call off an archive you meant (user, 2026-10-28).
+  // Said, since a prompt sent just before the press can report after it and call off an archive you meant (decided 2026-10-28).
   await expect(page.locator('#toast-message')).toHaveText(`Archiving "${one.title}" was called off`);
 
   // Claude ending by itself closes the tab, as it does for any running session.
@@ -64,7 +64,7 @@ test('a prompt submitted after Archive calls it off: the tab stays live, and cla
   expect(await app.calls('archive')).toEqual([]);
 });
 
-// A `/resume` fires no prompt's report (measured), and both mean you went on working, as a prompt does: the archive goes, rather than archiving the session the tab went on in (user, 2026-10-28).
+// A `/resume` fires no prompt's report (measured), and both mean you went on working, as a prompt does: the archive goes, rather than archiving the session the tab went on in (decided 2026-10-28).
 // Saying nothing, since you typed it yourself.
 for (const source of ['resume', 'clear'] as const) {
   test(`a ${source} at claude's question on the way out calls an archive off, without a toast, and archives neither session`, async ({ app, page }) => {

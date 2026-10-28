@@ -755,7 +755,7 @@ export interface TabButtonTab {
 }
 
 /**
- * What a tab's claude can be asked to leave for, each one press of its own meaning (user, 2026-10-28): a stop keeps the tab, cold, a close removes it, and an archive removes it and archives its session, each waiting out what claude asks on its way out.
+ * What a tab's claude can be asked to leave for, each one press of its own meaning (decided 2026-10-28): a stop keeps the tab, cold, a close removes it, and an archive removes it and archives its session, each waiting out what claude asks on its way out.
  * A pause is a stop that marks the tab, and is here only for its force: it is pressed from its own item.
  */
 export type LeaveAction = 'stop' | 'close' | 'archive' | 'pause';
@@ -812,7 +812,7 @@ function leaveForce(tab: TabButtonTab, under: LeaveAction): TabButton {
  * A leave item of a tab's menu, by one rule for every surface that draws it: Stop session, Close tab, Archive, or Pause's force.
  *
  * Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving, so there is no claude yet to ask.
- * While claude is on its way out, the item of what was asked is its force (user, 2026-10-28), and the others change what the exit does without asking claude again, since a second pair of presses ends what it asks on its way out unanswered: Stop session turns a close or an archive back into a stop, Close tab and Archive turn a leave into theirs.
+ * While claude is on its way out, the item of what was asked is its force (decided 2026-10-28), and the others change what the exit does without asking claude again, since a second pair of presses ends what it asks on its way out unanswered: Stop session turns a close or an archive back into a stop, Close tab and Archive turn a leave into theirs.
  * A pause under way that nothing has changed is left a pause, as it was before there were three items: Stop session is unavailable then; once a close or an archive has changed it, Stop session makes it a stop.
  * A cold tab has nothing to stop; it closes and archives at once.
  */

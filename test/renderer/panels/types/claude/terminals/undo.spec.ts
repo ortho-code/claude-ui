@@ -4,7 +4,7 @@ import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab, tabLabels } from '../../../../support/window';
 
-// A tab you close and a session you archive, from any control, offer Undo in the toast once the tab has gone, which puts the tab back where it was, cold, and unarchives the session (user, 2026-10-28).
+// A tab you close and a session you archive, from any control, offer Undo in the toast once the tab has gone, which puts the tab back where it was, cold, and unarchives the session (decided 2026-10-28).
 // A tab claude's own exit closed offers nothing: you did not remove it.
 const one = session({ id: '00000000-0000-4000-8000-0000000000d1', title: 'First tab' });
 const two = session({ id: '00000000-0000-4000-8000-0000000000d2', title: 'Second tab' });

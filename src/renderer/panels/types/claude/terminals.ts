@@ -453,7 +453,7 @@ function clearStopTimers(token: string): void {
  * Waiting counts as mid-turn, though claude also reports it for a session idle at its prompt, which then gets the third press as well.
  * So does a session with a task scheduled, as its clock in its own colour shows (a muted one, kept from before its claude started, adds none): a `/loop` wakeup takes the first press to cancel itself, and the same press interrupts a turn, so it is one more either way, never two; a cron makes claude ask what to do with it, where the third only arms "press again to exit" for a moment and the question stays (both measured on claude 2.1.302).
  * The list is the last Stop's, so it can still name a wakeup cancelled since by an Esc at claude's prompt; the third press then lands on whatever claude asks on its way out, where one press only arms "press again" too (measured at the worktree question).
- * Nothing asks first: claude asks its own question for a cron, and a second one before it was too much (user, 2026-10-24); the clock's tooltip says what becomes of each task (`afterStop`).
+ * Nothing asks first: claude asks its own question for a cron, and a second one before it was too much (decided 2026-10-24); the clock's tooltip says what becomes of each task (`afterStop`).
  */
 function askToLeave(token: string, terminalId: number, onExit: TabState['onExit']): void {
   const tab = tabOf(token);
@@ -503,7 +503,7 @@ function forceOutAtOnce(token: string): void {
  * End the session but keep its tab, cold and resumable.
  * The opposite of closeTab, and the deliberate counterpart to claude exiting on its own — which still CLOSES the tab, so a finished session does not leave an empty one behind.
  * `stopping` is what tells those two apart when the exit arrives.
- * A claude already leaving, for a close or an archive, is asked nothing more: its exit keeps the tab instead (user, 2026-10-28), as a close changes a stop.
+ * A claude already leaving, for a close or an archive, is asked nothing more: its exit keeps the tab instead (decided 2026-10-28), as a close changes a stop.
  * A close or an archive that began as a pause becomes a stop too, the mark taken off, as Stop session takes it off a tab that rests paused.
  */
 function stopSession(token: string): void {
@@ -520,7 +520,7 @@ function stopSession(token: string): void {
 
 /**
  * A leave item pressed, from the session's menu, the tab's button or the strip's (`leaveAction`): Stop session, Close tab, Archive, or the force of what claude is leaving for.
- * It acts only while the item would still do the same, and, given the mark it was drawn with, still draws it, since a press can land on an item drawn before the tab moved on — a Force stop pressed once claude has gone would otherwise close the tab (user, 2026-10-21).
+ * It acts only while the item would still do the same, and, given the mark it was drawn with, still draws it, since a press can land on an item drawn before the tab moved on — a Force stop pressed once claude has gone would otherwise close the tab (decided 2026-10-21).
  */
 export function pressLeave(token: string, action: LeaveAction, mark?: TabButtonMark): void {
   const tab = tabOf(token);
@@ -536,7 +536,7 @@ export function pressLeave(token: string, action: LeaveAction, mark?: TabButtonM
 /**
  * A session asked to leave that went on working: a prompt it submitted, or a `/resume` or `/clear` that moved its tab to another session (`adoptReplacement`), so the stop is off and the tab is live again.
  * Claude's exit can be called off — Esc at a worktree's keep-or-remove question takes it back to its prompt — and only what is done next says so; until then the tab goes on saying it is stopping.
- * Whatever the leave was, a stop, a pause, a close or an archive, it goes (user, 2026-10-28: "when you don't finish a stop/pause/close/archive and then do something else, you call it off").
+ * Whatever the leave was, a stop, a pause, a close or an archive, it goes (decided 2026-10-28: a leave left unfinished for something else is one called off).
  * Not once its claude has been forced out (`forced`): that claude is being ended whatever it reports.
  * Answers the tab as it was when its leave was called off, or null when there was none to call off.
  */
@@ -552,7 +552,7 @@ function stopCalledOff(token: string): TabState | null {
 
 /**
  * A prompt a tab's claude submitted: it went on working, so a leave under way is off (`stopCalledOff`).
- * An archive called off by one says so, since a prompt sent just before the press can report after it, and claude then leaves on the presses with the session unarchived (user, 2026-10-28).
+ * An archive called off by one says so, since a prompt sent just before the press can report after it, and claude then leaves on the presses with the session unarchived (decided 2026-10-28).
  * Only a prompt: a `/resume` or `/clear` that calls an archive off is one you typed, and one into a session another tab runs already says that it runs there.
  */
 export function promptSubmitted(token: string): void {
@@ -563,7 +563,7 @@ export function promptSubmitted(token: string): void {
 /**
  * Set a tab aside to come back to (`TabState.paused`): a running tab's claude is asked to leave as a stop asks it, and a cold tab is only marked.
  * NOTHING IS SUSPENDED: the process is ended, not frozen, and opening the tab again resumes the session, reloading its conversation as resuming any cold tab does.
- * A claude already asked to leave, by a pause or a stop, is left to it: asked again, it would take the presses at a question it asks on its way out, and a second pair ends such a question unanswered (measured on claude 2.1.302), so what was asked stands until claude has gone or is forced (user, 2026-10-23).
+ * A claude already asked to leave, by a pause or a stop, is left to it: asked again, it would take the presses at a question it asks on its way out, and a second pair ends such a question unanswered (measured on claude 2.1.302), so what was asked stands until claude has gone or is forced (decided 2026-10-23).
  * A tab whose process is still arriving is left alone, since there is nothing there yet to ask to leave; its Pause item is unavailable then.
  */
 export function pauseTab(token: string): void {
@@ -683,7 +683,7 @@ function putBack(removed: readonly RemovedTab[]): void {
   persistOpenTabs();
 }
 
-/** The toast a close you pressed raises once its tab has gone, with Undo putting the tabs it removed back where they were (user, 2026-10-28). */
+/** The toast a close you pressed raises once its tab has gone, with Undo putting the tabs it removed back where they were (decided 2026-10-28). */
 function offerUndoClose(removed: readonly RemovedTab[]): void {
   showToast(`Closed "${sessionLabel(removed[removed.length - 1]!.session)}"`, false, { label: 'Undo', run: () => putBack(removed) });
 }
@@ -745,7 +745,7 @@ function archivedTabs(key: string): RemovedTab[] {
   return removed;
 }
 
-/** The toast an archive raises once its mark is written, with Undo unarchiving the session and putting back the tabs the archive closed (user, 2026-10-28). */
+/** The toast an archive raises once its mark is written, with Undo unarchiving the session and putting back the tabs the archive closed (decided 2026-10-28). */
 function offerUndoArchive(key: string, removed: readonly RemovedTab[]): void {
   const session = sessionById(key) ?? removed[0]?.session;
   showToast(`Archived "${session ? sessionLabel(session) : key.slice(0, 8)}"`, false, {
@@ -792,7 +792,7 @@ async function archiveNow(key: string): Promise<void> {
 /**
  * The exit of a claude asked to leave for an archive, its tab already gone: the session is archived once no tab holds it.
  * A tab still holding it is either still leaving for the archive, whose exit archives it then, or one whose stop was called off, where the session is being worked in.
- * Not at a quit: a claude that had not gone may still have needed you, answering its question say, so the session stays unarchived and its tab comes back at the next launch, as a close under way does (user, 2026-10-28).
+ * Not at a quit: a claude that had not gone may still have needed you, answering its question say, so the session stays unarchived and its tab comes back at the next launch, as a close under way does (decided 2026-10-28).
  */
 function archiveAtExit(key: string): void {
   if (isQuitting()) return;

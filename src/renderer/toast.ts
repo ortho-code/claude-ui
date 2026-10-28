@@ -15,7 +15,7 @@ const toastMessage = document.getElementById('toast-message')!;
 const toastAction = document.getElementById('toast-action') as HTMLButtonElement;
 const toastClose = document.getElementById('toast-close') as HTMLButtonElement;
 
-/** How long a toast stays: a message is read in 3 s, and one with a button has to be read and then reached for, so it stays 8 s, and while the pointer is on it (user, 2026-10-28). */
+/** How long a toast stays: a message is read in 3 s, and one with a button has to be read and then reached for, so it stays 8 s, and while the pointer is on it (decided 2026-10-28). */
 const TOAST_MS = 3000;
 const ACTION_TOAST_MS = 8000;
 

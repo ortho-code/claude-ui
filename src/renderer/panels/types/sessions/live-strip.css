@@ -26,7 +26,7 @@
   background: var(--surface-hover);
 }
 
-/* No held open state here, deliberately (user, 2026-08-13): the strip's list is a PERSISTENT panel, often open for a whole session, so a pressed look is lasting noise — unlike the switcher popover (open briefly to pick) or the filter toggle (a compact button, where it reads fine). */
+/* No held open state here, deliberately (decided 2026-08-13): the strip's list is a PERSISTENT panel, often open for a whole session, so a pressed look is lasting noise — unlike the switcher popover (open briefly to pick) or the filter toggle (a compact button, where it reads fine). */
 
 /* Which group a strip row belongs to, as a chip rather than a heading level: the strip is capped at 40vh, so a nested group would cost a row and an indent per group where this costs neither.
    Muted and shrink-proof — the session name gives up the space, since the chip is short and the name is not. */

@@ -24,7 +24,7 @@ import '../../../prstatus.css';
  * Each write goes through main and is set in the store, which the list follows; nothing here draws the list.
  */
 
-/** A heading's options: its own, then its ordering moves last of all, below a rule when it has any (user, 2026-10-20). */
+/** A heading's options: its own, then its ordering moves last of all, below a rule when it has any (decided 2026-10-20). */
 export function withMoves(moves: MenuItem[], own: MenuItem[]): MenuItem[] {
   return [...own, ...(moves.length > 0 ? [{ label: '', separator: true }] : []), ...moves];
 }
@@ -262,13 +262,13 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   items.push({ label: '', separator: true });
   // Pausing is the tab's, and needs one: it marks the tab, and for a running session asks its claude to leave (pauseTab).
   // Not while it starts, which clears the mark when its process arrives.
-  // While its claude is leaving for a pause, its force, named for what was asked (user, 2026-10-23); while it leaves for anything else, or rests paused, nothing, since a Pause would ask claude again, and another pair of presses ends what claude asks on its way out unanswered.
+  // While its claude is leaving for a pause, its force, named for what was asked (decided 2026-10-23); while it leaves for anything else, or rests paused, nothing, since a Pause would ask claude again, and another pair of presses ends what claude asks on its way out unanswered.
   const under = tab ? leaveUnderWay(tab) : null;
   if (tab?.starting) items.push({ label: 'Pause', disabled: 'Starting…' });
   else if (tab && under === 'pause') items.push(leaveItem(session, tab, 'pause'));
   else if (tab && !under && !isPaused(tab)) items.push({ label: 'Pause', onSelect: () => hostOf('sessions').pauseSession(session.id) });
-  // Stop session, Close tab and Archive, each one press of its own meaning, whatever the tab is doing (user, 2026-10-28), by the rule the tab's button is a shortcut to (`leaveAction`).
-  // A tab that rests paused has Stop session as its way out, the running one's word, since both leave an ordinary stopped tab: it takes the mark off and starts nothing (`stopPausedTab`) (user, 2026-10-20, replacing "Unpause").
+  // Stop session, Close tab and Archive, each one press of its own meaning, whatever the tab is doing (decided 2026-10-28), by the rule the tab's button is a shortcut to (`leaveAction`).
+  // A tab that rests paused has Stop session as its way out, the running one's word, since both leave an ordinary stopped tab: it takes the mark off and starts nothing (`stopPausedTab`) (decided 2026-10-20, replacing "Unpause").
   if (tab && isPaused(tab) && !tab.starting) items.push({ label: leaveLabel('stop'), onSelect: () => hostOf('sessions').stopPausedSession(session.id) });
   else items.push(leaveItem(session, tab, 'stop'));
   items.push(leaveItem(session, tab, 'close'));

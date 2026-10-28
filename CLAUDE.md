@@ -50,6 +50,9 @@ The roadmap in `README.md` is the source of truth for what is done and what is n
 - Stage new files as you create them; leave commits to the user.
 - `README.md` and `docs/` are human-facing and must not mention this file or `.claude/`.
   This file may point at them and at code.
+  Nor do they tell Claude how to work: how a session should work here goes in this file or `.claude/`, even where a doc covers the same ground for people.
+  A decision they or a code comment record says when and why, never who asked for it: "(decided 2026-10-20)" with the reason in plain words, not "(user, 2026-10-20)" or a quote from a chat.
+  `test/text/claude-config.test.ts` holds them to both of the patterns it can see.
 - Local-only content stays out of git: plans in `.plan/`, personal notes in `CLAUDE.local.md` (both gitignored globally).
 - UI conventions (menu/popover active state, the folder/project/group vocabulary, etc.) live in `docs/architecture.md` § UI conventions.
 - A module's stylesheet sits beside it and is imported by it; a rule several modules draw goes in a stylesheet of its own beside what owns it, or in `base.css` when nothing does, and is never copied into each.

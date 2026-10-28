@@ -249,7 +249,7 @@ async function runningMenu(app: App, page: Page): Promise<void> {
   await row(page, full.title).locator('.session-kebab').click();
 }
 
-// Stop session, Close tab and Archive each do one thing, whatever that takes (user, 2026-10-28): no item in the menu is two of them.
+// Stop session, Close tab and Archive each do one thing, whatever that takes (decided 2026-10-28): no item in the menu is two of them.
 test("a running session's menu has Stop session, Close tab and Archive, each available", async ({ app, page }) => {
   await runningMenu(app, page);
   for (const label of ['Stop session', 'Close tab', 'Archive']) await expect(item(page, label)).not.toHaveClass(/\bunavailable\b/);

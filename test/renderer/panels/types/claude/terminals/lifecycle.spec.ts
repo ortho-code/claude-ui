@@ -206,7 +206,7 @@ test('a prompt submitted by a session asked to leave calls the stop off, and a t
   ]);
 });
 
-// A `/resume` fires no prompt's report (measured), and both it and a `/clear` mean you went on working, as a prompt does (user, 2026-10-28).
+// A `/resume` fires no prompt's report (measured), and both it and a `/clear` mean you went on working, as a prompt does (decided 2026-10-28).
 for (const [leave, source] of [['stop', 'resume'], ['stop', 'clear'], ['pause', 'resume'], ['pause', 'clear']] as const) {
   test(`a ${source} at claude's question on the way out calls a ${leave} off, as a prompt does`, async ({ app, page }) => {
     await app.boot(fixture);

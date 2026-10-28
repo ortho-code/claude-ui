@@ -3,7 +3,7 @@ import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, stripRow, tab, tabLabel } from '../../../../support/window';
 
-// What a stopped tab's button does is a setting, `stoppedTabButton`: close the tab, as it did before there was a setting, or archive its session; a running tab's button is left as it is (user, 2026-10-28).
+// What a stopped tab's button does is a setting, `stoppedTabButton`: close the tab, as it did before there was a setting, or archive its session; a running tab's button is left as it is (decided 2026-10-28).
 // The tab's button, its middle-click and a paused tab's strip row button are one press, so all three follow it.
 const one = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Set aside' });
 const archiving = settingsFileWith('settings.json', { stoppedTabButton: 'archive' });
