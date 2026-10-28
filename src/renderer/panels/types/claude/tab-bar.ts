@@ -290,7 +290,7 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
 
   // A worktree session's tab gets the same branch marker as its sidebar badge, from the same rule.
   const worktree = worktreeMarkState(tab.session);
-  worktreeMark.className = worktree?.left ? 'tab-worktree worktree-mark left' : 'tab-worktree worktree-mark';
+  worktreeMark.className = worktree?.muted ? 'tab-worktree worktree-mark muted' : 'tab-worktree worktree-mark';
   setTooltip(worktreeMark, worktree?.tooltip);
 
   // A task claude has scheduled, as its row and its strip row show it (scheduledmark.ts).

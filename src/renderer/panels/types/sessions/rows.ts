@@ -252,7 +252,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
 
   const worktree = worktreeMarkState(session);
   els.badge.hidden = worktree === null;
-  els.badge.classList.toggle('left', worktree?.left === true);
+  els.badge.classList.toggle('muted', worktree?.muted === true);
   if (worktree) {
     setTooltip(els.badge, worktree.tooltip);
     els.badge.setAttribute('aria-label', worktree.tooltip);

@@ -108,8 +108,8 @@ export function unstartableReason(session: SessionSummary): string | null {
 
 /** What a session's worktree mark says, when it has one. */
 export interface WorktreeMarkState {
-  /** The session ran in the worktree and has since left it, so the mark is muted, and a resume runs where the session is now. */
-  left: boolean;
+  /** The mark is muted: the session ran in the worktree and has since left it, and a resume runs where the session is now. */
+  muted: boolean;
   tooltip: string;
 }
 
@@ -118,11 +118,11 @@ export interface WorktreeMarkState {
  * A session that left its worktree keeps a mark because it still did its work there, which is what the mark is for.
  */
 export function worktreeMarkState(session: SessionSummary): WorktreeMarkState | null {
-  if (session.worktree) return { left: false, tooltip: `Linked git worktree: ${session.worktree}` };
+  if (session.worktree) return { muted: false, tooltip: `Linked git worktree: ${session.worktree}` };
   // Muted either way, since a resume runs where the session is now; the words say which way it left, since closing a session in its worktree is the usual way and moving it out is the rare one.
   if (session.leftWorktree) {
     return {
-      left: true,
+      muted: true,
       tooltip: session.movedOutOfWorktree
         ? `Moved out of linked git worktree: ${session.leftWorktree}; now in ${session.cwd}`
         : `Worked in linked git worktree: ${session.leftWorktree} until it closed; resumes in ${session.cwd}`,
