@@ -433,7 +433,7 @@ Outside the rule, by decision: a running tab's own press, which brings it on sho
 It was the other way round before: the tab's and the strip's kebab left out the button, "which stays in sight", and the list had no plain stop, only Pause and Archive, which stopped a running session on the way.
 
 **What the session is comes first**: a header that is not an item (`MenuItem.header`) — its title, project · group · status, last activity · model, when it was archived, worktree, the first line of its note, and why it cannot run — drawn from the helpers its row uses (`sessions/describe.ts`), since the tab and the strip show little of it themselves.
-A line too long for the menu, which every popover caps at 300px, is cut and carries its whole text as its tooltip.
+Every menu is capped at 300px (`popover.css`): the first line, the session's name, stays one line, cut when too long and carrying its whole text as its tooltip, since a name read from its transcript runs to 200 characters; the lines under it wrap, a path too long for a line breaking wherever the line runs out, so what they say is all there (user, 2026-10-27).
 
 **One order on every surface**: Open, Show in list, Fork, Siblings and PRs; Pin in list, Mark as read, the note, Move to group and Copy id; a rule; then Pause, or Stop session on a tab that rests paused, or neither on a tab whose claude is on its way out, the tab's button and Archive.
 An item that applies but cannot be taken now stays, unavailable with its reason, as Close tab does with no tab ("Not open in a tab"), since a menu that changes shape is one you have to read again.

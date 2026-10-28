@@ -51,6 +51,22 @@ test("a session whose folder is gone says why in its menu's header", async ({ ap
   await expect(lines(page).last()).toHaveText(reason!);
 });
 
+// A menu is at most 300px wide: the header's first line, the session's name, stays one line, cut, with its whole text as its tooltip, and the lines under it wrap, a path inside them too, so what they say is all there.
+test("a session's menu header cuts a long name and wraps the lines under it", async ({ app, page }) => {
+  // A folder name wider than the menu with nowhere to break, not even a hyphen, so the path itself has to break.
+  const cwd = `${HOME}/projects/afolderwhosenamehasnowheretobreakandiswiderthanthemenuitsin`;
+  const long = session({ title: 'A session with a name far too long to fit on one line of its menu', cwd, cwdExists: false, repoRootExists: false });
+  await app.boot({ sessions: [long] });
+  await row(page, long.title).locator('.session-kebab').click();
+  const cut = await lines(page).evaluateAll((all) => all.map((line) => line.scrollWidth > line.clientWidth));
+  expect(cut[0]).toBe(true);
+  await expect(lines(page).first()).toHaveAttribute('data-tooltip', long.title);
+  expect(cut.slice(1)).toEqual(cut.slice(1).map(() => false));
+  // The reason why it cannot run, naming that folder, is longer than the menu is wide.
+  const reason = lines(page).last();
+  expect(await reason.evaluate((line) => line.getBoundingClientRect().height)).toBeGreaterThan(await lines(page).nth(1).evaluate((line) => line.getBoundingClientRect().height));
+});
+
 // Everything a press on a surface does is in the session's menu there too; what would be the surface itself is not.
 const item = (page: Page, label: string): Locator => page.locator('.kebab-menu button.menu-row').filter({ hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) });
 const OTHER = `${HOME}/projects/other`;

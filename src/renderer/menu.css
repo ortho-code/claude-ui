@@ -55,22 +55,24 @@
 }
 
 /* What a menu is about, at its top (MenuItem.header): text, not a row, so no hover and the arrow pointer, padded as a menu row is so its text lines up with the labels of items that have no tick or dot ahead of them.
-   A long line widens the menu only as far as every popover's cap (popover.css), where it is cut. */
+   A long line widens the menu only as far as every menu's cap (popover.css), where its first line is cut and the lines under it wrap. */
 .menu-header {
   padding: 6px 9px;
   cursor: default;
 }
 
+/* The lines under the name wrap, a path too long for a line breaking wherever the line runs out, so what they say is all there in a menu at most 300px wide. */
 .menu-header-line {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   color: var(--muted);
   font-size: var(--text-small);
 }
 
-/* The first line names the thing: an item's size, bolder. */
+/* The first line names the thing: an item's size, bolder, and one line, cut when too long, with its whole text as its tooltip (menu.ts), since a session's name read from its transcript runs to 200 characters. */
 .menu-header-line:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text);
   font-size: var(--text-body);
   font-weight: 600;

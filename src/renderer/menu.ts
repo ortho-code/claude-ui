@@ -47,7 +47,7 @@ export interface MenuItem {
   disabled?: string;
   /**
    * Not an item but what the menu is about, at its top: the label as its first line and these after it, muted, taking no hover and no click.
-   * A line too long for the menu is cut with an ellipsis and carries its whole text as its tooltip.
+   * The first line, too long for the menu, is cut with an ellipsis and carries its whole text as its tooltip; the lines after it wrap (menu.css).
    */
   header?: string[];
 }
@@ -171,7 +171,7 @@ function tickColumn(checked: boolean): HTMLElement {
   return tick;
 }
 
-/** Give each header line the menu had to cut its whole text as its tooltip; measured once the menu is in the page, since only then has it a width. */
+/** Give each header line the menu had to cut, a first line, its whole text as its tooltip; measured once the menu is in the page, since only then has it a width. */
 function tipCutLines(menu: HTMLElement): void {
   for (const line of menu.querySelectorAll<HTMLElement>('.menu-header-line')) {
     if (line.scrollWidth > line.clientWidth) setTooltip(line, line.textContent);
