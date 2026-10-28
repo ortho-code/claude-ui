@@ -2,12 +2,12 @@ import type Sortable from 'sortablejs';
 import { element, fromMarkup } from '../../../dom';
 import { drawFoldChevron, foldChevron, offerRowFold } from '../../../fold-chevron';
 import { Keyed, placeChildren } from '../../../keyed';
-import { asksForYou, clockOf, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, tabButton, unstartableReason, worktreeMarkState } from '../../../logic';
+import { asksForYou, clockOf, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, unstartableReason, worktreeMarkState } from '../../../logic';
 import { notLeftMark, showNotLeft } from '../../../notleft';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
 import { showInStrip } from '../../../state/strip';
-import { projName, projectGone, projectGroups, sessionNudge, statusChanges, visibleTabs } from '../../../state/views';
+import { projName, projectGone, projectGroups, sessionNudge, statusChanges, tabButtonOf, visibleTabs } from '../../../state/views';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { layersIcon, SIBLING_ICON, WORKTREE_ICON } from '../../../svg';
@@ -50,7 +50,7 @@ function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.ge
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups gets an indented row beneath it behind the same rail the sidebar uses.
 // A project view drops the project label (everything shown belongs to it) but keeps the group rows.
 /** What the tab bar draws from the store. */
-type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab' | 'tabBarExpanded'>;
+type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab' | 'tabBarExpanded' | 'settings'>;
 
 export function renderTabBar(view: TabBarView): void {
   // The library owns the bar's tabs while one is dragged — it moves them, and puts its copy of the dragged one in its row — so a redraw then would undo the drag under the pointer; the drop draws what was held (`sortableFor`).
@@ -248,7 +248,7 @@ function buildSessionTab(token: string): SessionTabEls {
       const shown = tabOf(token);
       if (shown) hostOf('claude').revealSession(shown.session.id);
     },
-    // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind.
+    // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind, or archive its session, as the settings say.
     // See pressTabButton.
     // A middle click takes the same two steps: one that killed a running session outright would be the one way left to lose one by accident.
     press: () => pressTabButton(token),
@@ -275,7 +275,7 @@ function buildSessionTab(token: string): SessionTabEls {
 }
 
 /** Draw a session's tab as it is now: its state, its dot, its marks, its name, and its button's step. */
-function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'projectNames' | 'tabs' | 'activeTab'>): HTMLElement {
+function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'projectNames' | 'tabs' | 'activeTab' | 'settings'>): HTMLElement {
   const { tab: els, dot, markGroup, siblingMark, worktreeMark, clock, notLeft } = tabEls.draw(tab.token, buildSessionTab);
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
   const unstartable = unstartableReason(tab.session);
@@ -306,8 +306,8 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
     classes: unstartable ? ['unstartable'] : [],
     text,
     tooltip: unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}`,
-    // Stopping, the force of what claude is leaving for, and closing a cold tab: the same rule the live strip's button follows — see tabButton.
-    button: tabButton(tab),
+    // Stopping, the force of what claude is leaving for, and closing or archiving a cold tab, as the settings say: the same rule the live strip's button follows — see tabButton.
+    button: tabButtonOf(tab, view),
     // The mark cluster is placed only when there ARE marks — an empty wrapper would still consume a gap and shift the label.
     lead: marks.length > 0 ? [dot, markGroup] : [dot],
     // A stop claude has not left, as its row and its strip row say it (notleft.ts).

@@ -104,6 +104,7 @@ const STARTER_NOTES: Record<SettingKey, string> = {
   launchFlags: 'Flags added to every session the app starts, as you would type them',
   runningSessionsAtLaunch: 'What a launch does with the sessions that were running when the app closed: "start", "pause" or "leave"',
   prStatus: "Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks",
+  stoppedTabButton: 'What the button on a stopped tab does: "close" the tab, or "archive" its session',
 };
 
 /** A new `settings.json`: every setting at its default, under a line saying what it is. */

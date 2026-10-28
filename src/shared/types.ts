@@ -315,6 +315,8 @@ export interface Settings {
   runningSessionsAtLaunch: RunningAtLaunch;
   /** Whether the app asks GitHub, with `gh`, what it says of the PRs the sessions link, which colours their marks; off, it asks nothing and every mark keeps the accent. */
   prStatus: boolean;
+  /** What the button on a stopped tab does, on the tab and, for a paused one, its live strip row: close the tab, or archive its session; a running tab's button is not changed by it. */
+  stoppedTabButton: StoppedTabButton;
 }
 
 export interface UiState {
@@ -386,7 +388,7 @@ export interface UiState {
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './folders';
 import type { LogLevel } from './log';
-import type { RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './settings';
+import type { RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView, StoppedTabButton } from './settings';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;

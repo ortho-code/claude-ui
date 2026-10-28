@@ -1,5 +1,5 @@
 import type { SessionGroup, SessionSummary } from '../../shared/types';
-import { displayName, entityKey, inView, nudgeOf, projectRootExists, projectsForSwitcher, sessionsByKey, unstartableReason, type NudgeStatus, type SwitcherModel } from '../logic';
+import { displayName, entityKey, inView, nudgeOf, projectRootExists, projectsForSwitcher, sessionsByKey, tabButton, unstartableReason, type NudgeStatus, type SwitcherModel, type TabButton } from '../logic';
 import { sameOrder, store, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */
@@ -29,6 +29,11 @@ export function groupNameOf(session: SessionSummary, { groupState }: View<'group
 /** The tab a session is open in, if any. */
 export function tabWith(sessionId: string, view: View<'tabs'> = store.get()): TabState | undefined {
   return view.tabs.find((t) => t.session.id === sessionId);
+}
+
+/** A tab's button, on the tab and its strip row alike (`tabButton`), a stopped tab's doing what the settings say (`Settings.stoppedTabButton`), close until they are read. */
+export function tabButtonOf(tab: TabState, view: View<'settings'> = store.get()): TabButton {
+  return tabButton(tab, view.settings?.stoppedTabButton.value ?? 'close');
 }
 
 /** Whether a tab rests paused: marked, with no claude behind it; one whose pause is still waiting for claude to leave runs until it has gone. */

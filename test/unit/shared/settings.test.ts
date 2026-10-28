@@ -10,7 +10,15 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back paused until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'pause', prStatus: true });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'pause', prStatus: true, stoppedTabButton: 'close' });
+  });
+
+  it("take a choice of the file for a stopped tab's button, closing it unless told otherwise, and leave out one that is no choice", () => {
+    expect(settingsView(missing).stoppedTabButton.value).toBe('close');
+    expect(settingsView(holding({ stoppedTabButton: 'archive' })).stoppedTabButton).toEqual({ value: 'archive', problem: null });
+    for (const wrong of ['stop', 'none', true, null]) {
+      expect(settingsView(holding({ stoppedTabButton: wrong })).stoppedTabButton).toEqual({ value: 'close', problem: 'It has to be one of "close", "archive".' });
+    }
   });
 
   it('take a choice of the file for the sessions running at quit, and leave out one that is no choice', () => {

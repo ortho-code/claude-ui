@@ -93,6 +93,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's worktree badge counts and lists the checkouts it changed files in, with the worktree it runs in or left, from its row and as Worktrees in its options, when there are others besides that worktree, and a session that changed files in a worktree it reached by path or with a `cd` has the badge too.
 - Picking a checkout from that list points the panels there while that session is on show, with a star beside the folder their header names, until you pick Follow the session in the same list; while the checkout is gone, they follow the session.
 - A session's options hold its clock as Scheduled, listing its tasks as the clock's tooltip names them.
+- A choice in Settings for the button on a stopped tab, and on a paused tab's row in the live strip: close the tab, as before, or archive its session.
+  It is `stoppedTabButton` in `settings.json`, `"close"` or `"archive"`, and it leaves a running tab's button as it is.
 
 ### Changed
 

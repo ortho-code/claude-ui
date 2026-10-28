@@ -1,14 +1,14 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { byId, fromMarkup } from '../../../dom';
 import { Keyed, placeChildren, setMarkup } from '../../../keyed';
-import { asksForYou, clockOf, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, tabButton, type NudgeStatus, type SwitcherModel, type TabButtonMark } from '../../../logic';
+import { asksForYou, clockOf, entityKey, orderAsTabs, sessionLabel, stripLine, strongestNudge, type NudgeStatus, type SwitcherModel, type TabButtonMark } from '../../../logic';
 import { kebabButton, openMenu } from '../../../menu';
 import { notLeftMark, showNotLeft } from '../../../notleft';
 import { markProjectGone } from '../../../projectgone';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { store, type View } from '../../../state/app';
 import { hideFromStrip } from '../../../state/strip';
-import { groupNameOf, isPaused, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabOnShow, tabWith } from '../../../state/views';
+import { groupNameOf, isPaused, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabButtonOf, tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, eyeIcon, tabButtonIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -148,8 +148,8 @@ function buildRow(id: string): StripRow {
   // WHY IT BELONGS HERE: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab.
   // So acting on a stray session from its tab costs you your place: you go there, act, and come back.
   // This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
-  // It IS the tab's button, pressed from here: one rule draws both (`tabButton`) and one press acts for both (`pressTabButton`, through the ask), so it stops a running session, forces one that has not left, and closes a paused tab.
-  // A row leaves the strip by its session stopping without a pause, its tab being unpaused or closed, which is what this does to a paused one, or its session leaving the pool.
+  // It IS the tab's button, pressed from here: one rule draws both (`tabButton`) and one press acts for both (`pressTabButton`, through the ask), so it stops a running session, forces one that has not left, and closes a paused tab or archives its session, as the settings say.
+  // A row leaves the strip by its session stopping without a pause, its tab being unpaused or closed, which is what this does to a paused one, or its session leaving the pool, as an archive takes it.
   // The session's own menu beside it, from the builder its row in the list uses, the button's press among its items, so the button is a shortcut to one of them.
   // Listed afresh at each click, for the session as it is then.
   const kebab = kebabButton('compact strip-item-kebab abuts', 'Session options', () => {
@@ -169,7 +169,7 @@ function buildRow(id: string): StripRow {
 }
 
 /** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its tab's button in the tab's state. */
-function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'tabs'>): void {
+function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'tabs' | 'settings'>): void {
   const { row, jump, dot, name, clock, notLeft, chip, stop } = parts;
   applyStatus(dot, session.id, view);
   name.textContent = sessionLabel(session);
@@ -184,7 +184,7 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   if (onShow) jump.setAttribute('aria-current', 'true');
   else jump.removeAttribute('aria-current');
   // No tab at all should not happen — membership is a tab's process or its pause — so it is inert rather than guessed at, saying only what is so.
-  const { disabled, tooltip, mark } = tab ? tabButton(tab) : { disabled: true, tooltip: 'No tab to act on', mark: 'stop' as const };
+  const { disabled, tooltip, mark } = tab ? tabButtonOf(tab, view) : { disabled: true, tooltip: 'No tab to act on', mark: 'stop' as const };
   setMarkup(stop, tabButtonIcon(mark, 14));
   stop.dataset.mark = mark;
   setUnavailable(stop, disabled ? tooltip : null, tooltip);
@@ -239,7 +239,7 @@ function hiddenProjects(model: SwitcherModel, ordered: StripProject[], view: Vie
   return ordered.filter((project) => view.stripHidden.has(project.repoRoot)).map((project) => ({ project, badge: badges.get(project.repoRoot) ?? null }));
 }
 
-function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden'>): void {
+function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden' | 'settings'>): void {
   const { stripExpanded } = view;
   const overall = model.all.badge;
   stripBadge.className = badgeClass(overall);
@@ -302,7 +302,7 @@ stripToggle.addEventListener('click', () => store.set({ stripExpanded: !store.ge
 stripToggle.querySelector('.strip-chev')!.innerHTML = chevronIcon('down', 11);
 
 /** What the strip draws from the store. */
-type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' |'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden'>;
+type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' |'archived' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden' | 'settings'>;
 
 /**
  * The strip follows the store, its line badged with the switcher's own roll-up (`switcherModel`) and its rows drawn from the switcher's pool.

@@ -21,7 +21,7 @@ In daily use: the app lists your `~/.claude` sessions grouped by project, runs s
 Done:
 
 - Session list from `~/.claude`, grouped into collapsible projects, refreshed live as transcripts change on disk.
-- Tabs: several sessions open at once, drag to reorder, and restored on the next launch, where the sessions that were running come back paused, or start again if you choose, and the rest wait — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab.
+- Tabs: several sessions open at once, drag to reorder, and restored on the next launch, where the sessions that were running come back paused, or start again if you choose, and the rest wait — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab, or archives the session if you choose that in Settings.
   A session that asks something on its way out, such as whether to keep its worktree, is answered in its tab, which stays until claude has gone, its dot pulsing meanwhile; one that has not gone a second later can be forced.
   Its kebab stops a running session, and closes or archives it, each in one press, also while claude is on its way out, where one pressed changes what its going does; not while it starts.
   A tab can be paused, from its kebab or a right-click: claude ends and the tab stays, marked with two bars, to set it aside without keeping it running, and it comes back paused at the next launch until you open it again.
@@ -303,12 +303,13 @@ For example:
 }
 ```
 
-There are three settings: `launchFlags`, the default flags for every session the app starts, `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed, and `prStatus`, whether the app asks GitHub what it says of the PRs your sessions link.
+There are four settings: `launchFlags`, the default flags for every session the app starts, `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed, `prStatus`, whether the app asks GitHub what it says of the PRs your sessions link, and `stoppedTabButton`, what the button on a stopped tab does.
 `runningSessionsAtLaunch` is `"pause"` until you choose otherwise, which brings their tabs back paused, in the live strip, without starting them; `"start"` starts them again, and `"leave"` brings their tabs back with the other tabs, waiting for a click.
 A tab you paused comes back paused whichever it is.
 `prStatus` is `true` until you choose otherwise, which colours each session's PR mark by what GitHub says, asked with `gh` on your own login; `false` asks nothing, and the marks keep one colour.
+`stoppedTabButton` is `"close"` until you choose otherwise, which closes the tab, and `"archive"` archives its session instead; it is the button on the tab and, for a paused one, on its row in the live strip, and a middle-click on the tab, and it leaves a running tab's button as it is.
 A save writes the settings you changed, and puts a value Settings can use in place of one in the file it cannot, as edits of the file's text, so your comments stay; it is refused while the file does not parse or does not hold an object.
-A change to the file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus` counts at once.
+A change to the file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus` or `stoppedTabButton` counts at once.
 A `settings.json` you were sent sets flags on every session you start, so read it before you use it.
 A mistake in the file is named in Settings, and a file that does not parse keeps the settings it last read until it does.
 

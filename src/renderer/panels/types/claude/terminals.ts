@@ -1,12 +1,12 @@
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { ScheduledTask, SessionSummary } from '../../../../shared/types';
-import { entityKey, hasVisibleOutput, leaveAction, sessionLabel, sessionsByKey, tabButton, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../logic';
+import { entityKey, hasVisibleOutput, leaveAction, sessionLabel, sessionsByKey, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../logic';
 import { newSession } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
 import { clearNudge, setScheduled } from '../../../state/statuses';
-import { isPaused, sessionById, tabOnShow } from '../../../state/views';
+import { isPaused, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
 import { fromMarkup } from '../../../dom';
@@ -648,7 +648,7 @@ function coolTab(token: string): void {
 export function pressTabButton(token: string, mark?: TabButtonMark): void {
   const tab = tabOf(token);
   if (!tab) return;
-  const button = tabButton(tab);
+  const button = tabButtonOf(tab);
   if (!button.disabled && (mark === undefined || button.mark === mark)) pressLeave(token, button.action, button.mark);
 }
 

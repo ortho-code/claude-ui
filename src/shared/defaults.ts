@@ -1,11 +1,11 @@
 import type { Settings, UiState } from './types';
 
 /**
- * What the app does before anyone has chosen otherwise: nothing added to the launch line, what was running when it closed brought back paused at launch, so it costs no process until you open it, and PR status asked of GitHub.
+ * What the app does before anyone has chosen otherwise: nothing added to the launch line, what was running when it closed brought back paused at launch, so it costs no process until you open it, PR status asked of GitHub, and a stopped tab's button closing it.
  * Under the settings file (shared/settings.ts); meta's `settings` falls back to the launch flags here.
  */
 export function defaultSettings(): Settings {
-  return { launchFlags: '', runningSessionsAtLaunch: 'pause', prStatus: true };
+  return { launchFlags: '', runningSessionsAtLaunch: 'pause', prStatus: true, stoppedTabButton: 'close' };
 }
 
 /**

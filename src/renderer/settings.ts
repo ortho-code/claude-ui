@@ -1,7 +1,7 @@
 import { parseLaunchFlags } from '../shared/flags';
 import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
-import { RUNNING_AT_LAUNCH, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView } from '../shared/settings';
+import { RUNNING_AT_LAUNCH, STOPPED_TAB_BUTTON, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView, type StoppedTabButton } from '../shared/settings';
 import type { Settings } from '../shared/types';
 import { listen, runModal } from './modal';
 import { store, type View } from './state/app';
@@ -12,6 +12,12 @@ const RUNNING_LABELS: Record<RunningAtLaunch, string> = {
   start: 'Start them again',
   pause: 'Keep them paused in the live strip',
   leave: 'Leave them with the other tabs',
+};
+
+/** Each choice for a stopped tab's button, in words: the dropdown's options. */
+const STOPPED_BUTTON_LABELS: Record<StoppedTabButton, string> = {
+  close: 'Close the tab',
+  archive: 'Archive the session',
 };
 
 // App preferences, from the config folder: settings.json, which you edit and this dialog saves into (shared/settings.ts), said once under the title.
@@ -42,6 +48,13 @@ document.body.insertAdjacentHTML(
         <p class="dialog-detail">A session's PR badge takes the colour of what GitHub says of its PRs, such as changes requested, failing checks or merged. The app asks with gh, on your own login.</p>
         <label id="settings-pr-status-row" class="dialog-choice"><input id="settings-pr-status" type="checkbox" /> PR status from GitHub</label>
       </div>
+      <div class="dialog-section">
+        <label class="dialog-label" for="settings-stopped-button">Button on a stopped tab</label>
+        <p class="dialog-detail">On the tab, and on a paused tab's row in the live strip. A running tab's button stays as it is.</p>
+        <select id="settings-stopped-button" class="dialog-field">
+          ${STOPPED_TAB_BUTTON.map((choice) => `<option value="${choice}">${STOPPED_BUTTON_LABELS[choice]}</option>`).join('')}
+        </select>
+      </div>
       <div id="settings-notes" class="dialog-section" hidden>
         <span class="dialog-label">In settings.json</span>
         <div id="settings-notes-list"></div>
@@ -58,6 +71,7 @@ const settingsOverlay = document.getElementById('settings-overlay')!;
 const settingsFlags = document.getElementById('settings-flags') as HTMLInputElement;
 const settingsRunning = document.getElementById('settings-running') as HTMLSelectElement;
 const settingsPrStatus = document.getElementById('settings-pr-status') as HTMLInputElement;
+const settingsStoppedButton = document.getElementById('settings-stopped-button') as HTMLSelectElement;
 const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
@@ -220,8 +234,21 @@ const prStatusField = new SettingField(
   (file, why) => `The choice in ${file} is not used: ${why}`,
 );
 
+const stoppedButtonField = new SettingField(
+  'stoppedTabButton',
+  {
+    element: settingsStoppedButton,
+    // Its options are the choices themselves, so what it holds is always one of them.
+    read: () => settingsStoppedButton.value as StoppedTabButton,
+    write: (value) => {
+      settingsStoppedButton.value = value;
+    },
+  },
+  (file, why) => `The choice in ${file} is not used: ${why}`,
+);
+
 /** Every setting's field. */
-const fields = [flagsField, runningField, prStatusField];
+const fields = [flagsField, runningField, prStatusField, stoppedButtonField];
 
 /** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with the file as a whole. */
 function render(view: SettingsView): void {
@@ -257,7 +284,7 @@ export async function openSettings(): Promise<void> {
         settingsError.hidden = false;
         return;
       }
-      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value(), prStatus: prStatusField.value() });
+      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value(), prStatus: prStatusField.value(), stoppedTabButton: stoppedButtonField.value() });
       // Main does not tell the window of a change that is all its own write, so the settings as the save left them are kept here.
       keepSettings(saved.view);
       if (saved.refused !== null) {

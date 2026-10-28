@@ -31,7 +31,7 @@ const jsonc = async (file: string): Promise<unknown> => {
   const read = readJsonc(await fs.readFile(file, 'utf8'));
   return read.ok ? read.json : read.error;
 };
-const defaults = { launchFlags: '', runningSessionsAtLaunch: 'pause', prStatus: true };
+const defaults = { launchFlags: '', runningSessionsAtLaunch: 'pause', prStatus: true, stoppedTabButton: 'close' };
 const text = (file: string): Promise<string> => fs.readFile(file, 'utf8');
 const gone = (file: string): Promise<void> => expect(fs.access(file)).rejects.toThrow();
 const moves = async (): Promise<unknown> => ((await json(metaFile)) as { moved: unknown }).moved;
@@ -61,7 +61,7 @@ describe('reading the settings', () => {
     writeFileSync(settingsFile, '{\n  // mine\n  "launchFlags": "--mine",\n}\n');
     const settings = await fresh();
     expect((await settings.readSettings()).launchFlags).toEqual({ value: '--mine', problem: null });
-    expect(await settings.settingsNow()).toEqual({ launchFlags: '--mine', runningSessionsAtLaunch: 'pause', prStatus: true });
+    expect(await settings.settingsNow()).toEqual({ ...defaults, launchFlags: '--mine' });
   });
 
   it('numbers each read in the order reads start, so one started before a save is numbered below the save’s answer', async () => {
@@ -172,7 +172,9 @@ describe('a new settings.json', () => {
         '  // What a launch does with the sessions that were running when the app closed: "start", "pause" or "leave"',
         '  "runningSessionsAtLaunch": "pause",',
         '  // Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks',
-        '  "prStatus": true',
+        '  "prStatus": true,',
+        '  // What the button on a stopped tab does: "close" the tab, or "archive" its session',
+        '  "stoppedTabButton": "close"',
         '}',
         '',
       ].join('\n'),

@@ -37,7 +37,7 @@ test('the sessions running at quit come back paused until another choice is save
   await settings.choice.selectOption('start');
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '', runningSessionsAtLaunch: 'start', prStatus: true }]]);
+  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '', runningSessionsAtLaunch: 'start', prStatus: true, stoppedTabButton: 'close' }]]);
   expect(await page.evaluate(() => window.__claudeUiFixture.settings.json)).toEqual({ runningSessionsAtLaunch: 'start' });
 
   settings = await open(page);

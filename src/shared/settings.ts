@@ -11,11 +11,21 @@ import type { Settings } from './types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'stoppedTabButton'];
 
 /** The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them. */
 export const RUNNING_AT_LAUNCH = ['start', 'pause', 'leave'] as const;
 export type RunningAtLaunch = (typeof RUNNING_AT_LAUNCH)[number];
+
+/** The choices for a stopped tab's button (`Settings.stoppedTabButton`), in the order Settings offers them. */
+export const STOPPED_TAB_BUTTON = ['close', 'archive'] as const;
+export type StoppedTabButton = (typeof STOPPED_TAB_BUTTON)[number];
+
+/** The check of a setting that is one of a fixed list of words. */
+const oneOf =
+  <T extends string>(choices: readonly T[]): Check<T> =>
+  (value) =>
+    choices.find((choice) => choice === value) !== undefined ? { ok: true, value: value as T } : { ok: false, why: `It has to be one of ${choices.map((choice) => `"${choice}"`).join(', ')}.` };
 
 /** One read of a settings file, as main hands it over. */
 export interface SettingsFileRead {
@@ -72,11 +82,9 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
     const { error } = parseLaunchFlags(value);
     return error === null ? { ok: true, value } : { ok: false, why: error };
   },
-  runningSessionsAtLaunch: (value) =>
-    RUNNING_AT_LAUNCH.find((choice) => choice === value) !== undefined
-      ? { ok: true, value: value as RunningAtLaunch }
-      : { ok: false, why: `It has to be one of ${RUNNING_AT_LAUNCH.map((choice) => `"${choice}"`).join(', ')}.` },
+  runningSessionsAtLaunch: oneOf(RUNNING_AT_LAUNCH),
   prStatus: (value) => (typeof value === 'boolean' ? { ok: true, value } : { ok: false, why: 'It has to be true or false.' }),
+  stoppedTabButton: oneOf(STOPPED_TAB_BUTTON),
 };
 
 /** Whether `value` may be a setting's value, and if not, why: what main refuses to write. */
@@ -129,6 +137,7 @@ export function settingsView(file: SettingsFileRead, read = 0): SettingsView {
     launchFlags: viewOf('launchFlags'),
     runningSessionsAtLaunch: viewOf('runningSessionsAtLaunch'),
     prStatus: viewOf('prStatus'),
+    stoppedTabButton: viewOf('stoppedTabButton'),
     read,
     notes,
     file: { name: file.name, status: file.status, error: file.error, duplicates: file.duplicates ?? [] },
@@ -137,7 +146,7 @@ export function settingsView(file: SettingsFileRead, read = 0): SettingsView {
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value };
+  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, stoppedTabButton: view.stoppedTabButton.value };
 }
 
 /**
