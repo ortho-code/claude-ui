@@ -24,6 +24,7 @@ Done:
 - Tabs: several sessions open at once, drag to reorder, and restored on the next launch, where the sessions that were running come back paused, or start again if you choose, and the rest wait — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab, or archives the session if you choose that in Settings.
   A session that asks something on its way out, such as whether to keep its worktree, is answered in its tab, which stays until claude has gone, its dot pulsing meanwhile; one that has not gone a second later can be forced.
   Its kebab stops a running session, and closes or archives it, each in one press, also while claude is on its way out, where one pressed changes what its going does; not while it starts.
+  A tab you close or a session you archive can be put back from the message it leaves, with Undo.
   A tab can be paused, from its kebab or a right-click: claude ends and the tab stays, marked with two bars, to set it aside without keeping it running, and it comes back paused at the next launch until you open it again.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
   The tab bar folds to one row, the row of the tab on show where there is one, from a chevron on the line under the tabs, to give the terminal the room; while a tab folded away is waiting for you, or has finished and is not marked read, the chevron turns into its status dot.

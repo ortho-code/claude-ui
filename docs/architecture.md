@@ -482,6 +482,14 @@ Keeping that tab, cold, at an exit soon after a call-off was turned down, since 
 A write main refuses says so in a toast too, since at an exit the tab has gone and the row staying would be all that says it.
 Archive is unavailable while a tab starts ("Starting…"), as Pause is, since there is no claude yet to ask.
 A quit before claude has gone archives nothing, and the tab comes back at the next launch, as a close under way does: that claude may still have needed you, and writing the mark at the quit was turned down for that (user, 2026-10-28).
+
+**A close or an archive you press offers Undo** (user, 2026-10-28; `offerUndoClose`, `offerUndoArchive`, `claude/terminals.ts`), since a stopped tab's button closes or archives in one press, a middle-click too, and what reopening from the list loses is the tab's place, or for an archive, finding the session again in the archived view.
+The toast comes once the tab has gone, for a running session when claude has left and for an archive when its mark is written, so it never offers to bring back a tab that is still there; a tab claude's own exit closed offers nothing, since nobody removed it.
+Undo puts each tab back where it stood, if the tabs have not changed since, cold, paused again if it was paused or being paused, and starts nothing; an archive's Undo unarchives the session first, and one archived without a tab is only unarchived.
+A session opened again meanwhile keeps the tab it has rather than gaining a second, and an archived one gets none; a tab an archive closed, one opened while its mark was written, offers no close of its own, the archive's toast being its Undo.
+A close pressed over an archive under way leaves no mark, so the tabs that archive had already removed come back with the close's Undo.
+A toast with a button stays 8 s, held from when the pointer moves onto it, where a plain one goes after 3 s, since it has to be read and then reached for; the bar holds one toast, so the next one replaces it, and closing several tabs in a row leaves the last to go undoable, until another toast replaces it.
+A reopen-closed-tab key, quieter than a toast on every close, was weighed and left for the keyboard shortcuts, where it is to take the same put-back.
 **Every way the app opens a session refuses an archived one** (`unopenableReason`, `state/views.ts`): the asks that open a session refuse it with a toast, an archived sibling in the menu is unavailable and says why, and a tab kept for one is dropped at launch.
 Opening it to unarchive it was turned down, as not clear enough about what had happened.
 Its menu, the same on every surface, holds its siblings, PRs, worktrees, scheduled tasks and note, as its row's marks reach them, its id, Unarchive and Delete, and nothing that starts or files it; its dot is never a control.

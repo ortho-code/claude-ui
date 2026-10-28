@@ -95,6 +95,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's options hold its clock as Scheduled, listing its tasks as the clock's tooltip names them.
 - A choice in Settings for the button on a stopped tab, and on a paused tab's row in the live strip: close the tab, as before, or archive its session.
   It is `stoppedTabButton` in `settings.json`, `"close"` or `"archive"`, and it leaves a running tab's button as it is.
+- Undo in the message a closed tab or an archived session leaves, from any button, its options or a middle-click: it puts the tab back where it was, without starting it, and unarchives the session.
+  Such a message stays 8 seconds, and while the pointer is on it.
 
 ### Changed
 
