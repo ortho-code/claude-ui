@@ -235,7 +235,7 @@ function buildTab(session: SessionSummary, paused = false, scheduledWhenStopped:
   });
 
   store.set({
-    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, onExit: 'cool', forceable: false, notLeft: false, paused, scheduledWhenStopped, failure: null, startFailed: false }],
+    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, onExit: 'cool', forceable: false, forced: false, notLeft: false, paused, scheduledWhenStopped, failure: null, startFailed: false }],
   });
   return token;
 }
@@ -483,7 +483,7 @@ function forceStop(token: string): void {
   if (!tab?.forceable || tab.terminalId === null) return;
   // Nothing is asked any more, so nothing is said of it either.
   clearStopTimers(token);
-  setTab(token, { forceable: false, notLeft: false });
+  setTab(token, { forceable: false, forced: true, notLeft: false });
   window.claudeUi.killTerminal(tab.terminalId);
 }
 
@@ -517,12 +517,14 @@ export function stopSession(token: string): void {
 }
 
 /**
- * A prompt submitted by a session asked to leave: it stayed, so the stop is off and the tab is live again.
- * Claude's exit can be called off — Esc at a worktree's keep-or-remove question takes it back to its prompt — and only the next prompt says so; until then the tab goes on saying it is stopping.
+ * A session asked to leave that went on working: a prompt it submitted, or a `/resume` or `/clear` that moved its tab to another session (`adoptReplacement`), so the stop is off and the tab is live again.
+ * Claude's exit can be called off — Esc at a worktree's keep-or-remove question takes it back to its prompt — and only what is done next says so; until then the tab goes on saying it is stopping.
+ * Whatever the leave was, a stop, a pause or a close, it goes (user, 2026-10-28: "when you don't finish a stop/pause/close/archive and then do something else, you call it off").
+ * Not once its claude has been forced out (`forced`): that claude is being ended whatever it reports.
  */
 export function stopCalledOff(token: string): void {
   const tab = tabOf(token);
-  if (!tab?.stopping) return;
+  if (!tab?.stopping || tab.forced) return;
   clearStopTimers(token);
   // A pause waiting for claude to leave is called off with it: the session is being worked in.
   setTab(token, { stopping: false, onExit: 'cool', forceable: false, notLeft: false, paused: false });
@@ -599,7 +601,7 @@ function coolTab(token: string): void {
   // One change, which also drops it from the live strip now rather than when its SessionEnd lands.
   store.batch(() => {
     // A stopped tab is not a slow one: the loader must not outlive the process.
-    setTab(token, { terminalId: null, stopping: false, onExit: 'cool', forceable: false, notLeft: false, booting: false, scheduledWhenStopped });
+    setTab(token, { terminalId: null, stopping: false, onExit: 'cool', forceable: false, forced: false, notLeft: false, booting: false, scheduledWhenStopped });
     // Stopping what you were looking at drops you to the empty screen rather than leaving a selected tab with nothing behind it; the panels lose their tab too, and fall back to the project.
     if (isOnShow(token)) store.set({ activeTab: null });
   });
@@ -655,6 +657,8 @@ export function adoptReplacement(tabToken: string, id: string, source: string): 
   // The token is what ties the two together — without this the tab would keep pointing at the session that just ended, and resuming it later would reopen the wrong history.
   const owner = tabOf(tabToken);
   if (!owner || owner.session.id === id) return null;
+  // A claude forced out asks nothing more of the tab while it goes, a report still on its way included: the tab keeps the session it ran, whatever that claude went on in.
+  if (owner.forced) return null;
   if (source !== 'clear') return adoptResumed(owner, id);
   const previous = owner.session;
   const replaced = previous.id;
@@ -662,6 +666,8 @@ export function adoptReplacement(tabToken: string, id: string, source: string): 
   // Carrying the old object forward was the app's own half of the copied-title problem: it kept the title, the first message and the sibling marks of a conversation this session does not have.
   // The folder is all that genuinely survives — it is the same terminal, in the same place.
   // Everything that draws the tab follows: the bar names the new session, its stand-in row is the open one, and the history on show follows it, since a cleared session has a transcript of its own.
+  // A clear while claude was asked to leave is going on working, as a prompt is: the leave is off.
+  stopCalledOff(owner.token);
   // What the tab kept from its claude's last stop was the cleared session's, so it goes with it.
   setTab(owner.token, { session: blankAfter(previous, id), scheduledWhenStopped: null });
   // No claude of the app's runs the cleared session now, so what it had scheduled is not shown for it, though nothing will say its list emptied.
@@ -692,13 +698,16 @@ function adoptResumed(owner: TabState, id: string): TabState | null {
   const other = store.get().tabs.find((t) => t.token !== owner.token && t.session.id === id);
   if (other && (other.terminalId !== null || other.starting)) {
     // Forced, not asked: in the app such a claude was seen to ignore the Ctrl-C an ask sends (three times out of three, 2026-10-20, cause unknown), and the two of those forced went within a second; it has nothing of its own to finish.
-    // Once: a report from it while it goes asks nothing more.
-    if (owner.stopping) return null;
+    // Once: a report from it while it goes asks nothing more (`forced`, above).
+    // A claude you had asked to leave went on working too, so that leave is off, and it is forced all the same, since it is a second claude in the session either way.
+    stopCalledOff(owner.token);
     forceOutAtOnce(owner.token);
     return other;
   }
   // Its row where another tab or the listing has it; else the blank, until the listing reads it (`reconcileOpenTabs`).
   const session = sessionById(id) ?? blankAfter(owner.session, id);
+  // A resume while claude was asked to leave is going on working, as after a clear.
+  stopCalledOff(owner.token);
   // What the tab kept from its claude's last stop was the session it left, as after a clear.
   setTab(owner.token, { session, scheduledWhenStopped: null });
   // The session it left runs in no claude of the app's now, as after a clear.

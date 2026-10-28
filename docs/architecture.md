@@ -272,7 +272,8 @@ A session that another tab holds is a different case, and there the switch is un
 claude lets a second claude resume a session another runs, with no warning, and the two then branch its transcript: each one's turn hangs off the same message, and a later resume follows one branch, dropping the other's turn (measured on claude 2.1.302).
 So the claude that switched is forced out as soon as the app hears of the switch, before any turn of its own unless one was submitted first; its tab never takes the session over and stays on the one it ran before, cold once that claude has gone; and the tab already running the session comes on show, with a toast saying why.
 Forced rather than asked, as a stop first asks: in the app such a claude ignored the Ctrl-C an ask sends, three times out of three on 2026-10-20, while the two of those forced went within a second, and a probe outside the app could not make it ignore them, so the cause is not known; it has nothing of its own to finish either way.
-It is forced once: a report from it while it goes asks nothing more.
+It is forced once: a report from it while it goes asks nothing more, nor moves its tab to another session, also once the tab it clashed with has stopped (`forced`).
+A claude you had asked to leave is forced the same way, its leave called off, since it is a second claude in the session either way; it used to be left running, as the check for a claude already forced was whether it was leaving at all.
 On its way out it reports the session's end, and an end reported from another tab than the one holding the session is not that session's, so the running tab's dot keeps its own.
 Only an end: one the app reads from a transcript carries the tab the status file last named, which after a restart is not the tab running the session, and is the session's all the same.
 What that claude writes to the session's status files stays as it wrote it: its start empties the list of work the running tab's last turn left running, until that tab's next turn ends, and its end says closed, until that tab's next report.
@@ -383,6 +384,9 @@ So the tab stays, stopping, with its terminal kept and answerable in the tab, un
 An earlier version sent `SIGTERM` 1.8 s after the first press, which killed the question and left the tree kept but locked; it also ended every stop of a session mid-turn, which two presses alone did not end in either run probed.
 A close keeps the tab the same way and removes it when the exit lands, since a tab removed first is what made the question unreachable.
 Esc at the question calls claude's exit off, and the next prompt the session submits clears the stop: the status hook names the event that reported each status, and `UserPromptSubmit` is the one only a session that stayed can send once the stop is pressed.
+A `/resume` or `/clear` there clears it the same way, whatever the leave was, a stop, a pause or a close: the app hears of either as a start of another session reported from the tab, which is going on working (user, 2026-10-28: "when you don't finish a stop/pause/close/archive and then do something else, you call it off"), and a `/resume` fires no `UserPromptSubmit` (measured; for a `/clear` it is not known).
+It used to leave the tab saying it was stopping, in the session claude went on in.
+A claude forced out, by its force control or by the app, is the exception: nothing it reports on its way out calls its stop off or moves its tab (`forced`), since it is being ended whatever it reports.
 Until that prompt the tab goes on saying it is stopping.
 A prompt submitted a moment before the stop, whose report arrives after it, calls the stop off just the same, and the exit that follows then closes the tab instead of cooling it.
 

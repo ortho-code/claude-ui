@@ -164,6 +164,11 @@ export interface TabState {
   onExit: 'cool' | 'close';
   /** A stop that has had its moment without the session going: its stop control now forces it out (`tabButtonState`). */
   forceable: boolean;
+  /**
+   * Forced out, by its force control or by the app, and not yet gone: nothing it reports on its way out calls its stop off or moves the tab to another session.
+   * Apart from `stopping`, which a stop you asked for sets too and which a claude that goes on working calls off.
+   */
+  forced: boolean;
   /** A stop that has gone on long enough to say so where it shows without a hover (`notLeftWords`), and in a toast. */
   notLeft: boolean;
   /**

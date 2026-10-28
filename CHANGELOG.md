@@ -133,6 +133,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Scrollbars are easier to see: their thumb is lighter, everywhere in the window.
 - The lines under the name at the top of a session's options wrap instead of being cut short, such as why it cannot run and the folder it names.
 - A session's worktree badge is in the accent while claude's newest change is in a worktree, also one the session has left, instead of muted.
+- A `/resume` or `/clear` typed at the question claude asks on its way out calls the stop or pause off, as a prompt does, where the tab used to go on saying it was stopping.
 
 ### Fixed
 
@@ -191,7 +192,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session that published an artifact no longer stays on working in the background: claude watching the artifact for comments is not counted as work.
 - A session you go on in with claude's own `/resume` inside a tab keeps its title and its group, instead of being taken for a cleared one: a blank title, and moved into the group of the session the tab ran before.
   An archived session resumed that way is unarchived, and a message says so.
-- A session you go on in with claude's own `/resume` while another tab runs it is handed back: that claude is stopped, its tab stays on the session it was on, and the tab running the session comes on show, since two claudes in one session branch it, and a later resume shows only one of their turns.
+- A session you go on in with claude's own `/resume` while another tab runs it is handed back: that claude is stopped, also one you had asked to leave, its tab stays on the session it was on, and the tab running the session comes on show, since two claudes in one session branch it, and a later resume shows only one of their turns.
   A tab that only held the session, with nothing running, closes instead.
 - On WSL, Ctrl+V in a session or a panel's shell pastes the text on the clipboard at once, instead of claude showing `Pasting…` for seconds while it first looked for an image.
   Alt+V pastes an image into claude; on macOS and on Linux outside WSL, Ctrl+V reaches claude as before.

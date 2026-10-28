@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
+import { exitLater } from '../../../../support/clock';
 import { type BridgeFixture, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { group, row, tab, tabLabels, titlesIn } from '../../../../support/window';
@@ -105,6 +106,60 @@ test('a session resumed in a tab while another tab runs it is undone: that claud
   await expect(tab(page, old.title).locator('.nudge')).toHaveClass(/\bbusy\b/);
   await expect(tabLabels(page)).toHaveText([one.title, old.title]);
   await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[one.id, old.id], [old.id], []]);
+});
+
+// A claude you asked to leave is a second claude in the session all the same: it is forced out as any other, the leave off, since it went on working.
+test('a session resumed into one another tab runs, by a claude asked to leave, is undone the same way: that claude is forced out', async ({ app, page }) => {
+  const token = await running(app, page);
+  await row(page, old.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  expect(await app.emit('onTerminalData', FIRST + 1, 'claude is here')).toBe(1);
+  // A pause, since what it leaves behind, a paused tab, is what tells a leave called off from one that went ahead.
+  await row(page, one.title).locator('.session-kebab').click();
+  await page.locator('.kebab-menu button.menu-row', { hasText: /^Pause$/ }).click();
+  expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
+
+  await app.emit('onSessionStart', old.id, token, 'resume');
+  await expect.poll(() => app.calls('killTerminal')).toEqual([[FIRST]]);
+  await expect(tabLabels(page)).toHaveText([one.title, old.title]);
+  await expect(page.locator('#toast-message')).toHaveText(`"${old.title}" is already running in another tab`);
+  await app.emit('onTerminalExit', FIRST, 143);
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+  await expect(tab(page, one.title).locator('.nudge')).not.toHaveClass(/\bpaused\b/);
+});
+
+// A prompt it sent can still be on its way too: it calls nothing off, since that claude is being ended whatever it reports.
+test('a prompt reported by a forced-out claude leaves it forced out, and its tab is kept, cold, when it goes', async ({ app, page }) => {
+  const token = await running(app, page);
+  await row(page, old.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  expect(await app.emit('onTerminalData', FIRST + 1, 'claude is here')).toBe(1);
+  await app.emit('onSessionStart', old.id, token, 'resume');
+  await expect.poll(() => app.calls('killTerminal')).toEqual([[FIRST]]);
+
+  await app.emit('onSessionStatus', one.id, 'busy', token, 'UserPromptSubmit');
+  // Long after its start, so an exit that did not follow a stop would read as claude ending by itself and close the tab.
+  await exitLater(page);
+  await app.emit('onTerminalExit', FIRST, 143);
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
+});
+
+// Its reports can still be on their way, and the tab it clashed with can stop meanwhile: a claude the app forced out asks nothing more, so a late one neither calls its stop off nor takes the session over.
+test('a forced-out claude whose report arrives after the other tab stopped stays forced out, and its tab keeps its session', async ({ app, page }) => {
+  const token = await running(app, page);
+  await row(page, old.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  expect(await app.emit('onTerminalData', FIRST + 1, 'claude is here')).toBe(1);
+  await app.emit('onSessionStart', old.id, token, 'resume');
+  await expect.poll(() => app.calls('killTerminal')).toEqual([[FIRST]]);
+
+  await tab(page, old.title).locator('.tab-close').click();
+  await app.emit('onTerminalExit', FIRST + 1, 0);
+  await expect(tab(page, old.title)).toHaveClass(/\bcold\b/);
+  await app.emit('onSessionStatus', old.id, 'busy', token, 'PostToolUse');
+  await expect(tabLabels(page)).toHaveText([one.title, old.title]);
+  await app.emit('onTerminalExit', FIRST, 143);
+  await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
 });
 
 // A tab holding the session with no claude behind it, cold or paused, runs nothing that could branch it: the tab that went on in it is the session's tab now, and the other goes.
