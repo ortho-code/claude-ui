@@ -149,6 +149,18 @@ test('archiving it takes the mark off, and Undo puts it back with the tab', asyn
   await expectMarked(page, true);
 });
 
+// A session with no tab has nothing for Undo's put-back to carry the mark on, so the archive keeps it for Undo itself.
+test('archiving a marked session that has no tab takes the mark off, and Undo puts it back as it was', async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [two.id] });
+  await (await menuItem(page, one.title, 'Archive')).click();
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({});
+
+  await page.locator('#toast-action').click();
+  await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({ [one.id]: mark });
+  await expect(tab(page, one.title)).toHaveCount(0);
+});
+
 // Leaving claude yourself, by `/exit`, Ctrl-D or two Ctrl-Cs, exits 0; a signal or a crash does not (measured on claude 2.1.310), so the mark outlives the tab then.
 test("claude's own exit takes the mark off with its tab when it exits 0, and keeps it otherwise", async ({ app, page }) => {
   await app.boot(fixture);

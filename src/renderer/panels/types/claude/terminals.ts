@@ -770,8 +770,8 @@ function archivedTabs(key: string): RemovedTab[] {
   return removed;
 }
 
-/** The toast an archive raises once its mark is written, with Undo unarchiving the session, putting back the tabs the archive closed (decided 2026-10-28), and its later mark as it was, a session with no tab too. */
-function offerUndoArchive(key: string, removed: readonly RemovedTab[], later: Later | null): void {
+/** The toast an archive raises once its mark is written, with Undo unarchiving the session, putting back the tabs the archive closed (decided 2026-10-28), and its later and needs-you marks as they were, a session with no tab too. */
+function offerUndoArchive(key: string, removed: readonly RemovedTab[], later: Later | null, needsYou: NeedsYou | null): void {
   const session = sessionById(key) ?? removed[0]?.session;
   showToast(`Archived "${session ? sessionLabel(session) : key.slice(0, 8)}"`, false, {
     label: 'Undo',
@@ -780,6 +780,7 @@ function offerUndoArchive(key: string, removed: readonly RemovedTab[], later: La
         (archived) => {
           store.set({ archived: new Map(Object.entries(archived)) });
           if (later) markLater(key, later.due, later.at);
+          if (needsYou) markNeedsYou([key], needsYou.reason, needsYou.at);
           putBack(removed);
         },
         () => showToast(`Couldn't unarchive "${session ? sessionLabel(session) : key.slice(0, 8)}"; unarchive it from the archived view`),
@@ -794,8 +795,9 @@ function offerUndoArchive(key: string, removed: readonly RemovedTab[], later: La
  */
 async function archiveNow(key: string): Promise<void> {
   let archived: Map<string, number>;
-  // Read before the write, as the tabs are, for Undo: with or without a tab, the session was set aside.
+  // Read before the write, as the tabs are, for Undo: with or without a tab, the session was set aside, or needed you.
   const later = store.get().later.get(key) ?? null;
+  const needsYou = store.get().needsYou.get(key) ?? null;
   try {
     archived = new Map(Object.entries(await window.claudeUi.archive(key)));
   } catch {
@@ -817,7 +819,7 @@ async function archiveNow(key: string): Promise<void> {
     clearNeedsYou(key);
     clearLater(key);
   });
-  offerUndoArchive(key, removed, later);
+  offerUndoArchive(key, removed, later, needsYou);
 }
 
 /**
