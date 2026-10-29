@@ -90,6 +90,8 @@
   z-index: 40;
   margin-top: 6px;
   padding: 10px;
+  /* The calendar's header row brings 4px of its own above the month, so the popover adds no more than a menu's 4px there: at 10px the month sat lower than the room under it (2026-10-29). */
+  padding-top: 4px;
   width: max-content;
   max-width: calc(100% - 16px);
   /* Attached to the filter panel it belongs to: the chip that opens it wraps with the presets, so the notch points at the panel area rather than tracking it. */
