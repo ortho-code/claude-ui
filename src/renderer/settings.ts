@@ -1,7 +1,7 @@
 import { parseLaunchFlags } from '../shared/flags';
 import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
-import { RUNNING_AT_LAUNCH, STOPPED_TAB_BUTTON, timeOfDay, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView, type StoppedTabButton } from '../shared/settings';
+import { languageTag, RUNNING_AT_LAUNCH, STOPPED_TAB_BUTTON, timeOfDay, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView, type StoppedTabButton } from '../shared/settings';
 import type { Settings } from '../shared/types';
 import { listen, runModal } from './modal';
 import { store, type View } from './state/app';
@@ -61,6 +61,12 @@ document.body.insertAdjacentHTML(
         <input id="settings-later-time" class="dialog-field" type="time" />
         <p id="settings-later-time-error" class="dialog-error" hidden></p>
       </div>
+      <div class="dialog-section">
+        <label class="dialog-label" for="settings-locale">Language for times and dates</label>
+        <p class="dialog-detail">A language tag such as en-GB or nl-NL, or empty for the system's. Time fields follow this from the next launch; the rest of the app at once.</p>
+        <input id="settings-locale" class="dialog-field" type="text" spellcheck="false" autocomplete="off" />
+        <p id="settings-locale-error" class="dialog-error" hidden></p>
+      </div>
       <div id="settings-notes" class="dialog-section" hidden>
         <span class="dialog-label">In settings.json</span>
         <div id="settings-notes-list"></div>
@@ -80,6 +86,10 @@ const settingsPrStatus = document.getElementById('settings-pr-status') as HTMLIn
 const settingsStoppedButton = document.getElementById('settings-stopped-button') as HTMLSelectElement;
 const settingsLaterTime = document.getElementById('settings-later-time') as HTMLInputElement;
 const settingsLaterTimeError = document.getElementById('settings-later-time-error')!;
+const settingsLocale = document.getElementById('settings-locale') as HTMLInputElement;
+const settingsLocaleError = document.getElementById('settings-locale-error')!;
+// The system's language is what an empty field means, so it is what the field shows while empty.
+settingsLocale.placeholder = navigator.language;
 const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
@@ -268,8 +278,20 @@ const laterTimeField = new SettingField(
   (file, why) => `The time in ${file} is not used: ${why}`,
 );
 
+const localeField = new SettingField(
+  'locale',
+  {
+    element: settingsLocale,
+    read: () => settingsLocale.value.trim(),
+    write: (value) => {
+      settingsLocale.value = value;
+    },
+  },
+  (file, why) => `The language in ${file} is not used: ${why}`,
+);
+
 /** Every setting's field. */
-const fields = [flagsField, runningField, prStatusField, stoppedButtonField, laterTimeField];
+const fields = [flagsField, runningField, prStatusField, stoppedButtonField, laterTimeField, localeField];
 
 /** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with the file as a whole. */
 function render(view: SettingsView): void {
@@ -292,6 +314,7 @@ export async function openSettings(): Promise<void> {
   render(store.get().settings!);
   settingsError.hidden = true;
   settingsLaterTimeError.hidden = true;
+  settingsLocaleError.hidden = true;
   renderFolderRows(await window.claudeUi.getFolders());
   settingsOverlay.hidden = false;
   settingsFlags.focus();
@@ -312,7 +335,13 @@ export async function openSettings(): Promise<void> {
         settingsLaterTimeError.textContent = 'Give a time of day.';
         return;
       }
-      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value(), prStatus: prStatusField.value(), stoppedTabButton: stoppedButtonField.value(), laterTime });
+      const locale = localeField.value();
+      settingsLocaleError.hidden = languageTag(locale) !== null;
+      if (!settingsLocaleError.hidden) {
+        settingsLocaleError.textContent = 'Give a language tag such as en-GB, or leave it empty for the system\'s.';
+        return;
+      }
+      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value(), prStatus: prStatusField.value(), stoppedTabButton: stoppedButtonField.value(), laterTime, locale });
       // Main does not tell the window of a change that is all its own write, so the settings as the save left them are kept here.
       keepSettings(saved.view);
       if (saved.refused !== null) {

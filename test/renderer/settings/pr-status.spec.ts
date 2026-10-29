@@ -31,7 +31,7 @@ test('the box is ticked until it is unticked and saved into settings.json', asyn
   await settings.box.uncheck();
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: false, stoppedTabButton: 'close', laterTime: '09:00' }]]);
+  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: false, stoppedTabButton: 'close', laterTime: '09:00', locale: '' }]]);
   expect(await page.evaluate(() => window.__claudeUiFixture.settings.json)).toEqual({ prStatus: false });
 
   settings = await open(page);

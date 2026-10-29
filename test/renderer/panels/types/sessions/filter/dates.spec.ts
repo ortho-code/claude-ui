@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
-import { session, sorted } from '../../../../support/fixture';
+import { session, settingsFileWith, sorted } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { sortedTitles } from '../../../../support/window';
 
@@ -78,6 +78,22 @@ test("the calendar starts at the oldest session's day, and follows the listing a
   await app.listOnDisk([today, days3, days20, older]);
   await expect(day(page, 9)).not.toHaveClass(/-disabled-/);
   await expect(day(page, 4)).toHaveClass(/-disabled-/);
+});
+
+test("the calendar starts its weeks on the language's first day, an open one following a change of it", async ({ app, page }) => {
+  // All in September, so the calendar opens on it.
+  await app.boot({ sessions: [today, days3, days20] });
+  await page.locator('#filter-toggle').click();
+  await preset(page, 'custom').click();
+  await page.locator('#date-range-label').click();
+  const firstDayName = page.locator('#date-range .air-datepicker-body--day-name').first();
+  // The checks' browser reads its system as en-US, whose weeks start on Sunday.
+  await expect(firstDayName).toHaveText(/^su$/i);
+
+  await app.settingsOnDisk(settingsFileWith('settings.json', { locale: 'en-GB' }));
+  await expect(firstDayName).toHaveText(/^mo$/i);
+  // The first of September 2026 is a Tuesday, so a week from Monday puts one day of August before it.
+  await expect(page.locator('#date-range .air-datepicker-cell.-day-').first()).toHaveAttribute('data-date', '31');
 });
 
 test('a stored custom range comes back as it was picked', async ({ app, page }) => {

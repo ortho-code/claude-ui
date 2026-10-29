@@ -64,7 +64,8 @@ import {
   getUiState,
   setUiState,
 } from './meta';
-import { registerSettings } from './settings';
+import { registerSettings, settingsNow } from './settings';
+import { rendererArguments } from './rendererargs';
 import { registerLayoutState } from './layoutstate';
 import { readProcVersion, runsOnWsl } from './platform';
 import { copiedFiles } from './clipboard';
@@ -388,6 +389,8 @@ async function createWindow(): Promise<void> {
     await getWindowBounds(),
     screen.getAllDisplays().map((d) => d.workArea),
   );
+  // Read afresh for each window, so one opened again on macOS starts in a language changed since.
+  const { locale } = await settingsNow();
   mainWindow = new BrowserWindow({
     width: placement?.width ?? 1100,
     height: placement?.height ?? 760,
@@ -417,6 +420,7 @@ async function createWindow(): Promise<void> {
       preload: path.join(__dirname, '..', 'preload', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      additionalArguments: rendererArguments(locale),
     },
   });
 

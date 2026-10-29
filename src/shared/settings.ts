@@ -11,7 +11,7 @@ import type { Settings } from './types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'stoppedTabButton', 'laterTime'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'stoppedTabButton', 'laterTime', 'locale'];
 
 /** The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them. */
 export const RUNNING_AT_LAUNCH = ['start', 'mark', 'leave'] as const;
@@ -87,7 +87,21 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
   prStatus: (value) => (typeof value === 'boolean' ? { ok: true, value } : { ok: false, why: 'It has to be true or false.' }),
   stoppedTabButton: oneOf(STOPPED_TAB_BUTTON),
   laterTime: (value) => (typeof value === 'string' && timeOfDay(value) !== null ? { ok: true, value } : { ok: false, why: 'It has to be a time of day as "HH:MM", in 24 hours, such as "09:00".' }),
+  locale: (value) => {
+    const tag = typeof value === 'string' ? languageTag(value) : null;
+    return tag !== null ? { ok: true, value: tag } : { ok: false, why: 'It has to be a language tag such as "en-GB" or "nl-NL", or "" for the system\'s language.' };
+  },
 };
+
+/** `value` as the one language tag it spells, in its usual case (`"en-gb"` reads as `"en-GB"`), `""` for the system's language, or null for anything else, such as the `C` a machine's `LANG` may hold. */
+export function languageTag(value: string): string | null {
+  if (value === '') return '';
+  try {
+    return Intl.getCanonicalLocales(value)[0] ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** A time of day as `"HH:MM"` in 24 hours, as hours and minutes, or null for anything else. */
 export function timeOfDay(value: string): { hours: number; minutes: number } | null {
@@ -147,6 +161,7 @@ export function settingsView(file: SettingsFileRead, read = 0): SettingsView {
     prStatus: viewOf('prStatus'),
     stoppedTabButton: viewOf('stoppedTabButton'),
     laterTime: viewOf('laterTime'),
+    locale: viewOf('locale'),
     read,
     notes,
     file: { name: file.name, status: file.status, error: file.error, duplicates: file.duplicates ?? [] },
@@ -155,7 +170,7 @@ export function settingsView(file: SettingsFileRead, read = 0): SettingsView {
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, stoppedTabButton: view.stoppedTabButton.value, laterTime: view.laterTime.value };
+  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, stoppedTabButton: view.stoppedTabButton.value, laterTime: view.laterTime.value, locale: view.locale.value };
 }
 
 /**

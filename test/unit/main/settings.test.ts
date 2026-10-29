@@ -31,7 +31,7 @@ const jsonc = async (file: string): Promise<unknown> => {
   const read = readJsonc(await fs.readFile(file, 'utf8'));
   return read.ok ? read.json : read.error;
 };
-const defaults = { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close', laterTime: '09:00' };
+const defaults = { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close', laterTime: '09:00', locale: '' };
 const text = (file: string): Promise<string> => fs.readFile(file, 'utf8');
 const gone = (file: string): Promise<void> => expect(fs.access(file)).rejects.toThrow();
 const moves = async (): Promise<unknown> => ((await json(metaFile)) as { moved: unknown }).moved;
@@ -176,7 +176,9 @@ describe('a new settings.json', () => {
         '  // What the button on a stopped tab does: "close" the tab, or "archive" its session',
         '  "stoppedTabButton": "close",',
         '  // The time of day, as "HH:MM" in 24 hours, a session set aside for later needs you again on the day chosen',
-        '  "laterTime": "09:00"',
+        '  "laterTime": "09:00",',
+        '  // The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',
+        '  "locale": ""',
         '}',
         '',
       ].join('\n'),

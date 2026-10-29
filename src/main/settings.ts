@@ -106,6 +106,7 @@ const STARTER_NOTES: Record<SettingKey, string> = {
   prStatus: "Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks",
   stoppedTabButton: 'What the button on a stopped tab does: "close" the tab, or "archive" its session',
   laterTime: 'The time of day, as "HH:MM" in 24 hours, a session set aside for later needs you again on the day chosen',
+  locale: 'The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',
 };
 
 /** A new `settings.json`: every setting at its default, under a line saying what it is. */

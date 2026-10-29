@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../../src/shared/defaults';
-import { session } from '../../../../support/fixture';
+import { session, settingsFileWith } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { row } from '../../../../support/window';
 
@@ -34,6 +34,17 @@ test("a row's time follows its session's last activity, which on its own draws t
   await page.clock.fastForward(MINUTE);
   await expect(meta(page, one.title)).toHaveText('1 min ago · Opus 5.5');
   await expect(meta(page, one.title)).toHaveAttribute('data-tooltip', await inFull(page, busy));
+});
+
+test("a row's tooltip gives the moment in the language of the settings, following a change of it at once", async ({ app, page }) => {
+  await page.clock.install({ time: ACTIVE + 5 * MINUTE });
+  await app.boot({ sessions: [one] });
+  await expect(meta(page, one.title)).toHaveAttribute('data-tooltip', await inFull(page, ACTIVE));
+
+  await app.settingsOnDisk(settingsFileWith('settings.json', { locale: 'en-GB' }));
+  const british = await page.evaluate((ms) => new Date(ms).toLocaleString('en-GB'), ACTIVE);
+  expect(british).not.toBe(await inFull(page, ACTIVE));
+  await expect(meta(page, one.title)).toHaveAttribute('data-tooltip', british);
 });
 
 test("an archived row's time ages with the clock too, and its tooltip gives when it was archived", async ({ app, page }) => {

@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { session } from '../../../support/fixture';
+import { session, settingsFileWith } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
 import { row, stripRow, switcherEntry, tab, tabLabels } from '../../../support/window';
@@ -87,9 +87,9 @@ test('Pick a date… asks for a day no earlier than tomorrow and a time starting
 });
 
 // The filter's calendar and this one are one (calendar.ts): it was drawn in the library's own light look, its weeks from Sunday, the time field against it.
-test("Pick a date…'s calendar is the filter's: the app's palette, weeks from Monday, and the time set apart under it", async ({ app, page }) => {
+test("Pick a date…'s calendar is the filter's: the app's palette, weeks from the language's first day, and the time set apart under it", async ({ app, page }) => {
   await page.clock.setFixedTime(THURSDAY);
-  await app.boot(fixture);
+  await app.boot({ ...fixture, settings: settingsFileWith('settings.json', { locale: 'en-GB' }) });
   await pickLater(page, one.title, /^Pick a date…$/);
   const cal = page.locator('#day-calendar .air-datepicker');
   expect((await lookOf(cal)).background).toBe('rgba(0, 0, 0, 0)');

@@ -340,6 +340,8 @@ export interface Settings {
   stoppedTabButton: StoppedTabButton;
   /** The time of day a session set aside for later comes back as needing you, on the day chosen, as `"HH:MM"` in 24 hours; Pick a date… starts at it. */
   laterTime: string;
+  /** The language the app formats times and dates in, as a BCP 47 tag such as `"en-GB"`, or `""` for the system's; a time field follows it from the next launch, the rest at once. */
+  locale: string;
 }
 
 export interface UiState {

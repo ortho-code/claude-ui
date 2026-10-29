@@ -6,6 +6,7 @@ import { statusLabel } from '../../logic';
 import { element } from '../../dom';
 import { routeLinks } from '../../external-links';
 import { Keyed, placeChildren } from '../../keyed';
+import { language, onLanguageChange } from '../../locale';
 import { kebabButton, type MenuItem } from '../../menu';
 import { sessionDotClass } from '../../statusdot';
 import { setTooltip } from '../../tooltip';
@@ -57,7 +58,7 @@ function stderrTail(stderr: string): string[] {
     .slice(-STDERR_LINES);
 }
 
-const clock = (at: Date): string => at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const clock = (at: Date): string => at.toLocaleTimeString(language(), { hour: '2-digit', minute: '2-digit' });
 
 /** All an action says, its label, prompt and name: what a row's button is kept by, and what a menu item checks the row still offers when chosen. */
 const actionKey = (action: SessionAction): string => JSON.stringify([action.label, action.prompt, action.name]);
@@ -97,6 +98,8 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   private readonly rows = new Keyed<ListRow>((kept) => kept.row);
   /** Each row's item as the last draw left it, which what a press does reads. */
   private readonly items = new Map<string, ListItem>();
+  /** Stops drawing the failed run's line again when the language changes, which says its times in it. */
+  private readonly stopLanguage: () => void;
 
   constructor(
     private readonly slot: PanelSlot,
@@ -109,6 +112,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     // A link in a row's detail goes to the browser, a click or a middle-click, and never takes the window anywhere.
     routeLinks(this.body, (url) => window.claudeUi.openExternal(url));
     this.show();
+    this.stopLanguage = onLanguageChange(() => this.show());
     this.runs = new PanelRuns(slot, host, () => this.interval(), this);
     // Through the runs, which put what a run's control file got wrong beside them.
     this.runs.setNotes(folder.notes);
@@ -135,6 +139,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   }
 
   unmount(): void {
+    this.stopLanguage();
     this.runs.unmount();
   }
 

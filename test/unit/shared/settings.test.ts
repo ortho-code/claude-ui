@@ -10,7 +10,17 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close', laterTime: '09:00' });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close', laterTime: '09:00', locale: '' });
+  });
+
+  it("take a language of the file in its usual case, the system's unless told otherwise, and leave out one that is no language tag", () => {
+    expect(settingsView(holding({ locale: 'en-GB' })).locale).toEqual({ value: 'en-GB', problem: null });
+    expect(settingsView(holding({ locale: 'nl-nl' })).locale).toEqual({ value: 'nl-NL', problem: null });
+    expect(settingsView(holding({ locale: '' })).locale).toEqual({ value: '', problem: null });
+    // `C` is what this machine's `LANG` holds, and `en_GB` how a `LANG` spells a language.
+    for (const wrong of ['C', 'en_GB', 'en-GB, nl-NL', ' en-GB', 'x', 31, null]) {
+      expect(settingsView(holding({ locale: wrong })).locale).toEqual({ value: '', problem: 'It has to be a language tag such as "en-GB" or "nl-NL", or "" for the system\'s language.' });
+    }
   });
 
   it('take a time of day of the file for a later session, 09:00 unless told otherwise, and leave out one that is no time in 24 hours', () => {
