@@ -219,6 +219,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session that starts with a command claude runs itself, such as `/clear`, `/model` or `/effort`, is no longer named after it, but after the first thing asked in it, and reads `New: <folder>` until then.
 - The times in the session list and the history, such as "5 min ago", keep up with the clock, instead of staying what they were when that part was last drawn, which for a session you were not using could be hours behind.
 - Pausing or stopping a session with a `/loop` wakeup pending ends it, instead of leaving it running with only Force stop or Force pause to end it.
+- A time field's clock, and a checkbox or a radio button, are drawn for a dark window, where the clock was black on the dark field.
 
 ## 0.3.0 — 2026-08-29
 

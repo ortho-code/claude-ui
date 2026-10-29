@@ -2,6 +2,8 @@
    Imported first, so every module's own stylesheet comes after it in the bundle. */
 
 :root {
+  /* The app is dark, which the browser's own parts of a control are told here, such as a time field's clock and the picker it opens: unset, they drew in the light scheme, a black clock on the dark field (2026-10-29). */
+  color-scheme: dark;
   --bg: #1e1e2e;
   --surface: #27273a;
   --surface-hover: #313147;
