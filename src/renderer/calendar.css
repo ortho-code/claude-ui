@@ -1,0 +1,43 @@
+/* Theme air-datepicker to the app palette (calendar.ts).
+   Its --adp-* vars are declared on .air-datepicker itself, so overrides must target that element (an ancestor's value would lose to the element's own rule).
+   The calendar sits on the surface of what holds it, a popover or a dialog, so its background and inline border are transparent; in-range fill is a translucent accent, endpoints the solid accent. */
+.air-datepicker.calendar {
+  --adp-background-color: transparent;
+  --adp-border-color-inline: transparent;
+  --adp-color: var(--text);
+  --adp-color-secondary: var(--muted);
+  --adp-accent-color: var(--accent);
+  --adp-color-current-date: var(--accent);
+  --adp-color-other-month: var(--muted);
+  --adp-color-disabled: var(--muted);
+  --adp-border-color: var(--border);
+  --adp-border-color-inner: var(--border);
+  --adp-day-name-color: var(--muted);
+  --adp-nav-arrow-color: var(--text);
+  --adp-nav-color-secondary: var(--text);
+  /* The nav arrows and month/year title use the generic hover/active vars (defaulted to white). */
+  --adp-background-color-hover: var(--surface-hover);
+  --adp-background-color-active: var(--surface-hover);
+  --adp-cell-background-color-hover: var(--surface-hover);
+  --adp-cell-background-color-selected: var(--accent);
+  --adp-cell-background-color-selected-hover: var(--accent);
+  --adp-cell-background-color-in-range: color-mix(in srgb, var(--accent) 22%, transparent);
+  --adp-cell-background-color-in-range-hover: color-mix(in srgb, var(--accent) 32%, transparent);
+  --adp-cell-border-color-in-range: transparent;
+  --adp-font-size: var(--text-meta);
+}
+
+/* The lib hardcodes white text on selected cells; too faint on our light accent, so use dark text.
+   Its strongest such rules name a cell of another month or decade (`.-selected-.air-datepicker-cell.-day-.-other-month-`), and a selected cell can also be disabled and focused, which its colour rules for those name (`.-disabled-.-focus-.air-datepicker-cell.-day-.-other-month-`), so each gets a selector one class stronger than the lib's, which wins wherever the bundle puts either file. */
+.air-datepicker.calendar .air-datepicker-cell.-selected-,
+.air-datepicker.calendar .air-datepicker-cell.-selected-.-other-month-,
+.air-datepicker.calendar .air-datepicker-cell.-selected-.-other-decade-,
+.air-datepicker.calendar .air-datepicker-cell.-selected-.-disabled-.-focus- {
+  color: var(--bg);
+}
+
+/* Disabled days (outside the days it allows) share the other-month colour otherwise, so fade them further and show a not-allowed cursor to read as unselectable. */
+.calendar .air-datepicker-cell.-disabled- {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

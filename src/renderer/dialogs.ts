@@ -1,7 +1,5 @@
-import AirDatepicker from 'air-datepicker';
-import localeEn from 'air-datepicker/locale/en';
-import 'air-datepicker/air-datepicker.css';
 import { timeOfDay } from '../shared/settings';
+import { calendar } from './calendar';
 import { onDayAt } from './logic';
 import { listen, runModal } from './modal';
 import './dialogs.css';
@@ -64,15 +62,13 @@ const dayDetail = document.getElementById('day-detail')!;
 const dayOk = document.getElementById('day-ok') as HTMLButtonElement;
 const dayCancel = document.getElementById('day-cancel') as HTMLButtonElement;
 const dayTime = document.getElementById('day-time') as HTMLInputElement;
-// The calendar the session list's filter picks its dates in, as one day: custom-rendered, with no native <select>, so it behaves under WSLg.
+// The calendar the session list's filter picks its dates in, as one day (calendar.ts).
 let pickedDay: Date | null = null;
 /** Save while a day is picked and the time reads. */
 const fillDayOk = (): void => {
   dayOk.disabled = pickedDay === null || timeOfDay(dayTime.value) === null;
 };
-const dayPicker = new AirDatepicker(document.getElementById('day-calendar')!, {
-  inline: true,
-  locale: localeEn,
+const dayPicker = calendar(document.getElementById('day-calendar')!, {
   onSelect: ({ date }) => {
     pickedDay = date instanceof Date ? date : null;
     fillDayOk();

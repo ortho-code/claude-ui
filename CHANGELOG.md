@@ -151,6 +151,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   `runningSessionsAtLaunch` is `"mark"`, `"start"` or `"leave"` now, and a `"pause"` already in your `settings.json` reads as `"mark"`.
 - The top of a session's options lists every state it is in on a line of its own, each with its dot, such as idle and needing you at once, where the status used to end the line with its project.
 - A session's dot no longer turns to waiting for claude's notices of something finished, such as a login that succeeded or an agent that finished.
+- The date filter's calendar starts its weeks on Monday.
 - Later takes over from pausing a tab: Pause and Force pause are gone from a session's options, the paused filter is a filter for the sessions marked for later, and the live strip lists only what runs or needs you, so its line no longer counts paused tabs.
   A tab you had paused comes back as an ordinary stopped tab, its session set aside for later, whenever.
 

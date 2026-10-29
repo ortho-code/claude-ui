@@ -18,6 +18,7 @@ const ORDER = [
   'src/renderer/toast.css',
   'src/renderer/notifications.css',
   'node_modules/air-datepicker/air-datepicker.css',
+  'src/renderer/calendar.css',
   'src/renderer/modal.css',
   'src/renderer/decisive-button.css',
   'src/renderer/dialogs.css',

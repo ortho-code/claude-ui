@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
+import { lookOf, token } from '../../../support/looks';
 import { row, stripRow, switcherEntry, tab, tabLabels } from '../../../support/window';
 
 // A session set aside for later carries a bookmark on its row, its tab and its strip row by one rule, until a prompt there, Clear later, an archive or its day coming takes it off (decided 2026-10-29).
@@ -83,6 +84,20 @@ test('Pick a date… asks for a day no earlier than tomorrow and a time starting
   await expect(page.locator('#day-overlay')).toBeHidden();
   expect((await app.calls('markLater')).map(([id, due]) => [id, due])).toEqual([[one.id, await momentInPage(page, 2026, 9, 31, 14, 15)]]);
   await expect(row(page, one.title).locator('.later-mark')).toHaveAttribute('data-tooltip', 'Later: Sat 31 Oct, 14:15');
+});
+
+// The filter's calendar and this one are one (calendar.ts): it was drawn in the library's own light look, its weeks from Sunday, the time field against it.
+test("Pick a date…'s calendar is the filter's: the app's palette, weeks from Monday, and the time set apart under it", async ({ app, page }) => {
+  await page.clock.setFixedTime(THURSDAY);
+  await app.boot(fixture);
+  await pickLater(page, one.title, /^Pick a date…$/);
+  const cal = page.locator('#day-calendar .air-datepicker');
+  expect((await lookOf(cal)).background).toBe('rgba(0, 0, 0, 0)');
+  expect((await lookOf(page.locator('#day-calendar .air-datepicker-cell.-day-[data-date="31"][data-month="9"]'))).color).toBe(await token(page, '--text'));
+  await expect(page.locator('#day-calendar .air-datepicker-body--day-name').first()).toHaveText(/^mo$/i);
+  const calendarBottom = (await cal.boundingBox())!;
+  const time = (await page.locator('#day-time').boundingBox())!;
+  expect(time.y - (calendarBottom.y + calendarBottom.height)).toBeGreaterThanOrEqual(8);
 });
 
 test("a prompt there takes it off, a scheduled task's turn and its tab's close do not", async ({ app, page }) => {

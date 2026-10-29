@@ -1,7 +1,5 @@
-import AirDatepicker from 'air-datepicker';
-import localeEn from 'air-datepicker/locale/en';
-import 'air-datepicker/air-datepicker.css';
 import type { SessionSummary, UiState } from '../../../../shared/types';
+import { calendar } from '../../../calendar';
 import { byId, fromMarkup } from '../../../dom';
 import { datePresetRange, entityKey, sessionPasses } from '../../../logic';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
@@ -71,14 +69,11 @@ const dateCustom = byId(filterPanel, 'date-custom');
 const dateRangeLabel = byId(filterPanel, 'date-range-label'); // persistent line under presets
 const dateRangeCaption = byId(filterPanel, 'date-range-caption'); // same text, inside calendar
 const pad2 = (n: number): string => String(n).padStart(2, '0');
-// Inline range calendar.
-// Custom-rendered month/year views (click the header to zoom out to a months grid, then a years grid, arrows paging through) and no native <select>, so it behaves under WSLg.
+// Inline range calendar, the app's own (calendar.ts): click the header to zoom out to a months grid, then a years grid, arrows paging through.
 // Capped at today: sessions are never in the future.
 let suppressPickerSelect = false;
-const datePicker = new AirDatepicker(byId(filterPanel, 'date-range'), {
-  inline: true,
+const datePicker = calendar(byId(filterPanel, 'date-range'), {
   range: true,
-  locale: localeEn,
   maxDate: new Date(),
   onSelect: () => {
     if (!suppressPickerSelect) onCustomDateChange();
