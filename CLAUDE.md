@@ -33,12 +33,16 @@ The roadmap in `README.md` is the source of truth for what is done and what is n
   Keep them as two entries (see `docs/architecture.md` § Build).
 - `npm run lint` is ESLint with type-aware rules, and CI runs it.
   Why each rule is off or tuned is written beside it in `eslint.config.mjs`.
-- Before a commit, the checks its change needs run one after the other, and all pass; which those are, by what changed, is in docs/architecture.md § Which checks a change needs.
-  A change to `.md` files alone needs only `npm test`; one that touches `src/renderer` or `src/shared` needs all four: `npm run build`, `npm test`, `npm run lint` and `npm run test:renderer`.
-  A change to comments alone in TypeScript or JavaScript needs no window's checks: `npm run comments:prove`, then `npm run build`, `npm test` and `npm run lint`; a stylesheet's comment, or one the proof fails, goes by the row of its folder.
+- Before a commit, run the checks that can reach what changed, one after the other, and all pass; choose them from the change itself, not from the folder it sits in.
+  The widest each folder can need is in docs/architecture.md § Which checks a change needs; a small change runs less.
+  Code always gets `npm run build` and `npm run lint`; a change to comments alone in a script starts with `npm run comments:prove`, and one the proof fails is a change to code.
+  Unit tests: the ones of the modules that changed (their mirror under `test/unit/`); `test/unit/imports.test.ts` when an import changes; `test/unit/renderer/renderer.test.ts` when a stylesheet import moves; `npx tsc --noEmit -p tsconfig.test.json` when anything under `test/`, or a type a test uses, changes, since `npm run build` does not type-check the tests.
+  A doc, changelog or comment change runs `npm run test:text`, plus the unit tests that read that file, found by grepping `test/unit` for its name; `npx vitest related` finds neither, since they read the file rather than import it.
+  Window checks: the files that changed, and the files that exercise what changed, found by grepping `test/renderer` for the labels, ids, class names and selectors the change touches; a hit inside `test/renderer/support/` means every check that calls that helper.
+  The whole of `npm test` or `npm run test:renderer` runs only for a change whose reach cannot be listed that way: `src/shared`, the store and its state, the layout tree, a renderer module many others import (`logic.ts`, `svg.ts`, `tooltip.ts`, `dom.ts`), a stylesheet many surfaces draw such as `base.css`, `test/renderer/support/` itself, dependencies, a tsconfig or a tool's config.
+  Say in the commit proposal what ran; CI runs all four on every push to `main` and every pull request, so a narrow choice that missed something is still caught there.
   Never side by side: the window's checks load the whole machine, so together they took longer than in a row and pushed unit tests past their timeout.
-  While working, run only the checks of what you touched, its file or the folder of its panel type; the whole of `npm run test:renderer` runs only when the change is ready.
-  After a failed run, `npm run build` and then `npx playwright test -c test/renderer --last-failed` rerun what failed or never started, until it passes, and then the whole suite once more; a check cut off mid-run, as by Ctrl+C, is not rerun.
+  After a failed run, `npm run build` and then `npx playwright test -c test/renderer --last-failed` rerun what failed or never started, until it passes, and then what was chosen once more; a check cut off mid-run, as by Ctrl+C, is not rerun.
   `--last-failed` reads `test-results/.last-run.json`, written by the last run in this checkout to finish, another session's included; while another session's run is under way there is none, and it runs everything.
 - A fix to behaviour starts with a check that fails without it: a window check where the window shows the bug, a unit test where main or a pure function does.
   The check lands with the fix, and an area without checks gets one when it is next touched.

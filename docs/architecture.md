@@ -193,8 +193,9 @@ The comparison sorts each state's lines, and takes a map of the classes a change
 ## Which checks a change needs
 
 What a commit runs follows from what it changed, since most of the time goes on the window's checks, and most changes cannot reach them.
+The table is the widest each folder can need; a small change runs only the checks that can reach it, such as the window checks that find the label or class name it touches, and the whole of a suite only when its reach cannot be listed that way (decided 2026-10-29, since a change to one menu ran the whole window suite, over six hundred checks, to settle a handful).
 
-| What changed | What to run |
+| What changed | The widest it needs |
 |---|---|
 | Only `.md` files | `npm test` |
 | Only comments in scripts, which `npm run comments:prove` passes | `npm run comments:prove`, then `npm run build`, `npm test`, `npm run lint` |
@@ -205,7 +206,7 @@ What a commit runs follows from what it changed, since most of the time goes on 
 A change across rows runs what each of its rows lists.
 The first takes about ten seconds, the next two about half a minute, and the last two up to two minutes, most of it the window's checks.
 
-A doc runs `npm test` and not only the text rules, since some unit tests hold a doc to the code: the variables `docs/panel-types.md` names, the icon names in the README; `npm run test:text` is for while writing.
+A doc needs more than the text rules where a unit test holds it to the code: the variables `docs/panel-types.md` names, the icon names in the README; those tests name the doc they read, so a search of `test/unit` for its file name finds them, and `npm test` covers every one at once.
 A comment still reaches the linter (one that fills an empty block, a `// falls through`, a `@deprecated` tag), the compiler (what a `@ts-expect-error` covers) and the text rules (a wrapped line), but not the window: once the proof passes, the bundled code is the same, its directives included, and only the source map beside it differs.
 A comment change the proof fails, a directive's among them, is a change to code, and goes by the row of its folder.
 So does a stylesheet's comment: the proof takes every `/* … */` out as a space, which is wrong between two selectors, where a comment leaves them joined, and inside a string, where it is no comment at all.
@@ -214,7 +215,7 @@ Main and the preload reach the window's checks only through the build, which the
 A workflow, `electron-builder.yml` and the shell script in `build/` are read here only by the text rules, for their comments, and the macOS entitlements file by nothing; CI's next run, or a release, is where they are tried.
 
 CI runs all four on every push to `main` and every pull request, whatever changed, so a commit that ran too few is still caught, after the push rather than before it.
-While working on one thing, run only its file: `npx vitest run <file>`, or `npm run build` and then `npx playwright test -c test/renderer <file>`; the rows above are for the commit.
+While working on one thing, run only its file: `npx vitest run <file>`, or `npm run build` and then `npx playwright test -c test/renderer <file>`; the choice above is for the commit.
 
 ## Embedded terminal
 
