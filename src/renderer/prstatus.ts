@@ -1,5 +1,5 @@
 import { prReference } from '../shared/prs';
-import type { PrRef, PrStatus, PrStatusRead, SessionSummary } from '../shared/types';
+import type { PrChange, PrRef, PrSeen, PrStatus, PrStatusRead, SessionSummary } from '../shared/types';
 import type { Tone } from './tone';
 
 /** Main's answer before it has given one: no status for any PR, and nothing gone wrong. */
@@ -58,6 +58,67 @@ export function prVerdict(status: PrStatus | null): PrVerdict {
   if (status.review === 'review-required') return { tone: 'normal', words: 'review required' };
   if (status.review === 'approved') return { tone: status.conflict === false ? 'positive' : 'normal', words: 'approved' };
   return { tone: 'normal', words: 'open' };
+}
+
+/**
+ * Where a PR's change ranks among a session's reasons, lowest first: back to work, then finished or open again, then ready to merge (decided 2026-10-29).
+ * Also which of several changes at once is the one a PR marks with (`prChanges`).
+ */
+export const PR_CHANGE_RANK: Readonly<Record<PrChange, number>> = { 'checks failed': 0, 'merge conflict': 0, 'changes requested': 0, merged: 1, closed: 1, reopened: 1, approved: 2 };
+
+/**
+ * What a PR's status holds that needs you, each on its own, where its words name only the strongest (`prVerdict`): failing checks, a conflict, changes requested, an approved review, merged or closed.
+ * Apart, so one that was there already does not read as new once a stronger one clears, and an approval shows while checks still run.
+ */
+function conditionsOf(status: PrStatus): Set<PrChange> {
+  if (status.state !== 'open') return new Set([status.state]);
+  const conditions = new Set<PrChange>();
+  if (status.checks === 'failed') conditions.add('checks failed');
+  if (status.conflict === true) conditions.add('merge conflict');
+  if (status.review === 'changes-requested') conditions.add('changes requested');
+  if (status.review === 'approved') conditions.add('approved');
+  return conditions;
+}
+
+/** `changes` strongest first (`PR_CHANGE_RANK`). */
+function ranked(changes: Iterable<PrChange>): PrChange[] {
+  return [...changes].sort((a, b) => PR_CHANGE_RANK[a] - PR_CHANGE_RANK[b]);
+}
+
+/** What a PR already needs you for, as a first run marks it: everything its status holds that does (`conditionsOf`), strongest first; empty where it needs nothing. */
+export function needsYouNow(status: PrStatus): PrChange[] {
+  return ranked(conditionsOf(status));
+}
+
+/** A PR's status with a conflict GitHub has not worked out yet, as it is after a push, taken as what it was before, so a conflict that stays does not read as new each time it comes back. */
+function withKnownConflict(status: PrStatus, before: PrStatus | undefined): PrStatus {
+  return status.state === 'open' && status.conflict === null && before?.state === 'open' ? { ...status, conflict: before.conflict } : status;
+}
+
+/**
+ * What main's answer about `prs` changed since `seen`: what is seen now, each PR's status, and each PR whose change needs you, with every change, strongest first (decided 2026-10-29).
+ * A PR marks when something that needs you is there now and was not before (`conditionsOf`): checks failing, a conflict, changes requested, an approved review, merged or closed; all of them where several come in one answer, so an approval that comes with failing checks is not lost; and when a closed PR is open again, as reopened, with everything it holds then.
+ * So one that was there already marks nothing when a stronger one clears, an approval marks though its checks still run, an approved PR whose checks run again after a push marks nothing, and a conflict GitHub is still working out counts as what was known of it.
+ * A PR seen for the first time is recorded and marks nothing, whatever it holds; one with no status keeps what was seen of it; an answer in which any request to GitHub failed changes nothing, and what it did learn waits for the next whole answer.
+ */
+export function prChanges(seen: PrSeen | null, prs: readonly PrRef[], read: PrStatusRead): { seen: PrSeen | null; changes: { pr: string; changes: PrChange[] }[] } {
+  if (read.problem !== null) return { seen, changes: [] };
+  const next: PrSeen = { ...seen };
+  const changes: { pr: string; changes: PrChange[] }[] = [];
+  for (const pr of prs) {
+    const ref = prReference(pr);
+    const answered = read.statuses[ref];
+    if (answered === undefined) continue;
+    const before = seen?.[ref];
+    const status = withKnownConflict(answered, before);
+    next[ref] = status;
+    if (before === undefined) continue;
+    const was = conditionsOf(before);
+    // Open again, everything it holds is news: a closed PR held none of it.
+    const found = before.state === 'closed' && status.state === 'open' ? ranked(['reopened', ...conditionsOf(status)]) : ranked([...conditionsOf(status)].filter((condition) => !was.has(condition)));
+    if (found.length > 0) changes.push({ pr: ref, changes: found });
+  }
+  return { seen: seen === null && prs.every((pr) => read.statuses[prReference(pr)] === undefined) ? null : next, changes };
 }
 
 /** The order a session's PRs roll up by, highest first: whatever most needs a person wins, so the mark is muted only once every PR is merged or closed. */

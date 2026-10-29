@@ -103,7 +103,7 @@ function holds(file: SettingsFileRead, key: string): boolean {
 const STARTER_NOTES: Record<SettingKey, string> = {
   launchFlags: 'Flags added to every session the app starts, as you would type them',
   runningSessionsAtLaunch: 'What a launch does with the sessions that were running when the app closed: "mark" them as needing you, "start" them too, or "leave" them with the other tabs',
-  prStatus: "Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks",
+  prStatus: 'Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks and marks a session as needing you when one changes, such as merged or changes requested; turned on, it starts from the PRs as they are then',
   stoppedTabButton: 'What the button on a stopped tab does: "close" the tab, or "archive" its session',
   laterTime: 'The time of day, as "HH:MM" in 24 hours, a session set aside for later needs you again on the day chosen',
   locale: 'The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',

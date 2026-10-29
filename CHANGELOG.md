@@ -103,6 +103,9 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A session that needed you before you set it aside shows that dimmed, counting for nothing while the later mark stands, and one that needs you afterwards shows it in full.
 - A language for times and dates, `locale` in `settings.json` and Language for times and dates in Settings, such as `en-GB` for a 24-hour clock and weeks from Monday on a system that reads as US English.
   Time fields follow it from the next launch, the rest of the app at once.
+- A session is marked as needing you when a PR it links gets something new that needs you: merged, closed or opened again, an approving review, changes requested, failing checks or a merge conflict, with the PR and its change in the dot's tooltip, such as "PR #35777 merged".
+  A change while the app was closed marks at the next launch; it needs PR status on in Settings, and turning that on starts from the PRs as they are then.
+  If PR status is on when you first start this version, its first whole answer from GitHub marks only the sessions with a tab or set aside for later whose PRs already need you by then; with it off then, turning it on later marks only what changes after.
 
 ### Changed
 

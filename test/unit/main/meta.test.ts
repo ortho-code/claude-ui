@@ -48,6 +48,8 @@ import {
   clearLater,
   laterCameDue,
   clearNeedsYou,
+  getPrSeen,
+  setPrSeen,
   getScheduledWhenStopped,
   setOpenSessions,
   setScheduledWhenStopped,
@@ -237,10 +239,52 @@ describe('sessions that need you', () => {
     expect(await getNeedsYou()).toEqual({ a: [{ reason: 'quit', at: 5 }], e: [{ reason: 'reminder', at: 7 }] });
   });
 
+  it("read a PR's reason with its PR and its changes, and drop one without either", async () => {
+    await writeMetaFile({
+      version: 3,
+      needsYou: {
+        a: [{ reason: 'pr', at: 5, pr: 'acme/app#7', changes: ['checks failed', 'approved'] }],
+        b: [{ reason: 'pr', at: 5, changes: ['merged'] }],
+        c: [{ reason: 'pr', at: 5, pr: 'acme/app#7', changes: ['merged', 'nonsense'] }],
+        d: [{ reason: 'pr', at: 5, pr: 'acme/app#7', changes: [] }],
+      },
+    });
+    expect(await getNeedsYou()).toEqual({ a: [{ reason: 'pr', at: 5, pr: 'acme/app#7', changes: ['checks failed', 'approved'] }] });
+  });
+
   // A file from before a session kept every reason holds one reason per session.
   it('read a single reason, as an older file holds it, as a list of one', async () => {
     await writeMetaFile({ version: 3, needsYou: { a: { reason: 'quit', at: 5 }, b: { reason: 'nonsense', at: 5 } } });
     expect(await getNeedsYou()).toEqual({ a: [{ reason: 'quit', at: 5 }] });
+  });
+});
+
+describe('what was last seen of the PRs', () => {
+  it('is null in a file written before it was kept, which is the first run', async () => {
+    await writeMetaFile({ version: 3 });
+    expect(await getPrSeen()).toBeNull();
+  });
+
+  it('is kept in place of what was before, and stays empty once emptied', async () => {
+    const approved = { state: 'open' as const, draft: false, review: 'approved' as const, checks: 'running' as const, conflict: null };
+    await setPrSeen({ 'acme/app#7': { state: 'merged' } });
+    await setPrSeen({ 'acme/app#8': approved });
+    expect(await getPrSeen()).toEqual({ 'acme/app#8': approved });
+    await setPrSeen({});
+    expect(await getPrSeen()).toEqual({});
+  });
+
+  it('drops an entry this build cannot read as a status', async () => {
+    await writeMetaFile({
+      version: 3,
+      prSeen: {
+        'acme/app#7': { state: 'closed' },
+        'acme/app#8': { state: 'nonsense' },
+        'acme/app#9': { state: 'open', draft: false, review: 'nonsense', checks: null, conflict: null },
+        'acme/app#10': { state: 'open', review: null, checks: null, conflict: null },
+      },
+    });
+    expect(await getPrSeen()).toEqual({ 'acme/app#7': { state: 'closed' } });
   });
 });
 

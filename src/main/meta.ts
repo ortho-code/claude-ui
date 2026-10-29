@@ -2,13 +2,13 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { Later, NeedsYou, NeedsYouReason, OrderMove, GroupState, HistoryPin, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
+import type { Later, NeedsYou, NeedsYouReason, OrderMove, GroupState, HistoryPin, PrChange, PrSeen, PrStatus, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
 import { scheduledTasksOf } from '../shared/scheduled';
 import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, markedLater, markedNeedsYou, NEEDS_YOU_REASONS, purgedSession, togglePinned, unarchived } from '../shared/sessionmarks';
+import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, markedLater, markedNeedsYou, NEEDS_YOU_REASONS, PR_CHANGES, purgedSession, togglePinned, unarchived } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
@@ -78,6 +78,11 @@ interface Meta {
    */
   later: Record<string, Later>;
   /**
+   * What was last seen of each PR the sessions link, by reference: what the window tells a PR's change from, which marks the sessions linking it (`prChanges`).
+   * Null before it was ever kept, the first run; emptied when PR status is turned off, so turning it on again starts from the PRs as they are then (decided 2026-10-29).
+   */
+  prSeen: PrSeen | null;
+  /**
    * Size and position of the window as it was last left, or null until it has been.
    * The size stored is always the unmaximized one, with `maximized` recorded beside it, so restoring a maximized window still knows how big to make it when it is un-maximized.
    */
@@ -145,6 +150,7 @@ const KNOWN_KEYS = new Set([
   'notes',
   'needsYou',
   'later',
+  'prSeen',
   'groups',
   'groupOf',
   'version',
@@ -156,7 +162,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, later: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, later: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -357,6 +363,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // The same again: absent means nothing is set aside for later.
     // A file from before pause gave way to the later mark lists the tabs you paused, each of them set aside for later here, whenever (decided 2026-10-29), so nothing set aside is lost.
     later: laterWithPaused(laterOf(parsed.later), parsed.pausedSessions, Date.now()),
+    // The same again: absent means never kept, the first run.
+    prSeen: prSeenOf(parsed.prSeen),
     groups,
     groupOf,
     version: typeof parsed.version === 'number' ? parsed.version : 1,
@@ -671,7 +679,7 @@ export function clearNeedsYou(id: string): Promise<void> {
 }
 
 /**
- * Session -> every reason it needs you for, from whatever was stored: a reason this build does not know or without a time left out, and a session left with none dropped.
+ * Session -> every reason it needs you for, from whatever was stored: a reason this build does not know or without a time left out, a PR's without the PR or with a change this build does not know too, and a session left with none dropped.
  * A single reason, as a file from before a session kept every reason holds it, is read as a list of one.
  */
 function needsYouOf(raw: unknown): Record<string, NeedsYou[]> {
@@ -680,10 +688,52 @@ function needsYouOf(raw: unknown): Record<string, NeedsYou[]> {
     Object.entries(raw as Record<string, unknown>).flatMap(([id, entry]) => {
       const reasons = (Array.isArray(entry) ? entry : [entry]).flatMap((item: unknown): NeedsYou[] => {
         if (typeof item !== 'object' || item === null) return [];
-        const { reason, at } = item as Record<string, unknown>;
-        return NEEDS_YOU_REASONS.includes(reason as NeedsYouReason) && typeof at === 'number' ? [{ reason: reason as NeedsYouReason, at }] : [];
+        const { reason, at, pr, changes } = item as Record<string, unknown>;
+        if (!NEEDS_YOU_REASONS.includes(reason as NeedsYouReason) || typeof at !== 'number') return [];
+        if (reason !== 'pr') return [{ reason: reason as Exclude<NeedsYouReason, 'pr'>, at }];
+        const known = Array.isArray(changes) && changes.length > 0 && changes.every((change) => PR_CHANGES.includes(change as PrChange));
+        return typeof pr === 'string' && known ? [{ reason, at, pr, changes: changes as PrChange[] }] : [];
       });
       return reasons.length > 0 ? [[id, reasons]] : [];
+    }),
+  );
+}
+
+/** What was last seen of the PRs; see `prSeen`. */
+export function getPrSeen(): Promise<PrSeen | null> {
+  return serialize(async () => (await readMeta()).prSeen);
+}
+
+/** Keep what was last seen of the PRs, in place of what was kept before. */
+export function setPrSeen(seen: PrSeen): Promise<void> {
+  return update('setPrSeen', (meta) => {
+    meta.prSeen = prSeenOf(seen) ?? {};
+  });
+}
+
+/** What may stand in each part of an open PR's status, null among them (`PrStatus`). */
+const PR_PARTS: Record<'review' | 'checks' | 'conflict', readonly unknown[]> = {
+  review: ['approved', 'changes-requested', 'review-required', null],
+  checks: ['passed', 'failed', 'running', null],
+  conflict: [true, false, null],
+};
+
+/** A PR's status as it was stored, null for one this build cannot read. */
+function prStatusOf(raw: unknown): PrStatus | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const { state, draft, review, checks, conflict } = raw as Record<string, unknown>;
+  if (state === 'merged' || state === 'closed') return { state };
+  if (state !== 'open' || typeof draft !== 'boolean' || !PR_PARTS.review.includes(review) || !PR_PARTS.checks.includes(checks) || !PR_PARTS.conflict.includes(conflict)) return null;
+  return { state, draft, review, checks, conflict } as PrStatus;
+}
+
+/** What was last seen of the PRs, from whatever was stored: null for none at all, and an entry this build cannot read dropped. */
+function prSeenOf(raw: unknown): PrSeen | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>).flatMap(([ref, entry]) => {
+      const status = prStatusOf(entry);
+      return status ? [[ref, status]] : [];
     }),
   );
 }

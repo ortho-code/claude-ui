@@ -3,7 +3,7 @@ import type { FolderName } from '../../../src/shared/folders';
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/pathcheck';
 import type { SettingsFileRead } from '../../../src/shared/settings';
-import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, Later, NeedsYou, PrStatus, ScheduledTask, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
+import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, Later, NeedsYou, PrSeen, PrStatus, ScheduledTask, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -18,6 +18,10 @@ export interface BridgeFixture {
   notes: Record<string, string>;
   /** Session -> why it needs you, as meta keeps it; marked and cleared by main's own rules. */
   needsYou: Record<string, NeedsYou[]>;
+  /** What was last seen of the PRs, as meta keeps it; null for never, the first run. */
+  prSeen: PrSeen | null;
+  /** How many reads of it fail before one answers, as a `meta.json` that cannot be read would. */
+  prSeenReadFails: number;
   /** Session -> the day it comes back and when it was set aside, as meta keeps it; marked, cleared and come due by main's own rules. */
   later: Record<string, Later>;
   /** How the app closed before this window, as main's log says. */
@@ -142,6 +146,9 @@ export function defaultFixture(): BridgeFixture {
     archiveFails: null,
     notes: {},
     needsYou: {},
+    // Kept before, so a check with linked PRs sees no first run unless it asks for one.
+    prSeen: {},
+    prSeenReadFails: 0,
     later: {},
     lastClosed: 'quit',
     openSessions: [],

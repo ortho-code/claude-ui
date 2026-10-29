@@ -66,6 +66,21 @@ describe('markedNeedsYou', () => {
     });
   });
 
+  it("replaces a PR's change with that PR's newer one, and keeps another PR's", () => {
+    const needsYou = {
+      a: [
+        { reason: 'pr' as const, at: 1, pr: 'acme/app#1', changes: ['changes requested' as const] },
+        { reason: 'pr' as const, at: 2, pr: 'acme/app#2', changes: ['merged' as const] },
+      ],
+    };
+    expect(markedNeedsYou(needsYou, ['a'], [{ reason: 'pr', at: 3, pr: 'acme/app#1', changes: ['approved'] }])).toEqual({
+      a: [
+        { reason: 'pr', at: 2, pr: 'acme/app#2', changes: ['merged'] },
+        { reason: 'pr', at: 3, pr: 'acme/app#1', changes: ['approved'] },
+      ],
+    });
+  });
+
   it('changes nothing with no sessions or no reasons', () => {
     const needsYou = { a: [{ reason: 'ended' as const, at: 1 }] };
     expect(markedNeedsYou(needsYou, [], [{ reason: 'quit', at: 42 }])).toEqual(needsYou);

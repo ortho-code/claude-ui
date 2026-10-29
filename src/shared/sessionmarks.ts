@@ -2,7 +2,7 @@
  * Main's rules for the marks a session carries in meta — its pin, its archive entry, its note (written with `withText`, src/shared/text.ts), its needs-you and later marks — pure, so that the window's checks answer them the way main does, and the window keeps its own copy of the needs-you and later marks by them.
  * Main (src/main/meta.ts) applies them inside its serialised writes of `meta.json`.
  */
-import type { Later, NeedsYou, NeedsYouReason, ScheduledTask } from './types';
+import type { Later, NeedsYou, NeedsYouReason, PrChange, ScheduledTask } from './types';
 
 /** The marks, as `meta.json` holds them. */
 export interface SessionMarks {
@@ -27,11 +27,15 @@ export function archivedFrom(archived: Readonly<Record<string, number>>, id: str
 }
 
 /** Every reason a session can need you for, as `meta.json` may hold them. */
-export const NEEDS_YOU_REASONS: readonly NeedsYouReason[] = ['quit', 'ended', 'unknown', 'reminder'];
+export const NEEDS_YOU_REASONS: readonly NeedsYouReason[] = ['quit', 'ended', 'unknown', 'reminder', 'pr'];
 
-/** What a reason replaces when it is added: how the app closed replaces how it closed before, a reminder the reminder before. */
-function kindOf({ reason }: NeedsYou): string {
-  return reason === 'reminder' ? 'reminder' : 'launch';
+/** Every change of a PR that marks a session, as `meta.json` may hold them. */
+export const PR_CHANGES: readonly PrChange[] = ['checks failed', 'merge conflict', 'changes requested', 'merged', 'closed', 'approved', 'reopened'];
+
+/** What a reason replaces when it is added: how the app closed replaces how it closed before, a reminder the reminder before, and a PR's change that PR's change before. */
+function kindOf(reason: NeedsYou): string {
+  if (reason.reason === 'pr') return `pr:${reason.pr}`;
+  return reason.reason === 'reminder' ? 'reminder' : 'launch';
 }
 
 /**

@@ -17,17 +17,23 @@ export interface ScheduledTask {
  */
 export type ClosedHow = 'quit' | 'ended' | 'unknown';
 
-/** Why a session needs you: how the app closed while it ran (`ClosedHow`), or the day you marked it for later has come (`reminder`). */
-export type NeedsYouReason = ClosedHow | 'reminder';
+/** Why a session needs you: how the app closed while it ran (`ClosedHow`), the day you marked it for later has come (`reminder`), or a PR it links changed (`pr`). */
+export type NeedsYouReason = ClosedHow | 'reminder' | 'pr';
+
+/** The changes to a PR that mark the sessions linking it as needing you: something that needs you appearing in its status, or a closed PR opened again (`reopened`). */
+export type PrChange = 'checks failed' | 'merge conflict' | 'changes requested' | 'merged' | 'closed' | 'approved' | 'reopened';
 
 /**
  * One reason a session needs you: why, and when it was marked (epoch ms); for a reminder, the start of the day it was for.
  * A session keeps every reason it was marked for, as a list.
  */
-export interface NeedsYou {
-  reason: NeedsYouReason;
-  at: number;
-}
+export type NeedsYou =
+  | { reason: ClosedHow | 'reminder'; at: number }
+  /** A PR it links changed: which (`owner/name#number`), and every change that check found, strongest first. */
+  | { reason: 'pr'; at: number; pr: string; changes: PrChange[] };
+
+/** What GitHub was last seen to say of each PR, by reference (`owner/name#number`): what a change is told from. */
+export type PrSeen = Record<string, PrStatus>;
 
 /** A session marked for later: the start of the day it comes back as needing you (epoch ms), or null for whenever, and when it was marked (epoch ms). */
 export interface Later {
@@ -337,7 +343,7 @@ export interface Settings {
    * The other tabs come back without starting whichever it is.
    */
   runningSessionsAtLaunch: RunningAtLaunch;
-  /** Whether the app asks GitHub, with `gh`, what it says of the PRs the sessions link, which colours their marks; off, it asks nothing and every mark keeps the accent. */
+  /** Whether the app asks GitHub, with `gh`, what it says of the PRs the sessions link, which colours their marks and marks a session as needing you when one changes; off, it asks nothing, every mark keeps the accent and nothing is marked. */
   prStatus: boolean;
   /** What the button on a stopped tab does, on the tab and its live strip row while the strip lists it: close the tab, or archive its session; a running tab's button is not changed by it. */
   stoppedTabButton: StoppedTabButton;
@@ -464,6 +470,10 @@ export interface ClaudeUiApi {
   markNeedsYou(ids: string[], reasons: NeedsYou[]): void;
   /** Take a session's needs-you mark off, whether or not it had one. */
   clearNeedsYou(id: string): void;
+  /** What was last seen of the PRs the sessions link; null before it was ever kept, which is the first run. */
+  getPrSeen(): Promise<PrSeen | null>;
+  /** Keep what was last seen of the PRs, in place of what was kept before. */
+  setPrSeen(seen: PrSeen): void;
   /** The sessions marked for later, by session id. */
   getLater(): Promise<Record<string, Later>>;
   /** Mark a session for later, `due` the start of the day it comes back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */

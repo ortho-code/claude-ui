@@ -31,6 +31,8 @@ import {
   getNeedsYou,
   markNeedsYou,
   clearNeedsYou,
+  getPrSeen,
+  setPrSeen,
   getLater,
   markLater,
   clearLater,
@@ -86,7 +88,7 @@ import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
 import { transcriptChanged } from './transcriptends';
 import { NO_TRANSCRIPT } from '../shared/history';
-import type { HistoryPin, HistorySlice, NeedsYou, OrderMove, UiState } from '../shared/types';
+import type { HistoryPin, HistorySlice, NeedsYou, OrderMove, PrSeen, UiState } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -501,6 +503,10 @@ ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reasons: NeedsYou[]) => 
 });
 ipcMain.on('meta:clearNeedsYou', (_event, id: string) => {
   void clearNeedsYou(id);
+});
+ipcMain.handle('meta:getPrSeen', () => getPrSeen());
+ipcMain.on('meta:setPrSeen', (_event, seen: PrSeen) => {
+  void setPrSeen(seen);
 });
 ipcMain.handle('meta:getLater', () => getLater());
 ipcMain.on('meta:markLater', (_event, id: string, due: number | null, at?: number) => {

@@ -129,6 +129,16 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     clearNeedsYou: (id) => {
       fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
     },
+    getPrSeen: () => {
+      if (fixture.prSeenReadFails > 0) {
+        fixture.prSeenReadFails -= 1;
+        return Promise.reject(new Error('meta.json could not be read'));
+      }
+      return answer(fixture.prSeen);
+    },
+    setPrSeen: (seen) => {
+      fixture.prSeen = seen;
+    },
     getLater: () => answer(fixture.later),
     markLater: (id, due, at) => {
       fixture.later = markedLater(fixture.later, id, due, at ?? Date.now());

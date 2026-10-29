@@ -935,6 +935,29 @@ describe('statusLabel', () => {
     expect(statusLabel('needs', false, [], [{ reason: 'reminder', at: new Date(2026, 10, 2, 9).getTime() }])).toBe('Needs you — reminder for Mon 2 Nov, 09:00');
   });
 
+  it("says which PR changed and into what, ranked: what is back to work, then finished, then approved, then how the app closed; newest first within a rank", () => {
+    type Change = 'merged' | 'changes requested' | 'approved' | 'reopened' | 'merge conflict' | 'checks failed';
+    const pr = (number: number, at: number, ...changes: Change[]) => ({ reason: 'pr' as const, at, pr: `acme/app#${number}`, changes });
+    const reasons = [{ reason: 'quit' as const, at: 9 }, pr(1, 8, 'approved'), pr(2, 1, 'merged'), pr(3, 2, 'reopened'), pr(4, 3, 'changes requested'), pr(5, 4, 'merge conflict'), pr(6, 0, 'checks failed', 'approved')];
+    expect(statusLabel('needs', false, [], reasons)?.split('\n')).toEqual([
+      'Needs you — PR #5 merge conflict',
+      'Needs you — PR #4 changes requested',
+      'Needs you — PR #6 checks failed, approved',
+      'Needs you — PR #3 reopened',
+      'Needs you — PR #2 merged',
+      'Needs you — PR #1 approved',
+      'Needs you — was running when the app quit',
+    ]);
+  });
+
+  it('names the repository only where the reasons name PRs in more than one', () => {
+    const reasons = [
+      { reason: 'pr' as const, at: 2, pr: 'acme/app#1', changes: ['merged' as const] },
+      { reason: 'pr' as const, at: 1, pr: 'acme/site#2', changes: ['merged' as const] },
+    ];
+    expect(statusLabel('needs', false, [], reasons)?.split('\n')).toEqual(['Needs you — PR acme/app#1 merged', 'Needs you — PR acme/site#2 merged']);
+  });
+
   it('lists every reason on a line of its own, how the app closed before a reminder, each saying it is read', () => {
     const reminder = { reason: 'reminder' as const, at: new Date(2026, 10, 2, 9).getTime() };
     const reasons = [reminder, { reason: 'quit' as const, at: reminder.at + 1 }];

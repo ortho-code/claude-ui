@@ -1,12 +1,101 @@
 import { describe, it, expect } from 'vitest';
 
-import { linkedPrs, nextAsk, NO_PR_STATUS, prMark, prVerdict, rollUpPrTone, verdictOf } from '../../../src/renderer/prstatus';
-import type { PrRef, PrStatus, SessionPr } from '../../../src/shared/types';
+import { linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prMark, prVerdict, rollUpPrTone, verdictOf } from '../../../src/renderer/prstatus';
+import type { PrRef, PrSeen, PrStatus, SessionPr } from '../../../src/shared/types';
 
 /** An open PR waiting on nobody: not a draft, approved, its checks passed, no conflict. */
 function open(overrides: Partial<Extract<PrStatus, { state: 'open' }>> = {}): PrStatus {
   return { state: 'open', draft: false, review: 'approved', checks: 'passed', conflict: false, ...overrides };
 }
+
+describe('prChanges', () => {
+  const pr: PrRef = { repository: 'acme/app', number: 7 };
+  const ref = 'acme/app#7';
+  /** What was seen of the PR before, as `prChanges` keeps it. */
+  const was = (status: PrStatus): PrSeen => prChanges({}, [pr], { statuses: { [ref]: status }, problem: null }).seen ?? {};
+  /** The changes from `before` to `after`, strongest first and joined, null for none that marks. */
+  const change = (before: PrStatus, after: PrStatus): string | null => prChanges(was(before), [pr], { statuses: { [ref]: after }, problem: null }).changes[0]?.changes.join(', ') ?? null;
+
+  it('marks a PR turning into checks failed, a conflict, changes requested, merged or closed', () => {
+    expect(change(open({ checks: 'running' }), open({ checks: 'failed' }))).toBe('checks failed');
+    expect(change(open(), open({ conflict: true }))).toBe('merge conflict');
+    expect(change(open({ review: 'review-required' }), open({ review: 'changes-requested' }))).toBe('changes requested');
+    expect(change(open(), { state: 'merged' })).toBe('merged');
+    expect(change(open(), { state: 'closed' })).toBe('closed');
+  });
+
+  it('does not mark one turning into a draft, running checks, a review required or plain open', () => {
+    expect(change(open(), open({ draft: true }))).toBeNull();
+    expect(change(open(), open({ checks: 'running' }))).toBeNull();
+    expect(change(open({ review: 'changes-requested' }), open({ review: 'review-required' }))).toBeNull();
+    expect(change(open({ review: 'review-required' }), open({ review: null }))).toBeNull();
+  });
+
+  it('does not mark what was there already', () => {
+    expect(change(open({ checks: 'failed' }), open({ checks: 'failed', review: 'review-required' }))).toBeNull();
+    expect(change({ state: 'merged' }, { state: 'merged' })).toBeNull();
+  });
+
+  // Each thing that needs you is told apart, where the words name only the strongest (decided 2026-10-29).
+  it('does not mark changes requested again once failing checks on top of it pass', () => {
+    expect(change(open({ review: 'changes-requested', checks: 'failed' }), open({ review: 'changes-requested', checks: 'running' }))).toBeNull();
+    expect(change(open({ conflict: true, checks: 'failed' }), open({ conflict: true }))).toBeNull();
+  });
+
+  it('marks a conflict that comes while checks are failing, which the words would hide', () => {
+    expect(change(open({ checks: 'failed' }), open({ checks: 'failed', conflict: true }))).toBe('merge conflict');
+  });
+
+  // An approval that comes with failing checks would otherwise be recorded unmarked, and never mark once the checks pass.
+  it('marks every one of several that come at once, strongest first', () => {
+    expect(change(open({ review: 'review-required' }), open({ review: 'approved', checks: 'failed' }))).toBe('checks failed, approved');
+    expect(change(open({ review: 'review-required' }), open({ review: 'changes-requested', checks: 'failed' }))).toBe('checks failed, changes requested');
+  });
+
+  // GitHub works a conflict out again after a push, saying neither meanwhile.
+  it('takes a conflict GitHub has not worked out yet as what it was, so one that stays does not mark again', () => {
+    const seen = was(open({ conflict: true }));
+    const unknown = prChanges(seen, [pr], { statuses: { [ref]: open({ conflict: null }) }, problem: null });
+    expect(unknown.changes).toEqual([]);
+    expect(unknown.seen?.[ref]).toEqual(open({ conflict: true }));
+    expect(prChanges(unknown.seen, [pr], { statuses: { [ref]: open({ conflict: true }) }, problem: null }).changes).toEqual([]);
+  });
+
+  // Approved marks only when the review itself turns approved (decided 2026-10-29), not when it shows again once a push's checks have run.
+  it('marks approved when the review turns approved, checks running or not, and not when it comes back from running checks', () => {
+    expect(change(open({ review: 'changes-requested' }), open({ review: 'approved' }))).toBe('approved');
+    expect(change(open({ review: 'changes-requested' }), open({ review: 'approved', checks: 'running' }))).toBe('approved');
+    expect(change(open({ review: 'approved', checks: 'running' }), open({ review: 'approved' }))).toBeNull();
+  });
+
+  // What it holds when it opens again would otherwise be recorded unmarked.
+  it('marks a closed PR opened again as reopened, with everything it holds then', () => {
+    expect(change({ state: 'closed' }, open({ review: 'review-required' }))).toBe('reopened');
+    expect(change({ state: 'closed' }, open({ checks: 'failed', conflict: true }))).toBe('checks failed, merge conflict, reopened, approved');
+  });
+
+  it('records a PR seen for the first time without marking it, whatever it reads', () => {
+    const first = prChanges({}, [pr], { statuses: { [ref]: { state: 'merged' } }, problem: null });
+    expect(first).toEqual({ seen: { [ref]: { state: 'merged' } }, changes: [] });
+    expect(prChanges(null, [pr], { statuses: { [ref]: open() }, problem: null })).toEqual({ seen: { [ref]: open() }, changes: [] });
+  });
+
+  it('changes nothing for an answer main could not get, and keeps what was seen of a PR with no status', () => {
+    const seen = was(open());
+    expect(prChanges(seen, [pr], { statuses: { [ref]: { state: 'merged' } }, problem: 'gh was not found' })).toEqual({ seen, changes: [] });
+    expect(prChanges(seen, [pr], { statuses: {}, problem: null })).toEqual({ seen, changes: [] });
+    expect(prChanges(null, [pr], { statuses: {}, problem: 'gh was not found' })).toEqual({ seen: null, changes: [] });
+  });
+});
+
+describe('needsYouNow', () => {
+  it('names everything a PR already needs you for, strongest first, as the first run marks it, and nothing where it needs nothing', () => {
+    expect(needsYouNow({ state: 'merged' })).toEqual(['merged']);
+    expect(needsYouNow(open({ review: 'changes-requested' }))).toEqual(['changes requested']);
+    expect(needsYouNow(open({ checks: 'failed' }))).toEqual(['checks failed', 'approved']);
+    expect(needsYouNow(open({ review: 'review-required' }))).toEqual([]);
+  });
+});
 
 describe('prVerdict', () => {
   it('is normal with no words while its status is not known', () => {

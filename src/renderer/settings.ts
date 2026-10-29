@@ -45,7 +45,7 @@ document.body.insertAdjacentHTML(
       </div>
       <div class="dialog-section">
         <span class="dialog-label">Pull requests</span>
-        <p class="dialog-detail">A session's PR badge takes the colour of what GitHub says of its PRs, such as changes requested, failing checks or merged. The app asks with gh, on your own login.</p>
+        <p class="dialog-detail">A session's PR badge takes the colour of what GitHub says of its PRs, such as changes requested, failing checks or merged, and a PR changing like that marks the session as needing you. The app asks with gh, on your own login. Turned on, it starts from the PRs as they are then.</p>
         <label id="settings-pr-status-row" class="dialog-choice"><input id="settings-pr-status" type="checkbox" /> PR status from GitHub</label>
       </div>
       <div class="dialog-section">

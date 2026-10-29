@@ -171,7 +171,7 @@ describe('a new settings.json', () => {
         '  "launchFlags": "",',
         '  // What a launch does with the sessions that were running when the app closed: "mark" them as needing you, "start" them too, or "leave" them with the other tabs',
         '  "runningSessionsAtLaunch": "mark",',
-        '  // Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks',
+        '  // Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks and marks a session as needing you when one changes, such as merged or changes requested; turned on, it starts from the PRs as they are then',
         '  "prStatus": true,',
         '  // What the button on a stopped tab does: "close" the tab, or "archive" its session',
         '  "stoppedTabButton": "close",',
