@@ -59,16 +59,20 @@
   color: var(--failed);
 }
 
+/* A title can name a session, whose title can be long with no spaces to break on. */
 .dialog-title {
   margin: 0 0 8px;
   font-size: var(--text-title);
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
+/* What a detail line names, such as a path, can be long with no spaces to break on. */
 .dialog-detail {
   margin: 0 0 16px;
   font-size: var(--text-meta);
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .dialog-actions {

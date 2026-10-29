@@ -97,7 +97,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   It is `stoppedTabButton` in `settings.json`, `"close"` or `"archive"`, and it leaves a running tab's button as it is.
 - Undo in the message a closed tab or an archived session leaves, from any button, its options or a middle-click: it puts the tab back where it was, without starting it, and unarchives the session.
   Such a message stays 8 seconds, and while the pointer is on it.
-- Later in a session's options, to set it aside whenever, until tomorrow, for a week or until a day and time you pick, shown as a bookmark on its row, its tab and its strip row and kept whether or not it has a tab.
+- Later in a session's options, to set it aside until tomorrow, for a week, until a day and time you pick, or whenever, shown as a bookmark on its row, its tab and its strip row and kept whether or not it has a tab.
   Tomorrow and a week from now come due at 09:00, or the time of day `laterTime` in `settings.json` gives, which Settings shows as Time a later session comes back.
   When its moment comes it needs you, saying it was a reminder for then, or why it needed you if it already did; typing a prompt there, Clear later and archiving it take the mark off.
   A session that needed you before you set it aside shows that dimmed, counting for nothing while the later mark stands, and one that needs you afterwards shows it in full.
@@ -160,6 +160,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Later takes over from pausing a tab: Pause and Force pause are gone from a session's options, the paused filter is a filter for the sessions marked for later, and the live strip lists only what runs or needs you, so its line no longer counts paused tabs.
   A tab you had paused comes back as an ordinary stopped tab, its session set aside for later, whenever.
 - A session that needs you for more than one reason, such as a reminder and running when the app quit, keeps them all, each on a line of its own in its dot's tooltip and at the top of its options, where the newest used to replace the others.
+- The note dialog names the session in its title, with a line under it saying where the note shows and that saving it empty removes it.
 
 ### Fixed
 

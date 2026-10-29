@@ -52,7 +52,7 @@ test("Later's days: tomorrow and in a week, the same weekday, named and marked a
   await page.clock.setFixedTime(THURSDAY);
   await app.boot(fixture);
   await (await menuItem(page, one.title, 'Later')).click();
-  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Whenever', 'Tomorrow (Fri 30 Oct, 09:00)', 'In a week (Thu 5 Nov, 09:00)', 'Pick a date…']);
+  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Tomorrow (Fri 30 Oct, 09:00)', 'In a week (Thu 5 Nov, 09:00)', 'Pick a date…', 'Whenever']);
   await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^In a week/ }).click();
   expect((await app.calls('markLater')).map(([id, due]) => [id, due])).toEqual([[one.id, await momentInPage(page, 2026, 10, 5, 9, 0)]]);
   for (const mark of marks(page)) await expect(mark).toHaveAttribute('data-tooltip', 'Later: Thu 5 Nov, 09:00');
@@ -65,14 +65,16 @@ test('on a Sunday, in a week is the next Sunday, not the same day as tomorrow', 
   await page.clock.setFixedTime(new Date(2026, 10, 1, 10, 0));
   await app.boot(fixture);
   await (await menuItem(page, one.title, 'Later')).click();
-  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Whenever', 'Tomorrow (Mon 2 Nov, 09:00)', 'In a week (Sun 8 Nov, 09:00)', 'Pick a date…']);
+  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Tomorrow (Mon 2 Nov, 09:00)', 'In a week (Sun 8 Nov, 09:00)', 'Pick a date…', 'Whenever']);
 });
 
-test('Pick a date… asks for a day no earlier than tomorrow and a time starting at the settings\', and marks the session until that moment', async ({ app, page }) => {
+test('Pick a date… asks for a day no earlier than tomorrow and a time starting at the settings\', naming the session in its title as the Note dialog does, and marks the session until that moment', async ({ app, page }) => {
   await page.clock.setFixedTime(THURSDAY);
   await app.boot(fixture);
   await pickLater(page, one.title, /^Pick a date…$/);
   await expect(page.locator('#day-overlay')).toBeVisible();
+  await expect(page.locator('#day-title')).toHaveText(`Later: ${one.title}`);
+  await expect(page.locator('#day-detail')).toHaveText('Pick the day and time it comes back as needing you.');
   await expect(page.locator('#day-ok')).toBeDisabled();
   await expect(page.locator('#day-time')).toHaveValue('09:00');
   await expect(page.locator('#day-calendar .air-datepicker-cell.-day-[data-date="29"][data-month="9"]')).toHaveClass(/-disabled-/);
@@ -84,6 +86,22 @@ test('Pick a date… asks for a day no earlier than tomorrow and a time starting
   await expect(page.locator('#day-overlay')).toBeHidden();
   expect((await app.calls('markLater')).map(([id, due]) => [id, due])).toEqual([[one.id, await momentInPage(page, 2026, 9, 31, 14, 15)]]);
   await expect(row(page, one.title).locator('.later-mark')).toHaveAttribute('data-tooltip', 'Later: Sat 31 Oct, 14:15');
+});
+
+test("Pick a date…'s title and the Note dialog's, naming the session, break a long word to fit", async ({ app, page }) => {
+  const long = session({ id: '00000000-0000-4000-8000-0000000000f3', title: 'x'.repeat(200) });
+  await app.boot({ sessions: [long], openSessions: [], history: { [long.id]: [] } });
+  await pickLater(page, long.title, /^Pick a date…$/);
+  const dayTitle = page.locator('#day-title');
+  await expect(dayTitle).toHaveText(`Later: ${long.title}`);
+  expect(await dayTitle.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.locator('#day-cancel').click();
+
+  await (await menuItem(page, long.title, 'Add note…')).click();
+  const noteTitle = page.locator('#rename-title');
+  await expect(noteTitle).toHaveText(`Note: ${long.title}`);
+  await expect(page.locator('#rename-path')).toHaveText('Shown when you hover the note mark on its row; save it empty to remove it.');
+  expect(await noteTitle.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
 });
 
 // The filter's calendar and this one are one (calendar.ts): it was drawn in the library's own light look, its weeks from Sunday, the time field against it.

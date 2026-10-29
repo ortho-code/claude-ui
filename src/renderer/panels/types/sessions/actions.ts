@@ -320,17 +320,19 @@ function laterItems(session: SessionSummary): MenuItem[] {
   const tomorrow = onDayAt(dayStart(now, 1), time);
   const inAWeek = onDayAt(dayStart(now, 7), time);
   const pick = async (): Promise<void> => {
-    const due = await pickMoment('Later', `Comes back as needing you at the day and time you pick: ${sessionLabel(session)}`, dayStart(now, 1), time);
+    // The session in the title, as the Note dialog has it, so which one you clicked is what it says first, and the line under it says what the pick does (decided 2026-10-29).
+    const due = await pickMoment(`Later: ${sessionLabel(session)}`, 'Pick the day and time it comes back as needing you.', dayStart(now, 1), time);
     if (due !== null) markLater(key, due);
   };
   return [
     {
       label: 'Later',
+      // Whenever last, so a day is what comes to hand first: an undated mark brings nothing back by itself (decided 2026-10-29).
       submenu: [
-        { label: 'Whenever', onSelect: () => markLater(key, null) },
         { label: `Tomorrow (${momentLabel(tomorrow)})`, onSelect: () => markLater(key, tomorrow) },
         { label: `In a week (${momentLabel(inAWeek)})`, onSelect: () => markLater(key, inAWeek) },
         { label: 'Pick a date…', onSelect: () => void pick() },
+        { label: 'Whenever', onSelect: () => markLater(key, null) },
       ],
     },
     store.get().later.has(key) ? { label: 'Clear later', onSelect: () => clearLater(key) } : { label: 'Clear later', disabled: 'Not marked for later' },
@@ -363,7 +365,8 @@ function showInList(session: SessionSummary): void {
 // Saving a blank note clears it (meta drops the entry), so the same dialog both writes and removes one — there is no separate delete.
 export async function editNote(session: SessionSummary): Promise<void> {
   const key = entityKey(session);
-  const text = await promptText('Note', sessionLabel(session), store.get().notes.get(key) ?? '', 'Save', undefined, true);
+  // The session in the title, as Later's Pick a date… has it, and the line under it says where the note shows and how it goes (decided 2026-10-29).
+  const text = await promptText(`Note: ${sessionLabel(session)}`, 'Shown when you hover the note mark on its row; save it empty to remove it.', store.get().notes.get(key) ?? '', 'Save', undefined, true);
   if (text === null) return; // cancelled: leave whatever was there
   store.set({ notes: new Map(Object.entries(await window.claudeUi.setNote(key, text))) });
 }

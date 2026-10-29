@@ -3,11 +3,6 @@
   width: min(400px, 80vw);
 }
 
-/* A path can be long and has no spaces to break on. */
-#rename-path {
-  overflow-wrap: anywhere;
-}
-
 /* Room to write, at a fixed height so the dialog does not resize as you type. */
 #rename-textarea {
   resize: vertical;

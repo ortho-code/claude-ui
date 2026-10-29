@@ -28,5 +28,5 @@ test("Later's dated choices come due at the time the settings say", async ({ app
   await app.boot({ sessions: [one], settings: settingsFileWith('settings.json', { laterTime: '17:30' }) });
   await row(page, one.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Later$/ }).click();
-  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Whenever', 'Tomorrow (Fri 30 Oct, 17:30)', 'In a week (Thu 5 Nov, 17:30)', 'Pick a date…']);
+  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Tomorrow (Fri 30 Oct, 17:30)', 'In a week (Thu 5 Nov, 17:30)', 'Pick a date…', 'Whenever']);
 });
