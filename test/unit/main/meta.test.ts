@@ -44,6 +44,10 @@ import {
   getPausedSessions,
   getNeedsYou,
   markNeedsYou,
+  getLater,
+  markLater,
+  clearLater,
+  laterCameDue,
   clearNeedsYou,
   getScheduledWhenStopped,
   setOpenSessions,
@@ -229,8 +233,46 @@ describe('sessions that need you', () => {
   it('are none in a file written before they were kept, and an entry without a reason this build knows or a time is dropped', async () => {
     await writeMetaFile({ version: 3 });
     expect(await getNeedsYou()).toEqual({});
-    await writeMetaFile({ version: 3, needsYou: { a: { reason: 'quit', at: 5 }, b: { reason: 'pr', at: 5 }, c: { reason: 'ended' }, d: 'yes' } });
-    expect(await getNeedsYou()).toEqual({ a: { reason: 'quit', at: 5 } });
+    await writeMetaFile({ version: 3, needsYou: { a: { reason: 'quit', at: 5 }, b: { reason: 'pr', at: 5 }, c: { reason: 'ended' }, d: 'yes', e: { reason: 'reminder', at: 7 } } });
+    expect(await getNeedsYou()).toEqual({ a: { reason: 'quit', at: 5 }, e: { reason: 'reminder', at: 7 } });
+  });
+});
+
+describe('the later marks', () => {
+  it('are kept per session from the time given, replaced by a new one, and taken off', async () => {
+    await markLater('a', null, 5);
+    await markLater('b', 100, 5);
+    await markLater('b', 200, 6);
+    expect(await getLater()).toEqual({ a: { due: null, at: 5 }, b: { due: 200, at: 6 } });
+    await clearLater('a');
+    expect(await getLater()).toEqual({ b: { due: 200, at: 6 } });
+  });
+
+  it('stay through the open tabs being written, are taken off by an archive, and forgotten by a delete', async () => {
+    await markLater('a', null);
+    await markLater('b', null);
+    await setOpenSessions([], [], []);
+    expect(Object.keys(await getLater())).toEqual(['a', 'b']);
+    await archive('a');
+    await purgeSession('b');
+    expect(await getLater()).toEqual({});
+  });
+
+  it('come due as needing you, keeping a reason the session already had', async () => {
+    await markNeedsYou(['a'], 'quit', 5);
+    await markLater('a', 100, 10);
+    await markLater('b', 100, 10);
+    await markLater('c', 300, 10);
+    await laterCameDue(150);
+    expect(await getLater()).toEqual({ c: { due: 300, at: 10 } });
+    expect(await getNeedsYou()).toEqual({ a: { reason: 'quit', at: 5 }, b: { reason: 'reminder', at: 100 } });
+  });
+
+  it('are none in a file written before they were kept, and an entry without a time or with a day that is not one is dropped', async () => {
+    await writeMetaFile({ version: 3 });
+    expect(await getLater()).toEqual({});
+    await writeMetaFile({ version: 3, later: { a: { due: null, at: 5 }, b: { due: 9, at: 5 }, c: { due: 'monday', at: 5 }, d: { due: null }, e: 'yes' } });
+    expect(await getLater()).toEqual({ a: { due: null, at: 5 }, b: { due: 9, at: 5 } });
   });
 });
 

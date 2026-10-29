@@ -31,7 +31,7 @@ const jsonc = async (file: string): Promise<unknown> => {
   const read = readJsonc(await fs.readFile(file, 'utf8'));
   return read.ok ? read.json : read.error;
 };
-const defaults = { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close' };
+const defaults = { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close', laterTime: '09:00' };
 const text = (file: string): Promise<string> => fs.readFile(file, 'utf8');
 const gone = (file: string): Promise<void> => expect(fs.access(file)).rejects.toThrow();
 const moves = async (): Promise<unknown> => ((await json(metaFile)) as { moved: unknown }).moved;
@@ -174,7 +174,9 @@ describe('a new settings.json', () => {
         '  // Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks',
         '  "prStatus": true,',
         '  // What the button on a stopped tab does: "close" the tab, or "archive" its session',
-        '  "stoppedTabButton": "close"',
+        '  "stoppedTabButton": "close",',
+        '  // The time of day, as "HH:MM" in 24 hours, a session set aside for later needs you again on the day chosen',
+        '  "laterTime": "09:00"',
         '}',
         '',
       ].join('\n'),

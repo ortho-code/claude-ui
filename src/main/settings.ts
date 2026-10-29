@@ -105,6 +105,7 @@ const STARTER_NOTES: Record<SettingKey, string> = {
   runningSessionsAtLaunch: 'What a launch does with the sessions that were running when the app closed: "mark" them as needing you, "start" them too, or "leave" them with the other tabs',
   prStatus: "Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks",
   stoppedTabButton: 'What the button on a stopped tab does: "close" the tab, or "archive" its session',
+  laterTime: 'The time of day, as "HH:MM" in 24 hours, a session set aside for later needs you again on the day chosen',
 };
 
 /** A new `settings.json`: every setting at its default, under a line saying what it is. */

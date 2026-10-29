@@ -4,7 +4,7 @@ import { openMenu } from '../menu';
 import { askForSession } from '../sessiondialog';
 import { showToast } from '../toast';
 import { store, withEntry } from '../state/app';
-import { dotStatus, projName, projectGroups, switcherModel, tabWith } from '../state/views';
+import { dotStatus, projName, projectGroups, shownRead, switcherModel, tabWith } from '../state/views';
 import type { Asks, LinkedSession, SessionRequest } from './contract';
 
 /**
@@ -43,7 +43,7 @@ export function linkedSessions(entryKey: string, itemKey: string): LinkedSession
   const data = panelDataOf(entryKey);
   if (!data) return [];
   const view = store.get();
-  const { sessions, acked, backgroundTasks } = view;
+  const { sessions, backgroundTasks } = view;
   return Object.entries(data.sessions)
     .filter(([, link]) => link.key === itemKey)
     .sort(([, a], [, b]) => b.startedAt.localeCompare(a.startedAt))
@@ -57,8 +57,8 @@ export function linkedSessions(entryKey: string, itemKey: string): LinkedSession
           title: sessionLabel(session),
           status: dotStatus(id, view) ?? null,
           background: backgroundTasks.get(id) ?? [],
-          needsYou: view.needsYou.get(id)?.reason ?? null,
-          acked: acked.has(id),
+          needsYou: view.needsYou.get(id) ?? null,
+          acked: shownRead(id, dotStatus(id, view), view),
           running: tab !== undefined && tab.terminalId !== null,
         },
       ];

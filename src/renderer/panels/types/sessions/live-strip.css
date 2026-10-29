@@ -97,15 +97,17 @@
   margin-left: 4px;
 }
 
-/* The clock of a session with a task scheduled (scheduledmark.ts), beside its name, in the accent at the 11px its tab's marks are drawn at. */
-.strip-item-scheduled {
+/* The clock of a session with a task scheduled (scheduledmark.ts), and the bookmark of one set aside for later (latermark.ts), beside its name, in the accent at the 11px its tab's marks are drawn at. */
+.strip-item-scheduled,
+.strip-item-later {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   color: var(--accent);
 }
 
-.strip-item-scheduled svg {
+.strip-item-scheduled svg,
+.strip-item-later svg {
   display: block;
   width: 11px;
   height: 11px;

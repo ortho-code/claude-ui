@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { archivedFrom, clearedNeedsYou, markedNeedsYou, purgedSession, togglePinned, unarchived, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
+import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, markedLater, markedNeedsYou, mutedByLater, purgedSession, togglePinned, unarchived, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -50,10 +50,57 @@ describe('clearedNeedsYou', () => {
   });
 });
 
+describe('markedLater', () => {
+  it('marks the session from the time given, until its day or whenever, replacing a mark already there', () => {
+    const later = { a: { due: 100, at: 1 } };
+    expect(markedLater(later, 'a', null, 42)).toEqual({ a: { due: null, at: 42 } });
+    expect(markedLater(later, 'b', 200, 42)).toEqual({ a: { due: 100, at: 1 }, b: { due: 200, at: 42 } });
+    expect(later).toEqual({ a: { due: 100, at: 1 } });
+  });
+});
+
+describe('clearedLater', () => {
+  it('takes the mark off, and leaves a session that has none as it is', () => {
+    const later = { a: { due: null, at: 1 } };
+    expect(clearedLater(later, 'a')).toEqual({});
+    expect(clearedLater(later, 'b')).toEqual(later);
+    expect(later).toEqual({ a: { due: null, at: 1 } });
+  });
+});
+
+describe('cameDue', () => {
+  it('turns a mark whose day has come into needing you, with the reminder from its day, and leaves the rest', () => {
+    const marks = { needsYou: {}, later: { a: { due: 100, at: 1 }, b: { due: 200, at: 1 }, c: { due: null, at: 1 } } };
+    expect(cameDue(marks, 100)).toEqual({ needsYou: { a: { reason: 'reminder', at: 100 } }, later: { b: { due: 200, at: 1 }, c: { due: null, at: 1 } } });
+    expect(marks.later).toEqual({ a: { due: 100, at: 1 }, b: { due: 200, at: 1 }, c: { due: null, at: 1 } });
+  });
+
+  it('keeps the reason a session already needed you for, so it still says why', () => {
+    const marks = { needsYou: { a: { reason: 'quit' as const, at: 5 } }, later: { a: { due: 100, at: 10 } } };
+    expect(cameDue(marks, 150)).toEqual({ needsYou: { a: { reason: 'quit', at: 5 } }, later: {} });
+  });
+});
+
+describe('mutedByLater', () => {
+  it('mutes a needs-you mark set before the later mark, and not one that came after it', () => {
+    expect(mutedByLater({ reason: 'quit', at: 5 }, { due: null, at: 10 })).toBe(true);
+    expect(mutedByLater({ reason: 'quit', at: 10 }, { due: null, at: 10 })).toBe(true);
+    expect(mutedByLater({ reason: 'quit', at: 15 }, { due: null, at: 10 })).toBe(false);
+    expect(mutedByLater({ reason: 'quit', at: 5 }, undefined)).toBe(false);
+    expect(mutedByLater(undefined, { due: null, at: 10 })).toBe(false);
+  });
+});
+
 describe('withoutSession', () => {
-  it('forgets the session\'s pin, archive entry, note and needs-you mark, and keeps everyone else\'s', () => {
-    const marks: SessionMarks = { pinned: ['a', 'b'], archived: { a: 1, b: 2 }, notes: { a: 'x', b: 'y' }, needsYou: { a: { reason: 'quit', at: 1 }, b: { reason: 'ended', at: 2 } } };
-    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], archived: { b: 2 }, notes: { b: 'y' }, needsYou: { b: { reason: 'ended', at: 2 } } });
+  it('forgets the session\'s pin, archive entry, note, needs-you mark and later mark, and keeps everyone else\'s', () => {
+    const marks: SessionMarks = {
+      pinned: ['a', 'b'],
+      archived: { a: 1, b: 2 },
+      notes: { a: 'x', b: 'y' },
+      needsYou: { a: { reason: 'quit', at: 1 }, b: { reason: 'ended', at: 2 } },
+      later: { a: { due: null, at: 1 }, b: { due: 9, at: 2 } },
+    };
+    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], archived: { b: 2 }, notes: { b: 'y' }, needsYou: { b: { reason: 'ended', at: 2 } }, later: { b: { due: 9, at: 2 } } });
     expect(marks.needsYou).toEqual({ a: { reason: 'quit', at: 1 }, b: { reason: 'ended', at: 2 } });
   });
 });
@@ -66,6 +113,7 @@ describe('purgedSession', () => {
       archived: { a: 1 },
       notes: { a: 'x' },
       needsYou: { a: { reason: 'quit' as const, at: 1 } },
+      later: { a: { due: null, at: 1 } },
       openSessions: ['a', 'b'],
       runningSessions: ['a', 'b'],
       pausedSessions: ['a', 'b'],
@@ -79,6 +127,7 @@ describe('purgedSession', () => {
       archived: {},
       notes: {},
       needsYou: {},
+      later: {},
       openSessions: ['b'],
       runningSessions: ['b'],
       pausedSessions: ['b'],

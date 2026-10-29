@@ -1,5 +1,5 @@
 import { clearedNeedsYou, markedNeedsYou } from '../../shared/sessionmarks';
-import type { ClosedHow } from '../../shared/types';
+import type { NeedsYouReason } from '../../shared/types';
 import { store } from './app';
 
 /**
@@ -7,11 +7,11 @@ import { store } from './app';
  * Each is made in the store by main's own rule and sent to main, which keeps them in `meta.json`.
  */
 
-/** Mark sessions as needing you, for `reason`. */
-export function markNeedsYou(ids: readonly string[], reason: ClosedHow): void {
+/** Mark sessions as needing you, for `reason`, from `at`: now, or when it was marked for a mark Undo puts back. */
+export function markNeedsYou(ids: readonly string[], reason: NeedsYouReason, at = Date.now()): void {
   if (ids.length === 0) return;
-  store.set({ needsYou: new Map(Object.entries(markedNeedsYou(Object.fromEntries(store.get().needsYou), ids, reason, Date.now()))) });
-  window.claudeUi.markNeedsYou([...ids], reason);
+  store.set({ needsYou: new Map(Object.entries(markedNeedsYou(Object.fromEntries(store.get().needsYou), ids, reason, at))) });
+  window.claudeUi.markNeedsYou([...ids], reason, at);
 }
 
 /** Take a session's mark off; nothing is sent for one that has none. */

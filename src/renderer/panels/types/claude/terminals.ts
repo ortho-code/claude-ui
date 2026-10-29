@@ -1,10 +1,11 @@
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
-import type { ClosedHow, NeedsYou, ScheduledTask, SessionSummary } from '../../../../shared/types';
+import type { ClosedHow, Later, NeedsYou, ScheduledTask, SessionSummary } from '../../../../shared/types';
 import { entityKey, hasVisibleOutput, leaveAction, sessionLabel, sessionsByKey, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../logic';
 import { newSession } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
+import { clearLater, markLater } from '../../../state/later';
 import { clearNeedsYou, markNeedsYou } from '../../../state/needsyou';
 import { clearNudge, setScheduled } from '../../../state/statuses';
 import { isPaused, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
@@ -695,7 +696,8 @@ function removedTab(tab: TabState): RemovedTab {
 function putBack(removed: readonly RemovedTab[]): void {
   for (const { session, at, paused, scheduledWhenStopped, needsYou } of [...removed].reverse()) {
     if (store.get().tabs.some((t) => t.session.id === session.id) || store.get().archived.has(entityKey(session))) continue;
-    if (needsYou) markNeedsYou([entityKey(session)], needsYou.reason);
+    // As it was, from when it was marked, so a later mark that muted it mutes it again.
+    if (needsYou) markNeedsYou([entityKey(session)], needsYou.reason, needsYou.at);
     // Built at the end, as every tab is, then moved to where it stood.
     buildTab(session, paused, scheduledWhenStopped);
     const tabs = [...store.get().tabs];
@@ -768,8 +770,8 @@ function archivedTabs(key: string): RemovedTab[] {
   return removed;
 }
 
-/** The toast an archive raises once its mark is written, with Undo unarchiving the session and putting back the tabs the archive closed (decided 2026-10-28). */
-function offerUndoArchive(key: string, removed: readonly RemovedTab[]): void {
+/** The toast an archive raises once its mark is written, with Undo unarchiving the session, putting back the tabs the archive closed (decided 2026-10-28), and its later mark as it was, a session with no tab too. */
+function offerUndoArchive(key: string, removed: readonly RemovedTab[], later: Later | null): void {
   const session = sessionById(key) ?? removed[0]?.session;
   showToast(`Archived "${session ? sessionLabel(session) : key.slice(0, 8)}"`, false, {
     label: 'Undo',
@@ -777,6 +779,7 @@ function offerUndoArchive(key: string, removed: readonly RemovedTab[]): void {
       void window.claudeUi.unarchive(key).then(
         (archived) => {
           store.set({ archived: new Map(Object.entries(archived)) });
+          if (later) markLater(key, later.due, later.at);
           putBack(removed);
         },
         () => showToast(`Couldn't unarchive "${session ? sessionLabel(session) : key.slice(0, 8)}"; unarchive it from the archived view`),
@@ -791,6 +794,8 @@ function offerUndoArchive(key: string, removed: readonly RemovedTab[]): void {
  */
 async function archiveNow(key: string): Promise<void> {
   let archived: Map<string, number>;
+  // Read before the write, as the tabs are, for Undo: with or without a tab, the session was set aside.
+  const later = store.get().later.get(key) ?? null;
   try {
     archived = new Map(Object.entries(await window.claudeUi.archive(key)));
   } catch {
@@ -808,10 +813,11 @@ async function archiveNow(key: string): Promise<void> {
       if (tab.terminalId === null) removed.push(removedTab(tab));
       closeTab(tab.token);
     }
-    // Main's archive took the mark off as it archived (src/main/meta.ts); after the tabs, whose Undo puts it back.
+    // Main's archive took the marks off as it archived (src/main/meta.ts); after the tabs, whose Undo puts the needs-you mark back.
     clearNeedsYou(key);
+    clearLater(key);
   });
-  offerUndoArchive(key, removed);
+  offerUndoArchive(key, removed, later);
 }
 
 /**

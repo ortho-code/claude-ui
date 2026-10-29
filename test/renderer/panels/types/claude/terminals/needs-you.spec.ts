@@ -134,7 +134,8 @@ test('closing its tab takes the mark off, and Undo puts it back with the tab', a
 
   await page.locator('#toast-action').click();
   await expectMarked(page, true);
-  expect(await app.calls('markNeedsYou')).toEqual([[[one.id], 'quit']]);
+  // Put back as it was, from when it was marked, so a later mark that muted it mutes it again.
+  expect(await app.calls('markNeedsYou')).toEqual([[[one.id], 'quit', mark.at]]);
 });
 
 test('archiving it takes the mark off, and Undo puts it back with the tab', async ({ app, page }) => {

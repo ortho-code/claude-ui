@@ -5,7 +5,7 @@ import type { Settings, UiState } from './types';
  * Under the settings file (shared/settings.ts); meta's `settings` falls back to the launch flags here.
  */
 export function defaultSettings(): Settings {
-  return { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close' };
+  return { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close', laterTime: '09:00' };
 }
 
 /**

@@ -37,11 +37,11 @@ window.addEventListener(
 );
 
 /** What the terminal area's rail icon says while it is folded or behind another panel: waiting while a tab on show waits for you, else needs while one is marked as needing you, by the roll-up's rule, so a tab marked read counts as nothing. */
-function railStatus(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked' | 'needsYou'>): PanelStatus {
+function railStatus(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked' | 'needsYou' | 'later'>): PanelStatus {
   return railStatusOf(strongestNudge(visibleTabs(view).map((tab) => sessionNudge(tab.session.id, view))));
 }
 
 /** The rail icon follows the tabs and their statuses: a watcher the terminal area registers (watch.ts). */
-export function railStatusFollowsTabs(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked' | 'needsYou'>): void {
+export function railStatusFollowsTabs(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked' | 'needsYou' | 'later'>): void {
   hostOf('claude').setStatus(railStatus(view));
 }

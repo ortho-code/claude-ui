@@ -1,7 +1,7 @@
 import { defaultUi } from '../../shared/defaults';
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/settings';
-import type { GroupState, NeedsYou, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
+import type { GroupState, Later, NeedsYou, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../logic';
 import { NO_PR_STATUS } from '../prstatus';
 import { createStore } from './store';
@@ -48,6 +48,11 @@ export interface AppState {
    * Drawn in the session's dot where claude says nothing more pressing (`dotStatus`).
    */
   needsYou: ReadonlyMap<string, NeedsYou>;
+  /**
+   * Entity key -> the day it comes back and since when it was set aside: what main keeps in `meta.json`, kept here by the same rules (`markedLater`, `clearedLater`, `cameDue`), each change sent to main as it is made.
+   * Mutes a needs-you mark it came after (`mutedByLater`).
+   */
+  later: ReadonlyMap<string, Later>;
   /** Sessions whose delete is in flight: hidden from the list until that delete resolves, so a concurrent delete's re-read can't briefly resurrect them. */
   pendingDeletes: ReadonlySet<string>;
   /**
@@ -300,6 +305,7 @@ export const store = createStore<AppState>(
     pinned: new Set(),
     archived: new Map(),
     needsYou: new Map(),
+    later: new Map(),
     notes: new Map(),
     pendingDeletes: new Set(),
     groupState: { groups: [], groupOf: {} },

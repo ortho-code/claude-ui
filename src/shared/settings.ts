@@ -11,7 +11,7 @@ import type { Settings } from './types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'stoppedTabButton'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'stoppedTabButton', 'laterTime'];
 
 /** The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them. */
 export const RUNNING_AT_LAUNCH = ['start', 'mark', 'leave'] as const;
@@ -86,7 +86,14 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
   runningSessionsAtLaunch: (value) => oneOf(RUNNING_AT_LAUNCH)(value === 'pause' ? 'mark' : value),
   prStatus: (value) => (typeof value === 'boolean' ? { ok: true, value } : { ok: false, why: 'It has to be true or false.' }),
   stoppedTabButton: oneOf(STOPPED_TAB_BUTTON),
+  laterTime: (value) => (typeof value === 'string' && timeOfDay(value) !== null ? { ok: true, value } : { ok: false, why: 'It has to be a time of day as "HH:MM", in 24 hours, such as "09:00".' }),
 };
+
+/** A time of day as `"HH:MM"` in 24 hours, as hours and minutes, or null for anything else. */
+export function timeOfDay(value: string): { hours: number; minutes: number } | null {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+  return match ? { hours: Number(match[1]), minutes: Number(match[2]) } : null;
+}
 
 /** Whether `value` may be a setting's value, and if not, why: what main refuses to write. */
 export function settingProblem(key: SettingKey, value: unknown): string | null {
@@ -139,6 +146,7 @@ export function settingsView(file: SettingsFileRead, read = 0): SettingsView {
     runningSessionsAtLaunch: viewOf('runningSessionsAtLaunch'),
     prStatus: viewOf('prStatus'),
     stoppedTabButton: viewOf('stoppedTabButton'),
+    laterTime: viewOf('laterTime'),
     read,
     notes,
     file: { name: file.name, status: file.status, error: file.error, duplicates: file.duplicates ?? [] },
@@ -147,7 +155,7 @@ export function settingsView(file: SettingsFileRead, read = 0): SettingsView {
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, stoppedTabButton: view.stoppedTabButton.value };
+  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, stoppedTabButton: view.stoppedTabButton.value, laterTime: view.laterTime.value };
 }
 
 /**

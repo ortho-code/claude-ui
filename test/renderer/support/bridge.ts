@@ -3,7 +3,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { prReference } from '../../../src/shared/prs';
-import { archivedFrom, clearedNeedsYou, markedNeedsYou, purgedSession, togglePinned, unarchived } from '../../../src/shared/sessionmarks';
+import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, markedLater, markedNeedsYou, purgedSession, togglePinned, unarchived } from '../../../src/shared/sessionmarks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -99,10 +99,11 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
     getArchived: () => answer(fixture.archived),
-    // Main's archive takes the session's needs-you mark off in the same write.
+    // Main's archive takes the session's needs-you and later marks off in the same write.
     archive: (id) => {
       if (fixture.archiveFails !== null) return Promise.reject(new Error(fixture.archiveFails));
       fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
+      fixture.later = clearedLater(fixture.later, id);
       return answer((fixture.archived = archivedFrom(fixture.archived, id, Date.now())));
     },
     unarchive: (id) => answer((fixture.archived = unarchived(fixture.archived, id))),
@@ -123,11 +124,21 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getRunningSessions: () => answer(fixture.runningSessions),
     getPausedSessions: () => answer(fixture.pausedSessions),
     getNeedsYou: () => answer(fixture.needsYou),
-    markNeedsYou: (ids, reason) => {
-      fixture.needsYou = markedNeedsYou(fixture.needsYou, ids, reason, Date.now());
+    markNeedsYou: (ids, reason, at) => {
+      fixture.needsYou = markedNeedsYou(fixture.needsYou, ids, reason, at ?? Date.now());
     },
     clearNeedsYou: (id) => {
       fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
+    },
+    getLater: () => answer(fixture.later),
+    markLater: (id, due, at) => {
+      fixture.later = markedLater(fixture.later, id, due, at ?? Date.now());
+    },
+    clearLater: (id) => {
+      fixture.later = clearedLater(fixture.later, id);
+    },
+    laterCameDue: (now) => {
+      Object.assign(fixture, cameDue(fixture, now));
     },
     getLastClosed: () => answer(fixture.lastClosed),
     getScheduledWhenStopped: () => answer(fixture.scheduledWhenStopped),

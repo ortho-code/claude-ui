@@ -3,7 +3,7 @@ import { placeChildren } from '../../../keyed';
 import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, groupJumpTargets, projectGoneReason } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
-import { archivedOnlyProjects, isFiltering, projName, searchText, statusChanges, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
+import { archivedOnlyProjects, isFiltering, mutedNeedsYou, projName, searchText, statusChanges, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
@@ -62,7 +62,7 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
 }
 
 /** Repaint the dots of these sessions' rows, those drawn, from what each shows now. */
-function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'tabs' | 'archived'>): void {
+function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'later' | 'tabs' | 'archived'>): void {
   for (const id of ids) {
     const dot = statusDots.get(id);
     if (dot) applyStatus(dot, id, view);
@@ -70,15 +70,15 @@ function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks'
 }
 
 /**
- * A status, the work behind one, a mark read or a needs-you mark changed: repaint the rows' dots that differ from what they were last painted from (`before`).
+ * A status, the work behind one, a mark read, a needs-you mark or a later mark, which can mute it, changed: repaint the rows' dots that differ from what they were last painted from (`before`).
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'tabs' | 'archived'>, before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou'>): void {
+function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'later' | 'tabs' | 'archived'>, before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'later'>): void {
   repaintDots(statusChanges(before, view), view);
 }
 
-/** What draws the list again: the listing, a model switch, a pin, the archive, a note, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs, a task claude scheduled. */
-const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'scheduledTasks'] as const;
+/** What draws the list again: the listing, a model switch, a pin, the archive, a note, a later mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs, a task claude scheduled. */
+const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'later', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'scheduledTasks'] as const;
 /** The tabs, which have a watcher of their own (`listFollowsTabs`), since most of a tab's changes move only the rows' marks. */
 const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
@@ -93,7 +93,7 @@ type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (
 export function watchList(): void {
   store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
-  store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou'], dotsFollowStatuses, { reads: ['tabs', 'archived'] });
+  store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'later'], dotsFollowStatuses, { reads: ['tabs', 'archived'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject'] });
 }
 
@@ -179,7 +179,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     els.label.textContent = projName(project.repoRoot, view); // keep the heading current (e.g. after a rename)
     // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
     // Under a filter it offers the places the filter left drawn, and a pick unfolds the filter's own folds on the way.
-    const targets = groupJumpTargets(project, view.statuses, view.acked, view.needsYou);
+    const targets = groupJumpTargets(project, view.statuses, view.acked, view.needsYou, mutedNeedsYou(view));
     jumpTargets.set(project.repoRoot, targets);
     els.groupsBtn.hidden = targets.length < 2;
     // Nothing can be started in a folder that is not there.

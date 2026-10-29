@@ -1,7 +1,12 @@
+import AirDatepicker from 'air-datepicker';
+import localeEn from 'air-datepicker/locale/en';
+import 'air-datepicker/air-datepicker.css';
+import { timeOfDay } from '../shared/settings';
+import { onDayAt } from './logic';
 import { listen, runModal } from './modal';
 import './dialogs.css';
 
-// The two dialogs any part of the window asks with: a confirm before a delete, and a line or a note of text.
+// The dialogs any part of the window asks with: a confirm before a delete, a line or a note of text, and a day with a time.
 document.body.insertAdjacentHTML(
   'beforeend',
   `<div id="confirm-overlay" class="overlay" hidden>
@@ -26,6 +31,18 @@ document.body.insertAdjacentHTML(
         <button id="rename-ok" type="button" class="primary">Save</button>
       </div>
     </div>
+  </div>
+  <div id="day-overlay" class="overlay" hidden>
+    <div id="day-dialog" class="dialog" role="dialog" aria-modal="true">
+      <p id="day-title" class="dialog-title"></p>
+      <p id="day-detail" class="dialog-detail"></p>
+      <div id="day-calendar"></div>
+      <input id="day-time" class="dialog-field" type="time" aria-label="Time" />
+      <div class="dialog-actions">
+        <button id="day-cancel" type="button">Cancel</button>
+        <button id="day-ok" type="button" class="primary" disabled>Save</button>
+      </div>
+    </div>
   </div>`,
 );
 const confirmOverlay = document.getElementById('confirm-overlay')!;
@@ -41,6 +58,27 @@ const renameInput = document.getElementById('rename-input') as HTMLInputElement;
 const renameTextarea = document.getElementById('rename-textarea') as HTMLTextAreaElement;
 const renameOk = document.getElementById('rename-ok') as HTMLButtonElement;
 const renameCancel = document.getElementById('rename-cancel') as HTMLButtonElement;
+const dayOverlay = document.getElementById('day-overlay')!;
+const dayTitle = document.getElementById('day-title')!;
+const dayDetail = document.getElementById('day-detail')!;
+const dayOk = document.getElementById('day-ok') as HTMLButtonElement;
+const dayCancel = document.getElementById('day-cancel') as HTMLButtonElement;
+const dayTime = document.getElementById('day-time') as HTMLInputElement;
+// The calendar the session list's filter picks its dates in, as one day: custom-rendered, with no native <select>, so it behaves under WSLg.
+let pickedDay: Date | null = null;
+/** Save while a day is picked and the time reads. */
+const fillDayOk = (): void => {
+  dayOk.disabled = pickedDay === null || timeOfDay(dayTime.value) === null;
+};
+const dayPicker = new AirDatepicker(document.getElementById('day-calendar')!, {
+  inline: true,
+  locale: localeEn,
+  onSelect: ({ date }) => {
+    pickedDay = date instanceof Date ? date : null;
+    fillDayOk();
+  },
+});
+dayTime.addEventListener('input', fillDayOk);
 
 // In-app confirm modal (a native dialog flickers under WSLg), run by modal.ts like every modal here.
 // Deliberately NOT dismissable by clicking the backdrop: selecting text inside the dialog and releasing the mouse outside it dispatches the click on the common ancestor of the mousedown and mouseup — the overlay — so an outside-click dismiss threw the dialog away mid-drag.
@@ -68,6 +106,29 @@ export function confirmDanger(question: string, detail: string, action: string):
 
 export function confirmDelete(title: string): Promise<boolean> {
   return confirmDanger(`Delete "${title}"?`, 'Its transcript files move to the trash, so you can restore them from there if needed.', 'Delete');
+}
+
+/**
+ * Ask for a day, no earlier than the one `earliest` falls in, and a time of day, starting at `time` ("HH:MM"): that moment, in local time, on Save, or null on Cancel / Esc.
+ * Opens on no day picked, so Save waits for one.
+ */
+export function pickMoment(title: string, detail: string, earliest: number, time: string): Promise<number | null> {
+  dayTitle.textContent = title;
+  dayDetail.textContent = detail;
+  pickedDay = null;
+  dayTime.value = time;
+  fillDayOk();
+  dayPicker.clear({ silent: true });
+  dayPicker.update({ minDate: new Date(earliest) });
+  dayPicker.setViewDate(new Date(earliest));
+  dayOverlay.hidden = false;
+  dayCancel.focus();
+  return runModal<number | null>(dayOverlay, null, (finish) => [
+    listen(dayOk, 'click', () => {
+      if (pickedDay && timeOfDay(dayTime.value)) finish(onDayAt(pickedDay.getTime(), dayTime.value));
+    }),
+    listen(dayCancel, 'click', () => finish(null)),
+  ]);
 }
 
 // A small modal text prompt (Promise-resolving): OK/Enter resolves the value, Cancel/Esc resolves null.

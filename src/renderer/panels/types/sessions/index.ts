@@ -35,12 +35,12 @@ document.getElementById('parked')!.append(sidebar);
 export const sessionsType = builtinType('sessions', sidebar, 'Sessions', 'sessions', () => railStatus(store.get()));
 
 /** What the sidebar's rail icon says while it is folded or behind another panel: waiting while any session anywhere waits for you, else needs while one is marked as needing you, by the switcher's badge (`switcherModel`). */
-function railStatus(view: View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs'>): PanelStatus {
+function railStatus(view: View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'later' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs'>): PanelStatus {
   return railStatusOf(switcherModel(view).all.badge);
 }
 
 /** The rail icon follows the sessions and their statuses: a watcher the sidebar registers (watch.ts). */
-export function railStatusFollowsSessions(view: View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs'>): void {
+export function railStatusFollowsSessions(view: View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'later' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs'>): void {
   hostOf('sessions').setStatus(railStatus(view));
 }
 

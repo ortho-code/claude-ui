@@ -32,6 +32,10 @@ import {
   getNeedsYou,
   markNeedsYou,
   clearNeedsYou,
+  getLater,
+  markLater,
+  clearLater,
+  laterCameDue,
   getScheduledWhenStopped,
   setScheduledWhenStopped,
   setOpenSessions,
@@ -82,7 +86,7 @@ import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
 import { transcriptChanged } from './transcriptends';
 import { NO_TRANSCRIPT } from '../shared/history';
-import type { ClosedHow, HistoryPin, HistorySlice, OrderMove, UiState } from '../shared/types';
+import type { HistoryPin, HistorySlice, NeedsYouReason, OrderMove, UiState } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -490,11 +494,21 @@ ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: strin
 ipcMain.handle('meta:getRunningSessions', () => getRunningSessions());
 ipcMain.handle('meta:getPausedSessions', () => getPausedSessions());
 ipcMain.handle('meta:getNeedsYou', () => getNeedsYou());
-ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reason: ClosedHow) => {
-  void markNeedsYou(ids, reason);
+ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reason: NeedsYouReason, at?: number) => {
+  void markNeedsYou(ids, reason, at);
 });
 ipcMain.on('meta:clearNeedsYou', (_event, id: string) => {
   void clearNeedsYou(id);
+});
+ipcMain.handle('meta:getLater', () => getLater());
+ipcMain.on('meta:markLater', (_event, id: string, due: number | null, at?: number) => {
+  void markLater(id, due, at);
+});
+ipcMain.on('meta:clearLater', (_event, id: string) => {
+  void clearLater(id);
+});
+ipcMain.on('meta:laterCameDue', (_event, now: number) => {
+  void laterCameDue(now);
 });
 // A window opened again from the Dock follows no close of the app's, so the log has nothing to say of it.
 ipcMain.handle('app:lastClosed', () => (reopened ? 'unknown' : lastClosed()));

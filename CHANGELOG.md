@@ -97,6 +97,10 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   It is `stoppedTabButton` in `settings.json`, `"close"` or `"archive"`, and it leaves a running tab's button as it is.
 - Undo in the message a closed tab or an archived session leaves, from any button, its options or a middle-click: it puts the tab back where it was, without starting it, and unarchives the session.
   Such a message stays 8 seconds, and while the pointer is on it.
+- Later in a session's options, to set it aside whenever, until tomorrow, for a week or until a day and time you pick, shown as a bookmark on its row, its tab and its strip row and kept whether or not it has a tab.
+  Tomorrow and a week from now come due at 09:00, or the time of day `laterTime` in `settings.json` gives, which Settings shows as Time a later session comes back.
+  When its moment comes it needs you, saying it was a reminder for then, or why it needed you if it already did; typing a prompt there, Clear later and archiving it take the mark off.
+  A session that needed you before you set it aside shows that dimmed, counting for nothing while the later mark stands, and one that needs you afterwards shows it in full.
 
 ### Changed
 

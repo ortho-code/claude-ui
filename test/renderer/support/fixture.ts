@@ -3,7 +3,7 @@ import type { FolderName } from '../../../src/shared/folders';
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/pathcheck';
 import type { SettingsFileRead } from '../../../src/shared/settings';
-import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, NeedsYou, PrStatus, ScheduledTask, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
+import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, Later, NeedsYou, PrStatus, ScheduledTask, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -18,6 +18,8 @@ export interface BridgeFixture {
   notes: Record<string, string>;
   /** Session -> why it needs you, as meta keeps it; marked and cleared by main's own rules. */
   needsYou: Record<string, NeedsYou>;
+  /** Session -> the day it comes back and when it was set aside, as meta keeps it; marked, cleared and come due by main's own rules. */
+  later: Record<string, Later>;
   /** How the app closed before this window, as main's log says. */
   lastClosed: ClosedHow;
   openSessions: string[];
@@ -141,6 +143,7 @@ export function defaultFixture(): BridgeFixture {
     archiveFails: null,
     notes: {},
     needsYou: {},
+    later: {},
     lastClosed: 'quit',
     openSessions: [],
     runningSessions: [],

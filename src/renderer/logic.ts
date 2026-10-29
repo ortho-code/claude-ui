@@ -1,7 +1,8 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested.
 // renderer.ts wires these to its state and the DOM.
 import { prReference } from '../shared/prs';
-import type { ClosedHow, GroupState, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
+import { timeOfDay } from '../shared/settings';
+import type { GroupState, Later, NeedsYou, NeedsYouReason, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
 
 // The stable key for a displayed session entity: the session's own id, always.
@@ -440,13 +441,23 @@ export function asksForYou(nudge: NudgeStatus): boolean {
   return nudge === 'waiting' || nudge === 'needs' || nudge === 'idle';
 }
 
+/**
+ * A session's part in a roll-up, by the rule its dot follows: what it shows (`shownStatus`), muted to nothing once read, and a needs-you mark its later mark mutes (`mutedByLater`) is read wherever the dot shows it, so it rolls up as nothing too (decided 2026-10-29).
+ * Claude working or asking shows over the mark, and so still counts.
+ */
+export function sessionPart(status: string | undefined, marked: boolean, muted: boolean, acked: boolean): NudgeStatus {
+  const shown = shownStatus(status, marked);
+  return nudgeOf(shown, acked || (muted && shown === 'needs'));
+}
+
 function rollUpNudge(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
   needsYou: ReadonlyMap<string, unknown>,
+  muted: ReadonlySet<string>,
 ): NudgeStatus {
-  return strongestNudge(sessions.map((s) => nudgeOf(shownStatus(statuses.get(s.id), needsYou.has(entityKey(s))), acked.has(s.id))));
+  return strongestNudge(sessions.map((s) => sessionPart(statuses.get(s.id), needsYou.has(entityKey(s)), muted.has(entityKey(s)), acked.has(s.id))));
 }
 
 /**
@@ -492,17 +503,18 @@ export function projectsForSwitcher(
   names?: ReadonlyMap<string, string>,
   projectOrder: readonly string[] = [],
   archivedOnly: ReadonlyMap<string, SessionSummary[]> = new Map(),
+  muted: ReadonlySet<string> = new Set(),
 ): SwitcherModel {
   // Same order as the sidebar sections: the switcher is the compact view of the same list, so the two must never disagree about where a project sits.
   const projects = projectEntries(sessions, archivedOnly, projectOrder).map(([repoRoot, entry]) => ({
     repoRoot,
     name: displayName(repoRoot, names),
     count: entry.shown.length,
-    badge: rollUpNudge(entry.shown, statuses, acked, needsYou),
+    badge: rollUpNudge(entry.shown, statuses, acked, needsYou, muted),
     rootExists: projectRootExists(folderWitnesses(entry)),
   }));
   return {
-    all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked, needsYou) },
+    all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked, needsYou, muted) },
     projects,
   };
 }
@@ -667,19 +679,20 @@ export function groupJumpTargets(
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
   needsYou: ReadonlyMap<string, unknown>,
+  muted: ReadonlySet<string> = new Set(),
 ): GroupJumpTarget[] {
   const targets: GroupJumpTarget[] = project.groups.map(({ group, sessions }) => ({
     groupId: group.id,
     name: group.name,
     count: sessions.length,
-    badge: rollUpNudge(sessions, statuses, acked, needsYou),
+    badge: rollUpNudge(sessions, statuses, acked, needsYou, muted),
   }));
   if (project.loose.length > 0) {
     targets.push({
       groupId: null,
       name: 'Ungrouped',
       count: project.loose.length,
-      badge: rollUpNudge(project.loose, statuses, acked, needsYou),
+      badge: rollUpNudge(project.loose, statuses, acked, needsYou, muted),
     });
   }
   return targets;
@@ -703,12 +716,46 @@ const STATUS_LABEL: Record<string, string> = {
   stopping: 'Stopping — waiting for claude to leave',
 };
 
-/** What a session marked as needing you shows (`shownStatus`), by why it was marked: how the app closed while it ran. */
-const NEEDS_LABEL: Record<ClosedHow, string> = {
-  quit: 'Needs you — was running when the app quit',
-  ended: 'Needs you — was running when the app ended without quitting',
-  unknown: 'Needs you — was running when the app last closed',
+/** What a session marked as needing you shows (`shownStatus`), by why it was marked: how the app closed while it ran, or the day you set it aside for, from when it was marked. */
+const NEEDS_LABEL: Record<NeedsYouReason, (at: number) => string> = {
+  quit: () => 'Needs you — was running when the app quit',
+  ended: () => 'Needs you — was running when the app ended without quitting',
+  unknown: () => 'Needs you — was running when the app last closed',
+  reminder: (at) => `Needs you — reminder for ${momentLabel(at)}`,
 };
+
+/** A day as the later mark names it: "Mon 3 Nov", in the app's own short form whatever the system's language, as the rest of its words are English. */
+export function dayLabel(at: number): string {
+  const day = new Date(at);
+  return `${WEEKDAYS[day.getDay()]} ${day.getDate()} ${MONTHS[day.getMonth()]}`;
+}
+
+/** A moment as the later mark names it: its day and its time in 24 hours, "Mon 3 Nov, 09:00". */
+export function momentLabel(at: number): string {
+  const moment = new Date(at);
+  return `${dayLabel(at)}, ${String(moment.getHours()).padStart(2, '0')}:${String(moment.getMinutes()).padStart(2, '0')}`;
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/** The start of the local day `days` after the one `now` falls in: tomorrow for 1. */
+export function dayStart(now: number, days: number): number {
+  const day = new Date(now);
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate() + days).getTime();
+}
+
+/** `time` ("HH:MM", `Settings.laterTime`) on the local day `day` falls in: when a later mark set for that day comes due, the day's start for a time that does not read. */
+export function onDayAt(day: number, time: string): number {
+  const at = new Date(day);
+  const { hours, minutes } = timeOfDay(time) ?? { hours: 0, minutes: 0 };
+  return new Date(at.getFullYear(), at.getMonth(), at.getDate(), hours, minutes).getTime();
+}
+
+/** What a session's later mark says, on its tooltip and in its menu's header: "Later", or "Later: Mon 3 Nov, 09:00" for one with a day. */
+export function laterLabel(later: Later): string {
+  return later.due === null ? 'Later' : `Later: ${momentLabel(later.due)}`;
+}
 
 /**
  * A status dot's tooltip: the status as a label, plus whether it has been marked read.
@@ -720,13 +767,13 @@ const NEEDS_LABEL: Record<ClosedHow, string> = {
  * `background` also says what still runs, from the type claude gives each piece of work (`background`), counted per type: "2 shells, 1 subagent".
  * `needs` says why, from the session's mark (`needsYou`).
  */
-export function statusLabel(status: string | undefined, isAcked = false, background: readonly string[] = [], needsYou?: ClosedHow): string | null {
+export function statusLabel(status: string | undefined, isAcked = false, background: readonly string[] = [], needsYou?: NeedsYou): string | null {
   if (!status) return null;
   const label =
     status === 'background' && background.length > 0
       ? `${STATUS_LABEL.background}: ${countedTypes(background)}`
       : status === 'needs'
-        ? NEEDS_LABEL[needsYou ?? 'unknown']
+        ? NEEDS_LABEL[needsYou?.reason ?? 'unknown'](needsYou?.at ?? 0)
         : (STATUS_LABEL[status] ?? status);
   return showsRead(status, isAcked) ? `${label} (read)` : label;
 }

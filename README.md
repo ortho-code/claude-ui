@@ -27,6 +27,7 @@ Done:
   A tab you close or a session you archive can be put back from the message it leaves, with Undo.
   A tab can be paused, from its kebab or a right-click: claude ends and the tab stays, marked with two bars, to set it aside without keeping it running, and it comes back paused at the next launch until you open it again.
   A session marked as needing you has a mauve dot on its row, its tab and in the live strip, saying why on hover, such as that it was running when the app quit, also when the app ended without quitting; the mark stays through a resume and a restart until you act on the session, such as typing a prompt there, closing its tab, leaving claude yourself, a `/clear`, archiving it, or choosing Clear needs you in its kebab, and a click on the dot only marks it seen.
+  Later in its kebab sets a session aside, whenever or until a day and time, shown as a bookmark on its row, its tab, and its strip row while the strip lists it; at that day and time it needs you, within the hour if the machine slept through it, and a needs-you mark from before it was set aside stays dimmed while the later mark stands.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
   The tab bar folds to one row, the row of the tab on show where there is one, from a chevron on the line under the tabs, to give the terminal the room; while a tab folded away is waiting for you, or has finished and is not marked read, the chevron turns into its status dot.
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
@@ -305,14 +306,15 @@ For example:
 }
 ```
 
-There are four settings: `launchFlags`, the default flags for every session the app starts, `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed, `prStatus`, whether the app asks GitHub what it says of the PRs your sessions link, and `stoppedTabButton`, what the button on a stopped tab does.
+There are five settings: `launchFlags`, the default flags for every session the app starts, `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed, `prStatus`, whether the app asks GitHub what it says of the PRs your sessions link, `stoppedTabButton`, what the button on a stopped tab does, and `laterTime`, the time of day a session set aside for later comes back.
 `runningSessionsAtLaunch` is `"mark"` until you choose otherwise, which brings their tabs back without starting them, marked as needing you, in the live strip; `"start"` starts them again, marked as well, and `"leave"` brings their tabs back with the other tabs, unmarked, waiting for a click.
 `"pause"`, which a file an older version wrote may hold, reads as `"mark"`.
 A tab you paused comes back paused whichever it is.
 `prStatus` is `true` until you choose otherwise, which colours each session's PR mark by what GitHub says, asked with `gh` on your own login; `false` asks nothing, and the marks keep one colour.
 `stoppedTabButton` is `"close"` until you choose otherwise, which closes the tab, and `"archive"` archives its session instead; it is the button on the tab and, for a paused one, on its row in the live strip, and a middle-click on the tab, and it leaves a running tab's button as it is.
+`laterTime` is `"09:00"` until you choose otherwise, a time of day as `"HH:MM"` in 24 hours: a session set aside for tomorrow or in a week needs you again at that time, and Pick a date…'s time starts at it.
 A save writes the settings you changed, and puts a value Settings can use in place of one in the file it cannot, as edits of the file's text, so your comments stay; it is refused while the file does not parse or does not hold an object.
-A change to the file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus` or `stoppedTabButton` counts at once.
+A change to the file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus`, `stoppedTabButton` or `laterTime` counts at once, `laterTime` for what you set aside from then on.
 A `settings.json` you were sent sets flags on every session you start, so read it before you use it.
 A mistake in the file is named in Settings, and a file that does not parse keeps the settings it last read until it does.
 

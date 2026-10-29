@@ -34,7 +34,8 @@ test('by default the sessions that were running come back marked as needing you,
   await expect.poll(() => app.calls('setOpenSessions')).toHaveLength(1);
   expect(await app.calls('startTerminal')).toEqual([]);
   expect((await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), [], []]);
-  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], 'quit']]);
+  // From the time the window marked them with, so main's copy and the window's agree.
+  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], 'quit', expect.any(Number)]]);
   for (const s of [one, two, gone]) await expect(tab(page, s.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(tab(page, three.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
   await expect(stripNames(page)).toHaveText([one.title, two.title, gone.title]);
@@ -51,7 +52,7 @@ for (const [lastClosed, said] of WHY) {
   test(`the mark says why, after a close the log calls ${lastClosed}`, async ({ app, page }) => {
     await app.boot({ ...fixture, lastClosed });
     await expect(tab(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', `Needs you — was running ${said}`);
-    expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], lastClosed]]);
+    expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], lastClosed, expect.any(Number)]]);
   });
 }
 
@@ -87,7 +88,7 @@ test('chosen to start, the sessions that were running start again, the one on sh
   await expect(tab(page, gone.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(page.locator('#toast')).toBeHidden();
   // Started, they keep the mark until a prompt there, and none was paused.
-  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], 'quit']]);
+  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], 'quit', expect.any(Number)]]);
   await expect(tab(page, two.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), [one.id, two.id], []]);
 
@@ -122,7 +123,7 @@ test('a tab you paused comes back paused whatever the choice, unmarked, and is n
   const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
   expect(launch.resumeSessionId).toBe(one.id);
   await expect(tab(page, two.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
-  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, gone.id], 'quit']]);
+  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, gone.id], 'quit', expect.any(Number)]]);
 });
 
 // Archived is put away, not resumed: a tab kept for one by an earlier version (archived while it ran, or opened as a sibling) is not brought back, even one that was running, and is no longer kept.

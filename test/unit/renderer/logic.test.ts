@@ -5,6 +5,12 @@ import {
   hasVisibleOutput,
   statusLabel,
   stripLine,
+  dayLabel,
+  dayStart,
+  onDayAt,
+  momentLabel,
+  laterLabel,
+  sessionPart,
   leaveAction,
   leaveLabel,
   leaveUnderWay,
@@ -920,10 +926,14 @@ describe('statusLabel', () => {
   });
 
   it('says why a session needs you, by how the app closed while it ran', () => {
-    expect(statusLabel('needs', false, [], 'quit')).toBe('Needs you — was running when the app quit');
-    expect(statusLabel('needs', false, [], 'ended')).toBe('Needs you — was running when the app ended without quitting');
-    expect(statusLabel('needs', false, [], 'unknown')).toBe('Needs you — was running when the app last closed');
-    expect(statusLabel('needs', true, [], 'quit')).toBe('Needs you — was running when the app quit (read)');
+    expect(statusLabel('needs', false, [], { reason: 'quit', at: 1 })).toBe('Needs you — was running when the app quit');
+    expect(statusLabel('needs', false, [], { reason: 'ended', at: 1 })).toBe('Needs you — was running when the app ended without quitting');
+    expect(statusLabel('needs', false, [], { reason: 'unknown', at: 1 })).toBe('Needs you — was running when the app last closed');
+    expect(statusLabel('needs', true, [], { reason: 'quit', at: 1 })).toBe('Needs you — was running when the app quit (read)');
+  });
+
+  it('says which day a reminder was for, from when it was marked', () => {
+    expect(statusLabel('needs', false, [], { reason: 'reminder', at: new Date(2026, 10, 2, 9).getTime() })).toBe('Needs you — reminder for Mon 2 Nov, 09:00');
   });
 
   it('names a paused session, and never as read, since it reports no claude to have read', () => {
@@ -966,6 +976,41 @@ describe('statusLabel', () => {
 
   it('names the work only for background', () => {
     expect(statusLabel('busy', false, ['shell'])).toBe('Busy');
+  });
+});
+
+describe('sessionPart', () => {
+  it('rolls a muted needs-you mark up as read, as its dot shows it, and claude working or asking over it as itself', () => {
+    expect(sessionPart('idle', true, false, false)).toBe('needs');
+    expect(sessionPart('idle', true, true, false)).toBeNull();
+    expect(sessionPart(undefined, true, true, false)).toBeNull();
+    expect(sessionPart('waiting', true, true, false)).toBe('waiting');
+    expect(sessionPart('busy', true, true, false)).toBe('busy');
+    expect(sessionPart('idle', false, false, false)).toBe('idle');
+  });
+});
+
+describe('the days a later mark names', () => {
+  // Local times, as the menu makes them: Thursday 29 October 2026, mid-afternoon.
+  const thursday = new Date(2026, 9, 29, 15, 30).getTime();
+
+  it('starts tomorrow at its midnight, across the end of a month too', () => {
+    expect(dayStart(thursday, 1)).toBe(new Date(2026, 9, 30).getTime());
+    expect(dayStart(new Date(2026, 9, 31, 23, 59).getTime(), 1)).toBe(new Date(2026, 10, 1).getTime());
+  });
+
+  it('comes due at the time of day given on the day chosen, a week on being the same weekday', () => {
+    expect(onDayAt(dayStart(thursday, 1), '09:00')).toBe(new Date(2026, 9, 30, 9, 0).getTime());
+    expect(onDayAt(dayStart(thursday, 7), '17:45')).toBe(new Date(2026, 10, 5, 17, 45).getTime());
+    // A time that does not read leaves the day's start.
+    expect(onDayAt(dayStart(thursday, 1), '9am')).toBe(new Date(2026, 9, 30).getTime());
+  });
+
+  it('names a day short, a moment by its day and time, and a mark by its moment or as whenever', () => {
+    expect(dayLabel(new Date(2026, 10, 2).getTime())).toBe('Mon 2 Nov');
+    expect(momentLabel(new Date(2026, 10, 2, 9, 5).getTime())).toBe('Mon 2 Nov, 09:05');
+    expect(laterLabel({ due: new Date(2026, 10, 5, 9).getTime(), at: thursday })).toBe('Later: Thu 5 Nov, 09:00');
+    expect(laterLabel({ due: null, at: thursday })).toBe('Later');
   });
 });
 

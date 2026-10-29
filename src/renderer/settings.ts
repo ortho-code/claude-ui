@@ -1,7 +1,7 @@
 import { parseLaunchFlags } from '../shared/flags';
 import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
-import { RUNNING_AT_LAUNCH, STOPPED_TAB_BUTTON, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView, type StoppedTabButton } from '../shared/settings';
+import { RUNNING_AT_LAUNCH, STOPPED_TAB_BUTTON, timeOfDay, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView, type StoppedTabButton } from '../shared/settings';
 import type { Settings } from '../shared/types';
 import { listen, runModal } from './modal';
 import { store, type View } from './state/app';
@@ -55,6 +55,12 @@ document.body.insertAdjacentHTML(
           ${STOPPED_TAB_BUTTON.map((choice) => `<option value="${choice}">${STOPPED_BUTTON_LABELS[choice]}</option>`).join('')}
         </select>
       </div>
+      <div class="dialog-section">
+        <label class="dialog-label" for="settings-later-time">Time a later session comes back</label>
+        <p class="dialog-detail">A session set aside for tomorrow or in a week needs you again at this time on that day. Pick a date…'s time starts at it.</p>
+        <input id="settings-later-time" class="dialog-field" type="time" />
+        <p id="settings-later-time-error" class="dialog-error" hidden></p>
+      </div>
       <div id="settings-notes" class="dialog-section" hidden>
         <span class="dialog-label">In settings.json</span>
         <div id="settings-notes-list"></div>
@@ -72,6 +78,8 @@ const settingsFlags = document.getElementById('settings-flags') as HTMLInputElem
 const settingsRunning = document.getElementById('settings-running') as HTMLSelectElement;
 const settingsPrStatus = document.getElementById('settings-pr-status') as HTMLInputElement;
 const settingsStoppedButton = document.getElementById('settings-stopped-button') as HTMLSelectElement;
+const settingsLaterTime = document.getElementById('settings-later-time') as HTMLInputElement;
+const settingsLaterTimeError = document.getElementById('settings-later-time-error')!;
 const settingsError = document.getElementById('settings-error')!;
 const settingsOk = document.getElementById('settings-ok') as HTMLButtonElement;
 const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonElement;
@@ -247,8 +255,21 @@ const stoppedButtonField = new SettingField(
   (file, why) => `The choice in ${file} is not used: ${why}`,
 );
 
+const laterTimeField = new SettingField(
+  'laterTime',
+  {
+    element: settingsLaterTime,
+    // A time input holds "HH:MM" in 24 hours whatever the system's clock shows, or nothing once cleared, which the save refuses.
+    read: () => settingsLaterTime.value,
+    write: (value) => {
+      settingsLaterTime.value = value;
+    },
+  },
+  (file, why) => `The time in ${file} is not used: ${why}`,
+);
+
 /** Every setting's field. */
-const fields = [flagsField, runningField, prStatusField, stoppedButtonField];
+const fields = [flagsField, runningField, prStatusField, stoppedButtonField, laterTimeField];
 
 /** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with the file as a whole. */
 function render(view: SettingsView): void {
@@ -270,6 +291,7 @@ export async function openSettings(): Promise<void> {
   keepSettings(await window.claudeUi.getSettings());
   render(store.get().settings!);
   settingsError.hidden = true;
+  settingsLaterTimeError.hidden = true;
   renderFolderRows(await window.claudeUi.getFolders());
   settingsOverlay.hidden = false;
   settingsFlags.focus();
@@ -284,7 +306,13 @@ export async function openSettings(): Promise<void> {
         settingsError.hidden = false;
         return;
       }
-      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value(), prStatus: prStatusField.value(), stoppedTabButton: stoppedButtonField.value() });
+      const laterTime = laterTimeField.value();
+      settingsLaterTimeError.hidden = timeOfDay(laterTime) !== null;
+      if (!settingsLaterTimeError.hidden) {
+        settingsLaterTimeError.textContent = 'Give a time of day.';
+        return;
+      }
+      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value(), prStatus: prStatusField.value(), stoppedTabButton: stoppedButtonField.value(), laterTime });
       // Main does not tell the window of a change that is all its own write, so the settings as the save left them are kept here.
       keepSettings(saved.view);
       if (saved.refused !== null) {

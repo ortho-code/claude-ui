@@ -1,12 +1,14 @@
 import { prReference } from '../../../../shared/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
-import { confirmDelete, promptText } from '../../../dialogs';
-import { clockLines, clockOf, entityKey, folderName, leaveAction, leaveLabel, leaveUnderWay, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
+import { defaultSettings } from '../../../../shared/defaults';
+import { confirmDelete, pickMoment, promptText } from '../../../dialogs';
+import { clockLines, clockOf, dayStart, entityKey, folderName, momentLabel, onDayAt, leaveAction, leaveLabel, leaveUnderWay, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
 import { verdictOf } from '../../../prstatus';
 import { store, withMember, type TabState } from '../../../state/app';
 import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
 import { pickCheckout, pickedFor } from '../../../state/picks';
+import { clearLater, markLater } from '../../../state/later';
 import { clearNeedsYou } from '../../../state/needsyou';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
 import { isFiltering, isPaused, projName, projectGroups, tabWith, unopenableReason } from '../../../state/views';
@@ -262,6 +264,8 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
       ? { label: 'Clear needs you', onSelect: () => clearNeedsYou(entityKey(session)) }
       : { label: 'Clear needs you', disabled: 'Not marked as needing you' },
   );
+  // Setting it aside for later is a mark on the session, with a tab or without, running or not, and leaves the tab as it is (decided 2026-10-29).
+  items.push(...laterItems(session));
   items.push(noteItem(session));
   items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
   items.push(copyIdItem(session));
@@ -311,6 +315,35 @@ function linkedItems(session: SessionSummary): MenuItem[] {
     items.push({ label: `Scheduled (${tasks.length})`, submenu: [{ label: heading!, header: tasks }] });
   }
   return items;
+}
+
+/**
+ * Later, with the day it comes back as needing you, and Clear later: a mark on the session, so the tab is left as it is (decided 2026-10-29).
+ * An archived session's menu has neither, since an archive clears the mark.
+ */
+function laterItems(session: SessionSummary): MenuItem[] {
+  const key = entityKey(session);
+  const now = Date.now();
+  // At the time of day the settings say, on the day chosen (decided 2026-10-29).
+  const time = store.get().settings?.laterTime.value ?? defaultSettings().laterTime;
+  const tomorrow = onDayAt(dayStart(now, 1), time);
+  const inAWeek = onDayAt(dayStart(now, 7), time);
+  const pick = async (): Promise<void> => {
+    const due = await pickMoment('Later', `Comes back as needing you at the day and time you pick: ${sessionLabel(session)}`, dayStart(now, 1), time);
+    if (due !== null) markLater(key, due);
+  };
+  return [
+    {
+      label: 'Later',
+      submenu: [
+        { label: 'Whenever', onSelect: () => markLater(key, null) },
+        { label: `Tomorrow (${momentLabel(tomorrow)})`, onSelect: () => markLater(key, tomorrow) },
+        { label: `In a week (${momentLabel(inAWeek)})`, onSelect: () => markLater(key, inAWeek) },
+        { label: 'Pick a date…', onSelect: () => void pick() },
+      ],
+    },
+    store.get().later.has(key) ? { label: 'Clear later', onSelect: () => clearLater(key) } : { label: 'Clear later', disabled: 'Not marked for later' },
+  ];
 }
 
 function noteItem(session: SessionSummary): MenuItem {

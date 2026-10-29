@@ -17,9 +17,18 @@ export interface ScheduledTask {
  */
 export type ClosedHow = 'quit' | 'ended' | 'unknown';
 
-/** A session marked as needing you: why, and when it was marked (epoch ms). */
+/** Why a session needs you: how the app closed while it ran (`ClosedHow`), or the day you marked it for later has come (`reminder`). */
+export type NeedsYouReason = ClosedHow | 'reminder';
+
+/** A session marked as needing you: why, and when it was marked (epoch ms); for a reminder, the start of the day it was for. */
 export interface NeedsYou {
-  reason: ClosedHow;
+  reason: NeedsYouReason;
+  at: number;
+}
+
+/** A session marked for later: the start of the day it comes back as needing you (epoch ms), or null for whenever, and when it was marked (epoch ms). */
+export interface Later {
+  due: number | null;
   at: number;
 }
 
@@ -329,6 +338,8 @@ export interface Settings {
   prStatus: boolean;
   /** What the button on a stopped tab does, on the tab and, for a paused one, its live strip row: close the tab, or archive its session; a running tab's button is not changed by it. */
   stoppedTabButton: StoppedTabButton;
+  /** The time of day a session set aside for later comes back as needing you, on the day chosen, as `"HH:MM"` in 24 hours; Pick a date… starts at it. */
+  laterTime: string;
 }
 
 export interface UiState {
@@ -446,10 +457,18 @@ export interface ClaudeUiApi {
   getPausedSessions(): Promise<string[]>;
   /** The sessions marked as needing you, by session id. */
   getNeedsYou(): Promise<Record<string, NeedsYou>>;
-  /** Mark sessions as needing you, for `reason`; one already marked takes the newer reason. */
-  markNeedsYou(ids: string[], reason: ClosedHow): void;
+  /** Mark sessions as needing you, for `reason`, from `at` or now, as Undo puts a mark back as it was; one already marked takes the newer reason. */
+  markNeedsYou(ids: string[], reason: NeedsYouReason, at?: number): void;
   /** Take a session's needs-you mark off, whether or not it had one. */
   clearNeedsYou(id: string): void;
+  /** The sessions marked for later, by session id. */
+  getLater(): Promise<Record<string, Later>>;
+  /** Mark a session for later, `due` the start of the day it comes back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
+  markLater(id: string, due: number | null, at?: number): void;
+  /** Take a session's later mark off, whether or not it had one. */
+  clearLater(id: string): void;
+  /** Settle the later marks whose day has come by `now` (`cameDue`): each goes, and a session not marked as needing you is marked with a reminder. */
+  laterCameDue(now: number): void;
   /** How the app closed before this window opened: what a session running then is marked for. */
   getLastClosed(): Promise<ClosedHow>;
   /** Open session -> the crons claude had scheduled for it when its claude went, as the open tabs were last written. */

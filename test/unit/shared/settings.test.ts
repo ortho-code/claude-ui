@@ -10,7 +10,14 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close' });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close', laterTime: '09:00' });
+  });
+
+  it('take a time of day of the file for a later session, 09:00 unless told otherwise, and leave out one that is no time in 24 hours', () => {
+    expect(settingsView(holding({ laterTime: '17:30' })).laterTime).toEqual({ value: '17:30', problem: null });
+    for (const wrong of ['9:00', '24:00', '09:60', '9am', 900, null]) {
+      expect(settingsView(holding({ laterTime: wrong })).laterTime).toEqual({ value: '09:00', problem: 'It has to be a time of day as "HH:MM", in 24 hours, such as "09:00".' });
+    }
   });
 
   it("take a choice of the file for a stopped tab's button, closing it unless told otherwise, and leave out one that is no choice", () => {

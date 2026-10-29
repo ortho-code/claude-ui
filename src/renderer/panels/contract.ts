@@ -1,4 +1,4 @@
-import type { ClosedHow } from '../../shared/types';
+import type { NeedsYou } from '../../shared/types';
 import type { LeaveAction, TabButtonMark } from '../logic';
 import type { MenuItem } from '../menu';
 import type { IconName } from './icons';
@@ -86,9 +86,9 @@ export interface LinkedSession {
   status: string | null;
   /** For a `background` status, what still runs behind its finished turn, by the type claude gives each piece of work; empty when nothing is known. */
   background: readonly string[];
-  /** For a `needs` status, why it needs you; null otherwise. */
-  needsYou: ClosedHow | null;
-  /** Its dot marked read. */
+  /** For a `needs` status, why it needs you and since when; null otherwise. */
+  needsYou: NeedsYou | null;
+  /** Its dot marked read, or showing a needs-you mark its later mark mutes, which looks read (`shownRead`). */
   acked: boolean;
   /** A tab holds it with its process live. */
   running: boolean;

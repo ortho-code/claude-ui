@@ -2,13 +2,13 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { ClosedHow, NeedsYou, OrderMove, GroupState, HistoryPin, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
+import type { Later, NeedsYou, NeedsYouReason, OrderMove, GroupState, HistoryPin, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
 import { scheduledTasksOf } from '../shared/scheduled';
 import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { archivedFrom, CLOSED_HOW, clearedNeedsYou, markedNeedsYou, purgedSession, togglePinned, unarchived } from '../shared/sessionmarks';
+import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, markedLater, markedNeedsYou, NEEDS_YOU_REASONS, purgedSession, togglePinned, unarchived } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
@@ -78,6 +78,11 @@ interface Meta {
    */
   needsYou: Record<string, NeedsYou>;
   /**
+   * The sessions you set aside for later, by session id: the day each comes back as needing you, or none for whenever, and since when.
+   * Kept whether or not a tab holds the session, until the window takes it off for a prompt there or Clear later, its day comes (`cameDue`), or main does for an archive or a delete.
+   */
+  later: Record<string, Later>;
+  /**
    * Size and position of the window as it was last left, or null until it has been.
    * The size stored is always the unmaximized one, with `maximized` recorded beside it, so restoring a maximized window still knows how big to make it when it is un-maximized.
    */
@@ -144,6 +149,7 @@ const KNOWN_KEYS = new Set([
   'moved',
   'notes',
   'needsYou',
+  'later',
   'groups',
   'groupOf',
   'version',
@@ -155,7 +161,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], pausedSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], pausedSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, later: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -354,6 +360,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // Same reasoning as projectOrder: no version bump for a new defaulted field; absent means nothing is marked.
     // An entry this build cannot read is dropped, so a hand edit can't leave a mark with no reason to show.
     needsYou: needsYouOf(parsed.needsYou),
+    // The same again: absent means nothing is set aside for later.
+    later: laterOf(parsed.later),
     groups,
     groupOf,
     version: typeof parsed.version === 'number' ? parsed.version : 1,
@@ -588,11 +596,12 @@ export function getArchived(): Promise<Record<string, number>> {
   return serialize(async () => (await readMeta()).archived);
 }
 
-/** Archive a session, which settles anything it needed you for: an archived session is put away. */
+/** Archive a session, which settles anything it needed you for, and what you set it aside for: an archived session is put away. */
 export function archive(id: string): Promise<Record<string, number>> {
   return update('archive', (meta) => {
     meta.archived = archivedFrom(meta.archived, id, Date.now());
     meta.needsYou = clearedNeedsYou(meta.needsYou, id);
+    meta.later = clearedLater(meta.later, id);
     return meta.archived;
   });
 }
@@ -658,9 +667,9 @@ export function getNeedsYou(): Promise<Record<string, NeedsYou>> {
 }
 
 /** Mark sessions as needing you, for `reason`; one already marked takes the newer reason. */
-export function markNeedsYou(ids: string[], reason: ClosedHow): Promise<void> {
+export function markNeedsYou(ids: string[], reason: NeedsYouReason, at = Date.now()): Promise<void> {
   return update('markNeedsYou', (meta) => {
-    meta.needsYou = markedNeedsYou(meta.needsYou, ids, reason, Date.now());
+    meta.needsYou = markedNeedsYou(meta.needsYou, ids, reason, at);
   });
 }
 
@@ -678,7 +687,45 @@ function needsYouOf(raw: unknown): Record<string, NeedsYou> {
     Object.entries(raw as Record<string, unknown>).flatMap(([id, entry]) => {
       if (typeof entry !== 'object' || entry === null) return [];
       const { reason, at } = entry as Record<string, unknown>;
-      return CLOSED_HOW.includes(reason as ClosedHow) && typeof at === 'number' ? [[id, { reason: reason as ClosedHow, at }]] : [];
+      return NEEDS_YOU_REASONS.includes(reason as NeedsYouReason) && typeof at === 'number' ? [[id, { reason: reason as NeedsYouReason, at }]] : [];
+    }),
+  );
+}
+
+/** The sessions marked for later; see `later`. */
+export function getLater(): Promise<Record<string, Later>> {
+  return serialize(async () => (await readMeta()).later);
+}
+
+/** Mark a session for later, `due` the start of the day it comes back, or null for whenever; a mark already there is replaced. */
+export function markLater(id: string, due: number | null, at = Date.now()): Promise<void> {
+  return update('markLater', (meta) => {
+    meta.later = markedLater(meta.later, id, due, at);
+  });
+}
+
+/** Take a session's later mark off, whether or not it had one. */
+export function clearLater(id: string): Promise<void> {
+  return update('clearLater', (meta) => {
+    meta.later = clearedLater(meta.later, id);
+  });
+}
+
+/** Settle the later marks whose day has come by `now`, by the rule the window keeps its copy by (`cameDue`). */
+export function laterCameDue(now: number): Promise<void> {
+  return update('laterCameDue', (meta) => {
+    Object.assign(meta, cameDue(meta, now));
+  });
+}
+
+/** Session -> its later mark, from whatever was stored, an entry with a time left out or a day that is not a number dropped. */
+function laterOf(raw: unknown): Record<string, Later> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>).flatMap(([id, entry]) => {
+      if (typeof entry !== 'object' || entry === null) return [];
+      const { due, at } = entry as Record<string, unknown>;
+      return (due === null || typeof due === 'number') && typeof at === 'number' ? [[id, { due, at }]] : [];
     }),
   );
 }
