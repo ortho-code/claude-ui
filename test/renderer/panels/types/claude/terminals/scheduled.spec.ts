@@ -83,4 +83,4 @@ test("a session's options hold its clock as Scheduled, its tasks in the clock's 
   }
 });
 
-// What the clock shows once the session's claude has gone, muted, is scheduled-paused.spec.ts's.
+// What the clock shows once the session's claude has gone, muted, is scheduled-kept.spec.ts's.

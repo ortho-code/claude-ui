@@ -138,7 +138,7 @@ test('an archive claude has not left is forced by the Force archive, and the for
 });
 
 // A claude already asked to leave is asked nothing more, since a second pair of presses ends what it asks on its way out unanswered: what its exit does changes, as Close changes it.
-for (const leave of ['Stop session', 'Pause'] as const) {
+for (const leave of ['Stop session', 'Close tab'] as const) {
   test(`Archive on a tab whose claude is leaving from ${leave} sends nothing more, and archives it at the exit`, async ({ app, page }) => {
     await app.boot(fixture);
     await startLive(page, app);
@@ -158,7 +158,7 @@ for (const leave of ['Stop session', 'Pause'] as const) {
   });
 }
 
-// There is no claude yet to ask to leave, as Pause says too.
+// There is no claude yet to ask to leave, as Stop session says too.
 test('Archive is unavailable while the tab starts, saying so, and archives nothing', async ({ app, page }) => {
   await app.boot(fixture);
   await app.hold('startTerminal');
@@ -180,5 +180,5 @@ test('a quit while an archive waits for claude writes no mark, and keeps the tab
   expect(await app.emit('onQuitting')).toBe(1);
   await app.emit('onTerminalExit', FIRST, 143);
   expect(await app.calls('archive')).toEqual([]);
-  expect((await app.calls('setOpenSessions')).at(-1)).toEqual([[one.id], [one.id], []]);
+  expect((await app.calls('setOpenSessions')).at(-1)).toEqual([[one.id], [one.id]]);
 });

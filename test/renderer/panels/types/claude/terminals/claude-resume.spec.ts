@@ -30,7 +30,7 @@ test('a session resumed in a tab is taken over as it is, with no pairing recorde
   expect(await app.emit('onSessionStart', old.id, token, 'resume')).toBe(1);
 
   await expect(tabLabels(page)).toHaveText([old.title]);
-  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[old.id], [old.id], []]);
+  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[old.id], [old.id]]);
   await expect(row(page, old.title)).toHaveClass(/\bopen\b/);
   await expect(titlesIn(group(page, 'Other'))).toHaveText([old.title]);
   expect(await app.calls('recordClear')).toEqual([]);
@@ -74,7 +74,7 @@ test('the end of the session a tab left, arriving after the start of the one it 
 
   await expect(row(page, one.title)).not.toHaveClass(/\bopen\b/);
   await expect(tabLabels(page)).toHaveText([old.title]);
-  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[old.id], [old.id], []]);
+  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[old.id], [old.id]]);
 });
 
 // claude lets a second claude resume a session another runs, with no warning, and the two then branch its transcript: each turn hangs off the same message, and a later resume follows one branch, dropping the other's turn (measured on claude 2.1.302).
@@ -106,7 +106,7 @@ test('a session resumed in a tab while another tab runs it is undone: that claud
   await app.emit('onTerminalExit', FIRST, 143);
   await expect(tab(page, old.title).locator('.nudge')).toHaveClass(/\bbusy\b/);
   await expect(tabLabels(page)).toHaveText([one.title, old.title]);
-  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[one.id, old.id], [old.id], []]);
+  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[one.id, old.id], [old.id]]);
 });
 
 // A claude you asked to leave is a second claude in the session all the same: it is forced out as any other, the leave off, since it went on working.
@@ -115,9 +115,9 @@ test('a session resumed into one another tab runs, by a claude asked to leave, i
   await row(page, old.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
   expect(await app.emit('onTerminalData', FIRST + 1, 'claude is here')).toBe(1);
-  // A pause, since what it leaves behind, a paused tab, is what tells a leave called off from one that went ahead.
+  // A close, since the tab it would take away, still there at the exit, is what tells a leave called off from one that went ahead.
   await row(page, one.title).locator('.session-kebab').click();
-  await page.locator('.kebab-menu button.menu-row', { hasText: /^Pause$/ }).click();
+  await page.locator('.kebab-menu button.menu-row', { hasText: /^Close tab$/ }).click();
   expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
 
   await app.emit('onSessionStart', old.id, token, 'resume');
@@ -126,7 +126,6 @@ test('a session resumed into one another tab runs, by a claude asked to leave, i
   await expect(page.locator('#toast-message')).toHaveText(`"${old.title}" is already running in another tab`);
   await app.emit('onTerminalExit', FIRST, 143);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
-  await expect(tab(page, one.title).locator('.nudge')).not.toHaveClass(/\bpaused\b/);
 });
 
 // A prompt it sent can still be on its way too: it calls nothing off, since that claude is being ended whatever it reports.
@@ -163,7 +162,7 @@ test('a forced-out claude whose report arrives after the other tab stopped stays
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
 });
 
-// A tab holding the session with no claude behind it, cold or paused, runs nothing that could branch it: the tab that went on in it is the session's tab now, and the other goes.
+// A tab holding the session with no claude behind it, cold, runs nothing that could branch it: the tab that went on in it is the session's tab now, and the other goes.
 test('a session resumed in a tab while another tab holds it cold leaves it in the tab that resumed it, and the cold tab goes', async ({ app, page }) => {
   const token = await running(app, page, { openSessions: [old.id] });
   await expect(tabLabels(page)).toHaveText([one.title, old.title]);
@@ -172,7 +171,7 @@ test('a session resumed in a tab while another tab holds it cold leaves it in th
 
   await expect(tabLabels(page)).toHaveText([old.title]);
   await expect(tab(page, old.title)).toHaveClass(/\bactive\b/);
-  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[old.id], [old.id], []]);
+  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([[old.id], [old.id]]);
   expect(await app.calls('closeTerminal')).toEqual([]);
   expect(await app.calls('startTerminal')).toHaveLength(1);
   // The cold tab goes, and the session's status with it would be the running tab's.

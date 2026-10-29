@@ -28,7 +28,6 @@ import {
   unarchive,
   getOpenSessions,
   getRunningSessions,
-  getPausedSessions,
   getNeedsYou,
   markNeedsYou,
   clearNeedsYou,
@@ -492,7 +491,6 @@ ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: strin
   void setActiveSession(id, repoRoot);
 });
 ipcMain.handle('meta:getRunningSessions', () => getRunningSessions());
-ipcMain.handle('meta:getPausedSessions', () => getPausedSessions());
 ipcMain.handle('meta:getNeedsYou', () => getNeedsYou());
 ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reason: NeedsYouReason, at?: number) => {
   void markNeedsYou(ids, reason, at);
@@ -516,8 +514,8 @@ ipcMain.handle('meta:getScheduledWhenStopped', () => getScheduledWhenStopped());
 ipcMain.on('meta:setScheduledWhenStopped', (_event, bySession: Record<string, unknown>) => {
   void setScheduledWhenStopped(bySession);
 });
-ipcMain.on('meta:setOpenSessions', (_event, ids: string[], running: string[], paused: string[]) => {
-  void setOpenSessions(ids, running, paused);
+ipcMain.on('meta:setOpenSessions', (_event, ids: string[], running: string[]) => {
+  void setOpenSessions(ids, running);
 });
 ipcMain.handle('meta:getActiveProject', () => getActiveProject());
 ipcMain.on('meta:setActiveProject', (_event, folder: string | null) => {

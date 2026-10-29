@@ -38,7 +38,7 @@ document.body.insertAdjacentHTML(
       </div>
       <div class="dialog-section">
         <label class="dialog-label" for="settings-running">Sessions running when the app closed</label>
-        <p class="dialog-detail">What the next launch does with them. A marked one is listed in the live strip and stays marked until your next prompt there. The other tabs come back waiting for a click, and a tab you paused comes back paused.</p>
+        <p class="dialog-detail">What the next launch does with them. A marked one is listed in the live strip and stays marked until your next prompt there. The other tabs come back waiting for a click.</p>
         <select id="settings-running" class="dialog-field">
           ${RUNNING_AT_LAUNCH.map((choice) => `<option value="${choice}">${RUNNING_LABELS[choice]}</option>`).join('')}
         </select>
@@ -50,7 +50,7 @@ document.body.insertAdjacentHTML(
       </div>
       <div class="dialog-section">
         <label class="dialog-label" for="settings-stopped-button">Button on a stopped tab</label>
-        <p class="dialog-detail">On the tab, and on a paused tab's row in the live strip. A running tab's button stays as it is.</p>
+        <p class="dialog-detail">On the tab, and on its row in the live strip while the strip lists it. A running tab's button stays as it is.</p>
         <select id="settings-stopped-button" class="dialog-field">
           ${STOPPED_TAB_BUTTON.map((choice) => `<option value="${choice}">${STOPPED_BUTTON_LABELS[choice]}</option>`).join('')}
         </select>

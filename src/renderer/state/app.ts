@@ -182,13 +182,6 @@ export interface TabState {
   /** A stop that has gone on long enough to say so where it shows without a hover (`notLeftWords`), and in a toast. */
   notLeft: boolean;
   /**
-   * Paused: set aside by you to come back to (`pauseTab`), its claude asked to leave as a stop asks it, and kept for the next launch, which restores the tab paused and never starts it.
-   * NOTHING IS SUSPENDED: the process is ended, not frozen, and resuming reloads the conversation, as resuming any cold tab does.
-   * Its session's dot shows it once claude has gone (`dotStatus`), so it stands apart from the cold tabs that came back from a restart.
-   * The mark stays until its session's process arrives, a prompt calls the pause off, or you choose Stop session (`stopPausedTab`), which only takes the mark off; a start that fails within its first moments gives it back, and one that is refused or throws never clears it.
-   */
-  paused: boolean;
-  /**
    * The crons claude had scheduled for the session when this tab's claude went (`scheduledTasks`), which come back when it is opened again, and which its clock goes on showing, muted (`clockOf`), since claude's own word on them can be missed; null when there was none.
    * Kept for the next launch beside the open tabs, and through a start of its claude until that claude reports what it has itself (`scheduledReported`).
    */

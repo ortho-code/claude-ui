@@ -9,7 +9,7 @@ import { laterMark, showLater } from '../../../latermark';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { store, type View } from '../../../state/app';
 import { hideFromStrip } from '../../../state/strip';
-import { groupNameOf, isPaused, mutedNeedsYou, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabButtonOf, tabOnShow, tabWith } from '../../../state/views';
+import { groupNameOf, mutedNeedsYou, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabButtonOf, tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, eyeIcon, tabButtonIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -20,7 +20,7 @@ import '../../../menu-row.css';
 import './live-strip.css';
 
 /**
- * The live strip, at the foot of the sidebar: every running session and every paused tab, wherever it is, under a line badged with the switcher's roll-up that folds the rows away.
+ * The live strip, at the foot of the sidebar: every running session and every tab marked as needing you, wherever it is, under a line badged with the switcher's roll-up that folds the rows away.
  * A row jumps to its session, its dot marks it read, and its button is its tab's, each through the sidebar's host; the row of the session on show is marked; the fold is the store's (`stripExpanded`).
  * A project's heading hides it from the strip (state/strip.ts): its heading and rows leave, and a Hidden line at the list's foot says how many projects are hidden and what they ask of you, and lists them in a menu whose pick shows one again.
  */
@@ -112,7 +112,7 @@ function buildHeading(repoRoot: string): StripHeading {
 /** Write what a kept heading shows for its project now: its name, and whether its folder is gone. */
 function updateHeading({ name, mark }: StripHeading, project: { repoRoot: string; name: string }, view: View<'sessions' | 'tabs'>): void {
   name.textContent = project.name;
-  // Marked as everywhere a project is named: a project's folder can be gone under a paused tab, or vanish while a session runs.
+  // Marked as everywhere a project is named: a project's folder can be gone under a marked tab, or vanish while a session runs.
   markProjectGone(project.repoRoot, projectGone(project.repoRoot, view), name, mark, 11);
 }
 
@@ -129,9 +129,9 @@ function buildRow(id: string): StripRow {
   // It IS clickable though, and for the same reason the row is: acking a session anywhere else means going to where that session lives, which costs you the project you are looking at — the exact gap this strip exists to close.
   // The read state has to show either way, or a muted row reads as live — hence the acked modifier, which dims this badge exactly as it dims the dot.
   const dot = document.createElement('span');
-  // A muted row stays LISTED: membership is a process or a pause, and acking says "seen it", not "stop".
+  // A muted row stays LISTED: membership is a process or a needs-you mark, and acking says "seen it", not "stop".
   // Only the count above drops it.
-  // A dot with nothing to mark, a paused row's say, is no control (`applyStatus`), so a click on it is the jump's, which for a paused one resumes the session unless its folder is gone.
+  // A dot with nothing to mark, a stopping row's say, is no control (`applyStatus`), so a click on it is the jump's.
   ackOnClick(dot, () => id);
   const name = document.createElement('span');
   name.className = 'strip-item-name';
@@ -152,8 +152,8 @@ function buildRow(id: string): StripRow {
   // WHY IT BELONGS HERE: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab.
   // So acting on a stray session from its tab costs you your place: you go there, act, and come back.
   // This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
-  // It IS the tab's button, pressed from here: one rule draws both (`tabButton`) and one press acts for both (`pressTabButton`, through the ask), so it stops a running session, forces one that has not left, and closes a paused tab or archives its session, as the settings say.
-  // A row leaves the strip by its session stopping without a pause, its tab being unpaused or closed, which is what this does to a paused one, or its session leaving the pool, as an archive takes it.
+  // It IS the tab's button, pressed from here: one rule draws both (`tabButton`) and one press acts for both (`pressTabButton`, through the ask), so it stops a running session, forces one that has not left, and closes a stopped tab or archives its session, as the settings say.
+  // A row leaves the strip by its session stopping with no needs-you mark it still shows, its mark being settled or muted by setting the session aside for later, its tab being closed, which is what this does to a stopped one, or its session leaving the pool, as an archive takes it.
   // The session's own menu beside it, from the builder its row in the list uses, the button's press among its items, so the button is a shortcut to one of them.
   // Listed afresh at each click, for the session as it is then.
   const kebab = kebabButton('compact strip-item-kebab abuts', 'Session options', () => {
@@ -188,7 +188,7 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   row.classList.toggle('active', onShow);
   if (onShow) jump.setAttribute('aria-current', 'true');
   else jump.removeAttribute('aria-current');
-  // No tab at all should not happen — membership is a tab's process or its pause — so it is inert rather than guessed at, saying only what is so.
+  // No tab at all should not happen — membership is a tab's process or its session's mark — so it is inert rather than guessed at, saying only what is so.
   const { disabled, tooltip, mark } = tab ? tabButtonOf(tab, view) : { disabled: true, tooltip: 'No tab to act on', mark: 'stop' as const };
   setMarkup(stop, tabButtonIcon(mark, 14));
   stop.dataset.mark = mark;
@@ -202,26 +202,25 @@ interface StripProject {
   items: SessionSummary[];
 }
 
-/** What the strip holds: its projects in order, each with its sessions, and which of those sessions run and which are paused. */
-function stripProjects(pool: SessionSummary[], view: View<'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'needsYou' | 'later'>): { ordered: StripProject[]; live: ReadonlySet<string>; paused: ReadonlySet<string> } {
-  // What is RUNNING, wherever it is running, what you PAUSED, and what is marked as NEEDING YOU — not what is nudging.
+/** What the strip holds: its projects in order, each with its sessions, and which of those sessions run. */
+function stripProjects(pool: SessionSummary[], view: View<'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'needsYou' | 'later'>): { ordered: StripProject[]; live: ReadonlySet<string> } {
+  // What is RUNNING, wherever it is running, and what is marked as NEEDING YOU — not what is nudging.
   // Membership used to be "has a live nudge", which meant marking a dot read deleted the row: muting said "erase this" when it should have said "seen it".
   // Running is also the only rule that closes the gap this strip exists for: scoped to one project, a live session in another is invisible in the tab bar (filtered to the active project) and out of scope in the list, and the switcher only ever gets you to a PROJECT, never back to a SESSION.
-  // Paused widens it on purpose: a tab you set aside is work in hand, which the other cold tabs are not, and it is the same gap — a paused tab in another project is as far out of sight as a running one.
-  // Marked widens it the same way: a tab whose session was running when the app closed comes back marked, started or not (`restoreOpenTabs`), and is work in hand until your next prompt there.
+  // Marked widens it on purpose: a tab whose session was running when the app closed comes back marked, started or not (`restoreOpenTabs`), and is work in hand until your next prompt there, and a marked tab in another project is as far out of sight as a running one.
+  // A tab marked for later is not, since it is set aside rather than in hand, so it is listed only while it runs or needs you (decided 2026-10-29, when pause, which did list its tabs, gave way to the later mark).
   // That is also what keeps the strip at launch, which used to start with nothing running and so with no strip at all.
   // A mark your later mark mutes does not widen it: you set the session aside having seen why it needed you (`mutedNeedsYou`, decided 2026-10-29).
-  // Nothing is lost by dropping the nudge from the membership: a running session that stopped has reported SessionEnd or had its status forgotten (`coolTab`), so it cannot be nudging; a paused one can still hold a status from before, which is why the line's count leaves paused rows out.
+  // Nothing is lost by dropping the nudge from the membership: a running session that stopped has reported SessionEnd or had its status forgotten (`coolTab`), so it cannot be nudging.
   // IN TAB ORDER, which is the only order here that nothing on disk can move — see orderAsTabs.
   // Driven from the tabs rather than from the session list on purpose: every row in this strip IS a tab, and taking the order from the tabs array is what stops a session writing a message from swapping two rows you were reading.
-  // A paused tab keeps its place among the running ones rather than gathering in a section of its own, so pausing or resuming a session never moves its row.
+  // A marked tab keeps its place among the running ones rather than gathering in a section of its own, so stopping or starting a marked session never moves its row.
   // The session data still comes from the list, so a row shows what the sidebar shows; only the ORDER is the tab bar's.
   const shown = new Map(pool.map((s) => [entityKey(s), s]));
   const muted = mutedNeedsYou(view);
   const marked = (key: string): boolean => view.needsYou.has(key) && !muted.has(key);
-  const listed = view.tabs.filter((t) => t.terminalId !== null || isPaused(t) || marked(entityKey(t.session)));
+  const listed = view.tabs.filter((t) => t.terminalId !== null || marked(entityKey(t.session)));
   const live = new Set(listed.filter((t) => t.terminalId !== null).map((t) => t.session.id));
-  const paused = new Set(listed.filter(isPaused).map((t) => t.session.id));
   const clusters = orderAsTabs(
     listed
       .flatMap((t) => {
@@ -237,7 +236,7 @@ function stripProjects(pool: SessionSummary[], view: View<'groupState' | 'projec
     name: projName(repoRoot, view),
     items: clusters.filter((c) => c.repoRoot === repoRoot).flatMap((c) => c.items),
   }));
-  return { ordered, live, paused };
+  return { ordered, live };
 }
 
 /**
@@ -255,14 +254,12 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
   stripBadge.className = badgeClass(overall);
   stripBadge.hidden = !overall;
 
-  const { ordered, live, paused } = stripProjects(pool, view);
+  const { ordered, live } = stripProjects(pool, view);
   // The line counts every row, hidden or not, as its badge rolls up every project: hiding changes what is listed, not what is summed up.
   const items = ordered.flatMap((g) => g.items);
   const total = items.length;
-  // Every row but the paused ones: those running, and those marked as needing you, running or not.
-  const inHand = items.filter((s) => !paused.has(s.id));
-  // "Needs you" is idle, waiting or marked, and NOT already read; busy is work in progress, which wants nothing from you, and a paused session wants nothing either, whatever status it still holds.
-  const needing = inHand.filter((s) => asksForYou(sessionNudge(s.id, view))).length;
+  // "Needs you" is idle, waiting or marked, and NOT already read; busy is work in progress, which wants nothing from you.
+  const needing = items.filter((s) => asksForYou(sessionNudge(s.id, view))).length;
 
   if (total === 0) {
     // Gone entirely rather than sitting there saying "All clear", which read as odd on a first run — nothing had happened yet for anything to be clear of — and left a caret pointing at a panel that could not open.
@@ -277,7 +274,7 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
 
   liveStrip.hidden = false;
   stripToggle.setAttribute('aria-expanded', String(stripExpanded));
-  stripLabel.textContent = stripLine({ live: live.size, needing, among: inHand.length, paused: paused.size });
+  stripLabel.textContent = stripLine({ live: live.size, needing, among: total });
   stripList.hidden = !stripExpanded;
   // The session on show, which its row says, as the tab bar marks its tab and the list its row: without it the row you are already in looks like any other, and pressing it seems to do nothing.
   const onShow = tabOnShow(view)?.session.id;
@@ -301,7 +298,7 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
   const hiddenNudge = strongestNudge(hidden.map(({ badge }) => badge));
   hiddenBadge.className = badgeClass(hiddenNudge);
   hiddenBadge.hidden = !hiddenNudge;
-  // What this render did not draw is no longer running or paused as that session (stopped, unpaused, closed, or cleared into a new one), or left the pool (archived, being deleted), or its project has nothing left here.
+  // What this render did not draw is no longer running or marked as that session (stopped, settled, closed, or cleared into a new one), or left the pool (archived, being deleted), or its project has nothing left here.
   stripRows.sweep();
   stripHeadings.sweep();
 }

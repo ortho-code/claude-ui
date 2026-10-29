@@ -154,7 +154,7 @@ export function worktreeAt(root: string, repoRoot: string): string {
 }
 
 /**
- * What becomes of a task when its session's claude goes, said beside it wherever it is named, so it is known before a pause or a stop rather than asked at it.
+ * What becomes of a task when its session's claude goes, said beside it wherever it is named, so it is known before a stop rather than asked at it.
  * Measured on claude 2.1.302: a cron, one-shot or repeating, came back with the same id when the session was resumed, whether claude's own question was answered "Exit and stop tasks" or the session was forced out; a `/loop` wakeup did not.
  */
 export function afterStop(task: ScheduledTask): string {
@@ -317,11 +317,8 @@ export interface FilterCriteria {
    * Narrower than openOnly, which counts a cold tab too.
    */
   liveOnly: boolean;
-  /**
-   * Show only sessions whose tab rests PAUSED — set aside, with no claude behind it.
-   * No session passes it and liveOnly together, since live wants a claude behind the tab: the two on at once show nothing.
-   */
-  pausedOnly: boolean;
+  /** Show only sessions marked for later, with a tab or without. */
+  laterOnly: boolean;
   worktreeOnly: boolean;
   /** Show only sessions that cannot run because their folder is gone — the set worth finding to clean up, or to put a folder back for. */
   goneOnly: boolean;
@@ -342,8 +339,8 @@ export interface FilterCriteria {
   open?: ReadonlySet<string>;
   /** Keys of the live sessions; only consulted when liveOnly is set. */
   live?: ReadonlySet<string>;
-  /** Keys of the sessions whose tab rests paused; only consulted when pausedOnly is set. */
-  paused?: ReadonlySet<string>;
+  /** Keys of the sessions marked for later; only consulted when laterOnly is set. */
+  later?: { has(key: string): boolean };
   /** Set or Map keyed by conversationId; only membership is used. */
   archived: { has(key: string): boolean };
   pendingDeletes: ReadonlySet<string>;
@@ -369,7 +366,7 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   if (c.pinnedOnly && !c.pinned.has(key)) return false;
   if (c.openOnly && !c.open?.has(key)) return false;
   if (c.liveOnly && !c.live?.has(key)) return false;
-  if (c.pausedOnly && !c.paused?.has(key)) return false;
+  if (c.laterOnly && !c.later?.has(key)) return false;
   if (c.worktreeOnly && worktreeMarkState(session) === null) return false;
   // The same question the row asks itself, through the same function — a second rule for "is this dead" would be able to disagree with the dimming.
   if (c.goneOnly && unstartableReason(session) === null) return false;
@@ -710,9 +707,7 @@ const STATUS_LABEL: Record<string, string> = {
   background: 'Working in the background',
   waiting: 'Waiting for you',
   closed: 'Not running',
-  // Not statuses a hook reports: what the dot of a session whose tab rests paused, or whose claude was asked to leave and has not, shows in place of its last one (`dotStatus`).
-  paused: 'Paused — opening it resumes the session',
-  pausing: 'Pausing — waiting for claude to leave',
+  // Not a status a hook reports: what the dot of a session whose claude was asked to leave and has not shows in place of its last one (`dotStatus`).
   stopping: 'Stopping — waiting for claude to leave',
 };
 
@@ -787,23 +782,20 @@ function countedTypes(types: readonly string[]): string {
 
 /**
  * Whether a dot showing `status` shows the session's mark read, by its tooltip and its dimming alike (`sessionDotClass`).
- * A dot showing what its tab does never does, paused, pausing or stopping: it reports no claude, or one on its way out, so there is nothing on it to have read, and a mark made before would dim it for nothing.
+ * A dot showing what its tab does, stopping, never does: it reports a claude on its way out, so there is nothing on it to have read, and a mark made before would dim it for nothing.
  */
 export function showsRead(status: string | null | undefined, acked: boolean): boolean {
-  return acked && !TAB_DOTS.has(status ?? '');
+  return acked && status !== 'stopping';
 }
 
-/** The states a session's dot takes from its tab rather than from its hooks (`dotStatus`). */
-const TAB_DOTS: ReadonlySet<string> = new Set(['paused', 'pausing', 'stopping']);
-
 /**
- * The live strip's line: how many of its rows want you, among those running or marked as needing you (`among`), else how many run and how many are marked but seen, then how many tabs are paused.
- * Counting ATTENTION rather than rows: a plain count of running sessions would report five wanting you when four are working away happily, and a paused one wants nothing.
+ * The live strip's line: how many of its rows want you, among those running or marked as needing you (`among`), else how many run and how many are marked but seen.
+ * Counting ATTENTION rather than rows: a plain count of running sessions would report five wanting you when four are working away happily.
  * A marked row wants you whether or not it runs, so a launch that marked three cold tabs reads "3 of 3 need you"; once seen (marked read), a cold one is counted as marked, since it does not run.
  */
-export function stripLine({ live, needing, among, paused }: { live: number; needing: number; among: number; paused: number }): string {
+export function stripLine({ live, needing, among }: { live: number; needing: number; among: number }): string {
   const inHand = needing > 0 ? [`${needing} of ${among} need you`] : [live > 0 ? `${live} live` : '', among > live ? `${among - live} marked` : ''];
-  return [...inHand, paused > 0 ? `${paused} paused` : ''].filter(Boolean).join(' · ');
+  return inHand.filter(Boolean).join(' · ');
 }
 
 /**
@@ -821,21 +813,18 @@ export interface TabButtonTab {
   forceable?: boolean;
   /** It has been on its way out long enough to say so where it shows without a hover (`notLeftWords`). */
   notLeft?: boolean;
-  /** Set aside: on its way out, that is a pause rather than a stop. */
-  paused?: boolean;
   /** What its exit does once claude has gone, while it is on its way out: keep the tab (`cool`, the default), remove it, or remove it and archive its session. */
   onExit?: 'cool' | 'close' | 'archive';
 }
 
 /**
  * What a tab's claude can be asked to leave for, each one press of its own meaning (decided 2026-10-28): a stop keeps the tab, cold, a close removes it, and an archive removes it and archives its session, each waiting out what claude asks on its way out.
- * A pause is a stop that marks the tab, and is here only for its force: it is pressed from its own item.
  */
-export type LeaveAction = 'stop' | 'close' | 'archive' | 'pause';
+export type LeaveAction = 'stop' | 'close' | 'archive';
 
 /**
- * The mark on a tab's button and its menu's items: the stop square, the cross, the lidded box, or the pause bars while a pause is on its way (`tabButtonIcon`).
- * Each has a force, which ends a claude that has not left without asking: the stop square filled, the pause bars as filled bars, and for a close and an archive the filled square with their own mark cut through it.
+ * The mark on a tab's button and its menu's items: the stop square, the cross, or the lidded box (`tabButtonIcon`).
+ * Each has a force, which ends a claude that has not left without asking: the stop square filled, and for a close and an archive the filled square with their own mark cut through it.
  */
 export type TabButtonMark = LeaveAction | `force-${LeaveAction}`;
 
@@ -852,7 +841,6 @@ const LEAVE_WORDS: Record<LeaveAction, { label: string; force: string; going: st
   stop: { label: 'Stop session', force: 'Force stop', going: 'Stopping…' },
   close: { label: 'Close tab', force: 'Force close', going: 'Closing…' },
   archive: { label: 'Archive', force: 'Force archive', going: 'Archiving…' },
-  pause: { label: 'Pause', force: 'Force pause', going: 'Pausing…' },
 };
 
 /** What a press on a leave item does, in words: its label, and the button's tooltip while it can act. */
@@ -860,18 +848,17 @@ export function leaveLabel(action: LeaveAction): string {
   return LEAVE_WORDS[action].label;
 }
 
-/** What a tab that is on its way out is leaving for: what its exit will do, and for a stop that marks the tab, a pause; null while it is not leaving. */
+/** What a tab that is on its way out is leaving for: what its exit will do; null while it is not leaving. */
 export function leaveUnderWay(tab: TabButtonTab): LeaveAction | null {
   if (!tab.stopping) return null;
-  if (tab.onExit === 'close' || tab.onExit === 'archive') return tab.onExit;
-  return tab.paused ? 'pause' : 'stop';
+  return tab.onExit === 'close' || tab.onExit === 'archive' ? tab.onExit : 'stop';
 }
 
 const available = (action: LeaveAction): TabButton => ({ disabled: false, tooltip: LEAVE_WORDS[action].label, mark: action, label: LEAVE_WORDS[action].label, action });
 const unavailable = (action: LeaveAction, why: string): TabButton => ({ disabled: true, tooltip: why, mark: action, label: LEAVE_WORDS[action].label, action });
 
 /**
- * The force of what a tab is leaving for, named for it: Force stop, Force close, Force archive or Force pause.
+ * The force of what a tab is leaving for, named for it: Force stop, Force close or Force archive.
  * A session asked to leave may never go: claude can ask something on its way out and wait for the answer, and nothing it sends tells that from a claude that hangs.
  * So after a moment the force ends it without asking; the moment, when it is unavailable, is what keeps a double-click from forcing before the question is even on screen, and it is unavailable again once forced, until the exit lands.
  */
@@ -882,19 +869,16 @@ function leaveForce(tab: TabButtonTab, under: LeaveAction): TabButton {
 }
 
 /**
- * A leave item of a tab's menu, by one rule for every surface that draws it: Stop session, Close tab, Archive, or Pause's force.
+ * A leave item of a tab's menu, by one rule for every surface that draws it: Stop session, Close tab or Archive.
  *
  * Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving, so there is no claude yet to ask.
  * While claude is on its way out, the item of what was asked is its force (decided 2026-10-28), and the others change what the exit does without asking claude again, since a second pair of presses ends what it asks on its way out unanswered: Stop session turns a close or an archive back into a stop, Close tab and Archive turn a leave into theirs.
- * A pause under way that nothing has changed is left a pause, as it was before there were three items: Stop session is unavailable then; once a close or an archive has changed it, Stop session makes it a stop.
  * A cold tab has nothing to stop; it closes and archives at once.
  */
 export function leaveAction(tab: TabButtonTab, action: LeaveAction): TabButton {
   if (tab.starting) return unavailable(action, 'Starting…');
   const under = leaveUnderWay(tab);
   if (under === action) return leaveForce(tab, under);
-  if (action === 'pause') return unavailable('pause', under ? LEAVE_WORDS[under].going : 'Not pausing');
-  if (under === 'pause' && action === 'stop') return unavailable('stop', LEAVE_WORDS.pause.going);
   if (under === null && tab.terminalId === null && action === 'stop') return unavailable('stop', 'Not running');
   return available(action);
 }

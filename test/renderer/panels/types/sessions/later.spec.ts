@@ -191,6 +191,23 @@ test('a prompt there settles both marks', async ({ app, page }) => {
   expect(await app.calls('clearLater')).toEqual([[one.id]]);
 });
 
+// Later took over setting a session aside, so pause and its force are gone from every menu, whatever the tab is doing (decided 2026-10-29).
+test('no menu offers Pause or its force, on a cold tab, a running one or one whose claude is leaving', async ({ app, page }) => {
+  await app.boot(fixture);
+  const noPause = async (): Promise<void> => {
+    await row(page, one.title).locator('.session-kebab').click();
+    await expect(page.locator('.kebab-menu button.menu-row', { hasText: /^Later$/ })).toBeVisible();
+    await expect(page.locator('.kebab-menu button.menu-row', { hasText: /paus/i })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+  };
+  await noPause();
+  await startLive(page, app);
+  await noPause();
+  await tab(page, one.title).locator('.tab-close').click();
+  await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bstopping\b/);
+  await noPause();
+});
+
 /** Start the session's tab, so it runs. */
 async function startLive(page: Page, app: App): Promise<void> {
   await tabLabels(page).filter({ hasText: one.title }).click();

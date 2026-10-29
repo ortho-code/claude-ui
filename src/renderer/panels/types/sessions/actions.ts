@@ -2,7 +2,7 @@ import { prReference } from '../../../../shared/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { defaultSettings } from '../../../../shared/defaults';
 import { confirmDelete, pickMoment, promptText } from '../../../dialogs';
-import { clockLines, clockOf, dayStart, entityKey, folderName, momentLabel, onDayAt, leaveAction, leaveLabel, leaveUnderWay, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
+import { clockLines, clockOf, dayStart, entityKey, folderName, momentLabel, onDayAt, leaveAction, leaveLabel, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
 import { verdictOf } from '../../../prstatus';
 import { store, withMember, type TabState } from '../../../state/app';
@@ -11,7 +11,7 @@ import { pickCheckout, pickedFor } from '../../../state/picks';
 import { clearLater, markLater } from '../../../state/later';
 import { clearNeedsYou } from '../../../state/needsyou';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
-import { isFiltering, isPaused, projName, projectGroups, tabWith, unopenableReason } from '../../../state/views';
+import { isFiltering, projName, projectGroups, tabWith, unopenableReason } from '../../../state/views';
 import { showToast } from '../../../toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
@@ -234,7 +234,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
     ];
   }
   // What a press on the row or the strip row does, each its own: the row opens the tab where you are, the strip row takes you to it.
-  // On the tab only while nothing runs behind it and nothing is starting, cold or paused, where selecting it is what starts it; a running tab is already the session, a press away.
+  // On the tab only while nothing runs behind it and nothing is starting, cold, where selecting it is what starts it; a running tab is already the session, a press away.
   const tab = tabWith(session.id);
   if (from !== 'tab' || (tab?.terminalId === null && !tab.starting)) {
     const open = from === 'strip' ? () => hostOf('sessions').openSession(session.id) : () => hostOf('sessions').openTab(session.id);
@@ -271,17 +271,8 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   items.push(copyIdItem(session));
   // The state changes sit below a rule, away from the navigate/copy items.
   items.push({ label: '', separator: true });
-  // Pausing is the tab's, and needs one: it marks the tab, and for a running session asks its claude to leave (pauseTab).
-  // Not while it starts, which clears the mark when its process arrives.
-  // While its claude is leaving for a pause, its force, named for what was asked (decided 2026-10-23); while it leaves for anything else, or rests paused, nothing, since a Pause would ask claude again, and another pair of presses ends what claude asks on its way out unanswered.
-  const under = tab ? leaveUnderWay(tab) : null;
-  if (tab?.starting) items.push({ label: 'Pause', disabled: 'Starting…' });
-  else if (tab && under === 'pause') items.push(leaveItem(session, tab, 'pause'));
-  else if (tab && !under && !isPaused(tab)) items.push({ label: 'Pause', onSelect: () => hostOf('sessions').pauseSession(session.id) });
   // Stop session, Close tab and Archive, each one press of its own meaning, whatever the tab is doing (decided 2026-10-28), by the rule the tab's button is a shortcut to (`leaveAction`).
-  // A tab that rests paused has Stop session as its way out, the running one's word, since both leave an ordinary stopped tab: it takes the mark off and starts nothing (`stopPausedTab`) (decided 2026-10-20, replacing "Unpause").
-  if (tab && isPaused(tab) && !tab.starting) items.push({ label: leaveLabel('stop'), onSelect: () => hostOf('sessions').stopPausedSession(session.id) });
-  else items.push(leaveItem(session, tab, 'stop'));
+  items.push(leaveItem(session, tab, 'stop'));
   items.push(leaveItem(session, tab, 'close'));
   // Archive is the session's rather than a tab's (`archiveSession`): a session with no tab archives at once, and one with a tab starting is unavailable, whichever tab it is, since there is no claude yet to ask to leave.
   const key = entityKey(session);

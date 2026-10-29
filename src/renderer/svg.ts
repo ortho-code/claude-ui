@@ -37,11 +37,6 @@ export const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4
 export const stopIcon = (size: number, force = false): string =>
   strokeIcon(size, `<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2"${force ? ' fill="currentColor"' : ''} />`);
 
-// A pause on its way out shows the pause it is heading for, as its dot does: two strokes the stop square's height, then, as its force, two filled bars over the same centres.
-// Bars rather than strokes for the force, since a stroke already as wide as a narrow bar would look the same filled or not.
-export const pauseIcon = (size: number, force = false): string =>
-  strokeIcon(size, force ? '<rect x="5" y="4.7" width="1.6" height="6.6" rx="0.5" fill="currentColor" /><rect x="9.4" y="4.7" width="1.6" height="6.6" rx="0.5" fill="currentColor" />' : '<path d="M5.8 4.7V11.3M10.2 4.7V11.3" />');
-
 // Archiving's mark: a lidded box, the archived filter's.
 // Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
 export const archiveIcon = (size: number): string => strokeIcon(size, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
@@ -64,7 +59,6 @@ export const tabButtonIcon = (mark: TabButtonMark, size: number): string => {
   // The filter's box spans the whole 16 units, so drawn smaller to stand as tall as the stop square beside it.
   if (mark === 'archive') return archiveIcon(Math.round(size * 0.65));
   if (mark === 'force-archive') return forceIcon(size, CUT_BOX);
-  if (mark === 'pause' || mark === 'force-pause') return pauseIcon(size, mark === 'force-pause');
   return stopIcon(size, mark === 'force-stop');
 };
 

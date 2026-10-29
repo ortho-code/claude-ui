@@ -8,7 +8,7 @@ import { moveSessionToGroupById } from '../../../state/groups';
 import { clearLater, markLater } from '../../../state/later';
 import { clearNeedsYou, markNeedsYou } from '../../../state/needsyou';
 import { clearNudge, setScheduled } from '../../../state/statuses';
-import { isPaused, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
+import { sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
 import { fromMarkup } from '../../../dom';
@@ -35,8 +35,6 @@ interface TabTerminal {
   startedAt: number;
   // Bumped on each activation, so a workspace switch can restore a project's most-recent tab.
   activatedSeq: number;
-  // Whether the tab was paused when its process arrived, which clears the mark, so a start that fails within its first moments gives it back.
-  pausedAtStart: boolean;
 }
 
 /**
@@ -103,8 +101,8 @@ let lastActiveKey: string | null = null;
 let restoring = false;
 
 /**
- * The open tabs, which of them run, and which you paused, for the next launch.
- * Written when a tab opens, closes or moves, when it is paused or unpaused, when its process starts, and when its process goes: a stop leaves the tab cold, an exit of its own removes it, and one within its first moments, a failed start, leaves it cold too.
+ * The open tabs and which of them run, for the next launch.
+ * Written when a tab opens, closes or moves, when its process starts, and when its process goes: a stop leaves the tab cold, an exit of its own removes it, and one within its first moments, a failed start, leaves it cold too.
  * A session still being stopped has its process until claude has gone, so it is written as running until then.
  */
 export function persistOpenTabs(): void {
@@ -115,7 +113,6 @@ export function persistOpenTabs(): void {
   window.claudeUi.setOpenSessions(
     tabs.map(keyOf),
     tabs.filter((tab) => tab.terminalId !== null).map(keyOf),
-    tabs.filter((tab) => tab.paused).map(keyOf),
   );
   writeScheduledWhenStopped();
 }
@@ -144,13 +141,12 @@ export async function restoreOpenTabs(): Promise<void> {
   let closedHow: ClosedHow = 'unknown';
   try {
     // The running list is read here, before the write below replaces it with what runs now, which is nothing yet.
-    const [sessions, openKeys, activeKey, byProject, runningKeys, pausedKeys, scheduledByKey, settings, lastClosed] = await Promise.all([
+    const [sessions, openKeys, activeKey, byProject, runningKeys, scheduledByKey, settings, lastClosed] = await Promise.all([
       window.claudeUi.listSessions(),
       window.claudeUi.getOpenSessions(),
       window.claudeUi.getActiveSession(),
       window.claudeUi.getActiveSessionByProject(),
       window.claudeUi.getRunningSessions(),
-      window.claudeUi.getPausedSessions(),
       window.claudeUi.getScheduledWhenStopped(),
       window.claudeUi.getSettings(),
       window.claudeUi.getLastClosed(),
@@ -170,11 +166,9 @@ export async function restoreOpenTabs(): Promise<void> {
         const session = tips.get(key);
         // Not an archived one, which is put away rather than resumed (`unopenableReason`): the list has read the archived ones by now, and the tab is dropped from what is kept.
         if (!session || store.get().archived.has(key)) continue;
-        // A tab you paused comes back paused and is never started here, even one also kept as running, whose claude had not left yet when the app closed.
-        const pausedByYou = pausedKeys.includes(key);
-        const wasRunning = runningKeys.includes(key) && !pausedByYou;
+        const wasRunning = runningKeys.includes(key);
         // What it said was scheduled when its claude went, which it goes on saying until a claude started on it reports.
-        const token = buildTab(session, pausedByYou, scheduledByKey[key] ?? null);
+        const token = buildTab(session, scheduledByKey[key] ?? null);
         if (key === activeKey) toActivate = token;
         // One that was running comes back marked as needing you, unless Settings says to leave it with the others: what was in hand is in the live strip at launch, and stays marked until your next prompt there, started or not.
         if (wasRunning && atLaunch !== 'leave') marked.push(key);
@@ -204,7 +198,7 @@ export async function restoreOpenTabs(): Promise<void> {
  * `terminalId` stays null until startTab fills it in, which is what lets tabs be restored cold — 20 restored tabs used to mean 20 `claude --resume` processes at ~437 MB each, spawned whether or not you looked at any of them.
  * The xterm instance stays eager on purpose: an empty one costs almost nothing next to a process, and keeping it non-null confines this to the handful of places that use terminalId.
  */
-function buildTab(session: SessionSummary, paused = false, scheduledWhenStopped: readonly ScheduledTask[] | null = null): string {
+function buildTab(session: SessionSummary, scheduledWhenStopped: readonly ScheduledTask[] | null = null): string {
   const token = crypto.randomUUID();
 
   const el = document.createElement('div');
@@ -228,7 +222,7 @@ function buildTab(session: SessionSummary, paused = false, scheduledWhenStopped:
     return true;
   });
 
-  terminals.set(token, { term, fitAddon, el, startedAt: 0, activatedSeq: 0, pausedAtStart: false });
+  terminals.set(token, { term, fitAddon, el, startedAt: 0, activatedSeq: 0 });
 
   // Ctrl-C goes to claude every time, so leaving with it works as in a terminal: from its prompt claude exits, or first asks what it asks on the way out, and its exit closes the tab; mid-turn the first press interrupts the turn.
   // The app once caught the second press and closed the tab itself, which spoke over that question, and was there for a shell left behind after claude that no longer is.
@@ -245,7 +239,7 @@ function buildTab(session: SessionSummary, paused = false, scheduledWhenStopped:
   });
 
   store.set({
-    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, onExit: 'cool', forceable: false, forced: false, notLeft: false, paused, scheduledWhenStopped, failure: null, startFailed: false }],
+    tabs: [...store.get().tabs, { token, session, terminalId: null, starting: false, booting: false, stopping: false, onExit: 'cool', forceable: false, forced: false, notLeft: false, scheduledWhenStopped, failure: null, startFailed: false }],
   });
   return token;
 }
@@ -263,7 +257,7 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
   terminal.startedAt = Date.now();
   // Every way a session begins — new, fork, worktree, resuming a cold tab — funnels through here, so the starting state belongs here rather than at any one call site.
   // Trying again clears what the last attempt said, so a stale reason cannot outlive it.
-  // Before the await, not after: otherwise a cold tab's pane keeps saying "click its tab to resume it" across the spawn round-trip, which is the one thing you have just done, and its button shows the pause only once the process has arrived.
+  // Before the await, not after: otherwise a cold tab's pane keeps saying "click its tab to resume it" across the spawn round-trip, which is the one thing you have just done, and its button says Starting… only once the process has arrived.
   // A failed start's lines are wiped as a stopped session's are, or the new session would paint over them, and its terminal is hidden until this start has a process, as any start's is.
   if (tab.startFailed) {
     terminal.term.reset();
@@ -294,10 +288,8 @@ export async function startTab(token: string, launch: TabLaunch = {}): Promise<v
       window.claudeUi.killTerminal(terminalId);
       return;
     }
-    // Its session runs again, so it is no longer set aside; the mark comes back if this start fails within its first moments (`onTabExit`).
     // What it had scheduled stays until its claude reports its own (`scheduledReported`), since a start says nothing of what it brought back.
-    terminal.pausedAtStart = tabOf(token)!.paused;
-    setTab(token, { terminalId, paused: false });
+    setTab(token, { terminalId });
     persistOpenTabs();
     // From here its output and exit are this tab's, until the pty's own exit unbinds it.
     bindTerminal(terminalId, { data: (data) => onTabData(token, data), exit: (exitCode, signal) => onTabExit(token, exitCode, signal) });
@@ -442,7 +434,7 @@ function removeTab(token: string, settles = true): void {
 }
 
 /**
- * How long a stop shows its pause before its control becomes a force.
+ * How long a stop waits before its control becomes a force.
  * Past the moment claude takes to put a question on screen — about 0.5 s from its prompt and 0.9 s mid-turn, measured — so a double-click cannot force a session before what it is asking is even there.
  */
 const FORCE_AFTER_MS = 1000;
@@ -473,7 +465,7 @@ function clearStopTimers(token: string): void {
 function askToLeave(token: string, terminalId: number, onExit: TabState['onExit']): void {
   const tab = tabOf(token);
   if (!tab) return;
-  // At once, so the button shows the pause for as long as the exit takes rather than after it — on both buttons, the tab's and the strip's, which follow the same flag.
+  // At once, so the button shows the leave under way for as long as the exit takes rather than after it — on both buttons, the tab's and the strip's, which follow the same flag.
   setTab(token, { stopping: true, onExit, forceable: false, notLeft: false });
   const { statuses, scheduledTasks } = store.get();
   const status = statuses.get(tab.session.id);
@@ -491,7 +483,7 @@ function askToLeave(token: string, terminalId: number, onExit: TabState['onExit'
 /**
  * End a session that was asked to leave and has not: the stop control's second act, once it has become a force.
  * Its process group gets `SIGTERM`, and `SIGKILL` after the grace, so whatever claude was asking goes unanswered — for a worktree, the tree is kept.
- * The control goes back to its pause until the exit lands, which the escalation in main makes sure of.
+ * The control goes back to unavailable until the exit lands, which the escalation in main makes sure of.
  */
 function forceStop(token: string): void {
   const tab = tabOf(token);
@@ -519,15 +511,13 @@ function forceOutAtOnce(token: string): void {
  * The opposite of closeTab, and the deliberate counterpart to claude exiting on its own — which still CLOSES the tab, so a finished session does not leave an empty one behind.
  * `stopping` is what tells those two apart when the exit arrives.
  * A claude already leaving, for a close or an archive, is asked nothing more: its exit keeps the tab instead (decided 2026-10-28), as a close changes a stop.
- * A close or an archive that began as a pause becomes a stop too, the mark taken off, as Stop session takes it off a tab that rests paused.
  */
 function stopSession(token: string): void {
   const tab = tabOf(token);
   if (!tab) return;
   if (tab.terminalId === null || tab.starting) return;
   if (tab.stopping) {
-    setTab(token, { onExit: 'cool', paused: false });
-    if (tab.paused) persistOpenTabs();
+    setTab(token, { onExit: 'cool' });
     return;
   }
   askToLeave(token, tab.terminalId, 'cool');
@@ -545,13 +535,13 @@ export function pressLeave(token: string, action: LeaveAction, mark?: TabButtonM
   if (now.mark === `force-${action}`) forceStop(token);
   else if (action === 'stop') stopSession(token);
   else if (action === 'close') closeTab(token, true);
-  else if (action === 'archive') archiveSession(entityKey(tab.session));
+  else archiveSession(entityKey(tab.session));
 }
 
 /**
  * A session asked to leave that went on working: a prompt it submitted, or a `/resume` or `/clear` that moved its tab to another session (`adoptReplacement`), so the stop is off and the tab is live again.
  * Claude's exit can be called off — Esc at a worktree's keep-or-remove question takes it back to its prompt — and only what is done next says so; until then the tab goes on saying it is stopping.
- * Whatever the leave was, a stop, a pause, a close or an archive, it goes (decided 2026-10-28: a leave left unfinished for something else is one called off).
+ * Whatever the leave was, a stop, a close or an archive, it goes (decided 2026-10-28: a leave left unfinished for something else is one called off).
  * Not once its claude has been forced out (`forced`): that claude is being ended whatever it reports.
  * Answers the tab as it was when its leave was called off, or null when there was none to call off.
  */
@@ -559,9 +549,7 @@ function stopCalledOff(token: string): TabState | null {
   const tab = tabOf(token);
   if (!tab?.stopping || tab.forced) return null;
   clearStopTimers(token);
-  // A pause waiting for claude to leave is called off with it: the session is being worked in.
-  setTab(token, { stopping: false, onExit: 'cool', forceable: false, notLeft: false, paused: false });
-  if (tab.paused) persistOpenTabs();
+  setTab(token, { stopping: false, onExit: 'cool', forceable: false, notLeft: false });
   return tab;
 }
 
@@ -573,30 +561,6 @@ function stopCalledOff(token: string): TabState | null {
 export function promptSubmitted(token: string): void {
   const calledOff = stopCalledOff(token);
   if (calledOff?.onExit === 'archive') showToast(`Archiving "${sessionLabel(calledOff.session)}" was called off`);
-}
-
-/**
- * Set a tab aside to come back to (`TabState.paused`): a running tab's claude is asked to leave as a stop asks it, and a cold tab is only marked.
- * NOTHING IS SUSPENDED: the process is ended, not frozen, and opening the tab again resumes the session, reloading its conversation as resuming any cold tab does.
- * A claude already asked to leave, by a pause or a stop, is left to it: asked again, it would take the presses at a question it asks on its way out, and a second pair ends such a question unanswered (measured on claude 2.1.302), so what was asked stands until claude has gone or is forced (decided 2026-10-23).
- * A tab whose process is still arriving is left alone, since there is nothing there yet to ask to leave; its Pause item is unavailable then.
- */
-export function pauseTab(token: string): void {
-  const tab = tabOf(token);
-  if (!tab || isPaused(tab) || tab.starting || tab.stopping) return;
-  setTab(token, { paused: true });
-  persistOpenTabs();
-  if (tab.terminalId !== null) askToLeave(token, tab.terminalId, 'cool');
-  // A cold tab forgets whatever status it still holds, as one that goes cold does (`coolTab`): one restored from a file could say waiting, and a paused session nudges nothing.
-  else clearNudge(tab.session.id);
-}
-
-/** Stop a paused tab, its menu's Stop session: take the paused mark off, and nothing else, so it is an ordinary stopped tab; a pause still waiting for claude to leave stays a pause, as a stop under way stays a stop (`pauseTab`). */
-export function stopPausedTab(token: string): void {
-  const tab = tabOf(token);
-  if (!tab?.paused || tab.stopping) return;
-  setTab(token, { paused: false });
-  persistOpenTabs();
 }
 
 /**
@@ -667,11 +631,10 @@ export function pressTabButton(token: string, mark?: TabButtonMark): void {
   if (!button.disabled && (mark === undefined || button.mark === mark)) pressLeave(token, button.action, button.mark);
 }
 
-/** A tab you removed, as it was, so Undo can put it back: its session, where it stood among the tabs, whether it was set aside, and what it kept of its session's crons. */
+/** A tab you removed, as it was, so Undo can put it back: its session, where it stood among the tabs, and what it kept of its session's crons. */
 interface RemovedTab {
   session: SessionSummary;
   at: number;
-  paused: boolean;
   scheduledWhenStopped: TabState['scheduledWhenStopped'];
   /** What its session needed you for, which its going settled. */
   needsYou: NeedsYou | null;
@@ -682,24 +645,23 @@ function removedTab(tab: TabState): RemovedTab {
   return {
     session: tab.session,
     at: store.get().tabs.findIndex((t) => t.token === tab.token),
-    paused: tab.paused,
     scheduledWhenStopped: keptWhenGone(tab),
     needsYou: store.get().needsYou.get(entityKey(tab.session)) ?? null,
   };
 }
 
 /**
- * Undo's put-back: each tab back where it stood, cold, as a tab restored at launch is, set aside again if it was, and marked as needing you again if it was; nothing starts.
+ * Undo's put-back: each tab back where it stood, cold, as a tab restored at launch is, and marked as needing you again if it was; nothing starts.
  * `removed` is in the order the tabs went, each `at` counted among the tabs as they were then, so they come back last first.
  * A session another tab holds by now, opened again meanwhile, keeps that tab rather than gaining a second, and an archived one gets none, since the app opens no archived session.
  */
 function putBack(removed: readonly RemovedTab[]): void {
-  for (const { session, at, paused, scheduledWhenStopped, needsYou } of [...removed].reverse()) {
+  for (const { session, at, scheduledWhenStopped, needsYou } of [...removed].reverse()) {
     if (store.get().tabs.some((t) => t.session.id === session.id) || store.get().archived.has(entityKey(session))) continue;
     // As it was, from when it was marked, so a later mark that muted it mutes it again.
     if (needsYou) markNeedsYou([entityKey(session)], needsYou.reason, needsYou.at);
     // Built at the end, as every tab is, then moved to where it stood.
-    buildTab(session, paused, scheduledWhenStopped);
+    buildTab(session, scheduledWhenStopped);
     const tabs = [...store.get().tabs];
     const built = tabs.pop()!;
     tabs.splice(Math.min(Math.max(at, 0), tabs.length), 0, built);
@@ -739,7 +701,7 @@ export function closeTab(token: string, undoable = false): void {
 /**
  * Archive a session, closing every tab it is open in: at once where no claude of the app's runs it, and where one does, once that claude has gone, asked to leave as a close asks it.
  * The mark waits for the exit so that no claude the app runs when it is written runs an archived session, and the tab waits so that what claude asks on its way out can be answered there.
- * A claude already asked to leave, by a stop, a pause or a close, is asked nothing more, since a second pair of presses ends what it asks on its way out unanswered: its exit archives instead, as a close changes a stop.
+ * A claude already asked to leave, by a stop or a close, is asked nothing more, since a second pair of presses ends what it asks on its way out unanswered: its exit archives instead, as a close changes a stop.
  * Going on working meanwhile, a prompt or a `/resume` or `/clear`, calls the archive off with the stop (`stopCalledOff`), a prompt saying so (`promptSubmitted`), and a quit archives nothing (`archiveAtExit`).
  * Not while a tab starts, which has no claude yet to ask; the menu's Archive is unavailable then.
  */
@@ -958,7 +920,7 @@ function onTabExit(token: string, exitCode: number, signal = 0): void {
   // A near-instant exit almost always means claude failed to start (bad env, not found, rc error).
   // Keep the tab so the error stays visible instead of flashing away.
   // Otherwise claude exited normally, so close the tab — no leftover shell.
-  const { term, startedAt, pausedAtStart } = terminalOf(token);
+  const { term, startedAt } = terminalOf(token);
   const ran = Date.now() - startedAt;
   if (ran < 1500) {
     // What it said before it went, for the log: main records the exit, only the terminal has the words.
@@ -974,8 +936,7 @@ function onTabExit(token: string, exitCode: number, signal = 0): void {
     term.writeln(`\r\n[claude exited immediately (code ${exitCode}) — the session did not start]`);
     // Cold, since its process has gone: the button closes it at once, the strip drops it, and selecting it starts it again.
     // Uncovered all the same: this line IS the explanation of the failure, and it is exactly what the loader or the cold pane would otherwise hide.
-    // A tab you paused is still set aside: its session never ran again.
-    setTab(token, { terminalId: null, booting: false, startFailed: true, paused: pausedAtStart });
+    setTab(token, { terminalId: null, booting: false, startFailed: true });
     persistOpenTabs();
     return;
   }

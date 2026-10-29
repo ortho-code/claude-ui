@@ -4,7 +4,7 @@ import { type App, expect, test } from '../../../../support/harness';
 import { row, stripRow, tab, tabLabel } from '../../../../support/window';
 
 // What a stopped tab's button does is a setting, `stoppedTabButton`: close the tab, as it did before there was a setting, or archive its session; a running tab's button is left as it is (decided 2026-10-28).
-// The tab's button, its middle-click and a paused tab's strip row button are one press, so all three follow it.
+// The tab's button, its middle-click and a stopped tab's strip row button, which a needs-you mark lists it by, are one press, so all three follow it.
 const one = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Set aside' });
 const archiving = settingsFileWith('settings.json', { stoppedTabButton: 'archive' });
 const fixture = { sessions: [one], openSessions: [one.id], history: { [one.id]: [] } };
@@ -42,8 +42,8 @@ test("with stoppedTabButton archive, a middle-click on a stopped tab archives it
   await archived(app, page);
 });
 
-test("with stoppedTabButton archive, a paused tab's strip row button archives its session", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: archiving, pausedSessions: [one.id] });
+test("with stoppedTabButton archive, a stopped tab's strip row button archives its session", async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: archiving, needsYou: { [one.id]: { reason: 'quit', at: 1 } } });
   const stop = stripRow(page, one.title).locator('.strip-item-stop');
   await expect(stop).toHaveAttribute('data-mark', 'archive');
   await stop.click();

@@ -37,12 +37,7 @@ interface Meta {
    */
   runningSessions: string[];
   /**
-   * The open sessions you paused: set aside to come back to, their claude ended or on its way out, so the next launch restores them paused and never starts them.
-   * Written with the open tabs, as `runningSessions` is.
-   */
-  pausedSessions: string[];
-  /**
-   * Open session -> the crons claude had scheduled for it when its claude went, which come back when it is opened again, so its paused or stopped tab still says so at the next launch.
+   * Open session -> the crons claude had scheduled for it when its claude went, which come back when it is opened again, so its stopped tab still says so at the next launch.
    * Written beside the open tabs, in a write of its own (`setScheduledWhenStopped`); a session that is not open is dropped.
    */
   scheduledWhenStopped: Record<string, ScheduledTask[]>;
@@ -133,7 +128,7 @@ const KNOWN_KEYS = new Set([
   'requestPins', // the pre-rename spelling of historyPins; read, never written
   'openSessions',
   'runningSessions',
-  'pausedSessions',
+  'pausedSessions', // the tabs you paused, before pause gave way to the later mark; taken into `later` on each read until a write drops it, never written
   'scheduledWhenStopped',
   'activeSession',
   'activeSessionByProject',
@@ -161,7 +156,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], pausedSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, later: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, later: {}, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -221,7 +216,7 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
   return {
     search: typeof ui.search === 'string' ? ui.search : base.search,
     filters: Object.fromEntries(
-      // A key the file does not have takes its default, so a filter added later reads as it would on a first run.
+      // A key the file does not have takes its default, so a filter added later reads as it would on a first run, and one that is gone, such as `paused`, is dropped.
       // `live` was stored as `running` before the word changed; read the old key as its fallback so an existing file keeps the toggle rather than silently clearing it.
       (Object.keys(base.filters) as (keyof UiState['filters'])[]).map((key) => [key, bool(filters[key], key === 'live' ? bool(filters.running, base.filters.live) : base.filters[key])]),
     ) as UiState['filters'],
@@ -317,9 +312,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     historyPins: normalizeHistoryPins(parsed.historyPins ?? parsed.requestPins),
     openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
     // Same reasoning as projectOrder below: no version bump for a new defaulted field; absent means nothing was running.
-    runningSessions: Array.isArray(parsed.runningSessions) ? (parsed.runningSessions as unknown[]).filter((id): id is string => typeof id === 'string') : [],
-    // The same again: absent means nothing was paused.
-    pausedSessions: Array.isArray(parsed.pausedSessions) ? (parsed.pausedSessions as unknown[]).filter((id): id is string => typeof id === 'string') : [],
+    // A tab a file from before the later mark lists as paused as well was one whose pause still waited for claude to leave, which pause never started or marked at launch, so it is not taken as running either.
+    runningSessions: Array.isArray(parsed.runningSessions) ? (parsed.runningSessions as unknown[]).filter((id): id is string => typeof id === 'string' && !(Array.isArray(parsed.pausedSessions) && parsed.pausedSessions.includes(id))) : [],
     // The same again: absent means no stopped tab had a cron scheduled.
     scheduledWhenStopped: scheduledBySession(parsed.scheduledWhenStopped),
     // Same reasoning as projectOrder below: a new defaulted field is not a reinterpretation of what is stored, so no version bump.
@@ -361,7 +355,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // An entry this build cannot read is dropped, so a hand edit can't leave a mark with no reason to show.
     needsYou: needsYouOf(parsed.needsYou),
     // The same again: absent means nothing is set aside for later.
-    later: laterOf(parsed.later),
+    // A file from before pause gave way to the later mark lists the tabs you paused, each of them set aside for later here, whenever (decided 2026-10-29), so nothing set aside is lost.
+    later: laterWithPaused(laterOf(parsed.later), parsed.pausedSessions, Date.now()),
     groups,
     groupOf,
     version: typeof parsed.version === 'number' ? parsed.version : 1,
@@ -499,7 +494,7 @@ async function appendAudit(text: string): Promise<void> {
 }
 
 async function auditWrite(op: string, meta: Meta): Promise<void> {
-  await appendAudit(`${op} open=${JSON.stringify(meta.openSessions)} running=${JSON.stringify(meta.runningSessions)} paused=${JSON.stringify(meta.pausedSessions)} pinned=${JSON.stringify(meta.pinned)}`);
+  await appendAudit(`${op} open=${JSON.stringify(meta.openSessions)} running=${JSON.stringify(meta.runningSessions)} pinned=${JSON.stringify(meta.pinned)}`);
 }
 
 // At the ~150 bytes a typical line costs, this keeps on the order of a thousand writes: enough to read back through several sessions of work.
@@ -644,11 +639,6 @@ export function getRunningSessions(): Promise<string[]> {
   return serialize(async () => (await readMeta()).runningSessions);
 }
 
-/** The open sessions you paused, as the open tabs were last written; see `pausedSessions`. */
-export function getPausedSessions(): Promise<string[]> {
-  return serialize(async () => (await readMeta()).pausedSessions);
-}
-
 /** The crons the open tabs whose claude went had scheduled; see `scheduledWhenStopped`. */
 export function getScheduledWhenStopped(): Promise<Record<string, ScheduledTask[]>> {
   return serialize(async () => (await readMeta()).scheduledWhenStopped);
@@ -730,6 +720,16 @@ function laterOf(raw: unknown): Record<string, Later> {
   );
 }
 
+/**
+ * The later marks with each session an older file lists as paused (`pausedSessions`) added, whenever, from `at`; one marked already keeps its mark.
+ * Read on every read until the next write drops the list, so `at` is that read's until a write keeps one.
+ */
+function laterWithPaused(later: Record<string, Later>, paused: unknown, at: number): Record<string, Later> {
+  if (!Array.isArray(paused)) return later;
+  const added = (paused as unknown[]).filter((id): id is string => typeof id === 'string' && !(id in later));
+  return { ...later, ...Object.fromEntries(added.map((id) => [id, { due: null, at }])) };
+}
+
 /** Session -> its tasks, from whatever was stored, a session with none left out. */
 function scheduledBySession(raw: unknown): Record<string, ScheduledTask[]> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
@@ -740,13 +740,12 @@ function scheduledBySession(raw: unknown): Record<string, ScheduledTask[]> {
   );
 }
 
-/** The open tabs, which of them run, and which you paused, in one write, so the three lists are never from different moments. */
-export function setOpenSessions(ids: string[], running: string[], paused: string[]): Promise<void> {
+/** The open tabs and which of them run, in one write, so the two lists are never from different moments. */
+export function setOpenSessions(ids: string[], running: string[]): Promise<void> {
   return update('setOpenSessions', (meta) => {
     meta.openSessions = ids;
-    // Only an open tab runs anything, or is paused, or keeps what was scheduled when its claude went.
+    // Only an open tab runs anything, or keeps what was scheduled when its claude went.
     meta.runningSessions = running.filter((id) => ids.includes(id));
-    meta.pausedSessions = paused.filter((id) => ids.includes(id));
     meta.scheduledWhenStopped = Object.fromEntries(Object.entries(meta.scheduledWhenStopped).filter(([id]) => ids.includes(id)));
     // A tab that is no longer open cannot be the one to reopen on — globally or for its project.
     if (meta.activeSession && !ids.includes(meta.activeSession)) meta.activeSession = null;

@@ -7,7 +7,7 @@ import { lookOf, token } from '../../../support/looks';
 import { clickAcross } from '../../../support/press';
 import { chooseProject, projectHeading, row, strip, stripHeading, stripHidden, stripJump, stripLines, stripNames, stripRow, tab, tabLabel, tabs } from '../../../support/window';
 
-// The strip lists what is RUNNING, and what you paused, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
+// The strip lists what is RUNNING, and what is marked as needing you, in tab order: projects in the order you set, and within one its loose tabs and then its groups in registry order, which is the tab bar's own order (`orderAsTabs`, one implementation for both).
 // It keeps still: a session writing a message or waiting moves no row, which recency- or attention-ordering did (6f04c95).
 const OTHER = `${HOME}/projects/other`;
 const THIRD = `${HOME}/projects/third`;
@@ -16,6 +16,8 @@ const inFirst = session({ id: '00000000-0000-4000-8000-0000000000e2', title: 'In
 const inSecond = session({ id: '00000000-0000-4000-8000-0000000000e3', title: 'In Second' });
 const elsewhere = session({ id: '00000000-0000-4000-8000-0000000000e4', title: 'In other', cwd: OTHER, repoRoot: OTHER });
 const all = [loose, inFirst, inSecond, elsewhere];
+/** These sessions marked as needing you, as the sessions running at a quit come back: what lists a cold tab in the strip. */
+const needing = (...sessions: SessionSummary[]): Record<string, { reason: 'quit'; at: number }> => Object.fromEntries(sessions.map((s) => [s.id, { reason: 'quit', at: 1 }]));
 
 test('the live strip lists running sessions in the order you set, and keeps still while they work', async ({ app, page }) => {
   await app.boot({
@@ -187,39 +189,37 @@ test("the strip's stop becomes a force when the session has not left, as the tab
   await expect(page.locator('#live-strip')).toBeVisible();
 });
 
-// A tab you paused is work in hand, so the strip lists it with what runs: in its own place in tab order, its dot paused, counted apart on the line and never as wanting you.
-test('a paused tab is listed in its place among the running ones, its dot paused, and the line counts it apart', async ({ app, page }) => {
+// A tab marked as needing you is work in hand, so the strip lists it with what runs, in its own place in tab order; one set aside for later is not (decided 2026-10-29).
+test('a marked tab is listed in its place among the running ones, and a cold tab set aside for later is not', async ({ app, page }) => {
   await app.boot({
-    sessions: [loose, inFirst, elsewhere],
+    sessions: [loose, inFirst, inSecond, elsewhere],
     projectOrder: [PROJECT, OTHER],
     activeProject: null,
-    openSessions: [loose.id, inFirst.id, elsewhere.id],
-    pausedSessions: [inFirst.id],
-    history: { [loose.id]: [], [inFirst.id]: [], [elsewhere.id]: [] },
+    openSessions: [loose.id, inFirst.id, inSecond.id, elsewhere.id],
+    needsYou: needing(inFirst),
+    later: { [inSecond.id]: { due: null, at: 1 } },
+    history: { [loose.id]: [], [inFirst.id]: [], [inSecond.id]: [], [elsewhere.id]: [] },
   });
-  await expect(page.locator('#strip-label')).toHaveText('1 paused');
+  await expect(page.locator('#strip-label')).toHaveText('1 of 1 need you');
   for (const s of [loose, elsewhere]) await tabLabel(page, s.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
 
   await expect.poll(() => stripLines(page).allTextContents()).toEqual(['demo', loose.title, inFirst.title, 'other', elsewhere.title]);
-  await expect(stripRow(page, inFirst.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
-  await expect(page.locator('#strip-label')).toHaveText('2 live · 1 paused');
+  await expect(page.locator('#strip-label')).toHaveText('1 of 3 need you');
   expect(await app.emit('onSessionStatus', loose.id, 'waiting', '', 'Notification')).toBe(1);
-  await expect(page.locator('#strip-label')).toHaveText('1 of 2 need you · 1 paused');
+  await expect(page.locator('#strip-label')).toHaveText('2 of 3 need you');
 });
 
-test('the strip shows at launch with only paused tabs, and its line never counts a paused session as wanting you', async ({ app, page }) => {
-  // A status left from before the pause, as a file can hold one.
-  await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], statuses: { [loose.id]: 'waiting' }, history: { [loose.id]: [] } });
-  await expect(page.locator('#live-strip')).toBeVisible();
-  await expect(stripNames(page)).toHaveText([loose.title]);
-  await expect(page.locator('#strip-label')).toHaveText('1 paused');
+test('the strip stays away at launch with only cold tabs set aside for later', async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], later: { [loose.id]: { due: null, at: 1 } }, history: { [loose.id]: [] } });
+  await expect(tab(page, loose.title).locator('.tab-later')).toBeVisible();
+  await expect(page.locator('#live-strip')).toBeHidden();
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
-// The row's button is its tab's: a paused tab has nothing to stop, so it closes, as the tab's own button does.
-test("a paused row's button closes its tab, and the row leaves the strip", async ({ app, page }) => {
-  await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], history: { [loose.id]: [] } });
+// The row's button is its tab's: a cold tab has nothing to stop, so it closes, as the tab's own button does.
+test("a cold marked row's button closes its tab, and the row leaves the strip", async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], needsYou: needing(loose), history: { [loose.id]: [] } });
   const button = strip(page).locator('.strip-item-stop');
   await expect(button).toHaveAttribute('data-tooltip', 'Close tab');
   await button.click();
@@ -228,36 +228,34 @@ test("a paused row's button closes its tab, and the row leaves the strip", async
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
-test('a paused row leaves the strip when its session is stopped, and a click on it resumes the session', async ({ app, page }) => {
-  await app.boot({ sessions: [loose, inFirst], openSessions: [loose.id, inFirst.id], pausedSessions: [loose.id, inFirst.id], history: { [loose.id]: [], [inFirst.id]: [] } });
+test('a cold marked row leaves the strip when its mark is cleared, and a click on another resumes that session', async ({ app, page }) => {
+  await app.boot({ sessions: [loose, inFirst], openSessions: [loose.id, inFirst.id], needsYou: needing(loose, inFirst), history: { [loose.id]: [], [inFirst.id]: [] } });
   await row(page, loose.title).locator('.session-kebab').click();
-  await page.locator('.kebab-menu button', { hasText: /^Stop session$/ }).click();
+  await page.locator('.kebab-menu button', { hasText: /^Clear needs you$/ }).click();
   await expect(stripNames(page)).toHaveText([inFirst.title]);
 
   await stripJump(page, inFirst.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  // Running now, and no longer paused: still listed, as what runs.
-  await expect(page.locator('#strip-label')).toHaveText('1 live');
-  await expect(stripRow(page, inFirst.title).locator('.nudge')).not.toHaveClass(/\bpaused\b/);
+  await expect(stripNames(page)).toHaveText([inFirst.title]);
 });
 
-// A row's kebab holds its session's menu, the session row's own, so a session in another project is managed from here, Pause included.
-test("a strip row's kebab opens its session's menu, and pausing from it keeps the row, paused", async ({ app, page }) => {
+// A row's kebab holds its session's menu, the session row's own, so a session in another project is managed from here, Later included.
+test("a strip row's kebab opens its session's menu, and setting it aside for later from it keeps the running row, bookmarked", async ({ app, page }) => {
   await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });
   await tabLabel(page, loose.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
 
   await stripRow(page, loose.title).locator('.strip-item-kebab').click();
   await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
-  await page.locator('.kebab-menu button', { hasText: /^Pause$/ }).click();
-  expect(await app.calls('closeTerminal')).toEqual([[1, false]]);
-  await app.emit('onTerminalExit', 1, 0);
-  await expect(stripRow(page, loose.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
-  await expect(page.locator('#strip-label')).toHaveText('1 paused');
+  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Later$/ }).click();
+  await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^Whenever$/ }).click();
+  await expect(stripRow(page, loose.title).locator('.strip-item-later')).toBeVisible();
+  await expect(page.locator('#strip-label')).toHaveText('1 live');
+  expect(await app.calls('closeTerminal')).toEqual([]);
 });
 
 test("a strip row not on show keeps its hover look while its menu is up, and its kebab sits right against its button, as on the tab", async ({ app, page }) => {
-  await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], history: { [loose.id]: [] } });
+  await app.boot({ sessions: [loose], openSessions: [loose.id], needsYou: needing(loose), history: { [loose.id]: [] } });
   const stripItem = stripRow(page, loose.title);
   const kebab = stripItem.locator('.strip-item-kebab');
   const kebabBox = (await kebab.boundingBox())!;
@@ -269,10 +267,10 @@ test("a strip row not on show keeps its hover look while its menu is up, and its
   expect((await lookOf(stripItem)).background).toBe(await token(page, '--surface-hover'));
 });
 
-test("a paused tab's project whose folder is gone is marked on its strip heading, as wherever a project is named", async ({ app, page }) => {
+test("a marked tab's project whose folder is gone is marked on its strip heading, as wherever a project is named", async ({ app, page }) => {
   const GONE = `${HOME}/projects/gone`;
   const dead = session({ id: '00000000-0000-4000-8000-0000000000e9', title: 'In a gone folder', cwd: GONE, repoRoot: GONE, cwdExists: false, repoRootExists: false });
-  await app.boot({ sessions: [loose, dead], projectOrder: [PROJECT, GONE], activeProject: null, openSessions: [loose.id, dead.id], pausedSessions: [loose.id, dead.id], history: { [loose.id]: [], [dead.id]: [] } });
+  await app.boot({ sessions: [loose, dead], projectOrder: [PROJECT, GONE], activeProject: null, openSessions: [loose.id, dead.id], needsYou: needing(loose, dead), history: { [loose.id]: [], [dead.id]: [] } });
   const heading = (name: string): Locator => strip(page).locator('.strip-project', { hasText: name });
   await expect(heading('gone').locator('.gone-mark')).toHaveClass(/project-gone/);
   await expect(heading('gone').locator('.gone-mark')).toBeVisible();
@@ -303,7 +301,7 @@ test('the strip folds from its line and opens again, and the fold is kept', asyn
 // A project you want out of sight for a while leaves the strip from the eye on its heading, is counted on a Hidden line at its foot, and comes back when picked from that line's menu.
 // Its sessions are not listed anywhere in the strip while it is hidden: a fold showing them was taken for the strip's own.
 test("a project's eye hides it from the strip, counted on the Hidden line, and picking it from that line's menu shows it again", async ({ app, page }) => {
-  await app.boot({ sessions: [loose, elsewhere], projectOrder: [PROJECT, OTHER], activeProject: null, openSessions: [loose.id, elsewhere.id], pausedSessions: [loose.id, elsewhere.id], history: { [loose.id]: [], [elsewhere.id]: [] } });
+  await app.boot({ sessions: [loose, elsewhere], projectOrder: [PROJECT, OTHER], activeProject: null, openSessions: [loose.id, elsewhere.id], needsYou: needing(loose, elsewhere), history: { [loose.id]: [], [elsewhere.id]: [] } });
   await expect(stripHidden(page)).toHaveCount(0);
   await stripHeading(page, 'other').hover();
   const eye = stripHeading(page, 'other').locator('.strip-eye');
@@ -314,7 +312,7 @@ test("a project's eye hides it from the strip, counted on the Hidden line, and p
   await expect(strip(page).locator('.strip-item', { hasText: elsewhere.title })).toHaveCount(0);
   await expect(stripHidden(page)).toHaveText('1 project hidden');
   // What it hides is still counted on the strip's own line.
-  await expect(page.locator('#strip-label')).toHaveText('2 paused');
+  await expect(page.locator('#strip-label')).toHaveText('2 of 2 need you');
   await expect.poll(async () => (await app.saved())?.stripHiddenProjects).toEqual([OTHER]);
 
   await stripHidden(page).click();
@@ -332,7 +330,7 @@ test("a project's eye hides it from the strip, counted on the Hidden line, and p
 });
 
 test("a listed project's eye shows only while its heading is pointed at, or the keyboard reaches it", async ({ app, page }) => {
-  await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], history: { [loose.id]: [] } });
+  await app.boot({ sessions: [loose], openSessions: [loose.id], needsYou: needing(loose), history: { [loose.id]: [] } });
   const eye = stripHeading(page, 'demo').locator('.strip-eye');
   await expect(eye).toHaveCSS('opacity', '0');
   await stripHeading(page, 'demo').hover();
@@ -364,13 +362,13 @@ test("the Hidden line carries its projects' roll-up, so a session waiting there 
   await expect(page.locator('.kebab-menu .menu-row', { hasText: 'other' }).locator('.nudge')).toHaveClass(/\bwaiting\b/);
 });
 
-// What a restart brings back paused is what the hide is for: the launch restoring the tabs, the one on show among them, is not an open, and nor is a project switch selecting its tab.
+// What a restart brings back marked is what the hide is for: the launch restoring the tabs, the one on show among them, is not an open, and nor is a project switch selecting its tab.
 const hiddenAtLaunch = {
   sessions: [loose, elsewhere],
   projectOrder: [PROJECT, OTHER],
   activeProject: null,
   openSessions: [loose.id, elsewhere.id],
-  pausedSessions: [loose.id, elsewhere.id],
+  needsYou: needing(loose, elsewhere),
   activeSession: elsewhere.id,
   history: { [loose.id]: [], [elsewhere.id]: [] },
   uiState: { ...defaultUi(), stripHiddenProjects: [OTHER] },
@@ -409,7 +407,7 @@ for (const [how, open] of opens) {
 
 // The eye's box is taller than the heading's line of text, and taken alone it made every heading 3px taller, eye shown or not.
 test("a strip heading is as tall with its eye as without it", async ({ app, page }) => {
-  await app.boot({ sessions: [loose], openSessions: [loose.id], pausedSessions: [loose.id], history: { [loose.id]: [] } });
+  await app.boot({ sessions: [loose], openSessions: [loose.id], needsYou: needing(loose), history: { [loose.id]: [] } });
   const heading = stripHeading(page, 'demo');
   const withEye = (await heading.boundingBox())!.height;
   await page.addStyleTag({ content: '.strip-eye { display: none !important; }' });

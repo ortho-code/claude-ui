@@ -291,7 +291,7 @@ describe('sessionPasses', () => {
     pinnedOnly: false,
     openOnly: false,
     liveOnly: false,
-    pausedOnly: false,
+    laterOnly: false,
     worktreeOnly: false,
     goneOnly: false,
     siblingOnly: false,
@@ -363,14 +363,13 @@ describe('sessionPasses', () => {
     expect(sessionPasses(session({ id: 's2' }), { ...base, liveOnly: true, live })).toBe(false);
   });
 
-  it('shows only sessions whose tab rests paused when asked, and none with live as well', () => {
-    const paused = new Set(['s1']);
+  it('shows only sessions marked for later when asked, a live one too', () => {
+    const later = new Set(['s1', 's2']);
     const live = new Set(['s2']);
-    expect(sessionPasses(session({ id: 's1' }), { ...base, pausedOnly: true, paused })).toBe(true);
-    expect(sessionPasses(session({ id: 's2' }), { ...base, pausedOnly: true, paused })).toBe(false);
-    // A paused tab has no claude and a live one has, so no session is both.
-    expect(sessionPasses(session({ id: 's1' }), { ...base, pausedOnly: true, paused, liveOnly: true, live })).toBe(false);
-    expect(sessionPasses(session({ id: 's2' }), { ...base, pausedOnly: true, paused, liveOnly: true, live })).toBe(false);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, laterOnly: true, later })).toBe(true);
+    expect(sessionPasses(session({ id: 's3' }), { ...base, laterOnly: true, later })).toBe(false);
+    // A mark on the session rather than a state of its tab, so a running one can carry it.
+    expect(sessionPasses(session({ id: 's2' }), { ...base, laterOnly: true, later, liveOnly: true, live })).toBe(true);
   });
 
   it('separates having a tab from being live, which are different questions', () => {
@@ -936,14 +935,7 @@ describe('statusLabel', () => {
     expect(statusLabel('needs', false, [], { reason: 'reminder', at: new Date(2026, 10, 2, 9).getTime() })).toBe('Needs you — reminder for Mon 2 Nov, 09:00');
   });
 
-  it('names a paused session, and never as read, since it reports no claude to have read', () => {
-    expect(statusLabel('paused')).toBe('Paused — opening it resumes the session');
-    expect(statusLabel('paused', true)).toBe('Paused — opening it resumes the session');
-  });
-
-  it('names a session on its way to a pause or a stop, and never as read, since its claude is leaving', () => {
-    expect(statusLabel('pausing')).toBe('Pausing — waiting for claude to leave');
-    expect(statusLabel('pausing', true)).toBe('Pausing — waiting for claude to leave');
+  it('names a session on its way to a stop, and never as read, since its claude is leaving', () => {
     expect(statusLabel('stopping')).toBe('Stopping — waiting for claude to leave');
     expect(statusLabel('stopping', true)).toBe('Stopping — waiting for claude to leave');
   });
@@ -1016,26 +1008,20 @@ describe('the days a later mark names', () => {
 
 describe('stripLine', () => {
   it('counts what runs, and of those what wants you', () => {
-    expect(stripLine({ live: 3, needing: 0, among: 3, paused: 0 })).toBe('3 live');
-    expect(stripLine({ live: 3, needing: 2, among: 3, paused: 0 })).toBe('2 of 3 need you');
-  });
-
-  it('adds the paused tabs after what runs, and names them alone when nothing runs', () => {
-    expect(stripLine({ live: 3, needing: 0, among: 3, paused: 2 })).toBe('3 live · 2 paused');
-    expect(stripLine({ live: 3, needing: 1, among: 3, paused: 2 })).toBe('1 of 3 need you · 2 paused');
-    expect(stripLine({ live: 0, needing: 0, among: 0, paused: 2 })).toBe('2 paused');
+    expect(stripLine({ live: 3, needing: 0, among: 3 })).toBe('3 live');
+    expect(stripLine({ live: 3, needing: 2, among: 3 })).toBe('2 of 3 need you');
   });
 
   // A tab marked as needing you is in hand whether or not it runs, as after a launch that marked what ran.
   it('counts a marked tab that does not run among those that want you', () => {
-    expect(stripLine({ live: 0, needing: 3, among: 3, paused: 0 })).toBe('3 of 3 need you');
-    expect(stripLine({ live: 1, needing: 2, among: 3, paused: 0 })).toBe('2 of 3 need you');
+    expect(stripLine({ live: 0, needing: 3, among: 3 })).toBe('3 of 3 need you');
+    expect(stripLine({ live: 1, needing: 2, among: 3 })).toBe('2 of 3 need you');
   });
 
   // Marked read, a cold marked row wants nothing more of the line, but is still listed, so the line still counts it.
   it('counts marked rows seen and not running apart, so the line is never empty while rows are listed', () => {
-    expect(stripLine({ live: 0, needing: 0, among: 1, paused: 0 })).toBe('1 marked');
-    expect(stripLine({ live: 1, needing: 0, among: 3, paused: 1 })).toBe('1 live · 2 marked · 1 paused');
+    expect(stripLine({ live: 0, needing: 0, among: 1 })).toBe('1 marked');
+    expect(stripLine({ live: 1, needing: 0, among: 3 })).toBe('1 live · 2 marked');
   });
 });
 
@@ -1107,7 +1093,6 @@ describe('leaveLabel', () => {
     expect(leaveLabel('stop')).toBe('Stop session');
     expect(leaveLabel('close')).toBe('Close tab');
     expect(leaveLabel('archive')).toBe('Archive');
-    expect(leaveLabel('pause')).toBe('Pause');
     expect(tabButton({ terminalId: 7 }).tooltip).toBe(leaveLabel('stop'));
     expect(tabButton({ terminalId: null }).tooltip).toBe(leaveLabel('close'));
   });
@@ -1118,15 +1103,12 @@ const LIVE = 7;
 const FORCE_WHY = ': claude has not left yet — it may be asking you something';
 
 describe('leaveUnderWay', () => {
-  it('names what a leaving tab leaves for, by what its exit does, and a pause for a stop that marks it', () => {
+  it('names what a leaving tab leaves for, by what its exit does', () => {
     expect(leaveUnderWay({ terminalId: LIVE })).toBe(null);
     expect(leaveUnderWay({ terminalId: LIVE, stopping: true })).toBe('stop');
     expect(leaveUnderWay({ terminalId: LIVE, stopping: true, onExit: 'cool' })).toBe('stop');
-    expect(leaveUnderWay({ terminalId: LIVE, stopping: true, paused: true })).toBe('pause');
     expect(leaveUnderWay({ terminalId: LIVE, stopping: true, onExit: 'close' })).toBe('close');
     expect(leaveUnderWay({ terminalId: LIVE, stopping: true, onExit: 'archive' })).toBe('archive');
-    // A pause turned into a close goes at the exit, so it is a close.
-    expect(leaveUnderWay({ terminalId: LIVE, stopping: true, paused: true, onExit: 'close' })).toBe('close');
   });
 });
 
@@ -1141,7 +1123,6 @@ describe('leaveAction', () => {
     expect(leaveAction({ terminalId: null }, 'stop')).toEqual({ disabled: true, tooltip: 'Not running', mark: 'stop', label: 'Stop session', action: 'stop' });
     expect(leaveAction({ terminalId: null }, 'close').disabled).toBe(false);
     expect(leaveAction({ terminalId: null }, 'archive').disabled).toBe(false);
-    expect(leaveAction({ terminalId: null, paused: true }, 'close').disabled).toBe(false);
   });
 
   it('refuses every item while the tab starts, ARRIVING winning over a leave it also carries', () => {
@@ -1155,14 +1136,12 @@ describe('leaveAction', () => {
     expect(leaveAction({ terminalId: LIVE, stopping: true }, 'stop')).toEqual({ disabled: true, tooltip: 'Stopping…', mark: 'stop', label: 'Force stop', action: 'stop' });
     expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'close')).toEqual({ disabled: true, tooltip: 'Closing…', mark: 'close', label: 'Force close', action: 'close' });
     expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'archive' }, 'archive')).toEqual({ disabled: true, tooltip: 'Archiving…', mark: 'archive', label: 'Force archive', action: 'archive' });
-    expect(leaveAction({ terminalId: LIVE, stopping: true, paused: true }, 'pause')).toEqual({ disabled: true, tooltip: 'Pausing…', mark: 'pause', label: 'Force pause', action: 'pause' });
   });
 
   it('offers the force once it may, saying claude may be asking', () => {
     expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true }, 'stop')).toEqual({ disabled: false, tooltip: `Force stop${FORCE_WHY}`, mark: 'force-stop', label: 'Force stop', action: 'stop' });
     expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'close' }, 'close')).toEqual({ disabled: false, tooltip: `Force close${FORCE_WHY}`, mark: 'force-close', label: 'Force close', action: 'close' });
     expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'archive' }, 'archive')).toEqual({ disabled: false, tooltip: `Force archive${FORCE_WHY}`, mark: 'force-archive', label: 'Force archive', action: 'archive' });
-    expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true, paused: true }, 'pause')).toEqual({ disabled: false, tooltip: `Force pause${FORCE_WHY}`, mark: 'force-pause', label: 'Force pause', action: 'pause' });
     // Only a leave on its way can become a force.
     expect(leaveAction({ terminalId: LIVE, forceable: true }, 'stop')).toMatchObject({ disabled: false, mark: 'stop', label: 'Stop session' });
   });
@@ -1175,17 +1154,6 @@ describe('leaveAction', () => {
     // Forced, the exit can still be changed: claude is going whatever it is asked.
     expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'archive').disabled).toBe(false);
   });
-
-  it('keeps a pause under way a pause: Stop session waits for claude to have gone', () => {
-    expect(leaveAction({ terminalId: LIVE, stopping: true, paused: true }, 'stop')).toMatchObject({ disabled: true, tooltip: 'Pausing…', mark: 'stop' });
-    expect(leaveAction({ terminalId: LIVE, stopping: true, paused: true }, 'close').disabled).toBe(false);
-    expect(leaveAction({ terminalId: LIVE, stopping: true, paused: true }, 'archive').disabled).toBe(false);
-  });
-
-  it("refuses Pause's force while no pause is under way, so a stale press of it does nothing", () => {
-    expect(leaveAction({ terminalId: LIVE }, 'pause')).toMatchObject({ disabled: true, tooltip: 'Not pausing' });
-    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'pause')).toMatchObject({ disabled: true, tooltip: 'Closing…' });
-  });
 });
 
 describe('tabButton', () => {
@@ -1197,7 +1165,6 @@ describe('tabButton', () => {
   it('refuses both ends of a session lifetime, and says which end it is', () => {
     expect(tabButton({ terminalId: null, starting: true })).toEqual({ disabled: true, tooltip: 'Starting…', mark: 'stop', label: 'Stop session', action: 'stop' });
     expect(tabButton({ terminalId: LIVE, stopping: true })).toEqual({ disabled: true, tooltip: 'Stopping…', mark: 'stop', label: 'Force stop', action: 'stop' });
-    expect(tabButton({ terminalId: LIVE, stopping: true, paused: true })).toMatchObject({ disabled: true, tooltip: 'Pausing…', mark: 'pause', label: 'Force pause' });
   });
 
   it('reports ARRIVING when a tab somehow carries both flags', () => {
@@ -1210,7 +1177,6 @@ describe('tabButton', () => {
     expect(tabButton({ terminalId: LIVE, stopping: true, onExit: 'close' })).toMatchObject({ disabled: true, tooltip: 'Closing…', mark: 'close', action: 'close' });
     expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'close' })).toMatchObject({ disabled: false, mark: 'force-close', label: 'Force close', action: 'close' });
     expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'archive' })).toMatchObject({ disabled: false, mark: 'force-archive', label: 'Force archive', action: 'archive' });
-    expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, paused: true })).toMatchObject({ disabled: false, mark: 'force-pause', action: 'pause' });
   });
 
   it("closes a cold tab, which has nothing to stop, or archives it when that is the stopped tab's button", () => {

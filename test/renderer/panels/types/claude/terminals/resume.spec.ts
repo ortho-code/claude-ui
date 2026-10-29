@@ -33,7 +33,7 @@ test('by default the sessions that were running come back marked as needing you,
   // The restore's last write, after which a start would already have been asked for.
   await expect.poll(() => app.calls('setOpenSessions')).toHaveLength(1);
   expect(await app.calls('startTerminal')).toEqual([]);
-  expect((await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), [], []]);
+  expect((await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), []]);
   // From the time the window marked them with, so main's copy and the window's agree.
   expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], 'quit', expect.any(Number)]]);
   for (const s of [one, two, gone]) await expect(tab(page, s.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
@@ -87,10 +87,10 @@ test('chosen to start, the sessions that were running start again, the one on sh
   await expect(tab(page, gone.title)).toHaveClass(/\bcold\b/);
   await expect(tab(page, gone.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(page.locator('#toast')).toBeHidden();
-  // Started, they keep the mark until a prompt there, and none was paused.
+  // Started, they keep the mark until a prompt there.
   expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], 'quit', expect.any(Number)]]);
   await expect(tab(page, two.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
-  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), [one.id, two.id], []]);
+  await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), [one.id, two.id]]);
 
   // Out of sight, the second is sized to the terminal area as the one on show is, not left at xterm's 80 columns.
   const sizeOf = async (id: number): Promise<number[] | undefined> => (await sizes(app)).filter(([pty]) => pty === id).at(-1)?.slice(1);
@@ -105,7 +105,7 @@ test('chosen to leave them, the sessions that were running come back cold with t
   await expect(tab(page, one.title)).toHaveClass(/\bactive\b/);
   await expect.poll(() => app.calls('setOpenSessions')).toHaveLength(1);
   expect(await app.calls('startTerminal')).toEqual([]);
-  expect((await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), [], []]);
+  expect((await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), []]);
   expect(await app.calls('markNeedsYou')).toEqual([]);
   await expect(page.locator('#live-strip')).toBeHidden();
 });
@@ -117,13 +117,16 @@ test('a settings.json that says "pause" marks them, as the choice that took its 
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
-test('a tab you paused comes back paused whatever the choice, unmarked, and is never started', async ({ app, page }) => {
-  await app.boot({ ...choosing('start'), pausedSessions: [two.id] });
-  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
-  expect(launch.resumeSessionId).toBe(one.id);
-  await expect(tab(page, two.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
-  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, gone.id], 'quit', expect.any(Number)]]);
+// A later mark set before the quit did not know of it, so the quit's mark shows in full and the session comes back as the others do, its bookmark kept (decided 2026-10-29).
+test('a session set aside for later that was running comes back as the others do, marked and started as chosen, keeping its later mark', async ({ app, page }) => {
+  await app.boot({ ...choosing('start'), later: { [two.id]: { due: null, at: 1 } } });
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  const launches = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
+  expect(launches.map(([, launch]) => launch.resumeSessionId)).toEqual([one.id, two.id]);
+  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], 'quit', expect.any(Number)]]);
+  await expect(tab(page, two.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
+  await expect(tab(page, two.title).locator('.nudge')).not.toHaveClass(/\backed\b/);
+  await expect(tab(page, two.title).locator('.tab-later')).toBeVisible();
 });
 
 // Archived is put away, not resumed: a tab kept for one by an earlier version (archived while it ran, or opened as a sibling) is not brought back, even one that was running, and is no longer kept.

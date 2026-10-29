@@ -3,19 +3,20 @@ import { expect, test } from '../../../../support/harness';
 import { lookOf } from '../../../../support/looks';
 import { tab } from '../../../../support/window';
 
-// A tab carries its session's menu, the one its row in the list has, from a kebab beside its button and from a right-click on it, so a tab can be paused where it is.
+// A tab carries its session's menu, the one its row in the list has, from a kebab beside its button and from a right-click on it, so a session can be set aside where its tab is.
 const one = session();
 const long = session({ id: '00000000-0000-4000-8000-0000000000d1', title: 'A session whose title is far too long to fit on any tab in the bar' });
 const history = { [one.id]: [], [long.id]: [] };
 
-test("a tab's kebab opens its session's menu without selecting the tab, and Pause from it pauses the tab", async ({ app, page }) => {
+test("a tab's kebab opens its session's menu without selecting the tab, and Later from it sets the session aside", async ({ app, page }) => {
   await app.boot({ sessions: [one], openSessions: [one.id], history });
   await tab(page, one.title).locator('.tab-kebab').click();
   await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
   await expect(tab(page, one.title)).not.toHaveClass(/\bactive\b/);
 
-  await page.locator('.kebab-menu button', { hasText: /^Pause$/ }).click();
-  await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
+  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Later$/ }).click();
+  await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^Whenever$/ }).click();
+  await expect(tab(page, one.title).locator('.tab-later')).toBeVisible();
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
@@ -23,7 +24,7 @@ test("a right-click on a tab's title opens the same menu", async ({ app, page })
   await app.boot({ sessions: [one], openSessions: [one.id], history });
   await tab(page, one.title).locator('.tab-label').click({ button: 'right' });
   await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
-  await expect(page.locator('.kebab-menu button', { hasText: /^Pause$/ })).toBeVisible();
+  await expect(page.locator('.kebab-menu button', { hasText: /^Later$/ })).toBeVisible();
   await expect(tab(page, one.title).locator('.tab-kebab')).toHaveClass(/\bmenu-open\b/);
 });
 

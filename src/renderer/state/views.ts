@@ -37,11 +37,6 @@ export function tabButtonOf(tab: TabState, view: View<'settings'> = store.get())
   return tabButton(tab, view.settings?.stoppedTabButton.value ?? 'close');
 }
 
-/** Whether a tab rests paused: marked, with no claude behind it; one whose pause is still waiting for claude to leave runs until it has gone. */
-export function isPaused(tab: TabState): boolean {
-  return tab.paused && tab.terminalId === null;
-}
-
 /**
  * What a session's own dot shows, wherever one stands for one session: what its tab says (`tabDot`), where it says anything, since the last report then describes a claude that has gone or is going; otherwise its status as its hooks last reported it, or its needs-you mark where claude says nothing more pressing (`shownStatus`).
  * A roll-up reads the status and the mark itself (`sessionNudge`).
@@ -52,13 +47,11 @@ export function dotStatus(id: string, view: View<'statuses' | 'tabs' | 'needsYou
 }
 
 /**
- * What a tab says in its session's dot: `paused` once it rests paused, and `pausing` or `stopping` while its claude has been asked to leave and has not, however long that takes; otherwise nothing.
- * The ask can go unanswered, and only these say so, since the tab's button turns into a force after its first moment, until the force is pressed.
+ * What a tab says in its session's dot: `stopping` while its claude has been asked to leave and has not, however long that takes; otherwise nothing.
+ * The ask can go unanswered, and only this says so, since the tab's button turns into a force after its first moment, until the force is pressed.
  */
-export function tabDot(tab: TabState): 'paused' | 'pausing' | 'stopping' | undefined {
-  if (isPaused(tab)) return 'paused';
-  if (tab.stopping && tab.terminalId !== null) return tab.paused ? 'pausing' : 'stopping';
-  return undefined;
+export function tabDot(tab: TabState): 'stopping' | undefined {
+  return tab.stopping && tab.terminalId !== null ? 'stopping' : undefined;
 }
 
 /** The tab on show, from the token the store keeps. */
@@ -154,7 +147,7 @@ export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'ack
   return ids;
 }
 
-/** The sessions whose tab says something else in their dot between two readings of the tabs (`tabDot`), such as one that came to rest paused: what a change of the tabs asks a session's dot to repaint (`dotStatus`). */
+/** The sessions whose tab says something else in their dot between two readings of the tabs (`tabDot`), such as one whose claude was asked to leave: what a change of the tabs asks a session's dot to repaint (`dotStatus`). */
 export function tabDotChanges(before: View<'tabs'>, after: View<'tabs'>): Set<string> {
   const dots = (view: View<'tabs'>): Map<string, string | undefined> => new Map(view.tabs.map((t) => [t.session.id, tabDot(t)]));
   const was = dots(before);

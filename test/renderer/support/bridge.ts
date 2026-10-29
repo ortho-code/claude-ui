@@ -122,7 +122,6 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getOpenSessions: () => answer(fixture.openSessions),
     setOpenSessions: sent,
     getRunningSessions: () => answer(fixture.runningSessions),
-    getPausedSessions: () => answer(fixture.pausedSessions),
     getNeedsYou: () => answer(fixture.needsYou),
     markNeedsYou: (ids, reason, at) => {
       fixture.needsYou = markedNeedsYou(fixture.needsYou, ids, reason, at ?? Date.now());

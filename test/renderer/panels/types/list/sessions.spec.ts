@@ -147,13 +147,14 @@ test("a row's session mark follows its session's status, a mark read, and whethe
   await expect(mark(page, 'Tidy the settings page')).toHaveAttribute('aria-label', `Go to ${quiet.title} · not running`);
 });
 
-test("a row's session mark shows its session paused, as the session list's dot does", async ({ app, page }) => {
+test("a row's session mark shows its session stopping, as the session list's dot does", async ({ app, page }) => {
   await bootQueue(app, page);
-  await row(page, quiet.title).locator('.session-kebab').click();
-  await page.locator('.kebab-menu button', { hasText: /^Pause$/ }).click();
-  await expect(row(page, quiet.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
-  await expect(mark(page, 'Tidy the settings page').locator('.nudge')).toHaveClass(/\bpaused\b/);
-  await expect(mark(page, 'Tidy the settings page')).toHaveAttribute('aria-label', `Go to ${quiet.title} · Paused — opening it resumes the session`);
+  await tabLabel(page, quiet.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  await tab(page, quiet.title).locator('.tab-close').click();
+  await expect(row(page, quiet.title).locator('.nudge')).toHaveClass(/\bstopping\b/);
+  await expect(mark(page, 'Tidy the settings page').locator('.nudge')).toHaveClass(/\bstopping\b/);
+  await expect(mark(page, 'Tidy the settings page')).toHaveAttribute('aria-label', `Go to ${quiet.title} · Stopping — waiting for claude to leave`);
 });
 
 test("a row's sessions are offered each with its own dot, as the row's mark and the session list draw it", async ({ app, page }) => {

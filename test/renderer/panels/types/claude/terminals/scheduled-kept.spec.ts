@@ -16,7 +16,7 @@ const STOPPED = 'Scheduled when stopped:\nsay the word tock · Every 10 minutes 
 const LIVE = 'Scheduled:\nsay the word tock · Every 10 minutes · comes back when you open the session';
 
 const clockOn = (at: Locator): Locator => at.locator('.scheduled-mark');
-/** The session's clocks on its tab and its row, which every cold tab has, and its strip row's, which only a paused one has. */
+/** The session's clocks on its tab and its row, which every cold tab has, and its strip row's, which only a marked one has. */
 const tabAndRow = (page: Page): Locator[] => [tab(page, one.title), row(page, one.title)].map(clockOn);
 /** What the window last kept of the tabs' scheduled tasks for the next launch. */
 const lastKept = async (app: App): Promise<unknown> => (await app.calls('setScheduledWhenStopped')).at(-1);
@@ -42,19 +42,6 @@ async function expectStopped(clock: Locator): Promise<void> {
   await expect(clock).toHaveClass(/\bstopped\b/);
   await expect(clock).toHaveAttribute('data-tooltip', STOPPED);
 }
-
-test('a session paused with a task scheduled keeps its clock, muted, on its tab, its row and its strip row, and keeps it for the next launch', async ({ app, page }) => {
-  await app.boot(fixture);
-  await start(page, app);
-  await row(page, one.title).locator('.session-kebab').click();
-  await page.locator('.kebab-menu button.menu-row', { hasText: /^Pause$/ }).click();
-  await expect.poll(() => app.calls('closeTerminal')).toEqual([[FIRST, true]]);
-  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
-
-  await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
-  for (const clock of [...tabAndRow(page), clockOn(stripRow(page, one.title))]) await expectStopped(clock);
-  await expect.poll(() => lastKept(app)).toEqual([{ [one.id]: [tock] }]);
-});
 
 // A `/loop` wakeup ends with the session and a cron comes back (measured), so what a stopped tab keeps is its crons.
 test('a stop keeps only the crons, since a /loop wakeup ends with the session', async ({ app, page }) => {
@@ -138,13 +125,14 @@ for (const source of ['clear', 'resume']) {
   });
 }
 
-// Stopped without the pause, a tab has no strip row.
-test('a stopped tab keeps its clock, muted, on its tab and its row', async ({ app, page }) => {
+// Stopped with no needs-you mark, a tab has no strip row.
+test('a stopped tab keeps its clock, muted, on its tab and its row, and kept for the next launch', async ({ app, page }) => {
   await app.boot(fixture);
   await start(page, app);
   await stop(page, app, FIRST);
   for (const clock of tabAndRow(page)) await expectStopped(clock);
   await expect(stripRow(page, one.title)).toHaveCount(0);
+  await expect.poll(() => lastKept(app)).toEqual([{ [one.id]: [tock] }]);
 });
 
 // A quit forces every claude out, after which a cron came back and a `/loop` wakeup did not (measured), so a tab still running keeps what a stop would have kept.
@@ -156,15 +144,16 @@ test('a quit keeps the crons of a session still running, for the next launch', a
   await expect.poll(() => lastKept(app)).toEqual([{ [one.id]: [tock] }]);
 });
 
-test('a tab kept paused with a task scheduled shows its muted clock at the next launch', async ({ app, page }) => {
-  await app.boot({ ...fixture, openSessions: [one.id], pausedSessions: [one.id], scheduledWhenStopped: { [one.id]: [tock] } });
-  await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bpaused\b/);
+// Marked as needing you, a cold tab has a strip row, which shows the clock too.
+test('a tab kept with a task scheduled shows its muted clock at the next launch, on its strip row too while it needs you', async ({ app, page }) => {
+  await app.boot({ ...fixture, openSessions: [one.id], needsYou: { [one.id]: { reason: 'quit', at: 1 } }, scheduledWhenStopped: { [one.id]: [tock] } });
+  await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   for (const clock of [...tabAndRow(page), clockOn(stripRow(page, one.title))]) await expectStopped(clock);
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
 test("a stopped tab's options hold its muted clock's tasks under the words the clock says them with", async ({ app, page }) => {
-  await app.boot({ ...fixture, openSessions: [one.id], pausedSessions: [one.id], scheduledWhenStopped: { [one.id]: [tock] } });
+  await app.boot({ ...fixture, openSessions: [one.id], scheduledWhenStopped: { [one.id]: [tock] } });
   await row(page, one.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Scheduled \(1\)$/ }).click();
   await expect(page.locator('.kebab-menu.submenu .menu-header-line')).toHaveText(STOPPED.split('\n'));

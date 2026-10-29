@@ -34,7 +34,7 @@ function updateSidebarHighlight(view: View<'tabs' | 'activeTab'>): void {
 }
 
 /**
- * A tab opened, started, stopped, paused, closed or came on show: the rows' marks follow, and the list itself is drawn again only when what it draws from the tabs moved since it last followed them (`before`).
+ * A tab opened, started, stopped, closed or came on show: the rows' marks follow, and the list itself is drawn again only when what it draws from the tabs moved since it last followed them (`before`).
  * The open and live filters ask which sessions have a tab and which of those run, and a session with no transcript yet is in the list only through its tab's stand-in row.
  */
 function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
@@ -54,7 +54,7 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
   if (moved) renderList(view);
   else {
     updateSidebarHighlight(view);
-    // A tab that came to rest paused, or stopped resting so, or whose claude was asked to leave, changes what its session's dot shows (`dotStatus`).
+    // A tab whose claude was asked to leave, or went, changes what its session's dot shows (`dotStatus`).
     repaintDots(tabDotChanges({ tabs: before }, view), view);
     // And one whose claude went, or reported again, what its clock shows (`clockOf`); and one whose stop has gone on, whether it says claude has not left.
     for (const [id, marks] of rowTabMarks) showTabMarks(marks, id, view);

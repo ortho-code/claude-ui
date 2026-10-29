@@ -106,7 +106,7 @@ describe('withoutSession', () => {
 });
 
 describe('purgedSession', () => {
-  it('forgets the session\'s marks, its open tab, its running one and its paused one, what it had scheduled, its place as the tab on show and its group, and keeps everyone else\'s', () => {
+  it('forgets the session\'s marks, its open tab and its running one, what it had scheduled, its place as the tab on show and its group, and keeps everyone else\'s', () => {
     const tock = [{ prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' }];
     const meta = {
       pinned: ['a', 'b'],
@@ -116,7 +116,6 @@ describe('purgedSession', () => {
       later: { a: { due: null, at: 1 } },
       openSessions: ['a', 'b'],
       runningSessions: ['a', 'b'],
-      pausedSessions: ['a', 'b'],
       scheduledWhenStopped: { a: tock, b: tock },
       activeSession: 'a',
       activeSessionByProject: { '/p': 'a', '/q': 'b' },
@@ -130,7 +129,6 @@ describe('purgedSession', () => {
       later: {},
       openSessions: ['b'],
       runningSessions: ['b'],
-      pausedSessions: ['b'],
       scheduledWhenStopped: { b: tock },
       activeSession: null,
       activeSessionByProject: { '/q': 'b' },

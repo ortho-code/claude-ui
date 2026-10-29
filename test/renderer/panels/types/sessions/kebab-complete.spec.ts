@@ -13,16 +13,14 @@ import { groupHeading, projectHeading, row, stripRow, tab, tabLabel } from '../.
 type Shortcuts = [className: string, item: RegExp | ((control: Locator) => Promise<RegExp>)][];
 
 const DOT: [string, RegExp] = ['nudge', /^Mark as (read|unread)$/];
-// The tab's button is a shortcut to one of the menu's leave items, which its mark says (`tabButton`): Stop session, Close tab, Archive or a force, the plain pause bars being a pause's force before its moment.
+// The tab's button is a shortcut to one of the menu's leave items, which its mark says (`tabButton`): Stop session, Close tab, Archive or a force.
 const BUTTON_ITEMS: Record<string, string> = {
   stop: 'Stop session',
   close: 'Close tab',
   archive: 'Archive',
-  pause: 'Force pause',
   'force-stop': 'Force stop',
   'force-close': 'Force close',
   'force-archive': 'Force archive',
-  'force-pause': 'Force pause',
 };
 const TAB_BUTTON = async (control: Locator): Promise<RegExp> => new RegExp(`^${BUTTON_ITEMS[(await control.getAttribute('data-mark')) ?? '']}$`);
 

@@ -10,7 +10,7 @@ import { projName, sessionById, tabWith, unopenableReason } from '../../../state
 import { showToast } from '../../../toast';
 import { hostOf } from '../builtin';
 import type { Asks } from '../../contract';
-import { activateTab, archiveSession, createTab, pauseTab, pressLeave, pressTabButton, startTab, stopPausedTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';
+import { activateTab, archiveSession, createTab, pressLeave, pressTabButton, startTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';
 
 /**
  * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, archive one with its tabs, and follow the project chosen.
@@ -152,7 +152,7 @@ async function forkSession(parent: SessionSummary): Promise<void> {
 }
 
 /** The asks the terminal area answers. */
-export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressTabButton' | 'pressLeave' | 'pauseSession' | 'stopPausedSession' | 'archiveSession' | 'showProject'> = {
+export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSession' | 'openWorktreeSession' | 'forkSession' | 'pressTabButton' | 'pressLeave' | 'archiveSession' | 'showProject'> = {
   openSession: (id, prompt) => openLinkedSession(id, { prompt }),
   openTab: (id) => {
     const session = sessionById(id);
@@ -171,14 +171,6 @@ export const claudeAnswers: Pick<Asks, 'openSession' | 'openTab' | 'openNewSessi
   pressLeave: (id, action, mark) => {
     const tab = tabWith(id);
     if (tab) pressLeave(tab.token, action, mark);
-  },
-  pauseSession: (id) => {
-    const tab = tabWith(id);
-    if (tab) pauseTab(tab.token);
-  },
-  stopPausedSession: (id) => {
-    const tab = tabWith(id);
-    if (tab) stopPausedTab(tab.token);
   },
   archiveSession,
   showProject: (repoRoot) => switchWorkspaceTerminal(repoRoot),

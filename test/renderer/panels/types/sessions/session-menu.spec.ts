@@ -24,7 +24,7 @@ for (const [surface, kebab] of [
 ] as const) {
   test(`a session's menu on its ${surface} opens with its title, where it is filed, its status, its activity, its worktree and its note`, async ({ app, page }) => {
     await app.boot(fixture);
-    // Started, since running (or a paused tab) is what puts a session in the strip, and then waiting for you.
+    // Started, since running (or a needs-you mark) is what puts a session in the strip, and then waiting for you.
     await tabLabel(page, full.title).click();
     await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
     expect(await app.emit('onSessionStatus', full.id, 'waiting', '', '')).toBe(1);
@@ -100,10 +100,11 @@ test("a running tab's menu has no Open, since the tab is the session", async ({ 
   await expect(item(page, 'Open')).toHaveCount(0);
 });
 
-// Selecting a cold or paused tab is what starts it, so its menu offers that too.
-for (const [state, paused] of [['cold', []], ['paused', [full.id]]] as const) {
+// Selecting a cold tab is what starts it, so its menu offers that too, set aside for later or not, since the later mark leaves the tab as it is.
+const setAside = { [full.id]: { due: null, at: 1 } };
+for (const [state, later] of [['cold', {}], ['set-aside cold', setAside]] as const) {
   test(`Open in a ${state} tab's menu starts its session`, async ({ app, page }) => {
-    await app.boot({ ...fixture, pausedSessions: [...paused] });
+    await app.boot({ ...fixture, later });
     await tab(page, full.title).locator('.tab-kebab').click();
     await item(page, 'Open').click();
     await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
@@ -305,20 +306,6 @@ test('Stop session on a close under way keeps the tab at the exit, and sends cla
   await expect(tab(page, full.title)).toHaveClass(/\bcold\b/);
 });
 
-test('Stop session on a close that began as a pause makes it a stop: the tab stays at the exit, not paused', async ({ app, page }) => {
-  await runningMenu(app, page);
-  await item(page, 'Pause').click();
-  await row(page, full.title).locator('.session-kebab').click();
-  await item(page, 'Close tab').click();
-  await row(page, full.title).locator('.session-kebab').click();
-  await item(page, 'Stop session').click();
-  expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
-  await expect(tab(page, full.title).locator('.tab-close')).toHaveAttribute('data-mark', /^(force-)?stop$/);
-  expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
-  await expect(tab(page, full.title)).toHaveClass(/\bcold\b/);
-  await expect(tab(page, full.title).locator('.nudge')).not.toHaveClass(/\bpaused\b/);
-});
-
 test('Close tab on a stop under way removes the tab at the exit, and sends claude nothing more', async ({ app, page }) => {
   await runningMenu(app, page);
   await item(page, 'Stop session').click();
@@ -352,21 +339,20 @@ test("the tab button's item pressed after its tab moved on does what it said or 
 });
 
 // An open menu follows its session, as the tab and its button do, so what it offers is what can be done now.
-test("a session's menu open while its pause waits for claude turns into a paused tab's once claude has gone", async ({ app, page }) => {
+test("a session's menu open while its stop waits for claude turns into a stopped tab's once claude has gone", async ({ app, page }) => {
   await app.boot(fixture);
   await tabLabel(page, full.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await row(page, full.title).locator('.session-kebab').click();
-  await item(page, 'Pause').click();
+  await item(page, 'Stop session').click();
   await expect(tab(page, full.title).locator('.tab-close')).toBeEnabled();
   await row(page, full.title).locator('.session-kebab').click();
-  await expect(item(page, 'Force pause')).toBeVisible();
+  await expect(item(page, 'Force stop')).toBeVisible();
 
   expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
-  await expect(item(page, 'Stop session')).not.toHaveClass(/\bunavailable\b/);
+  await expect(item(page, 'Stop session')).toHaveAttribute('data-tooltip', 'Not running');
   await expect(item(page, 'Close tab')).toBeVisible();
-  await expect(item(page, 'Force pause')).toHaveCount(0);
-  await expect(item(page, 'Pause')).toHaveCount(0);
+  await expect(item(page, 'Force stop')).toHaveCount(0);
 });
 
 // A redraw replaces every row, an open submenu's parent among them, so the submenu is opened again under the new one: the pointer may be inside it, and something the menu shows can change without anything you did, such as a relative time ticking over.
@@ -399,8 +385,8 @@ test("an open menu is left as it is drawn by a change that does not touch what i
   expect(await page.evaluate(() => (window as unknown as { held: Element }).held.isConnected)).toBe(true);
 });
 
-test("Close tab in a row's menu closes a paused session's tab", async ({ app, page }) => {
-  await app.boot({ ...fixture, pausedSessions: [full.id] });
+test("Close tab in a row's menu closes a session's cold tab, set aside for later or not", async ({ app, page }) => {
+  await app.boot({ ...fixture, later: setAside });
   await row(page, full.title).locator('.session-kebab').click();
   await item(page, 'Close tab').click();
   await expect(tab(page, full.title)).toHaveCount(0);
@@ -415,9 +401,9 @@ test('Close tab is unavailable, with the reason, for a session with no tab', asy
 });
 
 // One open but not running is put away with its tab at once; a running one's archive waits for its claude (claude/terminals/archive.spec.ts).
-for (const [state, paused] of [['cold', []], ['paused', [full.id]]] as const) {
+for (const [state, later] of [['cold', {}], ['cold and set aside for later', setAside]] as const) {
   test(`Archive on a session whose tab is ${state} archives it and closes the tab`, async ({ app, page }) => {
-    await app.boot({ ...fixture, pausedSessions: [...paused] });
+    await app.boot({ ...fixture, later });
     await tab(page, full.title).locator('.tab-kebab').click();
     await item(page, 'Archive').click();
     await expect(tab(page, full.title)).toHaveCount(0);

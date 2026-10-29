@@ -41,7 +41,6 @@ import {
   purgeSession,
   getOpenSessions,
   getRunningSessions,
-  getPausedSessions,
   getNeedsYou,
   markNeedsYou,
   getLater,
@@ -159,23 +158,22 @@ describe('archive', () => {
 });
 
 describe('purgeSession', () => {
-  it('drops the session from pins, open tabs, running tabs, paused tabs and archive', async () => {
+  it('drops the session from pins, open tabs, running tabs and archive', async () => {
     await togglePin('conv1');
     await archive('conv1');
-    await setOpenSessions(['conv1', 'conv2'], ['conv1'], ['conv1']);
+    await setOpenSessions(['conv1', 'conv2'], ['conv1']);
     await purgeSession('conv1');
     expect(await getPinned()).toEqual([]);
     expect(await getArchived()).toEqual({});
     expect(await getOpenSessions()).toEqual(['conv2']);
     expect(await getRunningSessions()).toEqual([]);
-    expect(await getPausedSessions()).toEqual([]);
   });
 
 });
 
 describe('running sessions', () => {
   it('are written with the open tabs, and only an open one is kept', async () => {
-    await setOpenSessions(['a', 'b'], ['b', 'gone'], []);
+    await setOpenSessions(['a', 'b'], ['b', 'gone']);
     expect(await getOpenSessions()).toEqual(['a', 'b']);
     expect(await getRunningSessions()).toEqual(['b']);
     expect(await fs.readFile(path.join(dir, 'meta-audit.log'), 'utf8')).toContain('setOpenSessions open=["a","b"] running=["b"]');
@@ -186,21 +184,6 @@ describe('running sessions', () => {
     expect(await getRunningSessions()).toEqual([]);
     await writeMetaFile({ version: 3, openSessions: ['a'], runningSessions: ['a', 7] });
     expect(await getRunningSessions()).toEqual(['a']);
-  });
-});
-
-describe('paused sessions', () => {
-  it('are written with the open tabs, and only an open one is kept', async () => {
-    await setOpenSessions(['a', 'b'], ['b'], ['a', 'gone']);
-    expect(await getPausedSessions()).toEqual(['a']);
-    expect(await fs.readFile(path.join(dir, 'meta-audit.log'), 'utf8')).toContain('setOpenSessions open=["a","b"] running=["b"] paused=["a"]');
-  });
-
-  it('are none in a file written before they were kept, and a value that is no id is dropped', async () => {
-    await writeMetaFile({ version: 3, openSessions: ['a'] });
-    expect(await getPausedSessions()).toEqual([]);
-    await writeMetaFile({ version: 3, openSessions: ['a'], pausedSessions: ['a', 7] });
-    expect(await getPausedSessions()).toEqual(['a']);
   });
 });
 
@@ -219,7 +202,7 @@ describe('sessions that need you', () => {
   // Kept per session, not per tab: a mark outlives the tabs being written again, as every launch writes them.
   it('stay through the open tabs being written', async () => {
     await markNeedsYou(['a'], 'quit');
-    await setOpenSessions(['b'], [], []);
+    await setOpenSessions(['b'], []);
     expect(Object.keys(await getNeedsYou())).toEqual(['a']);
   });
 
@@ -251,7 +234,7 @@ describe('the later marks', () => {
   it('stay through the open tabs being written, are taken off by an archive, and forgotten by a delete', async () => {
     await markLater('a', null);
     await markLater('b', null);
-    await setOpenSessions([], [], []);
+    await setOpenSessions([], []);
     expect(Object.keys(await getLater())).toEqual(['a', 'b']);
     await archive('a');
     await purgeSession('b');
@@ -274,16 +257,34 @@ describe('the later marks', () => {
     await writeMetaFile({ version: 3, later: { a: { due: null, at: 5 }, b: { due: 9, at: 5 }, c: { due: 'monday', at: 5 }, d: { due: null }, e: 'yes' } });
     expect(await getLater()).toEqual({ a: { due: null, at: 5 }, b: { due: 9, at: 5 } });
   });
+
+  // Pause gave way to the later mark, so nothing a file from before set aside is lost.
+  it('take in the tabs a file from before paused, whenever, keeping a mark one already has, and the next write drops the paused list', async () => {
+    await writeMetaFile({ version: 3, openSessions: ['a', 'b'], pausedSessions: ['a', 'b', 7], later: { b: { due: 9, at: 5 } } });
+    expect(await getLater()).toEqual({ a: { due: null, at: expect.any(Number) }, b: { due: 9, at: 5 } });
+    await setOpenSessions(['a', 'b'], []);
+    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    expect(raw.pausedSessions).toBeUndefined();
+    expect(raw.later).toEqual({ a: { due: null, at: expect.any(Number) }, b: { due: 9, at: 5 } });
+    // Written once, the mark is the file's own, so a read no longer makes it again.
+    expect(await getLater()).toEqual(raw.later);
+  });
+
+  // Its pause still waited for claude to leave at the quit, and pause never started or marked such a tab at launch.
+  it('do not take a tab a file from before listed as paused and running as running', async () => {
+    await writeMetaFile({ version: 3, openSessions: ['a', 'b'], runningSessions: ['a', 'b'], pausedSessions: ['a'] });
+    expect(await getRunningSessions()).toEqual(['b']);
+  });
 });
 
 describe('what was scheduled when a tab stopped', () => {
   const tock = { prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' };
 
   it('is kept for an open session only, read as claude lists it, and goes with its tab', async () => {
-    await setOpenSessions(['a', 'b'], [], ['a']);
+    await setOpenSessions(['a', 'b'], []);
     await setScheduledWhenStopped({ a: [tock, { id: 'x' }, { prompt: 'say tock once' }], b: [], gone: [tock] });
     expect(await getScheduledWhenStopped()).toEqual({ a: [tock, { prompt: 'say tock once', recurring: false, cron: null }] });
-    await setOpenSessions(['b'], [], []);
+    await setOpenSessions(['b'], []);
     expect(await getScheduledWhenStopped()).toEqual({});
   });
 
@@ -297,7 +298,7 @@ describe('what was scheduled when a tab stopped', () => {
   });
 
   it('goes when its session is deleted', async () => {
-    await setOpenSessions(['a', 'b'], [], []);
+    await setOpenSessions(['a', 'b'], []);
     await setScheduledWhenStopped({ a: [tock], b: [tock] });
     await purgeSession('a');
     expect(await getScheduledWhenStopped()).toEqual({ b: [tock] });
@@ -422,15 +423,15 @@ describe('write serialization', () => {
   it('serializes concurrent writes so the last logical change wins (no stale overwrite)', async () => {
     // Fired together, these race in readMeta/writeMeta; without serialization a stale write can win.
     await Promise.all([
-      setOpenSessions(['a'], [], []),
-      setOpenSessions(['a', 'b'], [], []),
-      setOpenSessions(['a', 'b', 'c'], [], []),
+      setOpenSessions(['a'], []),
+      setOpenSessions(['a', 'b'], []),
+      setOpenSessions(['a', 'b', 'c'], []),
     ]);
     expect(await getOpenSessions()).toEqual(['a', 'b', 'c']);
   });
 
   it('does not lose one field when different ops race (read-modify-write stays atomic)', async () => {
-    await Promise.all([togglePin('p1'), setOpenSessions(['o1'], [], [])]);
+    await Promise.all([togglePin('p1'), setOpenSessions(['o1'], [])]);
     expect(await getPinned()).toEqual(['p1']);
     expect(await getOpenSessions()).toEqual(['o1']);
   });
@@ -751,7 +752,7 @@ describe('windowBounds', () => {
 describe('ui state', () => {
   const view = {
     search: 'psalm',
-    filters: { pinned: true, open: false, live: false, paused: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
+    filters: { pinned: true, open: false, live: false, later: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
     datePreset: 'custom',
     dateFrom: 1_700_000_000_000,
     dateTo: 1_700_500_000_000,
@@ -775,7 +776,7 @@ describe('ui state', () => {
   it('starts unfiltered, unfolded and at the default width', async () => {
     expect(await getUiState()).toEqual({
       search: '',
-      filters: { pinned: false, open: false, live: false, paused: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
+      filters: { pinned: false, open: false, live: false, later: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
       datePreset: 'any',
       dateFrom: null,
       dateTo: null,
@@ -1040,6 +1041,16 @@ describe('the live filter, renamed from running', () => {
     const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
     expect(raw.ui.filters.running).toBeUndefined();
     expect(raw.ui.filters.live).toBe(true);
+  });
+});
+
+describe('the paused filter, which gave way to the later one', () => {
+  it('reads as off, and the later pill with it, and is not written back out', async () => {
+    await writeMetaFile({ ui: { filters: { paused: true } }, version: 3 });
+    expect((await getUiState()).filters.later).toBe(false);
+    await setUiState(await getUiState());
+    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    expect(raw.ui.filters.paused).toBeUndefined();
   });
 });
 

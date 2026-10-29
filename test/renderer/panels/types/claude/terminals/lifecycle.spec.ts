@@ -207,7 +207,7 @@ test('a prompt submitted by a session asked to leave calls the stop off, and a t
 });
 
 // A `/resume` fires no prompt's report (measured), and both it and a `/clear` mean you went on working, as a prompt does (decided 2026-10-28).
-for (const [leave, source] of [['stop', 'resume'], ['stop', 'clear'], ['pause', 'resume'], ['pause', 'clear']] as const) {
+for (const [leave, source] of [['stop', 'resume'], ['stop', 'clear'], ['close', 'resume'], ['close', 'clear']] as const) {
   test(`a ${source} at claude's question on the way out calls a ${leave} off, as a prompt does`, async ({ app, page }) => {
     await app.boot(fixture);
     await startLive(page, app);
@@ -215,7 +215,7 @@ for (const [leave, source] of [['stop', 'resume'], ['stop', 'clear'], ['pause', 
     if (leave === 'stop') await tab(page, one.title).locator('.tab-close').click();
     else {
       await row(page, one.title).locator('.session-kebab').click();
-      await page.locator('.kebab-menu button.menu-row', { hasText: /^Pause$/ }).click();
+      await page.locator('.kebab-menu button.menu-row', { hasText: /^Close tab$/ }).click();
     }
     expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
 
@@ -223,7 +223,7 @@ for (const [leave, source] of [['stop', 'resume'], ['stop', 'clear'], ['pause', 
     const close = tabs(page).locator('.tab-close');
     await expect(close).toHaveAttribute('data-tooltip', 'Stop session');
     await expect(close).toBeEnabled();
-    await expect(tabs(page).locator('.nudge')).not.toHaveClass(/\b(stopping|pausing|paused)\b/);
+    await expect(tabs(page).locator('.nudge')).not.toHaveClass(/\bstopping\b/);
   });
 }
 

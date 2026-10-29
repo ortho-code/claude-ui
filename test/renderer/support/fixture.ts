@@ -24,7 +24,6 @@ export interface BridgeFixture {
   lastClosed: ClosedHow;
   openSessions: string[];
   runningSessions: string[];
-  pausedSessions: string[];
   /** Open session -> the tasks claude had scheduled for it when its claude went, as the open tabs were last written. */
   scheduledWhenStopped: Record<string, ScheduledTask[]>;
   activeSession: string | null;
@@ -147,7 +146,6 @@ export function defaultFixture(): BridgeFixture {
     lastClosed: 'quit',
     openSessions: [],
     runningSessions: [],
-    pausedSessions: [],
     scheduledWhenStopped: {},
     activeSession: null,
     activeSessionByProject: {},

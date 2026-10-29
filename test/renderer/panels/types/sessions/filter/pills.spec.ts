@@ -43,19 +43,19 @@ for (const [pill, name, shows] of [
   });
 }
 
-// Paused is a tab's mark with no claude behind it (`isPaused`), the same rule the live strip lists paused tabs by.
-test('the paused pill narrows the list to the sessions whose tab rests paused, and a second press undoes it', async ({ app, page }) => {
-  const paused = session({ id: '00000000-0000-4000-8000-0000000000ca', title: 'Set aside' });
-  const all = [...everyone, paused];
-  await app.boot({ ...fixture, sessions: all, openSessions: [tabbed.id, paused.id], pausedSessions: [paused.id], history: { [tabbed.id]: [], [paused.id]: [] } });
+// Later is a mark on the session, kept with a tab or without (decided 2026-10-29), so the pill finds both.
+test('the later pill narrows the list to the sessions marked for later, with a tab or without, and a second press undoes it', async ({ app, page }) => {
+  const aside = session({ id: '00000000-0000-4000-8000-0000000000ca', title: 'Set aside' });
+  const all = [...everyone, aside];
+  await app.boot({ ...fixture, sessions: all, openSessions: [tabbed.id, aside.id], later: { [aside.id]: { due: null, at: 1 }, [plain.id]: { due: Date.now() + 86_400_000, at: 1 } }, history: { [tabbed.id]: [], [aside.id]: [] } });
   await page.locator('#filter-toggle').click();
-  const button = page.locator('#paused-filter');
-  await expect(button).toHaveAttribute('aria-label', 'Show only paused sessions');
+  const button = page.locator('#later-filter');
+  await expect(button).toHaveAttribute('aria-label', 'Show only sessions marked for later');
 
   await button.click();
   await expect(button).toHaveAttribute('aria-pressed', 'true');
-  // An open tab that is not paused is left out.
-  await expect.poll(() => sortedTitles(page)).toEqual(sorted(paused));
+  // An open tab that is not marked is left out.
+  await expect.poll(() => sortedTitles(page)).toEqual(sorted(aside, plain));
   await button.click();
   await expect.poll(() => sortedTitles(page)).toEqual(sorted(...all));
 });
