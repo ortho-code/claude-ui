@@ -20,7 +20,10 @@ export type ClosedHow = 'quit' | 'ended' | 'unknown';
 /** Why a session needs you: how the app closed while it ran (`ClosedHow`), or the day you marked it for later has come (`reminder`). */
 export type NeedsYouReason = ClosedHow | 'reminder';
 
-/** A session marked as needing you: why, and when it was marked (epoch ms); for a reminder, the start of the day it was for. */
+/**
+ * One reason a session needs you: why, and when it was marked (epoch ms); for a reminder, the start of the day it was for.
+ * A session keeps every reason it was marked for, as a list.
+ */
 export interface NeedsYou {
   reason: NeedsYouReason;
   at: number;
@@ -455,10 +458,10 @@ export interface ClaudeUiApi {
   setOpenSessions(ids: string[], running: string[]): void;
   /** The open sessions that were running when the open tabs were last written. */
   getRunningSessions(): Promise<string[]>;
-  /** The sessions marked as needing you, by session id. */
-  getNeedsYou(): Promise<Record<string, NeedsYou>>;
-  /** Mark sessions as needing you, for `reason`, from `at` or now, as Undo puts a mark back as it was; one already marked takes the newer reason. */
-  markNeedsYou(ids: string[], reason: NeedsYouReason, at?: number): void;
+  /** The sessions marked as needing you, by session id, each with every reason it was marked for. */
+  getNeedsYou(): Promise<Record<string, NeedsYou[]>>;
+  /** Mark sessions as needing you for `reasons`, each from its own time, as Undo puts a mark back as it was; each is added beside a session's other reasons, replacing one of its kind (`markedNeedsYou`). */
+  markNeedsYou(ids: string[], reasons: NeedsYou[]): void;
   /** Take a session's needs-you mark off, whether or not it had one. */
   clearNeedsYou(id: string): void;
   /** The sessions marked for later, by session id. */

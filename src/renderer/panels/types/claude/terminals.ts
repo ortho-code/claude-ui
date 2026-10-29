@@ -176,7 +176,7 @@ export async function restoreOpenTabs(): Promise<void> {
       }
       // Its claude has gone, so what its status file last said is forgotten, as a tab going cold forgets it (`coolTab`): after an end without a quit the file still holds it, and a busy or a waiting from then would hide the mark.
       for (const key of marked) clearNudge(key);
-      markNeedsYou(marked, closedHow);
+      markNeedsYou(marked, [{ reason: closedHow, at: Date.now() }]);
       // Land where you left off — SELECTED but not started here; it starts below with the others if it was running and Settings says to start them.
       // Without a remembered tab we open on none rather than guessing.
       if (toActivate) activateTab(toActivate, false);
@@ -636,8 +636,8 @@ interface RemovedTab {
   session: SessionSummary;
   at: number;
   scheduledWhenStopped: TabState['scheduledWhenStopped'];
-  /** What its session needed you for, which its going settled. */
-  needsYou: NeedsYou | null;
+  /** Every reason its session needed you for, which its going settled. */
+  needsYou: readonly NeedsYou[] | null;
 }
 
 /** What Undo needs of a tab about to be removed, read before it goes. */
@@ -659,7 +659,7 @@ function putBack(removed: readonly RemovedTab[]): void {
   for (const { session, at, scheduledWhenStopped, needsYou } of [...removed].reverse()) {
     if (store.get().tabs.some((t) => t.session.id === session.id) || store.get().archived.has(entityKey(session))) continue;
     // As it was, from when it was marked, so a later mark that muted it mutes it again.
-    if (needsYou) markNeedsYou([entityKey(session)], needsYou.reason, needsYou.at);
+    if (needsYou) markNeedsYou([entityKey(session)], needsYou);
     // Built at the end, as every tab is, then moved to where it stood.
     buildTab(session, scheduledWhenStopped);
     const tabs = [...store.get().tabs];
@@ -733,7 +733,7 @@ function archivedTabs(key: string): RemovedTab[] {
 }
 
 /** The toast an archive raises once its mark is written, with Undo unarchiving the session, putting back the tabs the archive closed (decided 2026-10-28), and its later and needs-you marks as they were, a session with no tab too. */
-function offerUndoArchive(key: string, removed: readonly RemovedTab[], later: Later | null, needsYou: NeedsYou | null): void {
+function offerUndoArchive(key: string, removed: readonly RemovedTab[], later: Later | null, needsYou: readonly NeedsYou[] | null): void {
   const session = sessionById(key) ?? removed[0]?.session;
   showToast(`Archived "${session ? sessionLabel(session) : key.slice(0, 8)}"`, false, {
     label: 'Undo',
@@ -742,7 +742,7 @@ function offerUndoArchive(key: string, removed: readonly RemovedTab[], later: La
         (archived) => {
           store.set({ archived: new Map(Object.entries(archived)) });
           if (later) markLater(key, later.due, later.at);
-          if (needsYou) markNeedsYou([key], needsYou.reason, needsYou.at);
+          if (needsYou) markNeedsYou([key], needsYou);
           putBack(removed);
         },
         () => showToast(`Couldn't unarchive "${session ? sessionLabel(session) : key.slice(0, 8)}"; unarchive it from the archived view`),

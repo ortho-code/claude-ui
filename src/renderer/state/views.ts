@@ -142,9 +142,15 @@ export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'ack
   for (const id of new Set([...before.statuses.keys(), ...after.statuses.keys()])) if (before.statuses.get(id) !== after.statuses.get(id)) ids.add(id);
   for (const id of new Set([...before.backgroundTasks.keys(), ...after.backgroundTasks.keys()])) if (!sameOrder(before.backgroundTasks.get(id) ?? [], after.backgroundTasks.get(id) ?? [])) ids.add(id);
   for (const id of new Set([...before.acked, ...after.acked])) if (before.acked.has(id) !== after.acked.has(id)) ids.add(id);
-  for (const id of new Set([...before.needsYou.keys(), ...after.needsYou.keys()])) if (before.needsYou.get(id)?.reason !== after.needsYou.get(id)?.reason) ids.add(id);
+  // Every reason and its time, since a reason added beside another, or a newer one lifting a later mark's mute, changes the dot or its tooltip.
+  for (const id of new Set([...before.needsYou.keys(), ...after.needsYou.keys()])) if (!sameReasons(before.needsYou.get(id) ?? [], after.needsYou.get(id) ?? [])) ids.add(id);
   for (const id of new Set([...before.later.keys(), ...after.later.keys()])) if (before.later.get(id) !== after.later.get(id)) ids.add(id);
   return ids;
+}
+
+/** Whether two lists of a session's reasons are the same reasons from the same times, in the same order. */
+function sameReasons(a: readonly NeedsYou[], b: readonly NeedsYou[]): boolean {
+  return a.length === b.length && a.every((reason, i) => reason.reason === b[i]?.reason && reason.at === b[i].at);
 }
 
 /** The sessions whose tab says something else in their dot between two readings of the tabs (`tabDot`), such as one whose claude was asked to leave: what a change of the tabs asks a session's dot to repaint (`dotStatus`). */
@@ -168,7 +174,7 @@ export function shownRead(id: string, shown: string | undefined, view: View<'ack
   return view.acked.has(id) || (shown === 'needs' && mutedNeedsYou(view).has(id));
 }
 
-let muted: { needsYou: ReadonlyMap<string, NeedsYou>; later: ReadonlyMap<string, Later>; ids: ReadonlySet<string> } | null = null;
+let muted: { needsYou: ReadonlyMap<string, readonly NeedsYou[]>; later: ReadonlyMap<string, Later>; ids: ReadonlySet<string> } | null = null;
 
 /**
  * The sessions whose needs-you mark their later mark mutes (`mutedByLater`): what every dot and roll-up reads as read, and what does not widen the strip's membership.

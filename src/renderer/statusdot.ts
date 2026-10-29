@@ -33,7 +33,7 @@ export function statusText(id: string, view: View<'statuses' | 'backgroundTasks'
 }
 
 /**
- * Every state a session is in, each with its dot, for its menu's header: what its tab says, its status as its hooks last reported it, and its needs-you mark, in that order, where its one dot shows only the strongest of them (`dotStatus`).
+ * Every state a session is in, each with its dot, for its menu's header: what its tab says, its status as its hooks last reported it, and its needs-you mark, a line per reason, in that order, where its one dot shows only the strongest of them (`dotStatus`).
  * The read mark dims the state the dot shows, as it dims the dot, and a needs-you mark its later mark mutes is dimmed wherever it is.
  */
 export function statusLines(id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'later' | 'tabs'>): { text: string; dot: string }[] {
@@ -41,9 +41,10 @@ export function statusLines(id: string, view: View<'statuses' | 'backgroundTasks
   const shown = dotStatus(id, view);
   const needsYou = view.needsYou.get(id);
   const states = [tab && tabDot(tab), view.statuses.get(id), needsYou ? 'needs' : undefined].filter((state): state is string => Boolean(state));
-  return states.map((state) => {
+  return states.flatMap((state) => {
     const read = (view.acked.has(id) && state === shown) || (state === 'needs' && mutedNeedsYou(view).has(id));
-    return { text: statusLabel(state, read, view.backgroundTasks.get(id), needsYou) ?? state, dot: sessionDotClass(state, read) };
+    const text = statusLabel(state, read, view.backgroundTasks.get(id), needsYou) ?? state;
+    return text.split('\n').map((line) => ({ text: line, dot: sessionDotClass(state, read) }));
   });
 }
 

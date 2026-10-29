@@ -43,7 +43,7 @@ test("with stoppedTabButton archive, a middle-click on a stopped tab archives it
 });
 
 test("with stoppedTabButton archive, a stopped tab's strip row button archives its session", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: archiving, needsYou: { [one.id]: { reason: 'quit', at: 1 } } });
+  await app.boot({ ...fixture, settings: archiving, needsYou: { [one.id]: [{ reason: 'quit', at: 1 }] } });
   const stop = stripRow(page, one.title).locator('.strip-item-stop');
   await expect(stop).toHaveAttribute('data-mark', 'archive');
   await stop.click();

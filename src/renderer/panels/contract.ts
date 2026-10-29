@@ -86,8 +86,8 @@ export interface LinkedSession {
   status: string | null;
   /** For a `background` status, what still runs behind its finished turn, by the type claude gives each piece of work; empty when nothing is known. */
   background: readonly string[];
-  /** For a `needs` status, why it needs you and since when; null otherwise. */
-  needsYou: NeedsYou | null;
+  /** For a `needs` status, every reason it needs you for, each with since when; null otherwise. */
+  needsYou: readonly NeedsYou[] | null;
   /** Its dot marked read, or showing a needs-you mark its later mark mutes, which looks read (`shownRead`). */
   acked: boolean;
   /** A tab holds it with its process live. */

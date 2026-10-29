@@ -517,7 +517,7 @@ describe('projectsForSwitcher', () => {
 
   // A session marked as needing you counts where claude says nothing more pressing: over idle, under waiting, and not while claude works.
   it('rolls up a needs-you mark between waiting and idle, and not over busy', () => {
-    const mark = { reason: 'quit' as const, at: 1 };
+    const mark = [{ reason: 'quit' as const, at: 1 }];
     const statuses = new Map([
       ['a2', 'idle'],
       ['b1', 'waiting'],
@@ -925,14 +925,21 @@ describe('statusLabel', () => {
   });
 
   it('says why a session needs you, by how the app closed while it ran', () => {
-    expect(statusLabel('needs', false, [], { reason: 'quit', at: 1 })).toBe('Needs you — was running when the app quit');
-    expect(statusLabel('needs', false, [], { reason: 'ended', at: 1 })).toBe('Needs you — was running when the app ended without quitting');
-    expect(statusLabel('needs', false, [], { reason: 'unknown', at: 1 })).toBe('Needs you — was running when the app last closed');
-    expect(statusLabel('needs', true, [], { reason: 'quit', at: 1 })).toBe('Needs you — was running when the app quit (read)');
+    expect(statusLabel('needs', false, [], [{ reason: 'quit', at: 1 }])).toBe('Needs you — was running when the app quit');
+    expect(statusLabel('needs', false, [], [{ reason: 'ended', at: 1 }])).toBe('Needs you — was running when the app ended without quitting');
+    expect(statusLabel('needs', false, [], [{ reason: 'unknown', at: 1 }])).toBe('Needs you — was running when the app last closed');
+    expect(statusLabel('needs', true, [], [{ reason: 'quit', at: 1 }])).toBe('Needs you — was running when the app quit (read)');
   });
 
   it('says which day a reminder was for, from when it was marked', () => {
-    expect(statusLabel('needs', false, [], { reason: 'reminder', at: new Date(2026, 10, 2, 9).getTime() })).toBe('Needs you — reminder for Mon 2 Nov, 09:00');
+    expect(statusLabel('needs', false, [], [{ reason: 'reminder', at: new Date(2026, 10, 2, 9).getTime() }])).toBe('Needs you — reminder for Mon 2 Nov, 09:00');
+  });
+
+  it('lists every reason on a line of its own, how the app closed before a reminder, each saying it is read', () => {
+    const reminder = { reason: 'reminder' as const, at: new Date(2026, 10, 2, 9).getTime() };
+    const reasons = [reminder, { reason: 'quit' as const, at: reminder.at + 1 }];
+    expect(statusLabel('needs', false, [], reasons)).toBe('Needs you — was running when the app quit\nNeeds you — reminder for Mon 2 Nov, 09:00');
+    expect(statusLabel('needs', true, [], [...reasons].reverse())).toBe('Needs you — was running when the app quit (read)\nNeeds you — reminder for Mon 2 Nov, 09:00 (read)');
   });
 
   it('names a session on its way to a stop, and never as read, since its claude is leaving', () => {

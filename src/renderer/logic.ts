@@ -711,13 +711,22 @@ const STATUS_LABEL: Record<string, string> = {
   stopping: 'Stopping — waiting for claude to leave',
 };
 
-/** What a session marked as needing you shows (`shownStatus`), by why it was marked: how the app closed while it ran, or the day you set it aside for, from when it was marked. */
+/** What a session marked as needing you shows (`shownStatus`), a line per reason: how the app closed while it ran, or the day you set it aside for, from when it was marked. */
 const NEEDS_LABEL: Record<NeedsYouReason, (at: number) => string> = {
   quit: () => 'Needs you — was running when the app quit',
   ended: () => 'Needs you — was running when the app ended without quitting',
   unknown: () => 'Needs you — was running when the app last closed',
   reminder: (at) => `Needs you — reminder for ${momentLabel(at)}`,
 };
+
+/** Where a reason is listed among a session's others, lowest first: how the app closed, then a reminder. */
+const NEEDS_RANK: Record<NeedsYouReason, number> = { quit: 0, ended: 0, unknown: 0, reminder: 1 };
+
+/** A session's reasons as they are listed, in its dot's tooltip and its menu's header alike: by rank (`NEEDS_RANK`), and within a rank newest first (decided 2026-10-29). */
+export function needsYouLines(reasons: readonly NeedsYou[] | undefined): string[] {
+  if (!reasons?.length) return [NEEDS_LABEL.unknown(0)];
+  return [...reasons].sort((a, b) => NEEDS_RANK[a.reason] - NEEDS_RANK[b.reason] || b.at - a.at).map(({ reason, at }) => NEEDS_LABEL[reason](at));
+}
 
 /** A day as the later mark names it: "Mon 3 Nov", in the app's own short form whatever the system's language, as the rest of its words are English. */
 export function dayLabel(at: number): string {
@@ -760,17 +769,17 @@ export function laterLabel(later: Later): string {
  * That only works while everything reaching here is MEANT to be a state — the identity marker `start` is not, and is filtered out where it is read rather than hidden here.
  *
  * `background` also says what still runs, from the type claude gives each piece of work (`background`), counted per type: "2 shells, 1 subagent".
- * `needs` says why, from the session's mark (`needsYou`).
+ * `needs` says why, a line per reason, from the session's mark (`needsYouLines`); each line says it is read.
  */
-export function statusLabel(status: string | undefined, isAcked = false, background: readonly string[] = [], needsYou?: NeedsYou): string | null {
+export function statusLabel(status: string | undefined, isAcked = false, background: readonly string[] = [], needsYou?: readonly NeedsYou[]): string | null {
   if (!status) return null;
-  const label =
+  const lines =
     status === 'background' && background.length > 0
-      ? `${STATUS_LABEL.background}: ${countedTypes(background)}`
+      ? [`${STATUS_LABEL.background}: ${countedTypes(background)}`]
       : status === 'needs'
-        ? NEEDS_LABEL[needsYou?.reason ?? 'unknown'](needsYou?.at ?? 0)
-        : (STATUS_LABEL[status] ?? status);
-  return showsRead(status, isAcked) ? `${label} (read)` : label;
+        ? needsYouLines(needsYou)
+        : [STATUS_LABEL[status] ?? status];
+  return lines.map((line) => (showsRead(status, isAcked) ? `${line} (read)` : line)).join('\n');
 }
 
 /** "2 shells, 1 subagent": each type once, in the order it first appears, with how many there are. */

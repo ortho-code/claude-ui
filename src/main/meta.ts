@@ -68,10 +68,10 @@ interface Meta {
    */
   notes: Record<string, string>;
   /**
-   * The sessions marked as needing you, by session id: why, and since when.
+   * The sessions marked as needing you, by session id: every reason, each with since when.
    * Kept whether or not a tab holds the session, so a mark outlives a launch that leaves it unopened, until the window takes it off for a prompt there, Clear needs you, a close or your leaving claude, or main does for an archive or a delete.
    */
-  needsYou: Record<string, NeedsYou>;
+  needsYou: Record<string, NeedsYou[]>;
   /**
    * The sessions you set aside for later, by session id: the day each comes back as needing you, or none for whenever, and since when.
    * Kept whether or not a tab holds the session, until the window takes it off for a prompt there or Clear later, its day comes (`cameDue`), or main does for an archive or a delete.
@@ -652,14 +652,14 @@ export function setScheduledWhenStopped(bySession: Record<string, unknown>): Pro
 }
 
 /** The sessions marked as needing you; see `needsYou`. */
-export function getNeedsYou(): Promise<Record<string, NeedsYou>> {
+export function getNeedsYou(): Promise<Record<string, NeedsYou[]>> {
   return serialize(async () => (await readMeta()).needsYou);
 }
 
-/** Mark sessions as needing you, for `reason`; one already marked takes the newer reason. */
-export function markNeedsYou(ids: string[], reason: NeedsYouReason, at = Date.now()): Promise<void> {
+/** Mark sessions as needing you for `reasons`, each beside a session's other reasons and replacing one of its kind (`markedNeedsYou`). */
+export function markNeedsYou(ids: string[], reasons: NeedsYou[]): Promise<void> {
   return update('markNeedsYou', (meta) => {
-    meta.needsYou = markedNeedsYou(meta.needsYou, ids, reason, at);
+    meta.needsYou = markedNeedsYou(meta.needsYou, ids, reasons);
   });
 }
 
@@ -670,14 +670,20 @@ export function clearNeedsYou(id: string): Promise<void> {
   });
 }
 
-/** Session -> its needs-you mark, from whatever was stored, an entry without a reason this build knows or a time left out. */
-function needsYouOf(raw: unknown): Record<string, NeedsYou> {
+/**
+ * Session -> every reason it needs you for, from whatever was stored: a reason this build does not know or without a time left out, and a session left with none dropped.
+ * A single reason, as a file from before a session kept every reason holds it, is read as a list of one.
+ */
+function needsYouOf(raw: unknown): Record<string, NeedsYou[]> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
   return Object.fromEntries(
     Object.entries(raw as Record<string, unknown>).flatMap(([id, entry]) => {
-      if (typeof entry !== 'object' || entry === null) return [];
-      const { reason, at } = entry as Record<string, unknown>;
-      return NEEDS_YOU_REASONS.includes(reason as NeedsYouReason) && typeof at === 'number' ? [[id, { reason: reason as NeedsYouReason, at }]] : [];
+      const reasons = (Array.isArray(entry) ? entry : [entry]).flatMap((item: unknown): NeedsYou[] => {
+        if (typeof item !== 'object' || item === null) return [];
+        const { reason, at } = item as Record<string, unknown>;
+        return NEEDS_YOU_REASONS.includes(reason as NeedsYouReason) && typeof at === 'number' ? [{ reason: reason as NeedsYouReason, at }] : [];
+      });
+      return reasons.length > 0 ? [[id, reasons]] : [];
     }),
   );
 }

@@ -188,36 +188,59 @@ describe('running sessions', () => {
 });
 
 describe('sessions that need you', () => {
-  it('are marked with why and since when, a newer reason over an older, and taken off one at a time', async () => {
+  it('are marked with every reason and since when, one of a kind replacing the last, and taken off one session at a time', async () => {
     expect(await getNeedsYou()).toEqual({});
-    await markNeedsYou(['a', 'b'], 'ended');
-    await markNeedsYou(['a'], 'quit');
-    const marked = await getNeedsYou();
-    expect(marked).toMatchObject({ a: { reason: 'quit' }, b: { reason: 'ended' } });
-    expect(marked.a.at).toBeGreaterThan(0);
+    await markNeedsYou(['a', 'b'], [{ reason: 'ended', at: 1 }]);
+    await markNeedsYou(['a'], [{ reason: 'reminder', at: 2 }]);
+    await markNeedsYou(['a'], [{ reason: 'quit', at: 3 }]);
+    expect(await getNeedsYou()).toEqual({
+      a: [
+        { reason: 'reminder', at: 2 },
+        { reason: 'quit', at: 3 },
+      ],
+      b: [{ reason: 'ended', at: 1 }],
+    });
     await clearNeedsYou('a');
     expect(Object.keys(await getNeedsYou())).toEqual(['b']);
   });
 
   // Kept per session, not per tab: a mark outlives the tabs being written again, as every launch writes them.
   it('stay through the open tabs being written', async () => {
-    await markNeedsYou(['a'], 'quit');
+    await markNeedsYou(['a'], [{ reason: 'quit', at: 1 }]);
     await setOpenSessions(['b'], []);
     expect(Object.keys(await getNeedsYou())).toEqual(['a']);
   });
 
   it('are taken off by an archive, and forgotten by a delete', async () => {
-    await markNeedsYou(['a', 'b'], 'quit');
+    await markNeedsYou(['a', 'b'], [{ reason: 'quit', at: 1 }]);
     await archive('a');
     await purgeSession('b');
     expect(await getNeedsYou()).toEqual({});
   });
 
-  it('are none in a file written before they were kept, and an entry without a reason this build knows or a time is dropped', async () => {
+  it('are none in a file written before they were kept, and a reason this build does not know or without a time is dropped', async () => {
     await writeMetaFile({ version: 3 });
     expect(await getNeedsYou()).toEqual({});
-    await writeMetaFile({ version: 3, needsYou: { a: { reason: 'quit', at: 5 }, b: { reason: 'pr', at: 5 }, c: { reason: 'ended' }, d: 'yes', e: { reason: 'reminder', at: 7 } } });
-    expect(await getNeedsYou()).toEqual({ a: { reason: 'quit', at: 5 }, e: { reason: 'reminder', at: 7 } });
+    await writeMetaFile({
+      version: 3,
+      needsYou: {
+        a: [{ reason: 'quit', at: 5 }],
+        b: [{ reason: 'nonsense', at: 5 }],
+        c: [{ reason: 'ended' }],
+        d: 'yes',
+        e: [
+          { reason: 'reminder', at: 7 },
+          { reason: 'nonsense', at: 8 },
+        ],
+      },
+    });
+    expect(await getNeedsYou()).toEqual({ a: [{ reason: 'quit', at: 5 }], e: [{ reason: 'reminder', at: 7 }] });
+  });
+
+  // A file from before a session kept every reason holds one reason per session.
+  it('read a single reason, as an older file holds it, as a list of one', async () => {
+    await writeMetaFile({ version: 3, needsYou: { a: { reason: 'quit', at: 5 }, b: { reason: 'nonsense', at: 5 } } });
+    expect(await getNeedsYou()).toEqual({ a: [{ reason: 'quit', at: 5 }] });
   });
 });
 
@@ -242,13 +265,13 @@ describe('the later marks', () => {
   });
 
   it('come due as needing you, keeping a reason the session already had', async () => {
-    await markNeedsYou(['a'], 'quit', 5);
+    await markNeedsYou(['a'], [{ reason: 'quit', at: 5 }]);
     await markLater('a', 100, 10);
     await markLater('b', 100, 10);
     await markLater('c', 300, 10);
     await laterCameDue(150);
     expect(await getLater()).toEqual({ c: { due: 300, at: 10 } });
-    expect(await getNeedsYou()).toEqual({ a: { reason: 'quit', at: 5 }, b: { reason: 'reminder', at: 100 } });
+    expect(await getNeedsYou()).toEqual({ a: [{ reason: 'quit', at: 5 }], b: [{ reason: 'reminder', at: 100 }] });
   });
 
   it('are none in a file written before they were kept, and an entry without a time or with a day that is not one is dropped', async () => {

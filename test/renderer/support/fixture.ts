@@ -17,7 +17,7 @@ export interface BridgeFixture {
   archiveFails: string | null;
   notes: Record<string, string>;
   /** Session -> why it needs you, as meta keeps it; marked and cleared by main's own rules. */
-  needsYou: Record<string, NeedsYou>;
+  needsYou: Record<string, NeedsYou[]>;
   /** Session -> the day it comes back and when it was set aside, as meta keeps it; marked, cleared and come due by main's own rules. */
   later: Record<string, Later>;
   /** How the app closed before this window, as main's log says. */

@@ -156,6 +156,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The date filter's calendar starts its weeks on the first day of the language for times and dates, Monday for en-GB and nl-NL, as Pick a date…'s does.
 - Later takes over from pausing a tab: Pause and Force pause are gone from a session's options, the paused filter is a filter for the sessions marked for later, and the live strip lists only what runs or needs you, so its line no longer counts paused tabs.
   A tab you had paused comes back as an ordinary stopped tab, its session set aside for later, whenever.
+- A session that needs you for more than one reason, such as a reminder and running when the app quit, keeps them all, each on a line of its own in its dot's tooltip and at the top of its options, where the newest used to replace the others.
 
 ### Fixed
 

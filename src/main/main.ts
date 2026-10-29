@@ -86,7 +86,7 @@ import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
 import { transcriptChanged } from './transcriptends';
 import { NO_TRANSCRIPT } from '../shared/history';
-import type { HistoryPin, HistorySlice, NeedsYouReason, OrderMove, UiState } from '../shared/types';
+import type { HistoryPin, HistorySlice, NeedsYou, OrderMove, UiState } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -496,8 +496,8 @@ ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: strin
 });
 ipcMain.handle('meta:getRunningSessions', () => getRunningSessions());
 ipcMain.handle('meta:getNeedsYou', () => getNeedsYou());
-ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reason: NeedsYouReason, at?: number) => {
-  void markNeedsYou(ids, reason, at);
+ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reasons: NeedsYou[]) => {
+  void markNeedsYou(ids, reasons);
 });
 ipcMain.on('meta:clearNeedsYou', (_event, id: string) => {
   void clearNeedsYou(id);

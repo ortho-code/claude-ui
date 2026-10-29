@@ -17,7 +17,7 @@ const inSecond = session({ id: '00000000-0000-4000-8000-0000000000e3', title: 'I
 const elsewhere = session({ id: '00000000-0000-4000-8000-0000000000e4', title: 'In other', cwd: OTHER, repoRoot: OTHER });
 const all = [loose, inFirst, inSecond, elsewhere];
 /** These sessions marked as needing you, as the sessions running at a quit come back: what lists a cold tab in the strip. */
-const needing = (...sessions: SessionSummary[]): Record<string, { reason: 'quit'; at: number }> => Object.fromEntries(sessions.map((s) => [s.id, { reason: 'quit', at: 1 }]));
+const needing = (...sessions: SessionSummary[]): Record<string, { reason: 'quit'; at: number }[]> => Object.fromEntries(sessions.map((s) => [s.id, [{ reason: 'quit', at: 1 }]]));
 
 test('the live strip lists running sessions in the order you set, and keeps still while they work', async ({ app, page }) => {
   await app.boot({

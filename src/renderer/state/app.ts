@@ -44,10 +44,10 @@ export interface AppState {
   /** Entity key -> its note; a session without one is absent, since a blank note deletes it. */
   notes: ReadonlyMap<string, string>;
   /**
-   * Entity key -> why it needs you and since when: what main keeps in `meta.json`, kept here by the same rules (`markedNeedsYou`, `clearedNeedsYou`), each change sent to main as it is made.
+   * Entity key -> every reason it needs you for, each with since when: what main keeps in `meta.json`, kept here by the same rules (`markedNeedsYou`, `clearedNeedsYou`), each change sent to main as it is made.
    * Drawn in the session's dot where claude says nothing more pressing (`dotStatus`).
    */
-  needsYou: ReadonlyMap<string, NeedsYou>;
+  needsYou: ReadonlyMap<string, readonly NeedsYou[]>;
   /**
    * Entity key -> the day it comes back and since when it was set aside: what main keeps in `meta.json`, kept here by the same rules (`markedLater`, `clearedLater`, `cameDue`), each change sent to main as it is made.
    * Mutes a needs-you mark it came after (`mutedByLater`).

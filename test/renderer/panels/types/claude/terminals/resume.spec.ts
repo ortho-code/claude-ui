@@ -35,7 +35,7 @@ test('by default the sessions that were running come back marked as needing you,
   expect(await app.calls('startTerminal')).toEqual([]);
   expect((await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), []]);
   // From the time the window marked them with, so main's copy and the window's agree.
-  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], 'quit', expect.any(Number)]]);
+  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], [{ reason: 'quit', at: expect.any(Number) }]]]);
   for (const s of [one, two, gone]) await expect(tab(page, s.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(tab(page, three.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
   await expect(stripNames(page)).toHaveText([one.title, two.title, gone.title]);
@@ -52,7 +52,7 @@ for (const [lastClosed, said] of WHY) {
   test(`the mark says why, after a close the log calls ${lastClosed}`, async ({ app, page }) => {
     await app.boot({ ...fixture, lastClosed });
     await expect(tab(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', `Needs you — was running ${said}`);
-    expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], lastClosed, expect.any(Number)]]);
+    expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], [{ reason: lastClosed, at: expect.any(Number) }]]]);
   });
 }
 
@@ -67,10 +67,22 @@ test('a session marked at launch forgets the status its file still held', async 
 
 // Kept per session: a launch that leaves a marked tab unopened leaves the next launch nothing running to mark, and the mark from before stays, with its reason.
 test('a marked session left unopened through a launch is still marked at the next, with its first reason', async ({ app, page }) => {
-  await app.boot({ ...fixture, runningSessions: [], needsYou: { [two.id]: { reason: 'ended', at: 1 } }, lastClosed: 'quit' });
+  await app.boot({ ...fixture, runningSessions: [], needsYou: { [two.id]: [{ reason: 'ended', at: 1 }] }, lastClosed: 'quit' });
   await expect(tab(page, two.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(tab(page, two.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — was running when the app ended without quitting');
   expect(await app.calls('markNeedsYou')).toEqual([]);
+});
+
+// A session keeps every reason it needs you for (decided 2026-10-29): a launch adds how the app closed beside a reminder that came due, and replaces only how it closed before.
+test('a session that was running comes back with how the app closed beside its reminder, listed first', async ({ app, page }) => {
+  const day = new Date(2026, 10, 2, 9).getTime();
+  await app.boot({ ...fixture, needsYou: { [one.id]: [{ reason: 'reminder', at: day }], [two.id]: [{ reason: 'ended', at: 1 }] } });
+  await expect(tab(page, one.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit\nNeeds you — reminder for Mon 2 Nov, 09:00');
+  await expect(tab(page, two.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit');
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou[window.__claudeUiFixture.sessions[0].id])).toEqual([
+    { reason: 'reminder', at: day },
+    { reason: 'quit', at: expect.any(Number) },
+  ]);
 });
 
 test('chosen to start, the sessions that were running start again, the one on show and those out of sight alike, at the same size', async ({ app, page }) => {
@@ -88,7 +100,7 @@ test('chosen to start, the sessions that were running start again, the one on sh
   await expect(tab(page, gone.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(page.locator('#toast')).toBeHidden();
   // Started, they keep the mark until a prompt there.
-  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], 'quit', expect.any(Number)]]);
+  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], [{ reason: 'quit', at: expect.any(Number) }]]]);
   await expect(tab(page, two.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect.poll(async () => (await app.calls('setOpenSessions')).at(-1)).toEqual([all.map((s) => s.id), [one.id, two.id]]);
 
@@ -123,7 +135,7 @@ test('a session set aside for later that was running comes back as the others do
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
   const launches = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
   expect(launches.map(([, launch]) => launch.resumeSessionId)).toEqual([one.id, two.id]);
-  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], 'quit', expect.any(Number)]]);
+  expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], [{ reason: 'quit', at: expect.any(Number) }]]]);
   await expect(tab(page, two.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(tab(page, two.title).locator('.nudge')).not.toHaveClass(/\backed\b/);
   await expect(tab(page, two.title).locator('.tab-later')).toBeVisible();

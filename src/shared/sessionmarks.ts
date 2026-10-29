@@ -9,7 +9,7 @@ export interface SessionMarks {
   pinned: string[];
   archived: Record<string, number>;
   notes: Record<string, string>;
-  needsYou: Record<string, NeedsYou>;
+  needsYou: Record<string, NeedsYou[]>;
   later: Record<string, Later>;
 }
 
@@ -29,13 +29,30 @@ export function archivedFrom(archived: Readonly<Record<string, number>>, id: str
 /** Every reason a session can need you for, as `meta.json` may hold them. */
 export const NEEDS_YOU_REASONS: readonly NeedsYouReason[] = ['quit', 'ended', 'unknown', 'reminder'];
 
-/** Sessions marked as needing you, for `reason`, from `now`: a session already marked takes the newer reason. */
-export function markedNeedsYou(needsYou: Readonly<Record<string, NeedsYou>>, ids: readonly string[], reason: NeedsYouReason, now: number): Record<string, NeedsYou> {
-  return { ...needsYou, ...Object.fromEntries(ids.map((id) => [id, { reason, at: now }])) };
+/** What a reason replaces when it is added: how the app closed replaces how it closed before, a reminder the reminder before. */
+function kindOf({ reason }: NeedsYou): string {
+  return reason === 'reminder' ? 'reminder' : 'launch';
 }
 
-/** A needs-you mark gone, whether or not it was there. */
-export function clearedNeedsYou(needsYou: Readonly<Record<string, NeedsYou>>, id: string): Record<string, NeedsYou> {
+/**
+ * Sessions marked as needing you for `reasons`: each added beside the reasons a session already has, replacing one of its kind, so a session picked up again still says every reason it needed you for (decided 2026-10-29).
+ * No sessions or no reasons is no change.
+ */
+export function markedNeedsYou(needsYou: Readonly<Record<string, readonly NeedsYou[]>>, ids: readonly string[], reasons: readonly NeedsYou[]): Record<string, NeedsYou[]> {
+  const next = Object.fromEntries(Object.entries(needsYou).map(([id, list]) => [id, [...list]]));
+  if (reasons.length === 0) return next;
+  const kinds = new Set(reasons.map(kindOf));
+  for (const id of ids) next[id] = [...(next[id] ?? []).filter((reason) => !kinds.has(kindOf(reason))), ...reasons];
+  return next;
+}
+
+/** When a session's newest reason was marked; 0 for none. */
+export function newestAt(reasons: readonly NeedsYou[]): number {
+  return Math.max(0, ...reasons.map((reason) => reason.at));
+}
+
+/** A needs-you mark gone, every reason with it, whether or not it was there. */
+export function clearedNeedsYou<T extends readonly NeedsYou[]>(needsYou: Readonly<Record<string, T>>, id: string): Record<string, T> {
   const next = { ...needsYou };
   delete next[id];
   return next;
@@ -55,26 +72,26 @@ export function clearedLater(later: Readonly<Record<string, Later>>, id: string)
 
 /**
  * The later marks whose day has come by `now` settled: each goes, and its session needs you — for what it already needed you for, if anything, or else for the reminder, marked from the day it was for.
- * A mark it already had is kept rather than replaced, reason and time, so a session picked up again still says why it needed you (decided 2026-10-29).
+ * A session that already needs you gets no reminder beside its reasons: the later mark going is what lights them up again (decided 2026-10-29).
  */
-export function cameDue(marks: Readonly<Pick<SessionMarks, 'needsYou' | 'later'>>, now: number): Pick<SessionMarks, 'needsYou' | 'later'> {
+export function cameDue(marks: { needsYou: Readonly<Record<string, readonly NeedsYou[]>>; later: Readonly<Record<string, Later>> }, now: number): Pick<SessionMarks, 'needsYou' | 'later'> {
   const due = Object.entries(marks.later).filter(([, mark]) => mark.due !== null && mark.due <= now);
-  if (due.length === 0) return { needsYou: { ...marks.needsYou }, later: { ...marks.later } };
-  const needsYou = { ...marks.needsYou };
+  const needsYou = Object.fromEntries(Object.entries(marks.needsYou).map(([id, reasons]) => [id, [...reasons]]));
+  if (due.length === 0) return { needsYou, later: { ...marks.later } };
   const later = { ...marks.later };
   for (const [id, mark] of due) {
     delete later[id];
-    needsYou[id] ??= { reason: 'reminder', at: mark.due! };
+    if (!needsYou[id]?.length) needsYou[id] = [{ reason: 'reminder', at: mark.due! }];
   }
   return { needsYou, later };
 }
 
 /**
- * Whether a session's needs-you mark is muted by its later mark: it needed you before you set it aside, so you have seen why and chose later (decided 2026-10-29).
- * A mark that came after it is news the later mark did not know of, and is not muted.
+ * Whether a session's needs-you mark is muted by its later mark: every reason came before you set it aside, so you have seen why and chose later (decided 2026-10-29).
+ * A reason that came after it is news the later mark did not know of, and none is muted.
  */
-export function mutedByLater(needsYou: NeedsYou | undefined, later: Later | undefined): boolean {
-  return needsYou !== undefined && later !== undefined && needsYou.at <= later.at;
+export function mutedByLater(needsYou: readonly NeedsYou[] | undefined, later: Later | undefined): boolean {
+  return needsYou !== undefined && needsYou.length > 0 && later !== undefined && newestAt(needsYou) <= later.at;
 }
 
 /** An archive entry gone, whether or not it was there. */

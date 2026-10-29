@@ -33,20 +33,57 @@ describe('unarchived', () => {
 });
 
 describe('markedNeedsYou', () => {
-  it('marks each session for the reason given, from the time given, a session already marked taking the newer reason', () => {
-    const needsYou = { a: { reason: 'ended' as const, at: 1 } };
-    expect(markedNeedsYou(needsYou, ['a', 'b'], 'quit', 42)).toEqual({ a: { reason: 'quit', at: 42 }, b: { reason: 'quit', at: 42 } });
-    expect(markedNeedsYou(needsYou, [], 'quit', 42)).toEqual(needsYou);
-    expect(needsYou).toEqual({ a: { reason: 'ended', at: 1 } });
+  it('adds the reasons given to each session, beside the reasons it already has', () => {
+    const needsYou = { a: [{ reason: 'reminder' as const, at: 1 }] };
+    expect(markedNeedsYou(needsYou, ['a', 'b'], [{ reason: 'quit', at: 42 }])).toEqual({
+      a: [
+        { reason: 'reminder', at: 1 },
+        { reason: 'quit', at: 42 },
+      ],
+      b: [{ reason: 'quit', at: 42 }],
+    });
+    expect(needsYou).toEqual({ a: [{ reason: 'reminder', at: 1 }] });
+  });
+
+  it('replaces a reason of the same kind: one launch reason, one reminder', () => {
+    const needsYou = {
+      a: [
+        { reason: 'ended' as const, at: 1 },
+        { reason: 'reminder' as const, at: 2 },
+      ],
+    };
+    expect(markedNeedsYou(needsYou, ['a'], [{ reason: 'quit', at: 42 }])).toEqual({
+      a: [
+        { reason: 'reminder', at: 2 },
+        { reason: 'quit', at: 42 },
+      ],
+    });
+    expect(markedNeedsYou(needsYou, ['a'], [{ reason: 'reminder', at: 42 }])).toEqual({
+      a: [
+        { reason: 'ended', at: 1 },
+        { reason: 'reminder', at: 42 },
+      ],
+    });
+  });
+
+  it('changes nothing with no sessions or no reasons', () => {
+    const needsYou = { a: [{ reason: 'ended' as const, at: 1 }] };
+    expect(markedNeedsYou(needsYou, [], [{ reason: 'quit', at: 42 }])).toEqual(needsYou);
+    expect(markedNeedsYou(needsYou, ['b'], [])).toEqual(needsYou);
   });
 });
 
 describe('clearedNeedsYou', () => {
   it('takes the mark off, and leaves a session that has none as it is', () => {
-    const needsYou = { a: { reason: 'quit' as const, at: 1 } };
+    const needsYou = {
+      a: [
+        { reason: 'quit' as const, at: 1 },
+        { reason: 'reminder' as const, at: 2 },
+      ],
+    };
     expect(clearedNeedsYou(needsYou, 'a')).toEqual({});
     expect(clearedNeedsYou(needsYou, 'b')).toEqual(needsYou);
-    expect(needsYou).toEqual({ a: { reason: 'quit', at: 1 } });
+    expect(needsYou.a).toHaveLength(2);
   });
 });
 
@@ -71,23 +108,33 @@ describe('clearedLater', () => {
 describe('cameDue', () => {
   it('turns a mark whose day has come into needing you, with the reminder from its day, and leaves the rest', () => {
     const marks = { needsYou: {}, later: { a: { due: 100, at: 1 }, b: { due: 200, at: 1 }, c: { due: null, at: 1 } } };
-    expect(cameDue(marks, 100)).toEqual({ needsYou: { a: { reason: 'reminder', at: 100 } }, later: { b: { due: 200, at: 1 }, c: { due: null, at: 1 } } });
+    expect(cameDue(marks, 100)).toEqual({ needsYou: { a: [{ reason: 'reminder', at: 100 }] }, later: { b: { due: 200, at: 1 }, c: { due: null, at: 1 } } });
     expect(marks.later).toEqual({ a: { due: 100, at: 1 }, b: { due: 200, at: 1 }, c: { due: null, at: 1 } });
   });
 
   it('keeps the reason a session already needed you for, so it still says why', () => {
-    const marks = { needsYou: { a: { reason: 'quit' as const, at: 5 } }, later: { a: { due: 100, at: 10 } } };
-    expect(cameDue(marks, 150)).toEqual({ needsYou: { a: { reason: 'quit', at: 5 } }, later: {} });
+    const marks = { needsYou: { a: [{ reason: 'quit' as const, at: 5 }] }, later: { a: { due: 100, at: 10 } } };
+    expect(cameDue(marks, 150)).toEqual({ needsYou: { a: [{ reason: 'quit', at: 5 }] }, later: {} });
   });
 });
 
 describe('mutedByLater', () => {
-  it('mutes a needs-you mark set before the later mark, and not one that came after it', () => {
-    expect(mutedByLater({ reason: 'quit', at: 5 }, { due: null, at: 10 })).toBe(true);
-    expect(mutedByLater({ reason: 'quit', at: 10 }, { due: null, at: 10 })).toBe(true);
-    expect(mutedByLater({ reason: 'quit', at: 15 }, { due: null, at: 10 })).toBe(false);
-    expect(mutedByLater({ reason: 'quit', at: 5 }, undefined)).toBe(false);
+  it('mutes a needs-you mark whose newest reason came before the later mark, and not one with a reason after it', () => {
+    expect(mutedByLater([{ reason: 'quit', at: 5 }], { due: null, at: 10 })).toBe(true);
+    expect(mutedByLater([{ reason: 'quit', at: 10 }], { due: null, at: 10 })).toBe(true);
+    expect(mutedByLater([{ reason: 'quit', at: 15 }], { due: null, at: 10 })).toBe(false);
+    expect(
+      mutedByLater(
+        [
+          { reason: 'reminder', at: 15 },
+          { reason: 'quit', at: 5 },
+        ],
+        { due: null, at: 10 },
+      ),
+    ).toBe(false);
+    expect(mutedByLater([{ reason: 'quit', at: 5 }], undefined)).toBe(false);
     expect(mutedByLater(undefined, { due: null, at: 10 })).toBe(false);
+    expect(mutedByLater([], { due: null, at: 10 })).toBe(false);
   });
 });
 
@@ -97,11 +144,11 @@ describe('withoutSession', () => {
       pinned: ['a', 'b'],
       archived: { a: 1, b: 2 },
       notes: { a: 'x', b: 'y' },
-      needsYou: { a: { reason: 'quit', at: 1 }, b: { reason: 'ended', at: 2 } },
+      needsYou: { a: [{ reason: 'quit', at: 1 }], b: [{ reason: 'ended', at: 2 }] },
       later: { a: { due: null, at: 1 }, b: { due: 9, at: 2 } },
     };
-    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], archived: { b: 2 }, notes: { b: 'y' }, needsYou: { b: { reason: 'ended', at: 2 } }, later: { b: { due: 9, at: 2 } } });
-    expect(marks.needsYou).toEqual({ a: { reason: 'quit', at: 1 }, b: { reason: 'ended', at: 2 } });
+    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], archived: { b: 2 }, notes: { b: 'y' }, needsYou: { b: [{ reason: 'ended', at: 2 }] }, later: { b: { due: 9, at: 2 } } });
+    expect(marks.needsYou).toEqual({ a: [{ reason: 'quit', at: 1 }], b: [{ reason: 'ended', at: 2 }] });
   });
 });
 
@@ -112,7 +159,7 @@ describe('purgedSession', () => {
       pinned: ['a', 'b'],
       archived: { a: 1 },
       notes: { a: 'x' },
-      needsYou: { a: { reason: 'quit' as const, at: 1 } },
+      needsYou: { a: [{ reason: 'quit' as const, at: 1 }] },
       later: { a: { due: null, at: 1 } },
       openSessions: ['a', 'b'],
       runningSessions: ['a', 'b'],
