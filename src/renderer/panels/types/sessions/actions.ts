@@ -12,7 +12,7 @@ import { clearLater, markLater } from '../../../state/later';
 import { clearNeedsYou } from '../../../state/needsyou';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
 import { isFiltering, projName, projectGroups, tabWith, unopenableReason } from '../../../state/views';
-import { showToast } from '../../../toast';
+import { copyText, showToast } from '../../../toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
 import { sessionHeader } from './describe';
@@ -33,16 +33,6 @@ export function withMoves(moves: MenuItem[], own: MenuItem[]): MenuItem[] {
 }
 
 // --- Session helpers ---
-
-// Copy to the clipboard with a small confirmation toast; the OS gives no visible cue otherwise.
-export async function copyText(text: string, confirmation: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
-    showToast(confirmation);
-  } catch {
-    showToast("Couldn't copy to the clipboard.");
-  }
-}
 
 // A session's siblings (the other members of its family), most recent first.
 // Shared by the count badge and the kebab submenu.

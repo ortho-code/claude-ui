@@ -59,6 +59,17 @@ export function showToast(message: string, sticky = false, action: ToastAction |
   // One with a button that comes up under the pointer is held at once, since no pointer entering it will say so.
   hideAfter(action && toast.matches(':hover') ? null : shownFor);
 }
+
+/** Copy to the clipboard with a small confirmation toast, since the OS gives no visible cue otherwise: one behaviour for every copy in the app, in each caller's own words. */
+export async function copyText(text: string, confirmation: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(confirmation);
+  } catch {
+    showToast("Couldn't copy to the clipboard.");
+  }
+}
+
 toastClose.innerHTML = closeIcon(14);
 toastClose.addEventListener('click', () => hideToast());
 toastAction.addEventListener('click', () => {
