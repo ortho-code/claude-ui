@@ -23,29 +23,28 @@ test('a change to the layout file keeps a running shell and does not run a comma
   expect(await runs(app, 'notes')).toEqual([]);
 });
 
-test('a hidden command does not run on a project switch, runs once when shown somewhere new, and not at all when shown back where it last ran', async ({ app, page }) => {
+test('a hidden command that has run follows a project switch, one that never ran waits to be shown, and a reveal where it last ran runs nothing', async ({ app, page }) => {
   await app.boot(withLayout(LAYOUT));
   const folders = async (entry: string): Promise<string[]> => (await runs(app, entry)).map((run) => run.context.cwd);
   await expect.poll(() => folders('status')).toEqual([PROJECT]);
-  await railItem(page, /^Checks/).click();
-  await expect.poll(() => folders('checks')).toEqual([PROJECT]);
 
-  // Checks on show follows the project; Status behind it stays put.
+  // Status on show follows the project; Checks behind it has never run, so it waits.
   await chooseProject(page, 'other');
-  await expect.poll(() => folders('checks')).toEqual([PROJECT, OTHER]);
+  await expect.poll(() => folders('status')).toEqual([PROJECT, OTHER]);
+  expect(await folders('checks')).toEqual([]);
+  await railItem(page, /^Checks/).click();
+  await expect.poll(() => folders('checks')).toEqual([OTHER]);
+
+  // Status behind Checks has run, so it follows too.
   await chooseProject(page, 'demo');
-  await expect.poll(() => folders('checks')).toEqual([PROJECT, OTHER, PROJECT]);
-  expect(await folders('status')).toEqual([PROJECT]);
+  await expect.poll(() => folders('checks')).toEqual([OTHER, PROJECT]);
+  await expect.poll(() => folders('status')).toEqual([PROJECT, OTHER, PROJECT]);
 
   // Shown in the folder it last ran in: nothing to run again.
   await railItem(page, /^Status/).click();
   await expect(railItem(page, /^Status/)).toHaveClass(/\bshown\b/);
-  await chooseProject(page, 'other');
-  await expect.poll(() => folders('status')).toEqual([PROJECT, OTHER]);
-  // Shown after the project moved while it was hidden: once, in the new folder.
-  await railItem(page, /^Checks/).click();
-  await expect.poll(() => folders('checks')).toEqual([PROJECT, OTHER, PROJECT, OTHER]);
-  expect(await folders('status')).toEqual([PROJECT, OTHER]);
+  expect(await folders('status')).toEqual([PROJECT, OTHER, PROJECT]);
+  expect(await folders('checks')).toEqual([OTHER, PROJECT]);
 });
 
 // A command beside claude and no shell, so the claudes are the only terminals, numbered from 1 in the order they start.

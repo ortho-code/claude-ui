@@ -26,7 +26,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   After a shell exits, any key starts a new one.
   The tabs come back at the next launch, and each shell starts again when its tab is shown, in the folder it was in when the app quit, on Linux.
   It takes the same `cwd`, and a `scope` to show the same tabs in every project, which a fixed `cwd` does unless told otherwise.
-- Several panels in one group, switched from a strip of icons whose dot says a command failed or a session is waiting for you; a panel out of sight keeps what it was doing and runs again only once shown, or on its interval.
+- Several panels in one group, switched from a strip of icons whose dot says a command failed or a session is waiting for you; a panel out of sight keeps what it was doing, and runs again on its interval and, once it has run, on a switch to another folder, so the count on its icon follows the switch once that run ends.
 - Folding a group of panels to its strip of icons, from a chevron on the divider beside it or by clicking the icon of the panel on show.
   `folded` in the layout file starts a group folded.
 - Clicking a group's name in the tab bar takes the session list to that group, as a project's name already does; either one flashes the heading it lands on.

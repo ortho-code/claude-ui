@@ -108,7 +108,7 @@ test('a change runs a panel out of sight too', async ({ app, page }) => {
   await expect(railItem(page, /^Status/)).not.toHaveClass(/\bshown\b/);
 });
 
-test('a switch to another folder is no change: a panel out of sight that ran in the first runs in the second only once shown again', async ({ app, page }) => {
+test('a switch to another folder runs a panel out of sight that ran in the first, and the second tree is no change', async ({ app, page }) => {
   await page.clock.install();
   await app.boot({ ...withStatus(true), trees: { [PROJECT]: 'clean', [OTHER]: 'other tree' } });
   const folders = async (): Promise<string[]> => (await runs(app, 'status')).map((run) => run.context.cwd);
@@ -119,11 +119,12 @@ test('a switch to another folder is no change: a panel out of sight that ran in 
   await looks(page, 1);
 
   await chooseProject(page, 'other');
-  await looks(page, 4);
-  expect(await folders()).toEqual([PROJECT]);
-
-  await railItem(page, /^Status/).click();
   await expect.poll(folders).toEqual([PROJECT, OTHER]);
+  await finish(app);
+  // The run in the second folder is its baseline: looking at its tree finds nothing new.
+  await looks(page, 4);
+  expect(await folders()).toEqual([PROJECT, OTHER]);
+  await expect(railItem(page, /^Status/)).not.toHaveClass(/\bshown\b/);
 });
 
 test('a panel taken out of the layout file asks git nothing more', async ({ app, page }) => {

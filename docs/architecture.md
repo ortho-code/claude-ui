@@ -1155,7 +1155,9 @@ The signature is whatever sits under `options`, with its keys sorted, so it know
 Moving an element resets its scroll offsets and drops its focus, so a rebuild carries both across.
 
 A panel behind another in its group, or in a folded group, keeps its DOM and its process: hiding stops nothing, and only removal from the file does.
-A context change does not run a hidden `command` panel; it is remembered as a difference, and the panel runs once when shown — and not at all if the context came back to where its last run was (`RunGate`, tested).
+A context change runs a hidden panel that has run before, as it runs a shown one, and runs nothing where the run would go where the last one went (`RunGate`, tested); one that has not run yet runs when first shown.
+Until 2026-10-30 a context change never ran a hidden panel, only noted the difference for its next reveal, so a folded panel's count on its rail stayed the folder's before the switch until it was opened or its interval next ran it, and a count from another folder says something false, as one that stops does.
+The count follows once the switch's run ends with a list; while it goes, or when it fails, the last list's count stays, as it does on show.
 One with an `interval` runs on it while hidden all the same (§ The `command` type).
 A `terminal` keeps its shells, and each refits from its own `ResizeObserver` once it has a size again.
 
@@ -1194,7 +1196,7 @@ The command runs in the panel's CONTEXT DIRECTORY — the active tab's cwd, else
 That is the one thing that differs between the two forms: a relative path INSIDE a command line is resolved by the shell against that directory, while a relative `script` resolves against the config folder, so the script travels with it.
 The context reaches the command as environment variables only for now (`CLAUDE_UI_PROJECT_ROOT`, `CLAUDE_UI_CWD`, `CLAUDE_UI_SESSION_ID`, `CLAUDE_UI_CONFIG_ROOT`); JSON on stdin joins when a second type wants it.
 With neither a tab nor a project the panel says "Pick a project to run this in." and runs nothing.
-It runs when first shown, on Refresh, and when its context changes, which a tab switch, a project switch and stopping the tab you are on all do, and so does the tab's own session changing under it, on a `/clear` or a move into another folder — but a context change never runs it while hidden (see A layout change keeps panels running).
+It runs when first shown, on Refresh, and when its context changes, which a tab switch, a project switch and stopping the tab you are on all do, and so does the tab's own session changing under it, on a `/clear` or a move into another folder, hidden or not once it has run (see A layout change keeps panels running).
 It also runs on its `interval`, if it has one.
 When it runs, the check before each run, each run's token, and asking main to run and to stop are one piece that this type and the list kind both go through (`PanelRuns` in `panels/runs.ts`, over the `RunGate`), so the two answer them by the same rules; each panel says only what it checks, what it runs, what it draws at each step, and the interval it runs on.
 
@@ -1428,7 +1430,7 @@ The `command` type still merges the two, in arrival order, since it shows what w
 Stderr's end is kept as the reason a failure gives: mise, for one, writes the task line there on every run.
 
 **When it runs.**
-On first being shown, on Refresh, on a context change while shown, as a `command` panel does, and on its interval, all through the same piece (`PanelRuns`, § The `command` type); the interval also runs while the panel is hidden or folded: the count on its rail icon is the point of a queue, and a count that stops while you are not looking says something false.
+On first being shown, on Refresh, on a context change once it has run, shown or not, as a `command` panel does, and on its interval, all through the same piece (`PanelRuns`, § The `command` type); the interval also runs while the panel is hidden or folded: the count on its rail icon is the point of a queue, and a count that stops while you are not looking says something false.
 The first run of a panel with an interval is when the tree goes live, shown or not.
 A run may say when it runs next through its control file, as a `command` panel's may (§ The `command` type); what the file gets wrong sits on the note line beside the type's notes and the list's own.
 `watch: git` runs it again when its working tree changes, as it does a `command` panel (§ The `command` type).

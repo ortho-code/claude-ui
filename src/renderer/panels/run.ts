@@ -237,8 +237,8 @@ function readNext(value: string, notes: Set<string>): NextRun {
 export const NO_CONTROL: Control = { next: null, notes: [] };
 
 /**
- * WHEN a panel that runs something runs, apart from what running does: on first being shown, on Refresh, on a context change while shown, and on its interval if it has one.
- * A context change while the panel is hidden is remembered as a difference, not queued as a run: it runs once on reveal, and not at all if the context came back to where the last run was.
+ * WHEN a panel that runs something runs, apart from what running does: on first being shown, on Refresh, on a context change once it has run, shown or not, and on its interval if it has one.
+ * A context change runs a hidden panel too once it has run, so a count on its rail follows the switch once that run ends rather than waiting for the panel to be shown (decided 2026-10-30); one that has not run yet runs on its first reveal, and a change that lands where the last run went runs nothing.
  * An interval runs it while hidden or folded too: from when the tree goes live, shown or not, and then a tick after the latest run ends or finds nowhere to run, so no tick starts while the latest run is still going.
  * A run may say when the next tick is itself (`readControl`): that delay, for that one tick, in place of the interval's, with or without one, or `off` for none.
  * A run whose check finds the panel cannot run sets no tick: the ticks start again when a later check finds it can (`rerun`).
@@ -250,6 +250,8 @@ export class RunGate {
   private live = false;
   /** The context key of the last run; null until the first, so the first reveal always runs. */
   private last: string | null = null;
+  /** A run has been let through at least once, which `rerun` does not forget: from then on a switch runs the panel hidden too. */
+  private ran = false;
   /** The number of the latest run let through, which `ended` is told back when that run ends or finds nowhere to run, and which `isLatest` answers against. */
   private latest = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -276,8 +278,9 @@ export class RunGate {
     return this.latest !== before;
   }
 
+  /** A panel that has run follows a switch shown or not, so its rail catches up with where it is now once that run ends; one that never ran waits to be shown. */
   contextChanged(): void {
-    if (this.visible && this.key() !== this.last) this.fire();
+    if ((this.visible || (this.live && this.ran)) && this.key() !== this.last) this.fire();
   }
 
   refresh(): void {
@@ -288,7 +291,7 @@ export class RunGate {
   rerun(): void {
     this.last = null;
     if (this.live && this.interval() !== null) this.fire();
-    else this.contextChanged();
+    else if (this.visible) this.contextChanged();
   }
 
   /**
@@ -326,6 +329,7 @@ export class RunGate {
   private fire(tick = false): void {
     this.unschedule();
     this.last = this.key();
+    this.ran = true;
     this.run(++this.latest, tick);
   }
 

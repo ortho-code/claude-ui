@@ -240,7 +240,7 @@ A field the app does not know is ignored, so a script written for a later versio
 
 ## What the app does with it
 
-A panel runs its script when it is first shown, on Refresh, when you switch project or tab if its folder moves with them, and on its `interval`, when its last run said (`next`, above), or when the tree it watches changes, any of which also runs while it is out of sight so the count on its icon stays current.
+A panel runs its script when it is first shown, on Refresh, when you switch project or tab if its folder moves with them and it has run before, and on its `interval`, when its last run said (`next`, above), or when the tree it watches changes, any of which also runs while it is out of sight so the count on its icon stays current.
 A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why; without one, the panel says it is unavailable, quoting stderr.
 Before the first run has ended it says it is waiting.
 

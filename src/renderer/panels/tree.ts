@@ -174,7 +174,7 @@ export function startPanels(): void {
 
 /**
  * The tab or project changed: let every panel decide whether that moved its context.
- * A hidden one only notes it (RunGate).
+ * A hidden one that has never run waits for its reveal (RunGate).
  */
 export function treeContextChanged(): void {
   for (const { panel } of mounted.values()) panel.contextChanged();

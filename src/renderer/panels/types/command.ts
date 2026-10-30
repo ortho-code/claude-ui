@@ -13,7 +13,7 @@ import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type 
  * A TYPE OWNS ITS OPTIONS: it declares them here, checks them itself (options.ts) when it is mounted and before every run, and tells the tree through its host when it cannot run.
  * The layout never reads them.
  * The same module owns the panel's body, and its runs through `PanelRuns`, which a list panel's go through too: the tree draws the chrome around it (tree.ts) and asks it to refresh or to follow a context change.
- * WHEN IT RUNS (`RunGate`): on first being shown, on Refresh, on a context change while shown, and on its `interval` if it has one, which also runs it while hidden or folded, as a list panel's does.
+ * WHEN IT RUNS (`RunGate`): on first being shown, on Refresh, on a context change once it has run, shown or not, and on its `interval` if it has one, which also runs it while hidden or folded, as a list panel's does.
  * A run the interval's timer starts holds the output on show, the header's word and the dot until it ends (`held`); a press or a switch starts the body afresh.
  */
 

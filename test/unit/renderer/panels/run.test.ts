@@ -32,7 +32,7 @@ describe('RunGate', () => {
     expect(state.runs).toEqual(['/repo', '/other']);
   });
 
-  it('holds a change made while hidden and runs it once on reveal', () => {
+  it('runs a panel that has run on each change while hidden, and not again on reveal', () => {
     const { g, state } = gate();
     g.setVisible(true);
     g.setVisible(false);
@@ -40,18 +40,37 @@ describe('RunGate', () => {
     g.contextChanged();
     state.context = '/b';
     g.contextChanged();
-    expect(state.runs).toEqual(['/repo']);
+    expect(state.runs).toEqual(['/repo', '/a', '/b']);
     g.setVisible(true);
-    expect(state.runs).toEqual(['/repo', '/b']);
+    expect(state.runs).toHaveLength(3);
   });
 
-  it('does not run on reveal when the context came back to where the last run was', () => {
+  it('holds a change made while hidden before the first run, and runs it on reveal', () => {
     const { g, state } = gate();
-    g.setVisible(true);
     g.setVisible(false);
     state.context = '/a';
     g.contextChanged();
-    state.context = '/repo';
+    expect(state.runs).toEqual([]);
+    g.setVisible(true);
+    expect(state.runs).toEqual(['/a']);
+  });
+
+  it('still follows a change while hidden after a rerun it held for the reveal', () => {
+    const { g, state } = gate();
+    g.setVisible(true);
+    g.setVisible(false);
+    g.rerun();
+    state.context = '/a';
+    g.contextChanged();
+    state.context = '/b';
+    g.contextChanged();
+    expect(state.runs).toEqual(['/repo', '/a', '/b']);
+  });
+
+  it('does not run on a change while hidden that lands where the last run was', () => {
+    const { g, state } = gate();
+    g.setVisible(true);
+    g.setVisible(false);
     g.contextChanged();
     g.setVisible(true);
     expect(state.runs).toEqual(['/repo']);

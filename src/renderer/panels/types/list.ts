@@ -25,7 +25,7 @@ import './list.css';
  *
  * THE SCRIPT DESCRIBES, THE APP ACTS: the script only prints, and what a row does when pressed is the app's, so a type shared from anyone can do nothing a person did not press.
  * A row opens its link in the browser, through the same route every link in the app leaves by, and its `session` action is a button that asks the app for a session, which opens the app's dialog first.
- * WHEN IT RUNS (`RunGate`, through `PanelRuns`, which a command panel's runs go through too): on first being shown, on Refresh, on a context change while shown, and on its interval if it has one — the interval also while the panel is hidden or folded, so the count on its rail stays true.
+ * WHEN IT RUNS (`RunGate`, through `PanelRuns`, which a command panel's runs go through too): on first being shown, on Refresh, on a context change once it has run, shown or not, and on its interval if it has one — the interval also while the panel is hidden or folded, so the count on its rail stays true.
  * NEVER AN EMPTY LIST FOR A BROKEN RUN: a run that fails, or prints something that is not a list, says so.
  * With a good list already on screen, the list stays under a line saying the run failed, when, and why, so a bad minute on the network does not blank a queue; without one, the panel says it is unavailable and why.
  * Before the first run has ended it says it is waiting, which is neither.
