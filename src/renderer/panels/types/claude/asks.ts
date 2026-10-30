@@ -74,10 +74,14 @@ async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<Ta
   await startNew(session, joinGroupId, { name: launch.name || undefined, prompt: launch.prompt || undefined });
 }
 
-/** Go to a session a panel's row started, as a jump from the live strip does; one that cannot be opened, archived or its folder gone, says why instead. */
+/** Go to a session by its id, as a jump from the live strip does; one that cannot be opened, archived or its folder gone, says why instead, and so does an id the app has no session for, which a panel's row may name. */
 function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const session = sessionById(id);
-  if (!session || refusedToOpen(session)) return;
+  if (!session) {
+    showToast('That session is not in the app.');
+    return;
+  }
+  if (refusedToOpen(session)) return;
   jumpToSession(session, launch);
 }
 

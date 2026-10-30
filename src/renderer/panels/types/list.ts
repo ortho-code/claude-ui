@@ -16,15 +16,15 @@ import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
 import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
 import type { FolderType } from './folder';
-import { DEFAULT_BUTTONS, readListDocument, type DetailPart, type ListDocument, type ListItem, type ListSection, type SessionAction } from './listdoc';
+import { DEFAULT_BUTTONS, readListDocument, type DetailPart, type ListAction, type ListDocument, type ListItem, type ListSection, type Verb } from './listdoc';
 import '../../tone.css';
 import './list.css';
 
 /**
  * The `list` kind: a type from the config folder whose script prints a list document (listdoc.ts), which the app draws with its own styles.
  *
- * THE SCRIPT DESCRIBES, THE APP ACTS: the script only prints, and what a row does when pressed is the app's, so a type shared from anyone can do nothing a person did not press.
- * A row opens its link in the browser, through the same route every link in the app leaves by, and its `session` action is a button that asks the app for a session, which opens the app's dialog first.
+ * THE SCRIPT DESCRIBES, THE APP ACTS: the script only prints, and a press on a row, a part or an action carries out the verb the script named for it (`perform`, save a part's link, which `routeLinks` opens), so a type decides what its rows do and nothing happens that a person did not press.
+ * A link opens in the browser, through the same route every link in the app leaves by; a `session` asks the app for a session, which opens the app's dialog first; a row with no press of its own folds the rows it holds, from a press outside its buttons, its marks and its parts with a press.
  * WHEN IT RUNS (`RunGate`, through `PanelRuns`, which a command panel's runs go through too): on first being shown, on Refresh, on a context change once it has run, shown or not, and on its interval if it has one — the interval also while the panel is hidden or folded, so the count on its rail stays true.
  * NEVER AN EMPTY LIST FOR A BROKEN RUN: a run that fails, or prints something that is not a list, says so.
  * With a good list already on screen, the list stays under a line saying the run failed, when, and why, so a bad minute on the network does not blank a queue; without one, the panel says it is unavailable and why.
@@ -60,8 +60,14 @@ function stderrTail(stderr: string): string[] {
 
 const clock = (at: Date): string => at.toLocaleTimeString(language(), { hour: '2-digit', minute: '2-digit' });
 
-/** All an action says, its label, prompt and name: what a row's button is kept by, and what a menu item checks the row still offers when chosen. */
-const actionKey = (action: SessionAction): string => JSON.stringify([action.label, action.prompt, action.name]);
+/** All an action says, its label and its verb: what a row's button is kept by, and what a menu item checks the row still offers when chosen. */
+const actionKey = (action: ListAction): string => JSON.stringify([action.label, action.does]);
+
+/** The link a press opens, for a session the row starts to remember the row by; null for a press of another verb, or none. */
+const urlOf = (press: Verb | null): string | null => (press?.verb === 'open-url' ? press.url : null);
+
+/** What a copy's toast says when the type gives no words of its own. */
+const COPIED = 'Copied.';
 
 /** How many rows a section lists, for its count: the rows that hold none, since a row holding rows only groups them. */
 const listed = (items: ListItem[]): number => items.reduce((count, item) => count + (item.children.length > 0 ? listed(item.children) : 1), 0);
@@ -98,6 +104,8 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   private readonly rows = new Keyed<ListRow>((kept) => kept.row);
   /** Each row's item as the last draw left it, which what a press does reads. */
   private readonly items = new Map<string, ListItem>();
+  /** What a press on each part with a verb of its own asks for, as the last draw left it, since a part is kept by its place and the next run may change its verb. */
+  private readonly partPresses = new WeakMap<Element, Verb>();
   /** Stops drawing the failed run's line again when the language changes, which says its times in it. */
   private readonly stopLanguage: () => void;
 
@@ -109,7 +117,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   ) {
     this.placeholder.textContent = WAITING;
     this.el.append(this.placeholder, this.failedLine, this.body, this.unavailable);
-    // A link in a row's detail goes to the browser, a click or a middle-click, and never takes the window anywhere.
+    // A part linking in a row's detail goes to the browser, a click or a middle-click, and never takes the window anywhere.
     routeLinks(this.body, (url) => window.claudeUi.openExternal(url));
     this.show();
     this.stopLanguage = onLanguageChange(() => this.show());
@@ -378,8 +386,8 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     const parts = this.rows.draw(item.key, (key) => this.buildRow(key));
     const { row, content, line, fold, lead, title, text, trail, meta, mark } = parts;
     const holds = item.children.length > 0;
-    // Pressable when it has a link to open or rows to fold.
-    row.className = `card list-row tone-${item.tone}${item.href === null && !holds ? ' still' : ''}`;
+    // Pressable when it has a press of its own or rows to fold.
+    row.className = `card list-row tone-${item.tone}${item.press === null && !holds ? ' still' : ''}`;
     row.style.setProperty('--depth', String(depth));
     if (holds) {
       const open = this.isOpen(item);
@@ -393,7 +401,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     title.classList.toggle('cut-start', item.cut === 'start');
     trail.textContent = item.trail ?? '';
     placeChildren(line, [...(holds ? [fold] : []), ...(item.lead !== null ? [lead] : []), title, ...(item.trail !== null ? [trail] : [])]);
-    // On the first line alone, so the rest of a row with a link still says where the link goes.
+    // On the first line alone, which is what it most often says all of.
     setTooltip(line, item.tooltip);
     // Each line of the detail an element of its own, kept by its place, so a press on one survives a run that changes what it says.
     const detail = item.detail.map((line, at) => this.drawLine(parts.lines.draw(String(at), () => ({ el: element('span', 'list-detail-line'), pieces: new Keyed<HTMLElement>((piece) => piece) })), line, item.separator));
@@ -401,8 +409,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     placeChildren(meta, detail);
     placeChildren(content, detail.length > 0 ? [line, meta] : [line]);
     this.paintSessions(item.key, parts);
-    // What a row offers, at its end: the first as many as the list's `buttons` says as buttons, each kept by all it says — its label, prompt and name — so a run that changes an action gives it a new button, and a press on the old one comes to nothing rather than asking for the new one; the rest behind its kebab, last.
-    // Each only ASKS: the app's dialog shows what would start, and nothing does until Start there.
+    // What a row offers, at its end: the first as many as the list's `buttons` says as buttons, each kept by all it says — its label and its verb — so a run that changes an action gives it a new button, and a press on the old one comes to nothing rather than doing the new one; the rest behind its kebab, last.
     const shown = this.buttonCount();
     const said = new Map<string, number>();
     const buttons = item.actions.slice(0, shown).map((action) => {
@@ -412,8 +419,6 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       return parts.actions.draw(`${what}#${again}`, () => this.buildAction(item.key, action));
     });
     parts.actions.sweep();
-    // Where a click goes, since a shared type's rows are somebody else's links.
-    setTooltip(row, item.href);
     // The sessions it started, before what it offers, so going back comes before starting again.
     placeChildren(row, [content, mark, ...buttons, ...(item.actions.length > shown ? [parts.kebab] : [])]);
     return row;
@@ -431,30 +436,54 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     return rest.map((action) => ({
       label: action.label,
       onSelect: () => {
-        if (this.items.get(key)?.actions.some((offered) => actionKey(offered) === actionKey(action))) this.ask(key, action);
+        if (this.items.get(key)?.actions.some((offered) => actionKey(offered) === actionKey(action))) this.perform(key, action.does);
       },
     }));
   }
 
-  /** Ask the app for an action's session, for the row as the last draw left it: the app's dialog shows what would start, and nothing does until Start there. */
-  private ask(key: string, action: SessionAction): void {
+  /**
+   * Carry out a verb for the row as the last draw left it: the one place an action, a row's press and a part's press all end.
+   * A `session` only ASKS: the app's dialog shows what would start, and nothing does until Start there.
+   */
+  private perform(key: string, verb: Verb): void {
     const item = this.items.get(key);
     if (!item) return;
-    this.host.startSession({ from: this.slot.title, key, label: item.text, href: item.href, name: action.name, prompt: action.prompt, dir: this.lastDir });
+    switch (verb.verb) {
+      case 'session':
+        this.host.startSession({ from: this.slot.title, key, label: item.text, href: urlOf(item.press), name: verb.name, prompt: verb.prompt, dir: this.lastDir });
+        return;
+      case 'open-session':
+        this.host.openSession(verb.id);
+        return;
+      case 'open-url':
+        window.claudeUi.openExternal(verb.url);
+        return;
+      case 'copy':
+        this.host.copyText(verb.text, verb.confirm ?? COPIED);
+        return;
+    }
   }
 
   /**
-   * One line of a row's detail: its parts in order, the separator between each two, each kept by its place, and a part by whether it links too, since a link and plain text are different elements.
-   * A part that links is an `<a>`, which the list's body sends to the browser (`routeLinks`); one without a tooltip leaves where the row's own link goes to show, as the rest of the row does.
+   * One line of a row's detail: its parts in order, the separator between each two, each kept by its place, and a part by what a press on it does too, since a link, a press and plain text are different elements.
+   * A part that opens a link is an `<a>` with it, which the list's body sends to the browser (`routeLinks`), so a middle-click opens it too; a part with another verb is an `<a>` without one, drawn as a link is (`list.css`), whose press the row hands to `perform`.
    */
   private drawLine({ el, pieces }: DetailLine, line: DetailPart[], separator: string): HTMLElement {
     const shown = line.flatMap((part, at) => {
-      const piece = pieces.draw(`${at}:${part.href === null ? 'text' : 'link'}`, () => element(part.href === null ? 'span' : 'a'));
+      const url = urlOf(part.press);
+      const kind = url !== null ? 'link' : part.press !== null ? 'press' : 'text';
+      const piece = pieces.draw(`${at}:${kind}`, () => {
+        if (kind === 'text') return element('span');
+        const made = element('a');
+        if (kind === 'press') made.setAttribute('role', 'button');
+        return made;
+      });
       piece.className = `list-part tone-${part.tone}`;
       piece.textContent = part.text;
-      if (part.href !== null) piece.setAttribute('href', part.href);
-      // Where a link goes is always said, under what its tooltip says, since a shared type's links are somebody else's.
-      setTooltip(piece, part.href === null ? part.tooltip : [part.tooltip, part.href].filter((said) => said !== null).join('\n'));
+      if (url !== null) piece.setAttribute('href', url);
+      if (kind === 'press') this.partPresses.set(piece, part.press!);
+      // What the type says on hover, and nothing else: whether a link shows where it goes is the type's to say (decided 2026-10-30).
+      setTooltip(piece, part.tooltip);
       if (at === 0) return [piece];
       const between = pieces.draw(`${at}:separator`, () => element('span', 'list-separator'));
       between.textContent = separator;
@@ -490,11 +519,13 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       event.stopPropagation();
       this.toggleRow(key);
     });
-    // A row's link wins a press on it; a row without one that holds rows folds them; a link in its detail opens itself instead (`routeLinks`).
+    // A part's press wins over the row's, a link in its detail opening itself (`routeLinks`); then the row's own press; a row without one that holds rows folds them.
     row.addEventListener('click', (event) => {
-      if (event.target instanceof Element && event.target.closest('a[href]')) return;
-      const href = this.items.get(key)?.href;
-      if (href) window.claudeUi.openExternal(href);
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('a[href]')) return;
+      const partPress = target?.closest('.list-part');
+      const verb = (partPress ? this.partPresses.get(partPress) : undefined) ?? this.items.get(key)?.press;
+      if (verb) this.perform(key, verb);
       else this.toggleRow(key);
     });
     // What the row offers beyond its buttons, behind the app's own kebab, last on the row as a session row's is; built once, so a press on it survives a redraw.
@@ -502,16 +533,16 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button), kebab };
   }
 
-  /** The button for one of a row's actions, which asks for the session it describes, under the row as the last draw left it. */
-  private buildAction(key: string, action: SessionAction): HTMLButtonElement {
+  /** The button for one of a row's actions, which does its verb for the row as the last draw left it; a session's shows its prompt on hover, and the other verbs nothing, until a type asks for words of its own. */
+  private buildAction(key: string, action: ListAction): HTMLButtonElement {
     const button = element('button', 'list-action');
     button.type = 'button';
     button.textContent = action.label;
-    setTooltip(button, action.prompt);
+    setTooltip(button, action.does.verb === 'session' ? action.does.prompt : null);
     button.addEventListener('click', (event) => {
-      // Its own click, not the row's link.
+      // Its own click, not the row's press.
       event.stopPropagation();
-      this.ask(key, action);
+      this.perform(key, action.does);
     });
     return button;
   }

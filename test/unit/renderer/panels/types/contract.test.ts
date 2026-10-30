@@ -65,7 +65,9 @@ describe('docs/panel-types.md', () => {
     expect(sorted(tableFields('### An item'))).toEqual(sorted(LIST_FIELDS.item));
     expect(sorted(tableFields('### A part'))).toEqual(sorted(LIST_FIELDS.part));
     expect(sorted(tableFields('### An action'))).toEqual(sorted(LIST_FIELDS.action));
-    expect(sorted(tableFields('### A `session` action'))).toEqual(sorted(LIST_FIELDS.session));
+    expect(sorted(tableFields('### A verb'))).toEqual(sorted(LIST_FIELDS.verb));
+    expect(sorted(tableFields('### A `session`'))).toEqual(sorted(LIST_FIELDS.session));
+    expect(sorted(tableFields('### A `copy`'))).toEqual(sorted(LIST_FIELDS.copy));
     expect(sorted(tableFields('### A view'))).toEqual(sorted(LIST_FIELDS.view));
     expect(sorted(listed('`tone` is one of:'))).toEqual(sorted(TONES));
     expect(sorted(listed('`cut` is one of:'))).toEqual(sorted(CUTS));

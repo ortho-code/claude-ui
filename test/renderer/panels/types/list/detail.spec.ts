@@ -5,7 +5,7 @@ import { clickAcross } from '../../../support/press';
 import { runs } from '../../layout/layout';
 import { bootList, print, row, type PrintedList } from './list';
 
-// What a row's `detail` draws (docs/panel-types.md § An item, § A part): each of its lines under the first, the parts of a line with the separator between them, the row's own, else the list's, else ` · `; a part that links opens its own link, says on hover where it goes, and a part takes the colour of its tone.
+// What a row's `detail` draws (docs/panel-types.md § An item, § A part): each of its lines under the first, the parts of a line with the separator between them, the row's own, else the list's, else ` · `; a part that links opens its own link, shows on hover what the type says alone, and a part takes the colour of its tone.
 
 const STORY = 'https://example.com/story/1';
 const EPIC = 'https://example.com/epic/9';
@@ -20,10 +20,10 @@ const linked = (id = 'sc-1'): PrintedList => ({
         {
           key: 'sc-1',
           text: 'Fix the importer',
-          href: STORY,
+          press: { 'open-url': STORY },
           detail: [
             [id, '3d'],
-            [{ text: 'Login revamp', href: EPIC, tooltip: 'Its epic' }, { text: 'Q4 platform', href: OBJECTIVE }, { text: 'High', tooltip: 'Its priority' }],
+            [{ text: 'Login revamp', press: { 'open-url': EPIC }, tooltip: 'Its epic' }, { text: 'Q4 platform', press: { 'open-url': OBJECTIVE } }, { text: 'High', tooltip: 'Its priority' }],
           ],
         },
       ],
@@ -84,7 +84,7 @@ test("a link in a row's detail opens its own link from a click and from a middle
   expect(await row(page, 'Fix the importer').locator('.card-meta').innerText()).toBe('sc-1 · 3d\nLogin revamp · Q4 platform · High');
 });
 
-test("hovering a link in a row's detail shows its tooltip and where it goes, or where it goes alone; a part that is not a link, its tooltip, else the row's link", async ({ app, page }) => {
+test("hovering a part in a row's detail shows its tooltip and nothing else, a link's included, and a part without one shows none", async ({ app, page }) => {
   await bootList(app, page, linked());
   const story = row(page, 'Fix the importer');
   const hovered = async (part: Locator): Promise<string> => {
@@ -95,10 +95,11 @@ test("hovering a link in a row's detail shows its tooltip and where it goes, or 
     await expect(page.locator('#tooltip')).toBeHidden();
     return said;
   };
-  expect(await hovered(story.getByRole('link', { name: 'Login revamp' }))).toBe(`Its epic\n${EPIC}`);
-  expect(await hovered(story.getByRole('link', { name: 'Q4 platform' }))).toBe(OBJECTIVE);
+  expect(await hovered(story.getByRole('link', { name: 'Login revamp' }))).toBe('Its epic');
   expect(await hovered(story.getByText('High', { exact: true }))).toBe('Its priority');
-  expect(await hovered(story.getByText('sc-1', { exact: true }))).toBe(STORY);
+  // Where a link goes is the type's to say (decided 2026-10-30), so neither a link without a tooltip nor the row's own link adds it.
+  await expect(story.getByRole('link', { name: 'Q4 platform' })).not.toHaveAttribute('data-tooltip');
+  await expect(story).not.toHaveAttribute('data-tooltip');
 });
 
 test("a part takes its tone's colour, a link's in place of the accent, a muted part is dimmed, and a part without one keeps the line's grey whatever its row's tone", async ({ app, page }) => {
@@ -111,7 +112,7 @@ test("a part takes its tone's colour, a link's in place of the accent, a muted p
             key: 'a',
             text: 'A failing row',
             tone: 'danger',
-            detail: [[{ text: 'waiting', tone: 'attention' }, { text: 'failed', href: EPIC, tone: 'danger' }, { text: 'linked', href: OBJECTIVE }, 'plain', { text: 'quiet', tone: 'muted' }]],
+            detail: [[{ text: 'waiting', tone: 'attention' }, { text: 'failed', press: { 'open-url': EPIC }, tone: 'danger' }, { text: 'linked', press: { 'open-url': OBJECTIVE } }, 'plain', { text: 'quiet', tone: 'muted' }]],
           },
         ],
       },
@@ -142,7 +143,7 @@ test("a press on a link in a row's detail still opens it when the list is drawn 
 });
 
 test("a press on a row's detail still opens the row's link when the list is drawn again between the press and its release", async ({ app, page }) => {
-  const printed = (run: number): PrintedList => ({ version: 1, sections: [{ items: [{ key: 'a', text: 'Fix the login redirect', detail: [[`run ${run}`, '3d']], href: 'https://example.com/pr/1' }] }] });
+  const printed = (run: number): PrintedList => ({ version: 1, sections: [{ items: [{ key: 'a', text: 'Fix the login redirect', detail: [[`run ${run}`, '3d']], press: { 'open-url': 'https://example.com/pr/1' } }] }] });
   await bootList(app, page, printed(1));
   await page.getByRole('button', { name: 'Refresh' }).click();
   await expect.poll(() => runs(app, 'changes')).toHaveLength(2);

@@ -239,6 +239,8 @@ export interface PanelHost extends Asks {
   linkedSessions(itemKey: string): LinkedSession[];
   /** Offer several of an item's sessions in a menu at `anchor`, to go to one. */
   pickSession(anchor: HTMLElement, sessions: LinkedSession[]): void;
+  /** Put `text` on the clipboard and say so in a toast, in `confirmation`'s words, as every copy in the app does (`copyText`). */
+  copyText(text: string, confirmation: string): void;
 }
 
 export interface MountedPanel {

@@ -13,7 +13,7 @@ const LIST = {
       items: [
         { key: 'a', text: 'FeaturedImageDownloaderTest.php', detail: [['tests/unit/Application/Subscription/ProcessUpdates/Service', 'modified', '+144 −37']], actions: [review] },
         { key: 'b', text: 'FeaturedImageDownloaderTestWithAFileNameLongerThanAnyRowIsWide.php', detail: [['src/Domain', 'modified', '+9 −0']] },
-        { key: 'c', text: 'FQDN.php', detail: [['modified', '+9 −0']], tooltip: 'src/Domain/ValueObject/Host/FQDN.php', href: 'https://example.com/FQDN.php' },
+        { key: 'c', text: 'FQDN.php', detail: [['modified', '+9 −0']], tooltip: 'src/Domain/ValueObject/Host/FQDN.php', press: { 'open-url': 'https://example.com/FQDN.php' } },
       ],
     },
   ],
@@ -112,7 +112,7 @@ test("a row's tooltip shows over the whole of its first line, its lead and trail
 });
 
 /** FILES as a compact list, with a row that has a link. */
-const COMPACT = { ...FILES, compact: true, sections: [{ items: [...FILES.sections[0].items, { key: 'l', lead: 'M', text: 'linked.md', trail: '+1 −0', href: 'https://example.com/linked.md' }] }] };
+const COMPACT = { ...FILES, compact: true, sections: [{ items: [...FILES.sections[0].items, { key: 'l', lead: 'M', text: 'linked.md', trail: '+1 −0', press: { 'open-url': 'https://example.com/linked.md' } }] }] };
 
 test('a compact list draws a row without a detail as one line, without the card around it or the gap between rows', async ({ app, page }) => {
   await bootList(app, page, COMPACT);
@@ -189,11 +189,11 @@ test("a row's text with a word longer than its line stays inside the row", async
   await expect.poll(() => overrun(row(page, 'LongerThanAnyRowIsWide').locator('.card-title'))).toBe(0);
 });
 
-test("a row's text shows its tooltip, and the rest of a row with a link still shows where the link goes", async ({ app, page }) => {
+test("a row's text shows its tooltip, and the rest of a row with a link shows nothing of its own", async ({ app, page }) => {
   await bootList(app, page);
   const fqdn = row(page, 'FQDN.php');
   await fqdn.locator('.card-title').hover();
   await expect(page.locator('#tooltip')).toHaveText('src/Domain/ValueObject/Host/FQDN.php');
-  await fqdn.locator('.card-meta').hover();
-  await expect(page.locator('#tooltip')).toHaveText('https://example.com/FQDN.php');
+  // Where the link goes is the type's to say (decided 2026-10-30).
+  await expect(fqdn).not.toHaveAttribute('data-tooltip');
 });

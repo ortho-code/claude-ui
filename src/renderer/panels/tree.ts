@@ -10,6 +10,7 @@ import '../card.css';
 import '../badge.css';
 import './tree.css';
 import { PINNED_BADGE_ICON, WORKTREE_ICON, strokeIcon, type Direction } from '../svg';
+import { copyText } from '../toast';
 import { setTooltip } from '../tooltip';
 import { iconSvg } from './icons';
 import { optionsOf } from './options';
@@ -710,6 +711,7 @@ function mountedFor(slot: PanelSlot): Mounted {
     startSession: (request) => void startSession(slot.key, request, host.asks),
     linkedSessions: (itemKey) => linkedSessions(slot.key, itemKey),
     pickSession: (anchor, sessions) => pickSession(anchor, sessions, host.asks),
+    copyText: (text, confirmation) => void copyText(text, confirmation),
     ...host.asks,
   };
   const panel = type.mount(slot, panelHost);

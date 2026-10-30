@@ -6,7 +6,9 @@ const item = { key: 'org/repo#1', text: 'Fix the login redirect' };
 const doc = (over: Record<string, unknown> = {}): string => JSON.stringify({ version: 1, sections: [{ items: [item] }], ...over });
 const problems = (text: string): string[] => readListDocument(text).problems;
 /** A part of a detail line as the reader gives a string back: its text, linking nowhere, with no tooltip and no tone of its own. */
-const plain = (text: string): DetailPart => ({ text, href: null, tooltip: null, tone: 'normal' });
+const plain = (text: string): DetailPart => ({ text, press: null, tooltip: null, tone: 'normal' });
+/** The first row of what `over` reads as. */
+const firstItem = (over: Record<string, unknown>) => readListDocument(doc({ sections: [{ items: [{ ...item, ...over }] }] })).doc?.sections[0]?.items[0];
 
 describe('readListDocument', () => {
   it('reads a full document', () => {
@@ -33,9 +35,9 @@ describe('readListDocument', () => {
                 cut: 'start',
                 trail: '+12 −3',
                 tooltip: 'Fix the login redirect after a session times out',
-                detail: [['#1', '31h', 'someone'], [{ text: 'Login revamp', href: 'https://example.com/epic/9', tooltip: 'Its epic', tone: 'attention' }]],
+                detail: [['#1', '31h', 'someone'], [{ text: 'Login revamp', press: { 'open-url': 'https://example.com/epic/9' }, tooltip: 'Its epic', tone: 'attention' }]],
                 separator: ' | ',
-                href: 'https://github.com/org/repo/pull/1',
+                press: { 'open-url': 'https://github.com/org/repo/pull/1' },
                 tone: 'attention',
                 actions: [{ label: 'Review', session: { prompt: '/review 1', name: 'Review #1' } }],
               },
@@ -70,11 +72,11 @@ describe('readListDocument', () => {
                 cut: 'start',
                 trail: '+12 −3',
                 tooltip: 'Fix the login redirect after a session times out',
-                detail: [[plain('#1'), plain('31h'), plain('someone')], [{ text: 'Login revamp', href: 'https://example.com/epic/9', tooltip: 'Its epic', tone: 'attention' }]],
+                detail: [[plain('#1'), plain('31h'), plain('someone')], [{ text: 'Login revamp', press: { verb: 'open-url', url: 'https://example.com/epic/9' }, tooltip: 'Its epic', tone: 'attention' }]],
                 separator: ' | ',
-                href: 'https://github.com/org/repo/pull/1',
+                press: { verb: 'open-url', url: 'https://github.com/org/repo/pull/1' },
                 tone: 'attention',
-                actions: [{ label: 'Review', prompt: '/review 1', name: 'Review #1' }],
+                actions: [{ label: 'Review', does: { verb: 'session', prompt: '/review 1', name: 'Review #1' } }],
                 children: [],
                 shut: false,
               },
@@ -94,7 +96,7 @@ describe('readListDocument', () => {
       views: [],
       compact: false,
       buttons: 1,
-      sections: [{ title: null, shut: false, tooltip: null, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: [], separator: ' · ', href: null, tone: 'normal', actions: [], children: [], shut: false }] }],
+      sections: [{ title: null, shut: false, tooltip: null, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: [], separator: ' · ', press: null, tone: 'normal', actions: [], children: [], shut: false }] }],
       notes: [],
     });
   });
@@ -131,6 +133,45 @@ describe('readListDocument', () => {
     expect(read.problems).toEqual([]);
     expect(read.doc?.sections[0]?.items[0]?.actions).toEqual([]);
     expect(read.doc?.sections[0]?.items[0]?.detail).toEqual([[plain('a')]]);
+  });
+
+  it('reads every verb, in an action and in a press on a row or a part', () => {
+    const read = firstItem({
+      press: { 'open-session': 'b03e5cdc' },
+      detail: [[{ text: 'id', press: { copy: { text: 'b03e5cdc', confirm: 'Id copied.' } } }, { text: 'PR', press: { 'open-url': 'https://example.com/pr/1' } }, { text: 'page', press: { 'open-url': 'https://example.com/page' } }]],
+      actions: [
+        { label: 'Copy', copy: 'b03e5cdc' },
+        { label: 'Open', 'open-session': 'b03e5cdc' },
+        { label: 'PR', 'open-url': 'https://example.com/pr/1' },
+        { label: 'Review', session: { prompt: '/review 1' } },
+      ],
+    });
+    expect(read?.press).toEqual({ verb: 'open-session', id: 'b03e5cdc' });
+    expect(read?.detail[0]?.map(({ press }) => press)).toEqual([
+      { verb: 'copy', text: 'b03e5cdc', confirm: 'Id copied.' },
+      { verb: 'open-url', url: 'https://example.com/pr/1' },
+      { verb: 'open-url', url: 'https://example.com/page' },
+    ]);
+    expect(read?.actions.map(({ does }) => does)).toEqual([
+      { verb: 'copy', text: 'b03e5cdc', confirm: null },
+      { verb: 'open-session', id: 'b03e5cdc' },
+      { verb: 'open-url', url: 'https://example.com/pr/1' },
+      { verb: 'session', prompt: '/review 1', name: null },
+    ]);
+  });
+
+  it('ignores an href, which is no field of a row or a part, so a list still writing one draws without its links', () => {
+    const read = readListDocument(doc({ sections: [{ items: [{ ...item, href: 'https://example.com', detail: [[{ text: 'a', href: 'https://example.com' }]] }] }] }));
+    expect(read.problems).toEqual([]);
+    expect(read.doc?.sections[0]?.items[0]?.press).toBeNull();
+    expect(read.doc?.sections[0]?.items[0]?.detail[0]?.[0]?.press).toBeNull();
+  });
+
+  it('reads a press of no verb this build has as no press, so the row does what it does without one', () => {
+    const read = readListDocument(doc({ sections: [{ items: [{ ...item, press: { merge: {} }, detail: [[{ text: 'a', press: { merge: {} } }]] }] }] }));
+    expect(read.problems).toEqual([]);
+    expect(read.doc?.sections[0]?.items[0]?.press).toBeNull();
+    expect(read.doc?.sections[0]?.items[0]?.detail[0]?.[0]?.press).toBeNull();
   });
 
   it('says what is wrong with the whole of what was printed', () => {
@@ -188,7 +229,7 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ ...item, detail: [['#1', ' ']] }] }] }, 'sections[0].items[0].detail[0][1] is empty.'],
     [{ sections: [{ items: [{ ...item, detail: [[{}]] }] }] }, 'sections[0].items[0].detail[0][0].text is missing.'],
     [{ sections: [{ items: [{ ...item, detail: [[{ text: '' }]] }] }] }, 'sections[0].items[0].detail[0][0].text is empty.'],
-    [{ sections: [{ items: [{ ...item, detail: [['#1', { text: 'x', href: 'file:///etc/passwd' }]] }] }] }, 'sections[0].items[0].detail[0][1].href "file:///etc/passwd" is not an http or https link.'],
+    [{ sections: [{ items: [{ ...item, detail: [['#1', { text: 'x', press: { 'open-url': 'file:///etc/passwd' } }]] }] }] }, 'sections[0].items[0].detail[0][1].press.open-url "file:///etc/passwd" is not an http or https link.'],
     [{ sections: [{ items: [{ ...item, detail: [[{ text: 'x', tooltip: 3 }]] }] }] }, 'sections[0].items[0].detail[0][0].tooltip is not a string.'],
     [{ sections: [{ items: [{ ...item, detail: [[{ text: 'x', tone: 'loud' }]] }] }] }, 'sections[0].items[0].detail[0][0].tone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, children: [{ key: 'c', text: 'c', detail: [[3]] }] }] }] }, 'sections[0].items[0].children[0].detail[0][0] is not a string or an object.'],
@@ -198,11 +239,21 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ ...item, children: [{ key: 'child' }] }] }] }, 'sections[0].items[0].children[0].text is missing.'],
     [{ sections: [{ items: [{ ...item, shut: true }] }] }, 'sections[0].items[0].shut needs children, which are what it folds.'],
     [{ sections: [{ items: [{ ...item, shut: true, children: [] }] }] }, 'sections[0].items[0].shut needs children, which are what it folds.'],
-    [{ sections: [{ items: [{ ...item, href: 'file:///etc/passwd' }] }] }, 'sections[0].items[0].href "file:///etc/passwd" is not an http or https link.'],
+    [{ sections: [{ items: [{ ...item, press: { 'open-url': 'file:///etc/passwd' } }] }] }, 'sections[0].items[0].press.open-url "file:///etc/passwd" is not an http or https link.'],
     [{ sections: [{ items: [{ ...item, tone: 'loud' }] }] }, 'sections[0].items[0].tone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, actions: [{ session: { prompt: 'x' } }] }] }] }, 'sections[0].items[0].actions[0].label is missing.'],
     [{ sections: [{ items: [{ ...item, actions: [{ label: 'Review', session: {} }] }] }] }, 'sections[0].items[0].actions[0].session.prompt is missing.'],
     [{ sections: [{ items: [{ ...item, actions: [{ label: 'Review', session: 'x' }] }] }] }, 'sections[0].items[0].actions[0].session is not an object.'],
+    [{ sections: [{ items: [{ ...item, actions: [{ label: 'Both', copy: 'x', 'open-session': 'y' }] }] }] }, 'sections[0].items[0].actions[0] has open-session and copy, and a press does one.'],
+    [{ sections: [{ items: [{ ...item, actions: [{ label: 'Open', 'open-session': '' }] }] }] }, 'sections[0].items[0].actions[0].open-session is empty.'],
+    [{ sections: [{ items: [{ ...item, actions: [{ label: 'Open', 'open-url': 'file:///etc/passwd' }] }] }] }, 'sections[0].items[0].actions[0].open-url "file:///etc/passwd" is not an http or https link.'],
+    [{ sections: [{ items: [{ ...item, actions: [{ label: 'Copy', copy: 3 }] }] }] }, 'sections[0].items[0].actions[0].copy is not a string or an object.'],
+    [{ sections: [{ items: [{ ...item, actions: [{ label: 'Copy', copy: { confirm: 'Done.' } }] }] }] }, 'sections[0].items[0].actions[0].copy.text is missing.'],
+    [{ sections: [{ items: [{ ...item, actions: [{ label: 'Copy', copy: { text: 'x', confirm: 3 } }] }] }] }, 'sections[0].items[0].actions[0].copy.confirm is not a string.'],
+    [{ sections: [{ items: [{ ...item, press: 'open' }] }] }, 'sections[0].items[0].press is not an object.'],
+    [{ sections: [{ items: [{ ...item, press: { 'open-url': 'x', copy: 'x' } }] }] }, 'sections[0].items[0].press has open-url and copy, and a press does one.'],
+    [{ sections: [{ items: [{ ...item, detail: [[{ text: 'x', press: { 'open-session': 3 } }]] }] }] }, 'sections[0].items[0].detail[0][0].press.open-session is not a string.'],
+    [{ sections: [{ items: [{ ...item, actions: [{ label: 'Copy', copy: { text: 'x', confirm: ' ' } }] }] }] }, 'sections[0].items[0].actions[0].copy.confirm is empty.'],
   ])('refuses %j: %s', (over, problem) => {
     const read = readListDocument(doc(over));
     expect(read.problems).toContain(problem);

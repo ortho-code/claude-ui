@@ -132,6 +132,12 @@
   color: var(--tone);
 }
 
+/* A part a press does something on other than open a link: an `<a>` without one, which the browser's own link rule does not reach, so it takes a link's underline and pointer here, and reads as something to press as a link beside it does. */
+.list-part[role='button'] {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* A trail, such as a count, at the meta line's size and grey, with digits of one width so counts line up down the list. */
 .list-trail {
   flex: 0 0 auto;

@@ -106,6 +106,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session is marked as needing you when a PR it links gets something new that needs you: merged, closed or opened again, an approving review, changes requested, failing checks or a merge conflict, with the PR and its change in the dot's tooltip, such as "PR #35777 merged".
   A change while the app was closed marks at the next launch; it needs PR status on in Settings, and turning that on starts from the PRs as they are then.
   If PR status is on when you first start this version, its first whole answer from GitHub marks only the sessions with a tab or set aside for later whose PRs already need you by then; with it off then, turning it on later marks only what changes after.
+- A panel type of your own decides what a press does, on an action, a row or a part of its detail, from the verbs `session`, `open-session`, `open-url` and `copy`.
+  Hovering a row or a part shows only the type's own `tooltip`, so a type that wants a link's address shown puts it there.
 
 ### Changed
 

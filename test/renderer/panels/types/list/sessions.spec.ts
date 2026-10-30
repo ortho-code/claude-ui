@@ -40,7 +40,7 @@ const LIST = {
       items: [
         { key: 'org/repo#1', text: 'Fix the login redirect' },
         { key: 'org/repo#2', text: 'Tidy the settings page' },
-        { key: 'org/repo#3', text: 'Speed up the search', href: 'https://example.com/pr/3', actions: [{ label: 'Review', session: { prompt: '/review 3', name: 'Review #3' } }] },
+        { key: 'org/repo#3', text: 'Speed up the search', press: { 'open-url': 'https://example.com/pr/3' }, actions: [{ label: 'Review', session: { prompt: '/review 3', name: 'Review #3' } }] },
       ],
     },
   ],

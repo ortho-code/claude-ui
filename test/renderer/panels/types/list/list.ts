@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import type { NodeState } from '../../../../../src/shared/panels';
-import { CONFIG_ROOT } from '../../../support/fixture';
+import { type BridgeFixture, CONFIG_ROOT } from '../../../support/fixture';
 import { type App, expect } from '../../../support/harness';
 import { runs, withLayout } from '../../layout/layout';
 
@@ -30,10 +30,11 @@ export function layoutWith(entry: Record<string, unknown> = {}, nodes?: Record<s
   return { ...fixture, layout: { ...fixture.layout, types: [{ name: 'changes', dir: TYPE_DIR, status: 'read', error: null, json: { version: 1, kind: 'list', title: 'Changes', icon: 'git', run: 'list.mjs' } }] } };
 }
 
-/** What a check boots the panel with besides its list: fields of its layout entry, and what the app has kept for nodes. */
+/** What a check boots the panel with besides its list: fields of its layout entry, what the app has kept for nodes, and the rest of the window, such as its sessions. */
 export interface ListSetup {
   entry?: Record<string, unknown>;
   nodes?: Record<string, NodeState>;
+  more?: Partial<BridgeFixture>;
 }
 
 /** What a check hands the script to print: a list document, loosely typed, since a check may print one the app refuses. */
@@ -54,8 +55,8 @@ export interface PrintedItem {
 const drawn = (items: PrintedItem[]): number => items.reduce((count, item) => count + 1 + (item.shut ? 0 : drawn(item.children ?? [])), 0);
 
 /** Boot with the panel, let its script print `list`, and wait for its rows. */
-export async function bootList(app: App, page: Page, list: PrintedList, { entry = {}, nodes }: ListSetup = {}): Promise<void> {
-  await app.boot({ ...layoutWith(entry, nodes), paths: { [`${TYPE_DIR}/list.mjs`]: 'executable' }, panelData: { changes: { sessions: {}, lastGroup: {} } } });
+export async function bootList(app: App, page: Page, list: PrintedList, { entry = {}, nodes, more = {} }: ListSetup = {}): Promise<void> {
+  await app.boot({ ...layoutWith(entry, nodes), ...more, paths: { [`${TYPE_DIR}/list.mjs`]: 'executable' }, panelData: { changes: { sessions: {}, lastGroup: {} } } });
   await expect.poll(() => runs(app, 'changes')).toHaveLength(1);
   await print(app, 0, list);
   await expect(page.locator('.list-row')).toHaveCount(list.sections.reduce((count, { items, shut }) => count + (shut === true ? 0 : drawn(items)), 0));

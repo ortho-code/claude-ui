@@ -271,13 +271,13 @@ const LIST = {
     {
       empty: 'Nothing waiting on you.',
       items: [
-        { key: 'org/repo#1', text: 'Fix the login redirect', detail: [['#1', '3d', 'someone'], [{ text: 'Login revamp', href: 'https://example.com/epic/9', tooltip: 'Its epic' }, { text: 'blocked', tone: 'danger' }]], href: 'https://example.com/pr/1', tone: 'attention', actions: [{ label: 'Review', session: { prompt: '/review 1', name: 'Review #1' } }] },
+        { key: 'org/repo#1', text: 'Fix the login redirect', detail: [['#1', '3d', 'someone'], [{ text: 'Login revamp', press: { 'open-url': 'https://example.com/epic/9' }, tooltip: 'Its epic' }, { text: 'blocked', tone: 'danger' }]], press: { 'open-url': 'https://example.com/pr/1' }, tone: 'attention', actions: [{ label: 'Review', session: { prompt: '/review 1', name: 'Review #1' } }] },
         { key: 'org/repo#2', text: 'Failing everywhere', detail: [['#2', '1d']], tone: 'danger' },
-        { key: 'org/repo#3', text: 'Parked for now', detail: [['#3']], href: 'https://example.com/pr/3', tone: 'muted' },
+        { key: 'org/repo#3', text: 'Parked for now', detail: [['#3']], press: { 'open-url': 'https://example.com/pr/3' }, tone: 'muted' },
       ],
     },
     { title: 'Blocked', empty: 'Nothing blocked.', items: [] },
-    { title: 'Done', shut: true, items: [{ key: 'org/repo#4', text: 'Merged', href: 'https://example.com/pr/4' }] },
+    { title: 'Done', shut: true, items: [{ key: 'org/repo#4', text: 'Merged', press: { 'open-url': 'https://example.com/pr/4' } }] },
   ],
   notes: ['Could not read team membership.'],
 };

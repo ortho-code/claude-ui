@@ -19,7 +19,7 @@ const TREE: PrintedList = {
             { key: 'src/types', text: 'types', shut: true, children: [{ key: 'src/types/a.ts', lead: 'A', text: 'a.ts' }] },
           ],
         },
-        { key: 'docs', text: 'docs', href: 'https://example.com/docs', children: [{ key: 'docs/x.md', lead: 'M', text: 'x.md' }] },
+        { key: 'docs', text: 'docs', press: { 'open-url': 'https://example.com/docs' }, children: [{ key: 'docs/x.md', lead: 'M', text: 'x.md' }] },
         { key: 'readme', lead: 'M', text: 'README.md' },
       ],
     },

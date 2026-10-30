@@ -131,10 +131,10 @@ One JSON object:
 { "version": 1, "badge": 2,
   "sections": [
     { "empty": "Nothing waiting on you.", "items": [
-      { "key": "org/repo#1", "text": "Fix the login redirect", "href": "https://github.com/org/repo/pull/1", "tone": "attention",
+      { "key": "org/repo#1", "text": "Fix the login redirect", "press": { "open-url": "https://github.com/org/repo/pull/1" }, "tone": "attention",
         "detail": [
           ["#1", "3d", "someone"],
-          [{ "text": "Login revamp", "href": "https://example.com/epic/9", "tooltip": "Its epic" }, { "text": "blocked", "tone": "danger" }]
+          [{ "text": "Login revamp", "press": { "open-url": "https://example.com/epic/9" }, "tooltip": "Its epic" }, { "text": "blocked", "tone": "danger" }]
         ],
         "actions": [{ "label": "Review", "session": { "prompt": "/review 1", "name": "Review #1" } }] }
     ] },
@@ -191,10 +191,10 @@ An entry naming a view the list does not offer is said under the panel.
 | `tooltip` | What hovering the row's first line shows, such as all of what that line shortens, its line breaks kept. |
 | `detail` | Lines under the first, smaller: an array of lines, each an array of parts (below), drawn in order with the `separator` between them. |
 | `separator` | What goes between the parts of its own `detail` lines, in place of the list's; a row it holds takes the list's, not this. |
-| `href` | An http or https link, which a press on the row opens in your browser. |
+| `press` | What a press on the row does: a verb (below). |
 | `tone` | How the row is marked. |
 | `actions` | What the row offers, at its end: the first as many as the list's `buttons` says as buttons, in order, and the rest in a menu behind a ⋮ after them, by their `label`. |
-| `children` | Rows under this one, as items, drawn a step further in, which it folds away and back from a chevron, or from a press anywhere on it when it has no `href`; a section's count counts the rows that hold none. |
+| `children` | Rows under this one, as items, drawn a step further in, which it folds away and back from a chevron, or from a press on it outside its buttons, its marks and its parts with a `press`, when it has no `press` of its own; a section's count counts the rows that hold none. |
 | `shut` | `true` starts the row folded; only a row with `children` can fold. |
 
 `tone` is one of: `normal`, `attention`, `positive`, `muted`, `danger`.
@@ -210,8 +210,8 @@ A part of a `detail` line is a string, or an object:
 | Field | Meaning |
 |---|---|
 | `text` | Required: what it says. |
-| `href` | An http or https link, which a press on the part opens in your browser, in place of the row's. |
-| `tooltip` | What hovering it shows; hovering a link always shows where it goes too, under its `tooltip` when it has one. |
+| `press` | What a press on the part does, in place of what the row's does: a verb (below); a part with one is drawn as a link is. |
+| `tooltip` | What hovering it shows; the app adds nothing to it, so a part that wants to show where its link goes says so here. |
 | `tone` | Its colour, from the same words as a row's `tone`: the colour a tone puts on a row's edge, and dimmed for `muted`; a link takes it in place of a link's own colour. |
 
 A string is a part with that `text` alone, so `["#1", "3d"]` and `[{ "text": "#1" }, { "text": "3d" }]` are the same line.
@@ -223,16 +223,37 @@ Leave out a part with nothing to say, and no separator is drawn for it.
 | Field | Meaning |
 |---|---|
 | `label` | Required: the button's word. |
-| `session` | Start a Claude session. |
 
-An action of a kind this version does not have is left out.
+And one verb, which is what pressing it does: `{ "label": "Copy id", "copy": "b03e5cdc" }`.
+An action whose verb this version does not have is left out.
 
-### A `session` action
+### A verb
+
+What a press does is said the same way for an action, a row's `press` and a part's `press`: an object with one of these fields.
+
+| Field | Meaning |
+|---|---|
+| `session` | Start a Claude session, as an object (below), from the app's own dialog. |
+| `open-session` | Go to a session the app has, by its id, switching project when it has to. |
+| `open-url` | Open an http or https link in your browser. |
+| `copy` | Put a text on the clipboard: a string, or an object (below) to say what the app says once it is copied. |
+
+Two verbs this version has on one object are a mistake in the list.
+A `press` whose verb this version does not have counts as no `press`, so the row does what it does without one.
+
+### A `session`
 
 | Field | Meaning |
 |---|---|
 | `prompt` | Required: the session's first prompt, which a slash command such as `/review 1` runs as. |
 | `name` | The session's name; the app's own new-session label without one. |
+
+### A `copy`
+
+| Field | Meaning |
+|---|---|
+| `text` | Required: what goes on the clipboard. |
+| `confirm` | What the app says once it is copied, never empty, since a copy always says so; "Copied." without one. |
 
 Everything the app draws from the list is text, never markup.
 A list that breaks a rule is not drawn in part: the panel says it is unavailable, naming every mistake by where it is.
@@ -244,10 +265,11 @@ A panel runs its script when it is first shown, on Refresh, when you switch proj
 A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why; without one, the panel says it is unavailable, quoting stderr.
 Before the first run has ended it says it is waiting.
 
-A `session` button opens the app's own dialog, which says which panel asks and about what: the project, the one the panel runs in first; the group, the one last picked from that panel there first; the name and the prompt, both to change.
+A `session` opens the app's own dialog, which says which panel asks and about what: the project, the one the panel runs in first; the group, the one last picked from that panel there first; the name and the prompt, both to change.
 Nothing starts until Start.
+An `open-session` naming an id the app has no session for says so, as one archived or whose folder is gone says why it cannot open.
 A row that started a session shows that session's status dot, and pressing it goes to the session; with several, it offers them all.
-Pressing the button again offers to continue the latest session instead, which is resumed with the prompt when it is stopped and brought into view without it when it is running.
+Pressing it again offers to continue the latest session instead, which is resumed with the prompt when it is stopped and brought into view without it when it is running.
 
 Which session a row started is kept by the app, on this machine, in `panel-data/` beside its own data: never in the config folder, since a session id means nothing on another machine.
 A session that is gone — deleted in the app, cleaned up by Claude Code's own transcript retention, removed by hand — is forgotten there the next time that panel's file is written, and at once when you delete it in the app.

@@ -23,11 +23,16 @@ export const LIST_FIELDS = {
   document: ['version', 'badge', 'views', 'compact', 'separator', 'buttons', 'sections', 'notes'],
   view: ['id', 'label', 'icon'],
   section: ['title', 'shut', 'tooltip', 'empty', 'items'],
-  item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'separator', 'href', 'tone', 'actions', 'children', 'shut'],
-  part: ['text', 'href', 'tooltip', 'tone'],
-  action: ['label', 'session'],
+  item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'separator', 'press', 'tone', 'actions', 'children', 'shut'],
+  part: ['text', 'press', 'tooltip', 'tone'],
+  action: ['label'],
+  verb: ['session', 'open-session', 'open-url', 'copy'],
   session: ['prompt', 'name'],
+  copy: ['text', 'confirm'],
 } as const;
+
+/** A verb's name, which is its field in an action or a `press`. */
+export type VerbName = (typeof LIST_FIELDS.verb)[number];
 
 /** What goes between the parts of a row's `detail` lines when neither the row nor the list says. */
 export const DEFAULT_SEPARATOR = ' · ';
@@ -40,22 +45,27 @@ export const CUTS = ['end', 'start'] as const;
 export type Cut = (typeof CUTS)[number];
 
 /**
- * Start a claude session with a prompt, in the project and group the user picks in the app's own dialog.
- * The one action in this version.
+ * What a press asks the app to do: one vocabulary for an action's button and for a press on a row or a part (decided 2026-10-30), each a description the app carries out.
+ * `session` starts a claude session with a prompt, in the project and group the user picks in the app's own dialog; `open-session` goes to a session the app has; `open-url` opens an http or https link in the browser; `copy` puts a text on the clipboard, saying so in the type's words or the app's.
  */
-export interface SessionAction {
+export type Verb =
+  | { verb: 'session'; prompt: string; /** The session's name (`--name`); the app's own new-session label without one. */ name: string | null }
+  | { verb: 'open-session'; id: string }
+  | { verb: 'open-url'; url: string }
+  | { verb: 'copy'; text: string; /** What the toast says once it is copied; the app's own words without one. */ confirm: string | null };
+
+/** A row's action: a label and the verb its press asks for. */
+export interface ListAction {
   label: string;
-  prompt: string;
-  /** The session's name (`--name`); the app's own new-session label without one. */
-  name: string | null;
+  does: Verb;
 }
 
 /** One piece of a line under a row's first: a string the script printed is a part with that text alone. */
 export interface DetailPart {
   text: string;
-  /** What a press on it opens, in the browser, rather than the row's link; null for none. */
-  href: string | null;
-  /** What hovering it shows; a link's is shown above where it goes. */
+  /** What a press on it asks for, rather than what the row's does; null for none, which leaves the press to the row. */
+  press: Verb | null;
+  /** What hovering it shows, and nothing else: whether a link shows where it goes is the type's to say. */
   tooltip: string | null;
   /** Its colour, in the words a row's tone uses. */
   tone: Tone;
@@ -79,10 +89,10 @@ export interface ListItem {
   detail: DetailPart[][];
   /** What goes between the parts of each of its lines: its own, else the list's, else `DEFAULT_SEPARATOR`; not its parent's, so a list says it once for every level. */
   separator: string;
-  /** What a click on the row opens, in the browser. */
-  href: string | null;
+  /** What a press on the row asks for; null for none, which folds its children when it has some. */
+  press: Verb | null;
   tone: Tone;
-  actions: SessionAction[];
+  actions: ListAction[];
   /** The rows under this one, which it folds away and back; empty for a row that holds none. */
   children: ListItem[];
   /** Starts folded; only a row with children can fold, since they are what it folds. */
@@ -194,7 +204,7 @@ class Reader {
   part(raw: unknown, at: string): DetailPart | null {
     if (typeof raw === 'string') {
       const text = this.text(raw, at, true);
-      return text !== null ? { text, href: null, tooltip: null, tone: TONES[0] } : null;
+      return text !== null ? { text, press: null, tooltip: null, tone: TONES[0] } : null;
     }
     if (!isObject(raw)) {
       this.problems.push(`${at} is not a string or an object.`);
@@ -202,15 +212,15 @@ class Reader {
     }
     const field = fieldsOf(raw, LIST_FIELDS.part);
     const text = this.text(field('text'), `${at}.text`, true);
-    const href = this.link(field('href'), `${at}.href`);
+    const press = this.press(field('press'), at);
     const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
     const tone = this.choice(field('tone'), `${at}.tone`, TONES);
-    return text !== null ? { text, href, tooltip, tone } : null;
+    return text !== null ? { text, press, tooltip, tone } : null;
   }
 
-  /** An optional link, a row's or a part's: null when absent, and a problem when it is not http or https, since the app opens it in the browser. */
+  /** An `open-url` press's link: a problem, and null, when it is empty or not http or https, since the app opens it in the browser. */
   link(value: unknown, at: string): string | null {
-    const href = this.text(value, at);
+    const href = this.text(value, at, true);
     if (href !== null && !HTTP.test(href)) {
       this.problems.push(`${at} "${href}" is not an http or https link.`);
       return null;
@@ -218,24 +228,83 @@ class Reader {
     return href;
   }
 
-  action(raw: unknown, at: string): SessionAction | null {
+  /**
+   * The one verb of an action or a press, by the verb's field: undefined when it names none this build has, which is a later build's and is left out as any field it does not know; null when what it names is a mistake, which is a problem too.
+   * Two verbs this build has on one object is a mistake, since which one a press does would be a guess.
+   */
+  verb(raw: Record<string, unknown>, at: string): Verb | null | undefined {
+    const field = fieldsOf(raw, LIST_FIELDS.verb);
+    const named = LIST_FIELDS.verb.filter((name) => field(name) !== undefined);
+    if (named.length === 0) return undefined;
+    if (named.length > 1) {
+      this.problems.push(`${at} has ${named.join(' and ')}, and a press does one.`);
+      return null;
+    }
+    const name = named[0]!;
+    const value = field(name);
+    const where = `${at}.${name}`;
+    switch (name) {
+      case 'session': {
+        if (!isObject(value)) {
+          this.problems.push(`${where} is not an object.`);
+          return null;
+        }
+        const sessionField = fieldsOf(value, LIST_FIELDS.session);
+        const prompt = this.text(sessionField('prompt'), `${where}.prompt`, true);
+        const sessionName = this.text(sessionField('name'), `${where}.name`);
+        return prompt !== null ? { verb: 'session', prompt, name: sessionName } : null;
+      }
+      case 'open-session': {
+        const id = this.text(value, where, true);
+        return id !== null ? { verb: 'open-session', id } : null;
+      }
+      case 'open-url': {
+        const url = this.link(value, where);
+        return url !== null ? { verb: 'open-url', url } : null;
+      }
+      case 'copy': {
+        // A string is the text alone, as a part's string is its text alone.
+        if (typeof value === 'string') {
+          const text = this.text(value, where, true);
+          return text !== null ? { verb: 'copy', text, confirm: null } : null;
+        }
+        if (!isObject(value)) {
+          this.problems.push(`${where} is not a string or an object.`);
+          return null;
+        }
+        const copyField = fieldsOf(value, LIST_FIELDS.copy);
+        const text = this.text(copyField('text'), `${where}.text`, true);
+        // Never empty: every copy says so, since the OS gives no sign of one, and an empty one would say nothing.
+        const confirm = this.text(copyField('confirm'), `${where}.confirm`);
+        if (confirm !== null && confirm.trim() === '') {
+          this.problems.push(`${where}.confirm is empty.`);
+          return null;
+        }
+        return text !== null ? { verb: 'copy', text, confirm } : null;
+      }
+    }
+  }
+
+  /** What a press on a row or a part asks for: null for none, and for a `press` naming no verb this build has, so the press does what one without it does. */
+  press(press: unknown, at: string): Verb | null {
+    if (press === undefined) return null;
+    if (!isObject(press)) {
+      this.problems.push(`${at}.press is not an object.`);
+      return null;
+    }
+    return this.verb(press, `${at}.press`) ?? null;
+  }
+
+  action(raw: unknown, at: string): ListAction | null {
     if (!isObject(raw)) {
       this.problems.push(`${at} is not an object.`);
       return null;
     }
     const field = fieldsOf(raw, LIST_FIELDS.action);
     const label = this.text(field('label'), `${at}.label`, true);
-    // An action of a kind this build does not have is a later build's, and is left out like any field it does not know.
-    const session = field('session');
-    if (session === undefined) return null;
-    if (!isObject(session)) {
-      this.problems.push(`${at}.session is not an object.`);
-      return null;
-    }
-    const sessionField = fieldsOf(session, LIST_FIELDS.session);
-    const prompt = this.text(sessionField('prompt'), `${at}.session.prompt`, true);
-    const name = this.text(sessionField('name'), `${at}.session.name`);
-    return label !== null && prompt !== null ? { label, prompt, name } : null;
+    // An action of no verb this build has is a later build's, and is left out like any field it does not know.
+    const does = this.verb(raw, at);
+    return label !== null && does ? { label, does } : null;
   }
 
   item(raw: unknown, at: string): ListItem | null {
@@ -257,7 +326,7 @@ class Reader {
     const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
     const detail = this.detail(field('detail'), `${at}.detail`);
     const separator = this.text(field('separator'), `${at}.separator`) ?? this.separator;
-    const href = this.link(field('href'), `${at}.href`);
+    const press = this.press(field('press'), at);
     const tone = this.choice(field('tone'), `${at}.tone`, TONES);
     const actions = this.list(field('actions'), `${at}.actions`, false)
       .map((action, index) => this.action(action, `${at}.actions[${index}]`))
@@ -268,7 +337,7 @@ class Reader {
       .filter((child) => child !== null);
     const shut = this.flag(field('shut'), `${at}.shut`);
     if (shut && children.length === 0) this.problems.push(`${at}.shut needs children, which are what it folds.`);
-    return key !== null && text !== null ? { key, lead, leadTone, text, cut, trail, tooltip, detail, separator, href, tone, actions, children, shut } : null;
+    return key !== null && text !== null ? { key, lead, leadTone, text, cut, trail, tooltip, detail, separator, press, tone, actions, children, shut } : null;
   }
 
   /** One of the list's views: an id a layout entry can name and a script can be given, a label and an icon from the app's set; an id used before is a problem, as an item's key is. */
