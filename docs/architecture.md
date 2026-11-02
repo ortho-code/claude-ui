@@ -1436,6 +1436,23 @@ A run may say when it runs next through its control file, as a `command` panel's
 `watch: git` runs it again when its working tree changes, as it does a `command` panel (§ The `command` type).
 The interval is ten seconds to a day: at least ten seconds, so a typo cannot start a script every second, and at most a day, which also keeps every wait well inside what a timer holds — past 2^31 − 1 ms (about 25 days) a browser's `setTimeout` wraps the delay to a signed 32-bit value, which up to about 49 days turns negative and fires at once, and beyond fires after some shorter, wrong delay, so a longer interval ran at the wrong time, mostly at once, every time.
 
+**The sessions it is given.**
+Every run gets the sessions the app has, in a file named in `CLAUDE_UI_SESSIONS`, so a type can choose its rows from them; live values keep the rows it chose current between runs, without a run (decided 2026-11-02).
+It is built per run by the window (`panels/snapshot.ts`), which alone holds every part of it together: the session list, statuses, read marks, needs-you and later marks, groups and PR statuses.
+Main writes it to a file made as the control file is, readable by the user alone, and removes it when the run ends; a crash, or a write that fails partway, leaves it behind with the rest of the temp folder.
+One file main kept current was the alternative, rejected: main would need every change pushed to it and atomic writes, for a reader outside a run that nobody has.
+It is data, never the app's words: a reason is its `reason`, `at` and PR changes, since the app's own lines (`needsYouLines`) open with "Needs you —", which is the tooltip's and wrong under a Needs you heading.
+The fields are the ones a type needed, sorted by id so a new order is no change; pins, notes, worktrees and when a session was last active stay out until a type asks, the last above all, since it changes on every message.
+A status is what the session's claude last reported, filtered to the ones the docs name, and null rather than guessed for a session with no report, never having sent one or its report forgotten when its claude went.
+On this machine's scale, about 550 sessions not archived, a snapshot of that shape measured about 200 KB and under a millisecond to serialise (synthetic sessions, 2026-11-02), so every list run gets it rather than only a type that asks; asking first comes if that stops being small.
+Its shape is the one the `page` kind's API would serve.
+
+**`watch: sessions` runs it again when the snapshot changes.**
+The list kind's `watch` takes it beside `git` (`LIST_WATCH_OPTION`); a `command` panel is given no snapshot, so its `watch` does not.
+`PanelRuns` hears of every change to the slices the snapshot is made of (`SNAPSHOT_SLICES`, through the host's `watchSessions`), and once none has come for 2 seconds builds the snapshot and compares it with the one the latest run was given: a difference runs the panel, unasked and out of sight too, as a change in a watched tree does.
+Not before the panel has run, nor while a run goes, whose end looks again, nor for a panel that cannot run; a run that found nowhere to run does not look again, since its snapshot would differ every time and run it in a loop, so a change during its check waits for the next one.
+A fixed poll, as git's 30 seconds, was too slow for a session waiting for you; 2 seconds is the moment of one turn's end, its status and its read mark landing together.
+
 **Never an empty list for a broken run.**
 A run that fails, or prints something that is not a list, says so.
 With a good list already there, the list stays under a line saying when the run failed and why, and that list's count stays beside it; without one the panel says it is unavailable, quoting stderr's last lines.

@@ -222,7 +222,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     this.stderr = '';
     this.show();
     // Apart: stdout alone is the document, and stderr is kept for the reason a failure gives.
-    return { stderr: 'apart', source: { script }, context, options: this.optionValues(), view: this.viewToRun() };
+    return { stderr: 'apart', source: { script }, context, options: this.optionValues(), view: this.viewToRun(), sessions: this.host.sessionsSnapshot() };
   }
 
   progress(event: RunProgress): void {

@@ -270,6 +270,8 @@ export interface PanelRunRequest {
   options?: Record<string, string>;
   /** A list panel's view as picked, its layout entry's or its header's, as `CLAUDE_UI_VIEW`: empty without one, and absent for a panel of another kind, whose run is given none. */
   view?: string;
+  /** A list panel's sessions snapshot, as the JSON its file holds (`PANEL_SESSIONS_VARIABLE`); absent for a panel of another kind, whose run is given none. */
+  sessions?: string;
   /**
    * The renderer's own token for this run, carried back on every event.
    * A re-run stops the run before it, but output already on its way is not recalled, so the token is how the renderer tells a superseded run's tail from the new run's start.
@@ -309,6 +311,9 @@ export const PANEL_CONTROL_CAP = 4096;
 
 /** The variable giving a list panel's run the view picked for it (`PanelRunRequest.view`). */
 export const PANEL_VIEW_VARIABLE = 'CLAUDE_UI_VIEW';
+
+/** The variable naming a list panel's file of the sessions the app has, written for that run alone (`PanelRunRequest.sessions`). */
+export const PANEL_SESSIONS_VARIABLE = 'CLAUDE_UI_SESSIONS';
 
 /**
  * What main found of the git working tree at a folder, for a panel that follows its changes: a fingerprint, which differs whenever what git reports there does; `none` outside a working tree; `failed` when git could not say, which says nothing either way.

@@ -47,14 +47,22 @@ export const INTERVAL_OPTION: OptionDecl = { name: 'interval', kind: 'duration',
 
 /**
  * What a panel watches: ONE declaration, for the types that re-run, as `interval` is.
- * `git` alone for now, the git working tree of the folder the panel runs in; a folder in none, or one git cannot answer for, is a problem, which `prepare` names.
- * Named for what is watched, so another value (a session's turns, say) can join it later.
+ * `git`, the git working tree of the folder the panel runs in; a folder in none, or one git cannot answer for, is a problem, which `prepare` names.
+ * Named for what is watched, so another value can join it.
  */
 export const WATCH_OPTION: OptionDecl = { name: 'watch', kind: 'choice', values: ['git'] };
+
+/** The list kind's `watch`, which also takes `sessions`, the sessions snapshot its runs are given (`snapshot.ts`): a `command` panel is given none, so it has nothing there to watch. */
+export const LIST_WATCH_OPTION: OptionDecl = { ...WATCH_OPTION, values: [...(WATCH_OPTION.values ?? []), 'sessions'] };
 
 /** Whether an entry's options watch its git working tree: the one reading of `watch: git`, for the check and for the poll. */
 export function watchesGit(options: Record<string, unknown>): boolean {
   return options.watch === 'git';
+}
+
+/** Whether an entry's options watch the sessions snapshot: the one reading of `watch: sessions`. */
+export function watchesSessions(options: Record<string, unknown>): boolean {
+  return options.watch === 'sessions';
 }
 
 const DURATION = /^(\d+)(s|m|h)$/;

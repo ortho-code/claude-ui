@@ -243,6 +243,10 @@ export interface PanelHost extends Asks {
   pickSession(anchor: HTMLElement, sessions: LinkedSession[]): void;
   /** Put `text` on the clipboard and say so in a toast, in `confirmation`'s words, as every copy in the app does (`copyText`). */
   copyText(text: string, confirmation: string): void;
+  /** The sessions the app has, as a list panel's run is given them in its file (`snapshot.ts`). */
+  sessionsSnapshot(): string;
+  /** Call `listener` whenever something the sessions snapshot is made of changes, whether or not the snapshot itself does; answers the unsubscribe. */
+  watchSessions(listener: () => void): () => void;
 }
 
 export interface MountedPanel {

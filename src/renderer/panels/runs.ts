@@ -1,12 +1,12 @@
 import type { PanelRunEvent, PanelRunRequest } from '../../shared/panels';
 import type { MountedPanel, PanelHost } from './contract';
 import type { PanelSlot } from './layout';
-import { optionsOf, watchesGit } from './options';
+import { optionsOf, watchesGit, watchesSessions } from './options';
 import { NO_CONTROL, RunGate, readControl, resolveContext, runFailed, runKey, type Watched } from './run';
 import { listenForRuns } from './run-events';
 
 /**
- * A panel's runs, for the types that run a script and show what it gave — `command` and the `list` kind — written once: when it runs (`RunGate`), the check before every run, each run's token and number, asking main to run and to stop, what a run said in its control file about the next, and, for a panel that watches git, a run when its working tree changes.
+ * A panel's runs, for the types that run a script and show what it gave — `command` and the `list` kind — written once: when it runs (`RunGate`), the check before every run, each run's token and number, asking main to run and to stop, what a run said in its control file about the next, for a panel that watches git, a run when its working tree changes, and for one that watches sessions, a run when the sessions snapshot does.
  * The panel keeps its body, says through its hooks (`RunHooks`) what each step looks like and what to run, and hands the tree's calls on to this.
  */
 
@@ -33,6 +33,8 @@ export interface Checked<Ready> {
 const POLL_MS = 30_000;
 /** How many times a check git did not answer is asked again, before the panel waits for a Refresh. */
 const RETRIES = 3;
+/** How long the sessions have to stay as they are before a panel that watches them runs again, so the changes of one moment, a turn's end and its read mark, are one run (decided 2026-11-02). */
+const SESSIONS_SETTLE_MS = 2_000;
 
 /** A run as the panel asks for it; the entry and the token are added here. */
 export type RunAsk = Omit<PanelRunRequest, 'entryId' | 'token'>;
@@ -87,6 +89,11 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   /** A changed fingerprint seen once, waiting for the next poll to find it again: a run only once the tree has been still for one poll, so a burst of writes is one run. */
   private pending: string | null = null;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The sessions snapshot the latest run was given, for a panel that watches sessions: a snapshot that differs from it is a change; null until a run has been given one. */
+  private sentSessions: string | null = null;
+  /** Waiting for the sessions to stay as they are, after a change to what they are made of. */
+  private sessionsTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly stopWatchingSessions: () => void;
 
   constructor(
     private readonly slot: PanelSlot,
@@ -96,6 +103,7 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     private readonly hooks: RunHooks<Ready>,
   ) {
     this.stopListening = listenForRuns(slot.key, (token, event) => this.handle(token, event));
+    this.stopWatchingSessions = host.watchSessions(() => this.sessionsMoved());
     // Keyed by where the run would go, so a tab or project change that lands on the same place does not run again, and a fixed `cwd` never does.
     this.gate = new RunGate(
       () => runKey(optionsOf(this.slot.entry).cwd, resolveContext(this.host.where())),
@@ -157,6 +165,9 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     this.stopRetrying();
     if (this.pollTimer !== null) clearTimeout(this.pollTimer);
     this.pollTimer = null;
+    if (this.sessionsTimer !== null) clearTimeout(this.sessionsTimer);
+    this.sessionsTimer = null;
+    this.stopWatchingSessions();
     this.gate.stop();
     if (this.token !== null) window.claudeUi.stopPanel(this.slot.key);
     this.token = null;
@@ -243,6 +254,7 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
   /**
    * Run `number` has ended: when it is still the latest, the tree as it left it is the baseline, so what the run changed itself is no change, and looks count again.
    * Git not answering then leaves no baseline, so the next look takes the tree as it is rather than count the run's own writes as a change.
+   * The sessions are looked at again too, since a change while the run went counted for nothing then.
    */
   private async rebase(number: number): Promise<void> {
     const checked = watchesGit(optionsOf(this.slot.entry)) ? await this.hooks.check() : null;
@@ -250,6 +262,26 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     this.baseline = checked?.watched ?? null;
     this.pending = null;
     this.activeRun = null;
+    this.sessionsMoved();
+  }
+
+  /** Something the sessions snapshot is made of changed: for a panel whose options watch sessions as they are now, look again once nothing more has changed for a moment. */
+  private sessionsMoved(): void {
+    if (this.disposed || !watchesSessions(optionsOf(this.slot.entry))) return;
+    if (this.sessionsTimer !== null) clearTimeout(this.sessionsTimer);
+    this.sessionsTimer = setTimeout(() => {
+      this.sessionsTimer = null;
+      this.sessionsSettled();
+    }, SESSIONS_SETTLE_MS);
+  }
+
+  /**
+   * The sessions have stayed as they are for a moment: a snapshot that differs from the one the latest run was given runs the panel, shown or not, as a change in a watched tree does.
+   * Not before the panel has run, nor while a run goes, whose end looks again, nor for a panel that cannot run.
+   */
+  private sessionsSettled(): void {
+    if (this.sentSessions === null || this.activeRun !== null || this.runnable !== true) return;
+    if (this.host.sessionsSnapshot() !== this.sentSessions) this.gate.changed();
   }
 
   /** Every run checks first: a script or a folder can go missing between runs, and the check is what says so in the panel's own words. */
@@ -273,6 +305,7 @@ export class PanelRuns<Ready> implements Pick<MountedPanel, 'refresh' | 'context
     this.token = crypto.randomUUID();
     this.runNumber = number;
     const ask = this.hooks.start(checked.ready, tick);
+    this.sentSessions = ask.sessions ?? null;
     this.host.setBusy(true);
     // Main stops the run before this one itself; the token is what keeps that run's tail out of this one.
     window.claudeUi.runPanel({ entryId: this.slot.key, token: this.token, ...ask });

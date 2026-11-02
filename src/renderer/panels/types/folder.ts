@@ -1,7 +1,7 @@
 import { OPTION_NAME, typeFolder, type TypeReport } from '../../../shared/panels';
 import { ICON_NAMES, isIconName, type IconName } from '../icons';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
-import { CWD_OPTION, INTERVAL_OPTION, WATCH_OPTION, isFixedPath, valueProblem, type OptionDecl } from '../options';
+import { CWD_OPTION, INTERVAL_OPTION, LIST_WATCH_OPTION, isFixedPath, valueProblem, type OptionDecl } from '../options';
 import { fieldsOf, unknownFields } from '../fields';
 import type { PanelType } from '../contract';
 import { mountList } from './list';
@@ -36,7 +36,7 @@ export const MANIFEST_FIELDS = ['version', 'kind', 'title', 'icon', 'run', 'inte
 export const OPTION_FIELDS = ['name', 'kind', 'fields'] as const;
 
 /** What every type of a kind takes without its manifest declaring it. */
-export const KIND_OPTIONS: Record<Kind, OptionDecl[]> = { list: [CWD_OPTION, INTERVAL_OPTION, WATCH_OPTION] };
+export const KIND_OPTIONS: Record<Kind, OptionDecl[]> = { list: [CWD_OPTION, INTERVAL_OPTION, LIST_WATCH_OPTION] };
 
 /** A manifest as this build reads it, once checked. */
 export interface Manifest {

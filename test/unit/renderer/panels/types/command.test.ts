@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { INTERVAL_OPTION, WATCH_OPTION } from '../../../../../src/renderer/panels/options';
+import { INTERVAL_OPTION, LIST_WATCH_OPTION, WATCH_OPTION } from '../../../../../src/renderer/panels/options';
 import { commandSource, commandType } from '../../../../../src/renderer/panels/types/command';
 import { KIND_OPTIONS } from '../../../../../src/renderer/panels/types/folder';
 
@@ -20,9 +20,10 @@ describe('the declaration', () => {
     expect(commandType.options.find((option) => option.name === 'interval')).toBe(INTERVAL_OPTION);
   });
 
-  it('takes the one watch declaration the list kind takes too', () => {
+  it('takes the watch declaration the list kind builds on, which adds sessions, since only a list run is given them', () => {
     expect(commandType.options.find((option) => option.name === 'watch')).toBe(WATCH_OPTION);
-    expect(KIND_OPTIONS.list).toContain(WATCH_OPTION);
+    expect(KIND_OPTIONS.list).toContain(LIST_WATCH_OPTION);
+    expect(LIST_WATCH_OPTION).toEqual({ ...WATCH_OPTION, values: ['git', 'sessions'] });
   });
 
   it('takes the one cwd declaration both types share: a folder, under the context directory when relative', () => {

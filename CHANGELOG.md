@@ -109,6 +109,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A panel type of your own decides what a press does, on an action, a row or a part of its detail, from the verbs `session`, `open-session`, `open-url` and `copy`.
   Hovering a row or a part shows only the type's own `tooltip`, so a type that wants a link's address shown puts it there.
 - A panel type of your own can show a session's name in a row's texts and its status dot before the row's actions, both kept current between runs, from the session's id.
+- A panel type of your own is given the sessions the app has in a file, with each one's status, group, needs-you and later marks and PRs, to choose its rows from.
+  `"watch": "sessions"` runs it again when that file would say something new.
 
 ### Changed
 

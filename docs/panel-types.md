@@ -81,6 +81,7 @@ A `list` is written as one, here for the `actions` declared above:
 
 `interval` overrides the manifest's.
 `"watch": "git"` runs the panel again when the git working tree of the folder it runs in changes, as a `command` panel's does (see the README's Panels section).
+`"watch": "sessions"` runs it again when the sessions file (below) would say something else than it said to the last run, once nothing more has changed for 2 seconds.
 
 ## What the script is given
 
@@ -97,6 +98,7 @@ It runs through your login shell, the same one your sessions run in, so `PATH` i
 | `CLAUDE_UI_OPTION_<NAME>` | each option the entry gives, by its name in capitals: a `text` as it is written, a `list` as JSON, such as `[{"button":"Research","prompt":"/research {id}"}]`, which a script reads with `JSON.parse(process.env.CLAUDE_UI_OPTION_ACTIONS ?? '[]')` |
 | `CLAUDE_UI_VIEW` | the view on show, by id, among the list's `views` (below): the one picked in the panel's header or as its layout entry's `view`, else the first; before the panel has printed a list since it was last mounted, the pick as it stands, empty without one; and empty for a list offering no views |
 | `CLAUDE_UI_CONTROL` | a file of the run's own, to say when it runs next (below); unset in the rare run whose file could not be made, which the log names |
+| `CLAUDE_UI_SESSIONS` | a file of the run's own holding the sessions the app has (below), removed when the run ends; unset in the rare run whose file could not be made, which the log names |
 
 `CLAUDE_UI` itself is not set, so a `claude -p` the script runs is not taken for one of the app's sessions.
 
@@ -121,6 +123,40 @@ if [ -n "$(git status --porcelain)" ]; then echo "next=1m"; else echo "next=1h";
 A run that writes nothing leaves the next run to the `interval`.
 A `next` under `10s` runs at `10s` and one over `24h` at `24h`, each with a note (`0s`, as in an `interval`, is not a duration); a line that is not `name=value`, a name the app does not read and a last `next` it cannot read are each a note on the group's note line, and none of them is acted on.
 Only the last `next` counts, and only the file's first 4 KB is read: an earlier `next` and anything past that are not.
+
+### The sessions
+
+`CLAUDE_UI_SESSIONS` names a file holding one JSON object, `{ "version": 1, "sessions": [...] }`: every session the app has that is not archived or being deleted, a new session's tab included before its transcript is listed, each once and in the order of their ids, as they were when the run started.
+It is data, not words: what a reason or a status is called on a row is the type's to say.
+A row keeps a session's title and dot current between runs through a live value and a `dot` (below), so the file is for choosing the rows.
+
+| Field | Meaning |
+|---|---|
+| `id` | The session's full id, as a live value, a `dot` and `open-session` take it. |
+| `title` | What the app calls it, as a live value's `title` says it when the run starts. |
+| `project` | Its project's folder, the repository's root. |
+| `group` | Its group, `{ "id", "name" }`, or `null` for none. |
+| `status` | What its claude last said: `busy`, `idle`, `background` (the turn has ended and work it started still runs), `waiting` or `closed`; `null` when it has said nothing, as for a session the app did not start, and once its claude has gone, its tab closed or no longer running, unless its end is reported after that, which is `closed`. |
+| `read` | Whether its dot was marked read. |
+| `needsYou` | Why it is marked as needing you, a reason each, and empty when it is not (below). |
+| `later` | Its later mark, `{ "due", "at" }`: when it comes back as needing you, `null` for whenever, and when it was set, both as epoch milliseconds; `null` when it has none. |
+| `prs` | The PRs it links, each `{ "repository", "number", "url", "status" }`, `repository` as `owner/name`; `status` is what GitHub last said of it (below), `null` until GitHub has answered for that PR, which one it cannot be asked about never does. |
+
+A reason in `needsYou` has a `reason` and `at`, when it was marked, in epoch milliseconds:
+
+| `reason` | Meaning |
+|---|---|
+| `quit` | It was running when the app quit. |
+| `ended` | It was running when the app ended without quitting. |
+| `unknown` | It was running when the app last closed, and the app cannot say how it closed. |
+| `reminder` | The moment its later mark was set for has come, and it needed you for nothing else then; `at` is that moment. |
+| `pr` | A PR it links changed: `pr` names it, `owner/name#number`, and `changes` lists what changed, strongest first, from `checks failed`, `merge conflict`, `changes requested`, `merged`, `closed`, `approved` and `reopened`. |
+
+`needsYou` lists every reason, also those a later mark set after them puts aside: the app shows a session as needing you only while a reason's `at` is after its later mark's `at`, or it has no later mark.
+A later mark whose moment has passed shows here until the app has turned it into a reminder: at that moment while the machine is awake, and within the hour of waking when it slept through it.
+
+A PR's `status` is `{ "state": "merged" }` or `{ "state": "closed" }`, or for an open one `{ "state": "open", "draft", "review", "checks", "conflict" }`: `review` is `approved`, `changes-requested`, `review-required` or `null`; `checks` is `passed`, `failed`, `running` or `null` for none; `conflict` is `null` while GitHub is still working it out.
+With PR status off in Settings, every `status` is `null`.
 
 ## What the script prints
 
@@ -303,7 +339,7 @@ A field the app does not know is ignored, so a script written for a later versio
 
 ## What the app does with it
 
-A panel runs its script when it is first shown, on Refresh, when you switch project or tab if its folder moves with them and it has run before, and on its `interval`, when its last run said (`next`, above), or when the tree it watches changes, any of which also runs while it is out of sight so the count on its icon stays current.
+A panel runs its script when it is first shown, on Refresh, when you switch project or tab if its folder moves with them and it has run before, and on its `interval`, when its last run said (`next`, above), or when what it watches changes, any of which also runs while it is out of sight so the count on its icon stays current.
 A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why; without one, the panel says it is unavailable, quoting stderr.
 Before the first run has ended it says it is waiting.
 

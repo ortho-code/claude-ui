@@ -30,6 +30,8 @@ import { claudeType } from './types/claude';
 import { sessionsType } from './types/sessions';
 import { folderTypes } from './types/folder';
 import { linkedSessions, pickSession, sessionNamed, startSession } from './links';
+import { SNAPSHOT_SLICES, snapshotText } from './snapshot';
+import { store } from '../state/app';
 import { HeaderTabs } from './tabs';
 import type { Asks, MountedPanel, PanelHost, PanelStatus, PanelType, PanelView, Where } from './contract';
 import { commandType } from './types/command';
@@ -713,6 +715,8 @@ function mountedFor(slot: PanelSlot): Mounted {
     session: sessionNamed,
     pickSession: (anchor, sessions) => pickSession(anchor, sessions, host.asks),
     copyText: (text, confirmation) => void copyText(text, confirmation),
+    sessionsSnapshot: snapshotText,
+    watchSessions: (listener) => store.watch(SNAPSHOT_SLICES, listener),
     ...host.asks,
   };
   const panel = type.mount(slot, panelHost);

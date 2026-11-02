@@ -69,7 +69,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 import { registerPanelsIpc, stopAllPanels, panelInvocation, panelEnv, contextEnv } from '../../../src/main/panels';
-import { PANEL_CONTROL_CAP, PANEL_CONTROL_VARIABLE, PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, PANEL_VIEW_VARIABLE, type PanelRunEvent, type PanelRunRequest } from '../../../src/shared/panels';
+import { PANEL_CONTROL_CAP, PANEL_CONTROL_VARIABLE, PANEL_OUTPUT_CAP, PANEL_SESSIONS_VARIABLE, PANEL_TIMEOUT_MS, PANEL_VIEW_VARIABLE, type PanelRunEvent, type PanelRunRequest } from '../../../src/shared/panels';
 import { KILL_GRACE_MS } from '../../../src/main/shell';
 
 const CONTEXT = { projectRoot: process.cwd(), cwd: process.cwd(), sessionId: 'sess-1' };
@@ -127,8 +127,8 @@ describe('what reaches the shell', () => {
       if (match) named.push(match[1]);
     }
     expect(start).toBeGreaterThanOrEqual(0);
-    // The context, the run's own control file beside it, and a list panel's view.
-    const run = [...Object.keys(contextEnv({ projectRoot: '/repo', cwd: '/repo', sessionId: 's' })), PANEL_CONTROL_VARIABLE, PANEL_VIEW_VARIABLE];
+    // The context, the run's own control file beside it, and a list panel's view and sessions file.
+    const run = [...Object.keys(contextEnv({ projectRoot: '/repo', cwd: '/repo', sessionId: 's' })), PANEL_CONTROL_VARIABLE, PANEL_VIEW_VARIABLE, PANEL_SESSIONS_VARIABLE];
     expect(named.filter((name) => name !== 'CLAUDE_UI_OPTION_<NAME>').sort()).toEqual(run.sort());
     expect(named).toContain('CLAUDE_UI_OPTION_<NAME>');
   });
@@ -178,8 +178,10 @@ describe('a run', () => {
     stopAllPanels();
     kill.mockRestore();
     vi.useRealTimers();
-    // A run a test left going keeps its control file, which is a real file in the system's temp folder.
-    for (const child of spawned) rmSync(child.options.env[PANEL_CONTROL_VARIABLE] ?? '', { force: true, recursive: true });
+    // A run a test left going keeps its files, which are real files in the system's temp folder.
+    for (const child of spawned) {
+      for (const variable of [PANEL_CONTROL_VARIABLE, PANEL_SESSIONS_VARIABLE]) rmSync(child.options.env[variable] ?? '', { force: true, recursive: true });
+    }
   });
 
   it('gives a run the view it asks with, empty too, and a run that asks with none no view at all', () => {
@@ -472,6 +474,35 @@ describe('a run', () => {
       first.child.end(null, 'SIGTERM');
       expect(events(first.token)).toEqual([]);
       expect(existsSync(controlOf(first.child))).toBe(false);
+    });
+  });
+
+  describe('its sessions file', () => {
+    const SNAPSHOT = '{"version":1,"sessions":[]}';
+    const sessionsOf = (child: FakeChild): string => child.options.env[PANEL_SESSIONS_VARIABLE];
+
+    it('holds the snapshot the run asks with, in a file of its own readable by the user alone, and a run that asks with none has none', () => {
+      const { child } = start({ sessions: SNAPSHOT });
+      expect(readFileSync(sessionsOf(child), 'utf8')).toBe(SNAPSHOT);
+      expect(statSync(sessionsOf(child)).mode & 0o777).toBe(0o600);
+      expect(sessionsOf(child)).not.toBe(child.options.env[PANEL_CONTROL_VARIABLE]);
+      expect(start().child.options.env).not.toHaveProperty(PANEL_SESSIONS_VARIABLE);
+    });
+
+    it('is removed at the run’s end, at a re-run’s, and with a run Node refuses to spawn', () => {
+      const ended = start({ entryId: 'ended', sessions: SNAPSHOT });
+      ended.child.end(0);
+      expect(existsSync(sessionsOf(ended.child))).toBe(false);
+
+      const first = start({ sessions: SNAPSHOT });
+      start({ sessions: SNAPSHOT });
+      first.child.end(null, 'SIGTERM');
+      expect(existsSync(sessionsOf(first.child))).toBe(false);
+
+      start({ sessions: SNAPSHOT, options: { refuse: 'yes' } });
+      const file = refused.at(-1)!.env[PANEL_SESSIONS_VARIABLE];
+      expect(file).toBeTruthy();
+      expect(existsSync(file)).toBe(false);
     });
   });
 

@@ -16,6 +16,7 @@ import {
   OPTION_NAME,
   PANEL_CONTROL_CAP,
   PANEL_CONTROL_VARIABLE,
+  PANEL_SESSIONS_VARIABLE,
   PANEL_VIEW_VARIABLE,
   PANEL_OUTPUT_CAP,
   PANEL_TIMEOUT_MS,
@@ -119,6 +120,8 @@ interface Run {
   started: number;
   /** Its control file, until the run's end reads and removes it; null when it could not be made. */
   control: string | null;
+  /** Its sessions file, until the run's end removes it; null for a run given none, or when it could not be made. */
+  sessions: string | null;
 }
 
 /**
@@ -148,18 +151,21 @@ function logRunEnd(run: Run, event: PanelRunEvent): void {
   }
 }
 
+/** The files a run is given, by what each is called in the log and in its name. */
+type RunFile = 'control' | 'sessions';
+
 /**
- * A fresh control file for a run: empty, created exclusively and readable by the user alone, since the temp folder can be shared with other users of the machine (`/tmp` on Linux).
+ * A fresh file of a run's own, holding `content`: the control file empty, the sessions file the snapshot; created exclusively and readable by the user alone, since the temp folder can be shared with other users of the machine (`/tmp` on Linux).
  * Null when it cannot be made, and the run goes ahead without one.
- * The run's end removes it; a crash, or a quit in the second a run's end can take, leaves it behind, empty or nearly, for the system to clear.
+ * The run's end removes it; a crash, a quit in the second a run's end can take, or a write that fails partway leaves it behind for the system to clear, the control file empty or nearly and the sessions file as far as it was written.
  */
-function makeControl(entryId: string): string | null {
-  const file = path.join(os.tmpdir(), `claude-ui-control-${randomUUID()}`);
+function makeRunFile(entryId: string, kind: RunFile, content: string): string | null {
+  const file = path.join(os.tmpdir(), `claude-ui-${kind}-${randomUUID()}`);
   try {
-    writeFileSync(file, '', { flag: 'wx', mode: 0o600 });
+    writeFileSync(file, content, { flag: 'wx', mode: 0o600 });
     return file;
   } catch (error) {
-    log('warn', 'panel', `${entryId} runs without a control file: ${fsFailure(error) ?? 'it could not be made'}`);
+    log('warn', 'panel', `${entryId} runs without a ${kind} file: ${fsFailure(error) ?? 'it could not be made'}`);
     return null;
   }
 }
@@ -184,16 +190,16 @@ function takeControl(run: Run): string | null {
     if (failure) log('warn', 'panel', `${run.entryId} control file unreadable: ${failure}`);
     return null;
   } finally {
-    dropControl(run.entryId, file);
+    dropRunFile(run.entryId, file, 'control');
   }
 }
 
-/** Remove a control file, saying so in the log when it cannot be: a script may have put a folder in its place. */
-function dropControl(entryId: string, file: string): void {
+/** Remove a run's file, saying so in the log when it cannot be: a script may have put a folder in its place. */
+function dropRunFile(entryId: string, file: string, kind: RunFile): void {
   try {
     rmSync(file, { force: true });
   } catch (error) {
-    log('warn', 'panel', `${entryId} control file not removed: ${fsFailure(error) ?? 'it could not be'}`);
+    log('warn', 'panel', `${entryId} ${kind} file not removed: ${fsFailure(error) ?? 'it could not be'}`);
   }
 }
 
@@ -201,6 +207,8 @@ function finish(run: Run, event: PanelRunEvent): void {
   if (run.finished) return;
   logRunEnd(run, event);
   const control = takeControl(run);
+  if (run.sessions !== null) dropRunFile(run.entryId, run.sessions, 'sessions');
+  run.sessions = null;
   emit(run, control !== null && (event.kind === 'exit' || event.kind === 'stopped') ? { ...event, control } : event);
   run.finished = true;
   clearTimeout(run.timeout);
@@ -236,9 +244,11 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
   // Anything but `apart` is the one pipe, as every run was before the choice existed.
   const stderr: PanelStderr = request.stderr === 'apart' ? 'apart' : 'merged';
   const { file, args } = panelInvocation(request.source, stderr);
-  const control = makeControl(request.entryId);
+  const control = makeRunFile(request.entryId, 'control', '');
+  const sessions = request.sessions === undefined ? null : makeRunFile(request.entryId, 'sessions', request.sessions);
   const env = panelEnv(request.context, request.options);
   if (control !== null) env[PANEL_CONTROL_VARIABLE] = control;
+  if (sessions !== null) env[PANEL_SESSIONS_VARIABLE] = sessions;
   // A list panel's view, set even when empty, as the session id is; a kind without views asks with none and its run is given none.
   if (request.view !== undefined) env[PANEL_VIEW_VARIABLE] = request.view;
   // `detached` puts the child in a session of its own, so its pid is a group id the stop can signal (shell.ts).
@@ -251,8 +261,9 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
       stdio: STDIO[stderr],
     });
   } catch (error) {
-    // Refused before there was a run to end, such as a value Node will not put in an environment: the control file goes with it, and the panel hears it as a run that could not start, as it does an `error` from the spawn, rather than nothing and a busy mark for good.
-    if (control !== null) dropControl(request.entryId, control);
+    // Refused before there was a run to end, such as a value Node will not put in an environment: the run's files go with it, and the panel hears it as a run that could not start, as it does an `error` from the spawn, rather than nothing and a busy mark for good.
+    if (control !== null) dropRunFile(request.entryId, control, 'control');
+    if (sessions !== null) dropRunFile(request.entryId, sessions, 'sessions');
     const message = error instanceof Error ? error.message : String(error);
     log('warn', 'panel', `${request.entryId} could not run: ${message}`);
     tell({ kind: 'exit', code: null, signal: null, error: message });
@@ -271,6 +282,7 @@ export function run(sender: WebContents, request: PanelRunRequest): void {
     timeout: setTimeout(() => stopRun(current, 'timeout'), PANEL_TIMEOUT_MS),
     started: Date.now(),
     control,
+    sessions,
   };
   runs.set(request.entryId, current);
   live.add(current);
