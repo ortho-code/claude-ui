@@ -24,7 +24,7 @@ export type NeedsYouReason = ClosedHow | 'reminder' | 'pr';
 export type PrChange = 'checks failed' | 'merge conflict' | 'changes requested' | 'merged' | 'closed' | 'approved' | 'reopened';
 
 /**
- * One reason a session needs you: why, and when it was marked (epoch ms); for a reminder, the start of the day it was for.
+ * One reason a session needs you: why, and when it was marked (epoch ms); for a reminder, the moment it was due.
  * A session keeps every reason it was marked for, as a list.
  */
 export type NeedsYou =
@@ -35,7 +35,7 @@ export type NeedsYou =
 /** What GitHub was last seen to say of each PR, by reference (`owner/name#number`): what a change is told from. */
 export type PrSeen = Record<string, PrStatus>;
 
-/** A session marked for later: the start of the day it comes back as needing you (epoch ms), or null for whenever, and when it was marked (epoch ms). */
+/** A session marked for later: the moment it comes back as needing you (epoch ms), or null for whenever, and when it was marked (epoch ms). */
 export interface Later {
   due: number | null;
   at: number;
@@ -476,11 +476,11 @@ export interface ClaudeUiApi {
   setPrSeen(seen: PrSeen): void;
   /** The sessions marked for later, by session id. */
   getLater(): Promise<Record<string, Later>>;
-  /** Mark a session for later, `due` the start of the day it comes back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
+  /** Mark a session for later, `due` the moment it comes back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
   markLater(id: string, due: number | null, at?: number): void;
   /** Take a session's later mark off, whether or not it had one. */
   clearLater(id: string): void;
-  /** Settle the later marks whose day has come by `now` (`cameDue`): each goes, and a session not marked as needing you is marked with a reminder. */
+  /** Settle the later marks that have come due by `now` (`cameDue`): each goes, and a session not marked as needing you is marked with a reminder. */
   laterCameDue(now: number): void;
   /** How the app closed before this window opened: what a session running then is marked for. */
   getLastClosed(): Promise<ClosedHow>;

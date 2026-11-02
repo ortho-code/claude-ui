@@ -743,7 +743,7 @@ export function getLater(): Promise<Record<string, Later>> {
   return serialize(async () => (await readMeta()).later);
 }
 
-/** Mark a session for later, `due` the start of the day it comes back, or null for whenever; a mark already there is replaced. */
+/** Mark a session for later, `due` the moment it comes back, or null for whenever; a mark already there is replaced. */
 export function markLater(id: string, due: number | null, at = Date.now()): Promise<void> {
   return update('markLater', (meta) => {
     meta.later = markedLater(meta.later, id, due, at);
@@ -757,7 +757,7 @@ export function clearLater(id: string): Promise<void> {
   });
 }
 
-/** Settle the later marks whose day has come by `now`, by the rule the window keeps its copy by (`cameDue`). */
+/** Settle the later marks that have come due by `now`, by the rule the window keeps its copy by (`cameDue`). */
 export function laterCameDue(now: number): Promise<void> {
   return update('laterCameDue', (meta) => {
     Object.assign(meta, cameDue(meta, now));

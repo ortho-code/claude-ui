@@ -49,7 +49,7 @@ export interface AppState {
    */
   needsYou: ReadonlyMap<string, readonly NeedsYou[]>;
   /**
-   * Entity key -> the day it comes back and since when it was set aside: what main keeps in `meta.json`, kept here by the same rules (`markedLater`, `clearedLater`, `cameDue`), each change sent to main as it is made.
+   * Entity key -> the moment it comes back and since when it was set aside: what main keeps in `meta.json`, kept here by the same rules (`markedLater`, `clearedLater`, `cameDue`), each change sent to main as it is made.
    * Mutes a needs-you mark it came after (`mutedByLater`).
    */
   later: ReadonlyMap<string, Later>;

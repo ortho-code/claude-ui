@@ -299,7 +299,7 @@ function linkedItems(session: SessionSummary): MenuItem[] {
 }
 
 /**
- * Later, with the day it comes back as needing you, and Clear later: a mark on the session, so the tab is left as it is (decided 2026-10-29).
+ * Later, with the day and time it comes back as needing you, and Clear later: a mark on the session, so the tab is left as it is (decided 2026-10-29).
  * An archived session's menu has neither, since an archive clears the mark.
  */
 function laterItems(session: SessionSummary): MenuItem[] {

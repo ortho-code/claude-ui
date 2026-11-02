@@ -75,7 +75,7 @@ export function clearedLater(later: Readonly<Record<string, Later>>, id: string)
 }
 
 /**
- * The later marks whose day has come by `now` settled: each goes, and its session needs you — for what it already needed you for, if anything, or else for the reminder, marked from the day it was for.
+ * The later marks come due by `now` settled: each goes, and its session needs you — for what it already needed you for, if anything, or else for the reminder, marked from the moment it was due.
  * A session that already needs you gets no reminder beside its reasons: the later mark going is what lights them up again (decided 2026-10-29).
  */
 export function cameDue(marks: { needsYou: Readonly<Record<string, readonly NeedsYou[]>>; later: Readonly<Record<string, Later>> }, now: number): Pick<SessionMarks, 'needsYou' | 'later'> {

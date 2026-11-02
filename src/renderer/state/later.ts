@@ -9,7 +9,7 @@ import { store } from './app';
 /** The longest the window waits between looks for a later mark come due: a timer set for the soonest is held to this, so one a sleeping machine slept through is found within the hour of waking. */
 const LOOK_AT_LEAST_EVERY_MS = 60 * 60 * 1000;
 
-/** Mark a session for later, `due` the start of the day it comes back, or null for whenever, from `at`: now, or when it was marked for a mark Undo puts back. */
+/** Mark a session for later, `due` the moment it comes back, or null for whenever, from `at`: now, or when it was marked for a mark Undo puts back. */
 export function markLater(id: string, due: number | null, at = Date.now()): void {
   store.set({ later: new Map(Object.entries(markedLater(Object.fromEntries(store.get().later), id, due, at))) });
   window.claudeUi.markLater(id, due, at);
@@ -22,7 +22,7 @@ export function clearLater(id: string): void {
   window.claudeUi.clearLater(id);
 }
 
-/** Settle the later marks whose day has come (`cameDue`); nothing is sent while none has. */
+/** Settle the later marks that have come due (`cameDue`); nothing is sent while none has. */
 export function settleDueLater(now = Date.now()): void {
   const { later, needsYou } = store.get();
   if (![...later.values()].some((mark) => mark.due !== null && mark.due <= now)) return;
