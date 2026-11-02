@@ -42,27 +42,30 @@ window.claudeUi.onPanelDataChanged((entryKey, data) => setPanelData(entryKey, da
 export function linkedSessions(entryKey: string, itemKey: string): LinkedSession[] {
   const data = panelDataOf(entryKey);
   if (!data) return [];
-  const view = store.get();
-  const { sessions, backgroundTasks } = view;
   return Object.entries(data.sessions)
     .filter(([, link]) => link.key === itemKey)
     .sort(([, a], [, b]) => b.startedAt.localeCompare(a.startedAt))
     .flatMap(([id]) => {
-      const tab = tabWith(id);
-      const session = tab?.session ?? sessions.find((s) => s.id === id);
-      if (!session) return [];
-      return [
-        {
-          id,
-          title: sessionLabel(session),
-          status: dotStatus(id, view) ?? null,
-          background: backgroundTasks.get(id) ?? [],
-          needsYou: view.needsYou.get(id) ?? null,
-          acked: shownRead(id, dotStatus(id, view), view),
-          running: tab !== undefined && tab.terminalId !== null,
-        },
-      ];
+      const session = sessionNamed(id);
+      return session ? [session] : [];
     });
+}
+
+/** A session the app has, by its full id, as the session list would draw it; null when it has none. */
+export function sessionNamed(id: string): LinkedSession | null {
+  const view = store.get();
+  const tab = tabWith(id);
+  const session = tab?.session ?? view.sessions.find((s) => s.id === id);
+  if (!session) return null;
+  return {
+    id,
+    title: sessionLabel(session),
+    status: dotStatus(id, view) ?? null,
+    background: view.backgroundTasks.get(id) ?? [],
+    needsYou: view.needsYou.get(id) ?? null,
+    acked: shownRead(id, dotStatus(id, view), view),
+    running: tab !== undefined && tab.terminalId !== null,
+  };
 }
 
 /** Several sessions of one row, in the app's own menu, each with its own status dot, as the row's mark and the session list draw it. */

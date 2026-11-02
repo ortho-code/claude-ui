@@ -108,6 +108,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   If PR status is on when you first start this version, its first whole answer from GitHub marks only the sessions with a tab or set aside for later whose PRs already need you by then; with it off then, turning it on later marks only what changes after.
 - A panel type of your own decides what a press does, on an action, a row or a part of its detail, from the verbs `session`, `open-session`, `open-url` and `copy`.
   Hovering a row or a part shows only the type's own `tooltip`, so a type that wants a link's address shown puts it there.
+- A panel type of your own can show a session's name in a row's texts and its status dot before the row's actions, both kept current between runs, from the session's id.
 
 ### Changed
 

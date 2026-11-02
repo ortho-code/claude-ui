@@ -237,6 +237,8 @@ export interface PanelHost extends Asks {
   startSession(request: SessionRequest): void;
   /** The sessions an item started that the app still has, latest first; empty until the panel's data has been read. */
   linkedSessions(itemKey: string): LinkedSession[];
+  /** A session the app has, by its full id, as `linkedSessions` gives one; null when it has none. */
+  session(id: string): LinkedSession | null;
   /** Offer several of an item's sessions in a menu at `anchor`, to go to one. */
   pickSession(anchor: HTMLElement, sessions: LinkedSession[]): void;
   /** Put `text` on the clipboard and say so in a toast, in `confirmation`'s words, as every copy in the app does (`copyText`). */

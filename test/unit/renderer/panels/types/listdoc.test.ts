@@ -66,6 +66,7 @@ describe('readListDocument', () => {
             items: [
               {
                 key: 'org/repo#1',
+                dot: null,
                 lead: 'PR',
                 leadTone: 'positive',
                 text: 'Fix the login redirect',
@@ -96,7 +97,7 @@ describe('readListDocument', () => {
       views: [],
       compact: false,
       buttons: 1,
-      sections: [{ title: null, shut: false, tooltip: null, empty: null, items: [{ ...item, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: [], separator: ' · ', press: null, tone: 'normal', actions: [], children: [], shut: false }] }],
+      sections: [{ title: null, shut: false, tooltip: null, empty: null, items: [{ ...item, dot: null, lead: null, leadTone: 'normal', cut: 'end', trail: null, tooltip: null, detail: [], separator: ' · ', press: null, tone: 'normal', actions: [], children: [], shut: false }] }],
       notes: [],
     });
   });
@@ -160,6 +161,27 @@ describe('readListDocument', () => {
     ]);
   });
 
+  it("reads a row's texts as a string or as pieces, each a string or a live value, and its dot by a session's id", () => {
+    const id = 'b03e5cdc-8f1e-4a2b-9c3d-5e6f7a8b9c0d';
+    const title = { session: id, field: 'title' };
+    const read = firstItem({
+      dot: { session: id },
+      lead: [title],
+      text: ['Review: ', { ...title, else: 'PR #1' }],
+      trail: [title],
+      tooltip: [title],
+      detail: [[{ text: [title], tooltip: [title] }]],
+    });
+    const live = { session: id, field: 'title', else: null };
+    expect(read?.dot).toBe(id);
+    expect(read?.text).toEqual(['Review: ', { ...live, else: 'PR #1' }]);
+    expect([read?.lead, read?.trail, read?.tooltip, read?.detail[0]?.[0]?.text, read?.detail[0]?.[0]?.tooltip]).toEqual([[live], [live], [live], [live], [live]]);
+  });
+
+  it('reads a string as its own words, whatever it holds, so nothing in one is a live value', () => {
+    expect(firstItem({ text: '{session:b03e5cdc.title}' })?.text).toBe('{session:b03e5cdc.title}');
+  });
+
   it('ignores an href, which is no field of a row or a part, so a list still writing one draws without its links', () => {
     const read = readListDocument(doc({ sections: [{ items: [{ ...item, href: 'https://example.com', detail: [[{ text: 'a', href: 'https://example.com' }]] }] }] }));
     expect(read.problems).toEqual([]);
@@ -217,9 +239,9 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ key: 'a' }] }] }, 'sections[0].items[0].text is missing.'],
     [{ sections: [{ items: [{ key: ' ', text: 'x' }] }] }, 'sections[0].items[0].key is empty.'],
     [{ sections: [{ items: [item] }, { items: [item] }] }, 'sections[1].items[0].key "org/repo#1" is already used by another item.'],
-    [{ sections: [{ items: [{ ...item, tooltip: 3 }] }] }, 'sections[0].items[0].tooltip is not a string.'],
-    [{ sections: [{ items: [{ ...item, lead: 3 }] }] }, 'sections[0].items[0].lead is not a string.'],
-    [{ sections: [{ items: [{ ...item, trail: 3 }] }] }, 'sections[0].items[0].trail is not a string.'],
+    [{ sections: [{ items: [{ ...item, tooltip: 3 }] }] }, 'sections[0].items[0].tooltip is not a string or an array.'],
+    [{ sections: [{ items: [{ ...item, lead: 3 }] }] }, 'sections[0].items[0].lead is not a string or an array.'],
+    [{ sections: [{ items: [{ ...item, trail: 3 }] }] }, 'sections[0].items[0].trail is not a string or an array.'],
     [{ separator: 3 }, 'separator is not a string.'],
     [{ sections: [{ items: [{ ...item, separator: 3 }] }] }, 'sections[0].items[0].separator is not a string.'],
     [{ sections: [{ items: [{ ...item, detail: '#1 · 3d' }] }] }, 'sections[0].items[0].detail is not an array.'],
@@ -230,7 +252,7 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ ...item, detail: [[{}]] }] }] }, 'sections[0].items[0].detail[0][0].text is missing.'],
     [{ sections: [{ items: [{ ...item, detail: [[{ text: '' }]] }] }] }, 'sections[0].items[0].detail[0][0].text is empty.'],
     [{ sections: [{ items: [{ ...item, detail: [['#1', { text: 'x', press: { 'open-url': 'file:///etc/passwd' } }]] }] }] }, 'sections[0].items[0].detail[0][1].press.open-url "file:///etc/passwd" is not an http or https link.'],
-    [{ sections: [{ items: [{ ...item, detail: [[{ text: 'x', tooltip: 3 }]] }] }] }, 'sections[0].items[0].detail[0][0].tooltip is not a string.'],
+    [{ sections: [{ items: [{ ...item, detail: [[{ text: 'x', tooltip: 3 }]] }] }] }, 'sections[0].items[0].detail[0][0].tooltip is not a string or an array.'],
     [{ sections: [{ items: [{ ...item, detail: [[{ text: 'x', tone: 'loud' }]] }] }] }, 'sections[0].items[0].detail[0][0].tone "loud" is not one of normal, attention, positive, muted, danger.'],
     [{ sections: [{ items: [{ ...item, children: [{ key: 'c', text: 'c', detail: [[3]] }] }] }] }, 'sections[0].items[0].children[0].detail[0][0] is not a string or an object.'],
     [{ sections: [{ items: [{ ...item, leadTone: 'loud' }] }] }, 'sections[0].items[0].leadTone "loud" is not one of normal, attention, positive, muted, danger.'],
@@ -254,6 +276,17 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ ...item, press: { 'open-url': 'x', copy: 'x' } }] }] }, 'sections[0].items[0].press has open-url and copy, and a press does one.'],
     [{ sections: [{ items: [{ ...item, detail: [[{ text: 'x', press: { 'open-session': 3 } }]] }] }] }, 'sections[0].items[0].detail[0][0].press.open-session is not a string.'],
     [{ sections: [{ items: [{ ...item, actions: [{ label: 'Copy', copy: { text: 'x', confirm: ' ' } }] }] }] }, 'sections[0].items[0].actions[0].copy.confirm is empty.'],
+    [{ sections: [{ items: [{ ...item, text: 3 }] }] }, 'sections[0].items[0].text is not a string or an array.'],
+    [{ sections: [{ items: [{ ...item, text: [] }] }] }, 'sections[0].items[0].text is empty.'],
+    [{ sections: [{ items: [{ ...item, text: [' ', ''] }] }] }, 'sections[0].items[0].text is empty.'],
+    [{ sections: [{ items: [{ ...item, trail: [3] }] }] }, 'sections[0].items[0].trail[0] is not a string or an object.'],
+    [{ sections: [{ items: [{ ...item, text: [{ field: 'title' }] }] }] }, 'sections[0].items[0].text[0].session is missing.'],
+    [{ sections: [{ items: [{ ...item, text: [{ session: 'x' }] }] }] }, 'sections[0].items[0].text[0].field is missing.'],
+    [{ sections: [{ items: [{ ...item, text: [{ session: 'x', field: 'status' }] }] }] }, 'sections[0].items[0].text[0].field "status" is not one of title.'],
+    [{ sections: [{ items: [{ ...item, text: [{ session: 'x', field: 'title', else: ' ' }] }] }] }, 'sections[0].items[0].text[0].else is empty.'],
+    [{ sections: [{ items: [{ ...item, detail: [[{ text: [{ session: 'x' }] }]] }] }] }, 'sections[0].items[0].detail[0][0].text[0].field is missing.'],
+    [{ sections: [{ items: [{ ...item, dot: 'x' }] }] }, 'sections[0].items[0].dot is not an object.'],
+    [{ sections: [{ items: [{ ...item, dot: {} }] }] }, 'sections[0].items[0].dot.session is missing.'],
   ])('refuses %j: %s', (over, problem) => {
     const read = readListDocument(doc(over));
     expect(read.problems).toContain(problem);

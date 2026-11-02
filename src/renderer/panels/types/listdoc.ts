@@ -23,13 +23,19 @@ export const LIST_FIELDS = {
   document: ['version', 'badge', 'views', 'compact', 'separator', 'buttons', 'sections', 'notes'],
   view: ['id', 'label', 'icon'],
   section: ['title', 'shut', 'tooltip', 'empty', 'items'],
-  item: ['key', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'separator', 'press', 'tone', 'actions', 'children', 'shut'],
+  item: ['key', 'dot', 'lead', 'leadTone', 'text', 'cut', 'trail', 'tooltip', 'detail', 'separator', 'press', 'tone', 'actions', 'children', 'shut'],
   part: ['text', 'press', 'tooltip', 'tone'],
   action: ['label'],
   verb: ['session', 'open-session', 'open-url', 'copy'],
   session: ['prompt', 'name'],
   copy: ['text', 'confirm'],
+  live: ['session', 'field', 'else'],
+  dot: ['session'],
 } as const;
+
+/** What of a session a live value can name: its name, as every surface calls it; another joins when a type asks for one. */
+export const LIVE_FIELDS = ['title'] as const;
+export type LiveField = (typeof LIVE_FIELDS)[number];
 
 /** A verb's name, which is its field in an action or a `press`. */
 export type VerbName = (typeof LIST_FIELDS.verb)[number];
@@ -54,6 +60,21 @@ export type Verb =
   | { verb: 'open-url'; url: string }
   | { verb: 'copy'; text: string; /** What the toast says once it is copied; the app's own words without one. */ confirm: string | null };
 
+/**
+ * A piece of a row's text that the app fills in from a session it has and keeps current between runs, without running the script (decided 2026-10-31).
+ * An object rather than a marker inside a string, so no text a script passes on, such as a PR's title, is ever read as one.
+ */
+export interface LiveValue {
+  /** The session's full id. */
+  session: string;
+  field: LiveField;
+  /** What it says when the app has no session of that id; the app's own word without one. */
+  else: string | null;
+}
+
+/** A text a row draws: a string, or its pieces in order, each a string or a live value. */
+export type RowText = string | (string | LiveValue)[];
+
 /** A row's action: a label and the verb its press asks for. */
 export interface ListAction {
   label: string;
@@ -62,11 +83,11 @@ export interface ListAction {
 
 /** One piece of a line under a row's first: a string the script printed is a part with that text alone. */
 export interface DetailPart {
-  text: string;
+  text: RowText;
   /** What a press on it asks for, rather than what the row's does; null for none, which leaves the press to the row. */
   press: Verb | null;
   /** What hovering it shows, and nothing else: whether a link shows where it goes is the type's to say. */
-  tooltip: string | null;
+  tooltip: RowText | null;
   /** Its colour, in the words a row's tone uses. */
   tone: Tone;
 }
@@ -74,17 +95,19 @@ export interface DetailPart {
 export interface ListItem {
   /** Unique across the document: what a session started from the row is remembered by. */
   key: string;
+  /** The session whose status dot the row shows, by its full id, in place of the mark for the sessions it started; null for none. */
+  dot: string | null;
   /** A short mark before the text, in a column of its own, such as a letter for a kind. */
-  lead: string | null;
+  lead: RowText | null;
   /** The lead's colour, in the words a row's tone uses. */
   leadTone: Tone;
-  text: string;
+  text: RowText;
   /** Where the text is cut short when it is too long for its line; cut at its start, it keeps to one line. */
   cut: Cut;
   /** A short text at the end of the first line, such as a count, which the text gives way to. */
-  trail: string | null;
+  trail: RowText | null;
   /** What hovering the row's first line shows, such as all of what the text shortens. */
-  tooltip: string | null;
+  tooltip: RowText | null;
   /** The lines under the first, smaller, each its parts in order; empty for none. */
   detail: DetailPart[][];
   /** What goes between the parts of each of its lines: its own, else the list's, else `DEFAULT_SEPARATOR`; not its parent's, so a list says it once for every level. */
@@ -152,6 +175,60 @@ class Reader {
     return value;
   }
 
+  /**
+   * A text a row draws (`RowText`): a string, read as `text` reads one, or a list of pieces, never empty, each a string or a live value.
+   * A required one is a problem too when its pieces are only strings with nothing but spaces in them.
+   */
+  shown(value: unknown, at: string, required = false): RowText | null {
+    if (!Array.isArray(value)) {
+      if (value !== undefined && typeof value !== 'string') {
+        this.problems.push(`${at} is not a string or an array.`);
+        return null;
+      }
+      return this.text(value, at, required);
+    }
+    if (value.length === 0) {
+      this.problems.push(`${at} is empty.`);
+      return null;
+    }
+    const pieces = value.map((piece, index) => (typeof piece === 'string' ? piece : this.live(piece, `${at}[${index}]`)));
+    if (pieces.some((piece) => piece === null)) return null;
+    if (required && pieces.every((piece) => typeof piece === 'string' && piece.trim() === '')) {
+      this.problems.push(`${at} is empty.`);
+      return null;
+    }
+    return pieces as (string | LiveValue)[];
+  }
+
+  /** One live value in a text's pieces: a session's full id, which of its fields, and what to say without it, never empty, since it stands where the field would. */
+  live(raw: unknown, at: string): LiveValue | null {
+    if (!isObject(raw)) {
+      this.problems.push(`${at} is not a string or an object.`);
+      return null;
+    }
+    const field = fieldsOf(raw, LIST_FIELDS.live);
+    const session = this.text(field('session'), `${at}.session`, true);
+    const named = field('field');
+    if (named === undefined) this.problems.push(`${at}.field is missing.`);
+    const which = named === undefined ? null : this.choice(named, `${at}.field`, LIVE_FIELDS);
+    const otherwise = this.text(field('else'), `${at}.else`);
+    if (otherwise !== null && otherwise.trim() === '') {
+      this.problems.push(`${at}.else is empty.`);
+      return null;
+    }
+    return session !== null && which !== null ? { session, field: which, else: otherwise } : null;
+  }
+
+  /** A row's `dot`: the full id of the session whose dot it shows, null when absent. */
+  dot(raw: unknown, at: string): string | null {
+    if (raw === undefined) return null;
+    if (!isObject(raw)) {
+      this.problems.push(`${at} is not an object.`);
+      return null;
+    }
+    return this.text(fieldsOf(raw, LIST_FIELDS.dot)('session'), `${at}.session`, true);
+  }
+
   /** One of a field's words, such as a tone or a cut: the first of them when absent, and when it is not one of them, which is a problem too. */
   choice<T extends string>(value: unknown, at: string, words: readonly T[]): T {
     if (value === undefined) return words[0]!;
@@ -211,9 +288,9 @@ class Reader {
       return null;
     }
     const field = fieldsOf(raw, LIST_FIELDS.part);
-    const text = this.text(field('text'), `${at}.text`, true);
+    const text = this.shown(field('text'), `${at}.text`, true);
     const press = this.press(field('press'), at);
-    const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
+    const tooltip = this.shown(field('tooltip'), `${at}.tooltip`);
     const tone = this.choice(field('tone'), `${at}.tone`, TONES);
     return text !== null ? { text, press, tooltip, tone } : null;
   }
@@ -318,12 +395,13 @@ class Reader {
       if (this.keys.has(key)) this.problems.push(`${at}.key "${key}" is already used by another item.`);
       this.keys.add(key);
     }
-    const lead = this.text(field('lead'), `${at}.lead`);
+    const dot = this.dot(field('dot'), `${at}.dot`);
+    const lead = this.shown(field('lead'), `${at}.lead`);
     const leadTone = this.choice(field('leadTone'), `${at}.leadTone`, TONES);
-    const text = this.text(field('text'), `${at}.text`, true);
+    const text = this.shown(field('text'), `${at}.text`, true);
     const cut = this.choice(field('cut'), `${at}.cut`, CUTS);
-    const trail = this.text(field('trail'), `${at}.trail`);
-    const tooltip = this.text(field('tooltip'), `${at}.tooltip`);
+    const trail = this.shown(field('trail'), `${at}.trail`);
+    const tooltip = this.shown(field('tooltip'), `${at}.tooltip`);
     const detail = this.detail(field('detail'), `${at}.detail`);
     const separator = this.text(field('separator'), `${at}.separator`) ?? this.separator;
     const press = this.press(field('press'), at);
@@ -337,7 +415,7 @@ class Reader {
       .filter((child) => child !== null);
     const shut = this.flag(field('shut'), `${at}.shut`);
     if (shut && children.length === 0) this.problems.push(`${at}.shut needs children, which are what it folds.`);
-    return key !== null && text !== null ? { key, lead, leadTone, text, cut, trail, tooltip, detail, separator, press, tone, actions, children, shut } : null;
+    return key !== null && text !== null ? { key, dot, lead, leadTone, text, cut, trail, tooltip, detail, separator, press, tone, actions, children, shut } : null;
   }
 
   /** One of the list's views: an id a layout entry can name and a script can be given, a label and an icon from the app's set; an id used before is a problem, as an item's key is. */

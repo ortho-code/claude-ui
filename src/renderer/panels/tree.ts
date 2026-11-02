@@ -29,7 +29,7 @@ import { dragTargets, flexFor, sizesAfterDrag, withOverrides, type FlexChild } f
 import { claudeType } from './types/claude';
 import { sessionsType } from './types/sessions';
 import { folderTypes } from './types/folder';
-import { linkedSessions, pickSession, startSession } from './links';
+import { linkedSessions, pickSession, sessionNamed, startSession } from './links';
 import { HeaderTabs } from './tabs';
 import type { Asks, MountedPanel, PanelHost, PanelStatus, PanelType, PanelView, Where } from './contract';
 import { commandType } from './types/command';
@@ -710,6 +710,7 @@ function mountedFor(slot: PanelSlot): Mounted {
     // The session links are remembered under the panel's own entry key.
     startSession: (request) => void startSession(slot.key, request, host.asks),
     linkedSessions: (itemKey) => linkedSessions(slot.key, itemKey),
+    session: sessionNamed,
     pickSession: (anchor, sessions) => pickSession(anchor, sessions, host.asks),
     copyText: (text, confirmation) => void copyText(text, confirmation),
     ...host.asks,

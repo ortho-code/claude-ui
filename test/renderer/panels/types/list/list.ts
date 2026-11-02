@@ -56,7 +56,7 @@ const drawn = (items: PrintedItem[]): number => items.reduce((count, item) => co
 
 /** Boot with the panel, let its script print `list`, and wait for its rows. */
 export async function bootList(app: App, page: Page, list: PrintedList, { entry = {}, nodes, more = {} }: ListSetup = {}): Promise<void> {
-  await app.boot({ ...layoutWith(entry, nodes), ...more, paths: { [`${TYPE_DIR}/list.mjs`]: 'executable' }, panelData: { changes: { sessions: {}, lastGroup: {} } } });
+  await app.boot({ ...layoutWith(entry, nodes), paths: { [`${TYPE_DIR}/list.mjs`]: 'executable' }, panelData: { changes: { sessions: {}, lastGroup: {} } }, ...more });
   await expect.poll(() => runs(app, 'changes')).toHaveLength(1);
   await print(app, 0, list);
   await expect(page.locator('.list-row')).toHaveCount(list.sections.reduce((count, { items, shut }) => count + (shut === true ? 0 : drawn(items)), 0));

@@ -58,6 +58,15 @@
   gap: 4px;
 }
 
+/* A session's dot the type names (`dot`), in the mark's place: nothing to press, in the box the mark's border and padding make, so either lines up with the other. */
+.list-dot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 5px;
+}
+
 .list-session-count {
   font-size: var(--text-meta);
   line-height: 1;

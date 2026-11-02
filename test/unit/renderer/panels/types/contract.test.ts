@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { FIELD_KINDS, KINDS, MANIFEST_FIELDS, MANIFEST_OPTION_KINDS, OPTION_FIELDS, checkManifest } from '../../../../../src/renderer/panels/types/folder';
-import { CUTS, LIST_FIELDS, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
+import { CUTS, LIST_FIELDS, LIVE_FIELDS, readListDocument } from '../../../../../src/renderer/panels/types/listdoc';
 import { TONES } from '../../../../../src/renderer/tone';
 import { CONTROL_NAMES } from '../../../../../src/renderer/panels/run';
 
@@ -69,6 +69,9 @@ describe('docs/panel-types.md', () => {
     expect(sorted(tableFields('### A `session`'))).toEqual(sorted(LIST_FIELDS.session));
     expect(sorted(tableFields('### A `copy`'))).toEqual(sorted(LIST_FIELDS.copy));
     expect(sorted(tableFields('### A view'))).toEqual(sorted(LIST_FIELDS.view));
+    expect(sorted(tableFields('### A live value'))).toEqual(sorted(LIST_FIELDS.live));
+    expect(sorted(tableFields('### A `dot`'))).toEqual(sorted(LIST_FIELDS.dot));
+    expect(sorted(listed("A live value's `field` is one of:"))).toEqual(sorted(LIVE_FIELDS));
     expect(sorted(listed('`tone` is one of:'))).toEqual(sorted(TONES));
     expect(sorted(listed('`cut` is one of:'))).toEqual(sorted(CUTS));
   });

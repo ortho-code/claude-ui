@@ -183,6 +183,7 @@ An entry naming a view the list does not offer is said under the panel.
 | Field | Meaning |
 |---|---|
 | `key` | Required, unique in the list: what a session started from the row is remembered by, so keep it the same for the same thing from one run to the next. |
+| `dot` | A session's status dot, before the row's actions, as an object (below), in place of the dot of a session the row started. |
 | `lead` | A short mark before the text, such as a letter for a kind of thing, in a column of its own so the texts after marks of one length line up. |
 | `leadTone` | The lead's colour, from the same words as `tone`: the colour a tone puts on a row's edge, the grey of the `detail` for `normal`, and dimmed for `muted`. |
 | `text` | Required: the row's first line. |
@@ -202,6 +203,47 @@ An entry naming a view the list does not offer is said under the panel.
 
 `cut` is one of: `end`, `start`.
 `end` is what a row without one gets.
+
+### A text
+
+`text`, `lead`, `trail` and `tooltip` of an item, and `text` and `tooltip` of a part, are each a string, or a list of pieces drawn one after the other, each a string or a live value (below).
+A live value is filled in by the app from a session it has, and kept current between runs without running the script, so a row can say what a session is called now:
+
+<!-- checked: list -->
+```json
+{ "version": 1,
+  "sections": [
+    { "items": [
+      { "key": "b03e5cdc", "dot": { "session": "b03e5cdc-8f1e-4a2b-9c3d-5e6f7a8b9c0d" },
+        "text": ["Review: ", { "session": "b03e5cdc-8f1e-4a2b-9c3d-5e6f7a8b9c0d", "field": "title", "else": "PR #36515" }],
+        "detail": [[{ "text": "PR #36515 merged", "tone": "positive" }]],
+        "press": { "open-session": "b03e5cdc-8f1e-4a2b-9c3d-5e6f7a8b9c0d" } }
+    ] }
+  ] }
+```
+
+A list of pieces is never empty, and a required one is never only spaces.
+A string is only ever its own words: nothing inside one is read as a live value, so text the script passes on, such as a PR's title, shows as it is.
+
+### A live value
+
+| Field | Meaning |
+|---|---|
+| `session` | Required: the session's full id, as `open-session` takes it. |
+| `field` | Required: what of the session it says. |
+| `else` | What it says when the app has no session of that id, never empty; "Unavailable" without one. |
+
+A live value's `field` is one of: `title`.
+`title` is what the session is called everywhere in the app.
+
+### A `dot`
+
+| Field | Meaning |
+|---|---|
+| `session` | Required: the full id of the session whose status dot it is. |
+
+The dot shows the session's status as the session list's dot does, and hovering it names the session and its state; a press on it is the row's, so it never marks the session read.
+For a session the app does not have, the row shows no dot.
 
 ### A part
 
@@ -268,7 +310,7 @@ Before the first run has ended it says it is waiting.
 A `session` opens the app's own dialog, which says which panel asks and about what: the project, the one the panel runs in first; the group, the one last picked from that panel there first; the name and the prompt, both to change.
 Nothing starts until Start.
 An `open-session` naming an id the app has no session for says so, as one archived or whose folder is gone says why it cannot open.
-A row that started a session shows that session's status dot, and pressing it goes to the session; with several, it offers them all.
+A row that started a session shows that session's status dot, unless it has a `dot` of its own, and pressing it goes to the session; with several, it offers them all.
 Pressing it again offers to continue the latest session instead, which is resumed with the prompt when it is stopped and brought into view without it when it is running.
 
 Which session a row started is kept by the app, on this machine, in `panel-data/` beside its own data: never in the config folder, since a session id means nothing on another machine.

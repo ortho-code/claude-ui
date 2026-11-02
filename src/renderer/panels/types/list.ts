@@ -12,11 +12,11 @@ import { sessionDotClass } from '../../statusdot';
 import { setTooltip } from '../../tooltip';
 import type { PanelSlot } from '../layout';
 import { intervalOf, optionsOf } from '../options';
-import type { MountedPanel, PanelHost, PanelType } from '../contract';
+import type { LinkedSession, MountedPanel, PanelHost, PanelType } from '../contract';
 import { NO_CONTEXT, endLabel, prepare, runFailed } from '../run';
 import { PanelRuns, type Checked, type RunAsk, type RunEnd, type RunHooks, type RunProgress } from '../runs';
 import type { FolderType } from './folder';
-import { DEFAULT_BUTTONS, readListDocument, type DetailPart, type ListAction, type ListDocument, type ListItem, type ListSection, type Verb } from './listdoc';
+import { DEFAULT_BUTTONS, readListDocument, type DetailPart, type ListAction, type ListDocument, type ListItem, type ListSection, type RowText, type Verb } from './listdoc';
 import '../../tone.css';
 import './list.css';
 
@@ -69,6 +69,12 @@ const urlOf = (press: Verb | null): string | null => (press?.verb === 'open-url'
 /** What a copy's toast says when the type gives no words of its own. */
 const COPIED = 'Copied.';
 
+/** What a live value says for a session the app does not have, when the type gives no words of its own (decided 2026-10-31). */
+const UNAVAILABLE = 'Unavailable';
+
+/** A session's state in the session list's own words, so its dot says the same here as there. */
+const stateOf = (session: LinkedSession): string => statusLabel(session.status ?? undefined, session.acked, session.background, session.needsYou ?? undefined) ?? (session.running ? 'running' : 'not running');
+
 /** How many rows a section lists, for its count: the rows that hold none, since a row holding rows only groups them. */
 const listed = (items: ListItem[]): number => items.reduce((count, item) => count + (item.children.length > 0 ? listed(item.children) : 1), 0);
 
@@ -99,7 +105,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   private readonly folds = new Map<string, boolean>();
   /** Rows holding rows, folded or unfolded by hand, by key, over what the document says, as a section's are by title. */
   private readonly rowFolds = new Map<string, boolean>();
-  /** The sections on show and their rows by item key, kept from one draw to the next (`drawList`); a row's mark for the sessions it started is repainted in place when a session changes. */
+  /** The sections on show and their rows by item key, kept from one draw to the next (`drawList`), which a change to a session runs too. */
   private readonly sections = new Keyed<SectionBox>((kept) => kept.box);
   private readonly rows = new Keyed<ListRow>((kept) => kept.row);
   /** Each row's item as the last draw left it, which what a press does reads. */
@@ -139,7 +145,15 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   }
 
   sessionsChanged(): void {
-    for (const [key, parts] of this.rows.entries()) this.paintSessions(key, parts);
+    this.drawList();
+  }
+
+  /** A text as the row draws it now: each live value filled in from the session it names, else in the type's words for one the app does not have, else `UNAVAILABLE`. */
+  private said(text: RowText): string;
+  private said(text: RowText | null): string | null;
+  private said(text: RowText | null): string | null {
+    if (text === null || typeof text === 'string') return text;
+    return text.map((piece) => (typeof piece === 'string' ? piece : (this.host.session(piece.session)?.title ?? piece.else ?? UNAVAILABLE))).join('');
   }
 
   recheck(): void {
@@ -282,7 +296,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   }
 
   /**
-   * Draw the list as the last good run printed it, keeping every section and row it already shows where it is: every run that prints a list and every fold draw it again (a session's status only repaints a row's mark, `sessionsChanged`), and a press on a row, or the focus on its buttons, survives that only while the row stays put (keyed.ts).
+   * Draw the list as the last good run printed it, keeping every section and row it already shows where it is: every run that prints a list, every fold and every change to a session draw it again (`sessionsChanged`, for its live values, its dots and its marks), and a press on a row, or the focus on its buttons, survives that only while the row stays put (keyed.ts).
    * Sections are kept by title, or by place for one without a title or with a title used before; rows by their key, unique across the document.
    */
   private drawList(): void {
@@ -302,22 +316,32 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   }
 
   /**
-   * A row's mark for the sessions it started: hidden without one; the latest's status dot, the same dot the session list draws, and a press goes to it; with several, their count beside the dot, and a press offers them all.
+   * What a row shows of a session, at its end, as one of two in the same place: the type's `dot`, or else the mark for the sessions the row started (decided 2026-10-31: the type chose what the place shows).
+   * The type's `dot` is the session's status dot and nothing to press, the row's press being the type's to say, naming the session and its state on hover; nothing for a session the app does not have.
+   * The mark, hidden without one: the latest's status dot, and a press goes to it; with several, their count beside the dot, and a press offers them all.
    * Only sessions the app still has: a link whose session is gone shows nothing.
+   * Either dot shows the status as the session list's does, and says it in its words.
    */
-  private paintSessions(key: string, { mark, dot, count }: ListRow): void {
-    const sessions = this.host.linkedSessions(key);
+  private paintSessions(item: ListItem, { mark, dot, count, typeDot, typeDotBox }: ListRow): HTMLElement | null {
+    if (item.dot !== null) {
+      const named = this.host.session(item.dot);
+      if (!named) return null;
+      typeDot.className = sessionDotClass(named.status, named.acked);
+      const label = `${named.title} · ${stateOf(named)}`;
+      typeDotBox.setAttribute('aria-label', label);
+      setTooltip(typeDotBox, label);
+      return typeDotBox;
+    }
+    const sessions = this.host.linkedSessions(item.key);
     const latest = sessions[0];
-    mark.hidden = latest === undefined;
-    if (!latest) return;
+    if (!latest) return null;
     dot.className = sessionDotClass(latest.status, latest.acked);
     count.textContent = String(sessions.length);
     placeChildren(mark, sessions.length > 1 ? [dot, count] : [dot]);
-    // Its state in the session list's own words, so the dot says the same here as there.
-    const state = statusLabel(latest.status ?? undefined, latest.acked, latest.background, latest.needsYou ?? undefined) ?? (latest.running ? 'running' : 'not running');
-    const label = sessions.length > 1 ? `${sessions.length} sessions from this row: pick one` : `Go to ${latest.title} · ${state}`;
+    const label = sessions.length > 1 ? `${sessions.length} sessions from this row: pick one` : `Go to ${latest.title} · ${stateOf(latest)}`;
     mark.setAttribute('aria-label', label);
     setTooltip(mark, label);
+    return mark;
   }
 
   /** A section: its heading when it has a title, which folds it, then its rows, or what it says when it has none. */
@@ -384,8 +408,9 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
   private drawItem(item: ListItem, depth: number): HTMLElement {
     this.items.set(item.key, item);
     const parts = this.rows.draw(item.key, (key) => this.buildRow(key));
-    const { row, content, line, fold, lead, title, text, trail, meta, mark } = parts;
+    const { row, content, line, fold, lead, title, text, trail, meta } = parts;
     const holds = item.children.length > 0;
+    const said = this.said(item.text);
     // Pressable when it has a press of its own or rows to fold.
     row.className = `card list-row tone-${item.tone}${item.press === null && !holds ? ' still' : ''}`;
     row.style.setProperty('--depth', String(depth));
@@ -393,34 +418,34 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       const open = this.isOpen(item);
       setFolded(fold, !open);
       fold.setAttribute('aria-expanded', String(open));
-      fold.setAttribute('aria-label', open ? `Fold ${item.text}` : `Unfold ${item.text}`);
+      fold.setAttribute('aria-label', open ? `Fold ${said}` : `Unfold ${said}`);
     }
     lead.className = `list-lead tone-${item.leadTone}`;
-    lead.textContent = item.lead ?? '';
-    text.textContent = item.text;
+    lead.textContent = this.said(item.lead) ?? '';
+    text.textContent = said;
     title.classList.toggle('cut-start', item.cut === 'start');
-    trail.textContent = item.trail ?? '';
+    trail.textContent = this.said(item.trail) ?? '';
     placeChildren(line, [...(holds ? [fold] : []), ...(item.lead !== null ? [lead] : []), title, ...(item.trail !== null ? [trail] : [])]);
     // On the first line alone, which is what it most often says all of.
-    setTooltip(line, item.tooltip);
+    setTooltip(line, this.said(item.tooltip));
     // Each line of the detail an element of its own, kept by its place, so a press on one survives a run that changes what it says.
     const detail = item.detail.map((line, at) => this.drawLine(parts.lines.draw(String(at), () => ({ el: element('span', 'list-detail-line'), pieces: new Keyed<HTMLElement>((piece) => piece) })), line, item.separator));
     parts.lines.sweep();
     placeChildren(meta, detail);
     placeChildren(content, detail.length > 0 ? [line, meta] : [line]);
-    this.paintSessions(item.key, parts);
+    const session = this.paintSessions(item, parts);
     // What a row offers, at its end: the first as many as the list's `buttons` says as buttons, each kept by all it says — its label and its verb — so a run that changes an action gives it a new button, and a press on the old one comes to nothing rather than doing the new one; the rest behind its kebab, last.
     const shown = this.buttonCount();
-    const said = new Map<string, number>();
+    const offered = new Map<string, number>();
     const buttons = item.actions.slice(0, shown).map((action) => {
       const what = actionKey(action);
-      const again = said.get(what) ?? 0;
-      said.set(what, again + 1);
+      const again = offered.get(what) ?? 0;
+      offered.set(what, again + 1);
       return parts.actions.draw(`${what}#${again}`, () => this.buildAction(item.key, action));
     });
     parts.actions.sweep();
-    // The sessions it started, before what it offers, so going back comes before starting again.
-    placeChildren(row, [content, mark, ...buttons, ...(item.actions.length > shown ? [parts.kebab] : [])]);
+    // The session it shows, before what it offers, so going back comes before starting again.
+    placeChildren(row, [content, ...(session ? [session] : []), ...buttons, ...(item.actions.length > shown ? [parts.kebab] : [])]);
     return row;
   }
 
@@ -450,7 +475,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     if (!item) return;
     switch (verb.verb) {
       case 'session':
-        this.host.startSession({ from: this.slot.title, key, label: item.text, href: urlOf(item.press), name: verb.name, prompt: verb.prompt, dir: this.lastDir });
+        this.host.startSession({ from: this.slot.title, key, label: this.said(item.text), href: urlOf(item.press), name: verb.name, prompt: verb.prompt, dir: this.lastDir });
         return;
       case 'open-session':
         this.host.openSession(verb.id);
@@ -479,11 +504,11 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
         return made;
       });
       piece.className = `list-part tone-${part.tone}`;
-      piece.textContent = part.text;
+      piece.textContent = this.said(part.text);
       if (url !== null) piece.setAttribute('href', url);
       if (kind === 'press') this.partPresses.set(piece, part.press!);
       // What the type says on hover, and nothing else: whether a link shows where it goes is the type's to say (decided 2026-10-30).
-      setTooltip(piece, part.tooltip);
+      setTooltip(piece, this.said(part.tooltip));
       if (at === 0) return [piece];
       const between = pieces.draw(`${at}:separator`, () => element('span', 'list-separator'));
       between.textContent = separator;
@@ -512,6 +537,9 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     });
     const dot = element('span');
     const count = element('span', 'list-session-count');
+    const typeDot = element('span');
+    const typeDotBox = element('span', 'list-dot');
+    typeDotBox.append(typeDot);
     // The chevron of a row holding rows: the section heading's own caret, in a button of its own so it folds from the keyboard too.
     const fold = element('button', 'icon-btn compact list-fold');
     fold.type = 'button';
@@ -530,7 +558,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     });
     // What the row offers beyond its buttons, behind the app's own kebab, last on the row as a session row's is; built once, so a press on it survives a redraw.
     const kebab = kebabButton('list-kebab pair-end', 'More actions', () => this.moreActions(key));
-    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, actions: new Keyed<HTMLButtonElement>((button) => button), kebab };
+    return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, typeDot, typeDotBox, actions: new Keyed<HTMLButtonElement>((button) => button), kebab };
   }
 
   /** The button for one of a row's actions, which does its verb for the row as the last draw left it; a session's shows its prompt on hover, and the other verbs nothing, until a type asks for words of its own. */
@@ -569,6 +597,9 @@ interface ListRow {
   mark: HTMLButtonElement;
   dot: HTMLElement;
   count: HTMLElement;
+  /** The dot of the session the type names (`dot`), in the mark's place, and the box around it that holds that place. */
+  typeDot: HTMLElement;
+  typeDotBox: HTMLElement;
   /** Its action buttons, each kept by all its action says. */
   actions: Keyed<HTMLButtonElement>;
   /** The kebab holding its actions beyond its buttons, on the row only while it has some. */
