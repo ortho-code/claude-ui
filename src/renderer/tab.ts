@@ -72,8 +72,8 @@ export interface TabLook {
   classes?: string[];
   text: string;
   tooltip: string | null;
-  /** Its button: which mark, the tooltip, and whether it can act now. */
-  button: { mark: TabButtonMark; tooltip: string; disabled: boolean };
+  /** Its button: which mark, the tooltip, and whether it can act now; null for none, leaving the kebab at the tab's end. */
+  button: { mark: TabButtonMark; tooltip: string; disabled: boolean } | null;
   /** What leads the label, such as a status dot, in order. */
   lead: readonly HTMLElement[];
   /** What follows the label, before its menu and its button, in order. */
@@ -146,9 +146,13 @@ export function drawTab({ el, label, kebab, button }: TabEls, look: TabLook): vo
   el.className = ['tab', look.active ? 'active' : '', look.cold ? 'cold' : '', ...(look.classes ?? [])].filter(Boolean).join(' ');
   label.textContent = look.text;
   setTooltip(label, look.tooltip);
-  setUnavailable(button, look.button.disabled ? look.button.tooltip : null, look.button.tooltip);
-  setMarkup(button, tabButtonIcon(look.button.mark, 14));
-  // What it was drawn as, as the strip's button says it, so the two can be told by more than their ink.
-  button.dataset.mark = look.button.mark;
-  placeChildren(el, [...look.lead, label, ...(look.trail ?? []), kebab, button]);
+  if (look.button) {
+    setUnavailable(button, look.button.disabled ? look.button.tooltip : null, look.button.tooltip);
+    setMarkup(button, tabButtonIcon(look.button.mark, 14));
+    // What it was drawn as, as the strip's button says it, so the two can be told by more than their ink.
+    button.dataset.mark = look.button.mark;
+  }
+  // With no button the kebab ends the tab, so it keeps the gap it would have given the button.
+  kebab.classList.toggle('abuts', look.button !== null);
+  placeChildren(el, [...look.lead, label, ...(look.trail ?? []), kebab, ...(look.button ? [button] : [])]);
 }

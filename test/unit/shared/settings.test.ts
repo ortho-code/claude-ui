@@ -10,7 +10,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close', laterTime: '09:00', locale: '' });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', laterTime: '09:00', locale: '' });
   });
 
   it("take a language of the file in its usual case, the system's unless told otherwise, and leave out one that is no language tag", () => {
@@ -30,11 +30,13 @@ describe('the settings in force', () => {
     }
   });
 
-  it("take a choice of the file for a stopped tab's button, closing it unless told otherwise, and leave out one that is no choice", () => {
-    expect(settingsView(missing).stoppedTabButton.value).toBe('close');
-    expect(settingsView(holding({ stoppedTabButton: 'archive' })).stoppedTabButton).toEqual({ value: 'archive', problem: null });
-    for (const wrong of ['stop', 'none', true, null]) {
-      expect(settingsView(holding({ stoppedTabButton: wrong })).stoppedTabButton).toEqual({ value: 'close', problem: 'It has to be one of "close", "archive".' });
+  it("take a choice of the file for a tab's button, stop then close unless told otherwise, and leave out one that is no choice", () => {
+    expect(settingsView(missing).leaveButton.value).toBe('stop-close');
+    for (const choice of ['stop-close', 'stop-archive', 'close', 'archive', 'none']) {
+      expect(settingsView(holding({ leaveButton: choice })).leaveButton).toEqual({ value: choice, problem: null });
+    }
+    for (const wrong of ['stop', 'close-archive', true, null]) {
+      expect(settingsView(holding({ leaveButton: wrong })).leaveButton).toEqual({ value: 'stop-close', problem: 'It has to be one of "stop-close", "stop-archive", "close", "archive", "none".' });
     }
   });
 

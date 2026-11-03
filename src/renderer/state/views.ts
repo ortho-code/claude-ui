@@ -32,9 +32,9 @@ export function tabWith(sessionId: string, view: View<'tabs'> = store.get()): Ta
   return view.tabs.find((t) => t.session.id === sessionId);
 }
 
-/** A tab's button, on the tab and its strip row alike (`tabButton`), a stopped tab's doing what the settings say (`Settings.stoppedTabButton`), close until they are read. */
-export function tabButtonOf(tab: TabState, view: View<'settings'> = store.get()): TabButton {
-  return tabButton(tab, view.settings?.stoppedTabButton.value ?? 'close');
+/** A tab's button, on the tab and its strip row alike (`tabButton`), as the settings say (`Settings.leaveButton`), stop then close until they are read; null for none. */
+export function tabButtonOf(tab: TabState, view: View<'settings'> = store.get()): TabButton | null {
+  return tabButton(tab, view.settings?.leaveButton.value ?? 'stop-close');
 }
 
 /**

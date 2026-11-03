@@ -620,7 +620,7 @@ function coolTab(token: string): void {
  * The tab button's two steps: end the session first, remove the tab second.
  *
  * A running session and a tab are separate things — a cold tab costs nothing but a line in the bar, and it is restored on the next launch — so one press should not decide both.
- * The first press stops (claude gets its normal exit path and flushes), the tab stays and goes cold; the second removes it.
+ * The first press stops (claude gets its normal exit path and flushes), the tab stays and goes cold; the second removes it, unless the settings make it one press, or no button, for which a press does nothing.
  * While a session is arriving, or in the first moment of leaving, the button does nothing at all, and a session that is slow to leave is forced: see tabButton.
  * Checked here too, since a middle click reaches this without going through the button, and with `mark`, the one the strip's button was drawn with, only while the button still draws it.
  */
@@ -628,7 +628,7 @@ export function pressTabButton(token: string, mark?: TabButtonMark): void {
   const tab = tabOf(token);
   if (!tab) return;
   const button = tabButtonOf(tab);
-  if (!button.disabled && (mark === undefined || button.mark === mark)) pressLeave(token, button.action, button.mark);
+  if (button && !button.disabled && (mark === undefined || button.mark === mark)) pressLeave(token, button.action, button.mark);
 }
 
 /** A tab you removed, as it was, so Undo can put it back: its session, where it stood among the tabs, and what it kept of its session's crons. */

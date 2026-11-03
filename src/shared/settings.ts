@@ -11,15 +11,15 @@ import type { Settings } from './types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'stoppedTabButton', 'laterTime', 'locale'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'laterTime', 'locale'];
 
 /** The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them. */
 export const RUNNING_AT_LAUNCH = ['start', 'mark', 'leave'] as const;
 export type RunningAtLaunch = (typeof RUNNING_AT_LAUNCH)[number];
 
-/** The choices for a stopped tab's button (`Settings.stoppedTabButton`), in the order Settings offers them. */
-export const STOPPED_TAB_BUTTON = ['close', 'archive'] as const;
-export type StoppedTabButton = (typeof STOPPED_TAB_BUTTON)[number];
+/** The choices for a tab's button (`Settings.leaveButton`), in the order Settings offers them. */
+export const LEAVE_BUTTON = ['stop-close', 'stop-archive', 'close', 'archive', 'none'] as const;
+export type LeaveButton = (typeof LEAVE_BUTTON)[number];
 
 /** The check of a setting that is one of a fixed list of words. */
 const oneOf =
@@ -85,7 +85,7 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
   // `pause` is what `mark` was called while those sessions came back paused, and what a file written by then holds, so it still reads, as the choice that took its place.
   runningSessionsAtLaunch: (value) => oneOf(RUNNING_AT_LAUNCH)(value === 'pause' ? 'mark' : value),
   prStatus: (value) => (typeof value === 'boolean' ? { ok: true, value } : { ok: false, why: 'It has to be true or false.' }),
-  stoppedTabButton: oneOf(STOPPED_TAB_BUTTON),
+  leaveButton: oneOf(LEAVE_BUTTON),
   laterTime: (value) => (typeof value === 'string' && timeOfDay(value) !== null ? { ok: true, value } : { ok: false, why: 'It has to be a time of day as "HH:MM", in 24 hours, such as "09:00".' }),
   locale: (value) => {
     const tag = typeof value === 'string' ? languageTag(value) : null;
@@ -159,7 +159,7 @@ export function settingsView(file: SettingsFileRead, read = 0): SettingsView {
     launchFlags: viewOf('launchFlags'),
     runningSessionsAtLaunch: viewOf('runningSessionsAtLaunch'),
     prStatus: viewOf('prStatus'),
-    stoppedTabButton: viewOf('stoppedTabButton'),
+    leaveButton: viewOf('leaveButton'),
     laterTime: viewOf('laterTime'),
     locale: viewOf('locale'),
     read,
@@ -170,7 +170,7 @@ export function settingsView(file: SettingsFileRead, read = 0): SettingsView {
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, stoppedTabButton: view.stoppedTabButton.value, laterTime: view.laterTime.value, locale: view.locale.value };
+  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, laterTime: view.laterTime.value, locale: view.locale.value };
 }
 
 /**

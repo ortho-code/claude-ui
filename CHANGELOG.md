@@ -93,8 +93,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's worktree badge counts and lists the checkouts it changed files in, with the worktree it runs in or left, from its row and as Worktrees in its options, when there are others besides that worktree, and a session that changed files in a worktree it reached by path or with a `cd` has the badge too.
 - Picking a checkout from that list points the panels there while that session is on show, with a star beside the folder their header names, until you pick Follow the session in the same list; while the checkout is gone, they follow the session.
 - A session's options hold its clock as Scheduled, listing its tasks as the clock's tooltip names them.
-- A choice in Settings for the button on a stopped tab, and on a paused tab's row in the live strip: close the tab, as before, or archive its session.
-  It is `stoppedTabButton` in `settings.json`, `"close"` or `"archive"`, and it leaves a running tab's button as it is.
+- A choice in Settings, Leave button, for the button beside a session's menu on its tab and its row in the live strip: stop, then close the tab, as before, or stop, then archive its session; close or archive in one press, claude asked to leave first; or no button, leaving it to the session's menu.
+  It is `leaveButton` in `settings.json`, `"stop-close"`, `"stop-archive"`, `"close"`, `"archive"` or `"none"`, and a middle-click on the tab does what the button does, or nothing without one.
 - Undo in the message a closed tab or an archived session leaves, from any button, its options or a middle-click: it puts the tab back where it was, without starting it, and unarchives the session.
   Such a message stays 8 seconds, and while the pointer is on it.
 - Later in a session's options, to set it aside until tomorrow, for a week, until a day and time you pick, or whenever, shown as a bookmark on its row, its tab and its strip row and kept whether or not it has a tab.

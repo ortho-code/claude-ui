@@ -345,8 +345,8 @@ export interface Settings {
   runningSessionsAtLaunch: RunningAtLaunch;
   /** Whether the app asks GitHub, with `gh`, what it says of the PRs the sessions link, which colours their marks and marks a session as needing you when one changes; off, it asks nothing, every mark keeps the accent and nothing is marked. */
   prStatus: boolean;
-  /** What the button on a stopped tab does, on the tab and its live strip row while the strip lists it: close the tab, or archive its session; a running tab's button is not changed by it. */
-  stoppedTabButton: StoppedTabButton;
+  /** What a tab's button does, on the tab and its live strip row while the strip lists it: stop a running session and then close the tab or archive its session, close or archive in one press, claude asked to leave first, or no button at all, leaving it to the tab's menu. */
+  leaveButton: LeaveButton;
   /** The time of day a session set aside for later comes back as needing you, on the day chosen, as `"HH:MM"` in 24 hours; Pick a date… starts at it. */
   laterTime: string;
   /** The language the app formats times and dates in, as a BCP 47 tag such as `"en-GB"`, or `""` for the system's; a time field follows it from the next launch, the rest at once. */
@@ -422,7 +422,7 @@ export interface UiState {
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './folders';
 import type { LogLevel } from './log';
-import type { RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView, StoppedTabButton } from './settings';
+import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './settings';
 
 export interface ClaudeUiApi {
   listSessions(): Promise<SessionSummary[]>;

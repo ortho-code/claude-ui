@@ -1,7 +1,7 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested.
 // renderer.ts wires these to its state and the DOM.
 import { prReference } from '../shared/prs';
-import { timeOfDay } from '../shared/settings';
+import { timeOfDay, type LeaveButton } from '../shared/settings';
 import type { GroupState, Later, NeedsYou, NeedsYouReason, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
 import { PR_CHANGE_RANK } from './prstatus';
@@ -903,15 +903,18 @@ export function leaveAction(tab: TabButtonTab, action: LeaveAction): TabButton {
 }
 
 /**
- * What a tab's button shows, wherever it is drawn: on the tab, and on the live strip's row for its session.
- * A shortcut to one of its menu's leave items, so it says and does what that item would (`leaveAction`): Stop session on a running tab, and on a cold one what `stopped` names; while claude is on its way out, the force of what it is leaving for, so the button stays the press that ends claude, and changing what the exit does is the menu's.
+ * What a tab's button shows, wherever it is drawn: on the tab, and on the live strip's row for its session; null for no button, which `choice` `none` asks for.
+ * A shortcut to one of its menu's leave items, so it says and does what that item would (`leaveAction`): on a running tab Stop session, or with `close` or `archive` that leave in one press, and on a cold one the leave `choice` ends in; while claude is on its way out, the force of what it is leaving for, so the button stays the press that ends claude, and changing what the exit does is the menu's.
  * ONE RULE RATHER THAN TWO, and it is here rather than in the renderer because the two surfaces did come to different conclusions about the same tab the day the strip grew its own copy.
  */
-export function tabButton(tab: TabButtonTab, stopped: 'close' | 'archive' = 'close'): TabButton {
-  if (tab.starting) return unavailable('stop', 'Starting…');
+export function tabButton(tab: TabButtonTab, choice: LeaveButton = 'stop-close'): TabButton | null {
+  if (choice === 'none') return null;
+  const removes = choice === 'stop-archive' || choice === 'archive' ? 'archive' : 'close';
+  const running = choice === 'close' || choice === 'archive' ? removes : 'stop';
+  if (tab.starting) return unavailable(running, 'Starting…');
   const under = leaveUnderWay(tab);
   if (under) return leaveForce(tab, under);
-  return leaveAction(tab, tab.terminalId === null ? stopped : 'stop');
+  return leaveAction(tab, tab.terminalId === null ? removes : running);
 }
 
 /**

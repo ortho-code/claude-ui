@@ -76,6 +76,7 @@ interface StripRow {
   later: HTMLElement;
   notLeft: HTMLElement;
   chip: HTMLElement;
+  kebab: HTMLButtonElement;
   stop: HTMLButtonElement;
 }
 
@@ -152,7 +153,7 @@ function buildRow(id: string): StripRow {
   // WHY IT BELONGS HERE: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab.
   // So acting on a stray session from its tab costs you your place: you go there, act, and come back.
   // This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
-  // It IS the tab's button, pressed from here: one rule draws both (`tabButton`) and one press acts for both (`pressTabButton`, through the ask), so it stops a running session, forces one that has not left, and closes a stopped tab or archives its session, as the settings say.
+  // It IS the tab's button, pressed from here: one rule draws both (`tabButton`) and one press acts for both (`pressTabButton`, through the ask), so it stops a running session, forces one that has not left, and closes a stopped tab or archives its session, or with no stop first a running one too, or is not there at all, as the settings say.
   // A row leaves the strip by its session stopping with no needs-you mark it still shows, its mark being settled or muted by setting the session aside for later, its tab being closed, which is what this does to a stopped one, or its session leaving the pool, as an archive takes it.
   // The session's own menu beside it, from the builder its row in the list uses, the button's press among its items, so the button is a shortcut to one of them.
   // Listed afresh at each click, for the session as it is then.
@@ -169,12 +170,12 @@ function buildRow(id: string): StripRow {
     hostOf('sessions').pressTabButton(id, stop.dataset.mark as TabButtonMark);
   });
   row.append(jump, kebab, stop);
-  return { row, jump, dot, name, clock, later, notLeft, chip, stop };
+  return { row, jump, dot, name, clock, later, notLeft, chip, kebab, stop };
 }
 
 /** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its tab's button in the tab's state. */
 function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'later' | 'archived' | 'tabs' | 'settings'>): void {
-  const { row, jump, dot, name, clock, later, notLeft, chip, stop } = parts;
+  const { row, jump, dot, name, clock, later, notLeft, chip, kebab, stop } = parts;
   applyStatus(dot, session.id, view);
   name.textContent = sessionLabel(session);
   const tab = tabWith(session.id, view);
@@ -189,10 +190,15 @@ function updateRow(parts: StripRow, session: SessionSummary, groupName: string |
   if (onShow) jump.setAttribute('aria-current', 'true');
   else jump.removeAttribute('aria-current');
   // No tab at all should not happen — membership is a tab's process or its session's mark — so it is inert rather than guessed at, saying only what is so.
-  const { disabled, tooltip, mark } = tab ? tabButtonOf(tab, view) : { disabled: true, tooltip: 'No tab to act on', mark: 'stop' as const };
-  setMarkup(stop, tabButtonIcon(mark, 14));
-  stop.dataset.mark = mark;
-  setUnavailable(stop, disabled ? tooltip : null, tooltip);
+  const inert = view.settings?.leaveButton.value === 'none' ? null : { disabled: true, tooltip: 'No tab to act on', mark: 'stop' as const };
+  const button = tab ? tabButtonOf(tab, view) : inert;
+  // None, as the settings may say, leaves the kebab at the row's end, as on the tab, with a tab or without.
+  stop.hidden = button === null;
+  kebab.classList.toggle('abuts', button !== null);
+  if (!button) return;
+  setMarkup(stop, tabButtonIcon(button.mark, 14));
+  stop.dataset.mark = button.mark;
+  setUnavailable(stop, button.disabled ? button.tooltip : null, button.tooltip);
 }
 
 /** A project as the strip has it: its sessions in the strip, in their order. */

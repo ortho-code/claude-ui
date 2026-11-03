@@ -1123,8 +1123,8 @@ describe('leaveLabel', () => {
     expect(leaveLabel('stop')).toBe('Stop session');
     expect(leaveLabel('close')).toBe('Close tab');
     expect(leaveLabel('archive')).toBe('Archive');
-    expect(tabButton({ terminalId: 7 }).tooltip).toBe(leaveLabel('stop'));
-    expect(tabButton({ terminalId: null }).tooltip).toBe(leaveLabel('close'));
+    expect(tabButton({ terminalId: 7 })?.tooltip).toBe(leaveLabel('stop'));
+    expect(tabButton({ terminalId: null })?.tooltip).toBe(leaveLabel('close'));
   });
 });
 
@@ -1209,10 +1209,27 @@ describe('tabButton', () => {
     expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'archive' })).toMatchObject({ disabled: false, mark: 'force-archive', label: 'Force archive', action: 'archive' });
   });
 
-  it("closes a cold tab, which has nothing to stop, or archives it when that is the stopped tab's button", () => {
+  it('closes a cold tab, which has nothing to stop, or archives it when the choice ends in that', () => {
     expect(tabButton({ terminalId: null })).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close', label: 'Close tab', action: 'close' });
-    expect(tabButton({ terminalId: null }, 'archive')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'archive', label: 'Archive', action: 'archive' });
-    // A running tab stops whichever it is.
-    expect(tabButton({ terminalId: LIVE }, 'archive')).toMatchObject({ mark: 'stop', action: 'stop' });
+    expect(tabButton({ terminalId: null }, 'stop-archive')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'archive', label: 'Archive', action: 'archive' });
+    expect(tabButton({ terminalId: null }, 'close')).toMatchObject({ mark: 'close', action: 'close' });
+    expect(tabButton({ terminalId: null }, 'archive')).toMatchObject({ mark: 'archive', action: 'archive' });
+    // A running tab stops while the choice stops first.
+    expect(tabButton({ terminalId: LIVE }, 'stop-archive')).toMatchObject({ mark: 'stop', action: 'stop' });
+  });
+
+  it('closes or archives a running tab in one press when the choice skips the stop, and says so while it starts', () => {
+    expect(tabButton({ terminalId: LIVE }, 'close')).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close', label: 'Close tab', action: 'close' });
+    expect(tabButton({ terminalId: LIVE }, 'archive')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'archive', label: 'Archive', action: 'archive' });
+    expect(tabButton({ terminalId: null, starting: true }, 'archive')).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: 'archive' });
+    // Leaving, it is the force of what claude is leaving for, whichever the choice.
+    expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'close' }, 'close')).toMatchObject({ disabled: false, mark: 'force-close' });
+    expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true }, 'archive')).toMatchObject({ disabled: false, mark: 'force-stop' });
+  });
+
+  it('is no button for none, running, cold or leaving', () => {
+    expect(tabButton({ terminalId: LIVE }, 'none')).toBeNull();
+    expect(tabButton({ terminalId: null }, 'none')).toBeNull();
+    expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true }, 'none')).toBeNull();
   });
 });

@@ -31,7 +31,7 @@ const jsonc = async (file: string): Promise<unknown> => {
   const read = readJsonc(await fs.readFile(file, 'utf8'));
   return read.ok ? read.json : read.error;
 };
-const defaults = { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, stoppedTabButton: 'close', laterTime: '09:00', locale: '' };
+const defaults = { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', laterTime: '09:00', locale: '' };
 const text = (file: string): Promise<string> => fs.readFile(file, 'utf8');
 const gone = (file: string): Promise<void> => expect(fs.access(file)).rejects.toThrow();
 const moves = async (): Promise<unknown> => ((await json(metaFile)) as { moved: unknown }).moved;
@@ -173,8 +173,8 @@ describe('a new settings.json', () => {
         '  "runningSessionsAtLaunch": "mark",',
         '  // Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks and marks a session as needing you when one changes, such as merged or changes requested; turned on, it starts from the PRs as they are then',
         '  "prStatus": true,',
-        '  // What the button on a stopped tab does: "close" the tab, or "archive" its session',
-        '  "stoppedTabButton": "close",',
+        '  // What a tab\'s button does: "stop-close" stops a running session and then closes the tab, "stop-archive" stops it and then archives its session, "close" and "archive" do so in one press, and "none" leaves it to the tab\'s menu',
+        '  "leaveButton": "stop-close",',
         '  // The time of day, as "HH:MM" in 24 hours, a session set aside for later needs you again on the day chosen',
         '  "laterTime": "09:00",',
         '  // The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',
