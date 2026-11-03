@@ -1,6 +1,6 @@
 import { mutedByLater } from '../../shared/sessionmarks';
 import type { Later, NeedsYou, SessionGroup, SessionSummary } from '../../shared/types';
-import { displayName, entityKey, inView, projectRootExists, projectsForSwitcher, sessionPart, sessionsByKey, shownStatus, tabButton, unstartableReason, type NudgeStatus, type SwitcherModel, type TabButton } from '../logic';
+import { displayName, entityKey, inView, projectRootExists, projectsForSwitcher, sessionPart, sessionsByKey, shownStatus, tabButton, unstartableReason, type NudgeStatus, type SwitcherModel, type TabButton, type TabButtonTab } from '../logic';
 import { sameOrder, store, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */
@@ -32,9 +32,19 @@ export function tabWith(sessionId: string, view: View<'tabs'> = store.get()): Ta
   return view.tabs.find((t) => t.session.id === sessionId);
 }
 
+/** A tab as its button and its menu's leave items read it (`TabButtonTab`): its own flags, and whether a tab of its session is starting. */
+export function leaveTab(tab: TabState, view: View<'tabs'> = store.get()): TabButtonTab {
+  return { ...tab, sessionStarting: sessionStarting(entityKey(tab.session), view) };
+}
+
+/** Whether a tab of the session is starting, which leaves no claude yet to ask to leave for an archive (`archiveSession`). */
+export function sessionStarting(key: string, view: View<'tabs'> = store.get()): boolean {
+  return view.tabs.some((t) => entityKey(t.session) === key && t.starting);
+}
+
 /** A tab's button, on the tab and its strip row alike (`tabButton`), as the settings say (`Settings.leaveButton`), stop then close until they are read; null for none. */
-export function tabButtonOf(tab: TabState, view: View<'settings'> = store.get()): TabButton | null {
-  return tabButton(tab, view.settings?.leaveButton.value ?? 'stop-close');
+export function tabButtonOf(tab: TabState, view: View<'settings' | 'tabs'> = store.get()): TabButton | null {
+  return tabButton(leaveTab(tab, view), view.settings?.leaveButton.value ?? 'stop-close');
 }
 
 /**

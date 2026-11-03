@@ -834,6 +834,8 @@ export interface TabButtonTab {
   notLeft?: boolean;
   /** What its exit does once claude has gone, while it is on its way out: keep the tab (`cool`, the default), remove it, or remove it and archive its session. */
   onExit?: 'cool' | 'close' | 'archive';
+  /** A tab of its session is starting, this one or another, which leaves no claude yet to ask to leave for an archive, the session's rather than a tab's (`archiveSession`). */
+  sessionStarting?: boolean;
 }
 
 /**
@@ -891,11 +893,12 @@ function leaveForce(tab: TabButtonTab, under: LeaveAction): TabButton {
  * A leave item of a tab's menu, by one rule for every surface that draws it: Stop session, Close tab or Archive.
  *
  * Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving, so there is no claude yet to ask.
+ * Archive is the session's, so a tab of the session starting, whichever, leaves it unavailable too.
  * While claude is on its way out, the item of what was asked is its force (decided 2026-10-28), and the others change what the exit does without asking claude again, since a second pair of presses ends what it asks on its way out unanswered: Stop session turns a close or an archive back into a stop, Close tab and Archive turn a leave into theirs.
  * A cold tab has nothing to stop; it closes and archives at once.
  */
 export function leaveAction(tab: TabButtonTab, action: LeaveAction): TabButton {
-  if (tab.starting) return unavailable(action, 'Starting…');
+  if (tab.starting || (action === 'archive' && tab.sessionStarting)) return unavailable(action, 'Starting…');
   const under = leaveUnderWay(tab);
   if (under === action) return leaveForce(tab, under);
   if (under === null && tab.terminalId === null && action === 'stop') return unavailable('stop', 'Not running');

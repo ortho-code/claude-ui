@@ -11,7 +11,7 @@ import { pickCheckout, pickedFor } from '../../../state/picks';
 import { clearLater, markLater } from '../../../state/later';
 import { clearNeedsYou } from '../../../state/needsyou';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
-import { isFiltering, projName, projectGroups, tabWith, unopenableReason } from '../../../state/views';
+import { isFiltering, leaveTab, projName, projectGroups, sessionStarting, tabWith, unopenableReason } from '../../../state/views';
 import { copyText, showToast } from '../../../toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
@@ -264,12 +264,11 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   // Stop session, Close tab and Archive, each one press of its own meaning, whatever the tab is doing (decided 2026-10-28), by the rule the tab's button is a shortcut to (`leaveAction`).
   items.push(leaveItem(session, tab, 'stop'));
   items.push(leaveItem(session, tab, 'close'));
-  // Archive is the session's rather than a tab's (`archiveSession`): a session with no tab archives at once, and one with a tab starting is unavailable, whichever tab it is, since there is no claude yet to ask to leave.
+  // Archive is the session's rather than a tab's (`archiveSession`): a session with no tab archives at once, and one with a tab starting is unavailable, whichever tab it is, since there is no claude yet to ask to leave (`leaveAction`, as the tab's button says it).
   const key = entityKey(session);
-  const starting = store.get().tabs.some((t) => entityKey(t.session) === key && t.starting);
-  if (starting) items.push({ label: leaveLabel('archive'), disabled: 'Starting…' });
-  else if (!tab) items.push({ label: leaveLabel('archive'), onSelect: () => hostOf('sessions').archiveSession(key) });
-  else items.push(leaveItem(session, tab, 'archive'));
+  if (tab) items.push(leaveItem(session, tab, 'archive'));
+  else if (sessionStarting(key)) items.push({ label: leaveLabel('archive'), disabled: 'Starting…' });
+  else items.push({ label: leaveLabel('archive'), onSelect: () => hostOf('sessions').archiveSession(key) });
   return items;
 }
 
@@ -277,7 +276,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
 // Unavailable without a tab, since there is then nothing to stop or close.
 function leaveItem(session: SessionSummary, tab: TabState | undefined, action: LeaveAction): MenuItem {
   if (!tab) return { label: leaveLabel(action), disabled: 'Not open in a tab' };
-  const item = leaveAction(tab, action);
+  const item = leaveAction(leaveTab(tab), action);
   return item.disabled ? { label: item.label, disabled: item.tooltip } : { label: item.label, onSelect: () => hostOf('sessions').pressLeave(session.id, action, item.mark) };
 }
 

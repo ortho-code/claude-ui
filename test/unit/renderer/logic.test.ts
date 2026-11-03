@@ -1227,6 +1227,13 @@ describe('tabButton', () => {
     expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true }, 'archive')).toMatchObject({ disabled: false, mark: 'force-stop' });
   });
 
+  it("cannot archive while another tab of its session is starting, as the menu's Archive cannot, and can still stop or close", () => {
+    expect(tabButton({ terminalId: null, sessionStarting: true }, 'stop-archive')).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: 'archive' });
+    expect(tabButton({ terminalId: LIVE, sessionStarting: true }, 'archive')).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: 'archive' });
+    expect(tabButton({ terminalId: LIVE, sessionStarting: true }, 'stop-archive')).toMatchObject({ disabled: false, mark: 'stop' });
+    expect(tabButton({ terminalId: null, sessionStarting: true })).toMatchObject({ disabled: false, mark: 'close' });
+  });
+
   it('is no button for none, running, cold or leaving', () => {
     expect(tabButton({ terminalId: LIVE }, 'none')).toBeNull();
     expect(tabButton({ terminalId: null }, 'none')).toBeNull();
