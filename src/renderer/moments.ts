@@ -28,11 +28,21 @@ export function showMoment(el: HTMLElement, moment: Moment, later: () => Moment)
   clock ??= window.setInterval(tick, MINUTE);
 }
 
+/** What else follows the clock, told after the moments are drawn at each tick (`onMinute`). */
+const followers: (() => void)[] = [];
+
+/** Call `follow` at every tick from here on, the one a change of the language forces included, after the moments on screen are drawn: for what goes out of date with the clock as a moment does, such as the session list's order (list.ts), so the two move together rather than on two timers. */
+export function onMinute(follow: () => void): void {
+  followers.push(follow);
+  clock ??= window.setInterval(tick, MINUTE);
+}
+
 function tick(): void {
   for (const [el, later] of shown) {
     if (el.isConnected) draw(el, later());
     else shown.delete(el);
   }
+  for (const follow of followers) follow();
 }
 
 /** The words only where they changed, since most do not from one minute to the next. */

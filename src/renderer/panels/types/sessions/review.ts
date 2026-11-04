@@ -74,7 +74,7 @@ button.addEventListener('click', () => {
   else startReview();
 });
 
-/** The longest the count, and an open review (list.ts), wait between looks: a session crosses its days with nothing in the store moving, as a later mark comes due (state/later.ts). */
+/** The longest the count waits between looks: a session crosses its days with nothing in the store moving, as a later mark comes due (state/later.ts); an open review is looked at every minute with the list's order (list.ts). */
 export const REVIEW_LOOK_EVERY_MS = 60 * 60 * 1000;
 
 /** The button's count, now and as the store and the clock move; registered with the sidebar's repaints (watch.ts). */

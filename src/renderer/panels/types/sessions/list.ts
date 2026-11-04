@@ -2,20 +2,21 @@ import type { SessionSummary } from '../../../../shared/types';
 import { placeChildren } from '../../../keyed';
 import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, groupJumpTargets, projectGoneReason } from '../../../logic';
 import { markProjectGone } from '../../../projectgone';
-import { store, type TabState, type View } from '../../../state/app';
+import { onMinute } from '../../../moments';
+import { sameOrder, store, type TabState, type View } from '../../../state/app';
 import { archivedOnlyProjects, isFiltering, mutedNeedsYou, projName, searchText, statusChanges, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
-import { reviewCount } from '../../../review';
+import { reviewCount, type ReviewSection } from '../../../review';
 import { endBulk } from '../../../state/bulk';
-import { container, currentByKey, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
+import { container, currentByKey, drawnKeys, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
 import { createFlatSection, createGroupSection, createProjectSection } from './headings';
 import { whereOf } from './describe';
-import { REVIEW_LOOK_EVERY_MS, reviewFlat, reviewInScope } from './review';
+import { reviewFlat, reviewInScope } from './review';
 import { syncStickyOffset } from './reveal';
 import { drawRow, showTabMarks, updateRow, type FlatLine, type RowView } from './rows';
 import './list.css';
@@ -104,10 +105,8 @@ export function watchList(): void {
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject'] });
   // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and turning the archived view on or off ends it outside the review.
   store.watch(['bulk', 'tabs', 'filter'], bulkFollows, { reads: ['reviewing', 'activeProject', 'projectNames'] });
-  // An open review drawn again at least once an hour: a session crosses its days, or a keep stamp runs out, with nothing in the store moving, as the Review button's count is looked at again (review.ts).
-  window.setInterval(() => {
-    if (store.get().reviewing) renderList(store.get());
-  }, REVIEW_LOOK_EVERY_MS);
+  // The order catching up with the sessions' activity, and an open review with sessions crossing their days or a keep stamp running out, all with nothing in the store moving.
+  onMinute(catchUp);
 }
 
 /** The list follows the store, with the filter's count and chips it draws. */
@@ -121,23 +120,16 @@ function listChanged(view: ListView, before: View<'filter' | 'activeProject'>): 
 // Render from the cached session list, applying the current search filter.
 // Keystrokes call this directly so filtering never re-reads disk.
 // Keeps project, group and row nodes by key and leaves in place what already is (keyed.ts), so a re-render does not rebuild the sidebar: no flicker, the scroll stays put, and a press or the focus on a row that keeps its place survives it.
-function renderList(view: ListView): void {
-  if (view.reviewing) {
-    // The review in place of the projects (docs/architecture.md § The review): its sets in the switcher's scope, the filter set aside meanwhile.
-    const sections = reviewInScope(view);
-    // A review left with nothing in it ends, as an empty review has nothing to decide; said by nothing of its own: the act that emptied it raises its toast after this, with the Undo that matters more, and the Review button then says there is nothing to review.
-    if (reviewCount(sections) === 0) endBulk();
-    else renderSections(reviewFlat(sections), view);
-    return;
-  }
-  const scroll = container.scrollTop;
-  statusDots.clear();
-  rowTabMarks.clear();
+/**
+ * What the list draws, worked out from the store and the clock and nothing else, so a draw and the minute's look at whether the order moved (`catchUp`) cannot disagree about it: the review's sets while it is open, else the projects in scope with the sessions that pass the filter, with what the filter's count says.
+ */
+type ListShape = { review: ReviewSection[] } | { tree: ProjectTree[]; all: SessionSummary[]; matches: number; total: number };
 
+function listShape(view: ListView): ListShape {
+  // The review in place of the projects (docs/architecture.md § The review): its sets in the switcher's scope, the filter set aside meanwhile.
+  if (view.reviewing) return { review: reviewInScope(view) };
   // Include new sessions not yet written to disk (from their open tabs) so they appear in the list immediately, in the right project; they reconcile to the real entry once created.
   const all = visibleSessions(view);
-  currentByKey.clear();
-  for (const s of all) currentByKey.set(entityKey(s), s);
   const { activeProject } = view;
 
   const groupNames = searchText(view) ? groupNameByKey(view) : undefined;
@@ -149,11 +141,50 @@ function renderList(view: ListView): void {
   const scoped = inScope(filtered);
   // The total is the set the matches were taken from: the same project scope and the same view, archived or not, before the other filters.
   // So the count only ever compares a set with part of itself, and in the normal view the total is the number the switcher shows.
-  updateFilterStatus(scoped.length, inScope(viewPool(all, view.filter.filters.archived, view)).length, view);
+  const total = inScope(viewPool(all, view.filter.filters.archived, view)).length;
   // A project whose sessions are all archived stays, empty and saying so, as it does in the switcher; a filter leaves it out, as it leaves out any project with no match, and the archived view lists it with its sessions.
   const archivedOnly = new Map(isFiltering(view) ? [] : [...archivedOnlyProjects(view)].filter(([repoRoot]) => !activeProject || repoRoot === activeProject));
+  if (scoped.length === 0 && archivedOnly.size === 0) return { tree: [], all, matches: 0, total };
+  // One section per repo, each holding its groups and then the sessions in no group.
+  // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
+  // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
+  return { tree: buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder, archivedOnly, all), all, matches: scoped.length, total };
+}
 
-  if (scoped.length === 0 && archivedOnly.size === 0) {
+/** The keys of the rows a shape draws, in the order it draws them: a project's groups' rows, then its loose rows (`reconcileProjectSections`), or each set's rows in turn. */
+function keysOf(shape: ListShape): string[] {
+  if ('review' in shape) return shape.review.flatMap((set) => set.rows.map(({ session }) => entityKey(session)));
+  return shape.tree.flatMap((project) => [...project.groups.flatMap((g) => g.sessions), ...project.loose].map(entityKey));
+}
+
+/**
+ * At each minute's tick, the list drawn again where the order it would draw now differs from the one drawn (docs/architecture.md § UI conventions): a session's last activity moves its place with nothing in the store telling the list (`AFFECTS_ROW`, logic.ts), and the review gains or loses a session as it crosses its days.
+ * Held while the pointer is over the list, the focus is in it, or a menu opened from it is up, since a row must not move from under a press; the next tick tries again, so nothing waits on the pointer leaving.
+ * A menu sits on the page's body, out of `:focus-within`'s reach, so it is found by the mark its trigger in the list wears while it is up (`.menu-open`).
+ */
+function catchUp(): void {
+  if (container.matches(':hover, :focus-within') || container.querySelector('.menu-open')) return;
+  const view = store.get();
+  if (!sameOrder(keysOf(listShape(view)), drawnKeys())) renderList(view);
+}
+
+function renderList(view: ListView): void {
+  const shape = listShape(view);
+  if ('review' in shape) {
+    // A review left with nothing in it ends, as an empty review has nothing to decide; said by nothing of its own: the act that emptied it raises its toast after this, with the Undo that matters more, and the Review button then says there is nothing to review.
+    if (reviewCount(shape.review) === 0) endBulk();
+    else renderSections(reviewFlat(shape.review), view);
+    return;
+  }
+  const { tree, all } = shape;
+  const scroll = container.scrollTop;
+  statusDots.clear();
+  rowTabMarks.clear();
+  currentByKey.clear();
+  for (const s of all) currentByKey.set(entityKey(s), s);
+  updateFilterStatus(shape.matches, shape.total, view);
+
+  if (tree.length === 0) {
     clearList();
     const message = document.createElement('div');
     message.className = 'empty-message';
@@ -167,10 +198,6 @@ function renderList(view: ListView): void {
     return;
   }
 
-  // One section per repo, each holding its groups and then the sessions in no group.
-  // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
-  // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  const tree = buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder, archivedOnly, all);
   renderedSections.projects = tree.map((p) => p.repoRoot);
   renderedSections.groups = tree.flatMap((p) => p.groups.map((g) => g.group.id));
   reconcileProjectSections(tree, view);

@@ -14,7 +14,7 @@ import { showToast } from '../../../toast';
 import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, laterChoices, moveToGroupItems } from './actions';
-import { container, currentByKey } from './drawn';
+import { container, currentByKey, drawnKeys } from './drawn';
 import './bulk.css';
 
 /**
@@ -55,11 +55,6 @@ export function tickBox(): HTMLElement {
   box.setAttribute('role', 'checkbox');
   box.setAttribute('aria-checked', 'false');
   return box;
-}
-
-/** The keys of the rows drawn, in the order drawn: what a Shift+press ticks a run of, and what the bar acts on of what is ticked. */
-function drawnKeys(scope: ParentNode = container): string[] {
-  return [...scope.querySelectorAll<HTMLElement>('.session')].map((row) => row.dataset.key ?? '').filter(Boolean);
 }
 
 /** The ticked rows on show, in the order drawn (`tickedOnShow`): what the line counts and the bar acts on. */

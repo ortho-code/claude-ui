@@ -610,7 +610,7 @@ Main takes each of these writes as a list (`archive`, `unarchive`, `markLater`, 
 
 The review is a moment to decide what the list has been carrying: the Review button, on a row under the sidebar's header, opens the list on two sets in bulk mode (§ Selecting several), and every act of the bar that decides a row takes it out, until Done, Esc, or nothing left to decide ends it.
 Its count is the review in the switcher's scope, and at none, while the list does not show the review, the button is unavailable, saying so, since a review with nothing in it would end at once; while it does, a press ends it.
-The count is worked out again whenever what it reads in the store changes, and an open review is drawn again whenever the list is, a session getting or losing a tab included; both again at least once an hour on a timer, since a session crosses its days, or a keep stamp runs out, with nothing in the store moving, as a later mark comes due.
+The count is worked out again whenever what it reads in the store changes, and an open review is drawn again whenever the list is, a session getting or losing a tab included; since a session crosses its days, or a keep stamp runs out, with nothing in the store moving, the count is looked at again at least once an hour on a timer, as a later mark comes due, and an open review every minute with the list's order (§ UI conventions).
 
 **Which sessions** (`review.ts`, pure): those that are unfinished — no tab, not archived — not set aside for later, and not kept within the last 30 days, in two sets, oldest activity first:
 - **Ready to finish**: every link settled, which today is every PR it links merged or closed, as the PR marks read what GitHub said (`verdictOf`); at least one link, since a session that links nothing has nothing settled and would put every such session here.
@@ -1746,6 +1746,14 @@ Each carries its moment in full as its tooltip where the moment is known, in one
 Rounding the time into the list's signature was weighed and turned down: it moves a row whose last activity moves, but a quiet row's never does, and those are the rows it matters for; so was redrawing the whole list every minute, which reconciles every section and brings every drawn row up to date for one line of text, and reaches no other surface.
 A copy of a tick took 1–2 ms over 519 rows in headless Chromium, about 45 of them changing (2026-10-22); the app itself was not measured.
 A menu is written when it opens and is not on the clock, so an open kebab menu's times follow the store, as said above of an open kebab menu.
+
+**The session list's order catches up on the same clock, and never under the pointer.**
+The list orders a section's rows, and the review its sets' rows, by last activity, which on its own tells the list nothing, for the reason above; so the order used to be the one of the list's last draw, and moved at the next draw for any other reason, a pin or a new session, under the pointer as likely as not.
+Now each minute's tick (`onMinute`, `moments.ts`) compares the keys the list would draw now, from the one function every draw takes them from (`listShape`, `sessions/list.ts`), with the keys of the rows the last draw left on screen, and draws the list again where they differ (decided 2026-11-04).
+It holds while the pointer is over the list, the focus is in it, or a menu opened from it is up, found by the mark its trigger wears (`.menu-open`), since the menu sits on the page's body; the next tick tries again, so nothing waits on the pointer leaving.
+The same look covers an open review, which gains or loses a session as it crosses its days.
+A draw at every change of the order was weighed and turned down: over a week of this machine's transcripts (2026-11-04), a simulated flat list of every session by last activity would have moved a row about 67 times an hour of work in All, nearly all of them sessions in the top five trading places as each running one wrote in turn, the reason the live strip left recency for the tab order (§ Traps worth knowing); checked once a minute, the order had moved in about 13 minutes of each such hour in All.
+Ordering by the last prompt you sent was turned down too, since a row's time says claude's last write, and the order and the time would disagree.
 
 **A module's stylesheet sits beside it, and the module imports it.**
 esbuild bundles every stylesheet a module imports into one `renderer.css`, in import order, each file once, so `index.html` links only that: `xterm.css` and `air-datepicker.css` are imports of the modules that use them too.

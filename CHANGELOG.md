@@ -172,6 +172,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A tab you had paused comes back as an ordinary stopped tab, its session set aside for later, whenever.
 - A session that needs you for more than one reason, such as a reminder and running when the app quit, keeps them all, each on a line of its own in its dot's tooltip and at the top of its options, where the newest used to replace the others.
 - The note dialog names the session in its title, with a line under it saying where the note shows and that saving it empty removes it.
+- The session list's order catches up with what was last worked on within a minute, where a session worked on again used to keep its old place until something else changed the list; nothing moves while the pointer or the keyboard focus is in the list, or a menu from it is open.
+  An open review takes in a session that crosses its 30 days within a minute too, rather than within the hour.
 
 ### Fixed
 

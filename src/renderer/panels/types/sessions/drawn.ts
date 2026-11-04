@@ -93,3 +93,8 @@ export const flatSections = new Keyed<FlatSectionEls>((els) => els.section);
 // The session each row currently shows, by entity key (session id), so a reused row's click/pin handlers act on the live session data of the latest render.
 // Refilled by each render rather than replaced, since a module cannot assign to a binding another module exports.
 export const currentByKey = new Map<string, SessionSummary>();
+
+/** The keys of the rows drawn under `scope`, in the order drawn, a folded section's included: what a Shift+press ticks a run of, what the bar acts on of what is ticked (bulk.ts), and what the list's order is compared against at each minute (list.ts). */
+export function drawnKeys(scope: ParentNode = container): string[] {
+  return [...scope.querySelectorAll<HTMLElement>('.session')].map((row) => row.dataset.key ?? '').filter(Boolean);
+}
