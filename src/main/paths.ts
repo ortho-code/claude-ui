@@ -69,10 +69,10 @@ export const defaultLayoutFile = path.join(layoutsDir, 'default.json');
 /** The app's file beside it: this machine's sizes, folds and picks, by node id (layoutstate.ts). */
 export const defaultLocalLayoutFile = path.join(layoutsDir, 'default.local.json');
 
-/** Your settings, which the app reads and never writes. */
+/** Your settings, which you edit by hand and the app writes only when Settings saves, at a launch that finds none, and once to move older settings into it (settings.ts). */
 export const settingsFile = path.join(configRoot, 'settings.json');
 
-/** The app's settings, written from Settings, which win over yours (appfiles.ts, shared/settings.ts). */
+/** Where Settings saved before it saved into `settings.json`: read once at launch, moved into that file, and then taken away (`moveFromLocal`, settings.ts). */
 export const settingsLocalFile = path.join(configRoot, 'settings.local.json');
 
 /**
