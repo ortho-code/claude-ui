@@ -58,7 +58,7 @@ export function applyFolds(view: View<'folds' | 'filter' | 'activeProject'>): vo
  * The folds changed: every section on screen folds or opens in place (`applyFolds`), and collapse-all says what it will do now.
  * Not the list: a fold hides rows that are already drawn, and drawing them all again would cost a heading's click its stillness.
  */
-export function foldsFollow(view: View<'folds' | 'filter' | 'activeProject'>): void {
+export function foldsFollow(view: View<'folds' | 'filter' | 'activeProject' | 'arrangement'>): void {
   applyFolds(view);
   updateCollapseToggle(view);
 }
@@ -84,12 +84,13 @@ function allSectionsCollapsed(view: View<'activeProject' | 'filter' | 'folds'>):
   return ids.length > 0 && ids.every((id) => collapsed.has(id));
 }
 
-export function updateCollapseToggle(view: View<'activeProject' | 'filter' | 'folds'>): void {
+export function updateCollapseToggle(view: View<'activeProject' | 'filter' | 'folds' | 'arrangement'>): void {
   const label = allSectionsCollapsed(view) ? 'Expand all' : 'Collapse all';
   // Under a filter it folds the filter's own view, as a heading's click does (`foldsWith`).
-  // With nothing on screen to fold it is unavailable rather than hidden, since a control vanishing as you type reads worse than one plainly unavailable.
+  // With nothing on screen to fold it is unavailable rather than hidden, since a control vanishing as you type reads worse than one plainly unavailable; Recent draws no sections at all, and leaves the folds as they are for Grouped.
   const { kind, ids } = collapseScope(view);
-  const reason = ids.length === 0 ? (kind === 'projects' ? 'No projects to collapse.' : 'No groups in this project to collapse.') : null;
+  const nothing = view.arrangement === 'recent' ? 'Recent has no sections to fold.' : kind === 'projects' ? 'No projects to collapse.' : 'No groups in this project to collapse.';
+  const reason = ids.length === 0 ? nothing : null;
   setUnavailable(collapseToggle, reason, label);
   // Every draw of the list says it again, so only a change of icon replaces it, which a press on the button is mostly on (keyed.ts).
   setMarkup(collapseToggle, allSectionsCollapsed(view) ? EXPAND_ALL_ICON : COLLAPSE_ALL_ICON);

@@ -5,6 +5,7 @@ import { refreshStrip } from './live-strip';
 import { applyDatePickerMinDate, filterPanelFollows } from './filter';
 import { watchList } from './list';
 import { watchReviewButton } from './review';
+import { watchArrangement } from './arrangement';
 import { watchPrStatus } from './pr-status';
 
 /**
@@ -27,6 +28,8 @@ export const sessionsWatch = {
     watchList();
     // The Review button counts the review in scope, as the store and the clock move (review.ts).
     watchReviewButton();
+    // The switch between Grouped and Recent follows the arrangement, unavailable while the review is open (arrangement.ts).
+    watchArrangement();
     // The filter panel opened or shut: it follows, with the chips that stand in for it while it is shut.
     store.watch(['filterPanelOpen'], filterPanelFollows, { reads: ['filter'] });
     // The switcher counts every project's sessions, rolls up their statuses and names the project on show.

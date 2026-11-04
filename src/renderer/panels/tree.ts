@@ -76,6 +76,9 @@ interface Mounted {
   slot: PanelSlot;
   /** What is wrong with its entry's `view` that only its views show, for its group's note line. */
   viewNotes: string[];
+  /** The view picked for it as its host answers it now (`PanelHost.view`), and as the panel was last told of it, at its mount or by `viewChanged`. */
+  view: () => string | null;
+  viewTold: string | null;
   /** Its type and declared parameters: a change to either mounts it afresh, a change to anything else (title, icon) does not. */
   signature: string;
   busy: HTMLElement;
@@ -321,6 +324,13 @@ function render(): void {
   }
   if (focused instanceof HTMLElement && focused.isConnected && document.activeElement !== focused) focused.focus({ preventScroll: true });
   showPanels();
+  // A panel whose pick moved without mounting it afresh, by an edit of its entry's `view` or the app's file read after it mounted, is told so.
+  for (const entry of mounted.values()) {
+    const now = entry.view();
+    if (now === entry.viewTold) continue;
+    entry.viewTold = now;
+    entry.panel.viewChanged?.();
+  }
 }
 
 /** Every panel the tree holds: the entries that can run and are not hidden, by key, with what they are mounted as. */
@@ -625,11 +635,24 @@ function mountedFor(slot: PanelSlot): Mounted {
   const entryView = (): string | null => (mounted.get(slot.key)?.slot ?? slot).view;
   // The view picked on this machine, else the entry's; the switch marks it when the panel offers it, else the panel's first.
   const pickedView = (): string | null => nodeState[slot.key]?.view ?? entryView();
+  // The views the panel last said it offers, which a pick is kept against, and what its views say of its entry, held here while it is still mounting, as its other reports are (`said`), so a note said from its mount is not lost.
+  let offeredNow: PanelView[] = [];
+  let viewNotesNow: string[] = [];
+  // Kept as a group's pick is: only where it differs from what the entry says, or from the panel's first when the entry says nothing.
+  // The panel made the pick itself, so it is not told of it again (`viewChanged`).
+  const keepPick = (id: string): void => {
+    keep([{ id: slot.key, field: 'view', value: keptOver(id, entryView() ?? offeredNow[0]?.id ?? id) }]);
+    const current = mounted.get(slot.key);
+    if (current) current.viewTold = pickedView();
+    showViews(offeredNow);
+  };
   const showViews = (offered: PanelView[]): void => {
+    offeredNow = offered;
     const shown = offered.find(({ id }) => id === pickedView())?.id ?? offered[0]?.id;
     // An entry naming a view its list does not offer is said under the group, as an icon this build does not have is; only the list's views can tell.
     const named = entryView();
     const notes = named !== null && offered.length > 0 && !offered.some(({ id }) => id === named) ? [`view "${named}" on ${slot.key} is not one of the views its list offers (${offered.map(({ id }) => id).join(', ')}); its first is shown until another is picked.`] : [];
+    viewNotesNow = notes;
     const current = mounted.get(slot.key);
     if (current && current.viewNotes.join('\n') !== notes.join('\n')) {
       current.viewNotes = notes;
@@ -644,9 +667,7 @@ function mountedFor(slot: PanelSlot): Mounted {
         ? []
         : offered.map((view) =>
             viewButton(view, view.id === shown, () => {
-              // Kept as a group's pick is: only where it differs from what the entry says, or from the panel's first when the entry says nothing.
-              keep([{ id: slot.key, field: 'view', value: keptOver(view.id, entryView() ?? offered[0]!.id) }]);
-              showViews(offered);
+              keepPick(view.id);
               mounted.get(slot.key)?.panel.refresh();
             }),
           )),
@@ -669,6 +690,7 @@ function mountedFor(slot: PanelSlot): Mounted {
     where: () => host.where(),
     view: pickedView,
     setViews: showViews,
+    pickView: keepPick,
     setTabs: (tabs) => {
       if (tabs) {
         headerTabs ??= new HeaderTabs();
@@ -723,7 +745,7 @@ function mountedFor(slot: PanelSlot): Mounted {
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
   // A panel that said its tabs while it was mounting has them from the start.
-  const entry: Mounted = { panel, slot, viewNotes: [], signature: signatureOf(slot), busy, end, views, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder, ...said };
+  const entry: Mounted = { panel, slot, viewNotes: viewNotesNow, view: pickedView, viewTold: pickedView(), signature: signatureOf(slot), busy, end, views, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder, ...said };
   mounted.set(slot.key, entry);
   return entry;
 }

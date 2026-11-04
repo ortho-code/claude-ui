@@ -211,6 +211,11 @@ export interface PanelHost extends Asks {
    */
   setViews(views: PanelView[]): void;
   /**
+   * Keep `id` as the view picked for the panel, as a press in its header's switch keeps one: for a bare panel, whose switch is its own since the tree draws it no header (the session list's Grouped and Recent).
+   * Answered by `view()` from here on; the panel shows it itself, as nothing is run again for it.
+   */
+  pickView(id: string): void;
+  /**
    * The panel's tabs, drawn in its header in place of its title; null for none, which shows the title again.
    * Called again whenever they change: the tree keeps each tab's element by its id and draws them again in place, so a press on one survives a call that changes only the tabs, made between its press and its release.
    * The tree's own draws of the window put the tabs into a new header, as they do every header's controls.
@@ -271,6 +276,11 @@ export interface MountedPanel {
    * For the types that draw any.
    */
   sessionsChanged?(): void;
+  /**
+   * The view picked for the panel (`PanelHost.view`) is another than when it was last told: its layout entry's `view` was edited, or the app's file beside the layout was read after the panel mounted; never for a pick the panel made itself (`PanelHost.pickView`).
+   * For a type that shows a view without a run of its own, as the session list does; a list shows its pick from its next run.
+   */
+  viewChanged?(): void;
   /** The panel is leaving the layout: stop its run and forget it. */
   unmount(): void;
 }

@@ -52,6 +52,7 @@ const ORDER = [
   'src/renderer/panels/types/sessions/live-strip.css',
   'src/renderer/panels/types/sessions/bulk.css',
   'src/renderer/panels/types/sessions/review.css',
+  'src/renderer/panels/types/sessions/arrangement.css',
   'src/renderer/panels/types/list.css',
   'src/renderer/panels/tabs.css',
   'src/renderer/panels/types/command.css',

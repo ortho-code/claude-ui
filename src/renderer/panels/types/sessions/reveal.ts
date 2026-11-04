@@ -2,7 +2,7 @@ import type { SessionSummary } from '../../../../shared/types';
 import { flash } from '../../../flash';
 import { entityKey } from '../../../logic';
 import { store } from '../../../state/app';
-import { container, groupSections, projectSections, sessionRows } from './drawn';
+import { container, currentByKey, groupSections, projectSections, sessionRows } from './drawn';
 import { unfold } from './folding';
 
 /**
@@ -14,9 +14,13 @@ import { unfold } from './folding';
 // Answers whether the list has drawn the row: it has not while the list is on another project, a filter leaves the session out, or the session is archived or being deleted.
 export function revealSession(session: SessionSummary): boolean {
   // Its group can be collapsed too, and then the row is hidden even with the project open.
-  const groupId = store.get().groupState.groupOf[entityKey(session)];
-  if (groupId) unfold('groups', groupId);
-  unfold('projects', session.repoRoot);
+  // Recent folds nothing, so it leaves Grouped's folds as they are.
+  const { groupState, arrangement, reviewing } = store.get();
+  const groupId = groupState.groupOf[entityKey(session)];
+  if (arrangement === 'grouped' || reviewing) {
+    if (groupId) unfold('groups', groupId);
+    unfold('projects', session.repoRoot);
+  }
   const row = sessionRows.find(entityKey(session));
   if (!row) return false;
   // Scroll only the sidebar list (scrollIntoView would also scroll the page and shift the whole app).
@@ -31,8 +35,26 @@ export function revealSession(session: SessionSummary): boolean {
 /** A little air between a revealed row and the headings pinned above it, so it doesn't sit flush. */
 const REVEAL_GAP = 6;
 
+/**
+ * In Recent, where no heading says where a project's or a group's sessions are, the tab bar's names land on the newest row drawn of that project, or of that group, or of the project's sessions in no group for `null`, and flash it (decided 2026-11-04); true where Recent is on show, whether or not such a row is drawn.
+ */
+function revealInRecent(holds: (session: SessionSummary) => boolean): boolean {
+  const { arrangement, reviewing } = store.get();
+  if (arrangement !== 'recent' || reviewing) return false;
+  const row = [...container.querySelectorAll<HTMLElement>('.session')].find((each) => {
+    const session = currentByKey.get(each.dataset.key ?? '');
+    return session !== undefined && holds(session);
+  });
+  if (row) {
+    container.scrollTop += row.getBoundingClientRect().top - container.getBoundingClientRect().top - REVEAL_GAP;
+    flash(row);
+  }
+  return true;
+}
+
 // Scroll the (All-view) session list to a project's heading — used by the project name in the tab bar, so it links to where that project's sessions live.
 export function revealProject(repoRoot: string): void {
+  if (revealInRecent((session) => session.repoRoot === repoRoot)) return;
   unfold('projects', repoRoot);
   const els = projectSections.find(repoRoot);
   if (!els) return;
@@ -57,6 +79,8 @@ export function syncStickyOffset(): void {
 // Jump to one of a project's groups (or to where its ungrouped sessions start).
 // Expands the target if it is folded — otherwise the jump lands on a heading with nothing under it — and lands it just below the project heading, whose height is MEASURED rather than assumed: it changes with the type scale, and a stale constant would tuck the target under the sticky heading.
 export function revealGroup(repoRoot: string, groupId: string | null): void {
+  const { groupOf } = store.get().groupState;
+  if (revealInRecent((session) => session.repoRoot === repoRoot && (groupOf[entityKey(session)] ?? null) === groupId)) return;
   const els = projectSections.find(repoRoot);
   if (!els) return;
   unfold('projects', repoRoot);

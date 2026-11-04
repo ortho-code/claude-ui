@@ -291,6 +291,13 @@
   gap: 2px;
 }
 
+/* A view's button that says its view's name rather than drawing its icon (`viewButton`), where the switch has the room: the session list's Grouped and Recent.
+   The meta size, quieter than the Review button beside it, since the switch says how the list is laid out rather than offering something to do. */
+.icon-btn.panel-view.worded {
+  padding: 2px 8px;
+  font-size: var(--text-meta);
+}
+
 /* A panel that cannot run says why, one sentence per line, where its output would be. */
 .panel-problems {
   flex: 1;

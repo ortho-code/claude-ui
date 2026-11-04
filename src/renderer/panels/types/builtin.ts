@@ -33,8 +33,9 @@ export function railStatusOf(nudge: NudgeStatus): PanelStatus {
 /**
  * A built-in's type, around the one element it is for the run: every mount puts that element back, so a remount — a new id, an option — keeps whatever runs in it.
  * Its rail icon's status is its own to say: a watcher of its own hands each change to its host (`hostOf`), and a mount, which is a new host, takes it as it is now (`railStatus`).
+ * `mounted` is handed each new host too, and the host again whenever the view picked for the panel changes without a mount (`viewChanged`), for what else the built-in tells or reads of it, such as the session list's views (sessions/arrangement.ts).
  */
-export function builtinType(name: BuiltinName, el: HTMLElement, title: string, icon: IconName, railStatus: () => PanelStatus): PanelType {
+export function builtinType(name: BuiltinName, el: HTMLElement, title: string, icon: IconName, railStatus: () => PanelStatus, mounted?: (host: PanelHost) => void): PanelType {
   const type: PanelType = {
     name,
     options: [],
@@ -48,6 +49,7 @@ export function builtinType(name: BuiltinName, el: HTMLElement, title: string, i
       host.setStatus(railStatus());
       // Named as NOTES, never as problems: a built-in cannot be refused, since no file may produce a window without the sidebar or the terminal.
       host.setNotes(optionProblems(optionsOf(slot.entry), type).map((line) => `${slot.key}: ${line}`));
+      mounted?.(host);
       return {
         el,
         // Nothing to run: the surface keeps itself current, and follows the tab and the project because the renderer drives it directly.
@@ -57,6 +59,7 @@ export function builtinType(name: BuiltinName, el: HTMLElement, title: string, i
         setVisible: () => {},
         // Nothing in the config folder is the built-ins' to read.
         recheck: () => {},
+        viewChanged: () => mounted?.(host),
         unmount: () => {
           if (hosts.get(name) === host) hosts.delete(name);
           document.getElementById('parked')!.append(el);

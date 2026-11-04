@@ -60,6 +60,11 @@ export interface AppState {
    * Stage 3 of the session-model design widens it into the list's view, of which the review is one.
    */
   reviewing: boolean;
+  /**
+   * How the session list lays its sessions out (docs/architecture.md § Recent): `grouped` by project and group, or `recent`, flat, last worked on first.
+   * The sessions panel's view, kept as a panel's picked view is, in the app's file beside the layout, and set here from it at each mount and each pick (sessions/arrangement.ts); the review is a moment over it, apart from it.
+   */
+  arrangement: Arrangement;
   /** Sessions whose delete is in flight: hidden from the list until that delete resolves, so a concurrent delete's re-read can't briefly resurrect them. */
   pendingDeletes: ReadonlySet<string>;
   /**
@@ -121,6 +126,9 @@ export interface AppState {
    */
   settings: SettingsView | null;
 }
+
+/** How the session list lays its sessions out: by project and group, or flat, last worked on first. */
+export type Arrangement = 'grouped' | 'recent';
 
 /** The list's bulk mode while it is on: the sessions ticked, by key, and the one a Shift+press ticks from, the row last pressed or else the last row bulk mode started with ticked, null when it started with none. */
 export interface BulkState {
@@ -324,6 +332,7 @@ export const store = createStore<AppState>(
     later: new Map(),
     kept: new Map(),
     reviewing: false,
+    arrangement: 'grouped',
     notes: new Map(),
     pendingDeletes: new Set(),
     groupState: { groups: [], groupOf: {} },

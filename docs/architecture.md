@@ -632,6 +632,31 @@ Archiving leaves it, since an archived session is out of the review anyway.
 **The list in review mode** draws the sets in place of the projects, each a heading with its count and its box over its rows, flat; the filter is set aside meanwhile — its toggle, panel and chips hidden, not applied, and the collapse-all button with them, since the sets do not fold — and comes back as it was, since the review is not a filter.
 The folder part of "every link settled", no changes left in a folder only the session worked in, waits for links to folders: the app sees a session's changes through claude's file tools only, never through Bash, and a fork or a resume works in the same worktree, so which folder only one session worked in cannot be told; measured on 2026-11-04, every worktree the review's sessions had used was gone or clean, so it would have held none back.
 
+## Recent
+
+The session list lays its sessions out in one of two ways, switched on the row under the header, left of the Review button (`sessions/arrangement.ts`): Grouped, by project and group, and Recent, every session in the switcher's scope that passes the filter, flat, last worked on first (`recentOrder`, `recent.ts`), each row's line led by its group, and in All its project, as a review's row is (`whereOf`).
+The order catches up with what was worked on as Grouped's does (§ UI conventions), and compares times rather than the text main compares, since the ISO form is how Claude Code writes them today rather than a contract.
+
+**One flat renderer**: Recent and the review draw through the same code, sections of flat rows (`renderSections`, `FlatSection`), the review two under headings and Recent one without; what differs is data, which sessions, in what order, and whether a row's line says why it is there or its time.
+The list's other groupings in the session-model design, such as by activity, are more producers of sections for it; project › group stays the tree it is.
+
+**It is the panel's view**: Grouped and Recent are the sessions panel's two views, `grouped` and `recent`, kept as any panel's pick is, in the app's file beside the layout, with the layout entry's `view` where it starts (§ Panel state); the store's `arrangement` follows the pick.
+The panel is bare, so the tree draws it no header and no switch: it draws its own, from the same builder as a list panel's (`viewButton`, `panels/view-switch.ts`), in words where a list's header has icons, and keeps a pick through its host (`PanelHost.pickView`).
+Having no run, it is told when its pick changes without a mount (`viewChanged`), by an edit of its entry's `view` or by the app's file being read after it mounted, which a list shows from its next run instead; a pick kept on this machine wins over the entry's `view`, as any panel's does.
+Kept in `meta.json` beside the filter was the other way weighed, and turned down (decided 2026-11-04): it would have been a field to move once views are files, and the layout could not have started the list on Recent.
+
+**It is not the review**: the arrangement is kept; the review is a moment over whichever is picked, not kept, and Done returns to it, so the two are apart in the store (`arrangement`, `reviewing`) rather than one slice of three values that would have to remember what Done goes back to.
+While the review is open the switch is unavailable, saying the review keeps its own order.
+
+**What holds across it**: the pick holds in every project, in All and in the archived view, where Recent lists the archived sessions flat, each row saying when it was archived, as there; switching keeps bulk mode and what is ticked, the rows on show being the same, only laid out otherwise.
+There is no heading in Recent, so a run is ticked from a row's Select… and a Shift+press, and collapse-all is unavailable, saying Recent has nothing to fold; neither it nor a press on a tab unfolds anything in Recent, so the folds stay as they were for Grouped.
+Where every session in scope is archived and no filter is on, Recent says so in place of its rows, as Grouped says it under each such project's heading.
+
+**Pins are not floated in Recent** (decided 2026-11-04): a pin says where a session belongs among its project's sections, Recent has none, and floating pins would break the one order it is for; the tab bar does not float them either (§ Traps worth knowing).
+The pin stays on the row, and the pinned filter finds them.
+
+**The tab bar's names** land, in Recent, on the newest row drawn of that project, or of that group, and flash it (decided 2026-11-04), since there is no heading to land on; switching the list to Grouped instead was weighed and turned down, as a press on a tab-bar name would then change an arrangement chosen in the list.
+
 ## In-session history
 
 Claude's fullscreen renderer (`"tui": "fullscreen"`) draws on the terminal's alternate screen and scrolls itself, so the terminal keeps no scrollback of the conversation, and claude publishes neither where it is scrolled nor how tall the conversation is.

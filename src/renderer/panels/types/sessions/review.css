@@ -1,10 +1,4 @@
-/* The review (review.ts): the row under the header holding the Review button, at its right end, where a switch of the list's arrangement can join it on the left. */
-#review-row {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 16px 8px;
-}
-
+/* The Review button (review.ts), at the right end of the row under the header (arrangement.css). */
 #review-button .review-count {
   margin-left: 4px;
   color: var(--muted);

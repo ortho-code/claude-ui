@@ -117,6 +117,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   In the archived view the bar unarchives every one ticked, with one Undo, or deletes them after one question for all.
 - A review, from the Review button under the sidebar's header, counting what it holds: the sessions without a tab, not archived, set aside or kept, that are ready to finish, every PR they link merged or closed, or untouched for 30 days, each row saying why it is there.
   Archive, Later and the new Keep, which holds a session out of the review for 30 days, take rows out, and the review ends once nothing is left; with PR status off, an open review's Ready to finish says it cannot tell.
+- Recent, switched beside Grouped under the sidebar's header: the sessions in one flat list, last worked on first, each row naming its group, and in All its project, with pins left where their time puts them.
+  The choice is kept as the session list's view, so `"view": "recent"` on its entry in the layout starts it there.
 
 ### Changed
 

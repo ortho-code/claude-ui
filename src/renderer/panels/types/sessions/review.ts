@@ -14,12 +14,10 @@ import './review.css';
  * Which sessions it offers and why is the pure module's (`review.ts`); this reads the store for it.
  */
 
-export const reviewRow = fromMarkup(`
-  <div id="review-row">
-    <button id="review-button" type="button" aria-pressed="false">${REVIEW.name} <span class="review-count"></span></button>
-  </div>`);
-const button = reviewRow.querySelector<HTMLButtonElement>('#review-button')!;
-const count = reviewRow.querySelector<HTMLElement>('.review-count')!;
+/** The Review button, which the row under the header holds at its right end (arrangement.ts). */
+export const reviewButton = fromMarkup(`<button id="review-button" type="button" aria-pressed="false">${REVIEW.name} <span class="review-count"></span></button>`, HTMLButtonElement);
+const button = reviewButton;
+const count = reviewButton.querySelector<HTMLElement>('.review-count')!;
 
 /** What the review reads of the store. */
 export type ReviewView = View<'sessions' | 'tabs' | 'archived' | 'pendingDeletes' | 'later' | 'kept' | 'notes' | 'prStatus' | 'settings' | 'activeProject'>;

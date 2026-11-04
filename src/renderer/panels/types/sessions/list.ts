@@ -8,6 +8,7 @@ import { archivedOnlyProjects, isFiltering, mutedNeedsYou, projName, searchText,
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
+import { recentOrder } from '../../../recent';
 import { reviewCount, type ReviewSection } from '../../../review';
 import { endBulk } from '../../../state/bulk';
 import { container, currentByKey, drawnKeys, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
@@ -85,8 +86,8 @@ function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' 
   repaintDots(statusChanges(before, view), view);
 }
 
-/** What draws the list again: the listing, a model switch, a pin, the archive, a note, a later mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs, a task claude scheduled, and for the review, a keep stamp, the review opening or ending, and the settings, which say whether GitHub is asked. */
-const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'later', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'scheduledTasks', 'kept', 'reviewing', 'settings'] as const;
+/** What draws the list again: the listing, a model switch, a pin, the archive, a note, a later mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs, a task claude scheduled, Grouped or Recent, and for the review, a keep stamp, the review opening or ending, and the settings, which say whether GitHub is asked. */
+const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'later', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'scheduledTasks', 'arrangement', 'kept', 'reviewing', 'settings'] as const;
 /** The tabs, which have a watcher of their own (`listFollowsTabs`), since most of a tab's changes move only the rows' marks. */
 const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
@@ -102,7 +103,7 @@ export function watchList(): void {
   store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
   store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'later'], dotsFollowStatuses, { reads: ['tabs', 'archived'] });
-  store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject'] });
+  store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject', 'arrangement'] });
   // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and turning the archived view on or off ends it outside the review.
   store.watch(['bulk', 'tabs', 'filter'], bulkFollows, { reads: ['reviewing', 'activeProject', 'projectNames'] });
   // The order catching up with the sessions' activity, and an open review with sessions crossing their days or a keep stamp running out, all with nothing in the store moving.
@@ -110,10 +111,10 @@ export function watchList(): void {
 }
 
 /** The list follows the store, with the filter's count and chips it draws. */
-function listChanged(view: ListView, before: View<'filter' | 'activeProject'>): void {
-  const reshaped = view.filter !== before.filter || view.activeProject !== before.activeProject;
+function listChanged(view: ListView, before: View<'filter' | 'activeProject' | 'arrangement'>): void {
+  const reshaped = view.filter !== before.filter || view.activeProject !== before.activeProject || view.arrangement !== before.arrangement;
   renderList(view);
-  // A new filter or another project reshapes the list, so it starts at the top rather than at a stale scroll offset — whoever chose the project, the switcher or a new tab elsewhere dropping the list to All.
+  // A new filter, another project or the other arrangement reshapes the list, so it starts at the top rather than at a stale scroll offset — whoever chose the project, the switcher or a new tab elsewhere dropping the list to All.
   if (reshaped) container.scrollTop = 0;
 }
 
@@ -121,9 +122,12 @@ function listChanged(view: ListView, before: View<'filter' | 'activeProject'>): 
 // Keystrokes call this directly so filtering never re-reads disk.
 // Keeps project, group and row nodes by key and leaves in place what already is (keyed.ts), so a re-render does not rebuild the sidebar: no flicker, the scroll stays put, and a press or the focus on a row that keeps its place survives it.
 /**
- * What the list draws, worked out from the store and the clock and nothing else, so a draw and the minute's look at whether the order moved (`catchUp`) cannot disagree about it: the review's sets while it is open, else the projects in scope with the sessions that pass the filter, with what the filter's count says.
+ * What the list draws, worked out from the store and the clock and nothing else, so a draw and the minute's look at whether the order moved (`catchUp`) cannot disagree about it: the review's sets while it is open, else the sessions in scope that pass the filter, with what the filter's count says, by project and group or in Recent flat (`recentOrder`).
+ * In Recent, `archived` says why there are no rows when every session in scope is archived and no filter is on, which Grouped says under each such project's heading.
  */
-type ListShape = { review: ReviewSection[] } | { tree: ProjectTree[]; all: SessionSummary[]; matches: number; total: number };
+type ListShape =
+  | { review: ReviewSection[] }
+  | ({ all: SessionSummary[]; matches: number; total: number } & ({ tree: ProjectTree[] } | { recent: SessionSummary[]; archived: string | null }));
 
 function listShape(view: ListView): ListShape {
   // The review in place of the projects (docs/architecture.md § The review): its sets in the switcher's scope, the filter set aside meanwhile.
@@ -144,6 +148,11 @@ function listShape(view: ListView): ListShape {
   const total = inScope(viewPool(all, view.filter.filters.archived, view)).length;
   // A project whose sessions are all archived stays, empty and saying so, as it does in the switcher; a filter leaves it out, as it leaves out any project with no match, and the archived view lists it with its sessions.
   const archivedOnly = new Map(isFiltering(view) ? [] : [...archivedOnlyProjects(view)].filter(([repoRoot]) => !activeProject || repoRoot === activeProject));
+  if (view.arrangement === 'recent') {
+    // Nothing to list, and no filter: every session in scope is archived, the project on show's or in All every project's, which Recent says in place of its rows, as Grouped says it under each such project's heading.
+    const archived = scoped.length === 0 && archivedOnly.size > 0 ? [...archivedOnly.values()].reduce((count, sessions) => count + sessions.length, 0) : null;
+    return { recent: recentOrder(scoped), archived: archived === null ? null : archivedLine(archived), all, matches: scoped.length, total };
+  }
   if (scoped.length === 0 && archivedOnly.size === 0) return { tree: [], all, matches: 0, total };
   // One section per repo, each holding its groups and then the sessions in no group.
   // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
@@ -151,10 +160,16 @@ function listShape(view: ListView): ListShape {
   return { tree: buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder, archivedOnly, all), all, matches: scoped.length, total };
 }
 
-/** The keys of the rows a shape draws, in the order it draws them: a project's groups' rows, then its loose rows (`reconcileProjectSections`), or each set's rows in turn. */
+/** The keys of the rows a shape draws, in the order it draws them: a project's groups' rows, then its loose rows (`reconcileProjectSections`), each set's rows in turn, or Recent's. */
 function keysOf(shape: ListShape): string[] {
   if ('review' in shape) return shape.review.flatMap((set) => set.rows.map(({ session }) => entityKey(session)));
+  if ('recent' in shape) return shape.recent.map(entityKey);
   return shape.tree.flatMap((project) => [...project.groups.flatMap((g) => g.sessions), ...project.loose].map(entityKey));
+}
+
+/** What is said where every session is archived: under a project's heading in Grouped, and in place of the list in Recent, for the project on show or for All. */
+function archivedLine(count: number): string {
+  return count === 1 ? 'Its only session is archived.' : `All ${count} sessions here are archived.`;
 }
 
 /**
@@ -176,25 +191,28 @@ function renderList(view: ListView): void {
     else renderSections(reviewFlat(shape.review), view);
     return;
   }
-  const { tree, all } = shape;
+  const { all } = shape;
+  updateFilterStatus(shape.matches, shape.total, view);
+  const nothing = all.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
+
+  if ('recent' in shape) {
+    if (shape.recent.length === 0) showEmpty(shape.archived ?? nothing, view);
+    else {
+      // One section without a heading; its id is its own for good, never one of the review's (`FlatSection`).
+      renderSections([{ id: 'recent', heading: null, rows: shape.recent, why: null }], view);
+      updateCollapseToggle(view);
+    }
+    return;
+  }
+  const { tree } = shape;
   const scroll = container.scrollTop;
   statusDots.clear();
   rowTabMarks.clear();
   currentByKey.clear();
   for (const s of all) currentByKey.set(entityKey(s), s);
-  updateFilterStatus(shape.matches, shape.total, view);
 
   if (tree.length === 0) {
-    clearList();
-    const message = document.createElement('div');
-    message.className = 'empty-message';
-    message.textContent = all.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
-    container.append(message);
-    // Nothing on screen to fold away: this early return would otherwise leave the toggle live with the previous render's sections.
-    renderedSections.projects = [];
-    renderedSections.groups = [];
-    updateCollapseToggle(view);
-    showBulk(view);
+    showEmpty(nothing, view);
     return;
   }
 
@@ -246,6 +264,22 @@ function renderSections(sections: readonly FlatSection[], view: ListView): void 
   flatSections.sweep();
   sessionRows.sweep();
   updateSidebarHighlight(view);
+  showBulk(view);
+}
+
+/** The list with nothing to draw, saying `text` in place of its rows. */
+function showEmpty(text: string, view: ListView): void {
+  clearList();
+  currentByKey.clear();
+  for (const s of visibleSessions(view)) currentByKey.set(entityKey(s), s);
+  const message = document.createElement('div');
+  message.className = 'empty-message';
+  message.textContent = text;
+  container.append(message);
+  // Nothing on screen to fold away: this early return would otherwise leave the toggle live with the previous render's sections.
+  renderedSections.projects = [];
+  renderedSections.groups = [];
+  updateCollapseToggle(view);
   showBulk(view);
 }
 
@@ -313,7 +347,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
       return row;
     });
     // Its groups stay with it, so they can be filled again; the line goes above them, under the heading it explains.
-    els.archivedLine.textContent = project.archived === 1 ? 'Its only session is archived.' : `All ${project.archived} sessions here are archived.`;
+    els.archivedLine.textContent = archivedLine(project.archived);
     placeChildren(els.section, [els.heading, ...(project.archived > 0 ? [els.archivedLine] : []), ...groups, ...loose]);
     sections.push(els.section);
   }

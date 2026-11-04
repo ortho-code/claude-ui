@@ -44,6 +44,8 @@ Done:
   A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
 - Selecting several sessions, a project's or a group's from its menu or one from its row's: a box on every row and heading, and a bar that archives, sets aside for later, keeps out of the review, moves to a group, stops or closes the tabs of every one ticked, in one go, with one Undo for what it archives, sets aside, keeps or closes of the sessions that are not running; in the archived view it unarchives them, or deletes them after one question for all.
 - A review, from its button under the header: the sessions without a tab that are ready to finish, every PR they link merged or closed, or untouched for 30 days, each saying why, to archive, set aside or keep out of the review for 30 days in bulk, until nothing is left to decide.
+- Recent, beside Grouped under the header: every session of the project on show, or of all of them, in one flat list, last worked on first, each row naming its group and in All its project; filters and the archived view work in it as in Grouped, and selecting several from a row's menu.
+  In either, a session worked on again moves to its place within a minute, never while the pointer or the focus is in the list or a menu from it is open.
 - A session's kebab holds everything about it, one menu on its row, its tab and the live strip: what the session is, at its top — title, project, group, each state it is in with its dot, such as idle and needing you at once, where its dot shows only the strongest, when it was last active and on what model, when it was archived, worktree, the start of its note — and the actions its row, tab and strip row offer, such as open, show in list, pin, mark read, stop, close, besides fork, siblings, PRs, worktrees, what is scheduled, later, note, group, copy id and archive.
   An archived session's row has one too, with what it is, its siblings, PRs and note, its id, unarchive, delete and select.
   A project's and a group's kebab start a session there, plain or in a worktree, and a project's starts one in any of its groups, a group a filter hides included, and jumps to one of its groups or to its ungrouped sessions.
@@ -172,6 +174,7 @@ Every id, of a node or a panel, is unique in the file and uses lowercase letters
 A panel needs an `id` and a `type`; `title`, `icon`, `view` and `hidden` are optional, and whatever the type itself takes goes under `options`.
 `icon` picks its icon by name: `git`, `list`, `tree`, `check`, `eye`, `bug`, `book`, `clock`, `server`, `play`, `search`, `bell`, `terminal`, `command`, `sessions`, `claude` or `alert`.
 `view` picks, by id, the view a panel shows until another is picked in its header, for a type that offers several, such as a list of files flat or as a tree; an edit of it shows from the panel's next run, and a pick in the header is kept on this machine instead.
+The session list offers `grouped` and `recent`, switched under its header rather than in one, and shows an edit of its `view` at once, since it has no run, unless a pick of its own is kept on this machine.
 A panel that cannot run wears `alert` whatever it names, so a broken one stands out on a strip of icons too.
 
 The panel types:
