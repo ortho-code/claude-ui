@@ -12,8 +12,10 @@ Same-folder sessions by design, never a worktree per session.
 
 - `README.md` — overview, current status and roadmap, how to run.
 - `docs/architecture.md` — environment, process model, build, planned terminal and cues.
+- `docs/principles.md` — what the app holds to: Claude Code as the source of truth, the core against extensions, shaping by the user, observing rather than deciding, no imposed workflow.
 
-Read both at the start of any change.
+Read all three at the start of any change.
+Check a change against `docs/principles.md`, and where it would go against a principle, say so and ask, rather than bend the principle or the change quietly.
 The roadmap in `README.md` is the source of truth for what is done and what is next; keep it current as milestones land.
 
 ## Working in this repo

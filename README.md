@@ -13,6 +13,7 @@ Claude Code Desktop, Pane, ccmanager, and Claude Squad all put every session in 
 - a per-session cue when a session is waiting for you or has finished.
 
 claude-ui aims for that combination, and runs sessions in the project directory itself instead of forcing a worktree per session.
+What it holds to, and what a change to it is checked against, is in [docs/principles.md](docs/principles.md).
 
 ## Status
 
