@@ -1,5 +1,5 @@
 /**
- * Main's rules for the marks a session carries in meta — its pin, its archive entry, its note (written with `withText`, src/shared/text.ts), its needs-you and later marks — pure, so that the window's checks answer them the way main does, and the window keeps its own copy of the needs-you and later marks by them.
+ * Main's rules for the marks a session carries in meta — its pin, its archive entry, its note (written with `withText`, src/shared/text.ts), its needs-you and later marks, and when it was kept out of the review — pure, so that the window's checks answer them the way main does, and the window keeps its own copy of the needs-you, later and keep marks by them.
  * Main (src/main/meta.ts) applies them inside its serialised writes of `meta.json`.
  */
 import type { Later, NeedsYou, NeedsYouReason, PrChange, ScheduledTask } from './types';
@@ -11,6 +11,20 @@ export interface SessionMarks {
   notes: Record<string, string>;
   needsYou: Record<string, NeedsYou[]>;
   later: Record<string, Later>;
+  /** When each session was last kept out of the review, epoch ms; how long that holds is the review's own term (`kept:<30d`), not the mark's. */
+  kept: Record<string, number>;
+}
+
+/** Sessions kept out of the review from `at`: a stamp already there is replaced, so Keep again starts its days afresh. */
+export function keptFrom(kept: Readonly<Record<string, number>>, ids: readonly string[], at: number): Record<string, number> {
+  return { ...kept, ...Object.fromEntries(ids.map((id) => [id, at])) };
+}
+
+/** Sessions' keep stamps gone, whether or not each had one. */
+export function unkept(kept: Readonly<Record<string, number>>, ids: readonly string[]): Record<string, number> {
+  const next = { ...kept };
+  for (const id of ids) delete next[id];
+  return next;
 }
 
 /** A pin toggled: in if it was out, out if it was in, the order of the rest kept. */
@@ -105,12 +119,12 @@ export function unarchived(archived: Readonly<Record<string, number>>, id: strin
   return next;
 }
 
-/** A deleted session's marks forgotten: its pin, its archive entry, its note, its needs-you mark and its later mark (`purgedSession` forgets the rest of what meta holds about it). */
+/** A deleted session's marks forgotten: its pin, its archive entry, its note, its needs-you mark, its later mark and its keep stamp (`purgedSession` forgets the rest of what meta holds about it). */
 export function withoutSession(marks: Readonly<SessionMarks>, id: string): SessionMarks {
   const archived = unarchived(marks.archived, id);
   const notes = { ...marks.notes };
   delete notes[id];
-  return { pinned: marks.pinned.filter((key) => key !== id), archived, notes, needsYou: clearedNeedsYou(marks.needsYou, id), later: clearedLater(marks.later, id) };
+  return { pinned: marks.pinned.filter((key) => key !== id), archived, notes, needsYou: clearedNeedsYou(marks.needsYou, id), later: clearedLater(marks.later, id), kept: unkept(marks.kept, [id]) };
 }
 
 /** What else meta holds about a session, as `meta.json` holds it: the tabs open and which of them run, the one on show overall and per project, and who is in which group. */

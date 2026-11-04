@@ -3,7 +3,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { prReference } from '../../../src/shared/prs';
-import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, markedLater, markedNeedsYou, purgedSession, togglePinned, unarchived } from '../../../src/shared/sessionmarks';
+import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, keptFrom, markedLater, markedNeedsYou, purgedSession, togglePinned, unarchived, unkept } from '../../../src/shared/sessionmarks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -152,6 +152,13 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     },
     clearLater: (ids) => {
       for (const id of ids) fixture.later = clearedLater(fixture.later, id);
+    },
+    getKept: () => answer(fixture.kept),
+    keep: (ids, at) => {
+      fixture.kept = keptFrom(fixture.kept, ids, at ?? Date.now());
+    },
+    unkeep: (ids) => {
+      fixture.kept = unkept(fixture.kept, ids);
     },
     laterCameDue: (now) => {
       Object.assign(fixture, cameDue(fixture, now));

@@ -591,6 +591,7 @@ It is not kept for the next launch: it is a moment of deciding, not a place the 
 The bar at the list's foot acts on the ticked rows the list draws (`tickedOnShow`), a folded group's included, since folding only hides them: a row a search leaves out stays ticked, and comes back ticked, but nothing acts on it while the list does not draw it.
 Each act is the write a session's own menu makes, given every key at once, so the bar and the menu cannot disagree about a pin, a tab or an Undo:
 - **Archive** is `archiveSessions`, which a session's menu calls with one key: sessions no claude of the app's runs are archived in one write of `meta.json`, with one toast whose Undo unarchives them all and puts back each one's later and needs-you marks and its tabs; one whose claude runs is asked to leave and archived at its exit, with its own toast, as alone; one with a tab starting is left out, as its menu's Archive is unavailable then.
+- **Keep** takes every ticked session out of the review (§ The review) in one write, with one toast whose Undo puts each one's stamp back as it was, or none; it is offered outside the review too, to hold a session out before it would come up.
 - **Later** offers the menu's own choices (`laterChoices`), marks every ticked session in one write, and raises a toast whose Undo puts each back as it was, its old mark or none.
   A session's menu raises no toast for Later (decided 2026-11-04): its row stays where it was and its bookmark says what was done, where a batch's rows can be in folded groups or, in the review, leave the list.
 - **Move to group** is the menu's list (`moveToGroupItems`) for every ticked session, in one write, or two for New group…, which makes the group with the first and moves the rest; unavailable when they are in more than one project, since a group belongs to one.
@@ -599,7 +600,33 @@ Each act is the write a session's own menu makes, given every key at once, so th
 
 Move to group and Stop raise no toast, as alone; a batch that archives or closes running sessions raises one toast for those that were not running and one more for each running one as it goes.
 An act that would do nothing for any ticked row is unavailable and says why, as a menu's items are: Archive while every ticked session has a tab starting, Close tab while none has a tab it can close now, Stop while none runs or each is stopping already.
-Main takes each of these writes as a list (`archive`, `unarchive`, `markLater`, `clearLater`, `moveSessionsToGroup`), so a batch is one write of `meta.json` and one line of its audit log, not one per session.
+Main takes each of these writes as a list (`archive`, `unarchive`, `markLater`, `clearLater`, `keep`, `unkeep`, `moveSessionsToGroup`), so a batch is one write of `meta.json` and one line of its audit log, not one per session.
+
+## The review
+
+The review is a moment to decide what the list has been carrying: the Review button, on a row under the sidebar's header, opens the list on two sets in bulk mode (§ Selecting several), and every act of the bar that decides a row takes it out, until Done, Esc, or nothing left to decide ends it.
+Its count is the review in the switcher's scope, and at none, while the list does not show the review, the button is unavailable, saying so, since a review with nothing in it would end at once; while it does, a press ends it.
+The count is worked out again whenever what it reads in the store changes, and an open review is drawn again whenever the list is, a session getting or losing a tab included; both again at least once an hour on a timer, since a session crosses its days, or a keep stamp runs out, with nothing in the store moving, as a later mark comes due.
+
+**Which sessions** (`review.ts`, pure): those that are unfinished — no tab, not archived — not set aside for later, and not kept within the last 30 days, in two sets, oldest activity first:
+- **Ready to finish**: every link settled, which today is every PR it links merged or closed, as the PR marks read what GitHub said (`verdictOf`); at least one link, since a session that links nothing has nothing settled and would put every such session here.
+  A PR GitHub has not answered for is not settled, nor any after a failed ask, which the marks show as no state either, nor any while `prStatus` is off and nothing is asked.
+  While a session the review would look at links a PR, the set's heading says why it cannot answer, rather than standing empty as if nothing were ready: PR status off, the failed ask's reason, or, while GitHub has answered for none yet, that it is asking; one PR among answered ones that GitHub has not answered for leaves its session out without a word.
+- **Untouched 30+ days**: last active more than 30 days ago.
+A session in both shows once, under Ready to finish; each row says why it is there in place of its time and model — in Ready to finish how its PRs settled and how long ago it was active, in Untouched how many days, with the start of its note — led by its project in All and its group where it has one, and the line is worked out again on the row's minute clock.
+
+The conditions both sets share hold for every act that decides a row (decided 2026-11-04): a kept or set-aside session left in Ready to finish would have made Keep and Later do nothing for a ready row, and a review its acts do not empty never ends.
+A session with a tab is work in hand, which its tab decides, so the review leaves it out whatever its PRs say.
+
+**The terms are named for the query language** the session-model design brings later: `is:unfinished`, `is:set-aside`, `kept:<30d`, `untouched:>30d`, `is:ready-to-finish`, each one function, so the review and a query typed by hand cannot disagree.
+The review is a definition, data rather than code in the list (`REVIEW`): its sets, each with a name, its term and its why line, and the terms they share; that is the shape a view in review mode takes once views are files, so the review then becomes a bundled view without a second implementation.
+Its two numbers of days are written there and nowhere else, what Keep says of its days read from there too, and are fixed until views can be overridden, rather than a setting that would be a second place for what the view's query says (decided 2026-11-04).
+
+**Keep's stamp** is when a session was kept, in `meta.json` (`kept`), never an expiry: how long it holds is the review's own term, so it is worked out when read, nothing sweeps it, and a stamp past its days does nothing until its session is kept again or deleted, which takes it with the session's other marks.
+Archiving leaves it, since an archived session is out of the review anyway.
+
+**The list in review mode** draws the sets in place of the projects, each a heading with its count and its box over its rows, flat; the filter is set aside meanwhile — its toggle, panel and chips hidden, not applied, and the collapse-all button with them, since the sets do not fold — and comes back as it was, since the review is not a filter.
+The folder part of "every link settled", no changes left in a folder only the session worked in, waits for links to folders: the app sees a session's changes through claude's file tools only, never through Bash, and a fork or a resume works in the same worktree, so which folder only one session worked in cannot be told; measured on 2026-11-04, every worktree the review's sessions had used was gone or clean, so it would have held none back.
 
 ## In-session history
 

@@ -239,7 +239,7 @@ function newest(session: SessionSummary): SessionSummary {
 
 // Refresh a reused row's content for the tip it now shows.
 /** What a row draws from the store besides the session it shows. */
-export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'later' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs' | 'prStatus'>;
+export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'later' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs' | 'prStatus' | 'reviewing'>;
 
 /** Show what a row has from the tab running its session: its clock (`clockOf`), and the words for a stop claude has not left (notleft.ts), in place of its time and model while they show. */
 export function showTabMarks(marks: RowTabMarks, id: string, view: View<'scheduledTasks' | 'tabs'>): void {
@@ -248,10 +248,14 @@ export function showTabMarks(marks: RowTabMarks, id: string, view: View<'schedul
   marks.metaText.hidden = showNotLeft(marks.notLeft, tab);
 }
 
-export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView): void {
+/**
+ * `why`, for a row of the review (docs/architecture.md § The review): the line saying why it is there, in place of its time and model, worked out again on the minute clock like the time it replaces, of the session as the newest listing has it.
+ */
+export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView, why?: (session: SessionSummary) => string): void {
   row.dataset.sid = session.id;
   const els = rowEls.get(row)!;
-  const archivedView = view.filter.filters.archived;
+  // The review sets the filter aside, the archived view with it.
+  const archivedView = view.filter.filters.archived && !view.reviewing;
 
   applyStatus(els.dot, session.id, view);
   statusDots.set(session.id, els.dot);
@@ -307,7 +311,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
 
   // When it was archived in the archived view, where every session is; when it was active everywhere else.
   // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, logic.ts).
-  const moment = (shown: SessionSummary, as: RowView): Moment => (archivedView ? archivedMoment(shown, as) : null) ?? activityMoment(shown, as);
+  const moment = (shown: SessionSummary, as: RowView): Moment => (why ? { text: why(shown), at: shown.lastActivity } : null) ?? (archivedView ? archivedMoment(shown, as) : null) ?? activityMoment(shown, as);
   showMoment(els.metaText, moment(session, view), () => moment(newest(session), store.get()));
 
   // The archived view is a management view: no pinning, and delete replaces it there.

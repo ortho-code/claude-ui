@@ -11,9 +11,14 @@ export function startBulk(keys: readonly string[]): void {
   store.set({ bulk: { ticked: new Set(keys), anchor: keys.at(-1) ?? null } });
 }
 
-/** Leave bulk mode; nothing stays ticked. */
+/** Leave bulk mode, and the review with it; nothing stays ticked. */
 export function endBulk(): void {
-  store.set({ bulk: null });
+  store.set({ bulk: null, reviewing: false });
+}
+
+/** Open the review (docs/architecture.md § The review): the list shows its sets, in bulk mode, nothing ticked. */
+export function startReview(): void {
+  store.set({ reviewing: true, bulk: { ticked: new Set(), anchor: null } });
 }
 
 /** A press on a row: tick it or untick it, and make it the row a Shift+press ticks from. */

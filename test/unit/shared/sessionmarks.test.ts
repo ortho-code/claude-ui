@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, markedLater, markedNeedsYou, mutedByLater, purgedSession, togglePinned, unarchived, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
+import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, keptFrom, markedLater, markedNeedsYou, mutedByLater, purgedSession, togglePinned, unarchived, unkept, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -153,16 +153,26 @@ describe('mutedByLater', () => {
   });
 });
 
+describe('keep stamps', () => {
+  it('stamp sessions from a moment, a second Keep starting afresh, and are taken off, the rest left as they were', () => {
+    const kept = keptFrom({ a: 1 }, ['a', 'b'], 5);
+    expect(kept).toEqual({ a: 5, b: 5 });
+    expect(unkept(kept, ['a', 'gone'])).toEqual({ b: 5 });
+    expect(kept).toEqual({ a: 5, b: 5 });
+  });
+});
+
 describe('withoutSession', () => {
-  it('forgets the session\'s pin, archive entry, note, needs-you mark and later mark, and keeps everyone else\'s', () => {
+  it('forgets the session\'s pin, archive entry, note, needs-you mark, later mark and keep stamp, and keeps everyone else\'s', () => {
     const marks: SessionMarks = {
       pinned: ['a', 'b'],
       archived: { a: 1, b: 2 },
       notes: { a: 'x', b: 'y' },
       needsYou: { a: [{ reason: 'quit', at: 1 }], b: [{ reason: 'ended', at: 2 }] },
       later: { a: { due: null, at: 1 }, b: { due: 9, at: 2 } },
+      kept: { a: 3, b: 4 },
     };
-    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], archived: { b: 2 }, notes: { b: 'y' }, needsYou: { b: [{ reason: 'ended', at: 2 }] }, later: { b: { due: 9, at: 2 } } });
+    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], archived: { b: 2 }, notes: { b: 'y' }, needsYou: { b: [{ reason: 'ended', at: 2 }] }, later: { b: { due: 9, at: 2 } }, kept: { b: 4 } });
     expect(marks.needsYou).toEqual({ a: [{ reason: 'quit', at: 1 }], b: [{ reason: 'ended', at: 2 }] });
   });
 });
@@ -176,6 +186,7 @@ describe('purgedSession', () => {
       notes: { a: 'x' },
       needsYou: { a: [{ reason: 'quit' as const, at: 1 }] },
       later: { a: { due: null, at: 1 } },
+      kept: { a: 2 },
       openSessions: ['a', 'b'],
       runningSessions: ['a', 'b'],
       scheduledWhenStopped: { a: tock, b: tock },
@@ -189,6 +200,7 @@ describe('purgedSession', () => {
       notes: {},
       needsYou: {},
       later: {},
+      kept: {},
       openSessions: ['b'],
       runningSessions: ['b'],
       scheduledWhenStopped: { b: tock },

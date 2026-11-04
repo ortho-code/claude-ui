@@ -47,6 +47,9 @@ import {
   markLater,
   clearLater,
   laterCameDue,
+  getKept,
+  keep,
+  unkeep,
   clearNeedsYou,
   getPrSeen,
   setPrSeen,
@@ -303,6 +306,28 @@ describe('what was last seen of the PRs', () => {
       },
     });
     expect(await getPrSeen()).toEqual({ 'acme/app#7': { state: 'closed' } });
+  });
+});
+
+describe('the keep stamps', () => {
+  it('stamp several sessions in one write, are taken off, stay through an archive and go with a delete', async () => {
+    const before = await auditLines();
+    await keep(['a', 'b'], 5);
+    expect(await getKept()).toEqual({ a: 5, b: 5 });
+    await unkeep(['b']);
+    expect(await getKept()).toEqual({ a: 5 });
+    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['keep', 'unkeep']);
+    await archive(['a']);
+    expect(await getKept()).toEqual({ a: 5 });
+    await purgeSession('a');
+    expect(await getKept()).toEqual({});
+  });
+
+  it('are none in a file written before they were kept, and a stamp that is no moment is dropped', async () => {
+    await writeMetaFile({ version: 3 });
+    expect(await getKept()).toEqual({});
+    await writeMetaFile({ version: 3, kept: { a: 5, b: 'monday', c: null } });
+    expect(await getKept()).toEqual({ a: 5 });
   });
 });
 

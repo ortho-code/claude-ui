@@ -24,6 +24,8 @@ export interface BridgeFixture {
   prSeenReadFails: number;
   /** Session -> the day it comes back and when it was set aside, as meta keeps it; marked, cleared and come due by main's own rules. */
   later: Record<string, Later>;
+  /** Session -> when it was last kept out of the review, as meta keeps it; stamped and taken off by main's own rules. */
+  kept: Record<string, number>;
   /** How the app closed before this window, as main's log says. */
   lastClosed: ClosedHow;
   openSessions: string[];
@@ -150,6 +152,7 @@ export function defaultFixture(): BridgeFixture {
     prSeen: {},
     prSeenReadFails: 0,
     later: {},
+    kept: {},
     lastClosed: 'quit',
     openSessions: [],
     runningSessions: [],

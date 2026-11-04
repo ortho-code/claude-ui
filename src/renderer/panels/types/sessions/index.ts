@@ -13,6 +13,7 @@ import { container } from './drawn';
 import { loadingEl } from './read';
 import { liveStrip } from './live-strip';
 import { bulkBar, bulkLine } from './bulk';
+import { reviewRow } from './review';
 
 /**
  * THE SIDEBAR as a panel type: the project switcher and the header's actions over the filter panel, the session list and the live strip.
@@ -30,7 +31,7 @@ const header = element('header');
 header.append(switcherEl, actions);
 const sidebar = element('aside');
 sidebar.id = 'sidebar';
-sidebar.append(header, bulkLine, filterPanel, filterStatus, loadingEl, container, bulkBar, liveStrip);
+sidebar.append(header, reviewRow, bulkLine, filterPanel, filterStatus, loadingEl, container, bulkBar, liveStrip);
 document.getElementById('parked')!.append(sidebar);
 
 export const sessionsType = builtinType('sessions', sidebar, 'Sessions', 'sessions', () => railStatus(store.get()));

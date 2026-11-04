@@ -480,6 +480,12 @@ export interface ClaudeUiApi {
   markLater(ids: string[], due: number | null, at?: number): void;
   /** Take sessions' later marks off in one write, whether or not each had one. */
   clearLater(ids: string[]): void;
+  /** When each session was last kept out of the review, by session id (epoch ms). */
+  getKept(): Promise<Record<string, number>>;
+  /** Keep sessions out of the review from `at` or now, in one write; a stamp already there is replaced. */
+  keep(ids: string[], at?: number): void;
+  /** Take sessions' keep stamps off, in one write, as Keep's Undo does. */
+  unkeep(ids: string[]): void;
   /** Settle the later marks that have come due by `now` (`cameDue`): each goes, and a session not marked as needing you is marked with a reminder. */
   laterCameDue(now: number): void;
   /** How the app closed before this window opened: what a session running then is marked for. */

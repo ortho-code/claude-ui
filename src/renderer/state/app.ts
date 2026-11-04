@@ -53,6 +53,13 @@ export interface AppState {
    * Mutes a needs-you mark it came after (`mutedByLater`).
    */
   later: ReadonlyMap<string, Later>;
+  /** Entity key -> when it was last kept out of the review (epoch ms): what main keeps in `meta.json`, kept here by the same rules (`keptFrom`, `unkept`), each change sent to main as it is made (state/keep.ts). */
+  kept: ReadonlyMap<string, number>;
+  /**
+   * Whether the session list shows the review (docs/architecture.md § The review) in place of its projects, in bulk mode; in memory only, so a launch opens the list without it.
+   * Stage 3 of the session-model design widens it into the list's view, of which the review is one.
+   */
+  reviewing: boolean;
   /** Sessions whose delete is in flight: hidden from the list until that delete resolves, so a concurrent delete's re-read can't briefly resurrect them. */
   pendingDeletes: ReadonlySet<string>;
   /**
@@ -315,6 +322,8 @@ export const store = createStore<AppState>(
     archived: new Map(),
     needsYou: new Map(),
     later: new Map(),
+    kept: new Map(),
+    reviewing: false,
     notes: new Map(),
     pendingDeletes: new Set(),
     groupState: { groups: [], groupOf: {} },
@@ -343,6 +352,7 @@ export const store = createStore<AppState>(
     scheduledTasks: (a, b) => sameEntries(a, b, sameData),
     pinned: sameMembers,
     archived: sameEntries,
+    kept: sameEntries,
     notes: sameEntries,
     pendingDeletes: sameMembers,
     groupState: sameData,

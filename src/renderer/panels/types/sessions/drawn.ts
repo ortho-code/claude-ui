@@ -70,6 +70,18 @@ export interface GroupSectionEls {
 }
 // Group sections by group id, kept across renders as the project sections are.
 export const groupSections = new Keyed<GroupSectionEls>((els) => els.section);
+
+/** A set of the review as drawn (docs/architecture.md § The review): its section, its heading's name and count, the line saying why it cannot answer, and the well its rows sit in. */
+export interface ReviewSetEls {
+  section: HTMLElement;
+  heading: HTMLElement;
+  label: HTMLElement;
+  count: HTMLElement;
+  note: HTMLElement;
+  rows: HTMLElement;
+}
+// The review's sets by id, kept across renders as the project sections are.
+export const reviewSets = new Keyed<ReviewSetEls>((els) => els.section);
 // The session each row currently shows, by entity key (session id), so a reused row's click/pin handlers act on the live session data of the latest render.
 // Refilled by each render rather than replaced, since a module cannot assign to a binding another module exports.
 export const currentByKey = new Map<string, SessionSummary>();

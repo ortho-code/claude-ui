@@ -7,11 +7,14 @@ import { archivedOnlyProjects, isFiltering, mutedNeedsYou, projName, searchText,
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
-import { container, currentByKey, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, rowTabMarks, sessionRows, statusDots } from './drawn';
+import { REVIEW, reviewCount } from '../../../review';
+import { endBulk } from '../../../state/bulk';
+import { container, currentByKey, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, reviewSets, rowTabMarks, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
-import { createGroupSection, createProjectSection } from './headings';
+import { createGroupSection, createProjectSection, createReviewSet } from './headings';
+import { REVIEW_LOOK_EVERY_MS, reviewFacts, reviewInScope, whereOf } from './review';
 import { syncStickyOffset } from './reveal';
 import { drawRow, showTabMarks, updateRow, type RowView } from './rows';
 import './list.css';
@@ -49,6 +52,8 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
   const standIns = (tabs: readonly TabState[]): string => structuralSignature(tabs.filter((t) => !onDisk.has(t.session.id)).map((t) => t.session));
   const { open, live } = view.filter.filters;
   const moved =
+    // The review holds only sessions without a tab, so one that gets a tab, or loses one, moves it.
+    (view.reviewing && keys(before, false) !== keys(view.tabs, false)) ||
     (open && keys(before, false) !== keys(view.tabs, false)) ||
     (live && keys(before, true) !== keys(view.tabs, true)) ||
     standIns(before) !== standIns(view.tabs);
@@ -78,8 +83,8 @@ function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' 
   repaintDots(statusChanges(before, view), view);
 }
 
-/** What draws the list again: the listing, a model switch, a pin, the archive, a note, a later mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs, a task claude scheduled. */
-const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'later', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'scheduledTasks'] as const;
+/** What draws the list again: the listing, a model switch, a pin, the archive, a note, a later mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs, a task claude scheduled, and for the review, a keep stamp, the review opening or ending, and the settings, which say whether GitHub is asked. */
+const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'later', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'scheduledTasks', 'kept', 'reviewing', 'settings'] as const;
 /** The tabs, which have a watcher of their own (`listFollowsTabs`), since most of a tab's changes move only the rows' marks. */
 const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
@@ -97,7 +102,11 @@ export function watchList(): void {
   store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'later'], dotsFollowStatuses, { reads: ['tabs', 'archived'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject'] });
   // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and the archived view ends it.
-  store.watch(['bulk', 'tabs', 'filter'], bulkFollows);
+  store.watch(['bulk', 'tabs', 'filter'], bulkFollows, { reads: ['reviewing', 'activeProject', 'projectNames'] });
+  // An open review drawn again at least once an hour: a session crosses its days, or a keep stamp runs out, with nothing in the store moving, as the Review button's count is looked at again (review.ts).
+  window.setInterval(() => {
+    if (store.get().reviewing) renderList(store.get());
+  }, REVIEW_LOOK_EVERY_MS);
 }
 
 /** The list follows the store, with the filter's count and chips it draws. */
@@ -112,6 +121,10 @@ function listChanged(view: ListView, before: View<'filter' | 'activeProject'>): 
 // Keystrokes call this directly so filtering never re-reads disk.
 // Keeps project, group and row nodes by key and leaves in place what already is (keyed.ts), so a re-render does not rebuild the sidebar: no flicker, the scroll stays put, and a press or the focus on a row that keeps its place survives it.
 function renderList(view: ListView): void {
+  if (view.reviewing) {
+    renderReview(view);
+    return;
+  }
   const scroll = container.scrollTop;
   statusDots.clear();
   rowTabMarks.clear();
@@ -165,12 +178,61 @@ function renderList(view: ListView): void {
   showBulk(view);
 }
 
+/**
+ * The review in place of the projects (docs/architecture.md § The review): its sets in the switcher's scope, each a heading over its rows, flat, oldest first, each row the list's own with its line saying why it is there in place of its time, led by where it sits where the scope does not say it.
+ * The filter is set aside meanwhile, and the folds have nothing to fold; a review left with nothing in it ends, as an empty review has nothing to decide.
+ */
+function renderReview(view: ListView): void {
+  statusDots.clear();
+  rowTabMarks.clear();
+  const sections = reviewInScope(view);
+  currentByKey.clear();
+  for (const s of visibleSessions(view)) currentByKey.set(entityKey(s), s);
+  // Said by nothing of its own: the act that emptied it raises its toast after this, with the Undo that matters more, and the Review button then says there is nothing to review.
+  if (reviewCount(sections) === 0) {
+    endBulk();
+    return;
+  }
+  const drawn = sections.map((set) => {
+    const els = reviewSets.draw(set.id, createReviewSet);
+    els.label.textContent = set.name;
+    els.count.textContent = String(set.rows.length);
+    els.note.textContent = set.note ?? '';
+    els.note.hidden = set.note === null;
+    const rule = REVIEW.sets.find((s) => s.id === set.id)!;
+    const rows = set.rows.map(({ session }) => {
+      const row = drawRow(entityKey(session));
+      // Its set's line, worked out again at each tick from the store as it then is, of the session as the newest listing has it.
+      updateRow(row, session, view, (shown) => {
+        const now = store.get();
+        const line = rule.why(shown, reviewFacts(now), Date.now());
+        const where = whereOf(shown, now);
+        return where ? `${where} · ${line}` : line;
+      });
+      row.classList.remove('after-groups');
+      return row;
+    });
+    placeChildren(els.rows, rows);
+    return els.section;
+  });
+  placeChildren(container, drawn);
+  renderedSections.projects = [];
+  renderedSections.groups = [];
+  projectSections.sweep();
+  groupSections.sweep();
+  reviewSets.sweep();
+  sessionRows.sweep();
+  updateSidebarHighlight(view);
+  showBulk(view);
+}
+
 // Reset to a blank list: drop every cached node so the next non-empty render rebuilds fresh.
 function clearList(): void {
   container.replaceChildren();
   sessionRows.clear();
   projectSections.clear();
   groupSections.clear();
+  reviewSets.clear();
   statusDots.clear();
   rowTabMarks.clear();
 }
@@ -236,6 +298,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
   // What this render did not draw is gone: a project or a group no longer shown, a session deleted or filtered out.
   projectSections.sweep();
   groupSections.sweep();
+  reviewSets.sweep();
   sessionRows.sweep();
   applyFolds(view);
 }

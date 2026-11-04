@@ -1,0 +1,43 @@
+/* The review (review.ts): the row under the header holding the Review button, at its right end, where a switch of the list's arrangement can join it on the left. */
+#review-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 16px 8px;
+}
+
+#review-button .review-count {
+  margin-left: 4px;
+  color: var(--muted);
+}
+
+/* Pressed while the list shows the review, as a header button is while what it opened is up (index.css). */
+#review-button.active {
+  background: var(--active);
+  border-color: var(--accent);
+}
+
+/* While the list shows the review, the filter is set aside: the review is not a filter, and the filter comes back as it was when it ends. */
+#sidebar.reviewing #filter-toggle,
+#sidebar.reviewing #filter-panel,
+#sidebar.reviewing #filter-status,
+#sidebar.reviewing #collapse-toggle {
+  display: none;
+}
+
+/* A set's heading pins to the top of the list while its rows scroll under it, as a project's does, there being no project heading above it in the review; sticky is scoped to its section, so it unpins when its set scrolls away.
+   A real layer, as a group's heading has (headings.css), so a row's status dot does not paint through it. */
+.review-set > .section-heading {
+  top: 0;
+  z-index: 1;
+}
+
+.review-set + .review-set {
+  margin-top: 14px;
+}
+
+/* A set's line saying why it cannot answer, under its heading. */
+.review-set > .review-note {
+  padding: 2px 16px 6px;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}

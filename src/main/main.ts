@@ -34,6 +34,9 @@ import {
   getPrSeen,
   setPrSeen,
   getLater,
+  getKept,
+  keep,
+  unkeep,
   markLater,
   clearLater,
   laterCameDue,
@@ -509,6 +512,13 @@ ipcMain.on('meta:setPrSeen', (_event, seen: PrSeen) => {
   void setPrSeen(seen);
 });
 ipcMain.handle('meta:getLater', () => getLater());
+ipcMain.handle('meta:getKept', () => getKept());
+ipcMain.on('meta:keep', (_event, ids: string[], at?: number) => {
+  void keep(ids, at);
+});
+ipcMain.on('meta:unkeep', (_event, ids: string[]) => {
+  void unkeep(ids);
+});
 ipcMain.on('meta:markLater', (_event, ids: string[], due: number | null, at?: number) => {
   void markLater(ids, due, at);
 });

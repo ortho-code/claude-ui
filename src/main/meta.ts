@@ -8,7 +8,7 @@ import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, markedLater, markedNeedsYou, NEEDS_YOU_REASONS, PR_CHANGES, purgedSession, togglePinned, unarchived } from '../shared/sessionmarks';
+import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, keptFrom, markedLater, markedNeedsYou, NEEDS_YOU_REASONS, PR_CHANGES, purgedSession, togglePinned, unarchived, unkept } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
@@ -77,6 +77,11 @@ interface Meta {
    * Kept whether or not a tab holds the session, until the window takes it off for a prompt there or Clear later, its day comes (`cameDue`), or main does for an archive or a delete.
    */
   later: Record<string, Later>;
+  /**
+   * When each session was last kept out of the review, by session id (epoch ms): the review's own term says how long that holds (`kept:<30d`), so a stamp is never swept, and goes with its session's delete.
+   * Archiving leaves it, since an archived session is out of the review anyway.
+   */
+  kept: Record<string, number>;
   /**
    * What was last seen of each PR the sessions link, by reference: what the window tells a PR's change from, which marks the sessions linking it (`prChanges`).
    * Null before it was ever kept, the first run; emptied when PR status is turned off, so turning it on again starts from the PRs as they are then (decided 2026-10-29).
@@ -150,6 +155,7 @@ const KNOWN_KEYS = new Set([
   'notes',
   'needsYou',
   'later',
+  'kept',
   'prSeen',
   'groups',
   'groupOf',
@@ -162,7 +168,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, later: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, later: {}, kept: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -363,6 +369,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // The same again: absent means nothing is set aside for later.
     // A file from before pause gave way to the later mark lists the tabs you paused, each of them set aside for later here, whenever (decided 2026-10-29), so nothing set aside is lost.
     later: laterWithPaused(laterOf(parsed.later), parsed.pausedSessions, Date.now()),
+    // The same again: absent means nothing kept out of the review; a stamp that is no moment is dropped.
+    kept: Object.fromEntries(Object.entries((parsed.kept ?? {}) as Record<string, unknown>).filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]))),
     // The same again: absent means never kept, the first run.
     prSeen: prSeenOf(parsed.prSeen),
     groups,
@@ -758,6 +766,25 @@ export function markLater(ids: string[], due: number | null, at = Date.now()): P
 export function clearLater(ids: string[]): Promise<void> {
   return update('clearLater', (meta) => {
     for (const id of ids) meta.later = clearedLater(meta.later, id);
+  });
+}
+
+/** When each session was last kept out of the review; see `kept`. */
+export function getKept(): Promise<Record<string, number>> {
+  return serialize(async () => (await readMeta()).kept);
+}
+
+/** Keep sessions out of the review from `at`, in one write (`keptFrom`). */
+export function keep(ids: string[], at = Date.now()): Promise<void> {
+  return update('keep', (meta) => {
+    meta.kept = keptFrom(meta.kept, ids, at);
+  });
+}
+
+/** Take sessions' keep stamps off, in one write, as Keep's Undo does. */
+export function unkeep(ids: string[]): Promise<void> {
+  return update('unkeep', (meta) => {
+    meta.kept = unkept(meta.kept, ids);
   });
 }
 
