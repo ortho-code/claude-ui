@@ -33,6 +33,7 @@ import { linkedSessions, pickSession, sessionNamed, startSession } from './links
 import { SNAPSHOT_SLICES, snapshotText } from './snapshot';
 import { store } from '../state/app';
 import { HeaderTabs } from './tabs';
+import { viewButton } from './view-switch';
 import type { Asks, MountedPanel, PanelHost, PanelStatus, PanelType, PanelView, Where } from './contract';
 import { commandType } from './types/command';
 import { terminalType } from './types/terminal';
@@ -743,17 +744,6 @@ function actionButton(label: string): HTMLButtonElement {
   return button;
 }
 
-/** A view's button in a panel's switch, in the compact box the header's other button takes; the view on show is marked pressed, and a press on it does nothing. */
-function viewButton(view: PanelView, shown: boolean, pick: () => void): HTMLButtonElement {
-  const button = element('button', 'icon-btn compact panel-view');
-  button.type = 'button';
-  button.setAttribute('aria-label', view.label);
-  button.setAttribute('aria-pressed', String(shown));
-  setTooltip(button, view.label);
-  button.innerHTML = iconSvg(view.icon);
-  if (!shown) button.addEventListener('click', pick);
-  return button;
-}
 
 function header(title: string, controls: HTMLElement[] = []): HTMLElement {
   const row = element('div', 'panel-header');
