@@ -91,12 +91,51 @@ test('a search that hides a ticked row takes it out of the count, so the bar nev
   await expect.poll(() => app.calls('archive')).toEqual([[[a.id]]]);
 });
 
-test('the archived view offers no Select, and turning it on ends bulk mode', async ({ app, page }) => {
+test('turning the archived view on or off ends bulk mode, rather than carry ticks from one set of sessions into the other', async ({ app, page }) => {
   await app.boot({ ...fixture, archived: { [d.id]: 1 } });
   await (await headingMenu(page, groupHeading(page, 'Work'), '.group-kebab', 'Select sessions…')).click();
   await page.locator('#filter-toggle').click();
   await page.locator('#archived-filter').click();
   await expect(line(page)).toBeHidden();
-  const item = await headingMenu(page, projectHeading(page, 'demo'), '.project-kebab', 'Select sessions…');
-  await expect(item).toHaveAttribute('data-tooltip', 'Not in the archived view');
+  await (await headingMenu(page, projectHeading(page, 'demo'), '.project-kebab', 'Select sessions…')).click();
+  await expect(line(page)).toBeVisible();
+  await page.locator('#archived-filter').click();
+  await expect(line(page)).toBeHidden();
+});
+
+test('in the archived view the bar unarchives or deletes, and offers nothing that works a session', async ({ app, page }) => {
+  await app.boot({ ...fixture, archived: { [c.id]: 1, [d.id]: 2 } });
+  await page.locator('#filter-toggle').click();
+  await page.locator('#archived-filter').click();
+  await row(page, c.title).locator('.session-kebab').click();
+  await page.locator('.kebab-menu button.menu-row', { hasText: /^Select…$/ }).click();
+  await expect(page.locator('#bulk-bar button:visible')).toHaveText(['Unarchive', 'Delete…']);
+  // A press ticks, rather than doing nothing as it does on an archived row otherwise.
+  await row(page, d.title).click();
+  expect(await ticked(page)).toEqual([c.title, d.title]);
+
+  await page.locator('#bulk-bar [data-act="unarchive"]').click();
+  await expect(page.locator('#toast-message')).toHaveText('Unarchived 2 sessions');
+  expect(await app.calls('unarchive')).toEqual([[[c.id, d.id]]]);
+  await expect(row(page, c.title)).toHaveCount(0);
+  await page.locator('#toast-action').click();
+  await expect(row(page, c.title)).toHaveCount(1);
+  expect(await app.calls('archive')).toEqual([[[c.id, d.id]]]);
+});
+
+test('Delete… in the archived view asks once for every ticked session, then moves each to the trash', async ({ app, page }) => {
+  await app.boot({ ...fixture, archived: { [c.id]: 1, [d.id]: 2 } });
+  await page.locator('#filter-toggle').click();
+  await page.locator('#archived-filter').click();
+  await (await headingMenu(page, projectHeading(page, 'demo'), '.project-kebab', 'Select sessions…')).click();
+  await page.locator('#bulk-bar [data-act="delete"]').click();
+  await expect(page.locator('#confirm-message')).toHaveText('Delete 2 sessions?');
+  await page.locator('#confirm-cancel').click();
+  expect(await app.calls('deleteSession')).toEqual([]);
+
+  await page.locator('#bulk-bar [data-act="delete"]').click();
+  await page.locator('#confirm-ok').click();
+  await expect.poll(async () => (await app.calls('deleteSession')).map(([id]) => id).sort()).toEqual([c.id, d.id].sort());
+  await expect(row(page, c.title)).toHaveCount(0);
+  await expect(row(page, d.title)).toHaveCount(0);
 });

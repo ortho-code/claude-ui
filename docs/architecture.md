@@ -520,7 +520,7 @@ A toast with a button stays 8 s, held from when the pointer moves onto it, where
 A reopen-closed-tab key, quieter than a toast on every close, was weighed and left for the keyboard shortcuts, where it is to take the same put-back.
 **Every way the app opens a session refuses an archived one** (`unopenableReason`, `state/views.ts`): the asks that open a session refuse it with a toast, an archived sibling in the menu is unavailable and says why, and a tab kept for one is dropped at launch.
 Opening it to unarchive it was turned down, as not clear enough about what had happened.
-Its menu, the same on every surface, holds its siblings, PRs, worktrees, scheduled tasks and note, as its row's marks reach them, its id, Unarchive and Delete, and nothing that starts or files it; its dot is never a control.
+Its menu, the same on every surface but for its row's Select… (§ Selecting several), holds its siblings, PRs, worktrees, scheduled tasks and note, as its row's marks reach them, its id, Unarchive and Delete, and nothing that starts or files it; its dot is never a control.
 
 **A heading's menu holds the ways to start a session there** (2026-10-20): New session and New worktree session…, from one function (`newSessionItems`, `sessions/controls.ts`) that the "+"'s caret draws too, so the dropdown and the two menus cannot drift; on a project also New session in group, a submenu of every group the project has (`projectGroups` reads no filter), which reaches a group a filter left without a heading, or unavailable saying why when the project has no groups or its folder is gone.
 A project's menu also has **Jump to group**, the heading's jump button as an item, from the one list both draw (`jumpItems`, `sessions/headings.ts`); the button is left out below two places to go, for the room on the heading, while the item stays, unavailable and saying why.
@@ -581,7 +581,7 @@ Answering Keep on the way out releases the lock, but a session ended by `SIGTERM
 
 The session list has a bulk mode, so that a project's or a group's sessions can be stopped, closed, archived, set aside or moved in one go rather than a tab or a row at a time (`sessions/bulk.ts`).
 Select sessions… in a project's or a group's menu enters it with every row drawn under that heading ticked, a folded group's included, and Select… in a row's menu with that row ticked; only the row's menu has it, of a session's menus, since it acts on the list.
-In the archived view neither can be used, since the acts do not fit an archived session: an archived row's menu has no Select…, a heading's says why it is unavailable, and turning that view on ends bulk mode.
+In the archived view both work too, and the bar there holds only what fits a session put away, Unarchive and Delete… (below); turning that view on or off ends bulk mode outside the review, which sets the filter aside, since it swaps which sessions the list holds and which acts the bar has, and ticks carried from one set into the other would act on rows ticked under another bar.
 In it every row and heading has a box; a press on a row ticks it rather than opening it, a Shift+press ticks the run from the row last pressed, or from the last row Select sessions… ticked (`tickedRun`, `ticks.ts`), and a heading's box ticks every row under it, or unticks them all once every one is.
 The line under the header counts what is ticked, with Done; Esc ends it too, unless it was typed where text goes or into a terminal, where claude reads Esc, or a menu, a dialog or the filter's calendar is up, which Esc closes instead.
 
@@ -589,7 +589,7 @@ Bulk mode is a slice of the store (`bulk`, `state/bulk.ts`), apart from what nar
 It is not kept for the next launch: it is a moment of deciding, not a place the list was left in.
 
 The bar at the list's foot acts on the ticked rows the list draws (`tickedOnShow`), a folded group's included, since folding only hides them: a row a search leaves out stays ticked, and comes back ticked, but nothing acts on it while the list does not draw it.
-Each act is the write a session's own menu makes, given every key at once, so the bar and the menu cannot disagree about a pin, a tab or an Undo:
+Each act is the write a session's own menu makes, given every key at once, so the bar and the menu cannot disagree about a pin or a tab; where the bar adds a toast with an Undo that the menu has not, Later and Unarchive, it is because the bar's rows can leave the list (below):
 - **Archive** is `archiveSessions`, which a session's menu calls with one key: sessions no claude of the app's runs are archived in one write of `meta.json`, with one toast whose Undo unarchives them all and puts back each one's later and needs-you marks and its tabs; one whose claude runs is asked to leave and archived at its exit, with its own toast, as alone; one with a tab starting is left out, as its menu's Archive is unavailable then.
 - **Keep** takes every ticked session out of the review (§ The review) in one write, with one toast whose Undo puts each one's stamp back as it was, or none; it is offered outside the review too, to hold a session out before it would come up.
 - **Later** offers the menu's own choices (`laterChoices`), marks every ticked session in one write, and raises a toast whose Undo puts each back as it was, its old mark or none.
@@ -597,6 +597,10 @@ Each act is the write a session's own menu makes, given every key at once, so th
 - **Move to group** is the menu's list (`moveToGroupItems`) for every ticked session, in one write, or two for New group…, which makes the group with the first and moves the rest; unavailable when they are in more than one project, since a group belongs to one.
 - **Stop** presses each ticked session's Stop session where its menu offers it as a stop, never as a force: a tab already stopping is left to its own force, one starting is skipped, as its menu refuses it, and one leaving for a close or an archive is turned back into a stop, as its menu's Stop session turns it.
 - **Close tab** closes each ticked session's tab by its menu's Close tab, never forcing one already closing: cold tabs at once, with one toast whose Undo puts them all back, and running ones once claude has gone, each with its own Undo then, as alone.
+
+In the archived view the bar has two acts instead:
+- **Unarchive** unarchives every ticked session in one write, with one toast whose Undo archives them again in one write, as of the Undo, since main keeps no archive time once a session is unarchived; an archived row's own Unarchive button raises none, as before, since there one row leaves where the press was.
+- **Delete…** asks once for every ticked session, as a row's Delete asks for one (`confirmAndDelete`, which both call), then moves each to the trash, hiding them all at once and reading the list again once every delete has answered; one that fails comes back, and the toast names it, or says how many.
 
 Move to group and Stop raise no toast, as alone; a batch that archives or closes running sessions raises one toast for those that were not running and one more for each running one as it goes.
 An act that would do nothing for any ticked row is unavailable and says why, as a menu's items are: Archive while every ticked session has a tab starting, Close tab while none has a tab it can close now, Stop while none runs or each is stopping already.

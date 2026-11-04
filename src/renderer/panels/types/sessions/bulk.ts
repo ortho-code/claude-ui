@@ -13,7 +13,7 @@ import { headingTick, tickedOnShow } from '../../../ticks';
 import { showToast } from '../../../toast';
 import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
-import { laterChoices, moveToGroupItems } from './actions';
+import { confirmAndDelete, laterChoices, moveToGroupItems } from './actions';
 import { container, currentByKey } from './drawn';
 import './bulk.css';
 
@@ -36,6 +36,8 @@ export const bulkBar = fromMarkup(`
     <button type="button" data-act="move">Move to group</button>
     <button type="button" data-act="stop">Stop</button>
     <button type="button" data-act="close">Close tab</button>
+    <button type="button" data-act="unarchive" data-in="archived">Unarchive</button>
+    <button type="button" data-act="delete" data-in="archived">Delete…</button>
   </div>`);
 
 const title = bulkLine.querySelector<HTMLElement>('.bulk-title')!;
@@ -101,12 +103,15 @@ const sessionsOf = (keys: readonly string[]): SessionSummary[] => keys.flatMap((
  * Bulk mode as the store has it, drawn over the list as drawn: the mode's class on the list, every box, the line's count and which acts can do something now, each act that cannot saying why (`setUnavailable`).
  * Called by its watcher and by every draw of the list, which may have drawn rows the boxes do not know yet.
  */
-export function showBulk(view: View<'bulk' | 'tabs' | 'reviewing' | 'activeProject' | 'projectNames'>): void {
+export function showBulk(view: View<'bulk' | 'tabs' | 'reviewing' | 'activeProject' | 'projectNames' | 'filter'>): void {
   const on = view.bulk !== null;
   container.classList.toggle('bulk', on);
   bulkLine.hidden = !on;
   bulkBar.hidden = !on;
   if (!view.bulk) return;
+  // The archived view's sessions are put away: its bar unarchives or deletes them, and offers nothing that works a session, as its rows do not; the review sets the filter aside, the archived view with it.
+  const archivedView = view.filter.filters.archived && !view.reviewing;
+  for (const button of bulkBar.querySelectorAll<HTMLButtonElement>('button')) button.hidden = (button.dataset.in === 'archived') !== archivedView;
   const set = view.bulk.ticked;
   for (const row of container.querySelectorAll<HTMLElement>('.session')) drawBox(row.querySelector(':scope > .tick'), set.has(row.dataset.key ?? '') ? 'all' : 'none');
   for (const section of container.querySelectorAll<HTMLElement>('section.project, section.group, section.review-set')) drawBox(section.querySelector(':scope > .section-heading > .tick'), headingTick(drawnKeys(section), set));
@@ -119,6 +124,8 @@ export function showBulk(view: View<'bulk' | 'tabs' | 'reviewing' | 'activeProje
   setUnavailable(act('archive'), none ?? (keys.some((key) => archivable(key, view)) ? null : 'Every ticked session is starting'), 'Archive every ticked session');
   setUnavailable(act('later'), none, 'Set every ticked session aside for later');
   setUnavailable(act('keep'), none, `Keep every ticked session out of the review for ${KEPT_DAYS} days`);
+  setUnavailable(act('unarchive'), none, 'Unarchive every ticked session');
+  setUnavailable(act('delete'), none, 'Delete every ticked session, moving its files to the trash, once you confirm');
   const projects = new Set(sessionsOf(keys).map((s) => s.repoRoot));
   setUnavailable(act('move'), none ?? (projects.size > 1 ? 'The ticked sessions are in more than one project' : null), 'Move every ticked session to a group');
   setUnavailable(act('stop'), none ?? (keys.some((key) => stoppable(key, view)) ? null : 'None of the ticked sessions runs, or each is stopping already'), 'Stop every ticked session that runs');
@@ -193,6 +200,21 @@ onAct('stop', (keys) => {
   for (const key of keys) if (stoppable(key)) hostOf('sessions').pressLeave(key, 'stop', 'stop');
 });
 onAct('close', (keys) => hostOf('sessions').closeTabs(keys));
+onAct('unarchive', (keys) => void unarchiveSessions(keys));
+onAct('delete', (keys) => void confirmAndDelete(keys));
+
+/**
+ * Unarchive from the bar in the archived view: every ticked session in one write, and one toast whose Undo archives them again in one write.
+ * Their rows leave the archived view, which is what the toast is for; an archived row's own Unarchive button raises none, as before.
+ */
+async function unarchiveSessions(keys: readonly string[]): Promise<void> {
+  const what = named(keys);
+  store.set({ archived: new Map(Object.entries(await window.claudeUi.unarchive([...keys]))) });
+  showToast(`Unarchived ${what}`, false, {
+    label: 'Undo',
+    run: () => void window.claudeUi.archive([...keys]).then((archived) => store.set({ archived: new Map(Object.entries(archived)) })),
+  });
+}
 
 byId(bulkLine, 'bulk-done', HTMLButtonElement).addEventListener('click', endBulk);
 
@@ -208,11 +230,11 @@ document.addEventListener('keydown', (event) => {
 
 /**
  * Bulk mode follows the store: drawn whenever it, or the tabs the bar's Stop and Close read, change.
- * The archived view has no acts for its sessions, so turning it on ends bulk mode, as Done would.
+ * Turning the archived view on or off swaps which sessions the list holds and which acts the bar has, so it ends bulk mode, as Done would, rather than carry ticks from one set into the other.
  */
-export function bulkFollows(view: View<'bulk' | 'tabs' | 'filter' | 'reviewing' | 'activeProject' | 'projectNames'>): void {
+export function bulkFollows(view: View<'bulk' | 'tabs' | 'filter' | 'reviewing' | 'activeProject' | 'projectNames'>, before: View<'bulk' | 'tabs' | 'filter'>): void {
   // The review sets the filter aside, so the archived view does not end it.
-  if (view.bulk && view.filter.filters.archived && !view.reviewing) {
+  if (view.bulk && !view.reviewing && view.filter.filters.archived !== before.filter.filters.archived) {
     endBulk();
     return;
   }

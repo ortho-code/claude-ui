@@ -186,7 +186,7 @@ function createSessionRow(key: string): HTMLElement {
   deleteBtn.innerHTML = strokeIcon(14, '<path d="M3 4.5h10" /><path d="M6.5 4.5V3h3v1.5" /><path d="M4.8 4.5l.5 8h5.4l.5-8" />');
   deleteBtn.addEventListener('click', (event) => {
     event.stopPropagation();
-    void confirmAndDelete(key);
+    void confirmAndDelete([key]);
   });
 
   // The session's menu, in both views: an archived session's holds the archived view's two actions among its items (`sessionMenuItems`).

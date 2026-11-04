@@ -47,12 +47,10 @@ function headingBox(section: HTMLElement): HTMLElement {
 }
 
 /**
- * Select sessions… in a heading's menu: bulk mode, with every row under the heading ticked, so a project's or a group's sessions are stopped, closed or archived in one go (docs/architecture.md § Selecting several).
- * Unavailable in the archived view, whose sessions the bar's acts do not fit, and where nothing is drawn under the heading.
+ * Select sessions… in a heading's menu: bulk mode, with every row under the heading ticked, so a project's or a group's sessions are stopped, closed or archived in one go, or in the archived view unarchived or deleted (docs/architecture.md § Selecting several).
  */
 function selectItem(section: HTMLElement): MenuItem {
   const label = 'Select sessions…';
-  if (store.get().filter.filters.archived) return { label, disabled: 'Not in the archived view' };
   const keys = rowsUnder(section);
   return keys.length === 0 ? { label, disabled: 'No sessions here' } : { label, onSelect: () => startBulk(keys) };
 }

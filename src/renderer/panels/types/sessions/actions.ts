@@ -1,11 +1,11 @@
 import { prReference } from '../../../../shared/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { defaultSettings } from '../../../../shared/defaults';
-import { confirmDelete, pickMoment, promptText } from '../../../dialogs';
+import { confirmDanger, confirmDelete, pickMoment, promptText } from '../../../dialogs';
 import { clockLines, clockOf, dayStart, entityKey, folderName, momentLabel, onDayAt, leaveAction, leaveLabel, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
 import { verdictOf } from '../../../prstatus';
-import { store, withMember, type TabState } from '../../../state/app';
+import { store, type TabState } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
 import { applyGroupState, moveSessionsToGroup } from '../../../state/groups';
 import { pickCheckout, pickedFor } from '../../../state/picks';
@@ -184,27 +184,30 @@ export async function togglePinFor(key: string): Promise<void> {
   store.set({ pinned: new Set(await window.claudeUi.togglePin(key)) });
 }
 
-// Delete one session to the OS trash, once confirmed, from its row in the archived view.
-export async function confirmAndDelete(key: string): Promise<void> {
-  const session = currentByKey.get(key);
-  const title = session ? sessionLabel(session) : key.slice(0, 8);
-  if (!(await confirmDelete(title))) return;
-  // Hide it right away so deletion feels instant; trashing files (slow under WSL) and the meta purge run in the background.
-  // It stays hidden via pendingDeletes until its files are gone from disk (see fullRead), so a concurrent delete's re-read can't resurrect it.
-  // Only this entity's file goes (entity key = session id); siblings are separate entities.
-  store.set({ pendingDeletes: withMember(store.get().pendingDeletes, key, true) });
-  try {
-    // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat it as failed so the row can't stay hidden forever within a session.
-    await Promise.race([
-      window.claudeUi.deleteSession(key),
-      new Promise((_resolve, reject) => setTimeout(() => reject(new Error('delete timed out')), 30_000)),
-    ]);
-  } catch {
-    showToast(`Couldn't delete "${title}". It's still here.`);
-  } finally {
-    // Stop hiding once this delete resolves: on success the re-read finds it gone; on failure the file is still on disk, so the row reappears.
-    await fullRead({ showLoading: false, revealed: key });
-  }
+/**
+ * Delete sessions to the OS trash, once confirmed, one question for all of them: from an archived row's button or menu, one, and from the bar of selecting several in the archived view, every one ticked.
+ * Only these entities' files go (entity key = session id); siblings are separate entities.
+ */
+export async function confirmAndDelete(keys: readonly string[]): Promise<void> {
+  const titles = keys.map((key) => {
+    const session = currentByKey.get(key);
+    return session ? sessionLabel(session) : key.slice(0, 8);
+  });
+  if (keys.length === 0) return;
+  const asked = keys.length === 1 ? confirmDelete(titles[0]!) : confirmDanger(`Delete ${keys.length} sessions?`, 'Their transcript files move to the trash, so you can restore them from there if needed.', 'Delete');
+  if (!(await asked)) return;
+  // Hide them right away so deletion feels instant; trashing files (slow under WSL) and the meta purge run in the background.
+  // They stay hidden via pendingDeletes until their files are gone from disk (see fullRead), so a concurrent delete's re-read can't resurrect them.
+  store.set({ pendingDeletes: new Set([...store.get().pendingDeletes, ...keys]) });
+  // Guard against a delete that never settles (e.g. a hung OS-trash call): after 30s treat it as failed so a row can't stay hidden forever within a session.
+  const results = await Promise.allSettled(
+    keys.map((key) => Promise.race([window.claudeUi.deleteSession(key), new Promise((_resolve, reject) => setTimeout(() => reject(new Error('delete timed out')), 30_000))])),
+  );
+  const failed = results.flatMap((result, i) => (result.status === 'rejected' ? [titles[i]!] : []));
+  if (failed.length === 1) showToast(`Couldn't delete "${failed[0]!}". It's still here.`);
+  else if (failed.length > 1) showToast(`Couldn't delete ${failed.length} sessions. They're still here.`);
+  // Stop hiding once the deletes resolve: on success the re-read finds them gone; on failure the files are still on disk, so the rows reappear.
+  await fullRead({ showLoading: false, revealed: keys });
 }
 
 // The per-session action list — one builder, shared by the kebab on the session's row, its tab and its strip row, and opened from `from`.
@@ -218,7 +221,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
     sessionHeader(session, store.get()),
     { label: '', separator: true },
   ];
-  // An archived session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the archived view reach them, its id, and the archived view's two actions; nothing that starts or files it, which that view does not offer.
+  // An archived session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the archived view reach them, its id, and the archived view's two actions, and on its row Select…; nothing that starts or files it, which that view does not offer.
   if (store.get().archived.has(entityKey(session))) {
     return [
       ...items,
@@ -227,7 +230,9 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
       copyIdItem(session),
       { label: '', separator: true },
       { label: 'Unarchive', onSelect: () => void unarchiveFor(entityKey(session)) },
-      { label: 'Delete session…', onSelect: () => void confirmAndDelete(entityKey(session)) },
+      { label: 'Delete session…', onSelect: () => void confirmAndDelete([entityKey(session)]) },
+      // Selecting several starts in the list, so only its row offers it (docs/architecture.md § Selecting several).
+      ...(from === 'row' ? [{ label: 'Select…', onSelect: () => startBulk([entityKey(session)]) }] : []),
     ];
   }
   // What a press on the row or the strip row does, each its own: the row opens the tab where you are, the strip row takes you to it.

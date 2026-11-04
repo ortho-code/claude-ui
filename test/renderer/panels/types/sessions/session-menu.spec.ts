@@ -416,10 +416,10 @@ for (const [state, later] of [['cold', {}], ['cold and set aside for later', set
 // The archived view's rows carry the kebab too, holding what the row's marks reach but its dot, its id, and the view's two buttons.
 const archivedView = { sessions: [full], archived: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } };
 
-test("an archived session's menu holds its note, its id, Unarchive and Delete, and nothing that starts or files it", async ({ app, page }) => {
+test("an archived session's menu holds its note, its id, Unarchive and Delete, Select… on its row, and nothing that starts or files it", async ({ app, page }) => {
   await app.boot(archivedView);
   await row(page, full.title).locator('.session-kebab').click();
-  await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Unarchive', 'Delete session…']);
+  await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Unarchive', 'Delete session…', 'Select…']);
   // When it was archived, as its row says it, below when it was last active.
   const archived = await row(page, full.title).locator('.meta-text').textContent();
   await expect(lines(page).nth(3)).toHaveText(archived!);

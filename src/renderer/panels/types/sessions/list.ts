@@ -101,7 +101,7 @@ export function watchList(): void {
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
   store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'later'], dotsFollowStatuses, { reads: ['tabs', 'archived'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject'] });
-  // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and the archived view ends it.
+  // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and turning the archived view on or off ends it outside the review.
   store.watch(['bulk', 'tabs', 'filter'], bulkFollows, { reads: ['reviewing', 'activeProject', 'projectNames'] });
   // An open review drawn again at least once an hour: a session crosses its days, or a keep stamp runs out, with nothing in the store moving, as the Review button's count is looked at again (review.ts).
   window.setInterval(() => {

@@ -1,5 +1,5 @@
 import { fromMarkup } from '../../../dom';
-import { store, withMember, type StoredView } from '../../../state/app';
+import { store, type StoredView } from '../../../state/app';
 import './read.css';
 
 /**
@@ -17,8 +17,8 @@ function setLoading(on: boolean): void {
 interface FullRead {
   /** Show the loading bar while it reads. */
   showLoading?: boolean;
-  /** A session whose delete just resolved, which stops being hidden in the same change as the re-read. */
-  revealed?: string;
+  /** The sessions whose delete just resolved, which stop being hidden in the same change as the re-read. */
+  revealed?: readonly string[];
   /** Start-up's read, which also takes the project you were in and the view you left (`restoreUiState`): in the same change, so the first draw is already scoped and filtered rather than drawn for All, whole, first. */
   startUp?: StoredView;
 }
@@ -69,7 +69,7 @@ export async function fullRead({ showLoading = true, revealed, startUp }: FullRe
       );
       // In the same change, so a row whose files are gone never shows for a moment between no longer hiding it and the listing without it.
       // Whatever listing that is: one that landed while this read was out was asked after the delete too, which is why this one was left out.
-      if (revealed !== undefined) store.set({ pendingDeletes: withMember(store.get().pendingDeletes, revealed, false) });
+      if (revealed !== undefined) store.set({ pendingDeletes: new Set([...store.get().pendingDeletes].filter((key) => !revealed.includes(key))) });
     });
   } finally {
     if (showLoading) setLoading(false);
