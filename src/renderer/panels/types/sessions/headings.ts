@@ -2,6 +2,8 @@
 import { sectionHeading } from '../../../card';
 import { kebabButton, openMenu, type MenuItem } from '../../../menu';
 import { store } from '../../../state/app';
+import { startBulk } from '../../../state/bulk';
+import { pressHeadingBox, rowsUnder, tickBox } from './bulk';
 import { folderIcon, layersIcon } from '../../../svg';
 import { copyText } from '../../../toast';
 import { setTooltip } from '../../../tooltip';
@@ -34,6 +36,27 @@ function jumpItems(repoRoot: string): MenuItem[] {
   return items;
 }
 
+/** A heading's box in bulk mode (bulk.ts): a press ticks every row under it, or unticks them all, and never folds the section. */
+function headingBox(section: HTMLElement): HTMLElement {
+  const box = tickBox();
+  box.addEventListener('click', (event) => {
+    event.stopPropagation();
+    pressHeadingBox(section);
+  });
+  return box;
+}
+
+/**
+ * Select sessions… in a heading's menu: bulk mode, with every row under the heading ticked, so a project's or a group's sessions are stopped, closed or archived in one go (docs/architecture.md § Selecting several).
+ * Unavailable in the archived view, whose sessions the bar's acts do not fit, and where nothing is drawn under the heading.
+ */
+function selectItem(section: HTMLElement): MenuItem {
+  const label = 'Select sessions…';
+  if (store.get().filter.filters.archived) return { label, disabled: 'Not in the archived view' };
+  const keys = rowsUnder(section);
+  return keys.length === 0 ? { label, disabled: 'No sessions here' } : { label, onSelect: () => startBulk(keys) };
+}
+
 // Build a project section once; its contents (name, count, caret, rows) are drawn by reconcileProjectSections, on this render and every later one.
 export function createProjectSection(name: string): ProjectSectionEls {
   const section = document.createElement('section');
@@ -41,6 +64,7 @@ export function createProjectSection(name: string): ProjectSectionEls {
 
   const { heading, caret, icon, label, count } = sectionHeading('project', folderIcon(14));
   setTooltip(label, name); // full path on hover
+  heading.prepend(headingBox(section));
   // Jump straight to one of this project's groups instead of scrolling for it.
   // The heading is position:sticky, so this trigger is on screen the whole time you scroll the project — which is what makes a menu enough here, rather than a panel that would cost a line of height per project.
   // reconcileProjectSections hides it below 2 targets.
@@ -70,6 +94,7 @@ export function createProjectSection(name: string): ProjectSectionEls {
       newSessionInGroupItem(name),
       { label: 'New group…', onSelect: () => void promptNewGroup(name) },
       { label: '', separator: true },
+      selectItem(section),
       { label: 'Rename…', onSelect: () => void renameProject(name) },
       { label: 'Copy path', onSelect: () => void copyText(name, 'Path copied.') },
       { label: '', separator: true },
@@ -102,6 +127,7 @@ export function createGroupSection(id: string): GroupSectionEls {
   section.className = 'group';
 
   const { heading, caret, label, count } = sectionHeading('bar', layersIcon(13));
+  heading.prepend(headingBox(section));
   // Start a session already in this group, from a split button like the project heading's.
   const { split, add, addCaret } = newSessionSplit({
     addClass: 'group-add',
@@ -118,6 +144,7 @@ export function createGroupSection(id: string): GroupSectionEls {
     const repoRoot = store.get().groupState.groups.find((g) => g.id === id)?.repoRoot;
     return withMoves(groupMoveItems(id), [
       ...(repoRoot ? [...newSessionItems(repoRoot, id), { label: '', separator: true }] : []),
+      selectItem(section),
       { label: 'Rename…', onSelect: () => void renameGroupById(id) },
       { label: 'Delete group', onSelect: () => void deleteGroupById(id) },
     ]);

@@ -1,0 +1,68 @@
+/* Selecting several (bulk.ts): a box on every row and heading, drawn only while the list is in bulk mode. */
+.tick {
+  display: none;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  align-items: center;
+  justify-content: center;
+  color: var(--bg);
+  cursor: pointer;
+}
+
+#sessions.bulk .tick {
+  display: inline-flex;
+}
+
+.tick.on,
+.tick.some {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* The row's box sits before its dot, at the dot's height; the heading's before its caret. */
+.session > .tick {
+  align-self: flex-start;
+  margin-top: 3px;
+  margin-right: 6px;
+}
+
+.section-heading > .tick {
+  margin-right: 6px;
+}
+
+/* The line under the header and the bar at the list's foot, in the accent's frame, so bulk mode reads as a mode. */
+#bulk-line,
+#bulk-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 16px;
+  background: var(--active);
+  font-size: var(--text-meta);
+}
+
+#bulk-line {
+  border-bottom: 1px solid var(--accent);
+}
+
+#bulk-bar {
+  border-top: 1px solid var(--accent);
+}
+
+#bulk-line[hidden],
+#bulk-bar[hidden] {
+  display: none;
+}
+
+#bulk-line .bulk-title {
+  font-weight: 600;
+}
+
+#bulk-line .bulk-count {
+  flex: 1;
+  color: var(--muted);
+}

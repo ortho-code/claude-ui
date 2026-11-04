@@ -9,17 +9,23 @@ import { store } from './app';
 /** The longest the window waits between looks for a later mark come due: a timer set for the soonest is held to this, so one a sleeping machine slept through is found within the hour of waking. */
 const LOOK_AT_LEAST_EVERY_MS = 60 * 60 * 1000;
 
-/** Mark a session for later, `due` the moment it comes back, or null for whenever, from `at`: now, or when it was marked for a mark Undo puts back. */
-export function markLater(id: string, due: number | null, at = Date.now()): void {
-  store.set({ later: new Map(Object.entries(markedLater(Object.fromEntries(store.get().later), id, due, at))) });
-  window.claudeUi.markLater([id], due, at);
+/** Mark sessions for later, in one write, `due` the moment they come back, or null for whenever, from `at`: now, or when it was marked for a mark Undo puts back. */
+export function markLater(ids: readonly string[], due: number | null, at = Date.now()): void {
+  if (ids.length === 0) return;
+  let later = Object.fromEntries(store.get().later);
+  for (const id of ids) later = markedLater(later, id, due, at);
+  store.set({ later: new Map(Object.entries(later)) });
+  window.claudeUi.markLater([...ids], due, at);
 }
 
-/** Take a session's later mark off; nothing is sent for one that has none. */
-export function clearLater(id: string): void {
-  if (!store.get().later.has(id)) return;
-  store.set({ later: new Map(Object.entries(clearedLater(Object.fromEntries(store.get().later), id))) });
-  window.claudeUi.clearLater([id]);
+/** Take sessions' later marks off, in one write; nothing is sent for those that have none. */
+export function clearLater(ids: readonly string[]): void {
+  const marked = ids.filter((id) => store.get().later.has(id));
+  if (marked.length === 0) return;
+  let later = Object.fromEntries(store.get().later);
+  for (const id of marked) later = clearedLater(later, id);
+  store.set({ later: new Map(Object.entries(later)) });
+  window.claudeUi.clearLater(marked);
 }
 
 /** Settle the later marks that have come due (`cameDue`); nothing is sent while none has. */

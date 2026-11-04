@@ -42,6 +42,7 @@ Done:
 - Pin, archive, and delete (to the OS trash), a project whose sessions are all archived staying in the list until they are deleted; search plus filters (pinned, open, live, marked for later, worktree, siblings, linked PR, noted, archived, folder gone, date range).
   Archive is one press on a running session too: claude is asked to leave, its tab staying for anything it asks on its way out, and the session is archived once claude has gone; the app does not open an archived session again until you unarchive it.
   A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
+- Selecting several sessions, a project's or a group's from its menu or one from its row's: a box on every row and heading, and a bar that archives, sets aside for later, moves to a group, stops or closes the tabs of every one ticked, in one go, with one Undo for what it archives, sets aside or closes of the sessions that are not running.
 - A session's kebab holds everything about it, one menu on its row, its tab and the live strip: what the session is, at its top — title, project, group, each state it is in with its dot, such as idle and needing you at once, where its dot shows only the strongest, when it was last active and on what model, when it was archived, worktree, the start of its note — and the actions its row, tab and strip row offer, such as open, show in list, pin, mark read, stop, close, besides fork, siblings, PRs, worktrees, what is scheduled, later, note, group, copy id and archive.
   An archived session's row has one too, with what it is, its siblings, PRs and note, its id, unarchive and delete.
   A project's and a group's kebab start a session there, plain or in a worktree, and a project's starts one in any of its groups, a group a filter hides included, and jumps to one of its groups or to its ungrouped sessions.
@@ -97,7 +98,6 @@ Next:
 - End-to-end tests of the built app with a stand-in `claude`, now that the window's own checks run headless; then split view.
 - Visual regression checks: reference pictures of the window, made on CI, which a change to the look updates on purpose.
 - A Renovate configuration of the repo's own, tuned to its dependencies and workflows rather than left at Renovate's defaults.
-- Stopping or closing a project's or a group's sessions in one go, rather than a tab at a time.
 - A jump into the session list, from a tab or the live strip, bringing the list into view when it is folded or behind another panel.
 - Named layouts, several in `layouts/` with the one in use chosen in settings, and blocks: parts of a layout kept in files of their own and used in it by name, as often as you like.
 - More panel types (markdown, diff, transcript, config), and layouts per project.

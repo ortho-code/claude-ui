@@ -11,9 +11,13 @@ export function applyGroupState(next: GroupState): void {
   store.set({ groupState: next });
 }
 
-/** File a session in a group, or in none for null: the one route for it, by the session's id for a caller that holds no summary, such as a cleared session's successor. */
+/** File sessions in a group, or in none for null, in one write: the one route for it, by the sessions' ids for a caller that holds no summary, such as a cleared session's successor. */
+export async function moveSessionsToGroup(ids: readonly string[], groupId: string | null): Promise<void> {
+  applyGroupState(await window.claudeUi.moveSessionsToGroup([...ids], groupId));
+}
+
 export async function moveSessionToGroupById(id: string, groupId: string | null): Promise<void> {
-  applyGroupState(await window.claudeUi.moveSessionsToGroup([id], groupId));
+  await moveSessionsToGroup([id], groupId);
 }
 
 export async function moveSessionToGroup(session: SessionSummary, groupId: string | null): Promise<void> {

@@ -27,8 +27,8 @@ const fixture = {
 };
 
 // The ways to add something there, the heading's own, on a project Jump to group, and the moves last of all (heading-menu.spec.ts).
-const GROUP_OWN = ['New session', 'New worktree session…', '—', 'Rename…', 'Delete group'];
-const PROJECT_OWN = ['New session', 'New worktree session…', 'New session in group', 'New group…', '—', 'Rename…', 'Copy path', '—', 'Jump to group'];
+const GROUP_OWN = ['New session', 'New worktree session…', '—', 'Select sessions…', 'Rename…', 'Delete group'];
+const PROJECT_OWN = ['New session', 'New worktree session…', 'New session in group', 'New group…', '—', 'Select sessions…', 'Rename…', 'Copy path', '—', 'Jump to group'];
 const ALL_MOVES = ['Move to top', 'Move up', 'Move down', 'Move to bottom'];
 
 /** Open the options behind `kebab` and read them as they are listed, a rule as "—". */

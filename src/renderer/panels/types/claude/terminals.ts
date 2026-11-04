@@ -8,7 +8,7 @@ import { moveSessionToGroupById } from '../../../state/groups';
 import { clearLater, markLater } from '../../../state/later';
 import { clearNeedsYou, markNeedsYou } from '../../../state/needsyou';
 import { clearNudge, setScheduled } from '../../../state/statuses';
-import { sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
+import { leaveTab, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
 import { fromMarkup } from '../../../dom';
@@ -535,7 +535,7 @@ export function pressLeave(token: string, action: LeaveAction, mark?: TabButtonM
   if (now.mark === `force-${action}`) forceStop(token);
   else if (action === 'stop') stopSession(token);
   else if (action === 'close') closeTab(token, true);
-  else archiveSession(entityKey(tab.session));
+  else archiveSessions([entityKey(tab.session)]);
 }
 
 /**
@@ -670,9 +670,28 @@ function putBack(removed: readonly RemovedTab[]): void {
   persistOpenTabs();
 }
 
-/** The toast a close you pressed raises once its tab has gone, with Undo putting the tabs it removed back where they were (decided 2026-10-28). */
+/** The toast a close you pressed raises once its tabs have gone, one for a batch, with Undo putting the tabs it removed back where they were (decided 2026-10-28). */
 function offerUndoClose(removed: readonly RemovedTab[]): void {
-  showToast(`Closed "${sessionLabel(removed[removed.length - 1]!.session)}"`, false, { label: 'Undo', run: () => putBack(removed) });
+  const said = removed.length === 1 ? `Closed "${sessionLabel(removed[0]!.session)}"` : `Closed ${removed.length} tabs`;
+  showToast(said, false, { label: 'Undo', run: () => putBack(removed) });
+}
+
+/**
+ * Close the tabs of several sessions at once, as Close tab in the session list's bar does (docs/architecture.md § Selecting several): each tab by the rule its menu's Close tab follows (`leaveAction`), never forcing one already closing, and a tab starting left as it is.
+ * The cold ones go at once and raise one toast, whose Undo puts them all back; a running one goes once its claude has gone, with its own Undo then, as a single close does.
+ */
+export function closeTabs(keys: readonly string[]): void {
+  const wanted = new Set(keys);
+  const removed: RemovedTab[] = [];
+  for (const tab of store.get().tabs.filter((t) => wanted.has(entityKey(t.session)))) {
+    const item = leaveAction(leaveTab(tab), 'close');
+    if (item.disabled || item.mark !== 'close') continue;
+    if (tab.terminalId === null) {
+      removed.push(removedTab(tab));
+      removeTab(tab.token);
+    } else pressLeave(tab.token, 'close', 'close');
+  }
+  if (removed.length > 0) offerUndoClose(removed);
 }
 
 /**
@@ -699,28 +718,32 @@ export function closeTab(token: string, undoable = false): void {
 }
 
 /**
- * Archive a session, closing every tab it is open in: at once where no claude of the app's runs it, and where one does, once that claude has gone, asked to leave as a close asks it.
+ * Archive sessions, closing every tab each is open in: at once where no claude of the app's runs it, all of those in one write with one toast, and where one does, once that claude has gone, asked to leave as a close asks it.
  * The mark waits for the exit so that no claude the app runs when it is written runs an archived session, and the tab waits so that what claude asks on its way out can be answered there.
  * A claude already asked to leave, by a stop or a close, is asked nothing more, since a second pair of presses ends what it asks on its way out unanswered: its exit archives instead, as a close changes a stop.
  * Going on working meanwhile, a prompt or a `/resume` or `/clear`, calls the archive off with the stop (`stopCalledOff`), a prompt saying so (`promptSubmitted`), and a quit archives nothing (`archiveAtExit`).
- * Not while a tab starts, which has no claude yet to ask; the menu's Archive is unavailable then.
+ * Not a session with a tab starting, which has no claude yet to ask; the menu's Archive is unavailable then, and a batch leaves it out.
  */
-export function archiveSession(key: string): void {
-  const held = store.get().tabs.filter((t) => entityKey(t.session) === key);
-  if (held.some((t) => t.starting)) return;
-  // A fresh archive starts its list afresh, so what an archive called off had removed is not put back by this one's Undo.
-  if (!held.some((t) => t.stopping && t.onExit === 'archive')) archiveRemoved.delete(key);
-  if (held.every((t) => t.terminalId === null)) {
-    void archiveNow(key);
-    return;
+export function archiveSessions(keys: readonly string[]): void {
+  const now: string[] = [];
+  for (const key of keys) {
+    const held = store.get().tabs.filter((t) => entityKey(t.session) === key);
+    if (held.some((t) => t.starting)) continue;
+    // A fresh archive starts its list afresh, so what an archive called off had removed is not put back by this one's Undo.
+    if (!held.some((t) => t.stopping && t.onExit === 'archive')) archiveRemoved.delete(key);
+    if (held.every((t) => t.terminalId === null)) {
+      now.push(key);
+      continue;
+    }
+    for (const tab of held) {
+      if (tab.terminalId === null) {
+        archivedTabs(key).push(removedTab(tab));
+        removeTab(tab.token);
+      } else if (tab.stopping) setTab(tab.token, { onExit: 'archive' });
+      else askToLeave(tab.token, tab.terminalId, 'archive');
+    }
   }
-  for (const tab of held) {
-    if (tab.terminalId === null) {
-      archivedTabs(key).push(removedTab(tab));
-      removeTab(tab.token);
-    } else if (tab.stopping) setTab(tab.token, { onExit: 'archive' });
-    else askToLeave(tab.token, tab.terminalId, 'archive');
-  }
+  if (now.length > 0) void archiveNow(now);
 }
 
 /** Per session being archived, the tabs its archive has removed so far, for its Undo to put back; taken when the mark is written. */
@@ -732,56 +755,74 @@ function archivedTabs(key: string): RemovedTab[] {
   return removed;
 }
 
-/** The toast an archive raises once its mark is written, with Undo unarchiving the session, putting back the tabs the archive closed (decided 2026-10-28), and its later and needs-you marks as they were, a session with no tab too. */
-function offerUndoArchive(key: string, removed: readonly RemovedTab[], later: Later | null, needsYou: readonly NeedsYou[] | null): void {
-  const session = sessionById(key) ?? removed[0]?.session;
-  showToast(`Archived "${session ? sessionLabel(session) : key.slice(0, 8)}"`, false, {
+/** What an archive's Undo puts back of one session: its later and needs-you marks as they were, read before the write. */
+interface ArchivedMarks {
+  key: string;
+  later: Later | null;
+  needsYou: readonly NeedsYou[] | null;
+}
+
+/** A session's title, for a toast, or the start of its id when the app no longer has it. */
+function titleOf(key: string, removed: readonly RemovedTab[]): string {
+  const session = sessionById(key) ?? removed.find((r) => entityKey(r.session) === key)?.session;
+  return session ? `"${sessionLabel(session)}"` : `"${key.slice(0, 8)}"`;
+}
+
+/** The toast an archive raises once its marks are written, one for a batch, with Undo unarchiving them in one write, putting back the tabs the archive closed (decided 2026-10-28), and each one's later and needs-you marks as they were, a session with no tab too. */
+function offerUndoArchive(marks: readonly ArchivedMarks[], removed: readonly RemovedTab[]): void {
+  const keys = marks.map((m) => m.key);
+  const what = keys.length === 1 ? titleOf(keys[0]!, removed) : `${keys.length} sessions`;
+  showToast(`Archived ${what}`, false, {
     label: 'Undo',
     run: () =>
-      void window.claudeUi.unarchive([key]).then(
+      void window.claudeUi.unarchive(keys).then(
         (archived) => {
           store.set({ archived: new Map(Object.entries(archived)) });
-          if (later) markLater(key, later.due, later.at);
-          if (needsYou) markNeedsYou([key], needsYou);
+          for (const { key, later, needsYou } of marks) {
+            if (later) markLater([key], later.due, later.at);
+            if (needsYou) markNeedsYou([key], needsYou);
+          }
           putBack(removed);
         },
-        () => showToast(`Couldn't unarchive "${session ? sessionLabel(session) : key.slice(0, 8)}"; unarchive it from the archived view`),
+        () => showToast(`Couldn't unarchive ${what}; unarchive ${keys.length === 1 ? 'it' : 'them'} from the archived view`),
       ),
   });
 }
 
 /**
- * Write a session's archive mark, and close its tabs in the same change, so the list draws once, with both gone.
+ * Write the archive marks of sessions, in one write, and close their tabs in the same change, so the list draws once, with both gone.
  * A tab opened while main writes is closed too: its claude, if one has started by then, asked to leave as a close asks it, after the mark, or closed at its exit if it was leaving already, and one still starting ended as it arrives.
  * A write main refuses says so, since at an exit the tab is gone already and the row staying would be all that says it.
  */
-async function archiveNow(key: string): Promise<void> {
+async function archiveNow(keys: readonly string[]): Promise<void> {
   let archived: Map<string, number>;
-  // Read before the write, as the tabs are, for Undo: with or without a tab, the session was set aside, or needed you.
-  const later = store.get().later.get(key) ?? null;
-  const needsYou = store.get().needsYou.get(key) ?? null;
+  // Read before the write, as the tabs are, for Undo: with or without a tab, a session was set aside, or needed you.
+  const marks: ArchivedMarks[] = keys.map((key) => ({ key, later: store.get().later.get(key) ?? null, needsYou: store.get().needsYou.get(key) ?? null }));
   try {
-    archived = new Map(Object.entries(await window.claudeUi.archive([key])));
+    archived = new Map(Object.entries(await window.claudeUi.archive([...keys])));
   } catch {
-    archiveRemoved.delete(key);
-    const session = sessionById(key);
-    showToast(`Couldn't archive "${session ? sessionLabel(session) : key.slice(0, 8)}". It's still here.`);
+    for (const key of keys) archiveRemoved.delete(key);
+    showToast(`Couldn't archive ${keys.length === 1 ? `${titleOf(keys[0]!, [])}. It's` : `${keys.length} sessions. They're`} still here.`);
     return;
   }
-  const removed = archivedTabs(key);
-  archiveRemoved.delete(key);
+  const removed: RemovedTab[] = [];
+  for (const key of keys) {
+    removed.push(...archivedTabs(key));
+    archiveRemoved.delete(key);
+  }
+  const wanted = new Set(keys);
   store.batch(() => {
     store.set({ archived });
     for (const tab of store.get().tabs) {
-      if (entityKey(tab.session) !== key) continue;
+      if (!wanted.has(entityKey(tab.session))) continue;
       if (tab.terminalId === null) removed.push(removedTab(tab));
       closeTab(tab.token);
     }
     // Main's archive took the marks off as it archived (src/main/meta.ts); after the tabs, whose Undo puts the needs-you mark back.
-    clearNeedsYou(key);
-    clearLater(key);
+    for (const key of keys) clearNeedsYou(key);
+    clearLater(keys);
   });
-  offerUndoArchive(key, removed, later, needsYou);
+  offerUndoArchive(marks, removed);
 }
 
 /**
@@ -792,7 +833,7 @@ async function archiveNow(key: string): Promise<void> {
 function archiveAtExit(key: string): void {
   if (isQuitting()) return;
   if (store.get().tabs.some((t) => entityKey(t.session) === key)) return;
-  void archiveNow(key);
+  void archiveNow([key]);
 }
 
 /**

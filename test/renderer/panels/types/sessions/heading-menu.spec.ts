@@ -21,7 +21,7 @@ test("a project's menu holds the ways to start a session there, together, before
   await app.boot(fixture);
   await projectHeading(page, 'demo').locator('.project-kebab').click();
   // Its one project has nowhere to move.
-  expect(await menuLines(page)).toEqual(['New session', 'New worktree session…', 'New session in group', 'New group…', '─', 'Rename…', 'Copy path', '─', 'Jump to group']);
+  expect(await menuLines(page)).toEqual(['New session', 'New worktree session…', 'New session in group', 'New group…', '─', 'Select sessions…', 'Rename…', 'Copy path', '─', 'Jump to group']);
   await item(page, 'New session').click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[cwd]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
@@ -32,7 +32,7 @@ test("a project's menu holds the ways to start a session there, together, before
 test("a group's menu holds the ways to start a session in it, before its own items", async ({ page, app }) => {
   await app.boot(fixture);
   await groupHeading(page, 'Work').locator('.group-kebab').click();
-  expect(await menuLines(page)).toEqual(['New session', 'New worktree session…', '─', 'Rename…', 'Delete group', '─', 'Move down', 'Move to bottom']);
+  expect(await menuLines(page)).toEqual(['New session', 'New worktree session…', '─', 'Select sessions…', 'Rename…', 'Delete group', '─', 'Move down', 'Move to bottom']);
   await item(page, 'New session').click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[cwd, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];

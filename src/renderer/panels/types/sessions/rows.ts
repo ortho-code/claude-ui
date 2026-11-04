@@ -18,6 +18,7 @@ import { TONES } from '../../../tone';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
 import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor, unarchiveFor } from './actions';
+import { pressRowInBulk, tickBox } from './bulk';
 import { activityMoment, archivedMoment } from './describe';
 import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
 import '../../../tone.css';
@@ -194,10 +195,16 @@ function createSessionRow(key: string): HTMLElement {
     return session ? sessionMenuItems(session, 'row') : null;
   });
 
-  item.prepend(dot);
+  // Its box in bulk mode, before the dot (bulk.ts); drawn only then, and a press anywhere on the row ticks it then.
+  item.prepend(tickBox(), dot);
   item.append(pin, unarchiveBtn, deleteBtn, kebab);
   rowEls.set(item, { dot, title, badge, worktreeCount, clock, later, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
-  item.addEventListener('click', () => {
+  item.addEventListener('click', (event) => {
+    // In bulk mode a press ticks the row rather than opening it; the dot, the marks, the pin and the kebab keep their own presses, which stop here.
+    if (store.get().bulk) {
+      pressRowInBulk(key, event.shiftKey);
+      return;
+    }
     // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
     if (store.get().filter.filters.archived) return;
     const session = currentByKey.get(key);

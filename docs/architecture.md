@@ -577,6 +577,30 @@ A tab is kept, cold, rather than closed: the click meant "look at this", and the
 `claude -w` also `git worktree lock`s the tree it cuts.
 Answering Keep on the way out releases the lock, but a session ended by `SIGTERM`, or one that leaves without answering, leaves it behind, and a later `git worktree remove` refuses until that lock of a dead pid is cleared.
 
+## Selecting several
+
+The session list has a bulk mode, so that a project's or a group's sessions can be stopped, closed, archived, set aside or moved in one go rather than a tab or a row at a time (`sessions/bulk.ts`).
+Select sessions… in a project's or a group's menu enters it with every row drawn under that heading ticked, a folded group's included, and Select… in a row's menu with that row ticked; only the row's menu has it, of a session's menus, since it acts on the list.
+In the archived view neither can be used, since the acts do not fit an archived session: an archived row's menu has no Select…, a heading's says why it is unavailable, and turning that view on ends bulk mode.
+In it every row and heading has a box; a press on a row ticks it rather than opening it, a Shift+press ticks the run from the row last pressed, or from the last row Select sessions… ticked (`tickedRun`, `ticks.ts`), and a heading's box ticks every row under it, or unticks them all once every one is.
+The line under the header counts what is ticked, with Done; Esc ends it too, unless it was typed where text goes or into a terminal, where claude reads Esc, or a menu, a dialog or the filter's calendar is up, which Esc closes instead.
+
+Bulk mode is a slice of the store (`bulk`, `state/bulk.ts`), apart from what narrows the rows, so whatever narrows them, a search today and a view later, has the same boxes and the same bar.
+It is not kept for the next launch: it is a moment of deciding, not a place the list was left in.
+
+The bar at the list's foot acts on the ticked rows the list draws (`tickedOnShow`), a folded group's included, since folding only hides them: a row a search leaves out stays ticked, and comes back ticked, but nothing acts on it while the list does not draw it.
+Each act is the write a session's own menu makes, given every key at once, so the bar and the menu cannot disagree about a pin, a tab or an Undo:
+- **Archive** is `archiveSessions`, which a session's menu calls with one key: sessions no claude of the app's runs are archived in one write of `meta.json`, with one toast whose Undo unarchives them all and puts back each one's later and needs-you marks and its tabs; one whose claude runs is asked to leave and archived at its exit, with its own toast, as alone; one with a tab starting is left out, as its menu's Archive is unavailable then.
+- **Later** offers the menu's own choices (`laterChoices`), marks every ticked session in one write, and raises a toast whose Undo puts each back as it was, its old mark or none.
+  A session's menu raises no toast for Later (decided 2026-11-04): its row stays where it was and its bookmark says what was done, where a batch's rows can be in folded groups or, in the review, leave the list.
+- **Move to group** is the menu's list (`moveToGroupItems`) for every ticked session, in one write, or two for New group…, which makes the group with the first and moves the rest; unavailable when they are in more than one project, since a group belongs to one.
+- **Stop** presses each ticked session's Stop session where its menu offers it as a stop, never as a force: a tab already stopping is left to its own force, one starting is skipped, as its menu refuses it, and one leaving for a close or an archive is turned back into a stop, as its menu's Stop session turns it.
+- **Close tab** closes each ticked session's tab by its menu's Close tab, never forcing one already closing: cold tabs at once, with one toast whose Undo puts them all back, and running ones once claude has gone, each with its own Undo then, as alone.
+
+Move to group and Stop raise no toast, as alone; a batch that archives or closes running sessions raises one toast for those that were not running and one more for each running one as it goes.
+An act that would do nothing for any ticked row is unavailable and says why, as a menu's items are: Archive while every ticked session has a tab starting, Close tab while none has a tab it can close now, Stop while none runs or each is stopping already.
+Main takes each of these writes as a list (`archive`, `unarchive`, `markLater`, `clearLater`, `moveSessionsToGroup`), so a batch is one write of `meta.json` and one line of its audit log, not one per session.
+
 ## In-session history
 
 Claude's fullscreen renderer (`"tui": "fullscreen"`) draws on the terminal's alternate screen and scrolls itself, so the terminal keeps no scrollback of the conversation, and claude publishes neither where it is scrolled nor how tall the conversation is.

@@ -111,6 +111,9 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A panel type of your own can show a session's name in a row's texts and its status dot before the row's actions, both kept current between runs, from the session's id.
 - A panel type of your own is given the sessions the app has in a file, with each one's status, group, needs-you and later marks and PRs, to choose its rows from.
   `"watch": "sessions"` runs it again when that file would say something new.
+- Selecting several sessions in the list: Select sessions… in a project's or a group's menu ticks its sessions, and Select… in a session row's menu ticks that one, then a bar archives, sets aside for later, moves to a group, stops or closes the tabs of every one ticked in one go.
+  A press on a row ticks it, Shift ticks a run, a heading's box ticks every row under it, and Done or Esc ends it.
+  Archiving, setting aside and closing raise one message with one Undo for the sessions that are not running; a running one's comes once claude has left it.
 
 ### Changed
 

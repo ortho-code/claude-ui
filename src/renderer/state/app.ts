@@ -99,6 +99,11 @@ export interface AppState {
   /** Whether the tab bar shows every row of tabs or only one, the row of the tab on show where there is one, kept for the next launch. */
   tabBarExpanded: boolean;
   /**
+   * The session list's bulk mode (docs/architecture.md § Selecting several): the sessions ticked, by key, and the row a Shift+press ticks a run from; null outside it.
+   * In memory only: a launch opens the list without it.
+   */
+  bulk: BulkState | null;
+  /**
    * What GitHub says of the PRs the sessions link, as last asked of main (panels/types/sessions/pr-status.ts): empty while no PR is linked, and the statuses before with the error when the call itself failed.
    * In memory only, asked again at every launch.
    */
@@ -108,6 +113,12 @@ export interface AppState {
    * Null until the first read.
    */
   settings: SettingsView | null;
+}
+
+/** The list's bulk mode while it is on: the sessions ticked, by key, and the one a Shift+press ticks from, the row last pressed or else the last row bulk mode started with ticked, null when it started with none. */
+export interface BulkState {
+  ticked: ReadonlySet<string>;
+  anchor: string | null;
 }
 
 /** The sections folded away: projects by repo root, groups by their own id. */
@@ -168,7 +179,7 @@ export interface TabState {
    */
   stopping: boolean;
   /**
-   * What the exit of a claude asked to leave does to the tab: `cool` keeps it, cold, `close` removes it, and `archive` removes it and archives its session (`archiveSession`).
+   * What the exit of a claude asked to leave does to the tab: `cool` keeps it, cold, `close` removes it, and `archive` removes it and archives its session (`archiveSessions`).
    * A close or an archive of a live tab waits for claude like a stop, since claude may ask something on its way out.
    */
   onExit: 'cool' | 'close' | 'archive';
@@ -269,6 +280,11 @@ function sameData<T>(a: T, b: T): boolean {
   return a === b || JSON.stringify(a) === JSON.stringify(b);
 }
 
+/** Whether two bulk modes are the same: both off, or the same rows ticked from the same anchor. */
+function sameBulk(a: BulkState | null, b: BulkState | null): boolean {
+  return a === b || (a !== null && b !== null && a.anchor === b.anchor && sameMembers(a.ticked, b.ticked));
+}
+
 /** Whether two fold states fold the same sections. */
 function sameFolds(a: Folds, b: Folds): boolean {
   return a === b || (sameMembers(a.projects, b.projects) && sameMembers(a.groups, b.groups) && sameMembers(a.filterProjects, b.filterProjects) && sameMembers(a.filterGroups, b.filterGroups));
@@ -315,6 +331,7 @@ export const store = createStore<AppState>(
     stripExpanded: defaultUi().stripExpanded,
     stripHidden: new Set(),
     tabBarExpanded: defaultUi().tabBarExpanded,
+    bulk: null,
     prStatus: NO_PR_STATUS,
     settings: null,
   },
@@ -337,6 +354,7 @@ export const store = createStore<AppState>(
     filter: sameData,
     folds: sameFolds,
     stripHidden: sameMembers,
+    bulk: sameBulk,
     prStatus: sameData,
     settings: sameData,
   },

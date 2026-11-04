@@ -9,6 +9,7 @@ import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
 import { container, currentByKey, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, rowTabMarks, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
+import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
 import { createGroupSection, createProjectSection } from './headings';
 import { syncStickyOffset } from './reveal';
@@ -84,7 +85,7 @@ const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
  * What the list reads and is never told of: a status change repaints only the dots (`dotsFollowStatuses`); a fold only folds what is drawn (`foldsFollow`); and whether the filter panel is open.
  */
-const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'needsYou', 'folds', 'filterPanelOpen'] as const;
+const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'needsYou', 'folds', 'filterPanelOpen', 'bulk'] as const;
 
 /** Everything the list draws from the store. */
 type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (typeof LIST_QUIET)[number]>;
@@ -95,6 +96,8 @@ export function watchList(): void {
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
   store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'later'], dotsFollowStatuses, { reads: ['tabs', 'archived'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject'] });
+  // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and the archived view ends it.
+  store.watch(['bulk', 'tabs', 'filter'], bulkFollows);
 }
 
 /** The list follows the store, with the filter's count and chips it draws. */
@@ -142,6 +145,7 @@ function renderList(view: ListView): void {
     renderedSections.projects = [];
     renderedSections.groups = [];
     updateCollapseToggle(view);
+    showBulk(view);
     return;
   }
 
@@ -157,6 +161,8 @@ function renderList(view: ListView): void {
   updateSidebarHighlight(view);
   updateCollapseToggle(view);
   syncStickyOffset();
+  // The rows this draw made have no box drawn yet, and those it took away no longer count.
+  showBulk(view);
 }
 
 // Reset to a blank list: drop every cached node so the next non-empty render rebuilds fresh.

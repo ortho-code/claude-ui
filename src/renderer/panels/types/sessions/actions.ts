@@ -6,7 +6,8 @@ import { clockLines, clockOf, dayStart, entityKey, folderName, momentLabel, onDa
 import { openMenu, type MenuItem } from '../../../menu';
 import { verdictOf } from '../../../prstatus';
 import { store, withMember, type TabState } from '../../../state/app';
-import { applyGroupState, moveSessionToGroup } from '../../../state/groups';
+import { startBulk } from '../../../state/bulk';
+import { applyGroupState, moveSessionsToGroup } from '../../../state/groups';
 import { pickCheckout, pickedFor } from '../../../state/picks';
 import { clearLater, markLater } from '../../../state/later';
 import { clearNeedsYou } from '../../../state/needsyou';
@@ -93,14 +94,16 @@ function worktreeItems(session: SessionSummary): MenuItem[] {
 // From a row it moves that session in at the same time, so the group is never briefly empty and the user never has to find it again to fill it; from the project heading it starts empty, to be filled from its own "+" or a row's "Move to group".
 // A new group lands at the top of its project, which can be well away from the row or heading it was made from, so the jump — unfolding the project if it is folded — and its flash show where it went.
 // A filter hides empty groups, so one made empty under a filter is not drawn, and the toast says where it went instead.
-export async function promptNewGroup(repoRoot: string, sessionId?: string): Promise<void> {
+// From the bar of selecting several, it moves every ticked session in: the first as the group is made, the rest in one more write.
+export async function promptNewGroup(repoRoot: string, sessionIds: readonly string[] = []): Promise<void> {
   const name = await promptText('New group', projName(repoRoot, store.get()), '', 'Create');
   if (!name?.trim()) return;
   const known = new Set(store.get().groupState.groups.map((g) => g.id));
-  applyGroupState(await window.claudeUi.createGroup(name, repoRoot, sessionId));
+  applyGroupState(await window.claudeUi.createGroup(name, repoRoot, sessionIds[0]));
   // The list has drawn the answer by now: the store tells as it is set.
   const group = store.get().groupState.groups.find((g) => !known.has(g.id));
   if (!group) return;
+  if (sessionIds.length > 1) await moveSessionsToGroup(sessionIds.slice(1), group.id);
   if (renderedSections.groups.includes(group.id)) revealGroup(repoRoot, group.id);
   else if (isFiltering(store.get())) showToast(`Group "${group.name}" created. Empty groups are hidden while a filter is on, so it shows once you clear it.`);
 }
@@ -152,18 +155,22 @@ export async function deleteGroupById(id: string): Promise<void> {
   if (group) showToast(`Group "${group.name}" deleted. Its sessions are back under the project.`);
 }
 
-// The "Move to group" list: the project's groups with the current one ticked, then the two ways out — back to the project, or into a group that doesn't exist yet.
-function moveToGroupItems(session: SessionSummary): MenuItem[] {
+// The "Move to group" list, for one session from its menu or several from the bar of selecting several, all of one project: the project's groups, the one they are all in ticked, then the two ways out — back to the project, or into a group that doesn't exist yet.
+export function moveToGroupItems(sessions: readonly SessionSummary[]): MenuItem[] {
   const state = store.get();
-  const current = state.groupState.groupOf[entityKey(session)];
-  const items: MenuItem[] = projectGroups(session.repoRoot, state).map((group) => ({
+  const repoRoot = sessions[0]?.repoRoot ?? '';
+  const keys = sessions.map(entityKey);
+  const currents = new Set(keys.map((key) => state.groupState.groupOf[key] ?? null));
+  // The group every one is in, null for none, undefined when they are in different ones and nothing is ticked.
+  const current: string | null | undefined = currents.size === 1 ? [...currents][0] : undefined;
+  const items: MenuItem[] = projectGroups(repoRoot, state).map((group) => ({
     label: group.name,
     checked: group.id === current,
-    onSelect: () => void moveSessionToGroup(session, group.id),
+    onSelect: () => void moveSessionsToGroup(keys, group.id),
   }));
   if (items.length > 0) items.push({ label: '', separator: true });
-  items.push({ label: 'None', checked: !current, onSelect: () => void moveSessionToGroup(session, null) });
-  items.push({ label: 'New group…', onSelect: () => void promptNewGroup(session.repoRoot, entityKey(session)) });
+  items.push({ label: 'None', checked: current === null, onSelect: () => void moveSessionsToGroup(keys, null) });
+  items.push({ label: 'New group…', onSelect: () => void promptNewGroup(repoRoot, keys) });
   return items;
 }
 
@@ -257,8 +264,10 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   // Setting it aside for later is a mark on the session, with a tab or without, running or not, and leaves the tab as it is (decided 2026-10-29).
   items.push(...laterItems(session));
   items.push(noteItem(session));
-  items.push({ label: 'Move to group', submenu: moveToGroupItems(session) });
+  items.push({ label: 'Move to group', submenu: moveToGroupItems([session]) });
   items.push(copyIdItem(session));
+  // Selecting several starts in the list, so only its row offers it, with that row ticked (docs/architecture.md § Selecting several).
+  if (from === 'row') items.push({ label: 'Select…', onSelect: () => startBulk([entityKey(session)]) });
   // The state changes sit below a rule, away from the navigate/copy items.
   items.push({ label: '', separator: true });
   // Stop session, Close tab and Archive, each one press of its own meaning, whatever the tab is doing (decided 2026-10-28), by the rule the tab's button is a shortcut to (`leaveAction`).
@@ -268,7 +277,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   const key = entityKey(session);
   if (tab) items.push(leaveItem(session, tab, 'archive'));
   else if (sessionStarting(key)) items.push({ label: leaveLabel('archive'), disabled: 'Starting…' });
-  else items.push({ label: leaveLabel('archive'), onSelect: () => hostOf('sessions').archiveSession(key) });
+  else items.push({ label: leaveLabel('archive'), onSelect: () => hostOf('sessions').archiveSessions([key]) });
   return items;
 }
 
@@ -303,28 +312,33 @@ function linkedItems(session: SessionSummary): MenuItem[] {
  */
 function laterItems(session: SessionSummary): MenuItem[] {
   const key = entityKey(session);
+  return [
+    // No toast: the row stays where it was, its bookmark saying what was done; the bar's batch has one, since its rows can leave the list (decided 2026-11-04).
+    { label: 'Later', submenu: laterChoices(sessionLabel(session), (due) => markLater([key], due)) },
+    store.get().later.has(key) ? { label: 'Clear later', onSelect: () => clearLater([key]) } : { label: 'Clear later', disabled: 'Not marked for later' },
+  ];
+}
+
+/**
+ * Later's choices, one list for a session's menu and the bar of selecting several: Tomorrow and In a week at the time of day the settings say, Pick a date…, and Whenever last, so a day is what comes to hand first, since an undated mark brings nothing back by itself (decided 2026-10-29).
+ * `what` names what is set aside in Pick a date…'s title, a session's title or a count, and `mark` sets the mark, the moment it comes back or null for whenever.
+ */
+export function laterChoices(what: string, mark: (due: number | null) => void): MenuItem[] {
   const now = Date.now();
   // At the time of day the settings say, on the day chosen (decided 2026-10-29).
   const time = store.get().settings?.laterTime.value ?? defaultSettings().laterTime;
   const tomorrow = onDayAt(dayStart(now, 1), time);
   const inAWeek = onDayAt(dayStart(now, 7), time);
   const pick = async (): Promise<void> => {
-    // The session in the title, as the Note dialog has it, so which one you clicked is what it says first, and the line under it says what the pick does (decided 2026-10-29).
-    const due = await pickMoment(`Later: ${sessionLabel(session)}`, 'Pick the day and time it comes back as needing you.', dayStart(now, 1), time);
-    if (due !== null) markLater(key, due);
+    // What is set aside in the title, as the Note dialog has it, so which one you clicked is what it says first, and the line under it says what the pick does (decided 2026-10-29).
+    const due = await pickMoment(`Later: ${what}`, 'Pick the day and time it comes back as needing you.', dayStart(now, 1), time);
+    if (due !== null) mark(due);
   };
   return [
-    {
-      label: 'Later',
-      // Whenever last, so a day is what comes to hand first: an undated mark brings nothing back by itself (decided 2026-10-29).
-      submenu: [
-        { label: `Tomorrow (${momentLabel(tomorrow)})`, onSelect: () => markLater(key, tomorrow) },
-        { label: `In a week (${momentLabel(inAWeek)})`, onSelect: () => markLater(key, inAWeek) },
-        { label: 'Pick a date…', onSelect: () => void pick() },
-        { label: 'Whenever', onSelect: () => markLater(key, null) },
-      ],
-    },
-    store.get().later.has(key) ? { label: 'Clear later', onSelect: () => clearLater(key) } : { label: 'Clear later', disabled: 'Not marked for later' },
+    { label: `Tomorrow (${momentLabel(tomorrow)})`, onSelect: () => mark(tomorrow) },
+    { label: `In a week (${momentLabel(inAWeek)})`, onSelect: () => mark(inAWeek) },
+    { label: 'Pick a date…', onSelect: () => void pick() },
+    { label: 'Whenever', onSelect: () => mark(null) },
   ];
 }
 

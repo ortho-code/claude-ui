@@ -120,8 +120,10 @@ export interface Asks {
   pressTabButton(id: string, mark: TabButtonMark): void;
   /** Press one of a session's tab's leave items, Stop session, Close tab, Archive or a force, as its menu draws it (`leaveAction`); `mark` as for the button. */
   pressLeave(id: string, action: LeaveAction, mark: TabButtonMark): void;
-  /** Archive a session and close every tab it is open in: a claude running in one is asked to leave first, and the session is archived once it has gone. */
-  archiveSession(id: string): void;
+  /** Archive sessions and close every tab each is open in: a claude running in one is asked to leave first, and its session is archived once it has gone; the rest in one write, with one toast. */
+  archiveSessions(ids: readonly string[]): void;
+  /** Close the tabs of sessions, as each one's Close tab would, never forcing one already closing; the cold ones at once, with one toast. */
+  closeTabs(ids: readonly string[]): void;
   /** The terminal area's half of selecting a project: the tabs on show and the tab in front follow it. */
   showProject(repoRoot: string | null): void;
   // Answered by the session list.

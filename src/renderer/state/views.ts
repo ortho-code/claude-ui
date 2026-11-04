@@ -37,7 +37,7 @@ export function leaveTab(tab: TabState, view: View<'tabs'> = store.get()): TabBu
   return { ...tab, sessionStarting: sessionStarting(entityKey(tab.session), view) };
 }
 
-/** Whether a tab of the session is starting, which leaves no claude yet to ask to leave for an archive (`archiveSession`). */
+/** Whether a tab of the session is starting, which leaves no claude yet to ask to leave for an archive (`archiveSessions`). */
 export function sessionStarting(key: string, view: View<'tabs'> = store.get()): boolean {
   return view.tabs.some((t) => entityKey(t.session) === key && t.starting);
 }

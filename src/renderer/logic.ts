@@ -834,7 +834,7 @@ export interface TabButtonTab {
   notLeft?: boolean;
   /** What its exit does once claude has gone, while it is on its way out: keep the tab (`cool`, the default), remove it, or remove it and archive its session. */
   onExit?: 'cool' | 'close' | 'archive';
-  /** A tab of its session is starting, this one or another, which leaves no claude yet to ask to leave for an archive, the session's rather than a tab's (`archiveSession`). */
+  /** A tab of its session is starting, this one or another, which leaves no claude yet to ask to leave for an archive, the session's rather than a tab's (`archiveSessions`). */
   sessionStarting?: boolean;
 }
 
