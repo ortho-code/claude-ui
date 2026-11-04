@@ -7,16 +7,17 @@ import { archivedOnlyProjects, isFiltering, mutedNeedsYou, projName, searchText,
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
-import { REVIEW, reviewCount } from '../../../review';
+import { reviewCount } from '../../../review';
 import { endBulk } from '../../../state/bulk';
-import { container, currentByKey, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, reviewSets, rowTabMarks, sessionRows, statusDots } from './drawn';
+import { container, currentByKey, groupSections, jumpTargets, projectFacts, projectSections, renderedSections, flatSections, rowTabMarks, type FlatSection, sessionRows, statusDots } from './drawn';
 import { groupNameByKey, passesFilters, updateFilterStatus } from './filter';
 import { bulkFollows, showBulk } from './bulk';
 import { applyFolds, foldsFollow, updateCollapseToggle } from './folding';
-import { createGroupSection, createProjectSection, createReviewSet } from './headings';
-import { REVIEW_LOOK_EVERY_MS, reviewFacts, reviewInScope, whereOf } from './review';
+import { createFlatSection, createGroupSection, createProjectSection } from './headings';
+import { whereOf } from './describe';
+import { REVIEW_LOOK_EVERY_MS, reviewFlat, reviewInScope } from './review';
 import { syncStickyOffset } from './reveal';
-import { drawRow, showTabMarks, updateRow, type RowView } from './rows';
+import { drawRow, showTabMarks, updateRow, type FlatLine, type RowView } from './rows';
 import './list.css';
 
 /**
@@ -122,7 +123,11 @@ function listChanged(view: ListView, before: View<'filter' | 'activeProject'>): 
 // Keeps project, group and row nodes by key and leaves in place what already is (keyed.ts), so a re-render does not rebuild the sidebar: no flicker, the scroll stays put, and a press or the focus on a row that keeps its place survives it.
 function renderList(view: ListView): void {
   if (view.reviewing) {
-    renderReview(view);
+    // The review in place of the projects (docs/architecture.md § The review): its sets in the switcher's scope, the filter set aside meanwhile.
+    const sections = reviewInScope(view);
+    // A review left with nothing in it ends, as an empty review has nothing to decide; said by nothing of its own: the act that emptied it raises its toast after this, with the Undo that matters more, and the Review button then says there is nothing to review.
+    if (reviewCount(sections) === 0) endBulk();
+    else renderSections(reviewFlat(sections), view);
     return;
   }
   const scroll = container.scrollTop;
@@ -179,36 +184,27 @@ function renderList(view: ListView): void {
 }
 
 /**
- * The review in place of the projects (docs/architecture.md § The review): its sets in the switcher's scope, each a heading over its rows, flat, oldest first, each row the list's own with its line saying why it is there in place of its time, led by where it sits where the scope does not say it.
- * The filter is set aside meanwhile, and the folds have nothing to fold; a review left with nothing in it ends, as an empty review has nothing to decide.
+ * The list drawn flat, in place of the projects: each section a heading over its rows where it has one, its rows the list's own, in the order given, each led by where it sits where the scope does not say it, then why it is there where its section says, else what the row says otherwise (`updateRow`).
+ * The folds have nothing to fold here.
  */
-function renderReview(view: ListView): void {
+function renderSections(sections: readonly FlatSection[], view: ListView): void {
   statusDots.clear();
   rowTabMarks.clear();
-  const sections = reviewInScope(view);
   currentByKey.clear();
   for (const s of visibleSessions(view)) currentByKey.set(entityKey(s), s);
-  // Said by nothing of its own: the act that emptied it raises its toast after this, with the Undo that matters more, and the Review button then says there is nothing to review.
-  if (reviewCount(sections) === 0) {
-    endBulk();
-    return;
-  }
-  const drawn = sections.map((set) => {
-    const els = reviewSets.draw(set.id, createReviewSet);
-    els.label.textContent = set.name;
-    els.count.textContent = String(set.rows.length);
-    els.note.textContent = set.note ?? '';
-    els.note.hidden = set.note === null;
-    const rule = REVIEW.sets.find((s) => s.id === set.id)!;
-    const rows = set.rows.map(({ session }) => {
+  const drawn = sections.map((section) => {
+    const els = flatSections.draw(section.id, () => createFlatSection(section.heading !== null));
+    if (els.heading && section.heading) {
+      els.heading.label.textContent = section.heading.name;
+      els.heading.count.textContent = String(section.heading.count);
+      els.heading.note.textContent = section.heading.note ?? '';
+      els.heading.note.hidden = section.heading.note === null;
+    }
+    // Where it sits, worked out again at each tick from the store as it then is.
+    const line: FlatLine = { lead: (shown) => whereOf(shown, store.get()), why: section.why };
+    const rows = section.rows.map((session) => {
       const row = drawRow(entityKey(session));
-      // Its set's line, worked out again at each tick from the store as it then is, of the session as the newest listing has it.
-      updateRow(row, session, view, (shown) => {
-        const now = store.get();
-        const line = rule.why(shown, reviewFacts(now), Date.now());
-        const where = whereOf(shown, now);
-        return where ? `${where} · ${line}` : line;
-      });
+      updateRow(row, session, view, line);
       row.classList.remove('after-groups');
       return row;
     });
@@ -220,7 +216,7 @@ function renderReview(view: ListView): void {
   renderedSections.groups = [];
   projectSections.sweep();
   groupSections.sweep();
-  reviewSets.sweep();
+  flatSections.sweep();
   sessionRows.sweep();
   updateSidebarHighlight(view);
   showBulk(view);
@@ -232,7 +228,7 @@ function clearList(): void {
   sessionRows.clear();
   projectSections.clear();
   groupSections.clear();
-  reviewSets.clear();
+  flatSections.clear();
   statusDots.clear();
   rowTabMarks.clear();
 }
@@ -298,7 +294,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
   // What this render did not draw is gone: a project or a group no longer shown, a session deleted or filtered out.
   projectSections.sweep();
   groupSections.sweep();
-  reviewSets.sweep();
+  flatSections.sweep();
   sessionRows.sweep();
   applyFolds(view);
 }

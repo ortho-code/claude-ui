@@ -71,17 +71,25 @@ export interface GroupSectionEls {
 // Group sections by group id, kept across renders as the project sections are.
 export const groupSections = new Keyed<GroupSectionEls>((els) => els.section);
 
-/** A set of the review as drawn (docs/architecture.md § The review): its section, its heading's name and count, the line saying why it cannot answer, and the well its rows sit in. */
-export interface ReviewSetEls {
-  section: HTMLElement;
-  heading: HTMLElement;
-  label: HTMLElement;
-  count: HTMLElement;
-  note: HTMLElement;
-  rows: HTMLElement;
+/**
+ * A section of the list drawn flat, as the list draws it (list.ts), such as one of the review's sets under its heading; its id names it for good, a heading and all.
+ * Its rows in the order they are shown, and the line saying why each is there in place of what the row says otherwise, worked out again on the minute clock, or null where a row says what it says otherwise: its time and model, or in the archived view when it was archived.
+ */
+export interface FlatSection {
+  id: string;
+  heading: { name: string; count: number; note: string | null } | null;
+  rows: readonly SessionSummary[];
+  why: ((shown: SessionSummary) => string) | null;
 }
-// The review's sets by id, kept across renders as the project sections are.
-export const reviewSets = new Keyed<ReviewSetEls>((els) => els.section);
+
+/** A flat section as drawn: its section, the well its rows sit in, and its heading's parts where it has one — its name, its count, and the line saying why it cannot answer. */
+export interface FlatSectionEls {
+  section: HTMLElement;
+  rows: HTMLElement;
+  heading: { heading: HTMLElement; label: HTMLElement; count: HTMLElement; note: HTMLElement } | null;
+}
+// The flat sections by id, kept across renders as the project sections are.
+export const flatSections = new Keyed<FlatSectionEls>((els) => els.section);
 // The session each row currently shows, by entity key (session id), so a reused row's click/pin handlers act on the live session data of the latest render.
 // Refilled by each render rather than replaced, since a module cannot assign to a binding another module exports.
 export const currentByKey = new Map<string, SessionSummary>();

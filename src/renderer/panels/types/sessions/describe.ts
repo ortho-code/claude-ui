@@ -31,6 +31,13 @@ export function archivedMoment(session: SessionSummary, view: View<'archived'>):
   return { text: `archived ${relativeTime(at)}`, at };
 }
 
+/** Where a row drawn flat sits, where no heading says it: its project in All, and its group, ahead of the rest of its line; null where the scope says it all. */
+export function whereOf(session: SessionSummary, view: View<'activeProject' | 'projectNames' | 'groupState'>): string | null {
+  const group = groupNameOf(session, view);
+  const parts = [...(view.activeProject === null ? [projName(session.repoRoot, view)] : []), ...(group ? [group] : [])];
+  return parts.length > 0 ? parts.join(' › ') : null;
+}
+
 /**
  * What a session's menu opens with: its title, then where it is filed, each state it is in on a line of its own with its dot, its later mark, when it was active and on what model, when it was archived, its worktree, its note's first line, and why it cannot run.
  * Every state, where its one dot shows the strongest: a session idle and needing you says both (decided 2026-10-28).

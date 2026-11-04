@@ -4,12 +4,13 @@ import { entityKey } from '../../../logic';
 import { REVIEW, reviewCount, reviewSections, type ReviewFacts, type ReviewSection } from '../../../review';
 import { store, type View } from '../../../state/app';
 import { endBulk, startReview } from '../../../state/bulk';
-import { groupNameOf, projName, visibleSessions } from '../../../state/views';
+import { visibleSessions } from '../../../state/views';
 import { unavailable, setUnavailable } from '../../../unavailable';
+import type { FlatSection } from './drawn';
 import './review.css';
 
 /**
- * THE REVIEW, drawn (docs/architecture.md § The review): the Review button with its count on the row under the sidebar's header, and what the list needs to draw the review's sets in place of its projects (list.ts) — the sets in scope, and each row's line saying why it is there.
+ * THE REVIEW, drawn (docs/architecture.md § The review): the Review button with its count on the row under the sidebar's header, and what the list needs to draw the review's sets flat in place of its projects (list.ts) — the sets in scope, and each row's line saying why it is there.
  * Which sessions it offers and why is the pure module's (`review.ts`); this reads the store for it.
  */
 
@@ -44,11 +45,17 @@ export function reviewInScope(view: ReviewView, now = Date.now()): ReviewSection
   return reviewSections(sessions, reviewFacts(view), now);
 }
 
-/** Where a row of the review sits, where the scope does not say it: its project in All, and its group, ahead of why it is there. */
-export function whereOf(session: SessionSummary, view: View<'activeProject' | 'projectNames' | 'groupState'>): string | null {
-  const group = groupNameOf(session, view);
-  const parts = [...(view.activeProject === null ? [projName(session.repoRoot, view)] : []), ...(group ? [group] : [])];
-  return parts.length > 0 ? parts.join(' › ') : null;
+/** The review's sets as the list draws them flat (list.ts): each under its heading, each row's line saying why it is there, worked out again at each tick from the store as it then is. */
+export function reviewFlat(sections: readonly ReviewSection[]): FlatSection[] {
+  return sections.map((set) => {
+    const rule = REVIEW.sets.find((s) => s.id === set.id)!;
+    return {
+      id: set.id,
+      heading: { name: set.name, count: set.rows.length, note: set.note },
+      rows: set.rows.map(({ session }) => session),
+      why: (shown: SessionSummary) => rule.why(shown, reviewFacts(store.get()), Date.now()),
+    };
+  });
 }
 
 /** The Review button follows the review in scope: its count, unavailable at none while the list does not show it, since a review with nothing in it would end at once; pressed, and a press that ends it, while the list shows it. */

@@ -249,9 +249,18 @@ export function showTabMarks(marks: RowTabMarks, id: string, view: View<'schedul
 }
 
 /**
- * `why`, for a row of the review (docs/architecture.md § The review): the line saying why it is there, in place of its time and model, worked out again on the minute clock like the time it replaces, of the session as the newest listing has it.
+ * What a row drawn flat says ahead of the rest of its line, and in place of what.
+ * `lead`: where it sits, where no heading above it says so.
+ * `why`: for a row of the review (docs/architecture.md § The review), the line saying why it is there, in place of what the row says otherwise; null for a row that says it: its time and model, or in the archived view when it was archived.
+ * Both worked out again on the minute clock like the time they lead or replace, of the session as the newest listing has it.
  */
-export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView, why?: (session: SessionSummary) => string): void {
+export interface FlatLine {
+  lead: (shown: SessionSummary) => string | null;
+  why: ((shown: SessionSummary) => string) | null;
+}
+
+/** Bring `row` up to date for `session`; `flat` for a row drawn flat (list.ts), which leads its line with where it sits. */
+export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView, flat?: FlatLine): void {
   row.dataset.sid = session.id;
   const els = rowEls.get(row)!;
   // The review sets the filter aside, the archived view with it.
@@ -311,7 +320,11 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
 
   // When it was archived in the archived view, where every session is; when it was active everywhere else.
   // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, logic.ts).
-  const moment = (shown: SessionSummary, as: RowView): Moment => (why ? { text: why(shown), at: shown.lastActivity } : null) ?? (archivedView ? archivedMoment(shown, as) : null) ?? activityMoment(shown, as);
+  const moment = (shown: SessionSummary, as: RowView): Moment => {
+    const own = (flat?.why ? { text: flat.why(shown), at: shown.lastActivity } : null) ?? (archivedView ? archivedMoment(shown, as) : null) ?? activityMoment(shown, as);
+    const lead = flat?.lead(shown) ?? null;
+    return lead ? { ...own, text: `${lead} · ${own.text}` } : own;
+  };
   showMoment(els.metaText, moment(session, view), () => moment(newest(session), store.get()));
 
   // The archived view is a management view: no pinning, and delete replaces it there.

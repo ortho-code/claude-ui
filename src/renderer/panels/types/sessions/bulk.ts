@@ -114,7 +114,7 @@ export function showBulk(view: View<'bulk' | 'tabs' | 'reviewing' | 'activeProje
   for (const button of bulkBar.querySelectorAll<HTMLButtonElement>('button')) button.hidden = (button.dataset.in === 'archived') !== archivedView;
   const set = view.bulk.ticked;
   for (const row of container.querySelectorAll<HTMLElement>('.session')) drawBox(row.querySelector(':scope > .tick'), set.has(row.dataset.key ?? '') ? 'all' : 'none');
-  for (const section of container.querySelectorAll<HTMLElement>('section.project, section.group, section.review-set')) drawBox(section.querySelector(':scope > .section-heading > .tick'), headingTick(drawnKeys(section), set));
+  for (const section of container.querySelectorAll<HTMLElement>('section.project, section.group, section.flat-section')) drawBox(section.querySelector(':scope > .section-heading > .tick'), headingTick(drawnKeys(section), set));
   const keys = tickedOnShow(drawnKeys(), set);
   // The review says what it is about and how much is left to decide; selecting several, how many are ticked.
   title.textContent = view.reviewing ? 'Review' : 'Select';

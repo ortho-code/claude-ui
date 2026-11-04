@@ -19,6 +19,25 @@
   box-shadow: inset 3px 0 0 var(--muted);
 }
 
+/* The list drawn flat (list.ts), such as the review's sets.
+   A section's heading pins to the top of the list while its rows scroll under it, as a project's does, there being no project heading above it; sticky is scoped to its section, so it unpins when its section scrolls away.
+   A real layer, as a group's heading has (headings.css), so a row's status dot does not paint through it. */
+.flat-section > .section-heading {
+  top: 0;
+  z-index: 1;
+}
+
+.flat-section + .flat-section {
+  margin-top: 14px;
+}
+
+/* A section's line saying why it cannot answer, under its heading. */
+.flat-section > .flat-note {
+  padding: 2px 16px 6px;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+
 .empty-message {
   font-size: var(--text-body);
   color: var(--muted);

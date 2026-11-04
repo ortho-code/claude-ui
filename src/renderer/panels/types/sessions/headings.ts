@@ -9,7 +9,7 @@ import { copyText } from '../../../toast';
 import { setTooltip } from '../../../tooltip';
 import { deleteGroupById, groupMoveItems, projectMoveItems, promptNewGroup, renameGroupById, renameProject, withMoves } from './actions';
 import { newSessionInGroupItem, newSessionItems, newSessionSplit } from './controls';
-import { container, jumpTargets, type GroupSectionEls, type ProjectSectionEls, type ReviewSetEls } from './drawn';
+import { container, jumpTargets, type GroupSectionEls, type ProjectSectionEls, type FlatSectionEls } from './drawn';
 import { toggleFold } from './folding';
 import { revealGroup } from './reveal';
 import './headings.css';
@@ -55,19 +55,25 @@ function selectItem(section: HTMLElement): MenuItem {
   return keys.length === 0 ? { label, disabled: 'No sessions here' } : { label, onSelect: () => startBulk(keys) };
 }
 
-/** Build a set of the review once (docs/architecture.md § The review): a heading with its box, its name and its count, a line for why it cannot answer, and the well its rows sit in; it folds nothing, so it has no caret to turn. */
-export function createReviewSet(): ReviewSetEls {
+/**
+ * Build a flat section once (list.ts), such as a set of the review (docs/architecture.md § The review): the well its rows sit in, under a heading with its box, its name and its count, and a line under that for why it cannot answer, where `headed`; it folds nothing, so its heading has no caret to turn.
+ */
+export function createFlatSection(headed: boolean): FlatSectionEls {
   const section = document.createElement('section');
-  section.className = 'review-set';
+  section.className = 'flat-section';
+  const rows = document.createElement('div');
+  rows.className = 'flat-rows';
+  if (!headed) {
+    section.append(rows);
+    return { section, rows, heading: null };
+  }
   const { heading, caret, label, count } = sectionHeading('bar');
   caret.remove();
   heading.prepend(headingBox(section));
   const note = document.createElement('p');
-  note.className = 'review-note';
-  const rows = document.createElement('div');
-  rows.className = 'review-rows';
+  note.className = 'flat-note';
   section.append(heading, note, rows);
-  return { section, heading, label, count, note, rows };
+  return { section, rows, heading: { heading, label, count, note } };
 }
 
 // Build a project section once; its contents (name, count, caret, rows) are drawn by reconcileProjectSections, on this render and every later one.
