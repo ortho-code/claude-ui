@@ -491,7 +491,7 @@ function projectEntries(sessions: SessionSummary[], archivedOnly: ReadonlyMap<st
 const folderWitnesses = ({ shown, archived }: ProjectEntry): SessionSummary[] => (shown.length > 0 ? shown : archived);
 
 // Build the project-switcher model from the VISIBLE tips (one per conversation, already filtered to what the sidebar shows).
-// Projects order by recency: the input is recency-sorted, so a project takes the position of its most-recent session (first appearance).
+// Projects follow the order you set (`projectOrder`, `orderProjects`), as in the session list; a project with no place in it yet goes last.
 // Per project: session count + the rolled-up nudge badge; plus an "All" aggregate over everything passed.
 export function projectsForSwitcher(
   sessions: SessionSummary[],
@@ -561,7 +561,7 @@ function pinnedFirst(sessions: SessionSummary[], pinned: ReadonlySet<string>): S
 
 /**
  * Arrange the visible sessions into project sections.
- * Projects keep the order they appear in `sessions` (recency, since the caller sorts that way); inside a project the groups come first in registry order, then the ungrouped remainder.
+ * Projects follow the order you set (`projectOrder`, `orderProjects`), a project with no place in it yet going last; inside a project the groups come first in registry order, then the ungrouped remainder, each with its pinned sessions first and the rest in the order they came in (recency, since the caller sorts that way).
  *
  * `hideEmptyGroups` is for filtering: a group whose sessions were all filtered out is noise in a search, but an empty group must stay visible normally — that is how a freshly created one is seen.
  * A root in `archivedOnly` is a project with no rows, its `archived` saying how many sessions it has archived (`archivedOnlyProjects`).
