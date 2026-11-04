@@ -38,13 +38,13 @@ test('Later marks the session on its row and its tab by one class, and Clear lat
     await expect(mark).toHaveAttribute('data-tooltip', 'Later');
   }
   await expect(row(page, one.title).locator('.later-mark')).toHaveClass(/\blater-badge\b/);
-  expect((await app.calls('markLater')).map(([id, due]) => [id, due])).toEqual([[one.id, null]]);
+  expect((await app.calls('markLater')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], null]]);
   expect(await app.calls('startTerminal')).toEqual([]);
   await expect(tab(page, one.title)).toHaveCount(1);
 
   await (await menuItem(page, one.title, 'Clear later')).click();
   for (const mark of marks(page)) await expect(mark).toBeHidden();
-  expect(await app.calls('clearLater')).toEqual([[one.id]]);
+  expect(await app.calls('clearLater')).toEqual([[[one.id]]]);
   await expect(await menuItem(page, two.title, 'Clear later')).toHaveAttribute('data-tooltip', 'Not marked for later');
 });
 
@@ -54,7 +54,7 @@ test("Later's days: tomorrow and in a week, the same weekday, named and marked a
   await (await menuItem(page, one.title, 'Later')).click();
   await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Tomorrow (Fri 30 Oct, 09:00)', 'In a week (Thu 5 Nov, 09:00)', 'Pick a date…', 'Whenever']);
   await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^In a week/ }).click();
-  expect((await app.calls('markLater')).map(([id, due]) => [id, due])).toEqual([[one.id, await momentInPage(page, 2026, 10, 5, 9, 0)]]);
+  expect((await app.calls('markLater')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], await momentInPage(page, 2026, 10, 5, 9, 0)]]);
   for (const mark of marks(page)) await expect(mark).toHaveAttribute('data-tooltip', 'Later: Thu 5 Nov, 09:00');
 
   await row(page, one.title).locator('.session-kebab').click();
@@ -84,7 +84,7 @@ test('Pick a date… asks for a day no earlier than tomorrow and a time starting
   await page.locator('#day-time').fill('14:15');
   await page.locator('#day-ok').click();
   await expect(page.locator('#day-overlay')).toBeHidden();
-  expect((await app.calls('markLater')).map(([id, due]) => [id, due])).toEqual([[one.id, await momentInPage(page, 2026, 9, 31, 14, 15)]]);
+  expect((await app.calls('markLater')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], await momentInPage(page, 2026, 9, 31, 14, 15)]]);
   await expect(row(page, one.title).locator('.later-mark')).toHaveAttribute('data-tooltip', 'Later: Sat 31 Oct, 14:15');
 });
 
@@ -130,7 +130,7 @@ test("a prompt there takes it off, a scheduled task's turn and its tab's close d
 
   await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit', undefined, 'what next?');
   await expect(row(page, one.title).locator('.later-mark')).toBeHidden();
-  expect(await app.calls('clearLater')).toEqual([[one.id]]);
+  expect(await app.calls('clearLater')).toEqual([[[one.id]]]);
 });
 
 test('archiving it takes the mark off, and Undo gives it back as it was', async ({ app, page }) => {
@@ -221,7 +221,7 @@ test('a prompt there settles both marks', async ({ app, page }) => {
   await expect(row(page, one.title).locator('.later-mark')).toBeHidden();
   await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
   expect(await app.calls('clearNeedsYou')).toEqual([[one.id]]);
-  expect(await app.calls('clearLater')).toEqual([[one.id]]);
+  expect(await app.calls('clearLater')).toEqual([[[one.id]]]);
 });
 
 // Later took over setting a session aside, so pause and its force are gone from every menu, whatever the tab is doing (decided 2026-10-29).

@@ -54,7 +54,7 @@ import {
   createGroup,
   renameGroup,
   deleteGroup,
-  moveSessionToGroup,
+  moveSessionsToGroup,
   moveGroup,
   getProjectOrder,
   seedProjectOrder,
@@ -480,8 +480,8 @@ ipcMain.on('shell:openExternal', (_event, url: string) => {
   if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
 });
 ipcMain.handle('meta:getArchived', () => getArchived());
-ipcMain.handle('meta:archive', (_event, id: string) => archive(id));
-ipcMain.handle('meta:unarchive', (_event, id: string) => unarchive(id));
+ipcMain.handle('meta:archive', (_event, ids: string[]) => archive(ids));
+ipcMain.handle('meta:unarchive', (_event, ids: string[]) => unarchive(ids));
 ipcMain.handle('sessions:delete', async (_event, id: string) => {
   // The renderer confirms via its own modal (a native dialog flickers under WSLg), so here we just do the deletion: move the files to trash, then drop the session from metadata.
   await trashSessions([id]);
@@ -509,11 +509,11 @@ ipcMain.on('meta:setPrSeen', (_event, seen: PrSeen) => {
   void setPrSeen(seen);
 });
 ipcMain.handle('meta:getLater', () => getLater());
-ipcMain.on('meta:markLater', (_event, id: string, due: number | null, at?: number) => {
-  void markLater(id, due, at);
+ipcMain.on('meta:markLater', (_event, ids: string[], due: number | null, at?: number) => {
+  void markLater(ids, due, at);
 });
-ipcMain.on('meta:clearLater', (_event, id: string) => {
-  void clearLater(id);
+ipcMain.on('meta:clearLater', (_event, ids: string[]) => {
+  void clearLater(ids);
 });
 ipcMain.on('meta:laterCameDue', (_event, now: number) => {
   void laterCameDue(now);
@@ -618,8 +618,8 @@ ipcMain.handle('meta:moveGroup', (_event, id: string, move: OrderMove) => moveGr
 ipcMain.handle('meta:getProjectOrder', () => getProjectOrder());
 ipcMain.handle('meta:seedProjectOrder', (_event, roots: string[]) => seedProjectOrder(roots));
 ipcMain.handle('meta:moveProject', (_event, repoRoot: string, move: OrderMove, shown: string[]) => moveProject(repoRoot, move, shown));
-ipcMain.handle('meta:moveSessionToGroup', (_event, sessionId: string, groupId: string | null) =>
-  moveSessionToGroup(sessionId, groupId),
+ipcMain.handle('meta:moveSessionsToGroup', (_event, sessionIds: string[], groupId: string | null) =>
+  moveSessionsToGroup(sessionIds, groupId),
 );
 registerTerminalIpc();
 registerPanelsIpc();

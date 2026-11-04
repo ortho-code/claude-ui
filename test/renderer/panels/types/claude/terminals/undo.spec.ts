@@ -85,7 +85,7 @@ test('Archive offers Undo, which unarchives the session and puts its tab back wh
   await expect(page.locator('#toast-message')).toHaveText(`Archived "${one.title}"`);
 
   await undo(page).click();
-  expect(await app.calls('unarchive')).toEqual([[one.id]]);
+  expect(await app.calls('unarchive')).toEqual([[[one.id]]]);
   await expect(row(page, one.title)).toHaveCount(1);
   await expect(tabLabels(page)).toHaveText([one.title, two.title]);
   expect(await app.calls('startTerminal')).toEqual([]);

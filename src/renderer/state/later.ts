@@ -12,14 +12,14 @@ const LOOK_AT_LEAST_EVERY_MS = 60 * 60 * 1000;
 /** Mark a session for later, `due` the moment it comes back, or null for whenever, from `at`: now, or when it was marked for a mark Undo puts back. */
 export function markLater(id: string, due: number | null, at = Date.now()): void {
   store.set({ later: new Map(Object.entries(markedLater(Object.fromEntries(store.get().later), id, due, at))) });
-  window.claudeUi.markLater(id, due, at);
+  window.claudeUi.markLater([id], due, at);
 }
 
 /** Take a session's later mark off; nothing is sent for one that has none. */
 export function clearLater(id: string): void {
   if (!store.get().later.has(id)) return;
   store.set({ later: new Map(Object.entries(clearedLater(Object.fromEntries(store.get().later), id))) });
-  window.claudeUi.clearLater(id);
+  window.claudeUi.clearLater([id]);
 }
 
 /** Settle the later marks that have come due (`cameDue`); nothing is sent while none has. */

@@ -738,7 +738,7 @@ function offerUndoArchive(key: string, removed: readonly RemovedTab[], later: La
   showToast(`Archived "${session ? sessionLabel(session) : key.slice(0, 8)}"`, false, {
     label: 'Undo',
     run: () =>
-      void window.claudeUi.unarchive(key).then(
+      void window.claudeUi.unarchive([key]).then(
         (archived) => {
           store.set({ archived: new Map(Object.entries(archived)) });
           if (later) markLater(key, later.due, later.at);
@@ -761,7 +761,7 @@ async function archiveNow(key: string): Promise<void> {
   const later = store.get().later.get(key) ?? null;
   const needsYou = store.get().needsYou.get(key) ?? null;
   try {
-    archived = new Map(Object.entries(await window.claudeUi.archive(key)));
+    archived = new Map(Object.entries(await window.claudeUi.archive([key])));
   } catch {
     archiveRemoved.delete(key);
     const session = sessionById(key);
@@ -868,7 +868,7 @@ function adoptResumed(owner: TabState, id: string): TabState | null {
   persistOpenTabs();
   const key = entityKey(session);
   if (!store.get().archived.has(key)) return null;
-  void window.claudeUi.unarchive(key).then((archived) => {
+  void window.claudeUi.unarchive([key]).then((archived) => {
     store.set({ archived: new Map(Object.entries(archived)) });
     showToast(`"${sessionLabel(session)}" was archived; resuming it in claude unarchived it`);
   }, () => showToast(`"${sessionLabel(session)}" is archived and running; unarchive it from the archived view`));

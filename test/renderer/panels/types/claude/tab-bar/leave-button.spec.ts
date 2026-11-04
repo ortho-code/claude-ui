@@ -17,7 +17,7 @@ const stripButton = (page: Page): Locator => stripRow(page, one.title).locator('
 async function archived(app: App, page: Page): Promise<void> {
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect(row(page, one.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([[one.id]]);
+  expect(await app.calls('archive')).toEqual([[[one.id]]]);
 }
 
 /** Start the tab's session, by selecting it. */

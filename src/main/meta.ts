@@ -599,19 +599,23 @@ export function getArchived(): Promise<Record<string, number>> {
   return serialize(async () => (await readMeta()).archived);
 }
 
-/** Archive a session, which settles anything it needed you for, and what you set it aside for: an archived session is put away. */
-export function archive(id: string): Promise<Record<string, number>> {
+/** Archive sessions, in one write, which settles anything each needed you for, and what you set it aside for: an archived session is put away. */
+export function archive(ids: string[]): Promise<Record<string, number>> {
   return update('archive', (meta) => {
-    meta.archived = archivedFrom(meta.archived, id, Date.now());
-    meta.needsYou = clearedNeedsYou(meta.needsYou, id);
-    meta.later = clearedLater(meta.later, id);
+    const now = Date.now();
+    for (const id of ids) {
+      meta.archived = archivedFrom(meta.archived, id, now);
+      meta.needsYou = clearedNeedsYou(meta.needsYou, id);
+      meta.later = clearedLater(meta.later, id);
+    }
     return meta.archived;
   });
 }
 
-export function unarchive(id: string): Promise<Record<string, number>> {
+/** Unarchive sessions, in one write. */
+export function unarchive(ids: string[]): Promise<Record<string, number>> {
   return update('unarchive', (meta) => {
-    meta.archived = unarchived(meta.archived, id);
+    for (const id of ids) meta.archived = unarchived(meta.archived, id);
     return meta.archived;
   });
 }
@@ -743,17 +747,17 @@ export function getLater(): Promise<Record<string, Later>> {
   return serialize(async () => (await readMeta()).later);
 }
 
-/** Mark a session for later, `due` the moment it comes back, or null for whenever; a mark already there is replaced. */
-export function markLater(id: string, due: number | null, at = Date.now()): Promise<void> {
+/** Mark sessions for later, in one write, `due` the moment they come back, or null for whenever; a mark already there is replaced. */
+export function markLater(ids: string[], due: number | null, at = Date.now()): Promise<void> {
   return update('markLater', (meta) => {
-    meta.later = markedLater(meta.later, id, due, at);
+    for (const id of ids) meta.later = markedLater(meta.later, id, due, at);
   });
 }
 
-/** Take a session's later mark off, whether or not it had one. */
-export function clearLater(id: string): Promise<void> {
+/** Take sessions' later marks off, in one write, whether or not each had one. */
+export function clearLater(ids: string[]): Promise<void> {
   return update('clearLater', (meta) => {
-    meta.later = clearedLater(meta.later, id);
+    for (const id of ids) meta.later = clearedLater(meta.later, id);
   });
 }
 
@@ -983,6 +987,7 @@ export function moveGroup(id: string, move: OrderMove): Promise<GroupState> {
   return update('moveGroup', (meta) => setGroupState(meta, movedGroup(groupState(meta), id, move)));
 }
 
-export function moveSessionToGroup(sessionId: string, groupId: string | null): Promise<GroupState> {
-  return update('moveSessionToGroup', (meta) => setGroupState(meta, withSessionInGroup(groupState(meta), sessionId, groupId)));
+/** Move sessions into a group, or out of any group with a null `groupId`, in one write. */
+export function moveSessionsToGroup(sessionIds: string[], groupId: string | null): Promise<GroupState> {
+  return update('moveSessionsToGroup', (meta) => setGroupState(meta, sessionIds.reduce((state, id) => withSessionInGroup(state, id, groupId), groupState(meta))));
 }

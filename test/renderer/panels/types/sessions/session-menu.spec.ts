@@ -408,7 +408,7 @@ for (const [state, later] of [['cold', {}], ['cold and set aside for later', set
     await item(page, 'Archive').click();
     await expect(tab(page, full.title)).toHaveCount(0);
     await expect(row(page, full.title)).toHaveCount(0);
-    expect(await app.calls('archive')).toEqual([[full.id]]);
+    expect(await app.calls('archive')).toEqual([[[full.id]]]);
     expect(await app.calls('startTerminal')).toEqual([]);
   });
 }
@@ -431,7 +431,7 @@ test("Unarchive in an archived session's menu takes it out of the archived view,
   await row(page, full.title).locator('.session-kebab').click();
   await item(page, 'Unarchive').click();
   await expect(row(page, full.title)).toHaveCount(0);
-  expect(await app.calls('unarchive')).toEqual([[full.id]]);
+  expect(await app.calls('unarchive')).toEqual([[[full.id]]]);
 });
 
 test("Delete session in an archived session's menu asks first, as the row's button does", async ({ app, page }) => {

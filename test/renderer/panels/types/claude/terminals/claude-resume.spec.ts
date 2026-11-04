@@ -34,7 +34,7 @@ test('a session resumed in a tab is taken over as it is, with no pairing recorde
   await expect(row(page, old.title)).toHaveClass(/\bopen\b/);
   await expect(titlesIn(group(page, 'Other'))).toHaveText([old.title]);
   expect(await app.calls('recordClear')).toEqual([]);
-  expect(await app.calls('moveSessionToGroup')).toEqual([]);
+  expect(await app.calls('moveSessionsToGroup')).toEqual([]);
 });
 
 test('a session the tab learns of from another event than its start is taken over without a pairing or a group move, since nothing says it was a clear', async ({ app, page }) => {
@@ -45,7 +45,7 @@ test('a session the tab learns of from another event than its start is taken ove
   await expect(tabLabels(page)).toHaveText([old.title]);
   await expect(titlesIn(group(page, 'Other'))).toHaveText([old.title]);
   expect(await app.calls('recordClear')).toEqual([]);
-  expect(await app.calls('moveSessionToGroup')).toEqual([]);
+  expect(await app.calls('moveSessionsToGroup')).toEqual([]);
 });
 
 test('an archived session resumed in a tab is unarchived, a toast says so, and its tab has the menu of a running session', async ({ app, page }) => {
@@ -53,7 +53,7 @@ test('an archived session resumed in a tab is unarchived, a toast says so, and i
   await app.emit('onSessionStatus', one.id, 'closed', token, 'SessionEnd');
   await app.emit('onSessionStart', old.id, token, 'resume');
 
-  await expect.poll(() => app.calls('unarchive')).toEqual([[old.id]]);
+  await expect.poll(() => app.calls('unarchive')).toEqual([[[old.id]]]);
   await expect(page.locator('#toast-message')).toHaveText(`"${old.title}" was archived; resuming it in claude unarchived it`);
   await expect(titlesIn(group(page, 'Other'))).toHaveText([old.title]);
   await tab(page, old.title).locator('.tab-kebab').click();

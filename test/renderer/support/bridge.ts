@@ -99,14 +99,21 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
     getArchived: () => answer(fixture.archived),
-    // Main's archive takes the session's needs-you and later marks off in the same write.
-    archive: (id) => {
+    // Main's archive takes each session's needs-you and later marks off in the same write.
+    archive: (ids) => {
       if (fixture.archiveFails !== null) return Promise.reject(new Error(fixture.archiveFails));
-      fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
-      fixture.later = clearedLater(fixture.later, id);
-      return answer((fixture.archived = archivedFrom(fixture.archived, id, Date.now())));
+      const now = Date.now();
+      for (const id of ids) {
+        fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
+        fixture.later = clearedLater(fixture.later, id);
+        fixture.archived = archivedFrom(fixture.archived, id, now);
+      }
+      return answer(fixture.archived);
     },
-    unarchive: (id) => answer((fixture.archived = unarchived(fixture.archived, id))),
+    unarchive: (ids) => {
+      for (const id of ids) fixture.archived = unarchived(fixture.archived, id);
+      return answer(fixture.archived);
+    },
     // Main moves the transcript to the trash, so the listing no longer has it, forgets its status, and purges it from meta by main's own rule: its marks, its open tab, the tab to reopen on, its group.
     // A panel row linked to it is forgotten with an event the stand-in does not fire, so that delete is main's to answer, not this.
     deleteSession: (id) => {
@@ -140,11 +147,11 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       fixture.prSeen = seen;
     },
     getLater: () => answer(fixture.later),
-    markLater: (id, due, at) => {
-      fixture.later = markedLater(fixture.later, id, due, at ?? Date.now());
+    markLater: (ids, due, at) => {
+      for (const id of ids) fixture.later = markedLater(fixture.later, id, due, at ?? Date.now());
     },
-    clearLater: (id) => {
-      fixture.later = clearedLater(fixture.later, id);
+    clearLater: (ids) => {
+      for (const id of ids) fixture.later = clearedLater(fixture.later, id);
     },
     laterCameDue: (now) => {
       Object.assign(fixture, cameDue(fixture, now));
@@ -195,7 +202,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     createGroup: (name, repoRoot, sessionId) => answer((fixture.groupState = createdGroup(fixture.groupState, crypto.randomUUID(), name, repoRoot, sessionId))),
     renameGroup: (id, name) => answer((fixture.groupState = renamedGroup(fixture.groupState, id, name))),
     deleteGroup: (id) => answer((fixture.groupState = withoutGroup(fixture.groupState, id))),
-    moveSessionToGroup: (sessionId, groupId) => answer((fixture.groupState = withSessionInGroup(fixture.groupState, sessionId, groupId))),
+    moveSessionsToGroup: (sessionIds, groupId) => answer((fixture.groupState = sessionIds.reduce((state, id) => withSessionInGroup(state, id, groupId), fixture.groupState))),
     moveGroup: (id, move) => answer((fixture.groupState = movedGroup(fixture.groupState, id, move))),
     getProjectOrder: () => answer(fixture.projectOrder),
     // Main's own rule (`seededOrder`), so a fixture need not place its projects: the listing's roots seed the order as they seed main's, new ones in front.

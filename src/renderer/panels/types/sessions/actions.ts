@@ -169,7 +169,7 @@ function moveToGroupItems(session: SessionSummary): MenuItem[] {
 
 // Unarchive one session, leaving tabs alone: from the archived view's row button and the archived session's menu.
 export async function unarchiveFor(key: string): Promise<void> {
-  store.set({ archived: new Map(Object.entries(await window.claudeUi.unarchive(key))) });
+  store.set({ archived: new Map(Object.entries(await window.claudeUi.unarchive([key]))) });
 }
 
 // Pin or unpin one session, from its row.

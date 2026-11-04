@@ -26,7 +26,7 @@ test("a project's menu holds the ways to start a session there, together, before
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[cwd]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
   expect(cwd).toBe(PROJECT);
-  expect(await app.calls('moveSessionToGroup')).toEqual([]);
+  expect(await app.calls('moveSessionsToGroup')).toEqual([]);
 });
 
 test("a group's menu holds the ways to start a session in it, before its own items", async ({ page, app }) => {
@@ -37,7 +37,7 @@ test("a group's menu holds the ways to start a session in it, before its own ite
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[cwd, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
   expect(cwd).toBe(PROJECT);
-  expect(await app.calls('moveSessionToGroup')).toEqual([[launch.sessionId, 'g-work']]);
+  expect(await app.calls('moveSessionsToGroup')).toEqual([[[launch.sessionId], 'g-work']]);
 });
 
 test("a project's New session in group reaches every group it has, one a filter hides too", async ({ page, app }) => {
@@ -52,7 +52,7 @@ test("a project's New session in group reaches every group it has, one a filter 
   await item(page, 'Empty one', '.kebab-menu.submenu').click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
-  expect(await app.calls('moveSessionToGroup')).toEqual([[launch.sessionId, 'g-empty']]);
+  expect(await app.calls('moveSessionsToGroup')).toEqual([[[launch.sessionId], 'g-empty']]);
 });
 
 test('outside a git repository the caret stays, and the worktree item says why it is unavailable, in the dropdown and the menus alike', async ({ page, app }) => {

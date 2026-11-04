@@ -60,7 +60,7 @@ import {
   createGroup,
   renameGroup,
   deleteGroup,
-  moveSessionToGroup,
+  moveSessionsToGroup,
   moveGroup,
   getProjectOrder,
   seedProjectOrder,
@@ -87,6 +87,12 @@ beforeEach(async () => {
 
 async function writeMetaFile(contents: unknown): Promise<void> {
   await fs.writeFile(path.join(dir, 'meta.json'), JSON.stringify(contents));
+}
+
+/** The audit log's lines so far, one per write of meta.json: how a check counts the writes a call made. */
+async function auditLines(): Promise<string[]> {
+  const text = await fs.readFile(path.join(dir, 'meta-audit.log'), 'utf8').catch(() => '');
+  return text.split('\n').filter(Boolean);
 }
 
 describe('pins', () => {
@@ -146,11 +152,23 @@ describe('history pins', () => {
 
 describe('archive', () => {
   it('archives with a timestamp, keeps it on a second archive, and unarchives', async () => {
-    const archived = await archive('conv1');
+    const archived = await archive(['conv1']);
     expect(Object.keys(archived)).toEqual(['conv1']);
     expect(archived.conv1).toBeGreaterThan(0);
-    expect(await archive('conv1')).toEqual(archived);
-    expect(await unarchive('conv1')).toEqual({});
+    expect(await archive(['conv1'])).toEqual(archived);
+    expect(await unarchive(['conv1'])).toEqual({});
+  });
+
+  it('archives and unarchives several sessions in one write each, settling every one of their marks', async () => {
+    await markNeedsYou(['a', 'b'], [{ reason: 'quit', at: 1 }]);
+    await markLater(['a', 'b'], null, 1);
+    const before = await auditLines();
+    const archived = await archive(['a', 'b']);
+    expect(Object.keys(archived).sort()).toEqual(['a', 'b']);
+    expect(await getNeedsYou()).toEqual({});
+    expect(await getLater()).toEqual({});
+    expect(await unarchive(['a', 'b'])).toEqual({});
+    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['archive', 'unarchive']);
   });
 
   it('reads a legacy archived id-array as a map with unknown (0) timestamps', async () => {
@@ -162,7 +180,7 @@ describe('archive', () => {
 describe('purgeSession', () => {
   it('drops the session from pins, open tabs, running tabs and archive', async () => {
     await togglePin('conv1');
-    await archive('conv1');
+    await archive(['conv1']);
     await setOpenSessions(['conv1', 'conv2'], ['conv1']);
     await purgeSession('conv1');
     expect(await getPinned()).toEqual([]);
@@ -215,7 +233,7 @@ describe('sessions that need you', () => {
 
   it('are taken off by an archive, and forgotten by a delete', async () => {
     await markNeedsYou(['a', 'b'], [{ reason: 'quit', at: 1 }]);
-    await archive('a');
+    await archive(['a']);
     await purgeSession('b');
     expect(await getNeedsYou()).toEqual({});
   });
@@ -290,29 +308,37 @@ describe('what was last seen of the PRs', () => {
 
 describe('the later marks', () => {
   it('are kept per session from the time given, replaced by a new one, and taken off', async () => {
-    await markLater('a', null, 5);
-    await markLater('b', 100, 5);
-    await markLater('b', 200, 6);
+    await markLater(['a'], null, 5);
+    await markLater(['b'], 100, 5);
+    await markLater(['b'], 200, 6);
     expect(await getLater()).toEqual({ a: { due: null, at: 5 }, b: { due: 200, at: 6 } });
-    await clearLater('a');
+    await clearLater(['a']);
     expect(await getLater()).toEqual({ b: { due: 200, at: 6 } });
   });
 
+  it('are marked and taken off for several sessions in one write each', async () => {
+    const before = await auditLines();
+    await markLater(['a', 'b', 'c'], 100, 5);
+    expect(await getLater()).toEqual({ a: { due: 100, at: 5 }, b: { due: 100, at: 5 }, c: { due: 100, at: 5 } });
+    await clearLater(['a', 'c']);
+    expect(await getLater()).toEqual({ b: { due: 100, at: 5 } });
+    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['markLater', 'clearLater']);
+  });
+
   it('stay through the open tabs being written, are taken off by an archive, and forgotten by a delete', async () => {
-    await markLater('a', null);
-    await markLater('b', null);
+    await markLater(['a'], null);
+    await markLater(['b'], null);
     await setOpenSessions([], []);
     expect(Object.keys(await getLater())).toEqual(['a', 'b']);
-    await archive('a');
+    await archive(['a']);
     await purgeSession('b');
     expect(await getLater()).toEqual({});
   });
 
   it('come due as needing you, keeping a reason the session already had', async () => {
     await markNeedsYou(['a'], [{ reason: 'quit', at: 5 }]);
-    await markLater('a', 100, 10);
-    await markLater('b', 100, 10);
-    await markLater('c', 300, 10);
+    await markLater(['a', 'b'], 100, 10);
+    await markLater(['c'], 300, 10);
     await laterCameDue(150);
     expect(await getLater()).toEqual({ c: { due: 300, at: 10 } });
     expect(await getNeedsYou()).toEqual({ a: [{ reason: 'quit', at: 5 }], b: [{ reason: 'reminder', at: 100 }] });
@@ -552,23 +578,32 @@ describe('session groups', () => {
   it('moves a session between groups rather than adding it to both', async () => {
     const a = (await createGroup('A', '/repo')).groups[0];
     const b = (await createGroup('B', '/repo')).groups[0];
-    await moveSessionToGroup('s1', a.id);
-    const { groupOf } = await moveSessionToGroup('s1', b.id);
+    await moveSessionsToGroup(['s1'], a.id);
+    const { groupOf } = await moveSessionsToGroup(['s1'], b.id);
     expect(groupOf).toEqual({ s1: b.id });
+  });
+
+  it('moves several sessions in one write, from whichever groups they were in', async () => {
+    const a = (await createGroup('A', '/repo')).groups[0];
+    const b = (await createGroup('B', '/repo')).groups[0];
+    await moveSessionsToGroup(['s1'], a.id);
+    const before = await auditLines();
+    expect((await moveSessionsToGroup(['s1', 's2'], b.id)).groupOf).toEqual({ s1: b.id, s2: b.id });
+    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['moveSessionsToGroup']);
   });
 
   it('takes a session out of every group with a null target, and ignores an unknown group', async () => {
     const a = (await createGroup('A', '/repo')).groups[0];
-    await moveSessionToGroup('s1', a.id);
-    expect((await moveSessionToGroup('s1', null)).groupOf).toEqual({});
-    expect((await moveSessionToGroup('s1', 'no-such-group')).groupOf).toEqual({});
+    await moveSessionsToGroup(['s1'], a.id);
+    expect((await moveSessionsToGroup(['s1'], null)).groupOf).toEqual({});
+    expect((await moveSessionsToGroup(['s1'], 'no-such-group')).groupOf).toEqual({});
   });
 
   it('deletes a group, ungrouping its members and leaving other groups alone', async () => {
     const doomed = (await createGroup('Doomed', '/repo')).groups[0];
     const keeper = (await createGroup('Keeper', '/repo')).groups[0];
-    await moveSessionToGroup('s1', doomed.id);
-    await moveSessionToGroup('s2', keeper.id);
+    await moveSessionsToGroup(['s1'], doomed.id);
+    await moveSessionsToGroup(['s2'], keeper.id);
     const { groups, groupOf } = await deleteGroup(doomed.id);
     expect(groups.map((g) => g.name)).toEqual(['Keeper']);
     expect(groupOf).toEqual({ s2: keeper.id }); // s1 is ungrouped, not deleted
@@ -576,7 +611,7 @@ describe('session groups', () => {
 
   it('drops a deleted session\'s membership', async () => {
     const a = (await createGroup('A', '/repo')).groups[0];
-    await moveSessionToGroup('s1', a.id);
+    await moveSessionsToGroup(['s1'], a.id);
     await purgeSession('s1');
     expect((await getGroupState()).groupOf).toEqual({});
   });

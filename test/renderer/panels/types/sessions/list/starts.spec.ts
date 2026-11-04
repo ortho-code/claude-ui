@@ -39,7 +39,7 @@ test("a fork from a row's options starts a copy of it under a new id, named as a
   expect(launch).toMatchObject({ resumeSessionId: parent.id, fork: true, name: 'The fork' });
   expect(launch.sessionId).toMatch(/^[0-9a-f-]{36}$/);
   expect(launch.sessionId).not.toBe(parent.id);
-  expect(await app.calls('moveSessionToGroup')).toEqual([[launch.sessionId, 'g-work']]);
+  expect(await app.calls('moveSessionsToGroup')).toEqual([[[launch.sessionId], 'g-work']]);
   await expect(tab(page, 'The fork')).toHaveClass(/\bactive\b/);
   await expect(titlesIn(group(page, 'Work')).filter({ hasText: 'The fork' })).toHaveCount(1);
 });
@@ -84,7 +84,7 @@ test("a group's \"+\" starts a new session in the project's folder, filed in tha
   const [[cwd, launch]] = await launches(app);
   expect(cwd).toBe(PROJECT);
   expect(launch.resumeSessionId).toBeUndefined();
-  expect(await app.calls('moveSessionToGroup')).toEqual([[launch.sessionId, 'g-work']]);
+  expect(await app.calls('moveSessionsToGroup')).toEqual([[[launch.sessionId], 'g-work']]);
   await expect(titlesIn(group(page, 'Work'))).toHaveCount(2);
 });
 
@@ -99,6 +99,6 @@ test("a group's caret starts a new worktree session filed in that group", async 
   const [[cwd, launch]] = await launches(app);
   expect(cwd).toBe(PROJECT);
   expect(launch.worktree).toBe('');
-  expect(await app.calls('moveSessionToGroup')).toEqual([[launch.sessionId, 'g-work']]);
+  expect(await app.calls('moveSessionsToGroup')).toEqual([[[launch.sessionId], 'g-work']]);
   await expect(titlesIn(group(page, 'Work'))).toHaveCount(2);
 });

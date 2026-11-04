@@ -449,10 +449,10 @@ export interface ClaudeUiApi {
   toggleHistoryPin(id: string, pin: Pick<HistoryPin, 'kind' | 'session' | 'text' | 'time'>): Promise<Record<string, HistoryPin>>;
   /** Archived session ids mapped to when they were archived (epoch ms; 0 = unknown). */
   getArchived(): Promise<Record<string, number>>;
-  /** Archive a session, keeping when it was archived if it already is, so a second call leaves the archived map as it is; resolves to the updated archived map. */
-  archive(id: string): Promise<Record<string, number>>;
-  /** Unarchive a session, whatever its state, so a second call leaves the archived map as it is; resolves to the updated archived map. */
-  unarchive(id: string): Promise<Record<string, number>>;
+  /** Archive sessions in one write, each keeping when it was archived if it already is, so a second call leaves the archived map as it is; resolves to the updated archived map. */
+  archive(ids: string[]): Promise<Record<string, number>>;
+  /** Unarchive sessions in one write, whatever their state, so a second call leaves the archived map as it is; resolves to the updated archived map. */
+  unarchive(ids: string[]): Promise<Record<string, number>>;
   /**
    * Delete a session: move its transcript file to the trash and drop it from metadata.
    * The renderer confirms first via its own modal.
@@ -476,10 +476,10 @@ export interface ClaudeUiApi {
   setPrSeen(seen: PrSeen): void;
   /** The sessions marked for later, by session id. */
   getLater(): Promise<Record<string, Later>>;
-  /** Mark a session for later, `due` the moment it comes back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
-  markLater(id: string, due: number | null, at?: number): void;
-  /** Take a session's later mark off, whether or not it had one. */
-  clearLater(id: string): void;
+  /** Mark sessions for later in one write, `due` the moment they come back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
+  markLater(ids: string[], due: number | null, at?: number): void;
+  /** Take sessions' later marks off in one write, whether or not each had one. */
+  clearLater(ids: string[]): void;
   /** Settle the later marks that have come due by `now` (`cameDue`): each goes, and a session not marked as needing you is marked with a reminder. */
   laterCameDue(now: number): void;
   /** How the app closed before this window opened: what a session running then is marked for. */
@@ -556,8 +556,8 @@ export interface ClaudeUiApi {
   renameGroup(id: string, name: string): Promise<GroupState>;
   /** Delete a group; its members become ungrouped and the sessions themselves are untouched. */
   deleteGroup(id: string): Promise<GroupState>;
-  /** Move a session into a group, or out of any group with a null groupId. */
-  moveSessionToGroup(sessionId: string, groupId: string | null): Promise<GroupState>;
+  /** Move sessions into a group, or out of any group with a null groupId, in one write. */
+  moveSessionsToGroup(sessionIds: string[], groupId: string | null): Promise<GroupState>;
   /**
    * Reorder a group within its own project.
    * Other projects' groups keep their positions.

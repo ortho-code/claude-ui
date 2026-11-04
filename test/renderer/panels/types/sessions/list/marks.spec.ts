@@ -81,7 +81,7 @@ test('archiving closes the session\'s tab and moves its row to the archived view
   await page.locator('#archived-filter').click();
   await expect(titles(page)).toHaveText([newer.title, older.title]);
   await expect(tabLabel(page, older.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([[older.id]]);
-  expect(await app.calls('unarchive')).toEqual([[older.id]]);
+  expect(await app.calls('archive')).toEqual([[[older.id]]]);
+  expect(await app.calls('unarchive')).toEqual([[[older.id]]]);
 });
 

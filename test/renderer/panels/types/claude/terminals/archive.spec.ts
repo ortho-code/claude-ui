@@ -42,7 +42,7 @@ test('Archive on a running session asks its claude to leave, keeps the tab until
   await app.emit('onTerminalExit', FIRST, 0);
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect(row(page, one.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([[one.id]]);
+  expect(await app.calls('archive')).toEqual([[[one.id]]]);
 });
 
 // Esc at claude's question on the way out takes it back to its prompt, and the next prompt says it stayed: the archive goes with the stop.
@@ -134,7 +134,7 @@ test('an archive claude has not left is forced by the Force archive, and the for
 
   await app.emit('onTerminalExit', FIRST, 143);
   await expect(tab(page, one.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([[one.id]]);
+  expect(await app.calls('archive')).toEqual([[[one.id]]]);
 });
 
 // A claude already asked to leave is asked nothing more, since a second pair of presses ends what it asks on its way out unanswered: what its exit does changes, as Close changes it.
@@ -154,7 +154,7 @@ for (const leave of ['Stop session', 'Close tab'] as const) {
     await app.emit('onTerminalExit', FIRST, 0);
     await expect(tab(page, one.title)).toHaveCount(0);
     await expect(row(page, one.title)).toHaveCount(0);
-    expect(await app.calls('archive')).toEqual([[one.id]]);
+    expect(await app.calls('archive')).toEqual([[[one.id]]]);
   });
 }
 
