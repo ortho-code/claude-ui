@@ -1,5 +1,5 @@
 /**
- * Main's rules for the marks a session carries in meta — its pin, its archive entry, its note (written with `withText`, src/shared/text.ts), its needs-you and set-aside marks, and when it was kept out of the review — pure, so that the window's checks answer them the way main does, and the window keeps its own copy of the needs-you, set-aside and keep marks by them.
+ * Main's rules for the marks a session carries in meta — its pin, its finished entry, its note (written with `withText`, src/shared/text.ts), its needs-you and set-aside marks, and when it was kept out of the review — pure, so that the window's checks answer them the way main does, and the window keeps its own copy of the needs-you, set-aside and keep marks by them.
  * Main (src/main/meta.ts) applies them inside its serialised writes of `meta.json`.
  */
 import type { SetAside, NeedsYou, NeedsYouReason, PrChange, ScheduledTask } from './types';
@@ -7,7 +7,7 @@ import type { SetAside, NeedsYou, NeedsYouReason, PrChange, ScheduledTask } from
 /** The marks, as `meta.json` holds them. */
 export interface SessionMarks {
   pinned: string[];
-  archived: Record<string, number>;
+  finished: Record<string, number>;
   notes: Record<string, string>;
   needsYou: Record<string, NeedsYou[]>;
   setAside: Record<string, SetAside>;
@@ -35,7 +35,7 @@ export function togglePinned(pinned: readonly string[], id: string): string[] {
   return [...set];
 }
 
-/** An archive entry there, from `now`, or from when it was archived before, so a second archive is no change. */
+/** A finished entry there, from `now`, or from when it was finished before, so finishing it again is no change. */
 export function finishedFrom(finished: Readonly<Record<string, number>>, id: string, now: number): Record<string, number> {
   return id in finished ? { ...finished } : { ...finished, [id]: now };
 }
@@ -112,19 +112,19 @@ export function mutedBySetAside(needsYou: readonly NeedsYou[] | undefined, setAs
   return needsYou !== undefined && needsYou.length > 0 && setAside !== undefined && newestAt(needsYou) <= setAside.at;
 }
 
-/** An archive entry gone, whether or not it was there. */
+/** A finished entry gone, whether or not it was there. */
 export function clearedFinished(finished: Readonly<Record<string, number>>, id: string): Record<string, number> {
   const next = { ...finished };
   delete next[id];
   return next;
 }
 
-/** A deleted session's marks forgotten: its pin, its archive entry, its note, its needs-you mark, its set-aside mark and its keep stamp (`purgedSession` forgets the rest of what meta holds about it). */
+/** A deleted session's marks forgotten: its pin, its finished entry, its note, its needs-you mark, its set-aside mark and its keep stamp (`purgedSession` forgets the rest of what meta holds about it). */
 export function withoutSession(marks: Readonly<SessionMarks>, id: string): SessionMarks {
-  const archived = clearedFinished(marks.archived, id);
+  const finished = clearedFinished(marks.finished, id);
   const notes = { ...marks.notes };
   delete notes[id];
-  return { pinned: marks.pinned.filter((key) => key !== id), archived, notes, needsYou: clearedNeedsYou(marks.needsYou, id), setAside: clearedSetAside(marks.setAside, id), kept: unkept(marks.kept, [id]) };
+  return { pinned: marks.pinned.filter((key) => key !== id), finished, notes, needsYou: clearedNeedsYou(marks.needsYou, id), setAside: clearedSetAside(marks.setAside, id), kept: unkept(marks.kept, [id]) };
 }
 
 /** What else meta holds about a session, as `meta.json` holds it: the tabs open and which of them run, the one on show overall and per project, and who is in which group. */

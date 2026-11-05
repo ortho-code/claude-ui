@@ -47,7 +47,7 @@ function headingBox(section: HTMLElement): HTMLElement {
 }
 
 /**
- * Select sessions… in a heading's menu: bulk mode, with every row under the heading ticked, so a project's or a group's sessions are stopped, closed or archived in one go, or in the archived view unarchived or deleted (docs/architecture.md § Selecting several).
+ * Select sessions… in a heading's menu: bulk mode, with every row under the heading ticked, so a project's or a group's sessions are stopped, closed or finished in one go, or in the finished view made unfinished or deleted (docs/architecture.md § Selecting several).
  */
 function selectItem(section: HTMLElement): MenuItem {
   const label = 'Select sessions…';
@@ -132,7 +132,7 @@ export function createProjectSection(name: string): ProjectSectionEls {
     container.scrollTop += heading.getBoundingClientRect().top - before;
   });
   section.appendChild(heading);
-  // The line a group shows when it is empty, for a project whose sessions are all archived; reconcileProjectSections writes it and places it.
+  // The line a group shows when it is empty, for a project whose sessions are all finished; reconcileProjectSections writes it and places it.
   const allFinishedLine = document.createElement('div');
   allFinishedLine.className = 'section-empty';
 

@@ -4,7 +4,7 @@ import { type App, expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
 import { row, stripRow, switcherEntry, tab, tabLabels, toastButton } from '../../../support/window';
 
-// A session set aside carries a bookmark on its row, its tab and its strip row by one rule, until a prompt there, Clear set aside, an archive or its day coming takes it off (decided 2026-10-29).
+// A session set aside carries a bookmark on its row, its tab and its strip row by one rule, until a prompt there, Clear set aside, a finish or its day coming takes it off (decided 2026-10-29).
 // Its day coming makes it need you; a needs-you mark it came after is muted until then, and one that comes after it is not.
 // Set aside… asks when to come back and where it stands, which is the session's note, in one dialog (decided 2026-11-05).
 const one = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'Set aside' });
@@ -263,9 +263,9 @@ test("a prompt there takes it off, a scheduled task's turn and its tab's close d
   expect(await app.calls('clearSetAside')).toEqual([[[one.id]]]);
 });
 
-test('archiving it takes the mark off, and Undo gives it back as it was', async ({ app, page }) => {
+test('finishing it takes the mark off, and Undo gives it back as it was', async ({ app, page }) => {
   await app.boot({ ...fixture, setAside: { [one.id]: { due: null, at: 7 } } });
-  await (await menuItem(page, one.title, 'Archive')).click();
+  await (await menuItem(page, one.title, 'Finished')).click();
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.setAside)).toEqual({});
   await toastButton(page, 'Undo').click();
   await expect(tab(page, one.title)).toHaveCount(1);

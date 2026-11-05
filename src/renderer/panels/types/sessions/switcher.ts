@@ -120,8 +120,8 @@ export function selectProject(repoRoot: string | null): void {
 }
 
 /**
- * A project the switcher no longer lists — no session left, archived ones included — cannot stay selected: fall back to All exactly as picking it does, the tab bar and the tab on show included.
- * One whose sessions are all archived is still listed, so archiving the last of them leaves you where you are.
+ * A project the switcher no longer lists — no session left, finished ones included — cannot stay selected: fall back to All exactly as picking it does, the tab bar and the tab on show included.
+ * One whose sessions are all finished is still listed, so finishing the last of them leaves you where you are.
  * Setting the scope alone once left the bar on the old project's tabs while the list and the switcher said All.
  * Told on what the switcher's projects are made of.
  */
@@ -159,7 +159,7 @@ type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'setAs
 
 /**
  * The switcher follows the store: every project's count and roll-up, and the project on show.
- * It lists every project, independent of the search and the project on show, so you can always navigate, a project whose sessions are all archived among them; a project with none left has already fallen back to All (`fallBackIfEmptied`).
+ * It lists every project, independent of the search and the project on show, so you can always navigate, a project whose sessions are all finished among them; a project with none left has already fallen back to All (`fallBackIfEmptied`).
  * A watcher the sidebar registers (watch.ts), as it does `fallBackIfEmptied`.
  */
 export function refreshSwitcher(view: SwitcherView): void {

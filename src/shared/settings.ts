@@ -19,8 +19,11 @@ export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaun
 export const RUNNING_AT_LAUNCH = ['start', 'mark', 'leave'] as const;
 export type RunningAtLaunch = (typeof RUNNING_AT_LAUNCH)[number];
 
-/** The choices for a tab's button (`Settings.leaveButton`), in the order Settings offers them. */
-export const LEAVE_BUTTON = ['stop-close', 'stop-archive', 'close', 'archive', 'none'] as const;
+/**
+ * The choices for a tab's button (`Settings.leaveButton`), in the order Settings offers them.
+ * `"stop-archive"` and `"archive"`, their words before the act was called Finished, are not read: no release had them (decided 2026-11-05).
+ */
+export const LEAVE_BUTTON = ['stop-close', 'stop-finish', 'close', 'finish', 'none'] as const;
 export type LeaveButton = (typeof LEAVE_BUTTON)[number];
 
 /** The check of a setting that is one of a fixed list of words. */

@@ -4,12 +4,12 @@ import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab, titles } from '../../../../support/window';
 
-// Deleting is the archived view's, confirmed first (docs/architecture.md § App-side metadata and session groups).
+// Deleting is the finished view's, confirmed first (docs/architecture.md § App-side metadata and session groups).
 // The row goes the moment the delete is confirmed and never comes back: it stays hidden while its files are being moved to the trash, and stops being hidden in the same change as the listing that no longer has it.
 const kept = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Kept session' });
 const gone = session({ id: '00000000-0000-4000-8000-0000000000c2', title: 'Deleted session' });
-const finishedView = { uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } };
-const fixture = { sessions: [kept, gone], archived: { [kept.id]: 1, [gone.id]: 2 }, pinned: [gone.id], notes: { [gone.id]: 'a note' }, ...finishedView };
+const finishedView = { uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } };
+const fixture = { sessions: [kept, gone], finished: { [kept.id]: 1, [gone.id]: 2 }, pinned: [gone.id], notes: { [gone.id]: 'a note' }, ...finishedView };
 
 /** Count every time a row for `key` is put into the page from now on. */
 const watchAdded = (page: Page, key: string): Promise<void> =>
@@ -106,7 +106,7 @@ test('a pin made while the read after a delete is out is not taken back by it', 
   await app.boot({ ...fixture, sessions: [kept, gone, worker] });
   await deleteWithListingHeld(app, page);
 
-  // Out of the archived view, where a row has its pin.
+  // Out of the finished view, where a row has its pin.
   await page.locator('#filter-toggle').click();
   await page.locator('#finished-filter').click();
   const pin = row(page, worker.title).locator('.pin');

@@ -7,7 +7,7 @@ import { splitPendingEscape, stripAnsi } from './ansi';
 import { PR_CHANGE_RANK } from './prstatus';
 
 // The stable key for a displayed session entity: the session's own id, always.
-// It is immutable, so pins/archives/tabs can never go stale — a conversation-derived key stopped matching its session the moment the session gained a sibling.
+// It is immutable, so pins/finished marks/tabs can never go stale — a conversation-derived key stopped matching its session the moment the session gained a sibling.
 // conversationId remains the SIGNAL that groups a family (isSibling/siblingIds, derived in the main process) but no longer names anything.
 export function entityKey(s: SessionSummary): string {
   return s.id;
@@ -352,7 +352,7 @@ export interface FilterCriteria {
 }
 
 /**
- * Whether a session is in the set a view holds before any filter: the archived view holds the archived sessions, the normal view the rest, and a session on its way to the trash is in neither.
+ * Whether a session is in the set a view holds before any filter: the finished view holds the finished sessions, the normal view the rest, and a session on its way to the trash is in neither.
  * One rule for the list, the switcher's counts and the filter count's total, so the total is always the set the matches were taken from.
  */
 export function inView(key: string, finishedView: boolean, finished: { has(key: string): boolean }, pendingDeletes: ReadonlySet<string>): boolean {
@@ -360,7 +360,7 @@ export function inView(key: string, finishedView: boolean, finished: { has(key: 
 }
 
 // Whether a session survives every active filter.
-// Archived sessions are hidden from the normal list and are the only ones shown in the archived view; the toggle flips which set is visible.
+// Finished sessions are hidden from the normal list and are the only ones shown in the finished view; the toggle flips which set is visible.
 export function sessionPasses(session: SessionSummary, c: FilterCriteria): boolean {
   const key = entityKey(session);
   if (!inView(key, c.finishedOnly, c.finished, c.pendingDeletes)) return false;
@@ -471,7 +471,7 @@ export function projectFor(roots: readonly string[], dir: string): string | null
   return best;
 }
 
-/** A project as the switcher and the session list draw it: the sessions shown under it, and when there are none because every one is archived, those. */
+/** A project as the switcher and the session list draw it: the sessions shown under it, and when there are none because every one is finished, those. */
 interface ProjectEntry {
   shown: SessionSummary[];
   finished: SessionSummary[];
@@ -487,7 +487,7 @@ function projectEntries(sessions: SessionSummary[], finishedOnly: ReadonlyMap<st
   return orderProjects(entries, projectOrder);
 }
 
-/** The sessions that answer for a project's folder: those shown, or its archived ones when none is, which sit in the same folder. */
+/** The sessions that answer for a project's folder: those shown, or its finished ones when none is, which sit in the same folder. */
 const folderWitnesses = ({ shown, finished }: ProjectEntry): SessionSummary[] => (shown.length > 0 ? shown : finished);
 
 // Build the project-switcher model from the VISIBLE tips (one per conversation, already filtered to what the sidebar shows).
@@ -546,7 +546,7 @@ export interface ProjectTree {
    * False means nothing new can be started in it — the sessions remain, as history to read or clean up.
    */
   rootExists: boolean;
-  /** How many sessions it has archived when every one it has is, and so none is shown: the project stays, saying so; 0 for a project with any shown. */
+  /** How many sessions it has finished when every one it has is, and so none is shown: the project stays, saying so; 0 for a project with any shown. */
   finished: number;
 }
 
@@ -564,7 +564,7 @@ function pinnedFirst(sessions: SessionSummary[], pinned: ReadonlySet<string>): S
  * Projects follow the order you set (`projectOrder`, `orderProjects`), a project with no place in it yet going last; inside a project the groups come first in registry order, then the ungrouped remainder, each with its pinned sessions first and the rest in the order they came in (recency, since the caller sorts that way).
  *
  * `hideEmptyGroups` is for filtering: a group whose sessions were all filtered out is noise in a search, but an empty group must stay visible normally — that is how a freshly created one is seen.
- * A root in `finishedOnly` is a project with no rows, its `finished` saying how many sessions it has archived (`finishedOnlyProjects`).
+ * A root in `finishedOnly` is a project with no rows, its `finished` saying how many sessions it has finished (`finishedOnlyProjects`).
  * `known` is every session the app knows, filtered out or not, which answers for what a project's folder is: a filter changes what is shown, not whether the folder is a git repository.
  */
 export function buildProjectTree(
@@ -824,20 +824,20 @@ export interface TabButtonTab {
   forceable?: boolean;
   /** It has been on its way out long enough to say so where it shows without a hover (`notLeftWords`). */
   notLeft?: boolean;
-  /** What its exit does once claude has gone, while it is on its way out: keep the tab (`cool`, the default), remove it, or remove it and archive its session. */
+  /** What its exit does once claude has gone, while it is on its way out: keep the tab (`cool`, the default), remove it, or remove it and mark its session finished. */
   onExit?: 'cool' | 'close' | 'finish';
-  /** A tab of its session is starting, this one or another, which leaves no claude yet to ask to leave for an archive, the session's rather than a tab's (`finishSessions`). */
+  /** A tab of its session is starting, this one or another, which leaves no claude yet to ask to leave for a finish, the session's rather than a tab's (`finishSessions`). */
   sessionStarting?: boolean;
 }
 
 /**
- * What a tab's claude can be asked to leave for, each one press of its own meaning (decided 2026-10-28): a stop keeps the tab, cold, a close removes it, and an archive removes it and archives its session, each waiting out what claude asks on its way out.
+ * What a tab's claude can be asked to leave for, each one press of its own meaning (decided 2026-10-28): a stop keeps the tab, cold, a close removes it, and a finish removes it and marks its session finished, each waiting out what claude asks on its way out.
  */
 export type LeaveAction = 'stop' | 'close' | 'finish';
 
 /**
  * The mark on a tab's button and its menu's items: the stop square, the cross, or the lidded box (`tabButtonIcon`).
- * Each has a force, which ends a claude that has not left without asking: the stop square filled, and for a close and an archive the filled square with their own mark cut through it.
+ * Each has a force, which ends a claude that has not left without asking: the stop square filled, and for a close and a finish the filled square with their own mark cut through it.
  */
 export type TabButtonMark = LeaveAction | `force-${LeaveAction}`;
 
@@ -853,7 +853,7 @@ export interface TabButton {
 const LEAVE_WORDS: Record<LeaveAction, { label: string; force: string; going: string }> = {
   stop: { label: 'Stop session', force: 'Force stop', going: 'Stopping…' },
   close: { label: 'Close tab', force: 'Force close', going: 'Closing…' },
-  finish: { label: 'Archive', force: 'Force archive', going: 'Archiving…' },
+  finish: { label: 'Finished', force: 'Force finish', going: 'Finishing…' },
 };
 
 /** What a press on a leave item does, in words: its label, and the button's tooltip while it can act. */
@@ -871,7 +871,7 @@ const available = (action: LeaveAction): TabButton => ({ disabled: false, toolti
 const unavailable = (action: LeaveAction, why: string): TabButton => ({ disabled: true, tooltip: why, mark: action, label: LEAVE_WORDS[action].label, action });
 
 /**
- * The force of what a tab is leaving for, named for it: Force stop, Force close or Force archive.
+ * The force of what a tab is leaving for, named for it: Force stop, Force close or Force finish.
  * A session asked to leave may never go: claude can ask something on its way out and wait for the answer, and nothing it sends tells that from a claude that hangs.
  * So after a moment the force ends it without asking; the moment, when it is unavailable, is what keeps a double-click from forcing before the question is even on screen, and it is unavailable again once forced, until the exit lands.
  */
@@ -882,12 +882,12 @@ function leaveForce(tab: TabButtonTab, under: LeaveAction): TabButton {
 }
 
 /**
- * A leave item of a tab's menu, by one rule for every surface that draws it: Stop session, Close tab or Archive.
+ * A leave item of a tab's menu, by one rule for every surface that draws it: Stop session, Close tab or Finished.
  *
  * Starting is checked FIRST, and the order matters: a tab can carry both flags, and what it is doing is arriving, not leaving, so there is no claude yet to ask.
- * Archive is the session's, so a tab of the session starting, whichever, leaves it unavailable too.
- * While claude is on its way out, the item of what was asked is its force (decided 2026-10-28), and the others change what the exit does without asking claude again, since a second pair of presses ends what it asks on its way out unanswered: Stop session turns a close or an archive back into a stop, Close tab and Archive turn a leave into theirs.
- * A cold tab has nothing to stop; it closes and archives at once.
+ * Finished is the session's, so a tab of the session starting, whichever, leaves it unavailable too.
+ * While claude is on its way out, the item of what was asked is its force (decided 2026-10-28), and the others change what the exit does without asking claude again, since a second pair of presses ends what it asks on its way out unanswered: Stop session turns a close or a finish back into a stop, Close tab and Finished turn a leave into theirs.
+ * A cold tab has nothing to stop; it closes and finishes at once.
  */
 export function leaveAction(tab: TabButtonTab, action: LeaveAction): TabButton {
   if (tab.starting || (action === 'finish' && tab.sessionStarting)) return unavailable(action, 'Starting…');
@@ -899,13 +899,13 @@ export function leaveAction(tab: TabButtonTab, action: LeaveAction): TabButton {
 
 /**
  * What a tab's button shows, wherever it is drawn: on the tab, and on the live strip's row for its session; null for no button, which `choice` `none` asks for.
- * A shortcut to one of its menu's leave items, so it says and does what that item would (`leaveAction`): on a running tab Stop session, or with `close` or `archive` that leave in one press, and on a cold one the leave `choice` ends in; while claude is on its way out, the force of what it is leaving for, so the button stays the press that ends claude, and changing what the exit does is the menu's.
+ * A shortcut to one of its menu's leave items, so it says and does what that item would (`leaveAction`): on a running tab Stop session, or with `close` or `finish` that leave in one press, and on a cold one the leave `choice` ends in; while claude is on its way out, the force of what it is leaving for, so the button stays the press that ends claude, and changing what the exit does is the menu's.
  * ONE RULE RATHER THAN TWO, and it is here rather than in the renderer because the two surfaces did come to different conclusions about the same tab the day the strip grew its own copy.
  */
 export function tabButton(tab: TabButtonTab, choice: LeaveButton = 'stop-close'): TabButton | null {
   if (choice === 'none') return null;
-  const removes = choice === 'stop-archive' || choice === 'archive' ? 'finish' : 'close';
-  const running = choice === 'close' || choice === 'archive' ? removes : 'stop';
+  const removes = choice === 'stop-finish' || choice === 'finish' ? 'finish' : 'close';
+  const running = choice === 'close' || choice === 'finish' ? removes : 'stop';
   if (tab.starting) return unavailable(running, 'Starting…');
   const under = leaveUnderWay(tab);
   if (under) return leaveForce(tab, under);

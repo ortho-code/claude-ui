@@ -7,7 +7,7 @@ import { group, row, tab, tabLabels, titlesIn } from '../../../../support/window
 
 // claude's own `/resume` inside a tab ends the tab's session and goes on in another that already exists, under that session's own id (measured on claude 2.1.302: SessionEnd with reason resume, then SessionStart with source resume).
 // The tab takes that session over as it is — its title, its group — and nothing about it is a `/clear`: no pairing recorded, no group carried over.
-// Archiving is claude-ui's and claude cannot see it, so a resume can land in an archived session: it is unarchived, and a toast says so, since the app runs no archived session.
+// Finishing is claude-ui's and claude cannot see it, so a resume can land in a finished session: it is made unfinished, and a toast says so, since the app runs no finished session.
 const one = session({ title: 'Running one' });
 const old = session({ id: '00000000-0000-4000-8000-0000000000dd', title: 'Older one' });
 const groups = { groups: [{ id: 'g-work', name: 'Work', repoRoot: PROJECT }, { id: 'g-other', name: 'Other', repoRoot: PROJECT }], groupOf: { [one.id]: 'g-work', [old.id]: 'g-other' } };
@@ -48,19 +48,19 @@ test('a session the tab learns of from another event than its start is taken ove
   expect(await app.calls('moveSessionsToGroup')).toEqual([]);
 });
 
-test('an archived session resumed in a tab is unarchived, a toast says so, and its tab has the menu of a running session', async ({ app, page }) => {
-  const token = await running(app, page, { archived: { [old.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
+test('a finished session resumed in a tab is made unfinished, a toast says so, and its tab has the menu of a running session', async ({ app, page }) => {
+  const token = await running(app, page, { finished: { [old.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
   await app.emit('onSessionStatus', one.id, 'closed', token, 'SessionEnd');
   await app.emit('onSessionStart', old.id, token, 'resume');
 
   await expect.poll(() => app.calls('unfinish')).toEqual([[[old.id]]]);
-  await expect(page.locator('#toast-message')).toHaveText(`"${old.title}" was archived; resuming it in claude unarchived it`);
+  await expect(page.locator('#toast-message')).toHaveText(`"${old.title}" was finished; resuming it in claude made it unfinished`);
   await expect(titlesIn(group(page, 'Other'))).toHaveText([old.title]);
   await tab(page, old.title).locator('.tab-kebab').click();
   const items = page.locator('.kebab-menu button.menu-row');
   await expect(items.filter({ hasText: /^Stop session$/ })).toHaveCount(1);
-  await expect(items.filter({ hasText: /^Archive$/ })).toHaveCount(1);
-  await expect(items.filter({ hasText: /^Archive$/ })).not.toHaveClass(/\bunavailable\b/);
+  await expect(items.filter({ hasText: /^Finished$/ })).toHaveCount(1);
+  await expect(items.filter({ hasText: /^Finished$/ })).not.toHaveClass(/\bunavailable\b/);
   await expect(items.filter({ hasText: /^Delete session/ })).toHaveCount(0);
 });
 

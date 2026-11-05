@@ -246,7 +246,7 @@ test("a strip row's kebab opens its session's menu, and setting it aside from it
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
 
   await stripRow(page, loose.title).locator('.strip-item-kebab').click();
-  await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
+  await expect(page.locator('.kebab-menu button', { hasText: 'Finished' })).toBeVisible();
   await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Set aside…$/ }).click();
   await page.locator('#set-aside-choices button', { hasText: /^Whenever$/ }).click();
   await page.locator('#set-aside-ok').click();

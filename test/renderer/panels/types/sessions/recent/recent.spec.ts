@@ -66,21 +66,21 @@ test('the filter narrows Recent, and its count says so', async ({ app, page }) =
   await expect(page.locator('#filter-status')).toContainText('1 of 3');
 });
 
-test('the archived view in Recent is flat too, each row saying when it was archived', async ({ app, page }) => {
-  await boot(app, page, { archived: { [loose.id]: NOW - 5 * MINUTE }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } });
+test('the finished view in Recent is flat too, each row saying when it was finished', async ({ app, page }) => {
+  await boot(app, page, { finished: { [loose.id]: NOW - 5 * MINUTE }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } });
   await switchButton(page, 'Recent').click();
   await expect.poll(() => order(page)).toEqual([loose.title]);
   await expect(page.locator('#sessions .section-heading')).toHaveCount(0);
-  await expect(meta(page, loose.title)).toHaveText('archived 5 min ago');
+  await expect(meta(page, loose.title)).toHaveText('finished 5 min ago');
 });
 
-test('with every session archived, Recent says so in place of its rows, in a project and in All', async ({ app, page }) => {
+test('with every session finished, Recent says so in place of its rows, in a project and in All', async ({ app, page }) => {
   const finished = Object.fromEntries(fixture.sessions.map((s) => [s.id, NOW - MINUTE]));
-  await boot(app, page, { archived: finished });
+  await boot(app, page, { finished: finished });
   await switchButton(page, 'Recent').click();
-  await expect(page.locator('#sessions .empty-message')).toHaveText('All 3 sessions here are archived.');
+  await expect(page.locator('#sessions .empty-message')).toHaveText('All 3 sessions here are finished.');
   await chooseProject(page, 'All');
-  await expect(page.locator('#sessions .empty-message')).toHaveText('All 4 sessions here are archived.');
+  await expect(page.locator('#sessions .empty-message')).toHaveText('All 4 sessions here are finished.');
 });
 
 test('collapse-all is unavailable in Recent', async ({ app, page }) => {

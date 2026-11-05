@@ -18,7 +18,7 @@ export function setStatus(id: string, status: string | undefined, background: re
 /**
  * Whether a session's "read" mark can be set or cleared now: only in the attention states, idle (done), waiting (claude asks you) and needs (marked as needing you), as its dot shows them.
  * Busy (working) and closed/hollow have nothing to acknowledge.
- * Nor an archived one, which is put away: a status it still shows is one its claude left behind, such as one that ended without saying so.
+ * Nor a finished one, which is put away: a status it still shows is one its claude left behind, such as one that ended without saying so.
  * Reading a needs-you mark dims it and keeps it: seeing it is not settling it (`clearNeedsYou`).
  */
 export function canMarkRead(id: string, view: View<'statuses' | 'tabs' | 'finished' | 'needsYou'> = store.get()): boolean {

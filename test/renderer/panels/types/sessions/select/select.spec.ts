@@ -91,8 +91,8 @@ test('a search that hides a ticked row takes it out of the count, so the bar nev
   await expect.poll(() => app.calls('finish')).toEqual([[[a.id]]]);
 });
 
-test('turning the archived view on or off ends bulk mode, rather than carry ticks from one set of sessions into the other', async ({ app, page }) => {
-  await app.boot({ ...fixture, archived: { [d.id]: 1 } });
+test('turning the finished view on or off ends bulk mode, rather than carry ticks from one set of sessions into the other', async ({ app, page }) => {
+  await app.boot({ ...fixture, finished: { [d.id]: 1 } });
   await (await headingMenu(page, groupHeading(page, 'Work'), '.group-kebab', 'Select sessions…')).click();
   await page.locator('#filter-toggle').click();
   await page.locator('#finished-filter').click();
@@ -103,19 +103,19 @@ test('turning the archived view on or off ends bulk mode, rather than carry tick
   await expect(line(page)).toBeHidden();
 });
 
-test('in the archived view the bar unarchives or deletes, and offers nothing that works a session', async ({ app, page }) => {
-  await app.boot({ ...fixture, archived: { [c.id]: 1, [d.id]: 2 } });
+test('in the finished view the bar makes unfinished or deletes, and offers nothing that works a session', async ({ app, page }) => {
+  await app.boot({ ...fixture, finished: { [c.id]: 1, [d.id]: 2 } });
   await page.locator('#filter-toggle').click();
   await page.locator('#finished-filter').click();
   await row(page, c.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button.menu-row', { hasText: /^Select…$/ }).click();
-  await expect(page.locator('#bulk-bar button:visible')).toHaveText(['Unarchive', 'Delete…']);
-  // A press ticks, rather than doing nothing as it does on an archived row otherwise.
+  await expect(page.locator('#bulk-bar button:visible')).toHaveText(['Unfinished', 'Delete…']);
+  // A press ticks, rather than doing nothing as it does on a finished row otherwise.
   await row(page, d.title).click();
   expect(await ticked(page)).toEqual([c.title, d.title]);
 
   await page.locator('#bulk-bar [data-act="unfinish"]').click();
-  await expect(page.locator('#toast-message')).toHaveText('Unarchived 2 sessions');
+  await expect(page.locator('#toast-message')).toHaveText('Unfinished 2 sessions');
   expect(await app.calls('unfinish')).toEqual([[[c.id, d.id]]]);
   await expect(row(page, c.title)).toHaveCount(0);
   await toastButton(page, 'Undo').click();
@@ -123,8 +123,8 @@ test('in the archived view the bar unarchives or deletes, and offers nothing tha
   expect(await app.calls('finish')).toEqual([[[c.id, d.id]]]);
 });
 
-test('Delete… in the archived view asks once for every ticked session, then moves each to the trash', async ({ app, page }) => {
-  await app.boot({ ...fixture, archived: { [c.id]: 1, [d.id]: 2 } });
+test('Delete… in the finished view asks once for every ticked session, then moves each to the trash', async ({ app, page }) => {
+  await app.boot({ ...fixture, finished: { [c.id]: 1, [d.id]: 2 } });
   await page.locator('#filter-toggle').click();
   await page.locator('#finished-filter').click();
   await (await headingMenu(page, projectHeading(page, 'demo'), '.project-kebab', 'Select sessions…')).click();

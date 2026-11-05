@@ -93,13 +93,13 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session's worktree badge counts and lists the checkouts it changed files in, with the worktree it runs in or left, from its row and as Worktrees in its options, when there are others besides that worktree, and a session that changed files in a worktree it reached by path or with a `cd` has the badge too.
 - Picking a checkout from that list points the panels there while that session is on show, with a star beside the folder their header names, until you pick Follow the session in the same list; while the checkout is gone, they follow the session.
 - A session's options hold its clock as Scheduled, listing its tasks as the clock's tooltip names them.
-- A choice in Settings, Leave button, for the button beside a session's menu on its tab and its row in the live strip: stop, then close the tab, as before, or stop, then archive its session; close or archive in one press, claude asked to leave first; or no button, leaving it to the session's menu.
-  It is `leaveButton` in `settings.json`, `"stop-close"`, `"stop-archive"`, `"close"`, `"archive"` or `"none"`, and a middle-click on the tab does what the button does, or nothing without one.
-- Undo in the message a closed tab or an archived session leaves, from any button, its options or a middle-click: it puts the tab back where it was, without starting it, and unarchives the session.
+- A choice in Settings, Leave button, for the button beside a session's menu on its tab and its row in the live strip: stop, then close the tab, as before, or stop, then mark its session finished; close or mark finished in one press, claude asked to leave first; or no button, leaving it to the session's menu.
+  It is `leaveButton` in `settings.json`, `"stop-close"`, `"stop-finish"`, `"close"`, `"finish"` or `"none"`, and a middle-click on the tab does what the button does, or nothing without one.
+- Undo in the message a closed tab or a finished session leaves, from any button, its options or a middle-click: it puts the tab back where it was, without starting it, and makes the session unfinished.
   Such a message stays 8 seconds, and while the pointer is on it.
 - Set aside… in a session's options, a dialog that asks when to come back, tomorrow, in a week, a day and time you pick or whenever, and where it stands, which is the session's note, shown as a bookmark on its row, its tab and its strip row and kept whether or not it has a tab.
   Its choices are yours, `setAside` in `settings.json`, such as `"in 2h"`, `"in 3d"`, `"tomorrow 08:00"` or `"next monday"`, offered in the order they would come with Whenever last; a choice with a day and no time of its own comes due at 09:00, or the time `setAsideTime` gives.
-  When its moment comes it needs you, saying it was a reminder for then, or why it needed you if it already did; typing a prompt there, Clear set aside and archiving it take the mark off, and leave the note.
+  When its moment comes it needs you, saying it was a reminder for then, or why it needed you if it already did; typing a prompt there, Clear set aside and marking it finished take the mark off, and leave the note.
   A session that needed you before you set it aside shows that dimmed, counting for nothing while it stays set aside, and one that needs you afterwards shows it in full.
 - A language for times and dates, `locale` in `settings.json` and Language for times and dates in Settings, such as `en-GB` for a 24-hour clock and weeks from Monday on a system that reads as US English.
   Time fields follow it from the next launch, the rest of the app at once.
@@ -111,12 +111,12 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A panel type of your own can show a session's name in a row's texts and its status dot before the row's actions, both kept current between runs, from the session's id.
 - A panel type of your own is given the sessions the app has in a file, with each one's status, group, needs-you and set-aside marks and PRs, to choose its rows from.
   `"watch": "sessions"` runs it again when that file would say something new.
-- Selecting several sessions in the list: Select sessions… in a project's or a group's menu ticks its sessions, and Select… in a session row's menu ticks that one, then a bar archives, sets aside, moves to a group, stops or closes the tabs of every one ticked in one go.
+- Selecting several sessions in the list: Select sessions… in a project's or a group's menu ticks its sessions, and Select… in a session row's menu ticks that one, then a bar marks finished, sets aside, moves to a group, stops or closes the tabs of every one ticked in one go.
   A press on a row ticks it, Shift ticks a run, a heading's box ticks every row under it, and Done or Esc ends it.
-  Archiving, setting aside and closing raise one message with one Undo for the sessions that are not running; a running one's comes once claude has left it.
-  In the archived view the bar unarchives every one ticked, with one Undo, or deletes them after one question for all.
-- A review, from the Review button under the sidebar's header, counting what it holds: the sessions without a tab, not archived, set aside or kept, that are ready to finish, every PR they link merged or closed, or untouched for 30 days, each row saying why it is there.
-  Archive, Set aside… and the new Keep, which holds a session out of the review for 30 days, take rows out, and the review ends once nothing is left; with PR status off, an open review's Ready to finish says it cannot tell.
+  Finishing, setting aside and closing raise one message with one Undo for the sessions that are not running; a running one's comes once claude has left it.
+  Among the finished sessions the bar makes every one ticked unfinished, with one Undo, or deletes them after one question for all.
+- A review, from the Review button under the sidebar's header, counting what it holds: the sessions without a tab, not finished, set aside or kept, that are ready to finish, every PR they link merged or closed, or untouched for 30 days, each row saying why it is there.
+  Finished, Set aside… and the new Keep, which holds a session out of the review for 30 days, take rows out, and the review ends once nothing is left; with PR status off, an open review's Ready to finish says it cannot tell.
 - Recent, switched beside Grouped under the sidebar's header: the sessions in one flat list, last worked on first, each row naming its group, and in All its project, with pins left where their time puts them.
   The choice is kept as the session list's view, so `"view": "recent"` on its entry in the layout starts it there.
 
@@ -176,6 +176,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The note dialog names the session in its title, with a line under it saying where the note shows and that saving it empty removes it.
 - The session list's order catches up with what was last worked on within a minute, where a session worked on again used to keep its old place until something else changed the list; nothing moves while the pointer or the keyboard focus is in the list, or a menu from it is open.
   An open review takes in a session that crosses its 30 days within a minute too, rather than within the hour.
+- Archive is called Finished, and Unarchive Unfinished, in a session's options, the bar of selecting several and the tab's button, and Settings' Leave button says "mark the session finished"; the archived view's filter is Show finished sessions, and a finished row says when it was finished.
+  Your archived sessions are your finished ones, and the filter keeps its state.
 
 ### Fixed
 

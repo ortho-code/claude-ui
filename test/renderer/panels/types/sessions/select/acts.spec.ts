@@ -5,7 +5,7 @@ import { hoveredAndOpen } from '../../../../support/looks';
 import { groupHeading, projectHeading, row, tab, tabs, toastButton } from '../../../../support/window';
 
 // The bar of selecting several acts on every ticked row on show, each act through the write a session's menu makes, given every key at once (docs/architecture.md § Selecting several).
-// Archive, Set aside… and Close tab each raise one toast for the batch, whose Undo puts every one back as it was.
+// Finished, Set aside… and Close tab each raise one toast for the batch, whose Undo puts every one back as it was.
 const a = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Alpha', lastActivity: '2026-09-30T10:00:00.000Z' });
 const b = session({ id: '00000000-0000-4000-8000-0000000000c2', title: 'Bravo', lastActivity: '2026-09-30T09:00:00.000Z' });
 const c = session({ id: '00000000-0000-4000-8000-0000000000c3', title: 'Charlie', lastActivity: '2026-09-30T08:00:00.000Z' });
@@ -30,11 +30,11 @@ async function startLive(page: Page, app: App, title: string, pty: number): Prom
   expect(await app.emit('onTerminalData', pty, 'claude is here')).toBe(1);
 }
 
-test('Archive archives every ticked session in one write, with one toast whose Undo brings each back with its set-aside mark', async ({ app, page }) => {
+test('Finished finishes every ticked session in one write, with one toast whose Undo brings each back with its set-aside mark', async ({ app, page }) => {
   await app.boot({ ...fixture, setAside: { [a.id]: { due: null, at: 5 } } });
   await selectGroup(page, 'Work');
   await act(page, 'finish').click();
-  await expect(toast(page)).toHaveText('Archived 2 sessions');
+  await expect(toast(page)).toHaveText('Finished 2 sessions');
   expect(await app.calls('finish')).toEqual([[[a.id, b.id]]]);
   await expect(row(page, a.title)).toHaveCount(0);
   await expect(row(page, b.title)).toHaveCount(0);
@@ -157,7 +157,7 @@ test('Esc in a dialog an act opened closes the dialog and leaves bulk mode on', 
   expect(await app.calls('markSetAside')).toEqual([]);
 });
 
-test('Archive and Close tab are unavailable while every ticked session has a tab starting, since neither would do anything', async ({ app, page }) => {
+test('Finished and Close tab are unavailable while every ticked session has a tab starting, since neither would do anything', async ({ app, page }) => {
   await app.boot(fixture);
   await app.hold('startTerminal');
   await row(page, c.title).click();

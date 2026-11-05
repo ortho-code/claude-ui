@@ -51,8 +51,11 @@ interface Meta {
    * The in-memory `activatedSeq` already does this within one run, but it resets to 0 on restore, which makes "most recent" meaningless exactly when you need it most.
    */
   activeSessionByProject: Record<string, string>;
-  /** Archived session ids mapped to when they were archived (epoch ms; 0 = unknown). */
-  archived: Record<string, number>;
+  /**
+   * Finished session ids mapped to when they were finished (epoch ms; 0 = unknown).
+   * Stored as `archived` before the act was called Finished, read from there until a write drops it (decided 2026-11-05).
+   */
+  finished: Record<string, number>;
   /** The project the sidebar switcher is scoped to (repoRoot), or null for "All". */
   activeProject: string | null;
   /** Per-project display-name overrides, keyed by repoRoot; absent = use the folder name. */
@@ -69,17 +72,17 @@ interface Meta {
   notes: Record<string, string>;
   /**
    * The sessions marked as needing you, by session id: every reason, each with since when.
-   * Kept whether or not a tab holds the session, so a mark outlives a launch that leaves it unopened, until the window takes it off for a prompt there, Clear needs you, a close or your leaving claude, or main does for an archive or a delete.
+   * Kept whether or not a tab holds the session, so a mark outlives a launch that leaves it unopened, until the window takes it off for a prompt there, Clear needs you, a close or your leaving claude, or main does for a finish or a delete.
    */
   needsYou: Record<string, NeedsYou[]>;
   /**
    * The sessions you set aside, by session id: the day each comes back as needing you, or none for whenever, and since when.
-   * Kept whether or not a tab holds the session, until the window takes it off for a prompt there or Clear set aside, its day comes (`cameDue`), or main does for an archive or a delete.
+   * Kept whether or not a tab holds the session, until the window takes it off for a prompt there or Clear set aside, its day comes (`cameDue`), or main does for a finish or a delete.
    */
   setAside: Record<string, SetAside>;
   /**
    * When each session was last kept out of the review, by session id (epoch ms): the review's own term says how long that holds (`kept:<30d`), so a stamp is never swept, and goes with its session's delete.
-   * Archiving leaves it, since an archived session is out of the review anyway.
+   * Finishing leaves it, since a finished session is out of the review anyway.
    */
   kept: Record<string, number>;
   /**
@@ -142,7 +145,8 @@ const KNOWN_KEYS = new Set([
   'scheduledWhenStopped',
   'activeSession',
   'activeSessionByProject',
-  'archived',
+  'finished',
+  'archived', // the pre-rename spelling of finished; read, never written
   'activeProject',
   'activeFolder', // the pre-rename spelling of activeProject; read, never written
   'projectNames',
@@ -169,7 +173,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, setAside: {}, kept: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, finished: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, setAside: {}, kept: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -206,8 +210,8 @@ function normalizePanelState(raw: unknown, px: (value: unknown) => number | null
   return { sizes, collapsed: strings(state.collapsed), active };
 }
 
-/** The filters stored under another key before their word changed: `live` as `running`, `setAside` as `later`. */
-const FILTERS_BEFORE: Partial<Record<keyof UiState['filters'], string>> = { live: 'running', setAside: 'later' };
+/** The filters stored under another key before their word changed: `live` as `running`, `setAside` as `later`, `finished` as `archived`. */
+const FILTERS_BEFORE: Partial<Record<keyof UiState['filters'], string>> = { live: 'running', setAside: 'later', finished: 'archived' };
 
 /**
  * Fill in a stored UiState field by field, defaulting anything absent or of the wrong type.
@@ -301,13 +305,14 @@ function normalize(parsed: Record<string, unknown>): Meta {
   // `activeProject` was written as `activeFolder` before the project/folder terminology split; read the old key so an existing meta.json keeps its scope.
   // The next write stores the new name.
   const rawActive = parsed.activeProject ?? parsed.activeFolder;
-  // `archived` was once a plain id list; migrate that to the id->timestamp map (0 = unknown).
-  const rawArchived = parsed.archived;
-  let archived: Record<string, number> = {};
-  if (Array.isArray(rawArchived)) {
-    for (const id of rawArchived) if (typeof id === 'string') archived[id] = 0;
-  } else if (rawArchived && typeof rawArchived === 'object') {
-    archived = rawArchived as Record<string, number>;
+  // `archived` is what the finished sessions were stored as before the act was called Finished, read, never written; the next write stores the new name.
+  // It was once a plain id list; migrate that to the id->timestamp map (0 = unknown).
+  const rawFinished = parsed.finished ?? parsed.archived;
+  let finished: Record<string, number> = {};
+  if (Array.isArray(rawFinished)) {
+    for (const id of rawFinished) if (typeof id === 'string') finished[id] = 0;
+  } else if (rawFinished && typeof rawFinished === 'object') {
+    finished = rawFinished as Record<string, number>;
   }
   // Drop malformed group entries, then any membership naming a group that no longer exists, so a hand-edited or half-written file can't leave a session pointing at nothing.
   const groups = Array.isArray(parsed.groups)
@@ -343,7 +348,7 @@ function normalize(parsed: Record<string, unknown>): Meta {
         (entry): entry is [string, string] => typeof entry[1] === 'string',
       ),
     ),
-    archived,
+    finished,
     activeProject: typeof rawActive === 'string' ? rawActive : null,
     projectNames:
       parsed.projectNames && typeof parsed.projectNames === 'object'
@@ -554,7 +559,7 @@ function update<T>(op: string, mutate: (meta: Meta) => T): Promise<T> {
 }
 
 /**
- * One-time upgrade of pins/open-tabs/archived to SESSION ids, from conversation keys (v2) or raw ids (v1).
+ * One-time upgrade of pins/open-tabs/finished to SESSION ids, from conversation keys (v2) or raw ids (v1).
  * Any key that matches a session's conversationId is rewritten to that session's id (for a multi-file family: its latest member — the row the old model showed); id keys and keys naming a session no longer on disk pass through unchanged, which also makes a v1 file migrate correctly.
  */
 export function migrateToSessionKeys(conversationToId: Map<string, string>): Promise<void> {
@@ -568,7 +573,7 @@ export function migrateToSessionKeys(conversationToId: Map<string, string>): Pro
     meta.activeSessionByProject = Object.fromEntries(
       Object.entries(meta.activeSessionByProject).map(([root, key]) => [root, remapKey(key)]),
     );
-    meta.archived = Object.fromEntries(Object.entries(meta.archived).map(([k, ts]) => [remapKey(k), ts]));
+    meta.finished = Object.fromEntries(Object.entries(meta.finished).map(([k, ts]) => [remapKey(k), ts]));
     meta.version = 3;
     await writeMeta(meta);
     await auditWrite('migrate', meta);
@@ -611,27 +616,27 @@ export function toggleHistoryPin(id: string, pin: Pick<HistoryPin, 'kind' | 'ses
 }
 
 export function getFinished(): Promise<Record<string, number>> {
-  return serialize(async () => (await readMeta()).archived);
+  return serialize(async () => (await readMeta()).finished);
 }
 
-/** Archive sessions, in one write, which settles anything each needed you for, and what you set it aside for: an archived session is put away. */
+/** Mark sessions finished, in one write, which settles anything each needed you for, and what you set it aside for: a finished session is put away. */
 export function finish(ids: string[]): Promise<Record<string, number>> {
   return update('finish', (meta) => {
     const now = Date.now();
     for (const id of ids) {
-      meta.archived = finishedFrom(meta.archived, id, now);
+      meta.finished = finishedFrom(meta.finished, id, now);
       meta.needsYou = clearedNeedsYou(meta.needsYou, id);
       meta.setAside = clearedSetAside(meta.setAside, id);
     }
-    return meta.archived;
+    return meta.finished;
   });
 }
 
-/** Unarchive sessions, in one write. */
+/** Make sessions unfinished, in one write. */
 export function unfinish(ids: string[]): Promise<Record<string, number>> {
   return update('unfinish', (meta) => {
-    for (const id of ids) meta.archived = clearedFinished(meta.archived, id);
-    return meta.archived;
+    for (const id of ids) meta.finished = clearedFinished(meta.finished, id);
+    return meta.finished;
   });
 }
 
@@ -882,7 +887,7 @@ export function getNotes(): Promise<Record<string, string>> {
 /**
  * Write a session's note, or clear it.
  * Blank (or whitespace-only) DELETES the entry rather than storing an empty string, so "has a note" stays a simple presence check and the row's mark can't linger over nothing.
- * Archiving keeps a note (it's still the same session); a fork inherits none, since it gets a new id and notes are keyed by id.
+ * Finishing keeps a note (it's still the same session); a fork inherits none, since it gets a new id and notes are keyed by id.
  */
 export function setNote(id: string, note: string): Promise<Record<string, string>> {
   return update('setNote', (meta) => {
@@ -966,7 +971,7 @@ export function getProjectOrder(): Promise<string[]> {
  * One rule: every root in front of an empty order is the roots as given.
  *
  * Absent roots are NOT pruned.
- * A root is absent once no listed session resolves to it, such as when its sessions were all deleted (archived ones are still listed: the caller seeds from the raw listing), and forgetting its slot would make it leap to the top when a session appears there again — the opposite of the stable order this exists to provide.
+ * A root is absent once no listed session resolves to it, such as when its sessions were all deleted (finished ones are still listed: the caller seeds from the raw listing), and forgetting its slot would make it leap to the top when a session appears there again — the opposite of the stable order this exists to provide.
  */
 export function seedProjectOrder(roots: string[]): Promise<string[]> {
   return serialize(async () => {

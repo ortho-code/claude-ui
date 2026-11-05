@@ -3,7 +3,7 @@ import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, stripRow, tab, tabLabel } from '../../../../support/window';
 
-// What a tab's button does is a setting, `leaveButton`: stop a running session and then close the tab, as it did before there was a setting, or archive its session (decided 2026-10-28); close or archive in one press, claude asked to leave first; or no button, leaving it all to the tab's menu (decided 2026-11-03).
+// What a tab's button does is a setting, `leaveButton`: stop a running session and then close the tab, as it did before there was a setting, or mark its session finished (decided 2026-10-28); close or finish in one press, claude asked to leave first; or no button, leaving it all to the tab's menu (decided 2026-11-03).
 // The tab's button, its middle-click and its strip row button, which a needs-you mark lists it by, are one press, so all three follow it.
 const one = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Set aside' });
 const choosing = (leaveButton: string): ReturnType<typeof settingsFileWith> => settingsFileWith('settings.json', { leaveButton });
@@ -13,7 +13,7 @@ const quit = { needsYou: { [one.id]: [{ reason: 'quit' as const, at: 1 }] } };
 const button = (page: Page): Locator => tab(page, one.title).locator('.tab-close');
 const stripButton = (page: Page): Locator => stripRow(page, one.title).locator('.strip-item-stop');
 
-/** The tab and the row gone, and the session archived once. */
+/** The tab and the row gone, and the session finished once. */
 async function finished(app: App, page: Page): Promise<void> {
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect(row(page, one.title)).toHaveCount(0);
@@ -35,30 +35,30 @@ test("a stopped tab's button closes it unless the settings say otherwise", async
   expect(await app.calls('finish')).toEqual([]);
 });
 
-test("with leaveButton stop-archive, a stopped tab's button archives its session", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: choosing('stop-archive') });
+test("with leaveButton stop-finish, a stopped tab's button finishes its session", async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: choosing('stop-finish') });
   await expect(button(page)).toHaveAttribute('data-mark', 'finish');
-  await expect(button(page)).toHaveAttribute('data-tooltip', 'Archive');
+  await expect(button(page)).toHaveAttribute('data-tooltip', 'Finished');
   await button(page).click();
   await finished(app, page);
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
-test("with leaveButton stop-archive, a middle-click on a stopped tab archives its session", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: choosing('stop-archive') });
+test("with leaveButton stop-finish, a middle-click on a stopped tab finishes its session", async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: choosing('stop-finish') });
   await tabLabel(page, one.title).click({ button: 'middle' });
   await finished(app, page);
 });
 
-test("with leaveButton stop-archive, a stopped tab's strip row button archives its session", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: choosing('stop-archive'), ...quit });
+test("with leaveButton stop-finish, a stopped tab's strip row button finishes its session", async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: choosing('stop-finish'), ...quit });
   await expect(stripButton(page)).toHaveAttribute('data-mark', 'finish');
   await stripButton(page).click();
   await finished(app, page);
 });
 
-test("with leaveButton stop-archive, a running tab's button still stops it, and keeps the tab", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: choosing('stop-archive') });
+test("with leaveButton stop-finish, a running tab's button still stops it, and keeps the tab", async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: choosing('stop-finish') });
   await started(app, page);
   await expect(button(page)).toHaveAttribute('data-mark', 'stop');
   await button(page).click();
@@ -80,8 +80,8 @@ test("with leaveButton close, a running tab's button asks claude to leave and cl
   expect(await app.calls('finish')).toEqual([]);
 });
 
-test("with leaveButton archive, a middle-click on a running tab archives its session once claude has left", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: choosing('archive') });
+test("with leaveButton finish, a middle-click on a running tab finishes its session once claude has left", async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: choosing('finish') });
   await started(app, page);
   await tabLabel(page, one.title).click({ button: 'middle' });
   await expect.poll(() => app.calls('closeTerminal')).toHaveLength(1);
@@ -89,8 +89,8 @@ test("with leaveButton archive, a middle-click on a running tab archives its ses
   await finished(app, page);
 });
 
-test("with leaveButton archive, a running tab's strip row button archives it in one press", async ({ app, page }) => {
-  await app.boot({ ...fixture, settings: choosing('archive'), ...quit });
+test("with leaveButton finish, a running tab's strip row button finishes it in one press", async ({ app, page }) => {
+  await app.boot({ ...fixture, settings: choosing('finish'), ...quit });
   await started(app, page);
   await expect(stripButton(page)).toHaveAttribute('data-mark', 'finish');
   await stripButton(page).click();
@@ -119,7 +119,7 @@ test('a change to the setting redraws the button at once', async ({ app, page })
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Settings' });
   const choice = dialog.getByRole('combobox', { name: 'Leave button' });
-  await expect(choice.locator('option')).toHaveText(['Stop, then close the tab', 'Stop, then archive the session', 'Close the tab', 'Archive the session', 'No button, only the menu']);
+  await expect(choice.locator('option')).toHaveText(['Stop, then close the tab', 'Stop, then mark the session finished', 'Close the tab', 'Mark the session finished', 'No button, only the menu']);
   await expect(choice).toHaveValue('stop-close');
   await choice.selectOption('none');
   await dialog.getByRole('button', { name: 'Save' }).click();

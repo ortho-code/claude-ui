@@ -3,7 +3,7 @@ import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { row, tabLabel, titles } from '../../../../support/window';
 
-// A session's marks are main's to keep (docs/architecture.md § App-side metadata and session groups): a pin floats its row in its own section, a note rides the row's meta, and archiving puts the session away, closing its tab, until the archived view gives it back.
+// A session's marks are main's to keep (docs/architecture.md § App-side metadata and session groups): a pin floats its row in its own section, a note rides the row's meta, and finishing puts the session away, closing its tab, until the finished view gives it back.
 const newer = session({ id: '00000000-0000-4000-8000-0000000000b1', title: 'Newer session' });
 const older = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'Older session' });
 const fixture = { sessions: [newer, older], history: { [newer.id]: [], [older.id]: [] } };
@@ -58,20 +58,20 @@ test('a note shows on its row, trimmed, opens from its mark, and a blank one rem
   expect(await app.calls('setNote')).toEqual([[older.id, '  waiting on review  '], [older.id, '   ']]);
 });
 
-test('archiving closes the session\'s tab and moves its row to the archived view, and unarchiving gives it back without the tab', async ({ app, page }) => {
+test('finishing closes the session\'s tab and moves its row to the finished view, and making it unfinished gives it back without the tab', async ({ app, page }) => {
   await app.boot({ ...fixture, openSessions: [older.id] });
   await expect(tabLabel(page, older.title)).toBeVisible();
 
-  await menuItem(page, older.title, 'Archive');
+  await menuItem(page, older.title, 'Finished');
   await expect(row(page, older.title)).toHaveCount(0);
   await expect(tabLabel(page, older.title)).toHaveCount(0);
   await expect(titles(page)).toHaveText([newer.title]);
 
-  // The archived view manages it rather than resuming it: an unarchive and a delete on the row, and its menu, no pin.
+  // The finished view manages it rather than resuming it: an unfinish and a delete on the row, and its menu, no pin.
   await page.locator('#filter-toggle').click();
   await page.locator('#finished-filter').click();
   await expect(titles(page)).toHaveText([older.title]);
-  await expect(row(page, older.title).locator('.card-meta')).toContainText('archived');
+  await expect(row(page, older.title).locator('.card-meta')).toContainText('finished');
   await expect(row(page, older.title).locator('.unfinish-btn')).toBeVisible();
   await expect(row(page, older.title).locator('.pin')).toBeHidden();
   await expect(row(page, older.title).locator('.session-kebab')).toBeVisible();

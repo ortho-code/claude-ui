@@ -104,7 +104,7 @@ test('a second close pressed while the first is being asked ends nothing, and th
 // Every confirm is the app's one confirm dialog, whoever asks it: one whose ask comes while another is up would rewrite it and take its answer as its own, so it is answered no, and asks nothing.
 test("a shell's close whose question comes while another is being asked ends nothing, and the answer is the other's alone", async ({ app, page }) => {
   const finished = session({ title: 'An archived session' });
-  await app.boot({ ...layout, sessions: [finished], archived: { [finished.id]: 1 }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } });
+  await app.boot({ ...layout, sessions: [finished], finished: { [finished.id]: 1 }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } });
   await newTerminal(page).click();
   await expect.poll(() => app.calls('startShell')).toHaveLength(1);
   await running(page, 1, 'npm run dev');

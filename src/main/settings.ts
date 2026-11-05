@@ -104,7 +104,7 @@ const STARTER_NOTES: Record<SettingKey, string> = {
   launchFlags: 'Flags added to every session the app starts, as you would type them',
   runningSessionsAtLaunch: 'What a launch does with the sessions that were running when the app closed: "mark" them as needing you, "start" them too, or "leave" them with the other tabs',
   prStatus: 'Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks and marks a session as needing you when one changes, such as merged or changes requested; turned on, it starts from the PRs as they are then',
-  leaveButton: 'What a tab\'s button does: "stop-close" stops a running session and then closes the tab, "stop-archive" stops it and then archives its session, "close" and "archive" do so in one press, and "none" leaves it to the tab\'s menu',
+  leaveButton: 'What a tab\'s button does: "stop-close" stops a running session and then closes the tab, "stop-finish" stops it and then marks its session finished, "close" and "finish" do so in one press, and "none" leaves it to the tab\'s menu',
   setAside: 'The choices for setting a session aside, offered in the order they come with "whenever" last: "whenever", "in 30m", "in 2h", "in 3d", "in 1w", "tomorrow" or "next monday", a day with a time such as "09:00" or else the time below',
   setAsideTime: 'The time of day, as "HH:MM" in 24 hours, a choice without one comes back at',
   locale: 'The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',

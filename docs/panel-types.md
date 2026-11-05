@@ -126,7 +126,7 @@ Only the last `next` counts, and only the file's first 4 KB is read: an earlier 
 
 ### The sessions
 
-`CLAUDE_UI_SESSIONS` names a file holding one JSON object, `{ "version": 1, "sessions": [...] }`: every session the app has that is not archived or being deleted, a new session's tab included before its transcript is listed, each once and in the order of their ids, as they were when the run started.
+`CLAUDE_UI_SESSIONS` names a file holding one JSON object, `{ "version": 1, "sessions": [...] }`: every session the app has that is not finished or being deleted, a new session's tab included before its transcript is listed, each once and in the order of their ids, as they were when the run started.
 It is data, not words: what a reason or a status is called on a row is the type's to say.
 A row keeps a session's title and dot current between runs through a live value and a `dot` (below), so the file is for choosing the rows.
 
@@ -345,7 +345,7 @@ Before the first run has ended it says it is waiting.
 
 A `session` opens the app's own dialog, which says which panel asks and about what: the project, the one the panel runs in first; the group, the one last picked from that panel there first; the name and the prompt, both to change.
 Nothing starts until Start.
-An `open-session` naming an id the app has no session for says so, as one archived or whose folder is gone says why it cannot open.
+An `open-session` naming an id the app has no session for says so, as one finished or whose folder is gone says why it cannot open.
 A row that started a session shows that session's status dot, unless it has a `dot` of its own, and pressing it goes to the session; with several, it offers them all.
 Pressing it again offers to continue the latest session instead, which is resumed with the prompt when it is stopped and brought into view without it when it is running.
 

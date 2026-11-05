@@ -141,9 +141,9 @@ test('a session set aside that was running comes back as the others do, marked a
   await expect(tab(page, two.title).locator('.tab-set-aside')).toBeVisible();
 });
 
-// Archived is put away, not resumed: a tab kept for one by an earlier version (archived while it ran, or opened as a sibling) is not brought back, even one that was running, and is no longer kept.
-test('an archived session kept among the open tabs does not come back, and is dropped from them', async ({ app, page }) => {
-  await app.boot({ ...choosing('start'), archived: { [two.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
+// Finished is put away, not resumed: a tab kept for one by an earlier version (finished while it ran, or opened as a sibling) is not brought back, even one that was running, and is no longer kept.
+test('a finished session kept among the open tabs does not come back, and is dropped from them', async ({ app, page }) => {
+  await app.boot({ ...choosing('start'), finished: { [two.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
   await expect(tab(page, one.title)).toBeVisible();
   await expect(tab(page, two.title)).toHaveCount(0);

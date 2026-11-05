@@ -118,9 +118,9 @@ export interface Asks {
    * `mark` is what the press was drawn as, and the press does that or nothing: one drawn before the tab moved on, such as a Force stop pressed after claude has gone, would otherwise do what the button does by then, closing the tab.
    */
   pressTabButton(id: string, mark: TabButtonMark): void;
-  /** Press one of a session's tab's leave items, Stop session, Close tab, Archive or a force, as its menu draws it (`leaveAction`); `mark` as for the button. */
+  /** Press one of a session's tab's leave items, Stop session, Close tab, Finished or a force, as its menu draws it (`leaveAction`); `mark` as for the button. */
   pressLeave(id: string, action: LeaveAction, mark: TabButtonMark): void;
-  /** Archive sessions and close every tab each is open in: a claude running in one is asked to leave first, and its session is archived once it has gone; the rest in one write, with one toast. */
+  /** Mark sessions finished and close every tab each is open in: a claude running in one is asked to leave first, and its session is finished once it has gone; the rest in one write, with one toast. */
   finishSessions(ids: readonly string[]): void;
   /** Close the tabs of sessions, as each one's Close tab would, never forcing one already closing; the cold ones at once, with one toast. */
   closeTabs(ids: readonly string[]): void;

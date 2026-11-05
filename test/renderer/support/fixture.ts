@@ -12,8 +12,8 @@ import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside
 export interface BridgeFixture {
   sessions: SessionSummary[];
   pinned: string[];
-  archived: Record<string, number>;
-  /** Why main's write of an archive mark fails, as its error would say, such as `meta.json` that cannot be written; null for one that succeeds. */
+  finished: Record<string, number>;
+  /** Why main's write of a finished mark fails, as its error would say, such as `meta.json` that cannot be written; null for one that succeeds. */
   finishFails: string | null;
   notes: Record<string, string>;
   /** Session -> why it needs you, as meta keeps it; marked and cleared by main's own rules. */
@@ -144,7 +144,7 @@ export function defaultFixture(): BridgeFixture {
   return {
     sessions: [one],
     pinned: [],
-    archived: {},
+    finished: {},
     finishFails: null,
     notes: {},
     needsYou: {},

@@ -37,11 +37,11 @@ export const closeIcon = (size: number): string => strokeIcon(size, '<path d="M4
 export const stopIcon = (size: number, force = false): string =>
   strokeIcon(size, `<rect x="4.7" y="4.7" width="6.6" height="6.6" rx="1.2"${force ? ' fill="currentColor"' : ''} />`);
 
-// Archiving's mark: a lidded box, the archived filter's.
+// Finishing's mark: a lidded box, the finished filter's.
 // Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
 export const finishIcon = (size: number): string => strokeIcon(size, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
 
-// The forces of a close and an archive: the force-stop square, larger, with the act's own mark cut through it, so one shape says "force" and the cut says which (decided 2026-10-28, from a mock).
+// The forces of a close and a finish: the force-stop square, larger, with the act's own mark cut through it, so one shape says "force" and the cut says which (decided 2026-10-28, from a mock).
 // A filled cross would be the plain one, being only two strokes.
 // Cut as holes of an even-odd fill rather than through a mask, whose id every tab would share, and whose first copy could sit in a tab the folded bar hides.
 const FORCE_SQUARE = 'M5.4 3.6H10.6A1.8 1.8 0 0 1 12.4 5.4V10.6A1.8 1.8 0 0 1 10.6 12.4H5.4A1.8 1.8 0 0 1 3.6 10.6V5.4A1.8 1.8 0 0 1 5.4 3.6Z';

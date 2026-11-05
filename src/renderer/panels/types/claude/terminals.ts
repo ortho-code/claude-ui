@@ -164,7 +164,7 @@ export async function restoreOpenTabs(): Promise<void> {
       let toActivate: string | null = null;
       for (const key of openKeys) {
         const session = tips.get(key);
-        // Not an archived one, which is put away rather than resumed (`unopenableReason`): the list has read the archived ones by now, and the tab is dropped from what is kept.
+        // Not a finished one, which is put away rather than resumed (`unopenableReason`): the list has read the finished ones by now, and the tab is dropped from what is kept.
         if (!session || store.get().finished.has(key)) continue;
         const wasRunning = runningKeys.includes(key);
         // What it said was scheduled when its claude went, which it goes on saying until a claude started on it reports.
@@ -510,7 +510,7 @@ function forceOutAtOnce(token: string): void {
  * End the session but keep its tab, cold and resumable.
  * The opposite of closeTab, and the deliberate counterpart to claude exiting on its own — which still CLOSES the tab, so a finished session does not leave an empty one behind.
  * `stopping` is what tells those two apart when the exit arrives.
- * A claude already leaving, for a close or an archive, is asked nothing more: its exit keeps the tab instead (decided 2026-10-28), as a close changes a stop.
+ * A claude already leaving, for a close or a finish, is asked nothing more: its exit keeps the tab instead (decided 2026-10-28), as a close changes a stop.
  */
 function stopSession(token: string): void {
   const tab = tabOf(token);
@@ -524,7 +524,7 @@ function stopSession(token: string): void {
 }
 
 /**
- * A leave item pressed, from the session's menu, the tab's button or the strip's (`leaveAction`): Stop session, Close tab, Archive, or the force of what claude is leaving for.
+ * A leave item pressed, from the session's menu, the tab's button or the strip's (`leaveAction`): Stop session, Close tab, Finished, or the force of what claude is leaving for.
  * It acts only while the item would still do the same, and, given the mark it was drawn with, still draws it, since a press can land on an item drawn before the tab moved on — a Force stop pressed once claude has gone would otherwise close the tab (decided 2026-10-21).
  */
 export function pressLeave(token: string, action: LeaveAction, mark?: TabButtonMark): void {
@@ -541,7 +541,7 @@ export function pressLeave(token: string, action: LeaveAction, mark?: TabButtonM
 /**
  * A session asked to leave that went on working: a prompt it submitted, or a `/resume` or `/clear` that moved its tab to another session (`adoptReplacement`), so the stop is off and the tab is live again.
  * Claude's exit can be called off — Esc at a worktree's keep-or-remove question takes it back to its prompt — and only what is done next says so; until then the tab goes on saying it is stopping.
- * Whatever the leave was, a stop, a close or an archive, it goes (decided 2026-10-28: a leave left unfinished for something else is one called off).
+ * Whatever the leave was, a stop, a close or a finish, it goes (decided 2026-10-28: a leave left unfinished for something else is one called off).
  * Not once its claude has been forced out (`forced`): that claude is being ended whatever it reports.
  * Answers the tab as it was when its leave was called off, or null when there was none to call off.
  */
@@ -555,12 +555,12 @@ function stopCalledOff(token: string): TabState | null {
 
 /**
  * A prompt a tab's claude submitted: it went on working, so a leave under way is off (`stopCalledOff`).
- * An archive called off by one says so, since a prompt sent just before the press can report after it, and claude then leaves on the presses with the session unarchived (decided 2026-10-28).
- * Only a prompt: a `/resume` or `/clear` that calls an archive off is one you typed, and one into a session another tab runs already says that it runs there.
+ * A finish called off by one says so, since a prompt sent just before the press can report after it, and claude then leaves on the presses with the session unfinished (decided 2026-10-28).
+ * Only a prompt: a `/resume` or `/clear` that calls a finish off is one you typed, and one into a session another tab runs already says that it runs there.
  */
 export function promptSubmitted(token: string): void {
   const calledOff = stopCalledOff(token);
-  if (calledOff?.onExit === 'finish') showToast(`Archiving "${sessionLabel(calledOff.session)}" was called off`);
+  if (calledOff?.onExit === 'finish') showToast(`Finishing "${sessionLabel(calledOff.session)}" was called off`);
 }
 
 /**
@@ -653,7 +653,7 @@ function removedTab(tab: TabState): RemovedTab {
 /**
  * Undo's put-back: each tab back where it stood, cold, as a tab restored at launch is, and marked as needing you again if it was; nothing starts.
  * `removed` is in the order the tabs went, each `at` counted among the tabs as they were then, so they come back last first.
- * A session another tab holds by now, opened again meanwhile, keeps that tab rather than gaining a second, and an archived one gets none, since the app opens no archived session.
+ * A session another tab holds by now, opened again meanwhile, keeps that tab rather than gaining a second, and a finished one gets none, since the app opens no finished session.
  */
 function putBack(removed: readonly RemovedTab[]): void {
   for (const { session, at, scheduledWhenStopped, needsYou } of [...removed].reverse()) {
@@ -698,7 +698,7 @@ export function closeTabs(keys: readonly string[]): void {
  * Close a tab: at once when it is cold, and for a live one once its claude has gone, asked to leave as a stop asks it.
  * The tab outlives the session because claude can ask something on its way out, which a tab removed first would make unanswerable: it is kept, stopping, until the exit lands, and goes then.
  * claude persists per turn, so a session's context is on disk whichever way it ends.
- * `undoable` is a close you pressed of a cold tab, whose going offers Undo at once; a live tab's close offers it at its exit (`onTabExit`), unless an archive closed it, whose own toast is its Undo.
+ * `undoable` is a close you pressed of a cold tab, whose going offers Undo at once; a live tab's close offers it at its exit (`onTabExit`), unless a finish closed it, whose own toast is its Undo.
  */
 export function closeTab(token: string, undoable = false): void {
   const tab = tabOf(token);
@@ -718,18 +718,18 @@ export function closeTab(token: string, undoable = false): void {
 }
 
 /**
- * Archive sessions, closing every tab each is open in: at once where no claude of the app's runs it, all of those in one write with one toast, and where one does, once that claude has gone, asked to leave as a close asks it.
- * The mark waits for the exit so that no claude the app runs when it is written runs an archived session, and the tab waits so that what claude asks on its way out can be answered there.
- * A claude already asked to leave, by a stop or a close, is asked nothing more, since a second pair of presses ends what it asks on its way out unanswered: its exit archives instead, as a close changes a stop.
- * Going on working meanwhile, a prompt or a `/resume` or `/clear`, calls the archive off with the stop (`stopCalledOff`), a prompt saying so (`promptSubmitted`), and a quit archives nothing (`finishAtExit`).
- * Not a session with a tab starting, which has no claude yet to ask; the menu's Archive is unavailable then, and a batch leaves it out.
+ * Mark sessions finished, closing every tab each is open in: at once where no claude of the app's runs it, all of those in one write with one toast, and where one does, once that claude has gone, asked to leave as a close asks it.
+ * The mark waits for the exit so that no claude the app runs when it is written runs a finished session, and the tab waits so that what claude asks on its way out can be answered there.
+ * A claude already asked to leave, by a stop or a close, is asked nothing more, since a second pair of presses ends what it asks on its way out unanswered: its exit finishes instead, as a close changes a stop.
+ * Going on working meanwhile, a prompt or a `/resume` or `/clear`, calls the finish off with the stop (`stopCalledOff`), a prompt saying so (`promptSubmitted`), and a quit finishes nothing (`finishAtExit`).
+ * Not a session with a tab starting, which has no claude yet to ask; the menu's Finished is unavailable then, and a batch leaves it out.
  */
 export function finishSessions(keys: readonly string[]): void {
   const now: string[] = [];
   for (const key of keys) {
     const held = store.get().tabs.filter((t) => entityKey(t.session) === key);
     if (held.some((t) => t.starting)) continue;
-    // A fresh archive starts its list afresh, so what an archive called off had removed is not put back by this one's Undo.
+    // A fresh finish starts its list afresh, so what a finish called off had removed is not put back by this one's Undo.
     if (!held.some((t) => t.stopping && t.onExit === 'finish')) finishRemoved.delete(key);
     if (held.every((t) => t.terminalId === null)) {
       now.push(key);
@@ -746,7 +746,7 @@ export function finishSessions(keys: readonly string[]): void {
   if (now.length > 0) void finishNow(now);
 }
 
-/** Per session being archived, the tabs its archive has removed so far, for its Undo to put back; taken when the mark is written. */
+/** Per session being finished, the tabs its finish has removed so far, for its Undo to put back; taken when the mark is written. */
 const finishRemoved = new Map<string, RemovedTab[]>();
 
 function finishedTabs(key: string): RemovedTab[] {
@@ -755,7 +755,7 @@ function finishedTabs(key: string): RemovedTab[] {
   return removed;
 }
 
-/** What an archive's Undo puts back of one session: its set-aside and needs-you marks as they were, read before the write. */
+/** What a finish's Undo puts back of one session: its set-aside and needs-you marks as they were, read before the write. */
 interface FinishedMarks {
   key: string;
   setAside: SetAside | null;
@@ -768,11 +768,11 @@ function titleOf(key: string, removed: readonly RemovedTab[]): string {
   return session ? `"${sessionLabel(session)}"` : `"${key.slice(0, 8)}"`;
 }
 
-/** The toast an archive raises once its marks are written, one for a batch, with Undo unarchiving them in one write, putting back the tabs the archive closed (decided 2026-10-28), and each one's set-aside and needs-you marks as they were, a session with no tab too. */
+/** The toast a finish raises once its marks are written, one for a batch, with Undo making them unfinished in one write, putting back the tabs the finish closed (decided 2026-10-28), and each one's set-aside and needs-you marks as they were, a session with no tab too. */
 function offerUndoFinish(marks: readonly FinishedMarks[], removed: readonly RemovedTab[]): void {
   const keys = marks.map((m) => m.key);
   const what = keys.length === 1 ? titleOf(keys[0]!, removed) : `${keys.length} sessions`;
-  showToast(`Archived ${what}`, false, [
+  showToast(`Finished ${what}`, false, [
     {
       label: 'Undo',
       run: () =>
@@ -785,14 +785,14 @@ function offerUndoFinish(marks: readonly FinishedMarks[], removed: readonly Remo
             }
             putBack(removed);
           },
-          () => showToast(`Couldn't unarchive ${what}; unarchive ${keys.length === 1 ? 'it' : 'them'} from the archived view`),
+          () => showToast(`Couldn't make ${what} unfinished; make ${keys.length === 1 ? 'it' : 'them'} unfinished from the finished sessions`),
         ),
     },
   ]);
 }
 
 /**
- * Write the archive marks of sessions, in one write, and close their tabs in the same change, so the list draws once, with both gone.
+ * Write the finished marks of sessions, in one write, and close their tabs in the same change, so the list draws once, with both gone.
  * A tab opened while main writes is closed too: its claude, if one has started by then, asked to leave as a close asks it, after the mark, or closed at its exit if it was leaving already, and one still starting ended as it arrives.
  * A write main refuses says so, since at an exit the tab is gone already and the row staying would be all that says it.
  */
@@ -804,7 +804,7 @@ async function finishNow(keys: readonly string[]): Promise<void> {
     finished = new Map(Object.entries(await window.claudeUi.finish([...keys])));
   } catch {
     for (const key of keys) finishRemoved.delete(key);
-    showToast(`Couldn't archive ${keys.length === 1 ? `${titleOf(keys[0]!, [])}. It's` : `${keys.length} sessions. They're`} still here.`);
+    showToast(`Couldn't finish ${keys.length === 1 ? `${titleOf(keys[0]!, [])}. It's` : `${keys.length} sessions. They're`} still here.`);
     return;
   }
   const removed: RemovedTab[] = [];
@@ -820,7 +820,7 @@ async function finishNow(keys: readonly string[]): Promise<void> {
       if (tab.terminalId === null) removed.push(removedTab(tab));
       closeTab(tab.token);
     }
-    // Main's archive took the marks off as it archived (src/main/meta.ts); after the tabs, whose Undo puts the needs-you mark back.
+    // Main's finish took the marks off as it finished (src/main/meta.ts); after the tabs, whose Undo puts the needs-you mark back.
     for (const key of keys) clearNeedsYou(key);
     clearSetAside(keys);
   });
@@ -828,9 +828,9 @@ async function finishNow(keys: readonly string[]): Promise<void> {
 }
 
 /**
- * The exit of a claude asked to leave for an archive, its tab already gone: the session is archived once no tab holds it.
- * A tab still holding it is either still leaving for the archive, whose exit archives it then, or one whose stop was called off, where the session is being worked in.
- * Not at a quit: a claude that had not gone may still have needed you, answering its question say, so the session stays unarchived and its tab comes back at the next launch, as a close under way does (decided 2026-10-28).
+ * The exit of a claude asked to leave for a finish, its tab already gone: the session is finished once no tab holds it.
+ * A tab still holding it is either still leaving for the finish, whose exit finishes it then, or one whose stop was called off, where the session is being worked in.
+ * Not at a quit: a claude that had not gone may still have needed you, answering its question say, so the session stays unfinished and its tab comes back at the next launch, as a close under way does (decided 2026-10-28).
  */
 function finishAtExit(key: string): void {
   if (isQuitting()) return;
@@ -882,7 +882,7 @@ export function adoptReplacement(tabToken: string, id: string, source: string): 
 
 /**
  * A tab whose claude went on in a session that already exists, by its own `/resume`: the tab takes it as it is, its row, title, group and pin, with nothing carried from the session before.
- * Archiving is this app's and claude cannot see it, so the session can be an archived one: it is unarchived, since the app runs no archived session, and a toast says so, since nobody pressed Unarchive.
+ * Finishing is this app's and claude cannot see it, so the session can be a finished one: it is made unfinished, since the app runs no finished session, and a toast says so, since nobody pressed Unfinished.
  * Another tab can hold the session too: one with no claude behind it goes, since this tab is the session's now; one running it is left alone and the take-over undone, this tab's claude forced out and the tab kept on the session it ran before, and that tab is answered.
  */
 function adoptResumed(owner: TabState, id: string): TabState | null {
@@ -913,8 +913,8 @@ function adoptResumed(owner: TabState, id: string): TabState | null {
   if (!store.get().finished.has(key)) return null;
   void window.claudeUi.unfinish([key]).then((finished) => {
     store.set({ finished: new Map(Object.entries(finished)) });
-    showToast(`"${sessionLabel(session)}" was archived; resuming it in claude unarchived it`);
-  }, () => showToast(`"${sessionLabel(session)}" is archived and running; unarchive it from the archived view`));
+    showToast(`"${sessionLabel(session)}" was finished; resuming it in claude made it unfinished`);
+  }, () => showToast(`"${sessionLabel(session)}" is finished and running; make it unfinished from the finished sessions`));
   return null;
 }
 
@@ -939,7 +939,7 @@ function onTabExit(token: string, exitCode: number, signal = 0): void {
   const tab = tabOf(token);
   if (!tab) return; // Already closed by the user.
   clearStopTimers(token);
-  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed — or, for a close or an archive, remove it now that claude has gone, and archive the session for the archive.
+  // A stop the user asked for: keep the tab, cold, so the layout survives and it can be resumed — or, for a close or a finish, remove it now that claude has gone, and mark the session finished for the finish.
   // Every other exit keeps today's behaviour below.
   if (tab.stopping) {
     if (tab.onExit === 'cool') {
@@ -954,9 +954,9 @@ function onTabExit(token: string, exitCode: number, signal = 0): void {
       finishAtExit(key);
       return;
     }
-    // A close: an archive it was turned from leaves no mark, so the tabs that archive had removed already come back with this one's Undo.
+    // A close: a finish it was turned from leaves no mark, so the tabs that finish had removed already come back with this one's Undo.
     finishRemoved.delete(key);
-    // One an archive closed, opened while it wrote its mark, offers nothing: the archive's own toast is the Undo.
+    // One a finish closed, opened while it wrote its mark, offers nothing: the finish's own toast is the Undo.
     if (!store.get().finished.has(key)) offerUndoClose(removed);
     return;
   }

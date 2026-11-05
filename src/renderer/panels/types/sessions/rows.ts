@@ -36,7 +36,7 @@ export function drawRow(key: string): HTMLElement {
 }
 
 // Take it back out of the box.
-// Archiving has no row icon — it is a kebab item (text) in the normal view; only unarchiving, the archived view's primary action, stays a button on the row.
+// Finishing has no row icon — it is a kebab item (text) in the normal view; only making unfinished, the finished view's primary action, stays a button on the row.
 // Redrawn from its 24-unit original at two-thirds scale, onto the 16-unit grid the helper draws on.
 const UNFINISH_ICON = strokeIcon(14, '<path d="M.67 2.67v4h4" /><path d="M2.34 10a6 6 0 1 0 1.42-6.24L.67 6.67" />');
 
@@ -167,18 +167,18 @@ function createSessionRow(key: string): HTMLElement {
     });
   });
 
-  // Unarchive lives on the row because it is what the archived view is for; archiving a live session is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
+  // Unfinished lives on the row because it is what the finished view is for; finishing a live session is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
   const unfinishBtn = document.createElement('button');
   unfinishBtn.className = 'icon-btn unfinish-btn';
   unfinishBtn.hidden = true;
   unfinishBtn.innerHTML = UNFINISH_ICON;
-  setTooltip(unfinishBtn, 'Unarchive');
+  setTooltip(unfinishBtn, 'Unfinished');
   unfinishBtn.addEventListener('click', (event) => {
     event.stopPropagation();
     void unfinishFor(key);
   });
 
-  // Delete lives only in the archived view (shown/hidden in updateRow); trash-based + confirmed.
+  // Delete lives only in the finished view (shown/hidden in updateRow); trash-based + confirmed.
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'icon-btn delete-btn pair-end';
   setTooltip(deleteBtn, 'Delete session');
@@ -189,7 +189,7 @@ function createSessionRow(key: string): HTMLElement {
     void confirmAndDelete([key]);
   });
 
-  // The session's menu, in both views: an archived session's holds the archived view's two actions among its items (`sessionMenuItems`).
+  // The session's menu, in both views: a finished session's holds the finished view's two actions among its items (`sessionMenuItems`).
   const kebab = kebabButton('session-kebab pair-end', 'Session options', () => {
     const session = currentByKey.get(key);
     return session ? sessionMenuItems(session, 'row') : null;
@@ -205,8 +205,8 @@ function createSessionRow(key: string): HTMLElement {
       pressRowInBulk(key, event.shiftKey);
       return;
     }
-    // Archived sessions are inert: manage them (unarchive/delete), don't resume them.
-    if (store.get().filter.filters.archived) return;
+    // Finished sessions are inert: manage them (make unfinished/delete), don't resume them.
+    if (store.get().filter.filters.finished) return;
     const session = currentByKey.get(key);
     if (!session) return;
     // A session whose folder is gone cannot run anywhere.
@@ -251,7 +251,7 @@ export function showTabMarks(marks: RowTabMarks, id: string, view: View<'schedul
 /**
  * What a row drawn flat says ahead of the rest of its line, and in place of what.
  * `lead`: where it sits, where no heading above it says so.
- * `why`: for a row of the review (docs/architecture.md § The review), the line saying why it is there, in place of what the row says otherwise; null for a row that says it: its time and model, or in the archived view when it was archived.
+ * `why`: for a row of the review (docs/architecture.md § The review), the line saying why it is there, in place of what the row says otherwise; null for a row that says it: its time and model, or in the finished view when it was finished.
  * Both worked out again on the minute clock like the time they lead or replace, of the session as the newest listing has it.
  */
 export interface FlatLine {
@@ -263,8 +263,8 @@ export interface FlatLine {
 export function updateRow(row: HTMLElement, session: SessionSummary, view: RowView, flat?: FlatLine): void {
   row.dataset.sid = session.id;
   const els = rowEls.get(row)!;
-  // The review sets the filter aside, the archived view with it.
-  const finishedView = view.filter.filters.archived && !view.reviewing;
+  // The review sets the filter aside, the finished view with it.
+  const finishedView = view.filter.filters.finished && !view.reviewing;
 
   applyStatus(els.dot, session.id, view);
   statusDots.set(session.id, els.dot);
@@ -318,7 +318,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
     setTooltip(els.prBadge, `${prCount === 1 ? '1 PR' : `${prCount} PRs`} linked to this session${mark.says ? ` — ${mark.says}` : ''} — click to list them`);
   }
 
-  // When it was archived in the archived view, where every session is; when it was active everywhere else.
+  // When it was finished in the finished view, where every session is; when it was active everywhere else.
   // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, logic.ts).
   const moment = (shown: SessionSummary, as: RowView): Moment => {
     const own = (flat?.why ? { text: flat.why(shown), at: shown.lastActivity } : null) ?? (finishedView ? finishedMoment(shown, as) : null) ?? activityMoment(shown, as);
@@ -327,14 +327,14 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   };
   showMoment(els.metaText, moment(session, view), () => moment(newest(session), store.get()));
 
-  // The archived view is a management view: no pinning, and delete replaces it there.
+  // The finished view is a management view: no pinning, and delete replaces it there.
   const isPinned = view.pinned.has(entityKey(session));
   setMarkup(els.pin, isPinned ? PINNED_ICON : PIN_ICON);
   setTooltip(els.pin, isPinned ? 'Unpin' : 'Pin');
   els.pin.disabled = false;
   els.pin.hidden = finishedView;
 
-  // Unarchive and delete are the archived view's two buttons, shortcuts to the items its kebab holds, and appear nowhere else.
+  // Unfinished and delete are the finished view's two buttons, shortcuts to the items its kebab holds, and appear nowhere else.
   els.unfinishBtn.hidden = !finishedView;
   els.deleteBtn.hidden = !finishedView;
 }

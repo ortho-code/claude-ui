@@ -31,7 +31,7 @@ export const filterPanel = fromMarkup(`
       <button id="sibling-filter" type="button" data-tooltip="Show only sessions with siblings" aria-label="Show only sessions with siblings" aria-pressed="false"></button>
       <button id="pr-filter" type="button" data-tooltip="Show only sessions with a PR" aria-label="Show only sessions with a PR" aria-pressed="false"></button>
       <button id="note-filter" type="button" data-tooltip="Show only sessions with a note" aria-label="Show only sessions with a note" aria-pressed="false"></button>
-      <button id="finished-filter" type="button" data-tooltip="Show archived sessions" aria-label="Show archived sessions" aria-pressed="false"></button>
+      <button id="finished-filter" type="button" data-tooltip="Show finished sessions" aria-label="Show finished sessions" aria-pressed="false"></button>
       <button id="gone-filter" type="button" data-tooltip="Show only sessions whose folder is gone" aria-label="Show only sessions whose folder is gone" aria-pressed="false"></button>
       <div id="date-presets">
         <button type="button" data-range="any" class="active">Any</button>
@@ -95,7 +95,7 @@ const OPEN_ICON = strokeIcon(13, '<rect x="2.6" y="3.4" width="10.8" height="9.2
 // The running filter's mark: a filled dot inside a ring — the same "live" language the status dots speak, rather than a play triangle, which would read as "start these".
 const LIVE_ICON = strokeIcon(13, '<circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />');
 
-// The archived filter's mark: the lidded box archiving wears everywhere (`finishIcon`).
+// The finished filter's mark: the lidded box finishing wears everywhere (`finishIcon`).
 const FINISH_ICON = finishIcon(13);
 
 // Session key -> its group's NAME, so typing a group name reaches its sessions.
@@ -131,7 +131,7 @@ export function passesFilters(session: SessionSummary, view: View<'pinned' | 'fi
     siblingOnly: filters.siblings,
     prsOnly: filters.prs,
     notedOnly: filters.noted,
-    finishedOnly: filters.archived,
+    finishedOnly: filters.finished,
     dateFrom,
     dateTo,
     pinned: view.pinned,
@@ -232,8 +232,8 @@ export function updateFilterStatus(matches: number, total: number, view: View<'f
   }
   // The toggle carries the accent when any filter is on, beside the status line under the panel, so an active filter is visible even with the panel closed.
   filterToggle.classList.toggle('active', filtering);
-  // The archived view counts against the archived set, and says so, since that total is not the number the switcher shows.
-  if (filtering) filterCount.textContent = `Showing ${matches} of ${total}${filters.archived ? ' archived' : ''}`;
+  // The finished view counts against the finished set, and says so, since that total is not the number the switcher shows.
+  if (filtering) filterCount.textContent = `Showing ${matches} of ${total}${filters.finished ? ' finished' : ''}`;
   updateFilterChips(view);
 }
 
@@ -390,7 +390,7 @@ const FILTER_PILLS: FilterPill[] = [
   { button: siblingFilter, icon: SIBLING_ICON, key: 'siblings' },
   { button: prFilter, icon: PR_ICON, key: 'prs' },
   { button: noteFilter, icon: NOTE_ICON, key: 'noted' },
-  { button: finishedFilter, icon: FINISH_ICON, key: 'archived' },
+  { button: finishedFilter, icon: FINISH_ICON, key: 'finished' },
   { button: goneFilter, icon: folderGoneIcon(13), key: 'gone' },
 ];
 

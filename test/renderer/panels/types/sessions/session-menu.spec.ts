@@ -31,7 +31,7 @@ for (const [surface, kebab] of [
     const meta = await row(page, full.title).locator('.meta-text').textContent();
     await kebab(page).click();
     await expect(lines(page)).toHaveText([full.title, 'demo · Bugs', 'Waiting for you', meta!, 'Linked git worktree: feat-drag', 'Check it on a mac']);
-    // Outside the archived view, the row's meta line and the header's are one rule.
+    // Outside the finished view, the row's meta line and the header's are one rule.
     expect(meta).toMatch(/ · Opus 5\.5$/);
   });
 }
@@ -147,16 +147,16 @@ test('Show in list says so when a filter leaves the session out', async ({ app, 
   await expect(page.locator('#toast-message')).toHaveText(`"${full.title}" is left out by the filter. Clear it to see its row.`);
 });
 
-// An archived sibling stays in the list of siblings, unavailable and saying why: archived is put away, not opened.
-test("an archived sibling in a session's menu is unavailable, saying it is archived", async ({ app, page }) => {
+// A finished sibling stays in the list of siblings, unavailable and saying why: finished is put away, not opened.
+test("a finished sibling in a session's menu is unavailable, saying it is finished", async ({ app, page }) => {
   const kept = session({ id: '00000000-0000-4000-8000-0000000000f2', title: 'Kept sibling', isSibling: true, siblingIds: ['00000000-0000-4000-8000-0000000000f3'] });
   const put = session({ id: '00000000-0000-4000-8000-0000000000f3', title: 'Archived sibling', isSibling: true, siblingIds: [kept.id] });
-  await app.boot({ sessions: [kept, put], archived: { [put.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
+  await app.boot({ sessions: [kept, put], finished: { [put.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
   await row(page, kept.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button.menu-row', { hasText: 'Siblings (1)' }).hover();
   const sibling = page.locator('.kebab-menu.submenu button.menu-row', { hasText: put.title });
   await expect(sibling).toHaveClass(/\bunavailable\b/);
-  await expect(sibling).toHaveAttribute('data-tooltip', 'Archived: unarchive it in the archived view to open it');
+  await expect(sibling).toHaveAttribute('data-tooltip', 'Finished: make it unfinished from the finished sessions to open it');
   await sibling.click({ force: true });
   expect(await app.calls('startTerminal')).toEqual([]);
 });
@@ -207,7 +207,7 @@ test("a session's dot is a control only while it is idle or waiting, on its row 
 });
 
 // Even one whose claude left a status behind, as one that ended without saying so does.
-test("an archived row's dot is no control, whatever status it still shows", async ({ app, page }) => {
+test("a finished row's dot is no control, whatever status it still shows", async ({ app, page }) => {
   await app.boot({ ...finishedView, statuses: { [full.id]: 'waiting' } });
   const dot = row(page, full.title).locator('.nudge');
   await expect(dot).toHaveClass(/\bwaiting\b/);
@@ -250,13 +250,13 @@ async function runningMenu(app: App, page: Page): Promise<void> {
   await row(page, full.title).locator('.session-kebab').click();
 }
 
-// Stop session, Close tab and Archive each do one thing, whatever that takes (decided 2026-10-28): no item in the menu is two of them.
-test("a running session's menu has Stop session, Close tab and Archive, each available", async ({ app, page }) => {
+// Stop session, Close tab and Finished each do one thing, whatever that takes (decided 2026-10-28): no item in the menu is two of them.
+test("a running session's menu has Stop session, Close tab and Finished, each available", async ({ app, page }) => {
   await runningMenu(app, page);
-  for (const label of ['Stop session', 'Close tab', 'Archive']) await expect(item(page, label)).not.toHaveClass(/\bunavailable\b/);
+  for (const label of ['Stop session', 'Close tab', 'Finished']) await expect(item(page, label)).not.toHaveClass(/\bunavailable\b/);
 });
 
-test("Close tab in a running session's menu asks claude to leave, keeps the tab until it has gone, and archives nothing", async ({ app, page }) => {
+test("Close tab in a running session's menu asks claude to leave, keeps the tab until it has gone, and finishes nothing", async ({ app, page }) => {
   await runningMenu(app, page);
   await item(page, 'Close tab').click();
   expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
@@ -269,13 +269,13 @@ test("Close tab in a running session's menu asks claude to leave, keeps the tab 
   expect(await app.calls('finish')).toEqual([]);
 });
 
-test("a cold tab's menu has nothing to stop, and closes and archives it", async ({ app, page }) => {
+test("a cold tab's menu has nothing to stop, and closes and finishes it", async ({ app, page }) => {
   await app.boot(fixture);
   await row(page, full.title).locator('.session-kebab').click();
   await expect(item(page, 'Stop session')).toHaveClass(/\bunavailable\b/);
   await expect(item(page, 'Stop session')).toHaveAttribute('data-tooltip', 'Not running');
   await expect(item(page, 'Close tab')).not.toHaveClass(/\bunavailable\b/);
-  await expect(item(page, 'Archive')).not.toHaveClass(/\bunavailable\b/);
+  await expect(item(page, 'Finished')).not.toHaveClass(/\bunavailable\b/);
 });
 
 // The item of what was asked becomes its force, named for it, and the tab's and the strip's button are that force too, so the button stays the press that ends claude.
@@ -400,12 +400,12 @@ test('Close tab is unavailable, with the reason, for a session with no tab', asy
   await expect(item(page, 'Close tab')).toHaveAttribute('data-tooltip', 'Not open in a tab');
 });
 
-// One open but not running is put away with its tab at once; a running one's archive waits for its claude (claude/terminals/finish.spec.ts).
+// One open but not running is put away with its tab at once; a running one's finish waits for its claude (claude/terminals/finish.spec.ts).
 for (const [state, setAsideMarks] of [['cold', {}], ['cold and set aside', setAside]] as const) {
-  test(`Archive on a session whose tab is ${state} archives it and closes the tab`, async ({ app, page }) => {
+  test(`Finished on a session whose tab is ${state} finishes it and closes the tab`, async ({ app, page }) => {
     await app.boot({ ...fixture, setAside: setAsideMarks });
     await tab(page, full.title).locator('.tab-kebab').click();
-    await item(page, 'Archive').click();
+    await item(page, 'Finished').click();
     await expect(tab(page, full.title)).toHaveCount(0);
     await expect(row(page, full.title)).toHaveCount(0);
     expect(await app.calls('finish')).toEqual([[[full.id]]]);
@@ -413,28 +413,28 @@ for (const [state, setAsideMarks] of [['cold', {}], ['cold and set aside', setAs
   });
 }
 
-// The archived view's rows carry the kebab too, holding what the row's marks reach but its dot, its id, and the view's two buttons.
-const finishedView = { sessions: [full], archived: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } };
+// The finished view's rows carry the kebab too, holding what the row's marks reach but its dot, its id, and the view's two buttons.
+const finishedView = { sessions: [full], finished: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } };
 
-test("an archived session's menu holds its note, its id, Unarchive and Delete, Select… on its row, and nothing that starts or files it", async ({ app, page }) => {
+test("a finished session's menu holds its note, its id, Unfinished and Delete, Select… on its row, and nothing that starts or files it", async ({ app, page }) => {
   await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
-  await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Unarchive', 'Delete session…', 'Select…']);
-  // When it was archived, as its row says it, below when it was last active.
+  await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Unfinished', 'Delete session…', 'Select…']);
+  // When it was finished, as its row says it, below when it was last active.
   const finished = await row(page, full.title).locator('.meta-text').textContent();
   await expect(lines(page).nth(3)).toHaveText(finished!);
-  expect(finished).toMatch(/^archived /);
+  expect(finished).toMatch(/^finished /);
 });
 
-test("Unarchive in an archived session's menu takes it out of the archived view, as the row's button does", async ({ app, page }) => {
+test("Unfinished in a finished session's menu takes it out of the finished view, as the row's button does", async ({ app, page }) => {
   await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
-  await item(page, 'Unarchive').click();
+  await item(page, 'Unfinished').click();
   await expect(row(page, full.title)).toHaveCount(0);
   expect(await app.calls('unfinish')).toEqual([[[full.id]]]);
 });
 
-test("Delete session in an archived session's menu asks first, as the row's button does", async ({ app, page }) => {
+test("Delete session in a finished session's menu asks first, as the row's button does", async ({ app, page }) => {
   await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
   await item(page, 'Delete session…').click();
@@ -444,7 +444,7 @@ test("Delete session in an archived session's menu asks first, as the row's butt
   expect(await app.calls('deleteSession')).toEqual([]);
 });
 
-test("an archived row's trailing controls sit 4px apart, delete second from the right", async ({ app, page }) => {
+test("a finished row's trailing controls sit 4px apart, delete second from the right", async ({ app, page }) => {
   await app.boot(finishedView);
   const box = async (selector: string): Promise<{ x: number; width: number }> => (await row(page, full.title).locator(selector).boundingBox())!;
   const [unfinish, del, kebab] = [await box('.unfinish-btn'), await box('.delete-btn'), await box('.session-kebab')];

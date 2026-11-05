@@ -251,7 +251,7 @@ function buildSessionTab(token: string): SessionTabEls {
       const shown = tabOf(token);
       if (shown) hostOf('claude').revealSession(shown.session.id);
     },
-    // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind, or archive its session; or one, or no button at all, as the settings say.
+    // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind, or mark its session finished; or one, or no button at all, as the settings say.
     // See pressTabButton.
     // A middle click does what the button does, and nothing without one: one that killed a running session outright would be the one way left to lose one by accident, and a one-press close asks claude to leave first.
     press: () => pressTabButton(token),
@@ -311,7 +311,7 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
     classes: unstartable ? ['unstartable'] : [],
     text,
     tooltip: unstartable ?? `${projName(tab.session.repoRoot, view)} · ${text}`,
-    // Stopping, the force of what claude is leaving for, and closing or archiving, or no button, as the settings say: the same rule the live strip's button follows — see tabButton.
+    // Stopping, the force of what claude is leaving for, and closing or finishing, or no button, as the settings say: the same rule the live strip's button follows — see tabButton.
     button: tabButtonOf(tab, view),
     // The mark cluster is placed only when there ARE marks — an empty wrapper would still consume a gap and shift the label.
     lead: marks.length > 0 ? [dot, markGroup] : [dot],

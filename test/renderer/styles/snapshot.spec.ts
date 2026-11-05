@@ -154,9 +154,9 @@ test('the text prompt open, renaming a project', async ({ app, page }) => {
   await snapshot(page, DIR!, 'prompt');
 });
 
-test('the confirm dialog open, deleting an archived session', async ({ app, page }) => {
+test('the confirm dialog open, deleting a finished session', async ({ app, page }) => {
   const one = session();
-  await app.boot({ archived: { [one.id]: Date.parse('2026-09-29T12:00:00.000Z') }, ...ui({ filters: { ...defaultUi().filters, archived: true } }) });
+  await app.boot({ finished: { [one.id]: Date.parse('2026-09-29T12:00:00.000Z') }, ...ui({ filters: { ...defaultUi().filters, finished: true } }) });
   await page.locator('.session .delete-btn').click();
   await expect(page.locator('#confirm-overlay')).toBeVisible();
   await snapshot(page, DIR!, 'confirm');

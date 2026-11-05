@@ -5,7 +5,7 @@ import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, stripRow, switcherEntry, tab, tabLabels, toastButton } from '../../../../support/window';
 
-// A session marked as needing you, as a launch marks the ones that were running when the app closed (resume.spec.ts), keeps the mark until you act on it: a prompt there, Clear needs you, closing its tab, leaving claude yourself, or archiving it.
+// A session marked as needing you, as a launch marks the ones that were running when the app closed (resume.spec.ts), keeps the mark until you act on it: a prompt there, Clear needs you, closing its tab, leaving claude yourself, or finishing it.
 // Its dot shows it where claude says nothing more pressing, on its row, its tab and its strip row alike, and a click there only marks it seen (decided 2026-10-28).
 const one = session({ id: '00000000-0000-4000-8000-0000000000e1', title: 'Marked session' });
 const two = session({ id: '00000000-0000-4000-8000-0000000000e2', title: 'Other session' });
@@ -155,9 +155,9 @@ test('closing its tab takes the mark off, and Undo puts it back with the tab', a
   expect(await app.calls('markNeedsYou')).toEqual([[[one.id], [mark]]]);
 });
 
-test('archiving it takes the mark off, and Undo puts it back with the tab', async ({ app, page }) => {
+test('finishing it takes the mark off, and Undo puts it back with the tab', async ({ app, page }) => {
   await app.boot(fixture);
-  await (await menuItem(page, one.title, 'Archive')).click();
+  await (await menuItem(page, one.title, 'Finished')).click();
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({});
 
@@ -166,10 +166,10 @@ test('archiving it takes the mark off, and Undo puts it back with the tab', asyn
   await expectMarked(page, true);
 });
 
-// A session with no tab has nothing for Undo's put-back to carry the mark on, so the archive keeps it for Undo itself.
-test('archiving a marked session that has no tab takes the mark off, and Undo puts it back as it was', async ({ app, page }) => {
+// A session with no tab has nothing for Undo's put-back to carry the mark on, so the finish keeps it for Undo itself.
+test('finishing a marked session that has no tab takes the mark off, and Undo puts it back as it was', async ({ app, page }) => {
   await app.boot({ ...fixture, openSessions: [two.id] });
-  await (await menuItem(page, one.title, 'Archive')).click();
+  await (await menuItem(page, one.title, 'Finished')).click();
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({});
 
   await toastButton(page, 'Undo').click();

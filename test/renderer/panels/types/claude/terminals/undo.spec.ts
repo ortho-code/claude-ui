@@ -4,7 +4,7 @@ import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { row, tab, tabLabels, toastButton } from '../../../../support/window';
 
-// A tab you close and a session you archive, from any control, offer Undo in the toast once the tab has gone, which puts the tab back where it was, cold, and unarchives the session (decided 2026-10-28).
+// A tab you close and a session you mark finished, from any control, offer Undo in the toast once the tab has gone, which puts the tab back where it was, cold, and makes the session unfinished (decided 2026-10-28).
 // A tab claude's own exit closed offers nothing: you did not remove it.
 const one = session({ id: '00000000-0000-4000-8000-0000000000d1', title: 'First tab' });
 const two = session({ id: '00000000-0000-4000-8000-0000000000d2', title: 'Second tab' });
@@ -78,11 +78,11 @@ test("a tab claude's own exit closed offers no Undo", async ({ app, page }) => {
   await expect(undo(page)).toBeHidden();
 });
 
-test('Archive offers Undo, which unarchives the session and puts its tab back where it was', async ({ app, page }) => {
+test('Finished offers Undo, which makes the session unfinished and puts its tab back where it was', async ({ app, page }) => {
   await app.boot(fixture);
-  await (await menuItem(page, one.title, 'Archive')).click();
+  await (await menuItem(page, one.title, 'Finished')).click();
   await expect(row(page, one.title)).toHaveCount(0);
-  await expect(page.locator('#toast-message')).toHaveText(`Archived "${one.title}"`);
+  await expect(page.locator('#toast-message')).toHaveText(`Finished "${one.title}"`);
 
   await undo(page).click();
   expect(await app.calls('unfinish')).toEqual([[[one.id]]]);
@@ -91,22 +91,22 @@ test('Archive offers Undo, which unarchives the session and puts its tab back wh
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
-test('Archive of a running session offers Undo once claude has gone and the mark is written', async ({ app, page }) => {
+test('Finished on a running session offers Undo once claude has gone and the mark is written', async ({ app, page }) => {
   await app.boot(fixture);
   await startLive(page, app, one.title);
-  await (await menuItem(page, one.title, 'Archive')).click();
+  await (await menuItem(page, one.title, 'Finished')).click();
   await expect(undo(page)).toBeHidden();
   expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
-  await expect(page.locator('#toast-message')).toHaveText(`Archived "${one.title}"`);
+  await expect(page.locator('#toast-message')).toHaveText(`Finished "${one.title}"`);
   await undo(page).click();
   await expect(row(page, one.title)).toHaveCount(1);
   await expect(tabLabels(page)).toHaveText([one.title, two.title]);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
 });
 
-test('Archive of a session with no tab offers Undo, which unarchives it', async ({ app, page }) => {
+test('Finished on a session with no tab offers Undo, which makes it unfinished', async ({ app, page }) => {
   await app.boot({ ...fixture, openSessions: [two.id] });
-  await (await menuItem(page, one.title, 'Archive')).click();
+  await (await menuItem(page, one.title, 'Finished')).click();
   await expect(row(page, one.title)).toHaveCount(0);
   await undo(page).click();
   await expect(row(page, one.title)).toHaveCount(1);

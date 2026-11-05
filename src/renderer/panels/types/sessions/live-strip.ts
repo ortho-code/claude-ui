@@ -153,8 +153,8 @@ function buildRow(id: string): StripRow {
   // WHY IT BELONGS HERE: clicking a strip row calls `jumpToSession`, which is navigation — it switches the active project and activates the tab.
   // So acting on a stray session from its tab costs you your place: you go there, act, and come back.
   // This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
-  // It IS the tab's button, pressed from here: one rule draws both (`tabButton`) and one press acts for both (`pressTabButton`, through the ask), so it stops a running session, forces one that has not left, and closes a stopped tab or archives its session, or with no stop first a running one too, or is not there at all, as the settings say.
-  // A row leaves the strip by its session stopping with no needs-you mark it still shows, its mark being settled or muted by setting the session aside, its tab being closed, which is what this does to a stopped one, or its session leaving the pool, as an archive takes it.
+  // It IS the tab's button, pressed from here: one rule draws both (`tabButton`) and one press acts for both (`pressTabButton`, through the ask), so it stops a running session, forces one that has not left, and closes a stopped tab or finishes its session, or with no stop first a running one too, or is not there at all, as the settings say.
+  // A row leaves the strip by its session stopping with no needs-you mark it still shows, its mark being settled or muted by setting the session aside, its tab being closed, which is what this does to a stopped one, or its session leaving the pool, as a finish takes it.
   // The session's own menu beside it, from the builder its row in the list uses, the button's press among its items, so the button is a shortcut to one of them.
   // Listed afresh at each click, for the session as it is then.
   const kebab = kebabButton('compact strip-item-kebab abuts', 'Session options', () => {
@@ -304,7 +304,7 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
   const hiddenNudge = strongestNudge(hidden.map(({ badge }) => badge));
   hiddenBadge.className = badgeClass(hiddenNudge);
   hiddenBadge.hidden = !hiddenNudge;
-  // What this render did not draw is no longer running or marked as that session (stopped, settled, closed, or cleared into a new one), or left the pool (archived, being deleted), or its project has nothing left here.
+  // What this render did not draw is no longer running or marked as that session (stopped, settled, closed, or cleared into a new one), or left the pool (finished, being deleted), or its project has nothing left here.
   stripRows.sweep();
   stripHeadings.sweep();
 }

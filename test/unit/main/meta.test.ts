@@ -154,7 +154,7 @@ describe('history pins', () => {
 });
 
 describe('finish', () => {
-  it('archives with a timestamp, keeps it on a second archive, and unarchives', async () => {
+  it('finishes with a timestamp, keeps it on a second finish, and makes it unfinished', async () => {
     const finished = await finish(['conv1']);
     expect(Object.keys(finished)).toEqual(['conv1']);
     expect(finished.conv1).toBeGreaterThan(0);
@@ -162,7 +162,7 @@ describe('finish', () => {
     expect(await unfinish(['conv1'])).toEqual({});
   });
 
-  it('archives and unarchives several sessions in one write each, settling every one of their marks', async () => {
+  it('finishes and unfinishes several sessions in one write each, settling every one of their marks', async () => {
     await markNeedsYou(['a', 'b'], [{ reason: 'quit', at: 1 }]);
     await markSetAside(['a', 'b'], null, 1);
     const before = await auditLines();
@@ -178,10 +178,25 @@ describe('finish', () => {
     await writeMetaFile({ pinned: [], openSessions: [], archived: ['a', 'b'], version: 2 });
     expect(await getFinished()).toEqual({ a: 0, b: 0 });
   });
+
+  // They were stored as `archived` before the act was called Finished, and are migrated once.
+  it('reads the key they were stored under before, and the next write keeps them under the new one only', async () => {
+    await writeMetaFile({ version: 3, archived: { a: 5 } });
+    expect(await getFinished()).toEqual({ a: 5 });
+    await finish(['b']);
+    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    expect(raw.archived).toBeUndefined();
+    expect(raw.finished).toEqual({ a: 5, b: expect.any(Number) });
+  });
+
+  it('prefers the new key once both are there', async () => {
+    await writeMetaFile({ version: 3, archived: { a: 5 }, finished: { b: 6 } });
+    expect(await getFinished()).toEqual({ b: 6 });
+  });
 });
 
 describe('purgeSession', () => {
-  it('drops the session from pins, open tabs, running tabs and archive', async () => {
+  it('drops the session from pins, open tabs, running tabs and finished', async () => {
     await togglePin('conv1');
     await finish(['conv1']);
     await setOpenSessions(['conv1', 'conv2'], ['conv1']);
@@ -234,7 +249,7 @@ describe('sessions that need you', () => {
     expect(Object.keys(await getNeedsYou())).toEqual(['a']);
   });
 
-  it('are taken off by an archive, and forgotten by a delete', async () => {
+  it('are taken off by a finish, and forgotten by a delete', async () => {
     await markNeedsYou(['a', 'b'], [{ reason: 'quit', at: 1 }]);
     await finish(['a']);
     await purgeSession('b');
@@ -310,7 +325,7 @@ describe('what was last seen of the PRs', () => {
 });
 
 describe('the keep stamps', () => {
-  it('stamp several sessions in one write, are taken off, stay through an archive and go with a delete', async () => {
+  it('stamp several sessions in one write, are taken off, stay through a finish and go with a delete', async () => {
     const before = await auditLines();
     await keep(['a', 'b'], 5);
     expect(await getKept()).toEqual({ a: 5, b: 5 });
@@ -350,7 +365,7 @@ describe('the later marks', () => {
     expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['markSetAside', 'clearSetAside']);
   });
 
-  it('stay through the open tabs being written, are taken off by an archive, and forgotten by a delete', async () => {
+  it('stay through the open tabs being written, are taken off by a finish, and forgotten by a delete', async () => {
     await markSetAside(['a'], null);
     await markSetAside(['b'], null);
     await setOpenSessions([], []);
@@ -894,7 +909,7 @@ describe('windowBounds', () => {
 describe('ui state', () => {
   const view = {
     search: 'psalm',
-    filters: { pinned: true, open: false, live: false, setAside: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
+    filters: { pinned: true, open: false, live: false, setAside: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, finished: false },
     datePreset: 'custom',
     dateFrom: 1_700_000_000_000,
     dateTo: 1_700_500_000_000,
@@ -918,7 +933,7 @@ describe('ui state', () => {
   it('starts unfiltered, unfolded and at the default width', async () => {
     expect(await getUiState()).toEqual({
       search: '',
-      filters: { pinned: false, open: false, live: false, setAside: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
+      filters: { pinned: false, open: false, live: false, setAside: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, finished: false },
       datePreset: 'any',
       dateFrom: null,
       dateTo: null,
@@ -1183,6 +1198,26 @@ describe('the live filter, renamed from running', () => {
     const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
     expect(raw.ui.filters.running).toBeUndefined();
     expect(raw.ui.filters.live).toBe(true);
+  });
+});
+
+describe('the finished filter, renamed from archived', () => {
+  it('adopts the value stored under the old key', async () => {
+    await writeMetaFile({ ui: { filters: { archived: true } }, version: 3 });
+    expect((await getUiState()).filters.finished).toBe(true);
+  });
+
+  it('prefers the new key once both are there', async () => {
+    await writeMetaFile({ ui: { filters: { archived: true, finished: false } }, version: 3 });
+    expect((await getUiState()).filters.finished).toBe(false);
+  });
+
+  it('stops writing the old key back out', async () => {
+    await writeMetaFile({ ui: { filters: { archived: true } }, version: 3 });
+    await setUiState(await getUiState());
+    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    expect(raw.ui.filters.archived).toBeUndefined();
+    expect(raw.ui.filters.finished).toBe(true);
   });
 });
 

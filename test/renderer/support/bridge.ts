@@ -98,21 +98,21 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     togglePin: (id) => answer((fixture.pinned = togglePinned(fixture.pinned, id))),
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
-    getFinished: () => answer(fixture.archived),
-    // Main's archive takes each session's needs-you and set-aside marks off in the same write.
+    getFinished: () => answer(fixture.finished),
+    // Main's finish takes each session's needs-you and set-aside marks off in the same write.
     finish: (ids) => {
       if (fixture.finishFails !== null) return Promise.reject(new Error(fixture.finishFails));
       const now = Date.now();
       for (const id of ids) {
         fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
         fixture.setAside = clearedSetAside(fixture.setAside, id);
-        fixture.archived = finishedFrom(fixture.archived, id, now);
+        fixture.finished = finishedFrom(fixture.finished, id, now);
       }
-      return answer(fixture.archived);
+      return answer(fixture.finished);
     },
     unfinish: (ids) => {
-      for (const id of ids) fixture.archived = clearedFinished(fixture.archived, id);
-      return answer(fixture.archived);
+      for (const id of ids) fixture.finished = clearedFinished(fixture.finished, id);
+      return answer(fixture.finished);
     },
     // Main moves the transcript to the trash, so the listing no longer has it, forgets its status, and purges it from meta by main's own rule: its marks, its open tab, the tab to reopen on, its group.
     // A panel row linked to it is forgotten with an event the stand-in does not fire, so that delete is main's to answer, not this.

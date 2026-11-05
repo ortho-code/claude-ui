@@ -54,11 +54,12 @@ describe('the settings in force', () => {
 
   it("take a choice of the file for a tab's button, stop then close unless told otherwise, and leave out one that is no choice", () => {
     expect(settingsView(missing).leaveButton.value).toBe('stop-close');
-    for (const choice of ['stop-close', 'stop-archive', 'close', 'archive', 'none']) {
+    for (const choice of ['stop-close', 'stop-finish', 'close', 'finish', 'none']) {
       expect(settingsView(holding({ leaveButton: choice })).leaveButton).toEqual({ value: choice, problem: null });
     }
-    for (const wrong of ['stop', 'close-archive', true, null]) {
-      expect(settingsView(holding({ leaveButton: wrong })).leaveButton).toEqual({ value: 'stop-close', problem: 'It has to be one of "stop-close", "stop-archive", "close", "archive", "none".' });
+    // The values before the act was called Finished are not read: nothing released had them (decided 2026-11-05).
+    for (const wrong of ['stop', 'close-finish', 'stop-archive', 'archive', true, null]) {
+      expect(settingsView(holding({ leaveButton: wrong })).leaveButton).toEqual({ value: 'stop-close', problem: 'It has to be one of "stop-close", "stop-finish", "close", "finish", "none".' });
     }
   });
 

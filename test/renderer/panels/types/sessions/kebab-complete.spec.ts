@@ -13,14 +13,14 @@ import { groupHeading, projectHeading, row, stripRow, tab, tabLabel } from '../.
 type Shortcuts = [className: string, item: RegExp | ((control: Locator) => Promise<RegExp>)][];
 
 const DOT: [string, RegExp] = ['nudge', /^Mark as (read|unread)$/];
-// The tab's button is a shortcut to one of the menu's leave items, which its mark says (`tabButton`): Stop session, Close tab, Archive or a force.
+// The tab's button is a shortcut to one of the menu's leave items, which its mark says (`tabButton`): Stop session, Close tab, Finished or a force.
 const BUTTON_ITEMS: Record<string, string> = {
   stop: 'Stop session',
   close: 'Close tab',
-  finish: 'Archive',
+  finish: 'Finished',
   'force-stop': 'Force stop',
   'force-close': 'Force close',
-  'force-finish': 'Force archive',
+  'force-finish': 'Force finish',
 };
 const TAB_BUTTON = async (control: Locator): Promise<RegExp> => new RegExp(`^${BUTTON_ITEMS[(await control.getAttribute('data-mark')) ?? '']}$`);
 
@@ -33,7 +33,7 @@ const ROW: Shortcuts = [
   ['worktree-badge', /^Worktrees \(\d+\)$/],
 ];
 const FINISHED_ROW: Shortcuts = [
-  ['unfinish-btn', /^Unarchive$/],
+  ['unfinish-btn', /^Unfinished$/],
   ['delete-btn', /^Delete session…$/],
   ['note-badge', /^(Add|Edit) note…$/],
   ['sibling-badge', /^Siblings \(\d+\)$/],
@@ -122,12 +122,12 @@ test("every control on a session's strip row is a shortcut to an item in its men
   await eachControlHasItsItem(page, surface, surface.locator('.strip-item-kebab'), STRIP);
 });
 
-test("every control on an archived session's row is a shortcut to an item in its menu", async ({ app, page }) => {
+test("every control on a finished session's row is a shortcut to an item in its menu", async ({ app, page }) => {
   await app.boot({
     ...fixture,
     openSessions: [],
-    archived: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') },
-    uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } },
+    finished: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') },
+    uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } },
   });
   const surface = row(page, full.title);
   await eachControlHasItsItem(page, surface, surface.locator('.session-kebab'), FINISHED_ROW);

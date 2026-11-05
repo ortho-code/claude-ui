@@ -24,7 +24,7 @@ import '../../../tone.css';
 import '../../../prstatus.css';
 
 /**
- * THE SESSION LIST'S MENUS AND THE WRITES THEY MAKE: a session's options and its pin, archive and delete; a group's and a project's options, their moves and renames, and a new group.
+ * THE SESSION LIST'S MENUS AND THE WRITES THEY MAKE: a session's options and its pin, finish and delete; a group's and a project's options, their moves and renames, and a new group.
  * Each write goes through main and is set in the store, which the list follows; nothing here draws the list.
  */
 
@@ -45,7 +45,7 @@ function siblingsOf(session: SessionSummary): SessionSummary[] {
 }
 
 // Menu items for a sibling list; siblings often share a title, so each shows title + when.
-// One that cannot be opened, an archived one say, stays in the list, unavailable and saying why (`unopenableReason`).
+// One that cannot be opened, a finished one say, stays in the list, unavailable and saying why (`unopenableReason`).
 function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
   return siblings.map((sibling) => {
     const label = `${sessionLabel(sibling)} · ${relativeTime(sibling.lastActivity)}`;
@@ -174,7 +174,7 @@ export function moveToGroupItems(sessions: readonly SessionSummary[]): MenuItem[
   return items;
 }
 
-// Unarchive one session, leaving tabs alone: from the archived view's row button and the archived session's menu.
+// Make one session unfinished, leaving tabs alone: from the finished view's row button and the finished session's menu.
 export async function unfinishFor(key: string): Promise<void> {
   store.set({ finished: new Map(Object.entries(await window.claudeUi.unfinish([key]))) });
 }
@@ -185,7 +185,7 @@ export async function togglePinFor(key: string): Promise<void> {
 }
 
 /**
- * Delete sessions to the OS trash, once confirmed, one question for all of them: from an archived row's button or menu, one, and from the bar of selecting several in the archived view, every one ticked.
+ * Delete sessions to the OS trash, once confirmed, one question for all of them: from a finished row's button or menu, one, and from the bar of selecting several in the finished view, every one ticked.
  * Only these entities' files go (entity key = session id); siblings are separate entities.
  */
 export async function confirmAndDelete(keys: readonly string[]): Promise<void> {
@@ -221,7 +221,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
     sessionHeader(session, store.get()),
     { label: '', separator: true },
   ];
-  // An archived session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the archived view reach them, its id, and the archived view's two actions, and on its row Select…; nothing that starts or files it, which that view does not offer.
+  // A finished session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the finished view reach them, its id, and the finished view's two actions, and on its row Select…; nothing that starts or files it, which that view does not offer.
   if (store.get().finished.has(entityKey(session))) {
     return [
       ...items,
@@ -229,7 +229,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
       noteItem(session),
       copyIdItem(session),
       { label: '', separator: true },
-      { label: 'Unarchive', onSelect: () => void unfinishFor(entityKey(session)) },
+      { label: 'Unfinished', onSelect: () => void unfinishFor(entityKey(session)) },
       { label: 'Delete session…', onSelect: () => void confirmAndDelete([entityKey(session)]) },
       // Selecting several starts in the list, so only its row offers it (docs/architecture.md § Selecting several).
       ...(from === 'row' ? [{ label: 'Select…', onSelect: () => startBulk([entityKey(session)]) }] : []),
@@ -260,7 +260,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
       ? { label: markLabel, onSelect: () => toggleAck(session.id) }
       : { label: markLabel, disabled: 'Only a session that is idle, waiting for you or marked as needing you can be marked read or unread' },
   );
-  // Settling the needs-you mark without acting on the session, which a prompt there, a close and an archive also do; reading it only dims it (decided 2026-10-28).
+  // Settling the needs-you mark without acting on the session, which a prompt there, a close and a finish also do; reading it only dims it (decided 2026-10-28).
   items.push(
     store.get().needsYou.has(entityKey(session))
       ? { label: 'Clear needs you', onSelect: () => clearNeedsYou(entityKey(session)) }
@@ -275,10 +275,10 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   if (from === 'row') items.push({ label: 'Select…', onSelect: () => startBulk([entityKey(session)]) });
   // The state changes sit below a rule, away from the navigate/copy items.
   items.push({ label: '', separator: true });
-  // Stop session, Close tab and Archive, each one press of its own meaning, whatever the tab is doing (decided 2026-10-28), by the rule the tab's button is a shortcut to (`leaveAction`).
+  // Stop session, Close tab and Finished, each one press of its own meaning, whatever the tab is doing (decided 2026-10-28), by the rule the tab's button is a shortcut to (`leaveAction`).
   items.push(leaveItem(session, tab, 'stop'));
   items.push(leaveItem(session, tab, 'close'));
-  // Archive is the session's rather than a tab's (`finishSessions`): a session with no tab archives at once, and one with a tab starting is unavailable, whichever tab it is, since there is no claude yet to ask to leave (`leaveAction`, as the tab's button says it).
+  // Finished is the session's rather than a tab's (`finishSessions`): a session with no tab finishes at once, and one with a tab starting is unavailable, whichever tab it is, since there is no claude yet to ask to leave (`leaveAction`, as the tab's button says it).
   const key = entityKey(session);
   if (tab) items.push(leaveItem(session, tab, 'finish'));
   else if (sessionStarting(key)) items.push({ label: leaveLabel('finish'), disabled: 'Starting…' });
@@ -313,7 +313,7 @@ function linkedItems(session: SessionSummary): MenuItem[] {
 
 /**
  * Set aside…, which asks when it comes back as needing you and where it stands, and Clear set aside: a mark on the session, so the tab is left as it is (decided 2026-10-29).
- * An archived session's menu has neither, since an archive clears the mark.
+ * A finished session's menu has neither, since a finish clears the mark.
  */
 function setAsideItems(session: SessionSummary): MenuItem[] {
   const key = entityKey(session);
@@ -362,7 +362,7 @@ function copyIdItem(session: SessionSummary): MenuItem {
 // Bring a session's row into view, widening the list to All first when it shows another project.
 // All rather than the session's project: choosing a project moves the tab bar and the tab on show with it, which would take you out of the tab you are in, while All holds every tab, so the one on show stays.
 // The list can still leave the session out, and the toast says why where the store says it, rather than the press seeming to do nothing: under a filter, or not, such as one being deleted.
-// Never for being archived: an archived session's menu has no Show in list on any surface (its own branch in `sessionMenuItems`).
+// Never for being finished: a finished session's menu has no Show in list on any surface (its own branch in `sessionMenuItems`).
 function showInList(session: SessionSummary): void {
   const { activeProject } = store.get();
   if (activeProject !== null && activeProject !== session.repoRoot) hostOf('sessions').selectProject(null);

@@ -9,11 +9,11 @@ import { sameOrder, store, type TabState, type View } from './app';
 export const projName = (repoRoot: string, view: View<'projectNames'>): string => displayName(repoRoot, view.projectNames);
 
 /**
- * Why a session cannot be opened, or null for one that can: archived, which is put away rather than resumed, as its row in the archived view does not open it either, or its folder gone (`unstartableReason`).
+ * Why a session cannot be opened, or null for one that can: finished, which is put away rather than resumed, as its row in the finished view does not open it either, or its folder gone (`unstartableReason`).
  * One rule for every ask that opens a session (`openSession`, `openTab`), and the session's siblings in its menu.
  */
 export function unopenableReason(session: SessionSummary, view: View<'finished'> = store.get()): string | null {
-  if (view.finished.has(entityKey(session))) return 'Archived: unarchive it in the archived view to open it';
+  if (view.finished.has(entityKey(session))) return 'Finished: make it unfinished from the finished sessions to open it';
   return unstartableReason(session);
 }
 
@@ -37,7 +37,7 @@ export function leaveTab(tab: TabState, view: View<'tabs'> = store.get()): TabBu
   return { ...tab, sessionStarting: sessionStarting(entityKey(tab.session), view) };
 }
 
-/** Whether a tab of the session is starting, which leaves no claude yet to ask to leave for an archive (`finishSessions`). */
+/** Whether a tab of the session is starting, which leaves no claude yet to ask to leave for a finish (`finishSessions`). */
 export function sessionStarting(key: string, view: View<'tabs'> = store.get()): boolean {
   return view.tabs.some((t) => entityKey(t.session) === key && t.starting);
 }
@@ -85,13 +85,13 @@ export function visibleSessions(view: View<'sessions' | 'tabs'>): SessionSummary
   return [...pending, ...tips.values()];
 }
 
-/** The switcher's project pool: every project's tips minus archived/pending-delete, independent of the search text and active project so you can always navigate to any project. */
+/** The switcher's project pool: every project's tips minus finished/pending-delete, independent of the search text and active project so you can always navigate to any project. */
 export function switcherPool(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes'>): SessionSummary[] {
   return viewPool(visibleSessions(view), false, view);
 }
 
 /**
- * The projects whose sessions on disk are all archived, each with those sessions: such a project stays listed, empty and saying so, until its sessions are deleted.
+ * The projects whose sessions on disk are all finished, each with those sessions: such a project stays listed, empty and saying so, until its sessions are deleted.
  * One rule for the session list, the switcher and the fall back to All, so no surface lists a project another has dropped.
  */
 export function finishedOnlyProjects(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes'>): Map<string, SessionSummary[]> {
@@ -104,20 +104,20 @@ export function finishedOnlyProjects(view: View<'sessions' | 'tabs' | 'finished'
   return kept;
 }
 
-/** Every project the switcher lists: one with a session in view, or one whose sessions are all archived. */
+/** Every project the switcher lists: one with a session in view, or one whose sessions are all finished. */
 export function listedProjects(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes'>): Set<string> {
   return new Set([...switcherPool(view).map((s) => s.repoRoot), ...finishedOnlyProjects(view).keys()]);
 }
 
 /**
- * Every project in the switcher's pool, counted and rolled up in the list's order, with those whose sessions are all archived counted at none, and all of them together: the one roll-up the switcher, the strip's line, the sidebar's rail icon and a panel's session dialog read.
+ * Every project in the switcher's pool, counted and rolled up in the list's order, with those whose sessions are all finished counted at none, and all of them together: the one roll-up the switcher, the strip's line, the sidebar's rail icon and a panel's session dialog read.
  * Worked out for each reader rather than kept, since it costs well under a millisecond (0.07 ms at 382 sessions, measured).
  */
 export function switcherModel(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'projectNames' | 'projectOrder'>): SwitcherModel {
   return projectsForSwitcher(switcherPool(view), view.statuses, view.acked, view.needsYou, view.projectNames, view.projectOrder, finishedOnlyProjects(view), mutedNeedsYou(view));
 }
 
-/** The sessions a view holds before any filter, archived or not (see inView). */
+/** The sessions a view holds before any filter, finished or not (see inView). */
 export function viewPool(all: SessionSummary[], finishedView: boolean, view: View<'finished' | 'pendingDeletes'>): SessionSummary[] {
   return all.filter((s) => inView(entityKey(s), finishedView, view.finished, view.pendingDeletes));
 }

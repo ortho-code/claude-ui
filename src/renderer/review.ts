@@ -25,7 +25,7 @@ export interface ReviewFacts {
   prStatusOn: boolean;
 }
 
-/** `is:unfinished`: no tab, not finished (archived), and not on its way to the trash. */
+/** `is:unfinished`: no tab, not finished, and not on its way to the trash. */
 export function isUnfinished(session: SessionSummary, facts: ReviewFacts): boolean {
   const key = entityKey(session);
   return !facts.tabbed.has(key) && !facts.finished.has(key) && !facts.pendingDeletes.has(key);
@@ -78,7 +78,7 @@ export const KEPT_DAYS = 30;
 
 /**
  * THE REVIEW'S DEFINITION: the terms every set shares, and its sets in the order they are shown, a session in more than one shown once, in the first (decided 2026-11-04).
- * Shared, so that every act of the bar that decides a row takes it out of the review, Archive, Set aside… and Keep alike, and the review can end; a session with a tab is work in hand, for its tab to decide.
+ * Shared, so that every act of the bar that decides a row takes it out of the review, Finished, Set aside… and Keep alike, and the review can end; a session with a tab is work in hand, for its tab to decide.
  */
 export const REVIEW = {
   id: 'review',

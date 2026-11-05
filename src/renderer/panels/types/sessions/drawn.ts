@@ -42,7 +42,7 @@ export interface ProjectSectionEls {
   addCaret: HTMLElement;
   /** The new-session "+" itself, disabled when the project's folder is gone. */
   addBtn: HTMLButtonElement;
-  /** The line under the heading of a project whose sessions are all archived, saying so; placed only for such a project. */
+  /** The line under the heading of a project whose sessions are all finished, saying so; placed only for such a project. */
   allFinishedLine: HTMLElement;
 }
 // What each project's group menu offers, refreshed on every render so the menu can't name a group that has since been deleted or renamed.
@@ -73,7 +73,7 @@ export const groupSections = new Keyed<GroupSectionEls>((els) => els.section);
 
 /**
  * A section of the list drawn flat, as the list draws it (list.ts), such as one of the review's sets under its heading; its id names it for good, a heading and all.
- * Its rows in the order they are shown, and the line saying why each is there in place of what the row says otherwise, worked out again on the minute clock, or null where a row says what it says otherwise: its time and model, or in the archived view when it was archived.
+ * Its rows in the order they are shown, and the line saying why each is there in place of what the row says otherwise, worked out again on the minute clock, or null where a row says what it says otherwise: its time and model, or in the finished view when it was finished.
  */
 export interface FlatSection {
   id: string;

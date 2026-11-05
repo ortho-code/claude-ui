@@ -13,7 +13,7 @@ const REASON = { reason: 'pr' as const, at: 1_000, pr: 'acme/app#1', changes: ['
 const SET_ASIDE = { due: null, at: 2_000 };
 const more = {
   sessions: [asked, quiet, shelved],
-  archived: { [shelved.id]: 1 },
+  finished: { [shelved.id]: 1 },
   statuses: { [asked.id]: 'waiting', [quiet.id]: 'start' },
   needsYou: { [asked.id]: [REASON] },
   setAside: { [quiet.id]: SET_ASIDE },
@@ -27,7 +27,7 @@ const LIST: PrintedList = { version: 1, sections: [{ items: [{ key: 'one', text:
 
 const snapshotOf = async (app: App, index: number): Promise<SessionsSnapshot> => JSON.parse((await runs(app, 'changes'))[index].sessions ?? 'null') as SessionsSnapshot;
 
-test('a run is given every session not archived, by id, with its title, project, group, status, read mark, needs-you and set-aside marks and PRs', async ({ app, page }) => {
+test('a run is given every session not finished, by id, with its title, project, group, status, read mark, needs-you and set-aside marks and PRs', async ({ app, page }) => {
   await bootList(app, page, LIST, { more });
   // Pressed until GitHub's answer, which the first run may come before, is in the snapshot.
   await expect
@@ -67,7 +67,7 @@ test('watching sessions, a change runs the panel again once nothing more has cha
 
 test('watching sessions, a change the snapshot does not show runs nothing', async ({ app, page }) => {
   await bootWatching(app, page);
-  // An archived session is not in it.
+  // A finished session is not in it.
   await app.emit('onSessionStatus', shelved.id, 'idle', '', 'Stop');
   await page.clock.fastForward(5_000);
   expect(await runs(app, 'changes')).toHaveLength(1);

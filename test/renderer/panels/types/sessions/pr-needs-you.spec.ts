@@ -4,7 +4,7 @@ import { session, settingsFileWith } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { row, stripRow, tab, tabLabels } from '../../../support/window';
 
-// A linked PR changing in a way that needs you marks every session that links it as needing you, with that change as its reason, running or not, archived ones left out (decided 2026-10-29).
+// A linked PR changing in a way that needs you marks every session that links it as needing you, with that change as its reason, running or not, finished ones left out (decided 2026-10-29).
 // What was last seen of each PR is kept in meta, so a change while the app was closed marks at the next launch; the first run marks only the sessions set aside to wait.
 const MINUTE = 60_000;
 const pr = (number: number, repository = 'acme/app'): SessionPr => ({ repository, number, url: `https://github.com/${repository}/pull/${number}` });
@@ -19,7 +19,7 @@ const seenOpen = { 'acme/app#7': open(), 'acme/app#8': open() };
 const fixture = {
   sessions: all,
   openSessions: [cold.id],
-  archived: { [shelved.id]: 1 },
+  finished: { [shelved.id]: 1 },
   prSeen: seenOpen,
   prStatuses: { 'acme/app#7': open(), 'acme/app#8': open() },
   history: Object.fromEntries(all.map((s) => [s.id, []])),
@@ -32,7 +32,7 @@ const nextAsk = (page: Page): Promise<void> => page.clock.fastForward(5 * MINUTE
 const needs = (dot: Locator): Promise<void> => expect(dot).toHaveClass(/\bneeds\b/);
 const notNeeds = (dot: Locator): Promise<void> => expect(dot).not.toHaveClass(/\bneeds\b/);
 
-test('a linked PR merging marks every session that links it, with a tab or without, and not an archived one or another PR\'s', async ({ app, page }) => {
+test('a linked PR merging marks every session that links it, with a tab or without, and not a finished one or another PR\'s', async ({ app, page }) => {
   await page.clock.install();
   await app.boot(fixture);
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
@@ -106,7 +106,7 @@ test('a PR that changed while the app was closed marks at launch', async ({ app,
   await expect(row(page, closed.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merged');
 });
 
-// Nothing seen before: only the sessions set aside to wait, with a tab or a later mark, are marked, not every finished session never archived (decided 2026-10-29).
+// Nothing seen before: only the sessions set aside to wait, with a tab or a later mark, are marked, not every ended session never marked finished (decided 2026-10-29).
 test('the first run marks the sessions with a tab or a later mark whose PRs need you, and no other; the next answer marks nothing new', async ({ app, page }) => {
   await page.clock.install();
   const setAside = session({ id: '00000000-0000-4000-8000-0000000000f5', title: 'Set aside', prs: [pr(7)] });

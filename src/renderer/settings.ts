@@ -19,9 +19,9 @@ const RUNNING_LABELS: Record<RunningAtLaunch, string> = {
 /** Each choice for a tab's button, in words: the dropdown's options. */
 const LEAVE_BUTTON_LABELS: Record<LeaveButton, string> = {
   'stop-close': 'Stop, then close the tab',
-  'stop-archive': 'Stop, then archive the session',
+  'stop-finish': 'Stop, then mark the session finished',
   close: 'Close the tab',
-  archive: 'Archive the session',
+  finish: 'Mark the session finished',
   none: 'No button, only the menu',
 };
 

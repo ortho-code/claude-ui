@@ -77,11 +77,11 @@ test("a row's session mark goes to its session: its tab opens, resumed, on show"
   await expect(tab(page, reviewed.title)).toHaveClass(/\bactive\b/);
 });
 
-// Archived is put away, not resumed: a panel row's mark refuses it and opens no tab.
-test("a row's session mark for an archived session says so, and opens nothing", async ({ app, page }) => {
-  await bootQueue(app, page, undefined, { archived: { [reviewed.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
+// Finished is put away, not resumed: a panel row's mark refuses it and opens no tab.
+test("a row's session mark for a finished session says so, and opens nothing", async ({ app, page }) => {
+  await bootQueue(app, page, undefined, { finished: { [reviewed.id]: Date.parse('2026-10-01T08:00:00.000Z') } });
   await mark(page, 'Fix the login redirect').click();
-  await expect(page.locator('#toast-message')).toHaveText('Archived: unarchive it in the archived view to open it');
+  await expect(page.locator('#toast-message')).toHaveText('Finished: make it unfinished from the finished sessions to open it');
   await expect(tab(page, reviewed.title)).toHaveCount(0);
   expect(await app.calls('startTerminal')).toEqual([]);
 });

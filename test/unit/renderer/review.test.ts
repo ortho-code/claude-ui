@@ -65,7 +65,7 @@ describe('the sets', () => {
     expect(reviewCount(sections)).toBe(3);
   });
 
-  it('leave out a session with a tab, archived, set aside, or kept within its days, from both sets', () => {
+  it('leave out a session with a tab, finished, set aside, or kept within its days, from both sets', () => {
     const sections = reviewSections([ready, old], facts({ tabbed: new Set(['ready']), setAside: new Map([['old', { due: null, at: 1 }]]) }), NOW);
     expect(ids(sections)).toEqual([[], []]);
     expect(ids(reviewSections([ready, old], facts({ kept: new Map([['ready', NOW - DAY], ['old', NOW - DAY]]) }), NOW))).toEqual([[], []]);

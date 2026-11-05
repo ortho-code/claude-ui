@@ -638,7 +638,7 @@ void app.whenReady().then(async () => {
   installAppMenu();
   // Feeds the macOS About item, which the app menu above provides for free.
   app.setAboutPanelOptions({ applicationName: 'Claude UI', applicationVersion: app.getVersion() });
-  // One-time: rewrite pins/open-tabs/archived stored under conversation keys to stable session ids.
+  // One-time: rewrite pins/open-tabs/finished stored under conversation keys to stable session ids.
   // First-wins over the recency-sorted list, so a family's conversationId maps to its latest member.
   const sessions = await listSessions();
   const conversationToId = new Map<string, string>();

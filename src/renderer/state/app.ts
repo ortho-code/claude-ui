@@ -39,7 +39,7 @@ export interface AppState {
   switchedModel: ReadonlyMap<string, string>;
   /** Pinned sessions, by entity key: floated to the top of their section in the list. */
   pinned: ReadonlySet<string>;
-  /** Archived sessions, by entity key -> when they were archived (epoch ms): out of the normal view, and all the archived view holds. */
+  /** Finished sessions, by entity key -> when they were finished (epoch ms): out of the normal view, and all the finished view holds. */
   finished: ReadonlyMap<string, number>;
   /** Entity key -> its note; a session without one is absent, since a blank note deletes it. */
   notes: ReadonlyMap<string, string>;
@@ -194,8 +194,8 @@ export interface TabState {
    */
   stopping: boolean;
   /**
-   * What the exit of a claude asked to leave does to the tab: `cool` keeps it, cold, `close` removes it, and `finish` removes it and archives its session (`finishSessions`).
-   * A close or an archive of a live tab waits for claude like a stop, since claude may ask something on its way out.
+   * What the exit of a claude asked to leave does to the tab: `cool` keeps it, cold, `close` removes it, and `finish` removes it and marks its session finished (`finishSessions`).
+   * A close or a finish of a live tab waits for claude like a stop, since claude may ask something on its way out.
    */
   onExit: 'cool' | 'close' | 'finish';
   /** A stop that has had its moment without the session going: its stop control now forces it out (`leaveAction`). */

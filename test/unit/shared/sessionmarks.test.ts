@@ -13,8 +13,8 @@ describe('togglePinned', () => {
   });
 });
 
-describe('archivedFrom', () => {
-  it('archives from the time given, and leaves a session already archived from when it was', () => {
+describe('finishedFrom', () => {
+  it('finishes from the time given, and leaves a session already finished from when it was', () => {
     const finished = { a: 1 };
     expect(finishedFrom(finished, 'b', 42)).toEqual({ a: 1, b: 42 });
     expect(finishedFrom(finished, 'a', 42)).toEqual({ a: 1 });
@@ -23,8 +23,8 @@ describe('archivedFrom', () => {
   });
 });
 
-describe('unarchived', () => {
-  it('unarchives, and leaves a session that is not archived as it is', () => {
+describe('clearedFinished', () => {
+  it('makes it unfinished, and leaves a session that is not finished as it is', () => {
     const finished = { a: 1 };
     expect(clearedFinished(finished, 'a')).toEqual({});
     expect(clearedFinished(finished, 'b')).toEqual({ a: 1 });
@@ -163,16 +163,16 @@ describe('keep stamps', () => {
 });
 
 describe('withoutSession', () => {
-  it('forgets the session\'s pin, archive entry, note, needs-you mark, set-aside mark and keep stamp, and keeps everyone else\'s', () => {
+  it('forgets the session\'s pin, finished entry, note, needs-you mark, set-aside mark and keep stamp, and keeps everyone else\'s', () => {
     const marks: SessionMarks = {
       pinned: ['a', 'b'],
-      archived: { a: 1, b: 2 },
+      finished: { a: 1, b: 2 },
       notes: { a: 'x', b: 'y' },
       needsYou: { a: [{ reason: 'quit', at: 1 }], b: [{ reason: 'ended', at: 2 }] },
       setAside: { a: { due: null, at: 1 }, b: { due: 9, at: 2 } },
       kept: { a: 3, b: 4 },
     };
-    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], archived: { b: 2 }, notes: { b: 'y' }, needsYou: { b: [{ reason: 'ended', at: 2 }] }, setAside: { b: { due: 9, at: 2 } }, kept: { b: 4 } });
+    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], finished: { b: 2 }, notes: { b: 'y' }, needsYou: { b: [{ reason: 'ended', at: 2 }] }, setAside: { b: { due: 9, at: 2 } }, kept: { b: 4 } });
     expect(marks.needsYou).toEqual({ a: [{ reason: 'quit', at: 1 }], b: [{ reason: 'ended', at: 2 }] });
   });
 });
@@ -182,7 +182,7 @@ describe('purgedSession', () => {
     const tock = [{ prompt: 'say the word tock', recurring: true, cron: 'Every 10 minutes' }];
     const meta = {
       pinned: ['a', 'b'],
-      archived: { a: 1 },
+      finished: { a: 1 },
       notes: { a: 'x' },
       needsYou: { a: [{ reason: 'quit' as const, at: 1 }] },
       setAside: { a: { due: null, at: 1 } },
@@ -196,7 +196,7 @@ describe('purgedSession', () => {
     };
     expect(purgedSession(meta, 'a')).toEqual({
       pinned: ['b'],
-      archived: {},
+      finished: {},
       notes: {},
       needsYou: {},
       setAside: {},

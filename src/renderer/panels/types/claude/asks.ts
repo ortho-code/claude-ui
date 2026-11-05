@@ -13,7 +13,7 @@ import type { Asks } from '../../contract';
 import { activateTab, finishSessions, closeTabs, createTab, pressLeave, pressTabButton, startTab, switchWorkspaceTerminal, type TabLaunch } from './terminals';
 
 /**
- * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, archive one with its tabs, and follow the project chosen.
+ * The terminal area's answers to the asks every panel can make (`Asks`): open a session, start a new one, a worktree one or a fork, stop one, finish one with its tabs, and follow the project chosen.
  * renderer.ts hands them to the tree with the sidebar's (sessions/asks.ts), and every panel's host carries them as they are.
  */
 
@@ -74,7 +74,7 @@ async function openNewSession(cwd: string, joinGroupId?: string, launch: Pick<Ta
   await startNew(session, joinGroupId, { name: launch.name || undefined, prompt: launch.prompt || undefined });
 }
 
-/** Go to a session by its id, as a jump from the live strip does; one that cannot be opened, archived or its folder gone, says why instead, and so does an id the app has no session for, which a panel's row may name. */
+/** Go to a session by its id, as a jump from the live strip does; one that cannot be opened, finished or its folder gone, says why instead, and so does an id the app has no session for, which a panel's row may name. */
 function openLinkedSession(id: string, launch: Pick<TabLaunch, 'prompt'> = {}): void {
   const session = sessionById(id);
   if (!session) {

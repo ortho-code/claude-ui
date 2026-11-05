@@ -41,7 +41,7 @@ export interface SessionsSnapshot {
 /** The slices the snapshot is made of: what a panel that watches sessions is told about. */
 export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'setAside', 'groupState', 'prStatus'] as const satisfies readonly (keyof AppState)[];
 
-/** Every session not archived, as the switcher counts them, each once, by id, so the same sessions in a new order are the same snapshot. */
+/** Every session not finished, as the switcher counts them, each once, by id, so the same sessions in a new order are the same snapshot. */
 export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.get()): SessionsSnapshot {
   const groups = new Map(view.groupState.groups.map((group) => [group.id, group]));
   // Two tabs can hold one session the listing does not have yet, and the pool has it once for each.

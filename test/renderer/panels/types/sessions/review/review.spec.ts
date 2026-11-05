@@ -94,7 +94,7 @@ test('a stamp past its 30 days holds nothing out, and one within them does', asy
   await expect(button(page).locator('.review-count')).toHaveText('2');
 });
 
-test('Set aside… and Archive take a row out too, and the review ends once nothing is left in it', async ({ app, page }) => {
+test('Set aside… and Finished take a row out too, and the review ends once nothing is left in it', async ({ app, page }) => {
   await app.boot(fixture);
   await button(page).click();
   await row(page, old.title).click();
@@ -105,7 +105,7 @@ test('Set aside… and Archive take a row out too, and the review ends once noth
   await row(page, ready.title).click();
   await act(page, 'finish').click();
   // The act's own toast, with its Undo, is what is said.
-  await expect(page.locator('#toast-message')).toHaveText(`Archived "${ready.title}"`);
+  await expect(page.locator('#toast-message')).toHaveText(`Finished "${ready.title}"`);
   await expect(page.locator('#bulk-line')).toBeHidden();
   await expect(button(page)).toHaveAttribute('data-tooltip', 'Nothing to review');
 });

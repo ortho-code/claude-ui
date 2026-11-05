@@ -45,7 +45,7 @@ export async function fullRead({ showLoading = true, revealed, startUp }: FullRe
       window.claudeUi.getGroupState(),
       startUp ? window.claudeUi.getActiveProject() : null,
     ]);
-    // Seed from the RAW list (archived included — the transcript still exists), so a project whose sessions are all archived still holds a slot.
+    // Seed from the RAW list (finished included — the transcript still exists), so a project whose sessions are all finished still holds a slot.
     // Writes only when a root is genuinely new, so the common case costs one read.
     // Recency order is what seeds the very first run.
     const projectOrder = await window.claudeUi.seedProjectOrder([...new Set(sessions.map((s) => s.repoRoot))]);

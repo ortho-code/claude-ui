@@ -345,7 +345,7 @@ export interface Settings {
   runningSessionsAtLaunch: RunningAtLaunch;
   /** Whether the app asks GitHub, with `gh`, what it says of the PRs the sessions link, which colours their marks and marks a session as needing you when one changes; off, it asks nothing, every mark keeps the accent and nothing is marked. */
   prStatus: boolean;
-  /** What a tab's button does, on the tab and its live strip row while the strip lists it: stop a running session and then close the tab or archive its session, close or archive in one press, claude asked to leave first, or no button at all, leaving it to the tab's menu. */
+  /** What a tab's button does, on the tab and its live strip row while the strip lists it: stop a running session and then close the tab or mark its session finished, close or finish in one press, claude asked to leave first, or no button at all, leaving it to the tab's menu. */
   leaveButton: LeaveButton;
   /** The choices for setting a session aside, as written (shared/setaside.ts), offered in the order they would come with Whenever last. */
   setAside: string[];
@@ -372,7 +372,8 @@ export interface UiState {
     /** Sessions whose transcript links a PR. */
     prs: boolean;
     noted: boolean;
-    archived: boolean;
+    /** The finished sessions in place of the rest; stored as `archived` before the act was called Finished. */
+    finished: boolean;
   };
   /**
    * The active date preset, or 'any' when the date filter is off.
@@ -449,11 +450,11 @@ export interface ClaudeUiApi {
   getHistoryPins(): Promise<Record<string, HistoryPin>>;
   /** Pin request or message `id` with what a list of pins shows of it, or unpin it; returns every history pin after the change. */
   toggleHistoryPin(id: string, pin: Pick<HistoryPin, 'kind' | 'session' | 'text' | 'time'>): Promise<Record<string, HistoryPin>>;
-  /** Archived session ids mapped to when they were archived (epoch ms; 0 = unknown). */
+  /** Finished session ids mapped to when they were finished (epoch ms; 0 = unknown). */
   getFinished(): Promise<Record<string, number>>;
-  /** Archive sessions in one write, each keeping when it was archived if it already is, so a second call leaves the archived map as it is; resolves to the updated archived map. */
+  /** Mark sessions finished in one write, each keeping when it was finished if it already is, so a second call leaves the finished map as it is; resolves to the updated finished map. */
   finish(ids: string[]): Promise<Record<string, number>>;
-  /** Unarchive sessions in one write, whatever their state, so a second call leaves the archived map as it is; resolves to the updated archived map. */
+  /** Make sessions unfinished in one write, whatever their state, so a second call leaves the finished map as it is; resolves to the updated finished map. */
   unfinish(ids: string[]): Promise<Record<string, number>>;
   /**
    * Delete a session: move its transcript file to the trash and drop it from metadata.

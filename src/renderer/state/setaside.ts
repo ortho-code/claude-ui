@@ -2,7 +2,7 @@ import { cameDue, clearedSetAside, markedSetAside } from '../../shared/sessionma
 import { store } from './app';
 
 /**
- * The writes to the set-aside marks: the session's menu sets and clears one, the bar of selecting several sets them and its Undo clears them, an archive clears them and its Undo puts them back, a prompt there takes one off, and its day coming turns it into needing you.
+ * The writes to the set-aside marks: the session's menu sets and clears one, the bar of selecting several sets them and its Undo clears them, a finish clears them and its Undo puts them back, a prompt there takes one off, and its day coming turns it into needing you.
  * Each is made in the store by main's own rule and sent to main, which keeps them in `meta.json`.
  */
 

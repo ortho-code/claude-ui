@@ -11,7 +11,7 @@ import { unfold } from './folding';
  */
 
 // Reveal a session's row in the sidebar (expanding its project if collapsed), so clicking a tab scrolls to where it lives and shows which project it belongs to.
-// Answers whether the list has drawn the row: it has not while the list is on another project, a filter leaves the session out, or the session is archived or being deleted.
+// Answers whether the list has drawn the row: it has not while the list is on another project, a filter leaves the session out, or the session is finished or being deleted.
 export function revealSession(session: SessionSummary): boolean {
   // Its group can be collapsed too, and then the row is hidden even with the project open.
   // Recent folds nothing, so it leaves Grouped's folds as they are.

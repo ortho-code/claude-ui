@@ -45,7 +45,7 @@ test("a session's options list its PRs, from its row and from its tab, each open
 test('the options of a session without a PR have no PRs item', async ({ app, page }) => {
   await app.boot(fixture);
   await row(page, none.title).locator('.session-kebab').click();
-  await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
+  await expect(page.locator('.kebab-menu button', { hasText: 'Finished' })).toBeVisible();
   await expect(page.locator('.kebab-menu button', { hasText: /^PRs/ })).toHaveCount(0);
 });
 

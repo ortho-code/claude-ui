@@ -47,13 +47,13 @@ test("a row's tooltip gives the moment in the language of the settings, followin
   await expect(meta(page, one.title)).toHaveAttribute('data-tooltip', british);
 });
 
-test("an archived row's time ages with the clock too, and its tooltip gives when it was archived", async ({ app, page }) => {
+test("a finished row's time ages with the clock too, and its tooltip gives when it was finished", async ({ app, page }) => {
   const finishedAt = ACTIVE + MINUTE;
   await page.clock.install({ time: finishedAt + 5 * MINUTE });
-  await app.boot({ sessions: [one], archived: { [one.id]: finishedAt }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } });
-  await expect(meta(page, one.title)).toHaveText('archived 5 min ago');
+  await app.boot({ sessions: [one], finished: { [one.id]: finishedAt }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, finished: true } } });
+  await expect(meta(page, one.title)).toHaveText('finished 5 min ago');
   await expect(meta(page, one.title)).toHaveAttribute('data-tooltip', await inFull(page, finishedAt));
 
   await page.clock.fastForward('03:00:00');
-  await expect(meta(page, one.title)).toHaveText('archived 3 h ago');
+  await expect(meta(page, one.title)).toHaveText('finished 3 h ago');
 });

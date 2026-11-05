@@ -86,7 +86,7 @@ function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' 
   repaintDots(statusChanges(before, view), view);
 }
 
-/** What draws the list again: the listing, a model switch, a pin, the archive, a note, a set-aside mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs, a task claude scheduled, Grouped or Recent, and for the review, a keep stamp, the review opening or ending, and the settings, which say whether GitHub is asked. */
+/** What draws the list again: the listing, a model switch, a pin, the finished marks, a note, a set-aside mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs, a task claude scheduled, Grouped or Recent, and for the review, a keep stamp, the review opening or ending, and the settings, which say whether GitHub is asked. */
 const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'finished', 'notes', 'setAside', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'scheduledTasks', 'arrangement', 'kept', 'reviewing', 'settings'] as const;
 /** The tabs, which have a watcher of their own (`listFollowsTabs`), since most of a tab's changes move only the rows' marks. */
 const LIST_TABS = ['tabs', 'activeTab'] as const;
@@ -104,7 +104,7 @@ export function watchList(): void {
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
   store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside'], dotsFollowStatuses, { reads: ['tabs', 'finished'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject', 'arrangement'] });
-  // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and turning the archived view on or off ends it outside the review.
+  // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and turning the finished view on or off ends it outside the review.
   store.watch(['bulk', 'tabs', 'filter'], bulkFollows, { reads: ['reviewing', 'activeProject', 'projectNames'] });
   // The order catching up with the sessions' activity, and an open review with sessions crossing their days or a keep stamp running out, all with nothing in the store moving.
   onMinute(catchUp);
@@ -123,7 +123,7 @@ function listChanged(view: ListView, before: View<'filter' | 'activeProject' | '
 // Keeps project, group and row nodes by key and leaves in place what already is (keyed.ts), so a re-render does not rebuild the sidebar: no flicker, the scroll stays put, and a press or the focus on a row that keeps its place survives it.
 /**
  * What the list draws, worked out from the store and the clock and nothing else, so a draw and the minute's look at whether the order moved (`catchUp`) cannot disagree about it: the review's sets while it is open, else the sessions in scope that pass the filter, with what the filter's count says, by project and group or in Recent flat (`recentOrder`).
- * In Recent, `finished` says why there are no rows when every session in scope is archived and no filter is on, which Grouped says under each such project's heading.
+ * In Recent, `finished` says why there are no rows when every session in scope is finished and no filter is on, which Grouped says under each such project's heading.
  */
 type ListShape =
   | { review: ReviewSection[] }
@@ -138,18 +138,18 @@ function listShape(view: ListView): ListShape {
 
   const groupNames = searchText(view) ? groupNameByKey(view) : undefined;
   const filtered = all.filter((s) => passesFilters(s, view, groupNames));
-  // Project scope applies everywhere, the archived view included.
-  // It used to be exempt, from when archived was a rarely-visited global bin — but the scope is an explicit statement of what you are looking at, and one view quietly overriding it reads as a leak.
-  // Switch to All to find an archived session whose project you have forgotten.
+  // Project scope applies everywhere, the finished view included.
+  // It used to be exempt, from when finished was a rarely-visited global bin — but the scope is an explicit statement of what you are looking at, and one view quietly overriding it reads as a leak.
+  // Switch to All to find a finished session whose project you have forgotten.
   const inScope = (list: SessionSummary[]): SessionSummary[] => (activeProject ? list.filter((s) => s.repoRoot === activeProject) : list);
   const scoped = inScope(filtered);
-  // The total is the set the matches were taken from: the same project scope and the same view, archived or not, before the other filters.
+  // The total is the set the matches were taken from: the same project scope and the same view, finished or not, before the other filters.
   // So the count only ever compares a set with part of itself, and in the normal view the total is the number the switcher shows.
-  const total = inScope(viewPool(all, view.filter.filters.archived, view)).length;
-  // A project whose sessions are all archived stays, empty and saying so, as it does in the switcher; a filter leaves it out, as it leaves out any project with no match, and the archived view lists it with its sessions.
+  const total = inScope(viewPool(all, view.filter.filters.finished, view)).length;
+  // A project whose sessions are all finished stays, empty and saying so, as it does in the switcher; a filter leaves it out, as it leaves out any project with no match, and the finished view lists it with its sessions.
   const finishedOnly = new Map(isFiltering(view) ? [] : [...finishedOnlyProjects(view)].filter(([repoRoot]) => !activeProject || repoRoot === activeProject));
   if (view.arrangement === 'recent') {
-    // Nothing to list, and no filter: every session in scope is archived, the project on show's or in All every project's, which Recent says in place of its rows, as Grouped says it under each such project's heading.
+    // Nothing to list, and no filter: every session in scope is finished, the project on show's or in All every project's, which Recent says in place of its rows, as Grouped says it under each such project's heading.
     const finished = scoped.length === 0 && finishedOnly.size > 0 ? [...finishedOnly.values()].reduce((count, sessions) => count + sessions.length, 0) : null;
     return { recent: recentOrder(scoped), finished: finished === null ? null : allFinishedLine(finished), all, matches: scoped.length, total };
   }
@@ -167,9 +167,9 @@ function keysOf(shape: ListShape): string[] {
   return shape.tree.flatMap((project) => [...project.groups.flatMap((g) => g.sessions), ...project.loose].map(entityKey));
 }
 
-/** What is said where every session is archived: under a project's heading in Grouped, and in place of the list in Recent, for the project on show or for All. */
+/** What is said where every session is finished: under a project's heading in Grouped, and in place of the list in Recent, for the project on show or for All. */
 function allFinishedLine(count: number): string {
-  return count === 1 ? 'Its only session is archived.' : `All ${count} sessions here are archived.`;
+  return count === 1 ? 'Its only session is finished.' : `All ${count} sessions here are finished.`;
 }
 
 /**

@@ -11,7 +11,7 @@ const history = { [one.id]: [], [long.id]: [] };
 test("a tab's kebab opens its session's menu without selecting the tab, and Set aside… from it sets the session aside", async ({ app, page }) => {
   await app.boot({ sessions: [one], openSessions: [one.id], history });
   await tab(page, one.title).locator('.tab-kebab').click();
-  await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
+  await expect(page.locator('.kebab-menu button', { hasText: 'Finished' })).toBeVisible();
   await expect(tab(page, one.title)).not.toHaveClass(/\bactive\b/);
 
   await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Set aside…$/ }).click();
@@ -24,7 +24,7 @@ test("a tab's kebab opens its session's menu without selecting the tab, and Set 
 test("a right-click on a tab's title opens the same menu", async ({ app, page }) => {
   await app.boot({ sessions: [one], openSessions: [one.id], history });
   await tab(page, one.title).locator('.tab-label').click({ button: 'right' });
-  await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
+  await expect(page.locator('.kebab-menu button', { hasText: 'Finished' })).toBeVisible();
   await expect(page.locator('.kebab-menu button', { hasText: /^Set aside…$/ })).toBeVisible();
   await expect(tab(page, one.title).locator('.tab-kebab')).toHaveClass(/\bmenu-open\b/);
 });
