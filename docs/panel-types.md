@@ -139,7 +139,7 @@ A row keeps a session's title and dot current between runs through a live value 
 | `status` | What its claude last said: `busy`, `idle`, `background` (the turn has ended and work it started still runs), `waiting` or `closed`; `null` when it has said nothing, as for a session the app did not start, and once its claude has gone, its tab closed or no longer running, unless its end is reported after that, which is `closed`. |
 | `read` | Whether its dot was marked read. |
 | `needsYou` | Why it is marked as needing you, a reason each, and empty when it is not (below). |
-| `later` | Its later mark, `{ "due", "at" }`: when it comes back as needing you, `null` for whenever, and when it was set, both as epoch milliseconds; `null` when it has none. |
+| `setAside` | Its set-aside mark, `{ "due", "at" }`: when it comes back as needing you, `null` for whenever, and when it was set, both as epoch milliseconds; `null` when it is not set aside. |
 | `prs` | The PRs it links, each `{ "repository", "number", "url", "status" }`, `repository` as `owner/name`; `status` is what GitHub last said of it (below), `null` until GitHub has answered for that PR, which one it cannot be asked about never does. |
 
 A reason in `needsYou` has a `reason` and `at`, when it was marked, in epoch milliseconds:
@@ -149,11 +149,11 @@ A reason in `needsYou` has a `reason` and `at`, when it was marked, in epoch mil
 | `quit` | It was running when the app quit. |
 | `ended` | It was running when the app ended without quitting. |
 | `unknown` | It was running when the app last closed, and the app cannot say how it closed. |
-| `reminder` | The moment its later mark was set for has come, and it needed you for nothing else then; `at` is that moment. |
+| `reminder` | The moment it was set aside until has come, and it needed you for nothing else then; `at` is that moment. |
 | `pr` | A PR it links changed: `pr` names it, `owner/name#number`, and `changes` lists what changed, strongest first, from `checks failed`, `merge conflict`, `changes requested`, `merged`, `closed`, `approved` and `reopened`. |
 
-`needsYou` lists every reason, also those a later mark set after them puts aside: the app shows a session as needing you only while a reason's `at` is after its later mark's `at`, or it has no later mark.
-A later mark whose moment has passed shows here until the app has turned it into a reminder: at that moment while the machine is awake, and within the hour of waking when it slept through it.
+`needsYou` lists every reason, also those a set-aside mark set after them puts aside: the app shows a session as needing you only while a reason's `at` is after its set-aside mark's `at`, or it is not set aside.
+A set-aside mark whose moment has passed shows here until the app has turned it into a reminder: at that moment while the machine is awake, and within the hour of waking when it slept through it.
 
 A PR's `status` is `{ "state": "merged" }` or `{ "state": "closed" }`, or for an open one `{ "state": "open", "draft", "review", "checks", "conflict" }`: `review` is `approved`, `changes-requested`, `review-required` or `null`; `checks` is `passed`, `failed`, `running` or `null` for none; `conflict` is `null` while GitHub is still working it out.
 With PR status off in Settings, every `status` is `null`.

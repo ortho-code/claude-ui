@@ -658,7 +658,7 @@ function removedTab(tab: TabState): RemovedTab {
 function putBack(removed: readonly RemovedTab[]): void {
   for (const { session, at, scheduledWhenStopped, needsYou } of [...removed].reverse()) {
     if (store.get().tabs.some((t) => t.session.id === session.id) || store.get().archived.has(entityKey(session))) continue;
-    // As it was, from when it was marked, so a later mark that muted it mutes it again.
+    // As it was, from when it was marked, so a set-aside mark that muted it mutes it again.
     if (needsYou) markNeedsYou([entityKey(session)], needsYou);
     // Built at the end, as every tab is, then moved to where it stood.
     buildTab(session, scheduledWhenStopped);
@@ -755,7 +755,7 @@ function archivedTabs(key: string): RemovedTab[] {
   return removed;
 }
 
-/** What an archive's Undo puts back of one session: its later and needs-you marks as they were, read before the write. */
+/** What an archive's Undo puts back of one session: its set-aside and needs-you marks as they were, read before the write. */
 interface ArchivedMarks {
   key: string;
   setAside: SetAside | null;
@@ -768,7 +768,7 @@ function titleOf(key: string, removed: readonly RemovedTab[]): string {
   return session ? `"${sessionLabel(session)}"` : `"${key.slice(0, 8)}"`;
 }
 
-/** The toast an archive raises once its marks are written, one for a batch, with Undo unarchiving them in one write, putting back the tabs the archive closed (decided 2026-10-28), and each one's later and needs-you marks as they were, a session with no tab too. */
+/** The toast an archive raises once its marks are written, one for a batch, with Undo unarchiving them in one write, putting back the tabs the archive closed (decided 2026-10-28), and each one's set-aside and needs-you marks as they were, a session with no tab too. */
 function offerUndoArchive(marks: readonly ArchivedMarks[], removed: readonly RemovedTab[]): void {
   const keys = marks.map((m) => m.key);
   const what = keys.length === 1 ? titleOf(keys[0]!, removed) : `${keys.length} sessions`;

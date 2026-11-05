@@ -31,7 +31,7 @@ export function isUnfinished(session: SessionSummary, facts: ReviewFacts): boole
   return !facts.tabbed.has(key) && !facts.archived.has(key) && !facts.pendingDeletes.has(key);
 }
 
-/** `is:set-aside`: marked for later, with a day or whenever. */
+/** `is:set-aside`: set aside, with a day or whenever. */
 export function isSetAside(session: SessionSummary, facts: ReviewFacts): boolean {
   return facts.setAside.has(entityKey(session));
 }
@@ -78,7 +78,7 @@ export const KEPT_DAYS = 30;
 
 /**
  * THE REVIEW'S DEFINITION: the terms every set shares, and its sets in the order they are shown, a session in more than one shown once, in the first (decided 2026-11-04).
- * Shared, so that every act of the bar that decides a row takes it out of the review, Archive, Later and Keep alike, and the review can end; a session with a tab is work in hand, for its tab to decide.
+ * Shared, so that every act of the bar that decides a row takes it out of the review, Archive, Set aside… and Keep alike, and the review can end; a session with a tab is work in hand, for its tab to decide.
  */
 export const REVIEW = {
   id: 'review',

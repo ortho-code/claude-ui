@@ -61,7 +61,7 @@ document.body.insertAdjacentHTML(
         </select>
       </div>
       <div class="dialog-section">
-        <label class="dialog-label" for="settings-set-aside">Choices for Later</label>
+        <label class="dialog-label" for="settings-set-aside">Set aside: the choices</label>
         <p class="dialog-detail">Separated by commas, offered in the order they come, with Pick a date… beside them and whenever last: whenever, in 30m, in 2h, in 3d, in 1w, tomorrow or next monday, a day with a time such as 09:00 or else the time below.</p>
         <input id="settings-set-aside" class="dialog-field" type="text" spellcheck="false" autocomplete="off" placeholder="tomorrow, in 1w, whenever" />
         <p id="settings-set-aside-error" class="dialog-error" hidden></p>

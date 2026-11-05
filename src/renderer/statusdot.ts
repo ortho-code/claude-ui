@@ -34,7 +34,7 @@ export function statusText(id: string, view: View<'statuses' | 'backgroundTasks'
 
 /**
  * Every state a session is in, each with its dot, for its menu's header: what its tab says, its status as its hooks last reported it, and its needs-you mark, a line per reason, in that order, where its one dot shows only the strongest of them (`dotStatus`).
- * The read mark dims the state the dot shows, as it dims the dot, and a needs-you mark its later mark mutes is dimmed wherever it is.
+ * The read mark dims the state the dot shows, as it dims the dot, and a needs-you mark its set-aside mark mutes is dimmed wherever it is.
  */
 export function statusLines(id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs'>): { text: string; dot: string }[] {
   const tab = tabWith(id, view);

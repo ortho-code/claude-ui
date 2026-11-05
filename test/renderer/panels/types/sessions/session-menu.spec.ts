@@ -100,11 +100,11 @@ test("a running tab's menu has no Open, since the tab is the session", async ({ 
   await expect(item(page, 'Open')).toHaveCount(0);
 });
 
-// Selecting a cold tab is what starts it, so its menu offers that too, set aside for later or not, since the later mark leaves the tab as it is.
+// Selecting a cold tab is what starts it, so its menu offers that too, set aside or not, since the set-aside mark leaves the tab as it is.
 const setAside = { [full.id]: { due: null, at: 1 } };
 for (const [state, setAsideMarks] of [['cold', {}], ['set-aside cold', setAside]] as const) {
   test(`Open in a ${state} tab's menu starts its session`, async ({ app, page }) => {
-    await app.boot({ ...fixture, later: setAsideMarks });
+    await app.boot({ ...fixture, setAside: setAsideMarks });
     await tab(page, full.title).locator('.tab-kebab').click();
     await item(page, 'Open').click();
     await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
@@ -385,8 +385,8 @@ test("an open menu is left as it is drawn by a change that does not touch what i
   expect(await page.evaluate(() => (window as unknown as { held: Element }).held.isConnected)).toBe(true);
 });
 
-test("Close tab in a row's menu closes a session's cold tab, set aside for later or not", async ({ app, page }) => {
-  await app.boot({ ...fixture, later: setAside });
+test("Close tab in a row's menu closes a session's cold tab, set aside or not", async ({ app, page }) => {
+  await app.boot({ ...fixture, setAside });
   await row(page, full.title).locator('.session-kebab').click();
   await item(page, 'Close tab').click();
   await expect(tab(page, full.title)).toHaveCount(0);
@@ -401,9 +401,9 @@ test('Close tab is unavailable, with the reason, for a session with no tab', asy
 });
 
 // One open but not running is put away with its tab at once; a running one's archive waits for its claude (claude/terminals/archive.spec.ts).
-for (const [state, setAsideMarks] of [['cold', {}], ['cold and set aside for later', setAside]] as const) {
+for (const [state, setAsideMarks] of [['cold', {}], ['cold and set aside', setAside]] as const) {
   test(`Archive on a session whose tab is ${state} archives it and closes the tab`, async ({ app, page }) => {
-    await app.boot({ ...fixture, later: setAsideMarks });
+    await app.boot({ ...fixture, setAside: setAsideMarks });
     await tab(page, full.title).locator('.tab-kebab').click();
     await item(page, 'Archive').click();
     await expect(tab(page, full.title)).toHaveCount(0);

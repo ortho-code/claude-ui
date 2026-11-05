@@ -8,14 +8,15 @@ const one = session();
 const long = session({ id: '00000000-0000-4000-8000-0000000000d1', title: 'A session whose title is far too long to fit on any tab in the bar' });
 const history = { [one.id]: [], [long.id]: [] };
 
-test("a tab's kebab opens its session's menu without selecting the tab, and Later from it sets the session aside", async ({ app, page }) => {
+test("a tab's kebab opens its session's menu without selecting the tab, and Set aside… from it sets the session aside", async ({ app, page }) => {
   await app.boot({ sessions: [one], openSessions: [one.id], history });
   await tab(page, one.title).locator('.tab-kebab').click();
   await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
   await expect(tab(page, one.title)).not.toHaveClass(/\bactive\b/);
 
-  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Later$/ }).click();
-  await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^Whenever$/ }).click();
+  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Set aside…$/ }).click();
+  await page.locator('#set-aside-choices button', { hasText: /^Whenever$/ }).click();
+  await page.locator('#set-aside-ok').click();
   await expect(tab(page, one.title).locator('.tab-set-aside')).toBeVisible();
   expect(await app.calls('startTerminal')).toEqual([]);
 });
@@ -24,7 +25,7 @@ test("a right-click on a tab's title opens the same menu", async ({ app, page })
   await app.boot({ sessions: [one], openSessions: [one.id], history });
   await tab(page, one.title).locator('.tab-label').click({ button: 'right' });
   await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
-  await expect(page.locator('.kebab-menu button', { hasText: /^Later$/ })).toBeVisible();
+  await expect(page.locator('.kebab-menu button', { hasText: /^Set aside…$/ })).toBeVisible();
   await expect(tab(page, one.title).locator('.tab-kebab')).toHaveClass(/\bmenu-open\b/);
 });
 

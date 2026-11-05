@@ -146,13 +146,13 @@ export function isFiltering(view: View<'filter'>): boolean {
   return searchText(view).length > 0 || Object.values(view.filter.filters).some(Boolean) || view.filter.datePreset !== 'any';
 }
 
-/** The sessions whose status, background work, read mark, needs-you mark or later mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has. */
+/** The sessions whose status, background work, read mark, needs-you mark or set-aside mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has. */
 export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside'>, after: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside'>): Set<string> {
   const ids = new Set<string>();
   for (const id of new Set([...before.statuses.keys(), ...after.statuses.keys()])) if (before.statuses.get(id) !== after.statuses.get(id)) ids.add(id);
   for (const id of new Set([...before.backgroundTasks.keys(), ...after.backgroundTasks.keys()])) if (!sameOrder(before.backgroundTasks.get(id) ?? [], after.backgroundTasks.get(id) ?? [])) ids.add(id);
   for (const id of new Set([...before.acked, ...after.acked])) if (before.acked.has(id) !== after.acked.has(id)) ids.add(id);
-  // Every reason and its time, since a reason added beside another, or a newer one lifting a later mark's mute, changes the dot or its tooltip.
+  // Every reason and its time, since a reason added beside another, or a newer one lifting a set-aside mark's mute, changes the dot or its tooltip.
   for (const id of new Set([...before.needsYou.keys(), ...after.needsYou.keys()])) if (!sameReasons(before.needsYou.get(id) ?? [], after.needsYou.get(id) ?? [])) ids.add(id);
   for (const id of new Set([...before.setAside.keys(), ...after.setAside.keys()])) if (before.setAside.get(id) !== after.setAside.get(id)) ids.add(id);
   return ids;
@@ -171,13 +171,13 @@ export function tabDotChanges(before: View<'tabs'>, after: View<'tabs'>): Set<st
   return new Set([...was.keys(), ...is.keys()].filter((id) => was.get(id) !== is.get(id)));
 }
 
-/** A session's part in a roll-up (`sessionPart`), read out of the store: a needs-you mark its later mark mutes rolls up as read. */
+/** A session's part in a roll-up (`sessionPart`), read out of the store: a needs-you mark its set-aside mark mutes rolls up as read. */
 export function sessionNudge(id: string, view: View<'statuses' | 'acked' | 'needsYou' | 'setAside'>): NudgeStatus {
   return sessionPart(view.statuses.get(id), view.needsYou.has(id), mutedNeedsYou(view).has(id), view.acked.has(id));
 }
 
 /**
- * Whether a session's dot shows as read: marked read, or showing a needs-you mark its later mark mutes, which looks read and stays so while the later mark stands (decided 2026-10-29).
+ * Whether a session's dot shows as read: marked read, or showing a needs-you mark its set-aside mark mutes, which looks read and stays so while the set-aside mark stands (decided 2026-10-29).
  * The dot still shows the mark, so its reason is there when you pick the session up again.
  */
 export function shownRead(id: string, shown: string | undefined, view: View<'acked' | 'needsYou' | 'setAside'>): boolean {
@@ -187,7 +187,7 @@ export function shownRead(id: string, shown: string | undefined, view: View<'ack
 let muted: { needsYou: ReadonlyMap<string, readonly NeedsYou[]>; setAside: ReadonlyMap<string, SetAside>; ids: ReadonlySet<string> } | null = null;
 
 /**
- * The sessions whose needs-you mark their later mark mutes (`mutedBySetAside`): what every dot and roll-up reads as read, and what does not widen the strip's membership.
+ * The sessions whose needs-you mark their set-aside mark mutes (`mutedBySetAside`): what every dot and roll-up reads as read, and what does not widen the strip's membership.
  * Kept for the two maps it was made from, since every roll-up of a repaint asks for it.
  */
 export function mutedNeedsYou(view: View<'needsYou' | 'setAside'>): ReadonlySet<string> {

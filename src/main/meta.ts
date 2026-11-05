@@ -73,10 +73,10 @@ interface Meta {
    */
   needsYou: Record<string, NeedsYou[]>;
   /**
-   * The sessions you set aside for later, by session id: the day each comes back as needing you, or none for whenever, and since when.
-   * Kept whether or not a tab holds the session, until the window takes it off for a prompt there or Clear later, its day comes (`cameDue`), or main does for an archive or a delete.
+   * The sessions you set aside, by session id: the day each comes back as needing you, or none for whenever, and since when.
+   * Kept whether or not a tab holds the session, until the window takes it off for a prompt there or Clear set aside, its day comes (`cameDue`), or main does for an archive or a delete.
    */
-  later: Record<string, SetAside>;
+  setAside: Record<string, SetAside>;
   /**
    * When each session was last kept out of the review, by session id (epoch ms): the review's own term says how long that holds (`kept:<30d`), so a stamp is never swept, and goes with its session's delete.
    * Archiving leaves it, since an archived session is out of the review anyway.
@@ -138,7 +138,7 @@ const KNOWN_KEYS = new Set([
   'requestPins', // the pre-rename spelling of historyPins; read, never written
   'openSessions',
   'runningSessions',
-  'pausedSessions', // the tabs you paused, before pause gave way to the later mark; taken into `later` on each read until a write drops it, never written
+  'pausedSessions', // the tabs you paused, before pause gave way to the set-aside mark; taken into `setAside` on each read until a write drops it, never written
   'scheduledWhenStopped',
   'activeSession',
   'activeSessionByProject',
@@ -154,7 +154,8 @@ const KNOWN_KEYS = new Set([
   'moved',
   'notes',
   'needsYou',
-  'later',
+  'setAside',
+  'later', // the pre-rename spelling of setAside; read, never written
   'kept',
   'prSeen',
   'groups',
@@ -168,7 +169,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, later: {}, kept: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, archived: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, setAside: {}, kept: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -205,6 +206,9 @@ function normalizePanelState(raw: unknown, px: (value: unknown) => number | null
   return { sizes, collapsed: strings(state.collapsed), active };
 }
 
+/** The filters stored under another key before their word changed: `live` as `running`, `setAside` as `later`. */
+const FILTERS_BEFORE: Partial<Record<keyof UiState['filters'], string>> = { live: 'running', setAside: 'later' };
+
 /**
  * Fill in a stored UiState field by field, defaulting anything absent or of the wrong type.
  *
@@ -229,8 +233,11 @@ function normalizeUi(raw: unknown, legacyFooterExpanded?: unknown): UiState {
     search: typeof ui.search === 'string' ? ui.search : base.search,
     filters: Object.fromEntries(
       // A key the file does not have takes its default, so a filter added later reads as it would on a first run, and one that is gone, such as `paused`, is dropped.
-      // `live` was stored as `running` before the word changed; read the old key as its fallback so an existing file keeps the toggle rather than silently clearing it.
-      (Object.keys(base.filters) as (keyof UiState['filters'])[]).map((key) => [key, bool(filters[key], key === 'live' ? bool(filters.running, base.filters.live) : base.filters[key])]),
+      // A filter whose word changed reads its old key as its fallback, so an existing file keeps the toggle rather than silently clearing it.
+      (Object.keys(base.filters) as (keyof UiState['filters'])[]).map((key) => {
+        const old = FILTERS_BEFORE[key];
+        return [key, bool(filters[key], old === undefined ? base.filters[key] : bool(filters[old], base.filters[key]))];
+      }),
     ) as UiState['filters'],
     datePreset: typeof ui.datePreset === 'string' ? ui.datePreset : base.datePreset,
     dateFrom: ms(ui.dateFrom),
@@ -324,7 +331,7 @@ function normalize(parsed: Record<string, unknown>): Meta {
     historyPins: normalizeHistoryPins(parsed.historyPins ?? parsed.requestPins),
     openSessions: Array.isArray(parsed.openSessions) ? (parsed.openSessions as string[]) : [],
     // Same reasoning as projectOrder below: no version bump for a new defaulted field; absent means nothing was running.
-    // A tab a file from before the later mark lists as paused as well was one whose pause still waited for claude to leave, which pause never started or marked at launch, so it is not taken as running either.
+    // A tab a file from before the set-aside mark lists as paused as well was one whose pause still waited for claude to leave, which pause never started or marked at launch, so it is not taken as running either.
     runningSessions: Array.isArray(parsed.runningSessions) ? (parsed.runningSessions as unknown[]).filter((id): id is string => typeof id === 'string' && !(Array.isArray(parsed.pausedSessions) && parsed.pausedSessions.includes(id))) : [],
     // The same again: absent means no stopped tab had a cron scheduled.
     scheduledWhenStopped: scheduledBySession(parsed.scheduledWhenStopped),
@@ -366,9 +373,9 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // Same reasoning as projectOrder: no version bump for a new defaulted field; absent means nothing is marked.
     // An entry this build cannot read is dropped, so a hand edit can't leave a mark with no reason to show.
     needsYou: needsYouOf(parsed.needsYou),
-    // The same again: absent means nothing is set aside for later.
-    // A file from before pause gave way to the later mark lists the tabs you paused, each of them set aside for later here, whenever (decided 2026-10-29), so nothing set aside is lost.
-    later: setAsideWithPaused(setAsideOf(parsed.later), parsed.pausedSessions, Date.now()),
+    // The same again: absent means nothing is set aside; `later` is what the marks were stored as before the act was called Set aside, read, never written.
+    // A file from before pause gave way to the set-aside mark lists the tabs you paused, each of them set aside here, whenever (decided 2026-10-29), so nothing set aside is lost.
+    setAside: setAsideWithPaused(setAsideOf(parsed.setAside ?? parsed.later), parsed.pausedSessions, Date.now()),
     // The same again: absent means nothing kept out of the review; a stamp that is no moment is dropped.
     kept: Object.fromEntries(Object.entries((parsed.kept ?? {}) as Record<string, unknown>).filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]))),
     // The same again: absent means never kept, the first run.
@@ -614,7 +621,7 @@ export function archive(ids: string[]): Promise<Record<string, number>> {
     for (const id of ids) {
       meta.archived = archivedFrom(meta.archived, id, now);
       meta.needsYou = clearedNeedsYou(meta.needsYou, id);
-      meta.later = clearedSetAside(meta.later, id);
+      meta.setAside = clearedSetAside(meta.setAside, id);
     }
     return meta.archived;
   });
@@ -750,22 +757,22 @@ function prSeenOf(raw: unknown): PrSeen | null {
   );
 }
 
-/** The sessions marked for later; see `later`. */
+/** The sessions set aside; see `setAside`. */
 export function getSetAside(): Promise<Record<string, SetAside>> {
-  return serialize(async () => (await readMeta()).later);
+  return serialize(async () => (await readMeta()).setAside);
 }
 
-/** Mark sessions for later, in one write, `due` the moment they come back, or null for whenever; a mark already there is replaced. */
+/** Set sessions aside, in one write, `due` the moment they come back, or null for whenever; a mark already there is replaced. */
 export function markSetAside(ids: string[], due: number | null, at = Date.now()): Promise<void> {
   return update('markSetAside', (meta) => {
-    for (const id of ids) meta.later = markedSetAside(meta.later, id, due, at);
+    for (const id of ids) meta.setAside = markedSetAside(meta.setAside, id, due, at);
   });
 }
 
-/** Take sessions' later marks off, in one write, whether or not each had one. */
+/** Take sessions' set-aside marks off, in one write, whether or not each had one. */
 export function clearSetAside(ids: string[]): Promise<void> {
   return update('clearSetAside', (meta) => {
-    for (const id of ids) meta.later = clearedSetAside(meta.later, id);
+    for (const id of ids) meta.setAside = clearedSetAside(meta.setAside, id);
   });
 }
 
@@ -788,14 +795,14 @@ export function unkeep(ids: string[]): Promise<void> {
   });
 }
 
-/** Settle the later marks that have come due by `now`, by the rule the window keeps its copy by (`cameDue`). */
+/** Settle the set-aside marks that have come due by `now`, by the rule the window keeps its copy by (`cameDue`). */
 export function setAsideCameDue(now: number): Promise<void> {
   return update('setAsideCameDue', (meta) => {
     Object.assign(meta, cameDue(meta, now));
   });
 }
 
-/** Session -> its later mark, from whatever was stored, an entry with a time left out or a day that is not a number dropped. */
+/** Session -> its set-aside mark, from whatever was stored, an entry with a time left out or a day that is not a number dropped. */
 function setAsideOf(raw: unknown): Record<string, SetAside> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
   return Object.fromEntries(
@@ -808,7 +815,7 @@ function setAsideOf(raw: unknown): Record<string, SetAside> {
 }
 
 /**
- * The later marks with each session an older file lists as paused (`pausedSessions`) added, whenever, from `at`; one marked already keeps its mark.
+ * The set-aside marks with each session an older file lists as paused (`pausedSessions`) added, whenever, from `at`; one marked already keeps its mark.
  * Read on every read until the next write drops the list, so `at` is that read's until a write keeps one.
  */
 function setAsideWithPaused(setAside: Record<string, SetAside>, paused: unknown, at: number): Record<string, SetAside> {

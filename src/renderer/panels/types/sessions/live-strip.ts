@@ -143,7 +143,7 @@ function buildRow(id: string): StripRow {
   chip.className = 'strip-item-group';
   // A task claude has scheduled for the session, as its tab and its row in the list show it (scheduledmark.ts), beside the name it is about.
   const clock = scheduledMark('strip-item-scheduled');
-  // Set aside for later, as its tab and its row in the list show it (setasidemark.ts).
+  // Set aside, as its tab and its row in the list show it (setasidemark.ts).
   const setAside = setAsideMark('strip-item-set-aside');
   // A stop claude has not left, as its tab and its row in the list say it (notleft.ts).
   const notLeft = notLeftMark('strip-item-not-left');
@@ -154,7 +154,7 @@ function buildRow(id: string): StripRow {
   // So acting on a stray session from its tab costs you your place: you go there, act, and come back.
   // This is the only way to act on a session in ANOTHER project without leaving the one you are looking at, which is the same gap the strip was built to close.
   // It IS the tab's button, pressed from here: one rule draws both (`tabButton`) and one press acts for both (`pressTabButton`, through the ask), so it stops a running session, forces one that has not left, and closes a stopped tab or archives its session, or with no stop first a running one too, or is not there at all, as the settings say.
-  // A row leaves the strip by its session stopping with no needs-you mark it still shows, its mark being settled or muted by setting the session aside for later, its tab being closed, which is what this does to a stopped one, or its session leaving the pool, as an archive takes it.
+  // A row leaves the strip by its session stopping with no needs-you mark it still shows, its mark being settled or muted by setting the session aside, its tab being closed, which is what this does to a stopped one, or its session leaving the pool, as an archive takes it.
   // The session's own menu beside it, from the builder its row in the list uses, the button's press among its items, so the button is a shortcut to one of them.
   // Listed afresh at each click, for the session as it is then.
   const kebab = kebabButton('compact strip-item-kebab abuts', 'Session options', () => {
@@ -214,9 +214,9 @@ function stripProjects(pool: SessionSummary[], view: View<'groupState' | 'projec
   // Membership used to be "has a live nudge", which meant marking a dot read deleted the row: muting said "erase this" when it should have said "seen it".
   // Running is also the only rule that closes the gap this strip exists for: scoped to one project, a live session in another is invisible in the tab bar (filtered to the active project) and out of scope in the list, and the switcher only ever gets you to a PROJECT, never back to a SESSION.
   // Marked widens it on purpose: a tab whose session was running when the app closed comes back marked, started or not (`restoreOpenTabs`), and is work in hand until your next prompt there, and a marked tab in another project is as far out of sight as a running one.
-  // A tab marked for later is not, since it is set aside rather than in hand, so it is listed only while it runs or needs you (decided 2026-10-29, when pause, which did list its tabs, gave way to the later mark).
+  // A tab set aside is not, since it is not in hand, so it is listed only while it runs or needs you (decided 2026-10-29, when pause, which did list its tabs, gave way to the set-aside mark).
   // That is also what keeps the strip at launch, which used to start with nothing running and so with no strip at all.
-  // A mark your later mark mutes does not widen it: you set the session aside having seen why it needed you (`mutedNeedsYou`, decided 2026-10-29).
+  // A mark your set-aside mark mutes does not widen it: you set the session aside having seen why it needed you (`mutedNeedsYou`, decided 2026-10-29).
   // Nothing is lost by dropping the nudge from the membership: a running session that stopped has reported SessionEnd or had its status forgotten (`coolTab`), so it cannot be nudging.
   // IN TAB ORDER, which is the only order here that nothing on disk can move — see orderAsTabs.
   // Driven from the tabs rather than from the session list on purpose: every row in this strip IS a tab, and taking the order from the tabs array is what stops a session writing a message from swapping two rows you were reading.

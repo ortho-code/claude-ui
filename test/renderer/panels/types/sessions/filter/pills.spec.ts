@@ -43,14 +43,14 @@ for (const [pill, name, shows] of [
   });
 }
 
-// Later is a mark on the session, kept with a tab or without (decided 2026-10-29), so the pill finds both.
-test('the later pill narrows the list to the sessions marked for later, with a tab or without, and a second press undoes it', async ({ app, page }) => {
+// Set aside is a mark on the session, kept with a tab or without (decided 2026-10-29), so the pill finds both.
+test('the set-aside pill narrows the list to the sessions set aside, with a tab or without, and a second press undoes it', async ({ app, page }) => {
   const aside = session({ id: '00000000-0000-4000-8000-0000000000ca', title: 'Set aside' });
   const all = [...everyone, aside];
-  await app.boot({ ...fixture, sessions: all, openSessions: [tabbed.id, aside.id], later: { [aside.id]: { due: null, at: 1 }, [plain.id]: { due: Date.now() + 86_400_000, at: 1 } }, history: { [tabbed.id]: [], [aside.id]: [] } });
+  await app.boot({ ...fixture, sessions: all, openSessions: [tabbed.id, aside.id], setAside: { [aside.id]: { due: null, at: 1 }, [plain.id]: { due: Date.now() + 86_400_000, at: 1 } }, history: { [tabbed.id]: [], [aside.id]: [] } });
   await page.locator('#filter-toggle').click();
   const button = page.locator('#set-aside-filter');
-  await expect(button).toHaveAttribute('aria-label', 'Show only sessions marked for later');
+  await expect(button).toHaveAttribute('aria-label', 'Show only sessions set aside');
 
   await button.click();
   await expect(button).toHaveAttribute('aria-pressed', 'true');

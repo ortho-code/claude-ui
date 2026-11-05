@@ -89,7 +89,7 @@
   gap: 2px;
 }
 
-/* Sibling / worktree / scheduled / later markers on a tab, matching the sidebar badges. */
+/* Sibling / worktree / scheduled / set-aside markers on a tab, matching the sidebar badges. */
 .tab-sibling,
 .tab-worktree,
 .tab-scheduled,

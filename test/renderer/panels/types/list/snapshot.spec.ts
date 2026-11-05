@@ -16,7 +16,7 @@ const more = {
   archived: { [shelved.id]: 1 },
   statuses: { [asked.id]: 'waiting', [quiet.id]: 'start' },
   needsYou: { [asked.id]: [REASON] },
-  later: { [quiet.id]: SET_ASIDE },
+  setAside: { [quiet.id]: SET_ASIDE },
   groupState: { groups: [{ id: 'g1', name: 'Reviews', repoRoot: PROJECT }], groupOf: { [asked.id]: 'g1' } },
   // Already seen as it is, so the first answer marks nothing new.
   prSeen: { 'acme/app#1': { state: 'merged' as const } },
@@ -27,7 +27,7 @@ const LIST: PrintedList = { version: 1, sections: [{ items: [{ key: 'one', text:
 
 const snapshotOf = async (app: App, index: number): Promise<SessionsSnapshot> => JSON.parse((await runs(app, 'changes'))[index].sessions ?? 'null') as SessionsSnapshot;
 
-test('a run is given every session not archived, by id, with its title, project, group, status, read mark, needs-you and later marks and PRs', async ({ app, page }) => {
+test('a run is given every session not archived, by id, with its title, project, group, status, read mark, needs-you and set-aside marks and PRs', async ({ app, page }) => {
   await bootList(app, page, LIST, { more });
   // Pressed until GitHub's answer, which the first run may come before, is in the snapshot.
   await expect
@@ -41,8 +41,8 @@ test('a run is given every session not archived, by id, with its title, project,
     version: 1,
     sessions: [
       // A status the docs do not name, such as the marker a starting claude sends, is no status.
-      { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, needsYou: [], later: SET_ASIDE, prs: [] },
-      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, needsYou: [REASON], later: null, prs: [{ ...asked.prs[0], status: { state: 'merged' } }] },
+      { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, needsYou: [], setAside: SET_ASIDE, prs: [] },
+      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, needsYou: [REASON], setAside: null, prs: [{ ...asked.prs[0], status: { state: 'merged' } }] },
     ],
   });
 });

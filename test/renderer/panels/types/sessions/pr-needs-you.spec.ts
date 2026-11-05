@@ -114,7 +114,7 @@ test('the first run marks the sessions with a tab or a later mark whose PRs need
     ...fixture,
     sessions: [...all, setAside],
     history: { ...fixture.history, [setAside.id]: [] },
-    later: { [setAside.id]: { due: null, at: 1 } },
+    setAside: { [setAside.id]: { due: null, at: 1 } },
     prSeen: null,
     prStatuses: { 'acme/app#7': { state: 'merged' }, 'acme/app#8': open() },
   });

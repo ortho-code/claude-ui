@@ -97,7 +97,7 @@
   margin-left: 4px;
 }
 
-/* The clock of a session with a task scheduled (scheduledmark.ts), and the bookmark of one set aside for later (setasidemark.ts), beside its name, in the accent at the 11px its tab's marks are drawn at. */
+/* The clock of a session with a task scheduled (scheduledmark.ts), and the bookmark of one set aside (setasidemark.ts), beside its name, in the accent at the 11px its tab's marks are drawn at. */
 .strip-item-scheduled,
 .strip-item-set-aside {
   flex: 0 0 auto;

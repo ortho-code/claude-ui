@@ -94,12 +94,13 @@ test('a stamp past its 30 days holds nothing out, and one within them does', asy
   await expect(button(page).locator('.review-count')).toHaveText('2');
 });
 
-test('Later and Archive take a row out too, and the review ends once nothing is left in it', async ({ app, page }) => {
+test('Set aside… and Archive take a row out too, and the review ends once nothing is left in it', async ({ app, page }) => {
   await app.boot(fixture);
   await button(page).click();
   await row(page, old.title).click();
   await act(page, 'set-aside').click();
-  await page.locator('.kebab-menu button.menu-row', { hasText: /^Whenever$/ }).click();
+  await page.locator('#set-aside-choices button', { hasText: /^Whenever$/ }).click();
+  await page.locator('#set-aside-ok').click();
   await expect(row(page, old.title)).toHaveCount(0);
   await row(page, ready.title).click();
   await act(page, 'archive').click();

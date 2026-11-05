@@ -17,7 +17,7 @@ export interface ScheduledTask {
  */
 export type ClosedHow = 'quit' | 'ended' | 'unknown';
 
-/** Why a session needs you: how the app closed while it ran (`ClosedHow`), the day you marked it for later has come (`reminder`), or a PR it links changed (`pr`). */
+/** Why a session needs you: how the app closed while it ran (`ClosedHow`), the day you set it aside until has come (`reminder`), or a PR it links changed (`pr`). */
 export type NeedsYouReason = ClosedHow | 'reminder' | 'pr';
 
 /** The changes to a PR that mark the sessions linking it as needing you: something that needs you appearing in its status, or a closed PR opened again (`reopened`). */
@@ -35,7 +35,7 @@ export type NeedsYou =
 /** What GitHub was last seen to say of each PR, by reference (`owner/name#number`): what a change is told from. */
 export type PrSeen = Record<string, PrStatus>;
 
-/** A session marked for later: the moment it comes back as needing you (epoch ms), or null for whenever, and when it was marked (epoch ms). */
+/** A session set aside: the moment it comes back as needing you (epoch ms), or null for whenever, and when it was marked (epoch ms). */
 export interface SetAside {
   due: number | null;
   at: number;
@@ -363,8 +363,8 @@ export interface UiState {
     pinned: boolean;
     open: boolean;
     live: boolean;
-    /** Sessions marked for later, with a tab or without. */
-    later: boolean;
+    /** Sessions set aside, with a tab or without. */
+    setAside: boolean;
     worktree: boolean;
     /** Sessions whose folder is gone. */
     gone: boolean;
@@ -476,11 +476,11 @@ export interface ClaudeUiApi {
   getPrSeen(): Promise<PrSeen | null>;
   /** Keep what was last seen of the PRs, in place of what was kept before. */
   setPrSeen(seen: PrSeen): void;
-  /** The sessions marked for later, by session id. */
+  /** The sessions set aside, by session id. */
   getSetAside(): Promise<Record<string, SetAside>>;
-  /** Mark sessions for later in one write, `due` the moment they come back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
+  /** Set sessions aside in one write, `due` the moment they come back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
   markSetAside(ids: string[], due: number | null, at?: number): void;
-  /** Take sessions' later marks off in one write, whether or not each had one. */
+  /** Take sessions' set-aside marks off in one write, whether or not each had one. */
   clearSetAside(ids: string[]): void;
   /** When each session was last kept out of the review, by session id (epoch ms). */
   getKept(): Promise<Record<string, number>>;
@@ -488,7 +488,7 @@ export interface ClaudeUiApi {
   keep(ids: string[], at?: number): void;
   /** Take sessions' keep stamps off, in one write, as Keep's Undo does. */
   unkeep(ids: string[]): void;
-  /** Settle the later marks that have come due by `now` (`cameDue`): each goes, and a session not marked as needing you is marked with a reminder. */
+  /** Settle the set-aside marks that have come due by `now` (`cameDue`): each goes, and a session not marked as needing you is marked with a reminder. */
   setAsideCameDue(now: number): void;
   /** How the app closed before this window opened: what a session running then is marked for. */
   getLastClosed(): Promise<ClosedHow>;

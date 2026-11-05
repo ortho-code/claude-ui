@@ -8,6 +8,7 @@ import {
   dayLabel,
   momentLabel,
   setAsideLabel,
+  setAsideUntil,
   sessionPart,
   leaveAction,
   leaveLabel,
@@ -1010,15 +1011,16 @@ describe('sessionPart', () => {
   });
 });
 
-describe('the days a later mark names', () => {
-  // Local times, as the menu makes them: Thursday 29 October 2026, mid-afternoon.
+describe('the days a set-aside mark names', () => {
+  // Local times, as the dialog makes them: Thursday 29 October 2026, mid-afternoon.
   const thursday = new Date(2026, 9, 29, 15, 30).getTime();
 
   it('names a day short, a moment by its day and time, and a mark by its moment or as whenever', () => {
     expect(dayLabel(new Date(2026, 10, 2).getTime())).toBe('Mon 2 Nov');
     expect(momentLabel(new Date(2026, 10, 2, 9, 5).getTime())).toBe('Mon 2 Nov, 09:05');
-    expect(setAsideLabel({ due: new Date(2026, 10, 5, 9).getTime(), at: thursday })).toBe('Later: Thu 5 Nov, 09:00');
-    expect(setAsideLabel({ due: null, at: thursday })).toBe('Later');
+    expect(setAsideLabel({ due: new Date(2026, 10, 5, 9).getTime(), at: thursday })).toBe('Set aside until Thu 5 Nov, 09:00');
+    expect(setAsideLabel({ due: null, at: thursday })).toBe('Set aside, whenever');
+    expect(setAsideUntil(null)).toBe(', whenever');
   });
 });
 

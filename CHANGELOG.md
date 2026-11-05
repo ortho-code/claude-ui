@@ -97,26 +97,26 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   It is `leaveButton` in `settings.json`, `"stop-close"`, `"stop-archive"`, `"close"`, `"archive"` or `"none"`, and a middle-click on the tab does what the button does, or nothing without one.
 - Undo in the message a closed tab or an archived session leaves, from any button, its options or a middle-click: it puts the tab back where it was, without starting it, and unarchives the session.
   Such a message stays 8 seconds, and while the pointer is on it.
-- Later in a session's options, to set it aside until tomorrow, for a week, until a day and time you pick, or whenever, shown as a bookmark on its row, its tab and its strip row and kept whether or not it has a tab.
+- Set aside… in a session's options, a dialog that asks when to come back, tomorrow, in a week, a day and time you pick or whenever, and where it stands, which is the session's note, shown as a bookmark on its row, its tab and its strip row and kept whether or not it has a tab.
   Its choices are yours, `setAside` in `settings.json`, such as `"in 2h"`, `"in 3d"`, `"tomorrow 08:00"` or `"next monday"`, offered in the order they would come with Whenever last; a choice with a day and no time of its own comes due at 09:00, or the time `setAsideTime` gives.
-  When its moment comes it needs you, saying it was a reminder for then, or why it needed you if it already did; typing a prompt there, Clear later and archiving it take the mark off.
-  A session that needed you before you set it aside shows that dimmed, counting for nothing while the later mark stands, and one that needs you afterwards shows it in full.
+  When its moment comes it needs you, saying it was a reminder for then, or why it needed you if it already did; typing a prompt there, Clear set aside and archiving it take the mark off, and leave the note.
+  A session that needed you before you set it aside shows that dimmed, counting for nothing while it stays set aside, and one that needs you afterwards shows it in full.
 - A language for times and dates, `locale` in `settings.json` and Language for times and dates in Settings, such as `en-GB` for a 24-hour clock and weeks from Monday on a system that reads as US English.
   Time fields follow it from the next launch, the rest of the app at once.
 - A session is marked as needing you when a PR it links gets something new that needs you: merged, closed or opened again, an approving review, changes requested, failing checks or a merge conflict, with the PR and its change in the dot's tooltip, such as "PR #35777 merged".
   A change while the app was closed marks at the next launch; it needs PR status on in Settings, and turning that on starts from the PRs as they are then.
-  If PR status is on when you first start this version, its first whole answer from GitHub marks only the sessions with a tab or set aside for later whose PRs already need you by then; with it off then, turning it on later marks only what changes after.
+  If PR status is on when you first start this version, its first whole answer from GitHub marks only the sessions with a tab or set aside whose PRs already need you by then; with it off then, turning it on later marks only what changes after.
 - A panel type of your own decides what a press does, on an action, a row or a part of its detail, from the verbs `session`, `open-session`, `open-url` and `copy`.
   Hovering a row or a part shows only the type's own `tooltip`, so a type that wants a link's address shown puts it there.
 - A panel type of your own can show a session's name in a row's texts and its status dot before the row's actions, both kept current between runs, from the session's id.
-- A panel type of your own is given the sessions the app has in a file, with each one's status, group, needs-you and later marks and PRs, to choose its rows from.
+- A panel type of your own is given the sessions the app has in a file, with each one's status, group, needs-you and set-aside marks and PRs, to choose its rows from.
   `"watch": "sessions"` runs it again when that file would say something new.
-- Selecting several sessions in the list: Select sessions… in a project's or a group's menu ticks its sessions, and Select… in a session row's menu ticks that one, then a bar archives, sets aside for later, moves to a group, stops or closes the tabs of every one ticked in one go.
+- Selecting several sessions in the list: Select sessions… in a project's or a group's menu ticks its sessions, and Select… in a session row's menu ticks that one, then a bar archives, sets aside, moves to a group, stops or closes the tabs of every one ticked in one go.
   A press on a row ticks it, Shift ticks a run, a heading's box ticks every row under it, and Done or Esc ends it.
   Archiving, setting aside and closing raise one message with one Undo for the sessions that are not running; a running one's comes once claude has left it.
   In the archived view the bar unarchives every one ticked, with one Undo, or deletes them after one question for all.
 - A review, from the Review button under the sidebar's header, counting what it holds: the sessions without a tab, not archived, set aside or kept, that are ready to finish, every PR they link merged or closed, or untouched for 30 days, each row saying why it is there.
-  Archive, Later and the new Keep, which holds a session out of the review for 30 days, take rows out, and the review ends once nothing is left; with PR status off, an open review's Ready to finish says it cannot tell.
+  Archive, Set aside… and the new Keep, which holds a session out of the review for 30 days, take rows out, and the review ends once nothing is left; with PR status off, an open review's Ready to finish says it cannot tell.
 - Recent, switched beside Grouped under the sidebar's header: the sessions in one flat list, last worked on first, each row naming its group, and in All its project, with pins left where their time puts them.
   The choice is kept as the session list's view, so `"view": "recent"` on its entry in the layout starts it there.
 
@@ -170,8 +170,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The top of a session's options lists every state it is in on a line of its own, each with its dot, such as idle and needing you at once, where the status used to end the line with its project.
 - A session's dot no longer turns to waiting for claude's notices of something finished, such as a login that succeeded or an agent that finished.
 - The date filter's calendar starts its weeks on the first day of the language for times and dates, Monday for en-GB and nl-NL, as Pick a date…'s does.
-- Later takes over from pausing a tab: Pause and Force pause are gone from a session's options, the paused filter is a filter for the sessions marked for later, and the live strip lists only what runs or needs you, so its line no longer counts paused tabs.
-  A tab you had paused comes back as an ordinary stopped tab, its session set aside for later, whenever.
+- Set aside… takes over from pausing a tab: Pause and Force pause are gone from a session's options, the paused filter is a filter for the sessions set aside, and the live strip lists only what runs or needs you, so its line no longer counts paused tabs.
+  A tab you had paused comes back as an ordinary stopped tab, its session set aside, whenever.
 - A session that needs you for more than one reason, such as a reminder and running when the app quit, keeps them all, each on a line of its own in its dot's tooltip and at the top of its options, where the newest used to replace the others.
 - The note dialog names the session in its title, with a line under it saying where the note shows and that saving it empty removes it.
 - The session list's order catches up with what was last worked on within a minute, where a session worked on again used to keep its old place until something else changed the list; nothing moves while the pointer or the keyboard focus is in the list, or a menu from it is open.

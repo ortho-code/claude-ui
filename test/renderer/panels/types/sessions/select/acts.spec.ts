@@ -5,7 +5,7 @@ import { hoveredAndOpen } from '../../../../support/looks';
 import { groupHeading, projectHeading, row, tab, tabs } from '../../../../support/window';
 
 // The bar of selecting several acts on every ticked row on show, each act through the write a session's menu makes, given every key at once (docs/architecture.md § Selecting several).
-// Archive, Later and Close tab each raise one toast for the batch, whose Undo puts every one back as it was.
+// Archive, Set aside… and Close tab each raise one toast for the batch, whose Undo puts every one back as it was.
 const a = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Alpha', lastActivity: '2026-09-30T10:00:00.000Z' });
 const b = session({ id: '00000000-0000-4000-8000-0000000000c2', title: 'Bravo', lastActivity: '2026-09-30T09:00:00.000Z' });
 const c = session({ id: '00000000-0000-4000-8000-0000000000c3', title: 'Charlie', lastActivity: '2026-09-30T08:00:00.000Z' });
@@ -30,8 +30,8 @@ async function startLive(page: Page, app: App, title: string, pty: number): Prom
   expect(await app.emit('onTerminalData', pty, 'claude is here')).toBe(1);
 }
 
-test('Archive archives every ticked session in one write, with one toast whose Undo brings each back with its later mark', async ({ app, page }) => {
-  await app.boot({ ...fixture, later: { [a.id]: { due: null, at: 5 } } });
+test('Archive archives every ticked session in one write, with one toast whose Undo brings each back with its set-aside mark', async ({ app, page }) => {
+  await app.boot({ ...fixture, setAside: { [a.id]: { due: null, at: 5 } } });
   await selectGroup(page, 'Work');
   await act(page, 'archive').click();
   await expect(toast(page)).toHaveText('Archived 2 sessions');
@@ -47,20 +47,49 @@ test('Archive archives every ticked session in one write, with one toast whose U
   await expect(row(page, b.title).locator('.set-aside-mark')).toBeHidden();
 });
 
-test("Later marks every ticked session in one write, and Undo puts back the mark one had before and none on the other", async ({ app, page }) => {
-  await app.boot({ ...fixture, later: { [a.id]: { due: null, at: 5 } } });
+const dialog = (page: Page): Locator => page.locator('#set-aside-overlay');
+
+test('Set aside… with several ticked asks without a line, leaves each note, marks them in one write, and Undo puts back the mark one had before and none on the other', async ({ app, page }) => {
+  await app.boot({ ...fixture, setAside: { [a.id]: { due: null, at: 5 } }, notes: { [a.id]: 'one note', [b.id]: 'another' } });
   await selectGroup(page, 'Work');
+  await expect(act(page, 'set-aside')).toHaveText('Set aside…');
   await act(page, 'set-aside').click();
-  await page.locator('.kebab-menu button.menu-row', { hasText: /^Tomorrow/ }).click();
+  await expect(dialog(page)).toBeVisible();
+  await expect(page.locator('#set-aside-title')).toHaveText('Set aside: 2 sessions');
+  await expect(page.locator('#set-aside-note')).toBeHidden();
+  await expect(page.locator('#set-aside-notes-stay')).toHaveText('Their notes stay as they are.');
+  // Neither "now set aside" line: it is one session's.
+  await expect(page.locator('#set-aside-now')).toBeHidden();
+  await page.locator('#set-aside-choices button', { hasText: /^Tomorrow/ }).click();
+  await page.locator('#set-aside-ok').click();
   const [[ids, due]] = (await app.calls('markSetAside')) as [string[], number][];
   expect(ids).toEqual([a.id, b.id]);
   expect(due).toBeGreaterThan(0);
-  await expect(toast(page)).toHaveText(/^Set 2 sessions aside for later, until /);
+  expect(await app.calls('setNote')).toEqual([]);
+  await expect(toast(page)).toHaveText(/^Set 2 sessions aside until /);
 
   await undo(page).click();
   await expect(row(page, a.title).locator('.set-aside-mark')).toBeVisible();
   await expect(row(page, b.title).locator('.set-aside-mark')).toBeHidden();
   expect(await app.calls('clearSetAside')).toEqual([[[b.id]]]);
+});
+
+test("Set aside… with one ticked is the session's own dialog, its line included, and Undo puts the note back too", async ({ app, page }) => {
+  await app.boot({ ...fixture, notes: { [c.id]: 'as it was' } });
+  await row(page, c.title).locator('.session-kebab').click();
+  await page.locator('.kebab-menu button.menu-row', { hasText: /^Select…$/ }).click();
+  await act(page, 'set-aside').click();
+  await expect(page.locator('#set-aside-title')).toHaveText(`Set aside: ${c.title}`);
+  await expect(page.locator('#set-aside-note')).toHaveValue('as it was');
+  await page.locator('#set-aside-note').fill('changed here');
+  await page.locator('#set-aside-choices button', { hasText: /^Whenever$/ }).click();
+  await page.locator('#set-aside-ok').click();
+  await expect(toast(page)).toHaveText(`Set "${c.title}" aside, whenever`);
+  await expect.poll(() => app.calls('setNote')).toEqual([[c.id, 'changed here']]);
+
+  await undo(page).click();
+  await expect.poll(() => app.calls('setNote')).toEqual([[c.id, 'changed here'], [c.id, 'as it was']]);
+  await expect(row(page, c.title).locator('.set-aside-mark')).toBeHidden();
 });
 
 test('Move to group moves every ticked session in one write, and is unavailable with sessions of two projects ticked', async ({ app, page }) => {
@@ -109,24 +138,23 @@ test('Close tab closes every ticked tab, and one Undo brings the cold ones back'
 });
 
 // Any control that opens a menu keeps its hover look while the menu is up (docs/architecture.md § UI conventions).
-test("Later and Move to group keep their hover look while the menu they opened is up", async ({ app, page }) => {
+test('Move to group keeps its hover look while the menu it opened is up', async ({ app, page }) => {
   await app.boot(fixture);
   await selectGroup(page, 'Work');
-  for (const name of ['set-aside', 'move']) {
-    const { hovered, open } = await hoveredAndOpen(page, act(page, name));
-    expect(open).toEqual(hovered);
-  }
+  const { hovered, open } = await hoveredAndOpen(page, act(page, 'move'));
+  expect(open).toEqual(hovered);
 });
 
 test('Esc in a dialog an act opened closes the dialog and leaves bulk mode on', async ({ app, page }) => {
   await app.boot(fixture);
   await selectGroup(page, 'Work');
   await act(page, 'set-aside').click();
-  await page.locator('.kebab-menu button.menu-row', { hasText: /^Pick a date…$/ }).click();
-  await expect(page.locator('#day-overlay')).toBeVisible();
+  await page.locator('#set-aside-choices button', { hasText: /^Pick a date…$/ }).click();
+  await expect(dialog(page)).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.locator('#day-overlay')).toBeHidden();
+  await expect(dialog(page)).toBeHidden();
   await expect(page.locator('#bulk-line')).toBeVisible();
+  expect(await app.calls('markSetAside')).toEqual([]);
 });
 
 test('Archive and Close tab are unavailable while every ticked session has a tab starting, since neither would do anything', async ({ app, page }) => {

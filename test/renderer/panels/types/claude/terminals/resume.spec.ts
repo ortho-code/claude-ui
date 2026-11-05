@@ -129,9 +129,9 @@ test('a settings.json that says "pause" marks them, as the choice that took its 
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
-// A later mark set before the quit did not know of it, so the quit's mark shows in full and the session comes back as the others do, its bookmark kept (decided 2026-10-29).
-test('a session set aside for later that was running comes back as the others do, marked and started as chosen, keeping its later mark', async ({ app, page }) => {
-  await app.boot({ ...choosing('start'), later: { [two.id]: { due: null, at: 1 } } });
+// A set-aside mark set before the quit did not know of it, so the quit's mark shows in full and the session comes back as the others do, its bookmark kept (decided 2026-10-29).
+test('a session set aside that was running comes back as the others do, marked and started as chosen, keeping its set-aside mark', async ({ app, page }) => {
+  await app.boot({ ...choosing('start'), setAside: { [two.id]: { due: null, at: 1 } } });
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
   const launches = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
   expect(launches.map(([, launch]) => launch.resumeSessionId)).toEqual([one.id, two.id]);

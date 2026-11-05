@@ -3,20 +3,7 @@
   width: min(400px, 80vw);
 }
 
-/* Room to write, at a fixed height so the dialog does not resize as you type. */
-#rename-textarea {
-  resize: vertical;
-  min-height: 120px;
-  font-family: inherit;
-}
-
-
 /* The field sits above these, so they need the gap the detail line gives the confirm dialog. */
 #rename-actions {
   margin-top: 16px;
-}
-
-/* Pick a date…'s time, set apart from the calendar above it by the gap a field has above its error line, and from the buttons under it by the gap the rename dialog's field has above its buttons. */
-#day-time {
-  margin: 8px 0 16px;
 }

@@ -26,7 +26,7 @@ export const filterPanel = fromMarkup(`
       <button id="pinned-filter" data-tooltip="Show only pinned sessions" aria-label="Show only pinned sessions" aria-pressed="false"></button>
       <button id="open-filter" type="button" data-tooltip="Show only sessions with a tab open" aria-label="Show only sessions with a tab open" aria-pressed="false"></button>
       <button id="live-filter" type="button" data-tooltip="Show only live sessions" aria-label="Show only live sessions" aria-pressed="false"></button>
-      <button id="set-aside-filter" type="button" data-tooltip="Show only sessions marked for later" aria-label="Show only sessions marked for later" aria-pressed="false"></button>
+      <button id="set-aside-filter" type="button" data-tooltip="Show only sessions set aside" aria-label="Show only sessions set aside" aria-pressed="false"></button>
       <button id="worktree-filter" type="button" data-tooltip="Show only worktree sessions" aria-label="Show only worktree sessions" aria-pressed="false"></button>
       <button id="sibling-filter" type="button" data-tooltip="Show only sessions with siblings" aria-label="Show only sessions with siblings" aria-pressed="false"></button>
       <button id="pr-filter" type="button" data-tooltip="Show only sessions with a PR" aria-label="Show only sessions with a PR" aria-pressed="false"></button>
@@ -124,7 +124,7 @@ export function passesFilters(session: SessionSummary, view: View<'pinned' | 'ar
     live: filters.live
       ? new Set(view.tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)))
       : undefined,
-    setAsideOnly: filters.later,
+    setAsideOnly: filters.setAside,
     setAside: view.setAside,
     worktreeOnly: filters.worktree,
     goneOnly: filters.gone,
@@ -385,7 +385,7 @@ const FILTER_PILLS: FilterPill[] = [
   { button: pinnedFilter, icon: PINNED_ICON, key: 'pinned' },
   { button: openFilter, icon: OPEN_ICON, key: 'open' },
   { button: liveFilter, icon: LIVE_ICON, key: 'live' },
-  { button: setAsideFilter, icon: SET_ASIDE_ICON, key: 'later' },
+  { button: setAsideFilter, icon: SET_ASIDE_ICON, key: 'setAside' },
   { button: worktreeFilter, icon: WORKTREE_ICON, key: 'worktree' },
   { button: siblingFilter, icon: SIBLING_ICON, key: 'siblings' },
   { button: prFilter, icon: PR_ICON, key: 'prs' },

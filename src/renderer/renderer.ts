@@ -74,7 +74,7 @@ window.claudeUi.onSessionStatus((id, status, tabToken, event, background, prompt
   const holder = tabWith(id);
   if (event === 'SessionEnd' && tabToken && holder && holder.token !== tabToken) return;
   setStatus(id, status, background);
-  // A prompt you submitted is you acting on the session, which settles what it needed you for, and that you set it aside for later; a turn claude started itself is not (`startedByClaude`), against what the session has scheduled: what its last Stop listed, and the crons its tab kept from the claude before, which come back with a resume and can fire before any Stop lists them.
+  // A prompt you submitted is you acting on the session, which settles what it needed you for, and that you set it aside; a turn claude started itself is not (`startedByClaude`), against what the session has scheduled: what its last Stop listed, and the crons its tab kept from the claude before, which come back with a resume and can fire before any Stop lists them.
   // Without the prompt, as from a script older than this window, it is taken as yours.
   if (event === 'UserPromptSubmit') {
     const scheduled = [...(store.get().scheduledTasks.get(id) ?? []), ...(tabWith(id)?.scheduledWhenStopped ?? [])].map((task) => task.prompt);
@@ -137,7 +137,7 @@ void (async () => {
   await loadLayout();
   // With the project you were in and the view you left, which scope and filter the first draw.
   await fullRead({ startUp: view });
-  // Once the store has the later marks: a day that came while the app was closed shows from the first draw, and one that comes while it runs within the hour.
+  // Once the store has the set-aside marks: a day that came while the app was closed shows from the first draw, and one that comes while it runs within the hour.
   watchDueSetAside();
   forgetDeletedGroupFolds(store.get());
   startSavingUi();

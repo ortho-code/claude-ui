@@ -99,13 +99,13 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
     getArchived: () => answer(fixture.archived),
-    // Main's archive takes each session's needs-you and later marks off in the same write.
+    // Main's archive takes each session's needs-you and set-aside marks off in the same write.
     archive: (ids) => {
       if (fixture.archiveFails !== null) return Promise.reject(new Error(fixture.archiveFails));
       const now = Date.now();
       for (const id of ids) {
         fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
-        fixture.later = clearedSetAside(fixture.later, id);
+        fixture.setAside = clearedSetAside(fixture.setAside, id);
         fixture.archived = archivedFrom(fixture.archived, id, now);
       }
       return answer(fixture.archived);
@@ -146,12 +146,12 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     setPrSeen: (seen) => {
       fixture.prSeen = seen;
     },
-    getSetAside: () => answer(fixture.later),
+    getSetAside: () => answer(fixture.setAside),
     markSetAside: (ids, due, at) => {
-      for (const id of ids) fixture.later = markedSetAside(fixture.later, id, due, at ?? Date.now());
+      for (const id of ids) fixture.setAside = markedSetAside(fixture.setAside, id, due, at ?? Date.now());
     },
     clearSetAside: (ids) => {
-      for (const id of ids) fixture.later = clearedSetAside(fixture.later, id);
+      for (const id of ids) fixture.setAside = clearedSetAside(fixture.setAside, id);
     },
     getKept: () => answer(fixture.kept),
     keep: (ids, at) => {

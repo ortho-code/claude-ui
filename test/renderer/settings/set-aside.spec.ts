@@ -1,9 +1,17 @@
+import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../support/harness';
 import { session, settingsFileWith } from '../support/fixture';
 import { row } from '../support/window';
 
-// The set-aside choices and their time of day in Settings: today's three and 09:00 unless chosen otherwise, saved into settings.json, a choice that does not read named under its field, and what Later's dated choices come due at (decided 2026-10-29, the choices settable 2026-11-05).
+// The set-aside choices and their time of day in Settings: today's three and 09:00 unless chosen otherwise, saved into settings.json, a choice that does not read named under its field, and what Set aside…'s dated choices come due at (decided 2026-10-29, the choices settable 2026-11-05).
 const one = session({ id: '00000000-0000-4000-8000-0000000000f3', title: 'Set aside' });
+
+/** Open Set aside… from the session's row and answer its choices. */
+async function choicesOffered(page: Page): Promise<Locator> {
+  await row(page, one.title).locator('.session-kebab').click();
+  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Set aside…$/ }).click();
+  return page.locator('#set-aside-choices button');
+}
 
 test('the time is 09:00 until another is saved into settings.json, and a cleared one is refused', async ({ app, page }) => {
   await app.boot();
@@ -23,20 +31,19 @@ test('the time is 09:00 until another is saved into settings.json, and a cleared
   expect(await page.evaluate(() => window.__claudeUiFixture.settings.json)).toEqual({ setAsideTime: '17:30' });
 });
 
-test("Later's dated choices come due at the time the settings say", async ({ app, page }) => {
+test("Set aside…'s dated choices come due at the time the settings say, and Pick a date…'s time starts at it", async ({ app, page }) => {
   await page.clock.setFixedTime(new Date(2026, 9, 29, 15, 30));
   await app.boot({ sessions: [one], settings: settingsFileWith('settings.json', { setAsideTime: '17:30' }) });
-  await row(page, one.title).locator('.session-kebab').click();
-  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Later$/ }).click();
-  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Tomorrow (Fri 30 Oct, 17:30)', 'In 1 week (Thu 5 Nov, 17:30)', 'Pick a date…', 'Whenever']);
+  await expect(await choicesOffered(page)).toHaveText(['Tomorrow (Fri 30 Oct, 17:30)', 'In 1 week (Thu 5 Nov, 17:30)', 'Pick a date…', 'Whenever']);
+  await expect(page.locator('#set-aside-time')).toHaveValue('17:30');
 });
 
-test('the choices show as written, a wrong one is refused under the field, and saved ones are what Later offers at once', async ({ app, page }) => {
+test('the choices show as written, a wrong one is refused under the field, and saved ones are what Set aside… offers at once', async ({ app, page }) => {
   await page.clock.setFixedTime(new Date(2026, 9, 29, 15, 30));
   await app.boot({ sessions: [one] });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Settings' });
-  const choices = dialog.getByLabel('Choices for Later');
+  const choices = dialog.getByLabel('Set aside: the choices');
   await expect(choices).toHaveValue('tomorrow, in 1w, whenever');
 
   await choices.fill('tomorrow, nxt monday');
@@ -51,9 +58,7 @@ test('the choices show as written, a wrong one is refused under the field, and s
   await expect(dialog).toBeHidden();
   expect(await page.evaluate(() => window.__claudeUiFixture.settings.json)).toEqual({ setAside: ['next monday 08:00', 'in 2h', 'whenever'] });
 
-  await row(page, one.title).locator('.session-kebab').click();
-  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Later$/ }).click();
-  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['In 2 hours (Thu 29 Oct, 17:30)', 'Next Monday (Mon 2 Nov, 08:00)', 'Pick a date…', 'Whenever']);
+  await expect(await choicesOffered(page)).toHaveText(['In 2 hours (Thu 29 Oct, 17:30)', 'Next Monday (Mon 2 Nov, 08:00)', 'Pick a date…', 'Whenever']);
 });
 
 test("a list in the file with a choice that does not read is not used, and says why under the field, today's three in force", async ({ app, page }) => {
@@ -66,7 +71,5 @@ test("a list in the file with a choice that does not read is not used, and says 
   );
   await dialog.getByRole('button', { name: 'Cancel' }).click();
 
-  await row(page, one.title).locator('.session-kebab').click();
-  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Later$/ }).click();
-  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Tomorrow (Fri 30 Oct, 09:00)', 'In 1 week (Thu 5 Nov, 09:00)', 'Pick a date…', 'Whenever']);
+  await expect(await choicesOffered(page)).toHaveText(['Tomorrow (Fri 30 Oct, 09:00)', 'In 1 week (Thu 5 Nov, 09:00)', 'Pick a date…', 'Whenever']);
 });

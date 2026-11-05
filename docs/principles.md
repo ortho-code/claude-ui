@@ -11,7 +11,7 @@ The app runs the real `claude` CLI and reads what Claude Code writes; it does no
 - The app never writes a session or a transcript in `~/.claude`: it reads them, and the one change it makes is deleting a session, which you press, and which moves its files to the system's trash.
   Beyond the sessions, it only creates `~/.claude/projects` when that is missing, and removes the status hooks an older version of the app put in `~/.claude/settings.json`.
 - Where Claude Code has a way to do something, the app uses that way: a session it starts gets its id with `--session-id` and its name with `--name`, Claude Code's own flags for them, and the status hooks come in through `--settings`, never added to Claude Code's own settings file.
-- What Claude Code keeps nothing for, the app keeps in files of its own: pins, groups, notes, and the marks that say a session needs you or is set aside for later.
+- What Claude Code keeps nothing for, the app keeps in files of its own: pins, groups, notes, and the marks that say a session needs you or is set aside.
   These add to Claude Code; none of them replaces or shadows something Claude Code already has.
 - When Claude Code gains its own way to do something the app does itself, the app moves to it.
 

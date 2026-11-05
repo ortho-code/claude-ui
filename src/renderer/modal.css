@@ -106,6 +106,13 @@
   font-size: var(--text-body);
 }
 
+/* A session's note, in Edit note… and as where it stands in Set aside…: room to write, at a fixed height so the dialog does not resize as you type. */
+.dialog-field.note-field {
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+}
+
 /* A read-only value with a button beside it (a folder's path and Open).
    The path is data, so it is monospace, and it may break anywhere rather than push the button out of the dialog. */
 .dialog-row {

@@ -318,7 +318,7 @@ export interface FilterCriteria {
    * Narrower than openOnly, which counts a cold tab too.
    */
   liveOnly: boolean;
-  /** Show only sessions marked for later, with a tab or without. */
+  /** Show only sessions set aside, with a tab or without. */
   setAsideOnly: boolean;
   worktreeOnly: boolean;
   /** Show only sessions that cannot run because their folder is gone — the set worth finding to clean up, or to put a folder back for. */
@@ -340,7 +340,7 @@ export interface FilterCriteria {
   open?: ReadonlySet<string>;
   /** Keys of the live sessions; only consulted when liveOnly is set. */
   live?: ReadonlySet<string>;
-  /** Keys of the sessions marked for later; only consulted when setAsideOnly is set. */
+  /** Keys of the sessions set aside; only consulted when setAsideOnly is set. */
   setAside?: { has(key: string): boolean };
   /** Set or Map keyed by conversationId; only membership is used. */
   archived: { has(key: string): boolean };
@@ -440,7 +440,7 @@ export function asksForYou(nudge: NudgeStatus): boolean {
 }
 
 /**
- * A session's part in a roll-up, by the rule its dot follows: what it shows (`shownStatus`), muted to nothing once read, and a needs-you mark its later mark mutes (`mutedBySetAside`) is read wherever the dot shows it, so it rolls up as nothing too (decided 2026-10-29).
+ * A session's part in a roll-up, by the rule its dot follows: what it shows (`shownStatus`), muted to nothing once read, and a needs-you mark its set-aside mark mutes (`mutedBySetAside`) is read wherever the dot shows it, so it rolls up as nothing too (decided 2026-10-29).
  * Claude working or asking shows over the mark, and so still counts.
  */
 export function sessionPart(status: string | undefined, marked: boolean, muted: boolean, acked: boolean): NudgeStatus {
@@ -738,13 +738,13 @@ export function needsYouLines(reasons: readonly NeedsYou[] | undefined): string[
     .map((reason) => (reason.reason === 'pr' ? `Needs you — PR ${repositories.size > 1 ? reason.pr : reason.pr.slice(reason.pr.lastIndexOf('#'))} ${reason.changes.join(', ')}` : NEEDS_LABEL[reason.reason](reason.at)));
 }
 
-/** A day as the later mark names it: "Mon 3 Nov", in the app's own short form whatever the system's language, as the rest of its words are English. */
+/** A day as the set-aside mark names it: "Mon 3 Nov", in the app's own short form whatever the system's language, as the rest of its words are English. */
 export function dayLabel(at: number): string {
   const day = new Date(at);
   return `${WEEKDAYS[day.getDay()]} ${day.getDate()} ${MONTHS[day.getMonth()]}`;
 }
 
-/** A moment as the later mark names it: its day and its time in 24 hours, "Mon 3 Nov, 09:00". */
+/** A moment as the set-aside mark names it: its day and its time in 24 hours, "Mon 3 Nov, 09:00". */
 export function momentLabel(at: number): string {
   const moment = new Date(at);
   return `${dayLabel(at)}, ${String(moment.getHours()).padStart(2, '0')}:${String(moment.getMinutes()).padStart(2, '0')}`;
@@ -753,9 +753,14 @@ export function momentLabel(at: number): string {
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
-/** What a session's later mark says, on its tooltip and in its menu's header: "Later", or "Later: Mon 3 Nov, 09:00" for one with a day. */
+/** Until when a set-aside mark holds, in the words that follow "Set aside": ", whenever", or " until Mon 3 Nov, 09:00" for one with a day. */
+export function setAsideUntil(due: number | null): string {
+  return due === null ? ', whenever' : ` until ${momentLabel(due)}`;
+}
+
+/** What a session's set-aside mark says, on its tooltip and in its menu's header: "Set aside, whenever", or "Set aside until Mon 3 Nov, 09:00" for one with a day. */
 export function setAsideLabel(setAside: SetAside): string {
-  return setAside.due === null ? 'Later' : `Later: ${momentLabel(setAside.due)}`;
+  return `Set aside${setAsideUntil(setAside.due)}`;
 }
 
 /**

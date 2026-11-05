@@ -28,7 +28,8 @@ export interface SnapshotSession {
   read: boolean;
   /** Why it is marked as needing you, every reason; empty when it is not. */
   needsYou: readonly NeedsYou[];
-  later: SetAside | null;
+  /** Until when it is set aside, null for whenever; null when it is not set aside. */
+  setAside: SetAside | null;
   prs: { repository: string; number: number; url: string; status: PrStatus | null }[];
 }
 
@@ -60,7 +61,7 @@ export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = 
         status: status !== undefined && STATUSES.has(status) ? (status as SnapshotStatus) : null,
         read: view.acked.has(id),
         needsYou: view.needsYou.get(id) ?? [],
-        later: view.setAside.get(id) ?? null,
+        setAside: view.setAside.get(id) ?? null,
         prs: session.prs.map((pr) => ({ repository: pr.repository, number: pr.number, url: pr.url, status: view.prStatus.statuses[prReference(pr)] ?? null })),
       };
     })

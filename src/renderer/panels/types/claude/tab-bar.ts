@@ -298,7 +298,7 @@ function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks'
 
   // A task claude has scheduled, as its row and its strip row show it (scheduledmark.ts).
   const scheduled = showScheduled(clock, clockOf(view.scheduledTasks.get(tab.session.id), tab));
-  // Set aside for later, as its row and its strip row show it (setasidemark.ts).
+  // Set aside, as its row and its strip row show it (setasidemark.ts).
   const setAsideShown = showSetAside(setAside, view.setAside.get(entityKey(tab.session)));
 
   const text = sessionLabel(tab.session);

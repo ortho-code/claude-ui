@@ -189,15 +189,15 @@ test("the strip's stop becomes a force when the session has not left, as the tab
   await expect(page.locator('#live-strip')).toBeVisible();
 });
 
-// A tab marked as needing you is work in hand, so the strip lists it with what runs, in its own place in tab order; one set aside for later is not (decided 2026-10-29).
-test('a marked tab is listed in its place among the running ones, and a cold tab set aside for later is not', async ({ app, page }) => {
+// A tab marked as needing you is work in hand, so the strip lists it with what runs, in its own place in tab order; one set aside is not (decided 2026-10-29).
+test('a marked tab is listed in its place among the running ones, and a cold tab set aside is not', async ({ app, page }) => {
   await app.boot({
     sessions: [loose, inFirst, inSecond, elsewhere],
     projectOrder: [PROJECT, OTHER],
     activeProject: null,
     openSessions: [loose.id, inFirst.id, inSecond.id, elsewhere.id],
     needsYou: needing(inFirst),
-    later: { [inSecond.id]: { due: null, at: 1 } },
+    setAside: { [inSecond.id]: { due: null, at: 1 } },
     history: { [loose.id]: [], [inFirst.id]: [], [inSecond.id]: [], [elsewhere.id]: [] },
   });
   await expect(page.locator('#strip-label')).toHaveText('1 of 1 need you');
@@ -210,8 +210,8 @@ test('a marked tab is listed in its place among the running ones, and a cold tab
   await expect(page.locator('#strip-label')).toHaveText('2 of 3 need you');
 });
 
-test('the strip stays away at launch with only cold tabs set aside for later', async ({ app, page }) => {
-  await app.boot({ sessions: [loose], openSessions: [loose.id], later: { [loose.id]: { due: null, at: 1 } }, history: { [loose.id]: [] } });
+test('the strip stays away at launch with only cold tabs set aside', async ({ app, page }) => {
+  await app.boot({ sessions: [loose], openSessions: [loose.id], setAside: { [loose.id]: { due: null, at: 1 } }, history: { [loose.id]: [] } });
   await expect(tab(page, loose.title).locator('.tab-set-aside')).toBeVisible();
   await expect(page.locator('#live-strip')).toBeHidden();
   expect(await app.calls('startTerminal')).toEqual([]);
@@ -239,16 +239,17 @@ test('a cold marked row leaves the strip when its mark is cleared, and a click o
   await expect(stripNames(page)).toHaveText([inFirst.title]);
 });
 
-// A row's kebab holds its session's menu, the session row's own, so a session in another project is managed from here, Later included.
-test("a strip row's kebab opens its session's menu, and setting it aside for later from it keeps the running row, bookmarked", async ({ app, page }) => {
+// A row's kebab holds its session's menu, the session row's own, so a session in another project is managed from here, Set aside… included.
+test("a strip row's kebab opens its session's menu, and setting it aside from it keeps the running row, bookmarked", async ({ app, page }) => {
   await app.boot({ sessions: [loose], openSessions: [loose.id], history: { [loose.id]: [] } });
   await tabLabel(page, loose.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
 
   await stripRow(page, loose.title).locator('.strip-item-kebab').click();
   await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
-  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Later$/ }).click();
-  await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^Whenever$/ }).click();
+  await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Set aside…$/ }).click();
+  await page.locator('#set-aside-choices button', { hasText: /^Whenever$/ }).click();
+  await page.locator('#set-aside-ok').click();
   await expect(stripRow(page, loose.title).locator('.strip-item-set-aside')).toBeVisible();
   await expect(page.locator('#strip-label')).toHaveText('1 live');
   expect(await app.calls('closeTerminal')).toEqual([]);

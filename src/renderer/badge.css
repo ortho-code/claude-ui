@@ -1,4 +1,4 @@
-/* THE BADGE PILL: the marks on a session row's subline, beside its meta — its worktree, a task it scheduled, its later mark, and the marks that open a list (siblings, PRs, and the worktree mark while it has one) — and the folder a panel looks in, beside its title: an icon, with a count on the marks that open a list and a name on the folder, in a rounded outline in the accent or in an ink of its own.
+/* THE BADGE PILL: the marks on a session row's subline, beside its meta — its worktree, a task it scheduled, its set-aside mark, and the marks that open a list (siblings, PRs, and the worktree mark while it has one) — and the folder a panel looks in, beside its title: an icon, with a count on the marks that open a list and a name on the folder, in a rounded outline in the accent or in an ink of its own.
    What only some of them do stays with them: the menu marks' pointer and hover and the PR mark's ink in rows.css, a muted worktree mark's and a stopped clock's muting in base.css, the folder's own in tree.css. */
 
 .worktree-badge,

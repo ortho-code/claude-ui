@@ -372,20 +372,35 @@ describe('the later marks', () => {
   it('are none in a file written before they were kept, and an entry without a time or with a day that is not one is dropped', async () => {
     await writeMetaFile({ version: 3 });
     expect(await getSetAside()).toEqual({});
-    await writeMetaFile({ version: 3, later: { a: { due: null, at: 5 }, b: { due: 9, at: 5 }, c: { due: 'monday', at: 5 }, d: { due: null }, e: 'yes' } });
+    await writeMetaFile({ version: 3, setAside: { a: { due: null, at: 5 }, b: { due: 9, at: 5 }, c: { due: 'monday', at: 5 }, d: { due: null }, e: 'yes' } });
     expect(await getSetAside()).toEqual({ a: { due: null, at: 5 }, b: { due: 9, at: 5 } });
   });
 
-  // Pause gave way to the later mark, so nothing a file from before set aside is lost.
+  // Pause gave way to the set-aside mark, so nothing a file from before set aside is lost.
   it('take in the tabs a file from before paused, whenever, keeping a mark one already has, and the next write drops the paused list', async () => {
-    await writeMetaFile({ version: 3, openSessions: ['a', 'b'], pausedSessions: ['a', 'b', 7], later: { b: { due: 9, at: 5 } } });
+    await writeMetaFile({ version: 3, openSessions: ['a', 'b'], pausedSessions: ['a', 'b', 7], setAside: { b: { due: 9, at: 5 } } });
     expect(await getSetAside()).toEqual({ a: { due: null, at: expect.any(Number) }, b: { due: 9, at: 5 } });
     await setOpenSessions(['a', 'b'], []);
     const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
     expect(raw.pausedSessions).toBeUndefined();
-    expect(raw.later).toEqual({ a: { due: null, at: expect.any(Number) }, b: { due: 9, at: 5 } });
+    expect(raw.setAside).toEqual({ a: { due: null, at: expect.any(Number) }, b: { due: 9, at: 5 } });
     // Written once, the mark is the file's own, so a read no longer makes it again.
-    expect(await getSetAside()).toEqual(raw.later);
+    expect(await getSetAside()).toEqual(raw.setAside);
+  });
+
+  // They were stored as `later` before the act was called Set aside.
+  it('read from the key they were stored under before, and the next write keeps them under the new one only', async () => {
+    await writeMetaFile({ version: 3, later: { a: { due: 9, at: 5 } } });
+    expect(await getSetAside()).toEqual({ a: { due: 9, at: 5 } });
+    await markSetAside(['b'], null, 6);
+    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    expect(raw.later).toBeUndefined();
+    expect(raw.setAside).toEqual({ a: { due: 9, at: 5 }, b: { due: null, at: 6 } });
+  });
+
+  it('prefer the new key once both are there', async () => {
+    await writeMetaFile({ version: 3, later: { a: { due: 9, at: 5 } }, setAside: { b: { due: null, at: 6 } } });
+    expect(await getSetAside()).toEqual({ b: { due: null, at: 6 } });
   });
 
   // Its pause still waited for claude to leave at the quit, and pause never started or marked such a tab at launch.
@@ -879,7 +894,7 @@ describe('windowBounds', () => {
 describe('ui state', () => {
   const view = {
     search: 'psalm',
-    filters: { pinned: true, open: false, live: false, later: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
+    filters: { pinned: true, open: false, live: false, setAside: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
     datePreset: 'custom',
     dateFrom: 1_700_000_000_000,
     dateTo: 1_700_500_000_000,
@@ -903,7 +918,7 @@ describe('ui state', () => {
   it('starts unfiltered, unfolded and at the default width', async () => {
     expect(await getUiState()).toEqual({
       search: '',
-      filters: { pinned: false, open: false, live: false, later: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
+      filters: { pinned: false, open: false, live: false, setAside: false, worktree: false, gone: false, siblings: false, prs: false, noted: false, archived: false },
       datePreset: 'any',
       dateFrom: null,
       dateTo: null,
@@ -1171,10 +1186,30 @@ describe('the live filter, renamed from running', () => {
   });
 });
 
-describe('the paused filter, which gave way to the later one', () => {
-  it('reads as off, and the later pill with it, and is not written back out', async () => {
+describe('the set-aside filter, renamed from later', () => {
+  it('adopts the value stored under the old key', async () => {
+    await writeMetaFile({ ui: { filters: { later: true } }, version: 3 });
+    expect((await getUiState()).filters.setAside).toBe(true);
+  });
+
+  it('prefers the new key once both are there', async () => {
+    await writeMetaFile({ ui: { filters: { later: true, setAside: false } }, version: 3 });
+    expect((await getUiState()).filters.setAside).toBe(false);
+  });
+
+  it('stops writing the old key back out', async () => {
+    await writeMetaFile({ ui: { filters: { later: true } }, version: 3 });
+    await setUiState(await getUiState());
+    const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    expect(raw.ui.filters.later).toBeUndefined();
+    expect(raw.ui.filters.setAside).toBe(true);
+  });
+});
+
+describe('the paused filter, which gave way to the set-aside one', () => {
+  it('reads as off, and the set-aside pill with it, and is not written back out', async () => {
     await writeMetaFile({ ui: { filters: { paused: true } }, version: 3 });
-    expect((await getUiState()).filters.later).toBe(false);
+    expect((await getUiState()).filters.setAside).toBe(false);
     await setUiState(await getUiState());
     const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
     expect(raw.ui.filters.paused).toBeUndefined();

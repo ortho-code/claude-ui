@@ -148,7 +148,7 @@ function createSessionRow(key: string): HTMLElement {
   subline.className = 'session-subline';
   // A task claude has scheduled for the session, as its tab and its strip row show it (scheduledmark.ts); shown in updateRow.
   const clock = scheduledMark('scheduled-badge', true);
-  // Set aside for later, as its tab and its strip row show it (setasidemark.ts); shown in updateRow.
+  // Set aside, as its tab and its strip row show it (setasidemark.ts); shown in updateRow.
   const setAside = setAsideMark('set-aside-badge', true);
   subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge);
   content.append(subline);

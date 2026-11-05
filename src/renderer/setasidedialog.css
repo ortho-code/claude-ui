@@ -1,0 +1,16 @@
+/* The choices of when to come back, in one row that wraps; each wears the date presets' pill (pill.css). */
+#set-aside-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Pick a date…'s calendar under the choices, apart from them by the gap between a field and its error line. */
+#set-aside-pick {
+  margin-top: 8px;
+}
+
+/* Its time, apart from the calendar above it by the same gap. */
+#set-aside-time {
+  margin-top: 8px;
+}

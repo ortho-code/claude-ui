@@ -23,7 +23,7 @@ export interface BridgeFixture {
   /** How many reads of it fail before one answers, as a `meta.json` that cannot be read would. */
   prSeenReadFails: number;
   /** Session -> the day it comes back and when it was set aside, as meta keeps it; marked, cleared and come due by main's own rules. */
-  later: Record<string, SetAside>;
+  setAside: Record<string, SetAside>;
   /** Session -> when it was last kept out of the review, as meta keeps it; stamped and taken off by main's own rules. */
   kept: Record<string, number>;
   /** How the app closed before this window, as main's log says. */
@@ -151,7 +151,7 @@ export function defaultFixture(): BridgeFixture {
     // Kept before, so a check with linked PRs sees no first run unless it asks for one.
     prSeen: {},
     prSeenReadFails: 0,
-    later: {},
+    setAside: {},
     kept: {},
     lastClosed: 'quit',
     openSessions: [],

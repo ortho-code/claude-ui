@@ -1,5 +1,5 @@
 /**
- * Main's rules for the marks a session carries in meta — its pin, its archive entry, its note (written with `withText`, src/shared/text.ts), its needs-you and later marks, and when it was kept out of the review — pure, so that the window's checks answer them the way main does, and the window keeps its own copy of the needs-you, later and keep marks by them.
+ * Main's rules for the marks a session carries in meta — its pin, its archive entry, its note (written with `withText`, src/shared/text.ts), its needs-you and set-aside marks, and when it was kept out of the review — pure, so that the window's checks answer them the way main does, and the window keeps its own copy of the needs-you, set-aside and keep marks by them.
  * Main (src/main/meta.ts) applies them inside its serialised writes of `meta.json`.
  */
 import type { SetAside, NeedsYou, NeedsYouReason, PrChange, ScheduledTask } from './types';
@@ -10,7 +10,7 @@ export interface SessionMarks {
   archived: Record<string, number>;
   notes: Record<string, string>;
   needsYou: Record<string, NeedsYou[]>;
-  later: Record<string, SetAside>;
+  setAside: Record<string, SetAside>;
   /** When each session was last kept out of the review, epoch ms; how long that holds is the review's own term (`kept:<30d`), not the mark's. */
   kept: Record<string, number>;
 }
@@ -76,12 +76,12 @@ export function clearedNeedsYou<T extends readonly NeedsYou[]>(needsYou: Readonl
   return next;
 }
 
-/** A session marked for later, until `due` or whenever for null, from `now`: a mark already there is replaced, so what it mutes is what needed you by now (`mutedBySetAside`). */
+/** A session set aside, until `due` or whenever for null, from `now`: a mark already there is replaced, so what it mutes is what needed you by now (`mutedBySetAside`). */
 export function markedSetAside(setAside: Readonly<Record<string, SetAside>>, id: string, due: number | null, now: number): Record<string, SetAside> {
   return { ...setAside, [id]: { due, at: now } };
 }
 
-/** A later mark gone, whether or not it was there. */
+/** A set-aside mark gone, whether or not it was there. */
 export function clearedSetAside(setAside: Readonly<Record<string, SetAside>>, id: string): Record<string, SetAside> {
   const next = { ...setAside };
   delete next[id];
@@ -89,24 +89,24 @@ export function clearedSetAside(setAside: Readonly<Record<string, SetAside>>, id
 }
 
 /**
- * The later marks come due by `now` settled: each goes, and its session needs you — for what it already needed you for, if anything, or else for the reminder, marked from the moment it was due.
- * A session that already needs you gets no reminder beside its reasons: the later mark going is what lights them up again (decided 2026-10-29).
+ * The set-aside marks come due by `now` settled: each goes, and its session needs you — for what it already needed you for, if anything, or else for the reminder, marked from the moment it was due.
+ * A session that already needs you gets no reminder beside its reasons: the set-aside mark going is what lights them up again (decided 2026-10-29).
  */
-export function cameDue(marks: { needsYou: Readonly<Record<string, readonly NeedsYou[]>>; later: Readonly<Record<string, SetAside>> }, now: number): Pick<SessionMarks, 'needsYou' | 'later'> {
-  const due = Object.entries(marks.later).filter(([, mark]) => mark.due !== null && mark.due <= now);
+export function cameDue(marks: { needsYou: Readonly<Record<string, readonly NeedsYou[]>>; setAside: Readonly<Record<string, SetAside>> }, now: number): Pick<SessionMarks, 'needsYou' | 'setAside'> {
+  const due = Object.entries(marks.setAside).filter(([, mark]) => mark.due !== null && mark.due <= now);
   const needsYou = Object.fromEntries(Object.entries(marks.needsYou).map(([id, reasons]) => [id, [...reasons]]));
-  if (due.length === 0) return { needsYou, later: { ...marks.later } };
-  const later = { ...marks.later };
+  if (due.length === 0) return { needsYou, setAside: { ...marks.setAside } };
+  const setAside = { ...marks.setAside };
   for (const [id, mark] of due) {
-    delete later[id];
+    delete setAside[id];
     if (!needsYou[id]?.length) needsYou[id] = [{ reason: 'reminder', at: mark.due! }];
   }
-  return { needsYou, later };
+  return { needsYou, setAside };
 }
 
 /**
- * Whether a session's needs-you mark is muted by its later mark: every reason came before you set it aside, so you have seen why and chose later (decided 2026-10-29).
- * A reason that came after it is news the later mark did not know of, and none is muted.
+ * Whether a session's needs-you mark is muted by its set-aside mark: every reason came before you set it aside, so you have seen why and chose to come back to it (decided 2026-10-29).
+ * A reason that came after it is news the set-aside mark did not know of, and none is muted.
  */
 export function mutedBySetAside(needsYou: readonly NeedsYou[] | undefined, setAside: SetAside | undefined): boolean {
   return needsYou !== undefined && needsYou.length > 0 && setAside !== undefined && newestAt(needsYou) <= setAside.at;
@@ -119,12 +119,12 @@ export function unarchived(archived: Readonly<Record<string, number>>, id: strin
   return next;
 }
 
-/** A deleted session's marks forgotten: its pin, its archive entry, its note, its needs-you mark, its later mark and its keep stamp (`purgedSession` forgets the rest of what meta holds about it). */
+/** A deleted session's marks forgotten: its pin, its archive entry, its note, its needs-you mark, its set-aside mark and its keep stamp (`purgedSession` forgets the rest of what meta holds about it). */
 export function withoutSession(marks: Readonly<SessionMarks>, id: string): SessionMarks {
   const archived = unarchived(marks.archived, id);
   const notes = { ...marks.notes };
   delete notes[id];
-  return { pinned: marks.pinned.filter((key) => key !== id), archived, notes, needsYou: clearedNeedsYou(marks.needsYou, id), later: clearedSetAside(marks.later, id), kept: unkept(marks.kept, [id]) };
+  return { pinned: marks.pinned.filter((key) => key !== id), archived, notes, needsYou: clearedNeedsYou(marks.needsYou, id), setAside: clearedSetAside(marks.setAside, id), kept: unkept(marks.kept, [id]) };
 }
 
 /** What else meta holds about a session, as `meta.json` holds it: the tabs open and which of them run, the one on show overall and per project, and who is in which group. */

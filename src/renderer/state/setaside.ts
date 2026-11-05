@@ -2,14 +2,14 @@ import { cameDue, clearedSetAside, markedSetAside } from '../../shared/sessionma
 import { store } from './app';
 
 /**
- * The writes to the later marks: the session's menu marks and clears one, a prompt there takes it off, and its day coming turns it into needing you.
+ * The writes to the set-aside marks: the session's menu sets and clears one, the bar of selecting several sets them and its Undo clears them, an archive clears them and its Undo puts them back, a prompt there takes one off, and its day coming turns it into needing you.
  * Each is made in the store by main's own rule and sent to main, which keeps them in `meta.json`.
  */
 
-/** The longest the window waits between looks for a later mark come due: a timer set for the soonest is held to this, so one a sleeping machine slept through is found within the hour of waking. */
+/** The longest the window waits between looks for a set-aside mark come due: a timer set for the soonest is held to this, so one a sleeping machine slept through is found within the hour of waking. */
 const LOOK_AT_LEAST_EVERY_MS = 60 * 60 * 1000;
 
-/** Mark sessions for later, in one write, `due` the moment they come back, or null for whenever, from `at`: now, or when it was marked for a mark Undo puts back. */
+/** Set sessions aside, in one write, `due` the moment they come back, or null for whenever, from `at`: now, or when it was marked for a mark Undo puts back. */
 export function markSetAside(ids: readonly string[], due: number | null, at = Date.now()): void {
   if (ids.length === 0) return;
   let setAside = Object.fromEntries(store.get().setAside);
@@ -18,7 +18,7 @@ export function markSetAside(ids: readonly string[], due: number | null, at = Da
   window.claudeUi.markSetAside([...ids], due, at);
 }
 
-/** Take sessions' later marks off, in one write; nothing is sent for those that have none. */
+/** Take sessions' set-aside marks off, in one write; nothing is sent for those that have none. */
 export function clearSetAside(ids: readonly string[]): void {
   const marked = ids.filter((id) => store.get().setAside.has(id));
   if (marked.length === 0) return;
@@ -28,12 +28,12 @@ export function clearSetAside(ids: readonly string[]): void {
   window.claudeUi.clearSetAside(marked);
 }
 
-/** Settle the later marks that have come due (`cameDue`); nothing is sent while none has. */
+/** Settle the set-aside marks that have come due (`cameDue`); nothing is sent while none has. */
 export function settleDueSetAside(now = Date.now()): void {
-  const { setAside: setAside, needsYou } = store.get();
+  const { setAside, needsYou } = store.get();
   if (![...setAside.values()].some((mark) => mark.due !== null && mark.due <= now)) return;
-  const next = cameDue({ later: Object.fromEntries(setAside), needsYou: Object.fromEntries(needsYou) }, now);
-  store.set({ setAside: new Map(Object.entries(next.later)), needsYou: new Map(Object.entries(next.needsYou)) });
+  const next = cameDue({ setAside: Object.fromEntries(setAside), needsYou: Object.fromEntries(needsYou) }, now);
+  store.set({ setAside: new Map(Object.entries(next.setAside)), needsYou: new Map(Object.entries(next.needsYou)) });
   window.claudeUi.setAsideCameDue(now);
 }
 
@@ -48,7 +48,7 @@ function lookForDue(): void {
   lookTimer = setTimeout(lookForDue, Math.max(0, Math.min(soonest - now, LOOK_AT_LEAST_EVERY_MS)));
 }
 
-/** Look for later marks come due now, then again when the soonest one is due and whenever the marks change, for as long as the window is open. */
+/** Look for set-aside marks come due now, then again when the soonest one is due and whenever the marks change, for as long as the window is open. */
 export function watchDueSetAside(): void {
   lookForDue();
   store.watch(['setAside'], lookForDue);

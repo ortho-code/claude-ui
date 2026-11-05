@@ -81,7 +81,7 @@ function linking(pr: string): string[] {
 
 /**
  * Mark the sessions whose linked PRs changed in a way that needs you (`prChanges`), each with its PR's change, and keep what is seen now.
- * The first run, with nothing seen before, marks only the sessions with a tab or a later mark whose PRs already need you, the ones set aside to wait, rather than every finished session never archived (decided 2026-10-29); the open tabs are main's, since the first answer can land before the tabs are restored.
+ * The first run, with nothing seen before, marks only the sessions with a tab or a set-aside mark whose PRs already need you, the ones set aside to wait, rather than every finished session never archived (decided 2026-10-29); the open tabs are main's, since the first answer can land before the tabs are restored.
  */
 function settleChanges(prs: readonly PrRef[], read: PrStatusRead): void {
   const before = seen;

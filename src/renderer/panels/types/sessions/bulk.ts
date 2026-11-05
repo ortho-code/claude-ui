@@ -1,11 +1,10 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup, byId } from '../../../dom';
-import { leaveAction, momentLabel, sessionLabel } from '../../../logic';
+import { leaveAction, sessionLabel, setAsideUntil } from '../../../logic';
 import { openMenu } from '../../../menu';
 import { store, type View } from '../../../state/app';
 import { endBulk, tickAll, tickRun, toggleTick } from '../../../state/bulk';
 import { keepSessions, unkeepSessions } from '../../../state/keep';
-import { clearSetAside, markSetAside } from '../../../state/setaside';
 import { leaveTab, projName, tabWith } from '../../../state/views';
 import { strokeIcon } from '../../../svg';
 import { KEPT_DAYS } from '../../../review';
@@ -13,7 +12,7 @@ import { headingTick, tickedOnShow } from '../../../ticks';
 import { showToast } from '../../../toast';
 import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
-import { confirmAndDelete, setAsideChoices, moveToGroupItems } from './actions';
+import { askSetAside, confirmAndDelete, moveToGroupItems } from './actions';
 import { container, currentByKey, drawnKeys } from './drawn';
 import './bulk.css';
 
@@ -31,7 +30,7 @@ export const bulkLine = fromMarkup(`
 export const bulkBar = fromMarkup(`
   <div id="bulk-bar" hidden>
     <button type="button" data-act="archive">Archive</button>
-    <button type="button" data-act="set-aside">Later</button>
+    <button type="button" data-act="set-aside">Set aside…</button>
     <button type="button" data-act="keep">Keep</button>
     <button type="button" data-act="move">Move to group</button>
     <button type="button" data-act="stop">Stop</button>
@@ -117,7 +116,7 @@ export function showBulk(view: View<'bulk' | 'tabs' | 'reviewing' | 'activeProje
   count.textContent = view.reviewing ? `${scope} · ${drawnKeys().length} to decide · ${keys.length} ticked` : `${keys.length} ticked`;
   const none = keys.length === 0 ? 'Nothing is ticked' : null;
   setUnavailable(act('archive'), none ?? (keys.some((key) => archivable(key, view)) ? null : 'Every ticked session is starting'), 'Archive every ticked session');
-  setUnavailable(act('set-aside'), none, 'Set every ticked session aside for later');
+  setUnavailable(act('set-aside'), none, 'Set every ticked session aside');
   setUnavailable(act('keep'), none, `Keep every ticked session out of the review for ${KEPT_DAYS} days`);
   setUnavailable(act('unarchive'), none, 'Unarchive every ticked session');
   setUnavailable(act('delete'), none, 'Delete every ticked session, moving its files to the trash, once you confirm');
@@ -147,19 +146,14 @@ function named(keys: readonly string[]): string {
 }
 
 /**
- * Later from the bar: every ticked session marked in one write, and one toast whose Undo puts each back as it was, its old mark or none.
- * A session's menu raises no toast for its Later, since its row stays where it was (decided 2026-11-04): a batch's rows can leave what is on show, and the toast is then what says what happened.
+ * Set aside… from the bar: the dialog for every ticked session, one with its note, several without (decided 2026-11-05), each marked in one write, and one toast whose Undo puts each back as it was, its old mark or none, and the one's note.
+ * A session's menu raises no toast for its Set aside…, since its row stays where it was (decided 2026-11-04): a batch's rows can leave what is on show, and the toast is then what says what happened.
  */
-function setAside(keys: readonly string[], due: number | null): void {
-  const before = new Map(keys.map((key) => [key, store.get().setAside.get(key)]));
-  markSetAside(keys, due);
-  showToast(`Set ${named(keys)} aside for later${due === null ? '' : `, until ${momentLabel(due)}`}`, false, {
-    label: 'Undo',
-    run: () => {
-      clearSetAside(keys.filter((key) => before.get(key) === undefined));
-      for (const [key, mark] of before) if (mark) markSetAside([key], mark.due, mark.at);
-    },
-  });
+async function setAside(keys: readonly string[]): Promise<void> {
+  const [only] = keys;
+  const session = only !== undefined && keys.length === 1 ? currentByKey.get(only) : undefined;
+  const done = await askSetAside(keys, session ? sessionLabel(session) : `${keys.length} sessions`);
+  if (done) showToast(`Set ${named(keys)} aside${setAsideUntil(done.due)}`, false, { label: 'Undo', run: done.undo });
 }
 
 /**
@@ -188,7 +182,7 @@ function onAct(name: string, run: (keys: string[], button: HTMLButtonElement) =>
 }
 
 onAct('archive', (keys) => hostOf('sessions').archiveSessions(keys));
-onAct('set-aside', (keys, button) => openMenu(button, setAsideChoices(named(keys), (due) => setAside(keys, due))));
+onAct('set-aside', (keys) => void setAside(keys));
 onAct('keep', (keys) => keep(keys));
 onAct('move', (keys, button) => openMenu(button, moveToGroupItems(sessionsOf(keys))));
 onAct('stop', (keys) => {

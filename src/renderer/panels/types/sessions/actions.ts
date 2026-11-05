@@ -1,10 +1,7 @@
 import { prReference } from '../../../../shared/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
-import { defaultSettings } from '../../../../shared/defaults';
-import { presetMoment, presetWords, setAsideOffers } from '../../../../shared/setaside';
-import { dayStart } from '../../../../shared/time';
-import { confirmDanger, confirmDelete, pickMoment, promptText } from '../../../dialogs';
-import { clockLines, clockOf, entityKey, folderName, momentLabel, leaveAction, leaveLabel, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
+import { confirmDanger, confirmDelete, promptText } from '../../../dialogs';
+import { clockLines, clockOf, entityKey, folderName, leaveAction, leaveLabel, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
 import { verdictOf } from '../../../prstatus';
 import { store, type TabState } from '../../../state/app';
@@ -14,6 +11,7 @@ import { pickCheckout, pickedFor } from '../../../state/picks';
 import { clearSetAside, markSetAside } from '../../../state/setaside';
 import { clearNeedsYou } from '../../../state/needsyou';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
+import { setAsideDialog } from '../../../setasidedialog';
 import { isFiltering, leaveTab, projName, projectGroups, sessionStarting, tabWith, unopenableReason } from '../../../state/views';
 import { copyText, showToast } from '../../../toast';
 import type { SessionSurface } from '../../contract';
@@ -268,7 +266,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
       ? { label: 'Clear needs you', onSelect: () => clearNeedsYou(entityKey(session)) }
       : { label: 'Clear needs you', disabled: 'Not marked as needing you' },
   );
-  // Setting it aside for later is a mark on the session, with a tab or without, running or not, and leaves the tab as it is (decided 2026-10-29).
+  // Setting it aside is a mark on the session, with a tab or without, running or not, and leaves the tab as it is (decided 2026-10-29).
   items.push(...setAsideItems(session));
   items.push(noteItem(session));
   items.push({ label: 'Move to group', submenu: moveToGroupItems([session]) });
@@ -314,42 +312,42 @@ function linkedItems(session: SessionSummary): MenuItem[] {
 }
 
 /**
- * Later, with the day and time it comes back as needing you, and Clear later: a mark on the session, so the tab is left as it is (decided 2026-10-29).
+ * Set aside…, which asks when it comes back as needing you and where it stands, and Clear set aside: a mark on the session, so the tab is left as it is (decided 2026-10-29).
  * An archived session's menu has neither, since an archive clears the mark.
  */
 function setAsideItems(session: SessionSummary): MenuItem[] {
   const key = entityKey(session);
   return [
     // No toast: the row stays where it was, its bookmark saying what was done; the bar's batch has one, since its rows can leave the list (decided 2026-11-04).
-    { label: 'Later', submenu: setAsideChoices(sessionLabel(session), (due) => markSetAside([key], due)) },
-    store.get().setAside.has(key) ? { label: 'Clear later', onSelect: () => clearSetAside([key]) } : { label: 'Clear later', disabled: 'Not marked for later' },
+    { label: 'Set aside…', onSelect: () => void askSetAside([key], sessionLabel(session)) },
+    store.get().setAside.has(key) ? { label: 'Clear set aside', onSelect: () => clearSetAside([key]) } : { label: 'Clear set aside', disabled: 'Not set aside' },
   ];
 }
 
 /**
- * Later's choices, one list for a session's menu and the bar of selecting several: the settings' choices (`setAside`, shared/setaside.ts) in the order they would come, each named with its moment, then Pick a date…, and Whenever last where the settings have it, so a day is what comes to hand first, since an undated mark brings nothing back by itself (decided 2026-10-29).
- * Worked out when the menu opens; `what` names what is set aside in Pick a date…'s title, a session's title or a count, and `mark` sets the mark, the moment it comes back or null for whenever.
+ * Set sessions aside through Set aside…, one act for a session's menu and the bar of selecting several: `what` names them in its title, a session's title or a count.
+ * One session's dialog holds its note as where it stands, and the note is written when it changed; several leave their notes as they are (decided 2026-11-05).
+ * Resolves, once written, to the moment chosen and an Undo that puts back each mark and the note as they were, or to null when the dialog was cancelled.
  */
-export function setAsideChoices(what: string, mark: (due: number | null) => void): MenuItem[] {
-  const now = Date.now();
-  const settings = store.get().settings;
-  const presets = settings?.setAside.value ?? defaultSettings().setAside;
-  // A choice without its own time comes back at the time of day the settings say (decided 2026-10-29).
-  const time = settings?.setAsideTime.value ?? defaultSettings().setAsideTime;
-  const pick = async (): Promise<void> => {
-    // What is set aside in the title, as the Note dialog has it, so which one you clicked is what it says first, and the line under it says what the pick does (decided 2026-10-29).
-    const due = await pickMoment(`Later: ${what}`, 'Pick the day and time it comes back as needing you.', dayStart(now, 1), time);
-    if (due !== null) mark(due);
+export async function askSetAside(keys: readonly string[], what: string): Promise<{ due: number | null; undo: () => void } | null> {
+  const { setAside, notes } = store.get();
+  const [only] = keys;
+  const one = keys.length === 1 ? only : undefined;
+  const note = one === undefined ? null : (notes.get(one) ?? '');
+  const answer = await setAsideDialog({ what, mark: one === undefined ? undefined : setAside.get(one), note });
+  if (!answer) return null;
+  const before = new Map(keys.map((key) => [key, store.get().setAside.get(key)]));
+  markSetAside(keys, answer.due);
+  const noteChanged = one !== undefined && answer.note !== null && answer.note !== note;
+  if (noteChanged) await writeNote(one, answer.note!);
+  return {
+    due: answer.due,
+    undo: () => {
+      clearSetAside(keys.filter((key) => before.get(key) === undefined));
+      for (const [key, mark] of before) if (mark) markSetAside([key], mark.due, mark.at);
+      if (noteChanged) void writeNote(one, note!);
+    },
   };
-  const offers = setAsideOffers(presets, now, time);
-  const dated = offers.filter((offer) => offer.due !== null);
-  const whenever = offers.some((offer) => offer.due === null);
-  return [
-    // Named by its moment as the menu opened, and set by its moment as pressed, so "in 2h" counts from the press.
-    ...dated.map(({ preset, due }): MenuItem => ({ label: `${presetWords(preset)} (${momentLabel(due!)})`, onSelect: () => mark(presetMoment(preset, Date.now(), time)) })),
-    { label: 'Pick a date…', onSelect: () => void pick() },
-    ...(whenever ? [{ label: 'Whenever', onSelect: () => mark(null) }] : []),
-  ];
 }
 
 function noteItem(session: SessionSummary): MenuItem {
@@ -378,9 +376,14 @@ function showInList(session: SessionSummary): void {
 // Saving a blank note clears it (meta drops the entry), so the same dialog both writes and removes one — there is no separate delete.
 export async function editNote(session: SessionSummary): Promise<void> {
   const key = entityKey(session);
-  // The session in the title, as Later's Pick a date… has it, and the line under it says where the note shows and how it goes (decided 2026-10-29).
+  // The session in the title, as Set aside… has it, and the line under it says where the note shows and how it goes (decided 2026-10-29).
   const text = await promptText(`Note: ${sessionLabel(session)}`, 'Shown when you hover the note mark on its row; save it empty to remove it.', store.get().notes.get(key) ?? '', 'Save', undefined, true);
   if (text === null) return; // cancelled: leave whatever was there
+  await writeNote(key, text);
+}
+
+/** Write a session's note, a blank one removing it, and set what main hands back. */
+async function writeNote(key: string, text: string): Promise<void> {
   store.set({ notes: new Map(Object.entries(await window.claudeUi.setNote(key, text))) });
 }
 
