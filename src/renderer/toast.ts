@@ -6,13 +6,11 @@ document.body.insertAdjacentHTML(
   'beforeend',
   `<div id="toast" hidden>
     <span id="toast-message"></span>
-    <button id="toast-action" type="button" hidden></button>
     <button id="toast-close" class="icon-btn" type="button" data-tooltip="Dismiss" aria-label="Dismiss"></button>
   </div>`,
 );
 const toast = document.getElementById('toast')!;
 const toastMessage = document.getElementById('toast-message')!;
-const toastAction = document.getElementById('toast-action') as HTMLButtonElement;
 const toastClose = document.getElementById('toast-close') as HTMLButtonElement;
 
 /** How long a toast stays: a message is read in 3 s, and one with a button has to be read and then reached for, so it stays 8 s, and while the pointer is on it (decided 2026-10-28). */
@@ -26,8 +24,8 @@ export interface ToastAction {
 }
 
 let toastTimer: number | undefined;
-/** The action of the toast up, null for none, so its button presses the one it shows. */
-let shownAction: ToastAction | null = null;
+/** Whether the toast up has a button, which keeps it up while the pointer is on it. */
+let hasActions = false;
 /** How long the toast up stays once the pointer leaves it, or null for one that stays until dismissed. */
 let shownFor: number | null = null;
 
@@ -42,22 +40,33 @@ function hideAfter(ms: number | null): void {
 export function hideToast(message?: string): void {
   if (message !== undefined && (toast.hidden || toastMessage.textContent !== message)) return;
   toast.hidden = true;
-  shownAction = null;
+  hasActions = false;
+  for (const button of toast.querySelectorAll('.toast-action')) button.remove();
   if (toastTimer) clearTimeout(toastTimer);
 }
 /**
  * `sticky` keeps the message up until it is dismissed, for a condition that will not resolve on its own — a missing `claude` CLI is the case it exists for, where three seconds would be gone before the sentence was read.
- * `action` puts a button on it, such as Undo, and keeps it up longer; a newer toast replaces it, button and all, since the bar holds one.
+ * `actions` puts a button on it for each, in the order given, such as Undo, and keeps it up longer; a press takes the toast down, then acts; a newer toast replaces it, buttons and all, since the bar holds one.
  */
-export function showToast(message: string, sticky = false, action: ToastAction | null = null): void {
+export function showToast(message: string, sticky = false, actions: readonly ToastAction[] = []): void {
+  for (const button of toast.querySelectorAll('.toast-action')) button.remove();
   toastMessage.textContent = message;
-  shownAction = action;
-  toastAction.hidden = action === null;
-  toastAction.textContent = action?.label ?? '';
+  for (const action of actions) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'toast-action';
+    button.textContent = action.label;
+    button.addEventListener('click', () => {
+      hideToast();
+      action.run();
+    });
+    toastClose.before(button);
+  }
+  hasActions = actions.length > 0;
   toast.hidden = false;
-  shownFor = sticky ? null : action ? ACTION_TOAST_MS : TOAST_MS;
+  shownFor = sticky ? null : hasActions ? ACTION_TOAST_MS : TOAST_MS;
   // One with a button that comes up under the pointer is held at once, since no pointer entering it will say so.
-  hideAfter(action && toast.matches(':hover') ? null : shownFor);
+  hideAfter(hasActions && toast.matches(':hover') ? null : shownFor);
 }
 
 /** Copy to the clipboard with a small confirmation toast, since the OS gives no visible cue otherwise: one behaviour for every copy in the app, in each caller's own words. */
@@ -72,15 +81,10 @@ export async function copyText(text: string, confirmation: string): Promise<void
 
 toastClose.innerHTML = closeIcon(14);
 toastClose.addEventListener('click', () => hideToast());
-toastAction.addEventListener('click', () => {
-  const action = shownAction;
-  hideToast();
-  action?.run();
-});
 // Held while the pointer is on a toast with a button, which is reaching for it, and its full time again once the pointer leaves.
 toast.addEventListener('mouseenter', () => {
-  if (shownAction) hideAfter(null);
+  if (hasActions) hideAfter(null);
 });
 toast.addEventListener('mouseleave', () => {
-  if (shownAction && !toast.hidden) hideAfter(shownFor);
+  if (hasActions && !toast.hidden) hideAfter(shownFor);
 });

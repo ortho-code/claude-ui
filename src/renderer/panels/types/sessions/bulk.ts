@@ -153,7 +153,7 @@ async function setAside(keys: readonly string[]): Promise<void> {
   const [only] = keys;
   const session = only !== undefined && keys.length === 1 ? currentByKey.get(only) : undefined;
   const done = await askSetAside(keys, session ? sessionLabel(session) : `${keys.length} sessions`);
-  if (done) showToast(`Set ${named(keys)} aside${setAsideUntil(done.due)}`, false, { label: 'Undo', run: done.undo });
+  if (done) showToast(`Set ${named(keys)} aside${setAsideUntil(done.due)}`, false, [{ label: 'Undo', run: done.undo }]);
 }
 
 /**
@@ -163,13 +163,15 @@ async function setAside(keys: readonly string[]): Promise<void> {
 function keep(keys: readonly string[]): void {
   const before = new Map(keys.map((key) => [key, store.get().kept.get(key)]));
   keepSessions(keys);
-  showToast(`Kept ${named(keys)} out of the review for ${KEPT_DAYS} days`, false, {
-    label: 'Undo',
-    run: () => {
-      unkeepSessions(keys.filter((key) => before.get(key) === undefined));
-      for (const [key, at] of before) if (at !== undefined) keepSessions([key], at);
+  showToast(`Kept ${named(keys)} out of the review for ${KEPT_DAYS} days`, false, [
+    {
+      label: 'Undo',
+      run: () => {
+        unkeepSessions(keys.filter((key) => before.get(key) === undefined));
+        for (const [key, at] of before) if (at !== undefined) keepSessions([key], at);
+      },
     },
-  });
+  ]);
 }
 
 /** Run an act of the bar on the ticked rows on show, unless it is unavailable now. */
@@ -199,10 +201,12 @@ onAct('delete', (keys) => void confirmAndDelete(keys));
 async function unfinishSessions(keys: readonly string[]): Promise<void> {
   const what = named(keys);
   store.set({ finished: new Map(Object.entries(await window.claudeUi.unfinish([...keys]))) });
-  showToast(`Unarchived ${what}`, false, {
-    label: 'Undo',
-    run: () => void window.claudeUi.finish([...keys]).then((finished) => store.set({ finished: new Map(Object.entries(finished)) })),
-  });
+  showToast(`Unarchived ${what}`, false, [
+    {
+      label: 'Undo',
+      run: () => void window.claudeUi.finish([...keys]).then((finished) => store.set({ finished: new Map(Object.entries(finished)) })),
+    },
+  ]);
 }
 
 byId(bulkLine, 'bulk-done', HTMLButtonElement).addEventListener('click', endBulk);

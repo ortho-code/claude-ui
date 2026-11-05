@@ -5,8 +5,11 @@ import type { Locator, Page } from '@playwright/test';
  * A check finds through these; what it then asks of what it found (a class, a text, a count) is the check's own.
  */
 
+/** The button of the toast up that says `label`, such as Undo. */
+export const toastButton = (page: Page, label: string): Locator => page.locator('#toast .toast-action').filter({ hasText: new RegExp(`^${label}$`) });
+
 /** Every row of the session list. */
-export const rows = (page: Page): Locator => page.locator('#sessions .session');
+export const rows =(page: Page): Locator => page.locator('#sessions .session');
 
 /** The session list's row whose text holds `title`. */
 export const row = (page: Page, title: string): Locator => rows(page).filter({ hasText: title });

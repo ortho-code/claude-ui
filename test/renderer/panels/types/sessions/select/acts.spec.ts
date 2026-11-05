@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { HOME, PROJECT, session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { hoveredAndOpen } from '../../../../support/looks';
-import { groupHeading, projectHeading, row, tab, tabs } from '../../../../support/window';
+import { groupHeading, projectHeading, row, tab, tabs, toastButton } from '../../../../support/window';
 
 // The bar of selecting several acts on every ticked row on show, each act through the write a session's menu makes, given every key at once (docs/architecture.md § Selecting several).
 // Archive, Set aside… and Close tab each raise one toast for the batch, whose Undo puts every one back as it was.
@@ -16,7 +16,7 @@ const fixture = { sessions: [a, b, c, elsewhere], groupState, history: { [a.id]:
 
 const act = (page: Page, name: string): Locator => page.locator(`#bulk-bar [data-act="${name}"]`);
 const toast = (page: Page): Locator => page.locator('#toast-message');
-const undo = (page: Page): Locator => page.locator('#toast-action');
+const undo = (page: Page): Locator => toastButton(page, 'Undo');
 
 async function selectGroup(page: Page, name: string): Promise<void> {
   await groupHeading(page, name).locator('.group-kebab').click();

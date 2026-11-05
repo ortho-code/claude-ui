@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { session, settingsFileWith } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
-import { row, stripRow, switcherEntry, tab, tabLabels } from '../../../support/window';
+import { row, stripRow, switcherEntry, tab, tabLabels, toastButton } from '../../../support/window';
 
 // A session set aside carries a bookmark on its row, its tab and its strip row by one rule, until a prompt there, Clear set aside, an archive or its day coming takes it off (decided 2026-10-29).
 // Its day coming makes it need you; a needs-you mark it came after is muted until then, and one that comes after it is not.
@@ -267,7 +267,7 @@ test('archiving it takes the mark off, and Undo gives it back as it was', async 
   await app.boot({ ...fixture, setAside: { [one.id]: { due: null, at: 7 } } });
   await (await menuItem(page, one.title, 'Archive')).click();
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.setAside)).toEqual({});
-  await page.locator('#toast-action').click();
+  await toastButton(page, 'Undo').click();
   await expect(tab(page, one.title)).toHaveCount(1);
   for (const mark of marks(page)) await expect(mark).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.setAside)).toEqual({ [one.id]: { due: null, at: 7 } });

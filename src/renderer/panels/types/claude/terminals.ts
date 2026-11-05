@@ -673,7 +673,7 @@ function putBack(removed: readonly RemovedTab[]): void {
 /** The toast a close you pressed raises once its tabs have gone, one for a batch, with Undo putting the tabs it removed back where they were (decided 2026-10-28). */
 function offerUndoClose(removed: readonly RemovedTab[]): void {
   const said = removed.length === 1 ? `Closed "${sessionLabel(removed[0]!.session)}"` : `Closed ${removed.length} tabs`;
-  showToast(said, false, { label: 'Undo', run: () => putBack(removed) });
+  showToast(said, false, [{ label: 'Undo', run: () => putBack(removed) }]);
 }
 
 /**
@@ -772,21 +772,23 @@ function titleOf(key: string, removed: readonly RemovedTab[]): string {
 function offerUndoFinish(marks: readonly FinishedMarks[], removed: readonly RemovedTab[]): void {
   const keys = marks.map((m) => m.key);
   const what = keys.length === 1 ? titleOf(keys[0]!, removed) : `${keys.length} sessions`;
-  showToast(`Archived ${what}`, false, {
-    label: 'Undo',
-    run: () =>
-      void window.claudeUi.unfinish(keys).then(
-        (finished) => {
-          store.set({ finished: new Map(Object.entries(finished)) });
-          for (const { key, setAside: setAside, needsYou } of marks) {
-            if (setAside) markSetAside([key], setAside.due, setAside.at);
-            if (needsYou) markNeedsYou([key], needsYou);
-          }
-          putBack(removed);
-        },
-        () => showToast(`Couldn't unarchive ${what}; unarchive ${keys.length === 1 ? 'it' : 'them'} from the archived view`),
-      ),
-  });
+  showToast(`Archived ${what}`, false, [
+    {
+      label: 'Undo',
+      run: () =>
+        void window.claudeUi.unfinish(keys).then(
+          (finished) => {
+            store.set({ finished: new Map(Object.entries(finished)) });
+            for (const { key, setAside: setAside, needsYou } of marks) {
+              if (setAside) markSetAside([key], setAside.due, setAside.at);
+              if (needsYou) markNeedsYou([key], needsYou);
+            }
+            putBack(removed);
+          },
+          () => showToast(`Couldn't unarchive ${what}; unarchive ${keys.length === 1 ? 'it' : 'them'} from the archived view`),
+        ),
+    },
+  ]);
 }
 
 /**

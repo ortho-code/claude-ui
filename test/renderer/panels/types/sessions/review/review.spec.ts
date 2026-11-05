@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { SessionPr } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session, settingsFileWith } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { row } from '../../../../support/window';
+import { row, toastButton } from '../../../../support/window';
 
 // The review (docs/architecture.md § The review): the Review button opens the list in bulk mode on two sets, Ready to finish (every linked PR merged or closed) and Untouched 30+ days, of the sessions without a tab, not finished, not set aside and not kept, each row saying why it is there.
 const DAY = 86_400_000;
@@ -81,7 +81,7 @@ test('Keep takes the ticked rows out of the review until 30 days have passed, an
   await expect(row(page, old.title)).toHaveCount(0);
   const [[ids, at]] = (await app.calls('keep')) as [string[], number][];
   expect(ids).toEqual([old.id]);
-  await page.locator('#toast-action').click();
+  await toastButton(page, 'Undo').click();
   await expect(row(page, old.title)).toHaveCount(1);
   expect(await app.calls('unkeep')).toEqual([[[old.id]]]);
   expect(at).toBe(NOW.getTime());

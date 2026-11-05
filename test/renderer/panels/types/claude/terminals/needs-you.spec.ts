@@ -3,7 +3,7 @@ import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { exitLater } from '../../../../support/clock';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, stripRow, switcherEntry, tab, tabLabels } from '../../../../support/window';
+import { row, stripRow, switcherEntry, tab, tabLabels, toastButton } from '../../../../support/window';
 
 // A session marked as needing you, as a launch marks the ones that were running when the app closed (resume.spec.ts), keeps the mark until you act on it: a prompt there, Clear needs you, closing its tab, leaving claude yourself, or archiving it.
 // Its dot shows it where claude says nothing more pressing, on its row, its tab and its strip row alike, and a click there only marks it seen (decided 2026-10-28).
@@ -149,7 +149,7 @@ test('closing its tab takes the mark off, and Undo puts it back with the tab', a
   await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
   expect(await app.calls('clearNeedsYou')).toEqual([[one.id]]);
 
-  await page.locator('#toast-action').click();
+  await toastButton(page, 'Undo').click();
   await expectMarked(page, true);
   // Put back as it was, from when it was marked, so a set-aside mark that muted it mutes it again.
   expect(await app.calls('markNeedsYou')).toEqual([[[one.id], [mark]]]);
@@ -161,7 +161,7 @@ test('archiving it takes the mark off, and Undo puts it back with the tab', asyn
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({});
 
-  await page.locator('#toast-action').click();
+  await toastButton(page, 'Undo').click();
   await expect(tab(page, one.title)).toHaveCount(1);
   await expectMarked(page, true);
 });
@@ -172,7 +172,7 @@ test('archiving a marked session that has no tab takes the mark off, and Undo pu
   await (await menuItem(page, one.title, 'Archive')).click();
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({});
 
-  await page.locator('#toast-action').click();
+  await toastButton(page, 'Undo').click();
   await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({ [one.id]: [mark] });
   await expect(tab(page, one.title)).toHaveCount(0);

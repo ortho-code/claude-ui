@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { exitLater } from '../../../../support/clock';
 import { session } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
-import { row, tab, tabLabels } from '../../../../support/window';
+import { row, tab, tabLabels, toastButton } from '../../../../support/window';
 
 // A tab you close and a session you archive, from any control, offer Undo in the toast once the tab has gone, which puts the tab back where it was, cold, and unarchives the session (decided 2026-10-28).
 // A tab claude's own exit closed offers nothing: you did not remove it.
@@ -13,7 +13,7 @@ const fixture = { sessions: [one, two], openSessions: [one.id, two.id], history:
 const FIRST = 1;
 
 const toast = (page: Page): Locator => page.locator('#toast');
-const undo = (page: Page): Locator => page.locator('#toast-action');
+const undo = (page: Page): Locator => toastButton(page, 'Undo');
 
 /** An item of a session's menu, from its row's kebab, opened first. */
 async function menuItem(page: Page, title: string, item: string): Promise<Locator> {

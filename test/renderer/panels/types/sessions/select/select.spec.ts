@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { PROJECT, session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
-import { groupHeading, projectHeading, row } from '../../../../support/window';
+import { groupHeading, projectHeading, row, toastButton } from '../../../../support/window';
 
 // Selecting several (docs/architecture.md § Selecting several): Select sessions… in a heading's menu, or Select… in a row's, puts the list in bulk mode with those rows ticked; a press on a row then ticks it rather than opening it, a Shift+press ticks a run, a heading's box ticks every row under it, and Done or Esc in the list ends it.
 const a = session({ id: '00000000-0000-4000-8000-0000000000a1', title: 'Alpha', lastActivity: '2026-09-30T10:00:00.000Z' });
@@ -118,7 +118,7 @@ test('in the archived view the bar unarchives or deletes, and offers nothing tha
   await expect(page.locator('#toast-message')).toHaveText('Unarchived 2 sessions');
   expect(await app.calls('unfinish')).toEqual([[[c.id, d.id]]]);
   await expect(row(page, c.title)).toHaveCount(0);
-  await page.locator('#toast-action').click();
+  await toastButton(page, 'Undo').click();
   await expect(row(page, c.title)).toHaveCount(1);
   expect(await app.calls('finish')).toEqual([[[c.id, d.id]]]);
 });
