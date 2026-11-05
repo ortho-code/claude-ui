@@ -119,6 +119,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Finished, Set aside… and the new Keep, which holds a session out of the review for 30 days, take rows out, and the review ends once nothing is left; with PR status off, an open review's Ready to finish says it cannot tell.
 - Recent, switched beside Grouped under the sidebar's header: the sessions in one flat list, last worked on first, each row naming its group, and in All its project, with pins left where their time puts them.
   The choice is kept as the session list's view, so `"view": "recent"` on its entry in the layout starts it there.
+- Finished and Set aside… beside Undo in the message a close leaves, for the sessions it closed, whatever closed them: the tab's button, its menu, the live strip or the bar.
+  The message either one leaves has an Undo that puts the tabs back too, and cancelling Set aside… brings the close's message back.
 
 ### Changed
 

@@ -1,6 +1,6 @@
 import type { SessionSummary } from '../../../../shared/types';
 import { fromMarkup, byId } from '../../../dom';
-import { leaveAction, sessionLabel, setAsideUntil } from '../../../logic';
+import { leaveAction, sessionLabel } from '../../../logic';
 import { openMenu } from '../../../menu';
 import { store, type View } from '../../../state/app';
 import { endBulk, tickAll, tickRun, toggleTick } from '../../../state/bulk';
@@ -12,7 +12,7 @@ import { headingTick, tickedOnShow } from '../../../ticks';
 import { showToast } from '../../../toast';
 import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
-import { askSetAside, confirmAndDelete, moveToGroupItems } from './actions';
+import { confirmAndDelete, moveToGroupItems, setAsideNamed } from './actions';
 import { container, currentByKey, drawnKeys } from './drawn';
 import './bulk.css';
 
@@ -150,10 +150,8 @@ function named(keys: readonly string[]): string {
  * A session's menu raises no toast for its Set aside…, since its row stays where it was (decided 2026-11-04): a batch's rows can leave what is on show, and the toast is then what says what happened.
  */
 async function setAside(keys: readonly string[]): Promise<void> {
-  const [only] = keys;
-  const session = only !== undefined && keys.length === 1 ? currentByKey.get(only) : undefined;
-  const done = await askSetAside(keys, session ? sessionLabel(session) : `${keys.length} sessions`);
-  if (done) showToast(`Set ${named(keys)} aside${setAsideUntil(done.due)}`, false, [{ label: 'Undo', run: done.undo }]);
+  const done = await setAsideNamed(keys);
+  if (done) showToast(done.said, false, [{ label: 'Undo', run: done.undo }]);
 }
 
 /**

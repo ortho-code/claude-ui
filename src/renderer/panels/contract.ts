@@ -137,6 +137,8 @@ export interface Asks {
   revealGroup(repoRoot: string, groupId: string | null): void;
   /** A session's menu, as the kebab on `from` lists it, for another surface to open: null for a session the app no longer has. */
   sessionMenu(id: string, from: SessionSurface): MenuItem[] | null;
+  /** Set sessions aside through Set aside…'s dialog, as the bar of selecting several does: once written, what a toast says of it and an Undo that puts each mark and the one's note back; null when the dialog was cancelled. */
+  setAside(ids: readonly string[]): Promise<{ said: string; undo: () => void } | null>;
 }
 
 /** One way a panel can show what it shows, such as flat or as a tree, which its header offers in a switch. */

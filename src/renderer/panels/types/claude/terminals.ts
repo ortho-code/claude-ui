@@ -1,7 +1,7 @@
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
 import type { ClosedHow, SetAside, NeedsYou, ScheduledTask, SessionSummary } from '../../../../shared/types';
-import { entityKey, hasVisibleOutput, leaveAction, sessionLabel, sessionsByKey, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../logic';
+import { entityKey, hasVisibleOutput, leaveAction, leaveLabel, sessionLabel, sessionsByKey, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../logic';
 import { newSession } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
@@ -13,6 +13,7 @@ import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
 import { showToast } from '../../../toast';
 import { fromMarkup } from '../../../dom';
 import { isQuitting, whenQuitting } from '../../../quitting';
+import { hostOf } from '../builtin';
 import './terminals.css';
 
 /** Where the tabs' terminals go: built here, and placed by the pane (pane.ts) under the tab bar. */
@@ -670,10 +671,36 @@ function putBack(removed: readonly RemovedTab[]): void {
   persistOpenTabs();
 }
 
-/** The toast a close you pressed raises once its tabs have gone, one for a batch, with Undo putting the tabs it removed back where they were (decided 2026-10-28). */
+/**
+ * The toast a close you pressed raises once its tabs have gone, one for a batch, with Undo putting the tabs it removed back where they were (decided 2026-10-28), and Finished and Set aside… for the sessions it closed, so deciding what becomes of them is one press while it is cheapest (decided 2026-11-05).
+ * Whichever is pressed, the toast it raises has an Undo back to before the close: Finished's puts the tabs back as a finish's Undo does for the tabs it closed, and Set aside…'s takes the marks off and puts the tabs back; cancelling Set aside… brings this toast back.
+ */
 function offerUndoClose(removed: readonly RemovedTab[]): void {
   const said = removed.length === 1 ? `Closed "${sessionLabel(removed[0]!.session)}"` : `Closed ${removed.length} tabs`;
-  showToast(said, false, [{ label: 'Undo', run: () => putBack(removed) }]);
+  const keys = [...new Set(removed.map((r) => entityKey(r.session)))];
+  showToast(said, false, [
+    { label: 'Undo', run: () => putBack(removed) },
+    { label: leaveLabel('finish'), run: () => finishSessions(keys, removed) },
+    { label: 'Set aside…', run: () => void setAsideClosed(keys, removed) },
+  ]);
+}
+
+/** Set aside… from a close's toast: the session list's dialog for the sessions it closed, then a toast whose Undo takes the marks off and puts the tabs back, or the close's toast again when the dialog is cancelled. */
+async function setAsideClosed(keys: readonly string[], removed: readonly RemovedTab[]): Promise<void> {
+  const done = await hostOf('claude').setAside(keys);
+  if (!done) {
+    offerUndoClose(removed);
+    return;
+  }
+  showToast(done.said, false, [
+    {
+      label: 'Undo',
+      run: () => {
+        done.undo();
+        putBack(removed);
+      },
+    },
+  ]);
 }
 
 /**
@@ -723,14 +750,16 @@ export function closeTab(token: string, undoable = false): void {
  * A claude already asked to leave, by a stop or a close, is asked nothing more, since a second pair of presses ends what it asks on its way out unanswered: its exit finishes instead, as a close changes a stop.
  * Going on working meanwhile, a prompt or a `/resume` or `/clear`, calls the finish off with the stop (`stopCalledOff`), a prompt saying so (`promptSubmitted`), and a quit finishes nothing (`finishAtExit`).
  * Not a session with a tab starting, which has no claude yet to ask; the menu's Finished is unavailable then, and a batch leaves it out.
+ * `closed` are tabs a close removed already, whose toast's Finished this is: its Undo puts them back with the rest.
  */
-export function finishSessions(keys: readonly string[]): void {
+export function finishSessions(keys: readonly string[], closed: readonly RemovedTab[] = []): void {
   const now: string[] = [];
   for (const key of keys) {
     const held = store.get().tabs.filter((t) => entityKey(t.session) === key);
     if (held.some((t) => t.starting)) continue;
     // A fresh finish starts its list afresh, so what a finish called off had removed is not put back by this one's Undo.
     if (!held.some((t) => t.stopping && t.onExit === 'finish')) finishRemoved.delete(key);
+    finishedTabs(key).push(...closed.filter((r) => entityKey(r.session) === key));
     if (held.every((t) => t.terminalId === null)) {
       now.push(key);
       continue;

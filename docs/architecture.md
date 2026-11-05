@@ -518,6 +518,14 @@ A session opened again meanwhile keeps the tab it has rather than gaining a seco
 A close pressed over a finish under way leaves no mark, so the tabs that finish had already removed come back with the close's Undo.
 A toast with a button stays 8 s, held from when the pointer moves onto it, where a plain one goes after 3 s, since it has to be read and then reached for; the bar holds one toast, so the next one replaces it, and closing several tabs in a row leaves the last to go undoable, until another toast replaces it.
 A reopen-closed-tab key, quieter than a toast on every close, was weighed and left for the keyboard shortcuts, where it is to take the same put-back.
+
+**A close's toast also offers Finished and Set aside…** (decided 2026-11-05; `offerUndoClose`), since the moment a session leaves your hands is when what becomes of it is cheapest to decide, and a question at every close would be a dialog in the way.
+Every close that offers Undo offers both, for the sessions it closed: one toast for a batch, as the bar's Close tab raises, and a running tab's own at its exit; claude's own exit offers nothing still, and measured on this machine since 2026-10-27, it never happened.
+Finished is the menu's (`finishSessions`), handed the tabs the close removed, so its toast's Undo makes the sessions unfinished and puts the tabs back, as a finish's Undo does for the tabs it closed.
+Set aside… is the bar's (`setAside`, an ask the session list answers with the dialog `askSetAside` opens), so one session's dialog holds its note and several have no line; its toast's Undo takes the marks off and puts the tabs back, and Cancel brings the close's toast back with its Undo.
+So whichever is pressed, the toast after it goes back to before the close; the close's own Undo goes with the toast it was on, since the bar holds one.
+It stays 8 s, held while the pointer is on it, as any toast with a button; its buttons never wrap, and a long title wraps beside them.
+
 **Every way the app opens a session refuses a finished one** (`unopenableReason`, `state/views.ts`): the asks that open a session refuse it with a toast, a finished sibling in the menu is unavailable and says why, and a tab kept for one is dropped at launch.
 Opening it to make it unfinished was turned down, as not clear enough about what had happened.
 Its menu, the same on every surface but for its row's Select… (§ Selecting several), holds its siblings, PRs, worktrees, scheduled tasks and note, as its row's marks reach them, its id, Unfinished and Delete, and nothing that starts or files it; its dot is never a control.

@@ -16,3 +16,13 @@
   box-shadow: var(--shadow-raised);
   font-size: var(--text-body);
 }
+
+/* A long title wraps, even one without spaces, and the buttons beside it never do, so a close's three stay a row of whole words. */
+#toast-message {
+  overflow-wrap: anywhere;
+}
+
+.toast-action {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

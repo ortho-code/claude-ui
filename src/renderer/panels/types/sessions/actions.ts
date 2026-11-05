@@ -1,7 +1,7 @@
 import { prReference } from '../../../../shared/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDanger, confirmDelete, promptText } from '../../../dialogs';
-import { clockLines, clockOf, entityKey, folderName, leaveAction, leaveLabel, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
+import { clockLines, clockOf, entityKey, folderName, leaveAction, leaveLabel, relativeTime, sessionLabel, setAsideUntil, unstartableReason, type LeaveAction } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
 import { verdictOf } from '../../../prstatus';
 import { store, type TabState } from '../../../state/app';
@@ -12,7 +12,7 @@ import { clearSetAside, markSetAside } from '../../../state/setaside';
 import { clearNeedsYou } from '../../../state/needsyou';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
 import { setAsideDialog } from '../../../setasidedialog';
-import { isFiltering, leaveTab, projName, projectGroups, sessionStarting, tabWith, unopenableReason } from '../../../state/views';
+import { isFiltering, leaveTab, projName, projectGroups, sessionById, sessionStarting, tabWith, unopenableReason } from '../../../state/views';
 import { copyText, showToast } from '../../../toast';
 import type { SessionSurface } from '../../contract';
 import { hostOf } from '../builtin';
@@ -348,6 +348,17 @@ export async function askSetAside(keys: readonly string[], what: string): Promis
       if (noteChanged) void writeNote(one, note!);
     },
   };
+}
+
+/**
+ * Set aside… for sessions that leave what is on show, the bar's ticked rows or the tabs a close removed: `askSetAside` naming them by the one's title or how many, and what the toast that follows says, "Set "OAuth scopes" aside until Fri 6 Nov, 09:00", with its Undo; null when cancelled.
+ */
+export async function setAsideNamed(keys: readonly string[]): Promise<{ said: string; undo: () => void } | null> {
+  const [only] = keys;
+  const session = only !== undefined && keys.length === 1 ? sessionById(only) : undefined;
+  const done = await askSetAside(keys, session ? sessionLabel(session) : `${keys.length} sessions`);
+  if (!done) return null;
+  return { said: `Set ${session ? `"${sessionLabel(session)}"` : `${keys.length} sessions`} aside${setAsideUntil(done.due)}`, undo: done.undo };
 }
 
 function noteItem(session: SessionSummary): MenuItem {
