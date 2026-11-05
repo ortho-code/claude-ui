@@ -9,7 +9,7 @@ import { store, type TabState } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
 import { applyGroupState, moveSessionsToGroup } from '../../../state/groups';
 import { pickCheckout, pickedFor } from '../../../state/picks';
-import { clearLater, markLater } from '../../../state/later';
+import { clearSetAside, markSetAside } from '../../../state/setaside';
 import { clearNeedsYou } from '../../../state/needsyou';
 import { canMarkRead, toggleAck } from '../../../state/statuses';
 import { isFiltering, leaveTab, projName, projectGroups, sessionStarting, tabWith, unopenableReason } from '../../../state/views';
@@ -267,7 +267,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
       : { label: 'Clear needs you', disabled: 'Not marked as needing you' },
   );
   // Setting it aside for later is a mark on the session, with a tab or without, running or not, and leaves the tab as it is (decided 2026-10-29).
-  items.push(...laterItems(session));
+  items.push(...setAsideItems(session));
   items.push(noteItem(session));
   items.push({ label: 'Move to group', submenu: moveToGroupItems([session]) });
   items.push(copyIdItem(session));
@@ -315,12 +315,12 @@ function linkedItems(session: SessionSummary): MenuItem[] {
  * Later, with the day and time it comes back as needing you, and Clear later: a mark on the session, so the tab is left as it is (decided 2026-10-29).
  * An archived session's menu has neither, since an archive clears the mark.
  */
-function laterItems(session: SessionSummary): MenuItem[] {
+function setAsideItems(session: SessionSummary): MenuItem[] {
   const key = entityKey(session);
   return [
     // No toast: the row stays where it was, its bookmark saying what was done; the bar's batch has one, since its rows can leave the list (decided 2026-11-04).
-    { label: 'Later', submenu: laterChoices(sessionLabel(session), (due) => markLater([key], due)) },
-    store.get().later.has(key) ? { label: 'Clear later', onSelect: () => clearLater([key]) } : { label: 'Clear later', disabled: 'Not marked for later' },
+    { label: 'Later', submenu: setAsideChoices(sessionLabel(session), (due) => markSetAside([key], due)) },
+    store.get().setAside.has(key) ? { label: 'Clear later', onSelect: () => clearSetAside([key]) } : { label: 'Clear later', disabled: 'Not marked for later' },
   ];
 }
 
@@ -328,7 +328,7 @@ function laterItems(session: SessionSummary): MenuItem[] {
  * Later's choices, one list for a session's menu and the bar of selecting several: Tomorrow and In a week at the time of day the settings say, Pick a date…, and Whenever last, so a day is what comes to hand first, since an undated mark brings nothing back by itself (decided 2026-10-29).
  * `what` names what is set aside in Pick a date…'s title, a session's title or a count, and `mark` sets the mark, the moment it comes back or null for whenever.
  */
-export function laterChoices(what: string, mark: (due: number | null) => void): MenuItem[] {
+export function setAsideChoices(what: string, mark: (due: number | null) => void): MenuItem[] {
   const now = Date.now();
   // At the time of day the settings say, on the day chosen (decided 2026-10-29).
   const time = store.get().settings?.laterTime.value ?? defaultSettings().laterTime;

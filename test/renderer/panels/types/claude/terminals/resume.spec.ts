@@ -138,7 +138,7 @@ test('a session set aside for later that was running comes back as the others do
   expect(await app.calls('markNeedsYou')).toEqual([[[one.id, two.id, gone.id], [{ reason: 'quit', at: expect.any(Number) }]]]);
   await expect(tab(page, two.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   await expect(tab(page, two.title).locator('.nudge')).not.toHaveClass(/\backed\b/);
-  await expect(tab(page, two.title).locator('.tab-later')).toBeVisible();
+  await expect(tab(page, two.title).locator('.tab-set-aside')).toBeVisible();
 });
 
 // Archived is put away, not resumed: a tab kept for one by an earlier version (archived while it ran, or opened as a sibling) is not brought back, even one that was running, and is no longer kept.

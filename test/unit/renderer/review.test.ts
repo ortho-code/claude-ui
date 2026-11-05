@@ -16,7 +16,7 @@ function session(id: string, days: number, prs: number[] = []): SessionSummary {
 
 function facts(overrides: Partial<ReviewFacts> = {}): ReviewFacts {
   return {
-    tabbed: new Set(), archived: new Set(), pendingDeletes: new Set(), later: new Map(), kept: new Map(), notes: new Map(),
+    tabbed: new Set(), archived: new Set(), pendingDeletes: new Set(), setAside: new Map(), kept: new Map(), notes: new Map(),
     prStatus: { statuses: { 'acme/app#1': { state: 'merged' }, 'acme/app#2': { state: 'closed' }, 'acme/app#3': { state: 'open', draft: false, review: null, checks: null, conflict: false } }, problem: null },
     prStatusOn: true,
     ...overrides,
@@ -66,7 +66,7 @@ describe('the sets', () => {
   });
 
   it('leave out a session with a tab, archived, set aside, or kept within its days, from both sets', () => {
-    const sections = reviewSections([ready, old], facts({ tabbed: new Set(['ready']), later: new Map([['old', { due: null, at: 1 }]]) }), NOW);
+    const sections = reviewSections([ready, old], facts({ tabbed: new Set(['ready']), setAside: new Map([['old', { due: null, at: 1 }]]) }), NOW);
     expect(ids(sections)).toEqual([[], []]);
     expect(ids(reviewSections([ready, old], facts({ kept: new Map([['ready', NOW - DAY], ['old', NOW - DAY]]) }), NOW))).toEqual([[], []]);
     expect(ids(reviewSections([ready, old], facts({ archived: new Set(['ready', 'old']) }), NOW))).toEqual([[], []]);

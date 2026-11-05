@@ -81,7 +81,7 @@ export const WORKTREE_ICON = strokeIcon(11, '<path d="M4.5 12V4M4.5 8Q11.5 8 11.
 // A task scheduled to run later: a clock face, its ink centred on 8,8 and 10 units tall as the family and branch marks' are (a radius of 4.1 plus the stroke at 11px), so it sits beside them as one of the set.
 export const CLOCK_ICON = strokeIcon(11, '<circle cx="8" cy="8" r="4.1" /><path d="M8 5.7V8l1.6 1.1" />');
 // A session set aside for later: a bookmark, picked from a mock over a calendar, an hourglass, a come-back arrow and a snooze "z" (decided 2026-10-29); y 4 to 12 and centred on 8 as the marks above.
-export const LATER_ICON = strokeIcon(11, '<path d="M5.5 4h5v8L8 10l-2.5 2z" />');
+export const SET_ASIDE_ICON = strokeIcon(11, '<path d="M5.5 4h5v8L8 10l-2.5 2z" />');
 // A pull request: the line it leaves from, and the change curving back into it with an arrowhead, the conventional mark; two strokes where the fork and the branch are one, so it stays apart from both.
 // Drawn over the same height as theirs, y 4 to 12, and centred on 8,8 as they are.
 export const PR_ICON = strokeIcon(11, '<path d="M4.5 4V12" /><path d="M11.5 12V8Q11.5 5.5 8.75 5.5" /><path d="M10.25 4L8.75 5.5L10.25 7" />');

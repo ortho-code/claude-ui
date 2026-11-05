@@ -3,7 +3,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { prReference } from '../../../src/shared/prs';
-import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, keptFrom, markedLater, markedNeedsYou, purgedSession, togglePinned, unarchived, unkept } from '../../../src/shared/sessionmarks';
+import { archivedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, purgedSession, togglePinned, unarchived, unkept } from '../../../src/shared/sessionmarks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -105,7 +105,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
       const now = Date.now();
       for (const id of ids) {
         fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
-        fixture.later = clearedLater(fixture.later, id);
+        fixture.later = clearedSetAside(fixture.later, id);
         fixture.archived = archivedFrom(fixture.archived, id, now);
       }
       return answer(fixture.archived);
@@ -146,12 +146,12 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     setPrSeen: (seen) => {
       fixture.prSeen = seen;
     },
-    getLater: () => answer(fixture.later),
-    markLater: (ids, due, at) => {
-      for (const id of ids) fixture.later = markedLater(fixture.later, id, due, at ?? Date.now());
+    getSetAside: () => answer(fixture.later),
+    markSetAside: (ids, due, at) => {
+      for (const id of ids) fixture.later = markedSetAside(fixture.later, id, due, at ?? Date.now());
     },
-    clearLater: (ids) => {
-      for (const id of ids) fixture.later = clearedLater(fixture.later, id);
+    clearSetAside: (ids) => {
+      for (const id of ids) fixture.later = clearedSetAside(fixture.later, id);
     },
     getKept: () => answer(fixture.kept),
     keep: (ids, at) => {
@@ -160,7 +160,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     unkeep: (ids) => {
       fixture.kept = unkept(fixture.kept, ids);
     },
-    laterCameDue: (now) => {
+    setAsideCameDue: (now) => {
       Object.assign(fixture, cameDue(fixture, now));
     },
     getLastClosed: () => answer(fixture.lastClosed),

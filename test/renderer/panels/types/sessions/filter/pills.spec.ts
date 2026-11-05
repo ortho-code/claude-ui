@@ -49,7 +49,7 @@ test('the later pill narrows the list to the sessions marked for later, with a t
   const all = [...everyone, aside];
   await app.boot({ ...fixture, sessions: all, openSessions: [tabbed.id, aside.id], later: { [aside.id]: { due: null, at: 1 }, [plain.id]: { due: Date.now() + 86_400_000, at: 1 } }, history: { [tabbed.id]: [], [aside.id]: [] } });
   await page.locator('#filter-toggle').click();
-  const button = page.locator('#later-filter');
+  const button = page.locator('#set-aside-filter');
   await expect(button).toHaveAttribute('aria-label', 'Show only sessions marked for later');
 
   await button.click();

@@ -5,7 +5,7 @@ import { openMenu } from '../../../menu';
 import { store, type View } from '../../../state/app';
 import { endBulk, tickAll, tickRun, toggleTick } from '../../../state/bulk';
 import { keepSessions, unkeepSessions } from '../../../state/keep';
-import { clearLater, markLater } from '../../../state/later';
+import { clearSetAside, markSetAside } from '../../../state/setaside';
 import { leaveTab, projName, tabWith } from '../../../state/views';
 import { strokeIcon } from '../../../svg';
 import { KEPT_DAYS } from '../../../review';
@@ -13,7 +13,7 @@ import { headingTick, tickedOnShow } from '../../../ticks';
 import { showToast } from '../../../toast';
 import { setUnavailable, unavailable } from '../../../unavailable';
 import { hostOf } from '../builtin';
-import { confirmAndDelete, laterChoices, moveToGroupItems } from './actions';
+import { confirmAndDelete, setAsideChoices, moveToGroupItems } from './actions';
 import { container, currentByKey, drawnKeys } from './drawn';
 import './bulk.css';
 
@@ -31,7 +31,7 @@ export const bulkLine = fromMarkup(`
 export const bulkBar = fromMarkup(`
   <div id="bulk-bar" hidden>
     <button type="button" data-act="archive">Archive</button>
-    <button type="button" data-act="later">Later</button>
+    <button type="button" data-act="set-aside">Later</button>
     <button type="button" data-act="keep">Keep</button>
     <button type="button" data-act="move">Move to group</button>
     <button type="button" data-act="stop">Stop</button>
@@ -117,7 +117,7 @@ export function showBulk(view: View<'bulk' | 'tabs' | 'reviewing' | 'activeProje
   count.textContent = view.reviewing ? `${scope} · ${drawnKeys().length} to decide · ${keys.length} ticked` : `${keys.length} ticked`;
   const none = keys.length === 0 ? 'Nothing is ticked' : null;
   setUnavailable(act('archive'), none ?? (keys.some((key) => archivable(key, view)) ? null : 'Every ticked session is starting'), 'Archive every ticked session');
-  setUnavailable(act('later'), none, 'Set every ticked session aside for later');
+  setUnavailable(act('set-aside'), none, 'Set every ticked session aside for later');
   setUnavailable(act('keep'), none, `Keep every ticked session out of the review for ${KEPT_DAYS} days`);
   setUnavailable(act('unarchive'), none, 'Unarchive every ticked session');
   setUnavailable(act('delete'), none, 'Delete every ticked session, moving its files to the trash, once you confirm');
@@ -151,13 +151,13 @@ function named(keys: readonly string[]): string {
  * A session's menu raises no toast for its Later, since its row stays where it was (decided 2026-11-04): a batch's rows can leave what is on show, and the toast is then what says what happened.
  */
 function setAside(keys: readonly string[], due: number | null): void {
-  const before = new Map(keys.map((key) => [key, store.get().later.get(key)]));
-  markLater(keys, due);
+  const before = new Map(keys.map((key) => [key, store.get().setAside.get(key)]));
+  markSetAside(keys, due);
   showToast(`Set ${named(keys)} aside for later${due === null ? '' : `, until ${momentLabel(due)}`}`, false, {
     label: 'Undo',
     run: () => {
-      clearLater(keys.filter((key) => before.get(key) === undefined));
-      for (const [key, mark] of before) if (mark) markLater([key], mark.due, mark.at);
+      clearSetAside(keys.filter((key) => before.get(key) === undefined));
+      for (const [key, mark] of before) if (mark) markSetAside([key], mark.due, mark.at);
     },
   });
 }
@@ -188,7 +188,7 @@ function onAct(name: string, run: (keys: string[], button: HTMLButtonElement) =>
 }
 
 onAct('archive', (keys) => hostOf('sessions').archiveSessions(keys));
-onAct('later', (keys, button) => openMenu(button, laterChoices(named(keys), (due) => setAside(keys, due))));
+onAct('set-aside', (keys, button) => openMenu(button, setAsideChoices(named(keys), (due) => setAside(keys, due))));
 onAct('keep', (keys) => keep(keys));
 onAct('move', (keys, button) => openMenu(button, moveToGroupItems(sessionsOf(keys))));
 onAct('stop', (keys) => {

@@ -1,5 +1,5 @@
-import { mutedByLater } from '../../shared/sessionmarks';
-import type { Later, NeedsYou, SessionGroup, SessionSummary } from '../../shared/types';
+import { mutedBySetAside } from '../../shared/sessionmarks';
+import type { SetAside, NeedsYou, SessionGroup, SessionSummary } from '../../shared/types';
 import { displayName, entityKey, inView, projectRootExists, projectsForSwitcher, sessionPart, sessionsByKey, shownStatus, tabButton, unstartableReason, type NudgeStatus, type SwitcherModel, type TabButton, type TabButtonTab } from '../logic';
 import { sameOrder, store, type TabState, type View } from './app';
 
@@ -113,7 +113,7 @@ export function listedProjects(view: View<'sessions' | 'tabs' | 'archived' | 'pe
  * Every project in the switcher's pool, counted and rolled up in the list's order, with those whose sessions are all archived counted at none, and all of them together: the one roll-up the switcher, the strip's line, the sidebar's rail icon and a panel's session dialog read.
  * Worked out for each reader rather than kept, since it costs well under a millisecond (0.07 ms at 382 sessions, measured).
  */
-export function switcherModel(view: View<'sessions' | 'tabs' | 'archived' | 'pendingDeletes' | 'statuses' | 'acked' | 'needsYou' | 'later' | 'projectNames' | 'projectOrder'>): SwitcherModel {
+export function switcherModel(view: View<'sessions' | 'tabs' | 'archived' | 'pendingDeletes' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'projectNames' | 'projectOrder'>): SwitcherModel {
   return projectsForSwitcher(switcherPool(view), view.statuses, view.acked, view.needsYou, view.projectNames, view.projectOrder, archivedOnlyProjects(view), mutedNeedsYou(view));
 }
 
@@ -147,14 +147,14 @@ export function isFiltering(view: View<'filter'>): boolean {
 }
 
 /** The sessions whose status, background work, read mark, needs-you mark or later mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has. */
-export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'later'>, after: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'later'>): Set<string> {
+export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside'>, after: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside'>): Set<string> {
   const ids = new Set<string>();
   for (const id of new Set([...before.statuses.keys(), ...after.statuses.keys()])) if (before.statuses.get(id) !== after.statuses.get(id)) ids.add(id);
   for (const id of new Set([...before.backgroundTasks.keys(), ...after.backgroundTasks.keys()])) if (!sameOrder(before.backgroundTasks.get(id) ?? [], after.backgroundTasks.get(id) ?? [])) ids.add(id);
   for (const id of new Set([...before.acked, ...after.acked])) if (before.acked.has(id) !== after.acked.has(id)) ids.add(id);
   // Every reason and its time, since a reason added beside another, or a newer one lifting a later mark's mute, changes the dot or its tooltip.
   for (const id of new Set([...before.needsYou.keys(), ...after.needsYou.keys()])) if (!sameReasons(before.needsYou.get(id) ?? [], after.needsYou.get(id) ?? [])) ids.add(id);
-  for (const id of new Set([...before.later.keys(), ...after.later.keys()])) if (before.later.get(id) !== after.later.get(id)) ids.add(id);
+  for (const id of new Set([...before.setAside.keys(), ...after.setAside.keys()])) if (before.setAside.get(id) !== after.setAside.get(id)) ids.add(id);
   return ids;
 }
 
@@ -172,7 +172,7 @@ export function tabDotChanges(before: View<'tabs'>, after: View<'tabs'>): Set<st
 }
 
 /** A session's part in a roll-up (`sessionPart`), read out of the store: a needs-you mark its later mark mutes rolls up as read. */
-export function sessionNudge(id: string, view: View<'statuses' | 'acked' | 'needsYou' | 'later'>): NudgeStatus {
+export function sessionNudge(id: string, view: View<'statuses' | 'acked' | 'needsYou' | 'setAside'>): NudgeStatus {
   return sessionPart(view.statuses.get(id), view.needsYou.has(id), mutedNeedsYou(view).has(id), view.acked.has(id));
 }
 
@@ -180,20 +180,20 @@ export function sessionNudge(id: string, view: View<'statuses' | 'acked' | 'need
  * Whether a session's dot shows as read: marked read, or showing a needs-you mark its later mark mutes, which looks read and stays so while the later mark stands (decided 2026-10-29).
  * The dot still shows the mark, so its reason is there when you pick the session up again.
  */
-export function shownRead(id: string, shown: string | undefined, view: View<'acked' | 'needsYou' | 'later'>): boolean {
+export function shownRead(id: string, shown: string | undefined, view: View<'acked' | 'needsYou' | 'setAside'>): boolean {
   return view.acked.has(id) || (shown === 'needs' && mutedNeedsYou(view).has(id));
 }
 
-let muted: { needsYou: ReadonlyMap<string, readonly NeedsYou[]>; later: ReadonlyMap<string, Later>; ids: ReadonlySet<string> } | null = null;
+let muted: { needsYou: ReadonlyMap<string, readonly NeedsYou[]>; setAside: ReadonlyMap<string, SetAside>; ids: ReadonlySet<string> } | null = null;
 
 /**
- * The sessions whose needs-you mark their later mark mutes (`mutedByLater`): what every dot and roll-up reads as read, and what does not widen the strip's membership.
+ * The sessions whose needs-you mark their later mark mutes (`mutedBySetAside`): what every dot and roll-up reads as read, and what does not widen the strip's membership.
  * Kept for the two maps it was made from, since every roll-up of a repaint asks for it.
  */
-export function mutedNeedsYou(view: View<'needsYou' | 'later'>): ReadonlySet<string> {
-  if (muted?.needsYou !== view.needsYou || muted.later !== view.later) {
-    const ids = new Set([...view.later.keys()].filter((id) => mutedByLater(view.needsYou.get(id), view.later.get(id))));
-    muted = { needsYou: view.needsYou, later: view.later, ids };
+export function mutedNeedsYou(view: View<'needsYou' | 'setAside'>): ReadonlySet<string> {
+  if (muted?.needsYou !== view.needsYou || muted.setAside !== view.setAside) {
+    const ids = new Set([...view.setAside.keys()].filter((id) => mutedBySetAside(view.needsYou.get(id), view.setAside.get(id))));
+    muted = { needsYou: view.needsYou, setAside: view.setAside, ids };
   }
   return muted.ids;
 }

@@ -1,5 +1,5 @@
 import { prReference } from '../../shared/prs';
-import type { Later, NeedsYou, PrStatus } from '../../shared/types';
+import type { SetAside, NeedsYou, PrStatus } from '../../shared/types';
 import { sessionLabel } from '../logic';
 import { store, type AppState, type View } from '../state/app';
 import { switcherPool, tabWith } from '../state/views';
@@ -28,7 +28,7 @@ export interface SnapshotSession {
   read: boolean;
   /** Why it is marked as needing you, every reason; empty when it is not. */
   needsYou: readonly NeedsYou[];
-  later: Later | null;
+  later: SetAside | null;
   prs: { repository: string; number: number; url: string; status: PrStatus | null }[];
 }
 
@@ -38,7 +38,7 @@ export interface SessionsSnapshot {
 }
 
 /** The slices the snapshot is made of: what a panel that watches sessions is told about. */
-export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'archived', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'later', 'groupState', 'prStatus'] as const satisfies readonly (keyof AppState)[];
+export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'archived', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'setAside', 'groupState', 'prStatus'] as const satisfies readonly (keyof AppState)[];
 
 /** Every session not archived, as the switcher counts them, each once, by id, so the same sessions in a new order are the same snapshot. */
 export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.get()): SessionsSnapshot {
@@ -60,7 +60,7 @@ export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = 
         status: status !== undefined && STATUSES.has(status) ? (status as SnapshotStatus) : null,
         read: view.acked.has(id),
         needsYou: view.needsYou.get(id) ?? [],
-        later: view.later.get(id) ?? null,
+        later: view.setAside.get(id) ?? null,
         prs: session.prs.map((pr) => ({ repository: pr.repository, number: pr.number, url: pr.url, status: view.prStatus.statuses[prReference(pr)] ?? null })),
       };
     })

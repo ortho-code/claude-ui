@@ -93,7 +93,7 @@
 .tab-sibling,
 .tab-worktree,
 .tab-scheduled,
-.tab-later {
+.tab-set-aside {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -104,7 +104,7 @@
 .tab-sibling svg,
 .tab-worktree svg,
 .tab-scheduled svg,
-.tab-later svg {
+.tab-set-aside svg {
   display: block;
   width: 11px;
   height: 11px;

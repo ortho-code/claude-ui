@@ -2,7 +2,7 @@
 // renderer.ts wires these to its state and the DOM.
 import { prReference } from '../shared/prs';
 import { timeOfDay, type LeaveButton } from '../shared/settings';
-import type { GroupState, Later, NeedsYou, NeedsYouReason, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
+import type { GroupState, SetAside, NeedsYou, NeedsYouReason, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
 import { PR_CHANGE_RANK } from './prstatus';
 
@@ -319,7 +319,7 @@ export interface FilterCriteria {
    */
   liveOnly: boolean;
   /** Show only sessions marked for later, with a tab or without. */
-  laterOnly: boolean;
+  setAsideOnly: boolean;
   worktreeOnly: boolean;
   /** Show only sessions that cannot run because their folder is gone — the set worth finding to clean up, or to put a folder back for. */
   goneOnly: boolean;
@@ -340,8 +340,8 @@ export interface FilterCriteria {
   open?: ReadonlySet<string>;
   /** Keys of the live sessions; only consulted when liveOnly is set. */
   live?: ReadonlySet<string>;
-  /** Keys of the sessions marked for later; only consulted when laterOnly is set. */
-  later?: { has(key: string): boolean };
+  /** Keys of the sessions marked for later; only consulted when setAsideOnly is set. */
+  setAside?: { has(key: string): boolean };
   /** Set or Map keyed by conversationId; only membership is used. */
   archived: { has(key: string): boolean };
   pendingDeletes: ReadonlySet<string>;
@@ -367,7 +367,7 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
   if (c.pinnedOnly && !c.pinned.has(key)) return false;
   if (c.openOnly && !c.open?.has(key)) return false;
   if (c.liveOnly && !c.live?.has(key)) return false;
-  if (c.laterOnly && !c.later?.has(key)) return false;
+  if (c.setAsideOnly && !c.setAside?.has(key)) return false;
   if (c.worktreeOnly && worktreeMarkState(session) === null) return false;
   // The same question the row asks itself, through the same function — a second rule for "is this dead" would be able to disagree with the dimming.
   if (c.goneOnly && unstartableReason(session) === null) return false;
@@ -440,7 +440,7 @@ export function asksForYou(nudge: NudgeStatus): boolean {
 }
 
 /**
- * A session's part in a roll-up, by the rule its dot follows: what it shows (`shownStatus`), muted to nothing once read, and a needs-you mark its later mark mutes (`mutedByLater`) is read wherever the dot shows it, so it rolls up as nothing too (decided 2026-10-29).
+ * A session's part in a roll-up, by the rule its dot follows: what it shows (`shownStatus`), muted to nothing once read, and a needs-you mark its later mark mutes (`mutedBySetAside`) is read wherever the dot shows it, so it rolls up as nothing too (decided 2026-10-29).
  * Claude working or asking shows over the mark, and so still counts.
  */
 export function sessionPart(status: string | undefined, marked: boolean, muted: boolean, acked: boolean): NudgeStatus {
@@ -767,8 +767,8 @@ export function onDayAt(day: number, time: string): number {
 }
 
 /** What a session's later mark says, on its tooltip and in its menu's header: "Later", or "Later: Mon 3 Nov, 09:00" for one with a day. */
-export function laterLabel(later: Later): string {
-  return later.due === null ? 'Later' : `Later: ${momentLabel(later.due)}`;
+export function setAsideLabel(setAside: SetAside): string {
+  return setAside.due === null ? 'Later' : `Later: ${momentLabel(setAside.due)}`;
 }
 
 /**

@@ -1,11 +1,11 @@
 import type { Terminal } from '@xterm/xterm';
 import type { FitAddon } from '@xterm/addon-fit';
-import type { ClosedHow, Later, NeedsYou, ScheduledTask, SessionSummary } from '../../../../shared/types';
+import type { ClosedHow, SetAside, NeedsYou, ScheduledTask, SessionSummary } from '../../../../shared/types';
 import { entityKey, hasVisibleOutput, leaveAction, sessionLabel, sessionsByKey, unstartableReason, type LeaveAction, type TabButtonMark } from '../../../logic';
 import { newSession } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
-import { clearLater, markLater } from '../../../state/later';
+import { clearSetAside, markSetAside } from '../../../state/setaside';
 import { clearNeedsYou, markNeedsYou } from '../../../state/needsyou';
 import { clearNudge, setScheduled } from '../../../state/statuses';
 import { leaveTab, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
@@ -758,7 +758,7 @@ function archivedTabs(key: string): RemovedTab[] {
 /** What an archive's Undo puts back of one session: its later and needs-you marks as they were, read before the write. */
 interface ArchivedMarks {
   key: string;
-  later: Later | null;
+  setAside: SetAside | null;
   needsYou: readonly NeedsYou[] | null;
 }
 
@@ -778,8 +778,8 @@ function offerUndoArchive(marks: readonly ArchivedMarks[], removed: readonly Rem
       void window.claudeUi.unarchive(keys).then(
         (archived) => {
           store.set({ archived: new Map(Object.entries(archived)) });
-          for (const { key, later, needsYou } of marks) {
-            if (later) markLater([key], later.due, later.at);
+          for (const { key, setAside: setAside, needsYou } of marks) {
+            if (setAside) markSetAside([key], setAside.due, setAside.at);
             if (needsYou) markNeedsYou([key], needsYou);
           }
           putBack(removed);
@@ -797,7 +797,7 @@ function offerUndoArchive(marks: readonly ArchivedMarks[], removed: readonly Rem
 async function archiveNow(keys: readonly string[]): Promise<void> {
   let archived: Map<string, number>;
   // Read before the write, as the tabs are, for Undo: with or without a tab, a session was set aside, or needed you.
-  const marks: ArchivedMarks[] = keys.map((key) => ({ key, later: store.get().later.get(key) ?? null, needsYou: store.get().needsYou.get(key) ?? null }));
+  const marks: ArchivedMarks[] = keys.map((key) => ({ key, setAside: store.get().setAside.get(key) ?? null, needsYou: store.get().needsYou.get(key) ?? null }));
   try {
     archived = new Map(Object.entries(await window.claudeUi.archive([...keys])));
   } catch {
@@ -820,7 +820,7 @@ async function archiveNow(keys: readonly string[]): Promise<void> {
     }
     // Main's archive took the marks off as it archived (src/main/meta.ts); after the tabs, whose Undo puts the needs-you mark back.
     for (const key of keys) clearNeedsYou(key);
-    clearLater(keys);
+    clearSetAside(keys);
   });
   offerUndoArchive(marks, removed);
 }

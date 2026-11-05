@@ -4,7 +4,7 @@ import { byId, fromMarkup } from '../../../dom';
 import { datePresetRange, entityKey, sessionPasses } from '../../../logic';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
 import { isFiltering, searchText } from '../../../state/views';
-import { archiveIcon, closeIcon, folderGoneIcon, LATER_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
+import { archiveIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { iconSvg } from '../../icons';
 // The filter pill its pills and presets wear, shared with the history's All · Pinned.
@@ -26,7 +26,7 @@ export const filterPanel = fromMarkup(`
       <button id="pinned-filter" data-tooltip="Show only pinned sessions" aria-label="Show only pinned sessions" aria-pressed="false"></button>
       <button id="open-filter" type="button" data-tooltip="Show only sessions with a tab open" aria-label="Show only sessions with a tab open" aria-pressed="false"></button>
       <button id="live-filter" type="button" data-tooltip="Show only live sessions" aria-label="Show only live sessions" aria-pressed="false"></button>
-      <button id="later-filter" type="button" data-tooltip="Show only sessions marked for later" aria-label="Show only sessions marked for later" aria-pressed="false"></button>
+      <button id="set-aside-filter" type="button" data-tooltip="Show only sessions marked for later" aria-label="Show only sessions marked for later" aria-pressed="false"></button>
       <button id="worktree-filter" type="button" data-tooltip="Show only worktree sessions" aria-label="Show only worktree sessions" aria-pressed="false"></button>
       <button id="sibling-filter" type="button" data-tooltip="Show only sessions with siblings" aria-label="Show only sessions with siblings" aria-pressed="false"></button>
       <button id="pr-filter" type="button" data-tooltip="Show only sessions with a PR" aria-label="Show only sessions with a PR" aria-pressed="false"></button>
@@ -57,7 +57,7 @@ export const filterStatus = fromMarkup(`
 const pinnedFilter = byId(filterPanel, 'pinned-filter', HTMLButtonElement);
 const openFilter = byId(filterPanel, 'open-filter', HTMLButtonElement);
 const liveFilter = byId(filterPanel, 'live-filter', HTMLButtonElement);
-const laterFilter = byId(filterPanel, 'later-filter', HTMLButtonElement);
+const setAsideFilter = byId(filterPanel, 'set-aside-filter', HTMLButtonElement);
 const worktreeFilter = byId(filterPanel, 'worktree-filter', HTMLButtonElement);
 const siblingFilter = byId(filterPanel, 'sibling-filter', HTMLButtonElement);
 const prFilter = byId(filterPanel, 'pr-filter', HTMLButtonElement);
@@ -111,7 +111,7 @@ export function groupNameByKey({ groupState }: View<'groupState'>): Map<string, 
 }
 
 // Adapt the current filter state to the pure predicate.
-export function passesFilters(session: SessionSummary, view: View<'pinned' | 'archived' | 'notes' | 'pendingDeletes' | 'tabs' | 'later' | 'filter'>, groupNames?: ReadonlyMap<string, string>): boolean {
+export function passesFilters(session: SessionSummary, view: View<'pinned' | 'archived' | 'notes' | 'pendingDeletes' | 'tabs' | 'setAside' | 'filter'>, groupNames?: ReadonlyMap<string, string>): boolean {
   const { filters, dateFrom, dateTo } = view.filter;
   return sessionPasses(session, {
     groupNames,
@@ -124,8 +124,8 @@ export function passesFilters(session: SessionSummary, view: View<'pinned' | 'ar
     live: filters.live
       ? new Set(view.tabs.filter((t) => t.terminalId !== null).map((t) => entityKey(t.session)))
       : undefined,
-    laterOnly: filters.later,
-    later: view.later,
+    setAsideOnly: filters.later,
+    setAside: view.setAside,
     worktreeOnly: filters.worktree,
     goneOnly: filters.gone,
     siblingOnly: filters.siblings,
@@ -385,7 +385,7 @@ const FILTER_PILLS: FilterPill[] = [
   { button: pinnedFilter, icon: PINNED_ICON, key: 'pinned' },
   { button: openFilter, icon: OPEN_ICON, key: 'open' },
   { button: liveFilter, icon: LIVE_ICON, key: 'live' },
-  { button: laterFilter, icon: LATER_ICON, key: 'later' },
+  { button: setAsideFilter, icon: SET_ASIDE_ICON, key: 'later' },
   { button: worktreeFilter, icon: WORKTREE_ICON, key: 'worktree' },
   { button: siblingFilter, icon: SIBLING_ICON, key: 'siblings' },
   { button: prFilter, icon: PR_ICON, key: 'prs' },

@@ -20,7 +20,7 @@ const button = reviewButton;
 const count = reviewButton.querySelector<HTMLElement>('.review-count')!;
 
 /** What the review reads of the store. */
-export type ReviewView = View<'sessions' | 'tabs' | 'archived' | 'pendingDeletes' | 'later' | 'kept' | 'notes' | 'prStatus' | 'settings' | 'activeProject'>;
+export type ReviewView = View<'sessions' | 'tabs' | 'archived' | 'pendingDeletes' | 'setAside' | 'kept' | 'notes' | 'prStatus' | 'settings' | 'activeProject'>;
 
 /** The store's state as the review's terms read it (`ReviewFacts`). */
 export function reviewFacts(view: ReviewView): ReviewFacts {
@@ -28,7 +28,7 @@ export function reviewFacts(view: ReviewView): ReviewFacts {
     tabbed: new Set(view.tabs.map((t) => entityKey(t.session))),
     archived: view.archived,
     pendingDeletes: view.pendingDeletes,
-    later: view.later,
+    setAside: view.setAside,
     kept: view.kept,
     notes: view.notes,
     prStatus: view.prStatus,
@@ -72,12 +72,12 @@ button.addEventListener('click', () => {
   else startReview();
 });
 
-/** The longest the count waits between looks: a session crosses its days with nothing in the store moving, as a later mark comes due (state/later.ts); an open review is looked at every minute with the list's order (list.ts). */
+/** The longest the count waits between looks: a session crosses its days with nothing in the store moving, as a later mark comes due (state/setaside.ts); an open review is looked at every minute with the list's order (list.ts). */
 export const REVIEW_LOOK_EVERY_MS = 60 * 60 * 1000;
 
 /** The button's count, now and as the store and the clock move; registered with the sidebar's repaints (watch.ts). */
 export function watchReviewButton(): void {
-  const slices = ['sessions', 'tabs', 'archived', 'pendingDeletes', 'later', 'kept', 'notes', 'prStatus', 'settings', 'activeProject', 'reviewing'] as const;
+  const slices = ['sessions', 'tabs', 'archived', 'pendingDeletes', 'setAside', 'kept', 'notes', 'prStatus', 'settings', 'activeProject', 'reviewing'] as const;
   store.watch(slices, showReviewButton);
   window.setInterval(() => showReviewButton(store.get()), REVIEW_LOOK_EVERY_MS);
   showReviewButton(store.get());

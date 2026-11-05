@@ -1,4 +1,4 @@
-import type { Later, PrStatusRead, SessionSummary } from '../shared/types';
+import type { SetAside, PrStatusRead, SessionSummary } from '../shared/types';
 import { entityKey, relativeTime } from './logic';
 import { verdictOf } from './prstatus';
 
@@ -16,7 +16,7 @@ export interface ReviewFacts {
   tabbed: ReadonlySet<string>;
   archived: { has(key: string): boolean };
   pendingDeletes: ReadonlySet<string>;
-  later: ReadonlyMap<string, Later>;
+  setAside: ReadonlyMap<string, SetAside>;
   kept: ReadonlyMap<string, number>;
   notes: ReadonlyMap<string, string>;
   /** What GitHub said of the PRs, as the PR marks read it; empty while the setting is off (`Settings.prStatus`). */
@@ -33,7 +33,7 @@ export function isUnfinished(session: SessionSummary, facts: ReviewFacts): boole
 
 /** `is:set-aside`: marked for later, with a day or whenever. */
 export function isSetAside(session: SessionSummary, facts: ReviewFacts): boolean {
-  return facts.later.has(entityKey(session));
+  return facts.setAside.has(entityKey(session));
 }
 
 /** `kept:<Nd`: kept out of the review less than `days` days before `now`. */

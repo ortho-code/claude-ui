@@ -23,7 +23,7 @@ import { persistUi, restoreUiState, startSavingUi } from './view-saving';
 import { store, withEntry } from './state/app';
 import { tabWith } from './state/views';
 import { startedByClaude } from '../shared/scheduled';
-import { clearLater, watchDueLater } from './state/later';
+import { clearSetAside, watchDueSetAside } from './state/setaside';
 import { clearNeedsYou } from './state/needsyou';
 import { setScheduled, setStatus } from './state/statuses';
 import { installTooltips } from './tooltip';
@@ -61,7 +61,7 @@ store.watch(['filter', 'folds', 'filterPanelOpen', 'stripExpanded', 'stripHidden
 store.watch(WHERE_SLICES, treeContextChanged);
 
 // A panel's rows mark the sessions they started — each one's title, status dot and the work behind it, mark read, and whether it runs — so the panels hear of every change to those, and to which sessions a panel's rows started (its data, panels/links.ts).
-store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'later', 'tabs', 'panelData'], treeSessionsChanged);
+store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'tabs', 'panelData'], treeSessionsChanged);
 
 window.claudeUi.onSessionStatus((id, status, tabToken, event, background, prompt, source) => {
   // The terminal area's part first: a cleared session's successor is the tab's, a prompt calls off a stop, and the history on show reads what was added.
@@ -80,7 +80,7 @@ window.claudeUi.onSessionStatus((id, status, tabToken, event, background, prompt
     const scheduled = [...(store.get().scheduledTasks.get(id) ?? []), ...(tabWith(id)?.scheduledWhenStopped ?? [])].map((task) => task.prompt);
     if (prompt === undefined || !startedByClaude(prompt, scheduled, source)) {
       clearNeedsYou(id);
-      clearLater([id]);
+      clearSetAside([id]);
     }
   }
   // A new session's title isn't on disk immediately; re-read on its status events until it is (this also replaces the tab's own stand-in row with the real one).
@@ -138,7 +138,7 @@ void (async () => {
   // With the project you were in and the view you left, which scope and filter the first draw.
   await fullRead({ startUp: view });
   // Once the store has the later marks: a day that came while the app was closed shows from the first draw, and one that comes while it runs within the hour.
-  watchDueLater();
+  watchDueSetAside();
   forgetDeletedGroupFolds(store.get());
   startSavingUi();
   // The list follows the tabs as they come (`listFollowsTabs`): drawn again for a restored "open" or "live" filter, which are questions about the tabs, and its rows marked open otherwise.

@@ -98,7 +98,7 @@ test('Later and Archive take a row out too, and the review ends once nothing is 
   await app.boot(fixture);
   await button(page).click();
   await row(page, old.title).click();
-  await act(page, 'later').click();
+  await act(page, 'set-aside').click();
   await page.locator('.kebab-menu button.menu-row', { hasText: /^Whenever$/ }).click();
   await expect(row(page, old.title)).toHaveCount(0);
   await row(page, ready.title).click();

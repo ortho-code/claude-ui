@@ -1,7 +1,7 @@
 import { defaultUi } from '../../shared/defaults';
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/settings';
-import type { GroupState, Later, NeedsYou, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
+import type { GroupState, SetAside, NeedsYou, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
 import { sameRow, structuralSignature } from '../logic';
 import { NO_PR_STATUS } from '../prstatus';
 import { createStore } from './store';
@@ -49,10 +49,10 @@ export interface AppState {
    */
   needsYou: ReadonlyMap<string, readonly NeedsYou[]>;
   /**
-   * Entity key -> the moment it comes back and since when it was set aside: what main keeps in `meta.json`, kept here by the same rules (`markedLater`, `clearedLater`, `cameDue`), each change sent to main as it is made.
-   * Mutes a needs-you mark it came after (`mutedByLater`).
+   * Entity key -> the moment it comes back and since when it was set aside: what main keeps in `meta.json`, kept here by the same rules (`markedSetAside`, `clearedSetAside`, `cameDue`), each change sent to main as it is made.
+   * Mutes a needs-you mark it came after (`mutedBySetAside`).
    */
-  later: ReadonlyMap<string, Later>;
+  setAside: ReadonlyMap<string, SetAside>;
   /** Entity key -> when it was last kept out of the review (epoch ms): what main keeps in `meta.json`, kept here by the same rules (`keptFrom`, `unkept`), each change sent to main as it is made (state/keep.ts). */
   kept: ReadonlyMap<string, number>;
   /**
@@ -329,7 +329,7 @@ export const store = createStore<AppState>(
     pinned: new Set(),
     archived: new Map(),
     needsYou: new Map(),
-    later: new Map(),
+    setAside: new Map(),
     kept: new Map(),
     reviewing: false,
     arrangement: 'grouped',

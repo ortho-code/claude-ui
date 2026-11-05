@@ -36,7 +36,7 @@ export type NeedsYou =
 export type PrSeen = Record<string, PrStatus>;
 
 /** A session marked for later: the moment it comes back as needing you (epoch ms), or null for whenever, and when it was marked (epoch ms). */
-export interface Later {
+export interface SetAside {
   due: number | null;
   at: number;
 }
@@ -475,11 +475,11 @@ export interface ClaudeUiApi {
   /** Keep what was last seen of the PRs, in place of what was kept before. */
   setPrSeen(seen: PrSeen): void;
   /** The sessions marked for later, by session id. */
-  getLater(): Promise<Record<string, Later>>;
+  getSetAside(): Promise<Record<string, SetAside>>;
   /** Mark sessions for later in one write, `due` the moment they come back, or null for whenever, from `at` or now, as Undo puts a mark back as it was; a mark already there is replaced. */
-  markLater(ids: string[], due: number | null, at?: number): void;
+  markSetAside(ids: string[], due: number | null, at?: number): void;
   /** Take sessions' later marks off in one write, whether or not each had one. */
-  clearLater(ids: string[]): void;
+  clearSetAside(ids: string[]): void;
   /** When each session was last kept out of the review, by session id (epoch ms). */
   getKept(): Promise<Record<string, number>>;
   /** Keep sessions out of the review from `at` or now, in one write; a stamp already there is replaced. */
@@ -487,7 +487,7 @@ export interface ClaudeUiApi {
   /** Take sessions' keep stamps off, in one write, as Keep's Undo does. */
   unkeep(ids: string[]): void;
   /** Settle the later marks that have come due by `now` (`cameDue`): each goes, and a session not marked as needing you is marked with a reminder. */
-  laterCameDue(now: number): void;
+  setAsideCameDue(now: number): void;
   /** How the app closed before this window opened: what a session running then is marked for. */
   getLastClosed(): Promise<ClosedHow>;
   /** Open session -> the crons claude had scheduled for it when its claude went, as the open tabs were last written. */

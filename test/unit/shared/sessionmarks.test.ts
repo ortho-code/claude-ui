@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, keptFrom, markedLater, markedNeedsYou, mutedByLater, purgedSession, togglePinned, unarchived, unkept, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
+import { archivedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, mutedBySetAside, purgedSession, togglePinned, unarchived, unkept, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -102,21 +102,21 @@ describe('clearedNeedsYou', () => {
   });
 });
 
-describe('markedLater', () => {
+describe('markedSetAside', () => {
   it('marks the session from the time given, until its day or whenever, replacing a mark already there', () => {
-    const later = { a: { due: 100, at: 1 } };
-    expect(markedLater(later, 'a', null, 42)).toEqual({ a: { due: null, at: 42 } });
-    expect(markedLater(later, 'b', 200, 42)).toEqual({ a: { due: 100, at: 1 }, b: { due: 200, at: 42 } });
-    expect(later).toEqual({ a: { due: 100, at: 1 } });
+    const setAside = { a: { due: 100, at: 1 } };
+    expect(markedSetAside(setAside, 'a', null, 42)).toEqual({ a: { due: null, at: 42 } });
+    expect(markedSetAside(setAside, 'b', 200, 42)).toEqual({ a: { due: 100, at: 1 }, b: { due: 200, at: 42 } });
+    expect(setAside).toEqual({ a: { due: 100, at: 1 } });
   });
 });
 
-describe('clearedLater', () => {
+describe('clearedSetAside', () => {
   it('takes the mark off, and leaves a session that has none as it is', () => {
-    const later = { a: { due: null, at: 1 } };
-    expect(clearedLater(later, 'a')).toEqual({});
-    expect(clearedLater(later, 'b')).toEqual(later);
-    expect(later).toEqual({ a: { due: null, at: 1 } });
+    const setAside = { a: { due: null, at: 1 } };
+    expect(clearedSetAside(setAside, 'a')).toEqual({});
+    expect(clearedSetAside(setAside, 'b')).toEqual(setAside);
+    expect(setAside).toEqual({ a: { due: null, at: 1 } });
   });
 });
 
@@ -133,13 +133,13 @@ describe('cameDue', () => {
   });
 });
 
-describe('mutedByLater', () => {
+describe('mutedBySetAside', () => {
   it('mutes a needs-you mark whose newest reason came before the later mark, and not one with a reason after it', () => {
-    expect(mutedByLater([{ reason: 'quit', at: 5 }], { due: null, at: 10 })).toBe(true);
-    expect(mutedByLater([{ reason: 'quit', at: 10 }], { due: null, at: 10 })).toBe(true);
-    expect(mutedByLater([{ reason: 'quit', at: 15 }], { due: null, at: 10 })).toBe(false);
+    expect(mutedBySetAside([{ reason: 'quit', at: 5 }], { due: null, at: 10 })).toBe(true);
+    expect(mutedBySetAside([{ reason: 'quit', at: 10 }], { due: null, at: 10 })).toBe(true);
+    expect(mutedBySetAside([{ reason: 'quit', at: 15 }], { due: null, at: 10 })).toBe(false);
     expect(
-      mutedByLater(
+      mutedBySetAside(
         [
           { reason: 'reminder', at: 15 },
           { reason: 'quit', at: 5 },
@@ -147,9 +147,9 @@ describe('mutedByLater', () => {
         { due: null, at: 10 },
       ),
     ).toBe(false);
-    expect(mutedByLater([{ reason: 'quit', at: 5 }], undefined)).toBe(false);
-    expect(mutedByLater(undefined, { due: null, at: 10 })).toBe(false);
-    expect(mutedByLater([], { due: null, at: 10 })).toBe(false);
+    expect(mutedBySetAside([{ reason: 'quit', at: 5 }], undefined)).toBe(false);
+    expect(mutedBySetAside(undefined, { due: null, at: 10 })).toBe(false);
+    expect(mutedBySetAside([], { due: null, at: 10 })).toBe(false);
   });
 });
 

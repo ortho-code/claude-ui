@@ -20,14 +20,14 @@ export function badgeClass(badge: NudgeStatus | 'failed'): string {
  * Paint a session's dot, from what it shows (`dotStatus`) and whether it is marked read, on every surface that draws one as a control.
  * It is a control only where a click marks something, idle, waiting and needs and not archived (`canMarkRead`, the rule the click and the menu's Mark as read follow too); any other dot is no control, and a click on it goes to what holds it, such as a stopping session's strip row, which takes you to its tab.
  */
-export function applyStatus(dot: HTMLElement, id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'later' | 'tabs' | 'archived'>): void {
+export function applyStatus(dot: HTMLElement, id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'archived'>): void {
   const shown = dotStatus(id, view);
   dot.className = sessionDotClass(shown, shownRead(id, shown, view), canMarkRead(id, view));
   setTooltip(dot, statusText(id, view));
 }
 
 /** What a session's dot says it shows, as its tooltip; null for nothing to report. */
-export function statusText(id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'later' | 'tabs'>): string | null {
+export function statusText(id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs'>): string | null {
   const shown = dotStatus(id, view);
   return statusLabel(shown, shownRead(id, shown, view), view.backgroundTasks.get(id), view.needsYou.get(id));
 }
@@ -36,7 +36,7 @@ export function statusText(id: string, view: View<'statuses' | 'backgroundTasks'
  * Every state a session is in, each with its dot, for its menu's header: what its tab says, its status as its hooks last reported it, and its needs-you mark, a line per reason, in that order, where its one dot shows only the strongest of them (`dotStatus`).
  * The read mark dims the state the dot shows, as it dims the dot, and a needs-you mark its later mark mutes is dimmed wherever it is.
  */
-export function statusLines(id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'later' | 'tabs'>): { text: string; dot: string }[] {
+export function statusLines(id: string, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs'>): { text: string; dot: string }[] {
   const tab = tabWith(id, view);
   const shown = dotStatus(id, view);
   const needsYou = view.needsYou.get(id);

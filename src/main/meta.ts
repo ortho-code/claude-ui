@@ -2,13 +2,13 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { Later, NeedsYou, NeedsYouReason, OrderMove, GroupState, HistoryPin, PrChange, PrSeen, PrStatus, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
+import type { SetAside, NeedsYou, NeedsYouReason, OrderMove, GroupState, HistoryPin, PrChange, PrSeen, PrStatus, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
 import { scheduledTasksOf } from '../shared/scheduled';
 import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { archivedFrom, cameDue, clearedLater, clearedNeedsYou, keptFrom, markedLater, markedNeedsYou, NEEDS_YOU_REASONS, PR_CHANGES, purgedSession, togglePinned, unarchived, unkept } from '../shared/sessionmarks';
+import { archivedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, NEEDS_YOU_REASONS, PR_CHANGES, purgedSession, togglePinned, unarchived, unkept } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
@@ -76,7 +76,7 @@ interface Meta {
    * The sessions you set aside for later, by session id: the day each comes back as needing you, or none for whenever, and since when.
    * Kept whether or not a tab holds the session, until the window takes it off for a prompt there or Clear later, its day comes (`cameDue`), or main does for an archive or a delete.
    */
-  later: Record<string, Later>;
+  later: Record<string, SetAside>;
   /**
    * When each session was last kept out of the review, by session id (epoch ms): the review's own term says how long that holds (`kept:<30d`), so a stamp is never swept, and goes with its session's delete.
    * Archiving leaves it, since an archived session is out of the review anyway.
@@ -368,7 +368,7 @@ function normalize(parsed: Record<string, unknown>): Meta {
     needsYou: needsYouOf(parsed.needsYou),
     // The same again: absent means nothing is set aside for later.
     // A file from before pause gave way to the later mark lists the tabs you paused, each of them set aside for later here, whenever (decided 2026-10-29), so nothing set aside is lost.
-    later: laterWithPaused(laterOf(parsed.later), parsed.pausedSessions, Date.now()),
+    later: setAsideWithPaused(setAsideOf(parsed.later), parsed.pausedSessions, Date.now()),
     // The same again: absent means nothing kept out of the review; a stamp that is no moment is dropped.
     kept: Object.fromEntries(Object.entries((parsed.kept ?? {}) as Record<string, unknown>).filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]))),
     // The same again: absent means never kept, the first run.
@@ -614,7 +614,7 @@ export function archive(ids: string[]): Promise<Record<string, number>> {
     for (const id of ids) {
       meta.archived = archivedFrom(meta.archived, id, now);
       meta.needsYou = clearedNeedsYou(meta.needsYou, id);
-      meta.later = clearedLater(meta.later, id);
+      meta.later = clearedSetAside(meta.later, id);
     }
     return meta.archived;
   });
@@ -751,21 +751,21 @@ function prSeenOf(raw: unknown): PrSeen | null {
 }
 
 /** The sessions marked for later; see `later`. */
-export function getLater(): Promise<Record<string, Later>> {
+export function getSetAside(): Promise<Record<string, SetAside>> {
   return serialize(async () => (await readMeta()).later);
 }
 
 /** Mark sessions for later, in one write, `due` the moment they come back, or null for whenever; a mark already there is replaced. */
-export function markLater(ids: string[], due: number | null, at = Date.now()): Promise<void> {
-  return update('markLater', (meta) => {
-    for (const id of ids) meta.later = markedLater(meta.later, id, due, at);
+export function markSetAside(ids: string[], due: number | null, at = Date.now()): Promise<void> {
+  return update('markSetAside', (meta) => {
+    for (const id of ids) meta.later = markedSetAside(meta.later, id, due, at);
   });
 }
 
 /** Take sessions' later marks off, in one write, whether or not each had one. */
-export function clearLater(ids: string[]): Promise<void> {
-  return update('clearLater', (meta) => {
-    for (const id of ids) meta.later = clearedLater(meta.later, id);
+export function clearSetAside(ids: string[]): Promise<void> {
+  return update('clearSetAside', (meta) => {
+    for (const id of ids) meta.later = clearedSetAside(meta.later, id);
   });
 }
 
@@ -789,14 +789,14 @@ export function unkeep(ids: string[]): Promise<void> {
 }
 
 /** Settle the later marks that have come due by `now`, by the rule the window keeps its copy by (`cameDue`). */
-export function laterCameDue(now: number): Promise<void> {
-  return update('laterCameDue', (meta) => {
+export function setAsideCameDue(now: number): Promise<void> {
+  return update('setAsideCameDue', (meta) => {
     Object.assign(meta, cameDue(meta, now));
   });
 }
 
 /** Session -> its later mark, from whatever was stored, an entry with a time left out or a day that is not a number dropped. */
-function laterOf(raw: unknown): Record<string, Later> {
+function setAsideOf(raw: unknown): Record<string, SetAside> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
   return Object.fromEntries(
     Object.entries(raw as Record<string, unknown>).flatMap(([id, entry]) => {
@@ -811,10 +811,10 @@ function laterOf(raw: unknown): Record<string, Later> {
  * The later marks with each session an older file lists as paused (`pausedSessions`) added, whenever, from `at`; one marked already keeps its mark.
  * Read on every read until the next write drops the list, so `at` is that read's until a write keeps one.
  */
-function laterWithPaused(later: Record<string, Later>, paused: unknown, at: number): Record<string, Later> {
-  if (!Array.isArray(paused)) return later;
-  const added = (paused as unknown[]).filter((id): id is string => typeof id === 'string' && !(id in later));
-  return { ...later, ...Object.fromEntries(added.map((id) => [id, { due: null, at }])) };
+function setAsideWithPaused(setAside: Record<string, SetAside>, paused: unknown, at: number): Record<string, SetAside> {
+  if (!Array.isArray(paused)) return setAside;
+  const added = (paused as unknown[]).filter((id): id is string => typeof id === 'string' && !(id in setAside));
+  return { ...setAside, ...Object.fromEntries(added.map((id) => [id, { due: null, at }])) };
 }
 
 /** Session -> its tasks, from whatever was stored, a session with none left out. */

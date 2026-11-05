@@ -7,7 +7,7 @@ import { kebabButton } from '../../../menu';
 import { showMoment, type Moment } from '../../../moments';
 import { notLeftMark, showNotLeft } from '../../../notleft';
 import { prMark } from '../../../prstatus';
-import { laterMark, showLater } from '../../../latermark';
+import { setAsideMark, showSetAside } from '../../../setasidemark';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { store, type View } from '../../../state/app';
 import { tabWith } from '../../../state/views';
@@ -46,7 +46,7 @@ interface RowEls {
   badge: HTMLElement;
   worktreeCount: HTMLElement;
   clock: HTMLElement;
-  later: HTMLElement;
+  setAside: HTMLElement;
   notLeft: HTMLElement;
   siblingsBadge: HTMLElement;
   siblingCount: HTMLElement;
@@ -148,9 +148,9 @@ function createSessionRow(key: string): HTMLElement {
   subline.className = 'session-subline';
   // A task claude has scheduled for the session, as its tab and its strip row show it (scheduledmark.ts); shown in updateRow.
   const clock = scheduledMark('scheduled-badge', true);
-  // Set aside for later, as its tab and its strip row show it (latermark.ts); shown in updateRow.
-  const later = laterMark('later-badge', true);
-  subline.append(meta, badge, clock, later, siblingsBadge, prBadge);
+  // Set aside for later, as its tab and its strip row show it (setasidemark.ts); shown in updateRow.
+  const setAside = setAsideMark('set-aside-badge', true);
+  subline.append(meta, badge, clock, setAside, siblingsBadge, prBadge);
   content.append(subline);
 
   const pin = document.createElement('button');
@@ -198,7 +198,7 @@ function createSessionRow(key: string): HTMLElement {
   // Its box in bulk mode, before the dot (bulk.ts); drawn only then, and a press anywhere on the row ticks it then.
   item.prepend(tickBox(), dot);
   item.append(pin, unarchiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, worktreeCount, clock, later, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
+  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
   item.addEventListener('click', (event) => {
     // In bulk mode a press ticks the row rather than opening it; the dot, the marks, the pin and the kebab keep their own presses, which stop here.
     if (store.get().bulk) {
@@ -239,7 +239,7 @@ function newest(session: SessionSummary): SessionSummary {
 
 // Refresh a reused row's content for the tip it now shows.
 /** What a row draws from the store besides the session it shows. */
-export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'later' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs' | 'prStatus' | 'reviewing'>;
+export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs' | 'prStatus' | 'reviewing'>;
 
 /** Show what a row has from the tab running its session: its clock (`clockOf`), and the words for a stop claude has not left (notleft.ts), in place of its time and model while they show. */
 export function showTabMarks(marks: RowTabMarks, id: string, view: View<'scheduledTasks' | 'tabs'>): void {
@@ -290,7 +290,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
 
   showTabMarks(els, session.id, view);
   rowTabMarks.set(session.id, els);
-  showLater(els.later, view.later.get(entityKey(session)));
+  showSetAside(els.setAside, view.setAside.get(entityKey(session)));
 
   const note = view.notes.get(entityKey(session));
   els.noteBadge.hidden = !note;

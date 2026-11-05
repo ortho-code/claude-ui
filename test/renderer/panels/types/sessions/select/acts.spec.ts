@@ -43,24 +43,24 @@ test('Archive archives every ticked session in one write, with one toast whose U
   await expect(row(page, a.title)).toHaveCount(1);
   await expect(row(page, b.title)).toHaveCount(1);
   expect(await app.calls('unarchive')).toEqual([[[a.id, b.id]]]);
-  await expect(row(page, a.title).locator('.later-mark')).toBeVisible();
-  await expect(row(page, b.title).locator('.later-mark')).toBeHidden();
+  await expect(row(page, a.title).locator('.set-aside-mark')).toBeVisible();
+  await expect(row(page, b.title).locator('.set-aside-mark')).toBeHidden();
 });
 
 test("Later marks every ticked session in one write, and Undo puts back the mark one had before and none on the other", async ({ app, page }) => {
   await app.boot({ ...fixture, later: { [a.id]: { due: null, at: 5 } } });
   await selectGroup(page, 'Work');
-  await act(page, 'later').click();
+  await act(page, 'set-aside').click();
   await page.locator('.kebab-menu button.menu-row', { hasText: /^Tomorrow/ }).click();
-  const [[ids, due]] = (await app.calls('markLater')) as [string[], number][];
+  const [[ids, due]] = (await app.calls('markSetAside')) as [string[], number][];
   expect(ids).toEqual([a.id, b.id]);
   expect(due).toBeGreaterThan(0);
   await expect(toast(page)).toHaveText(/^Set 2 sessions aside for later, until /);
 
   await undo(page).click();
-  await expect(row(page, a.title).locator('.later-mark')).toBeVisible();
-  await expect(row(page, b.title).locator('.later-mark')).toBeHidden();
-  expect(await app.calls('clearLater')).toEqual([[[b.id]]]);
+  await expect(row(page, a.title).locator('.set-aside-mark')).toBeVisible();
+  await expect(row(page, b.title).locator('.set-aside-mark')).toBeHidden();
+  expect(await app.calls('clearSetAside')).toEqual([[[b.id]]]);
 });
 
 test('Move to group moves every ticked session in one write, and is unavailable with sessions of two projects ticked', async ({ app, page }) => {
@@ -112,7 +112,7 @@ test('Close tab closes every ticked tab, and one Undo brings the cold ones back'
 test("Later and Move to group keep their hover look while the menu they opened is up", async ({ app, page }) => {
   await app.boot(fixture);
   await selectGroup(page, 'Work');
-  for (const name of ['later', 'move']) {
+  for (const name of ['set-aside', 'move']) {
     const { hovered, open } = await hoveredAndOpen(page, act(page, name));
     expect(open).toEqual(hovered);
   }
@@ -121,7 +121,7 @@ test("Later and Move to group keep their hover look while the menu they opened i
 test('Esc in a dialog an act opened closes the dialog and leaves bulk mode on', async ({ app, page }) => {
   await app.boot(fixture);
   await selectGroup(page, 'Work');
-  await act(page, 'later').click();
+  await act(page, 'set-aside').click();
   await page.locator('.kebab-menu button.menu-row', { hasText: /^Pick a date…$/ }).click();
   await expect(page.locator('#day-overlay')).toBeVisible();
   await page.keyboard.press('Escape');

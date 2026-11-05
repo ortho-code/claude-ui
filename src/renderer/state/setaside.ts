@@ -1,4 +1,4 @@
-import { cameDue, clearedLater, markedLater } from '../../shared/sessionmarks';
+import { cameDue, clearedSetAside, markedSetAside } from '../../shared/sessionmarks';
 import { store } from './app';
 
 /**
@@ -10,46 +10,46 @@ import { store } from './app';
 const LOOK_AT_LEAST_EVERY_MS = 60 * 60 * 1000;
 
 /** Mark sessions for later, in one write, `due` the moment they come back, or null for whenever, from `at`: now, or when it was marked for a mark Undo puts back. */
-export function markLater(ids: readonly string[], due: number | null, at = Date.now()): void {
+export function markSetAside(ids: readonly string[], due: number | null, at = Date.now()): void {
   if (ids.length === 0) return;
-  let later = Object.fromEntries(store.get().later);
-  for (const id of ids) later = markedLater(later, id, due, at);
-  store.set({ later: new Map(Object.entries(later)) });
-  window.claudeUi.markLater([...ids], due, at);
+  let setAside = Object.fromEntries(store.get().setAside);
+  for (const id of ids) setAside = markedSetAside(setAside, id, due, at);
+  store.set({ setAside: new Map(Object.entries(setAside)) });
+  window.claudeUi.markSetAside([...ids], due, at);
 }
 
 /** Take sessions' later marks off, in one write; nothing is sent for those that have none. */
-export function clearLater(ids: readonly string[]): void {
-  const marked = ids.filter((id) => store.get().later.has(id));
+export function clearSetAside(ids: readonly string[]): void {
+  const marked = ids.filter((id) => store.get().setAside.has(id));
   if (marked.length === 0) return;
-  let later = Object.fromEntries(store.get().later);
-  for (const id of marked) later = clearedLater(later, id);
-  store.set({ later: new Map(Object.entries(later)) });
-  window.claudeUi.clearLater(marked);
+  let setAside = Object.fromEntries(store.get().setAside);
+  for (const id of marked) setAside = clearedSetAside(setAside, id);
+  store.set({ setAside: new Map(Object.entries(setAside)) });
+  window.claudeUi.clearSetAside(marked);
 }
 
 /** Settle the later marks that have come due (`cameDue`); nothing is sent while none has. */
-export function settleDueLater(now = Date.now()): void {
-  const { later, needsYou } = store.get();
-  if (![...later.values()].some((mark) => mark.due !== null && mark.due <= now)) return;
-  const next = cameDue({ later: Object.fromEntries(later), needsYou: Object.fromEntries(needsYou) }, now);
-  store.set({ later: new Map(Object.entries(next.later)), needsYou: new Map(Object.entries(next.needsYou)) });
-  window.claudeUi.laterCameDue(now);
+export function settleDueSetAside(now = Date.now()): void {
+  const { setAside: setAside, needsYou } = store.get();
+  if (![...setAside.values()].some((mark) => mark.due !== null && mark.due <= now)) return;
+  const next = cameDue({ later: Object.fromEntries(setAside), needsYou: Object.fromEntries(needsYou) }, now);
+  store.set({ setAside: new Map(Object.entries(next.later)), needsYou: new Map(Object.entries(next.needsYou)) });
+  window.claudeUi.setAsideCameDue(now);
 }
 
 let lookTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Settle what has come due, and set the next look for the soonest mark still to come, an hour from now at the latest. */
 function lookForDue(): void {
-  settleDueLater();
+  settleDueSetAside();
   if (lookTimer !== null) clearTimeout(lookTimer);
   const now = Date.now();
-  const soonest = Math.min(...[...store.get().later.values()].flatMap((mark) => (mark.due !== null ? [mark.due] : [])), now + LOOK_AT_LEAST_EVERY_MS);
+  const soonest = Math.min(...[...store.get().setAside.values()].flatMap((mark) => (mark.due !== null ? [mark.due] : [])), now + LOOK_AT_LEAST_EVERY_MS);
   lookTimer = setTimeout(lookForDue, Math.max(0, Math.min(soonest - now, LOOK_AT_LEAST_EVERY_MS)));
 }
 
 /** Look for later marks come due now, then again when the soonest one is due and whenever the marks change, for as long as the window is open. */
-export function watchDueLater(): void {
+export function watchDueSetAside(): void {
   lookForDue();
-  store.watch(['later'], lookForDue);
+  store.watch(['setAside'], lookForDue);
 }

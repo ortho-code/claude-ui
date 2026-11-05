@@ -3,7 +3,7 @@ import type { FolderName } from '../../../src/shared/folders';
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/pathcheck';
 import type { SettingsFileRead } from '../../../src/shared/settings';
-import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, Later, NeedsYou, PrSeen, PrStatus, ScheduledTask, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
+import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, PrSeen, PrStatus, ScheduledTask, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -23,7 +23,7 @@ export interface BridgeFixture {
   /** How many reads of it fail before one answers, as a `meta.json` that cannot be read would. */
   prSeenReadFails: number;
   /** Session -> the day it comes back and when it was set aside, as meta keeps it; marked, cleared and come due by main's own rules. */
-  later: Record<string, Later>;
+  later: Record<string, SetAside>;
   /** Session -> when it was last kept out of the review, as meta keeps it; stamped and taken off by main's own rules. */
   kept: Record<string, number>;
   /** How the app closed before this window, as main's log says. */

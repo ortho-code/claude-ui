@@ -109,16 +109,16 @@ test('a PR that changed while the app was closed marks at launch', async ({ app,
 // Nothing seen before: only the sessions set aside to wait, with a tab or a later mark, are marked, not every finished session never archived (decided 2026-10-29).
 test('the first run marks the sessions with a tab or a later mark whose PRs need you, and no other; the next answer marks nothing new', async ({ app, page }) => {
   await page.clock.install();
-  const later = session({ id: '00000000-0000-4000-8000-0000000000f5', title: 'Set aside', prs: [pr(7)] });
+  const setAside = session({ id: '00000000-0000-4000-8000-0000000000f5', title: 'Set aside', prs: [pr(7)] });
   await app.boot({
     ...fixture,
-    sessions: [...all, later],
-    history: { ...fixture.history, [later.id]: [] },
-    later: { [later.id]: { due: null, at: 1 } },
+    sessions: [...all, setAside],
+    history: { ...fixture.history, [setAside.id]: [] },
+    later: { [setAside.id]: { due: null, at: 1 } },
     prSeen: null,
     prStatuses: { 'acme/app#7': { state: 'merged' }, 'acme/app#8': open() },
   });
-  for (const title of [cold.title, later.title]) await expect(row(page, title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merged');
+  for (const title of [cold.title, setAside.title]) await expect(row(page, title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merged');
   await notNeeds(row(page, closed.title).locator('.nudge'));
   await notNeeds(row(page, other.title).locator('.nudge'));
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.prSeen)).toEqual({ 'acme/app#7': { state: 'merged' }, 'acme/app#8': open() });

@@ -36,11 +36,11 @@ export const claudeWatch = {
     // A task claude scheduled for a tab's session, or one gone, draws its clock: it changes at most once a turn.
     // And the setting for a stopped tab's button.
     // And a later mark, which a tab draws beside its clock.
-    store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'scheduledTasks', 'later', 'settings'], renderTabBar, { reads: ['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'archived'] });
+    store.watch(['groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'scheduledTasks', 'setAside', 'settings'], renderTabBar, { reads: ['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'archived'] });
     // And a status, the work behind one, or a mark read of one of its tabs' sessions, which its fold's dot follows too, and a later mark, which can mute what its dot shows.
-    store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'later'], tabBarFollowsStatuses, { reads: ['sessions', 'scheduledTasks', 'archived', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'settings'] });
+    store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside'], tabBarFollowsStatuses, { reads: ['sessions', 'scheduledTasks', 'archived', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'tabs', 'activeTab', 'tabBarExpanded', 'settings'] });
     // The terminal area's rail icon waits while a tab on show waits for you.
-    store.watch(['activeProject', 'tabs', 'statuses', 'acked', 'needsYou', 'later'], railStatusFollowsTabs);
+    store.watch(['activeProject', 'tabs', 'statuses', 'acked', 'needsYou', 'setAside'], railStatusFollowsTabs);
     // The pane shows the tab on show, or says why there is none, which turns on the listing and the project on show too.
     store.watch(['sessions', 'activeProject', 'tabs', 'activeTab'], paneFollows);
   },

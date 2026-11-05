@@ -93,7 +93,7 @@ function settleChanges(prs: readonly PrRef[], read: PrStatusRead): void {
   for (const { pr, changes: found } of changes) markNeedsYou(linking(pr), [{ reason: 'pr', at, pr, changes: found }]);
   if (before !== null) return;
   void window.claudeUi.getOpenSessions().then((open) => {
-    const setAside = new Set([...open, ...store.get().later.keys()]);
+    const setAside = new Set([...open, ...store.get().setAside.keys()]);
     for (const pr of prs) {
       const status = read.statuses[prReference(pr)];
       const found = status === undefined ? [] : needsYouNow(status);

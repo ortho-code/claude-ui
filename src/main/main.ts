@@ -33,13 +33,13 @@ import {
   clearNeedsYou,
   getPrSeen,
   setPrSeen,
-  getLater,
+  getSetAside,
   getKept,
   keep,
   unkeep,
-  markLater,
-  clearLater,
-  laterCameDue,
+  markSetAside,
+  clearSetAside,
+  setAsideCameDue,
   getScheduledWhenStopped,
   setScheduledWhenStopped,
   setOpenSessions,
@@ -511,7 +511,7 @@ ipcMain.handle('meta:getPrSeen', () => getPrSeen());
 ipcMain.on('meta:setPrSeen', (_event, seen: PrSeen) => {
   void setPrSeen(seen);
 });
-ipcMain.handle('meta:getLater', () => getLater());
+ipcMain.handle('meta:getSetAside', () => getSetAside());
 ipcMain.handle('meta:getKept', () => getKept());
 ipcMain.on('meta:keep', (_event, ids: string[], at?: number) => {
   void keep(ids, at);
@@ -519,14 +519,14 @@ ipcMain.on('meta:keep', (_event, ids: string[], at?: number) => {
 ipcMain.on('meta:unkeep', (_event, ids: string[]) => {
   void unkeep(ids);
 });
-ipcMain.on('meta:markLater', (_event, ids: string[], due: number | null, at?: number) => {
-  void markLater(ids, due, at);
+ipcMain.on('meta:markSetAside', (_event, ids: string[], due: number | null, at?: number) => {
+  void markSetAside(ids, due, at);
 });
-ipcMain.on('meta:clearLater', (_event, ids: string[]) => {
-  void clearLater(ids);
+ipcMain.on('meta:clearSetAside', (_event, ids: string[]) => {
+  void clearSetAside(ids);
 });
-ipcMain.on('meta:laterCameDue', (_event, now: number) => {
-  void laterCameDue(now);
+ipcMain.on('meta:setAsideCameDue', (_event, now: number) => {
+  void setAsideCameDue(now);
 });
 // A window opened again from the Dock follows no close of the app's, so the log has nothing to say of it.
 ipcMain.handle('app:lastClosed', () => (reopened ? 'unknown' : lastClosed()));

@@ -9,7 +9,7 @@ import {
   dayStart,
   onDayAt,
   momentLabel,
-  laterLabel,
+  setAsideLabel,
   sessionPart,
   leaveAction,
   leaveLabel,
@@ -291,7 +291,7 @@ describe('sessionPasses', () => {
     pinnedOnly: false,
     openOnly: false,
     liveOnly: false,
-    laterOnly: false,
+    setAsideOnly: false,
     worktreeOnly: false,
     goneOnly: false,
     siblingOnly: false,
@@ -364,12 +364,12 @@ describe('sessionPasses', () => {
   });
 
   it('shows only sessions marked for later when asked, a live one too', () => {
-    const later = new Set(['s1', 's2']);
+    const setAside = new Set(['s1', 's2']);
     const live = new Set(['s2']);
-    expect(sessionPasses(session({ id: 's1' }), { ...base, laterOnly: true, later })).toBe(true);
-    expect(sessionPasses(session({ id: 's3' }), { ...base, laterOnly: true, later })).toBe(false);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, setAsideOnly: true, setAside: setAside })).toBe(true);
+    expect(sessionPasses(session({ id: 's3' }), { ...base, setAsideOnly: true, setAside: setAside })).toBe(false);
     // A mark on the session rather than a state of its tab, so a running one can carry it.
-    expect(sessionPasses(session({ id: 's2' }), { ...base, laterOnly: true, later, liveOnly: true, live })).toBe(true);
+    expect(sessionPasses(session({ id: 's2' }), { ...base, setAsideOnly: true, setAside: setAside, liveOnly: true, live })).toBe(true);
   });
 
   it('separates having a tab from being live, which are different questions', () => {
@@ -1031,8 +1031,8 @@ describe('the days a later mark names', () => {
   it('names a day short, a moment by its day and time, and a mark by its moment or as whenever', () => {
     expect(dayLabel(new Date(2026, 10, 2).getTime())).toBe('Mon 2 Nov');
     expect(momentLabel(new Date(2026, 10, 2, 9, 5).getTime())).toBe('Mon 2 Nov, 09:05');
-    expect(laterLabel({ due: new Date(2026, 10, 5, 9).getTime(), at: thursday })).toBe('Later: Thu 5 Nov, 09:00');
-    expect(laterLabel({ due: null, at: thursday })).toBe('Later');
+    expect(setAsideLabel({ due: new Date(2026, 10, 5, 9).getTime(), at: thursday })).toBe('Later: Thu 5 Nov, 09:00');
+    expect(setAsideLabel({ due: null, at: thursday })).toBe('Later');
   });
 });
 

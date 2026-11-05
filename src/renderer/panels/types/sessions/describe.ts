@@ -1,5 +1,5 @@
 import type { SessionSummary } from '../../../../shared/types';
-import { entityKey, laterLabel, modelLabel, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
+import { entityKey, setAsideLabel, modelLabel, relativeTime, sessionLabel, unstartableReason, worktreeMarkState } from '../../../logic';
 import type { HeaderLine, MenuItem } from '../../../menu';
 import type { Moment } from '../../../moments';
 import type { View } from '../../../state/app';
@@ -44,12 +44,12 @@ export function whereOf(session: SessionSummary, view: View<'activeProject' | 'p
  */
 export function sessionHeader(
   session: SessionSummary,
-  view: View<'projectNames' | 'groupState' | 'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'later' | 'tabs' | 'switchedModel' | 'notes' | 'archived'>,
+  view: View<'projectNames' | 'groupState' | 'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'switchedModel' | 'notes' | 'archived'>,
 ): MenuItem {
   const where = [projName(session.repoRoot, view), groupNameOf(session, view)].filter(Boolean).join(' · ');
   const note = view.notes.get(entityKey(session))?.split('\n')[0];
-  const later = view.later.get(entityKey(session));
-  const after = [later && laterLabel(later), activityMoment(session, view).text, archivedMoment(session, view)?.text, worktreeMarkState(session)?.tooltip, note, unstartableReason(session)];
+  const setAside = view.setAside.get(entityKey(session));
+  const after = [setAside && setAsideLabel(setAside), activityMoment(session, view).text, archivedMoment(session, view)?.text, worktreeMarkState(session)?.tooltip, note, unstartableReason(session)];
   const lines: HeaderLine[] = [...(where ? [where] : []), ...statusLines(session.id, view), ...after.filter((line): line is string => Boolean(line))];
   return { label: sessionLabel(session), header: lines };
 }

@@ -212,7 +212,7 @@ test('a marked tab is listed in its place among the running ones, and a cold tab
 
 test('the strip stays away at launch with only cold tabs set aside for later', async ({ app, page }) => {
   await app.boot({ sessions: [loose], openSessions: [loose.id], later: { [loose.id]: { due: null, at: 1 } }, history: { [loose.id]: [] } });
-  await expect(tab(page, loose.title).locator('.tab-later')).toBeVisible();
+  await expect(tab(page, loose.title).locator('.tab-set-aside')).toBeVisible();
   await expect(page.locator('#live-strip')).toBeHidden();
   expect(await app.calls('startTerminal')).toEqual([]);
 });
@@ -249,7 +249,7 @@ test("a strip row's kebab opens its session's menu, and setting it aside for lat
   await expect(page.locator('.kebab-menu button', { hasText: 'Archive' })).toBeVisible();
   await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Later$/ }).click();
   await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^Whenever$/ }).click();
-  await expect(stripRow(page, loose.title).locator('.strip-item-later')).toBeVisible();
+  await expect(stripRow(page, loose.title).locator('.strip-item-set-aside')).toBeVisible();
   await expect(page.locator('#strip-label')).toHaveText('1 live');
   expect(await app.calls('closeTerminal')).toEqual([]);
 });

@@ -43,10 +43,10 @@ import {
   getRunningSessions,
   getNeedsYou,
   markNeedsYou,
-  getLater,
-  markLater,
-  clearLater,
-  laterCameDue,
+  getSetAside,
+  markSetAside,
+  clearSetAside,
+  setAsideCameDue,
   getKept,
   keep,
   unkeep,
@@ -164,12 +164,12 @@ describe('archive', () => {
 
   it('archives and unarchives several sessions in one write each, settling every one of their marks', async () => {
     await markNeedsYou(['a', 'b'], [{ reason: 'quit', at: 1 }]);
-    await markLater(['a', 'b'], null, 1);
+    await markSetAside(['a', 'b'], null, 1);
     const before = await auditLines();
     const archived = await archive(['a', 'b']);
     expect(Object.keys(archived).sort()).toEqual(['a', 'b']);
     expect(await getNeedsYou()).toEqual({});
-    expect(await getLater()).toEqual({});
+    expect(await getSetAside()).toEqual({});
     expect(await unarchive(['a', 'b'])).toEqual({});
     expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['archive', 'unarchive']);
   });
@@ -333,59 +333,59 @@ describe('the keep stamps', () => {
 
 describe('the later marks', () => {
   it('are kept per session from the time given, replaced by a new one, and taken off', async () => {
-    await markLater(['a'], null, 5);
-    await markLater(['b'], 100, 5);
-    await markLater(['b'], 200, 6);
-    expect(await getLater()).toEqual({ a: { due: null, at: 5 }, b: { due: 200, at: 6 } });
-    await clearLater(['a']);
-    expect(await getLater()).toEqual({ b: { due: 200, at: 6 } });
+    await markSetAside(['a'], null, 5);
+    await markSetAside(['b'], 100, 5);
+    await markSetAside(['b'], 200, 6);
+    expect(await getSetAside()).toEqual({ a: { due: null, at: 5 }, b: { due: 200, at: 6 } });
+    await clearSetAside(['a']);
+    expect(await getSetAside()).toEqual({ b: { due: 200, at: 6 } });
   });
 
   it('are marked and taken off for several sessions in one write each', async () => {
     const before = await auditLines();
-    await markLater(['a', 'b', 'c'], 100, 5);
-    expect(await getLater()).toEqual({ a: { due: 100, at: 5 }, b: { due: 100, at: 5 }, c: { due: 100, at: 5 } });
-    await clearLater(['a', 'c']);
-    expect(await getLater()).toEqual({ b: { due: 100, at: 5 } });
-    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['markLater', 'clearLater']);
+    await markSetAside(['a', 'b', 'c'], 100, 5);
+    expect(await getSetAside()).toEqual({ a: { due: 100, at: 5 }, b: { due: 100, at: 5 }, c: { due: 100, at: 5 } });
+    await clearSetAside(['a', 'c']);
+    expect(await getSetAside()).toEqual({ b: { due: 100, at: 5 } });
+    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['markSetAside', 'clearSetAside']);
   });
 
   it('stay through the open tabs being written, are taken off by an archive, and forgotten by a delete', async () => {
-    await markLater(['a'], null);
-    await markLater(['b'], null);
+    await markSetAside(['a'], null);
+    await markSetAside(['b'], null);
     await setOpenSessions([], []);
-    expect(Object.keys(await getLater())).toEqual(['a', 'b']);
+    expect(Object.keys(await getSetAside())).toEqual(['a', 'b']);
     await archive(['a']);
     await purgeSession('b');
-    expect(await getLater()).toEqual({});
+    expect(await getSetAside()).toEqual({});
   });
 
   it('come due as needing you, keeping a reason the session already had', async () => {
     await markNeedsYou(['a'], [{ reason: 'quit', at: 5 }]);
-    await markLater(['a', 'b'], 100, 10);
-    await markLater(['c'], 300, 10);
-    await laterCameDue(150);
-    expect(await getLater()).toEqual({ c: { due: 300, at: 10 } });
+    await markSetAside(['a', 'b'], 100, 10);
+    await markSetAside(['c'], 300, 10);
+    await setAsideCameDue(150);
+    expect(await getSetAside()).toEqual({ c: { due: 300, at: 10 } });
     expect(await getNeedsYou()).toEqual({ a: [{ reason: 'quit', at: 5 }], b: [{ reason: 'reminder', at: 100 }] });
   });
 
   it('are none in a file written before they were kept, and an entry without a time or with a day that is not one is dropped', async () => {
     await writeMetaFile({ version: 3 });
-    expect(await getLater()).toEqual({});
+    expect(await getSetAside()).toEqual({});
     await writeMetaFile({ version: 3, later: { a: { due: null, at: 5 }, b: { due: 9, at: 5 }, c: { due: 'monday', at: 5 }, d: { due: null }, e: 'yes' } });
-    expect(await getLater()).toEqual({ a: { due: null, at: 5 }, b: { due: 9, at: 5 } });
+    expect(await getSetAside()).toEqual({ a: { due: null, at: 5 }, b: { due: 9, at: 5 } });
   });
 
   // Pause gave way to the later mark, so nothing a file from before set aside is lost.
   it('take in the tabs a file from before paused, whenever, keeping a mark one already has, and the next write drops the paused list', async () => {
     await writeMetaFile({ version: 3, openSessions: ['a', 'b'], pausedSessions: ['a', 'b', 7], later: { b: { due: 9, at: 5 } } });
-    expect(await getLater()).toEqual({ a: { due: null, at: expect.any(Number) }, b: { due: 9, at: 5 } });
+    expect(await getSetAside()).toEqual({ a: { due: null, at: expect.any(Number) }, b: { due: 9, at: 5 } });
     await setOpenSessions(['a', 'b'], []);
     const raw = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
     expect(raw.pausedSessions).toBeUndefined();
     expect(raw.later).toEqual({ a: { due: null, at: expect.any(Number) }, b: { due: 9, at: 5 } });
     // Written once, the mark is the file's own, so a read no longer makes it again.
-    expect(await getLater()).toEqual(raw.later);
+    expect(await getSetAside()).toEqual(raw.later);
   });
 
   // Its pause still waited for claude to leave at the quit, and pause never started or marked such a tab at launch.

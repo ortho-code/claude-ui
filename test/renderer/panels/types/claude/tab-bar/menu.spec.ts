@@ -16,7 +16,7 @@ test("a tab's kebab opens its session's menu without selecting the tab, and Late
 
   await page.locator('.kebab-menu:not(.submenu) button.menu-row', { hasText: /^Later$/ }).click();
   await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^Whenever$/ }).click();
-  await expect(tab(page, one.title).locator('.tab-later')).toBeVisible();
+  await expect(tab(page, one.title).locator('.tab-set-aside')).toBeVisible();
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
