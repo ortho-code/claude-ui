@@ -1,7 +1,7 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested.
 // renderer.ts wires these to its state and the DOM.
 import { prReference } from '../shared/prs';
-import { timeOfDay, type LeaveButton } from '../shared/settings';
+import type { LeaveButton } from '../shared/settings';
 import type { GroupState, SetAside, NeedsYou, NeedsYouReason, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
 import { PR_CHANGE_RANK } from './prstatus';
@@ -752,19 +752,6 @@ export function momentLabel(at: number): string {
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-
-/** The start of the local day `days` after the one `now` falls in: tomorrow for 1. */
-export function dayStart(now: number, days: number): number {
-  const day = new Date(now);
-  return new Date(day.getFullYear(), day.getMonth(), day.getDate() + days).getTime();
-}
-
-/** `time` ("HH:MM", `Settings.laterTime`) on the local day `day` falls in: when a later mark set for that day comes due, the day's start for a time that does not read. */
-export function onDayAt(day: number, time: string): number {
-  const at = new Date(day);
-  const { hours, minutes } = timeOfDay(time) ?? { hours: 0, minutes: 0 };
-  return new Date(at.getFullYear(), at.getMonth(), at.getDate(), hours, minutes).getTime();
-}
 
 /** What a session's later mark says, on its tooltip and in its menu's header: "Later", or "Later: Mon 3 Nov, 09:00" for one with a day. */
 export function setAsideLabel(setAside: SetAside): string {

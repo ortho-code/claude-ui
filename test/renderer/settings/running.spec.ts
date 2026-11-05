@@ -37,7 +37,7 @@ test('the sessions running at quit come back marked until another choice is save
   await settings.choice.selectOption('start');
   await settings.save.click();
   await expect(settings.dialog).toBeHidden();
-  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '', runningSessionsAtLaunch: 'start', prStatus: true, leaveButton: 'stop-close', laterTime: '09:00', locale: '' }]]);
+  expect(await app.calls('setSettings')).toEqual([[{ launchFlags: '', runningSessionsAtLaunch: 'start', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' }]]);
   expect(await page.evaluate(() => window.__claudeUiFixture.settings.json)).toEqual({ runningSessionsAtLaunch: 'start' });
 
   settings = await open(page);

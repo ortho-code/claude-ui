@@ -7,7 +7,7 @@ import { CONFIG_ROOT, noLocalLayout, settingsFileWith } from '../support/fixture
 const file = (json: unknown): SettingsFileRead => settingsFileWith('settings.json', json);
 const broken: SettingsFileRead = { name: 'settings.json', status: 'unparsable', error: 'expected a comma at line 3, column 3', json: null };
 /** The one save Settings sent, with these flags: a save sends every setting, the others as they were left, which here is the default. */
-const savedWith = (launchFlags: string): unknown[][] => [[{ launchFlags, runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', laterTime: '09:00', locale: '' }]];
+const savedWith = (launchFlags: string): unknown[][] => [[{ launchFlags, runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' }]];
 
 interface SettingsDialog {
   dialog: Locator;

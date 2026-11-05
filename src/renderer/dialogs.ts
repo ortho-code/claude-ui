@@ -1,6 +1,5 @@
-import { timeOfDay } from '../shared/settings';
+import { onDayAt, timeOfDay } from '../shared/time';
 import { calendar } from './calendar';
-import { onDayAt } from './logic';
 import { listen, runModal } from './modal';
 import './dialogs.css';
 

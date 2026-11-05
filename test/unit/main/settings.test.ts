@@ -31,7 +31,7 @@ const jsonc = async (file: string): Promise<unknown> => {
   const read = readJsonc(await fs.readFile(file, 'utf8'));
   return read.ok ? read.json : read.error;
 };
-const defaults = { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', laterTime: '09:00', locale: '' };
+const defaults = { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' };
 const text = (file: string): Promise<string> => fs.readFile(file, 'utf8');
 const gone = (file: string): Promise<void> => expect(fs.access(file)).rejects.toThrow();
 const moves = async (): Promise<unknown> => ((await json(metaFile)) as { moved: unknown }).moved;
@@ -125,6 +125,19 @@ describe('saving from Settings', () => {
     await gone(settingsFile);
   });
 
+  it('writes the set-aside choices as a list, and nothing for the same list again', async () => {
+    writeFileSync(settingsFile, '{\n  // mine\n  "setAside": ["tomorrow"]\n}\n');
+    const settings = await fresh();
+    const saved = await settings.saveSettings({ setAside: ['in 2h', 'whenever'] });
+    expect(saved.refused).toBeNull();
+    expect(saved.view.setAside).toEqual({ value: ['in 2h', 'whenever'], problem: null });
+    expect(await jsonc(settingsFile)).toEqual({ setAside: ['in 2h', 'whenever'] });
+    const written = await text(settingsFile);
+    expect(written).toContain('// mine');
+    await settings.saveSettings({ setAside: ['in 2h', 'whenever'] });
+    expect(await text(settingsFile)).toBe(written);
+  });
+
   it('refuses a value the setting may not hold, writing nothing', async () => {
     const settings = await fresh();
     const saved = await settings.saveSettings({ launchFlags: '--resume other' });
@@ -175,8 +188,10 @@ describe('a new settings.json', () => {
         '  "prStatus": true,',
         '  // What a tab\'s button does: "stop-close" stops a running session and then closes the tab, "stop-archive" stops it and then archives its session, "close" and "archive" do so in one press, and "none" leaves it to the tab\'s menu',
         '  "leaveButton": "stop-close",',
-        '  // The time of day, as "HH:MM" in 24 hours, a session set aside for later needs you again on the day chosen',
-        '  "laterTime": "09:00",',
+        '  // The choices for setting a session aside, offered in the order they come with "whenever" last: "whenever", "in 30m", "in 2h", "in 3d", "in 1w", "tomorrow" or "next monday", a day with a time such as "09:00" or else the time below',
+        '  "setAside": ["tomorrow", "in 1w", "whenever"],',
+        '  // The time of day, as "HH:MM" in 24 hours, a choice without one comes back at',
+        '  "setAsideTime": "09:00",',
         '  // The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',
         '  "locale": ""',
         '}',

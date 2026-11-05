@@ -1,7 +1,9 @@
 import { parseLaunchFlags } from '../shared/flags';
 import type { FolderName } from '../shared/folders';
 import { KEEP_CRASH_LOGS, KEEP_LOG_DATES } from '../shared/log';
-import { languageTag, LEAVE_BUTTON, RUNNING_AT_LAUNCH, timeOfDay, type LeaveButton, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView } from '../shared/settings';
+import { presetsProblem } from '../shared/setaside';
+import { timeOfDay } from '../shared/time';
+import { languageTag, LEAVE_BUTTON, RUNNING_AT_LAUNCH, type LeaveButton, type RunningAtLaunch, type SettingKey, type SettingViews, type SettingsView } from '../shared/settings';
 import type { Settings } from '../shared/types';
 import { listen, runModal } from './modal';
 import { store, type View } from './state/app';
@@ -59,10 +61,16 @@ document.body.insertAdjacentHTML(
         </select>
       </div>
       <div class="dialog-section">
-        <label class="dialog-label" for="settings-later-time">Time a later session comes back</label>
-        <p class="dialog-detail">A session set aside for tomorrow or in a week needs you again at this time on that day. Pick a date…'s time starts at it.</p>
-        <input id="settings-later-time" class="dialog-field" type="time" />
-        <p id="settings-later-time-error" class="dialog-error" hidden></p>
+        <label class="dialog-label" for="settings-set-aside">Choices for Later</label>
+        <p class="dialog-detail">Separated by commas, offered in the order they come, with Pick a date… beside them and whenever last: whenever, in 30m, in 2h, in 3d, in 1w, tomorrow or next monday, a day with a time such as 09:00 or else the time below.</p>
+        <input id="settings-set-aside" class="dialog-field" type="text" spellcheck="false" autocomplete="off" placeholder="tomorrow, in 1w, whenever" />
+        <p id="settings-set-aside-error" class="dialog-error" hidden></p>
+      </div>
+      <div class="dialog-section">
+        <label class="dialog-label" for="settings-set-aside-time">Time of day for a choice without one</label>
+        <p class="dialog-detail">A session set aside for a day without a time needs you again at this time on that day. Pick a date…'s time starts at it.</p>
+        <input id="settings-set-aside-time" class="dialog-field" type="time" />
+        <p id="settings-set-aside-time-error" class="dialog-error" hidden></p>
       </div>
       <div class="dialog-section">
         <label class="dialog-label" for="settings-locale">Language for times and dates</label>
@@ -87,8 +95,10 @@ const settingsFlags = document.getElementById('settings-flags') as HTMLInputElem
 const settingsRunning = document.getElementById('settings-running') as HTMLSelectElement;
 const settingsPrStatus = document.getElementById('settings-pr-status') as HTMLInputElement;
 const settingsLeaveButton = document.getElementById('settings-leave-button') as HTMLSelectElement;
-const settingsLaterTime = document.getElementById('settings-later-time') as HTMLInputElement;
-const settingsLaterTimeError = document.getElementById('settings-later-time-error')!;
+const settingsSetAside = document.getElementById('settings-set-aside') as HTMLInputElement;
+const settingsSetAsideError = document.getElementById('settings-set-aside-error')!;
+const settingsSetAsideTime = document.getElementById('settings-set-aside-time') as HTMLInputElement;
+const settingsSetAsideTimeError = document.getElementById('settings-set-aside-time-error')!;
 const settingsLocale = document.getElementById('settings-locale') as HTMLInputElement;
 const settingsLocaleError = document.getElementById('settings-locale-error')!;
 // The system's language is what an empty field means, so it is what the field shows while empty.
@@ -268,14 +278,31 @@ const leaveButtonField = new SettingField(
   (file, why) => `The choice in ${file} is not used: ${why}`,
 );
 
-const laterTimeField = new SettingField(
-  'laterTime',
+const setAsideField = new SettingField(
+  'setAside',
   {
-    element: settingsLaterTime,
-    // A time input holds "HH:MM" in 24 hours whatever the system's clock shows, or nothing once cleared, which the save refuses.
-    read: () => settingsLaterTime.value,
+    element: settingsSetAside,
+    // The choices as written, comma-separated, which none of them holds; an empty field is the empty list.
+    read: () =>
+      settingsSetAside.value
+        .split(',')
+        .map((choice) => choice.trim())
+        .filter((choice) => choice !== ''),
     write: (value) => {
-      settingsLaterTime.value = value;
+      settingsSetAside.value = value.join(', ');
+    },
+  },
+  (file, why) => `The choices in ${file} are not used: ${why}`,
+);
+
+const setAsideTimeField = new SettingField(
+  'setAsideTime',
+  {
+    element: settingsSetAsideTime,
+    // A time input holds "HH:MM" in 24 hours whatever the system's clock shows, or nothing once cleared, which the save refuses.
+    read: () => settingsSetAsideTime.value,
+    write: (value) => {
+      settingsSetAsideTime.value = value;
     },
   },
   (file, why) => `The time in ${file} is not used: ${why}`,
@@ -294,7 +321,7 @@ const localeField = new SettingField(
 );
 
 /** Every setting's field. */
-const fields = [flagsField, runningField, prStatusField, leaveButtonField, laterTimeField, localeField];
+const fields = [flagsField, runningField, prStatusField, leaveButtonField, setAsideField, setAsideTimeField, localeField];
 
 /** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with the file as a whole. */
 function render(view: SettingsView): void {
@@ -316,7 +343,8 @@ export async function openSettings(): Promise<void> {
   keepSettings(await window.claudeUi.getSettings());
   render(store.get().settings!);
   settingsError.hidden = true;
-  settingsLaterTimeError.hidden = true;
+  settingsSetAsideError.hidden = true;
+  settingsSetAsideTimeError.hidden = true;
   settingsLocaleError.hidden = true;
   renderFolderRows(await window.claudeUi.getFolders());
   settingsOverlay.hidden = false;
@@ -332,10 +360,18 @@ export async function openSettings(): Promise<void> {
         settingsError.hidden = false;
         return;
       }
-      const laterTime = laterTimeField.value();
-      settingsLaterTimeError.hidden = timeOfDay(laterTime) !== null;
-      if (!settingsLaterTimeError.hidden) {
-        settingsLaterTimeError.textContent = 'Give a time of day.';
+      const setAside = setAsideField.value();
+      // The setting's own check, so the field refuses what the file would not use.
+      const choicesWrong = presetsProblem(setAside);
+      settingsSetAsideError.hidden = choicesWrong === null;
+      if (choicesWrong !== null) {
+        settingsSetAsideError.textContent = choicesWrong;
+        return;
+      }
+      const setAsideTime = setAsideTimeField.value();
+      settingsSetAsideTimeError.hidden = timeOfDay(setAsideTime) !== null;
+      if (!settingsSetAsideTimeError.hidden) {
+        settingsSetAsideTimeError.textContent = 'Give a time of day.';
         return;
       }
       const locale = localeField.value();
@@ -344,7 +380,7 @@ export async function openSettings(): Promise<void> {
         settingsLocaleError.textContent = 'Give a language tag such as en-GB, or leave it empty for the system\'s.';
         return;
       }
-      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value(), prStatus: prStatusField.value(), leaveButton: leaveButtonField.value(), laterTime, locale });
+      const saved = await window.claudeUi.setSettings({ launchFlags, runningSessionsAtLaunch: runningField.value(), prStatus: prStatusField.value(), leaveButton: leaveButtonField.value(), setAside, setAsideTime, locale });
       // Main does not tell the window of a change that is all its own write, so the settings as the save left them are kept here.
       keepSettings(saved.view);
       if (saved.refused !== null) {

@@ -10,7 +10,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', laterTime: '09:00', locale: '' });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' });
   });
 
   it("take a language of the file in its usual case, the system's unless told otherwise, and leave out one that is no language tag", () => {
@@ -23,11 +23,33 @@ describe('the settings in force', () => {
     }
   });
 
-  it('take a time of day of the file for a later session, 09:00 unless told otherwise, and leave out one that is no time in 24 hours', () => {
-    expect(settingsView(holding({ laterTime: '17:30' })).laterTime).toEqual({ value: '17:30', problem: null });
+  it('take a time of day of the file for a set-aside choice without one, 09:00 unless told otherwise, and leave out one that is no time in 24 hours', () => {
+    expect(settingsView(holding({ setAsideTime: '17:30' })).setAsideTime).toEqual({ value: '17:30', problem: null });
     for (const wrong of ['9:00', '24:00', '09:60', '9am', 900, null]) {
-      expect(settingsView(holding({ laterTime: wrong })).laterTime).toEqual({ value: '09:00', problem: 'It has to be a time of day as "HH:MM", in 24 hours, such as "09:00".' });
+      expect(settingsView(holding({ setAsideTime: wrong })).setAsideTime).toEqual({ value: '09:00', problem: 'It has to be a time of day as "HH:MM", in 24 hours, such as "09:00".' });
     }
+  });
+
+  it("take the file's set-aside choices, today's three unless told otherwise, and none of a list with one that does not read", () => {
+    expect(settingsView(missing).setAside).toEqual({ value: ['tomorrow', 'in 1w', 'whenever'], problem: null });
+    expect(settingsView(holding({ setAside: ['in 2h', 'next monday 09:00'] })).setAside).toEqual({ value: ['in 2h', 'next monday 09:00'], problem: null });
+    expect(settingsView(holding({ setAside: [] })).setAside).toEqual({ value: [], problem: null });
+    expect(settingsView(holding({ setAside: ['in 2h', 'nxt monday'] })).setAside).toEqual({
+      value: ['tomorrow', 'in 1w', 'whenever'],
+      problem: '"nxt monday" is not a choice the app reads: write "whenever", "in 30m", "in 2h", "in 3d 14:00", "in 1w", "tomorrow 09:00" or "next monday 09:00", a time only where a day is.',
+    });
+    expect(settingsView(holding({ setAside: 'tomorrow' })).setAside.problem).toBe('It has to be a list of choices, such as ["tomorrow", "in 1w", "whenever"].');
+  });
+
+  it('take laterTime, the name the time of day had before it was released, as no setting', () => {
+    expect(settingsView(holding({ laterTime: '17:30' })).notes).toEqual(['settings.json: "laterTime" is not a setting the app has.']);
+  });
+
+  it('write a list of choices only when it differs from the one in force, item by item', () => {
+    const view = settingsView(holding({ setAside: ['in 2h', 'whenever'] }));
+    expect(fileChanges(view, { setAside: ['in 2h', 'whenever'] })).toEqual([]);
+    expect(fileChanges(view, { setAside: ['whenever', 'in 2h'] })).toEqual([{ key: 'setAside', value: ['whenever', 'in 2h'] }]);
+    expect(fileChanges(settingsView(missing), { setAside: ['tomorrow', 'in 1w', 'whenever'] })).toEqual([]);
   });
 
   it("take a choice of the file for a tab's button, stop then close unless told otherwise, and leave out one that is no choice", () => {

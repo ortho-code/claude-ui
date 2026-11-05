@@ -1,8 +1,10 @@
 import { prReference } from '../../../../shared/prs';
 import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { defaultSettings } from '../../../../shared/defaults';
+import { presetMoment, presetWords, setAsideOffers } from '../../../../shared/setaside';
+import { dayStart } from '../../../../shared/time';
 import { confirmDanger, confirmDelete, pickMoment, promptText } from '../../../dialogs';
-import { clockLines, clockOf, dayStart, entityKey, folderName, momentLabel, onDayAt, leaveAction, leaveLabel, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
+import { clockLines, clockOf, entityKey, folderName, momentLabel, leaveAction, leaveLabel, relativeTime, sessionLabel, unstartableReason, type LeaveAction } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
 import { verdictOf } from '../../../prstatus';
 import { store, type TabState } from '../../../state/app';
@@ -325,25 +327,28 @@ function setAsideItems(session: SessionSummary): MenuItem[] {
 }
 
 /**
- * Later's choices, one list for a session's menu and the bar of selecting several: Tomorrow and In a week at the time of day the settings say, Pick a date…, and Whenever last, so a day is what comes to hand first, since an undated mark brings nothing back by itself (decided 2026-10-29).
- * `what` names what is set aside in Pick a date…'s title, a session's title or a count, and `mark` sets the mark, the moment it comes back or null for whenever.
+ * Later's choices, one list for a session's menu and the bar of selecting several: the settings' choices (`setAside`, shared/setaside.ts) in the order they would come, each named with its moment, then Pick a date…, and Whenever last where the settings have it, so a day is what comes to hand first, since an undated mark brings nothing back by itself (decided 2026-10-29).
+ * Worked out when the menu opens; `what` names what is set aside in Pick a date…'s title, a session's title or a count, and `mark` sets the mark, the moment it comes back or null for whenever.
  */
 export function setAsideChoices(what: string, mark: (due: number | null) => void): MenuItem[] {
   const now = Date.now();
-  // At the time of day the settings say, on the day chosen (decided 2026-10-29).
-  const time = store.get().settings?.laterTime.value ?? defaultSettings().laterTime;
-  const tomorrow = onDayAt(dayStart(now, 1), time);
-  const inAWeek = onDayAt(dayStart(now, 7), time);
+  const settings = store.get().settings;
+  const presets = settings?.setAside.value ?? defaultSettings().setAside;
+  // A choice without its own time comes back at the time of day the settings say (decided 2026-10-29).
+  const time = settings?.setAsideTime.value ?? defaultSettings().setAsideTime;
   const pick = async (): Promise<void> => {
     // What is set aside in the title, as the Note dialog has it, so which one you clicked is what it says first, and the line under it says what the pick does (decided 2026-10-29).
     const due = await pickMoment(`Later: ${what}`, 'Pick the day and time it comes back as needing you.', dayStart(now, 1), time);
     if (due !== null) mark(due);
   };
+  const offers = setAsideOffers(presets, now, time);
+  const dated = offers.filter((offer) => offer.due !== null);
+  const whenever = offers.some((offer) => offer.due === null);
   return [
-    { label: `Tomorrow (${momentLabel(tomorrow)})`, onSelect: () => mark(tomorrow) },
-    { label: `In a week (${momentLabel(inAWeek)})`, onSelect: () => mark(inAWeek) },
+    // Named by its moment as the menu opened, and set by its moment as pressed, so "in 2h" counts from the press.
+    ...dated.map(({ preset, due }): MenuItem => ({ label: `${presetWords(preset)} (${momentLabel(due!)})`, onSelect: () => mark(presetMoment(preset, Date.now(), time)) })),
     { label: 'Pick a date…', onSelect: () => void pick() },
-    { label: 'Whenever', onSelect: () => mark(null) },
+    ...(whenever ? [{ label: 'Whenever', onSelect: () => mark(null) }] : []),
   ];
 }
 

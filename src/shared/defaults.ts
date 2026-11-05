@@ -1,11 +1,11 @@
 import type { Settings, UiState } from './types';
 
 /**
- * What the app does before anyone has chosen otherwise: nothing added to the launch line, what was running when it closed brought back at launch marked as needing you, without starting, so it costs no process until you open it, PR status asked of GitHub, a stopped tab's button closing it, a later session back at 09:00, and times and dates in the system's language.
+ * What the app does before anyone has chosen otherwise: nothing added to the launch line, what was running when it closed brought back at launch marked as needing you, without starting, so it costs no process until you open it, PR status asked of GitHub, a stopped tab's button closing it, a session set aside tomorrow, in a week or whenever, back at 09:00, and times and dates in the system's language.
  * Under the settings file (shared/settings.ts); meta's `settings` falls back to the launch flags here.
  */
 export function defaultSettings(): Settings {
-  return { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', laterTime: '09:00', locale: '' };
+  return { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' };
 }
 
 /**

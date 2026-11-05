@@ -52,8 +52,8 @@ test("Later's days: tomorrow and in a week, the same weekday, named and marked a
   await page.clock.setFixedTime(THURSDAY);
   await app.boot(fixture);
   await (await menuItem(page, one.title, 'Later')).click();
-  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Tomorrow (Fri 30 Oct, 09:00)', 'In a week (Thu 5 Nov, 09:00)', 'Pick a date…', 'Whenever']);
-  await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^In a week/ }).click();
+  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Tomorrow (Fri 30 Oct, 09:00)', 'In 1 week (Thu 5 Nov, 09:00)', 'Pick a date…', 'Whenever']);
+  await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^In 1 week/ }).click();
   expect((await app.calls('markSetAside')).map(([ids, due]) => [ids, due])).toEqual([[[one.id], await momentInPage(page, 2026, 10, 5, 9, 0)]]);
   for (const mark of marks(page)) await expect(mark).toHaveAttribute('data-tooltip', 'Later: Thu 5 Nov, 09:00');
 
@@ -65,7 +65,30 @@ test('on a Sunday, in a week is the next Sunday, not the same day as tomorrow', 
   await page.clock.setFixedTime(new Date(2026, 10, 1, 10, 0));
   await app.boot(fixture);
   await (await menuItem(page, one.title, 'Later')).click();
-  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Tomorrow (Mon 2 Nov, 09:00)', 'In a week (Sun 8 Nov, 09:00)', 'Pick a date…', 'Whenever']);
+  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['Tomorrow (Mon 2 Nov, 09:00)', 'In 1 week (Sun 8 Nov, 09:00)', 'Pick a date…', 'Whenever']);
+});
+
+test("the settings' own choices come in the order they would come, Pick a date… before Whenever, and one in hours counts from the press", async ({ app, page }) => {
+  await page.clock.install({ time: THURSDAY });
+  await app.boot({ ...fixture, settings: settingsFileWith('settings.json', { setAside: ['whenever', 'next monday', 'in 2h', 'in 1d', 'tomorrow 08:00'] }) });
+  await (await menuItem(page, one.title, 'Later')).click();
+  // In 1 day and tomorrow at 08:00 fall on the same day at different times, so both stay.
+  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['In 2 hours (Thu 29 Oct, 17:30)', 'Tomorrow (Fri 30 Oct, 08:00)', 'In 1 day (Fri 30 Oct, 09:00)', 'Next Monday (Mon 2 Nov, 09:00)', 'Pick a date…', 'Whenever']);
+  await page.clock.runFor(5 * 60_000);
+  await page.locator('.kebab-menu.submenu button.menu-row', { hasText: /^In 2 hours/ }).click();
+  // The installed clock runs on between steps, so two hours from the press is a moment in the second after 17:35, never 17:30 as the label said.
+  const [[ids, due]] = (await app.calls('markSetAside')) as [string[], number][];
+  const from = await momentInPage(page, 2026, 9, 29, 17, 35);
+  expect(ids).toEqual([one.id]);
+  expect(due).toBeGreaterThanOrEqual(from);
+  expect(due).toBeLessThan(from + 60_000);
+});
+
+test('without whenever in the settings, Pick a date… comes last, and two choices for one moment show once', async ({ app, page }) => {
+  await page.clock.setFixedTime(THURSDAY);
+  await app.boot({ ...fixture, settings: settingsFileWith('settings.json', { setAside: ['in 1d', 'tomorrow'] }) });
+  await (await menuItem(page, one.title, 'Later')).click();
+  await expect(page.locator('.kebab-menu.submenu button.menu-row')).toHaveText(['In 1 day (Fri 30 Oct, 09:00)', 'Pick a date…']);
 });
 
 test('Pick a date… asks for a day no earlier than tomorrow and a time starting at the settings\', naming the session in its title as the Note dialog does, and marks the session until that moment', async ({ app, page }) => {

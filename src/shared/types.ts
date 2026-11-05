@@ -347,8 +347,10 @@ export interface Settings {
   prStatus: boolean;
   /** What a tab's button does, on the tab and its live strip row while the strip lists it: stop a running session and then close the tab or archive its session, close or archive in one press, claude asked to leave first, or no button at all, leaving it to the tab's menu. */
   leaveButton: LeaveButton;
-  /** The time of day a session set aside for later comes back as needing you, on the day chosen, as `"HH:MM"` in 24 hours; Pick a date… starts at it. */
-  laterTime: string;
+  /** The choices for setting a session aside, as written (shared/setaside.ts), offered in the order they would come with Whenever last. */
+  setAside: string[];
+  /** The time of day a choice without one comes back at, as `"HH:MM"` in 24 hours; Pick a date… starts at it. */
+  setAsideTime: string;
   /** The language the app formats times and dates in, as a BCP 47 tag such as `"en-GB"`, or `""` for the system's; a time field follows it from the next launch, the rest at once. */
   locale: string;
 }

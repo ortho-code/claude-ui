@@ -6,8 +6,6 @@ import {
   statusLabel,
   stripLine,
   dayLabel,
-  dayStart,
-  onDayAt,
   momentLabel,
   setAsideLabel,
   sessionPart,
@@ -1015,18 +1013,6 @@ describe('sessionPart', () => {
 describe('the days a later mark names', () => {
   // Local times, as the menu makes them: Thursday 29 October 2026, mid-afternoon.
   const thursday = new Date(2026, 9, 29, 15, 30).getTime();
-
-  it('starts tomorrow at its midnight, across the end of a month too', () => {
-    expect(dayStart(thursday, 1)).toBe(new Date(2026, 9, 30).getTime());
-    expect(dayStart(new Date(2026, 9, 31, 23, 59).getTime(), 1)).toBe(new Date(2026, 10, 1).getTime());
-  });
-
-  it('comes due at the time of day given on the day chosen, a week on being the same weekday', () => {
-    expect(onDayAt(dayStart(thursday, 1), '09:00')).toBe(new Date(2026, 9, 30, 9, 0).getTime());
-    expect(onDayAt(dayStart(thursday, 7), '17:45')).toBe(new Date(2026, 10, 5, 17, 45).getTime());
-    // A time that does not read leaves the day's start.
-    expect(onDayAt(dayStart(thursday, 1), '9am')).toBe(new Date(2026, 9, 30).getTime());
-  });
 
   it('names a day short, a moment by its day and time, and a mark by its moment or as whenever', () => {
     expect(dayLabel(new Date(2026, 10, 2).getTime())).toBe('Mon 2 Nov');
