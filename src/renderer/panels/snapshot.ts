@@ -39,7 +39,7 @@ export interface SessionsSnapshot {
 }
 
 /** The slices the snapshot is made of: what a panel that watches sessions is told about. */
-export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'archived', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'setAside', 'groupState', 'prStatus'] as const satisfies readonly (keyof AppState)[];
+export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'setAside', 'groupState', 'prStatus'] as const satisfies readonly (keyof AppState)[];
 
 /** Every session not archived, as the switcher counts them, each once, by id, so the same sessions in a new order are the same snapshot. */
 export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.get()): SessionsSnapshot {

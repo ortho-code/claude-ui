@@ -35,9 +35,9 @@ import {
   togglePin,
   getHistoryPins,
   toggleHistoryPin,
-  getArchived,
-  archive,
-  unarchive,
+  getFinished,
+  finish,
+  unfinish,
   purgeSession,
   getOpenSessions,
   getRunningSessions,
@@ -153,41 +153,41 @@ describe('history pins', () => {
   });
 });
 
-describe('archive', () => {
+describe('finish', () => {
   it('archives with a timestamp, keeps it on a second archive, and unarchives', async () => {
-    const archived = await archive(['conv1']);
-    expect(Object.keys(archived)).toEqual(['conv1']);
-    expect(archived.conv1).toBeGreaterThan(0);
-    expect(await archive(['conv1'])).toEqual(archived);
-    expect(await unarchive(['conv1'])).toEqual({});
+    const finished = await finish(['conv1']);
+    expect(Object.keys(finished)).toEqual(['conv1']);
+    expect(finished.conv1).toBeGreaterThan(0);
+    expect(await finish(['conv1'])).toEqual(finished);
+    expect(await unfinish(['conv1'])).toEqual({});
   });
 
   it('archives and unarchives several sessions in one write each, settling every one of their marks', async () => {
     await markNeedsYou(['a', 'b'], [{ reason: 'quit', at: 1 }]);
     await markSetAside(['a', 'b'], null, 1);
     const before = await auditLines();
-    const archived = await archive(['a', 'b']);
-    expect(Object.keys(archived).sort()).toEqual(['a', 'b']);
+    const finished = await finish(['a', 'b']);
+    expect(Object.keys(finished).sort()).toEqual(['a', 'b']);
     expect(await getNeedsYou()).toEqual({});
     expect(await getSetAside()).toEqual({});
-    expect(await unarchive(['a', 'b'])).toEqual({});
-    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['archive', 'unarchive']);
+    expect(await unfinish(['a', 'b'])).toEqual({});
+    expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['finish', 'unfinish']);
   });
 
   it('reads a legacy archived id-array as a map with unknown (0) timestamps', async () => {
     await writeMetaFile({ pinned: [], openSessions: [], archived: ['a', 'b'], version: 2 });
-    expect(await getArchived()).toEqual({ a: 0, b: 0 });
+    expect(await getFinished()).toEqual({ a: 0, b: 0 });
   });
 });
 
 describe('purgeSession', () => {
   it('drops the session from pins, open tabs, running tabs and archive', async () => {
     await togglePin('conv1');
-    await archive(['conv1']);
+    await finish(['conv1']);
     await setOpenSessions(['conv1', 'conv2'], ['conv1']);
     await purgeSession('conv1');
     expect(await getPinned()).toEqual([]);
-    expect(await getArchived()).toEqual({});
+    expect(await getFinished()).toEqual({});
     expect(await getOpenSessions()).toEqual(['conv2']);
     expect(await getRunningSessions()).toEqual([]);
   });
@@ -236,7 +236,7 @@ describe('sessions that need you', () => {
 
   it('are taken off by an archive, and forgotten by a delete', async () => {
     await markNeedsYou(['a', 'b'], [{ reason: 'quit', at: 1 }]);
-    await archive(['a']);
+    await finish(['a']);
     await purgeSession('b');
     expect(await getNeedsYou()).toEqual({});
   });
@@ -317,7 +317,7 @@ describe('the keep stamps', () => {
     await unkeep(['b']);
     expect(await getKept()).toEqual({ a: 5 });
     expect((await auditLines()).slice(before.length).map((line) => / (\w+) open=/.exec(line)?.[1])).toEqual(['keep', 'unkeep']);
-    await archive(['a']);
+    await finish(['a']);
     expect(await getKept()).toEqual({ a: 5 });
     await purgeSession('a');
     expect(await getKept()).toEqual({});
@@ -355,7 +355,7 @@ describe('the later marks', () => {
     await markSetAside(['b'], null);
     await setOpenSessions([], []);
     expect(Object.keys(await getSetAside())).toEqual(['a', 'b']);
-    await archive(['a']);
+    await finish(['a']);
     await purgeSession('b');
     expect(await getSetAside()).toEqual({});
   });
@@ -469,7 +469,7 @@ describe('migrateToSessionKeys', () => {
     await migrateToSessionKeys(new Map([['conv1', 'sess1'], ['conv2', 'sess2']]));
     expect(await getPinned()).toEqual(['sess1']);
     expect(await getOpenSessions()).toEqual(['sess1', 'sess2']);
-    expect(await getArchived()).toEqual({ sess2: 123 });
+    expect(await getFinished()).toEqual({ sess2: 123 });
     // Already at version 3: a second run must not remap again.
     await migrateToSessionKeys(new Map([['sess1', 'other']]));
     expect(await getPinned()).toEqual(['sess1']);

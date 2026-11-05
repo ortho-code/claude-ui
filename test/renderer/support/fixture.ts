@@ -14,7 +14,7 @@ export interface BridgeFixture {
   pinned: string[];
   archived: Record<string, number>;
   /** Why main's write of an archive mark fails, as its error would say, such as `meta.json` that cannot be written; null for one that succeeds. */
-  archiveFails: string | null;
+  finishFails: string | null;
   notes: Record<string, string>;
   /** Session -> why it needs you, as meta keeps it; marked and cleared by main's own rules. */
   needsYou: Record<string, NeedsYou[]>;
@@ -145,7 +145,7 @@ export function defaultFixture(): BridgeFixture {
     sessions: [one],
     pinned: [],
     archived: {},
-    archiveFails: null,
+    finishFails: null,
     notes: {},
     needsYou: {},
     // Kept before, so a check with linked PRs sees no first run unless it asks for one.

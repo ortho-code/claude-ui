@@ -450,11 +450,11 @@ export interface ClaudeUiApi {
   /** Pin request or message `id` with what a list of pins shows of it, or unpin it; returns every history pin after the change. */
   toggleHistoryPin(id: string, pin: Pick<HistoryPin, 'kind' | 'session' | 'text' | 'time'>): Promise<Record<string, HistoryPin>>;
   /** Archived session ids mapped to when they were archived (epoch ms; 0 = unknown). */
-  getArchived(): Promise<Record<string, number>>;
+  getFinished(): Promise<Record<string, number>>;
   /** Archive sessions in one write, each keeping when it was archived if it already is, so a second call leaves the archived map as it is; resolves to the updated archived map. */
-  archive(ids: string[]): Promise<Record<string, number>>;
+  finish(ids: string[]): Promise<Record<string, number>>;
   /** Unarchive sessions in one write, whatever their state, so a second call leaves the archived map as it is; resolves to the updated archived map. */
-  unarchive(ids: string[]): Promise<Record<string, number>>;
+  unfinish(ids: string[]): Promise<Record<string, number>>;
   /**
    * Delete a session: move its transcript file to the trash and drop it from metadata.
    * The renderer confirms first via its own modal.

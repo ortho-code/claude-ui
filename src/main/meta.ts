@@ -8,7 +8,7 @@ import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { archivedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, NEEDS_YOU_REASONS, PR_CHANGES, purgedSession, togglePinned, unarchived, unkept } from '../shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, NEEDS_YOU_REASONS, PR_CHANGES, purgedSession, togglePinned, clearedFinished, unkept } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
@@ -610,16 +610,16 @@ export function toggleHistoryPin(id: string, pin: Pick<HistoryPin, 'kind' | 'ses
   });
 }
 
-export function getArchived(): Promise<Record<string, number>> {
+export function getFinished(): Promise<Record<string, number>> {
   return serialize(async () => (await readMeta()).archived);
 }
 
 /** Archive sessions, in one write, which settles anything each needed you for, and what you set it aside for: an archived session is put away. */
-export function archive(ids: string[]): Promise<Record<string, number>> {
-  return update('archive', (meta) => {
+export function finish(ids: string[]): Promise<Record<string, number>> {
+  return update('finish', (meta) => {
     const now = Date.now();
     for (const id of ids) {
-      meta.archived = archivedFrom(meta.archived, id, now);
+      meta.archived = finishedFrom(meta.archived, id, now);
       meta.needsYou = clearedNeedsYou(meta.needsYou, id);
       meta.setAside = clearedSetAside(meta.setAside, id);
     }
@@ -628,9 +628,9 @@ export function archive(ids: string[]): Promise<Record<string, number>> {
 }
 
 /** Unarchive sessions, in one write. */
-export function unarchive(ids: string[]): Promise<Record<string, number>> {
-  return update('unarchive', (meta) => {
-    for (const id of ids) meta.archived = unarchived(meta.archived, id);
+export function unfinish(ids: string[]): Promise<Record<string, number>> {
+  return update('unfinish', (meta) => {
+    for (const id of ids) meta.archived = clearedFinished(meta.archived, id);
     return meta.archived;
   });
 }

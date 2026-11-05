@@ -103,8 +103,8 @@ test('a second close pressed while the first is being asked ends nothing, and th
 
 // Every confirm is the app's one confirm dialog, whoever asks it: one whose ask comes while another is up would rewrite it and take its answer as its own, so it is answered no, and asks nothing.
 test("a shell's close whose question comes while another is being asked ends nothing, and the answer is the other's alone", async ({ app, page }) => {
-  const archived = session({ title: 'An archived session' });
-  await app.boot({ ...layout, sessions: [archived], archived: { [archived.id]: 1 }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } });
+  const finished = session({ title: 'An archived session' });
+  await app.boot({ ...layout, sessions: [finished], archived: { [finished.id]: 1 }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } });
   await newTerminal(page).click();
   await expect.poll(() => app.calls('startShell')).toHaveLength(1);
   await running(page, 1, 'npm run dev');
@@ -112,12 +112,12 @@ test("a shell's close whose question comes while another is being asked ends not
   // The shell's close is still finding out what runs in it when a delete is pressed, which asks first.
   await app.hold('terminalForeground');
   await panelTab(page, 'demo').locator('.tab-close').click();
-  await row(page, archived.title).locator('.delete-btn').click();
-  await expect(question(page).locator('#confirm-message')).toHaveText(`Delete "${archived.title}"?`);
+  await row(page, finished.title).locator('.delete-btn').click();
+  await expect(question(page).locator('#confirm-message')).toHaveText(`Delete "${finished.title}"?`);
   await app.release('terminalForeground');
   // A frame for the shell's answer to arrive and ask.
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(done)));
-  await expect(question(page).locator('#confirm-message')).toHaveText(`Delete "${archived.title}"?`);
+  await expect(question(page).locator('#confirm-message')).toHaveText(`Delete "${finished.title}"?`);
 
   await question(page).locator('#confirm-cancel').click();
   await expect(question(page)).toBeHidden();

@@ -154,7 +154,7 @@ button:where(:not(.icon-btn)):is(:hover, .menu-open),
 }
 
 /* THE ICON BUTTON — every control that is a single 14px mark you can click: the kebabs, the pin, the row's archive and delete, the tab close, the toast and notification closes, the header actions, the split buttons' halves.
-   One rule, because these were a dozen near-identical blocks kept in step by hand, with comments that said so ("Match the session-row kebab exactly", "standard control box — see .unarchive-btn").
+   One rule, because these were a dozen near-identical blocks kept in step by hand, with comments that said so ("Match the session-row kebab exactly", "standard control box — see .unfinish-btn").
    They had already drifted: .pin, #toast-close and .notif-close were missing the transparent border below, so those three grew by 2px when hovered while the rest held still.
    The transparent border is load-bearing, not decoration: it reserves the space a bordered one's hover outline would otherwise add, and keeps every kind the same size.
    A control that wants a RESTING border takes .composite, .large, or .framed for one that is neither two halves nor a header action, instead. */

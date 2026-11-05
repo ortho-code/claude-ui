@@ -75,8 +75,8 @@ function readSeen(): Promise<void> {
 
 /** The sessions not archived that link `pr`: whom its change marks, running or not (decided 2026-10-29). */
 function linking(pr: string): string[] {
-  const { sessions, archived } = store.get();
-  return sessions.filter((s) => !archived.has(entityKey(s)) && s.prs.some((linked) => prReference(linked) === pr)).map(entityKey);
+  const { sessions, finished } = store.get();
+  return sessions.filter((s) => !finished.has(entityKey(s)) && s.prs.some((linked) => prReference(linked) === pr)).map(entityKey);
 }
 
 /**

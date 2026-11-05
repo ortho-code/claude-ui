@@ -37,12 +37,12 @@ test('Archive on a running session asks its claude to leave, keeps the tab until
   // Still there, stopping, for what claude may ask, and not archived while it runs.
   await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bstopping\b/);
   await expect(row(page, one.title)).toHaveCount(1);
-  expect(await app.calls('archive')).toEqual([]);
+  expect(await app.calls('finish')).toEqual([]);
 
   await app.emit('onTerminalExit', FIRST, 0);
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect(row(page, one.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([[[one.id]]]);
+  expect(await app.calls('finish')).toEqual([[[one.id]]]);
 });
 
 // Esc at claude's question on the way out takes it back to its prompt, and the next prompt says it stayed: the archive goes with the stop.
@@ -61,7 +61,7 @@ test('a prompt submitted after Archive calls it off: the tab stays live, and cla
   await app.emit('onTerminalExit', FIRST, 0);
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect(row(page, one.title)).toHaveCount(1);
-  expect(await app.calls('archive')).toEqual([]);
+  expect(await app.calls('finish')).toEqual([]);
 });
 
 // A `/resume` fires no prompt's report (measured), and both mean you went on working, as a prompt does: the archive goes, rather than archiving the session the tab went on in (decided 2026-10-28).
@@ -81,7 +81,7 @@ for (const source of ['resume', 'clear'] as const) {
     await app.emit('onTerminalExit', FIRST, 0);
     await expect(tabs(page)).toHaveCount(0);
     await expect(row(page, one.title)).toHaveCount(1);
-    expect(await app.calls('archive')).toEqual([]);
+    expect(await app.calls('finish')).toEqual([]);
   });
 }
 
@@ -101,12 +101,12 @@ test('an archive whose claude resumes a session another tab runs is called off, 
   await expect.poll(() => app.calls('killTerminal')).toEqual([[FIRST]]);
   await app.emit('onTerminalExit', FIRST, 143);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
-  expect(await app.calls('archive')).toEqual([]);
+  expect(await app.calls('finish')).toEqual([]);
 });
 
 // The tab is gone by then, so the toast is all that says the session is still in the list.
 test("an archive main fails to write at claude's exit says so, and leaves the session in the list", async ({ app, page }) => {
-  await app.boot({ ...fixture, archiveFails: 'meta.json could not be written' });
+  await app.boot({ ...fixture, finishFails: 'meta.json could not be written' });
   await startLive(page, app);
   await (await menuItem(page, 'Archive')).click();
   await app.emit('onTerminalExit', FIRST, 0);
@@ -115,7 +115,7 @@ test("an archive main fails to write at claude's exit says so, and leaves the se
 });
 
 test('an archive main fails to write for a session with no tab says so, and leaves it in the list', async ({ app, page }) => {
-  await app.boot({ ...fixture, archiveFails: 'meta.json could not be written' });
+  await app.boot({ ...fixture, finishFails: 'meta.json could not be written' });
   await (await menuItem(page, 'Archive')).click();
   await expect(page.locator('#toast-message')).toHaveText(`Couldn't archive "${one.title}". It's still here.`);
   await expect(row(page, one.title)).toHaveCount(1);
@@ -125,16 +125,16 @@ test('an archive claude has not left is forced by the Force archive, and the for
   await app.boot(fixture);
   await startLive(page, app);
   await (await menuItem(page, 'Archive')).click();
-  await expect(button(page)).toHaveAttribute('data-mark', 'archive');
+  await expect(button(page)).toHaveAttribute('data-mark', 'finish');
   await expect(button(page)).toHaveAttribute('data-tooltip', 'Archiving…');
   await expect(button(page)).toHaveAttribute('data-tooltip', /^Force archive/);
-  await expect(button(page)).toHaveAttribute('data-mark', 'force-archive');
+  await expect(button(page)).toHaveAttribute('data-mark', 'force-finish');
   await button(page).click();
   expect(await app.calls('killTerminal')).toEqual([[FIRST]]);
 
   await app.emit('onTerminalExit', FIRST, 143);
   await expect(tab(page, one.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([[[one.id]]]);
+  expect(await app.calls('finish')).toEqual([[[one.id]]]);
 });
 
 // A claude already asked to leave is asked nothing more, since a second pair of presses ends what it asks on its way out unanswered: what its exit does changes, as Close changes it.
@@ -145,16 +145,16 @@ for (const leave of ['Stop session', 'Close tab'] as const) {
     await (await menuItem(page, leave)).click();
     expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
 
-    const archive = await menuItem(page, 'Archive');
-    await expect(archive).not.toHaveClass(/\bunavailable\b/);
-    await archive.click();
+    const finish = await menuItem(page, 'Archive');
+    await expect(finish).not.toHaveClass(/\bunavailable\b/);
+    await finish.click();
     expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
-    expect(await app.calls('archive')).toEqual([]);
+    expect(await app.calls('finish')).toEqual([]);
 
     await app.emit('onTerminalExit', FIRST, 0);
     await expect(tab(page, one.title)).toHaveCount(0);
     await expect(row(page, one.title)).toHaveCount(0);
-    expect(await app.calls('archive')).toEqual([[[one.id]]]);
+    expect(await app.calls('finish')).toEqual([[[one.id]]]);
   });
 }
 
@@ -164,11 +164,11 @@ test('Archive is unavailable while the tab starts, saying so, and archives nothi
   await app.hold('startTerminal');
   await row(page, one.title).click();
   await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
-  const archive = await menuItem(page, 'Archive');
-  await expect(archive).toHaveClass(/\bunavailable\b/);
-  await expect(archive).toHaveAttribute('data-tooltip', 'Starting…');
-  await archive.click({ force: true });
-  expect(await app.calls('archive')).toEqual([]);
+  const finish = await menuItem(page, 'Archive');
+  await expect(finish).toHaveClass(/\bunavailable\b/);
+  await expect(finish).toHaveAttribute('data-tooltip', 'Starting…');
+  await finish.click({ force: true });
+  expect(await app.calls('finish')).toEqual([]);
   expect(await app.calls('closeTerminal')).toEqual([]);
 });
 
@@ -179,6 +179,6 @@ test('a quit while an archive waits for claude writes no mark, and keeps the tab
   await (await menuItem(page, 'Archive')).click();
   expect(await app.emit('onQuitting')).toBe(1);
   await app.emit('onTerminalExit', FIRST, 143);
-  expect(await app.calls('archive')).toEqual([]);
+  expect(await app.calls('finish')).toEqual([]);
   expect((await app.calls('setOpenSessions')).at(-1)).toEqual([[one.id], [one.id]]);
 });

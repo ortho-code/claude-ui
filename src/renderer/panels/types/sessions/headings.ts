@@ -133,10 +133,10 @@ export function createProjectSection(name: string): ProjectSectionEls {
   });
   section.appendChild(heading);
   // The line a group shows when it is empty, for a project whose sessions are all archived; reconcileProjectSections writes it and places it.
-  const archivedLine = document.createElement('div');
-  archivedLine.className = 'section-empty';
+  const allFinishedLine = document.createElement('div');
+  allFinishedLine.className = 'section-empty';
 
-  return { section, heading, caret, count, icon, label, groupsBtn, addCaret, addBtn: add, archivedLine };
+  return { section, heading, caret, count, icon, label, groupsBtn, addCaret, addBtn: add, allFinishedLine };
 }
 
 // Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky) over an indented well that holds its rows.

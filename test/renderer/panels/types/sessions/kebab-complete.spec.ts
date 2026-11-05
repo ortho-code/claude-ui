@@ -17,10 +17,10 @@ const DOT: [string, RegExp] = ['nudge', /^Mark as (read|unread)$/];
 const BUTTON_ITEMS: Record<string, string> = {
   stop: 'Stop session',
   close: 'Close tab',
-  archive: 'Archive',
+  finish: 'Archive',
   'force-stop': 'Force stop',
   'force-close': 'Force close',
-  'force-archive': 'Force archive',
+  'force-finish': 'Force archive',
 };
 const TAB_BUTTON = async (control: Locator): Promise<RegExp> => new RegExp(`^${BUTTON_ITEMS[(await control.getAttribute('data-mark')) ?? '']}$`);
 
@@ -32,8 +32,8 @@ const ROW: Shortcuts = [
   ['pr-badge', /^PRs \(\d+\)$/],
   ['worktree-badge', /^Worktrees \(\d+\)$/],
 ];
-const ARCHIVED_ROW: Shortcuts = [
-  ['unarchive-btn', /^Unarchive$/],
+const FINISHED_ROW: Shortcuts = [
+  ['unfinish-btn', /^Unarchive$/],
   ['delete-btn', /^Delete session…$/],
   ['note-badge', /^(Add|Edit) note…$/],
   ['sibling-badge', /^Siblings \(\d+\)$/],
@@ -130,7 +130,7 @@ test("every control on an archived session's row is a shortcut to an item in its
     uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } },
   });
   const surface = row(page, full.title);
-  await eachControlHasItsItem(page, surface, surface.locator('.session-kebab'), ARCHIVED_ROW);
+  await eachControlHasItsItem(page, surface, surface.locator('.session-kebab'), FINISHED_ROW);
 });
 
 test("every control on a project's heading and a group's is a shortcut to an item in its menu", async ({ app, page }) => {

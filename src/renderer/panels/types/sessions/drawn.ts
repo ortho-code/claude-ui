@@ -43,7 +43,7 @@ export interface ProjectSectionEls {
   /** The new-session "+" itself, disabled when the project's folder is gone. */
   addBtn: HTMLButtonElement;
   /** The line under the heading of a project whose sessions are all archived, saying so; placed only for such a project. */
-  archivedLine: HTMLElement;
+  allFinishedLine: HTMLElement;
 }
 // What each project's group menu offers, refreshed on every render so the menu can't name a group that has since been deleted or renamed.
 export const jumpTargets = new Map<string, GroupJumpTarget[]>();

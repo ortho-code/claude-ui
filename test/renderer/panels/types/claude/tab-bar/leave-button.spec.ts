@@ -14,10 +14,10 @@ const button = (page: Page): Locator => tab(page, one.title).locator('.tab-close
 const stripButton = (page: Page): Locator => stripRow(page, one.title).locator('.strip-item-stop');
 
 /** The tab and the row gone, and the session archived once. */
-async function archived(app: App, page: Page): Promise<void> {
+async function finished(app: App, page: Page): Promise<void> {
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect(row(page, one.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([[[one.id]]]);
+  expect(await app.calls('finish')).toEqual([[[one.id]]]);
 }
 
 /** Start the tab's session, by selecting it. */
@@ -32,29 +32,29 @@ test("a stopped tab's button closes it unless the settings say otherwise", async
   await expect(button(page)).toHaveAttribute('data-tooltip', 'Close tab');
   await button(page).click();
   await expect(tab(page, one.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([]);
+  expect(await app.calls('finish')).toEqual([]);
 });
 
 test("with leaveButton stop-archive, a stopped tab's button archives its session", async ({ app, page }) => {
   await app.boot({ ...fixture, settings: choosing('stop-archive') });
-  await expect(button(page)).toHaveAttribute('data-mark', 'archive');
+  await expect(button(page)).toHaveAttribute('data-mark', 'finish');
   await expect(button(page)).toHaveAttribute('data-tooltip', 'Archive');
   await button(page).click();
-  await archived(app, page);
+  await finished(app, page);
   expect(await app.calls('startTerminal')).toEqual([]);
 });
 
 test("with leaveButton stop-archive, a middle-click on a stopped tab archives its session", async ({ app, page }) => {
   await app.boot({ ...fixture, settings: choosing('stop-archive') });
   await tabLabel(page, one.title).click({ button: 'middle' });
-  await archived(app, page);
+  await finished(app, page);
 });
 
 test("with leaveButton stop-archive, a stopped tab's strip row button archives its session", async ({ app, page }) => {
   await app.boot({ ...fixture, settings: choosing('stop-archive'), ...quit });
-  await expect(stripButton(page)).toHaveAttribute('data-mark', 'archive');
+  await expect(stripButton(page)).toHaveAttribute('data-mark', 'finish');
   await stripButton(page).click();
-  await archived(app, page);
+  await finished(app, page);
 });
 
 test("with leaveButton stop-archive, a running tab's button still stops it, and keeps the tab", async ({ app, page }) => {
@@ -64,8 +64,8 @@ test("with leaveButton stop-archive, a running tab's button still stops it, and 
   await button(page).click();
   expect(await app.emit('onTerminalExit', 1, 0)).toBe(1);
   await expect(tab(page, one.title)).toHaveClass(/\bcold\b/);
-  expect(await app.calls('archive')).toEqual([]);
-  await expect(button(page)).toHaveAttribute('data-mark', 'archive');
+  expect(await app.calls('finish')).toEqual([]);
+  await expect(button(page)).toHaveAttribute('data-mark', 'finish');
 });
 
 test("with leaveButton close, a running tab's button asks claude to leave and closes the tab once it has", async ({ app, page }) => {
@@ -77,7 +77,7 @@ test("with leaveButton close, a running tab's button asks claude to leave and cl
   await expect(tab(page, one.title)).toHaveCount(1);
   expect(await app.emit('onTerminalExit', 1, 0)).toBe(1);
   await expect(tab(page, one.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([]);
+  expect(await app.calls('finish')).toEqual([]);
 });
 
 test("with leaveButton archive, a middle-click on a running tab archives its session once claude has left", async ({ app, page }) => {
@@ -86,17 +86,17 @@ test("with leaveButton archive, a middle-click on a running tab archives its ses
   await tabLabel(page, one.title).click({ button: 'middle' });
   await expect.poll(() => app.calls('closeTerminal')).toHaveLength(1);
   expect(await app.emit('onTerminalExit', 1, 0)).toBe(1);
-  await archived(app, page);
+  await finished(app, page);
 });
 
 test("with leaveButton archive, a running tab's strip row button archives it in one press", async ({ app, page }) => {
   await app.boot({ ...fixture, settings: choosing('archive'), ...quit });
   await started(app, page);
-  await expect(stripButton(page)).toHaveAttribute('data-mark', 'archive');
+  await expect(stripButton(page)).toHaveAttribute('data-mark', 'finish');
   await stripButton(page).click();
   await expect.poll(() => app.calls('closeTerminal')).toHaveLength(1);
   expect(await app.emit('onTerminalExit', 1, 0)).toBe(1);
-  await archived(app, page);
+  await finished(app, page);
 });
 
 test('with leaveButton none, a tab and its strip row have no button, its kebab ends them, and a middle-click does nothing', async ({ app, page }) => {

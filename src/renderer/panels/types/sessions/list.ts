@@ -4,7 +4,7 @@ import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, gro
 import { markProjectGone } from '../../../projectgone';
 import { onMinute } from '../../../moments';
 import { sameOrder, store, type TabState, type View } from '../../../state/app';
-import { archivedOnlyProjects, isFiltering, mutedNeedsYou, projName, searchText, statusChanges, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
+import { finishedOnlyProjects, isFiltering, mutedNeedsYou, projName, searchText, statusChanges, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
@@ -71,7 +71,7 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
 }
 
 /** Repaint the dots of these sessions' rows, those drawn, from what each shows now. */
-function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'archived'>): void {
+function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'finished'>): void {
   for (const id of ids) {
     const dot = statusDots.get(id);
     if (dot) applyStatus(dot, id, view);
@@ -82,12 +82,12 @@ function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks'
  * A status, the work behind one, a mark read, a needs-you mark or a set-aside mark, which can mute it, changed: repaint the rows' dots that differ from what they were last painted from (`before`).
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'archived'>, before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside'>): void {
+function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'finished'>, before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside'>): void {
   repaintDots(statusChanges(before, view), view);
 }
 
 /** What draws the list again: the listing, a model switch, a pin, the archive, a note, a set-aside mark, a delete in flight, the groups, a project's name or place, the project on show, the filter, what GitHub says of the PRs, a task claude scheduled, Grouped or Recent, and for the review, a keep stamp, the review opening or ending, and the settings, which say whether GitHub is asked. */
-const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'archived', 'notes', 'setAside', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'scheduledTasks', 'arrangement', 'kept', 'reviewing', 'settings'] as const;
+const LIST_TOLD = ['sessions', 'switchedModel', 'pinned', 'finished', 'notes', 'setAside', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'activeProject', 'filter', 'prStatus', 'scheduledTasks', 'arrangement', 'kept', 'reviewing', 'settings'] as const;
 /** The tabs, which have a watcher of their own (`listFollowsTabs`), since most of a tab's changes move only the rows' marks. */
 const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
@@ -102,7 +102,7 @@ type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (
 export function watchList(): void {
   store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
-  store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside'], dotsFollowStatuses, { reads: ['tabs', 'archived'] });
+  store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside'], dotsFollowStatuses, { reads: ['tabs', 'finished'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject', 'arrangement'] });
   // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and turning the archived view on or off ends it outside the review.
   store.watch(['bulk', 'tabs', 'filter'], bulkFollows, { reads: ['reviewing', 'activeProject', 'projectNames'] });
@@ -123,11 +123,11 @@ function listChanged(view: ListView, before: View<'filter' | 'activeProject' | '
 // Keeps project, group and row nodes by key and leaves in place what already is (keyed.ts), so a re-render does not rebuild the sidebar: no flicker, the scroll stays put, and a press or the focus on a row that keeps its place survives it.
 /**
  * What the list draws, worked out from the store and the clock and nothing else, so a draw and the minute's look at whether the order moved (`catchUp`) cannot disagree about it: the review's sets while it is open, else the sessions in scope that pass the filter, with what the filter's count says, by project and group or in Recent flat (`recentOrder`).
- * In Recent, `archived` says why there are no rows when every session in scope is archived and no filter is on, which Grouped says under each such project's heading.
+ * In Recent, `finished` says why there are no rows when every session in scope is archived and no filter is on, which Grouped says under each such project's heading.
  */
 type ListShape =
   | { review: ReviewSection[] }
-  | ({ all: SessionSummary[]; matches: number; total: number } & ({ tree: ProjectTree[] } | { recent: SessionSummary[]; archived: string | null }));
+  | ({ all: SessionSummary[]; matches: number; total: number } & ({ tree: ProjectTree[] } | { recent: SessionSummary[]; finished: string | null }));
 
 function listShape(view: ListView): ListShape {
   // The review in place of the projects (docs/architecture.md § The review): its sets in the switcher's scope, the filter set aside meanwhile.
@@ -147,17 +147,17 @@ function listShape(view: ListView): ListShape {
   // So the count only ever compares a set with part of itself, and in the normal view the total is the number the switcher shows.
   const total = inScope(viewPool(all, view.filter.filters.archived, view)).length;
   // A project whose sessions are all archived stays, empty and saying so, as it does in the switcher; a filter leaves it out, as it leaves out any project with no match, and the archived view lists it with its sessions.
-  const archivedOnly = new Map(isFiltering(view) ? [] : [...archivedOnlyProjects(view)].filter(([repoRoot]) => !activeProject || repoRoot === activeProject));
+  const finishedOnly = new Map(isFiltering(view) ? [] : [...finishedOnlyProjects(view)].filter(([repoRoot]) => !activeProject || repoRoot === activeProject));
   if (view.arrangement === 'recent') {
     // Nothing to list, and no filter: every session in scope is archived, the project on show's or in All every project's, which Recent says in place of its rows, as Grouped says it under each such project's heading.
-    const archived = scoped.length === 0 && archivedOnly.size > 0 ? [...archivedOnly.values()].reduce((count, sessions) => count + sessions.length, 0) : null;
-    return { recent: recentOrder(scoped), archived: archived === null ? null : archivedLine(archived), all, matches: scoped.length, total };
+    const finished = scoped.length === 0 && finishedOnly.size > 0 ? [...finishedOnly.values()].reduce((count, sessions) => count + sessions.length, 0) : null;
+    return { recent: recentOrder(scoped), finished: finished === null ? null : allFinishedLine(finished), all, matches: scoped.length, total };
   }
-  if (scoped.length === 0 && archivedOnly.size === 0) return { tree: [], all, matches: 0, total };
+  if (scoped.length === 0 && finishedOnly.size === 0) return { tree: [], all, matches: 0, total };
   // One section per repo, each holding its groups and then the sessions in no group.
   // Every ordering rule (groups first, pins floated inside their own section) lives in the pure builder.
   // While filtering, groups whose sessions all fell out are dropped rather than left as empty headings.
-  return { tree: buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder, archivedOnly, all), all, matches: scoped.length, total };
+  return { tree: buildProjectTree(scoped, view.groupState, view.pinned, isFiltering(view), view.projectOrder, finishedOnly, all), all, matches: scoped.length, total };
 }
 
 /** The keys of the rows a shape draws, in the order it draws them: a project's groups' rows, then its loose rows (`reconcileProjectSections`), each set's rows in turn, or Recent's. */
@@ -168,7 +168,7 @@ function keysOf(shape: ListShape): string[] {
 }
 
 /** What is said where every session is archived: under a project's heading in Grouped, and in place of the list in Recent, for the project on show or for All. */
-function archivedLine(count: number): string {
+function allFinishedLine(count: number): string {
   return count === 1 ? 'Its only session is archived.' : `All ${count} sessions here are archived.`;
 }
 
@@ -196,7 +196,7 @@ function renderList(view: ListView): void {
   const nothing = all.length === 0 ? 'No sessions found in ~/.claude/projects.' : 'No matches.';
 
   if ('recent' in shape) {
-    if (shape.recent.length === 0) showEmpty(shape.archived ?? nothing, view);
+    if (shape.recent.length === 0) showEmpty(shape.finished ?? nothing, view);
     else {
       // One section without a heading; its id is its own for good, never one of the review's (`FlatSection`).
       renderSections([{ id: 'recent', heading: null, rows: shape.recent, why: null }], view);
@@ -347,8 +347,8 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
       return row;
     });
     // Its groups stay with it, so they can be filled again; the line goes above them, under the heading it explains.
-    els.archivedLine.textContent = archivedLine(project.archived);
-    placeChildren(els.section, [els.heading, ...(project.archived > 0 ? [els.archivedLine] : []), ...groups, ...loose]);
+    els.allFinishedLine.textContent = allFinishedLine(project.finished);
+    placeChildren(els.section, [els.heading, ...(project.finished > 0 ? [els.allFinishedLine] : []), ...groups, ...loose]);
     sections.push(els.section);
   }
   placeChildren(container, sections);

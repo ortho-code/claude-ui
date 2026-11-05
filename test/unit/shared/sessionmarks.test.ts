@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { archivedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, mutedBySetAside, purgedSession, togglePinned, unarchived, unkept, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, mutedBySetAside, purgedSession, togglePinned, clearedFinished, unkept, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -15,20 +15,20 @@ describe('togglePinned', () => {
 
 describe('archivedFrom', () => {
   it('archives from the time given, and leaves a session already archived from when it was', () => {
-    const archived = { a: 1 };
-    expect(archivedFrom(archived, 'b', 42)).toEqual({ a: 1, b: 42 });
-    expect(archivedFrom(archived, 'a', 42)).toEqual({ a: 1 });
-    expect(archivedFrom(archived, 'a', 42)).not.toBe(archived);
-    expect(archived).toEqual({ a: 1 });
+    const finished = { a: 1 };
+    expect(finishedFrom(finished, 'b', 42)).toEqual({ a: 1, b: 42 });
+    expect(finishedFrom(finished, 'a', 42)).toEqual({ a: 1 });
+    expect(finishedFrom(finished, 'a', 42)).not.toBe(finished);
+    expect(finished).toEqual({ a: 1 });
   });
 });
 
 describe('unarchived', () => {
   it('unarchives, and leaves a session that is not archived as it is', () => {
-    const archived = { a: 1 };
-    expect(unarchived(archived, 'a')).toEqual({});
-    expect(unarchived(archived, 'b')).toEqual({ a: 1 });
-    expect(archived).toEqual({ a: 1 });
+    const finished = { a: 1 };
+    expect(clearedFinished(finished, 'a')).toEqual({});
+    expect(clearedFinished(finished, 'b')).toEqual({ a: 1 });
+    expect(finished).toEqual({ a: 1 });
   });
 });
 

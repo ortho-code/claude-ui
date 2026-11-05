@@ -4,7 +4,7 @@ import { byId, fromMarkup } from '../../../dom';
 import { datePresetRange, entityKey, sessionPasses } from '../../../logic';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
 import { isFiltering, searchText } from '../../../state/views';
-import { archiveIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
+import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { iconSvg } from '../../icons';
 // The filter pill its pills and presets wear, shared with the history's All · Pinned.
@@ -31,7 +31,7 @@ export const filterPanel = fromMarkup(`
       <button id="sibling-filter" type="button" data-tooltip="Show only sessions with siblings" aria-label="Show only sessions with siblings" aria-pressed="false"></button>
       <button id="pr-filter" type="button" data-tooltip="Show only sessions with a PR" aria-label="Show only sessions with a PR" aria-pressed="false"></button>
       <button id="note-filter" type="button" data-tooltip="Show only sessions with a note" aria-label="Show only sessions with a note" aria-pressed="false"></button>
-      <button id="archived-filter" type="button" data-tooltip="Show archived sessions" aria-label="Show archived sessions" aria-pressed="false"></button>
+      <button id="finished-filter" type="button" data-tooltip="Show archived sessions" aria-label="Show archived sessions" aria-pressed="false"></button>
       <button id="gone-filter" type="button" data-tooltip="Show only sessions whose folder is gone" aria-label="Show only sessions whose folder is gone" aria-pressed="false"></button>
       <div id="date-presets">
         <button type="button" data-range="any" class="active">Any</button>
@@ -62,7 +62,7 @@ const worktreeFilter = byId(filterPanel, 'worktree-filter', HTMLButtonElement);
 const siblingFilter = byId(filterPanel, 'sibling-filter', HTMLButtonElement);
 const prFilter = byId(filterPanel, 'pr-filter', HTMLButtonElement);
 const noteFilter = byId(filterPanel, 'note-filter', HTMLButtonElement);
-const archivedFilter = byId(filterPanel, 'archived-filter', HTMLButtonElement);
+const finishedFilter = byId(filterPanel, 'finished-filter', HTMLButtonElement);
 const goneFilter = byId(filterPanel, 'gone-filter', HTMLButtonElement);
 const datePresets = byId(filterPanel, 'date-presets');
 const dateCustom = byId(filterPanel, 'date-custom');
@@ -95,8 +95,8 @@ const OPEN_ICON = strokeIcon(13, '<rect x="2.6" y="3.4" width="10.8" height="9.2
 // The running filter's mark: a filled dot inside a ring — the same "live" language the status dots speak, rather than a play triangle, which would read as "start these".
 const LIVE_ICON = strokeIcon(13, '<circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />');
 
-// The archived filter's mark: the lidded box archiving wears everywhere (`archiveIcon`).
-const ARCHIVE_ICON = archiveIcon(13);
+// The archived filter's mark: the lidded box archiving wears everywhere (`finishIcon`).
+const FINISH_ICON = finishIcon(13);
 
 // Session key -> its group's NAME, so typing a group name reaches its sessions.
 // Built ONCE per filter pass and handed in: passesFilters runs per session, so building it there would be one pass over the membership map per row.
@@ -111,7 +111,7 @@ export function groupNameByKey({ groupState }: View<'groupState'>): Map<string, 
 }
 
 // Adapt the current filter state to the pure predicate.
-export function passesFilters(session: SessionSummary, view: View<'pinned' | 'archived' | 'notes' | 'pendingDeletes' | 'tabs' | 'setAside' | 'filter'>, groupNames?: ReadonlyMap<string, string>): boolean {
+export function passesFilters(session: SessionSummary, view: View<'pinned' | 'finished' | 'notes' | 'pendingDeletes' | 'tabs' | 'setAside' | 'filter'>, groupNames?: ReadonlyMap<string, string>): boolean {
   const { filters, dateFrom, dateTo } = view.filter;
   return sessionPasses(session, {
     groupNames,
@@ -131,11 +131,11 @@ export function passesFilters(session: SessionSummary, view: View<'pinned' | 'ar
     siblingOnly: filters.siblings,
     prsOnly: filters.prs,
     notedOnly: filters.noted,
-    archivedOnly: filters.archived,
+    finishedOnly: filters.archived,
     dateFrom,
     dateTo,
     pinned: view.pinned,
-    archived: view.archived,
+    finished: view.finished,
     notes: view.notes,
     pendingDeletes: view.pendingDeletes,
   });
@@ -390,7 +390,7 @@ const FILTER_PILLS: FilterPill[] = [
   { button: siblingFilter, icon: SIBLING_ICON, key: 'siblings' },
   { button: prFilter, icon: PR_ICON, key: 'prs' },
   { button: noteFilter, icon: NOTE_ICON, key: 'noted' },
-  { button: archivedFilter, icon: ARCHIVE_ICON, key: 'archived' },
+  { button: finishedFilter, icon: FINISH_ICON, key: 'archived' },
   { button: goneFilter, icon: folderGoneIcon(13), key: 'gone' },
 ];
 

@@ -268,18 +268,18 @@ describe('datePresetRange', () => {
 });
 
 describe('inView', () => {
-  const archived = new Set(['old']);
+  const finished = new Set(['old']);
   const pendingDeletes = new Set(['going']);
 
   it('holds the sessions that are not archived in the normal view, and only the archived ones in the archived view', () => {
-    expect(inView('live', false, archived, pendingDeletes)).toBe(true);
-    expect(inView('old', false, archived, pendingDeletes)).toBe(false);
-    expect(inView('old', true, archived, pendingDeletes)).toBe(true);
-    expect(inView('live', true, archived, pendingDeletes)).toBe(false);
+    expect(inView('live', false, finished, pendingDeletes)).toBe(true);
+    expect(inView('old', false, finished, pendingDeletes)).toBe(false);
+    expect(inView('old', true, finished, pendingDeletes)).toBe(true);
+    expect(inView('live', true, finished, pendingDeletes)).toBe(false);
   });
 
   it('holds a session on its way to the trash in neither view, archived or not', () => {
-    expect(inView('going', false, archived, pendingDeletes)).toBe(false);
+    expect(inView('going', false, finished, pendingDeletes)).toBe(false);
     expect(inView('going', true, new Set(['going']), pendingDeletes)).toBe(false);
   });
 });
@@ -296,11 +296,11 @@ describe('sessionPasses', () => {
     siblingOnly: false,
     prsOnly: false,
     notedOnly: false,
-    archivedOnly: false,
+    finishedOnly: false,
     dateFrom: null,
     dateTo: null,
     pinned: new Set(),
-    archived: new Set(),
+    finished: new Set(),
     pendingDeletes: new Set(),
   };
 
@@ -383,9 +383,9 @@ describe('sessionPasses', () => {
 
   it('hides pending deletes and archived (unless in the archived view)', () => {
     expect(sessionPasses(session({ id: 's1' }), { ...base, pendingDeletes: new Set(['s1']) })).toBe(false);
-    expect(sessionPasses(session({ id: 's1' }), { ...base, archived: new Set(['s1']) })).toBe(false);
+    expect(sessionPasses(session({ id: 's1' }), { ...base, finished: new Set(['s1']) })).toBe(false);
     expect(
-      sessionPasses(session({ id: 's1' }), { ...base, archivedOnly: true, archived: new Set(['s1']) }),
+      sessionPasses(session({ id: 's1' }), { ...base, finishedOnly: true, finished: new Set(['s1']) }),
     ).toBe(true);
   });
 
@@ -580,8 +580,8 @@ describe('projectsForSwitcher', () => {
 
   // The list keeps the same project (buildProjectTree), so the two agree on which projects there are and where each sits.
   it('lists a project whose sessions are all archived at none, in its place, its folder answered by those sessions', () => {
-    const archived = new Map([['/x/gone', [session({ id: 'g', repoRoot: '/x/gone', repoRootExists: false, cwdExists: false })]]]);
-    const model = projectsForSwitcher([s('a1', '/x/alpha')], new Map([['g', 'waiting']]), new Set(), new Map(), undefined, ['/x/gone', '/x/alpha'], archived);
+    const finished = new Map([['/x/gone', [session({ id: 'g', repoRoot: '/x/gone', repoRootExists: false, cwdExists: false })]]]);
+    const model = projectsForSwitcher([s('a1', '/x/alpha')], new Map([['g', 'waiting']]), new Set(), new Map(), undefined, ['/x/gone', '/x/alpha'], finished);
     expect(model.projects.map((f) => [f.name, f.count, f.badge, f.rootExists])).toEqual([
       ['gone', 0, null, false],
       ['alpha', 1, null, true],
@@ -726,10 +726,10 @@ describe('buildProjectTree', () => {
   });
 
   it('keeps a project whose sessions are all archived in its place, with no rows, its groups, and how many it has archived', () => {
-    const archived = [session({ id: 'x', conversationId: 'x', repoRoot: '/kept', isRepo: true }), session({ id: 'y', conversationId: 'y', repoRoot: '/kept', isRepo: true })];
+    const finished = [session({ id: 'x', conversationId: 'x', repoRoot: '/kept', isRepo: true }), session({ id: 'y', conversationId: 'y', repoRoot: '/kept', isRepo: true })];
     const state = { groups: [group('g1', 'Kept group', '/kept')], groupOf: { x: 'g1' } };
-    const tree = buildProjectTree([s('a', '/alpha')], state, none, false, ['/kept', '/alpha'], new Map([['/kept', archived]]));
-    expect(tree.map((p) => [p.repoRoot, p.count, p.archived, p.isRepo, p.rootExists])).toEqual([
+    const tree = buildProjectTree([s('a', '/alpha')], state, none, false, ['/kept', '/alpha'], new Map([['/kept', finished]]));
+    expect(tree.map((p) => [p.repoRoot, p.count, p.finished, p.isRepo, p.rootExists])).toEqual([
       ['/kept', 0, 2, true, true],
       ['/alpha', 1, 0, false, true],
     ]);
@@ -1110,7 +1110,7 @@ describe('leaveLabel', () => {
   it("names each leave item, as the button's tooltip says it where it says only that", () => {
     expect(leaveLabel('stop')).toBe('Stop session');
     expect(leaveLabel('close')).toBe('Close tab');
-    expect(leaveLabel('archive')).toBe('Archive');
+    expect(leaveLabel('finish')).toBe('Archive');
     expect(tabButton({ terminalId: 7 })?.tooltip).toBe(leaveLabel('stop'));
     expect(tabButton({ terminalId: null })?.tooltip).toBe(leaveLabel('close'));
   });
@@ -1126,7 +1126,7 @@ describe('leaveUnderWay', () => {
     expect(leaveUnderWay({ terminalId: LIVE, stopping: true })).toBe('stop');
     expect(leaveUnderWay({ terminalId: LIVE, stopping: true, onExit: 'cool' })).toBe('stop');
     expect(leaveUnderWay({ terminalId: LIVE, stopping: true, onExit: 'close' })).toBe('close');
-    expect(leaveUnderWay({ terminalId: LIVE, stopping: true, onExit: 'archive' })).toBe('archive');
+    expect(leaveUnderWay({ terminalId: LIVE, stopping: true, onExit: 'finish' })).toBe('finish');
   });
 });
 
@@ -1134,17 +1134,17 @@ describe('leaveAction', () => {
   it('offers each of the three on a running tab, each its own press', () => {
     expect(leaveAction({ terminalId: LIVE }, 'stop')).toEqual({ disabled: false, tooltip: 'Stop session', mark: 'stop', label: 'Stop session', action: 'stop' });
     expect(leaveAction({ terminalId: LIVE }, 'close')).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close', label: 'Close tab', action: 'close' });
-    expect(leaveAction({ terminalId: LIVE }, 'archive')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'archive', label: 'Archive', action: 'archive' });
+    expect(leaveAction({ terminalId: LIVE }, 'finish')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'finish', label: 'Archive', action: 'finish' });
   });
 
   it('has nothing to stop on a cold tab, which closes and archives at once', () => {
     expect(leaveAction({ terminalId: null }, 'stop')).toEqual({ disabled: true, tooltip: 'Not running', mark: 'stop', label: 'Stop session', action: 'stop' });
     expect(leaveAction({ terminalId: null }, 'close').disabled).toBe(false);
-    expect(leaveAction({ terminalId: null }, 'archive').disabled).toBe(false);
+    expect(leaveAction({ terminalId: null }, 'finish').disabled).toBe(false);
   });
 
   it('refuses every item while the tab starts, ARRIVING winning over a leave it also carries', () => {
-    for (const action of ['stop', 'close', 'archive'] as const) {
+    for (const action of ['stop', 'close', 'finish'] as const) {
       expect(leaveAction({ terminalId: null, starting: true }, action)).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: action });
       expect(leaveAction({ terminalId: null, starting: true, stopping: true }, action)).toMatchObject({ disabled: true, tooltip: 'Starting…' });
     }
@@ -1153,24 +1153,24 @@ describe('leaveAction', () => {
   it("makes the item of what was asked its force, unavailable for its first moment and named for it", () => {
     expect(leaveAction({ terminalId: LIVE, stopping: true }, 'stop')).toEqual({ disabled: true, tooltip: 'Stopping…', mark: 'stop', label: 'Force stop', action: 'stop' });
     expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'close')).toEqual({ disabled: true, tooltip: 'Closing…', mark: 'close', label: 'Force close', action: 'close' });
-    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'archive' }, 'archive')).toEqual({ disabled: true, tooltip: 'Archiving…', mark: 'archive', label: 'Force archive', action: 'archive' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'finish' }, 'finish')).toEqual({ disabled: true, tooltip: 'Archiving…', mark: 'finish', label: 'Force archive', action: 'finish' });
   });
 
   it('offers the force once it may, saying claude may be asking', () => {
     expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true }, 'stop')).toEqual({ disabled: false, tooltip: `Force stop${FORCE_WHY}`, mark: 'force-stop', label: 'Force stop', action: 'stop' });
     expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'close' }, 'close')).toEqual({ disabled: false, tooltip: `Force close${FORCE_WHY}`, mark: 'force-close', label: 'Force close', action: 'close' });
-    expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'archive' }, 'archive')).toEqual({ disabled: false, tooltip: `Force archive${FORCE_WHY}`, mark: 'force-archive', label: 'Force archive', action: 'archive' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'finish' }, 'finish')).toEqual({ disabled: false, tooltip: `Force archive${FORCE_WHY}`, mark: 'force-finish', label: 'Force archive', action: 'finish' });
     // Only a leave on its way can become a force.
     expect(leaveAction({ terminalId: LIVE, forceable: true }, 'stop')).toMatchObject({ disabled: false, mark: 'stop', label: 'Stop session' });
   });
 
   it('lets every other item change what the exit does, a stop turning a close or an archive back', () => {
     expect(leaveAction({ terminalId: LIVE, stopping: true }, 'close')).toMatchObject({ disabled: false, mark: 'close', label: 'Close tab' });
-    expect(leaveAction({ terminalId: LIVE, stopping: true }, 'archive')).toMatchObject({ disabled: false, mark: 'archive', label: 'Archive' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true }, 'finish')).toMatchObject({ disabled: false, mark: 'finish', label: 'Archive' });
     expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'stop')).toMatchObject({ disabled: false, mark: 'stop', label: 'Stop session' });
-    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'archive' }, 'close')).toMatchObject({ disabled: false, mark: 'close', label: 'Close tab' });
+    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'finish' }, 'close')).toMatchObject({ disabled: false, mark: 'close', label: 'Close tab' });
     // Forced, the exit can still be changed: claude is going whatever it is asked.
-    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'archive').disabled).toBe(false);
+    expect(leaveAction({ terminalId: LIVE, stopping: true, onExit: 'close' }, 'finish').disabled).toBe(false);
   });
 });
 
@@ -1194,30 +1194,30 @@ describe('tabButton', () => {
     expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true })).toMatchObject({ disabled: false, mark: 'force-stop', action: 'stop' });
     expect(tabButton({ terminalId: LIVE, stopping: true, onExit: 'close' })).toMatchObject({ disabled: true, tooltip: 'Closing…', mark: 'close', action: 'close' });
     expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'close' })).toMatchObject({ disabled: false, mark: 'force-close', label: 'Force close', action: 'close' });
-    expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'archive' })).toMatchObject({ disabled: false, mark: 'force-archive', label: 'Force archive', action: 'archive' });
+    expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'finish' })).toMatchObject({ disabled: false, mark: 'force-finish', label: 'Force archive', action: 'finish' });
   });
 
   it('closes a cold tab, which has nothing to stop, or archives it when the choice ends in that', () => {
     expect(tabButton({ terminalId: null })).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close', label: 'Close tab', action: 'close' });
-    expect(tabButton({ terminalId: null }, 'stop-archive')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'archive', label: 'Archive', action: 'archive' });
+    expect(tabButton({ terminalId: null }, 'stop-archive')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'finish', label: 'Archive', action: 'finish' });
     expect(tabButton({ terminalId: null }, 'close')).toMatchObject({ mark: 'close', action: 'close' });
-    expect(tabButton({ terminalId: null }, 'archive')).toMatchObject({ mark: 'archive', action: 'archive' });
+    expect(tabButton({ terminalId: null }, 'archive')).toMatchObject({ mark: 'finish', action: 'finish' });
     // A running tab stops while the choice stops first.
     expect(tabButton({ terminalId: LIVE }, 'stop-archive')).toMatchObject({ mark: 'stop', action: 'stop' });
   });
 
   it('closes or archives a running tab in one press when the choice skips the stop, and says so while it starts', () => {
     expect(tabButton({ terminalId: LIVE }, 'close')).toEqual({ disabled: false, tooltip: 'Close tab', mark: 'close', label: 'Close tab', action: 'close' });
-    expect(tabButton({ terminalId: LIVE }, 'archive')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'archive', label: 'Archive', action: 'archive' });
-    expect(tabButton({ terminalId: null, starting: true }, 'archive')).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: 'archive' });
+    expect(tabButton({ terminalId: LIVE }, 'archive')).toEqual({ disabled: false, tooltip: 'Archive', mark: 'finish', label: 'Archive', action: 'finish' });
+    expect(tabButton({ terminalId: null, starting: true }, 'archive')).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: 'finish' });
     // Leaving, it is the force of what claude is leaving for, whichever the choice.
     expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true, onExit: 'close' }, 'close')).toMatchObject({ disabled: false, mark: 'force-close' });
     expect(tabButton({ terminalId: LIVE, stopping: true, forceable: true }, 'archive')).toMatchObject({ disabled: false, mark: 'force-stop' });
   });
 
   it("cannot archive while another tab of its session is starting, as the menu's Archive cannot, and can still stop or close", () => {
-    expect(tabButton({ terminalId: null, sessionStarting: true }, 'stop-archive')).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: 'archive' });
-    expect(tabButton({ terminalId: LIVE, sessionStarting: true }, 'archive')).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: 'archive' });
+    expect(tabButton({ terminalId: null, sessionStarting: true }, 'stop-archive')).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: 'finish' });
+    expect(tabButton({ terminalId: LIVE, sessionStarting: true }, 'archive')).toMatchObject({ disabled: true, tooltip: 'Starting…', mark: 'finish' });
     expect(tabButton({ terminalId: LIVE, sessionStarting: true }, 'stop-archive')).toMatchObject({ disabled: false, mark: 'stop' });
     expect(tabButton({ terminalId: null, sessionStarting: true })).toMatchObject({ disabled: false, mark: 'close' });
   });

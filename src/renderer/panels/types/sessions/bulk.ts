@@ -29,14 +29,14 @@ export const bulkLine = fromMarkup(`
   </div>`);
 export const bulkBar = fromMarkup(`
   <div id="bulk-bar" hidden>
-    <button type="button" data-act="archive">Archive</button>
+    <button type="button" data-act="finish">Archive</button>
     <button type="button" data-act="set-aside">Set aside…</button>
     <button type="button" data-act="keep">Keep</button>
     <button type="button" data-act="move">Move to group</button>
     <button type="button" data-act="stop">Stop</button>
     <button type="button" data-act="close">Close tab</button>
-    <button type="button" data-act="unarchive" data-in="archived">Unarchive</button>
-    <button type="button" data-act="delete" data-in="archived">Delete…</button>
+    <button type="button" data-act="unfinish" data-in="finished">Unarchive</button>
+    <button type="button" data-act="delete" data-in="finished">Delete…</button>
   </div>`);
 
 const title = bulkLine.querySelector<HTMLElement>('.bulk-title')!;
@@ -104,8 +104,8 @@ export function showBulk(view: View<'bulk' | 'tabs' | 'reviewing' | 'activeProje
   bulkBar.hidden = !on;
   if (!view.bulk) return;
   // The archived view's sessions are put away: its bar unarchives or deletes them, and offers nothing that works a session, as its rows do not; the review sets the filter aside, the archived view with it.
-  const archivedView = view.filter.filters.archived && !view.reviewing;
-  for (const button of bulkBar.querySelectorAll<HTMLButtonElement>('button')) button.hidden = (button.dataset.in === 'archived') !== archivedView;
+  const finishedView = view.filter.filters.archived && !view.reviewing;
+  for (const button of bulkBar.querySelectorAll<HTMLButtonElement>('button')) button.hidden = (button.dataset.in === 'finished') !== finishedView;
   const set = view.bulk.ticked;
   for (const row of container.querySelectorAll<HTMLElement>('.session')) drawBox(row.querySelector(':scope > .tick'), set.has(row.dataset.key ?? '') ? 'all' : 'none');
   for (const section of container.querySelectorAll<HTMLElement>('section.project, section.group, section.flat-section')) drawBox(section.querySelector(':scope > .section-heading > .tick'), headingTick(drawnKeys(section), set));
@@ -115,10 +115,10 @@ export function showBulk(view: View<'bulk' | 'tabs' | 'reviewing' | 'activeProje
   const scope = view.activeProject === null ? 'All' : projName(view.activeProject, view);
   count.textContent = view.reviewing ? `${scope} · ${drawnKeys().length} to decide · ${keys.length} ticked` : `${keys.length} ticked`;
   const none = keys.length === 0 ? 'Nothing is ticked' : null;
-  setUnavailable(act('archive'), none ?? (keys.some((key) => archivable(key, view)) ? null : 'Every ticked session is starting'), 'Archive every ticked session');
+  setUnavailable(act('finish'), none ?? (keys.some((key) => finishable(key, view)) ? null : 'Every ticked session is starting'), 'Archive every ticked session');
   setUnavailable(act('set-aside'), none, 'Set every ticked session aside');
   setUnavailable(act('keep'), none, `Keep every ticked session out of the review for ${KEPT_DAYS} days`);
-  setUnavailable(act('unarchive'), none, 'Unarchive every ticked session');
+  setUnavailable(act('unfinish'), none, 'Unarchive every ticked session');
   setUnavailable(act('delete'), none, 'Delete every ticked session, moving its files to the trash, once you confirm');
   const projects = new Set(sessionsOf(keys).map((s) => s.repoRoot));
   setUnavailable(act('move'), none ?? (projects.size > 1 ? 'The ticked sessions are in more than one project' : null), 'Move every ticked session to a group');
@@ -135,8 +135,8 @@ function offers(key: string, action: 'stop' | 'close', view: View<'tabs'>): bool
 const stoppable = (key: string, view: View<'tabs'> = store.get()): boolean => offers(key, 'stop', view);
 const closable = (key: string, view: View<'tabs'>): boolean => offers(key, 'close', view);
 
-/** Whether Archive can act on a session: not while a tab of it is starting, which has no claude yet to ask to leave (`archiveSessions`). */
-const archivable = (key: string, view: View<'tabs'>): boolean => !view.tabs.some((tab) => tab.session.id === key && tab.starting);
+/** Whether Archive can act on a session: not while a tab of it is starting, which has no claude yet to ask to leave (`finishSessions`). */
+const finishable = (key: string, view: View<'tabs'>): boolean => !view.tabs.some((tab) => tab.session.id === key && tab.starting);
 
 /** What a toast calls the ticked sessions: the one by its title, or how many. */
 function named(keys: readonly string[]): string {
@@ -181,7 +181,7 @@ function onAct(name: string, run: (keys: string[], button: HTMLButtonElement) =>
   });
 }
 
-onAct('archive', (keys) => hostOf('sessions').archiveSessions(keys));
+onAct('finish', (keys) => hostOf('sessions').finishSessions(keys));
 onAct('set-aside', (keys) => void setAside(keys));
 onAct('keep', (keys) => keep(keys));
 onAct('move', (keys, button) => openMenu(button, moveToGroupItems(sessionsOf(keys))));
@@ -189,19 +189,19 @@ onAct('stop', (keys) => {
   for (const key of keys) if (stoppable(key)) hostOf('sessions').pressLeave(key, 'stop', 'stop');
 });
 onAct('close', (keys) => hostOf('sessions').closeTabs(keys));
-onAct('unarchive', (keys) => void unarchiveSessions(keys));
+onAct('unfinish', (keys) => void unfinishSessions(keys));
 onAct('delete', (keys) => void confirmAndDelete(keys));
 
 /**
  * Unarchive from the bar in the archived view: every ticked session in one write, and one toast whose Undo archives them again in one write.
  * Their rows leave the archived view, which is what the toast is for; an archived row's own Unarchive button raises none, as before.
  */
-async function unarchiveSessions(keys: readonly string[]): Promise<void> {
+async function unfinishSessions(keys: readonly string[]): Promise<void> {
   const what = named(keys);
-  store.set({ archived: new Map(Object.entries(await window.claudeUi.unarchive([...keys]))) });
+  store.set({ finished: new Map(Object.entries(await window.claudeUi.unfinish([...keys]))) });
   showToast(`Unarchived ${what}`, false, {
     label: 'Undo',
-    run: () => void window.claudeUi.archive([...keys]).then((archived) => store.set({ archived: new Map(Object.entries(archived)) })),
+    run: () => void window.claudeUi.finish([...keys]).then((finished) => store.set({ finished: new Map(Object.entries(finished)) })),
   });
 }
 

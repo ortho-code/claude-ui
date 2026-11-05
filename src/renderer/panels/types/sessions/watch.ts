@@ -16,7 +16,7 @@ export const sessionsWatch = {
   rules(): void {
     // What the switcher's projects are made of changed, and the project on show may have none left.
     // The tabs are among them: a session with no transcript yet is in its project only through its tab.
-    store.watch(['sessions', 'archived', 'pendingDeletes', 'tabs'], fallBackIfEmptied, { reads: ['activeProject'] });
+    store.watch(['sessions', 'finished', 'pendingDeletes', 'tabs'], fallBackIfEmptied, { reads: ['activeProject'] });
     // What GitHub says of the PRs the listing links, asked as they change and on a timer after.
     watchPrStatus();
   },
@@ -34,10 +34,10 @@ export const sessionsWatch = {
     store.watch(['filterPanelOpen'], filterPanelFollows, { reads: ['filter'] });
     // The switcher counts every project's sessions, rolls up their statuses and names the project on show.
     // A session with no transcript yet is in its project only through its tab, so the tabs are among what it counts.
-    store.watch(['sessions', 'statuses', 'acked', 'needsYou', 'setAside', 'archived', 'pendingDeletes', 'projectNames', 'projectOrder', 'activeProject', 'tabs'], refreshSwitcher);
+    store.watch(['sessions', 'statuses', 'acked', 'needsYou', 'setAside', 'finished', 'pendingDeletes', 'projectNames', 'projectOrder', 'activeProject', 'tabs'], refreshSwitcher);
     // The sidebar's rail icon waits while any session anywhere waits for you: the switcher's roll-up, from the same sessions.
-    store.watch(['sessions', 'statuses', 'acked', 'needsYou', 'setAside', 'archived', 'pendingDeletes', 'tabs'], railStatusFollowsSessions, { reads: ['projectNames', 'projectOrder'] });
+    store.watch(['sessions', 'statuses', 'acked', 'needsYou', 'setAside', 'finished', 'pendingDeletes', 'tabs'], railStatusFollowsSessions, { reads: ['projectNames', 'projectOrder'] });
     // The strip lists what runs and what is marked as needing you, in the bar's order, each row with its tab's button in the tab's state and the one on show marked, under a line badged with the switcher's roll-up; it shows those rows or folds to its line as you left it, and counts the projects you hid on its Hidden line rather than listing them.
-    store.watch(['sessions', 'statuses', 'backgroundTasks', 'scheduledTasks', 'acked', 'needsYou', 'setAside', 'archived', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'activeTab', 'stripExpanded','stripHidden', 'settings'], refreshStrip);
+    store.watch(['sessions', 'statuses', 'backgroundTasks', 'scheduledTasks', 'acked', 'needsYou', 'setAside', 'finished', 'pendingDeletes', 'groupState', 'projectNames', 'projectOrder', 'tabs', 'activeTab', 'stripExpanded','stripHidden', 'settings'], refreshStrip);
   },
 };

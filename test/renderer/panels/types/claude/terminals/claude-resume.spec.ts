@@ -53,7 +53,7 @@ test('an archived session resumed in a tab is unarchived, a toast says so, and i
   await app.emit('onSessionStatus', one.id, 'closed', token, 'SessionEnd');
   await app.emit('onSessionStart', old.id, token, 'resume');
 
-  await expect.poll(() => app.calls('unarchive')).toEqual([[[old.id]]]);
+  await expect.poll(() => app.calls('unfinish')).toEqual([[[old.id]]]);
   await expect(page.locator('#toast-message')).toHaveText(`"${old.title}" was archived; resuming it in claude unarchived it`);
   await expect(titlesIn(group(page, 'Other'))).toHaveText([old.title]);
   await tab(page, old.title).locator('.tab-kebab').click();

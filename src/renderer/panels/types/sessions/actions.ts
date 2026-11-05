@@ -175,8 +175,8 @@ export function moveToGroupItems(sessions: readonly SessionSummary[]): MenuItem[
 }
 
 // Unarchive one session, leaving tabs alone: from the archived view's row button and the archived session's menu.
-export async function unarchiveFor(key: string): Promise<void> {
-  store.set({ archived: new Map(Object.entries(await window.claudeUi.unarchive([key]))) });
+export async function unfinishFor(key: string): Promise<void> {
+  store.set({ finished: new Map(Object.entries(await window.claudeUi.unfinish([key]))) });
 }
 
 // Pin or unpin one session, from its row.
@@ -222,14 +222,14 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
     { label: '', separator: true },
   ];
   // An archived session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the archived view reach them, its id, and the archived view's two actions, and on its row Select…; nothing that starts or files it, which that view does not offer.
-  if (store.get().archived.has(entityKey(session))) {
+  if (store.get().finished.has(entityKey(session))) {
     return [
       ...items,
       ...linkedItems(session),
       noteItem(session),
       copyIdItem(session),
       { label: '', separator: true },
-      { label: 'Unarchive', onSelect: () => void unarchiveFor(entityKey(session)) },
+      { label: 'Unarchive', onSelect: () => void unfinishFor(entityKey(session)) },
       { label: 'Delete session…', onSelect: () => void confirmAndDelete([entityKey(session)]) },
       // Selecting several starts in the list, so only its row offers it (docs/architecture.md § Selecting several).
       ...(from === 'row' ? [{ label: 'Select…', onSelect: () => startBulk([entityKey(session)]) }] : []),
@@ -278,11 +278,11 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   // Stop session, Close tab and Archive, each one press of its own meaning, whatever the tab is doing (decided 2026-10-28), by the rule the tab's button is a shortcut to (`leaveAction`).
   items.push(leaveItem(session, tab, 'stop'));
   items.push(leaveItem(session, tab, 'close'));
-  // Archive is the session's rather than a tab's (`archiveSession`): a session with no tab archives at once, and one with a tab starting is unavailable, whichever tab it is, since there is no claude yet to ask to leave (`leaveAction`, as the tab's button says it).
+  // Archive is the session's rather than a tab's (`finishSessions`): a session with no tab archives at once, and one with a tab starting is unavailable, whichever tab it is, since there is no claude yet to ask to leave (`leaveAction`, as the tab's button says it).
   const key = entityKey(session);
-  if (tab) items.push(leaveItem(session, tab, 'archive'));
-  else if (sessionStarting(key)) items.push({ label: leaveLabel('archive'), disabled: 'Starting…' });
-  else items.push({ label: leaveLabel('archive'), onSelect: () => hostOf('sessions').archiveSessions([key]) });
+  if (tab) items.push(leaveItem(session, tab, 'finish'));
+  else if (sessionStarting(key)) items.push({ label: leaveLabel('finish'), disabled: 'Starting…' });
+  else items.push({ label: leaveLabel('finish'), onSelect: () => hostOf('sessions').finishSessions([key]) });
   return items;
 }
 

@@ -208,7 +208,7 @@ test("a session's dot is a control only while it is idle or waiting, on its row 
 
 // Even one whose claude left a status behind, as one that ended without saying so does.
 test("an archived row's dot is no control, whatever status it still shows", async ({ app, page }) => {
-  await app.boot({ ...archivedView, statuses: { [full.id]: 'waiting' } });
+  await app.boot({ ...finishedView, statuses: { [full.id]: 'waiting' } });
   const dot = row(page, full.title).locator('.nudge');
   await expect(dot).toHaveClass(/\bwaiting\b/);
   await expect(dot).not.toHaveClass(/\bclickable\b/);
@@ -266,7 +266,7 @@ test("Close tab in a running session's menu asks claude to leave, keeps the tab 
   expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
   await expect(tab(page, full.title)).toHaveCount(0);
   await expect(row(page, full.title)).toHaveCount(1);
-  expect(await app.calls('archive')).toEqual([]);
+  expect(await app.calls('finish')).toEqual([]);
 });
 
 test("a cold tab's menu has nothing to stop, and closes and archives it", async ({ app, page }) => {
@@ -314,7 +314,7 @@ test('Close tab on a stop under way removes the tab at the exit, and sends claud
   expect(await app.calls('closeTerminal')).toEqual([[FIRST, false]]);
   expect(await app.emit('onTerminalExit', FIRST, 0)).toBe(1);
   await expect(tab(page, full.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([]);
+  expect(await app.calls('finish')).toEqual([]);
 });
 
 // A press can land on an item drawn before the tab moved on, in the moment before the menu follows: the item does what it said or nothing, where the button it stands for would by then close the tab.
@@ -400,7 +400,7 @@ test('Close tab is unavailable, with the reason, for a session with no tab', asy
   await expect(item(page, 'Close tab')).toHaveAttribute('data-tooltip', 'Not open in a tab');
 });
 
-// One open but not running is put away with its tab at once; a running one's archive waits for its claude (claude/terminals/archive.spec.ts).
+// One open but not running is put away with its tab at once; a running one's archive waits for its claude (claude/terminals/finish.spec.ts).
 for (const [state, setAsideMarks] of [['cold', {}], ['cold and set aside', setAside]] as const) {
   test(`Archive on a session whose tab is ${state} archives it and closes the tab`, async ({ app, page }) => {
     await app.boot({ ...fixture, setAside: setAsideMarks });
@@ -408,34 +408,34 @@ for (const [state, setAsideMarks] of [['cold', {}], ['cold and set aside', setAs
     await item(page, 'Archive').click();
     await expect(tab(page, full.title)).toHaveCount(0);
     await expect(row(page, full.title)).toHaveCount(0);
-    expect(await app.calls('archive')).toEqual([[[full.id]]]);
+    expect(await app.calls('finish')).toEqual([[[full.id]]]);
     expect(await app.calls('startTerminal')).toEqual([]);
   });
 }
 
 // The archived view's rows carry the kebab too, holding what the row's marks reach but its dot, its id, and the view's two buttons.
-const archivedView = { sessions: [full], archived: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } };
+const finishedView = { sessions: [full], archived: { [full.id]: Date.parse('2026-10-01T08:00:00.000Z') }, uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } };
 
 test("an archived session's menu holds its note, its id, Unarchive and Delete, Select… on its row, and nothing that starts or files it", async ({ app, page }) => {
-  await app.boot(archivedView);
+  await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
   await expect(page.locator('.kebab-menu button.menu-row')).toHaveText(['Add note…', 'Copy session id (00000000)', 'Unarchive', 'Delete session…', 'Select…']);
   // When it was archived, as its row says it, below when it was last active.
-  const archived = await row(page, full.title).locator('.meta-text').textContent();
-  await expect(lines(page).nth(3)).toHaveText(archived!);
-  expect(archived).toMatch(/^archived /);
+  const finished = await row(page, full.title).locator('.meta-text').textContent();
+  await expect(lines(page).nth(3)).toHaveText(finished!);
+  expect(finished).toMatch(/^archived /);
 });
 
 test("Unarchive in an archived session's menu takes it out of the archived view, as the row's button does", async ({ app, page }) => {
-  await app.boot(archivedView);
+  await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
   await item(page, 'Unarchive').click();
   await expect(row(page, full.title)).toHaveCount(0);
-  expect(await app.calls('unarchive')).toEqual([[[full.id]]]);
+  expect(await app.calls('unfinish')).toEqual([[[full.id]]]);
 });
 
 test("Delete session in an archived session's menu asks first, as the row's button does", async ({ app, page }) => {
-  await app.boot(archivedView);
+  await app.boot(finishedView);
   await row(page, full.title).locator('.session-kebab').click();
   await item(page, 'Delete session…').click();
   await expect(page.locator('#confirm-message')).toHaveText(`Delete "${full.title}"?`);
@@ -445,10 +445,10 @@ test("Delete session in an archived session's menu asks first, as the row's butt
 });
 
 test("an archived row's trailing controls sit 4px apart, delete second from the right", async ({ app, page }) => {
-  await app.boot(archivedView);
+  await app.boot(finishedView);
   const box = async (selector: string): Promise<{ x: number; width: number }> => (await row(page, full.title).locator(selector).boundingBox())!;
-  const [unarchive, del, kebab] = [await box('.unarchive-btn'), await box('.delete-btn'), await box('.session-kebab')];
-  expect(Math.round(del.x - (unarchive.x + unarchive.width))).toBe(4);
+  const [unfinish, del, kebab] = [await box('.unfinish-btn'), await box('.delete-btn'), await box('.session-kebab')];
+  expect(Math.round(del.x - (unfinish.x + unfinish.width))).toBe(4);
   expect(Math.round(kebab.x - (del.x + del.width))).toBe(4);
 });
 

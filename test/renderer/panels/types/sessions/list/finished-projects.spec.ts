@@ -13,22 +13,22 @@ const fixture = { sessions: [here, alsoHere, there], projectOrder: [PROJECT, OTH
 /** `alsoHere` archived already, so archiving `here` leaves the project with none in view. */
 const oneLeft = { ...fixture, archived: { [alsoHere.id]: 1 } };
 
-const archive = async (page: Page, title: string): Promise<void> => {
+const finish = async (page: Page, title: string): Promise<void> => {
   await row(page, title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button', { hasText: 'Archive' }).click();
 };
 /** The line under a project's heading that says its sessions are all archived. */
-const archivedLine = (page: Page, name: string): Locator => project(page, name).locator('> .section-empty');
+const allFinishedLine = (page: Page, name: string): Locator => project(page, name).locator('> .section-empty');
 
 test('archiving the last session of a project leaves the project in the list and the switcher, empty, saying so', async ({ app, page }) => {
   await app.boot(oneLeft);
-  await expect(archivedLine(page, 'demo')).toBeHidden();
+  await expect(allFinishedLine(page, 'demo')).toBeHidden();
 
-  await archive(page, here.title);
+  await finish(page, here.title);
   await expect(row(page, here.title)).toHaveCount(0);
   await expect(headings(page)).toHaveText(['demo', 'other']);
   await expect(projectHeading(page, 'demo').locator('.heading-count')).toHaveText('0');
-  await expect(archivedLine(page, 'demo')).toHaveText('All 2 sessions here are archived.');
+  await expect(allFinishedLine(page, 'demo')).toHaveText('All 2 sessions here are archived.');
   // Work can start there again from where it is.
   await expect(projectHeading(page, 'demo').locator('.project-add')).toBeEnabled();
 
@@ -38,24 +38,24 @@ test('archiving the last session of a project leaves the project in the list and
 
 test('folding a project whose sessions are all archived folds its line away with its groups', async ({ app, page }) => {
   await app.boot({ ...fixture, archived: { [here.id]: 1, [alsoHere.id]: 2 } });
-  await expect(archivedLine(page, 'demo')).toBeVisible();
+  await expect(allFinishedLine(page, 'demo')).toBeVisible();
   await projectHeading(page, 'demo').click();
   await expect(project(page, 'demo')).toHaveClass(/\bcollapsed\b/);
-  await expect(archivedLine(page, 'demo')).toBeHidden();
+  await expect(allFinishedLine(page, 'demo')).toBeHidden();
 });
 
 test('a project whose one session is archived says so in the singular', async ({ app, page }) => {
   await app.boot({ ...fixture, sessions: [here, there] });
-  await archive(page, here.title);
-  await expect(archivedLine(page, 'demo')).toHaveText('Its only session is archived.');
+  await finish(page, here.title);
+  await expect(allFinishedLine(page, 'demo')).toHaveText('Its only session is archived.');
 });
 
 test('archiving the last session of the project on show stays on that project', async ({ app, page }) => {
   await app.boot({ ...oneLeft, activeProject: PROJECT });
   await expect(page.locator('#switcher-name')).toHaveText('demo');
 
-  await archive(page, here.title);
-  await expect(archivedLine(page, 'demo')).toHaveText('All 2 sessions here are archived.');
+  await finish(page, here.title);
+  await expect(allFinishedLine(page, 'demo')).toHaveText('All 2 sessions here are archived.');
   await expect(headings(page)).toHaveText(['demo']);
   await expect(page.locator('#switcher-name')).toHaveText('demo');
   expect(await app.calls('setActiveProject')).toEqual([]);

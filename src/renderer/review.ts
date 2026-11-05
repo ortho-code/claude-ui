@@ -14,7 +14,7 @@ const DAY = 86_400_000;
 export interface ReviewFacts {
   /** The sessions with a tab, by key. */
   tabbed: ReadonlySet<string>;
-  archived: { has(key: string): boolean };
+  finished: { has(key: string): boolean };
   pendingDeletes: ReadonlySet<string>;
   setAside: ReadonlyMap<string, SetAside>;
   kept: ReadonlyMap<string, number>;
@@ -28,7 +28,7 @@ export interface ReviewFacts {
 /** `is:unfinished`: no tab, not finished (archived), and not on its way to the trash. */
 export function isUnfinished(session: SessionSummary, facts: ReviewFacts): boolean {
   const key = entityKey(session);
-  return !facts.tabbed.has(key) && !facts.archived.has(key) && !facts.pendingDeletes.has(key);
+  return !facts.tabbed.has(key) && !facts.finished.has(key) && !facts.pendingDeletes.has(key);
 }
 
 /** `is:set-aside`: set aside, with a day or whenever. */

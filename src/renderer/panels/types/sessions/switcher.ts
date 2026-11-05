@@ -125,7 +125,7 @@ export function selectProject(repoRoot: string | null): void {
  * Setting the scope alone once left the bar on the old project's tabs while the list and the switcher said All.
  * Told on what the switcher's projects are made of.
  */
-export function fallBackIfEmptied(view: View<'sessions' | 'archived' | 'pendingDeletes' | 'activeProject' | 'tabs'>): void {
+export function fallBackIfEmptied(view: View<'sessions' | 'finished' | 'pendingDeletes' | 'activeProject' | 'tabs'>): void {
   const { activeProject } = view;
   if (activeProject !== null && !listedProjects(view).has(activeProject)) selectProject(null);
 }
@@ -155,7 +155,7 @@ switcherCurrent.addEventListener('click', () => {
 switcherCurrent.querySelector('.switcher-chev')!.innerHTML = chevronIcon('down', 11);
 
 /** What the switcher draws from the store. */
-type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'archived' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs'>;
+type SwitcherView = View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs'>;
 
 /**
  * The switcher follows the store: every project's count and roll-up, and the project on show.

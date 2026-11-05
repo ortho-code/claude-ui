@@ -3,7 +3,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { prReference } from '../../../src/shared/prs';
-import { archivedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, purgedSession, togglePinned, unarchived, unkept } from '../../../src/shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, purgedSession, togglePinned, clearedFinished, unkept } from '../../../src/shared/sessionmarks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -98,20 +98,20 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     togglePin: (id) => answer((fixture.pinned = togglePinned(fixture.pinned, id))),
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
-    getArchived: () => answer(fixture.archived),
+    getFinished: () => answer(fixture.archived),
     // Main's archive takes each session's needs-you and set-aside marks off in the same write.
-    archive: (ids) => {
-      if (fixture.archiveFails !== null) return Promise.reject(new Error(fixture.archiveFails));
+    finish: (ids) => {
+      if (fixture.finishFails !== null) return Promise.reject(new Error(fixture.finishFails));
       const now = Date.now();
       for (const id of ids) {
         fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
         fixture.setAside = clearedSetAside(fixture.setAside, id);
-        fixture.archived = archivedFrom(fixture.archived, id, now);
+        fixture.archived = finishedFrom(fixture.archived, id, now);
       }
       return answer(fixture.archived);
     },
-    unarchive: (ids) => {
-      for (const id of ids) fixture.archived = unarchived(fixture.archived, id);
+    unfinish: (ids) => {
+      for (const id of ids) fixture.archived = clearedFinished(fixture.archived, id);
       return answer(fixture.archived);
     },
     // Main moves the transcript to the trash, so the listing no longer has it, forgets its status, and purges it from meta by main's own rule: its marks, its open tab, the tab to reopen on, its group.

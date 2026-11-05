@@ -17,9 +17,9 @@ import { showToast } from '../../../toast';
 import { TONES } from '../../../tone';
 import { setTooltip } from '../../../tooltip';
 import { hostOf } from '../builtin';
-import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor, unarchiveFor } from './actions';
+import { confirmAndDelete, editNote, openPrsMenu, openSiblingsMenu, openWorktreesMenu, sessionMenuItems, togglePinFor, unfinishFor } from './actions';
 import { pressRowInBulk, tickBox } from './bulk';
-import { activityMoment, archivedMoment } from './describe';
+import { activityMoment, finishedMoment } from './describe';
 import { currentByKey, rowTabMarks, sessionRows, statusDots, type RowTabMarks } from './drawn';
 import '../../../tone.css';
 import '../../../prstatus.css';
@@ -38,7 +38,7 @@ export function drawRow(key: string): HTMLElement {
 // Take it back out of the box.
 // Archiving has no row icon — it is a kebab item (text) in the normal view; only unarchiving, the archived view's primary action, stays a button on the row.
 // Redrawn from its 24-unit original at two-thirds scale, onto the 16-unit grid the helper draws on.
-const UNARCHIVE_ICON = strokeIcon(14, '<path d="M.67 2.67v4h4" /><path d="M2.34 10a6 6 0 1 0 1.42-6.24L.67 6.67" />');
+const UNFINISH_ICON = strokeIcon(14, '<path d="M.67 2.67v4h4" /><path d="M2.34 10a6 6 0 1 0 1.42-6.24L.67 6.67" />');
 
 interface RowEls {
   dot: HTMLElement;
@@ -57,7 +57,7 @@ interface RowEls {
   meta: HTMLElement;
   metaText: HTMLElement;
   pin: HTMLButtonElement;
-  unarchiveBtn: HTMLButtonElement;
+  unfinishBtn: HTMLButtonElement;
   deleteBtn: HTMLButtonElement;
   kebab: HTMLButtonElement;
 }
@@ -168,14 +168,14 @@ function createSessionRow(key: string): HTMLElement {
   });
 
   // Unarchive lives on the row because it is what the archived view is for; archiving a live session is a kebab item instead (shown/hidden in updateRow), so a normal row carries only pin + kebab.
-  const unarchiveBtn = document.createElement('button');
-  unarchiveBtn.className = 'icon-btn unarchive-btn';
-  unarchiveBtn.hidden = true;
-  unarchiveBtn.innerHTML = UNARCHIVE_ICON;
-  setTooltip(unarchiveBtn, 'Unarchive');
-  unarchiveBtn.addEventListener('click', (event) => {
+  const unfinishBtn = document.createElement('button');
+  unfinishBtn.className = 'icon-btn unfinish-btn';
+  unfinishBtn.hidden = true;
+  unfinishBtn.innerHTML = UNFINISH_ICON;
+  setTooltip(unfinishBtn, 'Unarchive');
+  unfinishBtn.addEventListener('click', (event) => {
     event.stopPropagation();
-    void unarchiveFor(key);
+    void unfinishFor(key);
   });
 
   // Delete lives only in the archived view (shown/hidden in updateRow); trash-based + confirmed.
@@ -197,8 +197,8 @@ function createSessionRow(key: string): HTMLElement {
 
   // Its box in bulk mode, before the dot (bulk.ts); drawn only then, and a press anywhere on the row ticks it then.
   item.prepend(tickBox(), dot);
-  item.append(pin, unarchiveBtn, deleteBtn, kebab);
-  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unarchiveBtn, deleteBtn, kebab });
+  item.append(pin, unfinishBtn, deleteBtn, kebab);
+  rowEls.set(item, { dot, title, badge, worktreeCount, clock, setAside: setAside, notLeft, siblingsBadge, siblingCount, prBadge, prCount, noteBadge, noteSep, meta, metaText, pin, unfinishBtn, deleteBtn, kebab });
   item.addEventListener('click', (event) => {
     // In bulk mode a press ticks the row rather than opening it; the dot, the marks, the pin and the kebab keep their own presses, which stop here.
     if (store.get().bulk) {
@@ -239,7 +239,7 @@ function newest(session: SessionSummary): SessionSummary {
 
 // Refresh a reused row's content for the tip it now shows.
 /** What a row draws from the store besides the session it shows. */
-export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'switchedModel' | 'pinned' | 'archived' | 'notes' | 'filter' | 'tabs' | 'prStatus' | 'reviewing'>;
+export type RowView = View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'switchedModel' | 'pinned' | 'finished' | 'notes' | 'filter' | 'tabs' | 'prStatus' | 'reviewing'>;
 
 /** Show what a row has from the tab running its session: its clock (`clockOf`), and the words for a stop claude has not left (notleft.ts), in place of its time and model while they show. */
 export function showTabMarks(marks: RowTabMarks, id: string, view: View<'scheduledTasks' | 'tabs'>): void {
@@ -264,7 +264,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   row.dataset.sid = session.id;
   const els = rowEls.get(row)!;
   // The review sets the filter aside, the archived view with it.
-  const archivedView = view.filter.filters.archived && !view.reviewing;
+  const finishedView = view.filter.filters.archived && !view.reviewing;
 
   applyStatus(els.dot, session.id, view);
   statusDots.set(session.id, els.dot);
@@ -321,7 +321,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   // When it was archived in the archived view, where every session is; when it was active everywhere else.
   // On the clock, of the session as the newest listing has it, since its last activity can move with nothing drawn again (`AFFECTS_ROW`, logic.ts).
   const moment = (shown: SessionSummary, as: RowView): Moment => {
-    const own = (flat?.why ? { text: flat.why(shown), at: shown.lastActivity } : null) ?? (archivedView ? archivedMoment(shown, as) : null) ?? activityMoment(shown, as);
+    const own = (flat?.why ? { text: flat.why(shown), at: shown.lastActivity } : null) ?? (finishedView ? finishedMoment(shown, as) : null) ?? activityMoment(shown, as);
     const lead = flat?.lead(shown) ?? null;
     return lead ? { ...own, text: `${lead} · ${own.text}` } : own;
   };
@@ -332,9 +332,9 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   setMarkup(els.pin, isPinned ? PINNED_ICON : PIN_ICON);
   setTooltip(els.pin, isPinned ? 'Unpin' : 'Pin');
   els.pin.disabled = false;
-  els.pin.hidden = archivedView;
+  els.pin.hidden = finishedView;
 
   // Unarchive and delete are the archived view's two buttons, shortcuts to the items its kebab holds, and appear nowhere else.
-  els.unarchiveBtn.hidden = !archivedView;
-  els.deleteBtn.hidden = !archivedView;
+  els.unfinishBtn.hidden = !finishedView;
+  els.deleteBtn.hidden = !finishedView;
 }

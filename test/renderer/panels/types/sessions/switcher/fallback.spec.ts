@@ -16,7 +16,7 @@ const fixture = {
 };
 
 
-// Archiving keeps a project, its sessions still on disk (list/archived-projects.spec.ts); deleting them is what leaves it nothing.
+// Archiving keeps a project, its sessions still on disk (list/finished-projects.spec.ts); deleting them is what leaves it nothing.
 test('the project on show losing its last session from disk falls back to All in the list, the switcher and the tab bar', async ({ app, page }) => {
   await app.boot(fixture);
   await expect(page.locator('#switcher-name')).toHaveText('demo');

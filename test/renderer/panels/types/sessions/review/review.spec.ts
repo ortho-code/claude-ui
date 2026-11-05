@@ -103,7 +103,7 @@ test('Set aside… and Archive take a row out too, and the review ends once noth
   await page.locator('#set-aside-ok').click();
   await expect(row(page, old.title)).toHaveCount(0);
   await row(page, ready.title).click();
-  await act(page, 'archive').click();
+  await act(page, 'finish').click();
   // The act's own toast, with its Undo, is what is said.
   await expect(page.locator('#toast-message')).toHaveText(`Archived "${ready.title}"`);
   await expect(page.locator('#bulk-line')).toBeHidden();

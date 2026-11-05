@@ -21,8 +21,8 @@ export function setStatus(id: string, status: string | undefined, background: re
  * Nor an archived one, which is put away: a status it still shows is one its claude left behind, such as one that ended without saying so.
  * Reading a needs-you mark dims it and keeps it: seeing it is not settling it (`clearNeedsYou`).
  */
-export function canMarkRead(id: string, view: View<'statuses' | 'tabs' | 'archived' | 'needsYou'> = store.get()): boolean {
-  if (view.archived.has(id)) return false;
+export function canMarkRead(id: string, view: View<'statuses' | 'tabs' | 'finished' | 'needsYou'> = store.get()): boolean {
+  if (view.finished.has(id)) return false;
   const status = dotStatus(id, view);
   return status === 'idle' || status === 'waiting' || status === 'needs';
 }

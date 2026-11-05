@@ -33,16 +33,16 @@ async function startLive(page: Page, app: App, title: string, pty: number): Prom
 test('Archive archives every ticked session in one write, with one toast whose Undo brings each back with its set-aside mark', async ({ app, page }) => {
   await app.boot({ ...fixture, setAside: { [a.id]: { due: null, at: 5 } } });
   await selectGroup(page, 'Work');
-  await act(page, 'archive').click();
+  await act(page, 'finish').click();
   await expect(toast(page)).toHaveText('Archived 2 sessions');
-  expect(await app.calls('archive')).toEqual([[[a.id, b.id]]]);
+  expect(await app.calls('finish')).toEqual([[[a.id, b.id]]]);
   await expect(row(page, a.title)).toHaveCount(0);
   await expect(row(page, b.title)).toHaveCount(0);
 
   await undo(page).click();
   await expect(row(page, a.title)).toHaveCount(1);
   await expect(row(page, b.title)).toHaveCount(1);
-  expect(await app.calls('unarchive')).toEqual([[[a.id, b.id]]]);
+  expect(await app.calls('unfinish')).toEqual([[[a.id, b.id]]]);
   await expect(row(page, a.title).locator('.set-aside-mark')).toBeVisible();
   await expect(row(page, b.title).locator('.set-aside-mark')).toBeHidden();
 });
@@ -163,7 +163,7 @@ test('Archive and Close tab are unavailable while every ticked session has a tab
   await row(page, c.title).click();
   await row(page, c.title).locator('.session-kebab').click();
   await page.locator('.kebab-menu button.menu-row', { hasText: /^Select…$/ }).click();
-  await expect(act(page, 'archive')).toHaveAttribute('data-tooltip', 'Every ticked session is starting');
+  await expect(act(page, 'finish')).toHaveAttribute('data-tooltip', 'Every ticked session is starting');
   await expect(act(page, 'close')).toHaveAttribute('data-tooltip', 'None of the ticked sessions has a tab to close now');
 });
 
@@ -174,7 +174,7 @@ test('an act with nothing to act on is unavailable and says why', async ({ app, 
   await expect(act(page, 'close')).toHaveAttribute('data-tooltip', 'None of the ticked sessions has a tab');
   await row(page, a.title).click();
   await row(page, b.title).click();
-  await expect(act(page, 'archive')).toHaveAttribute('data-tooltip', 'Nothing is ticked');
-  await act(page, 'archive').click({ force: true });
-  expect(await app.calls('archive')).toEqual([]);
+  await expect(act(page, 'finish')).toHaveAttribute('data-tooltip', 'Nothing is ticked');
+  await act(page, 'finish').click({ force: true });
+  expect(await app.calls('finish')).toEqual([]);
 });

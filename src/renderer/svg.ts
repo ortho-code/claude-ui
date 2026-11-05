@@ -39,7 +39,7 @@ export const stopIcon = (size: number, force = false): string =>
 
 // Archiving's mark: a lidded box, the archived filter's.
 // Ink spans the full 16-unit box horizontally and 3..13 vertically, centred on (8,8) like the rest, so it sits square beside the star and the branch.
-export const archiveIcon = (size: number): string => strokeIcon(size, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
+export const finishIcon = (size: number): string => strokeIcon(size, '<path d="M2.5 3.2h11v3h-11z" /><path d="M3.6 6.2v6.6h8.8V6.2" /><path d="M6.4 9h3.2" />');
 
 // The forces of a close and an archive: the force-stop square, larger, with the act's own mark cut through it, so one shape says "force" and the cut says which (decided 2026-10-28, from a mock).
 // A filled cross would be the plain one, being only two strokes.
@@ -57,8 +57,8 @@ export const tabButtonIcon = (mark: TabButtonMark, size: number): string => {
   if (mark === 'close') return closeIcon(size);
   if (mark === 'force-close') return forceIcon(size, CUT_CROSS);
   // The filter's box spans the whole 16 units, so drawn smaller to stand as tall as the stop square beside it.
-  if (mark === 'archive') return archiveIcon(Math.round(size * 0.65));
-  if (mark === 'force-archive') return forceIcon(size, CUT_BOX);
+  if (mark === 'finish') return finishIcon(Math.round(size * 0.65));
+  if (mark === 'force-finish') return forceIcon(size, CUT_BOX);
   return stopIcon(size, mark === 'force-stop');
 };
 

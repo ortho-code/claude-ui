@@ -8,8 +8,8 @@ import { row, tab, titles } from '../../../../support/window';
 // The row goes the moment the delete is confirmed and never comes back: it stays hidden while its files are being moved to the trash, and stops being hidden in the same change as the listing that no longer has it.
 const kept = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Kept session' });
 const gone = session({ id: '00000000-0000-4000-8000-0000000000c2', title: 'Deleted session' });
-const archivedView = { uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } };
-const fixture = { sessions: [kept, gone], archived: { [kept.id]: 1, [gone.id]: 2 }, pinned: [gone.id], notes: { [gone.id]: 'a note' }, ...archivedView };
+const finishedView = { uiState: { ...defaultUi(), filters: { ...defaultUi().filters, archived: true } } };
+const fixture = { sessions: [kept, gone], archived: { [kept.id]: 1, [gone.id]: 2 }, pinned: [gone.id], notes: { [gone.id]: 'a note' }, ...finishedView };
 
 /** Count every time a row for `key` is put into the page from now on. */
 const watchAdded = (page: Page, key: string): Promise<void> =>
@@ -108,7 +108,7 @@ test('a pin made while the read after a delete is out is not taken back by it', 
 
   // Out of the archived view, where a row has its pin.
   await page.locator('#filter-toggle').click();
-  await page.locator('#archived-filter').click();
+  await page.locator('#finished-filter').click();
   const pin = row(page, worker.title).locator('.pin');
   await pin.click();
   await expect(pin).toHaveAttribute('data-tooltip', 'Unpin');

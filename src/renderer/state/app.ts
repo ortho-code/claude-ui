@@ -40,7 +40,7 @@ export interface AppState {
   /** Pinned sessions, by entity key: floated to the top of their section in the list. */
   pinned: ReadonlySet<string>;
   /** Archived sessions, by entity key -> when they were archived (epoch ms): out of the normal view, and all the archived view holds. */
-  archived: ReadonlyMap<string, number>;
+  finished: ReadonlyMap<string, number>;
   /** Entity key -> its note; a session without one is absent, since a blank note deletes it. */
   notes: ReadonlyMap<string, string>;
   /**
@@ -194,10 +194,10 @@ export interface TabState {
    */
   stopping: boolean;
   /**
-   * What the exit of a claude asked to leave does to the tab: `cool` keeps it, cold, `close` removes it, and `archive` removes it and archives its session (`archiveSessions`).
+   * What the exit of a claude asked to leave does to the tab: `cool` keeps it, cold, `close` removes it, and `finish` removes it and archives its session (`finishSessions`).
    * A close or an archive of a live tab waits for claude like a stop, since claude may ask something on its way out.
    */
-  onExit: 'cool' | 'close' | 'archive';
+  onExit: 'cool' | 'close' | 'finish';
   /** A stop that has had its moment without the session going: its stop control now forces it out (`leaveAction`). */
   forceable: boolean;
   /**
@@ -327,7 +327,7 @@ export const store = createStore<AppState>(
     acked: new Set(),
     switchedModel: new Map(),
     pinned: new Set(),
-    archived: new Map(),
+    finished: new Map(),
     needsYou: new Map(),
     setAside: new Map(),
     kept: new Map(),
@@ -360,7 +360,7 @@ export const store = createStore<AppState>(
     // Every Stop writes the list again, the same tasks as new objects.
     scheduledTasks: (a, b) => sameEntries(a, b, sameData),
     pinned: sameMembers,
-    archived: sameEntries,
+    finished: sameEntries,
     kept: sameEntries,
     notes: sameEntries,
     pendingDeletes: sameMembers,

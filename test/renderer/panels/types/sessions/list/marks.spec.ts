@@ -69,19 +69,19 @@ test('archiving closes the session\'s tab and moves its row to the archived view
 
   // The archived view manages it rather than resuming it: an unarchive and a delete on the row, and its menu, no pin.
   await page.locator('#filter-toggle').click();
-  await page.locator('#archived-filter').click();
+  await page.locator('#finished-filter').click();
   await expect(titles(page)).toHaveText([older.title]);
   await expect(row(page, older.title).locator('.card-meta')).toContainText('archived');
-  await expect(row(page, older.title).locator('.unarchive-btn')).toBeVisible();
+  await expect(row(page, older.title).locator('.unfinish-btn')).toBeVisible();
   await expect(row(page, older.title).locator('.pin')).toBeHidden();
   await expect(row(page, older.title).locator('.session-kebab')).toBeVisible();
 
-  await row(page, older.title).locator('.unarchive-btn').click();
+  await row(page, older.title).locator('.unfinish-btn').click();
   await expect(titles(page)).toHaveText([]);
-  await page.locator('#archived-filter').click();
+  await page.locator('#finished-filter').click();
   await expect(titles(page)).toHaveText([newer.title, older.title]);
   await expect(tabLabel(page, older.title)).toHaveCount(0);
-  expect(await app.calls('archive')).toEqual([[[older.id]]]);
-  expect(await app.calls('unarchive')).toEqual([[[older.id]]]);
+  expect(await app.calls('finish')).toEqual([[[older.id]]]);
+  expect(await app.calls('unfinish')).toEqual([[[older.id]]]);
 });
 

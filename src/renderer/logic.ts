@@ -327,7 +327,7 @@ export interface FilterCriteria {
   siblingOnly: boolean;
   /** Show only sessions whose transcript links a PR. */
   prsOnly: boolean;
-  archivedOnly: boolean;
+  finishedOnly: boolean;
   /**
    * Show only sessions carrying a note.
    * Reads `notes`, where an entry exists only when there IS one (a blank note deletes it).
@@ -343,7 +343,7 @@ export interface FilterCriteria {
   /** Keys of the sessions set aside; only consulted when setAsideOnly is set. */
   setAside?: { has(key: string): boolean };
   /** Set or Map keyed by conversationId; only membership is used. */
-  archived: { has(key: string): boolean };
+  finished: { has(key: string): boolean };
   pendingDeletes: ReadonlySet<string>;
   /** Session id -> note, so typed text matches a note as well as a title. */
   notes?: ReadonlyMap<string, string>;
@@ -355,15 +355,15 @@ export interface FilterCriteria {
  * Whether a session is in the set a view holds before any filter: the archived view holds the archived sessions, the normal view the rest, and a session on its way to the trash is in neither.
  * One rule for the list, the switcher's counts and the filter count's total, so the total is always the set the matches were taken from.
  */
-export function inView(key: string, archivedView: boolean, archived: { has(key: string): boolean }, pendingDeletes: ReadonlySet<string>): boolean {
-  return !pendingDeletes.has(key) && archived.has(key) === archivedView;
+export function inView(key: string, finishedView: boolean, finished: { has(key: string): boolean }, pendingDeletes: ReadonlySet<string>): boolean {
+  return !pendingDeletes.has(key) && finished.has(key) === finishedView;
 }
 
 // Whether a session survives every active filter.
 // Archived sessions are hidden from the normal list and are the only ones shown in the archived view; the toggle flips which set is visible.
 export function sessionPasses(session: SessionSummary, c: FilterCriteria): boolean {
   const key = entityKey(session);
-  if (!inView(key, c.archivedOnly, c.archived, c.pendingDeletes)) return false;
+  if (!inView(key, c.finishedOnly, c.finished, c.pendingDeletes)) return false;
   if (c.pinnedOnly && !c.pinned.has(key)) return false;
   if (c.openOnly && !c.open?.has(key)) return false;
   if (c.liveOnly && !c.live?.has(key)) return false;
@@ -474,21 +474,21 @@ export function projectFor(roots: readonly string[], dir: string): string | null
 /** A project as the switcher and the session list draw it: the sessions shown under it, and when there are none because every one is archived, those. */
 interface ProjectEntry {
   shown: SessionSummary[];
-  archived: SessionSummary[];
+  finished: SessionSummary[];
 }
 
 /**
- * The projects to draw, in the order you set: one per root among `sessions`, and one, with nothing shown, per root in `archivedOnly` (`archivedOnlyProjects`).
+ * The projects to draw, in the order you set: one per root among `sessions`, and one, with nothing shown, per root in `finishedOnly` (`finishedOnlyProjects`).
  * The ONE place the switcher and the session list take their projects from, so the two never disagree about which projects there are or where each sits.
  */
-function projectEntries(sessions: SessionSummary[], archivedOnly: ReadonlyMap<string, SessionSummary[]>, projectOrder: readonly string[]): [string, ProjectEntry][] {
-  const entries: [string, ProjectEntry][] = groupByRepo(sessions).map(([repoRoot, shown]) => [repoRoot, { shown, archived: [] }]);
-  for (const [repoRoot, archived] of archivedOnly) entries.push([repoRoot, { shown: [], archived }]);
+function projectEntries(sessions: SessionSummary[], finishedOnly: ReadonlyMap<string, SessionSummary[]>, projectOrder: readonly string[]): [string, ProjectEntry][] {
+  const entries: [string, ProjectEntry][] = groupByRepo(sessions).map(([repoRoot, shown]) => [repoRoot, { shown, finished: [] }]);
+  for (const [repoRoot, finished] of finishedOnly) entries.push([repoRoot, { shown: [], finished }]);
   return orderProjects(entries, projectOrder);
 }
 
 /** The sessions that answer for a project's folder: those shown, or its archived ones when none is, which sit in the same folder. */
-const folderWitnesses = ({ shown, archived }: ProjectEntry): SessionSummary[] => (shown.length > 0 ? shown : archived);
+const folderWitnesses = ({ shown, finished }: ProjectEntry): SessionSummary[] => (shown.length > 0 ? shown : finished);
 
 // Build the project-switcher model from the VISIBLE tips (one per conversation, already filtered to what the sidebar shows).
 // Projects follow the order you set (`projectOrder`, `orderProjects`), as in the session list; a project with no place in it yet goes last.
@@ -500,11 +500,11 @@ export function projectsForSwitcher(
   needsYou: ReadonlyMap<string, unknown>,
   names?: ReadonlyMap<string, string>,
   projectOrder: readonly string[] = [],
-  archivedOnly: ReadonlyMap<string, SessionSummary[]> = new Map(),
+  finishedOnly: ReadonlyMap<string, SessionSummary[]> = new Map(),
   muted: ReadonlySet<string> = new Set(),
 ): SwitcherModel {
   // Same order as the sidebar sections: the switcher is the compact view of the same list, so the two must never disagree about where a project sits.
-  const projects = projectEntries(sessions, archivedOnly, projectOrder).map(([repoRoot, entry]) => ({
+  const projects = projectEntries(sessions, finishedOnly, projectOrder).map(([repoRoot, entry]) => ({
     repoRoot,
     name: displayName(repoRoot, names),
     count: entry.shown.length,
@@ -547,7 +547,7 @@ export interface ProjectTree {
    */
   rootExists: boolean;
   /** How many sessions it has archived when every one it has is, and so none is shown: the project stays, saying so; 0 for a project with any shown. */
-  archived: number;
+  finished: number;
 }
 
 // Pinned sessions rise to the front, everything else keeps the order it came in (callers pass a recency-sorted list).
@@ -564,7 +564,7 @@ function pinnedFirst(sessions: SessionSummary[], pinned: ReadonlySet<string>): S
  * Projects follow the order you set (`projectOrder`, `orderProjects`), a project with no place in it yet going last; inside a project the groups come first in registry order, then the ungrouped remainder, each with its pinned sessions first and the rest in the order they came in (recency, since the caller sorts that way).
  *
  * `hideEmptyGroups` is for filtering: a group whose sessions were all filtered out is noise in a search, but an empty group must stay visible normally — that is how a freshly created one is seen.
- * A root in `archivedOnly` is a project with no rows, its `archived` saying how many sessions it has archived (`archivedOnlyProjects`).
+ * A root in `finishedOnly` is a project with no rows, its `finished` saying how many sessions it has archived (`finishedOnlyProjects`).
  * `known` is every session the app knows, filtered out or not, which answers for what a project's folder is: a filter changes what is shown, not whether the folder is a git repository.
  */
 export function buildProjectTree(
@@ -573,7 +573,7 @@ export function buildProjectTree(
   pinned: ReadonlySet<string>,
   hideEmptyGroups = false,
   projectOrder: readonly string[] = [],
-  archivedOnly: ReadonlyMap<string, SessionSummary[]> = new Map(),
+  finishedOnly: ReadonlyMap<string, SessionSummary[]> = new Map(),
   known: readonly SessionSummary[] = sessions,
 ): ProjectTree[] {
   const groupsByProject = new Map<string, SessionGroup[]>();
@@ -585,7 +585,7 @@ export function buildProjectTree(
     groupsByProject.set(group.repoRoot, list);
   }
 
-  return projectEntries(sessions, archivedOnly, projectOrder).map(([repoRoot, entry]) => {
+  return projectEntries(sessions, finishedOnly, projectOrder).map(([repoRoot, entry]) => {
     const ordered = pinnedFirst(entry.shown, pinned);
     const projectGroups = groupsByProject.get(repoRoot) ?? [];
     const ids = new Set(projectGroups.map((g) => g.id));
@@ -601,7 +601,7 @@ export function buildProjectTree(
       count: ordered.length,
       isRepo: folderWitnesses(entry).some((s) => s.isRepo) || known.some((s) => s.repoRoot === repoRoot && s.isRepo),
       rootExists: projectRootExists(folderWitnesses(entry)),
-      archived: entry.shown.length > 0 ? 0 : entry.archived.length,
+      finished: entry.shown.length > 0 ? 0 : entry.finished.length,
     };
   });
 }
@@ -825,15 +825,15 @@ export interface TabButtonTab {
   /** It has been on its way out long enough to say so where it shows without a hover (`notLeftWords`). */
   notLeft?: boolean;
   /** What its exit does once claude has gone, while it is on its way out: keep the tab (`cool`, the default), remove it, or remove it and archive its session. */
-  onExit?: 'cool' | 'close' | 'archive';
-  /** A tab of its session is starting, this one or another, which leaves no claude yet to ask to leave for an archive, the session's rather than a tab's (`archiveSessions`). */
+  onExit?: 'cool' | 'close' | 'finish';
+  /** A tab of its session is starting, this one or another, which leaves no claude yet to ask to leave for an archive, the session's rather than a tab's (`finishSessions`). */
   sessionStarting?: boolean;
 }
 
 /**
  * What a tab's claude can be asked to leave for, each one press of its own meaning (decided 2026-10-28): a stop keeps the tab, cold, a close removes it, and an archive removes it and archives its session, each waiting out what claude asks on its way out.
  */
-export type LeaveAction = 'stop' | 'close' | 'archive';
+export type LeaveAction = 'stop' | 'close' | 'finish';
 
 /**
  * The mark on a tab's button and its menu's items: the stop square, the cross, or the lidded box (`tabButtonIcon`).
@@ -853,7 +853,7 @@ export interface TabButton {
 const LEAVE_WORDS: Record<LeaveAction, { label: string; force: string; going: string }> = {
   stop: { label: 'Stop session', force: 'Force stop', going: 'Stopping…' },
   close: { label: 'Close tab', force: 'Force close', going: 'Closing…' },
-  archive: { label: 'Archive', force: 'Force archive', going: 'Archiving…' },
+  finish: { label: 'Archive', force: 'Force archive', going: 'Archiving…' },
 };
 
 /** What a press on a leave item does, in words: its label, and the button's tooltip while it can act. */
@@ -864,7 +864,7 @@ export function leaveLabel(action: LeaveAction): string {
 /** What a tab that is on its way out is leaving for: what its exit will do; null while it is not leaving. */
 export function leaveUnderWay(tab: TabButtonTab): LeaveAction | null {
   if (!tab.stopping) return null;
-  return tab.onExit === 'close' || tab.onExit === 'archive' ? tab.onExit : 'stop';
+  return tab.onExit === 'close' || tab.onExit === 'finish' ? tab.onExit : 'stop';
 }
 
 const available = (action: LeaveAction): TabButton => ({ disabled: false, tooltip: LEAVE_WORDS[action].label, mark: action, label: LEAVE_WORDS[action].label, action });
@@ -890,7 +890,7 @@ function leaveForce(tab: TabButtonTab, under: LeaveAction): TabButton {
  * A cold tab has nothing to stop; it closes and archives at once.
  */
 export function leaveAction(tab: TabButtonTab, action: LeaveAction): TabButton {
-  if (tab.starting || (action === 'archive' && tab.sessionStarting)) return unavailable(action, 'Starting…');
+  if (tab.starting || (action === 'finish' && tab.sessionStarting)) return unavailable(action, 'Starting…');
   const under = leaveUnderWay(tab);
   if (under === action) return leaveForce(tab, under);
   if (under === null && tab.terminalId === null && action === 'stop') return unavailable('stop', 'Not running');
@@ -904,7 +904,7 @@ export function leaveAction(tab: TabButtonTab, action: LeaveAction): TabButton {
  */
 export function tabButton(tab: TabButtonTab, choice: LeaveButton = 'stop-close'): TabButton | null {
   if (choice === 'none') return null;
-  const removes = choice === 'stop-archive' || choice === 'archive' ? 'archive' : 'close';
+  const removes = choice === 'stop-archive' || choice === 'archive' ? 'finish' : 'close';
   const running = choice === 'close' || choice === 'archive' ? removes : 'stop';
   if (tab.starting) return unavailable(running, 'Starting…');
   const under = leaveUnderWay(tab);

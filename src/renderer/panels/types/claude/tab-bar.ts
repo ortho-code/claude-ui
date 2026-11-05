@@ -51,7 +51,7 @@ function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.ge
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups gets an indented row beneath it behind the same rail the sidebar uses.
 // A project view drops the project label (everything shown belongs to it) but keeps the group rows.
 /** What the tab bar draws from the store. */
-type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'archived' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab' | 'tabBarExpanded' | 'settings'>;
+type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab' | 'tabBarExpanded' | 'settings'>;
 
 export function renderTabBar(view: TabBarView): void {
   // The library owns the bar's tabs while one is dragged — it moves them, and puts its copy of the dragged one in its row — so a redraw then would undo the drag under the pointer; the drop draws what was held (`sortableFor`).
@@ -278,7 +278,7 @@ function buildSessionTab(token: string): SessionTabEls {
 }
 
 /** Draw a session's tab as it is now: its state, its dot, its marks, its name, and its button's step. */
-function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'archived' | 'projectNames' | 'tabs' | 'activeTab' | 'settings'>): HTMLElement {
+function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'projectNames' | 'tabs' | 'activeTab' | 'settings'>): HTMLElement {
   const { tab: els, dot, markGroup, siblingMark, worktreeMark, clock, setAside: setAside, notLeft } = tabEls.draw(tab.token, buildSessionTab);
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
   const unstartable = unstartableReason(tab.session);

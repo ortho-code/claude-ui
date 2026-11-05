@@ -36,8 +36,8 @@ export function togglePinned(pinned: readonly string[], id: string): string[] {
 }
 
 /** An archive entry there, from `now`, or from when it was archived before, so a second archive is no change. */
-export function archivedFrom(archived: Readonly<Record<string, number>>, id: string, now: number): Record<string, number> {
-  return id in archived ? { ...archived } : { ...archived, [id]: now };
+export function finishedFrom(finished: Readonly<Record<string, number>>, id: string, now: number): Record<string, number> {
+  return id in finished ? { ...finished } : { ...finished, [id]: now };
 }
 
 /** Every reason a session can need you for, as `meta.json` may hold them. */
@@ -113,15 +113,15 @@ export function mutedBySetAside(needsYou: readonly NeedsYou[] | undefined, setAs
 }
 
 /** An archive entry gone, whether or not it was there. */
-export function unarchived(archived: Readonly<Record<string, number>>, id: string): Record<string, number> {
-  const next = { ...archived };
+export function clearedFinished(finished: Readonly<Record<string, number>>, id: string): Record<string, number> {
+  const next = { ...finished };
   delete next[id];
   return next;
 }
 
 /** A deleted session's marks forgotten: its pin, its archive entry, its note, its needs-you mark, its set-aside mark and its keep stamp (`purgedSession` forgets the rest of what meta holds about it). */
 export function withoutSession(marks: Readonly<SessionMarks>, id: string): SessionMarks {
-  const archived = unarchived(marks.archived, id);
+  const archived = clearedFinished(marks.archived, id);
   const notes = { ...marks.notes };
   delete notes[id];
   return { pinned: marks.pinned.filter((key) => key !== id), archived, notes, needsYou: clearedNeedsYou(marks.needsYou, id), setAside: clearedSetAside(marks.setAside, id), kept: unkept(marks.kept, [id]) };

@@ -23,8 +23,8 @@ export function activityMoment(session: SessionSummary, view: View<'switchedMode
 }
 
 /** When a session was archived, as its row in the archived view says it; null for a session that is not archived. */
-export function archivedMoment(session: SessionSummary, view: View<'archived'>): Moment | null {
-  const ts = view.archived.get(entityKey(session));
+export function finishedMoment(session: SessionSummary, view: View<'finished'>): Moment | null {
+  const ts = view.finished.get(entityKey(session));
   if (ts === undefined) return null;
   if (!ts) return { text: 'archived', at: null };
   const at = new Date(ts).toISOString();
@@ -44,12 +44,12 @@ export function whereOf(session: SessionSummary, view: View<'activeProject' | 'p
  */
 export function sessionHeader(
   session: SessionSummary,
-  view: View<'projectNames' | 'groupState' | 'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'switchedModel' | 'notes' | 'archived'>,
+  view: View<'projectNames' | 'groupState' | 'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'switchedModel' | 'notes' | 'finished'>,
 ): MenuItem {
   const where = [projName(session.repoRoot, view), groupNameOf(session, view)].filter(Boolean).join(' · ');
   const note = view.notes.get(entityKey(session))?.split('\n')[0];
   const setAside = view.setAside.get(entityKey(session));
-  const after = [setAside && setAsideLabel(setAside), activityMoment(session, view).text, archivedMoment(session, view)?.text, worktreeMarkState(session)?.tooltip, note, unstartableReason(session)];
+  const after = [setAside && setAsideLabel(setAside), activityMoment(session, view).text, finishedMoment(session, view)?.text, worktreeMarkState(session)?.tooltip, note, unstartableReason(session)];
   const lines: HeaderLine[] = [...(where ? [where] : []), ...statusLines(session.id, view), ...after.filter((line): line is string => Boolean(line))];
   return { label: sessionLabel(session), header: lines };
 }

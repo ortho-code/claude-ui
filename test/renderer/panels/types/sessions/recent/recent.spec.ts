@@ -75,8 +75,8 @@ test('the archived view in Recent is flat too, each row saying when it was archi
 });
 
 test('with every session archived, Recent says so in place of its rows, in a project and in All', async ({ app, page }) => {
-  const archived = Object.fromEntries(fixture.sessions.map((s) => [s.id, NOW - MINUTE]));
-  await boot(app, page, { archived });
+  const finished = Object.fromEntries(fixture.sessions.map((s) => [s.id, NOW - MINUTE]));
+  await boot(app, page, { archived: finished });
   await switchButton(page, 'Recent').click();
   await expect(page.locator('#sessions .empty-message')).toHaveText('All 3 sessions here are archived.');
   await chooseProject(page, 'All');
