@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 import { PR_TYPES } from '../../../src/shared/needsyou';
-import { linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prMark, prVerdict, rollUpPrTone, verdictOf } from '../../../src/renderer/prstatus';
+import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prDetails, prMark, prVerdict, rollUpPrTone, settledState, verdictOf } from '../../../src/renderer/prstatus';
+import type { Approvals } from '../../../src/shared/prs';
 import type { PrRef, PrSeen, PrStatus, SessionPr } from '../../../src/shared/types';
 
 /** An open PR waiting on nobody: not a draft, approved, its checks passed, no conflict. */
@@ -9,13 +10,20 @@ function open(overrides: Partial<Extract<PrStatus, { state: 'open' }>> = {}): Pr
   return { state: 'open', role: 'own', draft: false, review: 'approved', checks: 'passed', conflict: false, approvals: 1, newCommits: false, reviewAsked: false, changesRequested: [], ...overrides };
 }
 
+/** No repository needs a number of approvals: GitHub's decision alone says approved. */
+const GITHUB_DECIDES: Approvals = {};
+
+/** The repository the PRs here are in needs two approvals, written in another case than the PRs spell it. */
+const TWO: Approvals = { 'Acme/App': 2 };
+
 describe('prChanges', () => {
   const pr: PrRef = { repository: 'acme/app', number: 7 };
   const ref = 'acme/app#7';
   /** What was seen of the PR before, as `prChanges` keeps it. */
-  const was = (status: PrStatus): PrSeen => prChanges({}, [pr], { statuses: { [ref]: status }, problem: null }).seen ?? {};
+  const was = (status: PrStatus): PrSeen => prChanges({}, [pr], { statuses: { [ref]: status }, problem: null }, GITHUB_DECIDES).seen ?? {};
   /** The changes from `before` to `after`, strongest first and joined, null for none that marks. */
-  const change = (before: PrStatus, after: PrStatus): string | null => prChanges(was(before), [pr], { statuses: { [ref]: after }, problem: null }).changes[0]?.types.map((type) => PR_TYPES[type]).join(', ') ?? null;
+  const change = (before: PrStatus, after: PrStatus, approvals = GITHUB_DECIDES): string | null =>
+    prChanges(was(before), [pr], { statuses: { [ref]: after }, problem: null }, approvals).changes[0]?.types.map((type) => PR_TYPES[type]).join(', ') ?? null;
 
   it('marks a PR turning into checks failed, a conflict, changes requested, merged or closed', () => {
     expect(change(open({ checks: 'running' }), open({ checks: 'failed' }))).toBe('checks failed');
@@ -56,10 +64,10 @@ describe('prChanges', () => {
   // GitHub works a conflict out again after a push, saying neither meanwhile.
   it('takes a conflict GitHub has not worked out yet as what it was, so one that stays does not mark again', () => {
     const seen = was(open({ conflict: true }));
-    const unknown = prChanges(seen, [pr], { statuses: { [ref]: open({ conflict: null }) }, problem: null });
+    const unknown = prChanges(seen, [pr], { statuses: { [ref]: open({ conflict: null }) }, problem: null }, GITHUB_DECIDES);
     expect(unknown.changes).toEqual([]);
     expect(unknown.seen?.[ref]).toEqual(open({ conflict: true }));
-    expect(prChanges(unknown.seen, [pr], { statuses: { [ref]: open({ conflict: true }) }, problem: null }).changes).toEqual([]);
+    expect(prChanges(unknown.seen, [pr], { statuses: { [ref]: open({ conflict: true }) }, problem: null }, GITHUB_DECIDES).changes).toEqual([]);
   });
 
   // Approved marks only when the review itself turns approved (decided 2026-10-29), not when it shows again once a push's checks have run.
@@ -69,6 +77,16 @@ describe('prChanges', () => {
     expect(change(open({ review: 'approved', checks: 'running' }), open({ review: 'approved' }))).toBeNull();
   });
 
+  it('marks approved in a repository that needs two only at the second approval', () => {
+    expect(change(open({ review: 'review-required', approvals: 0 }), open({ approvals: 1 }), TWO)).toBeNull();
+    expect(change(open({ approvals: 1 }), open({ approvals: 2 }), TWO)).toBe('approved');
+  });
+
+  it('marks nothing from the repository’s number being set while the PR stays as it was', () => {
+    const seen = was(open({ approvals: 1 }));
+    expect(prChanges(seen, [pr], { statuses: { [ref]: open({ approvals: 1 }) }, problem: null }, TWO).changes).toEqual([]);
+  });
+
   // What it holds when it opens again would otherwise be recorded unmarked.
   it('marks a closed PR opened again as reopened, with everything it holds then', () => {
     expect(change({ state: 'closed', role: 'own' }, open({ review: 'review-required' }))).toBe('reopened');
@@ -76,58 +94,73 @@ describe('prChanges', () => {
   });
 
   it('records a PR seen for the first time without marking it, whatever it reads', () => {
-    const first = prChanges({}, [pr], { statuses: { [ref]: { state: 'merged', role: 'own' } }, problem: null });
+    const first = prChanges({}, [pr], { statuses: { [ref]: { state: 'merged', role: 'own' } }, problem: null }, GITHUB_DECIDES);
     expect(first).toEqual({ seen: { [ref]: { state: 'merged', role: 'own' } }, changes: [] });
-    expect(prChanges(null, [pr], { statuses: { [ref]: open() }, problem: null })).toEqual({ seen: { [ref]: open() }, changes: [] });
+    expect(prChanges(null, [pr], { statuses: { [ref]: open() }, problem: null }, GITHUB_DECIDES)).toEqual({ seen: { [ref]: open() }, changes: [] });
   });
 
   it('changes nothing for an answer main could not get, and keeps what was seen of a PR with no status', () => {
     const seen = was(open());
-    expect(prChanges(seen, [pr], { statuses: { [ref]: { state: 'merged', role: 'own' } }, problem: 'gh was not found' })).toEqual({ seen, changes: [] });
-    expect(prChanges(seen, [pr], { statuses: {}, problem: null })).toEqual({ seen, changes: [] });
-    expect(prChanges(null, [pr], { statuses: {}, problem: 'gh was not found' })).toEqual({ seen: null, changes: [] });
+    expect(prChanges(seen, [pr], { statuses: { [ref]: { state: 'merged', role: 'own' } }, problem: 'gh was not found' }, GITHUB_DECIDES)).toEqual({ seen, changes: [] });
+    expect(prChanges(seen, [pr], { statuses: {}, problem: null }, GITHUB_DECIDES)).toEqual({ seen, changes: [] });
+    expect(prChanges(null, [pr], { statuses: {}, problem: 'gh was not found' }, GITHUB_DECIDES)).toEqual({ seen: null, changes: [] });
   });
 });
 
 describe('needsYouNow', () => {
   it('names everything a PR already needs you for, strongest first, as the first run marks it, and nothing where it needs nothing', () => {
-    expect(needsYouNow({ state: 'merged', role: 'own' })).toEqual(['pr.merged']);
-    expect(needsYouNow(open({ review: 'changes-requested' }))).toEqual(['pr.changes-requested']);
-    expect(needsYouNow(open({ checks: 'failed' }))).toEqual(['pr.checks-failed', 'pr.approved']);
-    expect(needsYouNow(open({ review: 'review-required' }))).toEqual([]);
+    expect(needsYouNow({ state: 'merged', role: 'own' }, null)).toEqual(['pr.merged']);
+    expect(needsYouNow(open({ review: 'changes-requested' }), null)).toEqual(['pr.changes-requested']);
+    expect(needsYouNow(open({ checks: 'failed' }), null)).toEqual(['pr.checks-failed', 'pr.approved']);
+    expect(needsYouNow(open({ review: 'review-required' }), null)).toEqual([]);
+  });
+
+  it('names an approval only once it reaches the number the repository needs', () => {
+    expect(needsYouNow(open({ approvals: 1 }), 2)).toEqual([]);
+    expect(needsYouNow(open({ approvals: 2 }), 2)).toEqual(['pr.approved']);
   });
 });
 
 describe('prVerdict', () => {
   it('is normal with no words while its status is not known', () => {
-    expect(prVerdict(null)).toEqual({ tone: 'normal', words: null });
+    expect(prVerdict(null, null)).toEqual({ tone: 'normal', words: null });
   });
 
   it('mutes a merged or a closed PR', () => {
-    expect(prVerdict({ state: 'merged', role: 'own' })).toEqual({ tone: 'muted', words: 'merged' });
-    expect(prVerdict({ state: 'closed', role: 'own' })).toEqual({ tone: 'muted', words: 'closed' });
+    expect(prVerdict({ state: 'merged', role: 'own' }, null)).toEqual({ tone: 'muted', words: 'merged' });
+    expect(prVerdict({ state: 'closed', role: 'own' }, null)).toEqual({ tone: 'muted', words: 'closed' });
   });
 
   it('is danger for failed checks or a conflict, over everything below', () => {
-    expect(prVerdict(open({ checks: 'failed', review: 'changes-requested', draft: true }))).toEqual({ tone: 'danger', words: 'checks failed' });
-    expect(prVerdict(open({ conflict: true, review: 'changes-requested' }))).toEqual({ tone: 'danger', words: 'merge conflict' });
+    expect(prVerdict(open({ checks: 'failed', review: 'changes-requested', draft: true }), null)).toEqual({ tone: 'danger', words: 'checks failed' });
+    expect(prVerdict(open({ conflict: true, review: 'changes-requested' }), null)).toEqual({ tone: 'danger', words: 'merge conflict' });
   });
 
   it('is attention for changes requested, over a draft and running checks', () => {
-    expect(prVerdict(open({ review: 'changes-requested', draft: true, checks: 'running' }))).toEqual({ tone: 'attention', words: 'changes requested' });
+    expect(prVerdict(open({ review: 'changes-requested', draft: true, checks: 'running' }), null)).toEqual({ tone: 'attention', words: 'changes requested' });
   });
 
   it('is positive only when approved, not a draft, its checks passed or none, and no conflict', () => {
-    expect(prVerdict(open())).toEqual({ tone: 'positive', words: 'approved' });
-    expect(prVerdict(open({ checks: null }))).toEqual({ tone: 'positive', words: 'approved' });
-    expect(prVerdict(open({ draft: true }))).toEqual({ tone: 'normal', words: 'draft' });
-    expect(prVerdict(open({ checks: 'running' }))).toEqual({ tone: 'normal', words: 'checks running' });
-    expect(prVerdict(open({ conflict: null }))).toEqual({ tone: 'normal', words: 'approved' });
+    expect(prVerdict(open(), null)).toEqual({ tone: 'positive', words: 'approved' });
+    expect(prVerdict(open({ checks: null }), null)).toEqual({ tone: 'positive', words: 'approved' });
+    expect(prVerdict(open({ draft: true }), null)).toEqual({ tone: 'normal', words: 'draft' });
+    expect(prVerdict(open({ checks: 'running' }), null)).toEqual({ tone: 'normal', words: 'checks running' });
+    expect(prVerdict(open({ conflict: null }), null)).toEqual({ tone: 'normal', words: 'approved' });
   });
 
   it('is normal while it waits on a review, or has no review decision', () => {
-    expect(prVerdict(open({ review: 'review-required' }))).toEqual({ tone: 'normal', words: 'review required' });
-    expect(prVerdict(open({ review: null }))).toEqual({ tone: 'normal', words: 'open' });
+    expect(prVerdict(open({ review: 'review-required' }), null)).toEqual({ tone: 'normal', words: 'review required' });
+    expect(prVerdict(open({ review: null }), null)).toEqual({ tone: 'normal', words: 'open' });
+  });
+
+  it('reads a PR GitHub calls approved as waiting on a review while it has fewer approvals than its repository needs, or a count not known', () => {
+    expect(prVerdict(open({ approvals: 1 }), 2)).toEqual({ tone: 'normal', words: 'review required' });
+    expect(prVerdict(open({ approvals: null }), 2)).toEqual({ tone: 'normal', words: 'review required' });
+    expect(prVerdict(open({ approvals: 2 }), 2)).toEqual({ tone: 'positive', words: 'approved' });
+  });
+
+  it('never reads approved where GitHub does not, whatever the count', () => {
+    expect(prVerdict(open({ review: 'review-required', approvals: 3 }), 2)).toEqual({ tone: 'normal', words: 'review required' });
   });
 });
 
@@ -165,12 +198,61 @@ describe('verdictOf', () => {
   const pr: PrRef = { repository: 'acme/app', number: 1 };
 
   it('reads the PR’s status from the answer, and no status for one it lacks', () => {
-    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: null })).toEqual({ tone: 'muted', words: 'merged' });
-    expect(verdictOf(pr, NO_PR_STATUS)).toEqual({ tone: 'normal', words: null });
+    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: null }, GITHUB_DECIDES)).toEqual({ tone: 'muted', words: 'merged' });
+    expect(verdictOf(pr, NO_PR_STATUS, GITHUB_DECIDES)).toEqual({ tone: 'normal', words: null });
   });
 
   it('reads no status while main could not ask, whatever the answer still holds', () => {
-    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: 'gh was not found' })).toEqual({ tone: 'normal', words: null });
+    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: 'gh was not found' }, GITHUB_DECIDES)).toEqual({ tone: 'normal', words: null });
+  });
+
+  it('reads with the number the PR’s repository needs, matched in any case', () => {
+    const read = { statuses: { 'acme/app#1': open({ approvals: 1 }) }, problem: null };
+    expect(verdictOf(pr, read, TWO)).toEqual({ tone: 'normal', words: 'review required' });
+    expect(verdictOf(pr, read, { 'acme/lib': 2 })).toEqual({ tone: 'positive', words: 'approved' });
+  });
+});
+
+describe('settledState', () => {
+  const pr: PrRef = { repository: 'acme/app', number: 1 };
+
+  it('is merged or closed by the answer, and null for an open PR, one it lacks, or while main could not ask', () => {
+    expect(settledState(pr, { statuses: { 'acme/app#1': { state: 'closed', role: 'own' } }, problem: null })).toBe('closed');
+    expect(settledState(pr, { statuses: { 'acme/app#1': open() }, problem: null })).toBeNull();
+    expect(settledState(pr, NO_PR_STATUS)).toBeNull();
+    expect(settledState(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: 'gh was not found' })).toBeNull();
+  });
+});
+
+describe('prDetails', () => {
+  const pr: PrRef = { repository: 'acme/app', number: 1 };
+  const details = (status: PrStatus, approvals = GITHUB_DECIDES): string[] => prDetails(pr, { statuses: { 'acme/app#1': status }, problem: null }, approvals);
+
+  it('names the role only for a PR that is not yours', () => {
+    expect(details({ state: 'closed', role: 'own' })).toEqual(['closed']);
+    expect(details({ state: 'closed', role: 'reviewing' })).toEqual(['reviewing', 'closed']);
+    expect(details({ state: 'closed', role: 'other' })).toEqual(['someone else’s', 'closed']);
+    expect(details({ state: 'closed', role: null })).toEqual(['closed']);
+  });
+
+  it('counts an open PR’s approvals against its repository’s number, and alone without one', () => {
+    expect(details(open({ review: 'changes-requested', approvals: 1 }), TWO)).toEqual(['changes requested', '1 of 2 approvals']);
+    expect(details(open({ review: 'review-required', approvals: 0 }), TWO)).toEqual(['review required', '0 of 2 approvals']);
+    expect(details(open({ approvals: 1 }))).toEqual(['approved', '1 approval']);
+    expect(details(open({ approvals: 3 }))).toEqual(['approved', '3 approvals']);
+    expect(details(open({ review: 'review-required', approvals: 0 }))).toEqual(['review required']);
+    expect(details(open({ approvals: null }), TWO)).toEqual(['review required']);
+  });
+
+  it('says nothing while main could not ask, or for a PR it has no status for', () => {
+    expect(prDetails(pr, { statuses: { 'acme/app#1': open() }, problem: 'gh was not found' }, GITHUB_DECIDES)).toEqual([]);
+    expect(prDetails(pr, NO_PR_STATUS, GITHUB_DECIDES)).toEqual([]);
+  });
+});
+
+describe('approvalsIn', () => {
+  it('is no number for any repository before the settings are read', () => {
+    expect(approvalsIn(null)).toEqual({});
   });
 });
 
@@ -179,23 +261,31 @@ describe('prMark', () => {
   const read = (statuses: Record<string, PrStatus>, problem: string | null = null) => ({ statuses, problem });
 
   it('takes the roll-up tone, and counts only the PRs that set it, by state', () => {
-    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }), 'acme/app#2': open({ conflict: true }), 'acme/app#3': { state: 'merged', role: 'own' } }))).toEqual({
+    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }), 'acme/app#2': open({ conflict: true }), 'acme/app#3': { state: 'merged', role: 'own' } }), GITHUB_DECIDES)).toEqual({
       tone: 'danger',
       says: '1 with failing checks, 1 with a merge conflict',
     });
-    expect(prMark(prs, read({ 'acme/app#1': { state: 'merged', role: 'own' }, 'acme/app#2': { state: 'merged', role: 'own' }, 'acme/app#3': { state: 'closed', role: 'own' } }))).toEqual({ tone: 'muted', says: '2 merged, 1 closed' });
+    expect(prMark(prs, read({ 'acme/app#1': { state: 'merged', role: 'own' }, 'acme/app#2': { state: 'merged', role: 'own' }, 'acme/app#3': { state: 'closed', role: 'own' } }), GITHUB_DECIDES)).toEqual({
+      tone: 'muted',
+      says: '2 merged, 1 closed',
+    });
   });
 
   it('is normal and says nothing while no PR has a status', () => {
-    expect(prMark(prs, NO_PR_STATUS)).toEqual({ tone: 'normal', says: null });
+    expect(prMark(prs, NO_PR_STATUS, GITHUB_DECIDES)).toEqual({ tone: 'normal', says: null });
   });
 
   it('counts a PR with no status as normal beside the others, naming only those it has words for', () => {
-    expect(prMark(prs, read({ 'acme/app#1': open({ review: 'review-required' }), 'acme/app#3': { state: 'merged', role: 'own' } }))).toEqual({ tone: 'normal', says: '1 awaiting review' });
+    expect(prMark(prs, read({ 'acme/app#1': open({ review: 'review-required' }), 'acme/app#3': { state: 'merged', role: 'own' } }), GITHUB_DECIDES)).toEqual({ tone: 'normal', says: '1 awaiting review' });
+  });
+
+  it('counts an approval below its repository’s number as awaiting review', () => {
+    expect(prMark(prs, read({ 'acme/app#1': open({ approvals: 1 }), 'acme/app#2': open({ approvals: 2 }) }), TWO)).toEqual({ tone: 'positive', says: '1 approved' });
+    expect(prMark(prs, read({ 'acme/app#1': open({ approvals: 1 }) }), TWO)).toEqual({ tone: 'normal', says: '1 awaiting review' });
   });
 
   it('is normal and says why when main could not ask, whatever statuses it still holds', () => {
-    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }) }, 'gh was not found'))).toEqual({ tone: 'normal', says: 'no status: gh was not found' });
+    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }) }, 'gh was not found'), GITHUB_DECIDES)).toEqual({ tone: 'normal', says: 'no status: gh was not found' });
   });
 });
 

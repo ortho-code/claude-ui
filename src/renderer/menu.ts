@@ -38,6 +38,8 @@ export interface MenuItem {
   session?: { status: string | null; acked: boolean };
   /** A dot ahead of the label classed by whoever lists the item, such as a PR's in its ink (prstatus.css), in place of a roll-up's. */
   dot?: string;
+  /** A second line under a dotted item's label, muted and wrapping, for what is said about the thing the label names, such as a PR's state. */
+  detail?: string;
   /** Dims the label — used for "Ungrouped", which is a place rather than a named thing. */
   muted?: boolean;
   /**
@@ -144,6 +146,13 @@ function fillMenu(menu: HTMLElement, items: MenuItem[], isRoot: boolean): void {
       dot.className = item.session ? sessionDotClass(item.session.status, item.session.acked) : (item.dot ?? badgeClass(item.badge ?? null));
       button.textContent = '';
       button.append(dot, label);
+      if (item.detail !== undefined) {
+        const detail = document.createElement('span');
+        detail.className = 'menu-item-detail';
+        detail.textContent = item.detail;
+        button.classList.add('two-line');
+        button.append(detail);
+      }
       if (item.count !== undefined) {
         const count = document.createElement('span');
         count.className = 'menu-item-count';

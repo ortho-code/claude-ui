@@ -384,6 +384,8 @@ export interface Settings {
   strength: string[];
   /** How a status, `needs-you`, a category or a type is drawn, by its id, each entry the fields it changes; anything not set is drawn as before (shared/looks.ts). */
   looks: Record<string, Look>;
+  /** How many approvals a PR needs before it counts as approved, by repository as `owner/name`; a repository not named counts as approved when GitHub says so (shared/prs.ts). */
+  approvals: Record<string, number>;
 }
 
 export interface UiState {

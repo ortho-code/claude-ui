@@ -2,6 +2,7 @@ import { defaultSettings } from './defaults';
 import { parseLaunchFlags } from './flags';
 import { looksProblem, strengthProblem, type Look } from './looks';
 import type { NeedsYouRegistry } from './needsyou';
+import { approvalsProblem } from './prs';
 import { presetsProblem } from './setaside';
 import { timeOfDay } from './time';
 import type { ReadStatus } from './panels';
@@ -15,7 +16,7 @@ import type { Settings } from './types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'setAside', 'setAsideTime', 'locale', 'strength', 'looks'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'setAside', 'setAsideTime', 'locale', 'strength', 'looks', 'approvals'];
 
 /**
  * The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them: start them again, or bring their tabs back cold.
@@ -114,6 +115,10 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
     const why = looksProblem(value, null);
     return why === null ? { ok: true, value: structuredClone(value as Record<string, Look>) } : { ok: false, why };
   },
+  approvals: (value) => {
+    const why = approvalsProblem(value);
+    return why === null ? { ok: true, value: { ...(value as Record<string, number>) } } : { ok: false, why };
+  },
 };
 
 /** `value` as the one language tag it spells, in its usual case (`"en-gb"` reads as `"en-GB"`), `""` for the system's language, or null for anything else, such as the `C` a machine's `LANG` may hold. */
@@ -195,6 +200,7 @@ export function settingsView(file: SettingsFileRead, read = 0, registry: NeedsYo
     locale: viewOf('locale'),
     strength: viewOf('strength'),
     looks: viewOf('looks'),
+    approvals: viewOf('approvals'),
     read,
     notes,
     file: { name: file.name, status: file.status, error: file.error, duplicates: file.duplicates ?? [] },
@@ -203,7 +209,7 @@ export function settingsView(file: SettingsFileRead, read = 0, registry: NeedsYo
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, setAside: view.setAside.value, setAsideTime: view.setAsideTime.value, locale: view.locale.value, strength: view.strength.value, looks: view.looks.value };
+  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, setAside: view.setAside.value, setAsideTime: view.setAsideTime.value, locale: view.locale.value, strength: view.strength.value, looks: view.looks.value, approvals: view.approvals.value };
 }
 
 /**

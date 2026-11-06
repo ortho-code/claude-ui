@@ -51,6 +51,8 @@ document.body.insertAdjacentHTML(
         <span class="dialog-label">Pull requests</span>
         <p class="dialog-detail">A session's PR badge takes the colour of what GitHub says of its PRs, such as changes requested, failing checks or merged, and a PR changing like that marks the session as needing you. The app asks with gh, on your own login. Turned on, it starts from the PRs as they are then.</p>
         <label id="settings-pr-status-row" class="dialog-choice"><input id="settings-pr-status" type="checkbox" /> PR status from GitHub</label>
+        <p class="dialog-detail">How many approvals a repository's PRs need before they count as approved is <code>approvals</code> in settings.json, set there by hand; a repository it does not name counts as approved when GitHub says so.</p>
+        <div id="settings-approvals-problems"></div>
       </div>
       <div class="dialog-section">
         <label class="dialog-label" for="settings-leave-button">Leave button</label>
@@ -114,6 +116,7 @@ const settingsFolders = document.getElementById('settings-folders')!;
 const settingsNotes = document.getElementById('settings-notes')!;
 const settingsNotesList = document.getElementById('settings-notes-list')!;
 const settingsDotsProblems = document.getElementById('settings-dots-problems')!;
+const settingsApprovalsProblems = document.getElementById('settings-approvals-problems')!;
 
 /**
  * The app's own folders, as Settings lists them: what each holds, where it is, and a button to open it.
@@ -335,6 +338,7 @@ function render(view: SettingsView): void {
     ...(view.strength.problem === null ? [] : [`The order in ${view.file.name} is not used: ${view.strength.problem}`]),
     ...(view.looks.problem === null ? [] : [`The looks in ${view.file.name} are not used: ${view.looks.problem}`]),
   ]);
+  lines(settingsApprovalsProblems, 'dialog-error', view.approvals.problem === null ? [] : [`The approvals in ${view.file.name} are not used: ${view.approvals.problem}`]);
   lines(settingsNotesList, 'dialog-error', view.notes);
   settingsNotes.hidden = view.notes.length === 0;
 }

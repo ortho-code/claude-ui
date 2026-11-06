@@ -1,6 +1,7 @@
-import { prReference } from '../shared/prs';
+import { approvalsRequired, prReference, type Approvals } from '../shared/prs';
 import { PR_TYPES } from '../shared/needsyou';
-import type { PrNeedsYouType, PrRef, PrSeen, PrStatus, PrStatusRead, SessionSummary } from '../shared/types';
+import type { SettingsView } from '../shared/settings';
+import type { PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, SessionSummary } from '../shared/types';
 import type { Tone } from './tone';
 
 /** Main's answer before it has given one: no status for any PR, and nothing gone wrong. */
@@ -39,16 +40,28 @@ export interface PrVerdict {
   words: PrWords | null;
 }
 
+type OpenStatus = Extract<PrStatus, { state: 'open' }>;
+
+/**
+ * Whether an open PR counts as approved: GitHub says so, and where the repository needs a number of approvals (`required`), it has that many.
+ * The number only raises GitHub's bar, never lowers it (decided 2026-11-06): a PR GitHub does not call approved would not merge.
+ * A count not known falls short of any number.
+ */
+function isApproved(status: OpenStatus, required: number | null): boolean {
+  return status.review === 'approved' && (required === null || (status.approvals ?? 0) >= required);
+}
+
 /**
  * How a PR's status colours its mark, a PR taking the first rung it meets, highest first:
  * - `danger`: its checks failed, or it conflicts with its base;
  * - `attention`: changes were requested;
- * - `positive`: approved, not a draft, its checks passed or it has none, and no conflict — ready to merge;
- * - `normal`: open and none of the above — a draft, running checks, a review required, approved with a conflict GitHub has not worked out yet, or no review decision at all;
+ * - `positive`: approved (`isApproved`), not a draft, its checks passed or it has none, and no conflict — ready to merge;
+ * - `normal`: open and none of the above — a draft, running checks, a review required, approved by fewer than the repository's number, approved with a conflict GitHub has not worked out yet, or no review decision at all;
  * - `muted`: merged or closed.
  * A PR whose status is not known is `normal`, which sets no colour of its own.
+ * `required` is the approvals the PR's repository needs, null for GitHub's decision alone.
  */
-export function prVerdict(status: PrStatus | null): PrVerdict {
+export function prVerdict(status: PrStatus | null, required: number | null): PrVerdict {
   if (status === null) return { tone: 'normal', words: null };
   if (status.state !== 'open') return { tone: 'muted', words: status.state };
   if (status.checks === 'failed') return { tone: 'danger', words: 'checks failed' };
@@ -56,22 +69,22 @@ export function prVerdict(status: PrStatus | null): PrVerdict {
   if (status.review === 'changes-requested') return { tone: 'attention', words: 'changes requested' };
   if (status.draft) return { tone: 'normal', words: 'draft' };
   if (status.checks === 'running') return { tone: 'normal', words: 'checks running' };
-  if (status.review === 'review-required') return { tone: 'normal', words: 'review required' };
+  if (status.review === 'review-required' || (status.review === 'approved' && !isApproved(status, required))) return { tone: 'normal', words: 'review required' };
   if (status.review === 'approved') return { tone: status.conflict === false ? 'positive' : 'normal', words: 'approved' };
   return { tone: 'normal', words: 'open' };
 }
 
 /**
- * What a PR's status holds that needs you, each on its own, where its words name only the strongest (`prVerdict`): failing checks, a conflict, changes requested, an approved review, merged or closed.
+ * What a PR's status holds that needs you, each on its own, where its words name only the strongest (`prVerdict`): failing checks, a conflict, changes requested, an approval that counts (`isApproved`), merged or closed.
  * Apart, so one that was there already does not read as new once a stronger one clears, and an approval shows while checks still run.
  */
-function conditionsOf(status: PrStatus): Set<PrNeedsYouType> {
+function conditionsOf(status: PrStatus, required: number | null): Set<PrNeedsYouType> {
   if (status.state !== 'open') return new Set([status.state === 'merged' ? 'pr.merged' : 'pr.closed']);
   const conditions = new Set<PrNeedsYouType>();
   if (status.checks === 'failed') conditions.add('pr.checks-failed');
   if (status.conflict === true) conditions.add('pr.conflict');
   if (status.review === 'changes-requested') conditions.add('pr.changes-requested');
-  if (status.review === 'approved') conditions.add('pr.approved');
+  if (isApproved(status, required)) conditions.add('pr.approved');
   return conditions;
 }
 
@@ -84,8 +97,8 @@ export function ranked(types: Iterable<PrNeedsYouType>): PrNeedsYouType[] {
 }
 
 /** What a PR already needs you for, as a first run marks it: everything its status holds that does (`conditionsOf`), strongest first; empty where it needs nothing. */
-export function needsYouNow(status: PrStatus): PrNeedsYouType[] {
-  return ranked(conditionsOf(status));
+export function needsYouNow(status: PrStatus, required: number | null): PrNeedsYouType[] {
+  return ranked(conditionsOf(status, required));
 }
 
 /** A PR's status with a conflict GitHub has not worked out yet, as it is after a push, taken as what it was before, so a conflict that stays does not read as new each time it comes back. */
@@ -98,8 +111,9 @@ function withKnownConflict(status: PrStatus, before: PrStatus | undefined): PrSt
  * A PR marks when something that needs you is there now and was not before (`conditionsOf`): checks failing, a conflict, changes requested, an approved review, merged or closed; all of them where several come in one answer, so an approval that comes with failing checks is not lost; and when a closed PR is open again, as reopened, with everything it holds then.
  * So one that was there already marks nothing when a stronger one clears, an approval marks though its checks still run, an approved PR whose checks run again after a push marks nothing, and a conflict GitHub is still working out counts as what was known of it.
  * A PR seen for the first time is recorded and marks nothing, whatever it holds; one with no status keeps what was seen of it; an answer in which any request to GitHub failed changes nothing, and what it did learn waits for the next whole answer.
+ * Before and now are both read with the approvals the repository needs now (`approvals`), so changing that number marks nothing by itself.
  */
-export function prChanges(seen: PrSeen | null, prs: readonly PrRef[], read: PrStatusRead): { seen: PrSeen | null; changes: { pr: string; types: PrNeedsYouType[] }[] } {
+export function prChanges(seen: PrSeen | null, prs: readonly PrRef[], read: PrStatusRead, approvals: Approvals): { seen: PrSeen | null; changes: { pr: string; types: PrNeedsYouType[] }[] } {
   if (read.problem !== null) return { seen, changes: [] };
   const next: PrSeen = { ...seen };
   const changes: { pr: string; types: PrNeedsYouType[] }[] = [];
@@ -111,9 +125,11 @@ export function prChanges(seen: PrSeen | null, prs: readonly PrRef[], read: PrSt
     const status = withKnownConflict(answered, before);
     next[ref] = status;
     if (before === undefined) continue;
-    const was = conditionsOf(before);
+    const required = approvalsRequired(approvals, pr.repository);
+    const was = conditionsOf(before, required);
+    const now = conditionsOf(status, required);
     // Open again, everything it holds is news: a closed PR held none of it.
-    const found = before.state === 'closed' && status.state === 'open' ? ranked(['pr.reopened', ...conditionsOf(status)]) : ranked([...conditionsOf(status)].filter((condition) => !was.has(condition)));
+    const found = before.state === 'closed' && status.state === 'open' ? ranked(['pr.reopened', ...now]) : ranked([...now].filter((condition) => !was.has(condition)));
     if (found.length > 0) changes.push({ pr: ref, types: found });
   }
   return { seen: seen === null && prs.every((pr) => read.statuses[prReference(pr)] === undefined) ? null : next, changes };
@@ -152,14 +168,53 @@ export interface PrMark {
  * A PR's verdict from main's answer: as if it had no status while main could not ask GitHub, whatever status it still holds from before, so a status that may be stale never colours anything.
  * What the mark and a PR's menu item both take it from.
  */
-export function verdictOf(pr: PrRef, read: PrStatusRead): PrVerdict {
-  return prVerdict(read.problem === null ? (read.statuses[prReference(pr)] ?? null) : null);
+export function verdictOf(pr: PrRef, read: PrStatusRead, approvals: Approvals): PrVerdict {
+  return prVerdict(knownStatus(pr, read), approvalsRequired(approvals, pr.repository));
+}
+
+/** A PR's status from main's answer, null while main could not ask GitHub, whatever it still holds from before. */
+function knownStatus(pr: PrRef, read: PrStatusRead): PrStatus | null {
+  return read.problem === null ? (read.statuses[prReference(pr)] ?? null) : null;
+}
+
+/** Whether a PR is merged or closed by main's answer, null for one open or not known to be either, read as its mark reads it (`knownStatus`). */
+export function settledState(pr: PrRef, read: PrStatusRead): 'merged' | 'closed' | null {
+  const status = knownStatus(pr, read);
+  return status === null || status.state === 'open' ? null : status.state;
+}
+
+/** The approvals each repository needs, from the settings as they stand; none before they are read, so GitHub's decision alone says approved until then. */
+export function approvalsIn(settings: SettingsView | null): Approvals {
+  return settings?.approvals.value ?? {};
+}
+
+/** How your role on a PR reads, null for your own, which is most of them and so says nothing (decided 2026-11-06), or one not known. */
+const ROLE_WORDS: Record<PrRole, string | null> = { own: null, reviewing: 'reviewing', other: 'someone else’s' };
+
+/** An open PR's approvals: `1 of 2 approvals` where its repository needs a number, `1 approval` or `2 approvals` where not, and nothing for none without a number, or a count not known. */
+function approvalWords(status: OpenStatus, required: number | null): string | null {
+  const count = status.approvals;
+  if (count === null) return null;
+  if (required !== null) return `${count} of ${required} approvals`;
+  if (count === 0) return null;
+  return count === 1 ? '1 approval' : `${count} approvals`;
+}
+
+/** What a PR's menu item says after its reference, in order: your role where it is not yours, its state (`verdictOf`), and an open PR's approvals; nothing while main could not ask GitHub. */
+export function prDetails(pr: PrRef, read: PrStatusRead, approvals: Approvals): string[] {
+  const status = knownStatus(pr, read);
+  if (status === null) return [];
+  const required = approvalsRequired(approvals, pr.repository);
+  const role = status.role === null ? null : ROLE_WORDS[status.role];
+  const { words } = prVerdict(status, required);
+  const counted = status.state === 'open' ? approvalWords(status, required) : null;
+  return [role, words, counted].filter((part): part is string => part !== null);
 }
 
 /** The mark for `prs` from main's answer: their roll-up tone, and the PRs that set it counted by state, `1 with failing checks`; when main could not ask GitHub, `normal`, saying why. */
-export function prMark(prs: readonly PrRef[], read: PrStatusRead): PrMark {
+export function prMark(prs: readonly PrRef[], read: PrStatusRead, approvals: Approvals): PrMark {
   if (read.problem !== null) return { tone: 'normal', says: `no status: ${read.problem}` };
-  const verdicts = prs.map((pr) => verdictOf(pr, read));
+  const verdicts = prs.map((pr) => verdictOf(pr, read, approvals));
   const tone = rollUpPrTone(verdicts.map((verdict) => verdict.tone));
   const counts = new Map<PrWords, number>();
   for (const verdict of verdicts) if (verdict.tone === tone && verdict.words !== null) counts.set(verdict.words, (counts.get(verdict.words) ?? 0) + 1);

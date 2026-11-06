@@ -212,19 +212,69 @@ test('a change main read before a save and told of after it leaves the save in f
 
 const items = (page: Page, menu = '.kebab-menu'): Locator => page.locator(`${menu} button`);
 const dotColours = (list: Locator): Promise<string[]> => list.locator('.nudge').evaluateAll((dots) => dots.map((dot) => getComputedStyle(dot).backgroundColor));
+/** Each item's two lines: the PR's reference, and what is said of it under it, null where nothing is. */
+const lines = (list: Locator): Promise<[string | null, string | null][]> =>
+  list.evaluateAll((buttons) => buttons.map((button) => [button.querySelector('.menu-item-label')?.textContent ?? null, button.querySelector('.menu-item-detail')?.textContent ?? null]));
 
-test("each PR in a mark's list and in a tab's options says its state, led by a dot in its own ink", async ({ app, page }) => {
+test("each PR in a mark's list and in a tab's options says its state on a line under it, led by a dot in its own ink", async ({ app, page }) => {
   await app.boot({ ...states, openSessions: [failing.id] });
   await mark(page, failing.title).click();
-  await expect(items(page)).toHaveText(['ScientaNL/demo#12 · checks failed', 'ScientaNL/demo#7 · merged']);
+  await expect(items(page)).toHaveCount(2);
+  expect(await lines(items(page))).toEqual([
+    ['ScientaNL/demo#12', 'checks failed'],
+    ['ScientaNL/demo#7', 'merged'],
+  ]);
   expect(await dotColours(items(page))).toEqual([await token(page, '--failed'), await token(page, '--muted')]);
   await mark(page, failing.title).click();
 
   await tab(page, failing.title).locator('.tab-kebab').click();
   await page.locator('.kebab-menu button', { hasText: 'PRs (2)' }).click();
   const submenu = items(page, '.kebab-menu.submenu');
-  await expect(submenu).toHaveText(['ScientaNL/demo#12 · checks failed', 'ScientaNL/demo#7 · merged']);
+  await expect(submenu).toHaveCount(2);
+  expect(await lines(submenu)).toEqual([
+    ['ScientaNL/demo#12', 'checks failed'],
+    ['ScientaNL/demo#7', 'merged'],
+  ]);
   expect(await dotColours(submenu)).toEqual([await token(page, '--failed'), await token(page, '--muted')]);
+});
+
+/** settings.json with the approvals a repository needs; the PRs here spell it `ScientaNL/demo`. */
+const needsTwo = settingsFileWith('settings.json', { approvals: { 'scientanl/demo': 2 } });
+const oneApproval = { ...states, prStatuses: { ...states.prStatuses, 'ScientaNL/demo#4': { ...open(), review: 'approved', approvals: 1 } } satisfies Record<string, PrStatus> };
+
+test('a PR GitHub calls approved stays the accent, awaiting review, below the approvals its repository needs, and turns green once the setting asks no more', async ({ app, page }) => {
+  await app.boot({ ...oneApproval, settings: needsTwo });
+  await expect(mark(page, ready.title)).toHaveAttribute('data-tooltip', '1 PR linked to this session — 1 awaiting review — click to list them');
+  expect((await lookOf(mark(page, ready.title))).color).toBe(await token(page, '--accent'));
+
+  await app.settingsOnDisk(settingsFileWith('settings.json', {}));
+  await expect(mark(page, ready.title)).toHaveAttribute('data-tooltip', '1 PR linked to this session — 1 approved — click to list them');
+  expect((await lookOf(mark(page, ready.title))).color).toBe(await token(page, '--idle'));
+});
+
+test("a PR's list item names someone else's PR by your role, and counts an open PR's approvals against its repository's number", async ({ app, page }) => {
+  const theirs = marked('6', 'Reviewing theirs', 9, 10);
+  await app.boot({
+    ...oneApproval,
+    sessions: [...oneApproval.sessions, theirs],
+    history: { ...oneApproval.history, [theirs.id]: [] },
+    prStatuses: { ...oneApproval.prStatuses, 'ScientaNL/demo#9': { ...open(), role: 'reviewing', review: 'changes-requested', approvals: 1 }, 'ScientaNL/demo#10': { state: 'merged', role: 'other' } },
+    settings: needsTwo,
+  });
+  await mark(page, theirs.title).click();
+  await expect(items(page)).toHaveCount(2);
+  expect(await lines(items(page))).toEqual([
+    ['ScientaNL/demo#9', 'reviewing · changes requested · 1 of 2 approvals'],
+    ['ScientaNL/demo#10', 'someone else’s · merged'],
+  ]);
+  // Neither line is cut: the longest still fits the menu's width, the line under the reference wrapping where it would not.
+  const cut = await items(page).evaluateAll((buttons) => buttons.flatMap((button) => [...button.querySelectorAll<HTMLElement>('.menu-item-label, .menu-item-detail')]).filter((line) => line.scrollWidth > line.clientWidth).length);
+  expect(cut).toBe(0);
+  await mark(page, theirs.title).click();
+
+  await mark(page, ready.title).click();
+  await expect(items(page)).toHaveCount(1);
+  expect(await lines(items(page))).toEqual([['ScientaNL/demo#4', 'review required · 1 of 2 approvals']]);
 });
 
 test('a PR with no status is listed by its reference alone, with a hollow dot', async ({ app, page }) => {

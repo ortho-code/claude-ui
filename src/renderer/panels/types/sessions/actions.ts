@@ -3,7 +3,7 @@ import type { OrderMove, SessionSummary } from '../../../../shared/types';
 import { confirmDanger, confirmDelete, promptText } from '../../../dialogs';
 import { clockLines, clockOf, entityKey, folderName, leaveAction, leaveLabel, relativeTime, sessionLabel, setAsideUntil, unstartableReason, type LeaveAction } from '../../../logic';
 import { openMenu, type MenuItem } from '../../../menu';
-import { verdictOf } from '../../../prstatus';
+import { approvalsIn, prDetails, verdictOf } from '../../../prstatus';
 import { store, type TabState } from '../../../state/app';
 import { startBulk } from '../../../state/bulk';
 import { applyGroupState, moveSessionsToGroup } from '../../../state/groups';
@@ -55,14 +55,17 @@ function siblingMenuItems(siblings: SessionSummary[]): MenuItem[] {
 }
 
 // The PRs a session's transcript links, by their full reference, oldest first, each opening its page in the browser.
-// Each led by a dot in its ink and followed by its state, from what GitHub last said (`verdictOf`); a PR with no status has the hollow dot of one thing with nothing to report (base.css's `.nudge.single`), and no words.
+// Each led by a dot in its ink, with what GitHub last said on a line under it (`verdictOf`, `prDetails`), since the reference and the words together outrun a menu's width; a PR with no status has the hollow dot of one thing with nothing to report (base.css's `.nudge.single`), and no words.
 // Shared by the PR mark and the kebab submenu.
 function prMenuItems(session: SessionSummary): MenuItem[] {
-  const { prStatus } = store.get();
+  const { prStatus, settings } = store.get();
+  const approvals = approvalsIn(settings);
   return session.prs.map((pr) => {
-    const { tone, words } = verdictOf(pr, prStatus);
+    const { tone, words } = verdictOf(pr, prStatus, approvals);
+    const details = prDetails(pr, prStatus, approvals);
     return {
-      label: words === null ? prReference(pr) : `${prReference(pr)} · ${words}`,
+      label: prReference(pr),
+      ...(details.length > 0 ? { detail: details.join(' · ') } : {}),
       dot: words === null ? 'nudge single' : `nudge pr-dot pr-ink tone-${tone}`,
       onSelect: () => window.claudeUi.openExternal(pr.url),
     };

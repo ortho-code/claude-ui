@@ -1,6 +1,6 @@
 import type { SetAside, PrStatusRead, SessionSummary } from '../shared/types';
 import { entityKey, relativeTime } from './logic';
-import { verdictOf } from './prstatus';
+import { settledState } from './prstatus';
 
 /**
  * THE REVIEW, pure (docs/architecture.md § The review): which sessions it offers, in which of its two sets, and the line that says why each is there.
@@ -48,18 +48,12 @@ export function untouchedFor(session: SessionSummary, days: number, now: number)
 }
 
 /**
- * `is:ready-to-finish`: every link settled, so at least one link, since a session that links nothing has nothing settled; today a link is a PR, settled when merged or closed as the PR marks read GitHub's answer (`verdictOf`).
+ * `is:ready-to-finish`: every link settled, so at least one link, since a session that links nothing has nothing settled; today a link is a PR, settled when merged or closed as the PR marks read GitHub's answer (`settledState`).
  * A PR GitHub has not answered for is not settled, nor any after a failed ask, nor any while the setting is off and nothing is asked.
  * Stage 4's folder links add "no changes left in a folder only it worked in" here.
  */
 export function isReadyToFinish(session: SessionSummary, facts: ReviewFacts): boolean {
-  return session.prs.length > 0 && session.prs.every((pr) => settledAs(pr, facts) !== null);
-}
-
-/** How a PR is settled, merged or closed, or null for one that is not, or not known to be. */
-function settledAs(pr: SessionSummary['prs'][number], facts: ReviewFacts): 'merged' | 'closed' | null {
-  const { words } = verdictOf(pr, facts.prStatus);
-  return words === 'merged' || words === 'closed' ? words : null;
+  return session.prs.length > 0 && session.prs.every((pr) => settledState(pr, facts.prStatus) !== null);
 }
 
 /** One of the review's sets: its id and name, the term that puts a session in it, and the line that says why a session is there. */
@@ -93,7 +87,7 @@ export const REVIEW = {
 
 /** What settled a ready session's PRs: "Its PR merged", "Its 3 PRs merged", "Its 2 PRs merged or closed". */
 function settledWords(session: SessionSummary, facts: ReviewFacts): string {
-  const states = new Set(session.prs.map((pr) => settledAs(pr, facts)));
+  const states = new Set(session.prs.map((pr) => settledState(pr, facts.prStatus)));
   const how = states.size > 1 ? 'merged or closed' : states.has('closed') ? 'closed' : 'merged';
   return session.prs.length === 1 ? `Its PR ${how}` : `Its ${session.prs.length} PRs ${how}`;
 }

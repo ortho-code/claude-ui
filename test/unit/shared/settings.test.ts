@@ -11,7 +11,12 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'], looks: {} });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'], looks: {}, approvals: {} });
+  });
+
+  it("take the file's approvals by repository, none unless told otherwise, and none of an object with a mistake", () => {
+    expect(settingsView(holding({ approvals: { 'acme/app': 2 } })).approvals).toEqual({ value: { 'acme/app': 2 }, problem: null });
+    expect(settingsView(holding({ approvals: { 'acme/app': 2, acme: 1 } })).approvals).toEqual({ value: {}, problem: '"acme" is not a repository written as owner/name.' });
   });
 
   it("take a language of the file in its usual case, the system's unless told otherwise, and leave out one that is no language tag", () => {

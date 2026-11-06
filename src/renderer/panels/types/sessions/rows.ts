@@ -6,7 +6,7 @@ import { clockOf, entityKey, sessionLabel, unstartableReason, worktreeMarkState 
 import { kebabButton } from '../../../menu';
 import { showMoment, type Moment } from '../../../moments';
 import { notLeftMark, showNotLeft } from '../../../notleft';
-import { prMark } from '../../../prstatus';
+import { approvalsIn, prMark } from '../../../prstatus';
 import { setAsideMark, showSetAside } from '../../../setasidemark';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { store, type View } from '../../../state/app';
@@ -312,7 +312,7 @@ export function updateRow(row: HTMLElement, session: SessionSummary, view: RowVi
   const prCount = session.prs.length;
   els.prBadge.hidden = prCount === 0;
   if (prCount > 0) {
-    const mark = prMark(session.prs, view.prStatus);
+    const mark = prMark(session.prs, view.prStatus, approvalsIn(view.settings));
     for (const tone of TONES) els.prBadge.classList.toggle(`tone-${tone}`, tone === mark.tone);
     els.prCount.textContent = String(prCount);
     setTooltip(els.prBadge, `${prCount === 1 ? '1 PR' : `${prCount} PRs`} linked to this session${mark.says ? ` — ${mark.says}` : ''} — click to list them`);

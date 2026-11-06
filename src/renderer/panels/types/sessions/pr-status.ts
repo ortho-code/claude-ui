@@ -1,7 +1,7 @@
-import { prReference } from '../../../../shared/prs';
+import { approvalsRequired, prReference } from '../../../../shared/prs';
 import type { PrRef, PrSeen, PrStatusRead } from '../../../../shared/types';
 import { entityKey } from '../../../logic';
-import { linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../prstatus';
+import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../prstatus';
 import { store, type View } from '../../../state/app';
 import { markNeedsYou, marks } from '../../../state/needsyou';
 import { RunGate } from '../../run';
@@ -85,7 +85,8 @@ function linking(pr: string): string[] {
  */
 function settleChanges(prs: readonly PrRef[], read: PrStatusRead): void {
   const before = seen;
-  const { seen: next, changes } = prChanges(before, prs, read);
+  const approvals = approvalsIn(store.get().settings);
+  const { seen: next, changes } = prChanges(before, prs, read, approvals);
   if (next === null || JSON.stringify(next) === JSON.stringify(before)) return;
   seen = next;
   window.claudeUi.setPrSeen(next);
@@ -96,7 +97,7 @@ function settleChanges(prs: readonly PrRef[], read: PrStatusRead): void {
     const setAside = new Set([...open, ...store.get().setAside.keys()]);
     for (const pr of prs) {
       const status = read.statuses[prReference(pr)];
-      const found = status === undefined ? [] : needsYouNow(status).filter(marks);
+      const found = status === undefined ? [] : needsYouNow(status, approvalsRequired(approvals, pr.repository)).filter(marks);
       if (found.length > 0) markNeedsYou(linking(prReference(pr)).filter((key) => setAside.has(key)), found.map((type) => ({ type, at, pr: prReference(pr) })));
     }
   });

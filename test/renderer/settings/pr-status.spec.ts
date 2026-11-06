@@ -61,3 +61,15 @@ test('a value the file gives that is not true or false is named under it, and th
   await expect(settings.box).toBeChecked();
   await expect(settings.dialog.locator('#settings-pr-status-problems')).toHaveText('The choice in settings.json is not used: It has to be true or false.');
 });
+
+test('approvals the file gives with a mistake are named under Pull requests, and none is used', async ({ app, page }) => {
+  await app.boot({ settings: file({ approvals: { 'acme/app': 0 } }) });
+  const settings = await open(page);
+  await expect(settings.dialog.locator('#settings-approvals-problems')).toHaveText('The approvals in settings.json are not used: "acme/app" needs a whole number of 1 or more.');
+});
+
+test('approvals the file gives that can be used name nothing under Pull requests', async ({ app, page }) => {
+  await app.boot({ settings: file({ approvals: { 'acme/app': 2 } }) });
+  const settings = await open(page);
+  await expect(settings.dialog.locator('#settings-approvals-problems')).toBeEmpty();
+});

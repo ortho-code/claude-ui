@@ -126,6 +126,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Which state a session's dot shows when several hold, such as busy and needing you, is `strength` in `settings.json`, a list where the first that holds wins, so a category such as `back-to-work` can show over a busy claude; the default shows the dots as before.
 - How each status, needs-you category and type is drawn is `looks` in `settings.json`: a colour, a dot, ring, spinner or icon, a pulse, or the look of another, each field set or left to what it belongs to; nothing changes until you set one.
 - The sessions file gives each PR's `role`, whether it is yours, one you review or someone else's, and for an open PR its approvals, whether new commits came since your review, and whether your review is asked.
+- How many approvals a repository's PRs need is `approvals` in `settings.json`, such as `{ "acme/app": 2 }`: below it a PR is not green and marks no session as approved, and a session's options show "1 of 2 approvals", and "reviewing" or "someone else's" on a PR that is not yours.
 
 ### Changed
 
