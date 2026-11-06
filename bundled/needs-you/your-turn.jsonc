@@ -1,0 +1,2 @@
+// Claude asks you something, or finished a turn you have not read.
+{ "kind": "category", "id": "your-turn", "label": "Your turn", "order": 10 }

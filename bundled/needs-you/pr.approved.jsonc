@@ -1,0 +1,2 @@
+// A PR the session links was approved.
+{ "kind": "type", "id": "pr.approved", "label": "PR approved", "category": "ready-to-merge" }

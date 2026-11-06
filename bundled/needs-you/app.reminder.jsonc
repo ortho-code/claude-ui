@@ -1,0 +1,2 @@
+// The moment you set the session aside until has come.
+{ "kind": "type", "id": "app.reminder", "label": "A set-aside date came", "category": "reminders" }

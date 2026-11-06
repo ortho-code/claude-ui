@@ -1,0 +1,2 @@
+// A PR the session links conflicts with its base.
+{ "kind": "type", "id": "pr.conflict", "label": "PR merge conflict", "category": "back-to-work" }

@@ -1,0 +1,2 @@
+// Claude is waiting for you: a question or a permission prompt.
+{ "kind": "type", "id": "claude.asks", "label": "Claude asks", "category": "your-turn" }

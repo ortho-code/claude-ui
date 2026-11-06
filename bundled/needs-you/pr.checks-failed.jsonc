@@ -1,0 +1,2 @@
+// A PR the session links has failing checks.
+{ "kind": "type", "id": "pr.checks-failed", "label": "PR checks failed", "category": "back-to-work" }

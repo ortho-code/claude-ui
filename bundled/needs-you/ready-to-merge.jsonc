@@ -1,0 +1,2 @@
+// A PR that can go in.
+{ "kind": "category", "id": "ready-to-merge", "label": "Ready to merge", "order": 30 }

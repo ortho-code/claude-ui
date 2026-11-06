@@ -1,0 +1,2 @@
+// A PR the session links was closed without merging.
+{ "kind": "type", "id": "pr.closed", "label": "PR closed", "category": "finish-up" }

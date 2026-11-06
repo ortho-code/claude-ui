@@ -1,0 +1,2 @@
+// Work that looks done: a PR merged or closed.
+{ "kind": "category", "id": "finish-up", "label": "Finish up", "order": 60 }

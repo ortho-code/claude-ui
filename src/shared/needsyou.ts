@@ -1,0 +1,93 @@
+/**
+ * THE NEEDS-YOU CATEGORIES AND TYPES: every reason a session needs you is of a type, and every type belongs to a category, a section of Now.
+ * The app's own come as files it ships (`bundled/needs-you/`), one object each, written as a person's own would be, so each can be changed or switched off by its id like anything else the app ships.
+ * Pure, so main's reading and the tests check them by the same rules.
+ */
+
+/** A category: a section of Now, with its name and its place, lower first. */
+export interface NeedsYouCategory {
+  id: string;
+  label: string;
+  order: number;
+  enabled: boolean;
+}
+
+/** A type: one reason a session can need you, with its name and the category it belongs to. */
+export interface NeedsYouType {
+  id: string;
+  label: string;
+  category: string;
+  enabled: boolean;
+}
+
+/** Every category in order and every type, as checked. */
+export interface NeedsYouRegistry {
+  categories: NeedsYouCategory[];
+  types: NeedsYouType[];
+}
+
+/** One file's object, by the file's name, for the mistakes to name it. */
+export interface NeedsYouFile {
+  name: string;
+  json: unknown;
+}
+
+/** The fields each kind may carry; any other is a mistake, so a misspelt field is named rather than ignored. */
+const FIELDS: Record<'category' | 'type', readonly string[]> = {
+  category: ['kind', 'id', 'label', 'order', 'enabled'],
+  type: ['kind', 'id', 'label', 'category', 'enabled'],
+};
+
+const isText = (value: unknown): value is string => typeof value === 'string' && value.trim() !== '';
+
+const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
+/** What is wrong with one file's object, or what it reads as. */
+function readOne(json: unknown): { problem: string } | { category: NeedsYouCategory } | { type: NeedsYouType } {
+  if (typeof json !== 'object' || json === null || Array.isArray(json)) return { problem: 'holds no object' };
+  const fields = json as Record<string, unknown>;
+  const { kind, id, label, enabled } = fields;
+  if (kind !== 'category' && kind !== 'type') return { problem: `"kind" is ${JSON.stringify(kind)}, not "category" or "type"` };
+  const unknown = Object.keys(fields).filter((key) => !FIELDS[kind].includes(key));
+  if (unknown.length > 0) return { problem: `a ${kind} has no ${unknown.map((key) => `"${key}"`).join(', ')}` };
+  if (!isText(id)) return { problem: '"id" is missing or empty' };
+  if (!isText(label)) return { problem: '"label" is missing or empty' };
+  if (enabled !== undefined && typeof enabled !== 'boolean') return { problem: '"enabled" is not true or false' };
+  if (kind === 'category') {
+    const { order } = fields;
+    if (typeof order !== 'number' || !Number.isFinite(order)) return { problem: '"order" is not a number' };
+    return { category: { id, label, order, enabled: enabled ?? true } };
+  }
+  const { category } = fields;
+  if (!isText(category)) return { problem: '"category" is missing or empty' };
+  return { type: { id, label, category, enabled: enabled ?? true } };
+}
+
+/**
+ * The categories and types the files hold, checked: a file with a mistake is left out whole and named, as are an id two files share (both left out) and a type naming a category no file holds.
+ * Categories come in their order, two at the same place by id; types in the order of their ids.
+ */
+export function needsYouRegistry(files: readonly NeedsYouFile[]): { registry: NeedsYouRegistry; problems: string[] } {
+  const problems: string[] = [];
+  const read: { name: string; item: { category: NeedsYouCategory } | { type: NeedsYouType } }[] = [];
+  for (const { name, json } of files) {
+    const one = readOne(json);
+    if ('problem' in one) problems.push(`${name}: ${one.problem}`);
+    else read.push({ name, item: one });
+  }
+  const idOf = (item: { category: NeedsYouCategory } | { type: NeedsYouType }): string => ('category' in item ? item.category.id : item.type.id);
+  const byId = new Map<string, string[]>();
+  for (const { name, item } of read) byId.set(idOf(item), [...(byId.get(idOf(item)) ?? []), name]);
+  for (const [id, names] of byId) if (names.length > 1) problems.push(`${names.join(', ')}: all have the id "${id}", so none is used`);
+  const unique = read.filter(({ item }) => byId.get(idOf(item))!.length === 1);
+  const categories = unique.flatMap(({ item }) => ('category' in item ? [item.category] : [])).sort((a, b) => a.order - b.order || compare(a.id, b.id));
+  const known = new Set(categories.map((category) => category.id));
+  const types: NeedsYouType[] = [];
+  for (const { name, item } of unique) {
+    if (!('type' in item)) continue;
+    if (known.has(item.type.category)) types.push(item.type);
+    else problems.push(`${name}: no category has the id "${item.type.category}"`);
+  }
+  types.sort((a, b) => compare(a.id, b.id));
+  return { registry: { categories, types }, problems };
+}

@@ -1,0 +1,2 @@
+// What you asked to be reminded of, and what was running when the app closed.
+{ "kind": "category", "id": "reminders", "label": "Reminders", "order": 50 }

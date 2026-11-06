@@ -1,0 +1,2 @@
+// A closed PR the session links was opened again.
+{ "kind": "type", "id": "pr.reopened", "label": "PR opened again", "category": "look-again" }

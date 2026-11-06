@@ -1,0 +1,2 @@
+// The session was running when the app last closed, by a quit, an end without one, or in a way the app cannot tell.
+{ "kind": "type", "id": "app.was-running", "label": "Was running when the app closed", "category": "reminders" }

@@ -891,6 +891,12 @@ Changes found in one answer are named together, strongest first, "PR #7 checks f
 To the roll-ups it ranks under waiting and over idle, and a rail icon shows it in its colour where no session waits.
 A click on it marks it read, dimmed and still, as for idle and waiting; the mark stays, since seeing it is not settling it.
 
+**Every reason a session needs you for is of a type, and every type belongs to a category**, a section of the Now view to come: Your turn, Back to work, Ready to merge, Look again, Reminders and Finish up, in that order (decided 2026-11-06).
+The app ships them as files, one JSONC object each, in `bundled/needs-you/` beside `assets/`, written as a person's own file would be, so that each can be changed or switched off by its id like anything else the app ships, rather than living in a table in the code.
+A category says its `kind`, `id`, `label` and `order`; a type its `kind`, `id`, `label` and `category`; either may say `"enabled": false`; any other field is a mistake, so a misspelt one is named rather than ignored.
+Main reads them (`readBundledNeedsYou`, checked by `needsYouRegistry`), with Node's fs, which lists and reads inside the packaged app's asar (measured on Electron 43.2.0); a file with a mistake is logged and left out whole, and two files with one id are both left out, but a mistake there is the app's own bug, which a unit test catches before a build.
+Claude asking and claude finishing a turn are types too, Your turn's, read from claude's status rather than stored, since they come many times an hour and the transcript already holds every turn.
+
 **A session set aside carries a mark of its own, beside the dot rather than on it** (`setAside`, decided 2026-10-29): "needs you" is for what really needs looking at, and a session set aside needs nothing yet.
 It is kept in `meta.json` by session id, with the moment it comes back or none for whenever, and when it was set (`SetAside`), so it outlives the tab, whose close, stop or start leaves it; its pure rules are beside the needs-you mark's (`sessionmarks.ts`), so the window keeps its copy by main's.
 It was called Later until 2026-11-05, and `meta.json` kept it as `later`, which a read still takes in until the next write drops it, as `ui.filters.later` is read as the set-aside pill; nothing of Later was released, so only a build from source has written either.
