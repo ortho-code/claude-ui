@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, mutedBySetAside, purgedSession, togglePinned, clearedFinished, unkept, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, markedWithHistory, mutedBySetAside, purgedSession, restoredNeedsYou, settledNeedsYou, HISTORY_KEPT, togglePinned, clearedFinished, unkept, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -130,6 +130,53 @@ describe('clearedSetAside', () => {
   });
 });
 
+describe('the needs-you history', () => {
+  const quit = { type: 'app.was-running' as const, at: 1, how: 'quit' as const };
+  const merged = { type: 'pr.merged' as const, at: 2, pr: 'acme/app#1' };
+
+  it('takes every reason of a session off at once, into its history in front, settled now by what settled it', () => {
+    const marks = { needsYou: { a: [quit, merged], b: [quit] }, needsYouHistory: { a: [{ ...quit, at: 0, settled: 1, by: 'closed' as const }] } };
+    expect(settledNeedsYou(marks, 'a', 'prompt', 9)).toEqual({
+      needsYou: { b: [quit] },
+      needsYouHistory: {
+        a: [
+          { ...quit, settled: 9, by: 'prompt' },
+          { ...merged, settled: 9, by: 'prompt' },
+          { ...quit, at: 0, settled: 1, by: 'closed' },
+        ],
+      },
+    });
+    expect(marks.needsYou.a).toEqual([quit, merged]);
+    expect(settledNeedsYou(marks, 'none', 'cleared', 9)).toEqual(marks);
+  });
+
+  it('keeps the newest twenty of a session', () => {
+    const many = Array.from({ length: HISTORY_KEPT }, (_, i) => ({ type: 'app.reminder' as const, at: i, settled: i, by: 'prompt' as const }));
+    const { needsYouHistory } = settledNeedsYou({ needsYou: { a: [quit] }, needsYouHistory: { a: many } }, 'a', 'cleared', 99);
+    expect(needsYouHistory.a).toHaveLength(HISTORY_KEPT);
+    expect(needsYouHistory.a[0]).toEqual({ ...quit, settled: 99, by: 'cleared' });
+    expect(needsYouHistory.a.at(-1)).toEqual(many.at(-2));
+  });
+
+  it("records what a new reason replaces as replaced, and nothing for a reason added beside the others", () => {
+    const checks = { type: 'pr.checks-failed' as const, at: 1, pr: 'acme/app#1' };
+    const approved = { type: 'pr.approved' as const, at: 1, pr: 'acme/app#1' };
+    const marks = { needsYou: { a: [quit, checks, approved] }, needsYouHistory: {} };
+    expect(markedWithHistory(marks, ['a', 'b'], [merged], 5)).toEqual({
+      needsYou: { a: [quit, merged], b: [merged] },
+      needsYouHistory: { a: [{ ...checks, settled: 5, by: 'replaced' }, { ...approved, settled: 5, by: 'replaced' }] },
+    });
+    expect(markedWithHistory(marks, ['a'], [{ type: 'app.reminder', at: 5 }], 5).needsYouHistory).toEqual({});
+  });
+
+  it('puts reasons back as Undo does, taking them back off the history and leaving its older entries', () => {
+    const older = { ...quit, at: 0, settled: 1, by: 'closed' as const };
+    const closed = settledNeedsYou({ needsYou: { a: [quit, merged] }, needsYouHistory: { a: [older] } }, 'a', 'closed', 9);
+    expect(restoredNeedsYou(closed, 'a', [quit, merged])).toEqual({ needsYou: { a: [quit, merged] }, needsYouHistory: { a: [older] } });
+    expect(restoredNeedsYou(settledNeedsYou({ needsYou: { a: [quit] }, needsYouHistory: {} }, 'a', 'finished', 9), 'a', [quit])).toEqual({ needsYou: { a: [quit] }, needsYouHistory: {} });
+  });
+});
+
 describe('cameDue', () => {
   it('turns a mark whose day has come into needing you, with the reminder from its day, and leaves the rest', () => {
     const marks = { needsYou: {}, setAside: { a: { due: 100, at: 1 }, b: { due: 200, at: 1 }, c: { due: null, at: 1 } } };
@@ -173,16 +220,25 @@ describe('keep stamps', () => {
 });
 
 describe('withoutSession', () => {
-  it('forgets the session\'s pin, finished entry, note, needs-you mark, set-aside mark and keep stamp, and keeps everyone else\'s', () => {
+  it('forgets the session\'s pin, finished entry, note, needs-you mark and its history, set-aside mark and keep stamp, and keeps everyone else\'s', () => {
     const marks: SessionMarks = {
       pinned: ['a', 'b'],
       finished: { a: 1, b: 2 },
       notes: { a: 'x', b: 'y' },
       needsYou: { a: [{ type: 'app.was-running', at: 1, how: 'quit' }], b: [{ type: 'app.was-running', at: 2, how: 'ended' }] },
+      needsYouHistory: { a: [{ type: 'app.reminder', at: 0, settled: 1, by: 'prompt' }], b: [{ type: 'app.reminder', at: 0, settled: 1, by: 'cleared' }] },
       setAside: { a: { due: null, at: 1 }, b: { due: 9, at: 2 } },
       kept: { a: 3, b: 4 },
     };
-    expect(withoutSession(marks, 'a')).toEqual({ pinned: ['b'], finished: { b: 2 }, notes: { b: 'y' }, needsYou: { b: [{ type: 'app.was-running', at: 2, how: 'ended' }] }, setAside: { b: { due: 9, at: 2 } }, kept: { b: 4 } });
+    expect(withoutSession(marks, 'a')).toEqual({
+      pinned: ['b'],
+      finished: { b: 2 },
+      notes: { b: 'y' },
+      needsYou: { b: [{ type: 'app.was-running', at: 2, how: 'ended' }] },
+      needsYouHistory: { b: [{ type: 'app.reminder', at: 0, settled: 1, by: 'cleared' }] },
+      setAside: { b: { due: 9, at: 2 } },
+      kept: { b: 4 },
+    });
     expect(marks.needsYou).toEqual({ a: [{ type: 'app.was-running', at: 1, how: 'quit' }], b: [{ type: 'app.was-running', at: 2, how: 'ended' }] });
   });
 });
@@ -195,6 +251,7 @@ describe('purgedSession', () => {
       finished: { a: 1 },
       notes: { a: 'x' },
       needsYou: { a: [{ type: 'app.was-running' as const, at: 1, how: 'quit' as const }] },
+      needsYouHistory: { a: [{ type: 'app.reminder' as const, at: 0, settled: 1, by: 'prompt' as const }] },
       setAside: { a: { due: null, at: 1 } },
       kept: { a: 2 },
       openSessions: ['a', 'b'],
@@ -209,6 +266,7 @@ describe('purgedSession', () => {
       finished: {},
       notes: {},
       needsYou: {},
+      needsYouHistory: {},
       setAside: {},
       kept: {},
       openSessions: ['b'],

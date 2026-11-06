@@ -6,7 +6,7 @@ import { newSession } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
 import { clearSetAside, markSetAside } from '../../../state/setaside';
-import { clearNeedsYou, markNeedsYou } from '../../../state/needsyou';
+import { clearNeedsYou, markNeedsYou, restoreNeedsYou } from '../../../state/needsyou';
 import { clearNudge, setScheduled } from '../../../state/statuses';
 import { leaveTab, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
@@ -418,7 +418,7 @@ function removeTab(token: string, settles = true): void {
   // Its needs-you mark too, a quit's closes aside, since the mark is for the launch after it.
   if (!store.get().tabs.some((t) => t.token !== token && t.session.id === tab.session.id)) {
     clearNudge(tab.session.id);
-    if (settles && !isQuitting()) clearNeedsYou(entityKey(tab.session));
+    if (settles && !isQuitting()) clearNeedsYou(entityKey(tab.session), 'closed');
   }
   const terminal = terminalOf(token);
   terminal.term.dispose();
@@ -660,7 +660,7 @@ function putBack(removed: readonly RemovedTab[]): void {
   for (const { session, at, scheduledWhenStopped, needsYou } of [...removed].reverse()) {
     if (store.get().tabs.some((t) => t.session.id === session.id) || store.get().finished.has(entityKey(session))) continue;
     // As it was, from when it was marked, so a set-aside mark that muted it mutes it again.
-    if (needsYou) markNeedsYou([entityKey(session)], needsYou);
+    if (needsYou) restoreNeedsYou(entityKey(session), needsYou);
     // Built at the end, as every tab is, then moved to where it stood.
     buildTab(session, scheduledWhenStopped);
     const tabs = [...store.get().tabs];
@@ -810,7 +810,7 @@ function offerUndoFinish(marks: readonly FinishedMarks[], removed: readonly Remo
             store.set({ finished: new Map(Object.entries(finished)) });
             for (const { key, setAside: setAside, needsYou } of marks) {
               if (setAside) markSetAside([key], setAside.due, setAside.at);
-              if (needsYou) markNeedsYou([key], needsYou);
+              if (needsYou) restoreNeedsYou(key, needsYou);
             }
             putBack(removed);
           },
@@ -850,7 +850,7 @@ async function finishNow(keys: readonly string[]): Promise<void> {
       closeTab(tab.token);
     }
     // Main's finish took the marks off as it finished (src/main/meta.ts); after the tabs, whose Undo puts the needs-you mark back.
-    for (const key of keys) clearNeedsYou(key);
+    for (const key of keys) clearNeedsYou(key, 'finished');
     clearSetAside(keys);
   });
   offerUndoFinish(marks, removed);
@@ -893,7 +893,7 @@ export function adoptReplacement(tabToken: string, id: string, source: string): 
   // No claude of the app's runs the cleared session now, so what it had scheduled is not shown for it, though nothing will say its list emptied.
   setScheduled(replaced, []);
   // Nor does a tab hold it, which settles what it needed you for, as a close does; the new session needs nothing yet.
-  clearNeedsYou(entityKey(previous));
+  clearNeedsYou(entityKey(previous), 'moved');
   // The stand-in is a blank; the TITLE on disk is Claude's, and is left alone.
   // Claude Code copies the cleared session's name into the new transcript, and a title from Claude is a session's name before anything else — so a named session goes on showing that name, exactly as `claude --resume` lists it.
   // Overriding it would mean this app and the CLI disagreeing about what a session is called.
@@ -934,7 +934,7 @@ function adoptResumed(owner: TabState, id: string): TabState | null {
   setTab(owner.token, { session, scheduledWhenStopped: null });
   // The session it left runs in no claude of the app's now, as after a clear, and no tab holds it, which settles what it needed you for.
   setScheduled(owner.session.id, []);
-  clearNeedsYou(entityKey(owner.session));
+  clearNeedsYou(entityKey(owner.session), 'moved');
   // After the take-over, so the session's status, which is this tab's now, stays (`removeTab`).
   if (other) removeTab(other.token);
   persistOpenTabs();

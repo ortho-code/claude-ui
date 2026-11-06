@@ -24,6 +24,11 @@ async function expectMarked(page: Page, marked: boolean): Promise<void> {
   }
 }
 
+/** The marked session's reason in main's history, settled by `by`: what each act that takes the mark off records (decided 2026-11-06). */
+async function expectSettled(page: Page, by: string): Promise<void> {
+  await expect.poll(() => page.evaluate((id) => window.__claudeUiFixture.needsYouHistory[id], one.id)).toEqual([{ ...mark, settled: expect.any(Number), by }]);
+}
+
 /** An item of a session's menu, from its row's kebab, opened first. */
 async function menuItem(page: Page, title: string, item: string): Promise<Locator> {
   await row(page, title).locator('.session-kebab').click();
@@ -85,7 +90,8 @@ test('a resume keeps the mark, and a prompt there takes it off everywhere', asyn
   await expectMarked(page, true);
   await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit');
   await expectMarked(page, false);
-  expect(await app.calls('clearNeedsYou')).toEqual([[one.id]]);
+  expect(await app.calls('clearNeedsYou')).toEqual([[one.id, 'prompt']]);
+  await expectSettled(page, 'prompt');
   await expect(switcherEntry(page, 'demo').locator('.nudge')).not.toHaveClass(/\bneeds\b/);
 });
 
@@ -137,7 +143,8 @@ test('Clear needs you in its menu takes it off without opening it', async ({ app
   for (const dot of [row(page, one.title).locator('.nudge'), tab(page, one.title).locator('.nudge')]) await expect(dot).not.toHaveClass(/\bneeds\b/);
   // A cold tab with nothing in hand any more leaves the strip.
   await expect(stripRow(page, one.title)).toHaveCount(0);
-  expect(await app.calls('clearNeedsYou')).toEqual([[one.id]]);
+  expect(await app.calls('clearNeedsYou')).toEqual([[one.id, 'cleared']]);
+  await expectSettled(page, 'cleared');
   expect(await app.calls('startTerminal')).toEqual([]);
   await expect(await menuItem(page, two.title, 'Clear needs you')).toHaveAttribute('data-tooltip', 'Not marked as needing you');
 });
@@ -147,12 +154,14 @@ test('closing its tab takes the mark off, and Undo puts it back with the tab', a
   await (await menuItem(page, one.title, 'Close tab')).click();
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
-  expect(await app.calls('clearNeedsYou')).toEqual([[one.id]]);
+  expect(await app.calls('clearNeedsYou')).toEqual([[one.id, 'closed']]);
+  await expectSettled(page, 'closed');
 
   await toastButton(page, 'Undo').click();
   await expectMarked(page, true);
-  // Put back as it was, from when it was marked, so a set-aside mark that muted it mutes it again.
-  expect(await app.calls('markNeedsYou')).toEqual([[[one.id], [mark]]]);
+  // Put back as it was, from when it was marked, so a set-aside mark that muted it mutes it again, and taken back off its history, so the undone close leaves no trace.
+  expect(await app.calls('restoreNeedsYou')).toEqual([[one.id, [mark]]]);
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYouHistory)).toEqual({});
 });
 
 test('finishing it takes the mark off, and Undo puts it back with the tab', async ({ app, page }) => {
@@ -160,10 +169,12 @@ test('finishing it takes the mark off, and Undo puts it back with the tab', asyn
   await (await menuItem(page, one.title, 'Finished')).click();
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYou)).toEqual({});
+  await expectSettled(page, 'finished');
 
   await toastButton(page, 'Undo').click();
   await expect(tab(page, one.title)).toHaveCount(1);
   await expectMarked(page, true);
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.needsYouHistory)).toEqual({});
 });
 
 // A session with no tab has nothing for Undo's put-back to carry the mark on, so the finish keeps it for Undo itself.
@@ -207,7 +218,7 @@ test("claude's own exit with 0 takes the mark off with its tab", async ({ app, p
   await app.emit('onTerminalExit', FIRST, 0);
   await expect(tab(page, one.title)).toHaveCount(0);
   await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
-  expect(await app.calls('clearNeedsYou')).toEqual([[one.id]]);
+  expect(await app.calls('clearNeedsYou')).toEqual([[one.id, 'closed']]);
 });
 
 // The tab no longer holds the session, which settles it as a close does; the session the tab goes on in needs nothing yet.
@@ -217,6 +228,7 @@ test('a /clear in its tab takes the old session\'s mark off and does not mark th
   const next = '00000000-0000-4000-8000-0000000000e3';
   expect(await app.emit('onSessionStart', next, token, 'clear')).toBe(1);
   await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
-  expect(await app.calls('clearNeedsYou')).toEqual([[one.id]]);
+  expect(await app.calls('clearNeedsYou')).toEqual([[one.id, 'moved']]);
+  await expectSettled(page, 'moved');
   expect(await app.calls('markNeedsYou')).toEqual([]);
 });

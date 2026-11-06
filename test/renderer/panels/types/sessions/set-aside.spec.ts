@@ -350,7 +350,7 @@ test('a prompt there settles both marks', async ({ app, page }) => {
   await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit', undefined, 'carry on');
   await expect(row(page, one.title).locator('.set-aside-mark')).toBeHidden();
   await expect(row(page, one.title).locator('.nudge')).not.toHaveClass(/\bneeds\b/);
-  expect(await app.calls('clearNeedsYou')).toEqual([[one.id]]);
+  expect(await app.calls('clearNeedsYou')).toEqual([[one.id, 'prompt']]);
   expect(await app.calls('clearSetAside')).toEqual([[[one.id]]]);
 });
 

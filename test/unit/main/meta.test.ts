@@ -42,6 +42,8 @@ import {
   getOpenSessions,
   getRunningSessions,
   getNeedsYou,
+  getNeedsYouHistory,
+  restoreNeedsYou,
   markNeedsYou,
   getSetAside,
   markSetAside,
@@ -238,7 +240,7 @@ describe('sessions that need you', () => {
       ],
       b: [{ type: 'app.was-running', at: 1, how: 'ended' }],
     });
-    await clearNeedsYou('a');
+    await clearNeedsYou('a', 'cleared');
     expect(Object.keys(await getNeedsYou())).toEqual(['b']);
   });
 
@@ -304,6 +306,49 @@ describe('sessions that need you', () => {
   it('read a single reason, as an older file holds it, as a list of one', async () => {
     await writeMetaFile({ version: 3, needsYou: { a: { reason: 'quit', at: 5 }, b: { reason: 'nonsense', at: 5 } } });
     expect(await getNeedsYou()).toEqual({ a: [{ type: 'app.was-running', at: 5, how: 'quit' }] });
+  });
+
+  it('keep what settled each reason, by what and when, in the same write that takes it off, and put back by Undo leave none', async () => {
+    const quit = { type: 'app.was-running' as const, at: 1, how: 'quit' as const };
+    await markNeedsYou(['a', 'b'], [quit]);
+    await markNeedsYou(['a'], [{ type: 'app.was-running', at: 2, how: 'ended' }]);
+    await clearNeedsYou('a', 'prompt');
+    await finish(['b']);
+    const history = await getNeedsYouHistory();
+    expect(history).toEqual({
+      a: [
+        { type: 'app.was-running', at: 2, how: 'ended', settled: expect.any(Number), by: 'prompt' },
+        { ...quit, settled: expect.any(Number), by: 'replaced' },
+      ],
+      b: [{ ...quit, settled: expect.any(Number), by: 'finished' }],
+    });
+    await restoreNeedsYou('b', [quit]);
+    expect(await getNeedsYou()).toEqual({ b: [quit] });
+    expect(Object.keys(await getNeedsYouHistory())).toEqual(['a']);
+    await purgeSession('a');
+    expect(await getNeedsYouHistory()).toEqual({});
+  });
+
+  it('read a history entry only with a reason, the moment it was settled and what settled it, and keep the newest twenty', async () => {
+    const entry = (at: number, more: object = {}) => ({ type: 'app.reminder', at, settled: at, by: 'cleared', ...more });
+    await writeMetaFile({
+      version: 3,
+      needsYouHistory: { a: [entry(1), entry(2, { by: 'nonsense' }), entry(3, { settled: 'then' }), entry(4, { type: 'nonsense' })], b: 'yes', c: Array.from({ length: 25 }, (_, i) => entry(i)) },
+    });
+    const history = await getNeedsYouHistory();
+    expect(history.a).toEqual([{ type: 'app.reminder', at: 1, settled: 1, by: 'cleared' }]);
+    expect(Object.keys(history).sort()).toEqual(['a', 'c']);
+    expect(history.c).toHaveLength(20);
+  });
+
+  // A key a build does not know goes through `extra` untouched, which is how a build from before the history keeps it, so going back a build and forward again loses none of it.
+  it('stay in the file through a write, and so does a key the build does not know', async () => {
+    const raw = { version: 3, needsYouHistory: { a: [{ type: 'app.reminder', at: 1, settled: 2, by: 'cleared' }] }, someLaterKey: { x: 1 } };
+    await writeMetaFile(raw);
+    await togglePin('z');
+    const written = JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8'));
+    expect(written.needsYouHistory).toEqual(raw.needsYouHistory);
+    expect(written.someLaterKey).toEqual({ x: 1 });
   });
 
   // The reader of the build before reasons had types, as it was: what a build gone back to reads of what this one wrote.

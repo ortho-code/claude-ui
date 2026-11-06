@@ -4,7 +4,7 @@ import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../../src/shared/n
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/pathcheck';
 import type { SettingsFileRead } from '../../../src/shared/settings';
-import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, PrSeen, PrStatus, ScheduledTask, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
+import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, SettledNeedsYou, PrSeen, PrStatus, ScheduledTask, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -19,6 +19,8 @@ export interface BridgeFixture {
   notes: Record<string, string>;
   /** Session -> why it needs you, as meta keeps it; marked and cleared by main's own rules. */
   needsYou: Record<string, NeedsYou[]>;
+  /** Session -> its settled reasons, newest first, as meta keeps them; written by main's own rules as the marks are taken off. */
+  needsYouHistory: Record<string, SettledNeedsYou[]>;
   /** The needs-you categories and types main read; the harness gives the app's own, from `bundled/needs-you/` (`bundledNeedsYou`), unless a check gives others. */
   needsYouTypes: NeedsYouRegistry;
   /** What was last seen of the PRs, as meta keeps it; null for never, the first run. */
@@ -151,6 +153,7 @@ export function defaultFixture(): BridgeFixture {
     finishFails: null,
     notes: {},
     needsYou: {},
+    needsYouHistory: {},
     needsYouTypes: NO_NEEDS_YOU_TYPES,
     // Kept before, so a check with linked PRs sees no first run unless it asks for one.
     prSeen: {},

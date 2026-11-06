@@ -79,7 +79,7 @@ window.claudeUi.onSessionStatus((id, status, tabToken, event, background, prompt
   if (event === 'UserPromptSubmit') {
     const scheduled = [...(store.get().scheduledTasks.get(id) ?? []), ...(tabWith(id)?.scheduledWhenStopped ?? [])].map((task) => task.prompt);
     if (prompt === undefined || !startedByClaude(prompt, scheduled, source)) {
-      clearNeedsYou(id);
+      clearNeedsYou(id, 'prompt');
       clearSetAside([id]);
     }
   }

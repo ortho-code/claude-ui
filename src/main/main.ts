@@ -31,6 +31,7 @@ import {
   getNeedsYou,
   markNeedsYou,
   clearNeedsYou,
+  restoreNeedsYou,
   getPrSeen,
   setPrSeen,
   getSetAside,
@@ -92,7 +93,7 @@ import { installStatusHooks, registerStatusIpc, clearStatuses } from './status';
 import { registerSessionsWatcher } from './watcher';
 import { transcriptChanged } from './transcriptends';
 import { NO_TRANSCRIPT } from '../shared/history';
-import type { HistoryPin, HistorySlice, NeedsYou, OrderMove, PrSeen, UiState } from '../shared/types';
+import type { HistoryPin, HistorySlice, NeedsYou, OrderMove, PrSeen, SettledBy, UiState } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -508,8 +509,11 @@ ipcMain.handle('needsYou:types', () => needsYouTypes);
 ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reasons: NeedsYou[]) => {
   void markNeedsYou(ids, reasons);
 });
-ipcMain.on('meta:clearNeedsYou', (_event, id: string) => {
-  void clearNeedsYou(id);
+ipcMain.on('meta:clearNeedsYou', (_event, id: string, by: SettledBy) => {
+  void clearNeedsYou(id, by);
+});
+ipcMain.on('meta:restoreNeedsYou', (_event, id: string, reasons: NeedsYou[]) => {
+  void restoreNeedsYou(id, reasons);
 });
 ipcMain.handle('meta:getPrSeen', () => getPrSeen());
 ipcMain.on('meta:setPrSeen', (_event, seen: PrSeen) => {

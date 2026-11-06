@@ -2,13 +2,13 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { SetAside, NeedsYou, ClosedHow, OrderMove, GroupState, HistoryPin, PrChange, PrNeedsYouType, PrSeen, PrStatus, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
+import type { SetAside, NeedsYou, ClosedHow, SettledBy, SettledNeedsYou, OrderMove, GroupState, HistoryPin, PrChange, PrNeedsYouType, PrSeen, PrStatus, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
 import { scheduledTasksOf } from '../shared/scheduled';
 import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, purgedSession, togglePinned, clearedFinished, unkept } from '../shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, HISTORY_KEPT, keptFrom, markedSetAside, markedWithHistory, purgedSession, restoredNeedsYou, settledNeedsYou, togglePinned, clearedFinished, unkept } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { isPrReason, isPrType, PR_TYPES } from '../shared/needsyou';
 import { appendStamped } from './stamp';
@@ -77,6 +77,12 @@ interface Meta {
    * Written with each reason's older form beside its type (`storedNeedsYou`), so a build from before reasons had types still reads every mark.
    */
   needsYou: Record<string, NeedsYou[]>;
+  /**
+   * Each session's settled reasons, by session id, newest first: what marked it, when, and what settled it, the newest `HISTORY_KEPT` kept.
+   * Written in the same write that takes a reason off `needsYou`, so the two never disagree; goes with its session's delete, and stays through a finish.
+   * A build from before it keeps it untouched through `extra`, and records nothing it settles.
+   */
+  needsYouHistory: Record<string, SettledNeedsYou[]>;
   /**
    * The sessions you set aside, by session id: the day each comes back as needing you, or none for whenever, and since when.
    * Kept whether or not a tab holds the session, until the window takes it off for a prompt there or Clear set aside, its day comes (`cameDue`), or main does for a finish or a delete.
@@ -160,6 +166,7 @@ const KNOWN_KEYS = new Set([
   'moved',
   'notes',
   'needsYou',
+  'needsYouHistory',
   'setAside',
   'later', // the pre-rename spelling of setAside; read, never written
   'kept',
@@ -175,7 +182,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, finished: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, setAside: {}, kept: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, finished: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, needsYouHistory: {}, setAside: {}, kept: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -380,6 +387,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     // Same reasoning as projectOrder: no version bump for a new defaulted field; absent means nothing is marked.
     // An entry this build cannot read is dropped, so a hand edit can't leave a mark with no reason to show.
     needsYou: needsYouOf(parsed.needsYou),
+    // The same again: absent means nothing settled yet; an entry this build cannot read is dropped.
+    needsYouHistory: needsYouHistoryOf(parsed.needsYouHistory),
     // The same again: absent means nothing is set aside; `later` is what the marks were stored as before the act was called Set aside, read, never written.
     // A file from before pause gave way to the set-aside mark lists the tabs you paused, each of them set aside here, whenever (decided 2026-10-29), so nothing set aside is lost.
     setAside: setAsideWithPaused(setAsideOf(parsed.setAside ?? parsed.later), parsed.pausedSessions, Date.now()),
@@ -627,7 +636,7 @@ export function finish(ids: string[]): Promise<Record<string, number>> {
     const now = Date.now();
     for (const id of ids) {
       meta.finished = finishedFrom(meta.finished, id, now);
-      meta.needsYou = clearedNeedsYou(meta.needsYou, id);
+      Object.assign(meta, settledNeedsYou(meta, id, 'finished', now));
       meta.setAside = clearedSetAside(meta.setAside, id);
     }
     return meta.finished;
@@ -690,18 +699,30 @@ export function getNeedsYou(): Promise<Record<string, NeedsYou[]>> {
   return serialize(async () => (await readMeta()).needsYou);
 }
 
-/** Mark sessions as needing you for `reasons`, each beside a session's other reasons and replacing one of its kind (`markedNeedsYou`). */
+/** Mark sessions as needing you for `reasons`, each beside a session's other reasons and replacing one of its kind, which goes to its history (`markedWithHistory`). */
 export function markNeedsYou(ids: string[], reasons: NeedsYou[]): Promise<void> {
   return update('markNeedsYou', (meta) => {
-    meta.needsYou = markedNeedsYou(meta.needsYou, ids, reasons);
+    Object.assign(meta, markedWithHistory(meta, ids, reasons, Date.now()));
   });
 }
 
-/** Take a session's needs-you mark off, whether or not it had one. */
-export function clearNeedsYou(id: string): Promise<void> {
+/** Take a session's needs-you mark off, whether or not it had one, its reasons going to its history as settled by `by` (`settledNeedsYou`). */
+export function clearNeedsYou(id: string, by: SettledBy): Promise<void> {
   return update('clearNeedsYou', (meta) => {
-    meta.needsYou = clearedNeedsYou(meta.needsYou, id);
+    Object.assign(meta, settledNeedsYou(meta, id, by, Date.now()));
   });
+}
+
+/** Put a session's reasons back as they were, as Undo of a close or a finish does, and take them back off its history (`restoredNeedsYou`). */
+export function restoreNeedsYou(id: string, reasons: NeedsYou[]): Promise<void> {
+  return update('restoreNeedsYou', (meta) => {
+    Object.assign(meta, restoredNeedsYou(meta, id, reasons));
+  });
+}
+
+/** Each session's history of settled reasons; see `needsYouHistory`. */
+export function getNeedsYouHistory(): Promise<Record<string, SettledNeedsYou[]>> {
+  return serialize(async () => (await readMeta()).needsYouHistory);
 }
 
 const CLOSED_HOWS: readonly ClosedHow[] = ['quit', 'ended', 'unknown'];
@@ -739,6 +760,24 @@ function needsYouOf(raw: unknown): Record<string, NeedsYou[]> {
     Object.entries(raw as Record<string, unknown>).flatMap(([id, entry]) => {
       const reasons = (Array.isArray(entry) ? entry : [entry]).flatMap(reasonsOf);
       return reasons.length > 0 ? [[id, reasons]] : [];
+    }),
+  );
+}
+
+const SETTLED_BY: readonly SettledBy[] = ['prompt', 'cleared', 'closed', 'moved', 'finished', 'replaced', 'off'];
+
+/** Session -> its settled reasons, from whatever was stored: an entry whose reason does not read (`reasonsOf`), or without a moment it was settled or what settled it, left out, the newest `HISTORY_KEPT` kept, and a session left with none dropped. */
+function needsYouHistoryOf(raw: unknown): Record<string, SettledNeedsYou[]> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>).flatMap(([id, entry]) => {
+      const settled = (Array.isArray(entry) ? entry : []).flatMap((item: unknown): SettledNeedsYou[] => {
+        const reasons = reasonsOf(item);
+        if (reasons.length !== 1) return [];
+        const { settled: at, by } = item as Record<string, unknown>;
+        return typeof at === 'number' && SETTLED_BY.includes(by as SettledBy) ? [{ ...reasons[0]!, settled: at, by: by as SettledBy }] : [];
+      });
+      return settled.length > 0 ? [[id, settled.slice(0, HISTORY_KEPT)]] : [];
     }),
   );
 }

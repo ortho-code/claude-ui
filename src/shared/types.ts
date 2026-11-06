@@ -35,6 +35,15 @@ export type NeedsYou =
   /** A PR it links changed: which (`owner/name#number`); several changes found in one answer are a reason each, at the same moment. */
   | { type: PrNeedsYouType; at: number; pr: string };
 
+/**
+ * What settled a reason: your prompt there, Clear needs you, its tab removed by you or your leaving claude, `/clear` or claude's own `/resume` taking the tab on to another session, a finish, its successor coming (the next close of the app, the same PR's next change), or its type switched off.
+ * A delete settles nothing: the session's history goes with it.
+ */
+export type SettledBy = 'prompt' | 'cleared' | 'closed' | 'moved' | 'finished' | 'replaced' | 'off';
+
+/** A reason as it stood, with when it was settled (epoch ms) and by what: one entry of a session's needs-you history. */
+export type SettledNeedsYou = NeedsYou & { settled: number; by: SettledBy };
+
 /** What GitHub was last seen to say of each PR, by reference (`owner/name#number`): what a change is told from. */
 export type PrSeen = Record<string, PrStatus>;
 
@@ -475,10 +484,12 @@ export interface ClaudeUiApi {
   getNeedsYou(): Promise<Record<string, NeedsYou[]>>;
   /** The needs-you categories and types, as main read them from the files the app ships. */
   getNeedsYouTypes(): Promise<NeedsYouRegistry>;
-  /** Mark sessions as needing you for `reasons`, each from its own time, as Undo puts a mark back as it was; each is added beside a session's other reasons, replacing one of its kind (`markedNeedsYou`). */
+  /** Mark sessions as needing you for `reasons`; each is added beside a session's other reasons, replacing one of its kind, which goes to the session's history (`markedWithHistory`). */
   markNeedsYou(ids: string[], reasons: NeedsYou[]): void;
-  /** Take a session's needs-you mark off, whether or not it had one. */
-  clearNeedsYou(id: string): void;
+  /** Take a session's needs-you mark off, whether or not it had one, its reasons going to its history as settled by `by`. */
+  clearNeedsYou(id: string, by: SettledBy): void;
+  /** Put a session's reasons back as they were, each from its own time, as Undo of a close or a finish does, and take them back off its history. */
+  restoreNeedsYou(id: string, reasons: NeedsYou[]): void;
   /** What was last seen of the PRs the sessions link; null before it was ever kept, which is the first run. */
   getPrSeen(): Promise<PrSeen | null>;
   /** Keep what was last seen of the PRs, in place of what was kept before. */

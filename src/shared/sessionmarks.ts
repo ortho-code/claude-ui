@@ -3,7 +3,7 @@
  * Main (src/main/meta.ts) applies them inside its serialised writes of `meta.json`.
  */
 import { isPrReason } from './needsyou';
-import type { SetAside, NeedsYou, ScheduledTask } from './types';
+import type { SetAside, NeedsYou, ScheduledTask, SettledBy, SettledNeedsYou } from './types';
 
 /** The marks, as `meta.json` holds them. */
 export interface SessionMarks {
@@ -11,6 +11,8 @@ export interface SessionMarks {
   finished: Record<string, number>;
   notes: Record<string, string>;
   needsYou: Record<string, NeedsYou[]>;
+  /** Each session's settled reasons, newest first, the newest `HISTORY_KEPT` kept. */
+  needsYouHistory: Record<string, SettledNeedsYou[]>;
   setAside: Record<string, SetAside>;
   /** When each session was last kept out of the review, epoch ms; how long that holds is the review's own term (`kept:<30d`), not the mark's. */
   kept: Record<string, number>;
@@ -56,6 +58,56 @@ export function markedNeedsYou(needsYou: Readonly<Record<string, readonly NeedsY
   const kinds = new Set(reasons.map(kindOf));
   for (const id of ids) next[id] = [...(next[id] ?? []).filter((reason) => !kinds.has(kindOf(reason))), ...reasons];
   return next;
+}
+
+/** How many settled reasons a session's history keeps, the newest: weeks to months of one session's reasons at the rate measured on 2026-11-06, and bounded, so a history never only grows. */
+export const HISTORY_KEPT = 20;
+
+/** A session's standing reasons and its history, as main changes them together, in one write. */
+export type NeedsYouMarks = Pick<SessionMarks, 'needsYou' | 'needsYouHistory'>;
+
+/** The histories copied, each list its own, so a change to one leaves what it was copied from as it was. */
+function copied(history: Readonly<Record<string, readonly SettledNeedsYou[]>>): Record<string, SettledNeedsYou[]> {
+  return Object.fromEntries(Object.entries(history).map(([key, list]) => [key, [...list]]));
+}
+
+/** A session's history with `settled` put in front, newest first, the newest `HISTORY_KEPT` kept. */
+function withSettled(history: Readonly<Record<string, readonly SettledNeedsYou[]>>, id: string, settled: readonly SettledNeedsYou[]): Record<string, SettledNeedsYou[]> {
+  const next = copied(history);
+  if (settled.length === 0) return next;
+  next[id] = [...settled, ...(next[id] ?? [])].slice(0, HISTORY_KEPT);
+  return next;
+}
+
+/** Whether two reasons are the same one: of one type, marked at one moment, for one PR or one close. */
+function sameReason(a: NeedsYou, b: NeedsYou): boolean {
+  return a.type === b.type && a.at === b.at && (isPrReason(a) && isPrReason(b) ? a.pr === b.pr : true) && (a.type === 'app.was-running' && b.type === 'app.was-running' ? a.how === b.how : true);
+}
+
+/** `markedNeedsYou`, with each reason a new one replaces moved to its session's history as `replaced`, at `now`. */
+export function markedWithHistory(marks: NeedsYouMarks, ids: readonly string[], reasons: readonly NeedsYou[], now: number): NeedsYouMarks {
+  const needsYou = markedNeedsYou(marks.needsYou, ids, reasons);
+  let needsYouHistory = copied(marks.needsYouHistory);
+  for (const id of new Set(ids)) {
+    const replaced = (marks.needsYou[id] ?? []).filter((reason) => !needsYou[id]!.includes(reason));
+    needsYouHistory = withSettled(needsYouHistory, id, replaced.map((reason) => ({ ...reason, settled: now, by: 'replaced' as const })));
+  }
+  return { needsYou, needsYouHistory };
+}
+
+/** A session's mark taken off, every reason moved to its history, settled at `now` by `by`; no change for a session with none. */
+export function settledNeedsYou(marks: NeedsYouMarks, id: string, by: SettledBy, now: number): NeedsYouMarks {
+  const standing = marks.needsYou[id] ?? [];
+  return { needsYou: clearedNeedsYou(marks.needsYou, id), needsYouHistory: withSettled(marks.needsYouHistory, id, standing.map((reason) => ({ ...reason, settled: now, by }))) };
+}
+
+/** A session's reasons put back as they were, as Undo of a close or a finish does, and taken back off its history, so an undone close leaves no trace there. */
+export function restoredNeedsYou(marks: NeedsYouMarks, id: string, reasons: readonly NeedsYou[]): NeedsYouMarks {
+  const needsYouHistory = copied(marks.needsYouHistory);
+  const kept = (needsYouHistory[id] ?? []).filter((entry) => !reasons.some((reason) => sameReason(entry, reason)));
+  if (kept.length > 0) needsYouHistory[id] = kept;
+  else delete needsYouHistory[id];
+  return { needsYou: markedNeedsYou(marks.needsYou, [id], reasons), needsYouHistory };
 }
 
 /** When a session's newest reason was marked; 0 for none. */
@@ -113,12 +165,14 @@ export function clearedFinished(finished: Readonly<Record<string, number>>, id: 
   return next;
 }
 
-/** A deleted session's marks forgotten: its pin, its finished entry, its note, its needs-you mark, its set-aside mark and its keep stamp (`purgedSession` forgets the rest of what meta holds about it). */
+/** A deleted session's marks forgotten: its pin, its finished entry, its note, its needs-you mark and its history, its set-aside mark and its keep stamp (`purgedSession` forgets the rest of what meta holds about it). */
 export function withoutSession(marks: Readonly<SessionMarks>, id: string): SessionMarks {
   const finished = clearedFinished(marks.finished, id);
   const notes = { ...marks.notes };
   delete notes[id];
-  return { pinned: marks.pinned.filter((key) => key !== id), finished, notes, needsYou: clearedNeedsYou(marks.needsYou, id), setAside: clearedSetAside(marks.setAside, id), kept: unkept(marks.kept, [id]) };
+  const needsYouHistory = copied(marks.needsYouHistory);
+  delete needsYouHistory[id];
+  return { pinned: marks.pinned.filter((key) => key !== id), finished, notes, needsYou: clearedNeedsYou(marks.needsYou, id), needsYouHistory, setAside: clearedSetAside(marks.setAside, id), kept: unkept(marks.kept, [id]) };
 }
 
 /** What else meta holds about a session, as `meta.json` holds it: the tabs open and which of them run, the one on show overall and per project, and who is in which group. */

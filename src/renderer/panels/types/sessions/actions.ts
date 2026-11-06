@@ -263,7 +263,7 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
   // Settling the needs-you mark without acting on the session, which a prompt there, a close and a finish also do; reading it only dims it (decided 2026-10-28).
   items.push(
     store.get().needsYou.has(entityKey(session))
-      ? { label: 'Clear needs you', onSelect: () => clearNeedsYou(entityKey(session)) }
+      ? { label: 'Clear needs you', onSelect: () => clearNeedsYou(entityKey(session), 'cleared') }
       : { label: 'Clear needs you', disabled: 'Not marked as needing you' },
   );
   // Setting it aside is a mark on the session, with a tab or without, running or not, and leaves the tab as it is (decided 2026-10-29).

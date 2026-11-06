@@ -3,7 +3,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { prReference } from '../../../src/shared/prs';
-import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, purgedSession, togglePinned, clearedFinished, unkept } from '../../../src/shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, restoredNeedsYou, settledNeedsYou } from '../../../src/shared/sessionmarks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -99,12 +99,12 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getHistoryPins: () => answer(fixture.historyPins),
     toggleHistoryPin: unmodelled('toggleHistoryPin'),
     getFinished: () => answer(fixture.finished),
-    // Main's finish takes each session's needs-you and set-aside marks off in the same write.
+    // Main's finish takes each session's needs-you and set-aside marks off in the same write, its reasons going to its history as finished.
     finish: (ids) => {
       if (fixture.finishFails !== null) return Promise.reject(new Error(fixture.finishFails));
       const now = Date.now();
       for (const id of ids) {
-        fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
+        Object.assign(fixture, settledNeedsYou(fixture, id, 'finished', now));
         fixture.setAside = clearedSetAside(fixture.setAside, id);
         fixture.finished = finishedFrom(fixture.finished, id, now);
       }
@@ -132,10 +132,13 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getNeedsYou: () => answer(fixture.needsYou),
     getNeedsYouTypes: () => answer(fixture.needsYouTypes),
     markNeedsYou: (ids, reasons) => {
-      fixture.needsYou = markedNeedsYou(fixture.needsYou, ids, reasons);
+      Object.assign(fixture, markedWithHistory(fixture, ids, reasons, Date.now()));
     },
-    clearNeedsYou: (id) => {
-      fixture.needsYou = clearedNeedsYou(fixture.needsYou, id);
+    clearNeedsYou: (id, by) => {
+      Object.assign(fixture, settledNeedsYou(fixture, id, by, Date.now()));
+    },
+    restoreNeedsYou: (id, reasons) => {
+      Object.assign(fixture, restoredNeedsYou(fixture, id, reasons));
     },
     getPrSeen: () => {
       if (fixture.prSeenReadFails > 0) {
