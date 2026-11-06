@@ -1,3 +1,4 @@
+import { typeIsOn } from '../../shared/needsyou';
 import { cameDue, clearedSetAside, markedSetAside } from '../../shared/sessionmarks';
 import { store } from './app';
 
@@ -32,9 +33,10 @@ export function clearSetAside(ids: readonly string[]): void {
 export function settleDueSetAside(now = Date.now()): void {
   const { setAside, needsYou } = store.get();
   if (![...setAside.values()].some((mark) => mark.due !== null && mark.due <= now)) return;
-  const next = cameDue({ setAside: Object.fromEntries(setAside), needsYou: Object.fromEntries(needsYou) }, now);
+  const remind = typeIsOn(store.get().needsYouTypes, 'app.reminder');
+  const next = cameDue({ setAside: Object.fromEntries(setAside), needsYou: Object.fromEntries(needsYou) }, now, remind);
   store.set({ setAside: new Map(Object.entries(next.setAside)), needsYou: new Map(Object.entries(next.needsYou)) });
-  window.claudeUi.setAsideCameDue(now);
+  window.claudeUi.setAsideCameDue(now, remind);
 }
 
 let lookTimer: ReturnType<typeof setTimeout> | null = null;

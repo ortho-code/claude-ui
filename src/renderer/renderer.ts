@@ -24,7 +24,8 @@ import { store, withEntry } from './state/app';
 import { tabWith } from './state/views';
 import { startedByClaude } from '../shared/scheduled';
 import { clearSetAside, watchDueSetAside } from './state/setaside';
-import { clearNeedsYou } from './state/needsyou';
+import { clearNeedsYou, watchSwitchedOff } from './state/needsyou';
+import type { NeedsYouRead } from '../shared/needsyou';
 import { setScheduled, setStatus } from './state/statuses';
 import { installTooltips } from './tooltip';
 import { askPlatform, routeTerminals } from './terminal';
@@ -128,10 +129,19 @@ initTree({
   // The asks each panel can make, answered by the terminal area and by the sidebar.
   asks: { ...claudeAnswers, ...sessionsAnswers },
 });
+/** The needs-you types as main read them, your files under `needs-you/` applied; a mistake in one of those is said, the rest in force. */
+function useNeedsYouTypes({ registry, problems }: NeedsYouRead): void {
+  store.set({ needsYouTypes: registry });
+  if (problems.length > 0) showToast(`A needs-you file of yours is not used: ${problems.join('; ')}`, true);
+}
+
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
   void window.claudeUi.getHistoryPins().then((pins) => history.setPins(pins));
-  void window.claudeUi.getNeedsYouTypes().then((needsYouTypes) => store.set({ needsYouTypes }));
+  // Before the marks are read and the tabs restored, so a type you switched off marks nothing at launch and its marks from before are settled as they arrive.
+  useNeedsYouTypes(await window.claudeUi.getNeedsYouTypes());
+  window.claudeUi.onNeedsYouTypes(useNeedsYouTypes);
+  watchSwitchedOff();
   // Before the first render: restoring filters afterwards would draw the whole list and then visibly cut it down.
   const { scrollTop, view } = await restoreUiState();
   // Before the rows and the tabs too: placing the layout moves the sidebar and the terminal area into it, and a move is cheapest, and invisible, while they are still empty.

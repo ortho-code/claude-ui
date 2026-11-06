@@ -61,7 +61,7 @@ export const test = base.extend<{ app: App }, { installScript: string }>({
 
     const app: App = {
       boot: async (overrides = {}) => {
-        await page.addInitScript((fixture) => (window.__claudeUiFixture = fixture), { ...defaultFixture(), needsYouTypes: bundledNeedsYou(), ...overrides });
+        await page.addInitScript((fixture) => (window.__claudeUiFixture = fixture), { ...defaultFixture(), needsYouTypes: { registry: bundledNeedsYou(), problems: [] }, ...overrides });
         await page.addInitScript({ content: installScript });
         await page.goto(`${ORIGIN}/index.html`);
       },

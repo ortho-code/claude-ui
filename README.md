@@ -303,7 +303,7 @@ For example:
 {
   // Grep and Glob without asking, in every session
   "launchFlags": "--allowedTools Grep,Glob",
-  // The sessions that were running when the app closed start again at launch, marked as needing you
+  // The sessions that were running when the app closed start again at launch
   "runningSessionsAtLaunch": "start",
   // Don't ask GitHub what it says of the sessions' PRs
   "prStatus": false
@@ -311,9 +311,9 @@ For example:
 ```
 
 There are seven settings: `launchFlags`, the default flags for every session the app starts, `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed, `prStatus`, whether the app asks GitHub what it says of the PRs your sessions link, `leaveButton`, what the button beside a session's menu does, on its tab and its row in the live strip, `setAside`, the choices for setting a session aside, `setAsideTime`, the time of day a choice without one comes back at, and `locale`, the language the app formats times and dates in.
-`runningSessionsAtLaunch` is `"mark"` until you choose otherwise, which brings their tabs back without starting them, marked as needing you, in the live strip; `"start"` starts them again, marked as well, and `"leave"` brings their tabs back with the other tabs, unmarked, waiting for a click.
-`"pause"`, which a file an older version wrote may hold, reads as `"mark"`.
-`prStatus` is `true` until you choose otherwise, which colours each session's PR mark by what GitHub says, asked with `gh` on your own login, and marks a session as needing you when one of its PRs changes, such as merged or changes requested; `false` asks nothing, the marks keep one colour and nothing is marked, and turning it on again starts from the PRs as they are then.
+`runningSessionsAtLaunch` is `"cold"` until you choose otherwise, which brings their tabs back without starting them, and `"start"` starts them again; either way they are marked as needing you and in the live strip, unless you switch that off (below).
+`"mark"`, `"pause"` and `"leave"`, which a file an older version wrote may hold, read as `"cold"`.
+`prStatus` is `true` until you choose otherwise, which colours each session's PR mark by what GitHub says, asked with `gh` on your own login, and lets a session be marked as needing you when one of its PRs changes, such as merged or changes requested; `false` asks nothing, the marks keep one colour and no PR marks a session, and turning it on again starts from the PRs as they are then.
 `leaveButton` is `"stop-close"` until you choose otherwise, which stops a running session and, with a press once it has stopped, closes the tab, and `"stop-finish"` marks its session finished with that press instead; `"close"` and `"finish"` do it in one press, asking claude to leave first, and `"none"` takes the button away, leaving it to the tab's menu; it is the button on the tab and on its row in the live strip while the strip lists it, and a middle-click on the tab, which does nothing with `"none"`.
 `setAside` is `["tomorrow", "in 1w", "whenever"]` until you choose otherwise, a list of choices, each `"whenever"`, `"in 30m"` or `"in 2h"` from the moment you press it, `"in 3d"` or `"in 1w"`, `"tomorrow"`, or `"next monday"` (or `"next mon"`), the first such day after today; a choice with a day may end in a time, such as `"next monday 08:00"`, and otherwise comes back at `setAsideTime`.
 The choices are offered in the order they would come, with Pick a date… after them and Whenever last where the list has it, whatever order the list has; two that come at the same moment are offered once, and a list with a choice the app cannot read is not used, which Settings names under its field.
@@ -324,6 +324,31 @@ A save writes the settings you changed, and puts a value Settings can use in pla
 A change to the file counts from the next session you start, and for the sessions running at quit, from the next launch, or on macOS the next window opened from the Dock; a change to `prStatus`, `leaveButton`, `setAside` or `setAsideTime` counts at once, the last two for what you set aside from then on, and a change to `locale` too, except in the time fields, which follow it from the next launch.
 A `settings.json` you were sent sets flags on every session you start, so read it before you use it.
 A mistake in the file is named in Settings, and a file that does not parse keeps the settings it last read until it does.
+
+### What needs you
+
+Each reason a session is marked as needing you for is of a type, and each type belongs to a category:
+
+| Category | Types |
+|---|---|
+| `your-turn` | `claude.asks`, `claude.finished` |
+| `back-to-work` | `pr.checks-failed`, `pr.conflict`, `pr.changes-requested` |
+| `ready-to-merge` | `pr.approved` |
+| `look-again` | `pr.reopened` |
+| `reminders` | `app.was-running` (it was running when the app closed), `app.reminder` (the moment you set it aside until came) |
+| `finish-up` | `pr.merged`, `pr.closed` |
+
+A `.json` file of yours in `needs-you/` in the config folder changes one by its id, such as `needs-you/approved.json`:
+
+```jsonc
+// Approvals don't need me here: we merge on two.
+{ "id": "pr.approved", "enabled": false }
+```
+
+`"enabled": false` switches a type off, or a whole category with all its types, and the marks it already made go; a type can also take another `label` or `category`, and a category another `label` or `order`, which take effect once something shows them.
+Every field you leave out stays as the app ships it, so a later version's change to it still reaches you; a file with a mistake is named in a message and not used, and the others are, while one that stops parsing is named and stays in force as it last read until it parses again.
+Only names ending in `.json` are read.
+Claude asking and claude finishing a turn are shown by its dot whatever these say: their types are for the Now view to come.
 
 ## Install a build
 

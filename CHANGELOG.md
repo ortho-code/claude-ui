@@ -39,8 +39,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Panel types of your own: a folder under `panel-types/` in the config folder, with a `panel.json` and a script that prints a list, is a type of that name, drawn with links, sections that fold and a count on its icon, and run again on an interval even out of sight.
 - A row of such a panel can start a Claude session with a first prompt, in the project and group you pick in the app's own dialog, which shows what would start before anything does.
 - Such a row then shows its session's status dot and goes to that session when pressed, and pressing its action again offers to continue that session rather than start another.
-- A choice in Settings for the sessions that were running when the app closed: their tabs come back paused at the next launch, or start again, or wait for a click with the other tabs, as before.
-  It is `runningSessionsAtLaunch` in `settings.json`, `"pause"`, `"start"` or `"leave"`, and paused until you choose otherwise.
+- A choice in Settings for the sessions that were running when the app closed: their tabs come back without starting at the next launch, or start again.
+  It is `runningSessionsAtLaunch` in `settings.json`, `"cold"` or `"start"`, and `"cold"` until you choose otherwise.
 - A panel's run can say when it runs next: a line such as `next=5m` in the file `CLAUDE_UI_CONTROL` names runs it again that long after, from `10s` to `24h`, in place of its `interval` or without one.
   `next=off` leaves it until something else runs it, and a `command` panel and a type of your own read it alike.
 - A `watch` option, `"watch": "git"`, runs a panel again when the git working tree of its folder changes, looked at every 30 seconds, out of sight too, once a burst of changes has settled.
@@ -121,6 +121,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The choice is kept as the session list's view, so `"view": "recent"` on its entry in the layout starts it there.
 - Finished and Set aside… beside Undo in the message a close leaves, for the sessions it closed, whatever closed them: the tab's button, its menu, the live strip or the bar.
   The message either one leaves has an Undo that puts the tabs back too, and cancelling Set aside… brings the close's message back.
+- Each reason the app marks a session as needing you for, a PR's change, a reminder or running when the app closed, can be switched off, alone or with its whole category, by a `.json` file of yours under `needs-you/` in the config folder, such as `{ "id": "pr.approved", "enabled": false }`.
+  Its marks already there go, a file with a mistake is named in a message and not used, and one that stops parsing stays as it last read; the reasons and their ids are in the README.
 
 ### Changed
 
@@ -168,7 +170,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A finished session's dot stays finished when claude reminds you, a minute later, that it is waiting for your input, where it used to turn to waiting.
   A permission prompt, a question or another notice from claude that may ask something still turns it to waiting.
 - The sessions that were running when the app closed come back marked as needing you, a mauve dot that says why, instead of paused, and stay marked until you act on the session, such as typing a prompt there, closing the tab, leaving claude yourself, archiving it or choosing Clear needs you.
-  `runningSessionsAtLaunch` is `"mark"`, `"start"` or `"leave"` now, and a `"pause"` already in your `settings.json` reads as `"mark"`.
+  Whether they are marked is a needs-you type you can switch off, `app.was-running`, and a `"mark"`, `"pause"` or `"leave"` already in your `settings.json` reads as `"cold"`.
 - The top of a session's options lists every state it is in on a line of its own, each with its dot, such as idle and needing you at once, where the status used to end the line with its project.
 - A session's dot no longer turns to waiting for claude's notices of something finished, such as a login that succeeded or an agent that finished.
 - The date filter's calendar starts its weeks on the first day of the language for times and dates, Monday for en-GB and nl-NL, as Pick a date…'s does.

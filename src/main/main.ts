@@ -10,11 +10,11 @@ import { findTranscript, listSessions, trashSessions, worktreeExists } from './s
 import { readHistory } from './transcript';
 import { liveTerminals, registerTerminalIpc, shellFolders, terminateAll } from './terminal';
 import { KILL_GRACE_MS, untilGone } from './shell';
-import { registerConfig } from './config';
+import { onConfigChange, registerConfig } from './config';
 import { registerFolders } from './folders';
 import { liveRuns, registerPanelsIpc, stopAllPanels } from './panels';
 import { forgetSessions, keepShellFolders, registerPanelData } from './paneldata';
-import { logsDir } from './paths';
+import { logsDir, needsYouDir } from './paths';
 import { startLog, closeLog, errorText, lastClosed, log } from './log';
 import { headerLines, logGpuStatus, logProcessFailures, registerRendererLog, watchWindow } from './diagnostics';
 import { localTimestamp } from './stamp';
@@ -32,6 +32,7 @@ import {
   markNeedsYou,
   clearNeedsYou,
   restoreNeedsYou,
+  settleNeedsYouTypes,
   getPrSeen,
   setPrSeen,
   getSetAside,
@@ -70,7 +71,7 @@ import {
   getUiState,
   setUiState,
 } from './meta';
-import { readBundledNeedsYou } from './needsyou';
+import { readBundledNeedsYou, readNeedsYou } from './needsyou';
 import { registerSettings, settingsNow } from './settings';
 import { rendererArguments } from './rendererargs';
 import { registerLayoutState } from './layoutstate';
@@ -503,9 +504,20 @@ ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: strin
 });
 ipcMain.handle('meta:getRunningSessions', () => getRunningSessions());
 ipcMain.handle('meta:getNeedsYou', () => getNeedsYou());
-// Read once, as the app starts: they are the app's own files, which change only with the app.
-const needsYouTypes = readBundledNeedsYou();
+// The bundled ones read once, as the app starts, since they change only with the app; yours under `needs-you/` again whenever that folder changes, the window told.
+const bundledNeedsYou = readBundledNeedsYou();
+let needsYouTypes = bundledNeedsYou.then((bundled) => readNeedsYou(bundled));
 ipcMain.handle('needsYou:types', () => needsYouTypes);
+onConfigChange((paths) => {
+  if (paths !== null && ![...paths].some((file) => file === needsYouDir || file.startsWith(`${needsYouDir}${path.sep}`))) return;
+  needsYouTypes = bundledNeedsYou.then((bundled) => readNeedsYou(bundled));
+  void needsYouTypes.then((read) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('needsYou:changed', read);
+  });
+});
+ipcMain.on('meta:settleNeedsYouTypes', (_event, types: string[]) => {
+  void settleNeedsYouTypes(types);
+});
 ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reasons: NeedsYou[]) => {
   void markNeedsYou(ids, reasons);
 });
@@ -533,8 +545,8 @@ ipcMain.on('meta:markSetAside', (_event, ids: string[], due: number | null, at?:
 ipcMain.on('meta:clearSetAside', (_event, ids: string[]) => {
   void clearSetAside(ids);
 });
-ipcMain.on('meta:setAsideCameDue', (_event, now: number) => {
-  void setAsideCameDue(now);
+ipcMain.on('meta:setAsideCameDue', (_event, now: number, remind: boolean) => {
+  void setAsideCameDue(now, remind);
 });
 // A window opened again from the Dock follows no close of the app's, so the log has nothing to say of it.
 ipcMain.handle('app:lastClosed', () => (reopened ? 'unknown' : lastClosed()));

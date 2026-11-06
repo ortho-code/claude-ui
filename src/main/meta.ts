@@ -8,7 +8,7 @@ import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { finishedFrom, cameDue, clearedSetAside, HISTORY_KEPT, keptFrom, markedSetAside, markedWithHistory, purgedSession, restoredNeedsYou, settledNeedsYou, togglePinned, clearedFinished, unkept } from '../shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, HISTORY_KEPT, keptFrom, markedSetAside, markedWithHistory, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, togglePinned, clearedFinished, unkept } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { isPrReason, isPrType, PR_TYPES } from '../shared/needsyou';
 import { appendStamped } from './stamp';
@@ -720,6 +720,13 @@ export function restoreNeedsYou(id: string, reasons: NeedsYou[]): Promise<void> 
   });
 }
 
+/** Take every session's reasons of `types` off, each into its history as settled `off` (`settledTypes`): the types were switched off. */
+export function settleNeedsYouTypes(types: string[]): Promise<void> {
+  return update('settleNeedsYouTypes', (meta) => {
+    Object.assign(meta, settledTypes(meta, types, Date.now()));
+  });
+}
+
 /** Each session's history of settled reasons; see `needsYouHistory`. */
 export function getNeedsYouHistory(): Promise<Record<string, SettledNeedsYou[]>> {
   return serialize(async () => (await readMeta()).needsYouHistory);
@@ -871,10 +878,10 @@ export function unkeep(ids: string[]): Promise<void> {
   });
 }
 
-/** Settle the set-aside marks that have come due by `now`, by the rule the window keeps its copy by (`cameDue`). */
-export function setAsideCameDue(now: number): Promise<void> {
+/** Settle the set-aside marks that have come due by `now`, by the rule the window keeps its copy by (`cameDue`), marking a reminder while `remind` says its type is on. */
+export function setAsideCameDue(now: number, remind = true): Promise<void> {
   return update('setAsideCameDue', (meta) => {
-    Object.assign(meta, cameDue(meta, now));
+    Object.assign(meta, cameDue(meta, now, remind));
   });
 }
 

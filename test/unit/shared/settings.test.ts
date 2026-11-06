@@ -10,7 +10,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' });
   });
 
   it("take a language of the file in its usual case, the system's unless told otherwise, and leave out one that is no language tag", () => {
@@ -67,15 +67,17 @@ describe('the settings in force', () => {
     expect(settingsView(holding({ runningSessionsAtLaunch: 'start' })).runningSessionsAtLaunch).toEqual({ value: 'start', problem: null });
     for (const wrong of ['resume', true, 1, null]) {
       const view = settingsView(holding({ runningSessionsAtLaunch: wrong }));
-      expect(view.runningSessionsAtLaunch).toEqual({ value: 'mark', problem: 'It has to be one of "start", "mark", "leave".' });
+      expect(view.runningSessionsAtLaunch).toEqual({ value: 'cold', problem: 'It has to be one of "start", "cold".' });
     }
   });
 
-  // What `mark` was called while those sessions came back paused, which a file written then holds.
-  it('read "pause" for the sessions running at quit as "mark", and leave the file as it is on a save that keeps it', () => {
-    const view = settingsView(holding({ runningSessionsAtLaunch: 'pause' }));
-    expect(view.runningSessionsAtLaunch).toEqual({ value: 'mark', problem: null });
-    expect(fileChanges(view, { runningSessionsAtLaunch: 'mark' })).toEqual([]);
+  // The choices from while the setting also said whether they were marked, which a file written then holds; marking is the type's now (decided 2026-11-06).
+  it('read "mark", "pause" and "leave" for the sessions running at quit as "cold", and leave the file as it is on a save that keeps it', () => {
+    for (const older of ['mark', 'pause', 'leave']) {
+      const view = settingsView(holding({ runningSessionsAtLaunch: older }));
+      expect(view.runningSessionsAtLaunch).toEqual({ value: 'cold', problem: null });
+      expect(fileChanges(view, { runningSessionsAtLaunch: 'cold' })).toEqual([]);
+    }
   });
 
   it('ask GitHub for PR status unless the file says not to, and leave out a value that is not true or false', () => {
@@ -148,7 +150,7 @@ describe('what a save writes into the file', () => {
   });
 
   it('writes nothing for a value already in force, from the file or the default, so no key only repeats the default', () => {
-    expect(fileChanges(settingsView(holding({ launchFlags: '--mine' })), { launchFlags: '--mine', runningSessionsAtLaunch: 'mark', prStatus: true })).toEqual([]);
+    expect(fileChanges(settingsView(holding({ launchFlags: '--mine' })), { launchFlags: '--mine', runningSessionsAtLaunch: 'cold', prStatus: true })).toEqual([]);
     expect(fileChanges(settingsView(missing), {})).toEqual([]);
   });
 

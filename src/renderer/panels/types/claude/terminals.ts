@@ -6,7 +6,7 @@ import { newSession } from '../../../newsession';
 import { store, type TabState, type View } from '../../../state/app';
 import { moveSessionToGroupById } from '../../../state/groups';
 import { clearSetAside, markSetAside } from '../../../state/setaside';
-import { clearNeedsYou, markNeedsYou, restoreNeedsYou } from '../../../state/needsyou';
+import { clearNeedsYou, markNeedsYou, marks, restoreNeedsYou } from '../../../state/needsyou';
 import { clearNudge, setScheduled } from '../../../state/statuses';
 import { leaveTab, sessionById, tabButtonOf, tabOnShow } from '../../../state/views';
 import { bindTerminal, createTerminal, lastLines } from '../../../terminal';
@@ -171,8 +171,8 @@ export async function restoreOpenTabs(): Promise<void> {
         // What it said was scheduled when its claude went, which it goes on saying until a claude started on it reports.
         const token = buildTab(session, scheduledByKey[key] ?? null);
         if (key === activeKey) toActivate = token;
-        // One that was running comes back marked as needing you, unless Settings says to leave it with the others: what was in hand is in the live strip at launch, and stays marked until your next prompt there, started or not.
-        if (wasRunning && atLaunch !== 'leave') marked.push(key);
+        // One that was running comes back marked as needing you, unless a file of yours switches that type off (`app.was-running`): what was in hand is in the live strip at launch, and stays marked until your next prompt there, started or not.
+        if (wasRunning && marks('app.was-running')) marked.push(key);
         if (wasRunning && atLaunch === 'start') resume.push(token);
       }
       // Its claude has gone, so what its status file last said is forgotten, as a tab going cold forgets it (`coolTab`): after an end without a quit the file still holds it, and a busy or a waiting from then would hide the mark.

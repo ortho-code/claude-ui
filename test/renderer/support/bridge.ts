@@ -3,7 +3,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
 import { prReference } from '../../../src/shared/prs';
-import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, restoredNeedsYou, settledNeedsYou } from '../../../src/shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes } from '../../../src/shared/sessionmarks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -131,6 +131,10 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     getRunningSessions: () => answer(fixture.runningSessions),
     getNeedsYou: () => answer(fixture.needsYou),
     getNeedsYouTypes: () => answer(fixture.needsYouTypes),
+    onNeedsYouTypes: on('onNeedsYouTypes'),
+    settleNeedsYouTypes: (types) => {
+      Object.assign(fixture, settledTypes(fixture, types, Date.now()));
+    },
     markNeedsYou: (ids, reasons) => {
       Object.assign(fixture, markedWithHistory(fixture, ids, reasons, Date.now()));
     },
@@ -164,8 +168,8 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     unkeep: (ids) => {
       fixture.kept = unkept(fixture.kept, ids);
     },
-    setAsideCameDue: (now) => {
-      Object.assign(fixture, cameDue(fixture, now));
+    setAsideCameDue: (now, remind) => {
+      Object.assign(fixture, cameDue(fixture, now, remind));
     },
     getLastClosed: () => answer(fixture.lastClosed),
     getScheduledWhenStopped: () => answer(fixture.scheduledWhenStopped),

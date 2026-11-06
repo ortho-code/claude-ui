@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, markedWithHistory, mutedBySetAside, purgedSession, restoredNeedsYou, settledNeedsYou, HISTORY_KEPT, togglePinned, clearedFinished, unkept, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, markedWithHistory, mutedBySetAside, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, HISTORY_KEPT, togglePinned, clearedFinished, unkept, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -177,6 +177,18 @@ describe('the needs-you history', () => {
   });
 });
 
+describe('settledTypes', () => {
+  it("takes a switched-off type's reasons off every session into its history as off, and leaves the rest", () => {
+    const quit = { type: 'app.was-running' as const, at: 1, how: 'quit' as const };
+    const approved = { type: 'pr.approved' as const, at: 2, pr: 'acme/app#1' };
+    const merged = { type: 'pr.merged' as const, at: 2, pr: 'acme/app#1' };
+    expect(settledTypes({ needsYou: { a: [quit, approved], b: [approved], c: [merged] }, needsYouHistory: {} }, ['pr.approved'], 9)).toEqual({
+      needsYou: { a: [quit], c: [merged] },
+      needsYouHistory: { a: [{ ...approved, settled: 9, by: 'off' }], b: [{ ...approved, settled: 9, by: 'off' }] },
+    });
+  });
+});
+
 describe('cameDue', () => {
   it('turns a mark whose day has come into needing you, with the reminder from its day, and leaves the rest', () => {
     const marks = { needsYou: {}, setAside: { a: { due: 100, at: 1 }, b: { due: 200, at: 1 }, c: { due: null, at: 1 } } };
@@ -187,6 +199,11 @@ describe('cameDue', () => {
   it('keeps the reason a session already needed you for, so it still says why', () => {
     const marks = { needsYou: { a: [{ type: 'app.was-running' as const, at: 5, how: 'quit' as const }] }, setAside: { a: { due: 100, at: 10 } } };
     expect(cameDue(marks, 150)).toEqual({ needsYou: { a: [{ type: 'app.was-running', at: 5, how: 'quit' }] }, setAside: {} });
+  });
+
+  it('with the reminder switched off, takes the marks whose day has come off and marks nothing', () => {
+    const marks = { needsYou: {}, setAside: { a: { due: 100, at: 1 }, b: { due: 200, at: 1 } } };
+    expect(cameDue(marks, 100, false)).toEqual({ needsYou: {}, setAside: { b: { due: 200, at: 1 } } });
   });
 });
 

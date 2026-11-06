@@ -436,7 +436,7 @@ export interface UiState {
 
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './folders';
-import type { NeedsYouRegistry } from './needsyou';
+import type { NeedsYouRead } from './needsyou';
 import type { LogLevel } from './log';
 import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './settings';
 
@@ -482,8 +482,12 @@ export interface ClaudeUiApi {
   getRunningSessions(): Promise<string[]>;
   /** The sessions marked as needing you, by session id, each with every reason it was marked for. */
   getNeedsYou(): Promise<Record<string, NeedsYou[]>>;
-  /** The needs-you categories and types, as main read them from the files the app ships. */
-  getNeedsYouTypes(): Promise<NeedsYouRegistry>;
+  /** The needs-you categories and types, the files the app ships with yours under `needs-you/` applied, and what is wrong with yours. */
+  getNeedsYouTypes(): Promise<NeedsYouRead>;
+  /** Hear of the categories and types again whenever a file of yours under `needs-you/` changes. */
+  onNeedsYouTypes(callback: (read: NeedsYouRead) => void): void;
+  /** Take every session's reasons of `types` off, each into its history as settled `off`: the types were switched off. */
+  settleNeedsYouTypes(types: string[]): void;
   /** Mark sessions as needing you for `reasons`; each is added beside a session's other reasons, replacing one of its kind, which goes to the session's history (`markedWithHistory`). */
   markNeedsYou(ids: string[], reasons: NeedsYou[]): void;
   /** Take a session's needs-you mark off, whether or not it had one, its reasons going to its history as settled by `by`. */
@@ -506,8 +510,8 @@ export interface ClaudeUiApi {
   keep(ids: string[], at?: number): void;
   /** Take sessions' keep stamps off, in one write, as Keep's Undo does. */
   unkeep(ids: string[]): void;
-  /** Settle the set-aside marks that have come due by `now` (`cameDue`): each goes, and a session not marked as needing you is marked with a reminder. */
-  setAsideCameDue(now: number): void;
+  /** Settle the set-aside marks that have come due by `now` (`cameDue`): each goes, and, while `remind` says the reminder's type is on, a session not marked as needing you is marked with a reminder. */
+  setAsideCameDue(now: number, remind: boolean): void;
   /** How the app closed before this window opened: what a session running then is marked for. */
   getLastClosed(): Promise<ClosedHow>;
   /** Open session -> the crons claude had scheduled for it when its claude went, as the open tabs were last written. */

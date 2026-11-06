@@ -31,7 +31,7 @@ const jsonc = async (file: string): Promise<unknown> => {
   const read = readJsonc(await fs.readFile(file, 'utf8'));
   return read.ok ? read.json : read.error;
 };
-const defaults = { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' };
+const defaults = { launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' };
 const text = (file: string): Promise<string> => fs.readFile(file, 'utf8');
 const gone = (file: string): Promise<void> => expect(fs.access(file)).rejects.toThrow();
 const moves = async (): Promise<unknown> => ((await json(metaFile)) as { moved: unknown }).moved;
@@ -114,13 +114,13 @@ describe('saving from Settings', () => {
 
   it('makes settings.json when there is none, holding only what differs from the default', async () => {
     const settings = await fresh();
-    await settings.saveSettings({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: false });
+    await settings.saveSettings({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: false });
     expect(await json(settingsFile)).toEqual({ prStatus: false });
   });
 
   it('writes nothing for a save that changes nothing', async () => {
     const settings = await fresh();
-    const saved = await settings.saveSettings({ launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true });
+    const saved = await settings.saveSettings({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true });
     expect(saved.refused).toBeNull();
     await gone(settingsFile);
   });
@@ -182,9 +182,9 @@ describe('a new settings.json', () => {
         '{',
         '  // Flags added to every session the app starts, as you would type them',
         '  "launchFlags": "",',
-        '  // What a launch does with the sessions that were running when the app closed: "mark" them as needing you, "start" them too, or "leave" them with the other tabs',
-        '  "runningSessionsAtLaunch": "mark",',
-        '  // Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks and marks a session as needing you when one changes, such as merged or changes requested; turned on, it starts from the PRs as they are then',
+        '  // What a launch does with the sessions that were running when the app closed: "cold" brings their tabs back without starting them, "start" starts them again; either way they are marked as needing you, unless a file in needs-you/ switches "app.was-running" off',
+        '  "runningSessionsAtLaunch": "cold",',
+        '  // Whether the app asks GitHub, with gh, what it says of the PRs your sessions link, which colours their marks and lets the PR types in needs-you/ mark a session as needing you when one changes, such as merged or changes requested; turned on, it starts from the PRs as they are then',
         '  "prStatus": true,',
         '  // What a tab\'s button does: "stop-close" stops a running session and then closes the tab, "stop-finish" stops it and then marks its session finished, "close" and "finish" do so in one press, and "none" leaves it to the tab\'s menu',
         '  "leaveButton": "stop-close",',

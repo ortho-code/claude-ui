@@ -2,9 +2,10 @@ import type { RunningAtLaunch } from '../../../../../../src/shared/settings';
 import type { ClosedHow, TerminalLaunch } from '../../../../../../src/shared/types';
 import { type BridgeFixture, session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
+import { switchedOff } from '../../../../support/needsyou';
 import { stripNames, tab } from '../../../../support/window';
 
-// At launch every open tab comes back, and the sessions that were running when the app closed come back as the setting says: marked as needing you, by default, started again and marked, or with the other tabs, unmarked.
+// At launch every open tab comes back, and the sessions that were running when the app closed come back as the setting says, cold by default or started again, and marked as needing you unless a file of yours switches that type off.
 const one = session();
 const two = session({ id: '00000000-0000-4000-8000-000000000002', title: 'Second session' });
 const three = session({ id: '00000000-0000-4000-8000-000000000003', title: 'Third session' });
@@ -112,8 +113,9 @@ test('chosen to start, the sessions that were running start again, the one on sh
   expect(await sizeOf(2)).toEqual(shown);
 });
 
-test('chosen to leave them, the sessions that were running come back cold with the other tabs, unmarked, and nothing starts', async ({ app, page }) => {
-  await app.boot(choosing('leave'));
+// Whether they are marked is the type's, switched off by a file of yours under needs-you/ (decided 2026-11-06).
+test('with the type that marks them switched off, the sessions that were running come back cold with the other tabs, unmarked, and nothing starts', async ({ app, page }) => {
+  await app.boot({ ...fixture, needsYouTypes: switchedOff('app.was-running') });
   await expect(tab(page, one.title)).toHaveClass(/\bactive\b/);
   await expect.poll(() => app.calls('setOpenSessions')).toHaveLength(1);
   expect(await app.calls('startTerminal')).toEqual([]);
@@ -122,12 +124,14 @@ test('chosen to leave them, the sessions that were running come back cold with t
   await expect(page.locator('#live-strip')).toBeHidden();
 });
 
-// What `mark` was called while those sessions came back paused, which a settings.json written then holds.
-test('a settings.json that says "pause" marks them, as the choice that took its place', async ({ app, page }) => {
-  await app.boot(choosing('pause' as RunningAtLaunch));
-  await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
-  expect(await app.calls('startTerminal')).toEqual([]);
-});
+// The choices from while the setting also said whether they were marked, `pause` the oldest, which a settings.json written then holds.
+for (const older of ['mark', 'pause', 'leave']) {
+  test(`a settings.json that says "${older}" brings them back cold, marked`, async ({ app, page }) => {
+    await app.boot(choosing(older as RunningAtLaunch));
+    await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
+    expect(await app.calls('startTerminal')).toEqual([]);
+  });
+}
 
 // A set-aside mark set before the quit did not know of it, so the quit's mark shows in full and the session comes back as the others do, its bookmark kept (decided 2026-10-29).
 test('a session set aside that was running comes back as the others do, marked and started as chosen, keeping its set-aside mark', async ({ app, page }) => {

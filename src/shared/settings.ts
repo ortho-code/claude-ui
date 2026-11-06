@@ -15,8 +15,11 @@ export type SettingKey = keyof Settings;
 /** Every setting there is, in the order Settings shows them. */
 export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'setAside', 'setAsideTime', 'locale'];
 
-/** The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them. */
-export const RUNNING_AT_LAUNCH = ['start', 'mark', 'leave'] as const;
+/**
+ * The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them: start them again, or bring their tabs back cold.
+ * Whether they are marked as needing you is the type `app.was-running`'s, switched off by a file of yours under `needs-you/` (decided 2026-11-06).
+ */
+export const RUNNING_AT_LAUNCH = ['start', 'cold'] as const;
 export type RunningAtLaunch = (typeof RUNNING_AT_LAUNCH)[number];
 
 /**
@@ -87,8 +90,8 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
     const { error } = parseLaunchFlags(value);
     return error === null ? { ok: true, value } : { ok: false, why: error };
   },
-  // `pause` is what `mark` was called while those sessions came back paused, and what a file written by then holds, so it still reads, as the choice that took its place.
-  runningSessionsAtLaunch: (value) => oneOf(RUNNING_AT_LAUNCH)(value === 'pause' ? 'mark' : value),
+  // `mark`, `pause` (what `mark` was called while those sessions came back paused) and `leave` were the choices while the setting also said whether they were marked, and read as `cold`, which brings the tabs back as all three did; whether they are marked is now the type's (decided 2026-11-06), and none was released.
+  runningSessionsAtLaunch: (value) => oneOf(RUNNING_AT_LAUNCH)(value === 'mark' || value === 'pause' || value === 'leave' ? 'cold' : value),
   prStatus: (value) => (typeof value === 'boolean' ? { ok: true, value } : { ok: false, why: 'It has to be true or false.' }),
   leaveButton: oneOf(LEAVE_BUTTON),
   setAside: (value) => {

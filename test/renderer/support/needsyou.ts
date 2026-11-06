@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { readJsonc } from '../../../src/main/jsonc';
-import { needsYouRegistry, type NeedsYouRegistry } from '../../../src/shared/needsyou';
+import { needsYouRegistry, withOverrides, type NeedsYouRead, type NeedsYouRegistry } from '../../../src/shared/needsyou';
 
 /**
  * The needs-you categories and types the app ships, read from `bundled/needs-you/` as main reads them, by the same check (`needsYouRegistry`), so the window's checks see the real ones rather than a copy kept in step by hand.
@@ -20,4 +20,9 @@ export function bundledNeedsYou(): NeedsYouRegistry {
   const { registry, problems } = needsYouRegistry(files);
   if (problems.length > 0) throw new Error(problems.join('\n'));
   return registry;
+}
+
+/** What main answers with a file of yours switching each of `ids` off, a type or a category, by the same rule (`withOverrides`). */
+export function switchedOff(...ids: string[]): NeedsYouRead {
+  return withOverrides(bundledNeedsYou(), ids.map((id) => ({ name: `${id}.json`, json: { id, enabled: false } })));
 }

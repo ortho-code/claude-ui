@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { ClaudeUiApi, ScheduledTask } from '../shared/types';
 import type { LayoutReport, PanelData, PanelRunEvent } from '../shared/panels';
 import type { SettingsView } from '../shared/settings';
+import type { NeedsYouRead } from '../shared/needsyou';
 
 const api: ClaudeUiApi = {
   listSessions: () => ipcRenderer.invoke('sessions:list'),
@@ -23,6 +24,8 @@ const api: ClaudeUiApi = {
   getRunningSessions: () => ipcRenderer.invoke('meta:getRunningSessions'),
   getNeedsYou: () => ipcRenderer.invoke('meta:getNeedsYou'),
   getNeedsYouTypes: () => ipcRenderer.invoke('needsYou:types'),
+  onNeedsYouTypes: (callback) => ipcRenderer.on('needsYou:changed', (_event, read: NeedsYouRead) => callback(read)),
+  settleNeedsYouTypes: (types) => ipcRenderer.send('meta:settleNeedsYouTypes', types),
   markNeedsYou: (ids, reasons) => ipcRenderer.send('meta:markNeedsYou', ids, reasons),
   clearNeedsYou: (id, by) => ipcRenderer.send('meta:clearNeedsYou', id, by),
   restoreNeedsYou: (id, reasons) => ipcRenderer.send('meta:restoreNeedsYou', id, reasons),
@@ -31,7 +34,7 @@ const api: ClaudeUiApi = {
   getSetAside: () => ipcRenderer.invoke('meta:getSetAside'),
   markSetAside: (ids, due, at) => ipcRenderer.send('meta:markSetAside', ids, due, at),
   clearSetAside: (ids) => ipcRenderer.send('meta:clearSetAside', ids),
-  setAsideCameDue: (now) => ipcRenderer.send('meta:setAsideCameDue', now),
+  setAsideCameDue: (now, remind) => ipcRenderer.send('meta:setAsideCameDue', now, remind),
   getKept: () => ipcRenderer.invoke('meta:getKept'),
   keep: (ids, at) => ipcRenderer.send('meta:keep', ids, at),
   unkeep: (ids) => ipcRenderer.send('meta:unkeep', ids),

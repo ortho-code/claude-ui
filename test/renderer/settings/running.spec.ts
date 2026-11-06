@@ -23,16 +23,16 @@ const open = async (page: Page): Promise<Running> => {
   };
 };
 
-test('the dropdown offers the three choices in words, in their order', async ({ app, page }) => {
+test('the dropdown offers the two choices in words, in their order', async ({ app, page }) => {
   await app.boot();
   const settings = await open(page);
-  await expect(settings.choice.locator('option')).toHaveText(['Start them again, marked as needing you', 'Mark them as needing you, without starting them', 'Leave them with the other tabs, unmarked']);
+  await expect(settings.choice.locator('option')).toHaveText(['Start them again', 'Bring their tabs back without starting them']);
 });
 
-test('the sessions running at quit come back marked until another choice is saved into settings.json', async ({ app, page }) => {
+test('the sessions running at quit come back cold until another choice is saved into settings.json', async ({ app, page }) => {
   await app.boot();
   let settings = await open(page);
-  await expect(settings.choice).toHaveValue('mark');
+  await expect(settings.choice).toHaveValue('cold');
 
   await settings.choice.selectOption('start');
   await settings.save.click();
@@ -45,22 +45,24 @@ test('the sessions running at quit come back marked until another choice is save
 });
 
 test('a choice in settings.json shows in the dropdown', async ({ app, page }) => {
-  await app.boot({ settings: file({ runningSessionsAtLaunch: 'leave' }) });
+  await app.boot({ settings: file({ runningSessionsAtLaunch: 'start' }) });
   const settings = await open(page);
-  await expect(settings.choice).toHaveValue('leave');
+  await expect(settings.choice).toHaveValue('start');
 });
 
-// What `mark` was called while those sessions came back paused, which a settings.json written then holds.
-test('"pause" in settings.json shows as Mark, with nothing said against it', async ({ app, page }) => {
-  await app.boot({ settings: file({ runningSessionsAtLaunch: 'pause' }) });
-  const settings = await open(page);
-  await expect(settings.choice).toHaveValue('mark');
-  await expect(settings.dialog.locator('#settings-running-problems')).toBeHidden();
-});
+// The choices from while the setting also said whether they were marked, which a settings.json written then holds.
+for (const older of ['mark', 'pause', 'leave']) {
+  test(`"${older}" in settings.json shows as cold, with nothing said against it`, async ({ app, page }) => {
+    await app.boot({ settings: file({ runningSessionsAtLaunch: older }) });
+    const settings = await open(page);
+    await expect(settings.choice).toHaveValue('cold');
+    await expect(settings.dialog.locator('#settings-running-problems')).toBeHidden();
+  });
+}
 
 test('a value the file gives that is no choice is named under it, and the default stays', async ({ app, page }) => {
   await app.boot({ settings: file({ runningSessionsAtLaunch: 'resume' }) });
   const settings = await open(page);
-  await expect(settings.choice).toHaveValue('mark');
-  await expect(settings.dialog.locator('#settings-running-problems')).toHaveText('The choice in settings.json is not used: It has to be one of "start", "mark", "leave".');
+  await expect(settings.choice).toHaveValue('cold');
+  await expect(settings.dialog.locator('#settings-running-problems')).toHaveText('The choice in settings.json is not used: It has to be one of "start", "cold".');
 });

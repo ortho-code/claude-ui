@@ -3,7 +3,7 @@ import type { PrRef, PrSeen, PrStatusRead } from '../../../../shared/types';
 import { entityKey } from '../../../logic';
 import { linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../prstatus';
 import { store, type View } from '../../../state/app';
-import { markNeedsYou } from '../../../state/needsyou';
+import { markNeedsYou, marks } from '../../../state/needsyou';
 import { RunGate } from '../../run';
 
 /**
@@ -90,13 +90,13 @@ function settleChanges(prs: readonly PrRef[], read: PrStatusRead): void {
   seen = next;
   window.claudeUi.setPrSeen(next);
   const at = Date.now();
-  for (const { pr, types } of changes) markNeedsYou(linking(pr), types.map((type) => ({ type, at, pr })));
+  for (const { pr, types } of changes) markNeedsYou(linking(pr), types.filter(marks).map((type) => ({ type, at, pr })));
   if (before !== null) return;
   void window.claudeUi.getOpenSessions().then((open) => {
     const setAside = new Set([...open, ...store.get().setAside.keys()]);
     for (const pr of prs) {
       const status = read.statuses[prReference(pr)];
-      const found = status === undefined ? [] : needsYouNow(status);
+      const found = status === undefined ? [] : needsYouNow(status).filter(marks);
       if (found.length > 0) markNeedsYou(linking(prReference(pr)).filter((key) => setAside.has(key)), found.map((type) => ({ type, at, pr: prReference(pr) })));
     }
   });

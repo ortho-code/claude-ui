@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import type { PrStatus, SessionPr } from '../../../../../src/shared/types';
 import { session, settingsFileWith } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
+import { switchedOff } from '../../../support/needsyou';
 import { row, stripRow, tab, tabLabels } from '../../../support/window';
 
 // A linked PR changing in a way that needs you marks every session that links it as needing you, with that change as its reason, running or not, finished ones left out (decided 2026-10-29).
@@ -78,6 +79,30 @@ test('a PR turning approved with failing checks marks a reason for each, named t
     { type: 'pr.checks-failed', at, pr: 'acme/app#7' },
     { type: 'pr.approved', at, pr: 'acme/app#7' },
   ]);
+});
+
+// A PR type a file of yours switches off marks nothing; the others found in the same answer still do (decided 2026-11-06).
+test('with approved switched off, a PR turning approved with failing checks marks only the failing checks', async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot({ ...fixture, needsYouTypes: switchedOff('pr.approved') });
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+
+  await gitHubSays(page, { 'acme/app#7': open({ review: 'approved', checks: 'failed' }), 'acme/app#8': open() });
+  await nextAsk(page);
+  await expect(row(page, closed.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 checks failed');
+  await expect.poll(() => page.evaluate((id) => window.__claudeUiFixture.needsYou[id], closed.id)).toEqual([{ type: 'pr.checks-failed', at: expect.any(Number), pr: 'acme/app#7' }]);
+});
+
+// A whole category switched off: none of its types marks.
+test('with Finish up switched off, a PR merging marks nothing', async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot({ ...fixture, needsYouTypes: switchedOff('finish-up') });
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  await gitHubSays(page, { 'acme/app#7': { state: 'merged' }, 'acme/app#8': open() });
+  await nextAsk(page);
+  await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.prSeen?.['acme/app#7'])).toEqual({ state: 'merged' });
+  await notNeeds(row(page, closed.title).locator('.nudge'));
+  expect(await app.calls('markNeedsYou')).toEqual([]);
 });
 
 // The reasons are kept side by side, the PR's ranked first, and the dot on show follows a reason added while it is drawn.

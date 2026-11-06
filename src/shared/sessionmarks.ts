@@ -101,6 +101,20 @@ export function settledNeedsYou(marks: NeedsYouMarks, id: string, by: SettledBy,
   return { needsYou: clearedNeedsYou(marks.needsYou, id), needsYouHistory: withSettled(marks.needsYouHistory, id, standing.map((reason) => ({ ...reason, settled: now, by }))) };
 }
 
+/** Every session's reasons of `types` taken off, the others left, each into its session's history as settled `off` at `now`: what switching a type off does to the marks it already made (decided 2026-11-06). */
+export function settledTypes(marks: NeedsYouMarks, types: readonly string[], now: number): NeedsYouMarks {
+  const off = new Set(types);
+  let needsYouHistory = copied(marks.needsYouHistory);
+  const needsYou: Record<string, NeedsYou[]> = {};
+  for (const [id, reasons] of Object.entries(marks.needsYou)) {
+    const settled = reasons.filter((reason) => off.has(reason.type));
+    const kept = reasons.filter((reason) => !off.has(reason.type));
+    if (kept.length > 0) needsYou[id] = kept;
+    needsYouHistory = withSettled(needsYouHistory, id, settled.map((reason) => ({ ...reason, settled: now, by: 'off' as const })));
+  }
+  return { needsYou, needsYouHistory };
+}
+
 /** A session's reasons put back as they were, as Undo of a close or a finish does, and taken back off its history, so an undone close leaves no trace there. */
 export function restoredNeedsYou(marks: NeedsYouMarks, id: string, reasons: readonly NeedsYou[]): NeedsYouMarks {
   const needsYouHistory = copied(marks.needsYouHistory);
@@ -137,15 +151,16 @@ export function clearedSetAside(setAside: Readonly<Record<string, SetAside>>, id
 /**
  * The set-aside marks come due by `now` settled: each goes, and its session needs you — for what it already needed you for, if anything, or else for the reminder, marked from the moment it was due.
  * A session that already needs you gets no reminder beside its reasons: the set-aside mark going is what lights them up again (decided 2026-10-29).
+ * With `remind` false, the reminder's type switched off, the marks still go and nothing is marked for them.
  */
-export function cameDue(marks: { needsYou: Readonly<Record<string, readonly NeedsYou[]>>; setAside: Readonly<Record<string, SetAside>> }, now: number): Pick<SessionMarks, 'needsYou' | 'setAside'> {
+export function cameDue(marks: { needsYou: Readonly<Record<string, readonly NeedsYou[]>>; setAside: Readonly<Record<string, SetAside>> }, now: number, remind = true): Pick<SessionMarks, 'needsYou' | 'setAside'> {
   const due = Object.entries(marks.setAside).filter(([, mark]) => mark.due !== null && mark.due <= now);
   const needsYou = Object.fromEntries(Object.entries(marks.needsYou).map(([id, reasons]) => [id, [...reasons]]));
   if (due.length === 0) return { needsYou, setAside: { ...marks.setAside } };
   const setAside = { ...marks.setAside };
   for (const [id, mark] of due) {
     delete setAside[id];
-    if (!needsYou[id]?.length) needsYou[id] = [{ type: 'app.reminder', at: mark.due! }];
+    if (remind && !needsYou[id]?.length) needsYou[id] = [{ type: 'app.reminder', at: mark.due! }];
   }
   return { needsYou, setAside };
 }

@@ -5,7 +5,7 @@ import type { Settings, UiState } from './types';
  * Under the settings file (shared/settings.ts); meta's `settings` falls back to the launch flags here.
  */
 export function defaultSettings(): Settings {
-  return { launchFlags: '', runningSessionsAtLaunch: 'mark', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' };
+  return { launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' };
 }
 
 /**

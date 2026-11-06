@@ -11,9 +11,8 @@ import { hideToast, showToast } from './toast';
 
 /** Each choice for the sessions that were running when the app closed, in words: the dropdown's options. */
 const RUNNING_LABELS: Record<RunningAtLaunch, string> = {
-  start: 'Start them again, marked as needing you',
-  mark: 'Mark them as needing you, without starting them',
-  leave: 'Leave them with the other tabs, unmarked',
+  start: 'Start them again',
+  cold: 'Bring their tabs back without starting them',
 };
 
 /** Each choice for a tab's button, in words: the dropdown's options. */

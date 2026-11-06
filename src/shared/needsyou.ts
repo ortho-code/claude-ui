@@ -4,6 +4,7 @@
  * Pure, so main's reading and the tests check them by the same rules.
  */
 
+import { overriddenById, type FieldCheck } from './overrides';
 import type { NeedsYou, PrChange, PrNeedsYouType } from './types';
 
 /**
@@ -124,4 +125,42 @@ export function needsYouRegistry(files: readonly NeedsYouFile[]): { registry: Ne
   }
   types.sort((a, b) => compare(a.id, b.id));
   return { registry: { categories, types }, problems };
+}
+
+/** The categories and types as they stand once your files are applied, and what is wrong with your files, each named by file. */
+export interface NeedsYouRead {
+  registry: NeedsYouRegistry;
+  problems: string[];
+}
+
+/**
+ * The bundled categories and types with your files under `needs-you/` in the config folder applied, by id, field by field (`overriddenById`).
+ * A category may change its `label`, `order` and `enabled`; a type its `label`, `category`, naming a category there is, and `enabled`.
+ * Categories come in their order again afterwards, so a changed `order` moves one.
+ */
+export function withOverrides(registry: NeedsYouRegistry, files: readonly NeedsYouFile[]): NeedsYouRead {
+  const categoryIds = new Set(registry.categories.map((category) => category.id));
+  const label: FieldCheck = (value) => (isText(value) ? null : 'is not text');
+  const enabled: FieldCheck = (value) => (typeof value === 'boolean' ? null : 'is not true or false');
+  const { items, problems } = overriddenById(
+    [...registry.categories.map((category) => ({ ...category, kind: 'category' as const })), ...registry.types.map((type) => ({ ...type, kind: 'type' as const }))],
+    files,
+    {
+      category: { label, enabled, order: (value) => (typeof value === 'number' && Number.isFinite(value) ? null : 'is not a number') },
+      type: { label, enabled, category: (value) => (typeof value === 'string' && categoryIds.has(value) ? null : `is ${JSON.stringify(value)}, which no category has as its id`) },
+    },
+  );
+  const categories = items.flatMap((item) => (item.kind === 'category' ? [{ id: item.id, label: item.label, order: item.order, enabled: item.enabled }] : [])).sort((a, b) => a.order - b.order || compare(a.id, b.id));
+  const types = items.flatMap((item) => (item.kind === 'type' ? [{ id: item.id, label: item.label, category: item.category, enabled: item.enabled }] : []));
+  return { registry: { categories, types }, problems };
+}
+
+/**
+ * Whether a type marks a session: on itself, and its category on.
+ * A type the registry does not have is on, so nothing is switched off on a guess, such as before main has answered.
+ */
+export function typeIsOn(registry: NeedsYouRegistry, type: string): boolean {
+  const found = registry.types.find((t) => t.id === type);
+  if (found === undefined) return true;
+  return found.enabled && registry.categories.find((category) => category.id === found.category)?.enabled !== false;
 }
