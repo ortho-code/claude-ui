@@ -3,7 +3,7 @@ import type { PrRef, PrSeen, PrStatusRead } from '../../../../shared/types';
 import { entityKey } from '../../../logic';
 import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../prstatus';
 import { store, type View } from '../../../state/app';
-import { markNeedsYou, marks } from '../../../state/needsyou';
+import { markNeedsYou, marksFor } from '../../../state/needsyou';
 import { RunGate } from '../../run';
 
 /**
@@ -80,7 +80,7 @@ function linking(pr: string): string[] {
 }
 
 /**
- * Mark the sessions whose linked PRs changed in a way that needs you (`prChanges`), each with its PR's change, and keep what is seen now.
+ * Mark the sessions whose linked PRs changed in a way that needs you (`prChanges`), each with its PR's change, where its type fires for your role on that PR (`marksFor`), and keep what is seen now.
  * The first run, with nothing seen before, marks only the sessions with a tab or a set-aside mark whose PRs already need you, the ones set aside to wait, rather than every ended session never marked finished (decided 2026-10-29); the open tabs are main's, since the first answer can land before the tabs are restored.
  */
 function settleChanges(prs: readonly PrRef[], read: PrStatusRead): void {
@@ -91,13 +91,19 @@ function settleChanges(prs: readonly PrRef[], read: PrStatusRead): void {
   seen = next;
   window.claudeUi.setPrSeen(next);
   const at = Date.now();
-  for (const { pr, types } of changes) markNeedsYou(linking(pr), types.filter(marks).map((type) => ({ type, at, pr })));
+  for (const { pr, types } of changes) {
+    const role = read.statuses[pr]?.role ?? null;
+    markNeedsYou(
+      linking(pr),
+      types.filter((type) => marksFor(type, role)).map((type) => ({ type, at, pr })),
+    );
+  }
   if (before !== null) return;
   void window.claudeUi.getOpenSessions().then((open) => {
     const setAside = new Set([...open, ...store.get().setAside.keys()]);
     for (const pr of prs) {
       const status = read.statuses[prReference(pr)];
-      const found = status === undefined ? [] : needsYouNow(status, approvalsRequired(approvals, pr.repository)).filter(marks);
+      const found = status === undefined ? [] : needsYouNow(status, approvalsRequired(approvals, pr.repository)).filter((type) => marksFor(type, status.role));
       if (found.length > 0) markNeedsYou(linking(prReference(pr)).filter((key) => setAside.has(key)), found.map((type) => ({ type, at, pr: prReference(pr) })));
     }
   });

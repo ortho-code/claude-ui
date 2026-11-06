@@ -360,6 +360,9 @@ A `.json` file of yours in `needs-you/` in the config folder changes one by its 
 ```
 
 `"enabled": false` switches a type off, or a whole category with all its types, and the marks it already made go; a type can also take another `label` or `category`, and a category another `label` or `order`, which take effect once something shows them.
+A PR's type fires only for the `roles` it lists, your role on the PR: `"own"` for yours, `"reviewing"` for someone else's you reviewed or are asked to review, and `"other"` for someone else's with neither.
+Failing checks, a conflict, changes requested and approved fire for `["own"]`, since on someone else's PR they are its author's to act on; reopened, merged and closed fire for all three.
+To be marked when a PR you review is ready to merge, a file such as `needs-you/approved.json` holding `{ "id": "pr.approved", "roles": ["own", "reviewing"] }` adds that role.
 Every field you leave out stays as the app ships it, so a later version's change to it still reaches you; a file with a mistake is named in a message and not used, and the others are, while one that stops parsing is named and stays in force as it last read until it parses again.
 Only names ending in `.json` are read.
 Claude asking and claude finishing a turn are shown by its dot whatever these say: their types are for the Now view to come.

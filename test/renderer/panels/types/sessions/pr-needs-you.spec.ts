@@ -2,7 +2,8 @@ import type { Locator, Page } from '@playwright/test';
 import type { PrStatus, SessionPr } from '../../../../../src/shared/types';
 import { session, settingsFileWith } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
-import { switchedOff } from '../../../support/needsyou';
+import { withOverrides } from '../../../../../src/shared/needsyou';
+import { bundledNeedsYou, switchedOff } from '../../../support/needsyou';
 import { row, stripRow, tab, tabLabels } from '../../../support/window';
 
 // A linked PR changing in a way that needs you marks every session that links it as needing you, with that change as its reason, running or not, finished ones left out (decided 2026-10-29).
@@ -204,6 +205,27 @@ test('turned off when what was seen cannot be read, it is emptied all the same, 
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.prSeen?.['acme/app#7'])).toEqual({ state: 'merged', role: 'own' });
   await notNeeds(row(page, closed.title).locator('.nudge'));
+});
+
+// A PR type fires only for the roles its file lists (design decision 110): a conflict asks the author to act, so the bundled one fires on your own PR alone.
+test('a conflict marks the sessions linking your own PR, not those linking a PR you review, until a file of yours adds that role', async ({ app, page }) => {
+  await page.clock.install();
+  const reviewed = (overrides: Partial<Extract<PrStatus, { state: 'open' }>> = {}): PrStatus => open({ role: 'reviewing', ...overrides });
+  const bundled = { registry: bundledNeedsYou(), problems: [] };
+  await app.boot({ ...fixture, needsYouTypes: bundled, prSeen: { 'acme/app#7': open(), 'acme/app#8': reviewed() }, prStatuses: { 'acme/app#7': open(), 'acme/app#8': reviewed() } });
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+
+  await gitHubSays(page, { 'acme/app#7': open({ conflict: true }), 'acme/app#8': reviewed({ conflict: true }) });
+  await nextAsk(page);
+  await expect(row(page, closed.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merge conflict');
+  await notNeeds(row(page, other.title).locator('.nudge'));
+
+  await app.emit('onNeedsYouTypes', withOverrides(bundled.registry, [{ name: 'conflict.json', json: { id: 'pr.conflict', roles: ['own', 'reviewing'] } }]));
+  await gitHubSays(page, { 'acme/app#7': open({ conflict: true }), 'acme/app#8': reviewed() });
+  await nextAsk(page);
+  await gitHubSays(page, { 'acme/app#7': open({ conflict: true }), 'acme/app#8': reviewed({ conflict: true }) });
+  await nextAsk(page);
+  await expect(row(page, other.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #8 merge conflict');
 });
 
 // Turning PR status on starts from the PRs as they are then (decided 2026-10-29).

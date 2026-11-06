@@ -17,8 +17,8 @@ export interface OverrideFile {
   json: unknown;
 }
 
-/** What is wrong with a field's value, said after the field's name ("is not a number"), or null for a value that can be used. */
-export type FieldCheck = (value: unknown) => string | null;
+/** What is wrong with a field's value on the item with `id`, said after the field's name ("is not a number"), or null for a value that can be used. */
+export type FieldCheck = (value: unknown, id: string) => string | null;
 
 /**
  * The shipped items with each file's changes applied, and what is wrong with the files.
@@ -57,7 +57,7 @@ function problemOf(json: unknown, byId: ReadonlyMap<string, Overridable>, fields
   for (const [field, value] of Object.entries(changes)) {
     const check = allowed[field];
     if (check === undefined) return `a ${item.kind} has no "${field}" to change`;
-    const why = check(value);
+    const why = check(value, id);
     if (why !== null) return `"${field}" ${why}`;
   }
   return null;

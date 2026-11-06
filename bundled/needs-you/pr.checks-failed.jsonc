@@ -1,2 +1,2 @@
-// A PR the session links has failing checks.
-{ "kind": "type", "id": "pr.checks-failed", "label": "PR checks failed", "category": "back-to-work" }
+// A PR the session links has failing checks; yours, since another's are its author's to fix.
+{ "kind": "type", "id": "pr.checks-failed", "label": "PR checks failed", "category": "back-to-work", "roles": ["own"] }

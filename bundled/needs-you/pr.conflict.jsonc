@@ -1,2 +1,2 @@
-// A PR the session links conflicts with its base.
-{ "kind": "type", "id": "pr.conflict", "label": "PR merge conflict", "category": "back-to-work" }
+// A PR the session links conflicts with its base; yours, since another's is its author's to resolve.
+{ "kind": "type", "id": "pr.conflict", "label": "PR merge conflict", "category": "back-to-work", "roles": ["own"] }

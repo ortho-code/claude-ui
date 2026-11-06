@@ -5,7 +5,8 @@
  */
 
 import { overriddenById, type FieldCheck } from './overrides';
-import type { NeedsYou, PrChange, PrNeedsYouType } from './types';
+import { PR_ROLES } from './prs';
+import type { NeedsYou, PrChange, PrNeedsYouType, PrRole } from './types';
 
 /**
  * The PR types, each with the words for its change: the order several found in one answer are named in, strongest first, as "PR #7 checks failed, approved" says them.
@@ -45,6 +46,8 @@ export interface NeedsYouType {
   label: string;
   category: string;
   enabled: boolean;
+  /** For a PR's type, the roles you have on a PR it fires for (decided 2026-11-06); null for every role, and for a type that is no PR's. */
+  roles: PrRole[] | null;
 }
 
 /** Every category in order and every type, as checked. */
@@ -70,10 +73,21 @@ export interface NeedsYouFile {
 /** The fields each kind may carry; any other is a mistake, so a misspelt field is named rather than ignored. */
 const FIELDS: Record<'category' | 'type', readonly string[]> = {
   category: ['kind', 'id', 'label', 'order', 'enabled'],
-  type: ['kind', 'id', 'label', 'category', 'enabled'],
+  type: ['kind', 'id', 'label', 'category', 'enabled', 'roles'],
 };
 
 const isText = (value: unknown): value is string => typeof value === 'string' && value.trim() !== '';
+
+/** What is wrong with `roles` on the type with `id`, said after the field's name, or null: only a PR's type has roles, a list of one or more of `own`, `reviewing` and `other`, each once. */
+function rolesProblem(value: unknown, id: string): string | null {
+  if (!isPrType(id)) return 'belongs only to a PR’s type';
+  const words = PR_ROLES.map((role) => `"${role}"`).join(', ');
+  if (!Array.isArray(value) || value.length === 0) return `is not a list of one or more of ${words}`;
+  const unknown = value.filter((role) => !PR_ROLES.includes(role as PrRole));
+  if (unknown.length > 0) return `names ${unknown.map((role) => JSON.stringify(role)).join(', ')}, which is not one of ${words}`;
+  if (new Set(value).size < value.length) return 'names a role more than once';
+  return null;
+}
 
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -93,9 +107,11 @@ function readOne(json: unknown): { problem: string } | { category: NeedsYouCateg
     if (typeof order !== 'number' || !Number.isFinite(order)) return { problem: '"order" is not a number' };
     return { category: { id, label, order, enabled: enabled ?? true } };
   }
-  const { category } = fields;
+  const { category, roles } = fields;
   if (!isText(category)) return { problem: '"category" is missing or empty' };
-  return { type: { id, label, category, enabled: enabled ?? true } };
+  const wrongRoles = roles === undefined ? null : rolesProblem(roles, id);
+  if (wrongRoles !== null) return { problem: `"roles" ${wrongRoles}` };
+  return { type: { id, label, category, enabled: enabled ?? true, roles: roles === undefined ? null : [...(roles as PrRole[])] } };
 }
 
 /**
@@ -135,7 +151,7 @@ export interface NeedsYouRead {
 
 /**
  * The bundled categories and types with your files under `needs-you/` in the config folder applied, by id, field by field (`overriddenById`).
- * A category may change its `label`, `order` and `enabled`; a type its `label`, `category`, naming a category there is, and `enabled`.
+ * A category may change its `label`, `order` and `enabled`; a type its `label`, `category`, naming a category there is, and `enabled`, and a PR's type its `roles`.
  * Categories come in their order again afterwards, so a changed `order` moves one.
  */
 export function withOverrides(registry: NeedsYouRegistry, files: readonly NeedsYouFile[]): NeedsYouRead {
@@ -147,11 +163,11 @@ export function withOverrides(registry: NeedsYouRegistry, files: readonly NeedsY
     files,
     {
       category: { label, enabled, order: (value) => (typeof value === 'number' && Number.isFinite(value) ? null : 'is not a number') },
-      type: { label, enabled, category: (value) => (typeof value === 'string' && categoryIds.has(value) ? null : `is ${JSON.stringify(value)}, which no category has as its id`) },
+      type: { label, enabled, category: (value) => (typeof value === 'string' && categoryIds.has(value) ? null : `is ${JSON.stringify(value)}, which no category has as its id`), roles: rolesProblem },
     },
   );
   const categories = items.flatMap((item) => (item.kind === 'category' ? [{ id: item.id, label: item.label, order: item.order, enabled: item.enabled }] : [])).sort((a, b) => a.order - b.order || compare(a.id, b.id));
-  const types = items.flatMap((item) => (item.kind === 'type' ? [{ id: item.id, label: item.label, category: item.category, enabled: item.enabled }] : []));
+  const types = items.flatMap((item) => (item.kind === 'type' ? [{ id: item.id, label: item.label, category: item.category, enabled: item.enabled, roles: item.roles === null ? null : [...item.roles] }] : []));
   return { registry: { categories, types }, problems };
 }
 
@@ -163,4 +179,13 @@ export function typeIsOn(registry: NeedsYouRegistry, type: string): boolean {
   const found = registry.types.find((t) => t.id === type);
   if (found === undefined) return true;
   return found.enabled && registry.categories.find((category) => category.id === found.category)?.enabled !== false;
+}
+
+/**
+ * Whether a PR's type fires for a PR you have `role` on, by the roles it lists (`NeedsYouType.roles`), whether or not it is on (`typeIsOn`).
+ * A type that lists none fires for every role, as does one the registry does not have; a role not known fires no type that lists roles, so nothing is marked on a guess.
+ */
+export function firesFor(registry: NeedsYouRegistry, type: string, role: PrRole | null): boolean {
+  const roles = registry.types.find((t) => t.id === type)?.roles ?? null;
+  return roles === null || (role !== null && roles.includes(role));
 }

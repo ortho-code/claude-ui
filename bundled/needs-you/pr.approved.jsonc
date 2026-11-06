@@ -1,2 +1,2 @@
-// A PR the session links was approved.
-{ "kind": "type", "id": "pr.approved", "label": "PR approved", "category": "ready-to-merge" }
+// A PR the session links was approved; yours, since another's is its author's to merge.
+{ "kind": "type", "id": "pr.approved", "label": "PR approved", "category": "ready-to-merge", "roles": ["own"] }

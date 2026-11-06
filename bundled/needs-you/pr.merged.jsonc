@@ -1,2 +1,2 @@
 // A PR the session links was merged.
-{ "kind": "type", "id": "pr.merged", "label": "PR merged", "category": "finish-up" }
+{ "kind": "type", "id": "pr.merged", "label": "PR merged", "category": "finish-up", "roles": ["own", "reviewing", "other"] }

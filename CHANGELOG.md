@@ -188,6 +188,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Your archived sessions are your finished ones, and the filter keeps its state.
 - A dot's tooltip lists every state its session is in, as the top of its options does, both in the order the dot picks by after what its tab says, so a busy session that needs you says why on hover too.
   A session's reasons are listed by their category, in Now's order, and newest first within one, so an approval now comes before a merge, and a merge after how the app closed.
+- Failing checks, a conflict, changes requested and approved mark a session only for a PR of your own, no longer for one you review or someone else's; reopened, merged and closed still mark for every PR.
+  A file in `needs-you/` giving a type `roles` changes which PRs it marks for.
 
 ### Fixed
 

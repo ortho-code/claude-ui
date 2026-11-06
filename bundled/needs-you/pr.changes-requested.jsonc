@@ -1,2 +1,2 @@
-// A review asked for changes on a PR the session links.
-{ "kind": "type", "id": "pr.changes-requested", "label": "PR changes requested", "category": "back-to-work" }
+// A review asked for changes on a PR the session links; yours, since on another's the changes are its author's to make.
+{ "kind": "type", "id": "pr.changes-requested", "label": "PR changes requested", "category": "back-to-work", "roles": ["own"] }

@@ -1,6 +1,6 @@
-import { typeIsOn } from '../../shared/needsyou';
+import { firesFor, typeIsOn } from '../../shared/needsyou';
 import { clearedNeedsYou, markedNeedsYou, settledTypes } from '../../shared/sessionmarks';
-import type { NeedsYou, SettledBy } from '../../shared/types';
+import type { NeedsYou, PrNeedsYouType, PrRole, SettledBy } from '../../shared/types';
 import { store, type View } from './app';
 
 /**
@@ -41,6 +41,11 @@ export function watchSwitchedOff(): void {
 /** Whether a type marks a session now, by the types as main last said them (`typeIsOn`). */
 export function marks(type: NeedsYou['type']): boolean {
   return typeIsOn(store.get().needsYouTypes, type);
+}
+
+/** Whether a PR's type marks a session now for a PR you have `role` on: on (`marks`), and listing that role (`firesFor`). */
+export function marksFor(type: PrNeedsYouType, role: PrRole | null): boolean {
+  return marks(type) && firesFor(store.get().needsYouTypes, type, role);
 }
 
 /** Put a session's reasons back as they were, from when each was marked, as Undo of a close or a finish does; main takes them back off its history. */

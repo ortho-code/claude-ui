@@ -46,6 +46,19 @@ describe('the bundled needs-you categories and types', () => {
     expect(registry.types.every((t) => t.enabled)).toBe(true);
   });
 
+  it('fires the PR types that ask the author to act only for your own PRs, and the rest for every role (design decision 110)', async () => {
+    const registry = await readBundledNeedsYou();
+    expect(Object.fromEntries(registry.types.filter((t) => t.id.startsWith('pr.')).map((t) => [t.id, t.roles]))).toEqual({
+      'pr.approved': ['own'],
+      'pr.changes-requested': ['own'],
+      'pr.checks-failed': ['own'],
+      'pr.closed': ['own', 'reviewing', 'other'],
+      'pr.conflict': ['own'],
+      'pr.merged': ['own', 'reviewing', 'other'],
+      'pr.reopened': ['own', 'reviewing', 'other'],
+    });
+  });
+
   it('logs a file that does not parse or has a mistake, and keeps the rest', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'claude-ui-needs-you-'));
     writeFileSync(path.join(dir, 'c.jsonc'), '{ "kind": "category", "id": "c", "label": "C", "order": 1 }');

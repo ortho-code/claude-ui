@@ -158,6 +158,7 @@ The categories are `your-turn`, `back-to-work`, `ready-to-merge`, `look-again`, 
 | `pr.closed` | `finish-up` | A PR it links was closed without merging. |
 
 A PR's type names its PR in `pr`, `owner/name#number`.
+A PR's type marks a session only for your roles on the PR its file lists (the README's What needs you): as shipped, failing checks, a conflict, changes requested and approved for your own PRs, and the rest for every role.
 Several changes found in one look at a PR are a reason each, with the same `at`, such as `pr.checks-failed` and `pr.approved` together; the app names them on one line, "PR #7 checks failed, approved".
 Claude asking you something or finishing a turn are types too, `claude.asks` and `claude.finished` in `your-turn`, but they are never in `needsYou`: `status` and `read` say them.
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { needsYouRegistry, typeIsOn, withOverrides } from '../../../src/shared/needsyou';
+import { firesFor, needsYouRegistry, typeIsOn, withOverrides } from '../../../src/shared/needsyou';
 
 const category = (id: string, order: number, more: object = {}) => ({ name: `${id}.jsonc`, json: { kind: 'category', id, label: id, order, ...more } });
 const type = (id: string, cat: string, more: object = {}) => ({ name: `${id}.jsonc`, json: { kind: 'type', id, label: id, category: cat, ...more } });
@@ -13,9 +13,33 @@ describe('the needs-you categories and types, checked', () => {
       { id: 'late', label: 'late', order: 20, enabled: true },
     ]);
     expect(registry.types).toEqual([
-      { id: 'a.one', label: 'a.one', category: 'early', enabled: false },
-      { id: 'b.two', label: 'b.two', category: 'late', enabled: true },
+      { id: 'a.one', label: 'a.one', category: 'early', enabled: false, roles: null },
+      { id: 'b.two', label: 'b.two', category: 'late', enabled: true, roles: null },
     ]);
+  });
+
+  it('reads the roles a PR’s type fires for, and none for a type that lists none', () => {
+    const { registry, problems } = needsYouRegistry([category('c', 1), type('pr.conflict', 'c', { roles: ['own', 'reviewing'] }), type('pr.merged', 'c')]);
+    expect(problems).toEqual([]);
+    expect(registry.types.map(({ id, roles }) => [id, roles])).toEqual([
+      ['pr.conflict', ['own', 'reviewing']],
+      ['pr.merged', null],
+    ]);
+  });
+
+  it('leaves out a type with roles that are not a PR’s type’s, or not a list of known roles each once, and names it', () => {
+    const cases: [object, string][] = [
+      [{ kind: 'type', id: 'app.reminder', label: 'x', category: 'c', roles: ['own'] }, '"roles" belongs only to a PR’s type'],
+      [{ kind: 'type', id: 'pr.conflict', label: 'x', category: 'c', roles: [] }, '"roles" is not a list of one or more of "own", "reviewing", "other"'],
+      [{ kind: 'type', id: 'pr.conflict', label: 'x', category: 'c', roles: 'own' }, '"roles" is not a list of one or more of "own", "reviewing", "other"'],
+      [{ kind: 'type', id: 'pr.conflict', label: 'x', category: 'c', roles: ['own', 'author'] }, '"roles" names "author", which is not one of "own", "reviewing", "other"'],
+      [{ kind: 'type', id: 'pr.conflict', label: 'x', category: 'c', roles: ['own', 'own'] }, '"roles" names a role more than once'],
+    ];
+    for (const [json, problem] of cases) {
+      const { registry, problems } = needsYouRegistry([category('c', 1), { name: 'bad.jsonc', json }]);
+      expect(problems).toEqual([`bad.jsonc: ${problem}`]);
+      expect(registry.types).toEqual([]);
+    }
   });
 
   it('orders two categories at the same place by id', () => {
@@ -67,8 +91,21 @@ describe('the needs-you categories and types with your files applied', () => {
     expect(problems).toEqual([]);
     expect(read.categories.map((c) => c.id)).toEqual(['late', 'early']);
     expect(read.types).toEqual([
-      { id: 't.one', label: 'One', category: 'early', enabled: false },
-      { id: 't.two', label: 't.two', category: 'early', enabled: true },
+      { id: 't.one', label: 'One', category: 'early', enabled: false, roles: null },
+      { id: 't.two', label: 't.two', category: 'early', enabled: true, roles: null },
+    ]);
+  });
+
+  it('changes the roles a PR’s type fires for, and names a file giving roles to a type that is no PR’s', () => {
+    const prs = needsYouRegistry([category('early', 10), type('pr.conflict', 'early', { roles: ['own'] }), type('t.one', 'early')]).registry;
+    const { registry: read, problems } = withOverrides(prs, [
+      { name: 'conflict.json', json: { id: 'pr.conflict', roles: ['own', 'reviewing'] } },
+      { name: 'one.json', json: { id: 't.one', roles: ['own'] } },
+    ]);
+    expect(problems).toEqual(['one.json: "roles" belongs only to a PR’s type']);
+    expect(read.types.map(({ id, roles }) => [id, roles])).toEqual([
+      ['pr.conflict', ['own', 'reviewing']],
+      ['t.one', null],
     ]);
   });
 
@@ -87,5 +124,15 @@ describe('the needs-you categories and types with your files applied', () => {
     expect(typeIsOn(withOverrides(registry, [{ name: 'x.json', json: { id: 't.one', enabled: false } }]).registry, 't.one')).toBe(false);
     expect(typeIsOn(withOverrides(registry, [{ name: 'x.json', json: { id: 'early', enabled: false } }]).registry, 't.one')).toBe(false);
     expect(typeIsOn(registry, 'unknown')).toBe(true);
+  });
+
+  it('says a PR’s type fires for the roles it lists, for every role where it lists none, and for no role not known where it lists some', () => {
+    const prs = needsYouRegistry([category('early', 10), type('pr.conflict', 'early', { roles: ['own'] }), type('pr.merged', 'early')]).registry;
+    expect(firesFor(prs, 'pr.conflict', 'own')).toBe(true);
+    expect(firesFor(prs, 'pr.conflict', 'reviewing')).toBe(false);
+    expect(firesFor(prs, 'pr.conflict', null)).toBe(false);
+    expect(firesFor(prs, 'pr.merged', 'other')).toBe(true);
+    expect(firesFor(prs, 'pr.merged', null)).toBe(true);
+    expect(firesFor(prs, 'pr.unknown', 'other')).toBe(true);
   });
 });
