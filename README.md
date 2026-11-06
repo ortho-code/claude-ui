@@ -36,7 +36,8 @@ Done:
   Sessions sharing a conversation show as siblings (a fork badge with a jump list); worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life, and a session that has since left its worktree keeps the badge, muted unless claude's newest change is in a worktree.
   A session that changed files in other checkouts than the worktree its badge names, such as a worktree it reached by path or with a `cd`, has the badge count and list them, with the worktree it names, and picking one there points the panels at it while that session is on show.
 - The PRs a session links, as Claude Code records them in its transcript: a badge on its row that lists them, an entry in its options, and each opening its page in the browser; a filter finds the sessions with one, and search finds a session by a PR's number.
-  The badge takes the colour of what GitHub says of them — changes requested, failing checks or a merge conflict, ready to merge, all merged or closed — asked with `gh`, and each PR GitHub has answered for is listed with its state.
+  The badge takes the colour of what GitHub says of them — changes requested, failing checks or a merge conflict, ready to merge, all merged or closed — asked with `gh`, and each PR GitHub has answered for is listed with its state, its approvals, and whether it is yours, one you review or someone else's.
+  Ready to merge waits for the approvals a repository needs where you set a number; your own PR needs you for its checks, conflicts, change requests and approvals, and one you review for new commits since your review and your review asked again.
 - Custom groups: sub-sections inside a project, made empty from the project's kebab or around a session from its kebab.
   Move a session between them, rename or delete a group (its sessions stay), and start a session, a fork or a worktree session straight into one.
   Open tabs cluster by group in the tab bar, and a group's name there takes you to the group in the list.
@@ -89,7 +90,7 @@ Next:
 - Panel types that draw themselves: a page of your own in a sandboxed frame, fed by its script, asking the app for what it cannot do itself, such as opening a link or starting a session.
 - A list row leading back to a session it did not start, such as the one that opened a PR, found by the branch they share.
 - A panel type marking the sessions its rows started, on their rows and tabs in the session list.
-- The PRs a session was started to review, told apart from the PRs it opened, found through the panel row that started it.
+- The PRs a session was started to review, found through the panel row that started it or the review it posted, so a review session links its PR and needs you when it moves on.
 - Opening every link in a list panel at once, asking first when there are many.
 - A folder of its own for a panel type's script, to keep state between runs, such as an item snoozed for a day.
 - Options of a path kind in a panel type's manifest.
@@ -352,11 +353,11 @@ Each reason a session is marked as needing you for is of a type, and each type b
 | `reminders` | `app.was-running` (it was running when the app closed), `app.reminder` (the moment you set it aside until came) |
 | `finish-up` | `pr.merged`, `pr.closed` |
 
-A `.json` file of yours in `needs-you/` in the config folder changes one by its id, such as `needs-you/approved.json`:
+A `.json` file of yours in `needs-you/` in the config folder changes one by its id, such as `needs-you/merged.json`:
 
 ```jsonc
-// Approvals don't need me here: we merge on two.
-{ "id": "pr.approved", "enabled": false }
+// A merge doesn't need me here: follow-ups come with their own PRs.
+{ "id": "pr.merged", "enabled": false }
 ```
 
 `"enabled": false` switches a type off, or a whole category with all its types, and the marks it already made go; a type can also take another `label` or `category`, and a category another `label` or `order`, which take effect once something shows them.
