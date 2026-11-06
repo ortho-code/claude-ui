@@ -87,6 +87,28 @@ describe('prChanges', () => {
     expect(prChanges(seen, [pr], { statuses: { [ref]: open({ approvals: 1 }) }, problem: null }, TWO).changes).toEqual([]);
   });
 
+  it('marks commits since your review once a push moves the PR off the commit you reviewed, and not again for a second push before your next review', () => {
+    const reviewed = (newCommits: boolean): PrStatus => open({ role: 'reviewing', review: 'changes-requested', newCommits });
+    expect(change(reviewed(false), reviewed(true))).toBe('new commits since your review');
+    expect(change(reviewed(true), reviewed(true))).toBeNull();
+    expect(change(reviewed(false), reviewed(false))).toBeNull();
+  });
+
+  it('marks a request for your review when one comes, including after your review, and not while one stands', () => {
+    const reviewed = (reviewAsked: boolean): PrStatus => open({ role: 'reviewing', review: 'review-required', reviewAsked });
+    expect(change(reviewed(false), reviewed(true))).toBe('your review asked again');
+    expect(change(reviewed(true), reviewed(true))).toBeNull();
+  });
+
+  // A status kept before the app asked about your review knows none of it.
+  it('marks nothing for a review field coming to be known, and marks its next change', () => {
+    const unknown = open({ role: 'reviewing', newCommits: null, reviewAsked: null, approvals: null });
+    expect(change(unknown, open({ role: 'reviewing', newCommits: true, reviewAsked: true }))).toBeNull();
+    const known = prChanges(was(unknown), [pr], { statuses: { [ref]: open({ role: 'reviewing', newCommits: false }) }, problem: null }, GITHUB_DECIDES);
+    expect(known.changes).toEqual([]);
+    expect(prChanges(known.seen, [pr], { statuses: { [ref]: open({ role: 'reviewing', newCommits: true }) }, problem: null }, GITHUB_DECIDES).changes[0]?.types).toEqual(['pr.new-commits']);
+  });
+
   // What it holds when it opens again would otherwise be recorded unmarked.
   it('marks a closed PR opened again as reopened, with everything it holds then', () => {
     expect(change({ state: 'closed', role: 'own' }, open({ review: 'review-required' }))).toBe('reopened');

@@ -75,7 +75,7 @@ export function prVerdict(status: PrStatus | null, required: number | null): PrV
 }
 
 /**
- * What a PR's status holds that needs you, each on its own, where its words name only the strongest (`prVerdict`): failing checks, a conflict, changes requested, an approval that counts (`isApproved`), merged or closed.
+ * What a PR's status holds that needs you, each on its own, where its words name only the strongest (`prVerdict`): failing checks, a conflict, changes requested, an approval that counts (`isApproved`), commits since your review, a request for your review, merged or closed.
  * Apart, so one that was there already does not read as new once a stronger one clears, and an approval shows while checks still run.
  */
 function conditionsOf(status: PrStatus, required: number | null): Set<PrNeedsYouType> {
@@ -85,6 +85,8 @@ function conditionsOf(status: PrStatus, required: number | null): Set<PrNeedsYou
   if (status.conflict === true) conditions.add('pr.conflict');
   if (status.review === 'changes-requested') conditions.add('pr.changes-requested');
   if (isApproved(status, required)) conditions.add('pr.approved');
+  if (status.newCommits === true) conditions.add('pr.new-commits');
+  if (status.reviewAsked === true) conditions.add('pr.review-requested');
   return conditions;
 }
 
@@ -107,8 +109,19 @@ function withKnownConflict(status: PrStatus, before: PrStatus | undefined): PrSt
 }
 
 /**
+ * What was seen of an open PR, with each review field it did not know, as a status kept before the app asked them has not, taken from `status`, what is seen now: so a field coming to be known is not news, and a PR already waiting on you then marks nothing until it changes.
+ * Neither open, `before` is as it was.
+ */
+function withFieldsKnown(before: PrStatus, status: PrStatus): PrStatus {
+  if (before.state !== 'open' || status.state !== 'open') return before;
+  return { ...before, approvals: before.approvals ?? status.approvals, newCommits: before.newCommits ?? status.newCommits, reviewAsked: before.reviewAsked ?? status.reviewAsked, changesRequested: before.changesRequested ?? status.changesRequested };
+}
+
+/**
  * What main's answer about `prs` changed since `seen`: what is seen now, each PR's status, and each PR whose change needs you, with the type of every change, strongest first (decided 2026-10-29).
- * A PR marks when something that needs you is there now and was not before (`conditionsOf`): checks failing, a conflict, changes requested, an approved review, merged or closed; all of them where several come in one answer, so an approval that comes with failing checks is not lost; and when a closed PR is open again, as reopened, with everything it holds then.
+ * A PR marks when something that needs you is there now and was not before (`conditionsOf`): checks failing, a conflict, changes requested, an approved review, commits since your review, a request for your review, merged or closed; all of them where several come in one answer, so an approval that comes with failing checks is not lost; and when a closed PR is open again, as reopened, with everything it holds then.
+ * Commits since your review mark once per review: a second push before you review again finds them there already (decided 2026-11-06).
+ * A review field the status seen before did not know counts as what is seen now (`withFieldsKnown`).
  * So one that was there already marks nothing when a stronger one clears, an approval marks though its checks still run, an approved PR whose checks run again after a push marks nothing, and a conflict GitHub is still working out counts as what was known of it.
  * A PR seen for the first time is recorded and marks nothing, whatever it holds; one with no status keeps what was seen of it; an answer in which any request to GitHub failed changes nothing, and what it did learn waits for the next whole answer.
  * Before and now are both read with the approvals the repository needs now (`approvals`), so changing that number marks nothing by itself.
@@ -126,7 +139,7 @@ export function prChanges(seen: PrSeen | null, prs: readonly PrRef[], read: PrSt
     next[ref] = status;
     if (before === undefined) continue;
     const required = approvalsRequired(approvals, pr.repository);
-    const was = conditionsOf(before, required);
+    const was = conditionsOf(withFieldsKnown(before, status), required);
     const now = conditionsOf(status, required);
     // Open again, everything it holds is news: a closed PR held none of it.
     const found = before.state === 'closed' && status.state === 'open' ? ranked(['pr.reopened', ...now]) : ranked([...now].filter((condition) => !was.has(condition)));

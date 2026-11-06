@@ -19,7 +19,7 @@ beforeEach(() => {
 });
 
 describe('the bundled needs-you categories and types', () => {
-  it('every bundled file reads without a mistake, as the six categories and eleven types decided (design decisions 85 to 87)', async () => {
+  it('every bundled file reads without a mistake, as the six categories and thirteen types decided (design decisions 85 to 87 and 109)', async () => {
     const registry = await readBundledNeedsYou();
     expect(logged).toEqual([]);
     expect(registry.categories.map((c) => [c.id, c.label, c.enabled])).toEqual([
@@ -41,12 +41,14 @@ describe('the bundled needs-you categories and types', () => {
       'pr.closed': 'finish-up',
       'pr.conflict': 'back-to-work',
       'pr.merged': 'finish-up',
+      'pr.new-commits': 'look-again',
       'pr.reopened': 'look-again',
+      'pr.review-requested': 'look-again',
     });
     expect(registry.types.every((t) => t.enabled)).toBe(true);
   });
 
-  it('fires the PR types that ask the author to act only for your own PRs, and the rest for every role (design decision 110)', async () => {
+  it('fires the PR types that ask the author to act only for your own PRs, those about your review for a PR you review, and the rest for every role (design decision 110)', async () => {
     const registry = await readBundledNeedsYou();
     expect(Object.fromEntries(registry.types.filter((t) => t.id.startsWith('pr.')).map((t) => [t.id, t.roles]))).toEqual({
       'pr.approved': ['own'],
@@ -55,7 +57,9 @@ describe('the bundled needs-you categories and types', () => {
       'pr.closed': ['own', 'reviewing', 'other'],
       'pr.conflict': ['own'],
       'pr.merged': ['own', 'reviewing', 'other'],
+      'pr.new-commits': ['reviewing'],
       'pr.reopened': ['own', 'reviewing', 'other'],
+      'pr.review-requested': ['reviewing'],
     });
   });
 

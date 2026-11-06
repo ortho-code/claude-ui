@@ -1,0 +1,2 @@
+// A request for your review came on a PR the session links.
+{ "kind": "type", "id": "pr.review-requested", "label": "PR review asked of you", "category": "look-again", "roles": ["reviewing"] }

@@ -154,11 +154,13 @@ The categories are `your-turn`, `back-to-work`, `ready-to-merge`, `look-again`, 
 | `pr.changes-requested` | `back-to-work` | A review asked for changes on a PR it links. |
 | `pr.approved` | `ready-to-merge` | A PR it links was approved. |
 | `pr.reopened` | `look-again` | A closed PR it links was opened again. |
+| `pr.new-commits` | `look-again` | A PR it links that you reviewed moved on from the commit your review was on, by new commits or a rebase. |
+| `pr.review-requested` | `look-again` | Your review was asked on a PR it links. |
 | `pr.merged` | `finish-up` | A PR it links was merged. |
 | `pr.closed` | `finish-up` | A PR it links was closed without merging. |
 
 A PR's type names its PR in `pr`, `owner/name#number`.
-A PR's type marks a session only for your roles on the PR its file lists (the README's What needs you): as shipped, failing checks, a conflict, changes requested and approved for your own PRs, and the rest for every role.
+A PR's type marks a session only for your roles on the PR its file lists (the README's What needs you): as shipped, failing checks, a conflict, changes requested and approved for your own PRs, new commits since your review and your review asked for a PR you review, and the rest for every role.
 Several changes found in one look at a PR are a reason each, with the same `at`, such as `pr.checks-failed` and `pr.approved` together; the app names them on one line, "PR #7 checks failed, approved".
 Claude asking you something or finishing a turn are types too, `claude.asks` and `claude.finished` in `your-turn`, but they are never in `needsYou`: `status` and `read` say them.
 

@@ -228,6 +228,18 @@ test('a conflict marks the sessions linking your own PR, not those linking a PR 
   await expect(row(page, other.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #8 merge conflict');
 });
 
+test('a PR you review marks its sessions for new commits since your review, and for your review asked again, and your own PR marks for neither', async ({ app, page }) => {
+  await page.clock.install();
+  const reviewed = (overrides: Partial<Extract<PrStatus, { state: 'open' }>> = {}): PrStatus => open({ role: 'reviewing', ...overrides });
+  await app.boot({ ...fixture, needsYouTypes: { registry: bundledNeedsYou(), problems: [] }, prSeen: { 'acme/app#7': open(), 'acme/app#8': reviewed() }, prStatuses: { 'acme/app#7': open(), 'acme/app#8': reviewed() } });
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+
+  await gitHubSays(page, { 'acme/app#7': open({ newCommits: true, reviewAsked: true }), 'acme/app#8': reviewed({ newCommits: true, reviewAsked: true }) });
+  await nextAsk(page);
+  await expect(row(page, other.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #8 new commits since your review, your review asked again');
+  await notNeeds(row(page, closed.title).locator('.nudge'));
+});
+
 // Turning PR status on starts from the PRs as they are then (decided 2026-10-29).
 test('turned off and on again, a PR that changed meanwhile marks nothing, and its next change does', async ({ app, page }) => {
   await page.clock.install();

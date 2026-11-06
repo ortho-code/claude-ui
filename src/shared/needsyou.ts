@@ -19,6 +19,8 @@ export const PR_TYPES: Readonly<Record<PrNeedsYouType, PrChange>> = {
   'pr.merged': 'merged',
   'pr.closed': 'closed',
   'pr.reopened': 'reopened',
+  'pr.new-commits': 'new commits since your review',
+  'pr.review-requested': 'your review asked again',
   'pr.approved': 'approved',
 };
 

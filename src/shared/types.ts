@@ -18,10 +18,10 @@ export interface ScheduledTask {
 export type ClosedHow = 'quit' | 'ended' | 'unknown';
 
 /** The needs-you types of a PR's change (bundled/needs-you/): something that needs you appearing in its status, or a closed PR opened again (`pr.reopened`). */
-export type PrNeedsYouType = 'pr.checks-failed' | 'pr.conflict' | 'pr.changes-requested' | 'pr.approved' | 'pr.reopened' | 'pr.merged' | 'pr.closed';
+export type PrNeedsYouType = 'pr.checks-failed' | 'pr.conflict' | 'pr.changes-requested' | 'pr.approved' | 'pr.reopened' | 'pr.new-commits' | 'pr.review-requested' | 'pr.merged' | 'pr.closed';
 
 /** A PR's change in the words the app says it in, "PR #7 checks failed", and in which `meta.json` kept it before reasons had types. */
-export type PrChange = 'checks failed' | 'merge conflict' | 'changes requested' | 'merged' | 'closed' | 'approved' | 'reopened';
+export type PrChange = 'checks failed' | 'merge conflict' | 'changes requested' | 'merged' | 'closed' | 'approved' | 'reopened' | 'new commits since your review' | 'your review asked again';
 
 /**
  * One reason a session needs you, by its type (bundled/needs-you/), and when it was marked (epoch ms); for a reminder, the moment it was due.

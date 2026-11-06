@@ -1,0 +1,2 @@
+// A PR the session links that you reviewed has moved on from the commit your review was on, by new commits or a rebase.
+{ "kind": "type", "id": "pr.new-commits", "label": "PR new commits since your review", "category": "look-again", "roles": ["reviewing"] }
