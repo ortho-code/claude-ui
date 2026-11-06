@@ -1,6 +1,6 @@
 import type { PanelView } from '../contract';
 import { fieldsOf } from '../fields';
-import { ICON_NAMES, isIconName } from '../icons';
+import { ICON_NAMES, isIconName } from '../../../shared/icons';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
 import { TONES, type Tone } from '../../tone';
 

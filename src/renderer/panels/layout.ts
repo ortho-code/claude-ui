@@ -1,5 +1,5 @@
 import { ID_PATTERN, LAYOUT_VERSION, parseSize, type Layout, type LayoutNode, type LayoutReport, type NodeSize, type PanelEntry } from '../../shared/panels';
-import { ICON_NAMES, isIconName, type IconName } from './icons';
+import { ICON_NAMES, isIconName, type IconName } from '../../shared/icons';
 import type { PanelTypeDecl } from './contract';
 
 /**

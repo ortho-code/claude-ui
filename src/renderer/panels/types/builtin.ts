@@ -1,4 +1,4 @@
-import type { IconName } from '../icons';
+import type { IconName } from '../../../shared/icons';
 import { optionProblems, optionsOf } from '../options';
 import type { MountedPanel, PanelHost, PanelStatus, PanelType } from '../contract';
 import { isNeeds, type NudgeStatus } from '../../logic';
