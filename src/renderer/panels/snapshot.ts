@@ -1,6 +1,6 @@
 import { categoryOf } from '../../shared/needsyou';
 import { prReference } from '../../shared/prs';
-import type { ClosedHow, SetAside, NeedsYou, PrStatus } from '../../shared/types';
+import type { ClosedHow, SetAside, NeedsYou, PrRole, PrStatus } from '../../shared/types';
 import { sessionLabel } from '../logic';
 import { store, type AppState, type View } from '../state/app';
 import { switcherPool, tabWith } from '../state/views';
@@ -43,7 +43,16 @@ export interface SnapshotSession {
   needsYou: readonly SnapshotReason[];
   /** Until when it is set aside, null for whenever; null when it is not set aside. */
   setAside: SetAside | null;
-  prs: { repository: string; number: number; url: string; status: PrStatus | null }[];
+  prs: { repository: string; number: number; url: string; status: SnapshotPrStatus | null }[];
+}
+
+/** What GitHub says of a PR, as the file gives it: the status without what only the app's own comparison reads, the ids of the reviews asking for changes. */
+export type SnapshotPrStatus = { state: 'merged' | 'closed'; role: PrRole | null } | Omit<Extract<PrStatus, { state: 'open' }>, 'changesRequested'>;
+
+function snapshotPrStatus(status: PrStatus): SnapshotPrStatus {
+  if (status.state !== 'open') return status;
+  const { state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked } = status;
+  return { state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked };
 }
 
 export interface SessionsSnapshot {
@@ -75,7 +84,10 @@ export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = 
         read: view.acked.has(id),
         needsYou: (view.needsYou.get(id) ?? []).map((reason) => ({ ...reason, category: categoryOf(view.needsYouTypes, reason.type) })),
         setAside: view.setAside.get(id) ?? null,
-        prs: session.prs.map((pr) => ({ repository: pr.repository, number: pr.number, url: pr.url, status: view.prStatus.statuses[prReference(pr)] ?? null })),
+        prs: session.prs.map((pr) => {
+          const status = view.prStatus.statuses[prReference(pr)];
+          return { repository: pr.repository, number: pr.number, url: pr.url, status: status === undefined ? null : snapshotPrStatus(status) };
+        }),
       };
     })
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

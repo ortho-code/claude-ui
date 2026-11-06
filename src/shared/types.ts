@@ -157,13 +157,20 @@ export interface SessionPr {
 }
 
 /**
+ * Your role on a PR, as GitHub says it for the login `gh` runs as: you wrote it; someone else wrote it and you submitted a review on it or are asked to review it; or someone else wrote it and neither holds.
+ */
+export type PrRole = 'own' | 'reviewing' | 'other';
+
+/**
  * What GitHub says of a PR a session links.
- * A merged or closed PR carries its state alone, since nothing else about it changes how the app shows it.
+ * A merged or closed PR carries its state and your role alone, since nothing else about it changes how the app shows it.
+ * A field that is null is not known: GitHub left it out, or the status was kept by a build that did not ask it.
  */
 export type PrStatus =
-  | { state: 'merged' | 'closed' }
+  | { state: 'merged' | 'closed'; role: PrRole | null }
   | {
       state: 'open';
+      role: PrRole | null;
       draft: boolean;
       /** Its review decision; null when GitHub gives none. */
       review: 'approved' | 'changes-requested' | 'review-required' | null;
@@ -171,6 +178,14 @@ export type PrStatus =
       checks: 'passed' | 'failed' | 'running' | null;
       /** Whether it conflicts with its base; null while GitHub is still working that out. */
       conflict: boolean | null;
+      /** How many reviewers with write access have a latest review that approves. */
+      approvals: number | null;
+      /** Whether you have a submitted review on it and its head is no longer the commit that review was on; false without such a review. */
+      newCommits: boolean | null;
+      /** Whether a request for your review stands. */
+      reviewAsked: boolean | null;
+      /** The ids of the latest reviews that ask for changes, one per reviewer with write access. */
+      changesRequested: string[] | null;
     };
 
 /** A PR as GitHub is asked about it. */

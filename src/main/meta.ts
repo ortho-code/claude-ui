@@ -2,7 +2,7 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { SetAside, NeedsYou, ClosedHow, SettledBy, SettledNeedsYou, OrderMove, GroupState, HistoryPin, PrChange, PrNeedsYouType, PrSeen, PrStatus, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
+import type { SetAside, NeedsYou, ClosedHow, SettledBy, SettledNeedsYou, OrderMove, GroupState, HistoryPin, PrChange, PrNeedsYouType, PrRole, PrSeen, PrStatus, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
 import { scheduledTasksOf } from '../shared/scheduled';
 import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
@@ -11,6 +11,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { finishedFrom, cameDue, clearedSetAside, HISTORY_KEPT, keptFrom, markedSetAside, markedWithHistory, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, togglePinned, clearedFinished, unkept } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { isPrReason, isPrType, PR_TYPES } from '../shared/needsyou';
+import { PR_ROLES } from '../shared/prs';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
 import { errorText, fsFailure, log, logOnce } from './log';
@@ -820,13 +821,29 @@ const PR_PARTS: Record<'review' | 'checks' | 'conflict', readonly unknown[]> = {
   conflict: [true, false, null],
 };
 
-/** A PR's status as it was stored, null for one this build cannot read. */
+/** A field a build before it did not store, read as null: not known. */
+const unknownIfMissing = (value: unknown): unknown => (value === undefined ? null : value);
+
+/** Whether a stored value is a field's value or null, by the check for its value. */
+const valueOrNull = (value: unknown, check: (value: unknown) => boolean): boolean => value === null || check(value);
+
+/**
+ * A PR's status as it was stored, null for one this build cannot read.
+ * A field a build before it did not store is read as not known, so a status kept then still reads.
+ */
 function prStatusOf(raw: unknown): PrStatus | null {
   if (typeof raw !== 'object' || raw === null) return null;
-  const { state, draft, review, checks, conflict } = raw as Record<string, unknown>;
-  if (state === 'merged' || state === 'closed') return { state };
+  const fields = raw as Record<string, unknown>;
+  const { state, draft, review, checks, conflict } = fields;
+  const [role, approvals, newCommits, reviewAsked, changesRequested] = [fields.role, fields.approvals, fields.newCommits, fields.reviewAsked, fields.changesRequested].map(unknownIfMissing);
+  if (!valueOrNull(role, (value) => PR_ROLES.includes(value as PrRole))) return null;
+  if (state === 'merged' || state === 'closed') return { state, role: role as PrRole | null };
   if (state !== 'open' || typeof draft !== 'boolean' || !PR_PARTS.review.includes(review) || !PR_PARTS.checks.includes(checks) || !PR_PARTS.conflict.includes(conflict)) return null;
-  return { state, draft, review, checks, conflict } as PrStatus;
+  const counts = valueOrNull(approvals, (value) => Number.isInteger(value) && (value as number) >= 0);
+  const flags = [newCommits, reviewAsked].every((flag) => valueOrNull(flag, (value) => typeof value === 'boolean'));
+  const ids = valueOrNull(changesRequested, (value) => Array.isArray(value) && value.every((id) => typeof id === 'string'));
+  if (!counts || !flags || !ids) return null;
+  return { state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked, changesRequested } as PrStatus;
 }
 
 /** What was last seen of the PRs, from whatever was stored: null for none at all, and an entry this build cannot read dropped. */

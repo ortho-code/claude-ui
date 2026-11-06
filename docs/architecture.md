@@ -93,6 +93,9 @@ What a PR's state is, open or merged, is not in the record, so it is asked of Gi
 
 **What GitHub says of a PR is asked with `gh`**: main runs `gh api graphql` through the login shell (`src/main/prstatus.ts`), on the person's own `gh` login, so the app keeps no token, and `gh`'s stderr comes on fd 3, apart from the shell's job-control lines.
 It asks in two steps, because asking more than a PR's state is slow (measured 2026-10-21, 103 PRs in one repository: 25 PRs with every field took 3.4–4.1 s, the state alone of all 103 under one): a PR not known yet, or closed, is asked its state, and one known to be open every field.
+Both asks also ask what your role is told from, whether you wrote it, your latest review and a request for your review, so a merged PR has a role too; the open-PR ask adds its head and each reviewer's latest review (`latestOpinionatedReviews`, asked for reviewers with write access, which on the PRs linked on 2026-11-06 held only approvals and requests for changes), which give the approvals and whether new commits came since your review.
+Measured 2026-11-06 on the PRs linked then: the open-PR ask was no slower at 25 PRs with these fields, and 100 PRs asked their state, whether you wrote them, and your latest review's id and state answered in 1.5–1.7 s, three times of three.
+A pending review of yours counts as none, since it is not submitted; whether GitHub gives one as your latest review is not known, as no linked PR had one.
 A merged PR is not asked again while the app runs, and the statuses are kept in main's memory only, so a launch asks again; a file across restarts was weighed and left, a file and a writer more for under a second saved.
 A request with no answer — no `gh`, no login, offline, or still going after 30 seconds, when its process group is stopped as a panel's run is — leaves every mark in the accent with its tooltip saying why, since a status that may be stale should colour nothing.
 

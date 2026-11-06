@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import type { SessionPr } from '../../../../../../src/shared/types';
+import type { PrStatus, SessionPr } from '../../../../../../src/shared/types';
 import { HOME, PROJECT, session, settingsFileWith } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
 import { row, toastButton } from '../../../../support/window';
@@ -18,11 +18,13 @@ const open = session({ id: '00000000-0000-4000-8000-0000000000e4', title: 'Open 
 const OTHER = `${HOME}/projects/other`;
 const elsewhere = session({ id: '00000000-0000-4000-8000-0000000000e5', title: 'Elsewhere old', cwd: OTHER, repoRoot: OTHER, lastActivity: ago(60) });
 const all = [ready, old, fresh, open, elsewhere];
+const MERGED: PrStatus = { state: 'merged', role: 'own' };
+const OPEN: PrStatus = { state: 'open', role: 'own', draft: false, review: null, checks: null, conflict: false, approvals: 0, newCommits: false, reviewAsked: false, changesRequested: [] };
 const fixture = {
   sessions: all,
   projectOrder: [PROJECT, OTHER],
-  prSeen: { 'acme/app#1': { state: 'merged' as const }, 'acme/app#2': { state: 'open' as const, draft: false, review: null, checks: null, conflict: false } },
-  prStatuses: { 'acme/app#1': { state: 'merged' as const }, 'acme/app#2': { state: 'open' as const, draft: false, review: null, checks: null, conflict: false } },
+  prSeen: { 'acme/app#1': MERGED, 'acme/app#2': OPEN },
+  prStatuses: { 'acme/app#1': MERGED, 'acme/app#2': OPEN },
   history: Object.fromEntries(all.map((s) => [s.id, []])),
 };
 

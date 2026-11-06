@@ -6,7 +6,7 @@ import type { PrRef, PrSeen, PrStatus, SessionPr } from '../../../src/shared/typ
 
 /** An open PR waiting on nobody: not a draft, approved, its checks passed, no conflict. */
 function open(overrides: Partial<Extract<PrStatus, { state: 'open' }>> = {}): PrStatus {
-  return { state: 'open', draft: false, review: 'approved', checks: 'passed', conflict: false, ...overrides };
+  return { state: 'open', role: 'own', draft: false, review: 'approved', checks: 'passed', conflict: false, approvals: 1, newCommits: false, reviewAsked: false, changesRequested: [], ...overrides };
 }
 
 describe('prChanges', () => {
@@ -21,8 +21,8 @@ describe('prChanges', () => {
     expect(change(open({ checks: 'running' }), open({ checks: 'failed' }))).toBe('checks failed');
     expect(change(open(), open({ conflict: true }))).toBe('merge conflict');
     expect(change(open({ review: 'review-required' }), open({ review: 'changes-requested' }))).toBe('changes requested');
-    expect(change(open(), { state: 'merged' })).toBe('merged');
-    expect(change(open(), { state: 'closed' })).toBe('closed');
+    expect(change(open(), { state: 'merged', role: 'own' })).toBe('merged');
+    expect(change(open(), { state: 'closed', role: 'own' })).toBe('closed');
   });
 
   it('does not mark one turning into a draft, running checks, a review required or plain open', () => {
@@ -34,7 +34,7 @@ describe('prChanges', () => {
 
   it('does not mark what was there already', () => {
     expect(change(open({ checks: 'failed' }), open({ checks: 'failed', review: 'review-required' }))).toBeNull();
-    expect(change({ state: 'merged' }, { state: 'merged' })).toBeNull();
+    expect(change({ state: 'merged', role: 'own' }, { state: 'merged', role: 'own' })).toBeNull();
   });
 
   // Each thing that needs you is told apart, where the words name only the strongest (decided 2026-10-29).
@@ -71,19 +71,19 @@ describe('prChanges', () => {
 
   // What it holds when it opens again would otherwise be recorded unmarked.
   it('marks a closed PR opened again as reopened, with everything it holds then', () => {
-    expect(change({ state: 'closed' }, open({ review: 'review-required' }))).toBe('reopened');
-    expect(change({ state: 'closed' }, open({ checks: 'failed', conflict: true }))).toBe('checks failed, merge conflict, reopened, approved');
+    expect(change({ state: 'closed', role: 'own' }, open({ review: 'review-required' }))).toBe('reopened');
+    expect(change({ state: 'closed', role: 'own' }, open({ checks: 'failed', conflict: true }))).toBe('checks failed, merge conflict, reopened, approved');
   });
 
   it('records a PR seen for the first time without marking it, whatever it reads', () => {
-    const first = prChanges({}, [pr], { statuses: { [ref]: { state: 'merged' } }, problem: null });
-    expect(first).toEqual({ seen: { [ref]: { state: 'merged' } }, changes: [] });
+    const first = prChanges({}, [pr], { statuses: { [ref]: { state: 'merged', role: 'own' } }, problem: null });
+    expect(first).toEqual({ seen: { [ref]: { state: 'merged', role: 'own' } }, changes: [] });
     expect(prChanges(null, [pr], { statuses: { [ref]: open() }, problem: null })).toEqual({ seen: { [ref]: open() }, changes: [] });
   });
 
   it('changes nothing for an answer main could not get, and keeps what was seen of a PR with no status', () => {
     const seen = was(open());
-    expect(prChanges(seen, [pr], { statuses: { [ref]: { state: 'merged' } }, problem: 'gh was not found' })).toEqual({ seen, changes: [] });
+    expect(prChanges(seen, [pr], { statuses: { [ref]: { state: 'merged', role: 'own' } }, problem: 'gh was not found' })).toEqual({ seen, changes: [] });
     expect(prChanges(seen, [pr], { statuses: {}, problem: null })).toEqual({ seen, changes: [] });
     expect(prChanges(null, [pr], { statuses: {}, problem: 'gh was not found' })).toEqual({ seen: null, changes: [] });
   });
@@ -91,7 +91,7 @@ describe('prChanges', () => {
 
 describe('needsYouNow', () => {
   it('names everything a PR already needs you for, strongest first, as the first run marks it, and nothing where it needs nothing', () => {
-    expect(needsYouNow({ state: 'merged' })).toEqual(['pr.merged']);
+    expect(needsYouNow({ state: 'merged', role: 'own' })).toEqual(['pr.merged']);
     expect(needsYouNow(open({ review: 'changes-requested' }))).toEqual(['pr.changes-requested']);
     expect(needsYouNow(open({ checks: 'failed' }))).toEqual(['pr.checks-failed', 'pr.approved']);
     expect(needsYouNow(open({ review: 'review-required' }))).toEqual([]);
@@ -104,8 +104,8 @@ describe('prVerdict', () => {
   });
 
   it('mutes a merged or a closed PR', () => {
-    expect(prVerdict({ state: 'merged' })).toEqual({ tone: 'muted', words: 'merged' });
-    expect(prVerdict({ state: 'closed' })).toEqual({ tone: 'muted', words: 'closed' });
+    expect(prVerdict({ state: 'merged', role: 'own' })).toEqual({ tone: 'muted', words: 'merged' });
+    expect(prVerdict({ state: 'closed', role: 'own' })).toEqual({ tone: 'muted', words: 'closed' });
   });
 
   it('is danger for failed checks or a conflict, over everything below', () => {
@@ -165,12 +165,12 @@ describe('verdictOf', () => {
   const pr: PrRef = { repository: 'acme/app', number: 1 };
 
   it('reads the PR’s status from the answer, and no status for one it lacks', () => {
-    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged' } }, problem: null })).toEqual({ tone: 'muted', words: 'merged' });
+    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: null })).toEqual({ tone: 'muted', words: 'merged' });
     expect(verdictOf(pr, NO_PR_STATUS)).toEqual({ tone: 'normal', words: null });
   });
 
   it('reads no status while main could not ask, whatever the answer still holds', () => {
-    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged' } }, problem: 'gh was not found' })).toEqual({ tone: 'normal', words: null });
+    expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: 'gh was not found' })).toEqual({ tone: 'normal', words: null });
   });
 });
 
@@ -179,11 +179,11 @@ describe('prMark', () => {
   const read = (statuses: Record<string, PrStatus>, problem: string | null = null) => ({ statuses, problem });
 
   it('takes the roll-up tone, and counts only the PRs that set it, by state', () => {
-    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }), 'acme/app#2': open({ conflict: true }), 'acme/app#3': { state: 'merged' } }))).toEqual({
+    expect(prMark(prs, read({ 'acme/app#1': open({ checks: 'failed' }), 'acme/app#2': open({ conflict: true }), 'acme/app#3': { state: 'merged', role: 'own' } }))).toEqual({
       tone: 'danger',
       says: '1 with failing checks, 1 with a merge conflict',
     });
-    expect(prMark(prs, read({ 'acme/app#1': { state: 'merged' }, 'acme/app#2': { state: 'merged' }, 'acme/app#3': { state: 'closed' } }))).toEqual({ tone: 'muted', says: '2 merged, 1 closed' });
+    expect(prMark(prs, read({ 'acme/app#1': { state: 'merged', role: 'own' }, 'acme/app#2': { state: 'merged', role: 'own' }, 'acme/app#3': { state: 'closed', role: 'own' } }))).toEqual({ tone: 'muted', says: '2 merged, 1 closed' });
   });
 
   it('is normal and says nothing while no PR has a status', () => {
@@ -191,7 +191,7 @@ describe('prMark', () => {
   });
 
   it('counts a PR with no status as normal beside the others, naming only those it has words for', () => {
-    expect(prMark(prs, read({ 'acme/app#1': open({ review: 'review-required' }), 'acme/app#3': { state: 'merged' } }))).toEqual({ tone: 'normal', says: '1 awaiting review' });
+    expect(prMark(prs, read({ 'acme/app#1': open({ review: 'review-required' }), 'acme/app#3': { state: 'merged', role: 'own' } }))).toEqual({ tone: 'normal', says: '1 awaiting review' });
   });
 
   it('is normal and says why when main could not ask, whatever statuses it still holds', () => {
@@ -210,18 +210,18 @@ describe('nextAsk', () => {
   });
 
   it('asks again in a minute while any open PR’s checks run', () => {
-    expect(nextAsk(prs, read(open({ checks: 'running' }), { state: 'merged' }))).toBe(60_000);
+    expect(nextAsk(prs, read(open({ checks: 'running' }), { state: 'merged', role: 'own' }))).toBe(60_000);
   });
 
   it('asks again in five while a PR is open, closed or has no status, or main could not ask', () => {
-    expect(nextAsk(prs, read(open(), { state: 'merged' }))).toBe(300_000);
-    expect(nextAsk(prs, read({ state: 'closed' }, { state: 'merged' }))).toBe(300_000);
-    expect(nextAsk(prs, read(undefined, { state: 'merged' }))).toBe(300_000);
-    expect(nextAsk(prs, read({ state: 'merged' }, { state: 'merged' }, 'gh was not found'))).toBe(300_000);
+    expect(nextAsk(prs, read(open(), { state: 'merged', role: 'own' }))).toBe(300_000);
+    expect(nextAsk(prs, read({ state: 'closed', role: 'own' }, { state: 'merged', role: 'own' }))).toBe(300_000);
+    expect(nextAsk(prs, read(undefined, { state: 'merged', role: 'own' }))).toBe(300_000);
+    expect(nextAsk(prs, read({ state: 'merged', role: 'own' }, { state: 'merged', role: 'own' }, 'gh was not found'))).toBe(300_000);
     expect(nextAsk(prs, NO_PR_STATUS)).toBe(300_000);
   });
 
   it('asks no more once every PR is merged', () => {
-    expect(nextAsk(prs, read({ state: 'merged' }, { state: 'merged' }))).toBe('off');
+    expect(nextAsk(prs, read({ state: 'merged', role: 'own' }, { state: 'merged', role: 'own' }))).toBe('off');
   });
 });

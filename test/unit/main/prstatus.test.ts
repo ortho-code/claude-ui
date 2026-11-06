@@ -15,13 +15,35 @@ import { PrStatuses, answeredNodes, failureOf, prQueryArgs, runGh, statusOf, typ
 import { KILL_GRACE_MS } from '../../../src/main/shell';
 import type { PrRef } from '../../../src/shared/types';
 
-/** The fields `FULL_FIELDS` asks, as GitHub gave them for #36274 on 2026-10-21. */
+/** The fields `FULL_FIELDS` asks, as GitHub gave them for #36274 on 2026-10-21, and for your own PR with no reviews yet on 2026-11-06. */
 const OPEN_NODE = {
   state: 'OPEN',
   isDraft: false,
   reviewDecision: 'REVIEW_REQUIRED',
   mergeable: 'MERGEABLE',
   commits: { nodes: [{ commit: { statusCheckRollup: { state: 'SUCCESS' } } }] },
+  headRefOid: 'f8681c0cc76829e0bc2b4dc6656672edba84e62f',
+  latestOpinionatedReviews: { nodes: [] },
+  viewerDidAuthor: true,
+  viewerLatestReview: null,
+  viewerLatestReviewRequest: null,
+};
+
+/** `OPEN_NODE` as a status. */
+const OPEN_STATUS = { state: 'open', role: 'own', draft: false, review: 'review-required', checks: 'passed', conflict: false, approvals: 0, newCommits: false, reviewAsked: false, changesRequested: [] };
+
+/** Someone else's open PR, as GitHub gave #36767's reviews on 2026-11-06: one approval, one request for changes, on the head's parent. */
+const REVIEWED_NODE = {
+  ...OPEN_NODE,
+  reviewDecision: 'CHANGES_REQUESTED',
+  viewerDidAuthor: false,
+  latestOpinionatedReviews: {
+    nodes: [
+      { id: 'PRR_a', state: 'APPROVED' },
+      { id: 'PRR_b', state: 'CHANGES_REQUESTED' },
+    ],
+  },
+  viewerLatestReview: { state: 'CHANGES_REQUESTED', commit: { oid: 'fddcc96' } },
 };
 
 /** What `gh` printed on 2026-10-21, exiting 1, asked in this module's form about #36274 and a PR number that does not exist; `locations` left out of the error. */
@@ -84,7 +106,25 @@ describe('answeredNodes', () => {
 
 describe('statusOf', () => {
   it('reads an open PR', () => {
-    expect(statusOf(OPEN_NODE)).toEqual({ state: 'open', draft: false, review: 'review-required', checks: 'passed', conflict: false });
+    expect(statusOf(OPEN_NODE)).toEqual(OPEN_STATUS);
+  });
+
+  it('reads someone else’s PR you reviewed: its approvals, the reviews asking for changes, and the commits since your review', () => {
+    expect(statusOf(REVIEWED_NODE)).toEqual({ ...OPEN_STATUS, role: 'reviewing', review: 'changes-requested', approvals: 1, newCommits: true, reviewAsked: false, changesRequested: ['PRR_b'] });
+    expect(statusOf({ ...REVIEWED_NODE, viewerLatestReview: { state: 'APPROVED', commit: { oid: OPEN_NODE.headRefOid } } })).toMatchObject({ newCommits: false });
+  });
+
+  it('reads your role: someone else’s PR you are asked to review, one with neither a review nor a request, and a pending review as none', () => {
+    const others = { ...OPEN_NODE, viewerDidAuthor: false };
+    expect(statusOf({ ...others, viewerLatestReviewRequest: { id: 'RRQ_a' } })).toMatchObject({ role: 'reviewing', reviewAsked: true });
+    expect(statusOf(others)).toMatchObject({ role: 'other', newCommits: false });
+    expect(statusOf({ ...others, viewerLatestReview: { state: 'PENDING', commit: { oid: 'fddcc96' } } })).toMatchObject({ role: 'other', newCommits: false });
+  });
+
+  it('reads the role and review fields GitHub leaves out as not known', () => {
+    const bare = Object.fromEntries(Object.entries(OPEN_NODE).filter(([field]) => !['viewerDidAuthor', 'viewerLatestReview', 'viewerLatestReviewRequest', 'latestOpinionatedReviews'].includes(field)));
+    expect(statusOf(bare)).toMatchObject({ role: null, approvals: null, newCommits: null, reviewAsked: null, changesRequested: null });
+    expect(statusOf({ ...REVIEWED_NODE, headRefOid: null })).toMatchObject({ newCommits: null });
   });
 
   it('reads each of GitHub’s words for the checks, the review and a conflict', () => {
@@ -101,8 +141,7 @@ describe('statusOf', () => {
 
   it('reads what GitHub leaves out or does not know as null', () => {
     expect(statusOf({ ...OPEN_NODE, reviewDecision: null, mergeable: 'UNKNOWN', commits: { nodes: [{ commit: { statusCheckRollup: null } }] } })).toEqual({
-      state: 'open',
-      draft: false,
+      ...OPEN_STATUS,
       review: null,
       checks: null,
       conflict: null,
@@ -111,9 +150,10 @@ describe('statusOf', () => {
     expect(statusOf({ ...OPEN_NODE, reviewDecision: 'constructor' })).toMatchObject({ review: null });
   });
 
-  it('carries the state alone for a PR merged or closed', () => {
-    expect(statusOf({ ...OPEN_NODE, state: 'MERGED' })).toEqual({ state: 'merged' });
-    expect(statusOf({ ...OPEN_NODE, state: 'CLOSED' })).toEqual({ state: 'closed' });
+  it('carries the state and your role alone for a PR merged or closed', () => {
+    expect(statusOf({ ...OPEN_NODE, state: 'MERGED' })).toEqual({ state: 'merged', role: 'own' });
+    expect(statusOf({ ...REVIEWED_NODE, state: 'CLOSED' })).toEqual({ state: 'closed', role: 'reviewing' });
+    expect(statusOf({ state: 'CLOSED' })).toEqual({ state: 'closed', role: null });
   });
 
   it('is null for a PR GitHub did not find, or a state it does not name', () => {
@@ -177,8 +217,11 @@ describe('runGh', () => {
   });
 });
 
+/** The fields a state-only ask may ask of a PR, each answered only where the query names it. */
+const STATE_ASKED = ['state', 'viewerDidAuthor', 'viewerLatestReview', 'viewerLatestReviewRequest'];
+
 /**
- * A stand-in `gh` over a GitHub of `nodes`, every field of each PR by reference, answering as GitHub does: every field where a query asks them, the state alone where it asks that, null for a PR it has not.
+ * A stand-in `gh` over a GitHub of `nodes`, every field of each PR by reference, answering as GitHub does: every field where a query asks them, the state and the role's fields where it asks those, null for a PR it has not.
  * It keeps what each request asked, and answers `failure` instead while one is set.
  */
 function fakeGh(nodes: Record<string, unknown>) {
@@ -203,7 +246,7 @@ function fakeGh(nodes: Record<string, unknown>) {
         const ref = `${repository}#${number}`;
         refs.push(ref);
         const node = nodes[ref] as Record<string, unknown> | undefined;
-        data[`r${index}`][`p${number}`] = node === undefined ? null : full ? node : { state: node.state };
+        data[`r${index}`][`p${number}`] = node === undefined ? null : full ? node : Object.fromEntries(STATE_ASKED.filter((field) => field in node && query.includes(field)).map((field) => [field, node[field]]));
       }
     }
     asks.push({ full, refs });
@@ -229,9 +272,9 @@ describe('PrStatuses', () => {
     ]);
     expect(read).toEqual({
       statuses: {
-        'acme/app#1': { state: 'merged' },
-        'acme/app#2': { state: 'open', draft: false, review: 'review-required', checks: 'passed', conflict: false },
-        'acme/app#3': { state: 'closed' },
+        'acme/app#1': { state: 'merged', role: 'own' },
+        'acme/app#2': OPEN_STATUS,
+        'acme/app#3': { state: 'closed', role: 'own' },
       },
       problem: null,
     });
@@ -264,12 +307,12 @@ describe('PrStatuses', () => {
       { full: false, refs: ['acme/app#3'] },
       { full: true, refs: ['acme/app#3'] },
     ]);
-    expect(read.statuses).toEqual({ 'acme/app#2': { state: 'merged' }, 'acme/app#3': { state: 'open', draft: false, review: 'approved', checks: 'passed', conflict: false } });
+    expect(read.statuses).toEqual({ 'acme/app#2': { state: 'merged', role: 'own' }, 'acme/app#3': { ...OPEN_STATUS, review: 'approved' } });
   });
 
   it('gives no status for a PR GitHub did not find, and still the others’', async () => {
     const { gh } = fakeGh({ 'acme/app#2': merged });
-    expect(await new PrStatuses(gh).ask([pr(1), pr(2)])).toEqual({ statuses: { 'acme/app#2': { state: 'merged' } }, problem: null });
+    expect(await new PrStatuses(gh).ask([pr(1), pr(2)])).toEqual({ statuses: { 'acme/app#2': { state: 'merged', role: 'own' } }, problem: null });
   });
 
   it('says why when gh does not answer, keeping what it had, and logs it', async () => {
@@ -278,7 +321,7 @@ describe('PrStatuses', () => {
     await statuses.ask([pr(1), pr(2)]);
     state.failure = { code: 4, stdout: '', stderr: '' };
     expect(await statuses.ask([pr(1), pr(2)])).toEqual({
-      statuses: { 'acme/app#1': { state: 'merged' }, 'acme/app#2': { state: 'open', draft: false, review: 'review-required', checks: 'passed', conflict: false } },
+      statuses: { 'acme/app#1': { state: 'merged', role: 'own' }, 'acme/app#2': OPEN_STATUS },
       problem: 'gh is not logged in; run gh auth login',
     });
     expect(logged).toEqual(['warn prs no PR status: gh is not logged in; run gh auth login']);
@@ -300,7 +343,7 @@ describe('PrStatuses', () => {
     const { gh, asks } = fakeGh({ 'acme/app#1': merged });
     const read = await new PrStatuses(gh).ask([pr(1), pr(1), pr(2, 'nobody')]);
     expect(asks).toEqual([{ full: false, refs: ['acme/app#1'] }]);
-    expect(read.statuses).toEqual({ 'acme/app#1': { state: 'merged' } });
+    expect(read.statuses).toEqual({ 'acme/app#1': { state: 'merged', role: 'own' } });
   });
 
   it('asks nothing for no PRs', async () => {

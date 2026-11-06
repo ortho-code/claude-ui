@@ -397,8 +397,8 @@ describe('what was last seen of the PRs', () => {
   });
 
   it('is kept in place of what was before, and stays empty once emptied', async () => {
-    const approved = { state: 'open' as const, draft: false, review: 'approved' as const, checks: 'running' as const, conflict: null };
-    await setPrSeen({ 'acme/app#7': { state: 'merged' } });
+    const approved = { state: 'open' as const, role: 'reviewing' as const, draft: false, review: 'approved' as const, checks: 'running' as const, conflict: null, approvals: 2, newCommits: true, reviewAsked: false, changesRequested: ['PRR_b'] };
+    await setPrSeen({ 'acme/app#7': { state: 'merged', role: 'own' } });
     await setPrSeen({ 'acme/app#8': approved });
     expect(await getPrSeen()).toEqual({ 'acme/app#8': approved });
     await setPrSeen({});
@@ -413,9 +413,18 @@ describe('what was last seen of the PRs', () => {
         'acme/app#8': { state: 'nonsense' },
         'acme/app#9': { state: 'open', draft: false, review: 'nonsense', checks: null, conflict: null },
         'acme/app#10': { state: 'open', review: null, checks: null, conflict: null },
+        'acme/app#11': { state: 'merged', role: 'nonsense' },
+        'acme/app#12': { state: 'open', role: 'own', draft: false, review: null, checks: null, conflict: null, approvals: -1 },
+        'acme/app#13': { state: 'open', role: 'own', draft: false, review: null, checks: null, conflict: null, changesRequested: [7] },
       },
     });
-    expect(await getPrSeen()).toEqual({ 'acme/app#7': { state: 'closed' } });
+    expect(await getPrSeen()).toEqual({ 'acme/app#7': { state: 'closed', role: null } });
+  });
+
+  // As a build before roles kept them.
+  it('reads a status kept without the role and review fields as not knowing them', async () => {
+    await writeMetaFile({ version: 3, prSeen: { 'acme/app#7': { state: 'open', draft: false, review: 'approved', checks: null, conflict: false } } });
+    expect(await getPrSeen()).toEqual({ 'acme/app#7': { state: 'open', role: null, draft: false, review: 'approved', checks: null, conflict: false, approvals: null, newCommits: null, reviewAsked: null, changesRequested: null } });
   });
 });
 

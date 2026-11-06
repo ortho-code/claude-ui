@@ -17,7 +17,14 @@ function session(id: string, days: number, prs: number[] = []): SessionSummary {
 function facts(overrides: Partial<ReviewFacts> = {}): ReviewFacts {
   return {
     tabbed: new Set(), finished: new Set(), pendingDeletes: new Set(), setAside: new Map(), kept: new Map(), notes: new Map(),
-    prStatus: { statuses: { 'acme/app#1': { state: 'merged' }, 'acme/app#2': { state: 'closed' }, 'acme/app#3': { state: 'open', draft: false, review: null, checks: null, conflict: false } }, problem: null },
+    prStatus: {
+      statuses: {
+        'acme/app#1': { state: 'merged', role: 'own' },
+        'acme/app#2': { state: 'closed', role: 'own' },
+        'acme/app#3': { state: 'open', role: 'own', draft: false, review: null, checks: null, conflict: false, approvals: 0, newCommits: false, reviewAsked: false, changesRequested: [] },
+      },
+      problem: null,
+    },
     prStatusOn: true,
     ...overrides,
   };

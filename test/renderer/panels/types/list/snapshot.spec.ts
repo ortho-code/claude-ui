@@ -6,7 +6,16 @@ import { runs } from '../../layout/layout';
 import { bootList, print, type PrintedList } from './list';
 
 // A list panel's run is given the sessions the app has, in a file of its own, and `watch: sessions` runs it again once that would say something new (docs/panel-types.md § The sessions).
-const asked = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'Review #1', prs: [{ repository: 'acme/app', number: 1, url: 'https://github.com/acme/app/pull/1' }] });
+const asked = session({
+  id: '00000000-0000-4000-8000-0000000000b2',
+  title: 'Review #1',
+  prs: [
+    { repository: 'acme/app', number: 1, url: 'https://github.com/acme/app/pull/1' },
+    { repository: 'acme/app', number: 2, url: 'https://github.com/acme/app/pull/2' },
+  ],
+});
+const MERGED = { state: 'merged' as const, role: 'own' as const };
+const REVIEWED = { state: 'open' as const, role: 'reviewing' as const, draft: false, review: 'changes-requested' as const, checks: 'passed' as const, conflict: false, approvals: 1, newCommits: true, reviewAsked: false };
 const quiet = session({ id: '00000000-0000-4000-8000-0000000000b1', title: '', firstMessage: 'Speed up the search' });
 const shelved = session({ id: '00000000-0000-4000-8000-0000000000b3', title: 'Archived' });
 const REASON = { type: 'pr.merged' as const, at: 1_000, pr: 'acme/app#1' };
@@ -19,14 +28,15 @@ const more = {
   setAside: { [quiet.id]: SET_ASIDE },
   groupState: { groups: [{ id: 'g1', name: 'Reviews', repoRoot: PROJECT }], groupOf: { [asked.id]: 'g1' } },
   // Already seen as it is, so the first answer marks nothing new.
-  prSeen: { 'acme/app#1': { state: 'merged' as const } },
-  prStatuses: { 'acme/app#1': { state: 'merged' as const } },
+  prSeen: { 'acme/app#1': MERGED, 'acme/app#2': { ...REVIEWED, changesRequested: ['PRR_b'] } },
+  prStatuses: { 'acme/app#1': MERGED, 'acme/app#2': { ...REVIEWED, changesRequested: ['PRR_b'] } },
   history: { [asked.id]: [], [quiet.id]: [], [shelved.id]: [] },
 };
 const LIST: PrintedList = { version: 1, sections: [{ items: [{ key: 'one', text: 'One' }] }] };
 
 const snapshotOf = async (app: App, index: number): Promise<SessionsSnapshot> => JSON.parse((await runs(app, 'changes'))[index].sessions ?? 'null') as SessionsSnapshot;
 
+// A PR's status is given without the ids of the reviews asking for changes.
 test('a run is given every session not finished, by id, with its title, project, group, status, read mark, needs-you and set-aside marks and PRs', async ({ app, page }) => {
   await bootList(app, page, LIST, { more });
   // Pressed until GitHub's answer, which the first run may come before, is in the snapshot.
@@ -35,14 +45,18 @@ test('a run is given every session not finished, by id, with its title, project,
       await page.getByRole('button', { name: 'Refresh' }).click();
       return (await snapshotOf(app, -1 + (await runs(app, 'changes')).length)).sessions[1]?.prs[0]?.status;
     })
-    .toEqual({ state: 'merged' });
+    .toEqual(MERGED);
   const { length } = await runs(app, 'changes');
   expect(await snapshotOf(app, length - 1)).toEqual({
     version: 1,
     sessions: [
       // A status the docs do not name, such as the marker a starting claude sends, is no status.
       { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, needsYou: [], setAside: SET_ASIDE, prs: [] },
-      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, needsYou: [{ ...REASON, category: 'finish-up' }], setAside: null, prs: [{ ...asked.prs[0], status: { state: 'merged' } }] },
+      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, needsYou: [{ ...REASON, category: 'finish-up' }], setAside: null, prs: [
+          { ...asked.prs[0], status: MERGED },
+          { ...asked.prs[1], status: REVIEWED },
+        ],
+      },
     ],
   });
 });

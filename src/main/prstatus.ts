@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { ipcMain } from 'electron';
-import { prReference } from '../shared/prs';
-import type { PrRef, PrStatus, PrStatusRead } from '../shared/types';
+import { prReference, roleOf } from '../shared/prs';
+import type { PrRef, PrRole, PrStatus, PrStatusRead } from '../shared/types';
 import { log } from './log';
 import { inheritedEnv, shellCommand, terminateGroup } from './shell';
 
@@ -9,15 +9,27 @@ import { inheritedEnv, shellCommand, terminateGroup } from './shell';
  * What GitHub says of the PRs the sessions link, asked with `gh api graphql` on the person's own `gh` login, and kept in memory for as long as the app runs.
  *
  * IN TWO STEPS, because asking more than a PR's state is slow (measured 2026-10-21, 103 PRs in one repository): 25 PRs with every field took 3.4–4.1 s, where the state alone of all 103 took under one.
- * So a PR not known yet, or closed, is asked its state alone, and one known to be open is asked every field; one that turns out to be open is then asked every field.
+ * So a PR not known yet, or closed, is asked its state and your role alone, and one known to be open is asked every field; one that turns out to be open is then asked every field.
  * A merged PR is not asked again while the app runs.
  *
  * `gh` runs through the login shell (`shell.ts`), since it may be on `PATH` only through the shell's rc, as a mise install is; its stderr goes to fd 3, apart from the shell's own job-control lines on fd 2.
  */
 
-/** Every field the colour needs, for a PR known to be open. */
-const FULL_FIELDS = 'state isDraft reviewDecision mergeable commits(last:1){nodes{commit{statusCheckRollup{state}}}}';
-const STATE_FIELDS = 'state';
+/**
+ * What your role is told from, asked of every PR: whether you wrote it, your latest review with the commit it was on, and a request for your review.
+ * Measured 2026-11-06: 100 PRs asked their state, whether you wrote them, your latest review's id and state, and a request for your review answered in 1.5–1.7 s, three times of three.
+ */
+const ROLE_FIELDS = 'viewerDidAuthor viewerLatestReview{state commit{oid}} viewerLatestReviewRequest{id}';
+
+/**
+ * The most reviews a PR's approvals and change requests are counted over, one per reviewer.
+ * The 136 PRs the sessions here linked on 2026-11-06 had at most 4.
+ */
+const REVIEWERS = 20;
+
+/** Every field the colour, the approvals and your review need, for a PR known to be open. */
+const FULL_FIELDS = `state isDraft reviewDecision mergeable commits(last:1){nodes{commit{statusCheckRollup{state}}}} headRefOid latestOpinionatedReviews(first:${REVIEWERS},writersOnly:true){nodes{id state}} ${ROLE_FIELDS}`;
+const STATE_FIELDS = `state ${ROLE_FIELDS}`;
 
 /**
  * The most PRs one request asks, by how much it asks of each.
@@ -158,19 +170,56 @@ function pick<T>(table: Record<string, T>, key: unknown): T | null {
   return typeof key === 'string' && Object.hasOwn(table, key) ? (table[key] ?? null) : null;
 }
 
-/** A PR's status from GitHub's node asked every field; a PR that has merged or closed since it was last asked carries its state alone. */
+/**
+ * Your latest review GitHub gives, null for none; a pending one is not submitted, so it is none.
+ * Whether GitHub gives a pending review here is not known (2026-11-06: no PR the sessions linked had one).
+ */
+function submittedReview(node: Record<string, unknown>): Record<string, unknown> | null {
+  const review = node.viewerLatestReview;
+  return isObject(review) && review.state !== 'PENDING' ? review : null;
+}
+
+/** Your role on a PR from GitHub's node; null where it does not say whether you wrote it. */
+function roleFrom(node: Record<string, unknown>): PrRole | null {
+  if (typeof node.viewerDidAuthor !== 'boolean') return null;
+  return roleOf(node.viewerDidAuthor, submittedReview(node) !== null, isObject(node.viewerLatestReviewRequest));
+}
+
+/** The latest reviews of reviewers with write access, each with its id and state; null where GitHub gave none. */
+function opinionatedReviews(node: Record<string, unknown>): { id: string; state: unknown }[] | null {
+  const reviews = isObject(node.latestOpinionatedReviews) ? node.latestOpinionatedReviews.nodes : null;
+  if (!Array.isArray(reviews)) return null;
+  return reviews.filter((review): review is { id: string; state: unknown } => isObject(review) && typeof review.id === 'string');
+}
+
+/** Whether your submitted review is on a commit other than the head: false without a review, null where either commit is not given. */
+function newCommitsOf(node: Record<string, unknown>): boolean | null {
+  const review = submittedReview(node);
+  if (review === null) return 'viewerLatestReview' in node ? false : null;
+  const reviewed = isObject(review.commit) ? review.commit.oid : null;
+  return typeof reviewed === 'string' && typeof node.headRefOid === 'string' ? reviewed !== node.headRefOid : null;
+}
+
+/** A PR's status from GitHub's node asked every field; a PR that has merged or closed since it was last asked carries its state and your role alone. */
 export function statusOf(node: unknown): PrStatus | null {
   const state = stateOf(node);
   if (state === null || !isObject(node)) return null;
-  if (state !== 'open') return { state };
+  const role = roleFrom(node);
+  if (state !== 'open') return { state, role };
   const last: unknown = isObject(node.commits) && Array.isArray(node.commits.nodes) ? node.commits.nodes[0] : null;
   const rollup = isObject(last) && isObject(last.commit) && isObject(last.commit.statusCheckRollup) ? last.commit.statusCheckRollup : null;
+  const reviews = opinionatedReviews(node);
   return {
     state,
+    role,
     draft: node.isDraft === true,
     review: pick(REVIEWS, node.reviewDecision),
     checks: pick(CHECKS, rollup?.state),
     conflict: pick(CONFLICTS, node.mergeable),
+    approvals: reviews === null ? null : reviews.filter((review) => review.state === 'APPROVED').length,
+    newCommits: newCommitsOf(node),
+    reviewAsked: 'viewerLatestReviewRequest' in node ? isObject(node.viewerLatestReviewRequest) : null,
+    changesRequested: reviews === null ? null : reviews.filter((review) => review.state === 'CHANGES_REQUESTED').map((review) => review.id),
   };
 }
 
@@ -214,7 +263,7 @@ export class PrStatuses {
     problem ??= await this.fetch(others, STATE_FIELDS, STATE_PER_REQUEST, (pr, node) => {
       const state = stateOf(node);
       if (state === 'open') nowOpen.push(pr);
-      else this.keep(pr, state === null ? null : { state });
+      else this.keep(pr, statusOf(node));
     });
     problem ??= await this.fetch(nowOpen, FULL_FIELDS, FULL_PER_REQUEST, (pr, node) => this.keep(pr, statusOf(node)));
     if (problem !== null) log('warn', 'prs', `no PR status: ${problem}`);

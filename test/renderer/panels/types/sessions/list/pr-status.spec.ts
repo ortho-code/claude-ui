@@ -11,7 +11,18 @@ import { row, tab } from '../../../../support/window';
 const MINUTE = 60_000;
 const pr = (number: number): SessionPr => ({ repository: 'ScientaNL/demo', number, url: `https://github.com/ScientaNL/demo/pull/${number}` });
 const ref = (number: number): { repository: string; number: number } => ({ repository: 'ScientaNL/demo', number });
-const open = (checks: 'passed' | 'running' = 'passed'): Extract<PrStatus, { state: 'open' }> => ({ state: 'open', draft: false, review: 'review-required', checks, conflict: false });
+const open = (checks: 'passed' | 'running' = 'passed'): Extract<PrStatus, { state: 'open' }> => ({
+  state: 'open',
+  role: 'own',
+  draft: false,
+  review: 'review-required',
+  checks,
+  conflict: false,
+  approvals: 0,
+  newCommits: false,
+  reviewAsked: false,
+  changesRequested: [],
+});
 
 /** What GitHub says of the PRs from now on, as main would find it on its next ask. */
 const gitHubSays = (page: Page, statuses: Record<string, PrStatus>): Promise<void> => page.evaluate((now) => void (window.__claudeUiFixture.prStatuses = now), statuses);
@@ -43,12 +54,12 @@ test('a newly linked PR is asked about, and a listing that links nothing new ask
 
 test('the answer sets the next ask: a minute while checks run, five while a PR is open, none once all are merged', async ({ app, page }) => {
   await page.clock.install();
-  await app.boot({ ...fixture, prStatuses: { 'ScientaNL/demo#12': open('running'), 'ScientaNL/demo#7': { state: 'merged' } } });
+  await app.boot({ ...fixture, prStatuses: { 'ScientaNL/demo#12': open('running'), 'ScientaNL/demo#7': { state: 'merged', role: 'own' } } });
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
   await page.clock.fastForward(MINUTE);
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(2);
 
-  await gitHubSays(page, { 'ScientaNL/demo#12': open(), 'ScientaNL/demo#7': { state: 'merged' } });
+  await gitHubSays(page, { 'ScientaNL/demo#12': open(), 'ScientaNL/demo#7': { state: 'merged', role: 'own' } });
   await page.clock.fastForward(MINUTE);
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(3);
   await page.clock.fastForward(4 * MINUTE);
@@ -56,7 +67,7 @@ test('the answer sets the next ask: a minute while checks run, five while a PR i
   await page.clock.fastForward(MINUTE);
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(4);
 
-  await gitHubSays(page, { 'ScientaNL/demo#12': { state: 'merged' }, 'ScientaNL/demo#7': { state: 'merged' } });
+  await gitHubSays(page, { 'ScientaNL/demo#12': { state: 'merged', role: 'own' }, 'ScientaNL/demo#7': { state: 'merged', role: 'own' } });
   await page.clock.fastForward(5 * MINUTE);
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(5);
   await page.clock.fastForward(60 * MINUTE);
@@ -65,7 +76,7 @@ test('the answer sets the next ask: a minute while checks run, five while a PR i
 
 test('the window coming back into focus asks again, once the last answer is a minute old', async ({ app, page }) => {
   await page.clock.install();
-  await app.boot({ ...fixture, prStatuses: { 'ScientaNL/demo#12': { state: 'merged' }, 'ScientaNL/demo#7': { state: 'merged' } } });
+  await app.boot({ ...fixture, prStatuses: { 'ScientaNL/demo#12': { state: 'merged', role: 'own' }, 'ScientaNL/demo#7': { state: 'merged', role: 'own' } } });
   await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
   const focus = (): Promise<void> => page.evaluate(() => void window.dispatchEvent(new Event('focus')));
   await focus();
@@ -87,12 +98,12 @@ const states = {
   history: Object.fromEntries([failing, asked, ready, waiting, done].map((s) => [s.id, []])),
   prStatuses: {
     'ScientaNL/demo#12': { ...open(), checks: 'failed' },
-    'ScientaNL/demo#7': { state: 'merged' },
+    'ScientaNL/demo#7': { state: 'merged', role: 'own' },
     'ScientaNL/demo#3': { ...open(), review: 'changes-requested' },
     'ScientaNL/demo#4': { ...open(), review: 'approved' },
     'ScientaNL/demo#5': open(),
-    'ScientaNL/demo#6': { state: 'merged' },
-    'ScientaNL/demo#8': { state: 'closed' },
+    'ScientaNL/demo#6': { state: 'merged', role: 'own' },
+    'ScientaNL/demo#8': { state: 'closed', role: 'own' },
   } satisfies Record<string, PrStatus>,
 };
 const mark = (page: Page, title: string): Locator => row(page, title).locator('.pr-badge');
@@ -131,9 +142,9 @@ test('when main could not ask GitHub, every PR mark keeps the accent and says wh
 
 test("a PR mark follows GitHub's next answer", async ({ app, page }) => {
   await page.clock.install();
-  await app.boot({ ...fixture, prStatuses: { 'ScientaNL/demo#12': open('running'), 'ScientaNL/demo#7': { state: 'merged' } } });
+  await app.boot({ ...fixture, prStatuses: { 'ScientaNL/demo#12': open('running'), 'ScientaNL/demo#7': { state: 'merged', role: 'own' } } });
   await expect(mark(page, two.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — 1 with checks running — click to list them');
-  await gitHubSays(page, { 'ScientaNL/demo#12': { ...open(), checks: 'failed' }, 'ScientaNL/demo#7': { state: 'merged' } });
+  await gitHubSays(page, { 'ScientaNL/demo#12': { ...open(), checks: 'failed' }, 'ScientaNL/demo#7': { state: 'merged', role: 'own' } });
   await page.clock.fastForward(MINUTE);
   await expect(mark(page, two.title)).toHaveAttribute('data-tooltip', '2 PRs linked to this session — 1 with failing checks — click to list them');
   expect((await lookOf(mark(page, two.title))).color).toBe(await token(page, '--failed'));
