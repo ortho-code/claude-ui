@@ -12,6 +12,9 @@ import type { TabButtonMark } from './logic';
 export const strokeIcon = (size: number, path: string, ink = 1.3): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${((ink * 16) / size).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
 
+/** An SVG as a CSS image, for a mask that takes `background` and so any colour, where the SVG's own ink cannot follow a token. */
+export const svgImage = (svg: string): string => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+
 const CHEVRONS = {
   up: 'M4 10L8 6L12 10',
   down: 'M4 6L8 10L12 6',

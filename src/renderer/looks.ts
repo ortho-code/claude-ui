@@ -2,7 +2,7 @@ import { ICONS, isIconName } from '../shared/icons';
 import { NEEDS_YOU, resolvedLooks, type ResolvedLook } from '../shared/looks';
 import { isNeeds } from './logic';
 import type { View } from './state/app';
-import { strokeIcon } from './svg';
+import { strokeIcon, svgImage } from './svg';
 
 /**
  * THE LOOKS' STYLESHEET: every status's, category's and type's look, as `settings.json`'s `looks` and the defaults resolve them (shared/looks.ts), written into the page as one stylesheet, a rule per look on its class (`lookClass`).
@@ -51,7 +51,7 @@ function rulesOn(on: string, look: ResolvedLook): string {
   const rules = [`${on} { --look: ${colour}; }`, `.nudge${on} { ${[...shape, ...motion].join('; ')}; }`];
   if (isIconName(mark)) {
     const svg = strokeIcon(ICON_SIZE, ICONS[mark]);
-    rules.push(`.nudge${on}::before { content: ''; position: absolute; inset: -2px; background: ${colour}; mask: url("data:image/svg+xml,${encodeURIComponent(svg)}") center / ${ICON_SIZE}px no-repeat; }`);
+    rules.push(`.nudge${on}::before { content: ''; position: absolute; inset: -2px; background: ${colour}; mask: ${svgImage(svg)} center / ${ICON_SIZE}px no-repeat; }`);
   }
   rules.push(`.dotted-icon > .nudge${on} { padding: 0; border-width: 1px; border-color: ${colour}; background: ${colour}; animation: ${pulse ? PULSE : 'none'}; }`, `.dotted-icon > .nudge${on}::before { content: none; }`);
   return rules.join('\n');

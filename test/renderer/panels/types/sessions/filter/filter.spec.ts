@@ -1,6 +1,7 @@
 import { defaultUi } from '../../../../../../src/shared/defaults';
 import { session } from '../../../../support/fixture';
 import { expect, test } from '../../../../support/harness';
+import { pixels, token } from '../../../../support/looks';
 import { titles } from '../../../../support/window';
 
 // A filter that is on is never out of sight (docs/architecture.md § Reopening the way you left it): the count and Clear sit under the panel, and a panel shut over a filter folds to a row of chips, one per thing that is on, each with its own ×.
@@ -77,4 +78,26 @@ test('a filter left on comes back on, with the panel as it was left', async ({ a
   await expect(page.locator('#filter-panel')).toBeHidden();
   await expect(page.locator('#filter-chips .filter-chip')).toHaveCount(2);
   await expect(page.locator('#filter-count')).toHaveText('Showing 1 of 3');
+});
+
+test("the search box's × draws in the muted ink, and in the text's while the pointer is on it", async ({ app, page }) => {
+  await app.boot(fixture);
+  await page.locator('#filter-toggle').click();
+  const search = page.locator('#search');
+  await search.fill('parser');
+  const box = (await search.boundingBox())!;
+  // The × sits at the field's right end, inside its 10px padding.
+  const clip = { x: box.x + box.width - 26, y: box.y + box.height / 2 - 8, width: 20, height: 16 };
+  const inked = async (variable: string): Promise<number> => {
+    const [r, g, b] = (await token(page, variable)).match(/\d+/g)!.map(Number);
+    return (await pixels(page, clip)).flat().filter(([pr, pg, pb]) => Math.abs(pr - r) + Math.abs(pg - g) + Math.abs(pb - b) < 30).length;
+  };
+  // A × of thin strokes inks a few pixels fully; the 12px button unmasked would ink all 144.
+  const ofAnX = (count: number): void => {
+    expect(count).toBeGreaterThan(4);
+    expect(count).toBeLessThan(40);
+  };
+  ofAnX(await inked('--muted'));
+  await page.mouse.move(box.x + box.width - 16, box.y + box.height / 2);
+  ofAnX(await inked('--text'));
 });

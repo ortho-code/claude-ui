@@ -36,17 +36,14 @@
 }
 
 /* type=search draws a UA clear button: a fixed grey-gradient bitmap that ignores `color`, so it read as a smudge on a dark field.
-   Replace it with the app's own × — the same path closeIcon() draws — as a MASK, which takes `background` and so follows --muted/--text like every other mark. */
+   Replace it with the app's own ×, which filter.ts hands over with its size, as a MASK, which takes `background` and so follows --muted/--text like every other mark. */
 #search::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: var(--search-clear-size);
+  height: var(--search-clear-size);
   background: var(--muted);
-  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.73" stroke-linecap="round"><path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4"/></svg>')
-    center / contain no-repeat;
-  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.73" stroke-linecap="round"><path d="M4.6 4.6L11.4 11.4M11.4 4.6L4.6 11.4"/></svg>')
-    center / contain no-repeat;
+  mask: var(--search-clear) center / contain no-repeat;
   cursor: pointer;
 }
 

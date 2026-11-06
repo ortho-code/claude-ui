@@ -4,7 +4,7 @@ import { byId, fromMarkup } from '../../../dom';
 import { datePresetRange, entityKey, sessionPasses } from '../../../logic';
 import { noFilter, store, type FilterState, type View } from '../../../state/app';
 import { isFiltering, searchText } from '../../../state/views';
-import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, WORKTREE_ICON } from '../../../svg';
+import { finishIcon, closeIcon, folderGoneIcon, SET_ASIDE_ICON, NOTE_ICON, PINNED_ICON, PR_ICON, SIBLING_ICON, strokeIcon, svgImage, WORKTREE_ICON } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
 import { iconSvg } from '../../icons';
 // The filter pill its pills and presets wear, shared with the history's All · Pinned.
@@ -80,6 +80,9 @@ const datePicker = calendar(byId(filterPanel, 'date-range'), {
   },
 });
 const searchInput = byId(filterPanel, 'search', HTMLInputElement);
+const SEARCH_CLEAR_SIZE = 12;
+searchInput.style.setProperty('--search-clear', svgImage(closeIcon(SEARCH_CLEAR_SIZE)));
+searchInput.style.setProperty('--search-clear-size', `${SEARCH_CLEAR_SIZE}px`);
 const filterCount = byId(filterStatus, 'filter-count');
 const filterChips = byId(filterStatus, 'filter-chips');
 const filterClear = byId(filterStatus, 'filter-clear', HTMLButtonElement);
