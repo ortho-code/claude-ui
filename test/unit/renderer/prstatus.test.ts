@@ -87,6 +87,21 @@ describe('prChanges', () => {
     expect(prChanges(seen, [pr], { statuses: { [ref]: open({ approvals: 1 }) }, problem: null }, TWO).changes).toEqual([]);
   });
 
+  // GitHub's review decision stays changes requested while any request stands, so only the reviews tell a new one.
+  it('marks changes requested again for a second reviewer’s request, or a new round of the same one’s, while one already stands', () => {
+    const asking = (...ids: string[]): PrStatus => open({ review: 'changes-requested', changesRequested: ids });
+    expect(change(asking('PRR_a'), asking('PRR_a', 'PRR_b'))).toBe('changes requested');
+    expect(change(asking('PRR_a'), asking('PRR_c'))).toBe('changes requested');
+  });
+
+  it('does not mark changes requested again for the same requests, one going, or reviews not known on either side', () => {
+    const asking = (...ids: string[]): PrStatus => open({ review: 'changes-requested', changesRequested: ids });
+    expect(change(asking('PRR_a', 'PRR_b'), asking('PRR_a', 'PRR_b'))).toBeNull();
+    expect(change(asking('PRR_a', 'PRR_b'), asking('PRR_b'))).toBeNull();
+    expect(change(open({ review: 'changes-requested', changesRequested: null }), asking('PRR_a'))).toBeNull();
+    expect(change(asking('PRR_a'), open({ review: 'changes-requested', changesRequested: null }))).toBeNull();
+  });
+
   it('marks commits since your review once a push moves the PR off the commit you reviewed, and not again for a second push before your next review', () => {
     const reviewed = (newCommits: boolean): PrStatus => open({ role: 'reviewing', review: 'changes-requested', newCommits });
     expect(change(reviewed(false), reviewed(true))).toBe('new commits since your review');

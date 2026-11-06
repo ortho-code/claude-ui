@@ -191,6 +191,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   A session's reasons are listed by their category, in Now's order, and newest first within one, so an approval now comes before a merge, and a merge after how the app closed.
 - Failing checks, a conflict, changes requested and approved mark a session only for a PR of your own, no longer for one you review or someone else's; reopened, merged and closed still mark for every PR.
   A file in `needs-you/` giving a type `roles` changes which PRs it marks for.
+- A new request for changes marks a session again while an earlier one still stands, whether from another reviewer or a new round from the same one.
 
 ### Fixed
 

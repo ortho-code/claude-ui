@@ -109,6 +109,16 @@ function withKnownConflict(status: PrStatus, before: PrStatus | undefined): PrSt
 }
 
 /**
+ * Whether a review asking for changes came that was not there before, a second reviewer's or a new round of the same one's, though the PR asked for changes already: GitHub's decision stays changes requested throughout, so only the reviews tell it.
+ * False where either side does not know its reviews.
+ */
+function asksForChangesAnew(before: PrStatus, status: PrStatus): boolean {
+  if (before.state !== 'open' || status.state !== 'open' || before.changesRequested === null || status.changesRequested === null) return false;
+  const seen = new Set(before.changesRequested);
+  return status.changesRequested.some((id) => !seen.has(id));
+}
+
+/**
  * What was seen of an open PR, with each review field it did not know, as a status kept before the app asked them has not, taken from `status`, what is seen now: so a field coming to be known is not news, and a PR already waiting on you then marks nothing until it changes.
  * Neither open, `before` is as it was.
  */
@@ -121,6 +131,7 @@ function withFieldsKnown(before: PrStatus, status: PrStatus): PrStatus {
  * What main's answer about `prs` changed since `seen`: what is seen now, each PR's status, and each PR whose change needs you, with the type of every change, strongest first (decided 2026-10-29).
  * A PR marks when something that needs you is there now and was not before (`conditionsOf`): checks failing, a conflict, changes requested, an approved review, commits since your review, a request for your review, merged or closed; all of them where several come in one answer, so an approval that comes with failing checks is not lost; and when a closed PR is open again, as reopened, with everything it holds then.
  * Commits since your review mark once per review: a second push before you review again finds them there already (decided 2026-11-06).
+ * Changes requested marks again for a request that was not there before while one already stands (`asksForChangesAnew`, decided 2026-11-06).
  * A review field the status seen before did not know counts as what is seen now (`withFieldsKnown`).
  * So one that was there already marks nothing when a stronger one clears, an approval marks though its checks still run, an approved PR whose checks run again after a push marks nothing, and a conflict GitHub is still working out counts as what was known of it.
  * A PR seen for the first time is recorded and marks nothing, whatever it holds; one with no status keeps what was seen of it; an answer in which any request to GitHub failed changes nothing, and what it did learn waits for the next whole answer.
@@ -139,10 +150,12 @@ export function prChanges(seen: PrSeen | null, prs: readonly PrRef[], read: PrSt
     next[ref] = status;
     if (before === undefined) continue;
     const required = approvalsRequired(approvals, pr.repository);
-    const was = conditionsOf(withFieldsKnown(before, status), required);
+    const known = withFieldsKnown(before, status);
+    const was = conditionsOf(known, required);
     const now = conditionsOf(status, required);
+    const isNew = (condition: PrNeedsYouType): boolean => !was.has(condition) || (condition === 'pr.changes-requested' && asksForChangesAnew(known, status));
     // Open again, everything it holds is news: a closed PR held none of it.
-    const found = before.state === 'closed' && status.state === 'open' ? ranked(['pr.reopened', ...now]) : ranked([...now].filter((condition) => !was.has(condition)));
+    const found = before.state === 'closed' && status.state === 'open' ? ranked(['pr.reopened', ...now]) : ranked([...now].filter(isNew));
     if (found.length > 0) changes.push({ pr: ref, types: found });
   }
   return { seen: seen === null && prs.every((pr) => read.statuses[prReference(pr)] === undefined) ? null : next, changes };
