@@ -1,6 +1,6 @@
 import { defaultSettings } from './defaults';
 import { parseLaunchFlags } from './flags';
-import { strengthProblem } from './looks';
+import { looksProblem, strengthProblem, type Look } from './looks';
 import type { NeedsYouRegistry } from './needsyou';
 import { presetsProblem } from './setaside';
 import { timeOfDay } from './time';
@@ -15,7 +15,7 @@ import type { Settings } from './types';
 export type SettingKey = keyof Settings;
 
 /** Every setting there is, in the order Settings shows them. */
-export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'setAside', 'setAsideTime', 'locale', 'strength'];
+export const SETTING_KEYS: SettingKey[] = ['launchFlags', 'runningSessionsAtLaunch', 'prStatus', 'leaveButton', 'setAside', 'setAsideTime', 'locale', 'strength', 'looks'];
 
 /**
  * The choices for the sessions that were running when the app closed (`Settings.runningSessionsAtLaunch`), in the order Settings offers them: start them again, or bring their tabs back cold.
@@ -105,10 +105,14 @@ const CHECKS: { [K in SettingKey]: Check<Settings[K]> } = {
     const tag = typeof value === 'string' ? languageTag(value) : null;
     return tag !== null ? { ok: true, value: tag } : { ok: false, why: 'It has to be a language tag such as "en-GB" or "nl-NL", or "" for the system\'s language.' };
   },
-  // Its categories are checked against the needs-you registry where one is given (`settingsView`), since which there are is the needs-you files' to say.
+  // Its categories, and the looks' ids, are checked against the needs-you registry where one is given (`settingsView`), since which there are is the needs-you files' to say.
   strength: (value) => {
     const why = strengthProblem(value, null);
     return why === null ? { ok: true, value: [...(value as string[])] } : { ok: false, why };
+  },
+  looks: (value) => {
+    const why = looksProblem(value, null);
+    return why === null ? { ok: true, value: structuredClone(value as Record<string, Look>) } : { ok: false, why };
   },
 };
 
@@ -163,16 +167,21 @@ export function valuesOf(file: SettingsFileRead, notes: string[] = [], problems 
 
 /**
  * The settings in force from `file`, each its value there or the default, and what is wrong with the file, as main's read number `read` found it.
- * With the needs-you `registry`, a category the strength order names that it does not have is a mistake too.
+ * With the needs-you `registry`, a category the strength order names, or an id the looks name, that it does not have is a mistake too.
  */
 export function settingsView(file: SettingsFileRead, read = 0, registry: NeedsYouRegistry | null = null): SettingsView {
   const notes: string[] = [];
   const problems = new Map<SettingKey, string>();
   const values = valuesOf(file, notes, problems);
-  const unknown = values.strength === undefined ? null : strengthProblem(values.strength, registry);
-  if (unknown !== null) {
+  const unknownCategory = values.strength === undefined ? null : strengthProblem(values.strength, registry);
+  if (unknownCategory !== null) {
     delete values.strength;
-    problems.set('strength', unknown);
+    problems.set('strength', unknownCategory);
+  }
+  const unknownId = values.looks === undefined ? null : looksProblem(values.looks, registry);
+  if (unknownId !== null) {
+    delete values.looks;
+    problems.set('looks', unknownId);
   }
   const defaults = defaultSettings();
   const viewOf = <K extends SettingKey>(key: K): SettingView<Settings[K]> => ({ value: values[key] ?? defaults[key], problem: problems.get(key) ?? null });
@@ -185,6 +194,7 @@ export function settingsView(file: SettingsFileRead, read = 0, registry: NeedsYo
     setAsideTime: viewOf('setAsideTime'),
     locale: viewOf('locale'),
     strength: viewOf('strength'),
+    looks: viewOf('looks'),
     read,
     notes,
     file: { name: file.name, status: file.status, error: file.error, duplicates: file.duplicates ?? [] },
@@ -193,7 +203,7 @@ export function settingsView(file: SettingsFileRead, read = 0, registry: NeedsYo
 
 /** The settings in force, as a session is started with them. */
 export function settingsInForce(view: SettingsView): Settings {
-  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, setAside: view.setAside.value, setAsideTime: view.setAsideTime.value, locale: view.locale.value, strength: view.strength.value };
+  return { launchFlags: view.launchFlags.value, runningSessionsAtLaunch: view.runningSessionsAtLaunch.value, prStatus: view.prStatus.value, leaveButton: view.leaveButton.value, setAside: view.setAside.value, setAsideTime: view.setAsideTime.value, locale: view.locale.value, strength: view.strength.value, looks: view.looks.value };
 }
 
 /**

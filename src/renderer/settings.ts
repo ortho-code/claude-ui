@@ -79,8 +79,8 @@ document.body.insertAdjacentHTML(
       </div>
       <div class="dialog-section">
         <span class="dialog-label">Status dots</span>
-        <p class="dialog-detail">Which state a session's dot shows when several hold, such as busy and needing you, is <code>strength</code> in settings.json, set there by hand.</p>
-        <div id="settings-strength-problems"></div>
+        <p class="dialog-detail">Which state a session's dot shows when several hold, such as busy and needing you, is <code>strength</code> in settings.json, and how each status, category and type is drawn is <code>looks</code>, both set there by hand.</p>
+        <div id="settings-dots-problems"></div>
       </div>
       <div id="settings-notes" class="dialog-section" hidden>
         <span class="dialog-label">In settings.json</span>
@@ -113,7 +113,7 @@ const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonE
 const settingsFolders = document.getElementById('settings-folders')!;
 const settingsNotes = document.getElementById('settings-notes')!;
 const settingsNotesList = document.getElementById('settings-notes-list')!;
-const settingsStrengthProblems = document.getElementById('settings-strength-problems')!;
+const settingsDotsProblems = document.getElementById('settings-dots-problems')!;
 
 /**
  * The app's own folders, as Settings lists them: what each holds, where it is, and a button to open it.
@@ -331,7 +331,10 @@ const fields = [flagsField, runningField, prStatusField, leaveButtonField, setAs
 /** Fill the dialog from the settings as they stand: each setting's field, what is wrong with those set only by hand, and under the section what is wrong with the file as a whole. */
 function render(view: SettingsView): void {
   for (const field of fields) field.render(view);
-  lines(settingsStrengthProblems, 'dialog-error', view.strength.problem === null ? [] : [`The order in ${view.file.name} is not used: ${view.strength.problem}`]);
+  lines(settingsDotsProblems, 'dialog-error', [
+    ...(view.strength.problem === null ? [] : [`The order in ${view.file.name} is not used: ${view.strength.problem}`]),
+    ...(view.looks.problem === null ? [] : [`The looks in ${view.file.name} are not used: ${view.looks.problem}`]),
+  ]);
   lines(settingsNotesList, 'dialog-error', view.notes);
   settingsNotes.hidden = view.notes.length === 0;
 }

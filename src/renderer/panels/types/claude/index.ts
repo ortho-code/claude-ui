@@ -1,9 +1,8 @@
 import { element } from '../../../dom';
 import { store, type View } from '../../../state/app';
 import { sessionNudge, strengthNow, visibleTabs } from '../../../state/views';
-import { strongestNudge } from '../../../logic';
-import { builtinType, hostOf, railStatusOf } from '../builtin';
-import type { PanelStatus } from '../../contract';
+import { strongestNudge, type NudgeStatus } from '../../../logic';
+import { builtinType, hostOf, tellRail } from '../builtin';
 import './index.css';
 import { tabbar, tabbarEdge } from './tab-bar';
 import { paneEl, stepHistory } from './pane';
@@ -37,16 +36,14 @@ window.addEventListener(
 );
 
 /** What the terminal area's rail icon says while it is folded or behind another panel: waiting while a tab on show waits for you, else needs while one is marked as needing you, by the roll-up's rule, so a tab marked read counts as nothing. */
-function railStatus(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): PanelStatus {
-  return railStatusOf(
-    strongestNudge(
-      visibleTabs(view).map((tab) => sessionNudge(tab.session.id, view)),
-      strengthNow(view),
-    ),
+function railStatus(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): NudgeStatus {
+  return strongestNudge(
+    visibleTabs(view).map((tab) => sessionNudge(tab.session.id, view)),
+    strengthNow(view),
   );
 }
 
 /** The rail icon follows the tabs and their statuses: a watcher the terminal area registers (watch.ts). */
 export function railStatusFollowsTabs(view: View<'activeProject' | 'tabs' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): void {
-  hostOf('claude').setStatus(railStatus(view));
+  tellRail(hostOf('claude'), railStatus(view));
 }

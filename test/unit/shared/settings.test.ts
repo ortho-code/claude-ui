@@ -11,7 +11,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'] });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'], looks: {} });
   });
 
   it("take a language of the file in its usual case, the system's unless told otherwise, and leave out one that is no language tag", () => {
@@ -187,5 +187,24 @@ describe('the strength order', () => {
       problem: '"back-to-wrok" is neither a status, "needs-you" nor a needs-you category.',
     });
     expect(settingsView(holding({ strength: ['waiting'] })).strength.problem).toBe('It has to name "busy", "background", "idle", "closed", "needs-you" too: every status and "needs-you" once.');
+  });
+});
+
+describe('the looks', () => {
+  const mine = { 'finish-up': { colour: 'green' }, 'pr.merged': { mark: 'check' } };
+
+  it("are the file's where they read, checked against the categories and types where they are given", () => {
+    expect(settingsView(holding({ looks: mine }), 0, bundledNeedsYou()).looks).toEqual({ value: mine, problem: null });
+    expect(settingsView(holding({ looks: { 'pr.merdged': { colour: 'green' } } }), 0).looks.problem).toBeNull();
+  });
+
+  it('keep the default, every look unused, for looks with a mistake, saying why', () => {
+    expect(settingsView(holding({ looks: { ...mine, 'pr.merdged': { colour: 'green' } } }), 0, bundledNeedsYou()).looks).toEqual({
+      value: {},
+      problem: '"pr.merdged" is neither a status, "needs-you", a category nor a type.',
+    });
+    expect(settingsView(holding({ looks: { idle: { colour: 'orange' } } })).looks.problem).toBe(
+      '"idle": "colour" has to be one of "rosewater", "flamingo", "pink", "mauve", "red", "maroon", "peach", "yellow", "green", "teal", "sky", "sapphire", "blue", "lavender", "muted", or "#rrggbb".',
+    );
   });
 });

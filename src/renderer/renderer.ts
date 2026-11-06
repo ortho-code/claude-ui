@@ -28,6 +28,7 @@ import { clearNeedsYou, watchSwitchedOff } from './state/needsyou';
 import type { NeedsYouRead } from '../shared/needsyou';
 import { setScheduled, setStatus } from './state/statuses';
 import { installTooltips } from './tooltip';
+import { startLooks } from './looks';
 import { askPlatform, routeTerminals } from './terminal';
 
 // A disk change fired: re-read sessions; the store tells the list and the tabs only when the structure actually changed (a new/removed session, a rename, or a new branch becoming the tip).
@@ -63,6 +64,8 @@ store.watch(WHERE_SLICES, treeContextChanged);
 
 // A panel's rows mark the sessions they started — each one's title, status dot and the work behind it, mark read, and whether it runs — so the panels hear of every change to those, to the strength order and the categories that decide what a dot shows, and to which sessions a panel's rows started (its data, panels/links.ts).
 store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'tabs', 'panelData', 'settings', 'needsYouTypes'], treeSessionsChanged);
+
+startLooks((slices, fn) => store.watch(slices, fn), store.get());
 
 window.claudeUi.onSessionStatus((id, status, tabToken, event, background, prompt, source) => {
   // The terminal area's part first: a cleared session's successor is the tab's, a prompt calls off a stop, and the history on show reads what was added.

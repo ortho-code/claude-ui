@@ -1,13 +1,17 @@
 import { isNeeds, showsRead, stateLines, type NudgeStatus, type StateLine } from './logic';
+import { lookClass, lookOf } from './looks';
 import type { View } from './state/app';
 import { canMarkRead, toggleAck } from './state/statuses';
 import { dotStatus, mutedNeedsYou, shownRead, strengthNow, tabDot, tabWith } from './state/views';
 import { setTooltip } from './tooltip';
 
-/** The status dots: a session's own, as the sidebar row, the tab, the live strip and a list panel's row draw it, and a roll-up's, which stands for many; how each looks is base.css's `.nudge`. */
+/** The status dots: a session's own, as the sidebar row, the tab, the live strip and a list panel's row draw it, and a roll-up's, which stands for many; their shape is base.css's `.nudge`, and each state's look is a class the looks' stylesheet draws (looks.ts). */
 
-/** The class a state draws with: a needs-you reason in the needs-you mark's, any other its own. */
-const stateClass = (state: string): string => (isNeeds(state) ? 'needs' : state);
+/** The classes a state draws with: a needs-you reason's `needs` and any other state its own, then its look's. */
+function stateClass(state: string): string {
+  const look = lookOf(state);
+  return `${isNeeds(state) ? 'needs' : state}${look === null ? '' : ` ${lookClass(look)}`}`;
+}
 
 /** A session's dot: hollow with nothing to report, dimmed once read, and a control where `clickable` (a click marks it read, `ackOnClick`). */
 export function sessionDotClass(status: string | null | undefined, acked: boolean, clickable = false): string {

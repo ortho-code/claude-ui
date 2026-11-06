@@ -23,19 +23,12 @@
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--muted);
+  /* In the colour of its dot's look (looks.ts). */
+  border-left: 3px solid var(--look, var(--muted));
   border-radius: var(--radius-surface);
   box-shadow: var(--shadow-raised);
   font-size: var(--text-meta);
   cursor: pointer;
-}
-
-.notif.waiting {
-  border-left-color: var(--waiting);
-}
-
-.notif.idle {
-  border-left-color: var(--idle);
 }
 
 .notif-text {

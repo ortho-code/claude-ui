@@ -902,13 +902,24 @@ A list with a mistake is not used at all, the default in force and the mistake n
 One rule applies it for a session's dot (`shownState`, through `dotStatus`) and every roll-up alike (`sessionNudge`, the switcher, a group's jump menu, the strip's line, the tab bar's chevron, the rail icons), and what the dot shows of a reason names its type (`needs:<type>`), the strongest category's newest.
 **A roll-up puts what asks for you before what works**, each in the order (`strongestNudge`): it answers where you are needed, and a session at work needs nothing yet, while a dot says what one session is doing, so busy over a mark on a dot still leaves a marked session over a busy one in the switcher; with the default that is waiting, each category, idle, then busy, as before the order was yours.
 Reading the list literally for the roll-ups too was turned down, since it would have put busy sessions over marked ones in the switcher.
-Its dot is mauve, pulsing at waiting's pace; mauve rather than waiting's yellow, since claude is not the one asking, and rather than peach, which at 9 px read too near yellow (chosen from a mock of six).
+Its dot is mauve by default, pulsing at waiting's pace; mauve rather than waiting's yellow, since claude is not the one asking, and rather than peach, which at 9 px read too near yellow (chosen from a mock of six).
+**How each state is drawn is its look** (`looks` in `settings.json`, `shared/looks.ts`; decided 2026-11-06): for a status, `needs-you`, a category or a type, by its id, a `colour` from Catppuccin Mocha's names or `#rrggbb`, a `mark` (`dot`, `ring`, `spinner`, or an icon of the rail's set), a `core` inside a spinner, a `pulse`, and `looksLike`, another id to take the rest from.
+A look resolves field by field (`resolvedLooks`): its own field, and every field it leaves out from the one it looks like, as that one resolves, or where it looks like none, from its category's for a type, `needs-you`'s for a category, or the default for a status and `needs-you`, which are the dots as they were; so nothing changes until something is set, and a type left alone follows its category.
+A reason of a type the needs-you files do not define, which ranks at `needs-you`, draws in the needs-you look (`looksStylesheet`).
+Looking like another copies the look and never the place in the strength order.
+Your turn's types have no look of their own, being drawn as `waiting` and `idle`.
+Looks with a mistake are not used at all, the defaults in force and the mistake named in Settings beside the order's; their ids are checked against the needs-you files as the order's categories are.
+Two looks alike is allowed and does nothing more: the order still decides what a dot shows, and its tooltip names it; the defaults share one look between every category, so a warning at each clash would fire on them.
+The looks were kept in `settings.json` rather than in each category's and type's file, or a folder of their own, so how a state looks sits with the order, both in the one file the app may write when Settings gets fields for them, while the needs-you files keep saying only whether and where a reason marks.
+Read and muted are not looks: they dim and still any look, as they always did.
+Every dot that stands for a session or rolls sessions up draws its look, and an attention toast's edge its colour; a panel's run, a PR's tone, a stopping tab's square and waiting's and idle's colours used elsewhere, such as the "hasn't left" words, keep their own.
 **Its tooltip and its menu's header list every state the session is in**, a line each, in the strength order, the dot's first, behind what its tab says (`stateLines`, decided 2026-11-06): a session busy and marked says "Busy" and then why it is marked, so a mark its dot does not show is still there on hover.
 The tooltip said the shown state alone until then, and the reasons were ranked by a table of their own, a PR back to work, then finished or open again, then approved, then how the app closed, then a reminder; one order in the place of three is the reason it went.
 A session with several reasons has one dot for them all, each reason on a line of its own where its category ranks, and within one newest first (`needsYouLines`).
 A PR's reason names it by number, "Needs you — PR #35777 merged", and by its repository too, "PR acme/app#35777", only where the reasons name PRs in more than one; the PR badge beside the dot already says the rest.
 Changes found in one answer, a reason of its own type each at the same moment, are named together on one line in the same order, "PR #7 checks failed, approved", and the line ranks by its first; the PR's next change replaces them.
 A rail icon shows it in its colour where no session waits, with the default order; an order naming a category before `waiting` shows that category's mark over a waiting session there too.
+The rail icon's corner draws any look as a plain dot of its colour, never its icon or ring, since an icon on an icon's corner would read as neither; the one place a look is drawn otherwise, on purpose.
 A click on it marks it read, dimmed and still, as for idle and waiting; the mark stays, since seeing it is not settling it.
 
 **Every reason a session needs you for is of a type, and every type belongs to a category**, a section of the Now view to come: Your turn, Back to work, Ready to merge, Look again, Reminders and Finish up, in that order (decided 2026-11-06).
@@ -1283,7 +1294,7 @@ It won over a tab strip after both were tried: a strip costs a row and changes s
 
 Each type declares an icon, and an entry can pick another with `icon`, by name from a fixed set; the tooltip is the panel's title.
 A dot on an icon reports a panel that is not on show: a command whose run failed, or a session waiting for you behind `claude` or anywhere behind `sessions`.
-The dot is the status dot the rest of the app uses (`.nudge`), with one state of its own for a failed run.
+The dot is the status dot the rest of the app uses (`.nudge`), with one state of its own for a failed run; a session's state shows there as a plain dot of its look's colour (§ Status cues).
 Clicking an icon shows that panel and unfolds the group, and clicking the shown panel's own icon folds the group, as VS Code's activity bar does, so a panel is put away from the icon that brought it out.
 That icon used to do nothing, which kept the chevron the one fold control; both now call the one fold (`toggleFold`), so they cannot fold a group two ways, and the icon's tooltip and its `aria-label`, one string, say it folds.
 In a group that cannot fold the shown icon still does nothing, and has neither a pointer nor a hover to suggest otherwise.
@@ -1809,6 +1820,9 @@ A list panel's rows are not in the store, so its kebab follows a run only at the
 Anything drawn on more than one surface is a single class, never parallel rules kept in step by hand.
 Parallel rules always drift, and they drift silently: the session mark and the strip mark were the same dot in two classes, and they diverged twice — first to two different sizes, worst on the busy arc, where 7px and 9px read as two different marks rather than one state; then to a hollow ring in the list and a 9px hole in the strip for a session that had not reported yet.
 They are now one `.nudge`, with `.nudge.clickable` for a session's own dot while it is a control rather than a report.
+A state's colour, mark and pulse are in no stylesheet of the app's: they are its look (§ Status cues), written into the page as one stylesheet (`looks.ts`), a rule per look on its class, `look-<id>`, which every dot carries beside its state's (`statusdot.ts`), so a look reaches every surface without any of them building anything for it.
+That stylesheet goes first in the page, so `.nudge`'s own rules, such as read's dimming, win over a look at the same weight, and the ring of a session with nothing to report (`.single`) takes one class's weight so a look draws over it.
+Its class was chosen over a `data-` attribute because the dots of a menu or a header travel as class strings.
 The practical test: **a comment saying "match X exactly", or "same as Y", is a bug report against the stylesheet.**
 It means the relationship is being maintained by whoever remembers it.
 Extract the shared rule and let the difference be a modifier.

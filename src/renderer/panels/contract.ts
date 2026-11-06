@@ -223,8 +223,8 @@ export interface PanelHost extends Asks {
   setBusy(busy: boolean): void;
   /** The header's word on the last run: `exit 3`, `stopped after 30 s`, or '' for a run that ended well. */
   setEnd(label: string): void;
-  /** The dot on the panel's rail icon. */
-  setStatus(status: PanelStatus): void;
+  /** The dot on the panel's rail icon; for `needs`, `look` is the needs-you type whose look's colour it takes, the needs-you look's where it names none. */
+  setStatus(status: PanelStatus, look?: string): void;
   /**
    * A count the panel reports, such as how many items wait: on its rail icon and beside its title.
    * Null for none.

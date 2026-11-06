@@ -124,6 +124,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Each reason the app marks a session as needing you for, a PR's change, a reminder or running when the app closed, can be switched off, alone or with its whole category, by a `.json` file of yours under `needs-you/` in the config folder, such as `{ "id": "pr.approved", "enabled": false }`.
   Its marks already there go, a file with a mistake is named in a message and not used, and one that stops parsing stays as it last read; the reasons and their ids are in the README.
 - Which state a session's dot shows when several hold, such as busy and needing you, is `strength` in `settings.json`, a list where the first that holds wins, so a category such as `back-to-work` can show over a busy claude; the default shows the dots as before.
+- How each status, needs-you category and type is drawn is `looks` in `settings.json`: a colour, a dot, ring, spinner or icon, a pulse, or the look of another, each field set or left to what it belongs to; nothing changes until you set one.
 
 ### Changed
 

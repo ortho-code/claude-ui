@@ -3,8 +3,8 @@ import { openSettings } from '../../../settings';
 import { store, type View } from '../../../state/app';
 import { switcherModel } from '../../../state/views';
 import { strokeIcon } from '../../../svg';
-import { builtinType, hostOf, railStatusOf } from '../builtin';
-import type { PanelStatus } from '../../contract';
+import type { NudgeStatus } from '../../../logic';
+import { builtinType, hostOf, tellRail } from '../builtin';
 import './index.css';
 import { switcherEl } from './switcher';
 import { filterPanel, filterStatus, filterToggle } from './filter';
@@ -37,13 +37,13 @@ document.getElementById('parked')!.append(sidebar);
 export const sessionsType = builtinType('sessions', sidebar, 'Sessions', 'sessions', () => railStatus(store.get()), arrangementMounted);
 
 /** What the sidebar's rail icon says while it is folded or behind another panel: waiting while any session anywhere waits for you, else needs while one is marked as needing you, by the switcher's badge (`switcherModel`). */
-function railStatus(view: View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs' | 'settings' | 'needsYouTypes'>): PanelStatus {
-  return railStatusOf(switcherModel(view).all.badge);
+function railStatus(view: View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs' | 'settings' | 'needsYouTypes'>): NudgeStatus {
+  return switcherModel(view).all.badge;
 }
 
 /** The rail icon follows the sessions and their statuses: a watcher the sidebar registers (watch.ts). */
 export function railStatusFollowsSessions(view: View<'sessions' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'pendingDeletes' | 'projectNames' | 'projectOrder' | 'tabs' | 'settings' | 'needsYouTypes'>): void {
-  hostOf('sessions').setStatus(railStatus(view));
+  tellRail(hostOf('sessions'), railStatus(view));
 }
 
 // Settings as two sliders, each with its knob.

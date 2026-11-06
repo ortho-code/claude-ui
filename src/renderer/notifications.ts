@@ -1,3 +1,4 @@
+import { lookClass } from './looks';
 import { badgeClass } from './statusdot';
 import { closeIcon } from './svg';
 import './notifications.css';
@@ -25,9 +26,10 @@ export interface Attention {
  */
 export function showAttentionToast({ status, label, project, detail, open }: Attention, sticky = false): () => void {
   const el = document.createElement('div');
-  el.className = `notif ${status}`;
   const dot = document.createElement('span');
   dot.className = badgeClass(status);
+  // The edge takes the dot's look's colour, `--look`, from the look's class.
+  el.className = `notif ${status} ${lookClass(status)}`;
   // The dot/edge colour already says waiting vs finished; the text names the tab and its project.
   const text = document.createElement('span');
   text.className = 'notif-text';

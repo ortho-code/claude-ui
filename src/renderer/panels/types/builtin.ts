@@ -1,7 +1,8 @@
 import type { IconName } from '../../../shared/icons';
 import { optionProblems, optionsOf } from '../options';
-import type { MountedPanel, PanelHost, PanelStatus, PanelType } from '../contract';
+import type { MountedPanel, PanelHost, PanelType } from '../contract';
 import { isNeeds, type NudgeStatus } from '../../logic';
+import { lookOf } from '../../looks';
 
 /**
  * The app's own surfaces as panels: `sessions` is the whole sidebar (switcher, actions, filter, list, live strip, in types/sessions/) and `claude` is the terminal area (tab bar and terminals, in types/claude/).
@@ -25,9 +26,10 @@ export function hostOf(name: BuiltinName): PanelHost {
   return host;
 }
 
-/** What a built-in's rail icon says for the nudge that speaks for its sessions (`strongestNudge`): waiting, or needs for one marked as needing you, and nothing for a turn that finished or work under way, which ask nothing urgent of a panel out of sight. */
-export function railStatusOf(nudge: NudgeStatus): PanelStatus {
-  return nudge === 'waiting' ? 'wait' : isNeeds(nudge) ? 'needs' : null;
+/** Tell a built-in's rail icon the nudge that speaks for its sessions (`strongestNudge`): waiting, or needs in its type's look for one marked as needing you, and nothing for a turn that finished or work under way, which ask nothing urgent of a panel out of sight. */
+export function tellRail(host: PanelHost, nudge: NudgeStatus): void {
+  if (isNeeds(nudge)) host.setStatus('needs', lookOf(nudge) ?? undefined);
+  else host.setStatus(nudge === 'waiting' ? 'wait' : null);
 }
 
 /**
@@ -35,7 +37,7 @@ export function railStatusOf(nudge: NudgeStatus): PanelStatus {
  * Its rail icon's status is its own to say: a watcher of its own hands each change to its host (`hostOf`), and a mount, which is a new host, takes it as it is now (`railStatus`).
  * `mounted` is handed each new host too, and the host again whenever the view picked for the panel changes without a mount (`viewChanged`), for what else the built-in tells or reads of it, such as the session list's views (sessions/arrangement.ts).
  */
-export function builtinType(name: BuiltinName, el: HTMLElement, title: string, icon: IconName, railStatus: () => PanelStatus, mounted?: (host: PanelHost) => void): PanelType {
+export function builtinType(name: BuiltinName, el: HTMLElement, title: string, icon: IconName, railStatus: () => NudgeStatus, mounted?: (host: PanelHost) => void): PanelType {
   const type: PanelType = {
     name,
     options: [],
@@ -46,7 +48,7 @@ export function builtinType(name: BuiltinName, el: HTMLElement, title: string, i
     defaultTitle: () => title,
     mount: (slot, host): MountedPanel => {
       hosts.set(name, host);
-      host.setStatus(railStatus());
+      tellRail(host, railStatus());
       // Named as NOTES, never as problems: a built-in cannot be refused, since no file may produce a window without the sidebar or the terminal.
       host.setNotes(optionProblems(optionsOf(slot.entry), type).map((line) => `${slot.key}: ${line}`));
       mounted?.(host);

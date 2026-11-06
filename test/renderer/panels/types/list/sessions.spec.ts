@@ -164,14 +164,14 @@ test("a row's sessions are offered each with its own dot, as the row's mark and 
 
   // Waiting, and nothing to report yet: pulsing, and a hollow ring.
   await mark(page, 'Speed up the search').click();
-  await expect(entryDot(reviewed.title)).toHaveClass('nudge single waiting');
+  await expect(entryDot(reviewed.title)).toHaveClass('nudge single waiting look-waiting');
   await expect(entryDot(quiet.title)).toHaveClass('nudge single');
 
   // Read, on the session list's own dot: dimmed here too.
   await listDot(reviewed.title).click();
   await expect(listDot(reviewed.title)).toHaveClass(/\backed\b/);
   await mark(page, 'Speed up the search').click();
-  await expect(entryDot(reviewed.title)).toHaveClass('nudge single waiting acked');
+  await expect(entryDot(reviewed.title)).toHaveClass('nudge single waiting look-waiting acked');
 });
 
 test('a row stays lit while the menu its session mark opened is up, as a session row does', async ({ app, page }) => {

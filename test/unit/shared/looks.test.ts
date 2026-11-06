@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_STRENGTH, expandedStrength, strengthProblem } from '../../../src/shared/looks';
+import { DEFAULT_LOOKS, DEFAULT_STRENGTH, PALETTE, expandedStrength, lookIds, looksProblem, resolvedLooks, strengthProblem, type Look } from '../../../src/shared/looks';
 import { withOverrides } from '../../../src/shared/needsyou';
 import { bundledNeedsYou } from '../../renderer/support/needsyou';
 
@@ -51,5 +51,77 @@ describe('strengthProblem', () => {
     expect(strengthProblem(['merged', ...DEFAULT_STRENGTH], null)).toBeNull();
     const off = withOverrides(registry, [{ name: 'finish-up.json', json: { id: 'finish-up', enabled: false } }]).registry;
     expect(strengthProblem(['finish-up', ...DEFAULT_STRENGTH], off)).toBeNull();
+  });
+});
+
+describe('resolvedLooks', () => {
+  const resolved = (looks: Record<string, Look>): Map<string, unknown> => resolvedLooks(looks, registry);
+  const needsYou = DEFAULT_LOOKS['needs-you'];
+
+  it('gives every status its default, and every category and type but Your turn the needs-you look, with nothing set', () => {
+    const looks = resolved({});
+    expect([...looks.keys()]).toEqual(lookIds(registry));
+    expect(looks.get('busy')).toEqual(DEFAULT_LOOKS.busy);
+    expect(looks.get('finish-up')).toEqual(needsYou);
+    expect(looks.get('pr.merged')).toEqual(needsYou);
+    expect(looks.has('your-turn')).toBe(false);
+    expect(looks.has('claude.asks')).toBe(false);
+  });
+
+  it("takes a field a category leaves out from needs-you's look, so a peach category still pulses, and its types follow it", () => {
+    const looks = resolved({ 'back-to-work': { colour: 'peach' } });
+    expect(looks.get('back-to-work')).toEqual({ ...needsYou, colour: PALETTE.peach });
+    expect(looks.get('pr.conflict')).toEqual({ ...needsYou, colour: PALETTE.peach });
+    expect(looks.get('pr.merged')).toEqual(needsYou);
+  });
+
+  it('takes what a look leaves out from the one it looks like before its category, and copies no further than the fields', () => {
+    const looks = resolved({ 'pr.changes-requested': { mark: 'bug', colour: 'red' }, 'pr.checks-failed': { looksLike: 'pr.changes-requested' }, 'back-to-work': { pulse: false } });
+    expect(looks.get('pr.changes-requested')).toEqual({ ...needsYou, mark: 'bug', colour: PALETTE.red, pulse: false });
+    expect(looks.get('pr.checks-failed')).toEqual({ ...needsYou, mark: 'bug', colour: PALETTE.red, pulse: false });
+    expect(looks.get('pr.conflict')).toEqual({ ...needsYou, pulse: false });
+  });
+
+  it("draws a category that looks like a status as that status, a still green dot for idle, and a later change to the status reaches it", () => {
+    expect(resolved({ 'finish-up': { looksLike: 'idle' } }).get('pr.merged')).toEqual(DEFAULT_LOOKS.idle);
+    expect(resolved({ 'finish-up': { looksLike: 'idle' }, idle: { colour: '#ABCDEF' } }).get('pr.merged')).toEqual({ ...DEFAULT_LOOKS.idle, colour: '#abcdef' });
+  });
+
+  it("draws what looks like an id the categories do not have as a category would, from your needs-you look", () => {
+    expect(resolved({ 'pr.merged': { looksLike: 'plugin.reviewed' }, 'needs-you': { colour: 'teal' } }).get('pr.merged')).toEqual({ ...needsYou, colour: PALETTE.teal });
+  });
+
+  it("carries background's core to what looks like it, and a core of its own as #rrggbb", () => {
+    expect(resolved({ busy: { looksLike: 'background' } }).get('busy')).toEqual(DEFAULT_LOOKS.background);
+    expect(resolved({ background: { core: 'peach' } }).get('background')).toEqual({ ...DEFAULT_LOOKS.background, core: PALETTE.peach });
+  });
+});
+
+describe('looksProblem', () => {
+  it('passes nothing set, and every field with a value it allows', () => {
+    expect(looksProblem({}, registry)).toBeNull();
+    expect(looksProblem({ 'needs-you': { colour: '#123abc', mark: 'ring', core: 'teal', pulse: false }, reminders: { mark: 'clock', looksLike: 'waiting' } }, registry)).toBeNull();
+  });
+
+  it.each([
+    [[], 'It has to be an object of looks by id, such as { "finish-up": { "colour": "green" } }.'],
+    [{ 'your-turn': { colour: 'red' } }, '"your-turn" has no look of its own: Your turn\'s types are drawn as "waiting" and "idle".'],
+    [{ 'claude.asks': { colour: 'red' } }, '"claude.asks" has no look of its own: Your turn\'s types are drawn as "waiting" and "idle".'],
+    [{ merged: { colour: 'red' } }, '"merged" is neither a status, "needs-you", a category nor a type.'],
+    [{ idle: 'green' }, '"idle" has to be an object of fields, such as { "colour": "green" }.'],
+    [{ idle: { color: 'green' } }, '"idle" has "color", which a look does not have: it has "colour", "mark", "core", "pulse", "looksLike".'],
+    [{ idle: { mark: 'star' } }, '"idle": "mark" has to be "dot", "ring", "spinner" or an icon\'s name.'],
+    [{ idle: { core: 'green!' } }, '"idle": "core" has to be a colour, as "colour" is.'],
+    [{ idle: { pulse: 'yes' } }, '"idle": "pulse" has to be true or false.'],
+    [{ idle: { looksLike: 'idle' } }, '"idle" cannot look like itself.'],
+    [{ idle: { looksLike: 'merged' } }, '"idle" looks like "merged", which is neither a status, "needs-you", a category nor a type.'],
+    [{ 'finish-up': { looksLike: 'pr.merged' }, 'pr.merged': { looksLike: 'finish-up' } }, '"finish-up", "pr.merged" look like each other in a circle.'],
+  ])('names the mistake in %j', (looks, why) => {
+    expect(looksProblem(looks, registry)).toBe(why);
+  });
+
+  it('passes an id it cannot know without the categories, as for a check of a save, but never Your turn', () => {
+    expect(looksProblem({ merged: { looksLike: 'reviewed' } }, null)).toBeNull();
+    expect(looksProblem({ 'your-turn': {} }, null)).toBe('"your-turn" has no look of its own: Your turn\'s types are drawn as "waiting" and "idle".');
   });
 });

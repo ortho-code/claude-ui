@@ -4,6 +4,7 @@ import { idsIn, readNodeState, stateFromPanelState } from './nodestate';
 import { element } from '../dom';
 import { drawFoldChevron, foldChevron } from '../fold-chevron';
 import { installSplitResizer } from '../resizer';
+import { needsShown } from '../logic';
 import { badgeClass } from '../statusdot';
 // A panel header's count wears the section heading's count pill.
 import '../card.css';
@@ -607,7 +608,7 @@ function mountedFor(slot: PanelSlot): Mounted {
     return existing;
   }
   const type = types[slot.type!]!;
-  const busy = element('span', badgeClass('busy'));
+  const busy = element('span', 'nudge running');
   busy.hidden = true;
   const end = element('span', 'panel-end');
   // Per entry, since what the button would do can depend on the options; a terminal has none.
@@ -709,7 +710,7 @@ function mountedFor(slot: PanelSlot): Mounted {
     setEnd: (label) => {
       end.textContent = label;
     },
-    setStatus: (status) => showStatus(badge, status),
+    setStatus: (status, look) => showStatus(badge, status, look),
     setCount: (value) => {
       const current = mounted.get(slot.key);
       if (current?.countValue === value) return;
@@ -750,9 +751,12 @@ function mountedFor(slot: PanelSlot): Mounted {
   return entry;
 }
 
-/** The rail dot, in the status dot's own states: `waiting` and `needs` as a session's dot pulses, `failed` for a run that did not end well. */
-function showStatus(badge: HTMLElement, status: PanelStatus): void {
-  badge.className = badgeClass(status === 'wait' ? 'waiting' : status === 'needs' ? 'needs' : status === 'fail' ? 'failed' : null);
+/**
+ * The rail dot, in the status dot's own states: `waiting` and `needs` in their looks, `needs` in the look of `look` where the panel names one, `failed` for a run that did not end well.
+ * Any look draws here as a filled dot of its colour, never its icon or ring (looks.ts): an icon on an icon's corner would read as neither.
+ */
+function showStatus(badge: HTMLElement, status: PanelStatus, look?: string): void {
+  badge.className = badgeClass(status === 'wait' ? 'waiting' : status === 'needs' ? (look === undefined ? 'needs' : needsShown(look)) : status === 'fail' ? 'failed' : null);
   badge.hidden = status === null;
 }
 

@@ -367,6 +367,8 @@ export interface Settings {
   locale: string;
   /** Which state a session's dot shows when several hold, the first that holds: every status, `needs-you` for the categories not named, and any category named on its own (shared/looks.ts). */
   strength: string[];
+  /** How a status, `needs-you`, a category or a type is drawn, by its id, each entry the fields it changes; anything not set is drawn as before (shared/looks.ts). */
+  looks: Record<string, Look>;
 }
 
 export interface UiState {
@@ -440,6 +442,7 @@ import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData,
 import type { FolderName } from './folders';
 import type { NeedsYouRead } from './needsyou';
 import type { LogLevel } from './log';
+import type { Look } from './looks';
 import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './settings';
 
 export interface ClaudeUiApi {

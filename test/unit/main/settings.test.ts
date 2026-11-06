@@ -32,7 +32,7 @@ const jsonc = async (file: string): Promise<unknown> => {
   const read = readJsonc(await fs.readFile(file, 'utf8'));
   return read.ok ? read.json : read.error;
 };
-const defaults = { launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'] };
+const defaults = { launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'], looks: {} };
 const text = (file: string): Promise<string> => fs.readFile(file, 'utf8');
 const gone = (file: string): Promise<void> => expect(fs.access(file)).rejects.toThrow();
 const moves = async (): Promise<unknown> => ((await json(metaFile)) as { moved: unknown }).moved;
@@ -199,7 +199,9 @@ describe('a new settings.json', () => {
         '  // The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',
         '  "locale": "",',
         '  // Which state a session\'s dot shows when several hold, the first that holds: every status once, "needs-you" for every needs-you category not named, and any category, such as "back-to-work", named on its own where it should rank',
-        '  "strength": ["waiting", "busy", "background", "needs-you", "idle", "closed"]',
+        '  "strength": ["waiting", "busy", "background", "needs-you", "idle", "closed"],',
+        '  // How a status, "needs-you", a needs-you category or type is drawn, by its id, such as "finish-up": { "colour": "green" }: "colour" a name such as "peach" or "#rrggbb", "mark" "dot", "ring", "spinner" or an icon\'s name, "core" a colour inside a spinner, "pulse" true or false, and "looksLike" another id whose look it takes for the rest',
+        '  "looks": {}',
         '}',
         '',
       ].join('\n'),

@@ -17,10 +17,8 @@
   --active: #3b4360;
   /* A group's rail, beside its rows in the sidebar and its tabs in the tab bar: muted rather than accent, which open and active rows already use for their bars. */
   --group-rail: color-mix(in srgb, var(--muted) 25%, transparent);
-  /* Status colours, shared by the session dots, project badges and attention toasts. */
+  /* Waiting's and idle's colours where they colour something other than a session's dot, such as a PR's tone, its dot in a menu included: a session's dot takes its look from settings.json's looks (looks.ts), and a look set there must not repaint these. */
   --waiting: #f9e2af;
-  /* A session marked as needing you, such as one running when the app closed: mauve, far enough from waiting's yellow to tell apart at a dot's size, which peach was not (decided 2026-10-28, from a mock of six). */
-  --needs: #cba6f7;
   --idle: #a6e3a1;
   /* Something gone wrong: a panel's run that did not end well (its rail icon, the line above its list), a list row its script marks as danger, and a dialog's inline error. */
   --failed: #f38ba8;
@@ -247,19 +245,18 @@ button:where(:not(.icon-btn)):is(:hover, .menu-open),
 }
 
 /* THE NUDGE — one mark for a session's state, wherever it is drawn: the session rows, the live strip, the project switcher, the jump menu, the toasts.
-   The waiting pulse is part of it everywhere, including the rolled-up ones — a mark that pulses on one surface and sits still on another reads as two different states.
-   (The pulse used to be list-only, on the argument that a roll-up should be calmer; it wasn't worth the ambiguity.)
+   A state's look is the same everywhere, including the rolled-up ones — a mark that pulses on one surface and sits still on another reads as two different states.
    It used to be two near-identical classes and they drifted twice: once to two different SIZES, and once to a hollow ring in the list but a 9px hole in the strip for a session with no status yet.
-   Anything about how a nudge looks belongs here, and only here.
+   Its box is here; each state's colour, mark and pulse are the looks' stylesheet's (looks.ts), written first in the page so the rules here win at the same weight.
    Hollow when there is no status: a cold session that has not reported has to read as quiet, not as something missing.
-   Every filled state matches its border to its fill so none of them gains a rim. */
+   Every filled look matches its border to its fill so none of them gains a rim. */
 .nudge {
   width: 9px;
   height: 9px;
   border-radius: 50%;
   flex: 0 0 auto;
   background: transparent;
-  /* Transparent, not absent: the states below only set a colour, so the ring has to already be here or a filled dot would be 2px bigger than a hollow one. */
+  /* Transparent, not absent: a look only sets a colour, so the ring has to already be here or a filled dot would be 2px bigger than a hollow one. */
   border: 1px solid transparent;
 }
 
@@ -267,27 +264,10 @@ button:where(:not(.icon-btn)):is(:hover, .menu-open),
    Without it a session that has not reported yet, a cold one just started, left a 9px hole.
    A PR in a menu that has no status yet is hollow the same way, being one thing with nothing to report.
    A ROLL-UP is not marked: a project in the switcher or a group in the jump menu stands for many sessions and has no quiet state of its own, so it carries the strongest nudge underneath it or shows nothing at all.
-   Ringing every one of them just draws a column of empty circles. */
-.nudge.single {
+   Ringing every one of them just draws a column of empty circles.
+   One class's weight, so a state's look, at two, draws over it. */
+.nudge:where(.single) {
   border-color: var(--muted);
-}
-
-.nudge.waiting {
-  background: var(--waiting);
-  border-color: var(--waiting);
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-/* Needs you: pulsing at waiting's pace, since it asks for you as much, in a colour of its own, since claude is not the one asking. */
-.nudge.needs {
-  background: var(--needs);
-  border-color: var(--needs);
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-.nudge.idle {
-  background: var(--idle);
-  border-color: var(--idle);
 }
 
 /* A panel's run that failed: steady, since it waits for nobody, only for being looked at. */
@@ -302,24 +282,14 @@ button:where(:not(.icon-btn)):is(:hover, .menu-open),
   border-color: var(--pr-ink);
 }
 
-/* Busy is a spinning two-tone ring rather than a filled dot: "working" reads as motion, and it is unmistakable next to the waiting pulse.
-   2px on the inherited 9px footprint, so nothing jumps.
-   Background work spins the same ring, since it is work too. */
-.nudge.busy,
-.nudge.background {
+/* A panel's run under way, in its header: busy's spinning two-tone ring, since it is work too, but its own rule, since a run is not a session and a look set for busy must not repaint it.
+   2px on the inherited 9px footprint, so nothing jumps. */
+.nudge.running {
   border-width: 2px;
   border-color: color-mix(in srgb, var(--accent) 25%, transparent);
   border-top-color: var(--accent);
   border-right-color: var(--accent);
   animation: spin 1.5s linear infinite;
-}
-
-/* Working in the background: the turn has ended, so idle's green sits inside the ring, and work it started still runs, so the ring still spins.
-   The green is a 3px core, kept off the ring by a 1px gap, so at 9px it reads as a dot inside a spinner rather than a green ring. */
-.nudge.background {
-  padding: 1px;
-  background: var(--idle);
-  background-clip: content-box;
 }
 
 /* Stopping: a 7px square, the stop mark, kept 1px inside the 9px box so it does not read as a block next to the round dots. */
