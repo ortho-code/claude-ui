@@ -2,12 +2,12 @@ import type Sortable from 'sortablejs';
 import { element, fromMarkup } from '../../../dom';
 import { drawFoldChevron, foldChevron, offerRowFold } from '../../../fold-chevron';
 import { Keyed, placeChildren } from '../../../keyed';
-import { asksForYou, clockOf, entityKey, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, unstartableReason, worktreeMarkState } from '../../../logic';
+import { asksForYou, clockOf, entityKey, isNeeds, orderAsTabs, reorderWithinGroup, sessionLabel, statusLabel, strongestNudge, unstartableReason, worktreeMarkState } from '../../../logic';
 import { notLeftMark, showNotLeft } from '../../../notleft';
 import { markProjectGone } from '../../../projectgone';
 import { store, type TabState, type View } from '../../../state/app';
 import { showInStrip } from '../../../state/strip';
-import { projName, projectGone, projectGroups, sessionNudge, statusChanges, tabButtonOf, visibleTabs } from '../../../state/views';
+import { projName, projectGone, projectGroups, sessionNudge, statusChanges, strengthNow, tabButtonOf, visibleTabs } from '../../../state/views';
 import { setAsideMark, showSetAside } from '../../../setasidemark';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
@@ -51,7 +51,7 @@ function tabClusterKey(tab: TabState, groupOf: Record<string, string> = store.ge
 // One row per cluster: a project's ungrouped tabs share the project's own row, and each of its groups gets an indented row beneath it behind the same rail the sidebar uses.
 // A project view drops the project label (everything shown belongs to it) but keeps the group rows.
 /** What the tab bar draws from the store. */
-type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab' | 'tabBarExpanded' | 'settings'>;
+type TabBarView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'groupState' | 'projectNames' | 'projectOrder' | 'activeProject' | 'tabs' | 'activeTab' | 'tabBarExpanded' | 'settings' | 'needsYouTypes'>;
 
 export function renderTabBar(view: TabBarView): void {
   // The library owns the bar's tabs while one is dragged — it moves them, and puts its copy of the dragged one in its row — so a redraw then would undo the drag under the pointer; the drop draws what was held (`sortableFor`).
@@ -120,9 +120,9 @@ export function renderTabBar(view: TabBarView): void {
  * Only what asks for you (`asksForYou`): a tab at work asks nothing, and with a few at work out of sight, a chevron that turned for them would hardly ever be a chevron.
  * It always folds the bar to one row, whatever is on show, so that is what it says.
  */
-function drawFold(expanded: boolean, hidden: readonly TabState[], view: View<'statuses' | 'acked' | 'needsYou' | 'setAside'>): void {
-  const asking = strongestNudge(hidden.map((tab) => sessionNudge(tab.session.id, view)).filter(asksForYou));
-  const why = asking === 'needs' ? 'needs you' : `is ${statusLabel(asking ?? undefined)?.toLowerCase()}`;
+function drawFold(expanded: boolean, hidden: readonly TabState[], view: View<'statuses' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): void {
+  const asking = strongestNudge(hidden.map((tab) => sessionNudge(tab.session.id, view)).filter(asksForYou), strengthNow(view));
+  const why = asking === null || isNeeds(asking) ? 'needs you' : `is ${statusLabel(asking).toLowerCase()}`;
   const label = expanded ? 'Fold the tab bar to one row' : asking ? `Unfold the tab bar: a tab out of sight ${why}` : 'Unfold the tab bar';
   drawFoldChevron(fold, expanded ? 'up' : 'down', label);
   fold.setAttribute('aria-expanded', String(expanded));
@@ -135,7 +135,7 @@ function drawFold(expanded: boolean, hidden: readonly TabState[], view: View<'st
  * A status or a mark read changed: the bar draws again when one of its tabs' dots is among those that changed since it last followed them (`before`).
  * A watcher the terminal area registers (watch.ts).
  */
-export function tabBarFollowsStatuses(view: TabBarView, before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside'>): void {
+export function tabBarFollowsStatuses(view: TabBarView, before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): void {
   const ids = statusChanges(before, view);
   if (view.tabs.some((t) => ids.has(t.session.id))) renderTabBar(view);
 }
@@ -278,7 +278,7 @@ function buildSessionTab(token: string): SessionTabEls {
 }
 
 /** Draw a session's tab as it is now: its state, its dot, its marks, its name, and its button's step. */
-function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'projectNames' | 'tabs' | 'activeTab' | 'settings'>): HTMLElement {
+function drawSessionTab(tab: TabState, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'projectNames' | 'tabs' | 'activeTab' | 'settings' | 'needsYouTypes'>): HTMLElement {
   const { tab: els, dot, markGroup, siblingMark, worktreeMark, clock, setAside: setAside, notLeft } = tabEls.draw(tab.token, buildSessionTab);
   // 'unstartable' is the broken one — its folder is gone — and it is dimmed the way its row is, with the row's reason as its tooltip.
   const unstartable = unstartableReason(tab.session);

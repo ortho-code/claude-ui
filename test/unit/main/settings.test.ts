@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { promises as fs, mkdirSync, writeFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { readJsonc } from '../../../src/main/jsonc';
+import { bundledNeedsYou } from '../../renderer/support/needsyou';
 
 // A real folder, so settings.json, the old settings.local.json and meta.json are read from disk as main reads them.
 const { dataDir, logged } = vi.hoisted(() => {
@@ -31,7 +32,7 @@ const jsonc = async (file: string): Promise<unknown> => {
   const read = readJsonc(await fs.readFile(file, 'utf8'));
   return read.ok ? read.json : read.error;
 };
-const defaults = { launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' };
+const defaults = { launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'] };
 const text = (file: string): Promise<string> => fs.readFile(file, 'utf8');
 const gone = (file: string): Promise<void> => expect(fs.access(file)).rejects.toThrow();
 const moves = async (): Promise<unknown> => ((await json(metaFile)) as { moved: unknown }).moved;
@@ -45,7 +46,10 @@ const fresh = async (): Promise<typeof import('../../../src/main/settings')> => 
 /** A launch: the module afresh, registered, so its moves run before its first read. */
 const launch = async (): Promise<typeof import('../../../src/main/settings')> => {
   const settings = await fresh();
-  settings.registerSettings(() => null);
+  settings.registerSettings(
+    () => null,
+    () => Promise.resolve(bundledNeedsYou()),
+  );
   return settings;
 };
 
@@ -193,7 +197,9 @@ describe('a new settings.json', () => {
         '  // The time of day, as "HH:MM" in 24 hours, a choice without one comes back at',
         '  "setAsideTime": "09:00",',
         '  // The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',
-        '  "locale": ""',
+        '  "locale": "",',
+        '  // Which state a session\'s dot shows when several hold, the first that holds: every status once, "needs-you" for every needs-you category not named, and any category, such as "back-to-work", named on its own where it should rank',
+        '  "strength": ["waiting", "busy", "background", "needs-you", "idle", "closed"]',
         '}',
         '',
       ].join('\n'),
@@ -348,7 +354,10 @@ describe('telling the window', () => {
     const sent: [string, unknown][] = [];
     const window = { isDestroyed: () => false, webContents: { send: (channel: string, payload: unknown) => sent.push([channel, payload]) } };
     const stop = config.registerConfig(() => window as never);
-    settings.registerSettings(() => window as never);
+    settings.registerSettings(
+      () => window as never,
+      () => Promise.resolve(bundledNeedsYou()),
+    );
     try {
       await settings.readSettings();
       await settings.saveSettings({ launchFlags: '--a' });

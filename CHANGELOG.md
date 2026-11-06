@@ -123,6 +123,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The message either one leaves has an Undo that puts the tabs back too, and cancelling Set aside… brings the close's message back.
 - Each reason the app marks a session as needing you for, a PR's change, a reminder or running when the app closed, can be switched off, alone or with its whole category, by a `.json` file of yours under `needs-you/` in the config folder, such as `{ "id": "pr.approved", "enabled": false }`.
   Its marks already there go, a file with a mistake is named in a message and not used, and one that stops parsing stays as it last read; the reasons and their ids are in the README.
+- Which state a session's dot shows when several hold, such as busy and needing you, is `strength` in `settings.json`, a list where the first that holds wins, so a category such as `back-to-work` can show over a busy claude; the default shows the dots as before.
 
 ### Changed
 
@@ -182,6 +183,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   An open review takes in a session that crosses its 30 days within a minute too, rather than within the hour.
 - Archive is called Finished, and Unarchive Unfinished, in a session's options, the bar of selecting several and the tab's button, and Settings' Leave button says "mark the session finished"; the archived view's filter is Show finished sessions, and a finished row says when it was finished.
   Your archived sessions are your finished ones, and the filter keeps its state.
+- A dot's tooltip lists every state its session is in, as the top of its options does, both in the order the dot picks by after what its tab says, so a busy session that needs you says why on hover too.
+  A session's reasons are listed by their category, in Now's order, and newest first within one, so an approval now comes before a merge, and a merge after how the app closed.
 
 ### Fixed
 

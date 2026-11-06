@@ -2,7 +2,6 @@ import { PANEL_OUTPUT_CAP, PANEL_TIMEOUT_MS, typeFolder, type PanelContext, type
 import { stripAnsi } from '../../ansi';
 // Its rows are the session list's cards and its headings the group's bar.
 import { listCard, sectionHeading, setFolded } from '../../card';
-import { statusLabel } from '../../logic';
 import { element } from '../../dom';
 import { routeLinks } from '../../external-links';
 import { Keyed, placeChildren } from '../../keyed';
@@ -73,7 +72,7 @@ const COPIED = 'Copied.';
 const UNAVAILABLE = 'Unavailable';
 
 /** A session's state in the session list's own words, so its dot says the same here as there. */
-const stateOf = (session: LinkedSession): string => statusLabel(session.status ?? undefined, session.acked, session.background, session.needsYou ?? undefined) ?? (session.running ? 'running' : 'not running');
+const stateOf = (session: LinkedSession): string => session.said ?? (session.running ? 'running' : 'not running');
 
 /** How many rows a section lists, for its count: the rows that hold none, since a row holding rows only groups them. */
 const listed = (items: ListItem[]): number => items.reduce((count, item) => count + (item.children.length > 0 ? listed(item.children) : 1), 0);

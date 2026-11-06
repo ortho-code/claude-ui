@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { DEFAULT_STRENGTH, expandedStrength } from '../../../src/shared/looks';
+import { categoryOf } from '../../../src/shared/needsyou';
 import type { NeedsYou, PrNeedsYouType, SessionCheckout, SessionSummary } from '../../../src/shared/types';
+import { bundledNeedsYou } from '../../renderer/support/needsyou';
 import {
   projectFor,
   hasVisibleOutput,
@@ -30,7 +33,13 @@ import {
   sessionPasses,
   inView,
   nudgeOf,
-  shownStatus,
+  shownState,
+  needsYouLines,
+  stateLines,
+  isNeeds,
+  DEFAULT_RANKING,
+  type DotStates,
+  type Strength,
   strongestNudge,
   asksForYou,
   projectsForSwitcher,
@@ -424,11 +433,21 @@ describe('projectFor', () => {
   });
 });
 
+/** The strength order with the app's own categories, as `strengthNow` builds it. */
+function strengthOf(list: readonly string[] = DEFAULT_STRENGTH): Strength {
+  const registry = bundledNeedsYou();
+  return { order: expandedStrength(list, registry), categoryOf: (type) => categoryOf(registry, type) };
+}
+
+const APP_ORDER = strengthOf();
+
+const wasRunning: NeedsYou = { type: 'app.was-running', at: 1, how: 'quit' };
+
 describe('nudgeOf', () => {
   it('counts a live status, muted once read, and nothing for a session with none', () => {
     const table: [string | undefined, unread: string | null, read: string | null][] = [
       ['waiting', 'waiting', null],
-      ['needs', 'needs', null],
+      ['needs:pr.merged', 'needs:pr.merged', null],
       ['idle', 'idle', null],
       // Busy cannot be read (toggleAck), so the mark is never there to mute it.
       ['busy', 'busy', 'busy'],
@@ -444,28 +463,94 @@ describe('nudgeOf', () => {
   });
 });
 
-describe('shownStatus', () => {
+describe('shownState', () => {
   // The order decided 2026-10-28: claude working or asking shows over the mark, and the mark over a turn that finished or no status at all.
   it('shows the needs-you mark over idle, closed and no status, and busy, background and waiting over it', () => {
-    for (const status of ['idle', 'closed', undefined]) expect(shownStatus(status, true), `${status} marked`).toBe('needs');
-    for (const status of ['busy', 'background', 'waiting']) expect(shownStatus(status, true), `${status} marked`).toBe(status);
-    for (const status of ['idle', 'busy', undefined]) expect(shownStatus(status, false), `${status} unmarked`).toBe(status);
+    for (const status of ['idle', 'closed', undefined]) expect(shownState(status, [wasRunning], APP_ORDER), `${status} marked`).toBe('needs:app.was-running');
+    for (const status of ['busy', 'background', 'waiting']) expect(shownState(status, [wasRunning], APP_ORDER), `${status} marked`).toBe(status);
+    for (const status of ['idle', 'busy', undefined]) expect(shownState(status, [], APP_ORDER), `${status} unmarked`).toBe(status);
+  });
+
+  it("shows the strongest category's newest reason, one answer's changes by the order the PR types are named in", () => {
+    const merged: NeedsYou = { type: 'pr.merged', at: 9, pr: 'acme/app#1' };
+    const conflict: NeedsYou = { type: 'pr.conflict', at: 2, pr: 'acme/app#2' };
+    const checks: NeedsYou = { type: 'pr.checks-failed', at: 5, pr: 'acme/app#3' };
+    expect(shownState(undefined, [merged, conflict], APP_ORDER)).toBe('needs:pr.conflict');
+    expect(shownState(undefined, [conflict, checks], APP_ORDER)).toBe('needs:pr.checks-failed');
+    expect(shownState(undefined, [{ ...conflict, at: 5, pr: 'acme/app#3' }, checks], APP_ORDER)).toBe('needs:pr.checks-failed');
+  });
+
+  it('follows an order of your own: a category over busy, or idle over the categories', () => {
+    expect(shownState('busy', [wasRunning], strengthOf(['waiting', 'reminders', 'busy', 'background', 'needs-you', 'idle', 'closed']))).toBe('needs:app.was-running');
+    expect(shownState('idle', [wasRunning], strengthOf(['waiting', 'busy', 'background', 'idle', 'needs-you', 'closed']))).toBe('idle');
+  });
+
+  it('shows a status the order does not know as itself, and under any reason', () => {
+    expect(shownState('compacting', [], APP_ORDER)).toBe('compacting');
+    expect(shownState('compacting', [wasRunning], APP_ORDER)).toBe('needs:app.was-running');
+  });
+
+  it('places a reason of a category not known yet at needs-you, as before the categories are read', () => {
+    expect(shownState('idle', [wasRunning], DEFAULT_RANKING)).toBe('needs:app.was-running');
+    expect(shownState('busy', [wasRunning], DEFAULT_RANKING)).toBe('busy');
+  });
+});
+
+describe('the default strength order', () => {
+  // Today's rules before the order was yours, kept here as what the default must answer exactly (decided 2026-11-06).
+  const dotBefore = (status: string | undefined, marked: boolean): string | undefined => (status === 'busy' || status === 'background' || status === 'waiting' ? status : marked ? 'needs' : status);
+  const partBefore = (status: string | undefined, marked: boolean, muted: boolean, acked: boolean): string | null => {
+    const shown = dotBefore(status, marked);
+    const read = acked || (muted && shown === 'needs');
+    if (shown === 'waiting' || shown === 'needs' || shown === 'idle') return read ? null : shown;
+    return shown === 'busy' || shown === 'background' ? 'busy' : null;
+  };
+  const rollUpBefore = (parts: (string | null)[]): string | null => ['waiting', 'needs', 'idle', 'busy'].find((nudge) => parts.includes(nudge)) ?? null;
+  const asBefore = (state: string | null | undefined): string | null | undefined => (isNeeds(state) ? 'needs' : state);
+
+  const statuses = ['waiting', 'busy', 'background', 'idle', 'closed', undefined, 'compacting'];
+  const reasonSets: NeedsYou[][] = [
+    [],
+    [wasRunning],
+    [{ type: 'pr.merged', at: 3, pr: 'acme/app#1' }],
+    [
+      { type: 'pr.conflict', at: 2, pr: 'acme/app#1' },
+      { type: 'app.reminder', at: 4 },
+    ],
+  ];
+  const sessions = statuses.flatMap((status) => reasonSets.flatMap((reasons) => [false, true].flatMap((muted) => [false, true].map((acked) => ({ status, reasons, muted, acked })))));
+
+  it("answers every session's dot as the rule before it did", () => {
+    for (const { status, reasons } of sessions) expect(asBefore(shownState(status, reasons, APP_ORDER)), `${status} with ${reasons.length} reasons`).toBe(dotBefore(status, reasons.length > 0));
+  });
+
+  it('rolls every pair of sessions up as the rule before it did', () => {
+    const parts = sessions.map(({ status, reasons, muted, acked }) => ({ now: sessionPart(status, reasons, muted, acked, APP_ORDER), before: partBefore(status, reasons.length > 0, muted, acked) }));
+    for (const part of parts) expect(asBefore(part.now)).toBe(part.before);
+    for (const a of parts) for (const b of parts) expect(asBefore(strongestNudge([a.now, b.now], APP_ORDER))).toBe(rollUpBefore([a.before, b.before]));
   });
 });
 
 describe('strongestNudge', () => {
   it('ranks waiting over needs over idle over busy', () => {
-    expect(strongestNudge(['busy', 'idle', 'needs', 'waiting'])).toBe('waiting');
-    expect(strongestNudge(['busy', 'idle', 'needs'])).toBe('needs');
-    expect(strongestNudge(['busy', 'idle'])).toBe('idle');
-    expect(strongestNudge([null])).toBeNull();
+    expect(strongestNudge(['busy', 'idle', 'needs:pr.merged', 'waiting'], APP_ORDER)).toBe('waiting');
+    expect(strongestNudge(['busy', 'idle', 'needs:pr.merged'], APP_ORDER)).toBe('needs:pr.merged');
+    expect(strongestNudge(['busy', 'idle'], APP_ORDER)).toBe('idle');
+    expect(strongestNudge([null], APP_ORDER)).toBeNull();
+  });
+
+  it('ranks the categories in the order, and what asks for you over what works whatever the order says of them', () => {
+    expect(strongestNudge(['needs:pr.merged', 'needs:pr.conflict'], APP_ORDER)).toBe('needs:pr.conflict');
+    expect(strongestNudge(['needs:pr.merged', 'needs:pr.conflict'], strengthOf(['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'idle', 'closed']))).toBe('needs:pr.merged');
+    expect(strongestNudge(['busy', 'needs:pr.merged'], strengthOf(['busy', 'waiting', 'background', 'needs-you', 'idle', 'closed']))).toBe('needs:pr.merged');
+    expect(strongestNudge(['needs:pr.merged', 'idle'], strengthOf(['waiting', 'busy', 'background', 'idle', 'needs-you', 'closed']))).toBe('idle');
   });
 });
 
 describe('asksForYou', () => {
   it('is a turn that ended, waiting for you or finished, and nothing at work or with nothing to say', () => {
     expect(asksForYou('waiting')).toBe(true);
-    expect(asksForYou('needs')).toBe(true);
+    expect(asksForYou('needs:app.reminder')).toBe(true);
     expect(asksForYou('idle')).toBe(true);
     expect(asksForYou('busy')).toBe(false);
     expect(asksForYou(null)).toBe(false);
@@ -534,7 +619,7 @@ describe('projectsForSwitcher', () => {
       needsYou,
     );
     const byName = new Map(model.projects.map((f) => [f.name, f.badge]));
-    expect(byName.get('alpha')).toBe('needs');
+    expect(byName.get('alpha')).toBe('needs:app.was-running');
     expect(byName.get('beta')).toBe('waiting');
     expect(byName.get('gamma')).toBe('busy');
     // Read, it falls through as any other.
@@ -804,8 +889,8 @@ describe('groupJumpTargets', () => {
   });
 
   it('rolls up a needs-you mark over idle', () => {
-    const out = groupJumpTargets(tree({ a: 'g1' }), new Map([['c', 'idle']]), none, new Map([['c', { type: 'app.was-running' as const, at: 1, how: 'quit' as const }]]));
-    expect(out.map((t) => t.badge)).toEqual([null, null, 'needs']);
+    const out = groupJumpTargets(tree({ a: 'g1' }), new Map([['c', 'idle']]), none, new Map([['c', [wasRunning]]]));
+    expect(out.map((t) => t.badge)).toEqual([null, null, 'needs:app.was-running']);
   });
 
   it('ignores an acked session, so a muted group shows no dot', () => {
@@ -918,104 +1003,141 @@ describe('statusLabel', () => {
     expect(statusLabel('closed')).toBe('Not running');
   });
 
-  it('marks a read status without losing what it says', () => {
-    expect(statusLabel('waiting', true)).toBe('Waiting for you (read)');
-    expect(statusLabel('idle', false)).toBe('Idle');
-  });
-
-  it('says why a session needs you, by how the app closed while it ran', () => {
-    expect(statusLabel('needs', false, [], [{ type: 'app.was-running', at: 1, how: 'quit' }])).toBe('Needs you — was running when the app quit');
-    expect(statusLabel('needs', false, [], [{ type: 'app.was-running', at: 1, how: 'ended' }])).toBe('Needs you — was running when the app ended without quitting');
-    expect(statusLabel('needs', false, [], [{ type: 'app.was-running', at: 1, how: 'unknown' }])).toBe('Needs you — was running when the app last closed');
-    expect(statusLabel('needs', true, [], [{ type: 'app.was-running', at: 1, how: 'quit' }])).toBe('Needs you — was running when the app quit (read)');
-  });
-
-  it('says which day a reminder was for, from when it was marked', () => {
-    expect(statusLabel('needs', false, [], [{ type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() }])).toBe('Needs you — reminder for Mon 2 Nov, 09:00');
-  });
-
-  it("says which PR changed and into what, ranked: what is back to work, then finished, then approved, then how the app closed; newest first within a rank", () => {
-    const pr = (number: number, at: number, ...types: PrNeedsYouType[]): NeedsYou[] => types.map((type) => ({ type, at, pr: `acme/app#${number}` }));
-    // One answer's changes are a reason each at one moment, named together strongest first whatever order they are kept in.
-    const reasons = [{ type: 'app.was-running' as const, at: 9, how: 'quit' as const }, ...pr(1, 8, 'pr.approved'), ...pr(2, 1, 'pr.merged'), ...pr(3, 2, 'pr.reopened'), ...pr(4, 3, 'pr.changes-requested'), ...pr(5, 4, 'pr.conflict'), ...pr(6, 0, 'pr.approved', 'pr.checks-failed')];
-    expect(statusLabel('needs', false, [], reasons)?.split('\n')).toEqual([
-      'Needs you — PR #5 merge conflict',
-      'Needs you — PR #4 changes requested',
-      'Needs you — PR #6 checks failed, approved',
-      'Needs you — PR #3 reopened',
-      'Needs you — PR #2 merged',
-      'Needs you — PR #1 approved',
-      'Needs you — was running when the app quit',
-    ]);
-  });
-
-  it('names the repository only where the reasons name PRs in more than one', () => {
-    const reasons = [
-      { type: 'pr.merged' as const, at: 2, pr: 'acme/app#1' },
-      { type: 'pr.merged' as const, at: 1, pr: 'acme/site#2' },
-    ];
-    expect(statusLabel('needs', false, [], reasons)?.split('\n')).toEqual(['Needs you — PR acme/app#1 merged', 'Needs you — PR acme/site#2 merged']);
-  });
-
-  it("names a PR's changes from different answers on lines of their own", () => {
-    const reasons = [
-      { type: 'pr.checks-failed' as const, at: 1, pr: 'acme/app#1' },
-      { type: 'pr.approved' as const, at: 2, pr: 'acme/app#1' },
-    ];
-    expect(statusLabel('needs', false, [], reasons)?.split('\n')).toEqual(['Needs you — PR #1 checks failed', 'Needs you — PR #1 approved']);
-  });
-
-  it('lists every reason on a line of its own, how the app closed before a reminder, each saying it is read', () => {
-    const reminder = { type: 'app.reminder' as const, at: new Date(2026, 10, 2, 9).getTime() };
-    const reasons = [reminder, { type: 'app.was-running' as const, at: reminder.at + 1, how: 'quit' as const }];
-    expect(statusLabel('needs', false, [], reasons)).toBe('Needs you — was running when the app quit\nNeeds you — reminder for Mon 2 Nov, 09:00');
-    expect(statusLabel('needs', true, [], [...reasons].reverse())).toBe('Needs you — was running when the app quit (read)\nNeeds you — reminder for Mon 2 Nov, 09:00 (read)');
-  });
-
-  it('names a session on its way to a stop, and never as read, since its claude is leaving', () => {
+  it('names a session on its way to a stop', () => {
     expect(statusLabel('stopping')).toBe('Stopping — waiting for claude to leave');
-    expect(statusLabel('stopping', true)).toBe('Stopping — waiting for claude to leave');
-  });
-
-  it('says nothing at all for a session with no status', () => {
-    // The hollow dot: no tooltip rather than an empty one, so closest() falls through to whatever it sits in.
-    expect(statusLabel(undefined)).toBe(null);
-    expect(statusLabel(undefined, true)).toBe(null);
-    expect(statusLabel('')).toBe(null);
   });
 
   it('falls back to the raw value for a status it has never heard of', () => {
     // A new hook state should read oddly, not crash — but it SHOULD read oddly, which is the signal to name it here.
     expect(statusLabel('compacting')).toBe('compacting');
-    expect(statusLabel('compacting', true)).toBe('compacting (read)');
   });
 
   // Counted per type, each type in the order claude listed it first.
   it('names the work still running behind a finished turn, counted by type', () => {
-    expect(statusLabel('background', false, ['shell'])).toBe('Working in the background: 1 shell');
-    expect(statusLabel('background', false, ['shell', 'subagent', 'shell'])).toBe('Working in the background: 2 shells, 1 subagent');
-    expect(statusLabel('background', false, ['MCP task', 'MCP task'])).toBe('Working in the background: 2 MCP tasks');
+    expect(statusLabel('background', ['shell'])).toBe('Working in the background: 1 shell');
+    expect(statusLabel('background', ['shell', 'subagent', 'shell'])).toBe('Working in the background: 2 shells, 1 subagent');
+    expect(statusLabel('background', ['MCP task', 'MCP task'])).toBe('Working in the background: 2 MCP tasks');
   });
 
   // A status read back at launch, or work of a type the script could not read, says only what is known.
   it('says no more than that for background work it was told nothing about', () => {
     expect(statusLabel('background')).toBe('Working in the background');
-    expect(statusLabel('background', false, [])).toBe('Working in the background');
+    expect(statusLabel('background', [])).toBe('Working in the background');
   });
 
   it('names the work only for background', () => {
-    expect(statusLabel('busy', false, ['shell'])).toBe('Busy');
+    expect(statusLabel('busy', ['shell'])).toBe('Busy');
+  });
+});
+
+describe('needsYouLines', () => {
+  const texts = (reasons: NeedsYou[], strength = APP_ORDER): string[] => needsYouLines(reasons, strength).map((line) => line.text);
+
+  it('says why a session needs you, by how the app closed while it ran', () => {
+    expect(texts([wasRunning])).toEqual(['Needs you — was running when the app quit']);
+    expect(texts([{ type: 'app.was-running', at: 1, how: 'ended' }])).toEqual(['Needs you — was running when the app ended without quitting']);
+    expect(texts([{ type: 'app.was-running', at: 1, how: 'unknown' }])).toEqual(['Needs you — was running when the app last closed']);
+  });
+
+  it('says which day a reminder was for, from when it was marked', () => {
+    expect(texts([{ type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() }])).toEqual(['Needs you — reminder for Mon 2 Nov, 09:00']);
+  });
+
+  it("says which PR changed and into what, by its category's place in the order, newest first within one", () => {
+    const pr = (number: number, at: number, ...types: PrNeedsYouType[]): NeedsYou[] => types.map((type) => ({ type, at, pr: `acme/app#${number}` }));
+    // One answer's changes are a reason each at one moment, named together in the same order whatever order they are kept in.
+    const reasons = [wasRunning, ...pr(1, 8, 'pr.approved'), ...pr(2, 1, 'pr.merged'), ...pr(3, 2, 'pr.reopened'), ...pr(4, 3, 'pr.changes-requested'), ...pr(5, 4, 'pr.conflict'), ...pr(6, 0, 'pr.approved', 'pr.checks-failed')];
+    expect(texts(reasons)).toEqual([
+      'Needs you — PR #5 merge conflict',
+      'Needs you — PR #4 changes requested',
+      'Needs you — PR #6 checks failed, approved',
+      'Needs you — PR #1 approved',
+      'Needs you — PR #3 reopened',
+      'Needs you — was running when the app quit',
+      'Needs you — PR #2 merged',
+    ]);
+  });
+
+  it("names one answer's changes in the order's order too", () => {
+    const reasons: NeedsYou[] = [
+      { type: 'pr.reopened', at: 1, pr: 'acme/app#7' },
+      { type: 'pr.approved', at: 1, pr: 'acme/app#7' },
+    ];
+    expect(texts(reasons)).toEqual(['Needs you — PR #7 approved, reopened']);
+    expect(needsYouLines(reasons, APP_ORDER)[0]?.state).toBe('needs:pr.approved');
+  });
+
+  it('follows an order of your own', () => {
+    const reasons: NeedsYou[] = [wasRunning, { type: 'pr.merged', at: 0, pr: 'acme/app#2' }];
+    expect(texts(reasons, strengthOf(['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'idle', 'closed']))).toEqual(['Needs you — PR #2 merged', 'Needs you — was running when the app quit']);
+  });
+
+  it('names the repository only where the reasons name PRs in more than one', () => {
+    const reasons: NeedsYou[] = [
+      { type: 'pr.merged', at: 2, pr: 'acme/app#1' },
+      { type: 'pr.merged', at: 1, pr: 'acme/site#2' },
+    ];
+    expect(texts(reasons)).toEqual(['Needs you — PR acme/app#1 merged', 'Needs you — PR acme/site#2 merged']);
+  });
+
+  it("names a PR's changes from different answers on lines of their own", () => {
+    const reasons: NeedsYou[] = [
+      { type: 'pr.checks-failed', at: 1, pr: 'acme/app#1' },
+      { type: 'pr.approved', at: 2, pr: 'acme/app#1' },
+    ];
+    expect(texts(reasons)).toEqual(['Needs you — PR #1 checks failed', 'Needs you — PR #1 approved']);
+  });
+
+  it('lists reasons of one category newest first', () => {
+    const reminder: NeedsYou = { type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() };
+    expect(texts([reminder, { ...wasRunning, at: reminder.at + 1 }])).toEqual(['Needs you — was running when the app quit', 'Needs you — reminder for Mon 2 Nov, 09:00']);
+    expect(texts([reminder, { ...wasRunning, at: reminder.at - 1 }])).toEqual(['Needs you — reminder for Mon 2 Nov, 09:00', 'Needs you — was running when the app quit']);
+  });
+});
+
+describe('stateLines', () => {
+  const states = (over: Partial<DotStates>): DotStates => ({ tab: undefined, status: undefined, background: [], reasons: [], acked: false, muted: false, ...over });
+  const texts = (over: Partial<DotStates>, strength = APP_ORDER): string[] => stateLines(states(over), strength).map((line) => line.text);
+
+  it('lists every state, the one the dot shows first', () => {
+    expect(texts({ status: 'busy', reasons: [wasRunning] })).toEqual(['Busy', 'Needs you — was running when the app quit']);
+    expect(texts({ status: 'idle', reasons: [wasRunning] })).toEqual(['Needs you — was running when the app quit', 'Idle']);
+    expect(texts({ status: 'idle', reasons: [wasRunning] }, strengthOf(['waiting', 'busy', 'background', 'idle', 'needs-you', 'closed']))).toEqual(['Idle', 'Needs you — was running when the app quit']);
+  });
+
+  it("leads with what the tab says, and leaves a status nobody named last, as itself", () => {
+    expect(texts({ tab: 'stopping', status: 'busy', reasons: [wasRunning] })).toEqual(['Stopping — waiting for claude to leave', 'Busy', 'Needs you — was running when the app quit']);
+    expect(texts({ status: 'compacting', reasons: [wasRunning] })).toEqual(['Needs you — was running when the app quit', 'compacting']);
+  });
+
+  it('marks read what the dot shows, every reason where it shows one, and a muted reason wherever it is', () => {
+    expect(texts({ status: 'waiting', acked: true })).toEqual(['Waiting for you (read)']);
+    expect(texts({ status: 'idle', reasons: [wasRunning, { type: 'app.reminder', at: 0 }], acked: true })).toEqual([
+      'Needs you — was running when the app quit (read)',
+      `Needs you — reminder for ${momentLabel(0)} (read)`,
+      'Idle',
+    ]);
+    expect(texts({ status: 'busy', reasons: [wasRunning], muted: true })).toEqual(['Busy', 'Needs you — was running when the app quit (read)']);
+  });
+
+  it('never marks a stop on its way read, since its claude is leaving', () => {
+    expect(texts({ tab: 'stopping', acked: true })).toEqual(['Stopping — waiting for claude to leave']);
+  });
+
+  it('says nothing at all for a session with nothing to report', () => {
+    // The hollow dot: no tooltip rather than an empty one, so closest() falls through to whatever it sits in.
+    expect(texts({})).toEqual([]);
   });
 });
 
 describe('sessionPart', () => {
   it('rolls a muted needs-you mark up as read, as its dot shows it, and claude working or asking over it as itself', () => {
-    expect(sessionPart('idle', true, false, false)).toBe('needs');
-    expect(sessionPart('idle', true, true, false)).toBeNull();
-    expect(sessionPart(undefined, true, true, false)).toBeNull();
-    expect(sessionPart('waiting', true, true, false)).toBe('waiting');
-    expect(sessionPart('busy', true, true, false)).toBe('busy');
-    expect(sessionPart('idle', false, false, false)).toBe('idle');
+    expect(sessionPart('idle', [wasRunning], false, false, APP_ORDER)).toBe('needs:app.was-running');
+    expect(sessionPart('idle', [wasRunning], true, false, APP_ORDER)).toBeNull();
+    expect(sessionPart(undefined, [wasRunning], true, false, APP_ORDER)).toBeNull();
+    expect(sessionPart('waiting', [wasRunning], true, false, APP_ORDER)).toBe('waiting');
+    expect(sessionPart('busy', [wasRunning], true, false, APP_ORDER)).toBe('busy');
+    expect(sessionPart('idle', [], false, false, APP_ORDER)).toBe('idle');
   });
 });
 

@@ -1,6 +1,8 @@
+import { DEFAULT_STRENGTH, expandedStrength } from '../../shared/looks';
+import { categoryOf, type NeedsYouRegistry } from '../../shared/needsyou';
 import { mutedBySetAside } from '../../shared/sessionmarks';
 import type { SetAside, NeedsYou, SessionGroup, SessionSummary } from '../../shared/types';
-import { displayName, entityKey, inView, projectRootExists, projectsForSwitcher, sessionPart, sessionsByKey, shownStatus, tabButton, unstartableReason, type NudgeStatus, type SwitcherModel, type TabButton, type TabButtonTab } from '../logic';
+import { displayName, entityKey, inView, isNeeds, projectRootExists, projectsForSwitcher, sessionPart, sessionsByKey, shownState, tabButton, unstartableReason, type NudgeStatus, type Strength, type SwitcherModel, type TabButton, type TabButtonTab } from '../logic';
 import { sameOrder, store, type TabState, type View } from './app';
 
 /** What more than one surface reads out of the store: each takes the view it reads, so a repaint that calls one names those slices too. */
@@ -47,13 +49,28 @@ export function tabButtonOf(tab: TabState, view: View<'settings' | 'tabs'> = sto
   return tabButton(leaveTab(tab, view), view.settings?.leaveButton.value ?? 'stop-close');
 }
 
+let ranking: { list: readonly string[]; registry: NeedsYouRegistry; strength: Strength } | null = null;
+
 /**
- * What a session's own dot shows, wherever one stands for one session: what its tab says (`tabDot`), where it says anything, since the last report then describes a claude that has gone or is going; otherwise its status as its hooks last reported it, or its needs-you mark where claude says nothing more pressing (`shownStatus`).
- * A roll-up reads the status and the mark itself (`sessionNudge`).
+ * The strength order in force (`Settings.strength`), as it ranks, over the needs-you categories as they stand: the default until the settings are read.
+ * The same object for as long as the list and the needs-you registry are, through every read of the settings that leaves the list so, so a surface can tell a change of it by identity (`statusChanges`); a new registry with the same categories makes a new one, which only repaints more than it needs to.
  */
-export function dotStatus(id: string, view: View<'statuses' | 'tabs' | 'needsYou'>): string | undefined {
+export function strengthNow(view: View<'settings' | 'needsYouTypes'>): Strength {
+  const list = view.settings?.strength.value ?? DEFAULT_STRENGTH;
+  if (ranking?.registry !== view.needsYouTypes || !sameOrder(ranking.list, list)) {
+    const registry = view.needsYouTypes;
+    ranking = { list, registry, strength: { order: expandedStrength(list, registry), categoryOf: (type) => categoryOf(registry, type) } };
+  }
+  return ranking.strength;
+}
+
+/**
+ * What a session's own dot shows, wherever one stands for one session: what its tab says (`tabDot`), where it says anything, since the last report then describes a claude that has gone or is going; otherwise the first in the strength order of its status as its hooks last reported it and its needs-you reasons (`shownState`).
+ * A roll-up reads the status and the reasons itself (`sessionNudge`).
+ */
+export function dotStatus(id: string, view: View<'statuses' | 'tabs' | 'needsYou' | 'settings' | 'needsYouTypes'>): string | undefined {
   const tab = tabWith(id, view);
-  return (tab && tabDot(tab)) ?? shownStatus(view.statuses.get(id), view.needsYou.has(id));
+  return (tab && tabDot(tab)) ?? shownState(view.statuses.get(id), view.needsYou.get(id) ?? [], strengthNow(view));
 }
 
 /**
@@ -113,8 +130,8 @@ export function listedProjects(view: View<'sessions' | 'tabs' | 'finished' | 'pe
  * Every project in the switcher's pool, counted and rolled up in the list's order, with those whose sessions are all finished counted at none, and all of them together: the one roll-up the switcher, the strip's line, the sidebar's rail icon and a panel's session dialog read.
  * Worked out for each reader rather than kept, since it costs well under a millisecond (0.07 ms at 382 sessions, measured).
  */
-export function switcherModel(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'projectNames' | 'projectOrder'>): SwitcherModel {
-  return projectsForSwitcher(switcherPool(view), view.statuses, view.acked, view.needsYou, view.projectNames, view.projectOrder, finishedOnlyProjects(view), mutedNeedsYou(view));
+export function switcherModel(view: View<'sessions' | 'tabs' | 'finished' | 'pendingDeletes' | 'statuses' | 'acked' | 'needsYou' | 'setAside' | 'projectNames' | 'projectOrder' | 'settings' | 'needsYouTypes'>): SwitcherModel {
+  return projectsForSwitcher(switcherPool(view), view.statuses, view.acked, view.needsYou, view.projectNames, view.projectOrder, finishedOnlyProjects(view), mutedNeedsYou(view), strengthNow(view));
 }
 
 /** The sessions a view holds before any filter, finished or not (see inView). */
@@ -146,8 +163,15 @@ export function isFiltering(view: View<'filter'>): boolean {
   return searchText(view).length > 0 || Object.values(view.filter.filters).some(Boolean) || view.filter.datePreset !== 'any';
 }
 
-/** The sessions whose status, background work, read mark, needs-you mark or set-aside mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has. */
-export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside'>, after: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside'>): Set<string> {
+/**
+ * The sessions whose status, background work, read mark, needs-you mark or set-aside mark differs between two readings: what a status change asks a surface to repaint, as a status event naming one session always has.
+ * A change of the strength order (`strengthNow`) changes what any dot may show, so then every session with a status or a reason.
+ */
+export function statusChanges(
+  before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>,
+  after: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>,
+): Set<string> {
+  if (strengthNow(before) !== strengthNow(after)) return new Set([...before.statuses.keys(), ...after.statuses.keys(), ...before.needsYou.keys(), ...after.needsYou.keys()]);
   const ids = new Set<string>();
   for (const id of new Set([...before.statuses.keys(), ...after.statuses.keys()])) if (before.statuses.get(id) !== after.statuses.get(id)) ids.add(id);
   for (const id of new Set([...before.backgroundTasks.keys(), ...after.backgroundTasks.keys()])) if (!sameOrder(before.backgroundTasks.get(id) ?? [], after.backgroundTasks.get(id) ?? [])) ids.add(id);
@@ -172,8 +196,8 @@ export function tabDotChanges(before: View<'tabs'>, after: View<'tabs'>): Set<st
 }
 
 /** A session's part in a roll-up (`sessionPart`), read out of the store: a needs-you mark its set-aside mark mutes rolls up as read. */
-export function sessionNudge(id: string, view: View<'statuses' | 'acked' | 'needsYou' | 'setAside'>): NudgeStatus {
-  return sessionPart(view.statuses.get(id), view.needsYou.has(id), mutedNeedsYou(view).has(id), view.acked.has(id));
+export function sessionNudge(id: string, view: View<'statuses' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>): NudgeStatus {
+  return sessionPart(view.statuses.get(id), view.needsYou.get(id) ?? [], mutedNeedsYou(view).has(id), view.acked.has(id), strengthNow(view));
 }
 
 /**
@@ -181,7 +205,7 @@ export function sessionNudge(id: string, view: View<'statuses' | 'acked' | 'need
  * The dot still shows the mark, so its reason is there when you pick the session up again.
  */
 export function shownRead(id: string, shown: string | undefined, view: View<'acked' | 'needsYou' | 'setAside'>): boolean {
-  return view.acked.has(id) || (shown === 'needs' && mutedNeedsYou(view).has(id));
+  return view.acked.has(id) || (isNeeds(shown) && mutedNeedsYou(view).has(id));
 }
 
 let muted: { needsYou: ReadonlyMap<string, readonly NeedsYou[]>; setAside: ReadonlyMap<string, SetAside>; ids: ReadonlySet<string> } | null = null;

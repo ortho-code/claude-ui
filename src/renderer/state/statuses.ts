@@ -1,5 +1,6 @@
 import type { ScheduledTask } from '../../shared/types';
 import { store, withEntry, withMember, type View } from './app';
+import { isNeeds } from '../logic';
 import { dotStatus } from './views';
 
 /** The writes to a session's status and its mark read, which both surfaces make: a status event, a click on a dot, a tab that closes. */
@@ -21,10 +22,10 @@ export function setStatus(id: string, status: string | undefined, background: re
  * Nor a finished one, which is put away: a status it still shows is one its claude left behind, such as one that ended without saying so.
  * Reading a needs-you mark dims it and keeps it: seeing it is not settling it (`clearNeedsYou`).
  */
-export function canMarkRead(id: string, view: View<'statuses' | 'tabs' | 'finished' | 'needsYou'> = store.get()): boolean {
+export function canMarkRead(id: string, view: View<'statuses' | 'tabs' | 'finished' | 'needsYou' | 'settings' | 'needsYouTypes'> = store.get()): boolean {
   if (view.finished.has(id)) return false;
   const status = dotStatus(id, view);
-  return status === 'idle' || status === 'waiting' || status === 'needs';
+  return status === 'idle' || status === 'waiting' || isNeeds(status);
 }
 
 // Toggle the "read" mark on a session's dot: mutes a live status (dimmed, no pulse) without closing the tab or replying; a no-op where there is nothing to mark (`canMarkRead`).

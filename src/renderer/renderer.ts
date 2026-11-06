@@ -61,8 +61,8 @@ store.watch(['filter', 'folds', 'filterPanelOpen', 'stripExpanded', 'stripHidden
 // Told of the slices `whereOf` reads, the tabs among them: a `/clear` or a move into another folder changes the session under the same tab.
 store.watch(WHERE_SLICES, treeContextChanged);
 
-// A panel's rows mark the sessions they started — each one's title, status dot and the work behind it, mark read, and whether it runs — so the panels hear of every change to those, and to which sessions a panel's rows started (its data, panels/links.ts).
-store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'tabs', 'panelData'], treeSessionsChanged);
+// A panel's rows mark the sessions they started — each one's title, status dot and the work behind it, mark read, and whether it runs — so the panels hear of every change to those, to the strength order and the categories that decide what a dot shows, and to which sessions a panel's rows started (its data, panels/links.ts).
+store.watch(['sessions', 'statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'tabs', 'panelData', 'settings', 'needsYouTypes'], treeSessionsChanged);
 
 window.claudeUi.onSessionStatus((id, status, tabToken, event, background, prompt, source) => {
   // The terminal area's part first: a cleared session's successor is the tab's, a prompt calls off a stop, and the history on show reads what was added.

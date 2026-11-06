@@ -73,7 +73,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
   let terminals = 0;
   /** How many reads of settings.json main has made, which numbers each, as main's `readSettings` does. */
   let settingsReads = 0;
-  const readSettings = (): SettingsView => settingsView(fixture.settings, ++settingsReads);
+  const readSettings = (): SettingsView => settingsView(fixture.settings, ++settingsReads, fixture.needsYouTypes.registry);
   /** A pty started, claude's or a shell's, or main's refusal of one in a folder that is not there (`refuseMissing`, src/main/terminal.ts), which it makes before anything is spawned. */
   const start = (cwd: string): Promise<number> => (onDisk(cwd) === 'missing' ? Promise.reject(new Error(`MISSING_CWD:${cwd}`)) : answer(++terminals));
   /** The generation of every fixture transcript's one read: main numbers each read from the start, and the window only ever compares it with the one it holds. */

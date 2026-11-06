@@ -61,9 +61,6 @@ export function prVerdict(status: PrStatus | null): PrVerdict {
   return { tone: 'normal', words: 'open' };
 }
 
-/** Where a PR's change ranks among a session's reasons, lowest first: back to work, then finished or open again, then ready to merge (decided 2026-10-29). */
-export const PR_CHANGE_RANK: Readonly<Record<PrNeedsYouType, number>> = { 'pr.checks-failed': 0, 'pr.conflict': 0, 'pr.changes-requested': 0, 'pr.merged': 1, 'pr.closed': 1, 'pr.reopened': 1, 'pr.approved': 2 };
-
 /**
  * What a PR's status holds that needs you, each on its own, where its words name only the strongest (`prVerdict`): failing checks, a conflict, changes requested, an approved review, merged or closed.
  * Apart, so one that was there already does not read as new once a stronger one clears, and an approval shows while checks still run.

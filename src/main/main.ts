@@ -72,7 +72,7 @@ import {
   setUiState,
 } from './meta';
 import { readBundledNeedsYou, readNeedsYou } from './needsyou';
-import { registerSettings, settingsNow } from './settings';
+import { registerSettings, settingsNow, tellSettings } from './settings';
 import { rendererArguments } from './rendererargs';
 import { registerLayoutState } from './layoutstate';
 import { readProcVersion, runsOnWsl } from './platform';
@@ -513,6 +513,8 @@ onConfigChange((paths) => {
   needsYouTypes = bundledNeedsYou.then((bundled) => readNeedsYou(bundled));
   void needsYouTypes.then((read) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('needsYou:changed', read);
+    // A category added or taken away can make the strength order's names right or wrong.
+    tellSettings();
   });
 });
 ipcMain.on('meta:settleNeedsYouTypes', (_event, types: string[]) => {
@@ -670,7 +672,10 @@ void app.whenReady().then(async () => {
   registerSessionsWatcher(() => mainWindow, (file) => void transcriptChanged(file));
   registerConfig(() => mainWindow);
   registerLayoutState();
-  registerSettings(() => mainWindow);
+  registerSettings(
+    () => mainWindow,
+    () => needsYouTypes.then((read) => read.registry),
+  );
   // A session exists while a tab holds it (one that has sent nothing yet has no transcript), or while its transcript is on disk: looked at, not taken from the listing's cache, which can still name a file Claude Code's retention has since removed.
   registerPanelData(
     () => mainWindow,

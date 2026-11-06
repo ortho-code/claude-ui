@@ -365,6 +365,8 @@ export interface Settings {
   setAsideTime: string;
   /** The language the app formats times and dates in, as a BCP 47 tag such as `"en-GB"`, or `""` for the system's; a time field follows it from the next launch, the rest at once. */
   locale: string;
+  /** Which state a session's dot shows when several hold, the first that holds: every status, `needs-you` for the categories not named, and any category named on its own (shared/looks.ts). */
+  strength: string[];
 }
 
 export interface UiState {

@@ -8,6 +8,7 @@ import { errorText, log } from './log';
 import { getMoved, getSettings as getMetaSettings, markMoved } from './meta';
 import { settingsFile, settingsLocalFile } from './paths';
 import { defaultSettings } from '../shared/defaults';
+import type { NeedsYouRegistry } from '../shared/needsyou';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsInForce, settingsView, valuesOf, type SettingKey, type SettingsChange, type SettingsFileRead, type SettingsSaved, type SettingsView } from '../shared/settings';
 import type { Settings } from '../shared/types';
 
@@ -53,11 +54,14 @@ let moved: Promise<void> = Promise.resolve();
 /** How many reads of the file have started this run, which numbers each (`SettingsView.read`). */
 let reads = 0;
 
+/** The needs-you categories as they stand, which the strength order's are checked against; none until the app registers this module. */
+let registryNow: () => Promise<NeedsYouRegistry | null> = () => Promise.resolve(null);
+
 /** The settings as they stand, numbered as of when the read started, before the file is read. */
 export async function readSettings(): Promise<SettingsView> {
   await moved;
   const read = ++reads;
-  const view = settingsView(await readSettingsFile(settingsFile), read);
+  const view = settingsView(await readSettingsFile(settingsFile), read, await registryNow());
   noteSettings(view);
   return view;
 }
@@ -108,6 +112,7 @@ const STARTER_NOTES: Record<SettingKey, string> = {
   setAside: 'The choices for setting a session aside, offered in the order they come with "whenever" last: "whenever", "in 30m", "in 2h", "in 3d", "in 1w", "tomorrow" or "next monday", a day with a time such as "09:00" or else the time below',
   setAsideTime: 'The time of day, as "HH:MM" in 24 hours, a choice without one comes back at',
   locale: 'The language the app formats times and dates in, such as "en-GB" or "nl-NL", or "" for the system\'s; a time field follows it from the next launch',
+  strength: 'Which state a session\'s dot shows when several hold, the first that holds: every status once, "needs-you" for every needs-you category not named, and any category, such as "back-to-work", named on its own where it should rank',
 };
 
 /** A new `settings.json`: every setting at its default, under a line saying what it is. */
@@ -172,8 +177,24 @@ async function moveFromLocal(): Promise<void> {
   log('info', 'settings', local.status === 'missing' ? `no ${local.name} to move into ${file.name}` : `${local.name} moved into ${file.name} and taken away, its text kept in the backups folder`);
 }
 
-/** Answer the window's reads and saves, make the moves, and push the settings whenever the file changes on disk other than by the app's own write. */
-export function registerSettings(getWindow: () => BrowserWindow | null): void {
+/** Where the settings are pushed to; none until the app registers this module. */
+let windowNow: () => BrowserWindow | null = () => null;
+
+/** Read the settings and push them to the window, as after a change that can change what they say: the file's, or the needs-you categories' its strength order is checked against. */
+export function tellSettings(): void {
+  void readSettings().then((view) => {
+    const win = windowNow();
+    if (win && !win.isDestroyed()) win.webContents.send('settings:changed', view);
+  });
+}
+
+/**
+ * Answer the window's reads and saves, make the moves, and push the settings whenever the file changes on disk other than by the app's own write.
+ * `registry` gives the needs-you categories as they stand, for the strength order's check.
+ */
+export function registerSettings(getWindow: () => BrowserWindow | null, registry: () => Promise<NeedsYouRegistry>): void {
+  windowNow = getWindow;
+  registryNow = registry;
   moved = startFile()
     .catch((error: unknown) => log('warn', 'settings', `${path.basename(settingsFile)} was not written with every setting at its default: ${errorText(error)}`))
     .then(moveFromMeta)
@@ -184,9 +205,6 @@ export function registerSettings(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('settings:set', (_event, change: SettingsChange) => saveSettings(change));
   onConfigChange((paths) => {
     if (paths !== null && !paths.has(settingsFile) && !paths.has(tempOf(settingsFile))) return;
-    void readSettings().then((view) => {
-      const win = getWindow();
-      if (win && !win.isDestroyed()) win.webContents.send('settings:changed', view);
-    });
+    tellSettings();
   });
 }

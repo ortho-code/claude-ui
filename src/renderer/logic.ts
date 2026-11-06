@@ -2,10 +2,10 @@
 // renderer.ts wires these to its state and the DOM.
 import { prReference } from '../shared/prs';
 import type { LeaveButton } from '../shared/settings';
-import { isPrReason, PR_TYPES } from '../shared/needsyou';
+import { DEFAULT_STRENGTH, expandedStrength, NEEDS_YOU } from '../shared/looks';
+import { isPrReason, NO_NEEDS_YOU_TYPES, PR_TYPES } from '../shared/needsyou';
 import type { ClosedHow, GroupState, SetAside, NeedsYou, PrNeedsYouType, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
-import { PR_CHANGE_RANK, ranked } from './prstatus';
 
 // The stable key for a displayed session entity: the session's own id, always.
 // It is immutable, so pins/finished marks/tabs can never go stale — a conversation-derived key stopped matching its session the moment the session gained a sibling.
@@ -391,28 +391,72 @@ export function sessionPasses(session: SessionSummary, c: FilterCriteria): boole
     .includes(c.text.toLowerCase());
 }
 
-// A project's rolled-up nudge for the switcher: the strongest UNATTENDED status among its sessions, so a project you're not looking at still shows it needs you.
-// Priority waiting > needs > idle > busy; null when nothing needs surfacing.
-// A read session waiting, needing you or finished is muted and contributes nothing (`nudgeOf`).
-export type NudgeStatus = 'waiting' | 'needs' | 'idle' | 'busy' | null;
+/** A needs-you reason as a dot shows it: `needs:` and its type, so what a dot shows stays one word a surface can compare, and the type is there for its look. */
+export type NeedsShown = `needs:${string}`;
+
+/** A reason of `type` as a dot shows it. */
+export const needsShown = (type: string): NeedsShown => `needs:${type}`;
+
+/** Whether what a dot shows is a needs-you reason. */
+export const isNeeds = (shown: string | null | undefined): shown is NeedsShown => shown?.startsWith('needs:') === true;
+
+/** The strength order as it ranks (`expandedStrength`), and the category each type belongs to, which places a reason in it. */
+export interface Strength {
+  order: readonly string[];
+  categoryOf: (type: string) => string | null;
+}
+
+/** The order before the settings and the categories are read: the default, every reason at `needs-you`'s place. */
+export const DEFAULT_RANKING: Strength = { order: expandedStrength(DEFAULT_STRENGTH, NO_NEEDS_YOU_TYPES), categoryOf: () => null };
 
 /**
- * What a session shows of its claude's status and its needs-you mark, one rule for its dot and for every roll-up: the mark where claude says nothing more pressing.
- * Busy and background show over it, since claude is then working, and waiting does, since claude then asks you something; idle, closed and no status at all give way to it.
+ * Where a state ranks in the order, lower first: a status at its own place, a reason at its category's, or at `needs-you`'s for a category the order does not hold; a status the order does not know, last.
+ * No status at all ranks as `closed`, which draws the same.
  */
-export function shownStatus(status: string | undefined, needsYou: boolean): string | undefined {
-  if (status === 'busy' || status === 'background' || status === 'waiting') return status;
-  return needsYou ? 'needs' : status;
+export function rankOf(state: string | undefined, strength: Strength): number {
+  if (isNeeds(state)) {
+    const at = strength.order.indexOf(strength.categoryOf(state.slice('needs:'.length)) ?? NEEDS_YOU);
+    return at === -1 ? strength.order.indexOf(NEEDS_YOU) : at;
+  }
+  const at = strength.order.indexOf(state ?? 'closed');
+  return at === -1 ? Number.POSITIVE_INFINITY : at;
+}
+
+/** Where a PR type is named among those found in one answer, strongest first (`PR_TYPES`); any other type before them all. */
+const prPlace = (type: string): number => Object.keys(PR_TYPES).indexOf(type);
+
+/** A session's reasons as the order ranks them: by their category's place, then newest first, and within one answer in the order the PR types are named in. */
+function rankedReasons(reasons: readonly NeedsYou[], strength: Strength): NeedsYou[] {
+  const rank = (reason: NeedsYou): number => rankOf(needsShown(reason.type), strength);
+  return [...reasons].sort((a, b) => rank(a) - rank(b) || b.at - a.at || prPlace(a.type) - prPlace(b.type));
+}
+
+// A project's rolled-up nudge for the switcher: the strongest UNATTENDED state among its sessions, so a project you're not looking at still shows it needs you.
+// What asks for you (waiting, a needs-you reason, a finished turn) over what works, each in the strength order; null when nothing needs surfacing.
+// A read session waiting, needing you or finished is muted and contributes nothing (`nudgeOf`).
+export type NudgeStatus = 'waiting' | NeedsShown | 'idle' | 'busy' | null;
+
+/**
+ * What a session's dot shows of its claude's status and its needs-you reasons, one rule for its dot and for every roll-up: the first in the strength order that holds, a reason by its category, the strongest category's newest reason (decided 2026-11-06).
+ * With the default order that is the mark where claude says nothing more pressing: busy and background show over it, since claude is then working, and waiting does, since claude then asks you something; idle, closed and no status at all give way to it.
+ * A status the order does not know shows as itself where no reason does, so a state nobody named still reads in its tooltip.
+ */
+export function shownState(status: string | undefined, reasons: readonly NeedsYou[], strength: Strength): string | undefined {
+  const strongest = rankedReasons(reasons, strength)[0];
+  if (strongest === undefined) return status;
+  const reason = needsShown(strongest.type);
+  return rankOf(reason, strength) < rankOf(status, strength) ? reason : status;
 }
 
 /**
- * One session's part in a roll-up: what it shows (`shownStatus`), muted to nothing once read; closed, unknown or not reported yet is nothing too.
- * Only waiting, needs and idle can be read (`toggleAck`), and a new status clears the mark, so the mark mutes only those.
+ * One session's part in a roll-up: what it shows (`shownState`), muted to nothing once read, and a reason also once its set-aside mark mutes it (`muted`); closed, unknown or not reported yet is nothing too.
+ * Only waiting, a reason and idle can be read (`toggleAck`), and a new status clears the mark, so the mark mutes only those.
  * Work still running behind a finished turn (`background`) is working, so it rolls up as busy: a roll-up must not carry a "finished" that is not true yet.
  */
-export function nudgeOf(status: string | undefined, acked: boolean): NudgeStatus {
-  if (status === 'waiting' || status === 'needs' || status === 'idle') return acked ? null : status;
-  return status === 'busy' || status === 'background' ? 'busy' : null;
+export function nudgeOf(shown: string | undefined, acked: boolean, muted = false): NudgeStatus {
+  if (shown === 'waiting' || shown === 'idle') return acked ? null : shown;
+  if (isNeeds(shown)) return acked || muted ? null : shown;
+  return shown === 'busy' || shown === 'background' ? 'busy' : null;
 }
 
 export interface SwitcherProject {
@@ -429,34 +473,45 @@ export interface SwitcherModel {
   projects: SwitcherProject[];
 }
 
-/** The nudge that speaks for several: waiting over needs over idle over busy, and nothing when none has one; how sessions roll up into a project and projects into a line. */
-export function strongestNudge(nudges: Iterable<NudgeStatus>): NudgeStatus {
-  const all = new Set(nudges);
-  return all.has('waiting') ? 'waiting' : all.has('needs') ? 'needs' : all.has('idle') ? 'idle' : all.has('busy') ? 'busy' : null;
+/**
+ * The nudge that speaks for several, and nothing when none has one; how sessions roll up into a project and projects into a line.
+ * What asks for you comes before what works, each in the strength order, whatever the order says of the two (decided 2026-11-06): a roll-up says where you are needed, and a session at work there needs nothing yet, while a dot says what one session is doing.
+ * With the default order: waiting, then each category in Now's order, then idle, then busy.
+ */
+export function strongestNudge(nudges: Iterable<NudgeStatus>, strength: Strength): NudgeStatus {
+  let strongest: NudgeStatus = null;
+  for (const nudge of nudges) {
+    if (nudge === null) continue;
+    if (strongest === null || (asksForYou(nudge) && (!asksForYou(strongest) || rankOf(nudge, strength) < rankOf(strongest, strength)))) strongest = nudge;
+  }
+  return strongest;
 }
 
 /** Whether a nudge asks something of you: waiting for you, marked as needing you, or a turn that finished, and not marked read, which `nudgeOf` has already taken away; work in progress asks nothing. */
 export function asksForYou(nudge: NudgeStatus): boolean {
-  return nudge === 'waiting' || nudge === 'needs' || nudge === 'idle';
+  return nudge === 'waiting' || nudge === 'idle' || isNeeds(nudge);
 }
 
 /**
- * A session's part in a roll-up, by the rule its dot follows: what it shows (`shownStatus`), muted to nothing once read, and a needs-you mark its set-aside mark mutes (`mutedBySetAside`) is read wherever the dot shows it, so it rolls up as nothing too (decided 2026-10-29).
+ * A session's part in a roll-up, by the rule its dot follows: what it shows (`shownState`), muted to nothing once read, and a needs-you mark its set-aside mark mutes (`mutedBySetAside`) is read wherever the dot shows it, so it rolls up as nothing too (decided 2026-10-29).
  * Claude working or asking shows over the mark, and so still counts.
  */
-export function sessionPart(status: string | undefined, marked: boolean, muted: boolean, acked: boolean): NudgeStatus {
-  const shown = shownStatus(status, marked);
-  return nudgeOf(shown, acked || (muted && shown === 'needs'));
+export function sessionPart(status: string | undefined, reasons: readonly NeedsYou[], muted: boolean, acked: boolean, strength: Strength): NudgeStatus {
+  return nudgeOf(shownState(status, reasons, strength), acked, muted);
 }
 
 function rollUpNudge(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
-  needsYou: ReadonlyMap<string, unknown>,
+  needsYou: ReadonlyMap<string, readonly NeedsYou[]>,
   muted: ReadonlySet<string>,
+  strength: Strength,
 ): NudgeStatus {
-  return strongestNudge(sessions.map((s) => sessionPart(statuses.get(s.id), needsYou.has(entityKey(s)), muted.has(entityKey(s)), acked.has(s.id))));
+  return strongestNudge(
+    sessions.map((s) => sessionPart(statuses.get(s.id), needsYou.get(entityKey(s)) ?? [], muted.has(entityKey(s)), acked.has(s.id), strength)),
+    strength,
+  );
 }
 
 /**
@@ -498,22 +553,23 @@ export function projectsForSwitcher(
   sessions: SessionSummary[],
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
-  needsYou: ReadonlyMap<string, unknown>,
+  needsYou: ReadonlyMap<string, readonly NeedsYou[]>,
   names?: ReadonlyMap<string, string>,
   projectOrder: readonly string[] = [],
   finishedOnly: ReadonlyMap<string, SessionSummary[]> = new Map(),
   muted: ReadonlySet<string> = new Set(),
+  strength: Strength = DEFAULT_RANKING,
 ): SwitcherModel {
   // Same order as the sidebar sections: the switcher is the compact view of the same list, so the two must never disagree about where a project sits.
   const projects = projectEntries(sessions, finishedOnly, projectOrder).map(([repoRoot, entry]) => ({
     repoRoot,
     name: displayName(repoRoot, names),
     count: entry.shown.length,
-    badge: rollUpNudge(entry.shown, statuses, acked, needsYou, muted),
+    badge: rollUpNudge(entry.shown, statuses, acked, needsYou, muted, strength),
     rootExists: projectRootExists(folderWitnesses(entry)),
   }));
   return {
-    all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked, needsYou, muted) },
+    all: { count: sessions.length, badge: rollUpNudge(sessions, statuses, acked, needsYou, muted, strength) },
     projects,
   };
 }
@@ -677,21 +733,22 @@ export function groupJumpTargets(
   project: ProjectTree,
   statuses: ReadonlyMap<string, string>,
   acked: ReadonlySet<string>,
-  needsYou: ReadonlyMap<string, unknown>,
+  needsYou: ReadonlyMap<string, readonly NeedsYou[]>,
   muted: ReadonlySet<string> = new Set(),
+  strength: Strength = DEFAULT_RANKING,
 ): GroupJumpTarget[] {
   const targets: GroupJumpTarget[] = project.groups.map(({ group, sessions }) => ({
     groupId: group.id,
     name: group.name,
     count: sessions.length,
-    badge: rollUpNudge(sessions, statuses, acked, needsYou, muted),
+    badge: rollUpNudge(sessions, statuses, acked, needsYou, muted, strength),
   }));
   if (project.loose.length > 0) {
     targets.push({
       groupId: null,
       name: 'Ungrouped',
       count: project.loose.length,
-      badge: rollUpNudge(project.loose, statuses, acked, needsYou, muted),
+      badge: rollUpNudge(project.loose, statuses, acked, needsYou, muted, strength),
     });
   }
   return targets;
@@ -720,40 +777,73 @@ const WAS_RUNNING: Record<ClosedHow, string> = {
   unknown: 'Needs you — was running when the app last closed',
 };
 
-/** One line of a session's reasons: what it says, where it ranks, lowest first, and when its newest reason came. */
-interface NeedsLine {
+/** One line of what a session's dot can show: what it says, and the state it says it of, a status or a reason (`NeedsShown`, a PR's line by its strongest), for the dot drawn beside it. */
+export interface StateLine {
   text: string;
-  rank: number;
-  at: number;
+  state: string;
 }
 
 /**
- * A session's reasons as they are listed, in its dot's tooltip and its menu's header alike: by rank, and within a rank newest first (decided 2026-10-29): a PR's change (`PR_CHANGE_RANK`), then how the app closed, then a reminder.
- * A PR is named by its number, "PR #35777 merged", and with its repository, "PR acme/app#35777 merged", only where the reasons name PRs in more than one; the changes one answer found, a reason each at the same moment, are named together on one line, strongest first, "PR #7 checks failed, approved", and rank by the strongest.
+ * A session's reasons as they are listed, in its dot's tooltip and its menu's header alike, each where the strength order puts its category, and within one newest first (decided 2026-11-06, in place of a rank of their own).
+ * A PR is named by its number, "PR #35777 merged", and with its repository, "PR acme/app#35777 merged", only where the reasons name PRs in more than one; the changes one answer found, a reason each at the same moment, are named together on one line, in the same order, "PR #7 checks failed, approved", and the line goes where its first does.
  */
-export function needsYouLines(reasons: readonly NeedsYou[] | undefined): string[] {
-  if (!reasons?.length) return [WAS_RUNNING.unknown];
-  const prReasons = reasons.filter(isPrReason);
-  const repositories = new Set(prReasons.map((reason) => reason.pr.slice(0, reason.pr.lastIndexOf('#'))));
-  const answers = new Map<string, { pr: string; at: number; types: PrNeedsYouType[] }>();
-  for (const { pr, at, type } of prReasons) {
-    const key = `${pr}\n${at}`;
-    const answer = answers.get(key) ?? { pr, at, types: [] };
-    answer.types.push(type);
-    answers.set(key, answer);
+export function needsYouLines(reasons: readonly NeedsYou[], strength: Strength): StateLine[] {
+  const prs = new Set(reasons.filter(isPrReason).map((reason) => reason.pr));
+  const repositories = new Set([...prs].map((pr) => pr.slice(0, pr.lastIndexOf('#'))));
+  const answers = new Map<string, { pr: string; types: PrNeedsYouType[] }>();
+  const lines: { key: string; reason: NeedsYou }[] = [];
+  for (const reason of rankedReasons(reasons, strength)) {
+    if (!isPrReason(reason)) {
+      lines.push({ key: '', reason });
+      continue;
+    }
+    const key = `${reason.pr}\n${reason.at}`;
+    const answer = answers.get(key);
+    if (answer) answer.types.push(reason.type);
+    else {
+      answers.set(key, { pr: reason.pr, types: [reason.type] });
+      lines.push({ key, reason });
+    }
   }
-  const lines: NeedsLine[] = [...answers.values()].map(({ pr, at, types }) => ({
-    text: `Needs you — PR ${repositories.size > 1 ? pr : pr.slice(pr.lastIndexOf('#'))} ${ranked(types)
-      .map((type) => PR_TYPES[type])
-      .join(', ')}`,
-    rank: Math.min(...types.map((type) => PR_CHANGE_RANK[type])),
-    at,
-  }));
-  for (const reason of reasons) {
-    if (reason.type === 'app.was-running') lines.push({ text: WAS_RUNNING[reason.how], rank: 3, at: reason.at });
-    else if (reason.type === 'app.reminder') lines.push({ text: `Needs you — reminder for ${momentLabel(reason.at)}`, rank: 4, at: reason.at });
-  }
-  return lines.sort((a, b) => a.rank - b.rank || b.at - a.at).map((line) => line.text);
+  return lines.map(({ key, reason }) => {
+    const state = needsShown(reason.type);
+    const answer = answers.get(key);
+    if (answer) return { text: `Needs you — PR ${repositories.size > 1 ? answer.pr : answer.pr.slice(answer.pr.lastIndexOf('#'))} ${answer.types.map((type) => PR_TYPES[type]).join(', ')}`, state };
+    if (reason.type === 'app.was-running') return { text: WAS_RUNNING[reason.how], state };
+    if (reason.type === 'app.reminder') return { text: `Needs you — reminder for ${momentLabel(reason.at)}`, state };
+    return { text: `Needs you — ${reason.type}`, state };
+  });
+}
+
+/** What a session's dot can show, all of it: what its tab says, its status as its hooks last reported it, what still runs behind its turn, and its needs-you reasons, with whether it is read. */
+export interface DotStates {
+  /** What its tab says in its dot (`tabDot`), such as stopping, which leads, since it describes a claude that has gone or is going. */
+  tab: string | undefined;
+  status: string | undefined;
+  background: readonly string[];
+  reasons: readonly NeedsYou[];
+  /** Marked read. */
+  acked: boolean;
+  /** Its reasons muted by its set-aside mark (`mutedBySetAside`), which read as read. */
+  muted: boolean;
+}
+
+/**
+ * Every state a session is in, a line each, in its dot's tooltip and its menu's header alike: what its tab says, then its status and its reasons in the strength order, the first being what the dot shows where the tab says nothing (decided 2026-11-06, where the tooltip had said what the dot showed alone).
+ * The read mark marks what the dot shows read, all its reasons where it shows one, and a muted reason is read wherever it is.
+ * A status the order does not know goes after the rest and says itself, so a state nobody named still reads (`statusLabel`).
+ */
+export function stateLines(states: DotStates, strength: Strength): (StateLine & { read: boolean })[] {
+  const shown = states.tab ?? shownState(states.status, states.reasons, strength);
+  const reasons = needsYouLines(states.reasons, strength);
+  const status = states.status === undefined ? [] : [{ text: statusLabel(states.status, states.background), state: states.status }];
+  const ranked = [...status, ...reasons].sort((a, b) => rankOf(a.state, strength) - rankOf(b.state, strength));
+  const lines = [...(states.tab === undefined ? [] : [{ text: statusLabel(states.tab, []), state: states.tab }]), ...ranked];
+  return lines.map((line) => {
+    const isShown = line.state === shown || (isNeeds(line.state) && isNeeds(shown));
+    const read = (isShown && showsRead(line.state, states.acked)) || (isNeeds(line.state) && states.muted);
+    return read ? { ...line, text: `${line.text} (read)`, read } : { ...line, read };
+  });
 }
 
 /** A day as the set-aside mark names it: "Mon 3 Nov", in the app's own short form whatever the system's language, as the rest of its words are English. */
@@ -782,24 +872,17 @@ export function setAsideLabel(setAside: SetAside): string {
 }
 
 /**
- * A status dot's tooltip: the status as a label, plus whether it has been marked read.
+ * A status as a line of a dot's tooltip.
  * Here rather than beside the dot it decorates, because the wording is the thing worth pinning — an unknown status used to render its own internal value at the user.
  *
  * It still falls back to the raw value, deliberately: a state this table has not been taught reads oddly rather than vanishing, which is the signal to name it.
  * That only works while everything reaching here is MEANT to be a state — the identity marker `start` is not, and is filtered out where it is read rather than hidden here.
  *
  * `background` also says what still runs, from the type claude gives each piece of work (`background`), counted per type: "2 shells, 1 subagent".
- * `needs` says why, a line per reason, from the session's mark (`needsYouLines`); each line says it is read.
  */
-export function statusLabel(status: string | undefined, isAcked = false, background: readonly string[] = [], needsYou?: readonly NeedsYou[]): string | null {
-  if (!status) return null;
-  const lines =
-    status === 'background' && background.length > 0
-      ? [`${STATUS_LABEL.background}: ${countedTypes(background)}`]
-      : status === 'needs'
-        ? needsYouLines(needsYou)
-        : [STATUS_LABEL[status] ?? status];
-  return lines.map((line) => (showsRead(status, isAcked) ? `${line} (read)` : line)).join('\n');
+export function statusLabel(status: string, background: readonly string[] = []): string {
+  if (status === 'background' && background.length > 0) return `${STATUS_LABEL.background}: ${countedTypes(background)}`;
+  return STATUS_LABEL[status] ?? status;
 }
 
 /** "2 shells, 1 subagent": each type once, in the order it first appears, with how many there are. */

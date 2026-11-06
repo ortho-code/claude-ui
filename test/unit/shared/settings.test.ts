@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { fileChanges, saveRefusal, settingProblem, settingsInForce, settingsView, type SettingsFileRead } from '../../../src/shared/settings';
+import { bundledNeedsYou } from '../../renderer/support/needsyou';
 
 const missing: SettingsFileRead = { name: 'settings.json', status: 'missing', error: null, json: null };
 const holding = (json: unknown): SettingsFileRead => ({ name: 'settings.json', status: 'read', error: null, json });
@@ -10,7 +11,7 @@ describe('the settings in force', () => {
     expect(view.launchFlags).toEqual({ value: '', problem: null });
     expect(view.notes).toEqual([]);
     // What was running when the app closed comes back marked as needing you until someone chooses otherwise.
-    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '' });
+    expect(settingsInForce(view)).toEqual({ launchFlags: '', runningSessionsAtLaunch: 'cold', prStatus: true, leaveButton: 'stop-close', setAside: ['tomorrow', 'in 1w', 'whenever'], setAsideTime: '09:00', locale: '', strength: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'] });
   });
 
   it("take a language of the file in its usual case, the system's unless told otherwise, and leave out one that is no language tag", () => {
@@ -168,5 +169,23 @@ describe('what a save writes into the file', () => {
     expect(settingProblem('launchFlags', '--allowedTools Grep')).toBeNull();
     expect(settingProblem('launchFlags', '--resume x')).toBe("--resume can't be set here — claude-ui decides which session a tab resumes.");
     expect(settingProblem('launchFlags', 7)).toBe('It has to be text: the flags as you would type them.');
+  });
+});
+
+describe('the strength order', () => {
+  const mine = ['waiting', 'back-to-work', 'busy', 'background', 'needs-you', 'idle', 'closed'];
+
+  it("is the file's where it reads, checked against the categories where they are given", () => {
+    expect(settingsView(holding({ strength: mine }), 0, bundledNeedsYou()).strength).toEqual({ value: mine, problem: null });
+    expect(settingsView(holding({ strength: mine }), 0).strength).toEqual({ value: mine, problem: null });
+  });
+
+  it('keeps the default, the whole list unused, for a list with a mistake, saying why', () => {
+    const wrong = ['waiting', 'back-to-wrok', ...mine.slice(2)];
+    expect(settingsView(holding({ strength: wrong }), 0, bundledNeedsYou()).strength).toEqual({
+      value: ['waiting', 'busy', 'background', 'needs-you', 'idle', 'closed'],
+      problem: '"back-to-wrok" is neither a status, "needs-you" nor a needs-you category.',
+    });
+    expect(settingsView(holding({ strength: ['waiting'] })).strength.problem).toBe('It has to name "busy", "background", "idle", "closed", "needs-you" too: every status and "needs-you" once.');
   });
 });

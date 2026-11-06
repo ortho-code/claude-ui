@@ -9,7 +9,7 @@ import { setAsideMark, showSetAside } from '../../../setasidemark';
 import { scheduledMark, showScheduled } from '../../../scheduledmark';
 import { store, type View } from '../../../state/app';
 import { hideFromStrip } from '../../../state/strip';
-import { groupNameOf, mutedNeedsYou, projectGone, projName, projectGroups, sessionById, sessionNudge, switcherModel, switcherPool, tabButtonOf, tabOnShow, tabWith } from '../../../state/views';
+import { groupNameOf, mutedNeedsYou, projectGone, projName, projectGroups, sessionById, sessionNudge, strengthNow, switcherModel, switcherPool, tabButtonOf, tabOnShow, tabWith } from '../../../state/views';
 import { ackOnClick, applyStatus, badgeClass } from '../../../statusdot';
 import { chevronIcon, eyeIcon, tabButtonIcon } from '../../../svg';
 import { setTooltip } from '../../../tooltip';
@@ -174,7 +174,7 @@ function buildRow(id: string): StripRow {
 }
 
 /** Write what a kept row shows for its session now: its dot, its name and group, whether it is the one on show, and its tab's button in the tab's state. */
-function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'tabs' | 'settings'>): void {
+function updateRow(parts: StripRow, session: SessionSummary, groupName: string | undefined, onShow: boolean, view: View<'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'tabs' | 'settings' | 'needsYouTypes'>): void {
   const { row, jump, dot, name, clock, setAside: setAside, notLeft, chip, kebab, stop } = parts;
   applyStatus(dot, session.id, view);
   name.textContent = sessionLabel(session);
@@ -254,7 +254,7 @@ function hiddenProjects(model: SwitcherModel, ordered: StripProject[], view: Vie
   return ordered.filter((project) => view.stripHidden.has(project.repoRoot)).map((project) => ({ project, badge: badges.get(project.repoRoot) ?? null }));
 }
 
-function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden' | 'settings'>): void {
+function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden' | 'settings' | 'needsYouTypes'>): void {
   const { stripExpanded } = view;
   const overall = model.all.badge;
   stripBadge.className = badgeClass(overall);
@@ -301,7 +301,10 @@ function renderStrip(model: SwitcherModel, pool: SessionSummary[], view: View<'s
     ...(hidden.length > 0 ? [hiddenLine] : []),
   ]);
   hiddenLabel.textContent = `${hidden.length} ${hidden.length === 1 ? 'project' : 'projects'} hidden`;
-  const hiddenNudge = strongestNudge(hidden.map(({ badge }) => badge));
+  const hiddenNudge = strongestNudge(
+    hidden.map(({ badge }) => badge),
+    strengthNow(view),
+  );
   hiddenBadge.className = badgeClass(hiddenNudge);
   hiddenBadge.hidden = !hiddenNudge;
   // What this render did not draw is no longer running or marked as that session (stopped, settled, closed, or cleared into a new one), or left the pool (finished, being deleted), or its project has nothing left here.
@@ -316,7 +319,7 @@ stripToggle.addEventListener('click', () => store.set({ stripExpanded: !store.ge
 stripToggle.querySelector('.strip-chev')!.innerHTML = chevronIcon('down', 11);
 
 /** What the strip draws from the store. */
-type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden' | 'settings'>;
+type StripView = View<'sessions' | 'statuses' | 'backgroundTasks' | 'scheduledTasks' | 'acked' | 'needsYou' | 'setAside' | 'finished' | 'pendingDeletes' | 'groupState' | 'projectNames' | 'projectOrder' | 'tabs' | 'activeTab' | 'stripExpanded' | 'stripHidden' | 'settings' | 'needsYouTypes'>;
 
 /**
  * The strip follows the store, its line badged with the switcher's own roll-up (`switcherModel`) and its rows drawn from the switcher's pool.

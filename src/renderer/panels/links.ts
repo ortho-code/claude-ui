@@ -4,6 +4,7 @@ import { openMenu } from '../menu';
 import { askForSession } from '../sessiondialog';
 import { showToast } from '../toast';
 import { store, withEntry } from '../state/app';
+import { statusText } from '../statusdot';
 import { dotStatus, projName, projectGroups, shownRead, switcherModel, tabWith } from '../state/views';
 import type { Asks, LinkedSession, SessionRequest } from './contract';
 
@@ -61,8 +62,7 @@ export function sessionNamed(id: string): LinkedSession | null {
     id,
     title: sessionLabel(session),
     status: dotStatus(id, view) ?? null,
-    background: view.backgroundTasks.get(id) ?? [],
-    needsYou: view.needsYou.get(id) ?? null,
+    said: statusText(id, view),
     acked: shownRead(id, dotStatus(id, view), view),
     running: tab !== undefined && tab.terminalId !== null,
   };

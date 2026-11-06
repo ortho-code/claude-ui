@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import type { TerminalLaunch } from '../../../../../../src/shared/types';
 import { exitLater } from '../../../../support/clock';
-import { session } from '../../../../support/fixture';
+import { session, settingsFileWith } from '../../../../support/fixture';
 import { type App, expect, test } from '../../../../support/harness';
 import { switchedOff } from '../../../../support/needsyou';
 import { row, stripRow, switcherEntry, tab, tabLabels, toastButton } from '../../../../support/window';
@@ -56,26 +56,62 @@ test('the mark shows on its row, its tab and its strip row by one class, with it
   await expect(page.locator('#strip-label')).toHaveText('1 of 1 need you');
 });
 
-// The dot shows the strongest state; the menu's header lists each, with its dot, under where the session is filed (decided 2026-10-28).
+// The dot shows the strongest state; the menu's header lists each, with its dot, under where the session is filed, in the strength order, the dot's first (decided 2026-10-28, ordered 2026-11-06).
 test("the menu's header lists every state the session is in, each with its dot, the needs-you mark saying why", async ({ app, page }) => {
   await app.boot({ ...fixture, statuses: { [one.id]: 'idle' } });
   await row(page, one.title).locator('.session-kebab').click();
   const lines = page.locator('.kebab-menu .menu-header .menu-header-line');
   await expect(lines.nth(1)).toHaveText('demo');
   const dotted = page.locator('.kebab-menu .menu-header .menu-header-line.dotted');
-  await expect(dotted).toHaveText(['Idle', 'Needs you — was running when the app quit']);
-  await expect(dotted.nth(0).locator('.nudge')).toHaveClass(/\bidle\b/);
-  await expect(dotted.nth(1).locator('.nudge')).toHaveClass(/\bneeds\b/);
+  await expect(dotted).toHaveText(['Needs you — was running when the app quit', 'Idle']);
+  await expect(dotted.nth(0).locator('.nudge')).toHaveClass(/\bneeds\b/);
+  await expect(dotted.nth(1).locator('.nudge')).toHaveClass(/\bidle\b/);
 });
 
-// Every reason is listed, by rank and then newest first (decided 2026-10-29); one dot stands for them all.
+// The tooltip lists every state, as the header does, so a mark a busy dot does not show is still there on hover (decided 2026-11-06).
+test("a session marked while claude works shows busy on its dot, and its tooltip lists the mark under it", async ({ app, page }) => {
+  await app.boot({ ...fixture, statuses: { [one.id]: 'busy' } });
+  for (const dot of dots(page)) {
+    await expect(dot).toHaveClass(/\bbusy\b/);
+    await expect(dot).toHaveAttribute('data-tooltip', 'Busy\nNeeds you — was running when the app quit');
+  }
+});
+
+// The strength order is yours, in settings.json: a category named over busy shows over claude working, on every dot and in the tooltip's order.
+test('a strength order naming Reminders over busy shows the mark over a busy claude', async ({ app, page }) => {
+  await app.boot({ ...fixture, statuses: { [one.id]: 'busy' }, settings: settingsFileWith('settings.json', { strength: ['waiting', 'reminders', 'busy', 'background', 'needs-you', 'idle', 'closed'] }) });
+  for (const dot of dots(page)) {
+    await expect(dot).toHaveClass(/\bneeds\b/);
+    await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit\nBusy');
+  }
+});
+
+test('a strength order changed on disk while the app runs repaints every dot and roll-up at once', async ({ app, page }) => {
+  await app.boot({ ...fixture, statuses: { [one.id]: 'idle' } });
+  for (const dot of dots(page)) await expect(dot).toHaveClass(/\bneeds\b/);
+  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bneeds\b/);
+  await app.settingsOnDisk(settingsFileWith('settings.json', { strength: ['waiting', 'busy', 'background', 'idle', 'needs-you', 'closed'] }));
+  for (const dot of dots(page)) await expect(dot).toHaveClass(/\bidle\b/);
+  await expect(switcherEntry(page, 'demo').locator('.nudge')).toHaveClass(/\bidle\b/);
+});
+
+test('a strength order with a mistake is not used, and Settings says why', async ({ app, page }) => {
+  await app.boot({ ...fixture, statuses: { [one.id]: 'busy' }, settings: settingsFileWith('settings.json', { strength: ['waiting', 'reminder', 'busy', 'background', 'needs-you', 'idle', 'closed'] }) });
+  for (const dot of dots(page)) await expect(dot).toHaveClass(/\bbusy\b/);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Settings' }).locator('#settings-strength-problems')).toHaveText(
+    'The order in settings.json is not used: "reminder" is neither a status, "needs-you" nor a needs-you category.',
+  );
+});
+
+// Every reason is listed, by its category's place in the strength order and then newest first (decided 2026-10-29, by category 2026-11-06); one dot stands for them all.
 test("a session with two reasons lists both in its dot's tooltip and its menu's header, and a prompt takes both off", async ({ app, page }) => {
   const reminder = { type: 'app.reminder' as const, at: new Date(2026, 10, 2, 9).getTime() };
   await app.boot({ ...fixture, needsYou: { [one.id]: [mark, reminder] } });
-  for (const dot of dots(page)) await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit\nNeeds you — reminder for Mon 2 Nov, 09:00');
+  for (const dot of dots(page)) await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — reminder for Mon 2 Nov, 09:00\nNeeds you — was running when the app quit');
   await row(page, one.title).locator('.session-kebab').click();
   const dotted = page.locator('.kebab-menu .menu-header .menu-header-line.dotted');
-  await expect(dotted).toHaveText(['Needs you — was running when the app quit', 'Needs you — reminder for Mon 2 Nov, 09:00']);
+  await expect(dotted).toHaveText(['Needs you — reminder for Mon 2 Nov, 09:00', 'Needs you — was running when the app quit']);
   for (const line of await dotted.all()) await expect(line.locator('.nudge')).toHaveClass(/\bneeds\b/);
   await page.keyboard.press('Escape');
 

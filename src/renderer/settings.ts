@@ -77,6 +77,11 @@ document.body.insertAdjacentHTML(
         <input id="settings-locale" class="dialog-field" type="text" spellcheck="false" autocomplete="off" />
         <p id="settings-locale-error" class="dialog-error" hidden></p>
       </div>
+      <div class="dialog-section">
+        <span class="dialog-label">Status dots</span>
+        <p class="dialog-detail">Which state a session's dot shows when several hold, such as busy and needing you, is <code>strength</code> in settings.json, set there by hand.</p>
+        <div id="settings-strength-problems"></div>
+      </div>
       <div id="settings-notes" class="dialog-section" hidden>
         <span class="dialog-label">In settings.json</span>
         <div id="settings-notes-list"></div>
@@ -108,6 +113,7 @@ const settingsCancel = document.getElementById('settings-cancel') as HTMLButtonE
 const settingsFolders = document.getElementById('settings-folders')!;
 const settingsNotes = document.getElementById('settings-notes')!;
 const settingsNotesList = document.getElementById('settings-notes-list')!;
+const settingsStrengthProblems = document.getElementById('settings-strength-problems')!;
 
 /**
  * The app's own folders, as Settings lists them: what each holds, where it is, and a button to open it.
@@ -322,9 +328,10 @@ const localeField = new SettingField(
 /** Every setting's field. */
 const fields = [flagsField, runningField, prStatusField, leaveButtonField, setAsideField, setAsideTimeField, localeField];
 
-/** Fill the dialog from the settings as they stand: each setting's field, and under the section what is wrong with the file as a whole. */
+/** Fill the dialog from the settings as they stand: each setting's field, what is wrong with those set only by hand, and under the section what is wrong with the file as a whole. */
 function render(view: SettingsView): void {
   for (const field of fields) field.render(view);
+  lines(settingsStrengthProblems, 'dialog-error', view.strength.problem === null ? [] : [`The order in ${view.file.name} is not used: ${view.strength.problem}`]);
   lines(settingsNotesList, 'dialog-error', view.notes);
   settingsNotes.hidden = view.notes.length === 0;
 }

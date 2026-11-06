@@ -1,4 +1,3 @@
-import type { NeedsYou } from '../../shared/types';
 import type { LeaveAction, TabButtonMark } from '../logic';
 import type { MenuItem } from '../menu';
 import type { IconName } from './icons';
@@ -84,10 +83,8 @@ export interface LinkedSession {
   title: string;
   /** The status dot's state, as the session list draws it; null for a session with nothing to report. */
   status: string | null;
-  /** For a `background` status, what still runs behind its finished turn, by the type claude gives each piece of work; empty when nothing is known. */
-  background: readonly string[];
-  /** For a `needs` status, every reason it needs you for, each with since when; null otherwise. */
-  needsYou: readonly NeedsYou[] | null;
+  /** What its dot says on hover, every state it is in in the strength order (`statusText`); null for nothing to report. */
+  said: string | null;
   /** Its dot marked read, or showing a needs-you mark its set-aside mark mutes, which looks read (`shownRead`). */
   acked: boolean;
   /** A tab holds it with its process live. */

@@ -4,7 +4,7 @@ import { structuralSignature, buildProjectTree, entityKey, type ProjectTree, gro
 import { markProjectGone } from '../../../projectgone';
 import { onMinute } from '../../../moments';
 import { sameOrder, store, type TabState, type View } from '../../../state/app';
-import { finishedOnlyProjects, isFiltering, mutedNeedsYou, projName, searchText, statusChanges, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
+import { finishedOnlyProjects, isFiltering, mutedNeedsYou, projName, searchText, statusChanges, strengthNow, tabDotChanges, tabOnShow, tabWith, viewPool, visibleSessions } from '../../../state/views';
 import { applyStatus } from '../../../statusdot';
 import { folderIcon } from '../../../svg';
 import { setUnavailable } from '../../../unavailable';
@@ -71,7 +71,7 @@ function listFollowsTabs(view: ListView, { tabs: before }: View<'tabs'>): void {
 }
 
 /** Repaint the dots of these sessions' rows, those drawn, from what each shows now. */
-function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'finished'>): void {
+function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'finished' | 'settings' | 'needsYouTypes'>): void {
   for (const id of ids) {
     const dot = statusDots.get(id);
     if (dot) applyStatus(dot, id, view);
@@ -79,10 +79,13 @@ function repaintDots(ids: Set<string>, view: View<'statuses' | 'backgroundTasks'
 }
 
 /**
- * A status, the work behind one, a mark read, a needs-you mark or a set-aside mark, which can mute it, changed: repaint the rows' dots that differ from what they were last painted from (`before`).
+ * A status, the work behind one, a mark read, a needs-you mark or a set-aside mark, which can mute it, changed, or the strength order or the categories that place a reason in it: repaint the rows' dots that differ from what they were last painted from (`before`).
  * Not the list: it paints every dot it draws itself, and this is what keeps them current between its renders.
  */
-function dotsFollowStatuses(view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'finished'>, before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside'>): void {
+function dotsFollowStatuses(
+  view: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'tabs' | 'finished' | 'settings' | 'needsYouTypes'>,
+  before: View<'statuses' | 'backgroundTasks' | 'acked' | 'needsYou' | 'setAside' | 'settings' | 'needsYouTypes'>,
+): void {
   repaintDots(statusChanges(before, view), view);
 }
 
@@ -93,7 +96,7 @@ const LIST_TABS = ['tabs', 'activeTab'] as const;
 /**
  * What the list reads and is never told of: a status change repaints only the dots (`dotsFollowStatuses`); a fold only folds what is drawn (`foldsFollow`); and whether the filter panel is open.
  */
-const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'needsYou', 'folds', 'filterPanelOpen', 'bulk'] as const;
+const LIST_QUIET = ['statuses', 'backgroundTasks', 'acked', 'needsYou', 'needsYouTypes', 'folds', 'filterPanelOpen', 'bulk'] as const;
 
 /** Everything the list draws from the store. */
 type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (typeof LIST_QUIET)[number]>;
@@ -102,7 +105,7 @@ type ListView = View<(typeof LIST_TOLD)[number] | (typeof LIST_TABS)[number] | (
 export function watchList(): void {
   store.watch(LIST_TOLD, listChanged, { reads: [...LIST_TABS, ...LIST_QUIET] });
   store.watch(LIST_TABS, listFollowsTabs, { reads: [...LIST_TOLD, ...LIST_QUIET] });
-  store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside'], dotsFollowStatuses, { reads: ['tabs', 'finished'] });
+  store.watch(['statuses', 'backgroundTasks', 'acked', 'needsYou', 'setAside', 'settings', 'needsYouTypes'], dotsFollowStatuses, { reads: ['tabs', 'finished'] });
   store.watch(['folds'], foldsFollow, { reads: ['filter', 'activeProject', 'arrangement'] });
   // Bulk mode draws its boxes, its count and its acts over the rows as drawn, without drawing the list again; the tabs say what Stop and Close can do, and turning the finished view on or off ends it outside the review.
   store.watch(['bulk', 'tabs', 'filter'], bulkFollows, { reads: ['reviewing', 'activeProject', 'projectNames'] });
@@ -304,7 +307,7 @@ function reconcileProjectSections(desired: ProjectTree[], view: RowView & View<'
     els.label.textContent = projName(project.repoRoot, view); // keep the heading current (e.g. after a rename)
     // Below 2 targets there is nowhere to jump, and the heading is already carrying six controls at a 320px sidebar — so the button is absent rather than dimmed.
     // Under a filter it offers the places the filter left drawn, and a pick unfolds the filter's own folds on the way.
-    const targets = groupJumpTargets(project, view.statuses, view.acked, view.needsYou, mutedNeedsYou(view));
+    const targets = groupJumpTargets(project, view.statuses, view.acked, view.needsYou, mutedNeedsYou(view), strengthNow(view));
     jumpTargets.set(project.repoRoot, targets);
     els.groupsBtn.hidden = targets.length < 2;
     // Nothing can be started in a folder that is not there.
