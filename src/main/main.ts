@@ -69,6 +69,7 @@ import {
   getUiState,
   setUiState,
 } from './meta';
+import { readBundledNeedsYou } from './needsyou';
 import { registerSettings, settingsNow } from './settings';
 import { rendererArguments } from './rendererargs';
 import { registerLayoutState } from './layoutstate';
@@ -501,6 +502,9 @@ ipcMain.on('meta:setActiveSession', (_event, id: string | null, repoRoot?: strin
 });
 ipcMain.handle('meta:getRunningSessions', () => getRunningSessions());
 ipcMain.handle('meta:getNeedsYou', () => getNeedsYou());
+// Read once, as the app starts: they are the app's own files, which change only with the app.
+const needsYouTypes = readBundledNeedsYou();
+ipcMain.handle('needsYou:types', () => needsYouTypes);
 ipcMain.on('meta:markNeedsYou', (_event, ids: string[], reasons: NeedsYou[]) => {
   void markNeedsYou(ids, reasons);
 });

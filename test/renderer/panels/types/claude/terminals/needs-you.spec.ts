@@ -9,7 +9,7 @@ import { row, stripRow, switcherEntry, tab, tabLabels, toastButton } from '../..
 // Its dot shows it where claude says nothing more pressing, on its row, its tab and its strip row alike, and a click there only marks it seen (decided 2026-10-28).
 const one = session({ id: '00000000-0000-4000-8000-0000000000e1', title: 'Marked session' });
 const two = session({ id: '00000000-0000-4000-8000-0000000000e2', title: 'Other session' });
-const mark = { reason: 'quit' as const, at: 1 };
+const mark = { type: 'app.was-running' as const, at: 1, how: 'quit' as const };
 const fixture = { sessions: [one, two], openSessions: [one.id, two.id], needsYou: { [one.id]: [mark] }, history: { [one.id]: [], [two.id]: [] } };
 // The stand-in numbers the ptys it starts from 1, and the default layout starts no shell, so the first claude is 1.
 const FIRST = 1;
@@ -64,7 +64,7 @@ test("the menu's header lists every state the session is in, each with its dot, 
 
 // Every reason is listed, by rank and then newest first (decided 2026-10-29); one dot stands for them all.
 test("a session with two reasons lists both in its dot's tooltip and its menu's header, and a prompt takes both off", async ({ app, page }) => {
-  const reminder = { reason: 'reminder' as const, at: new Date(2026, 10, 2, 9).getTime() };
+  const reminder = { type: 'app.reminder' as const, at: new Date(2026, 10, 2, 9).getTime() };
   await app.boot({ ...fixture, needsYou: { [one.id]: [mark, reminder] } });
   for (const dot of dots(page)) await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit\nNeeds you — reminder for Mon 2 Nov, 09:00');
   await row(page, one.title).locator('.session-kebab').click();

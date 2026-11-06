@@ -2,14 +2,15 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { SetAside, NeedsYou, NeedsYouReason, OrderMove, GroupState, HistoryPin, PrChange, PrSeen, PrStatus, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
+import type { SetAside, NeedsYou, ClosedHow, OrderMove, GroupState, HistoryPin, PrChange, PrNeedsYouType, PrSeen, PrStatus, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
 import { scheduledTasksOf } from '../shared/scheduled';
 import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, NEEDS_YOU_REASONS, PR_CHANGES, purgedSession, togglePinned, clearedFinished, unkept } from '../shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, purgedSession, togglePinned, clearedFinished, unkept } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
+import { isPrReason, isPrType, PR_TYPES } from '../shared/needsyou';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
 import { errorText, fsFailure, log, logOnce } from './log';
@@ -73,6 +74,7 @@ interface Meta {
   /**
    * The sessions marked as needing you, by session id: every reason, each with since when.
    * Kept whether or not a tab holds the session, so a mark outlives a launch that leaves it unopened, until the window takes it off for a prompt there, Clear needs you, a close or your leaving claude, or main does for a finish or a delete.
+   * Written with each reason's older form beside its type (`storedNeedsYou`), so a build from before reasons had types still reads every mark.
    */
   needsYou: Record<string, NeedsYou[]>;
   /**
@@ -490,7 +492,7 @@ async function writeMetaFile(meta: Meta): Promise<void> {
   // Known keys are written second so they always win, though by construction the two sets cannot overlap.
   const { extra, ...known } = meta;
   // Atomic, so a crash mid-write leaves the live meta.json intact; the queue below is what keeps two writes from sharing the temp file.
-  await writeWithBackups(file, JSON.stringify({ ...extra, ...known }, null, 2), { at: file, isGood: isJson, outgoing, current, onVersionChange: () => stampVersionChange(outgoing, current) });
+  await writeWithBackups(file, JSON.stringify({ ...extra, ...known, needsYou: storedNeedsYou(known.needsYou) }, null, 2), { at: file, isGood: isJson, outgoing, current, onVersionChange: () => stampVersionChange(outgoing, current) });
 }
 
 // Serialize every meta operation, through main's one queue per file (`inTurn`), the audit log's appends among them.
@@ -702,25 +704,55 @@ export function clearNeedsYou(id: string): Promise<void> {
   });
 }
 
+const CLOSED_HOWS: readonly ClosedHow[] = ['quit', 'ended', 'unknown'];
+
+/** A PR's change in its older words, as its type. */
+const PR_TYPE_OF = new Map(Object.entries(PR_TYPES).map(([type, change]) => [change, type as PrNeedsYouType]));
+
 /**
- * Session -> every reason it needs you for, from whatever was stored: a reason this build does not know or without a time left out, a PR's without the PR or with a change this build does not know too, and a session left with none dropped.
+ * One stored reason as the reasons it reads as, none for one this build cannot read: by its type, or in the older form from before reasons had types, where how the app closed was the reason itself and a PR's changes were one reason holding them all, one reason per change now (decided 2026-11-06).
+ * A type this build does not fire, a reason without a time, a PR's without the PR, and an older PR reason with a change this build does not know are left out.
+ */
+function reasonsOf(item: unknown): NeedsYou[] {
+  if (typeof item !== 'object' || item === null) return [];
+  const { type, reason, at, pr, how, changes } = item as Record<string, unknown>;
+  if (typeof at !== 'number') return [];
+  if (type !== undefined) {
+    if (type === 'app.reminder') return [{ type, at }];
+    if (type === 'app.was-running') return CLOSED_HOWS.includes(how as ClosedHow) ? [{ type, at, how: how as ClosedHow }] : [];
+    return typeof type === 'string' && isPrType(type) && typeof pr === 'string' ? [{ type, at, pr }] : [];
+  }
+  if (CLOSED_HOWS.includes(reason as ClosedHow)) return [{ type: 'app.was-running', at, how: reason as ClosedHow }];
+  if (reason === 'reminder') return [{ type: 'app.reminder', at }];
+  if (reason !== 'pr' || typeof pr !== 'string' || !Array.isArray(changes) || changes.length === 0) return [];
+  const types = changes.map((change) => PR_TYPE_OF.get(change as PrChange));
+  return types.every((t) => t !== undefined) ? types.map((t) => ({ type: t, at, pr })) : [];
+}
+
+/**
+ * Session -> every reason it needs you for, from whatever was stored (`reasonsOf`), a session left with none dropped.
  * A single reason, as a file from before a session kept every reason holds it, is read as a list of one.
  */
 function needsYouOf(raw: unknown): Record<string, NeedsYou[]> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
   return Object.fromEntries(
     Object.entries(raw as Record<string, unknown>).flatMap(([id, entry]) => {
-      const reasons = (Array.isArray(entry) ? entry : [entry]).flatMap((item: unknown): NeedsYou[] => {
-        if (typeof item !== 'object' || item === null) return [];
-        const { reason, at, pr, changes } = item as Record<string, unknown>;
-        if (!NEEDS_YOU_REASONS.includes(reason as NeedsYouReason) || typeof at !== 'number') return [];
-        if (reason !== 'pr') return [{ reason: reason as Exclude<NeedsYouReason, 'pr'>, at }];
-        const known = Array.isArray(changes) && changes.length > 0 && changes.every((change) => PR_CHANGES.includes(change as PrChange));
-        return typeof pr === 'string' && known ? [{ reason, at, pr, changes: changes as PrChange[] }] : [];
-      });
+      const reasons = (Array.isArray(entry) ? entry : [entry]).flatMap(reasonsOf);
       return reasons.length > 0 ? [[id, reasons]] : [];
     }),
   );
+}
+
+/**
+ * The reasons as they are written: each with its older form beside its type, `reason` and for a PR's change `changes` holding its one change, which a build from before reasons had types reads as it always did, ignoring the type, so going back a build loses no mark (decided 2026-11-06).
+ * Never read while the type is there; nothing released knows `needsYou`, so the next release drops it.
+ */
+function storedNeedsYou(needsYou: Record<string, NeedsYou[]>): Record<string, object[]> {
+  const older = (reason: NeedsYou): object => {
+    if (isPrReason(reason)) return { reason: 'pr', changes: [PR_TYPES[reason.type]] };
+    return reason.type === 'app.was-running' ? { reason: reason.how } : { reason: 'reminder' };
+  };
+  return Object.fromEntries(Object.entries(needsYou).map(([id, reasons]) => [id, reasons.map((reason) => ({ ...reason, ...older(reason) }))]));
 }
 
 /** What was last seen of the PRs; see `prSeen`. */

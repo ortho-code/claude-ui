@@ -130,6 +130,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     setOpenSessions: sent,
     getRunningSessions: () => answer(fixture.runningSessions),
     getNeedsYou: () => answer(fixture.needsYou),
+    getNeedsYouTypes: () => answer(fixture.needsYouTypes),
     markNeedsYou: (ids, reasons) => {
       fixture.needsYou = markedNeedsYou(fixture.needsYou, ids, reasons);
     },

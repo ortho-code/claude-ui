@@ -9,7 +9,7 @@ import { bootList, print, type PrintedList } from './list';
 const asked = session({ id: '00000000-0000-4000-8000-0000000000b2', title: 'Review #1', prs: [{ repository: 'acme/app', number: 1, url: 'https://github.com/acme/app/pull/1' }] });
 const quiet = session({ id: '00000000-0000-4000-8000-0000000000b1', title: '', firstMessage: 'Speed up the search' });
 const shelved = session({ id: '00000000-0000-4000-8000-0000000000b3', title: 'Archived' });
-const REASON = { reason: 'pr' as const, at: 1_000, pr: 'acme/app#1', changes: ['merged' as const] };
+const REASON = { type: 'pr.merged' as const, at: 1_000, pr: 'acme/app#1' };
 const SET_ASIDE = { due: null, at: 2_000 };
 const more = {
   sessions: [asked, quiet, shelved],
@@ -42,7 +42,7 @@ test('a run is given every session not finished, by id, with its title, project,
     sessions: [
       // A status the docs do not name, such as the marker a starting claude sends, is no status.
       { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, needsYou: [], setAside: SET_ASIDE, prs: [] },
-      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, needsYou: [REASON], setAside: null, prs: [{ ...asked.prs[0], status: { state: 'merged' } }] },
+      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, needsYou: [{ ...REASON, category: 'finish-up' }], setAside: null, prs: [{ ...asked.prs[0], status: { state: 'merged' } }] },
     ],
   });
 });

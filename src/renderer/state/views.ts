@@ -160,7 +160,7 @@ export function statusChanges(before: View<'statuses' | 'backgroundTasks' | 'ack
 
 /** Whether two lists of a session's reasons are the same reasons from the same times, in the same order. */
 function sameReasons(a: readonly NeedsYou[], b: readonly NeedsYou[]): boolean {
-  return a.length === b.length && a.every((reason, i) => reason.reason === b[i]?.reason && reason.at === b[i].at);
+  return a.length === b.length && a.every((reason, i) => reason.type === b[i]?.type && reason.at === b[i].at);
 }
 
 /** The sessions whose tab says something else in their dot between two readings of the tabs (`tabDot`), such as one whose claude was asked to leave: what a change of the tabs asks a session's dot to repaint (`dotStatus`). */

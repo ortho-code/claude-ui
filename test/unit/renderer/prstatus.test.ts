@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
+import { PR_TYPES } from '../../../src/shared/needsyou';
 import { linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges, prMark, prVerdict, rollUpPrTone, verdictOf } from '../../../src/renderer/prstatus';
 import type { PrRef, PrSeen, PrStatus, SessionPr } from '../../../src/shared/types';
 
@@ -14,7 +15,7 @@ describe('prChanges', () => {
   /** What was seen of the PR before, as `prChanges` keeps it. */
   const was = (status: PrStatus): PrSeen => prChanges({}, [pr], { statuses: { [ref]: status }, problem: null }).seen ?? {};
   /** The changes from `before` to `after`, strongest first and joined, null for none that marks. */
-  const change = (before: PrStatus, after: PrStatus): string | null => prChanges(was(before), [pr], { statuses: { [ref]: after }, problem: null }).changes[0]?.changes.join(', ') ?? null;
+  const change = (before: PrStatus, after: PrStatus): string | null => prChanges(was(before), [pr], { statuses: { [ref]: after }, problem: null }).changes[0]?.types.map((type) => PR_TYPES[type]).join(', ') ?? null;
 
   it('marks a PR turning into checks failed, a conflict, changes requested, merged or closed', () => {
     expect(change(open({ checks: 'running' }), open({ checks: 'failed' }))).toBe('checks failed');
@@ -90,9 +91,9 @@ describe('prChanges', () => {
 
 describe('needsYouNow', () => {
   it('names everything a PR already needs you for, strongest first, as the first run marks it, and nothing where it needs nothing', () => {
-    expect(needsYouNow({ state: 'merged' })).toEqual(['merged']);
-    expect(needsYouNow(open({ review: 'changes-requested' }))).toEqual(['changes requested']);
-    expect(needsYouNow(open({ checks: 'failed' }))).toEqual(['checks failed', 'approved']);
+    expect(needsYouNow({ state: 'merged' })).toEqual(['pr.merged']);
+    expect(needsYouNow(open({ review: 'changes-requested' }))).toEqual(['pr.changes-requested']);
+    expect(needsYouNow(open({ checks: 'failed' }))).toEqual(['pr.checks-failed', 'pr.approved']);
     expect(needsYouNow(open({ review: 'review-required' }))).toEqual([]);
   });
 });

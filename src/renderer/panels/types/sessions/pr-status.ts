@@ -90,14 +90,14 @@ function settleChanges(prs: readonly PrRef[], read: PrStatusRead): void {
   seen = next;
   window.claudeUi.setPrSeen(next);
   const at = Date.now();
-  for (const { pr, changes: found } of changes) markNeedsYou(linking(pr), [{ reason: 'pr', at, pr, changes: found }]);
+  for (const { pr, types } of changes) markNeedsYou(linking(pr), types.map((type) => ({ type, at, pr })));
   if (before !== null) return;
   void window.claudeUi.getOpenSessions().then((open) => {
     const setAside = new Set([...open, ...store.get().setAside.keys()]);
     for (const pr of prs) {
       const status = read.statuses[prReference(pr)];
       const found = status === undefined ? [] : needsYouNow(status);
-      if (found.length > 0) markNeedsYou(linking(prReference(pr)).filter((key) => setAside.has(key)), [{ reason: 'pr', at, pr: prReference(pr), changes: found }]);
+      if (found.length > 0) markNeedsYou(linking(prReference(pr)).filter((key) => setAside.has(key)), found.map((type) => ({ type, at, pr: prReference(pr) })));
     }
   });
 }

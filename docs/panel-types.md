@@ -142,15 +142,24 @@ A row keeps a session's title and dot current between runs through a live value 
 | `setAside` | Its set-aside mark, `{ "due", "at" }`: when it comes back as needing you, `null` for whenever, and when it was set, both as epoch milliseconds; `null` when it is not set aside. |
 | `prs` | The PRs it links, each `{ "repository", "number", "url", "status" }`, `repository` as `owner/name`; `status` is what GitHub last said of it (below), `null` until GitHub has answered for that PR, which one it cannot be asked about never does. |
 
-A reason in `needsYou` has a `reason` and `at`, when it was marked, in epoch milliseconds:
+A reason in `needsYou` has a `type`, the `category` that type belongs to, and `at`, when it was marked, in epoch milliseconds; `category` is `null` for a type the app has no category for.
+The categories are `your-turn`, `back-to-work`, `ready-to-merge`, `look-again`, `reminders` and `finish-up`, in that order.
 
-| `reason` | Meaning |
-|---|---|
-| `quit` | It was running when the app quit. |
-| `ended` | It was running when the app ended without quitting. |
-| `unknown` | It was running when the app last closed, and the app cannot say how it closed. |
-| `reminder` | The moment it was set aside until has come, and it needed you for nothing else then; `at` is that moment. |
-| `pr` | A PR it links changed: `pr` names it, `owner/name#number`, and `changes` lists what changed, strongest first, from `checks failed`, `merge conflict`, `changes requested`, `merged`, `closed`, `approved` and `reopened`. |
+| `type` | `category` | Meaning |
+|---|---|---|
+| `app.was-running` | `reminders` | It was running when the app last closed; `how` says how the app closed: `quit`, `ended` without quitting, or `unknown` when the app cannot say. |
+| `app.reminder` | `reminders` | The moment it was set aside until has come, and it needed you for nothing else then; `at` is that moment. |
+| `pr.checks-failed` | `back-to-work` | A PR it links has failing checks. |
+| `pr.conflict` | `back-to-work` | A PR it links conflicts with its base. |
+| `pr.changes-requested` | `back-to-work` | A review asked for changes on a PR it links. |
+| `pr.approved` | `ready-to-merge` | A PR it links was approved. |
+| `pr.reopened` | `look-again` | A closed PR it links was opened again. |
+| `pr.merged` | `finish-up` | A PR it links was merged. |
+| `pr.closed` | `finish-up` | A PR it links was closed without merging. |
+
+A PR's type names its PR in `pr`, `owner/name#number`.
+Several changes found in one look at a PR are a reason each, with the same `at`, such as `pr.checks-failed` and `pr.approved` together; the app names them on one line, "PR #7 checks failed, approved".
+Claude asking you something or finishing a turn are types too, `claude.asks` and `claude.finished` in `your-turn`, but they are never in `needsYou`: `status` and `read` say them.
 
 `needsYou` lists every reason, also those a set-aside mark set after them puts aside: the app shows a session as needing you only while a reason's `at` is after its set-aside mark's `at`, or it is not set aside.
 A set-aside mark whose moment has passed shows here until the app has turned it into a reminder: at that moment while the machine is awake, and within the hour of waking when it slept through it.

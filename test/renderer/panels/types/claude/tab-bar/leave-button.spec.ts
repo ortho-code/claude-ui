@@ -8,7 +8,7 @@ import { row, stripRow, tab, tabLabel } from '../../../../support/window';
 const one = session({ id: '00000000-0000-4000-8000-0000000000c1', title: 'Set aside' });
 const choosing = (leaveButton: string): ReturnType<typeof settingsFileWith> => settingsFileWith('settings.json', { leaveButton });
 const fixture = { sessions: [one], openSessions: [one.id], history: { [one.id]: [] } };
-const quit = { needsYou: { [one.id]: [{ reason: 'quit' as const, at: 1 }] } };
+const quit = { needsYou: { [one.id]: [{ type: 'app.was-running' as const, at: 1, how: 'quit' as const }] } };
 
 const button = (page: Page): Locator => tab(page, one.title).locator('.tab-close');
 const stripButton = (page: Page): Locator => stripRow(page, one.title).locator('.strip-item-stop');

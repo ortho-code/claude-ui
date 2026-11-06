@@ -1,4 +1,5 @@
 import { defaultUi } from '../../shared/defaults';
+import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../shared/needsyou';
 import type { PanelData } from '../../shared/panels';
 import type { SettingsView } from '../../shared/settings';
 import type { GroupState, SetAside, NeedsYou, PrStatusRead, ScheduledTask, SessionSummary, UiState } from '../../shared/types';
@@ -48,6 +49,8 @@ export interface AppState {
    * Drawn in the session's dot where claude says nothing more pressing (`dotStatus`).
    */
   needsYou: ReadonlyMap<string, readonly NeedsYou[]>;
+  /** The needs-you categories and types the app ships, as main read them; none until it has answered. */
+  needsYouTypes: NeedsYouRegistry;
   /**
    * Entity key -> the moment it comes back and since when it was set aside: what main keeps in `meta.json`, kept here by the same rules (`markedSetAside`, `clearedSetAside`, `cameDue`), each change sent to main as it is made.
    * Mutes a needs-you mark it came after (`mutedBySetAside`).
@@ -329,6 +332,7 @@ export const store = createStore<AppState>(
     pinned: new Set(),
     finished: new Map(),
     needsYou: new Map(),
+    needsYouTypes: NO_NEEDS_YOU_TYPES,
     setAside: new Map(),
     kept: new Map(),
     reviewing: false,

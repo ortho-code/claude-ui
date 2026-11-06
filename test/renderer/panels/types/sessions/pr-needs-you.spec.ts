@@ -64,10 +64,26 @@ test('a running session is marked too, and a prompt there takes it off', async (
   await notNeeds(tab(page, cold.title).locator('.nudge'));
 });
 
+// Every change of one answer is a reason of its own type, at the same moment, and the dot names them together (decided 2026-11-06).
+test('a PR turning approved with failing checks marks a reason for each, named together on one line', async ({ app, page }) => {
+  await page.clock.install();
+  await app.boot(fixture);
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+
+  await gitHubSays(page, { 'acme/app#7': open({ review: 'approved', checks: 'failed' }), 'acme/app#8': open() });
+  await nextAsk(page);
+  await expect(row(page, closed.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 checks failed, approved');
+  const at = expect.any(Number);
+  await expect.poll(() => page.evaluate((id) => window.__claudeUiFixture.needsYou[id], closed.id)).toEqual([
+    { type: 'pr.checks-failed', at, pr: 'acme/app#7' },
+    { type: 'pr.approved', at, pr: 'acme/app#7' },
+  ]);
+});
+
 // The reasons are kept side by side, the PR's ranked first, and the dot on show follows a reason added while it is drawn.
 test('a session that needs you already gets the PR reason beside it, listed first, on a dot already on show', async ({ app, page }) => {
   await page.clock.install();
-  await app.boot({ ...fixture, needsYou: { [cold.id]: [{ reason: 'quit', at: 1 }] } });
+  await app.boot({ ...fixture, needsYou: { [cold.id]: [{ type: 'app.was-running', at: 1, how: 'quit' }] } });
   const dot = tab(page, cold.title).locator('.nudge');
   await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit');
 

@@ -17,20 +17,23 @@ export interface ScheduledTask {
  */
 export type ClosedHow = 'quit' | 'ended' | 'unknown';
 
-/** Why a session needs you: how the app closed while it ran (`ClosedHow`), the day you set it aside until has come (`reminder`), or a PR it links changed (`pr`). */
-export type NeedsYouReason = ClosedHow | 'reminder' | 'pr';
+/** The needs-you types of a PR's change (bundled/needs-you/): something that needs you appearing in its status, or a closed PR opened again (`pr.reopened`). */
+export type PrNeedsYouType = 'pr.checks-failed' | 'pr.conflict' | 'pr.changes-requested' | 'pr.approved' | 'pr.reopened' | 'pr.merged' | 'pr.closed';
 
-/** The changes to a PR that mark the sessions linking it as needing you: something that needs you appearing in its status, or a closed PR opened again (`reopened`). */
+/** A PR's change in the words the app says it in, "PR #7 checks failed", and in which `meta.json` kept it before reasons had types. */
 export type PrChange = 'checks failed' | 'merge conflict' | 'changes requested' | 'merged' | 'closed' | 'approved' | 'reopened';
 
 /**
- * One reason a session needs you: why, and when it was marked (epoch ms); for a reminder, the moment it was due.
- * A session keeps every reason it was marked for, as a list.
+ * One reason a session needs you, by its type (bundled/needs-you/), and when it was marked (epoch ms); for a reminder, the moment it was due.
+ * A session keeps every reason it was marked for, as a list; claude asking or finishing a turn are types too, but read from its status and never kept here.
  */
 export type NeedsYou =
-  | { reason: ClosedHow | 'reminder'; at: number }
-  /** A PR it links changed: which (`owner/name#number`), and every change that check found, strongest first. */
-  | { reason: 'pr'; at: number; pr: string; changes: PrChange[] };
+  /** It was running when the app closed, and how the app closed. */
+  | { type: 'app.was-running'; at: number; how: ClosedHow }
+  /** The moment it was set aside until has come. */
+  | { type: 'app.reminder'; at: number }
+  /** A PR it links changed: which (`owner/name#number`); several changes found in one answer are a reason each, at the same moment. */
+  | { type: PrNeedsYouType; at: number; pr: string };
 
 /** What GitHub was last seen to say of each PR, by reference (`owner/name#number`): what a change is told from. */
 export type PrSeen = Record<string, PrStatus>;
@@ -424,6 +427,7 @@ export interface UiState {
 
 import type { LayoutReport, NodeState, NodeStateChange, PanelContext, PanelData, PanelLink, PanelRunEvent, PanelRunRequest, PanelShells, PanelState, PathBase, PathCheck, PathKind, WorkingTree } from './panels';
 import type { FolderName } from './folders';
+import type { NeedsYouRegistry } from './needsyou';
 import type { LogLevel } from './log';
 import type { LeaveButton, RunningAtLaunch, SettingsChange, SettingsSaved, SettingsView } from './settings';
 
@@ -469,6 +473,8 @@ export interface ClaudeUiApi {
   getRunningSessions(): Promise<string[]>;
   /** The sessions marked as needing you, by session id, each with every reason it was marked for. */
   getNeedsYou(): Promise<Record<string, NeedsYou[]>>;
+  /** The needs-you categories and types, as main read them from the files the app ships. */
+  getNeedsYouTypes(): Promise<NeedsYouRegistry>;
   /** Mark sessions as needing you for `reasons`, each from its own time, as Undo puts a mark back as it was; each is added beside a session's other reasons, replacing one of its kind (`markedNeedsYou`). */
   markNeedsYou(ids: string[], reasons: NeedsYou[]): void;
   /** Take a session's needs-you mark off, whether or not it had one. */

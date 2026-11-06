@@ -1,5 +1,6 @@
 import { defaultUi } from '../../../src/shared/defaults';
 import type { FolderName } from '../../../src/shared/folders';
+import { NO_NEEDS_YOU_TYPES, type NeedsYouRegistry } from '../../../src/shared/needsyou';
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/pathcheck';
 import type { SettingsFileRead } from '../../../src/shared/settings';
@@ -18,6 +19,8 @@ export interface BridgeFixture {
   notes: Record<string, string>;
   /** Session -> why it needs you, as meta keeps it; marked and cleared by main's own rules. */
   needsYou: Record<string, NeedsYou[]>;
+  /** The needs-you categories and types main read; the harness gives the app's own, from `bundled/needs-you/` (`bundledNeedsYou`), unless a check gives others. */
+  needsYouTypes: NeedsYouRegistry;
   /** What was last seen of the PRs, as meta keeps it; null for never, the first run. */
   prSeen: PrSeen | null;
   /** How many reads of it fail before one answers, as a `meta.json` that cannot be read would. */
@@ -148,6 +151,7 @@ export function defaultFixture(): BridgeFixture {
     finishFails: null,
     notes: {},
     needsYou: {},
+    needsYouTypes: NO_NEEDS_YOU_TYPES,
     // Kept before, so a check with linked PRs sees no first run unless it asks for one.
     prSeen: {},
     prSeenReadFails: 0,

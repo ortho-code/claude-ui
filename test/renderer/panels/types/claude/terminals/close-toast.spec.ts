@@ -44,7 +44,7 @@ test("a stopped tab's close offers Undo, Finished and Set aside…, in that orde
 });
 
 test("Finished from the close's toast finishes the session, and its Undo makes it unfinished and puts the tab back where it stood, with its needs-you mark", async ({ app, page }) => {
-  await app.boot({ ...fixture, needsYou: { [one.id]: [{ reason: 'quit' as const, at: 1 }] } });
+  await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.was-running' as const, at: 1, how: 'quit' as const }] } });
   await closeFromMenu(page, one.title);
   await toastButton(page, 'Finished').click();
   await expect(message(page)).toHaveText(`Finished "${one.title}"`);

@@ -4,6 +4,32 @@
  * Pure, so main's reading and the tests check them by the same rules.
  */
 
+import type { NeedsYou, PrChange, PrNeedsYouType } from './types';
+
+/**
+ * The PR types, each with the words for its change: the order several found in one answer are named in, strongest first, as "PR #7 checks failed, approved" says them.
+ * The words are also how `meta.json` kept a PR's change before reasons had types.
+ */
+export const PR_TYPES: Readonly<Record<PrNeedsYouType, PrChange>> = {
+  'pr.checks-failed': 'checks failed',
+  'pr.conflict': 'merge conflict',
+  'pr.changes-requested': 'changes requested',
+  'pr.merged': 'merged',
+  'pr.closed': 'closed',
+  'pr.reopened': 'reopened',
+  'pr.approved': 'approved',
+};
+
+/** Whether a type is a PR's change. */
+export function isPrType(type: string): type is PrNeedsYouType {
+  return Object.hasOwn(PR_TYPES, type);
+}
+
+/** Whether a reason is a PR's change, with the PR it names. */
+export function isPrReason(reason: NeedsYou): reason is Extract<NeedsYou, { pr: string }> {
+  return isPrType(reason.type);
+}
+
 /** A category: a section of Now, with its name and its place, lower first. */
 export interface NeedsYouCategory {
   id: string;
@@ -24,6 +50,14 @@ export interface NeedsYouType {
 export interface NeedsYouRegistry {
   categories: NeedsYouCategory[];
   types: NeedsYouType[];
+}
+
+/** No categories and no types: what the window has before main has read them. */
+export const NO_NEEDS_YOU_TYPES: NeedsYouRegistry = { categories: [], types: [] };
+
+/** The category a type belongs to, by id; null for a type the registry does not have. */
+export function categoryOf(registry: NeedsYouRegistry, type: string): string | null {
+  return registry.types.find((t) => t.id === type)?.category ?? null;
 }
 
 /** One file's object, by the file's name, for the mistakes to name it. */

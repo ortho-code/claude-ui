@@ -299,7 +299,7 @@ test('a moment that comes while the app runs shows when it comes, the next one a
 });
 
 test('a needs-you mark from before the set-aside mark is muted, read-looking and counted nowhere, and keeps its reason for when the day comes', async ({ app, page }) => {
-  await app.boot({ ...fixture, needsYou: { [one.id]: [{ reason: 'quit', at: 5 }] }, setAside: { [one.id]: { due: null, at: 10 } } });
+  await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.was-running', at: 5, how: 'quit' }] }, setAside: { [one.id]: { due: null, at: 10 } } });
   const dot = row(page, one.title).locator('.nudge');
   await expect(dot).toHaveClass(/\bneeds\b.*\backed\b|\backed\b.*\bneeds\b/);
   await expect(dot).toHaveAttribute('data-tooltip', 'Needs you — was running when the app quit (read)');
@@ -311,7 +311,7 @@ test('a needs-you mark from before the set-aside mark is muted, read-looking and
 
 // The dot shows the mark over idle, read-looking; the roll-ups follow the dot, so an idle session so set aside nudges nowhere, while claude asking still does.
 test('a muted session that runs and is idle rolls up as read, and one whose claude asks still counts', async ({ app, page }) => {
-  await app.boot({ ...fixture, needsYou: { [one.id]: [{ reason: 'quit', at: 5 }] }, setAside: { [one.id]: { due: null, at: 10 } } });
+  await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.was-running', at: 5, how: 'quit' }] }, setAside: { [one.id]: { due: null, at: 10 } } });
   await startLive(page, app);
   await app.emit('onSessionStatus', one.id, 'idle', '', 'Stop');
   await expect(row(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b.*\backed\b|\backed\b.*\bneeds\b/);
@@ -325,7 +325,7 @@ test('a muted session that runs and is idle rolls up as read, and one whose clau
 
 test('a day coming on a session that already needs you keeps its reason, and lights it up again', async ({ app, page }) => {
   await page.clock.setFixedTime(THURSDAY);
-  await app.boot({ ...fixture, needsYou: { [one.id]: [{ reason: 'quit', at: 5 }] }, setAside: { [one.id]: { due: new Date(2026, 9, 28).getTime(), at: 10 } } });
+  await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.was-running', at: 5, how: 'quit' }] }, setAside: { [one.id]: { due: new Date(2026, 9, 28).getTime(), at: 10 } } });
   const dot = row(page, one.title).locator('.nudge');
   await expect(dot).toHaveClass(/\bneeds\b/);
   await expect(dot).not.toHaveClass(/\backed\b/);
@@ -334,7 +334,7 @@ test('a day coming on a session that already needs you keeps its reason, and lig
 });
 
 test('a needs-you mark after the set-aside mark is news, shown and counted in full, with the bookmark on its strip row too', async ({ app, page }) => {
-  await app.boot({ ...fixture, needsYou: { [one.id]: [{ reason: 'quit', at: 20 }] }, setAside: { [one.id]: { due: null, at: 10 } } });
+  await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.was-running', at: 20, how: 'quit' }] }, setAside: { [one.id]: { due: null, at: 10 } } });
   const dot = row(page, one.title).locator('.nudge');
   await expect(dot).toHaveClass(/\bneeds\b/);
   await expect(dot).not.toHaveClass(/\backed\b/);
@@ -345,7 +345,7 @@ test('a needs-you mark after the set-aside mark is news, shown and counted in fu
 });
 
 test('a prompt there settles both marks', async ({ app, page }) => {
-  await app.boot({ ...fixture, needsYou: { [one.id]: [{ reason: 'quit', at: 5 }] }, setAside: { [one.id]: { due: null, at: 10 } } });
+  await app.boot({ ...fixture, needsYou: { [one.id]: [{ type: 'app.was-running', at: 5, how: 'quit' }] }, setAside: { [one.id]: { due: null, at: 10 } } });
   await startLive(page, app);
   await app.emit('onSessionStatus', one.id, 'busy', '', 'UserPromptSubmit', undefined, 'carry on');
   await expect(row(page, one.title).locator('.set-aside-mark')).toBeHidden();

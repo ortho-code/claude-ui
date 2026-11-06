@@ -1,5 +1,6 @@
+import { categoryOf } from '../../shared/needsyou';
 import { prReference } from '../../shared/prs';
-import type { SetAside, NeedsYou, PrStatus } from '../../shared/types';
+import type { ClosedHow, SetAside, NeedsYou, PrStatus } from '../../shared/types';
 import { sessionLabel } from '../logic';
 import { store, type AppState, type View } from '../state/app';
 import { switcherPool, tabWith } from '../state/views';
@@ -16,6 +17,18 @@ export type SnapshotStatus = 'busy' | 'idle' | 'background' | 'waiting' | 'close
 
 const STATUSES: ReadonlySet<string> = new Set<SnapshotStatus>(['busy', 'idle', 'background', 'waiting', 'closed']);
 
+/**
+ * One reason a session needs you, as the file gives it: its type, the category that type belongs to, null for a type the app has no category for, and when it was marked; a PR's change names its PR, `owner/name#number`, and a session that was running when the app closed how it closed.
+ * Claude asking or finishing a turn is not here: `status` and `read` say it.
+ */
+export interface SnapshotReason {
+  type: NeedsYou['type'];
+  category: string | null;
+  at: number;
+  pr?: string;
+  how?: ClosedHow;
+}
+
 export interface SnapshotSession {
   id: string;
   /** What the app calls it everywhere, as a live value's `title` says it. */
@@ -27,7 +40,7 @@ export interface SnapshotSession {
   /** Its dot was marked read. */
   read: boolean;
   /** Why it is marked as needing you, every reason; empty when it is not. */
-  needsYou: readonly NeedsYou[];
+  needsYou: readonly SnapshotReason[];
   /** Until when it is set aside, null for whenever; null when it is not set aside. */
   setAside: SetAside | null;
   prs: { repository: string; number: number; url: string; status: PrStatus | null }[];
@@ -39,7 +52,7 @@ export interface SessionsSnapshot {
 }
 
 /** The slices the snapshot is made of: what a panel that watches sessions is told about. */
-export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'setAside', 'groupState', 'prStatus'] as const satisfies readonly (keyof AppState)[];
+export const SNAPSHOT_SLICES = ['sessions', 'tabs', 'finished', 'pendingDeletes', 'statuses', 'acked', 'needsYou', 'needsYouTypes', 'setAside', 'groupState', 'prStatus'] as const satisfies readonly (keyof AppState)[];
 
 /** Every session not finished, as the switcher counts them, each once, by id, so the same sessions in a new order are the same snapshot. */
 export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = store.get()): SessionsSnapshot {
@@ -60,7 +73,7 @@ export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = 
         group: group ? { id: group.id, name: group.name } : null,
         status: status !== undefined && STATUSES.has(status) ? (status as SnapshotStatus) : null,
         read: view.acked.has(id),
-        needsYou: view.needsYou.get(id) ?? [],
+        needsYou: (view.needsYou.get(id) ?? []).map((reason) => ({ ...reason, category: categoryOf(view.needsYouTypes, reason.type) })),
         setAside: view.setAside.get(id) ?? null,
         prs: session.prs.map((pr) => ({ repository: pr.repository, number: pr.number, url: pr.url, status: view.prStatus.statuses[prReference(pr)] ?? null })),
       };

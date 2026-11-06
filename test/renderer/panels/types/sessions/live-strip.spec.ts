@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { defaultUi } from '../../../../../src/shared/defaults';
-import type { SessionSummary } from '../../../../../src/shared/types';
+import type { NeedsYou, SessionSummary } from '../../../../../src/shared/types';
 import { HOME, PROJECT, session } from '../../../support/fixture';
 import { expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
@@ -17,7 +17,7 @@ const inSecond = session({ id: '00000000-0000-4000-8000-0000000000e3', title: 'I
 const elsewhere = session({ id: '00000000-0000-4000-8000-0000000000e4', title: 'In other', cwd: OTHER, repoRoot: OTHER });
 const all = [loose, inFirst, inSecond, elsewhere];
 /** These sessions marked as needing you, as the sessions running at a quit come back: what lists a cold tab in the strip. */
-const needing = (...sessions: SessionSummary[]): Record<string, { reason: 'quit'; at: number }[]> => Object.fromEntries(sessions.map((s) => [s.id, [{ reason: 'quit', at: 1 }]]));
+const needing = (...sessions: SessionSummary[]): Record<string, NeedsYou[]> => Object.fromEntries(sessions.map((s) => [s.id, [{ type: 'app.was-running', at: 1, how: 'quit' }]]));
 
 test('the live strip lists running sessions in the order you set, and keeps still while they work', async ({ app, page }) => {
   await app.boot({

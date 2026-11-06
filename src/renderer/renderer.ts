@@ -131,6 +131,7 @@ initTree({
 // Restore the last-active project and open tabs, then scope the tab bar + terminal to that project.
 void (async () => {
   void window.claudeUi.getHistoryPins().then((pins) => history.setPins(pins));
+  void window.claudeUi.getNeedsYouTypes().then((needsYouTypes) => store.set({ needsYouTypes }));
   // Before the first render: restoring filters afterwards would draw the whole list and then visibly cut it down.
   const { scrollTop, view } = await restoreUiState();
   // Before the rows and the tabs too: placing the layout moves the sidebar and the terminal area into it, and a move is cheapest, and invisible, while they are still empty.

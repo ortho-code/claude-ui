@@ -163,7 +163,7 @@ describe('finish', () => {
   });
 
   it('finishes and unfinishes several sessions in one write each, settling every one of their marks', async () => {
-    await markNeedsYou(['a', 'b'], [{ reason: 'quit', at: 1 }]);
+    await markNeedsYou(['a', 'b'], [{ type: 'app.was-running', at: 1, how: 'quit' }]);
     await markSetAside(['a', 'b'], null, 1);
     const before = await auditLines();
     const finished = await finish(['a', 'b']);
@@ -228,15 +228,15 @@ describe('running sessions', () => {
 describe('sessions that need you', () => {
   it('are marked with every reason and since when, one of a kind replacing the last, and taken off one session at a time', async () => {
     expect(await getNeedsYou()).toEqual({});
-    await markNeedsYou(['a', 'b'], [{ reason: 'ended', at: 1 }]);
-    await markNeedsYou(['a'], [{ reason: 'reminder', at: 2 }]);
-    await markNeedsYou(['a'], [{ reason: 'quit', at: 3 }]);
+    await markNeedsYou(['a', 'b'], [{ type: 'app.was-running', at: 1, how: 'ended' }]);
+    await markNeedsYou(['a'], [{ type: 'app.reminder', at: 2 }]);
+    await markNeedsYou(['a'], [{ type: 'app.was-running', at: 3, how: 'quit' }]);
     expect(await getNeedsYou()).toEqual({
       a: [
-        { reason: 'reminder', at: 2 },
-        { reason: 'quit', at: 3 },
+        { type: 'app.reminder', at: 2 },
+        { type: 'app.was-running', at: 3, how: 'quit' },
       ],
-      b: [{ reason: 'ended', at: 1 }],
+      b: [{ type: 'app.was-running', at: 1, how: 'ended' }],
     });
     await clearNeedsYou('a');
     expect(Object.keys(await getNeedsYou())).toEqual(['b']);
@@ -244,54 +244,104 @@ describe('sessions that need you', () => {
 
   // Kept per session, not per tab: a mark outlives the tabs being written again, as every launch writes them.
   it('stay through the open tabs being written', async () => {
-    await markNeedsYou(['a'], [{ reason: 'quit', at: 1 }]);
+    await markNeedsYou(['a'], [{ type: 'app.was-running', at: 1, how: 'quit' }]);
     await setOpenSessions(['b'], []);
     expect(Object.keys(await getNeedsYou())).toEqual(['a']);
   });
 
   it('are taken off by a finish, and forgotten by a delete', async () => {
-    await markNeedsYou(['a', 'b'], [{ reason: 'quit', at: 1 }]);
+    await markNeedsYou(['a', 'b'], [{ type: 'app.was-running', at: 1, how: 'quit' }]);
     await finish(['a']);
     await purgeSession('b');
     expect(await getNeedsYou()).toEqual({});
   });
 
-  it('are none in a file written before they were kept, and a reason this build does not know or without a time is dropped', async () => {
+  it('are none in a file written before they were kept, and a reason this build does not fire or without what it needs is dropped', async () => {
     await writeMetaFile({ version: 3 });
     expect(await getNeedsYou()).toEqual({});
     await writeMetaFile({
       version: 3,
       needsYou: {
-        a: [{ reason: 'quit', at: 5 }],
-        b: [{ reason: 'nonsense', at: 5 }],
-        c: [{ reason: 'ended' }],
+        a: [{ type: 'app.was-running', at: 5, how: 'quit' }],
+        b: [{ type: 'claude.asks', at: 5 }],
+        c: [{ type: 'app.reminder' }],
         d: 'yes',
         e: [
-          { reason: 'reminder', at: 7 },
-          { reason: 'nonsense', at: 8 },
+          { type: 'app.reminder', at: 7 },
+          { type: 'nonsense', at: 8 },
+          { type: 'app.was-running', at: 8, how: 'sometime' },
+          { type: 'pr.merged', at: 8 },
         ],
+        f: [{ type: 'pr.checks-failed', at: 9, pr: 'acme/app#7' }],
       },
     });
-    expect(await getNeedsYou()).toEqual({ a: [{ reason: 'quit', at: 5 }], e: [{ reason: 'reminder', at: 7 }] });
+    expect(await getNeedsYou()).toEqual({ a: [{ type: 'app.was-running', at: 5, how: 'quit' }], e: [{ type: 'app.reminder', at: 7 }], f: [{ type: 'pr.checks-failed', at: 9, pr: 'acme/app#7' }] });
   });
 
-  it("read a PR's reason with its PR and its changes, and drop one without either", async () => {
+  // Before reasons had types (decided 2026-11-06): how the app closed was the reason itself, and a PR's changes one reason holding them all.
+  it('read the form from before reasons had types, a PR reason as a reason per change, and drop one this build cannot read', async () => {
     await writeMetaFile({
       version: 3,
       needsYou: {
-        a: [{ reason: 'pr', at: 5, pr: 'acme/app#7', changes: ['checks failed', 'approved'] }],
+        a: [{ reason: 'ended', at: 1 }, { reason: 'reminder', at: 2 }, { reason: 'pr', at: 5, pr: 'acme/app#7', changes: ['checks failed', 'approved'] }],
         b: [{ reason: 'pr', at: 5, changes: ['merged'] }],
         c: [{ reason: 'pr', at: 5, pr: 'acme/app#7', changes: ['merged', 'nonsense'] }],
         d: [{ reason: 'pr', at: 5, pr: 'acme/app#7', changes: [] }],
+        e: [{ reason: 'nonsense', at: 5 }, { reason: 'ended' }],
       },
     });
-    expect(await getNeedsYou()).toEqual({ a: [{ reason: 'pr', at: 5, pr: 'acme/app#7', changes: ['checks failed', 'approved'] }] });
+    expect(await getNeedsYou()).toEqual({
+      a: [
+        { type: 'app.was-running', at: 1, how: 'ended' },
+        { type: 'app.reminder', at: 2 },
+        { type: 'pr.checks-failed', at: 5, pr: 'acme/app#7' },
+        { type: 'pr.approved', at: 5, pr: 'acme/app#7' },
+      ],
+    });
   });
 
   // A file from before a session kept every reason holds one reason per session.
   it('read a single reason, as an older file holds it, as a list of one', async () => {
     await writeMetaFile({ version: 3, needsYou: { a: { reason: 'quit', at: 5 }, b: { reason: 'nonsense', at: 5 } } });
-    expect(await getNeedsYou()).toEqual({ a: [{ reason: 'quit', at: 5 }] });
+    expect(await getNeedsYou()).toEqual({ a: [{ type: 'app.was-running', at: 5, how: 'quit' }] });
+  });
+
+  // The reader of the build before reasons had types, as it was: what a build gone back to reads of what this one wrote.
+  const olderReader = (raw: Record<string, unknown[]>): Record<string, unknown[]> =>
+    Object.fromEntries(
+      Object.entries(raw).flatMap(([id, entry]) => {
+        const reasons = entry.flatMap((item) => {
+          const { reason, at, pr, changes } = item as Record<string, unknown>;
+          if (!['quit', 'ended', 'unknown', 'reminder', 'pr'].includes(reason as string) || typeof at !== 'number') return [];
+          if (reason !== 'pr') return [{ reason, at }];
+          const known = Array.isArray(changes) && changes.length > 0 && changes.every((change) => ['checks failed', 'merge conflict', 'changes requested', 'merged', 'closed', 'approved', 'reopened'].includes(change as string));
+          return typeof pr === 'string' && known ? [{ reason, at, pr, changes }] : [];
+        });
+        return reasons.length > 0 ? [[id, reasons]] : [];
+      }),
+    );
+
+  it('are written so that a build from before reasons had types reads every one, and what it writes back reads as the same reasons', async () => {
+    const reasons = [
+      { type: 'app.was-running' as const, at: 1, how: 'unknown' as const },
+      { type: 'app.reminder' as const, at: 2 },
+      { type: 'pr.checks-failed' as const, at: 3, pr: 'acme/app#7' },
+      { type: 'pr.approved' as const, at: 3, pr: 'acme/app#7' },
+      { type: 'pr.reopened' as const, at: 4, pr: 'acme/app#8' },
+    ];
+    await markNeedsYou(['a'], reasons);
+    const older = olderReader(JSON.parse(await fs.readFile(path.join(dir, 'meta.json'), 'utf8')).needsYou);
+    expect(older).toEqual({
+      a: [
+        { reason: 'unknown', at: 1 },
+        { reason: 'reminder', at: 2 },
+        { reason: 'pr', at: 3, pr: 'acme/app#7', changes: ['checks failed'] },
+        { reason: 'pr', at: 3, pr: 'acme/app#7', changes: ['approved'] },
+        { reason: 'pr', at: 4, pr: 'acme/app#8', changes: ['reopened'] },
+      ],
+    });
+    await writeMetaFile({ version: 3, needsYou: older });
+    expect(await getNeedsYou()).toEqual({ a: reasons });
   });
 });
 
@@ -376,12 +426,12 @@ describe('the later marks', () => {
   });
 
   it('come due as needing you, keeping a reason the session already had', async () => {
-    await markNeedsYou(['a'], [{ reason: 'quit', at: 5 }]);
+    await markNeedsYou(['a'], [{ type: 'app.was-running', at: 5, how: 'quit' }]);
     await markSetAside(['a', 'b'], 100, 10);
     await markSetAside(['c'], 300, 10);
     await setAsideCameDue(150);
     expect(await getSetAside()).toEqual({ c: { due: 300, at: 10 } });
-    expect(await getNeedsYou()).toEqual({ a: [{ reason: 'quit', at: 5 }], b: [{ reason: 'reminder', at: 100 }] });
+    expect(await getNeedsYou()).toEqual({ a: [{ type: 'app.was-running', at: 5, how: 'quit' }], b: [{ type: 'app.reminder', at: 100 }] });
   });
 
   it('are none in a file written before they were kept, and an entry without a time or with a day that is not one is dropped', async () => {

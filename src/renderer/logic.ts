@@ -2,9 +2,10 @@
 // renderer.ts wires these to its state and the DOM.
 import { prReference } from '../shared/prs';
 import type { LeaveButton } from '../shared/settings';
-import type { GroupState, SetAside, NeedsYou, NeedsYouReason, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
+import { isPrReason, PR_TYPES } from '../shared/needsyou';
+import type { ClosedHow, GroupState, SetAside, NeedsYou, PrNeedsYouType, ScheduledTask, SessionGroup, SessionSummary } from '../shared/types';
 import { splitPendingEscape, stripAnsi } from './ansi';
-import { PR_CHANGE_RANK } from './prstatus';
+import { PR_CHANGE_RANK, ranked } from './prstatus';
 
 // The stable key for a displayed session entity: the session's own id, always.
 // It is immutable, so pins/finished marks/tabs can never go stale — a conversation-derived key stopped matching its session the moment the session gained a sibling.
@@ -712,30 +713,47 @@ const STATUS_LABEL: Record<string, string> = {
   stopping: 'Stopping — waiting for claude to leave',
 };
 
-/** What a session marked as needing you shows (`shownStatus`), a line per reason: how the app closed while it ran, or the day you set it aside for, from when it was marked; a PR's change is worded by `needsYouLines`. */
-const NEEDS_LABEL: Record<Exclude<NeedsYouReason, 'pr'>, (at: number) => string> = {
-  quit: () => 'Needs you — was running when the app quit',
-  ended: () => 'Needs you — was running when the app ended without quitting',
-  unknown: () => 'Needs you — was running when the app last closed',
-  reminder: (at) => `Needs you — reminder for ${momentLabel(at)}`,
+/** How the app closed, as the line of a session that was running then says it. */
+const WAS_RUNNING: Record<ClosedHow, string> = {
+  quit: 'Needs you — was running when the app quit',
+  ended: 'Needs you — was running when the app ended without quitting',
+  unknown: 'Needs you — was running when the app last closed',
 };
 
-/** Where a reason is listed among a session's others, lowest first: a PR's change (`PR_CHANGE_RANK`), then how the app closed, then a reminder. */
-function needsRank(reason: NeedsYou): number {
-  if (reason.reason === 'pr') return Math.min(...reason.changes.map((change) => PR_CHANGE_RANK[change]));
-  return reason.reason === 'reminder' ? 4 : 3;
+/** One line of a session's reasons: what it says, where it ranks, lowest first, and when its newest reason came. */
+interface NeedsLine {
+  text: string;
+  rank: number;
+  at: number;
 }
 
 /**
- * A session's reasons as they are listed, in its dot's tooltip and its menu's header alike: by rank (`needsRank`), and within a rank newest first (decided 2026-10-29).
- * A PR is named by its number, "PR #35777 merged", and with its repository, "PR acme/app#35777 merged", only where the reasons name PRs in more than one; several changes found at once are named together, strongest first, "PR #7 checks failed, approved", and rank by the strongest.
+ * A session's reasons as they are listed, in its dot's tooltip and its menu's header alike: by rank, and within a rank newest first (decided 2026-10-29): a PR's change (`PR_CHANGE_RANK`), then how the app closed, then a reminder.
+ * A PR is named by its number, "PR #35777 merged", and with its repository, "PR acme/app#35777 merged", only where the reasons name PRs in more than one; the changes one answer found, a reason each at the same moment, are named together on one line, strongest first, "PR #7 checks failed, approved", and rank by the strongest.
  */
 export function needsYouLines(reasons: readonly NeedsYou[] | undefined): string[] {
-  if (!reasons?.length) return [NEEDS_LABEL.unknown(0)];
-  const repositories = new Set(reasons.flatMap((reason) => (reason.reason === 'pr' ? [reason.pr.slice(0, reason.pr.lastIndexOf('#'))] : [])));
-  return [...reasons]
-    .sort((a, b) => needsRank(a) - needsRank(b) || b.at - a.at)
-    .map((reason) => (reason.reason === 'pr' ? `Needs you — PR ${repositories.size > 1 ? reason.pr : reason.pr.slice(reason.pr.lastIndexOf('#'))} ${reason.changes.join(', ')}` : NEEDS_LABEL[reason.reason](reason.at)));
+  if (!reasons?.length) return [WAS_RUNNING.unknown];
+  const prReasons = reasons.filter(isPrReason);
+  const repositories = new Set(prReasons.map((reason) => reason.pr.slice(0, reason.pr.lastIndexOf('#'))));
+  const answers = new Map<string, { pr: string; at: number; types: PrNeedsYouType[] }>();
+  for (const { pr, at, type } of prReasons) {
+    const key = `${pr}\n${at}`;
+    const answer = answers.get(key) ?? { pr, at, types: [] };
+    answer.types.push(type);
+    answers.set(key, answer);
+  }
+  const lines: NeedsLine[] = [...answers.values()].map(({ pr, at, types }) => ({
+    text: `Needs you — PR ${repositories.size > 1 ? pr : pr.slice(pr.lastIndexOf('#'))} ${ranked(types)
+      .map((type) => PR_TYPES[type])
+      .join(', ')}`,
+    rank: Math.min(...types.map((type) => PR_CHANGE_RANK[type])),
+    at,
+  }));
+  for (const reason of reasons) {
+    if (reason.type === 'app.was-running') lines.push({ text: WAS_RUNNING[reason.how], rank: 3, at: reason.at });
+    else if (reason.type === 'app.reminder') lines.push({ text: `Needs you — reminder for ${momentLabel(reason.at)}`, rank: 4, at: reason.at });
+  }
+  return lines.sort((a, b) => a.rank - b.rank || b.at - a.at).map((line) => line.text);
 }
 
 /** A day as the set-aside mark names it: "Mon 3 Nov", in the app's own short form whatever the system's language, as the rest of its words are English. */

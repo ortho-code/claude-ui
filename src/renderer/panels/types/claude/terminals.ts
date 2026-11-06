@@ -177,7 +177,7 @@ export async function restoreOpenTabs(): Promise<void> {
       }
       // Its claude has gone, so what its status file last said is forgotten, as a tab going cold forgets it (`coolTab`): after an end without a quit the file still holds it, and a busy or a waiting from then would hide the mark.
       for (const key of marked) clearNudge(key);
-      markNeedsYou(marked, [{ reason: closedHow, at: Date.now() }]);
+      markNeedsYou(marked, [{ type: 'app.was-running', at: Date.now(), how: closedHow }]);
       // Land where you left off — SELECTED but not started here; it starts below with the others if it was running and Settings says to start them.
       // Without a remembered tab we open on none rather than guessing.
       if (toActivate) activateTab(toActivate, false);

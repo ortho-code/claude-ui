@@ -4,6 +4,7 @@ import { test as base, expect, type Route } from '@playwright/test';
 import { build } from 'esbuild';
 import type { ClaudeUiApi, SessionSummary, UiState } from '../../../src/shared/types';
 import { defaultFixture, type BridgeEvent, type BridgeEventArgs, type BridgeFixture } from './fixture';
+import { bundledNeedsYou } from './needsyou';
 
 /** The window as it ships: `npm run build`'s output, which `npm run test:renderer` builds first. */
 const DIST = path.resolve(__dirname, '../../../dist/renderer');
@@ -60,7 +61,7 @@ export const test = base.extend<{ app: App }, { installScript: string }>({
 
     const app: App = {
       boot: async (overrides = {}) => {
-        await page.addInitScript((fixture) => (window.__claudeUiFixture = fixture), { ...defaultFixture(), ...overrides });
+        await page.addInitScript((fixture) => (window.__claudeUiFixture = fixture), { ...defaultFixture(), needsYouTypes: bundledNeedsYou(), ...overrides });
         await page.addInitScript({ content: installScript });
         await page.goto(`${ORIGIN}/index.html`);
       },

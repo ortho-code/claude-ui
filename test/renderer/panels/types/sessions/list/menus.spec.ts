@@ -32,7 +32,7 @@ for (const [name, trigger] of [
 
 // Every kebab hugs its three dots, one width wherever it is: a heading's, a session row's, a strip row's and a tab's.
 test('every kebab is 12px wide, in the list, the strip and the tab bar alike', async ({ app, page }) => {
-  await app.boot({ ...fixture, openSessions: [grouped.id], needsYou: { [grouped.id]: [{ reason: 'quit', at: 1 }] }, history: { [grouped.id]: [] } });
+  await app.boot({ ...fixture, openSessions: [grouped.id], needsYou: { [grouped.id]: [{ type: 'app.was-running', at: 1, how: 'quit' }] }, history: { [grouped.id]: [] } });
   for (const kebab of ['.project-kebab', '.group-kebab', '.session-kebab', '.strip-item-kebab', '.tab-kebab']) {
     const box = (await page.locator(kebab).first().boundingBox())!;
     expect(Math.round(box.width), kebab).toBe(12);

@@ -22,6 +22,7 @@ const api: ClaudeUiApi = {
   setOpenSessions: (ids, running) => ipcRenderer.send('meta:setOpenSessions', ids, running),
   getRunningSessions: () => ipcRenderer.invoke('meta:getRunningSessions'),
   getNeedsYou: () => ipcRenderer.invoke('meta:getNeedsYou'),
+  getNeedsYouTypes: () => ipcRenderer.invoke('needsYou:types'),
   markNeedsYou: (ids, reasons) => ipcRenderer.send('meta:markNeedsYou', ids, reasons),
   clearNeedsYou: (id) => ipcRenderer.send('meta:clearNeedsYou', id),
   getPrSeen: () => ipcRenderer.invoke('meta:getPrSeen'),

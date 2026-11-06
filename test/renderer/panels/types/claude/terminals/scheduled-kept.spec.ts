@@ -146,7 +146,7 @@ test('a quit keeps the crons of a session still running, for the next launch', a
 
 // Marked as needing you, a cold tab has a strip row, which shows the clock too.
 test('a tab kept with a task scheduled shows its muted clock at the next launch, on its strip row too while it needs you', async ({ app, page }) => {
-  await app.boot({ ...fixture, openSessions: [one.id], needsYou: { [one.id]: [{ reason: 'quit', at: 1 }] }, scheduledWhenStopped: { [one.id]: [tock] } });
+  await app.boot({ ...fixture, openSessions: [one.id], needsYou: { [one.id]: [{ type: 'app.was-running', at: 1, how: 'quit' }] }, scheduledWhenStopped: { [one.id]: [tock] } });
   await expect(tab(page, one.title).locator('.nudge')).toHaveClass(/\bneeds\b/);
   for (const clock of [...tabAndRow(page), clockOn(stripRow(page, one.title))]) await expectStopped(clock);
   expect(await app.calls('startTerminal')).toEqual([]);

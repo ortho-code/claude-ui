@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { SessionCheckout, SessionSummary } from '../../../src/shared/types';
+import type { NeedsYou, PrNeedsYouType, SessionCheckout, SessionSummary } from '../../../src/shared/types';
 import {
   projectFor,
   hasVisibleOutput,
@@ -516,7 +516,7 @@ describe('projectsForSwitcher', () => {
 
   // A session marked as needing you counts where claude says nothing more pressing: over idle, under waiting, and not while claude works.
   it('rolls up a needs-you mark between waiting and idle, and not over busy', () => {
-    const mark = [{ reason: 'quit' as const, at: 1 }];
+    const mark = [{ type: 'app.was-running' as const, at: 1, how: 'quit' as const }];
     const statuses = new Map([
       ['a2', 'idle'],
       ['b1', 'waiting'],
@@ -804,7 +804,7 @@ describe('groupJumpTargets', () => {
   });
 
   it('rolls up a needs-you mark over idle', () => {
-    const out = groupJumpTargets(tree({ a: 'g1' }), new Map([['c', 'idle']]), none, new Map([['c', { reason: 'quit' as const, at: 1 }]]));
+    const out = groupJumpTargets(tree({ a: 'g1' }), new Map([['c', 'idle']]), none, new Map([['c', { type: 'app.was-running' as const, at: 1, how: 'quit' as const }]]));
     expect(out.map((t) => t.badge)).toEqual([null, null, 'needs']);
   });
 
@@ -924,20 +924,20 @@ describe('statusLabel', () => {
   });
 
   it('says why a session needs you, by how the app closed while it ran', () => {
-    expect(statusLabel('needs', false, [], [{ reason: 'quit', at: 1 }])).toBe('Needs you — was running when the app quit');
-    expect(statusLabel('needs', false, [], [{ reason: 'ended', at: 1 }])).toBe('Needs you — was running when the app ended without quitting');
-    expect(statusLabel('needs', false, [], [{ reason: 'unknown', at: 1 }])).toBe('Needs you — was running when the app last closed');
-    expect(statusLabel('needs', true, [], [{ reason: 'quit', at: 1 }])).toBe('Needs you — was running when the app quit (read)');
+    expect(statusLabel('needs', false, [], [{ type: 'app.was-running', at: 1, how: 'quit' }])).toBe('Needs you — was running when the app quit');
+    expect(statusLabel('needs', false, [], [{ type: 'app.was-running', at: 1, how: 'ended' }])).toBe('Needs you — was running when the app ended without quitting');
+    expect(statusLabel('needs', false, [], [{ type: 'app.was-running', at: 1, how: 'unknown' }])).toBe('Needs you — was running when the app last closed');
+    expect(statusLabel('needs', true, [], [{ type: 'app.was-running', at: 1, how: 'quit' }])).toBe('Needs you — was running when the app quit (read)');
   });
 
   it('says which day a reminder was for, from when it was marked', () => {
-    expect(statusLabel('needs', false, [], [{ reason: 'reminder', at: new Date(2026, 10, 2, 9).getTime() }])).toBe('Needs you — reminder for Mon 2 Nov, 09:00');
+    expect(statusLabel('needs', false, [], [{ type: 'app.reminder', at: new Date(2026, 10, 2, 9).getTime() }])).toBe('Needs you — reminder for Mon 2 Nov, 09:00');
   });
 
   it("says which PR changed and into what, ranked: what is back to work, then finished, then approved, then how the app closed; newest first within a rank", () => {
-    type Change = 'merged' | 'changes requested' | 'approved' | 'reopened' | 'merge conflict' | 'checks failed';
-    const pr = (number: number, at: number, ...changes: Change[]) => ({ reason: 'pr' as const, at, pr: `acme/app#${number}`, changes });
-    const reasons = [{ reason: 'quit' as const, at: 9 }, pr(1, 8, 'approved'), pr(2, 1, 'merged'), pr(3, 2, 'reopened'), pr(4, 3, 'changes requested'), pr(5, 4, 'merge conflict'), pr(6, 0, 'checks failed', 'approved')];
+    const pr = (number: number, at: number, ...types: PrNeedsYouType[]): NeedsYou[] => types.map((type) => ({ type, at, pr: `acme/app#${number}` }));
+    // One answer's changes are a reason each at one moment, named together strongest first whatever order they are kept in.
+    const reasons = [{ type: 'app.was-running' as const, at: 9, how: 'quit' as const }, ...pr(1, 8, 'pr.approved'), ...pr(2, 1, 'pr.merged'), ...pr(3, 2, 'pr.reopened'), ...pr(4, 3, 'pr.changes-requested'), ...pr(5, 4, 'pr.conflict'), ...pr(6, 0, 'pr.approved', 'pr.checks-failed')];
     expect(statusLabel('needs', false, [], reasons)?.split('\n')).toEqual([
       'Needs you — PR #5 merge conflict',
       'Needs you — PR #4 changes requested',
@@ -951,15 +951,23 @@ describe('statusLabel', () => {
 
   it('names the repository only where the reasons name PRs in more than one', () => {
     const reasons = [
-      { reason: 'pr' as const, at: 2, pr: 'acme/app#1', changes: ['merged' as const] },
-      { reason: 'pr' as const, at: 1, pr: 'acme/site#2', changes: ['merged' as const] },
+      { type: 'pr.merged' as const, at: 2, pr: 'acme/app#1' },
+      { type: 'pr.merged' as const, at: 1, pr: 'acme/site#2' },
     ];
     expect(statusLabel('needs', false, [], reasons)?.split('\n')).toEqual(['Needs you — PR acme/app#1 merged', 'Needs you — PR acme/site#2 merged']);
   });
 
+  it("names a PR's changes from different answers on lines of their own", () => {
+    const reasons = [
+      { type: 'pr.checks-failed' as const, at: 1, pr: 'acme/app#1' },
+      { type: 'pr.approved' as const, at: 2, pr: 'acme/app#1' },
+    ];
+    expect(statusLabel('needs', false, [], reasons)?.split('\n')).toEqual(['Needs you — PR #1 checks failed', 'Needs you — PR #1 approved']);
+  });
+
   it('lists every reason on a line of its own, how the app closed before a reminder, each saying it is read', () => {
-    const reminder = { reason: 'reminder' as const, at: new Date(2026, 10, 2, 9).getTime() };
-    const reasons = [reminder, { reason: 'quit' as const, at: reminder.at + 1 }];
+    const reminder = { type: 'app.reminder' as const, at: new Date(2026, 10, 2, 9).getTime() };
+    const reasons = [reminder, { type: 'app.was-running' as const, at: reminder.at + 1, how: 'quit' as const }];
     expect(statusLabel('needs', false, [], reasons)).toBe('Needs you — was running when the app quit\nNeeds you — reminder for Mon 2 Nov, 09:00');
     expect(statusLabel('needs', true, [], [...reasons].reverse())).toBe('Needs you — was running when the app quit (read)\nNeeds you — reminder for Mon 2 Nov, 09:00 (read)');
   });
