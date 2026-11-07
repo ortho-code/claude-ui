@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, markedWithHistory, mutedBySetAside, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, HISTORY_KEPT, togglePinned, clearedFinished, unkept, withoutSession, type SessionMarks } from '../../../src/shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, clearedNeedsYou, keptFrom, markedSetAside, markedNeedsYou, markedWithHistory, mutedBySetAside, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, HISTORY_KEPT, togglePinned, clearedFinished, unkept, withoutSession, withPrLink, type SessionMarks } from '../../../src/shared/sessionmarks';
 
 // Main's own tests (test/unit/main/meta.test.ts) hold what meta.json ends up with; these hold what the window's checks rely on too: a new value every time, the given one untouched.
 
@@ -236,8 +236,26 @@ describe('keep stamps', () => {
   });
 });
 
+const prA = { repository: 'acme/app', number: 1, url: 'https://github.com/acme/app/pull/1' };
+const prB = { repository: 'acme/app', number: 2, url: 'https://github.com/acme/app/pull/2' };
+
+describe('withPrLink', () => {
+  it('adds the PR at a page after the session\'s others, once whatever its repository\'s capitals, and leaves the links it was given alone', () => {
+    const links = { s: [prA] };
+    expect(withPrLink(links, 's', `${prB.url}/files`)).toEqual({ s: [prA, prB] });
+    expect(withPrLink(links, 's', 'https://github.com/Acme/App/pull/1')).toEqual({ s: [prA] });
+    expect(withPrLink(links, 't', prB.url)).toEqual({ s: [prA], t: [prB] });
+    expect(links).toEqual({ s: [prA] });
+  });
+
+  it('adds nothing for an address that is no GitHub pull request page, or no session', () => {
+    expect(withPrLink({}, 's', 'https://github.com/acme/app/issues/2')).toEqual({});
+    expect(withPrLink({}, '', prB.url)).toEqual({});
+  });
+});
+
 describe('withoutSession', () => {
-  it('forgets the session\'s pin, finished entry, note, needs-you mark and its history, set-aside mark and keep stamp, and keeps everyone else\'s', () => {
+  it('forgets the session\'s pin, finished entry, note, needs-you mark and its history, set-aside mark, keep stamp and PR links, and keeps everyone else\'s', () => {
     const marks: SessionMarks = {
       pinned: ['a', 'b'],
       finished: { a: 1, b: 2 },
@@ -246,6 +264,7 @@ describe('withoutSession', () => {
       needsYouHistory: { a: [{ type: 'app.reminder', at: 0, settled: 1, by: 'prompt' }], b: [{ type: 'app.reminder', at: 0, settled: 1, by: 'cleared' }] },
       setAside: { a: { due: null, at: 1 }, b: { due: 9, at: 2 } },
       kept: { a: 3, b: 4 },
+      prLinks: { a: [prA], b: [prB] },
     };
     expect(withoutSession(marks, 'a')).toEqual({
       pinned: ['b'],
@@ -255,6 +274,7 @@ describe('withoutSession', () => {
       needsYouHistory: { b: [{ type: 'app.reminder', at: 0, settled: 1, by: 'cleared' }] },
       setAside: { b: { due: 9, at: 2 } },
       kept: { b: 4 },
+      prLinks: { b: [prB] },
     });
     expect(marks.needsYou).toEqual({ a: [{ type: 'app.was-running', at: 1, how: 'quit' }], b: [{ type: 'app.was-running', at: 2, how: 'ended' }] });
   });
@@ -271,6 +291,7 @@ describe('purgedSession', () => {
       needsYouHistory: { a: [{ type: 'app.reminder' as const, at: 0, settled: 1, by: 'prompt' as const }] },
       setAside: { a: { due: null, at: 1 } },
       kept: { a: 2 },
+      prLinks: { a: [prA] },
       openSessions: ['a', 'b'],
       runningSessions: ['a', 'b'],
       scheduledWhenStopped: { a: tock, b: tock },
@@ -286,6 +307,7 @@ describe('purgedSession', () => {
       needsYouHistory: {},
       setAside: {},
       kept: {},
+      prLinks: {},
       openSessions: ['b'],
       runningSessions: ['b'],
       scheduledWhenStopped: { b: tock },

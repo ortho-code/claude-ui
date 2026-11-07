@@ -2,8 +2,8 @@ import { NO_TRANSCRIPT, readFrom } from '../../../src/shared/history';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../../../src/shared/grouping';
 import { ID_PATTERN, nodeStateProblem, soundShells, withLink, withNodeChanges, type NodeState } from '../../../src/shared/panels';
 import { type Found, pathProblem, resolvePathIn } from '../../../src/shared/pathcheck';
-import { prReference } from '../../../src/shared/prs';
-import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes } from '../../../src/shared/sessionmarks';
+import { prReference, withPrLinks } from '../../../src/shared/prs';
+import { finishedFrom, cameDue, clearedSetAside, keptFrom, markedSetAside, purgedSession, togglePinned, clearedFinished, unkept, markedWithHistory, restoredNeedsYou, settledNeedsYou, settledTypes, withPrLink } from '../../../src/shared/sessionmarks';
 import { fileChanges, saveRefusal, SETTING_KEYS, settingProblem, settingsView, type SettingsView } from '../../../src/shared/settings';
 import { withText } from '../../../src/shared/text';
 import type { ClaudeUiApi } from '../../../src/shared/types';
@@ -80,7 +80,7 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
   const READ = 1;
 
   const api: ClaudeUiApi = {
-    listSessions: () => answer(fixture.sessions),
+    listSessions: () => answer(withPrLinks(fixture.sessions, fixture.prLinks)),
     // Where the answer starts is main's own rule, `readFrom`; a fixture transcript never changes after its one read, so nothing in it is ever marked as changed.
     // A session the listing does not have has no transcript, which is main's empty answer; one it has needs its history in the fixture.
     getHistory: (id, known, generation) => {
@@ -167,6 +167,9 @@ export function createBridge(fixture: BridgeFixture): { api: ClaudeUiApi; contro
     },
     unkeep: (ids) => {
       fixture.kept = unkept(fixture.kept, ids);
+    },
+    linkSessionPr: (id, url) => {
+      fixture.prLinks = withPrLink(fixture.prLinks, id, url);
     },
     setAsideCameDue: (now, remind) => {
       Object.assign(fixture, cameDue(fixture, now, remind));

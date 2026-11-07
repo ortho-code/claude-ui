@@ -35,7 +35,7 @@ Done:
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
   Sessions sharing a conversation show as siblings (a fork badge with a jump list); worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life, and a session that has since left its worktree keeps the badge, muted unless claude's newest change is in a worktree.
   A session that changed files in other checkouts than the worktree its badge names, such as a worktree it reached by path or with a `cd`, has the badge count and list them, with the worktree it names, and picking one there points the panels at it while that session is on show.
-- The PRs a session links, as Claude Code records them in its transcript, and those it posted a review or comment on with a `gh` command naming the PR's repository: a badge on its row that lists them, an entry in its options, and each opening its page in the browser; a filter finds the sessions with one, and search finds a session by a PR's number.
+- The PRs a session links, as Claude Code records them in its transcript, those it posted a review or comment on with a `gh` command naming the PR's repository, and the one a panel row's `session` action names with `pr`: a badge on its row that lists them, an entry in its options, and each opening its page in the browser; a filter finds the sessions with one, and search finds a session by a PR's number.
   The badge takes the colour of what GitHub says of them — changes requested, failing checks or a merge conflict, ready to merge, all merged or closed — asked with `gh`, and each PR GitHub has answered for is listed with its state, its approvals, and whether it is yours, one you review or someone else's.
   Ready to merge waits for the approvals a repository needs where you set a number; your own PR needs you for its checks, conflicts, change requests and approvals, and one you review for new commits since your review and your review asked again.
 - Custom groups: sub-sections inside a project, made empty from the project's kebab or around a session from its kebab.
@@ -80,7 +80,7 @@ Done:
   A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
 - Panel types of your own, from a folder in the config folder: a script prints a list and the app draws it, with links, sections that fold, and a count on the panel's icon kept current on an interval.
   See [Panel types of your own](#panel-types-of-your-own).
-  A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick; it then shows that session's status and leads back to it, and a second press offers to continue it.
+  A row can start a Claude session with a first prompt, such as a review of the PR it names, in the project and group you pick, and linked to the PR when the action gives its page; it then shows that session's status and leads back to it, and a second press offers to continue it.
 - The sidebar and the terminal area are panel types like the others, each drawn by modules of its own.
 - A config folder that stays yours: the settings in `settings.json`, which you edit and Settings saves into, keeping your comments, and your layout, which the app never writes, keeping where you left it — the sizes you drag to, the groups you fold — in a `.local.json` file of its own beside it, in your file's own field names.
   Every file there may carry comments and trailing commas.
@@ -90,7 +90,6 @@ Next:
 - Panel types that draw themselves: a page of your own in a sandboxed frame, fed by its script, asking the app for what it cannot do itself, such as opening a link or starting a session.
 - A list row leading back to a session it did not start, such as the one that opened a PR, found by the branch they share.
 - A panel type marking the sessions its rows started, on their rows and tabs in the session list.
-- The PR a session was started to review from a panel row, linked to it from the start, rather than only once it posts a review naming the repository.
 - Opening every link in a list panel at once, asking first when there are many.
 - A folder of its own for a panel type's script, to keep state between runs, such as an item snoozed for a day.
 - Options of a path kind in a panel type's manifest.

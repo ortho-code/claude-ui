@@ -95,6 +95,10 @@ A substitution inside double quotes stays part of its word, so a `gh` command ru
 A PR named by a bare number names no repository, and is left out rather than guessed from the folder's remotes, which `gh` chooses among by rules of its own; over 30 days' transcripts here (2026-11-07), 88 of 89 posts named it.
 GraphQL review mutations name a PR by node id, so they link nothing.
 A PR is kept once whatever its repository's capitals, the spelling first seen kept, since Claude Code's records and the commands claude runs spell one repository both ways.
+A panel row's `session` action may name its PR, and a new session started from it is linked to that PR: no transcript names it until the session acts on it, so the app keeps the link in `meta.json` (`prLinks`, by session id), gone when the session is deleted in the app, and the listing puts those links before the transcript's, each PR still once (`withPrLinks`, `src/shared/prs.ts`).
+A link is kept by its page and read back from it, so only an address shaped like a GitHub pull request page is kept.
+Until the listing names the new session, which is once its first message is in its transcript, its row shows no PR and nothing is asked or marked for it; a PR seen for the first time marks nothing, as any PR does, so only its later changes do.
+The link stays with that session's id: neither a fork nor a `/clear` successor carries it, as neither carries a note.
 What a PR's state is, open or merged, is not in the record, so it is asked of GitHub.
 
 **What GitHub says of a PR is asked with `gh`**: main runs `gh api graphql` through the login shell (`src/main/prstatus.ts`), on the person's own `gh` login, so the app keeps no token, and `gh`'s stderr comes on fd 3, apart from the shell's job-control lines.

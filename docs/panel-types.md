@@ -187,7 +187,7 @@ One JSON object:
           ["#1", "3d", "someone"],
           [{ "text": "Login revamp", "press": { "open-url": "https://example.com/epic/9" }, "tooltip": "Its epic" }, { "text": "blocked", "tone": "danger" }]
         ],
-        "actions": [{ "label": "Review", "session": { "prompt": "/review 1", "name": "Review #1" } }] }
+        "actions": [{ "label": "Review", "session": { "prompt": "/review 1", "name": "Review #1", "pr": "https://github.com/org/repo/pull/1" } }] }
     ] },
     { "title": "Blocked", "shut": true, "items": [] }
   ],
@@ -340,6 +340,7 @@ A `press` whose verb this version does not have counts as no `press`, so the row
 |---|---|
 | `prompt` | Required: the session's first prompt, which a slash command such as `/review 1` runs as. |
 | `name` | The session's name; the app's own new-session label without one. |
+| `pr` | The page of the GitHub pull request the session is about, such as `https://github.com/org/repo/pull/1`: a new session started from the row is linked to it once its first prompt is in its transcript, before claude has acted on it, so its PR mark and PR status show from then on, and a change to the PR that needs you marks it, as for the PRs it works on. Continuing a session the row started links nothing. |
 
 ### A `copy`
 

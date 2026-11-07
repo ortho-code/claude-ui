@@ -118,5 +118,6 @@ export async function startSession(entryKey: string, request: SessionRequest, as
   }
   const id = crypto.randomUUID();
   setPanelData(entryKey, await window.claudeUi.linkPanelSession(entryKey, id, { key: request.key, label: request.label, href: request.href }, { repoRoot: answer.root, groupId: answer.groupId }));
+  if (request.pr) window.claudeUi.linkSessionPr(id, request.pr.url);
   await asks.openNewSession(answer.root, answer.groupId ?? undefined, { name: answer.name.trim(), prompt: answer.prompt.trim() }, id);
 }

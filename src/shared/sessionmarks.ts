@@ -3,7 +3,8 @@
  * Main (src/main/meta.ts) applies them inside its serialised writes of `meta.json`.
  */
 import { isPrReason } from './needsyou';
-import type { SetAside, NeedsYou, ScheduledTask, SettledBy, SettledNeedsYou } from './types';
+import { prFromUrl, prKey } from './prs';
+import type { SetAside, NeedsYou, ScheduledTask, SessionPr, SettledBy, SettledNeedsYou } from './types';
 
 /** The marks, as `meta.json` holds them. */
 export interface SessionMarks {
@@ -16,6 +17,16 @@ export interface SessionMarks {
   setAside: Record<string, SetAside>;
   /** When each session was last kept out of the review, epoch ms; how long that holds is the review's own term (`kept:<30d`), not the mark's. */
   kept: Record<string, number>;
+  /** The PRs the app linked each session to, such as the one a panel's row started it for, in the order linked. */
+  prLinks: Record<string, SessionPr[]>;
+}
+
+/** A session's PR links with the PR at `url` added, read from its page (`prFromUrl`); as they were for an address that is no GitHub pull request page, an empty id, or a PR linked already (`prKey`). */
+export function withPrLink(prLinks: Readonly<Record<string, SessionPr[]>>, id: string, url: string): Record<string, SessionPr[]> {
+  const pr = prFromUrl(url);
+  const linked = prLinks[id] ?? [];
+  if (id === '' || pr === null || linked.some((each) => prKey(each) === prKey(pr))) return { ...prLinks };
+  return { ...prLinks, [id]: [...linked, pr] };
 }
 
 /** Sessions kept out of the review from `at`: a stamp already there is replaced, so Keep again starts its days afresh. */
@@ -180,14 +191,16 @@ export function clearedFinished(finished: Readonly<Record<string, number>>, id: 
   return next;
 }
 
-/** A deleted session's marks forgotten: its pin, its finished entry, its note, its needs-you mark and its history, its set-aside mark and its keep stamp (`purgedSession` forgets the rest of what meta holds about it). */
+/** A deleted session's marks forgotten: its pin, its finished entry, its note, its needs-you mark and its history, its set-aside mark, its keep stamp and its PR links (`purgedSession` forgets the rest of what meta holds about it). */
 export function withoutSession(marks: Readonly<SessionMarks>, id: string): SessionMarks {
   const finished = clearedFinished(marks.finished, id);
   const notes = { ...marks.notes };
   delete notes[id];
   const needsYouHistory = copied(marks.needsYouHistory);
   delete needsYouHistory[id];
-  return { pinned: marks.pinned.filter((key) => key !== id), finished, notes, needsYou: clearedNeedsYou(marks.needsYou, id), needsYouHistory, setAside: clearedSetAside(marks.setAside, id), kept: unkept(marks.kept, [id]) };
+  const prLinks = { ...marks.prLinks };
+  delete prLinks[id];
+  return { pinned: marks.pinned.filter((key) => key !== id), finished, notes, needsYou: clearedNeedsYou(marks.needsYou, id), needsYouHistory, setAside: clearedSetAside(marks.setAside, id), kept: unkept(marks.kept, [id]), prLinks };
 }
 
 /** What else meta holds about a session, as `meta.json` holds it: the tabs open and which of them run, the one on show overall and per project, and who is in which group. */

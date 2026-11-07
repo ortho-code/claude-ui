@@ -1,6 +1,7 @@
 import type { LeaveAction, TabButtonMark } from '../logic';
 import type { MenuItem } from '../menu';
 import type { IconName } from '../../shared/icons';
+import type { SessionPr } from '../../shared/types';
 import type { PanelSlot } from './layout';
 import type { OptionsDecl } from './options';
 
@@ -72,6 +73,8 @@ export interface SessionRequest {
   /** The session's name, or null for the app's own label. */
   name: string | null;
   prompt: string;
+  /** The PR the session is about, which a new session started from the request is linked to; null for none. */
+  pr: SessionPr | null;
   /** Where the panel last ran, so the dialog can offer the project that folder is in; null when it has not run. */
   dir: string | null;
 }

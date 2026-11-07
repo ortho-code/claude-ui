@@ -474,7 +474,7 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
     if (!item) return;
     switch (verb.verb) {
       case 'session':
-        this.host.startSession({ from: this.slot.title, key, label: this.said(item.text), href: urlOf(item.press), name: verb.name, prompt: verb.prompt, dir: this.lastDir });
+        this.host.startSession({ from: this.slot.title, key, label: this.said(item.text), href: urlOf(item.press), name: verb.name, prompt: verb.prompt, pr: verb.pr, dir: this.lastDir });
         return;
       case 'open-session':
         this.host.openSession(verb.id);

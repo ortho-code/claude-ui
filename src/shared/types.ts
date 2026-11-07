@@ -532,6 +532,8 @@ export interface ClaudeUiApi {
   keep(ids: string[], at?: number): void;
   /** Take sessions' keep stamps off, in one write, as Keep's Undo does. */
   unkeep(ids: string[]): void;
+  /** Link a session to the PR at `url`, a GitHub pull request page, unless it is linked to it already; the listing gives it among the session's PRs from the first listing that names the session. */
+  linkSessionPr(id: string, url: string): void;
   /** Settle the set-aside marks that have come due by `now` (`cameDue`): each goes, and, while `remind` says the reminder's type is on, a session not marked as needing you is marked with a reminder. */
   setAsideCameDue(now: number, remind: boolean): void;
   /** How the app closed before this window opened: what a session running then is marked for. */

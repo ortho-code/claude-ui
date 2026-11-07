@@ -38,6 +38,7 @@ const api: ClaudeUiApi = {
   getKept: () => ipcRenderer.invoke('meta:getKept'),
   keep: (ids, at) => ipcRenderer.send('meta:keep', ids, at),
   unkeep: (ids) => ipcRenderer.send('meta:unkeep', ids),
+  linkSessionPr: (id, url) => ipcRenderer.send('meta:linkSessionPr', id, url),
   getLastClosed: () => ipcRenderer.invoke('app:lastClosed'),
   getScheduledWhenStopped: () => ipcRenderer.invoke('meta:getScheduledWhenStopped'),
   setScheduledWhenStopped: (bySession) => ipcRenderer.send('meta:setScheduledWhenStopped', bySession),

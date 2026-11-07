@@ -52,6 +52,8 @@ import {
   getKept,
   keep,
   unkeep,
+  getPrLinks,
+  addPrLink,
   clearNeedsYou,
   getPrSeen,
   setPrSeen,
@@ -425,6 +427,29 @@ describe('what was last seen of the PRs', () => {
   it('reads a status kept without the role and review fields as not knowing them', async () => {
     await writeMetaFile({ version: 3, prSeen: { 'acme/app#7': { state: 'open', draft: false, review: 'approved', checks: null, conflict: false } } });
     expect(await getPrSeen()).toEqual({ 'acme/app#7': { state: 'open', role: null, draft: false, review: 'approved', checks: null, conflict: false, approvals: null, newCommits: null, reviewAsked: null, changesRequested: null } });
+  });
+});
+
+describe('the PRs the app linked sessions to', () => {
+  const pr = (repository: string, number: number) => ({ repository, number, url: `https://github.com/${repository}/pull/${number}` });
+
+  it('keep each session\'s in the order linked, each once, through a finish, and go with a delete', async () => {
+    await addPrLink('a', pr('acme/app', 1).url);
+    await addPrLink('a', pr('acme/app', 2).url);
+    await addPrLink('a', pr('Acme/App', 1).url);
+    await addPrLink('b', pr('acme/app', 3).url);
+    expect(await getPrLinks()).toEqual({ a: [pr('acme/app', 1), pr('acme/app', 2)], b: [pr('acme/app', 3)] });
+    await finish(['a']);
+    expect((await getPrLinks()).a).toEqual([pr('acme/app', 1), pr('acme/app', 2)]);
+    await purgeSession('a');
+    expect(await getPrLinks()).toEqual({ b: [pr('acme/app', 3)] });
+  });
+
+  it('are none in a file written before they were kept, and a link that is no GitHub pull request page is dropped', async () => {
+    await writeMetaFile({ version: 3 });
+    expect(await getPrLinks()).toEqual({});
+    await writeMetaFile({ version: 3, prLinks: { a: [pr('acme/app', 1), { url: 'https://example.com/x' }, null], b: [{ url: 'https://github.com/acme/app/issues/4' }], c: 'x' } });
+    expect(await getPrLinks()).toEqual({ a: [pr('acme/app', 1)] });
   });
 });
 

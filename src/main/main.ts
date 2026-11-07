@@ -39,6 +39,8 @@ import {
   getKept,
   keep,
   unkeep,
+  getPrLinks,
+  addPrLink,
   markSetAside,
   clearSetAside,
   setAsideCameDue,
@@ -78,6 +80,7 @@ import { registerLayoutState } from './layoutstate';
 import { readProcVersion, runsOnWsl } from './platform';
 import { copiedFiles } from './clipboard';
 import { registerPrStatus } from './prstatus';
+import { withPrLinks } from '../shared/prs';
 import {
   placeWindow,
   maximizedRect,
@@ -468,7 +471,7 @@ async function createWindow(): Promise<void> {
   });
 }
 
-ipcMain.handle('sessions:list', () => listSessions());
+ipcMain.handle('sessions:list', async () => withPrLinks(await listSessions(), await getPrLinks()));
 ipcMain.handle('history:get', async (_event, id: string, known: number, generation: number): Promise<HistorySlice> => {
   const file = await findTranscript(id);
   // No transcript yet is a session nothing has been sent in: an empty history, not an error.
@@ -540,6 +543,9 @@ ipcMain.on('meta:keep', (_event, ids: string[], at?: number) => {
 });
 ipcMain.on('meta:unkeep', (_event, ids: string[]) => {
   void unkeep(ids);
+});
+ipcMain.on('meta:linkSessionPr', (_event, id: unknown, url: unknown) => {
+  if (typeof id === 'string' && typeof url === 'string') void addPrLink(id, url);
 });
 ipcMain.on('meta:markSetAside', (_event, ids: string[], due: number | null, at?: number) => {
   void markSetAside(ids, due, at);

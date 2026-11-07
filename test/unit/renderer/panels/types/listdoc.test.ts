@@ -77,7 +77,7 @@ describe('readListDocument', () => {
                 separator: ' | ',
                 press: { verb: 'open-url', url: 'https://github.com/org/repo/pull/1' },
                 tone: 'attention',
-                actions: [{ label: 'Review', does: { verb: 'session', prompt: '/review 1', name: 'Review #1' } }],
+                actions: [{ label: 'Review', does: { verb: 'session', prompt: '/review 1', name: 'Review #1', pr: null } }],
                 children: [],
                 shut: false,
               },
@@ -145,6 +145,7 @@ describe('readListDocument', () => {
         { label: 'Open', 'open-session': 'b03e5cdc' },
         { label: 'PR', 'open-url': 'https://example.com/pr/1' },
         { label: 'Review', session: { prompt: '/review 1' } },
+        { label: 'Review here', session: { prompt: '/review 1', pr: 'https://github.com/acme/app/pull/1/files' } },
       ],
     });
     expect(read?.press).toEqual({ verb: 'open-session', id: 'b03e5cdc' });
@@ -157,7 +158,8 @@ describe('readListDocument', () => {
       { verb: 'copy', text: 'b03e5cdc', confirm: null },
       { verb: 'open-session', id: 'b03e5cdc' },
       { verb: 'open-url', url: 'https://example.com/pr/1' },
-      { verb: 'session', prompt: '/review 1', name: null },
+      { verb: 'session', prompt: '/review 1', name: null, pr: null },
+      { verb: 'session', prompt: '/review 1', name: null, pr: { repository: 'acme/app', number: 1, url: 'https://github.com/acme/app/pull/1' } },
     ]);
   });
 
@@ -266,6 +268,8 @@ describe('readListDocument', () => {
     [{ sections: [{ items: [{ ...item, actions: [{ session: { prompt: 'x' } }] }] }] }, 'sections[0].items[0].actions[0].label is missing.'],
     [{ sections: [{ items: [{ ...item, actions: [{ label: 'Review', session: {} }] }] }] }, 'sections[0].items[0].actions[0].session.prompt is missing.'],
     [{ sections: [{ items: [{ ...item, actions: [{ label: 'Review', session: 'x' }] }] }] }, 'sections[0].items[0].actions[0].session is not an object.'],
+    [{ sections: [{ items: [{ ...item, actions: [{ label: 'Review', session: { prompt: 'x', pr: 'https://github.com/acme/app/issues/1' } }] }] }] }, 'sections[0].items[0].actions[0].session.pr "https://github.com/acme/app/issues/1" is not a GitHub pull request page.'],
+    [{ sections: [{ items: [{ ...item, actions: [{ label: 'Review', session: { prompt: 'x', pr: 7 } }] }] }] }, 'sections[0].items[0].actions[0].session.pr is not a string.'],
     [{ sections: [{ items: [{ ...item, actions: [{ label: 'Both', copy: 'x', 'open-session': 'y' }] }] }] }, 'sections[0].items[0].actions[0] has open-session and copy, and a press does one.'],
     [{ sections: [{ items: [{ ...item, actions: [{ label: 'Open', 'open-session': '' }] }] }] }, 'sections[0].items[0].actions[0].open-session is empty.'],
     [{ sections: [{ items: [{ ...item, actions: [{ label: 'Open', 'open-url': 'file:///etc/passwd' }] }] }] }, 'sections[0].items[0].actions[0].open-url "file:///etc/passwd" is not an http or https link.'],

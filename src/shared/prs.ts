@@ -1,4 +1,4 @@
-import type { PrRole, SessionPr } from './types';
+import type { PrRole, SessionPr, SessionSummary } from './types';
 
 /** The approvals each repository needs before a PR counts as approved, by `owner/name`, as `approvals` in settings.json holds them. */
 export type Approvals = Readonly<Record<string, number>>;
@@ -54,4 +54,15 @@ export function prFromUrl(url: string): SessionPr | null {
   if (page === null) return null;
   const [, repository, number] = page as unknown as [string, string, string];
   return { repository, number: Number(number), url: `https://github.com/${repository}/pull/${number}` };
+}
+
+/** The sessions with the PRs the app linked them to (`prLinks`, by session id) first, since such a link is made when a panel row starts the session, then the transcript's, each PR once (`prKey`). */
+export function withPrLinks<S extends Pick<SessionSummary, 'id' | 'prs'>>(sessions: readonly S[], prLinks: Readonly<Record<string, readonly SessionPr[]>>): S[] {
+  return sessions.map((session) => {
+    const linked = prLinks[session.id];
+    if (linked === undefined || linked.length === 0) return session;
+    const prs = new Map<string, SessionPr>();
+    for (const pr of [...linked, ...session.prs]) if (!prs.has(prKey(pr))) prs.set(prKey(pr), pr);
+    return { ...session, prs: [...prs.values()] };
+  });
 }

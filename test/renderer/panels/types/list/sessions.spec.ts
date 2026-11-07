@@ -59,11 +59,11 @@ const litFill = (page: Page): Promise<string> =>
   });
 
 /** Boot with the queue panel, its rows' sessions as given, and let its script print the list. */
-async function bootQueue(app: App, page: Page, links: Record<string, PanelLink> = fixture.panelData.queue.sessions, more: Partial<BridgeFixture> = {}): Promise<void> {
+async function bootQueue(app: App, page: Page, links: Record<string, PanelLink> = fixture.panelData.queue.sessions, more: Partial<BridgeFixture> = {}, list: object = LIST): Promise<void> {
   await app.boot({ ...fixture, ...more, panelData: { queue: { sessions: links, lastGroup: {} } }, layout: { ...fixture.layout, types: [{ name: 'reviews', dir: QUEUE_DIR, status: 'read', error: null, json: { version: 1, kind: 'list', title: 'Reviews', icon: 'eye', run: 'list.sh' } }] } });
   await expect.poll(() => runs(app, 'queue')).toHaveLength(1);
   const { token } = (await runs(app, 'queue'))[0];
-  await app.emit('onPanelRun', 'queue', token, { kind: 'output', text: JSON.stringify(LIST) });
+  await app.emit('onPanelRun', 'queue', token, { kind: 'output', text: JSON.stringify(list) });
   await app.emit('onPanelRun', 'queue', token, { kind: 'exit', code: 0, signal: null });
   await expect(page.locator('.list-row')).toHaveCount(3);
 }
@@ -103,6 +103,29 @@ test("a row's action starts a session through the app's dialog, remembered under
   await expect(tab(page, 'Review #3')).toHaveClass(/\bactive\b/);
   // The row leads back to it before claude has written anything.
   await expect(mark(page, 'Speed up the search')).toHaveAttribute('aria-label', 'Go to Review #3 · running');
+  expect(await app.calls('linkSessionPr')).toEqual([]);
+});
+
+/** The list with a Review action on every row, each naming its PR, so a row that has a session can be continued as well as started anew. */
+const WITH_PRS = {
+  ...LIST,
+  sections: [{ items: LIST.sections[0].items.map((item, at) => ({ ...item, actions: [{ label: 'Review', session: { prompt: `/review ${at + 1}`, pr: `https://github.com/org/repo/pull/${at + 1}` } }] })) }],
+};
+
+test("a row's action naming a PR links a new session to it from the start, and continuing one links nothing", async ({ app, page }) => {
+  await bootQueue(app, page, undefined, {}, WITH_PRS);
+  await page.locator('.list-row', { hasText: 'Speed up the search' }).locator('.list-action', { hasText: 'Review' }).click();
+  await page.locator('#session-ok').click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  const [[, launch]] = (await app.calls('startTerminal')) as [string, TerminalLaunch][];
+  expect(await app.calls('linkSessionPr')).toEqual([[launch.sessionId, 'https://github.com/org/repo/pull/3']]);
+
+  // Row 1 has a session already, so the dialog offers to continue it, which it is linked to as it was.
+  await page.locator('.list-row', { hasText: 'Fix the login redirect' }).locator('.list-action', { hasText: 'Review' }).click();
+  await expect(page.locator('#session-ok')).toHaveText('Continue');
+  await page.locator('#session-ok').click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(2);
+  expect(await app.calls('linkSessionPr')).toHaveLength(1);
 });
 
 test("a row's session mark calls a session claude has not named what the session list calls it", async ({ app, page }) => {

@@ -4,7 +4,7 @@ import { NO_NEEDS_YOU_TYPES, type NeedsYouRead } from '../../../src/shared/needs
 import type { LayoutReport, LocalLayoutRead, NodeState, PanelData } from '../../../src/shared/panels';
 import type { Found } from '../../../src/shared/pathcheck';
 import type { SettingsFileRead } from '../../../src/shared/settings';
-import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, SettledNeedsYou, PrSeen, PrStatus, ScheduledTask, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
+import type { ClaudeUiApi, ClosedHow, Exchange, GroupState, HistoryPin, SetAside, NeedsYou, SettledNeedsYou, PrSeen, PrStatus, ScheduledTask, SessionPr, SessionSummary, UiState, WindowChrome } from '../../../src/shared/types';
 
 /**
  * What the stand-in for the main process answers with: plain data, because it crosses into the page as JSON.
@@ -31,6 +31,8 @@ export interface BridgeFixture {
   setAside: Record<string, SetAside>;
   /** Session -> when it was last kept out of the review, as meta keeps it; stamped and taken off by main's own rules. */
   kept: Record<string, number>;
+  /** Session -> the PRs the app linked it to, as meta keeps them; added by main's own rule, and merged into the listing as main merges them. */
+  prLinks: Record<string, SessionPr[]>;
   /** How the app closed before this window, as main's log says. */
   lastClosed: ClosedHow;
   openSessions: string[];
@@ -160,6 +162,7 @@ export function defaultFixture(): BridgeFixture {
     prSeenReadFails: 0,
     setAside: {},
     kept: {},
+    prLinks: {},
     lastClosed: 'quit',
     openSessions: [],
     runningSessions: [],

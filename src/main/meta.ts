@@ -2,16 +2,16 @@ import { app } from 'electron';
 import { promises as fs } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
-import type { SetAside, NeedsYou, ClosedHow, SettledBy, SettledNeedsYou, OrderMove, GroupState, HistoryPin, PrChange, PrNeedsYouType, PrRole, PrSeen, PrStatus, ScheduledTask, SessionGroup, UiState, Settings } from '../shared/types';
+import type { SetAside, NeedsYou, ClosedHow, SettledBy, SettledNeedsYou, OrderMove, GroupState, HistoryPin, PrChange, PrNeedsYouType, PrRole, PrSeen, PrStatus, ScheduledTask, SessionGroup, SessionPr, UiState, Settings } from '../shared/types';
 import { scheduledTasksOf } from '../shared/scheduled';
 import type { PanelState } from '../shared/panels';
 import { defaultSettings, defaultUi } from '../shared/defaults';
 import type { WindowBounds } from './bounds';
 import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, withoutGroup, withSessionInGroup } from '../shared/grouping';
-import { finishedFrom, cameDue, clearedSetAside, HISTORY_KEPT, keptFrom, markedSetAside, markedWithHistory, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, togglePinned, clearedFinished, unkept } from '../shared/sessionmarks';
+import { finishedFrom, cameDue, clearedSetAside, HISTORY_KEPT, keptFrom, markedSetAside, markedWithHistory, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, togglePinned, clearedFinished, unkept, withPrLink } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { isPrReason, isPrType, PR_TYPES } from '../shared/needsyou';
-import { PR_ROLES } from '../shared/prs';
+import { PR_ROLES, prFromUrl } from '../shared/prs';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
 import { errorText, fsFailure, log, logOnce } from './log';
@@ -95,6 +95,11 @@ interface Meta {
    */
   kept: Record<string, number>;
   /**
+   * The PRs the app linked each session to, by session id, in the order linked: the one a panel's row started it for, which no transcript names until the session acts on it.
+   * Finishing leaves them, and they go with the session's delete.
+   */
+  prLinks: Record<string, SessionPr[]>;
+  /**
    * What was last seen of each PR the sessions link, by reference: what the window tells a PR's change from, which marks the sessions linking it (`prChanges`).
    * Null before it was ever kept, the first run; emptied when PR status is turned off, so turning it on again starts from the PRs as they are then (decided 2026-10-29).
    */
@@ -171,6 +176,7 @@ const KNOWN_KEYS = new Set([
   'setAside',
   'later', // the pre-rename spelling of setAside; read, never written
   'kept',
+  'prLinks',
   'prSeen',
   'groups',
   'groupOf',
@@ -183,7 +189,7 @@ function metaPath(): string {
 }
 
 function defaults(): Meta {
-  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, finished: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, needsYouHistory: {}, setAside: {}, kept: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
+  return { pinned: [], historyPins: {}, openSessions: [], runningSessions: [], scheduledWhenStopped: {}, activeSession: null, activeSessionByProject: {}, finished: {}, activeProject: null, projectNames: {}, projectOrder: [], windowBounds: null, ui: defaultUi(), settings: normalizeSettings(undefined), moved: [], notes: {}, needsYou: {}, needsYouHistory: {}, setAside: {}, kept: {}, prLinks: {}, prSeen: null, groups: [], groupOf: {}, version: 3, appVersion: '', extra: {} };
 }
 
 /**
@@ -395,6 +401,8 @@ function normalize(parsed: Record<string, unknown>): Meta {
     setAside: setAsideWithPaused(setAsideOf(parsed.setAside ?? parsed.later), parsed.pausedSessions, Date.now()),
     // The same again: absent means nothing kept out of the review; a stamp that is no moment is dropped.
     kept: Object.fromEntries(Object.entries((parsed.kept ?? {}) as Record<string, unknown>).filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]))),
+    // The same again: absent means no session linked; a link is read back from its page, so one that is no GitHub pull request page is dropped.
+    prLinks: prLinksOf(parsed.prLinks),
     // The same again: absent means never kept, the first run.
     prSeen: prSeenOf(parsed.prSeen),
     groups,
@@ -846,6 +854,21 @@ function prStatusOf(raw: unknown): PrStatus | null {
   return { state, role, draft, review, checks, conflict, approvals, newCommits, reviewAsked, changesRequested } as PrStatus;
 }
 
+/** The stored PR links, each read back from its page (`prFromUrl`), so one whose address is not shaped like a GitHub pull request page is dropped, and a session left with none with it. */
+function prLinksOf(raw: unknown): Record<string, SessionPr[]> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  const links: Record<string, SessionPr[]> = {};
+  for (const [id, list] of Object.entries(raw)) {
+    const prs = (Array.isArray(list) ? (list as unknown[]) : []).flatMap((each) => {
+      const url = typeof each === 'object' && each !== null ? (each as { url?: unknown }).url : undefined;
+      const pr = typeof url === 'string' ? prFromUrl(url) : null;
+      return pr ? [pr] : [];
+    });
+    if (prs.length > 0) links[id] = prs;
+  }
+  return links;
+}
+
 /** What was last seen of the PRs, from whatever was stored: null for none at all, and an entry this build cannot read dropped. */
 function prSeenOf(raw: unknown): PrSeen | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
@@ -873,6 +896,18 @@ export function markSetAside(ids: string[], due: number | null, at = Date.now())
 export function clearSetAside(ids: string[]): Promise<void> {
   return update('clearSetAside', (meta) => {
     for (const id of ids) meta.setAside = clearedSetAside(meta.setAside, id);
+  });
+}
+
+/** The PRs the app linked each session to; see `prLinks`. */
+export function getPrLinks(): Promise<Record<string, SessionPr[]>> {
+  return serialize(async () => (await readMeta()).prLinks);
+}
+
+/** Link a session to the PR at `url`, by `withPrLink`'s rule. */
+export function addPrLink(id: string, url: string): Promise<void> {
+  return update('addPrLink', (meta) => {
+    meta.prLinks = withPrLink(meta.prLinks, id, url);
   });
 }
 

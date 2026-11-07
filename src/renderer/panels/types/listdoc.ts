@@ -1,6 +1,8 @@
 import type { PanelView } from '../contract';
 import { fieldsOf } from '../fields';
 import { ICON_NAMES, isIconName } from '../../../shared/icons';
+import { prFromUrl } from '../../../shared/prs';
+import type { SessionPr } from '../../../shared/types';
 import { ID_PATTERN, SLUG_RULE } from '../layout';
 import { TONES, type Tone } from '../../tone';
 
@@ -27,7 +29,7 @@ export const LIST_FIELDS = {
   part: ['text', 'press', 'tooltip', 'tone'],
   action: ['label'],
   verb: ['session', 'open-session', 'open-url', 'copy'],
-  session: ['prompt', 'name'],
+  session: ['prompt', 'name', 'pr'],
   copy: ['text', 'confirm'],
   live: ['session', 'field', 'else'],
   dot: ['session'],
@@ -55,7 +57,14 @@ export type Cut = (typeof CUTS)[number];
  * `session` starts a claude session with a prompt, in the project and group the user picks in the app's own dialog; `open-session` goes to a session the app has; `open-url` opens an http or https link in the browser; `copy` puts a text on the clipboard, saying so in the type's words or the app's.
  */
 export type Verb =
-  | { verb: 'session'; prompt: string; /** The session's name (`--name`); the app's own new-session label without one. */ name: string | null }
+  | {
+      verb: 'session';
+      prompt: string;
+      /** The session's name (`--name`); the app's own new-session label without one. */
+      name: string | null;
+      /** The PR the session is about, from a GitHub pull request page; null for none. */
+      pr: SessionPr | null;
+    }
   | { verb: 'open-session'; id: string }
   | { verb: 'open-url'; url: string }
   | { verb: 'copy'; text: string; /** What the toast says once it is copied; the app's own words without one. */ confirm: string | null };
@@ -305,6 +314,16 @@ class Reader {
     return href;
   }
 
+  /** A `session`'s PR: null when absent, undefined, and a problem, when it is not a GitHub pull request page. */
+  pullRequest(raw: unknown, at: string): SessionPr | null | undefined {
+    if (raw === undefined) return null;
+    const href = this.text(raw, at, true);
+    if (href === null) return undefined;
+    const pr = prFromUrl(href);
+    if (pr === null) this.problems.push(`${at} "${href}" is not a GitHub pull request page.`);
+    return pr ?? undefined;
+  }
+
   /**
    * The one verb of an action or a press, by the verb's field: undefined when it names none this build has, which is a later build's and is left out as any field it does not know; null when what it names is a mistake, which is a problem too.
    * Two verbs this build has on one object is a mistake, since which one a press does would be a guess.
@@ -329,7 +348,8 @@ class Reader {
         const sessionField = fieldsOf(value, LIST_FIELDS.session);
         const prompt = this.text(sessionField('prompt'), `${where}.prompt`, true);
         const sessionName = this.text(sessionField('name'), `${where}.name`);
-        return prompt !== null ? { verb: 'session', prompt, name: sessionName } : null;
+        const pr = this.pullRequest(sessionField('pr'), `${where}.pr`);
+        return prompt !== null && pr !== undefined ? { verb: 'session', prompt, name: sessionName, pr } : null;
       }
       case 'open-session': {
         const id = this.text(value, where, true);

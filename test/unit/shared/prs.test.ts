@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { approvalsProblem, approvalsRequired, prFromUrl, prKey, roleOf } from '../../../src/shared/prs';
+import { approvalsProblem, approvalsRequired, prFromUrl, prKey, roleOf, withPrLinks } from '../../../src/shared/prs';
+
+describe('withPrLinks', () => {
+  const pr = (repository: string, number: number) => ({ repository, number, url: `https://github.com/${repository}/pull/${number}` });
+
+  it('puts the PRs the app linked a session to before the transcript’s, each PR once whatever its repository’s capitals', () => {
+    const sessions = [{ id: 's', prs: [pr('acme/app', 1), pr('acme/app', 2)] }];
+    expect(withPrLinks(sessions, { s: [pr('Acme/App', 2), pr('acme/app', 3)] })).toEqual([{ id: 's', prs: [pr('Acme/App', 2), pr('acme/app', 3), pr('acme/app', 1)] }]);
+  });
+
+  it('leaves a session the app linked to nothing as it was', () => {
+    const sessions = [{ id: 's', prs: [pr('acme/app', 1)] }];
+    expect(withPrLinks(sessions, { t: [pr('acme/app', 9)] })).toEqual(sessions);
+  });
+});
 
 describe('prFromUrl', () => {
   it('reads a pull request page, and one under its files or a comment, as the PR’s own page', () => {
