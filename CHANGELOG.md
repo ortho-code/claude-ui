@@ -128,6 +128,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - The sessions file gives each PR's `role`, whether it is yours, one you review or someone else's, and for an open PR its approvals, whether new commits came since your review, and whether your review is asked.
 - How many approvals a repository's PRs need is `approvals` in `settings.json`, such as `{ "acme/app": 2 }`: below it a PR is not green and marks no session as approved, and a session's options show "1 of 2 approvals", and "reviewing" or "someone else's" on a PR that is not yours.
 - A session linking a PR you review needs you when new commits come since your review, or your review is asked, both in Look again.
+- A session links a PR it posted a review or comment on, where Claude Code itself links none for a review, so a review session needs you when that PR moves on; the command has to name the PR's repository, as `gh pr review --repo` and a `gh api` call under `repos/<owner>/<repo>/pulls/<number>` do.
 
 ### Changed
 

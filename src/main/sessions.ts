@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 import { prReference } from '../shared/prs';
 import type { SessionCheckout, SessionPr, SessionSummary } from '../shared/types';
 import { errorText, fsFailure, log, logOnce } from './log';
+import { postedPrs } from './postedprs';
 import { formatDuration } from './stamp';
 import { promptOf } from './transcript';
 
@@ -331,6 +332,25 @@ const FILE_TOOLS = new Map([
 /** A line that may call one of them, before it is parsed. */
 const FILE_TOOL_CALL = new RegExp(`"name":"(?:${[...FILE_TOOLS.keys()].join('|')})"`);
 
+/** Claude's tools that run a shell command, each given as its `command` input. */
+const SHELL_TOOLS = ['Bash', 'PowerShell'];
+
+/** A line that may call one of them, before it is parsed. */
+const SHELL_TOOL_CALL = new RegExp(`"name":"(?:${SHELL_TOOLS.join('|')})"`);
+
+/** The commands an assistant record's shell-tool calls run. */
+function shellCommands(event: Record<string, unknown>): string[] {
+  const content = (event.message as { content?: unknown } | undefined)?.content;
+  if (!Array.isArray(content)) return [];
+  return content.flatMap((part: unknown) => {
+    if (typeof part !== 'object' || part === null) return [];
+    const { type, name, input } = part as { type?: unknown; name?: unknown; input?: unknown };
+    if (type !== 'tool_use' || typeof name !== 'string' || !SHELL_TOOLS.includes(name)) return [];
+    const command = (input as { command?: unknown } | undefined)?.command;
+    return typeof command === 'string' ? [command] : [];
+  });
+}
+
 /** Summarize one transcript without loading the whole file into memory. */
 async function summarizeFile(file: string): Promise<SummaryRead | null> {
   const id = path.basename(file, '.jsonl');
@@ -365,9 +385,13 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
   // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system append (a Remote Control notice) or a resume bumps mtime without being real activity.
   // Captured with a cheap regex below.
   let lastMsgTs = '';
-  // The PRs the transcript links, keyed by their reference, `owner/repo#number`.
-  // Claude Code writes the same record again through a session, so each is kept once, where it first appears.
+  // The PRs the transcript links, keyed by their reference, `owner/repo#number`, in lower case, since Claude Code's records and the commands claude runs spell one repository with different capitals.
+  // Claude Code writes the same record again through a session, so each is kept once, where it first appears, as spelt there.
   const prs = new Map<string, SessionPr>();
+  const keepPr = (pr: SessionPr): void => {
+    const key = prReference(pr).toLowerCase();
+    if (!prs.has(key)) prs.set(key, pr);
+  };
 
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
   try {
@@ -401,9 +425,10 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
       const maybeExitCall = line.includes('"ExitWorktree"');
       // Searched only in claude's own records, which keeps it off the long tool results and replayed requests.
       const maybeChange = isAssistant && FILE_TOOL_CALL.test(line);
+      const maybePost = isAssistant && line.includes('gh ') && SHELL_TOOL_CALL.test(line);
       // Read before the lines below are skipped unparsed, as a user record mostly is.
       if (exitAwaitsCall && line.includes('"type":"user"')) exitAwaitsCall = false;
-      if (!isTitle && !maybeBoundary && !maybeWorktree && !maybePrLink && !maybeExitCall && !maybeChange && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
+      if (!isTitle && !maybeBoundary && !maybeWorktree && !maybePrLink && !maybeExitCall && !maybeChange && !maybePost && !awaitingCompactHead && cwd && firstMessage && conversationId) continue;
 
       let event: Record<string, unknown>;
       try {
@@ -464,10 +489,12 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
 
       if (event.type === 'pr-link') {
         const pr = linkedPr(event);
-        if (pr) {
-          const key = prReference(pr);
-          if (!prs.has(key)) prs.set(key, pr);
-        }
+        if (pr) keepPr(pr);
+      }
+
+      // A review or comment claude posted links its PR: Claude Code links none for a review, nor for a comment posted through `gh api`.
+      if (maybePost && event.type === 'assistant') {
+        for (const command of shellCommands(event)) for (const pr of postedPrs(command)) keepPr(pr);
       }
 
       // Real compaction boundary; the following user/assistant message is the post-compaction head.

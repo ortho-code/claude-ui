@@ -113,8 +113,8 @@ export interface SessionSummary {
   /** The other members of this session's family (empty when not a sibling). */
   siblingIds: string[];
   /**
-   * The PRs the session's transcript links, from Claude Code's `pr-link` records, each once, in the order first linked; empty when none.
-   * A record says the PR is linked to this session, not who opened it.
+   * The PRs the session's transcript links, from Claude Code's `pr-link` records and the reviews and comments claude posted with a `gh` command naming the PR's repository, each once whatever its repository's capitals, in the order first linked; empty when none.
+   * A link says the session worked on the PR, not who opened it.
    */
   prs: SessionPr[];
   /**

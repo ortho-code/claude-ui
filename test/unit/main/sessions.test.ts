@@ -282,6 +282,22 @@ beforeAll(async () => {
     ),
   );
 
+  // The PRs claude posted a review or comment on, beside Claude Code's records: one PR spelt with other capitals there, a post on another PR, a read that posts nothing, and a PowerShell call.
+  const shell = (name: string, command: string) => ({ type: 'assistant', message: { content: [{ type: 'tool_use', id: `t${command.length}`, name, input: { command } }] } });
+  await fs.writeFile(
+    path.join(dir, 'posted.jsonl'),
+    jsonl(
+      { type: 'user', uuid: 'upo', cwd: '/tmp/projPO', message: { content: 'review it' } },
+      { type: 'assistant', uuid: 'apo', message: { content: 'reviewing' } },
+      shell('Bash', 'gh api --paginate repos/ScientaNL/demo/pulls/40/comments'),
+      shell('Bash', 'gh pr review 7 --repo ScientaNL/Demo --approve'),
+      link(7),
+      link(12),
+      shell('Bash', "gh api repos/other/repo/pulls/30/comments -f body='a note'"),
+      shell('PowerShell', 'gh pr comment https://github.com/other/repo/pull/50 --body done'),
+    ),
+  );
+
   // lastActivity comes from the last MESSAGE, so a later system event (a background/Remote Control touch) must not push it forward.
   await fs.writeFile(
     path.join(dir, 't.jsonl'),
@@ -312,6 +328,16 @@ describe('listSessions', () => {
       { repository: 'ScientaNL/demo', number: 7, url: 'https://github.com/ScientaNL/demo/pull/7' },
     ]);
     expect(sessions.find((s) => s.id === 'a')?.prs).toEqual([]);
+  });
+
+  it('links the PRs claude posted a review or comment on beside Claude Code’s, each once whatever its capitals, in the order first linked', async () => {
+    const sessions = await listSessions();
+    expect(sessions.find((s) => s.id === 'posted')?.prs).toEqual([
+      { repository: 'ScientaNL/Demo', number: 7, url: 'https://github.com/ScientaNL/Demo/pull/7' },
+      { repository: 'ScientaNL/demo', number: 12, url: 'https://github.com/ScientaNL/demo/pull/12' },
+      { repository: 'other/repo', number: 30, url: 'https://github.com/other/repo/pull/30' },
+      { repository: 'other/repo', number: 50, url: 'https://github.com/other/repo/pull/50' },
+    ]);
   });
 
   it('keeps the latest model reported across the transcript', async () => {

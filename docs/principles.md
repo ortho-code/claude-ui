@@ -32,7 +32,7 @@ Anything a user may want otherwise is a setting, an option or a panel type of th
 
 ## The app observes; you decide
 
-What the app shows about a session is what it can read or ask: claude's status from its hooks, a PR from Claude Code's own link and from what GitHub says of it.
+What the app shows about a session is what it can read or ask: claude's status from its hooks, a PR from Claude Code's own link or a review or comment the session posted on it, and from what GitHub says of it.
 
 - Where something cannot be known reliably, the app says so or shows nothing, rather than a guess: in a folder several sessions share, git knows that a file changed, not which session changed it.
 - Archiving, setting aside, grouping and naming are yours: the app can offer them at the moment they are cheap, but never does them on a timer or in a sweep.

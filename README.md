@@ -35,7 +35,7 @@ Done:
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
   Sessions sharing a conversation show as siblings (a fork badge with a jump list); worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life, and a session that has since left its worktree keeps the badge, muted unless claude's newest change is in a worktree.
   A session that changed files in other checkouts than the worktree its badge names, such as a worktree it reached by path or with a `cd`, has the badge count and list them, with the worktree it names, and picking one there points the panels at it while that session is on show.
-- The PRs a session links, as Claude Code records them in its transcript: a badge on its row that lists them, an entry in its options, and each opening its page in the browser; a filter finds the sessions with one, and search finds a session by a PR's number.
+- The PRs a session links, as Claude Code records them in its transcript, and those it posted a review or comment on with a `gh` command naming the PR's repository: a badge on its row that lists them, an entry in its options, and each opening its page in the browser; a filter finds the sessions with one, and search finds a session by a PR's number.
   The badge takes the colour of what GitHub says of them — changes requested, failing checks or a merge conflict, ready to merge, all merged or closed — asked with `gh`, and each PR GitHub has answered for is listed with its state, its approvals, and whether it is yours, one you review or someone else's.
   Ready to merge waits for the approvals a repository needs where you set a number; your own PR needs you for its checks, conflicts, change requests and approvals, and one you review for new commits since your review and your review asked again.
 - Custom groups: sub-sections inside a project, made empty from the project's kebab or around a session from its kebab.
@@ -90,7 +90,7 @@ Next:
 - Panel types that draw themselves: a page of your own in a sandboxed frame, fed by its script, asking the app for what it cannot do itself, such as opening a link or starting a session.
 - A list row leading back to a session it did not start, such as the one that opened a PR, found by the branch they share.
 - A panel type marking the sessions its rows started, on their rows and tabs in the session list.
-- The PRs a session was started to review, found through the panel row that started it or the review it posted, so a review session links its PR and needs you when it moves on.
+- The PR a session was started to review from a panel row, linked to it from the start, rather than only once it posts a review naming the repository.
 - Opening every link in a list panel at once, asking first when there are many.
 - A folder of its own for a panel type's script, to keep state between runs, such as an item snoozed for a day.
 - Options of a path kind in a panel type's manifest.

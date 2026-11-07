@@ -89,6 +89,12 @@ Whether a checkout is gone is the reading's, or its folder missing at the listin
 **A session's PRs come from its transcript too**: Claude Code writes a `pr-link` record naming a PR's repository, number and page, and writes the same one again and again through a session, so each is kept once, in the order first linked (`prs`), and drawn as a mark on the row that lists them.
 A record says the PR is linked to the session, not who opened it, so the mark says "linked": over one machine's transcripts (2026-10-14), 96 of the 98 PRs linked were the user's own, and the other two a colleague's that a session worked on.
 A fork's transcript copies none of its parent's records, but in four of the five families there with a PR, the fork's opening records link its parent's PR afresh, so a fork tends to show its parent's PR from the start.
+Claude Code links no PR for a review posted on it, nor for a comment posted through `gh api`, so the reader also links the PR of each one claude posts (`src/main/postedprs.ts`): `gh pr review|comment` naming the repository with `--repo` or the PR by its URL, and a `gh api` POST, given as the method or implied by a body, to `repos/<owner>/<repo>/pulls/<number>/reviews` or `…/comments`.
+Each invocation in a command is judged on its own, split at the shell's separators outside quotes, subshells and substitutions included, with heredoc bodies left out, so a `-f` in one invocation never makes a read in another a post, and `gh` counts only as the command an invocation runs.
+A substitution inside double quotes stays part of its word, so a `gh` command run there, or a heredoc it opens, is not read.
+A PR named by a bare number names no repository, and is left out rather than guessed from the folder's remotes, which `gh` chooses among by rules of its own; over 30 days' transcripts here (2026-11-07), 88 of 89 posts named it.
+GraphQL review mutations name a PR by node id, so they link nothing.
+A PR is kept once whatever its repository's capitals, the spelling first seen kept, since Claude Code's records and the commands claude runs spell one repository both ways.
 What a PR's state is, open or merged, is not in the record, so it is asked of GitHub.
 
 **What GitHub says of a PR is asked with `gh`**: main runs `gh api graphql` through the login shell (`src/main/prstatus.ts`), on the person's own `gh` login, so the app keeps no token, and `gh`'s stderr comes on fd 3, apart from the shell's job-control lines.
