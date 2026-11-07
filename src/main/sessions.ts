@@ -6,7 +6,7 @@ import * as readline from 'node:readline';
 import { createReadStream } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { prReference } from '../shared/prs';
+import { prKey } from '../shared/prs';
 import type { SessionCheckout, SessionPr, SessionSummary } from '../shared/types';
 import { errorText, fsFailure, log, logOnce } from './log';
 import { postedPrs } from './postedprs';
@@ -385,11 +385,11 @@ async function summarizeFile(file: string): Promise<SummaryRead | null> {
   // lastActivity = the last user/assistant MESSAGE timestamp, not the file mtime: a background/system append (a Remote Control notice) or a resume bumps mtime without being real activity.
   // Captured with a cheap regex below.
   let lastMsgTs = '';
-  // The PRs the transcript links, keyed by their reference, `owner/repo#number`, in lower case, since Claude Code's records and the commands claude runs spell one repository with different capitals.
+  // The PRs the transcript links, by `prKey`.
   // Claude Code writes the same record again through a session, so each is kept once, where it first appears, as spelt there.
   const prs = new Map<string, SessionPr>();
   const keepPr = (pr: SessionPr): void => {
-    const key = prReference(pr).toLowerCase();
+    const key = prKey(pr);
     if (!prs.has(key)) prs.set(key, pr);
   };
 

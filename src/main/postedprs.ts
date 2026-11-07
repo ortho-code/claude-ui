@@ -1,3 +1,4 @@
+import { prFromUrl } from '../shared/prs';
 import type { SessionPr } from '../shared/types';
 
 /**
@@ -26,7 +27,6 @@ const API_VALUE_FLAGS = new Set(['-X', '--method', '-f', '--raw-field', '-F', '-
 /** `gh api`'s options that send a body, which makes a request without a method of its own a POST. */
 const BODY_FLAGS = new Set(['-f', '--raw-field', '-F', '--field', '--input']);
 
-const PR_URL = /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/pull\/([1-9]\d*)(?:[/?#].*)?$/;
 const REVIEW_ENDPOINT = /^(?:https:\/\/api\.github\.com)?\/?repos\/([^/{}\s]+\/[^/{}\s]+)\/pulls\/([1-9]\d*)\/(?:reviews|comments)(?:[/?].*)?$/;
 /** A repository as `--repo` takes it: `owner/name`, or with GitHub's host or page address before it. */
 const REPOSITORY = /^(?:(?:https:\/\/)?github\.com\/)?([^/\s]+\/[^/\s]+?)\/?$/;
@@ -71,8 +71,8 @@ function prCommandPost(args: readonly string[]): SessionPr[] {
   const { options, positional } = parsed(args, PR_VALUE_FLAGS);
   const target = positional[0];
   if (target === undefined) return [];
-  const url = PR_URL.exec(target);
-  if (url) return [prOf(url[1]!, url[2]!)];
+  const page = prFromUrl(target);
+  if (page) return [page];
   const repository = options.filter((option) => option.flag === '--repo' || option.flag === '-R').at(-1)?.value;
   const named = repository ? REPOSITORY.exec(repository) : null;
   return /^[1-9]\d*$/.test(target) && named ? [prOf(named[1]!, target)] : [];

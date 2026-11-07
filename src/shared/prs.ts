@@ -34,9 +34,24 @@ export function roleOf(authored: boolean, reviewed: boolean, asked: boolean): Pr
 }
 
 /**
- * A PR's full reference, `owner/repo#number`: what tells two of a session's PRs apart, what the app shows for one, and what search matches.
- * One function for all three, so what is shown is what is searched and what is kept once.
+ * A PR's full reference, `owner/repo#number`: what the app shows for one, what search matches, and what GitHub is asked about it by.
+ * One function for all three, so what is shown is what is searched.
  */
 export function prReference(pr: Pick<SessionPr, 'repository' | 'number'>): string {
   return `${pr.repository}#${pr.number}`;
+}
+
+/** What tells two of a session's PRs apart: the reference without regard to its repository's capitals, which Claude Code's records and the commands claude runs spell both ways. */
+export function prKey(pr: Pick<SessionPr, 'repository' | 'number'>): string {
+  return prReference(pr).toLowerCase();
+}
+
+const PR_PAGE = /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/pull\/([1-9]\d*)(?:[/?#]\S*)?$/;
+
+/** The PR a GitHub pull request page is, its address put as the PR's own page, so one under its files or a comment names it too; null for any other address. */
+export function prFromUrl(url: string): SessionPr | null {
+  const page = PR_PAGE.exec(url);
+  if (page === null) return null;
+  const [, repository, number] = page as unknown as [string, string, string];
+  return { repository, number: Number(number), url: `https://github.com/${repository}/pull/${number}` };
 }
