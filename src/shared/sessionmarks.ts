@@ -3,7 +3,7 @@
  * Main (src/main/meta.ts) applies them inside its serialised writes of `meta.json`.
  */
 import { isPrReason } from './needsyou';
-import { prFromUrl, prKey } from './prs';
+import { prFromUrl, prKey, referenceKey } from './prs';
 import type { SetAside, NeedsYou, ScheduledTask, SessionPr, SettledBy, SettledNeedsYou } from './types';
 
 /** The marks, as `meta.json` holds them. */
@@ -54,9 +54,9 @@ export function finishedFrom(finished: Readonly<Record<string, number>>, id: str
   return id in finished ? { ...finished } : { ...finished, [id]: now };
 }
 
-/** What a reason replaces when it is added: how the app closed replaces how it closed before, and a PR's change every reason of that PR's before. */
+/** What a reason replaces when it is added: how the app closed replaces how it closed before, and a PR's change every reason of that PR's before, however either spells it (`referenceKey`). */
 function kindOf(reason: NeedsYou): string {
-  return isPrReason(reason) ? `pr:${reason.pr}` : reason.type;
+  return isPrReason(reason) ? `pr:${referenceKey(reason.pr)}` : reason.type;
 }
 
 /**
@@ -90,9 +90,9 @@ function withSettled(history: Readonly<Record<string, readonly SettledNeedsYou[]
   return next;
 }
 
-/** Whether two reasons are the same one: of one type, marked at one moment, for one PR or one close. */
+/** Whether two reasons are the same one: of one type, marked at one moment, for one PR, however either spells it, or one close. */
 function sameReason(a: NeedsYou, b: NeedsYou): boolean {
-  return a.type === b.type && a.at === b.at && (isPrReason(a) && isPrReason(b) ? a.pr === b.pr : true) && (a.type === 'app.was-running' && b.type === 'app.was-running' ? a.how === b.how : true);
+  return a.type === b.type && a.at === b.at && (isPrReason(a) && isPrReason(b) ? referenceKey(a.pr) === referenceKey(b.pr) : true) && (a.type === 'app.was-running' && b.type === 'app.was-running' ? a.how === b.how : true);
 }
 
 /** `markedNeedsYou`, with each reason a new one replaces moved to its session's history as `replaced`, at `now`. */

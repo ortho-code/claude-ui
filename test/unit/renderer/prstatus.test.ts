@@ -136,6 +136,13 @@ describe('prChanges', () => {
     expect(prChanges(null, [pr], { statuses: { [ref]: open() }, problem: null }, GITHUB_DECIDES)).toEqual({ seen: { [ref]: open() }, changes: [] });
   });
 
+  it('keeps what was seen of a PR under its key, so a session spelling it with other capitals finds its change, named as that session spells it', () => {
+    const shouted: PrRef = { repository: 'Acme/App', number: 7 };
+    const after = prChanges(was(open()), [shouted], { statuses: { [ref]: open({ conflict: true }) }, problem: null }, GITHUB_DECIDES);
+    expect(after.changes).toEqual([{ pr: 'Acme/App#7', types: ['pr.conflict'] }]);
+    expect(Object.keys(after.seen ?? {})).toEqual([ref]);
+  });
+
   it('changes nothing for an answer main could not get, and keeps what was seen of a PR with no status', () => {
     const seen = was(open());
     expect(prChanges(seen, [pr], { statuses: { [ref]: { state: 'merged', role: 'own' } }, problem: 'gh was not found' }, GITHUB_DECIDES)).toEqual({ seen, changes: [] });
@@ -229,6 +236,10 @@ describe('linkedPrs', () => {
       { repository: 'acme/lib', number: 2 },
     ]);
   });
+
+  it('names a PR the sessions spell with other capitals once, as first spelt', () => {
+    expect(linkedPrs([{ prs: [linked('Acme/App', 1)] }, { prs: [linked('acme/app', 1)] }])).toEqual([{ repository: 'Acme/App', number: 1 }]);
+  });
 });
 
 describe('verdictOf', () => {
@@ -241,6 +252,10 @@ describe('verdictOf', () => {
 
   it('reads no status while main could not ask, whatever the answer still holds', () => {
     expect(verdictOf(pr, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: 'gh was not found' }, GITHUB_DECIDES)).toEqual({ tone: 'normal', words: null });
+  });
+
+  it('reads the status of a PR spelt with other capitals, which main answers under its key', () => {
+    expect(verdictOf({ repository: 'Acme/App', number: 1 }, { statuses: { 'acme/app#1': { state: 'merged', role: 'own' } }, problem: null }, GITHUB_DECIDES)).toEqual({ tone: 'muted', words: 'merged' });
   });
 
   it('reads with the number the PR’s repository needs, matched in any case', () => {

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { ipcMain } from 'electron';
-import { prReference, roleOf } from '../shared/prs';
+import { prKey, roleOf } from '../shared/prs';
 import type { PrRef, PrRole, PrStatus, PrStatusRead } from '../shared/types';
 import { log } from './log';
 import { inheritedEnv, shellCommand, terminateGroup } from './shell';
@@ -134,7 +134,7 @@ export function prQueryArgs(prs: readonly PrRef[], fields: string): string[] {
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
- * What a request answered for each PR it asked, by reference: GitHub's node for it, or null where it found none; null for an answer with no `data` at all.
+ * What a request answered for each PR it asked, by its key (`prKey`): GitHub's node for it, or null where it found none; null for an answer with no `data` at all.
  * `gh` exits 1 when GitHub found some of what was asked and not the rest, and still prints the `data` it found (measured 2026-10-21 with a PR number and a repository that do not exist), which is read the same.
  */
 export function answeredNodes(stdout: string, prs: readonly PrRef[]): Map<string, unknown> | null {
@@ -149,7 +149,7 @@ export function answeredNodes(stdout: string, prs: readonly PrRef[]): Map<string
   const nodes = new Map<string, unknown>();
   byRepository(prs).forEach(({ repository, numbers }, index) => {
     const repo = data[`r${index}`];
-    for (const number of numbers) nodes.set(prReference({ repository, number }), isObject(repo) ? (repo[`p${number}`] ?? null) : null);
+    for (const number of numbers) nodes.set(prKey({ repository, number }), isObject(repo) ? (repo[`p${number}`] ?? null) : null);
   });
   return nodes;
 }
@@ -250,12 +250,14 @@ export class PrStatuses {
   constructor(private readonly gh: RunGh = (args) => runGh(args)) {}
 
   /**
-   * The last status GitHub gave for each of `prs`, by reference, after asking it again about every one not merged until a request gets no answer; and why it got none, where it did not.
+   * The last status GitHub gave for each of `prs`, by its key (`prKey`), so a PR spelt with other capitals is asked once, after asking it again about every one not merged until a request gets no answer; and why it got none, where it did not.
    * A PR GitHub did not find, or has not answered for yet, has no status; one asked before keeps the status it had when a later ask fails.
    */
   async ask(prs: readonly PrRef[]): Promise<PrStatusRead> {
-    const asked = [...new Map(prs.filter((pr) => ownerAndName(pr.repository) !== null).map((pr) => [prReference(pr), pr])).values()];
-    const knownState = (pr: PrRef): PrStatus['state'] | undefined => this.known.get(prReference(pr))?.state;
+    const named = new Map<string, PrRef>();
+    for (const pr of prs) if (ownerAndName(pr.repository) !== null && !named.has(prKey(pr))) named.set(prKey(pr), pr);
+    const asked = [...named.values()];
+    const knownState = (pr: PrRef): PrStatus['state'] | undefined => this.known.get(prKey(pr))?.state;
     const open = asked.filter((pr) => knownState(pr) === 'open');
     const others = asked.filter((pr) => knownState(pr) !== 'open' && knownState(pr) !== 'merged');
     const nowOpen: PrRef[] = [];
@@ -269,16 +271,16 @@ export class PrStatuses {
     if (problem !== null) log('warn', 'prs', `no PR status: ${problem}`);
     const statuses: Record<string, PrStatus> = {};
     for (const pr of asked) {
-      const status = this.known.get(prReference(pr));
-      if (status) statuses[prReference(pr)] = status;
+      const status = this.known.get(prKey(pr));
+      if (status) statuses[prKey(pr)] = status;
     }
     return { statuses, problem };
   }
 
   /** Keep a PR's status; one GitHub gave none for is forgotten, so it is not shown as it was. */
   private keep(pr: PrRef, status: PrStatus | null): void {
-    if (status) this.known.set(prReference(pr), status);
-    else this.known.delete(prReference(pr));
+    if (status) this.known.set(prKey(pr), status);
+    else this.known.delete(prKey(pr));
   }
 
   /** Ask `fields` of `prs`, a request per `size`, handing each PR's node to `take`; the first request with no answer stops the rest, and says why. */
@@ -287,7 +289,7 @@ export class PrStatuses {
       const result = await this.gh(prQueryArgs(run, fields));
       const nodes = answeredNodes(result.stdout, run);
       if (nodes === null) return failureOf(result);
-      for (const pr of run) take(pr, nodes.get(prReference(pr)));
+      for (const pr of run) take(pr, nodes.get(prKey(pr)));
     }
     return null;
   }

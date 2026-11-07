@@ -398,6 +398,11 @@ describe('what was last seen of the PRs', () => {
     expect(await getPrSeen()).toBeNull();
   });
 
+  it('reads each PR under its key, `prKey`, one PR kept under two spellings once', async () => {
+    await writeMetaFile({ version: 3, prSeen: { 'Acme/App#7': { state: 'merged', role: 'own' }, 'acme/app#7': { state: 'closed', role: 'own' }, 'acme/app#8': { state: 'merged', role: 'own' } } });
+    expect(await getPrSeen()).toEqual({ 'acme/app#7': { state: 'merged', role: 'own' }, 'acme/app#8': { state: 'merged', role: 'own' } });
+  });
+
   it('is kept in place of what was before, and stays empty once emptied', async () => {
     const approved = { state: 'open' as const, role: 'reviewing' as const, draft: false, review: 'approved' as const, checks: 'running' as const, conflict: null, approvals: 2, newCommits: true, reviewAsked: false, changesRequested: ['PRR_b'] };
     await setPrSeen({ 'acme/app#7': { state: 'merged', role: 'own' } });

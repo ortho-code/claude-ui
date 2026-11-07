@@ -1,6 +1,6 @@
 // Pure sidebar logic, kept free of DOM/globals so it can be unit-tested.
 // renderer.ts wires these to its state and the DOM.
-import { prReference } from '../shared/prs';
+import { prReference, referenceKey } from '../shared/prs';
 import type { LeaveButton } from '../shared/settings';
 import { DEFAULT_STRENGTH, expandedStrength, NEEDS_YOU } from '../shared/looks';
 import { isPrReason, NO_NEEDS_YOU_TYPES, PR_TYPES } from '../shared/needsyou';
@@ -788,7 +788,7 @@ export interface StateLine {
  * A PR is named by its number, "PR #35777 merged", and with its repository, "PR acme/app#35777 merged", only where the reasons name PRs in more than one; the changes one answer found, a reason each at the same moment, are named together on one line, in the same order, "PR #7 checks failed, approved", and the line goes where its first does.
  */
 export function needsYouLines(reasons: readonly NeedsYou[], strength: Strength): StateLine[] {
-  const prs = new Set(reasons.filter(isPrReason).map((reason) => reason.pr));
+  const prs = new Set(reasons.filter(isPrReason).map((reason) => referenceKey(reason.pr)));
   const repositories = new Set([...prs].map((pr) => pr.slice(0, pr.lastIndexOf('#'))));
   const answers = new Map<string, { pr: string; types: PrNeedsYouType[] }>();
   const lines: { key: string; reason: NeedsYou }[] = [];
@@ -797,7 +797,7 @@ export function needsYouLines(reasons: readonly NeedsYou[], strength: Strength):
       lines.push({ key: '', reason });
       continue;
     }
-    const key = `${reason.pr}\n${reason.at}`;
+    const key = `${referenceKey(reason.pr)}\n${reason.at}`;
     const answer = answers.get(key);
     if (answer) answer.types.push(reason.type);
     else {

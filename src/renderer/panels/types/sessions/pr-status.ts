@@ -1,4 +1,4 @@
-import { approvalsRequired, prReference } from '../../../../shared/prs';
+import { approvalsRequired, prKey, prReference, referenceKey } from '../../../../shared/prs';
 import type { PrRef, PrSeen, PrStatusRead } from '../../../../shared/types';
 import { entityKey } from '../../../logic';
 import { approvalsIn, linkedPrs, needsYouNow, nextAsk, NO_PR_STATUS, prChanges } from '../../../prstatus';
@@ -25,7 +25,7 @@ let answeredAt = 0;
 let allowed: boolean | null = null;
 
 /** The PRs to ask about, as one key in an order of its own, so the gate asks again only when the set changes, not when the listing reorders the sessions naming them. */
-const linkedKey = (): string => linkedPrs(store.get().sessions).map(prReference).sort().join('\n');
+const linkedKey = (): string => linkedPrs(store.get().sessions).map(prKey).sort().join('\n');
 
 const gate = new RunGate(linkedKey, (number) => void ask(number));
 
@@ -73,10 +73,11 @@ function readSeen(): Promise<void> {
   return seenRead;
 }
 
-/** The sessions not finished that link `pr`: whom its change marks, running or not (decided 2026-10-29). */
+/** The sessions not finished that link the PR whose reference is `pr`, however each spells it (`referenceKey`): whom its change marks, running or not (decided 2026-10-29). */
 function linking(pr: string): string[] {
   const { sessions, finished } = store.get();
-  return sessions.filter((s) => !finished.has(entityKey(s)) && s.prs.some((linked) => prReference(linked) === pr)).map(entityKey);
+  const key = referenceKey(pr);
+  return sessions.filter((s) => !finished.has(entityKey(s)) && s.prs.some((linked) => prKey(linked) === key)).map(entityKey);
 }
 
 /**
@@ -92,7 +93,7 @@ function settleChanges(prs: readonly PrRef[], read: PrStatusRead): void {
   window.claudeUi.setPrSeen(next);
   const at = Date.now();
   for (const { pr, types } of changes) {
-    const role = read.statuses[pr]?.role ?? null;
+    const role = read.statuses[referenceKey(pr)]?.role ?? null;
     markNeedsYou(
       linking(pr),
       types.filter((type) => marksFor(type, role)).map((type) => ({ type, at, pr })),
@@ -102,7 +103,7 @@ function settleChanges(prs: readonly PrRef[], read: PrStatusRead): void {
   void window.claudeUi.getOpenSessions().then((open) => {
     const setAside = new Set([...open, ...store.get().setAside.keys()]);
     for (const pr of prs) {
-      const status = read.statuses[prReference(pr)];
+      const status = read.statuses[prKey(pr)];
       const found = status === undefined ? [] : needsYouNow(status, approvalsRequired(approvals, pr.repository)).filter((type) => marksFor(type, status.role));
       if (found.length > 0) markNeedsYou(linking(prReference(pr)).filter((key) => setAside.has(key)), found.map((type) => ({ type, at, pr: prReference(pr) })));
     }

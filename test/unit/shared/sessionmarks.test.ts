@@ -82,6 +82,11 @@ describe('markedNeedsYou', () => {
     });
   });
 
+  it("replaces a PR's reasons with its newer change spelt with other capitals, as one PR", () => {
+    const needsYou = { a: [{ type: 'pr.checks-failed' as const, at: 1, pr: 'acme/app#1' }] };
+    expect(markedNeedsYou(needsYou, ['a'], [{ type: 'pr.merged', at: 3, pr: 'Acme/App#1' }])).toEqual({ a: [{ type: 'pr.merged', at: 3, pr: 'Acme/App#1' }] });
+  });
+
   it("adds every change one answer found for a PR, a reason each, and replaces none of them with another", () => {
     expect(markedNeedsYou({}, ['a'], [{ type: 'pr.checks-failed', at: 3, pr: 'acme/app#1' }, { type: 'pr.approved', at: 3, pr: 'acme/app#1' }])).toEqual({
       a: [

@@ -63,6 +63,23 @@ test('a linked PR merging marks every session that links it, with a tab or witho
   await expect.poll(() => page.evaluate(() => window.__claudeUiFixture.prSeen?.['acme/app#7'])).toEqual({ state: 'merged', role: 'own' });
 });
 
+test('a PR two sessions spell with other capitals is asked once, and its change marks both', async ({ app, page }) => {
+  await page.clock.install();
+  const shouted = session({ id: '00000000-0000-4000-8000-0000000000f5', title: 'Shouted', prs: [pr(7, 'Acme/App')] });
+  await app.boot({ ...fixture, sessions: [closed, shouted], openSessions: [], finished: {}, history: { [closed.id]: [], [shouted.id]: [] } });
+  await expect.poll(() => app.calls('prStatuses')).toHaveLength(1);
+  const [[asked]] = (await app.calls('prStatuses')) as [SessionPr[]][];
+  expect(asked).toEqual([{ repository: 'acme/app', number: 7 }]);
+
+  await gitHubSays(page, { 'acme/app#7': { state: 'merged', role: 'own' } });
+  await nextAsk(page);
+  await needs(row(page, closed.title).locator('.nudge'));
+  await needs(row(page, shouted.title).locator('.nudge'));
+  // Each names the PR as it spells it, and what was seen is kept once, by key.
+  await expect(row(page, shouted.title).locator('.nudge')).toHaveAttribute('data-tooltip', 'Needs you — PR #7 merged');
+  await expect.poll(() => page.evaluate(() => Object.keys(window.__claudeUiFixture.prSeen ?? {}))).toEqual(['acme/app#7', 'acme/app#8']);
+});
+
 test('a running session is marked too, and a prompt there takes it off', async ({ app, page }) => {
   await page.clock.install();
   await app.boot(fixture);

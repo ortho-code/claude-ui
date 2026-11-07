@@ -1,4 +1,4 @@
-import { approvalsRequired, prReference, type Approvals } from '../shared/prs';
+import { approvalsRequired, prKey, prReference, type Approvals } from '../shared/prs';
 import { PR_TYPES } from '../shared/needsyou';
 import type { SettingsView } from '../shared/settings';
 import type { PrNeedsYouType, PrRef, PrRole, PrSeen, PrStatus, PrStatusRead, SessionSummary } from '../shared/types';
@@ -7,12 +7,12 @@ import type { Tone } from './tone';
 /** Main's answer before it has given one: no status for any PR, and nothing gone wrong. */
 export const NO_PR_STATUS: PrStatusRead = { statuses: {}, problem: null };
 
-/** Every PR the sessions link, once each, in the order the listing first names them: what main is asked about. */
+/** Every PR the sessions link, once each (`prKey`), as first spelt, in the order the listing first names them: what main is asked about. */
 export function linkedPrs(sessions: readonly Pick<SessionSummary, 'prs'>[]): PrRef[] {
   const linked = new Map<string, PrRef>();
   for (const session of sessions) {
     for (const { repository, number } of session.prs) {
-      const key = prReference({ repository, number });
+      const key = prKey({ repository, number });
       if (!linked.has(key)) linked.set(key, { repository, number });
     }
   }
@@ -25,7 +25,7 @@ const MINUTE = 60_000;
  * When to ask main again after it answered `read` about `prs`: in a minute while any open PR's checks run, in five while any PR could still change — open, closed, or with no status — or main could not ask, and never once every one is merged.
  */
 export function nextAsk(prs: readonly PrRef[], read: PrStatusRead): number | 'off' {
-  const statuses = prs.map((pr) => read.statuses[prReference(pr)]);
+  const statuses = prs.map((pr) => read.statuses[prKey(pr)]);
   if (statuses.some((status) => status?.state === 'open' && status.checks === 'running')) return MINUTE;
   if (read.problem !== null || statuses.some((status) => status?.state !== 'merged')) return 5 * MINUTE;
   return 'off';
@@ -136,18 +136,19 @@ function withFieldsKnown(before: PrStatus, status: PrStatus): PrStatus {
  * So one that was there already marks nothing when a stronger one clears, an approval marks though its checks still run, an approved PR whose checks run again after a push marks nothing, and a conflict GitHub is still working out counts as what was known of it.
  * A PR seen for the first time is recorded and marks nothing, whatever it holds; one with no status keeps what was seen of it; an answer in which any request to GitHub failed changes nothing, and what it did learn waits for the next whole answer.
  * Before and now are both read with the approvals the repository needs now (`approvals`), so changing that number marks nothing by itself.
+ * What is seen is kept by each PR's key (`prKey`), and a change names its PR as `prs` spells it.
  */
 export function prChanges(seen: PrSeen | null, prs: readonly PrRef[], read: PrStatusRead, approvals: Approvals): { seen: PrSeen | null; changes: { pr: string; types: PrNeedsYouType[] }[] } {
   if (read.problem !== null) return { seen, changes: [] };
   const next: PrSeen = { ...seen };
   const changes: { pr: string; types: PrNeedsYouType[] }[] = [];
   for (const pr of prs) {
-    const ref = prReference(pr);
-    const answered = read.statuses[ref];
+    const key = prKey(pr);
+    const answered = read.statuses[key];
     if (answered === undefined) continue;
-    const before = seen?.[ref];
+    const before = seen?.[key];
     const status = withKnownConflict(answered, before);
-    next[ref] = status;
+    next[key] = status;
     if (before === undefined) continue;
     const required = approvalsRequired(approvals, pr.repository);
     const known = withFieldsKnown(before, status);
@@ -156,9 +157,9 @@ export function prChanges(seen: PrSeen | null, prs: readonly PrRef[], read: PrSt
     const isNew = (condition: PrNeedsYouType): boolean => !was.has(condition) || (condition === 'pr.changes-requested' && asksForChangesAnew(known, status));
     // Open again, everything it holds is news: a closed PR held none of it.
     const found = before.state === 'closed' && status.state === 'open' ? ranked(['pr.reopened', ...now]) : ranked([...now].filter(isNew));
-    if (found.length > 0) changes.push({ pr: ref, types: found });
+    if (found.length > 0) changes.push({ pr: prReference(pr), types: found });
   }
-  return { seen: seen === null && prs.every((pr) => read.statuses[prReference(pr)] === undefined) ? null : next, changes };
+  return { seen: seen === null && prs.every((pr) => read.statuses[prKey(pr)] === undefined) ? null : next, changes };
 }
 
 /** The order a session's PRs roll up by, highest first: whatever most needs a person wins, so the mark is muted only once every PR is merged or closed. */
@@ -200,7 +201,7 @@ export function verdictOf(pr: PrRef, read: PrStatusRead, approvals: Approvals): 
 
 /** A PR's status from main's answer, null while main could not ask GitHub, whatever it still holds from before. */
 function knownStatus(pr: PrRef, read: PrStatusRead): PrStatus | null {
-  return read.problem === null ? (read.statuses[prReference(pr)] ?? null) : null;
+  return read.problem === null ? (read.statuses[prKey(pr)] ?? null) : null;
 }
 
 /** Whether a PR is merged or closed by main's answer, null for one open or not known to be either, read as its mark reads it (`knownStatus`). */

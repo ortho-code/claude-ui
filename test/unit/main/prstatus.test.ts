@@ -76,12 +76,12 @@ describe('prQueryArgs', () => {
 });
 
 describe('answeredNodes', () => {
-  it('reads what GitHub found when it did not find everything', () => {
+  it('reads what GitHub found when it did not find everything, each PR under its key', () => {
     const nodes = answeredNodes(PARTLY_FOUND, [pr(36274, 'ScientaNL/scienta'), pr(999999, 'ScientaNL/scienta')]);
     expect(nodes).toEqual(
       new Map([
-        ['ScientaNL/scienta#36274', OPEN_NODE],
-        ['ScientaNL/scienta#999999', null],
+        ['scientanl/scienta#36274', OPEN_NODE],
+        ['scientanl/scienta#999999', null],
       ]),
     );
   });
@@ -343,6 +343,13 @@ describe('PrStatuses', () => {
     const { gh, asks } = fakeGh({ 'acme/app#1': merged });
     const read = await new PrStatuses(gh).ask([pr(1), pr(1), pr(2, 'nobody')]);
     expect(asks).toEqual([{ full: false, refs: ['acme/app#1'] }]);
+    expect(read.statuses).toEqual({ 'acme/app#1': { state: 'merged', role: 'own' } });
+  });
+
+  it('asks a PR spelt with other capitals once, and gives its status under its key, `prKey`', async () => {
+    const { gh, asks } = fakeGh({ 'Acme/App#1': merged });
+    const read = await new PrStatuses(gh).ask([pr(1, 'Acme/App'), pr(1)]);
+    expect(asks).toEqual([{ full: false, refs: ['Acme/App#1'] }]);
     expect(read.statuses).toEqual({ 'acme/app#1': { state: 'merged', role: 'own' } });
   });
 

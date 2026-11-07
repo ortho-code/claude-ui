@@ -11,7 +11,7 @@ import { createdGroup, movedGroup, movedProject, renamedGroup, seededOrder, with
 import { finishedFrom, cameDue, clearedSetAside, HISTORY_KEPT, keptFrom, markedSetAside, markedWithHistory, purgedSession, restoredNeedsYou, settledNeedsYou, settledTypes, togglePinned, clearedFinished, unkept, withPrLink } from '../shared/sessionmarks';
 import { withText } from '../shared/text';
 import { isPrReason, isPrType, PR_TYPES } from '../shared/needsyou';
-import { PR_ROLES, prFromUrl } from '../shared/prs';
+import { PR_ROLES, prFromUrl, referenceKey } from '../shared/prs';
 import { appendStamped } from './stamp';
 import { goodCopy, writeWithBackups } from './backup';
 import { errorText, fsFailure, log, logOnce } from './log';
@@ -869,15 +869,19 @@ function prLinksOf(raw: unknown): Record<string, SessionPr[]> {
   return links;
 }
 
-/** What was last seen of the PRs, from whatever was stored: null for none at all, and an entry this build cannot read dropped. */
+/**
+ * What was last seen of the PRs, from whatever was stored: null for none at all, and an entry this build cannot read dropped.
+ * Each is read under its key (`referenceKey`), as the window keeps them, so one an earlier build kept under each of two spellings is read once, the first kept.
+ */
 function prSeenOf(raw: unknown): PrSeen | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
-  return Object.fromEntries(
-    Object.entries(raw as Record<string, unknown>).flatMap(([ref, entry]) => {
-      const status = prStatusOf(entry);
-      return status ? [[ref, status]] : [];
-    }),
-  );
+  const seen: PrSeen = {};
+  for (const [ref, entry] of Object.entries(raw as Record<string, unknown>)) {
+    const status = prStatusOf(entry);
+    const key = referenceKey(ref);
+    if (status && !Object.hasOwn(seen, key)) seen[key] = status;
+  }
+  return seen;
 }
 
 /** The sessions set aside; see `setAside`. */

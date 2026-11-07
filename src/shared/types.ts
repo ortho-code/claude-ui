@@ -44,7 +44,7 @@ export type SettledBy = 'prompt' | 'cleared' | 'closed' | 'moved' | 'finished' |
 /** A reason as it stood, with when it was settled (epoch ms) and by what: one entry of a session's needs-you history. */
 export type SettledNeedsYou = NeedsYou & { settled: number; by: SettledBy };
 
-/** What GitHub was last seen to say of each PR, by reference (`owner/name#number`): what a change is told from. */
+/** What GitHub was last seen to say of each PR, by its key (`prKey`): what a change is told from. */
 export type PrSeen = Record<string, PrStatus>;
 
 /** A session set aside: the moment it comes back as needing you (epoch ms), or null for whenever, and when it was marked (epoch ms). */
@@ -191,7 +191,7 @@ export type PrStatus =
 /** A PR as GitHub is asked about it. */
 export type PrRef = Pick<SessionPr, 'repository' | 'number'>;
 
-/** What main answers when asked about PRs: the last status GitHub gave for each, by its reference (`prReference`), and why a request this time got no answer (the first that failed, those after it not made), null when every one answered. */
+/** What main answers when asked about PRs: the last status GitHub gave for each, by its key (`prKey`), and why a request this time got no answer (the first that failed, those after it not made), null when every one answered. */
 export interface PrStatusRead {
   statuses: Record<string, PrStatus>;
   problem: string | null;

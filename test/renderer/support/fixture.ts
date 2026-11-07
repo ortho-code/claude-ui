@@ -23,7 +23,7 @@ export interface BridgeFixture {
   needsYouHistory: Record<string, SettledNeedsYou[]>;
   /** The needs-you categories and types main read, your files applied, and what is wrong with yours; the harness gives the app's own, from `bundled/needs-you/` (`bundledNeedsYou`), and none of yours, unless a check gives others. */
   needsYouTypes: NeedsYouRead;
-  /** What was last seen of the PRs, as meta keeps it; null for never, the first run. */
+  /** What was last seen of the PRs, by key (`prKey`), as meta keeps it; null for never, the first run. */
   prSeen: PrSeen | null;
   /** How many reads of it fail before one answers, as a `meta.json` that cannot be read would. */
   prSeenReadFails: number;
@@ -54,7 +54,7 @@ export interface BridgeFixture {
   groupState: GroupState;
   projectOrder: string[];
   statuses: Record<string, string>;
-  /** What GitHub says of each PR, by its reference (`prReference`), as main would answer for it; a PR left out has no status. */
+  /** What GitHub says of each PR, by its key (`prKey`), as main would answer for it; a PR left out has no status. */
   prStatuses: Record<string, PrStatus>;
   /** Why main could not ask GitHub, as it would say; null for nothing wrong. */
   prProblem: string | null;

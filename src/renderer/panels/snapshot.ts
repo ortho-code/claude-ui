@@ -1,5 +1,5 @@
 import { categoryOf } from '../../shared/needsyou';
-import { prReference } from '../../shared/prs';
+import { prKey } from '../../shared/prs';
 import type { ClosedHow, SetAside, NeedsYou, PrRole, PrStatus } from '../../shared/types';
 import { sessionLabel } from '../logic';
 import { store, type AppState, type View } from '../state/app';
@@ -85,7 +85,7 @@ export function sessionsSnapshot(view: View<(typeof SNAPSHOT_SLICES)[number]> = 
         needsYou: (view.needsYou.get(id) ?? []).map((reason) => ({ ...reason, category: categoryOf(view.needsYouTypes, reason.type) })),
         setAside: view.setAside.get(id) ?? null,
         prs: session.prs.map((pr) => {
-          const status = view.prStatus.statuses[prReference(pr)];
+          const status = view.prStatus.statuses[prKey(pr)];
           return { repository: pr.repository, number: pr.number, url: pr.url, status: status === undefined ? null : snapshotPrStatus(status) };
         }),
       };

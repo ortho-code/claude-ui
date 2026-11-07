@@ -261,6 +261,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Pausing or stopping a session with a `/loop` wakeup pending ends it, instead of leaving it running with only Force stop or Force pause to end it.
 - A time field's clock, and a checkbox or a radio button, are drawn for a dark window, where the clock was black on the dark field.
 - The month in the date filter's calendar no longer sits low in its popover.
+- A PR that sessions spell with different capitals, such as `ScientaNL/Scienta` and `ScientaNL/scienta`, is asked about once, and its change marks every session linking it, instead of only those spelling it one way.
 
 ## 0.3.0 — 2026-08-29
 

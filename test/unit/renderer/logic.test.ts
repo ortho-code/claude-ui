@@ -1072,6 +1072,14 @@ describe('needsYouLines', () => {
     expect(texts(reasons, strengthOf(['waiting', 'finish-up', 'busy', 'background', 'needs-you', 'idle', 'closed']))).toEqual(['Needs you — PR #2 merged', 'Needs you — was running when the app quit']);
   });
 
+  it("names one answer's changes of a PR spelt with other capitals on one line, and no repository for it", () => {
+    const reasons: NeedsYou[] = [
+      { type: 'pr.reopened', at: 1, pr: 'acme/app#7' },
+      { type: 'pr.approved', at: 1, pr: 'Acme/App#7' },
+    ];
+    expect(texts(reasons)).toEqual(['Needs you — PR #7 approved, reopened']);
+  });
+
   it('names the repository only where the reasons name PRs in more than one', () => {
     const reasons: NeedsYou[] = [
       { type: 'pr.merged', at: 2, pr: 'acme/app#1' },

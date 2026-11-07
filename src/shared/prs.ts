@@ -34,16 +34,24 @@ export function roleOf(authored: boolean, reviewed: boolean, asked: boolean): Pr
 }
 
 /**
- * A PR's full reference, `owner/repo#number`: what the app shows for one, what search matches, and what GitHub is asked about it by.
- * One function for all three, so what is shown is what is searched.
+ * A PR's full reference, `owner/repo#number`, as the session spells it: what the app shows for one and what search matches.
+ * One function for both, so what is shown is what is searched; what tells two PRs apart is `prKey`.
  */
 export function prReference(pr: Pick<SessionPr, 'repository' | 'number'>): string {
   return `${pr.repository}#${pr.number}`;
 }
 
-/** What tells two of a session's PRs apart: the reference without regard to its repository's capitals, which Claude Code's records and the commands claude runs spell both ways. */
+/**
+ * What tells two PRs apart, in one session and across them: the reference without regard to its repository's capitals, which Claude Code's records and the commands claude runs spell both ways, as GitHub reads them.
+ * Every map and comparison of PRs goes by it, PR status and what was last seen of a PR included; only what is shown keeps its spelling.
+ */
 export function prKey(pr: Pick<SessionPr, 'repository' | 'number'>): string {
-  return prReference(pr).toLowerCase();
+  return referenceKey(prReference(pr));
+}
+
+/** `prKey` of a PR given by its reference, as a needs-you reason keeps one. */
+export function referenceKey(reference: string): string {
+  return reference.toLowerCase();
 }
 
 const PR_PAGE = /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/pull\/([1-9]\d*)(?:[/?#]\S*)?$/;
