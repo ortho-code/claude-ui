@@ -34,6 +34,11 @@ export function tabWith(sessionId: string, view: View<'tabs'> = store.get()): Ta
   return view.tabs.find((t) => t.session.id === sessionId);
 }
 
+/** Whether a tab holds the session with its claude started and not yet gone: set once the start resolves, cleared when the window handles the exit. */
+export function sessionRunning(sessionId: string, view: View<'tabs'> = store.get()): boolean {
+  return (tabWith(sessionId, view)?.terminalId ?? null) !== null;
+}
+
 /** A tab as its button and its menu's leave items read it (`TabButtonTab`): its own flags, and whether a tab of its session is starting. */
 export function leaveTab(tab: TabState, view: View<'tabs'> = store.get()): TabButtonTab {
   return { ...tab, sessionStarting: sessionStarting(entityKey(tab.session), view) };

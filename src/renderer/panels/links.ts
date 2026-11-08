@@ -6,7 +6,7 @@ import { showToast } from '../toast';
 import { store, withEntry } from '../state/app';
 import { canMarkRead } from '../state/statuses';
 import { statusText } from '../statusdot';
-import { dotStatus, projName, projectGroups, shownRead, switcherModel, tabWith } from '../state/views';
+import { dotStatus, projName, projectGroups, sessionRunning, shownRead, switcherModel, tabWith } from '../state/views';
 import type { Asks, LinkedSession, SessionRequest } from './contract';
 
 /**
@@ -65,7 +65,7 @@ export function sessionNamed(id: string): LinkedSession | null {
     status: dotStatus(id, view) ?? null,
     said: statusText(id, view),
     acked: shownRead(id, dotStatus(id, view), view),
-    running: tab !== undefined && tab.terminalId !== null,
+    running: sessionRunning(id, view),
     canMarkRead: canMarkRead(id, view),
   };
 }

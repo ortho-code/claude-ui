@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import type { SessionsSnapshot } from '../../../../../src/renderer/panels/snapshot';
 import { PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
-import { row } from '../../../support/window';
+import { row, tabLabel } from '../../../support/window';
 import { runs } from '../../layout/layout';
 import { bootList, print, type PrintedList } from './list';
 
@@ -38,7 +38,7 @@ const LIST: PrintedList = { version: 1, sections: [{ items: [{ key: 'one', text:
 const snapshotOf = async (app: App, index: number): Promise<SessionsSnapshot> => JSON.parse((await runs(app, 'changes'))[index].sessions ?? 'null') as SessionsSnapshot;
 
 // A PR's status is given without the ids of the reviews asking for changes.
-test('a run is given every session not finished, by id, with its title, project, group, status, read mark, needs-you and set-aside marks and PRs', async ({ app, page }) => {
+test('a run is given every session not finished, by id, with its title, project, group, status, read mark, whether it asks and runs, needs-you and set-aside marks and PRs', async ({ app, page }) => {
   await bootList(app, page, LIST, { more });
   // Pressed until GitHub's answer, which the first run may come before, is in the snapshot.
   await expect
@@ -52,8 +52,8 @@ test('a run is given every session not finished, by id, with its title, project,
     version: 1,
     sessions: [
       // A status the docs do not name, such as the marker a starting claude sends, is no status.
-      { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, asks: false, needsYou: [], setAside: SET_ASIDE, prs: [] },
-      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, asks: true, needsYou: [{ ...REASON, category: 'finish-up' }], setAside: null, prs: [
+      { id: quiet.id, title: 'Speed up the search', project: PROJECT, group: null, status: null, read: false, asks: false, running: false, needsYou: [], setAside: SET_ASIDE, prs: [] },
+      { id: asked.id, title: 'Review #1', project: PROJECT, group: { id: 'g1', name: 'Reviews' }, status: 'waiting', read: false, asks: true, running: false, needsYou: [{ ...REASON, category: 'finish-up' }], setAside: null, prs: [
           { ...asked.prs[0], status: MERGED },
           { ...asked.prs[1], status: REVIEWED },
         ],
@@ -88,6 +88,24 @@ test('a session asks for you as its dot and the switcher count it: waiting, fini
     [cases.readWaiting]: false,
     [cases.busy]: false,
   });
+});
+
+test('a session runs while a tab holds it with its claude started, and not once that claude has gone or without a tab', async ({ app, page }) => {
+  const opened = session({ id: '00000000-0000-4000-8000-0000000000f1', title: 'Opened' });
+  const closed = session({ id: '00000000-0000-4000-8000-0000000000f2', title: 'Closed' });
+  await bootList(app, page, LIST, { more: { sessions: [opened, closed], openSessions: [opened.id], history: { [opened.id]: [], [closed.id]: [] } } });
+  const runningNow = async (): Promise<Record<string, boolean>> => {
+    const before = (await runs(app, 'changes')).length;
+    await page.getByRole('button', { name: 'Refresh' }).click();
+    await expect.poll(async () => (await runs(app, 'changes')).length).toBe(before + 1);
+    return Object.fromEntries((await snapshotOf(app, before)).sessions.map((each) => [each.id, each.running]));
+  };
+  expect(await runningNow()).toEqual({ [opened.id]: false, [closed.id]: false });
+  await tabLabel(page, opened.title).click();
+  await expect.poll(() => app.calls('startTerminal')).toHaveLength(1);
+  expect(await runningNow()).toEqual({ [opened.id]: true, [closed.id]: false });
+  expect(await app.emit('onTerminalExit', 1, 0)).toBe(1);
+  expect(await runningNow()).toEqual({ [opened.id]: false, [closed.id]: false });
 });
 
 /** Boot with the panel watching sessions and its first run ended, the clock in the check's hands. */

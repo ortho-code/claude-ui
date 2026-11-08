@@ -139,6 +139,7 @@ A row keeps a session's title and dot current between runs through a live value 
 | `status` | What its claude last said: `busy`, `idle`, `background` (the turn has ended and work it started still runs), `waiting` or `closed`; `null` when it has said nothing, as for a session the app did not start, and once its claude has gone, its tab closed or no longer running, unless its end is reported after that, which is `closed`. |
 | `read` | Whether its dot was marked read. |
 | `asks` | Whether it asks for you now, by the rule its dot and the project switcher's count follow: claude waiting for you or a finished turn, or a needs-you reason, where that is what its dot shows in the strength order, it is not marked read, and a reason was not put aside by setting the session aside after it. |
+| `running` | Whether a tab holds it with its claude running, whatever claude last said: false for a session without a tab, or whose claude has gone. |
 | `needsYou` | Why it is marked as needing you, a reason each, and empty when it is not (below). |
 | `setAside` | Its set-aside mark, `{ "due", "at" }`: when it comes back as needing you, `null` for whenever, and when it was set, both as epoch milliseconds; `null` when it is not set aside. |
 | `prs` | The PRs it links, each `{ "repository", "number", "url", "status" }`, `repository` as `owner/name`; `status` is what GitHub last said of it (below), `null` until GitHub has answered for that PR, which one it cannot be asked about never does. |
