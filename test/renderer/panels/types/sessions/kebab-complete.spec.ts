@@ -3,8 +3,9 @@ import { defaultUi } from '../../../../../src/shared/defaults';
 import { PROJECT, session } from '../../../support/fixture';
 import { type App, expect, test } from '../../../support/harness';
 import { groupHeading, projectHeading, row, stripRow, tab, tabLabel } from '../../../support/window';
+import { bootList, row as listRow } from '../list/list';
 
-// THE KEBAB IS COMPLETE; A BUTTON IS A SHORTCUT: every button, dot that is a control and mark that opens something on a session's row, its tab and its strip row has an item in that surface's menu, and so does a press on the row, on the strip row and on a stopped tab.
+// THE KEBAB IS COMPLETE; A BUTTON IS A SHORTCUT: every button, dot that is a control and mark that opens something on a session's row, its tab, its strip row and a panel's row naming it has an item in that surface's menu, and so does a press on the row, on the strip row, on a panel's row and on a stopped tab.
 // Outside the rule, by decision: a running tab's own press, which only brings it on show; its drag to reorder, which places it rather than acting on the session; its right-click, which is its menu; and its middle-click, which is its button's press.
 // Each visible button, dot that is a control, `.menu-badge` and `.note-badge` on a surface is found in the page rather than listed, in the state the fixture sets up, and must be in the table below, so one added without its item fails here, naming it; a click handler on any other element, or one on the surface itself, is not found.
 // The kebab itself is the menu, so it is in no table.
@@ -120,6 +121,14 @@ test("every control on a session's strip row is a shortcut to an item in its men
   await running(app, page);
   const surface = stripRow(page, full.title);
   await eachControlHasItsItem(page, surface, surface.locator('.strip-item-kebab'), STRIP);
+});
+
+// A panel's row naming a session: its dot is no control, so its press, going to the session, is what the menu must hold; the row's own action buttons are the type's, not the session's, and its actions beyond them are in the menu by the list's own rule.
+test("a press on a panel's row naming a session, going to it, is in the session's menu as Open", async ({ app, page }) => {
+  const list = { version: 1, sections: [{ items: [{ key: 'r', text: 'The row', session: full.id, press: { 'open-session': full.id } }] }] };
+  await bootList(app, page, list, { more: fixture });
+  const surface = listRow(page, 'The row');
+  await eachControlHasItsItem(page, surface, surface.locator('.list-kebab'), [], /^Open$/);
 });
 
 test("every control on a finished session's row is a shortcut to an item in its menu", async ({ app, page }) => {

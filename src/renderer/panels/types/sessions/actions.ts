@@ -213,16 +213,18 @@ export async function confirmAndDelete(keys: readonly string[]): Promise<void> {
   await fullRead({ showLoading: false, revealed: keys });
 }
 
-// The per-session action list — one builder, shared by the kebab on the session's row, its tab and its strip row, and opened from `from`.
+// The per-session action list — one builder, shared by the kebab on the session's row, its tab, its strip row and a panel's row naming it, and opened from `from`.
 // Every press on the session's row or strip row is here too, and the tab's button, dot and middle-click, and its select while that starts it, so a button is a shortcut to an item; the row and the tab leave out the item that would be themselves.
-export function sessionMenuItems(session: SessionSummary, from: SessionSurface): MenuItem[] {
+// `own` is what the surface itself offers beyond its buttons, such as a panel row's actions: under the header, before the session's items, behind a rule of their own.
+export function sessionMenuItems(session: SessionSummary, from: SessionSurface, own: readonly MenuItem[] = []): MenuItem[] {
   // Opening can start claude in the session's folder, and forking always does, so both need that folder to be there — but the items stay in the list, dimmed and carrying the reason, rather than vanishing.
   // Everything below is bookkeeping about a session rather than a way to start one, so it stays available: cleaning up after a folder that has gone is exactly when you need it.
   const cannotRun = unstartableReason(session);
   const items: MenuItem[] = [
-    // What the session is, before what can be done to it, so the tab's and the strip's kebab, which this builder fills too, show what their own surface has no room for.
+    // What the session is, before what can be done to it, so the kebabs on surfaces that show little of it say what their own surface has no room for.
     sessionHeader(session, store.get()),
     { label: '', separator: true },
+    ...(own.length > 0 ? [...own, { label: '', separator: true }] : []),
   ];
   // A finished session's menu holds its siblings, its PRs, its worktrees, its scheduled tasks and its note, as its row's marks in the finished view reach them, its id, and the finished view's two actions, and on its row Select…; nothing that starts or files it, which that view does not offer.
   if (store.get().finished.has(entityKey(session))) {
@@ -238,11 +240,11 @@ export function sessionMenuItems(session: SessionSummary, from: SessionSurface):
       ...(from === 'row' ? [{ label: 'Select…', onSelect: () => startBulk([entityKey(session)]) }] : []),
     ];
   }
-  // What a press on the row or the strip row does, each its own: the row opens the tab where you are, the strip row takes you to it.
+  // What a press on the row, the strip row or a panel's row does: the row opens the tab where you are, the strip row and a panel's row take you to it, project and row too.
   // On the tab only while nothing runs behind it and nothing is starting, cold, where selecting it is what starts it; a running tab is already the session, a press away.
   const tab = tabWith(session.id);
   if (from !== 'tab' || (tab?.terminalId === null && !tab.starting)) {
-    const open = from === 'strip' ? () => hostOf('sessions').openSession(session.id) : () => hostOf('sessions').openTab(session.id);
+    const open = from === 'strip' || from === 'panel' ? () => hostOf('sessions').openSession(session.id) : () => hostOf('sessions').openTab(session.id);
     items.push(cannotRun ? { label: 'Open', disabled: cannotRun } : { label: 'Open', onSelect: open });
   }
   // Not on the row, which is what it shows.

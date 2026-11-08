@@ -497,7 +497,8 @@ Nothing here has been observed needing it, and a `SIGKILL` aimed at a group id t
 
 ### A session's menu holds everything about it
 
-A session's kebab is one menu on its row in the list, its tab and its row in the live strip, built by one function (`sessionMenuItems`, `sessions/actions.ts`) and told which of the three opened it (`SessionSurface`); the tab bar asks the session list for it (`sessionMenu`).
+A session's kebab is one menu on its row in the list, its tab, its row in the live strip and a panel's row that names it, built by one function (`sessionMenuItems`, `sessions/actions.ts`) and told which of the four opened it (`SessionSurface`); the tab bar and a list panel ask the session list for it (`sessionMenu`).
+A panel's row goes to the session from Open, project and row too, as the strip's does, and its own actions beyond its buttons sit under the menu's header, before the session's items, so the row has one ⋮ (decided 2026-11-08: two kebabs on one row look alike and are told apart only by trying).
 **The kebab is complete; a button is a shortcut.**
 Every button, control dot and mark that opens something on those surfaces has its item in the menu, and so does a press on the row, on the strip row and on a cold tab, so a session in another project can be dealt with from the strip, and one whose tab is all you see from the tab.
 A window check holds the rule (`kebab-complete.spec.ts`): it finds each surface's controls in the page and fails on one with no item, naming it.

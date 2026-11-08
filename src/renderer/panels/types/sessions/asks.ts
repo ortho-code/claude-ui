@@ -11,9 +11,9 @@ import { selectProject } from './switcher';
 export const sessionsAnswers: Pick<Asks, 'selectProject' | 'revealSession' | 'revealProject' | 'revealGroup' | 'sessionMenu' | 'setAside'> = {
   selectProject: (repoRoot) => selectProject(repoRoot),
   setAside: (ids) => setAsideNamed(ids),
-  sessionMenu: (id, from) => {
+  sessionMenu: (id, from, own) => {
     const session = sessionById(id);
-    return session ? sessionMenuItems(session, from) : null;
+    return session ? sessionMenuItems(session, from, own) : null;
   },
   revealSession: (id) => {
     const session = sessionById(id);

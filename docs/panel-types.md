@@ -234,7 +234,7 @@ An entry naming a view the list does not offer is said under the panel.
 | Field | Meaning |
 |---|---|
 | `key` | Required, unique in the list: what a session started from the row is remembered by, so keep it the same for the same thing from one run to the next. |
-| `session` | The session the row is, by its full id, as `open-session` takes it: its status dot shows before the row's actions, in place of the dot of a session the row started. |
+| `session` | The session the row is, by its full id, as `open-session` takes it: its status dot shows before the row's actions, in place of the dot of a session the row started, and the session's menu is behind the row's ⋮, the row's actions beyond its buttons first in it. |
 | `lead` | A short mark before the text, such as a letter for a kind of thing, in a column of its own so the texts after marks of one length line up. |
 | `leadTone` | The lead's colour, from the same words as `tone`: the colour a tone puts on a row's edge, the grey of the `detail` for `normal`, and dimmed for `muted`. |
 | `text` | Required: the row's first line. |

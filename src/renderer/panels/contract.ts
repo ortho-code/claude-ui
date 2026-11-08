@@ -94,8 +94,8 @@ export interface LinkedSession {
   running: boolean;
 }
 
-/** Where a session's menu is opened: its row in the list or its tab, each of which leaves out the item that would be itself, or its row in the live strip. */
-export type SessionSurface = 'row' | 'tab' | 'strip';
+/** Where a session's menu is opened: its row in the list or its tab, each of which leaves out the item that would be itself, its row in the live strip, or a panel's row naming it. */
+export type SessionSurface = 'row' | 'tab' | 'strip' | 'panel';
 
 /**
  * What one surface asks another for, through the host every panel is given (docs/architecture.md § The app's own surfaces are panels): each ask is answered by the built-in that owns it, so no surface reaches into another's code.
@@ -135,8 +135,8 @@ export interface Asks {
   revealProject(repoRoot: string): void;
   /** Bring a group's heading into view, or the project's rows in no group for null, and flash it. */
   revealGroup(repoRoot: string, groupId: string | null): void;
-  /** A session's menu, as the kebab on `from` lists it, for another surface to open: null for a session the app no longer has. */
-  sessionMenu(id: string, from: SessionSurface): MenuItem[] | null;
+  /** A session's menu, as the kebab on `from` lists it, with `own`, what that surface offers beyond its buttons, under its header: null for a session the app no longer has. */
+  sessionMenu(id: string, from: SessionSurface, own?: readonly MenuItem[]): MenuItem[] | null;
   /** Set sessions aside through Set aside…'s dialog, as the bar of selecting several does: once written, what a toast says of it and an Undo that puts each mark and the one's note back; null when the dialog was cancelled. */
   setAside(ids: readonly string[]): Promise<{ said: string; undo: () => void } | null>;
 }

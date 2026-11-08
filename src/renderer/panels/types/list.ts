@@ -443,9 +443,22 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       return parts.actions.draw(`${what}#${again}`, () => this.buildAction(item.key, action));
     });
     parts.actions.sweep();
+    // A row naming a session the app has carries that session's menu, which holds the row's actions beyond its buttons too (`kebabItems`).
+    const named = item.session !== null && session !== null;
+    const kebabLabel = named ? 'Session options' : 'More actions';
+    setTooltip(parts.kebab, kebabLabel);
+    parts.kebab.setAttribute('aria-label', kebabLabel);
     // The session it shows, before what it offers, so going back comes before starting again.
-    placeChildren(row, [content, ...(session ? [session] : []), ...buttons, ...(item.actions.length > shown ? [parts.kebab] : [])]);
+    placeChildren(row, [content, ...(session ? [session] : []), ...buttons, ...(named || item.actions.length > shown ? [parts.kebab] : [])]);
     return row;
+  }
+
+  /** A row's kebab: the menu of the session it names, the row's actions beyond its buttons under its header, or those actions alone when it names no session the app has; null for neither. */
+  private kebabItems(key: string): MenuItem[] | null {
+    const own = this.moreActions(key) ?? [];
+    const id = this.items.get(key)?.session ?? null;
+    const menu = id !== null ? this.host.sessionMenu(id, 'panel', own) : null;
+    return menu ?? (own.length > 0 ? own : null);
   }
 
   /** How many of a row's actions show as buttons, as the last good list said. */
@@ -555,8 +568,8 @@ class ListPanel implements MountedPanel, RunHooks<ListReady> {
       if (verb) this.perform(key, verb);
       else this.toggleRow(key);
     });
-    // What the row offers beyond its buttons, behind the app's own kebab, last on the row as a session row's is; built once, so a press on it survives a redraw.
-    const kebab = kebabButton('list-kebab pair-end', 'More actions', () => this.moreActions(key));
+    // What the row offers beyond its buttons, and the menu of the session it names, behind the app's own kebab, last on the row as a session row's is; built once, so a press on it survives a redraw.
+    const kebab = kebabButton('list-kebab pair-end', 'More actions', () => this.kebabItems(key));
     return { row, content, line, fold, lead: element('span'), title, text, trail: element('span', 'list-trail'), meta, lines: new Keyed<DetailLine>((shown) => shown.el), mark, dot, count, namedDot, namedDotBox, actions: new Keyed<HTMLButtonElement>((button) => button), kebab };
   }
 
@@ -601,7 +614,7 @@ interface ListRow {
   namedDotBox: HTMLElement;
   /** Its action buttons, each kept by all its action says. */
   actions: Keyed<HTMLButtonElement>;
-  /** The kebab holding its actions beyond its buttons, on the row only while it has some. */
+  /** The kebab holding its actions beyond its buttons and the menu of the session it names, on the row only while it has either. */
   kebab: HTMLButtonElement;
 }
 

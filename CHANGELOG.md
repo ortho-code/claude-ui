@@ -130,6 +130,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A session linking a PR you review needs you when new commits come since your review, or your review is asked, both in Look again.
 - A session links a PR it posted a review or comment on, where Claude Code itself links none for a review, so a review session needs you when that PR moves on; the command has to name the PR's repository, as `gh pr review --repo` and a `gh api` call under `repos/<owner>/<repo>/pulls/<number>` do.
 - A panel row's `session` action can name its PR with `pr`, the pull request's page, and a new session started from it is linked to that PR before claude has acted on it.
+- A panel row that names a session has that session's menu behind its ⋮, so a session in another project can be stopped, set aside or marked read from the panel; the row's own actions beyond its buttons come first in that menu.
 
 ### Changed
 
