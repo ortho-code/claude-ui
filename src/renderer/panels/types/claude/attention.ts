@@ -2,6 +2,7 @@ import { clockOf, clockText, notLeftWords, sessionLabel } from '../../../logic';
 import { showAttentionToast } from '../../../notifications';
 import type { View } from '../../../state/app';
 import { projName, tabWith } from '../../../state/views';
+import { hostOf } from '../builtin';
 import { jumpToSession } from './asks';
 import { tabOf } from './terminals';
 
@@ -50,9 +51,11 @@ export function toastNotLeft(view: View<'tabs' | 'activeTab' | 'scheduledTasks' 
 }
 
 // Jump to a tab from a toast: its project, its tab, and its row in the list.
+// The toast floats over the whole window, so it brings the terminal area into view, as opening a session from outside it does.
 function jumpToTab(token: string): void {
   const tab = tabOf(token);
   // Closed since the toast went up: there is nothing left to go to.
   if (!tab) return;
+  hostOf('claude').bringIntoView();
   jumpToSession(tab.session);
 }

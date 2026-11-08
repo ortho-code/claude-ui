@@ -12,7 +12,7 @@ import { collapseToggle } from './folding';
 import { container } from './drawn';
 import { loadingEl } from './read';
 import { bulkBar, bulkLine } from './bulk';
-import { arrangementMounted, listRow } from './arrangement';
+import { arrangementMounted, listRow, listRowEnd } from './arrangement';
 
 /**
  * THE SIDEBAR as a panel type: the project switcher and the header's actions over the filter panel and the session list.
@@ -20,20 +20,22 @@ import { arrangementMounted, listRow } from './arrangement';
  * Each part builds its own markup as it loads — the switcher (switcher.ts), the filter (filter.ts), the list (drawn.ts, with its collapse-all from folding.ts and its loading bar from read.ts) — and this module puts them together, with the header's Settings and + New, which are the type's own.
  */
 
-// The header's two actions that are the type's own; the filter's toggle and collapse-all go with the filter and the list.
+// The header's two actions that are the type's own.
 const settingsToggle = fromMarkup(`<button id="settings-toggle" class="icon-btn large" data-tooltip="Settings" aria-label="Settings" aria-haspopup="dialog"></button>`, HTMLButtonElement);
 const newButton = fromMarkup(`<button id="new-session" data-tooltip="New session in a folder…">+ New</button>`, HTMLButtonElement);
 
 const actions = element('div', 'header-actions');
-actions.append(settingsToggle, collapseToggle, filterToggle, newButton);
+actions.append(settingsToggle, newButton);
 const header = element('header');
 header.append(switcherEl, actions);
+// The filter and collapse-all are the list's, so they sit on the list's row after Review, the filter over the panel it opens; the header keeps its room for the switcher, and the full-screen button its corner, as on every panel.
+listRowEnd.append(filterToggle, collapseToggle);
 const sidebar = element('aside');
 sidebar.id = 'sidebar';
 sidebar.append(header, listRow, bulkLine, filterPanel, filterStatus, loadingEl, container, bulkBar);
 document.getElementById('parked')!.append(sidebar);
 
-export const sessionsType = builtinType('sessions', sidebar, 'Sessions', 'sessions', () => railStatus(store.get()), arrangementMounted);
+export const sessionsType = builtinType('sessions', sidebar, 'Sessions', 'sessions', { fullScreenSlot: actions, buttonSize: 'large' }, () => railStatus(store.get()), arrangementMounted);
 
 /**
  * What the sidebar's rail icon says while it is folded or behind another panel: waiting while any session anywhere waits for you, else needs while one is marked as needing you, by every project's roll-up (`switcherModel`).

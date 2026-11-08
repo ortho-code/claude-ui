@@ -65,7 +65,7 @@ test('a fold outlasts the next run, which prints the same rows again', async ({ 
   await bootList(app, page, TREE);
   await row(page, 'src/renderer').locator('.list-fold').click();
   await expect(row(page, 'list.ts')).toHaveCount(0);
-  await page.locator('.panel-header .icon-btn').last().click();
+  await page.locator('.panel-header').getByRole('button', { name: 'Refresh' }).click();
   await expect.poll(() => runs(app, 'changes')).toHaveLength(2);
   const { token } = (await runs(app, 'changes'))[1];
   await app.emit('onPanelRun', 'changes', token, { kind: 'output', text: JSON.stringify({ ...TREE, sections: [{ ...TREE.sections[0], items: [...TREE.sections[0].items, { key: 'new', text: 'NEW.md' }] }] }) });

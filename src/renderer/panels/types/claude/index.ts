@@ -14,10 +14,14 @@ import { paneEl, stepHistory } from './pane';
  */
 const terminalPane = element('section');
 terminalPane.id = 'terminal-pane';
-terminalPane.append(tabbar, tabbarEdge, paneEl);
+// The tab bar's end holds the full-screen button, beside the tabs rather than among them, so it stays put as they wrap.
+const tabbarEnd = element('div', 'tabbar-end');
+const tabbarRow = element('div', 'tabbar-row');
+tabbarRow.append(tabbar, tabbarEnd);
+terminalPane.append(tabbarRow, tabbarEdge, paneEl);
 document.getElementById('parked')!.append(terminalPane);
 
-export const claudeType = builtinType('claude', terminalPane, 'Claude', 'claude', () => railStatus(store.get()));
+export const claudeType = builtinType('claude', terminalPane, 'Claude', 'claude', { fullScreenSlot: tabbarEnd, buttonSize: 'compact' }, () => railStatus(store.get()));
 
 // Ctrl+Shift+↑ / ↓ step through the history (`stepHistory`) while anything in the terminal area has focus, the tab bar included.
 // Caught on the window, before xterm, which would otherwise send them to claude as keys.

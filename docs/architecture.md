@@ -1347,6 +1347,18 @@ A panel can put tabs in that header in place of its title (`PanelHost.setTabs`, 
 
 The fold control and the switcher each live in one function in `tree.ts` (`foldControls`, `switcher`), so trying one of the other variants from the mock — a header button, a tab strip — is a local change there, and none of it is in the file format.
 
+### Full screen
+
+Any panel the layout accepts fills the window from a button the tree makes for it, and the same button brings the layout back (decided 2026-11-08); an entry the layout refuses is drawn as its problems, with no button.
+It sits in the header the tree draws, and a bare panel places it in its own bar (`PanelHost.fullScreenButton`): the sidebar at the end of its header, after + New, the terminal area at the end of its tab bar.
+The sidebar's filter toggle and collapse-all sit on the row under its header, after Review, rather than in the header: they are the list's, the filter's over the panel it opens, and the header keeps its room for the switcher.
+Which panel fills the window is the tree's own state (`fullScreen` in `tree.ts`), applied by every render, since a render rebuilds every split and header and would drop anything set on them by hand.
+Each split on the way to that panel shows only the child holding it; the siblings and the dividers stay placed and hidden, as a folded group's content does, so every panel keeps its DOM and its process, and a terminal refits on the way back as it does after an unfold.
+Only that panel is on show, so every other one is told it is hidden, and its group draws no rail, so nothing switches or folds until the layout is back.
+Nothing of it is written: the sizes, folds and picks in the app's file stay as they were, and full screen is off at every launch, since a window that opens on one panel with the rest hidden and nothing saying why is the confusing case.
+A panel the layout lets go of, hides or refuses ends full screen; one that says itself it cannot run stays full screen, showing why.
+Opening a session, from a row, a panel, a menu or a toast, brings the layout back first when a panel other than the terminal area fills the window, so its tab is in view; a toast floats over the whole window, so it asks for the terminal area to be in view itself (`PanelHost.bringIntoView`), the check the opening asks make; inside a full-screen terminal area, switching tabs keeps it full screen, and the session list keeps in step behind it, as it does behind a folded sidebar.
+
 ### A layout change keeps panels running
 
 The tree is rebuilt on every layout change, fold and panel switch, but a panel never is: mounted panels are kept by entry key and moved into their new place.
@@ -1971,7 +1983,7 @@ Their glyph never turns blue: under the borderless accent hover it turned blue u
 A framed one, with a resting border — the split buttons' halves (`.composite`) and the divider's fold chevron (`.framed`) — fills `--active` with an accent border and a `--text` glyph, its border already saying where it is.
 It uses `--active` rather than `--surface-hover` because a hovered session row is already `--surface-hover`, so a button filling to the same colour inside it would show no change; the project heading's `+`, on a filled bar, keeps a fill of its own (`headings.css`).
 The header actions (`.large`) wear a resting border too, but they stand beside + New as its peers, in the ordinary button's skin, so they take the ordinary button's hover, `--surface-hover` with an accent border, and the four hover alike.
-That leaves `--active`, a stronger, blue-tinted step from the resting fill, to say what a header button opened is up, the filter's panel, + New's folder picker or the Settings dialog, and it outranks the hover, so the filter's holds under the pointer (the Settings dialog's overlay covers its button while it is up): the ladder a live tab and the switcher's title climb too, `--surface-hover` on hover and `--active` for what is open or on show.
+That leaves `--active`, a stronger, blue-tinted step from the resting fill, to say what a sidebar button opened is up, the filter's panel, + New's folder picker or the Settings dialog, and it outranks the hover, so the filter's holds under the pointer (the Settings dialog's overlay covers its button while it is up): the ladder a live tab and the switcher's title climb too, `--surface-hover` on hover and `--active` for what is open or on show.
 While the header actions hovered to `--active` as well, the filter looked the same hovered and open, and + New, a plain button, hovered to `--surface-hover` beside them and turned, while its picker was open, the `--active` they hovered to.
 The app-wide `button:hover` fill and accent border leave every other icon button alone, which take only these, and the icon buttons' hover selectors, here and the rail's in `panels/tree.css`, carry four classes' weight (`.icon-btn:where(…):not(:disabled):not(.unavailable)` and the hover), so a surface's own hover rule of the same weight after them can still win.
 

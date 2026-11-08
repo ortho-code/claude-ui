@@ -1,9 +1,9 @@
 import { expect, test } from '../../../support/harness';
 import { lookOf, token } from '../../../support/looks';
 
-// The sidebar's header buttons stand side by side as peers, so they hover alike, to `--surface-hover`, and the ones that open something show it in `--active`, a stronger step than their hover: the ladder a live tab and the switcher's title climb too (docs/architecture.md § UI conventions).
+// The sidebar's header buttons, and the filter and collapse-all on the row under them, stand as peers, so they hover alike, to `--surface-hover`, and the ones that open something show it in `--active`, a stronger step than their hover: the ladder a live tab and the switcher's title climb too (docs/architecture.md § UI conventions).
 
-test('every header button hovers to the same fill and outline', async ({ app, page }) => {
+test('every header button, and the filter and collapse-all under them, hovers to the same fill and outline', async ({ app, page }) => {
   // All, so collapse has a project to fold and is not disabled.
   await app.boot({ activeProject: null });
   await expect(page.locator('#collapse-toggle')).toBeEnabled();
@@ -13,6 +13,20 @@ test('every header button hovers to the same fill and outline', async ({ app, pa
     await button.hover();
     expect(await lookOf(button), id).toEqual(hover);
   }
+});
+
+test('the row under the header holds its switch, Review, the filter and collapse-all inside a 320px sidebar', async ({ app, page }) => {
+  await app.boot();
+  const row = page.locator('#list-row');
+  await expect(row.locator('#filter-toggle')).toBeVisible();
+  await expect(row.locator('#collapse-toggle')).toBeVisible();
+  const fit = await row.evaluate((box) => {
+    const edge = box.getBoundingClientRect().right - parseFloat(getComputedStyle(box).paddingRight);
+    return { sidebar: document.getElementById('sidebar')!.getBoundingClientRect().width, overflow: box.scrollWidth - box.clientWidth, last: [...box.querySelectorAll('button')].map((b) => b.getBoundingClientRect().right).reduce((a, b) => Math.max(a, b), 0), edge };
+  });
+  expect(fit.sidebar).toBe(320);
+  expect(fit.overflow).toBe(0);
+  expect(fit.last).toBeLessThanOrEqual(fit.edge + 0.5);
 });
 
 test('the settings button shows its dialog open in `--active`, and lets it go once the dialog shuts', async ({ app, page }) => {

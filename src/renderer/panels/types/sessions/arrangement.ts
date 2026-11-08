@@ -8,7 +8,7 @@ import { reviewButton } from './review';
 import './arrangement.css';
 
 /**
- * THE LIST'S ARRANGEMENT (docs/architecture.md § Recent): Grouped, by project and group, or Recent, flat and last worked on first, as the sessions panel's two views, switched on the row under the sidebar's header, which holds the Review button at its other end.
+ * THE LIST'S ARRANGEMENT (docs/architecture.md § Recent): Grouped, by project and group, or Recent, flat and last worked on first, as the sessions panel's two views, switched on the row under the sidebar's header, which holds the Review button, the filter's toggle and collapse-all at its other end.
  * The pick is the panel's, kept as any panel's picked view is (`PanelHost.pickView`), with its layout entry's `view` where it starts; the store's `arrangement` follows it, for the list to draw from.
  */
 
@@ -22,10 +22,13 @@ export const SESSION_VIEWS: PanelView[] = [
 const arrangementOf = (view: string | null): Arrangement => (view === 'recent' ? 'recent' : 'grouped');
 
 const views = element('span', 'panel-views');
-/** The row under the header: the switch on the left, the Review button at the right end. */
+/** The right end of the row under the header: the Review button, then what the sidebar places after it (index.ts). */
+export const listRowEnd = element('div', 'list-row-end');
+listRowEnd.append(reviewButton);
+/** The row under the header: the switch on the left, the Review button and the list's own buttons, the filter's and collapse-all, at the right end. */
 export const listRow = element('div');
 listRow.id = 'list-row';
-listRow.append(views, reviewButton);
+listRow.append(views, listRowEnd);
 
 /** What the sessions panel's every mount, and every change of its pick without one, tells and reads of its host: the views it offers, so an entry naming another is said, and the one picked, which the list then shows. */
 export function arrangementMounted(host: PanelHost): void {

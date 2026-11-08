@@ -102,6 +102,8 @@ interface Mounted {
   problems: string[];
   /** What the panel says about itself that does not stop it, for its group's note line. */
   notes: string[];
+  /** Its full-screen button, in the header the tree draws, or in a bare panel's own bar (`PanelHost.fullScreenButton`). */
+  fullScreenButton: HTMLButtonElement;
 }
 
 /**
@@ -116,6 +118,9 @@ interface Place {
 }
 
 const REFRESH_ICON = strokeIcon(14, '<path d="M12.8 8.6A4.8 4.8 0 1 1 11.6 4.5" /><path d="M12.9 2.8v2.6h-2.6" />');
+// Four corners pointing out, and back in: apart from the window's maximize square (chrome.ts), since a panel filling the window is not the window changing size.
+const FULL_SCREEN_ICON = strokeIcon(14, '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" />');
+const BACK_TO_LAYOUT_ICON = strokeIcon(14, '<path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5" />');
 
 let host: TreeHost;
 let app: HTMLElement;
@@ -146,6 +151,11 @@ let live = false;
 let toasted: string | null = null;
 /** A render asked for by a panel reporting something new, run once the current task is done so a report made during a render never renders inside it. */
 let renderQueued = false;
+/**
+ * The panel filling the window, by entry key, or null for the layout as it stands.
+ * Every other node stays mounted and placed, hidden, and nothing about it is written, so going back is the layout exactly as it was; never kept, so a launch starts with the layout.
+ */
+let fullScreen: string | null = null;
 
 function queueRender(): void {
   if (renderQueued) return;
@@ -158,7 +168,7 @@ function queueRender(): void {
 
 /** Draw the default layout now, before the first paint, and follow the layout file from here on. */
 export function initTree(treeHost: TreeHost): void {
-  host = treeHost;
+  host = { ...treeHost, asks: leavingFullScreen(treeHost.asks) };
   app = document.getElementById('app')!;
   const view = resolveLayout(
     { configRoot: '', file: '', status: 'missing', error: null, json: null, types: [], local: { file: '', status: 'missing', error: null, json: null, byApp: false, stateMoved: true } },
@@ -167,6 +177,48 @@ export function initTree(treeHost: TreeHost): void {
   if (view.kind === 'tree') tree = view.root;
   render();
   window.claudeUi.onLayoutChanged((next) => apply(next));
+}
+
+/**
+ * The asks that open a session: each leaves full screen first when a panel other than the terminal area fills the window, so the session's tab is on screen.
+ * Inside a full-screen terminal area they keep it full screen, as every other ask does: the session list's reveals keep the list in step behind it, the way they do behind a folded sidebar.
+ */
+function leavingFullScreen(asks: Asks): Asks {
+  const leave = (): void => bringTypeIntoView('claude');
+  return {
+    ...asks,
+    openSession: (...args) => {
+      leave();
+      asks.openSession(...args);
+    },
+    openTab: (...args) => {
+      leave();
+      asks.openTab(...args);
+    },
+    openNewSession: (...args) => {
+      leave();
+      return asks.openNewSession(...args);
+    },
+    openWorktreeSession: (...args) => {
+      leave();
+      return asks.openWorktreeSession(...args);
+    },
+    forkSession: (...args) => {
+      leave();
+      return asks.forkSession(...args);
+    },
+  };
+}
+
+/** Bring the layout back when a panel of another type than `type` fills the window, so a panel of `type` is in view. */
+function bringTypeIntoView(type: string): void {
+  if (fullScreen !== null && mounted.get(fullScreen)?.slot.type !== type) setFullScreen(null);
+}
+
+/** Put the panel `key` full screen, or go back to the layout for null. */
+function setFullScreen(key: string | null): void {
+  fullScreen = key;
+  render();
 }
 
 /** The first read of the layout file. */
@@ -307,6 +359,8 @@ function render(): void {
     entry.panel.unmount();
     mounted.delete(key);
   }
+  // A panel the layout lets go of, or now refuses, cannot fill the window: the layout comes back.
+  if (fullScreen !== null && !wanted.has(fullScreen)) fullScreen = null;
   // Moving an element resets its scroll offsets and drops its focus, so both are carried across the rebuild.
   const focused = document.activeElement;
   const scrolled = scrollOffsets();
@@ -324,6 +378,9 @@ function render(): void {
     el.scrollLeft = left;
   }
   if (focused instanceof HTMLElement && focused.isConnected && document.activeElement !== focused) focused.focus({ preventScroll: true });
+  // The groups it hides still say what they show; only the panel filling the window is on show.
+  if (fullScreen !== null) onShow = new Set([...onShow].filter((key) => key === fullScreen));
+  for (const [key, entry] of mounted) drawFullScreenButton(entry.fullScreenButton, key === fullScreen);
   showPanels();
   // A panel whose pick moved without mounting it afresh, by an edit of its entry's `view` or the app's file read after it mounted, is told so.
   for (const entry of mounted.values()) {
@@ -373,22 +430,39 @@ function renderNode(node: ResolvedNode, place: Place): HTMLElement {
  */
 const foldable = (node: ResolvedNode): node is ResolvedGroup => node.kind === 'group' && node.collapsible && node.problems.length === 0;
 
+/** Whether `node` is, or holds, the group that places the panel `key`. */
+function holds(node: ResolvedNode, key: string): boolean {
+  return node.kind === 'split' ? node.children.some((child) => holds(child, key)) : node.slots.some((slot) => slot.key === key);
+}
+
 function renderSplit(split: ResolvedSplit): HTMLElement {
   const visible = split.children.filter((child) => !isEmpty(child));
   const edges = visible.map((_, index) => foldEdge(visible, index));
-  const folded = visible.map((child) => foldable(child) && foldedNow(child));
+  // The child on the way to the panel filling the window takes the whole split, open; its siblings and the dividers stay placed, hidden.
+  const filling = fullScreen === null ? undefined : visible.find((child) => holds(child, fullScreen!));
+  const folded = visible.map((child) => child !== filling && foldable(child) && foldedNow(child));
   const box = element('div', `split ${split.axis}`);
   const nodes: HTMLElement[] = [];
   // One fold per child that has a divider to fold from, behind both its chevron and its rail, so the two cannot fold it differently.
   const toggles = visible.map((child, index) => (visible.length > 1 && foldable(child) ? () => toggleFold(split, visible, nodes, folded, index) : null));
   visible.forEach((child, index) => {
-    if (index > 0) box.append(divider(split, visible, nodes, edges, folded, toggles, index - 1, index));
+    if (index > 0) {
+      const handle = divider(split, visible, nodes, edges, folded, toggles, index - 1, index);
+      handle.hidden = filling !== undefined;
+      box.append(handle);
+    }
     const node = element('div', 'node');
     node.append(renderNode(child, { axis: split.axis, edge: edges[index]!, folded: folded[index]!, toggleFold: toggles[index] ?? null }));
+    node.hidden = filling !== undefined && child !== filling;
     nodes.push(node);
     box.append(node);
   });
   applyFlex(split, visible, nodes, folded);
+  if (filling !== undefined) {
+    const style = nodes[visible.indexOf(filling)]!.style;
+    style.flex = '1 1 0';
+    style.minWidth = style.minHeight = '';
+  }
   const notes = [...split.notes, ...(stateNotes[split.id] ?? [])];
   if (notes.length === 0) return box;
   const wrap = element('div', 'split-wrap');
@@ -518,7 +592,9 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
     return section;
   }
   const slots = group.slots.filter((slot) => !slot.hidden);
-  const shown = shownSlot(group, slots);
+  // The panel filling the window is the one its group shows, without the rail, so nothing switches or folds until it goes back.
+  const filling = slots.find((slot) => slot.key === fullScreen);
+  const shown = filling ?? shownSlot(group, slots);
   const content = element('div', 'panel-content');
   for (const slot of slots) {
     if (slot.problems.length > 0) continue;
@@ -530,8 +606,8 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   if (shown.problems.length > 0) {
     content.prepend(header(shown.title), problemList(shown.problems));
   } else if (!types[shown.type!]!.bare) {
-    const { count, folder, busy, end, views, action, problems, tabs } = mountedFor(shown);
-    const controls = [busy, end, views, ...(action ? [action] : [])];
+    const { count, folder, busy, end, views, action, problems, tabs, fullScreenButton } = mountedFor(shown);
+    const controls = [busy, end, views, ...(action ? [action] : []), fullScreenButton];
     // Tabs take the title's place, and its count and folder with it: the tabs are there to count, and each shell names its own folder.
     const row = tabs ? tabsHeader(tabs, controls) : header(shown.title, [folder, count, ...controls]);
     // The layout's refusals and the panel's own are one list, drawn the same way.
@@ -543,7 +619,7 @@ function renderGroup(group: ResolvedGroup, place: Place): HTMLElement {
   const notes = [...group.notes, ...(stateNotes[group.id] ?? []), ...slots.flatMap((slot) => [...slot.notes, ...(mounted.get(slot.key)?.notes ?? []), ...(mounted.get(slot.key)?.viewNotes ?? [])])];
   if (notes.length > 0) content.append(notesLine(notes));
 
-  const rail = switcher(group, slots, shown, place);
+  const rail = filling ? null : switcher(group, slots, shown, place);
   if (!rail) {
     section.append(content);
     return section;
@@ -614,6 +690,12 @@ function mountedFor(slot: PanelSlot): Mounted {
   // Per entry, since what the button would do can depend on the options; a terminal has none.
   const label = type.bare ? null : type.actionLabel ? type.actionLabel(optionsOf(slot.entry)) : 'Refresh';
   const action = label === null ? null : actionButton(label);
+  const fullScreenButton = element('button', 'icon-btn full-screen-toggle');
+  fullScreenButton.type = 'button';
+  // A bare panel's own bar sizes it with its other buttons; the tree's header takes the compact box its Refresh has.
+  if (!type.bare) fullScreenButton.classList.add('compact');
+  fullScreenButton.addEventListener('click', () => setFullScreen(fullScreen === slot.key ? null : slot.key));
+  drawFullScreenButton(fullScreenButton, false);
   const badge = element('span', badgeClass(null));
   badge.hidden = true;
   const count = element('span', 'panel-count');
@@ -741,12 +823,14 @@ function mountedFor(slot: PanelSlot): Mounted {
     copyText: (text, confirmation) => void copyText(text, confirmation),
     sessionsSnapshot: snapshotText,
     watchSessions: (listener) => store.watch(SNAPSHOT_SLICES, listener),
+    fullScreenButton,
+    bringIntoView: () => bringTypeIntoView(slot.type!),
     ...host.asks,
   };
   const panel = type.mount(slot, panelHost);
   action?.addEventListener('click', () => panel.refresh());
   // A panel that said its tabs while it was mounting has them from the start.
-  const entry: Mounted = { panel, slot, viewNotes: viewNotesNow, view: pickedView, viewTold: pickedView(), signature: signatureOf(slot), busy, end, views, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder, ...said };
+  const entry: Mounted = { panel, slot, viewNotes: viewNotesNow, view: pickedView, viewTold: pickedView(), signature: signatureOf(slot), busy, end, views, tabs: tabsOn, action, badge, count, railCount, countValue: null, folder, fullScreenButton, ...said };
   mounted.set(slot.key, entry);
   return entry;
 }
@@ -770,6 +854,15 @@ function actionButton(label: string): HTMLButtonElement {
   return button;
 }
 
+/** The full-screen button as it stands: pressed, saying the way back, while its panel fills the window. */
+function drawFullScreenButton(button: HTMLButtonElement, on: boolean): void {
+  const label = on ? 'Back to the layout' : 'Full screen';
+  if (button.getAttribute('aria-label') === label) return;
+  button.innerHTML = on ? BACK_TO_LAYOUT_ICON : FULL_SCREEN_ICON;
+  button.setAttribute('aria-label', label);
+  button.setAttribute('aria-pressed', String(on));
+  setTooltip(button, label);
+}
 
 function header(title: string, controls: HTMLElement[] = []): HTMLElement {
   const row = element('div', 'panel-header');

@@ -1,7 +1,13 @@
-/* The row under the sidebar's header (arrangement.ts): the switch between Grouped and Recent on the left, the Review button at the right end. */
+/* The row under the sidebar's header (arrangement.ts): the switch between Grouped and Recent on the left, the Review button, the filter's toggle and collapse-all at the right end. */
 #list-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px 8px;
+}
+
+.list-row-end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }

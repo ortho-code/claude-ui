@@ -1,9 +1,21 @@
+.tabbar-row {
+  display: flex;
+  align-items: flex-start;
+}
+
 #tabbar {
+  flex: 1;
+  min-width: 0;
   display: flex;
   /* Natural-width tabs that wrap onto new rows when the row fills: all visible, no scrollbar. */
   flex-wrap: wrap;
   gap: 2px;
   padding: 4px 6px 0;
+}
+
+.tabbar-end {
+  display: flex;
+  padding: 4px 6px 0 0;
 }
 
 /* A project's row of tabs, and the label that leads a row, are tab.css's. */

@@ -256,6 +256,13 @@ export interface PanelHost extends Asks {
   sessionsSnapshot(): string;
   /** Call `listener` whenever something the sessions snapshot is made of changes, whether or not the snapshot itself does; answers the unsubscribe. */
   watchSessions(listener: () => void): () => void;
+  /**
+   * The button that puts the panel full screen and back, the tree's in look and press: placed in the header the tree draws, and by a bare panel in its own bar.
+   * One element for the mount, sized by the bar it sits in.
+   */
+  readonly fullScreenButton: HTMLButtonElement;
+  /** Bring the layout back when another panel fills the window, so this one is in view: for a press that shows something here from outside the panel, such as a toast over the window. */
+  bringIntoView(): void;
 }
 
 export interface MountedPanel {

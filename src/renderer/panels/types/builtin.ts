@@ -36,8 +36,17 @@ export function tellRail(host: PanelHost, nudge: NudgeStatus): void {
  * A built-in's type, around the one element it is for the run: every mount puts that element back, so a remount — a new id, an option — keeps whatever runs in it.
  * Its rail icon's status is its own to say: a watcher of its own hands each change to its host (`hostOf`), and a mount, which is a new host, takes it as it is now (`railStatus`).
  * `mounted` is handed each new host too, and the host again whenever the view picked for the panel changes without a mount (`viewChanged`), for what else the built-in tells or reads of it, such as the session list's views (sessions/arrangement.ts).
+ * Its bar is its own, so its full-screen button goes at the end of `fullScreenSlot` with each mount, in the size `buttonSize` gives the bar's other buttons, and leaves with the mount.
  */
-export function builtinType(name: BuiltinName, el: HTMLElement, title: string, icon: IconName, railStatus: () => NudgeStatus, mounted?: (host: PanelHost) => void): PanelType {
+export function builtinType(
+  name: BuiltinName,
+  el: HTMLElement,
+  title: string,
+  icon: IconName,
+  bar: { fullScreenSlot: HTMLElement; buttonSize: 'compact' | 'large' },
+  railStatus: () => NudgeStatus,
+  mounted?: (host: PanelHost) => void,
+): PanelType {
   const type: PanelType = {
     name,
     options: [],
@@ -52,6 +61,8 @@ export function builtinType(name: BuiltinName, el: HTMLElement, title: string, i
       // Named as NOTES, never as problems: a built-in cannot be refused, since no file may produce a window without the sidebar or the terminal.
       host.setNotes(optionProblems(optionsOf(slot.entry), type).map((line) => `${slot.key}: ${line}`));
       mounted?.(host);
+      host.fullScreenButton.classList.add(bar.buttonSize);
+      bar.fullScreenSlot.append(host.fullScreenButton);
       return {
         el,
         // Nothing to run: the surface keeps itself current, and follows the tab and the project because the renderer drives it directly.
@@ -64,6 +75,7 @@ export function builtinType(name: BuiltinName, el: HTMLElement, title: string, i
         viewChanged: () => mounted?.(host),
         unmount: () => {
           if (hosts.get(name) === host) hosts.delete(name);
+          host.fullScreenButton.remove();
           document.getElementById('parked')!.append(el);
         },
       };

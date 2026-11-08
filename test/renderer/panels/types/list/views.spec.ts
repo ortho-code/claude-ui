@@ -47,7 +47,7 @@ test('a view not on show fills and turns white on hover, never blue', async ({ a
 test("an edit of the entry's view while the app runs is what the next run asks for, without the panel starting afresh", async ({ app, page }) => {
   await bootList(app, page, listed(VIEWS), { entry: { view: 'flat' } });
   await app.emit('onLayoutChanged', layoutWith({ view: 'tree' }).layout);
-  await page.locator('.panel-header .icon-btn').last().click();
+  await page.locator('.panel-header').getByRole('button', { name: 'Refresh' }).click();
   await expect.poll(() => runs(app, 'changes')).toHaveLength(2);
   expect((await runs(app, 'changes'))[1].view).toBe('tree');
   await print(app, 1, listed(VIEWS));
@@ -98,7 +98,7 @@ test('a kept view the list no longer offers gives way to its first, in the switc
   // Before any list has said what it offers, the pick is given as it is.
   expect((await runs(app, 'changes'))[0].view).toBe('gone');
   await expect(buttons(page).nth(0)).toHaveAttribute('aria-pressed', 'true');
-  await page.locator('.panel-header .icon-btn').last().click();
+  await page.locator('.panel-header').getByRole('button', { name: 'Refresh' }).click();
   await expect.poll(() => runs(app, 'changes')).toHaveLength(2);
   expect((await runs(app, 'changes'))[1].view).toBe('flat');
 });
@@ -107,7 +107,7 @@ test('a list offering no views shows no switch, and is run with none once it has
   await bootList(app, page, listed([]), { entry: { view: 'tree' } });
   await expect(buttons(page)).toHaveCount(0);
   expect((await runs(app, 'changes'))[0].view).toBe('tree');
-  await page.locator('.panel-header .icon-btn').last().click();
+  await page.locator('.panel-header').getByRole('button', { name: 'Refresh' }).click();
   await expect.poll(() => runs(app, 'changes')).toHaveLength(2);
   expect((await runs(app, 'changes'))[1].view).toBe('');
 });

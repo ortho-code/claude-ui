@@ -242,6 +242,11 @@
   font-weight: 650;
 }
 
+/* The full-screen button while its panel fills the window, in the accent, in whichever bar holds it: the tree's header, the sidebar's actions or the tab bar's end. */
+.icon-btn.full-screen-toggle[aria-pressed='true'] {
+  color: var(--accent);
+}
+
 .panel-title {
   flex: 1;
   min-width: 0;

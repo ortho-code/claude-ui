@@ -41,7 +41,7 @@ Done:
 - Custom groups: sub-sections inside a project, made empty from the project's kebab or around a session from its kebab.
   Move a session between them, rename or delete a group (its sessions stay), and start a session, a fork or a worktree session straight into one.
   Open tabs cluster by group in the tab bar, and a group's name there takes you to the group in the list.
-- Ordering and overview: reorder projects and groups from their kebabs, fold every section away and back from one header button, and attach a note to any session.
+- Ordering and overview: reorder projects and groups from their kebabs, fold every section away and back from one button over the list, and attach a note to any session.
 - Pin, Finished, and delete (to the OS trash), a project whose sessions are all finished staying in the list until they are deleted; search plus filters (pinned, open, live, set aside, worktree, siblings, linked PR, noted, finished, folder gone, date range).
   Finished is one press on a running session too: claude is asked to leave, its tab staying for anything it asks on its way out, and the session is finished once claude has gone; the app does not open a finished session again until you make it unfinished.
   A filter left on with its panel shut stays on screen as a row of chips, one per thing that is on, above the count.
@@ -68,6 +68,7 @@ Done:
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
   Panels so far run a command or a script and show its output, again on an interval, when the script says, or when the git working tree of their folder changes, or give you plain shells, as tabs per project that come back at the next launch, in the folder you are working in or one you pin them to; each checks its own settings and says in its place what is wrong.
   A panel follows its tab's session into the worktree claude is changing files in, by path, after a `cd` or by claude's own worktree tools, and names the folder it looks in beside its title.
+  Any panel, the sidebar and the terminal included, fills the window from a button in its header, and the same button puts the layout back as it was.
   See [Panels](#panels).
 - Installable builds for macOS and Linux, built on CI from a version tag.
   See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.

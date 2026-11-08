@@ -132,6 +132,8 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - Settings says the default under every setting `settings.json` gives other than it, with a Reset that writes the default back when you save, and Only what differs narrows every section to those settings.
 - A usage record, `usage.log` beside `meta.json`, noting each time sessions are finished, set aside or kept or that is undone, each opening and ending of the review, and each needs-you mark and what settled it, so how the app is used can be counted over weeks.
   It holds moments, session ids, types and counts, never a title, a prompt or a note, stays on this machine, and keeps a year.
+- Any panel fills the window from a button in its header, the session list's at the end of its header and the terminal area's at the end of its tab bar, and the same button brings the layout back as it was.
+  Opening a session from anywhere but the terminal area brings the layout back too; full screen is off again at the next launch.
 
 ### Changed
 
@@ -205,6 +207,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   The dialog is as large as the window allows, and a section's name stays in view while its settings scroll.
   What Settings shows but cannot change, the approvals and the dots' order and looks, says where in `settings.json` it is set, with the config folder's Open.
 - Every on/off in Settings is a switch rather than a checkbox, such as PR status from GitHub.
+- The filter's button and Collapse all sit on the row under the sidebar's header, after Review, leaving the header's room to the project's name.
 
 ### Fixed
 
