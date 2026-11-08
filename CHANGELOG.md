@@ -201,6 +201,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
   Save can be pressed only while there is something to save; a setting changed and not yet saved has a blue bar down its left edge, and its section a blue dot in the list.
   The dialog is as large as the window allows, and a section's name stays in view while its settings scroll.
   What Settings shows but cannot change, the approvals and the dots' order and looks, says where in `settings.json` it is set, with the config folder's Open.
+- Every on/off in Settings is a switch rather than a checkbox, such as PR status from GitHub.
 
 ### Fixed
 

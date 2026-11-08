@@ -17,7 +17,7 @@ const open = async (page: Page): Promise<PrStatusSetting> => {
   const dialog = await openSettings(page, 'Version control');
   return {
     dialog,
-    box: dialog.getByRole('checkbox', { name: 'PR status from GitHub' }),
+    box: dialog.getByRole('switch', { name: 'PR status from GitHub' }),
     save: dialog.getByRole('button', { name: 'Save' }),
   };
 };

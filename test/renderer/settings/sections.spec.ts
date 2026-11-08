@@ -81,7 +81,7 @@ test('Settings opens again on the section last shown, with the focus in its firs
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(dialog.getByRole('tabpanel', { name: 'Version control' })).toBeVisible();
-  await expect(dialog.getByRole('checkbox', { name: 'PR status from GitHub' })).toBeFocused();
+  await expect(dialog.getByRole('switch', { name: 'PR status from GitHub' })).toBeFocused();
 
   await dialog.getByRole('tab', { name: 'Logs' }).click();
   await dialog.getByRole('button', { name: 'Cancel' }).click();
