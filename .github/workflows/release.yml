@@ -26,7 +26,7 @@ jobs:
             args: --linux
           - os: macos-latest
             # Apple Silicon only: no one who needs this build has an Intel Mac.
-            # Adding --x64 would cross-compile node-pty on an arm64 runner, which is both the likeliest thing to fail and a doubling of the macOS minutes, which bill at 10x on a private repo.
+            # Adding --x64 would cross-compile node-pty on an arm64 runner, the likeliest thing to fail, and double the macOS build.
             # Add it back the day someone turns up with an Intel Mac — an arm64 build will not run on one.
             args: --mac --arm64
     runs-on: ${{ matrix.os }}
@@ -74,8 +74,7 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      # Published, not a draft: a draft is invisible to read-only collaborators, who would see an empty Releases page.
-      # The repo is private, so published still means visible only to them.
+      # Published, not a draft: a draft is visible only to those who can write to the repo, and the repo is public, so a published release is what anyone installing sees.
       # The release notes ARE the changelog entry, not a generated commit list: the changelog is written for the people installing this, and a commit list is not.
       # Extracts the section for this tag — everything from its own heading up to the next one.
       - run: |

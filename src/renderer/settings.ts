@@ -123,7 +123,7 @@ const SECTIONS: Section[] = [
     body: `
       <div class="dialog-group" data-setting="needsYou">
         <span class="dialog-label">${SETTING_LABELS.needsYou}</span>
-        <p class="dialog-detail">Which reasons mark a session as needing you, and in which section of Now each shows, is <code>needsYou</code> in settings.json, set there by hand: by a type's or a category's id, the fields it changes, such as <code>"needsYou": { "pr.merged": { "enabled": false } }</code> to be marked no more when a PR is merged.</p>
+        <p class="dialog-detail">Which reasons mark a session as needing you is <code>needsYou</code> in settings.json, set there by hand: by a type's or a category's id, the fields it changes, such as <code>"needsYou": { "pr.merged": { "enabled": false } }</code> to be marked no more when a PR is merged.</p>
         ${OPEN_CONFIG}
         <div id="settings-needs-you-problems"></div>
         <div id="settings-needsYou-default" class="settings-default" hidden></div>

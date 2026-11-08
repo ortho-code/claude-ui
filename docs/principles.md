@@ -35,13 +35,13 @@ Anything a user may want otherwise is a setting, an option or a panel type of th
 What the app shows about a session is what it can read or ask: claude's status from its hooks, a PR from Claude Code's own link, a review or comment the session posted on it, or the PR a panel row named when it started the session, and from what GitHub says of it.
 
 - Where something cannot be known reliably, the app says so or shows nothing, rather than a guess: in a folder several sessions share, git knows that a file changed, not which session changed it.
-- Archiving, setting aside, grouping and naming are yours: the app can offer them at the moment they are cheap, but never does them on a timer or in a sweep.
+- Finishing, setting aside, grouping and naming are yours: the app can offer them at the moment they are cheap, but never does them on a timer or in a sweep.
 
 ## Retire work; do not add it
 
 Every new mark, state or list is weighed by one question: does it take something off your mind, or add one more thing to keep up?
 A mark that only accumulates, and goes only when you remember to clear it, makes losing track worse however useful each one looks.
-So whatever asks for your attention also says what settles it, and goes once it is settled, as a session's needs-you mark goes once you act on it, such as by typing a prompt there, closing its tab or archiving it, and not when you only look at it.
+So whatever asks for your attention also says what settles it, and goes once it is settled, as a session's needs-you mark goes once you act on it, such as by typing a prompt there, closing its tab or marking it finished, and not when you only look at it.
 
 ## One implementation, one behaviour
 
@@ -75,4 +75,4 @@ Something that fails says so where it failed, and why, rather than showing nothi
 - What GitHub says of a PR is asked by the app itself, not through anything another forge could use as well.
 - A panel type draws in its own panel only: it cannot add a mark to a session's row, an item to its menu, or a filter to the session list.
 - The built-in panels take no options of their own yet: only the layout and a few settings shape them.
-- Which reasons can mark a session as needing you is the app's: `needsYou` in your settings switches off or changes any it keeps, but a reason of your own cannot be added yet, and claude asking or finishing a turn always shows on its dot.
+- Which reasons can mark a session as needing you is the app's: `needsYou` in your settings switches off or changes any it keeps, but a reason of your own cannot be added yet, and claude asking or being ready always shows on its dot.

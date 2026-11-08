@@ -2,13 +2,15 @@
 
 ## Environment
 
-The app targets WSL 2 with WSLg.
-The Electron app, the `claude` CLI it launches, and the `~/.claude` session store all live inside the same Linux distribution, so there is no Windows-to-WSL path translation.
-WSLg shows the window.
+The app runs on Linux and macOS, the two systems a version tag builds for, and on Windows inside WSL 2, as a Linux app whose window WSLg shows.
+The Electron app, the `claude` CLI it launches and the `~/.claude` session store are always on one system, so no path is translated between systems: under WSL that system is the Linux distribution, never Windows.
 
-Electron needs `--no-sandbox` under WSL; the `start` script passes it.
+On Linux the app starts with `--no-sandbox`, passed by the `start` script and the packaged launcher (`electron-builder.yml`), since it cannot be set from inside the app (`src/main/main.ts`); WSL is where it was found to be needed.
+The packaged macOS app keeps its sandbox.
 
-It runs on **X11 (Xwayland)**, the Electron default here.
+### Under WSL
+
+It runs on **X11 (Xwayland)**, the Electron default there.
 Do not switch it to Wayland: with `--ozone-platform=wayland` the window paints solid white, with or without `app.disableHardwareAcceleration()`, while a bare Electron window with the same flags paints fine — so it is something about this window, and it has not been chased down.
 `--ozone-platform-hint=auto` picks X11 anyway.
 

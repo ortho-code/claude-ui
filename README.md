@@ -10,16 +10,14 @@ Claude Code Desktop, Pane, ccmanager, and Claude Squad all put every session in 
 - a session list read straight from `~/.claude`,
 - pinning and grouping,
 - a full `claude` CLI running in an embedded terminal, with its real approval prompts,
-- a per-session cue when a session is waiting for you or has finished.
+- a per-session cue when a session is waiting for you or ready for your next prompt.
 
 claude-ui aims for that combination, and runs sessions in the project directory itself instead of forcing a worktree per session.
 What it holds to, and what a change to it is checked against, is in [docs/principles.md](docs/principles.md).
 
-## Status
+## What it does
 
 In daily use: the app lists your `~/.claude` sessions grouped by project, runs several of them at once in tabs with live status cues, and covers the session lifecycle — start, fork, worktree, pin, finish, delete.
-
-Done:
 
 - Session list from `~/.claude`, grouped into collapsible projects, refreshed live as transcripts change on disk.
 - Tabs: several sessions open at once, drag to reorder, and restored on the next launch, where the sessions that were running come back marked as needing you, started again too if you choose, and the rest wait — a tab resumes its session when you click it, and its own button stops the session before a second press removes the tab, or marks the session finished if you choose that in Settings.
@@ -31,7 +29,7 @@ Done:
   Which state a dot shows when several hold, and how each status, category and type is drawn, are yours to set in `settings.json` (`strength` and `looks`); the dot's tooltip lists every state that holds.
   Set aside… in its kebab asks when to come back, from your own choices, a day and time you pick or whenever, and where it stands, which is the session's note, shown as a bookmark on its row and its tab, and a filter finds them; at that day and time it needs you, within the hour if the machine slept through it, and a needs-you mark from before it was set aside stays dimmed while it stays set aside.
 - Embedded terminal per session (`@xterm/xterm` + `node-pty`): resume on click (`claude --resume`), start new sessions, name a session when forking or creating a worktree.
-  The tab bar folds to one row, the row of the tab on show where there is one, from a chevron on the line under the tabs, to give the terminal the room; while a tab folded away is waiting for you, or is ready and not marked read, the chevron turns into its status dot.
+  The tab bar folds to one row, the row of the tab on show where there is one, from a chevron on the line under the tabs, to give the terminal the room; while a tab folded away is waiting for you, is ready and not marked read, or needs you, the chevron turns into its status dot.
 - Fork a session (`--fork-session`) and start sessions in a fresh git worktree (`claude -w`).
   Sessions sharing a conversation show as siblings (a fork badge with a jump list); worktree sessions file under their main repo with a badge, including sessions that entered a worktree mid-life, and a session that has since left its worktree keeps the badge, muted unless claude's newest change is in a worktree.
   A session that changed files in other checkouts than the worktree its badge names, such as a worktree it reached by path or with a `cd`, has the badge count and list them, with the worktree it names, and picking one there points the panels at it while that session is on show.
@@ -50,7 +48,7 @@ Done:
 - Recent, beside Grouped under the header: every session of the project on show, or of all of them, in one flat list, last worked on first, each row naming its group and in All its project; filters and the finished sessions work in it as in Grouped, and selecting several from a row's menu.
   In either, a session worked on again moves to its place within a minute, never while the pointer or the focus is in the list or a menu from it is open.
 - A session's kebab holds everything about it, one menu on its row, its tab and a panel's row that names it: what the session is, at its top — title, project, group, each state it is in with its dot, such as ready and needing you at once, where its dot shows only the strongest, when it was last active and on what model, when it was finished, worktree, the start of its note — and the actions its row and tab offer, such as open, show in list, pin, mark read, stop, close, besides fork, siblings, PRs, worktrees, what is scheduled, set aside, note, group, copy id and finished.
-  A finished session's row has one too, with what it is, its siblings, PRs and note, its id, unfinished, delete and select.
+  A finished session's row has one too, with what it is, its siblings, PRs, worktrees, what is scheduled and its note, its id, unfinished, delete and select.
   A project's and a group's kebab start a session there, plain or in a worktree, and a project's starts one in any of its groups, a group a filter hides included, and jumps to one of its groups or to its ungrouped sessions.
 - Per-session status dots (busy / ready / waiting, and working in the background when a turn ends with work it started still running) driven by Claude Code hooks scoped to app-launched sessions; a dot can be marked read while it shows ready, waiting or needing you and its session is not finished, and a project switcher scopes the sidebar and counts the sessions in other projects that need you.
   A running session whose last turn left a task scheduled, a `/loop` wakeup or a cron of the session's own, shows a clock beside it, naming each task on hover with a cron's schedule and what a stop does to it; a tab you stopped keeps it, muted, for the crons that come back, also after a restart.
@@ -62,7 +60,7 @@ Done:
 - Opens the way you left it: window size and position, the sidebar's search, filters, folds, width and scroll offset, and the tab bar's fold.
 - A consistent control system: every mark is an SVG icon (no font glyphs), clickable icons share one mark size and one hover for each kind, a borderless one turning accent blue, a bordered one filling, the header's buttons hovering as the ordinary button beside them does, and a panel's icon in a strip filling as a tab does, and radius and type come from tokens.
 - Reaching a group without scrolling: a jump list on the project heading.
-- Settings, in sections listed beside the one on show: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included.
+- Settings, in sections listed beside the one on show: default flags for every session the app starts (`--allowedTools Grep,Glob`, for instance), quoted values included, what a launch does with the sessions that were running, the tab's leave button, the choices for setting a session aside, the language for times and dates, and whether GitHub is asked about PRs, with Only what differs to narrow them to what you changed.
   The flags the app sets for itself are refused there rather than allowed to break a session.
   They are kept in the config folder, over a `settings.json` of your own; see [Settings](#settings).
 - The window's layout is yours to arrange, in a file you edit by hand: rows and columns of panels, the sidebar and the terminal among them, sized in shares or pixels, with dividers to drag and panel groups that fold to a strip of icons.
@@ -75,6 +73,8 @@ Done:
   See [CHANGELOG.md](CHANGELOG.md) for what each release contains, and [UPGRADING.md](UPGRADING.md) if a version needs a manual step.
 - A log file per launch and day, so a problem in an installed build can be looked at afterwards; a launch that crashed keeps its log for longer.
   See [Install a build](#install-a-build) for where it is.
+- A usage record, `usage.log` beside the app's own data, noting each time sessions are finished, set aside or kept, each opening and ending of the review, and each needs-you mark and what settled it, so how the app is used can be counted over weeks.
+  It holds moments, session ids, types and counts, never a title, a prompt or a note, stays on this machine, and keeps a year.
 - A history of each session, from its transcript and laid out as claude shows it: every request, message, tool call and subagent's report since the session began, compactions included, with pins for the ones to come back to.
   A bar beside the terminal marks them all and works as the history's scrollbar, pressed or dragged, a loupe on it steps through a long session one entry at a time, and Ctrl+Shift+↑ and ↓ step between your requests.
 - Panel types of your own, from a folder in the config folder: a script prints a list and the app draws it, with links, sections that fold, and a count on the panel's icon kept current on an interval.
@@ -85,35 +85,6 @@ Done:
 - A config folder that stays yours: the settings in `settings.json`, which you edit and Settings saves into, keeping your comments, and your layout, which the app never writes, keeping where you left it — the sizes you drag to, the groups you fold — in a `.local.json` file of its own beside it, in your file's own field names.
   Every file there may carry comments and trailing commas.
 
-Next:
-- Options and documentation for the sidebar and the terminal area, starting with the terminal area's tabs on or off.
-- Panel types that draw themselves: a page of your own in a sandboxed frame, fed by its script, asking the app for what it cannot do itself, such as opening a link or starting a session.
-- A list row leading back to a session it did not start, such as the one that opened a PR, found by the branch they share.
-- A panel type marking the sessions its rows started, on their rows and tabs in the session list.
-- Opening every link in a list panel at once, asking first when there are many.
-- A folder of its own for a panel type's script, to keep state between runs, such as an item snoozed for a day.
-- Options of a path kind in a panel type's manifest.
-- A panel's heading set from its layout entry, or by the panel itself.
-- A panel type's own look over the app's, for a type that wants one; until it says otherwise, its rows look like the app's.
-- A Panel data row in Settings: what each panel remembers about the sessions its rows started, whether that panel is still in the layout, and a way to clear it.
-
-- Context health per session in the list, coloured the way the CLI's own status line colours it.
-- Clickable paths in terminal output, opening the file the session just named in a panel.
-- Status nudges that survive an app restart; a performance pass (scroll, open).
-- End-to-end tests of the built app with a stand-in `claude`, now that the window's own checks run headless; then split view.
-- Visual regression checks: reference pictures of the window, made on CI, which a change to the look updates on purpose.
-- A Renovate configuration of the repo's own, tuned to its dependencies and workflows rather than left at Renovate's defaults.
-- Named layouts, several in `layouts/` with the one in use chosen in settings, and blocks: parts of a layout kept in files of their own and used in it by name, as often as you like.
-- More panel types (markdown, diff, transcript, config), and layouts per project.
-- Panels opened at will rather than only from the file, and panels that belong to one project while others stay the same everywhere.
-- A terminal panel's shells listed from its icon on a strip, to reach one in a folded group, and marked on their tabs while a command runs and when it ends out of sight.
-- Minimize-to-tray.
-- Telling you when a session fails to start, instead of leaving the terminal to explain it.
-- History: file changes under their tool calls (the diffs behind Edit and Write, and claude's result summaries), syntax colouring in code blocks, another look at its type, and tuning the bar and its loupe.
-- History: search within it, and one list of every pin across sessions, with a way to clear pins no session opens any more.
-- History: reading a session's history without starting it, from the session list, and showing an entry in claude's own view as well as the app's.
-- History: claude's tool use quieter still than folding edits in with reads and commands, such as tool lines drawn quieter, and folds that start open or shut by kind or remember which you opened.
-- A taskbar attention nudge requires a native Windows build; parked while the app runs under WSLg.
 
 ## Panels
 
@@ -168,7 +139,7 @@ The sizes you drag to, the groups you fold and the panel you pick in a group are
 ```
 
 To keep one for good, move its field into your file; a `size` you change in your file counts at once for a node you have not dragged.
-A group with several panels switches between them from a strip of icons on its edge: hovering an icon names the panel, and a dot on it says a command failed or a session is waiting for you.
+A group with several panels switches between them from a strip of icons on its edge: hovering an icon names the panel, and a dot on it says a run failed, or a session is waiting for you or needs you.
 Clicking the icon of the panel on show folds a group that can fold, and clicking any icon of a folded group unfolds it on that panel.
 
 Every id, of a node or a panel, is unique in the file and uses lowercase letters, digits, hyphens and underscores.
@@ -313,7 +284,6 @@ For example:
 
 There are eleven settings: `launchFlags`, the default flags for every session the app starts, `runningSessionsAtLaunch`, what a launch does with the sessions that were running when the app closed, `prStatus`, whether the app asks GitHub what it says of the PRs your sessions link, `leaveButton`, what the button beside a session's menu on its tab does, `setAside`, the choices for setting a session aside, `setAsideTime`, the time of day a choice without one comes back at, `locale`, the language the app formats times and dates in, `strength`, which state a session's dot shows when several hold, `looks`, how each state is drawn, `needsYou`, what you change of the reasons that mark a session as needing you ([What needs you](#what-needs-you)), and `approvals`, how many approvals a repository's PRs need.
 `runningSessionsAtLaunch` is `"cold"` until you choose otherwise, which brings their tabs back without starting them, and `"start"` starts them again; either way they are marked as needing you, unless you switch that off (below).
-`"mark"`, `"pause"` and `"leave"`, which a file an older version wrote may hold, read as `"cold"`.
 `prStatus` is `true` until you choose otherwise, which colours each session's PR mark by what GitHub says, asked with `gh` on your own login, and lets a session be marked as needing you when one of its PRs changes, such as merged or changes requested; `false` asks nothing, the marks keep one colour and no PR marks a session, and turning it on again starts from the PRs as they are then.
 `leaveButton` is `"stop-close"` until you choose otherwise, which stops a running session and, with a press once it has stopped, closes the tab, and `"stop-finish"` marks its session finished with that press instead; `"close"` and `"finish"` do it in one press, asking claude to leave first, and `"none"` takes the button away, leaving it to the tab's menu; it is the button on the tab, and a middle-click on the tab, which does nothing with `"none"`.
 `setAside` is `["tomorrow", "in 1w", "whenever"]` until you choose otherwise, a list of choices, each `"whenever"`, `"in 30m"` or `"in 2h"` from the moment you press it, `"in 3d"` or `"in 1w"`, `"tomorrow"`, or `"next monday"` (or `"next mon"`), the first such day after today; a choice with a day may end in a time, such as `"next monday 08:00"`, and otherwise comes back at `setAsideTime`.
@@ -369,13 +339,13 @@ New commits since your review mark once per review: a second push before you rev
 To be marked when a PR you review is ready to merge, `"pr.approved": { "roles": ["own", "reviewing"] }` in `needsYou` adds that role.
 Every field you leave out stays as the app ships it, so a later version's change to it still reaches you; a `needsYou` with a mistake in any entry is not used at all, every category and type then as the app ships it, and Settings names the mistake in its Needs you section.
 That section lists every category and type as they stand, each with its id and its look, which are off, which PRs a PR's type fires for, and what `needsYou` changed; Settings' Appearance section lists the strength order in force the same way.
-Claude asking and claude ready are shown by its dot whatever these say: their types are for the Now view to come.
+Claude asking and claude ready are shown by its dot whatever these say.
 
 ## Install a build
 
 The app runs the real `claude` CLI, so **install and sign in to Claude Code first** — without it every session opens on "command not found".
 
-Builds are not published anywhere: ask for the file.
+Builds are on the repository's [Releases](https://github.com/ortho-code/claude-ui/releases) page.
 The version you are running is in the window title, which is what to quote in a bug report.
 
 Send the log along with it: **Settings → Logs → Open** shows the folder, `~/.config/claude-ui/logs/` on Linux and `~/Library/Logs/Claude UI/` on macOS.
@@ -413,11 +383,10 @@ It has no install or upgrade step, so updating means replacing the file yourself
 
 ## Run from source
 
-- WSL 2 with WSLg.
-  The app and `claude` both run inside the Linux distribution.
+- Linux or macOS, or Windows through WSL 2 with WSLg, where the app and `claude` both run inside the Linux distribution.
 - Node, managed by [mise](https://mise.jdx.dev).
   Run `mise install` once.
-- A C toolchain for the native terminal module: `sudo apt-get install build-essential`.
+- A C toolchain for the native terminal module: `sudo apt-get install build-essential` on Debian or Ubuntu, `xcode-select --install` on macOS.
 
 ```bash
 mise install
@@ -445,7 +414,7 @@ Tagging a version runs CI's checks on it, then builds both on CI and publishes t
 - `src/renderer/state` — the store the window's surfaces share, and what more than one of them reads from it.
 - `src/renderer/panels` — the layout tree and the panel types: `panels/types/sessions` (the sidebar), `panels/types/claude` (the terminal area), and the others.
 - `src/shared` — types and pure helpers shared by both sides, and main's rules the window's checks answer with.
-- `test/` — the tests: unit tests in `test/unit/`, mirroring `src/`, the rules every comment and doc keeps in `test/text/`, and the window's checks in `test/renderer/`, filed by the panel they check.
+- `test/` — the tests: unit tests in `test/unit/`, mirroring `src/`, the rules every comment and doc keeps in `test/text/`, and the window's checks in `test/renderer/`, filed by the panel or surface they check.
 - `docs/` — architecture and design notes.
 
 ## License

@@ -33,7 +33,7 @@ One JSON object, which may carry comments (`//` and `/* */`) and trailing commas
 | `title` | What a panel of the type is called when its layout entry gives no `title`; the entry's id without either. |
 | `icon` | Its icon on a strip of icons, by name from the app's set (see the README's Panels section); `list` without one. |
 | `run` | Required: the script, a path relative to the type's folder and inside it, and executable. |
-| `interval` | How often a panel of the type runs again on its own, as `30s`, `5m` or `1h`, from `10s` to `24h`; only on show and on Refresh without one. |
+| `interval` | How often a panel of the type runs again on its own, as `30s`, `5m` or `1h`, from `10s` to `24h`; without one it runs only at the other moments [What the app does with it](#what-the-app-does-with-it) lists. |
 | `options` | Settings of the type's own, which a layout entry gives under `options` and the script gets as variables. |
 
 `kind` is one of: `list`.
@@ -43,8 +43,8 @@ A `list` type's script prints a list, and the app draws it.
 
 | Field | Meaning |
 |---|---|
-| `name` | Lowercase letters, digits and underscores, starting with a letter; the script gets it as `CLAUDE_UI_OPTION_<NAME>`. `cwd`, `interval` and `watch` are the kind's own and cannot be declared. |
-| `kind` | What the value is. |
+| `name` | Required: lowercase letters, digits and underscores, starting with a letter; the script gets it as `CLAUDE_UI_OPTION_<NAME>`. `cwd`, `interval` and `watch` are the kind's own and cannot be declared. |
+| `kind` | Required: what the value is. |
 | `fields` | For a `list`: what each item holds, each declared as an option is, by `name` and `kind`; an item is then an object of them. A `list` without `fields` holds texts. |
 
 An option's `kind` is one of: `text`, `list`.
@@ -69,7 +69,7 @@ The layout file uses the type by its name, and its entry's `options` take the ty
 { "id": "commits", "type": "commits", "options": { "count": "10", "interval": "5m" } }
 ```
 
-`cwd` is where the script runs: without one, where the active tab's session works, the checkout it last changed a file in, or the selected project's root when no tab is open, which the panel's header names; an absolute path or one under `~/` is fixed, whatever is selected; a relative one is under that same folder, so it follows the project.
+`cwd` is where the script runs: without one, where the active tab's session works, the checkout picked for it from its worktree list or else the checkout it last changed a file in, or the selected project's root when no tab is open, which the panel's header names; an absolute path or one under `~/` is fixed, whatever is selected; a relative one is under that same folder, so it follows the project.
 A `list` is written as one, here for the `actions` declared above:
 
 ```json
@@ -91,7 +91,7 @@ It runs through your login shell, the same one your sessions run in, so `PATH` i
 
 | Variable | Value |
 |---|---|
-| `CLAUDE_UI_PROJECT_ROOT` | the selected project's repo root, empty without one |
+| `CLAUDE_UI_PROJECT_ROOT` | the repo root of the active tab's session, else of the selected project; empty without either |
 | `CLAUDE_UI_CWD` | the folder the script runs in |
 | `CLAUDE_UI_SESSION_ID` | the active tab's session, empty without one |
 | `CLAUDE_UI_CONFIG_ROOT` | the config folder |
@@ -219,15 +219,15 @@ One JSON object:
 
 The first view is the one shown until another is picked.
 A pick is kept for the panel on this machine, as a group's picked panel is, and its layout entry's `view` says which one it shows without one, an edit of it showing from the panel's next run.
-An entry naming a view the list does not offer is said under the panel.
+An entry naming a view the list does not offer is a note on the group's note line, and the list's first view shows until another is picked.
 
 ### A section
 
 | Field | Meaning |
 |---|---|
 | `title` | A heading, which folds the section away and back. |
-| `shut` | `true` starts it folded; only a section with a `title` can fold. |
-| `tooltip` | What hovering its heading shows, such as all of what the title shortens, its line breaks kept; only a section with a `title` has a heading. |
+| `shut` | `true` starts it folded; on a section without a `title` it is a mistake, since only a heading can fold. |
+| `tooltip` | What hovering its heading shows, such as all of what the title shortens, its line breaks kept; on a section without a `title` it is a mistake, since there is no heading to hover. |
 | `empty` | What it says when it has no items. |
 | `items` | Required: its rows, in order. |
 
@@ -249,7 +249,7 @@ An entry naming a view the list does not offer is said under the panel.
 | `tone` | How the row is marked. |
 | `actions` | What the row offers, at its end: the first as many as the list's `buttons` says as buttons, in order, and the rest in a menu behind a ⋮ after them, by their `label`. |
 | `children` | Rows under this one, as items, drawn a step further in, which it folds away and back from a chevron, or from a press on it outside its buttons, its marks and its parts with a `press`, when it has no `press` of its own; a section's count counts the rows that hold none. |
-| `shut` | `true` starts the row folded; only a row with `children` can fold. |
+| `shut` | `true` starts the row folded; on a row without `children` it is a mistake, since they are what it folds. |
 
 `tone` is one of: `normal`, `attention`, `positive`, `muted`, `danger`.
 `attention`, `positive` and `danger` mark the row's leading edge in the waiting, ready and failed colours (yellow, green and red), and `muted` dims it.
@@ -354,8 +354,8 @@ A field the app does not know is ignored, so a script written for a later versio
 
 ## What the app does with it
 
-A panel runs its script when it is first shown, on Refresh, when you switch project or tab if its folder moves with them and it has run before, and on its `interval`, when its last run said (`next`, above), or when what it watches changes, any of which also runs while it is out of sight so the count on its icon stays current.
-A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why; without one, the panel says it is unavailable, quoting stderr.
+A panel runs its script when it is first shown, or with an interval as soon as it is placed, shown or not; on Refresh; when you switch project or tab if its folder moves with them and it has run before; and on its `interval`, when its last run said (`next`, above), or when what it watches changes, any of which also runs while it is out of sight so the count on its icon stays current.
+A run that fails, or prints something that is not a list, never shows as an empty list: with a list already there, the list stays under a line saying when the run failed and why; without one, the panel says it is unavailable, quoting stderr for a run that failed and every mistake for a list that breaks a rule.
 Before the first run has ended it says it is waiting.
 
 A `session` opens the app's own dialog, which says which panel asks and about what: the project, the one the panel runs in first; the group, the one last picked from that panel there first; the name and the prompt, both to change.
