@@ -139,7 +139,7 @@ export function createProjectSection(name: string): ProjectSectionEls {
   return { section, heading, caret, count, icon, label, groupsBtn, addCaret, addBtn: add, allFinishedLine };
 }
 
-// Build a group's sub-section once: a heading (lighter than the project's — no divider, not sticky) over an indented well that holds its rows.
+// Build a group's sub-section once: a heading (lighter than the project's, no divider, and sticky under it) over an indented well that holds its rows.
 // Contents are updated on later renders.
 export function createGroupSection(id: string): GroupSectionEls {
   const section = document.createElement('section');

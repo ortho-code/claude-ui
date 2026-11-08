@@ -100,15 +100,17 @@ export function revealGroup(repoRoot: string, groupId: string | null): void {
   unfold('projects', repoRoot);
   if (groupId !== null) unfold('groups', groupId);
 
-  // A group jumps to its heading; the ungrouped remainder has none, so it jumps to its first row — which is the one carrying .after-groups, the class that marks where the loose rows begin.
-  const target: HTMLElement | null | undefined =
+  // A group lands at its section's top and flashes its heading: the heading is sticky, so where it is drawn is not where the group starts — pinned already from inside the group, at the group's end from below it.
+  // The ungrouped remainder has no heading, so it lands on and flashes its first row, the one carrying .after-groups, the class that marks where the loose rows begin.
+  const group = groupId !== null ? groupSections.find(groupId) : undefined;
+  const landing: HTMLElement | null | undefined =
     groupId !== null
-      ? groupSections.find(groupId)?.heading
+      ? group?.section
       : els.section.querySelector<HTMLElement>(':scope > .session.after-groups') ??
         els.section.querySelector<HTMLElement>(':scope > .session');
-  if (!target) return;
+  if (!landing) return;
 
   const offset = els.heading.getBoundingClientRect().height;
-  container.scrollTop += target.getBoundingClientRect().top - container.getBoundingClientRect().top - offset;
-  flash(target);
+  container.scrollTop += landing.getBoundingClientRect().top - container.getBoundingClientRect().top - offset;
+  flash(group?.heading ?? landing);
 }

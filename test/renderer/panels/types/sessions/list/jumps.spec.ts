@@ -85,3 +85,39 @@ test('the jump menu works while a filter is on, and a pick unfolds a group folde
   await expect(group(page, 'Alpha')).not.toHaveClass(/\bcollapsed\b/);
   await expect(row(page, inAlpha.title)).toBeInViewport();
 });
+
+/** Picks `name` in the demo project's jump menu. */
+async function jumpTo(page: Page, name: string): Promise<void> {
+  await jumpButton(page, 'demo').click();
+  await page.locator('.kebab-menu button', { hasText: name }).click();
+}
+
+/** Asserts the jump landed Beta's heading right under the project heading, with its first row in view below it. */
+async function expectAtBetasTop(page: Page): Promise<void> {
+  const projectBottom = await projectHeading(page, 'demo').evaluate((heading) => heading.getBoundingClientRect().bottom);
+  const headingBox = await groupHeading(page, 'Beta').evaluate((heading) => heading.getBoundingClientRect().toJSON() as DOMRect);
+  expect(Math.abs(headingBox.top - projectBottom)).toBeLessThanOrEqual(1);
+  const first = row(page, inBeta[0].title);
+  await expect(first).toBeInViewport();
+  const firstTop = await first.evaluate((each) => each.getBoundingClientRect().top);
+  expect(firstTop).toBeGreaterThanOrEqual(headingBox.bottom - 1);
+}
+
+// A group's heading is sticky, so where it is drawn is not where its group starts: from inside the group it is already pinned, and from below the group it is pinned at the group's end.
+test("a jump from inside a group lands at the group's top", async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, inBeta[15].title).evaluate((each) => each.scrollIntoView({ block: 'start' }));
+  await expect(row(page, inBeta[0].title)).not.toBeInViewport();
+
+  await jumpTo(page, 'Beta');
+  await expectAtBetasTop(page);
+});
+
+test("a jump from below a group lands at the group's top", async ({ app, page }) => {
+  await app.boot(fixture);
+  await row(page, loose.title).evaluate((each) => each.scrollIntoView({ block: 'start' }));
+  await expect(row(page, inBeta[0].title)).not.toBeInViewport();
+
+  await jumpTo(page, 'Beta');
+  await expectAtBetasTop(page);
+});

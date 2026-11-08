@@ -276,6 +276,7 @@ Anything you have to DO when upgrading is in [UPGRADING.md](UPGRADING.md) instea
 - A time field's clock, and a checkbox or a radio button, are drawn for a dark window, where the clock was black on the dark field.
 - The month in the date filter's calendar no longer sits low in its popover.
 - A PR that sessions spell with different capitals, such as `ScientaNL/Scienta` and `ScientaNL/scienta`, is asked about once, and its change marks every session linking it, instead of only those spelling it one way.
+- A jump to a group lands at the group's first row from anywhere in the list, where from inside the group it stayed put and from below it landed at the group's end.
 
 ## 0.3.0 — 2026-08-29
 
