@@ -24,7 +24,7 @@ export function jumpToSession(session: SessionSummary, launch: Pick<TabLaunch, '
   void openSession(session, launch);
   // Scope alone isn't enough to SEE it: the row can sit inside a collapsed group or project.
   // Reveal the same way clicking a tab does — jumping to a sibling filed in another group is exactly the case where scoping to the project still leaves the row hidden.
-  host.revealSession(session.id);
+  host.followSession(session.id);
 }
 
 /**

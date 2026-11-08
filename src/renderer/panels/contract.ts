@@ -129,8 +129,8 @@ export interface Asks {
   // Answered by the session list.
   /** Select a project, or All for null, as the switcher does. */
   selectProject(repoRoot: string | null): void;
-  /** Bring a session's row into view, unfolding what hides it. */
-  revealSession(id: string): void;
+  /** Keep the list in step with a session gone to elsewhere, such as by a tab's click: its row unfolded and scrolled to, wherever the list itself stands. */
+  followSession(id: string): void;
   /** Bring a project's heading into view, unfolding it. */
   revealProject(repoRoot: string): void;
   /** Bring a group's heading into view, or the project's rows in no group for null, and flash it. */

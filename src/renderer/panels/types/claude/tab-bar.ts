@@ -245,7 +245,7 @@ function buildSessionTab(token: string): SessionTabEls {
     select: () => {
       activateTab(token);
       const shown = tabOf(token);
-      if (shown) hostOf('claude').revealSession(shown.session.id);
+      if (shown) hostOf('claude').followSession(shown.session.id);
     },
     // Two presses, and which one this is shows in the mark: stop a running session, then close the tab it leaves behind, or mark its session finished; or one, or no button at all, as the settings say.
     // See pressTabButton.
